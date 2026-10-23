@@ -126,15 +126,17 @@ export async function findEngineWork(
             UNION
             SELECT cl.self_competitor_id, cl.vertical_id FROM client cl WHERE cl.self_competitor_id IS NOT NULL
           ), base AS (
-            SELECT r.id, r.competitor_id, r.posted_at FROM review r
+            -- text_sha = sha256Hex(text), as analyzeReview stores it (hex of the UTF-8 bytes).
+            SELECT r.id, r.competitor_id, r.posted_at, encode(sha256(convert_to(r.text, 'UTF8')), 'hex') AS text_sha FROM review r
             WHERE r.text IS NOT NULL AND length(regexp_replace(r.text, '^\\s+|\\s+$', '', 'g')) >= ${MIN_REVIEW_CHARS}::int
               AND r.posted_at >= ${now}::timestamptz - make_interval(days => ${REVIEW_ANALYSIS_DAYS}::int) ${only('r.competitor_id')}
               AND EXISTS (SELECT 1 FROM stage_run s WHERE s.stage = ${REVIEW_STAGE} AND s.stage_version = ${REVIEW_VERSION}::int
                           AND s.subject_id = md5(r.id::text || '|' || r.text)::uuid AND s.status = 'done')
           ), gap_a AS (
+            -- (a) only on rows of the current text; a stale row (older text_sha, R5) is a (b) gap below.
             SELECT b.id, b.posted_at
             FROM base b
-            JOIN review_analysis ra ON ra.review_id = b.id
+            JOIN review_analysis ra ON ra.review_id = b.id AND ra.text_sha = b.text_sha
             JOIN cv ON cv.competitor_id = b.competitor_id AND cv.vertical_id = ra.vertical_id
             JOIN vertical v ON v.id = ra.vertical_id
             LEFT JOIN vertical g ON g.id = 'generic'
@@ -149,7 +151,7 @@ export async function findEngineWork(
                                WHERE NOT (ra.asked ? (t ->> 'id'))))
           ), gap_b AS (
             SELECT b.id, b.posted_at FROM base b JOIN cv ON cv.competitor_id = b.competitor_id
-            WHERE NOT EXISTS (SELECT 1 FROM review_analysis ra WHERE ra.review_id = b.id AND ra.vertical_id = cv.vertical_id)
+            WHERE NOT EXISTS (SELECT 1 FROM review_analysis ra WHERE ra.review_id = b.id AND ra.vertical_id = cv.vertical_id AND ra.text_sha = b.text_sha)
           )
           SELECT id FROM (SELECT id, posted_at FROM gap_a UNION SELECT id, posted_at FROM gap_b) gaps
           ORDER BY posted_at DESC, id LIMIT ${room}`),

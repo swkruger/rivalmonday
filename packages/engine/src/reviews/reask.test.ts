@@ -1,5 +1,6 @@
 import { client, clientCompetitor, competitor, review, reviewAnalysis, topicProposal, vertical } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { sha256Hex } from '@cs/collectors';
 import { createMemoryStore } from '@cs/storage';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -239,6 +240,13 @@ describe('re-ask (15b-3b §5)', () => {
     expect(await sweep()).toEqual([]);
   });
 
+  it("the sweep's SQL text hash equals sha256Hex (stale-row check)", async () => {
+    const text = 'Caf\u00e9 \u201cgreat\u201d \u2014 na\u00efve \u{1F44D} service\nline two';
+    const r = await seedReview({ text });
+    const [row] = (await dbs.owner.execute(sql`SELECT encode(sha256(convert_to(text, 'UTF8')), 'hex') AS h FROM review WHERE id = ${r}::uuid`)) as unknown as { h: string }[];
+    expect(row!.h).toBe(sha256Hex(text));
+  });
+
   it('(a) keeps analyzed_at, sentiment, other, analysis_version', async () => {
     const r = await seedReview();
     await analyse(r, { topics: ['price_transparency'], sentiment: 1, other: false });
@@ -339,6 +347,15 @@ describe('re-ask (15b-3b §5)', () => {
     const u = await addCompetitor('Umber'); // stale row of a re-tracked vertical → asked once (R5)
     await track(IDS.clientA1, u);
     await track(IDS.clientA2, u);
+    const t = await addCompetitor('Teal'); // stale row of a re-tracked vertical, no trigger at all → still asked once (R5)
+    await track(IDS.clientA1, t);
+    await track(IDS.clientA2, t);
+    const staleQuiet = await seedReview({ competitorId: t });
+    await analyse(staleQuiet, {}, 10); // every seed asked, analysed after every edit and approval
+    await untrack(IDS.clientA2, t);
+    await dbs.service.update(review).set({ text: 'Edited: quiet update, still a fine visit.' }).where(eq(review.id, staleQuiet));
+    await analyzeReview({ db: dbs.service, ai: createFakeAi({ decide: reviewResult({}) }), packs }, staleQuiet);
+    await track(IDS.clientA2, t);
     const staleRow = await seedReview({ competitorId: u });
     await analyse(staleRow, { needsReview: [waitTime] }, 60);
     await untrack(IDS.clientA2, u);
@@ -351,9 +368,9 @@ describe('re-ask (15b-3b §5)', () => {
     await untrack(IDS.clientA2, v);
 
     const swept = (await sweep()).sort();
-    expect(swept).toEqual([approvedAfter, editMissing, inheriting, newVertical, staleRow].sort());
+    expect(swept).toEqual([approvedAfter, editMissing, inheriting, newVertical, staleRow, staleQuiet].sort());
     const jsGap: string[] = [];
-    for (const id of [approvedAfter, approvedBefore, editMissing, editComplete, inheriting, newVertical, removed, staleRow]) {
+    for (const id of [approvedAfter, approvedBefore, editMissing, editComplete, inheriting, newVertical, removed, staleRow, staleQuiet]) {
       if ((await reask(id).run).questions > 0) jsGap.push(id);
     }
     expect(jsGap.sort()).toEqual(swept);
