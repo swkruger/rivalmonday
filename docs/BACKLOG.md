@@ -131,6 +131,10 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Unscheduled: product tour (Overview, Portfolio); agency help override editor; cross-device pinned/recent clients; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge — *phase-15 decisions*
 - [ ] Unscheduled (15b): console editor for platform guides; help-usage analytics; first-visit "new" hints — *phase-15b*
 
+## Design system v1 implementation (owner mandate 2026-10-23)
+- [ ] **Next phase candidate:** `/rm-kickoff design-system`. Migrate the app to `docs/design-system/` following `09-ai-implementation-playbook.md` § 9 (11 PRs: tokens → primitives → new primitives → container sweep → shell + PageHeader → Overview slice (owner review) → workspace pages → detail/settings → Friday + briefs → responsive → lock-in). 153 Card/shadow-card usages mapped. Coordinate with **15c-2** (same files). — *design-system*
+- [ ] Validate the responsive proposal (D-23: drawer < 1024, bottom tab bar < 768) with 3–5 pilot owners on phones before PR 10. — *design-system*
+
 ## Polish (small UI/UX fixes, any time)
 - [ ] `docs/OPS.md:9` says "Latest migration `0037`" (stale) — *phase-15b3*
 

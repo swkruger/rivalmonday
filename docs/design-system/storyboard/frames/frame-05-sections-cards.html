@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 5 · Content sections &amp; cards</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .board { display: grid; grid-template-columns: 460px 1fr; gap: var(--space-12); }
+  .col > .ex + .ex { margin-top: var(--space-10); }
+  .ex-label { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .ex-label .caption { font-weight: 600; }
+  .dl { display: grid; grid-template-columns: 1fr auto; row-gap: var(--space-2); font-size: 14px; }
+  .dl > :nth-child(odd) { color: var(--color-text-muted); font-size: 13px; }
+  .stand { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-4); margin-top: var(--space-3); }
+  .stand .v { font-size: 18px; line-height: 26px; font-weight: 600; }
+  .cardgrid .rm-card { gap: var(--space-3); }
+  .cardgrid .top { display: flex; align-items: flex-start; gap: var(--space-2_5); }
+  .cardgrid .top .rm-check { margin-left: auto; margin-top: 2px; }
+  .cardgrid .stats { display: flex; justify-content: space-between; gap: var(--space-2); white-space: nowrap; font-size: 12px; color: var(--color-text-secondary); }
+  .cardgrid .rm-card .rm-btn { align-self: flex-start; margin-top: auto; }
+  .rm-card.is-picked { border-color: var(--color-brand-secondary); background: var(--color-background-selected); }
+  .dont { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); background: var(--color-background-surfaceSubtle); }
+  .dont .rm-card { box-shadow: var(--shadow-overlay); }
+  .dont .rm-card .rm-card { padding: var(--space-2_5); }
+  .dont .x1, .dont .x2 { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--color-state-danger); opacity: .55; }
+  .dont .x1 { transform: rotate(10deg); } .dont .x2 { transform: rotate(-10deg); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 5</span><h1>Content sections &amp; cards</h1><span class="q">Four containers, used in this order of preference: section, band, frame, card.</span><span class="tag">Desktop 1440 × 1100 · Client view</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:1100px">
+  <div class="rm-app" style="min-height:1100px;height:1100px">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-chat"></span><span>Ask Friday</span></a>
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item"><span class="i i-file"></span><span>Weekly briefs</span></a>
+        <a class="rm-nav-item"><span class="i i-inbox"></span><span>Alerts</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Monitor</div>
+        <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Competitors</span><span class="count">6</span></a>
+        <a class="rm-nav-item"><span class="i i-globe"></span><span>Website changes</span></a>
+        <a class="rm-nav-item"><span class="i i-megaphone"></span><span>Ads</span></a>
+        <a class="rm-nav-item"><span class="i i-star"></span><span>Reviews</span></a>
+        <a class="rm-nav-item"><span class="i i-pin"></span><span>Local rankings</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Client</div>
+        <a class="rm-nav-item"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet">
+      <div class="rm-page"><div class="rm-page-inner">
+        <div class="rm-breadcrumb"><a>Summit Plumbing &amp; Air</a><span class="sep">/</span><span>Competitors</span></div>
+        <div class="rm-pagehead">
+          <div>
+            <h1>Competitors</h1>
+            <p class="desc">Six businesses Friday watches for Summit, and who else might be worth tracking.</p>
+          </div>
+          <div class="actions">
+            <button class="rm-btn secondary"><span class="i i-download"></span>Export</button>
+            <button class="rm-btn primary"><span class="i i-plus"></span>Add competitor</button>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="col">
+            <!-- 1 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">1</span><span class="caption">Section on white — heading only</span></div>
+              <section class="rm-section">
+                <div class="rm-section-head"><div><h2>Market snapshot</h2><p class="desc">Denver HVAC &amp; plumbing, 6 tracked businesses.</p></div></div>
+                <p class="secondary-text">Summit sits third on average map rank (3.4) behind BlueRidge (2.1) and Apex (3.0), but has the second-highest rating in the set at 4.7.</p>
+              </section>
+            </div>
+            <!-- 2 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">2</span><span class="caption">Sections separated by spacing (40px)</span></div>
+              <div class="two">
+                <section class="rm-section">
+                  <div class="rm-section-head"><div><h2>Ratings</h2><p class="desc">Google, this week</p></div></div>
+                  <div class="dl"><span>Summit</span><span class="num">4.7</span><span>BlueRidge</span><span class="num">4.6</span><span>Apex Comfort Pros</span><span class="num">4.4</span></div>
+                </section>
+                <section class="rm-section" style="margin-top:0">
+                  <div class="rm-section-head"><div><h2>New reviews</h2><p class="desc">Oct 19 – 25</p></div></div>
+                  <div class="dl"><span>Summit</span><span class="num">12</span><span>BlueRidge</span><span class="num">9</span><span>Apex Comfort Pros</span><span class="num">4</span></div>
+                </section>
+              </div>
+            </div>
+            <!-- 3 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">3</span><span class="caption">Sections separated by a rule (.rm-section.ruled)</span></div>
+              <section class="rm-section ruled">
+                <div class="rm-section-head"><div><h2>Pricing moves</h2></div><div class="actions"><a class="rm-btn ghost sm">View all<span class="i i-arrow-right"></span></a></div></div>
+                <p class="secondary-text"><b>Rapid Rooter Co.</b> dropped drain cleaning from $129 to $99 <span class="rm-cite"><span class="i i-globe"></span>Pricing page · Oct 19</span></p>
+              </section>
+              <section class="rm-section ruled">
+                <div class="rm-section-head"><div><h2>Content moves</h2></div><div class="actions"><a class="rm-btn ghost sm">View all<span class="i i-arrow-right"></span></a></div></div>
+                <p class="secondary-text"><b>Cascade HVAC Services</b> published "Heat pump rebates 2026" <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span></p>
+              </section>
+            </div>
+            <!-- 4 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">4</span><span class="caption">Subtle band (.rm-band) for a summary</span></div>
+              <div class="rm-band">
+                <div class="row"><b>Where you stand</b><span class="muted" style="font-size:13px">· quiet week for Summit</span></div>
+                <div class="stand">
+                  <div><div class="caption">Rating rank</div><div class="v">2nd <span class="muted" style="font-size:13px;font-weight:400">of 7</span></div></div>
+                  <div><div class="caption">Review velocity</div><div class="v">1st <span class="muted" style="font-size:13px;font-weight:400">12 / wk</span></div></div>
+                  <div><div class="caption">Avg. map rank</div><div class="v">3rd <span class="muted" style="font-size:13px;font-weight:400">3.4</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <!-- 5 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">5</span><span class="caption">Card grid — independent, selectable objects only</span></div>
+              <section class="rm-section">
+                <div class="rm-section-head"><div><h2>Suggested competitors to track</h2><p class="desc">Found by discovery on Oct 18. Pick the ones worth watching.</p></div><div class="actions"><span class="muted" style="font-size:13px">1 selected</span></div></div>
+                <div class="rm-grid c3 cardgrid">
+                  <div class="rm-card is-picked">
+                    <div class="top"><span class="rm-avatar biz">MH</span><div><h3>Mile High Mechanical</h3><span class="caption">milehighmech.com</span></div><span class="rm-check is-on" role="checkbox" aria-checked="true"></span></div>
+                    <div class="stats"><span class="num">★ 4.5 · 203 reviews</span><span class="num">Rank 4.1</span></div>
+                    <span class="rm-tier watch">Worth watching</span>
+                  </div>
+                  <div class="rm-card is-link">
+                    <div class="top"><span class="rm-avatar biz">AC</span><div><h3>Aurora Comfort Co.</h3><span class="caption">auroracomfort.com</span></div><span class="rm-check" role="checkbox" aria-checked="false"></span></div>
+                    <div class="stats"><span class="num">★ 4.3 · 118 reviews</span><span class="num">Rank 5.6</span></div>
+                    <span class="rm-tier minor">Minor</span>
+                  </div>
+                  <div class="rm-card is-link">
+                    <div class="top"><span class="rm-avatar biz">PR</span><div><h3>Peak Rooter &amp; Drain</h3><span class="caption">peakrooter.com</span></div><span class="rm-check" role="checkbox" aria-checked="false"></span></div>
+                    <div class="stats"><span class="num">★ 4.0 · 61 reviews</span><span class="num">Rank 7.9</span></div>
+                    <span class="rm-tier minor">Minor</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <!-- 6 -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-count">6</span><span class="caption">Functional frame — table with toolbar inside a mixed page</span></div>
+              <div class="rm-frame">
+                <div class="rm-frame-head"><h3>Tracked competitors</h3><span class="rm-count">6</span><span class="spacer"></span><span class="rm-input-search" style="width:200px"><span class="i i-search"></span>Search</span><button class="rm-btn secondary sm"><span class="i i-filter"></span>Filter</button></div>
+                <table class="rm-table is-compact">
+                  <thead><tr><th>Competitor</th><th>Tier</th><th class="num">Rating</th><th class="num">Reviews</th><th class="num is-sorted">Avg. map rank <span class="i i-arrow-up"></span></th></tr></thead>
+                  <tbody>
+                    <tr><td class="primary-cell">BlueRidge Heating &amp; Cooling</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.6</td><td class="num">412</td><td class="num">2.1</td></tr>
+                    <tr><td class="primary-cell">Apex Comfort Pros</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.4</td><td class="num">288</td><td class="num">3.0</td></tr>
+                    <tr><td class="primary-cell">Valley Drain Masters</td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">4.2</td><td class="num">167</td><td class="num">4.8</td></tr>
+                    <tr><td class="primary-cell">Rapid Rooter Co.</td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">3.9</td><td class="num">96</td><td class="num">6.2</td></tr>
+                  </tbody>
+                </table>
+                <div class="rm-frame-foot">Showing 4 of 6<span class="spacer"></span><a class="rm-btn ghost sm">Open Competitors table<span class="i i-arrow-right"></span></a></div>
+              </div>
+            </div>
+            <!-- DON'T -->
+            <div class="ex">
+              <div class="ex-label"><span class="rm-badge danger"><span class="i i-x"></span>Don't</span><span class="caption">Card soup — nested cards with shadows</span></div>
+              <div class="dont" aria-hidden="true">
+                <div class="rm-card"><h3>Ratings</h3><div class="rm-card"><span class="caption">Summit</span><b>4.7</b></div></div>
+                <div class="rm-card"><h3>Reviews</h3><div class="rm-card"><span class="caption">This week</span><b>12</b></div></div>
+                <span class="x1"></span><span class="x2"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </main>
+  </div>
+  <span class="pin abs" style="left:248px;top:181px">1</span>
+  <span class="pin abs" style="left:248px;top:351px">2</span>
+  <span class="pin abs" style="left:248px;top:557px">3</span>
+  <span class="pin abs" style="left:248px;top:863px">4</span>
+  <span class="pin abs" style="left:748px;top:181px">5</span>
+  <span class="pin abs" style="left:748px;top:465px">6</span>
+  <span class="pin abs" style="left:748px;top:808px">7</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Section is the default.</b> A 16px heading and muted description directly on the white sheet. No border, no fill — the sheet is already the container.<span class="ref">O01, O10 Plain · B10 Bonsai · D-01</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Space separates first.</b> Sibling sections are split by 40px of whitespace; side-by-side sections by a 24px column gap. Try this before adding any line.<span class="ref">O10 Plain reporting · D-01, D-05</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Rules for long, same-kind lists.</b> <code>.ruled</code> adds a 1px hairline + 32px above when many peer sections stack (briefs, settings).<span class="ref">F10 Linear reading · D-19</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Band = one summary per view.</b> Subtle #F6F9FC fill, 8px radius, no border. Used for "Where you stand" and the Friday summary — never for every block.<span class="ref">O11 Plain AI overview · B01 Stripe · D-01, D-26</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Cards only for pickable objects.</b> Each suggestion is independent, selectable and comparable — that earns a border. Selected = secondary border + soft fill + checkbox; no shadow.<span class="ref">O03 Plain catalogue · P05 Mercury · D-01, D-10</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Frame when a table lives in a mixed page.</b> Header with title, count and tools; subtle header row; footer link to the full table. On its own data page the same table goes flush.<span class="ref">O13 Browserbase · C01 Stripe · D-11</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Never card soup.</b> Cards inside cards, each with a drop shadow, multiply borders and hide hierarchy. Shadows belong to floating layers only.<span class="ref">E15 folk (anti-pattern) · D-01, D-06</span></div>
+</div>
+</div>
+</body>
+</html>

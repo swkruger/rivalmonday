@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Component gallery</title>
+<link rel="stylesheet" href="rm-components.css">
+<style>
+  body { background: var(--color-background-app); }
+  .g { max-width: 1200px; margin: 0 auto; padding: var(--space-8) var(--space-6) var(--space-16); }
+  .g > header h1 { font-size: 24px; line-height: 32px; font-weight: 600; }
+  .g > header p { color: var(--color-text-muted); margin-top: var(--space-1); }
+  .blk { background: var(--color-background-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: var(--space-6); margin-top: var(--space-6); }
+  .blk > h2 { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .blk > .note { font-size: 12px; color: var(--color-text-muted); margin: 2px 0 var(--space-4); }
+  .wrap { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .lab { font-size: 12px; color: var(--color-text-muted); width: 120px; flex: none; }
+  .line + .line { margin-top: var(--space-3); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); }
+</style>
+</head>
+<body>
+<div class="g">
+<header><h1>Component gallery</h1><p>Every component class in <code>rm-components.css</code>, rendered from <code>rm-tokens.css</code>. Illustrative reference for 06-component-catalog.md, not production code.</p></header>
+
+<section class="blk"><h2>Buttons</h2><p class="note">.rm-btn · primary / secondary / ghost / danger / danger-outline / link · sm 28 · md 36 · lg 44 · radius 6</p>
+  <div class="line wrap"><span class="lab">Default</span><button class="rm-btn primary"><span class="i i-plus"></span>Add competitor</button><button class="rm-btn secondary"><span class="i i-download"></span>Export</button><button class="rm-btn ghost">Cancel</button><button class="rm-btn danger-outline">Stop monitoring</button><button class="rm-btn danger"><span class="i i-trash"></span>Delete client</button><a class="rm-btn link">View evidence</a></div>
+  <div class="line wrap"><span class="lab">Hover</span><button class="rm-btn primary is-hover">Save changes</button><button class="rm-btn secondary is-hover">Export</button><button class="rm-btn ghost is-hover">Cancel</button><button class="rm-btn danger is-hover">Delete</button></div>
+  <div class="line wrap"><span class="lab">Focus</span><button class="rm-btn primary is-focus">Save changes</button><button class="rm-btn secondary is-focus">Export</button></div>
+  <div class="line wrap"><span class="lab">Disabled / loading</span><button class="rm-btn primary" disabled>Save changes</button><button class="rm-btn primary" aria-busy="true"><span class="spinner"></span>Saving…</button><button class="rm-btn secondary" disabled>Export</button></div>
+  <div class="line wrap"><span class="lab">Sizes</span><button class="rm-btn primary sm">Small 28</button><button class="rm-btn primary">Medium 36</button><button class="rm-btn primary lg">Large 44</button><button class="rm-btn ghost icon sm" aria-label="More"><span class="i i-more"></span></button><button class="rm-btn secondary icon" aria-label="Filter"><span class="i i-filter"></span></button><span class="rm-btngroup"><button class="rm-btn primary">Run scan now</button><button class="rm-btn primary" aria-label="More scan options"><span class="i i-chev-down"></span></button></span></div>
+  <div class="line wrap"><span class="lab">Friday</span><button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button><span class="rm-friday label">Friday</span></div>
+</section>
+
+<section class="blk"><h2>Status, chips, tags</h2><p class="note">Dot = lifecycle · badge (rect + glyph) = attention · chip (pill) = filter · tag = category · tier mark · delta · citation pill</p>
+  <div class="line wrap"><span class="lab">Dot status</span><span class="rm-dot success">Monitoring</span><span class="rm-dot info">Scanning</span><span class="rm-dot warning">Partial data</span><span class="rm-dot danger">Capture failed</span><span class="rm-dot off">Paused</span></div>
+  <div class="line wrap"><span class="lab">Badge</span><span class="rm-badge success"><span class="i i-check"></span>Verified</span><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span class="rm-badge danger"><span class="i i-x"></span>Failed</span><span class="rm-badge info"><span class="i i-info"></span>New</span><span class="rm-badge"><span class="i i-clock"></span>Queued</span></div>
+  <div class="line wrap"><span class="lab">Filter chip</span><button class="rm-chip is-add"><span class="i i-plus"></span>Add filter</button><button class="rm-chip">Source <span class="i i-chev-down"></span></button><button class="rm-chip is-applied">Tier: <b>Top rival</b><span class="i i-x"></span></button><button class="rm-chip is-selected">HVAC</button></div>
+  <div class="line wrap"><span class="lab">Tag · tier</span><span class="rm-tag">Website</span><span class="rm-tag">Ads</span><span class="rm-tag">Reviews</span><span class="rm-tier top">Top rival</span><span class="rm-tier watch">Worth watching</span><span class="rm-tier minor">Minor</span></div>
+  <div class="line wrap"><span class="lab">Delta · cite · count</span><span class="rm-delta up"><span class="i i-arrow-up"></span>4</span><span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span><span class="rm-delta">0%</span><span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span><span class="rm-count">12</span><span class="rm-unread"></span></div>
+</section>
+
+<section class="blk"><h2>Tabs and segmented control</h2><p class="note">.rm-tabs = navigation between views · .rm-seg = range or view of the same data</p>
+  <nav class="rm-tabs" style="margin-bottom:var(--space-4)"><a class="rm-tab is-active">Overview</a><a class="rm-tab">Changes <span class="count">12</span></a><a class="rm-tab">Ads <span class="count">3</span></a><a class="rm-tab">Reviews <span class="count">412</span></a><a class="rm-tab">Rankings</a></nav>
+  <div class="rm-seg" role="radiogroup"><button class="is-active">This week</button><button>4 weeks</button><button>12 weeks</button></div>
+</section>
+
+<section class="blk"><h2>Form fields</h2><p class="note">Label above · 36px input · border.strong (3:1) · helper or error below · radius 6</p>
+  <div class="two">
+    <div>
+      <div class="rm-field"><label class="rm-label">Business name <span class="req">*</span></label><div class="rm-input">Summit Plumbing &amp; Air</div><span class="rm-help">Shown on briefs and in Friday's answers.</span></div>
+      <div class="rm-field"><label class="rm-label">Website</label><div class="rm-affix"><span class="pre">https://</span><div class="rm-input is-focus">summitplumbingair.com</div></div></div>
+      <div class="rm-field"><label class="rm-label">Owner email <span class="req">*</span></label><div class="rm-input is-invalid">dana@summit</div><span class="rm-error"><span class="i i-alert-circle"></span>Enter a full email address, like dana@summitplumbing.com.</span></div>
+      <div class="rm-field"><label class="rm-label">Account ID</label><div class="rm-input is-disabled">ACC-20931</div></div>
+    </div>
+    <div>
+      <div class="rm-field"><label class="rm-label">Service area</label><div class="rm-select">Denver metro, CO<span class="i i-chev-down"></span></div></div>
+      <div class="rm-field"><span class="rm-label">Services</span><div class="rm-choice"><span class="rm-check is-on"></span>Furnace repair</div><div class="rm-choice"><span class="rm-check is-on"></span>Drain cleaning</div><div class="rm-choice"><span class="rm-check"></span>Water heaters</div></div>
+      <div class="rm-field"><span class="rm-label">Brief frequency</span><div class="rm-choice"><span class="rm-radio is-on"></span><span>Weekly<span class="sub">Every Monday at 7am</span></span></div><div class="rm-choice"><span class="rm-radio"></span><span>Every two weeks</span></div></div>
+      <div class="rm-rows" style="margin-top:var(--space-4)"><div><div><div class="t">Email me new alerts</div><div class="d">Within an hour of capture</div></div><div class="end"><span class="rm-switch is-on" role="switch" aria-checked="true"></span></div></div><div><div><div class="t">Weekly brief digest</div><div class="d">Mondays</div></div><div class="end"><span class="rm-switch" role="switch" aria-checked="false"></span></div></div></div>
+    </div>
+  </div>
+  <div class="rm-savebar" style="margin-top:var(--space-6)">Unsaved changes<div class="right"><button class="rm-btn ghost sm">Discard</button><button class="rm-btn primary sm">Save changes</button></div></div>
+</section>
+
+<section class="blk"><h2>Table (flush) with toolbar, selection, empty state</h2><p class="note">40px rows · hairlines · no zebra · numbers right · bulk bar inverse</p>
+  <div class="rm-toolbar"><span class="rm-input-search"><span class="i i-search"></span>Search competitors</span><button class="rm-chip is-applied">Tier: <b>Top rival</b><span class="i i-x"></span></button><button class="rm-chip is-add"><span class="i i-plus"></span>Add filter</button><a class="rm-btn link">Clear</a><div class="right"><button class="rm-btn ghost sm"><span class="i i-sort"></span>Sort</button><button class="rm-btn secondary sm"><span class="i i-download"></span>Export</button></div></div>
+  <table class="rm-table"><thead><tr><th style="width:28px"><span class="rm-check is-mixed"></span></th><th>Competitor</th><th>Tier</th><th class="num is-sorted">Rating <span class="i i-arrow-down"></span></th><th class="num">Reviews</th><th>Last change</th><th></th></tr></thead>
+  <tbody>
+    <tr class="is-selected"><td><span class="rm-check is-on"></span></td><td class="primary-cell"><span class="row"><span class="rm-avatar biz sm">BR</span>BlueRidge Heating &amp; Cooling</span></td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.6</td><td class="num">412</td><td><span class="rm-dot warning">New ad</span></td><td class="num"><button class="rm-btn ghost icon sm" aria-label="Row actions"><span class="i i-more"></span></button></td></tr>
+    <tr class="is-hover"><td><span class="rm-check"></span></td><td class="primary-cell"><span class="row"><span class="rm-avatar biz sm">AC</span>Apex Comfort Pros</span></td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.4</td><td class="num">288</td><td><span class="rm-dot info">Website edit</span></td><td class="num"><button class="rm-btn ghost icon sm" aria-label="Row actions"><span class="i i-more"></span></button></td></tr>
+    <tr><td><span class="rm-check"></span></td><td class="primary-cell"><span class="row"><span class="rm-avatar biz sm">VD</span>Valley Drain Masters</span></td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">4.2</td><td class="num">167</td><td><span class="rm-dot">No change</span></td><td class="num"><button class="rm-btn ghost icon sm" aria-label="Row actions"><span class="i i-more"></span></button></td></tr>
+  </tbody></table>
+  <div class="rm-pager">3 competitors<div class="right"><button class="rm-btn secondary sm" disabled>Previous</button><button class="rm-btn secondary sm">Next</button></div></div>
+  <div class="wrap" style="margin-top:var(--space-4);justify-content:center"><div class="rm-bulkbar">1 selected<span class="vr"></span><button class="rm-btn ghost sm">Change tier</button><button class="rm-btn ghost sm">Mute</button><button class="rm-btn ghost icon sm" aria-label="Clear selection"><span class="i i-x"></span></button></div></div>
+  <div class="rm-frame" style="margin-top:var(--space-6)"><table class="rm-table"><thead><tr><th>Competitor</th><th>Tier</th><th class="num">Rating</th></tr></thead></table><div class="rm-empty"><span class="i xl i-filter"></span><h3>No competitors match these filters</h3><p>Try removing a filter or searching by website instead.</p><button class="rm-btn secondary sm">Clear filters</button></div></div>
+</section>
+
+<section class="blk"><h2>KPI strip and feed</h2><p class="note">One frame, vertical dividers · delta + caption · feed rows with citation pill and one action</p>
+  <div class="rm-kpis"><div class="rm-kpi"><div class="label">Google rating</div><div class="value">4.7 <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span></div><div class="cap">Market median 4.5</div></div><div class="rm-kpi"><div class="label">New reviews</div><div class="value">12 <span class="rm-delta up"><span class="i i-arrow-up"></span>4</span></div><div class="cap">Top rival: 9</div></div><div class="rm-kpi"><div class="label">Avg. map rank</div><div class="value">3.4 <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span></div><div class="cap">Lower is better</div></div></div>
+  <div class="rm-feed-day">Today</div>
+  <div class="rm-feed-item"><span class="ic"><span class="i i-megaphone"></span></span><div class="body"><b>BlueRidge Heating &amp; Cooling</b> started a $49 furnace tune-up ad <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span><div class="meta"><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span>2 hours ago</div></div><div class="end"><span class="rm-unread"></span><button class="rm-btn secondary sm">View evidence</button></div></div>
+</section>
+
+<section class="blk"><h2>Overlays</h2><p class="note">Only these surfaces carry a shadow</p>
+  <div class="wrap" style="align-items:flex-start;gap:var(--space-8)">
+    <div class="rm-menu"><div class="rm-menu-label">Competitor</div><div class="rm-menu-item is-hover"><span class="i i-eye"></span>Open details<span class="kbd">Enter</span></div><div class="rm-menu-item"><span class="i i-chart"></span>Compare with Summit</div><div class="rm-menu-item"><span class="i i-updown"></span>Change tier<span class="end i i-chev-right"></span></div><div class="rm-menu-sep"></div><div class="rm-menu-item danger"><span class="i i-trash"></span>Stop tracking</div></div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)"><span class="rm-tooltip">Average position across 25 map grid points</span><div class="rm-toast"><span class="i i-check ok"></span>Competitor added to tracking<button class="rm-btn ghost sm">Undo</button></div></div>
+    <div class="rm-dialog" style="width:400px"><div class="rm-dialog-body"><h2>Stop tracking Valley Drain Masters?</h2><p>Their 18 weeks of history stay in past briefs, but Friday will stop capturing new changes. You can track them again later.</p></div><div class="rm-dialog-foot"><button class="rm-btn secondary">Cancel</button><button class="rm-btn danger">Stop tracking</button></div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-6)">
+    <div class="rm-alert info"><span class="i i-info"></span><div>Rankings refresh every Sunday at 06:00 UTC. <a>How scans work</a></div></div>
+    <div class="rm-alert warning"><span class="i i-alert"></span><div><strong>2 competitors couldn't be captured this week.</strong> Their sites blocked our crawler.</div><div class="end"><a>Review</a></div></div>
+    <div class="rm-alert danger"><span class="i i-alert-circle"></span><div>Payment failed. Update the card to keep weekly briefs running.</div><div class="end"><a>Update card</a></div></div>
+  </div>
+</section>
+
+<section class="blk"><h2>Friday</h2><p class="note">Flat answer · citation pills · dated sources · ↳ suggestions · 8px composer</p>
+  <div style="max-width:420px;border:1px solid var(--color-border-default);border-radius:var(--radius-md)">
+    <div class="rm-chat">
+      <div class="rm-msg-user">Why did our map rank drop this week?</div>
+      <div class="rm-msg-friday"><div class="who"><span class="rm-friday label">Friday</span>Answered from 4 captures</div><p>Your average map rank slipped from 2.8 to 3.4, mostly in the north grid points.</p><ul><li><b>BlueRidge</b> gained 9 reviews this week <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 23</span></li><li><b>Apex</b> now lists "24/7 emergency service" <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span></li></ul>
+      <div class="rm-sources"><div><span class="i i-star"></span>BlueRidge Google reviews<span class="date">Oct 23</span></div><div><span class="i i-globe"></span>apexcomfortpros.com homepage<span class="date">Oct 21</span></div></div></div>
+      <div class="rm-suggest"><div>What can we do to recover the north grid?</div><div>Compare our review velocity with BlueRidge</div></div>
+    </div>
+    <div class="rm-composer"><div class="ph">Ask about your competitors…</div><div class="bar"><span class="scope"><span class="i xs i-building"></span>Summit · 6 rivals</span><span class="send" aria-label="Send"><span class="i i-send"></span></span></div></div>
+    <p class="rm-disclaimer">Friday answers only from captured evidence. Check sources before acting.</p>
+  </div>
+</section>
+</div>
+</body>
+</html>

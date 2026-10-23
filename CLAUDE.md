@@ -20,13 +20,15 @@ Agency-owned, white-labelable SaaS that monitors competitors of **local-service 
 | Cross-cutting gotchas, env, setup | `docs/gotchas-cross-cutting.md` |
 | Vendor API contracts (live-verified) | `docs/research/2026-09-30-phase-2-vendor-apis.md` |
 | Brand tokens, mockups | `docs/brand/` |
+| **Design system (binding UI rules, tokens, storyboard)** | `docs/design-system/README.md`; agents implementing UI: `09-ai-implementation-playbook.md` |
 | Old handover / roadmap | `docs/archive/` (history; don't read) |
 
 ## Decisions (do not re-litigate)
 - **Product:** full-stack MVP (dashboard + MCP + Ask + briefs), not email-only.
-- **Brand:** Rival Monday, wordmark `rivalmonday` (`rival` #2A6BAC, `monday` #F5A524). Assistant **Friday** (renamable), orange pill (#F5A524 bg, #3B2300 text). Primary #47A8E7 (white text OK at 2.6:1), secondary #2A6BAC, accent #F5A524, ink #0B2540, canvas #F6F9FC, grey panels #EEF2F6 (dark text). Inter. Max 1560px.
+- **Brand:** Rival Monday, wordmark `rivalmonday` (`rival` #2A6BAC, `monday` #F5A524). Assistant **Friday** (renamable), orange pill (#F5A524 bg, #3B2300 text). Primary #47A8E7 (ink #0B2540 label on primary buttons — design system v1, replaces the 2.6:1 white-text exception), secondary #2A6BAC, accent #F5A524, ink #0B2540, canvas #F6F9FC, grey panels #EEF2F6 (dark text). Inter. Max 1560px.
 - **Stack:** TypeScript monorepo, pnpm 10 + Turborepo, Node 24. Next.js App Router + Tailwind + shadcn/ui; per-agency CSS-variable brand tokens. Vercel (web/API/MCP/cron) + one worker container (pg-boss + Playwright). Neon Postgres, RLS tenancy. Evidence in R2 (filesystem locally). OpenRouter generation (`packages/ai/config/ai.yaml`); Jev (TypeSafe System One) decisions, cascade Jev → LLM → human.
 - **Auth:** **self-hosted Better Auth** inside `apps/web` (schema `auth`), not Neon Auth (needs invitation-only hooks + the OAuth 2.1 MCP provider). Access lives in our own `membership` table, not Better Auth's `organization` plugin.
+- **Design system v1 (owner mandate 2026-10-23):** `docs/design-system/` is binding for all UI — one white sheet in a #F6F9FC frame, sections before cards (cards only for independent objects), shadows only on floating layers, radii 4/6/8/12/full, Inter 400/500/600 with ink headings, dot/badge/chip status grammar, chart roles you #2A6BAC + ≤2 rivals + grey. OD-1…OD-5 resolved as recommended. Existing UI migrates per its playbook.
 - **Charts:** hand-written inline SVG; validate colours with the dataviz skill.
 - **Review decisions stay on Jev** until pilots supply gold labels at volume; don't change verifier τ (0.85) before labelling `verifier_decisions`.
 - **Competitor discovery (Phase 12):** vendor-only two-stage search, $3/run cap; auto-run once when a profile completes, then 1 manual search/client/week + monthly refresh; tiers Top rival / Worth watching / Minor; shared ad-account removal only by the sole tracker.

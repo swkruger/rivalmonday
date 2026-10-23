@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 11 · Component reference</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .board { position: absolute; inset: var(--space-6); display: grid; grid-template-columns: 300px repeat(3, minmax(0, 1fr)); background: var(--color-background-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); overflow: hidden; }
+  .board > .c { padding: 0 var(--space-5); min-width: 0; }
+  .board > .c + .c { border-left: 1px solid var(--color-border-default); }
+  .blk { padding: var(--space-4) 0; }
+  .blk + .blk { border-top: 1px solid var(--color-border-default); }
+  .bh { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3); flex-wrap: wrap; }
+  .bh h3 { font-size: 13px; line-height: 18px; font-weight: 600; }
+  .bh .caption { font-family: var(--font-family-mono); }
+  .tok { display: grid; grid-template-columns: 14px 1fr auto; gap: var(--space-2); align-items: center; height: 19px; font-size: 12px; }
+  .tok .s { width: 14px; height: 14px; border-radius: var(--radius-xs); border: 1px solid var(--color-border-default); }
+  .tok .mono { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tsc > div { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--space-2); }
+  .sp { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: var(--space-2); height: 15px; }
+  .sp .caption { line-height: 15px; }
+  .sp .b { height: 6px; border-radius: 0 3px 3px 0; background: var(--color-chart-you); }
+  .row-sm { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .row-sm + .row-sm { margin-top: var(--space-2); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .cap-under { margin-top: var(--space-1); }
+  .shape { display: flex; gap: var(--space-3); align-items: end; }
+  .shape > div { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+  .shape .x { width: 36px; height: 28px; border: 1px solid var(--color-border-strong); background: var(--color-background-muted); }
+  .elev { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+  .elev .x { height: 40px; border-radius: var(--radius-md); background: var(--color-background-surface); }
+  .stage { position: relative; height: 188px; border-radius: var(--radius-md); overflow: hidden; background: var(--color-background-app); }
+  .stage .rm-dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.6); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 11</span><h1>Component reference sheet</h1><span class="q">Every token and component at a glance, labelled with its class and the tokens it uses.</span><span class="tag">Reference board 1440 × 1100</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:1100px">
+  <div class="board">
+
+    <!-- Column 1: tokens -->
+    <div class="c">
+      <div class="blk">
+        <div class="bh"><h3>Colour tokens</h3><span class="caption">--color-*</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-background-app)"></span><span class="mono">background-app</span><span class="caption mono">#F6F9FC</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-background-surface)"></span><span class="mono">background-surface</span><span class="caption mono">#FFFFFF</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-background-muted)"></span><span class="mono">background-muted</span><span class="caption mono">#EEF2F6</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-background-selected)"></span><span class="mono">background-selected</span><span class="caption mono">#E3F2FC</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-background-inverse)"></span><span class="mono">background-inverse</span><span class="caption mono">#0B2540</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-text-primary)"></span><span class="mono">text-primary</span><span class="caption mono">#0B2540</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-text-secondary)"></span><span class="mono">text-secondary</span><span class="caption mono">#334155</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-text-muted)"></span><span class="mono">text-muted</span><span class="caption mono">#5B6B80</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-text-link)"></span><span class="mono">text-link</span><span class="caption mono">#1F6FA8</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-border-default)"></span><span class="mono">border-default</span><span class="caption mono">#E2E8F0</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-border-control)"></span><span class="mono">border-control</span><span class="caption mono">#CBD5E1</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-border-strong)"></span><span class="mono">border-strong (3:1)</span><span class="caption mono">#8796AB</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-action-primary)"></span><span class="mono">action-primary</span><span class="caption mono">#47A8E7</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-action-primaryHover)"></span><span class="mono">action-primaryHover</span><span class="caption mono">#2F93D6</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-brand-secondary)"></span><span class="mono">brand-secondary · focus-ring</span><span class="caption mono">#2A6BAC</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-brand-accent)"></span><span class="mono">brand-fridayPillBg</span><span class="caption mono">#F5A524</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-state-success)"></span><span class="mono">state-success</span><span class="caption mono">#16A34A</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-state-warning)"></span><span class="mono">state-warning</span><span class="caption mono">#D97706</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-state-danger)"></span><span class="mono">state-danger · action-danger</span><span class="caption mono">#DC2626</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-state-info)"></span><span class="mono">state-info</span><span class="caption mono">#2A6BAC</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-chart-rival1)"></span><span class="mono">chart-rival1</span><span class="caption mono">#E05A2B</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-chart-rival2)"></span><span class="mono">chart-rival2</span><span class="caption mono">#14936A</span></div>
+        <div class="tok"><span class="s" style="background:var(--color-chart-context)"></span><span class="mono">chart-context</span><span class="caption mono">#A3B1C2</span></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Type scale</h3><span class="caption">Inter · size / line</span></div>
+        <div class="tsc">
+          <div><span style="font-size:30px;line-height:38px;font-weight:600">Display</span><span class="caption">30/38 600</span></div>
+          <div><span style="font-size:24px;line-height:32px;font-weight:600">Page title</span><span class="caption">24/32 600</span></div>
+          <div><span style="font-size:18px;line-height:26px;font-weight:600">Compact title</span><span class="caption">18/26 600</span></div>
+          <div><span style="font-size:16px;line-height:24px;font-weight:600">Section</span><span class="caption">16/24 600</span></div>
+          <div><span style="font-size:14px;line-height:20px">Body</span><span class="caption">14/20 400</span></div>
+          <div><span style="font-size:13px;line-height:18px;font-weight:500">UI / nav</span><span class="caption">13/18 500</span></div>
+          <div><span class="muted" style="font-size:12px;line-height:16px">Caption</span><span class="caption">12/16 400</span></div>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Spacing</h3><span class="caption">--space-* · 4px grid</span></div>
+        <div class="sp"><span class="caption">4</span><span class="b" style="width:4px"></span></div>
+        <div class="sp"><span class="caption">6</span><span class="b" style="width:6px"></span></div>
+        <div class="sp"><span class="caption">8</span><span class="b" style="width:8px"></span></div>
+        <div class="sp"><span class="caption">12</span><span class="b" style="width:12px"></span></div>
+        <div class="sp"><span class="caption">16</span><span class="b" style="width:16px"></span></div>
+        <div class="sp"><span class="caption">20</span><span class="b" style="width:20px"></span></div>
+        <div class="sp"><span class="caption">24</span><span class="b" style="width:24px"></span></div>
+        <div class="sp"><span class="caption">32</span><span class="b" style="width:32px"></span></div>
+        <div class="sp"><span class="caption">40</span><span class="b" style="width:40px"></span></div>
+        <div class="sp"><span class="caption">48</span><span class="b" style="width:48px"></span></div>
+        <div class="sp"><span class="caption">64</span><span class="b" style="width:64px"></span></div>
+      </div>
+    </div>
+
+    <!-- Column 2 -->
+    <div class="c">
+      <div class="blk">
+        <div class="bh"><h3>Radius</h3><span class="caption">--radius-*</span></div>
+        <div class="shape">
+          <div><span class="x" style="border-radius:var(--radius-xs)"></span><span class="caption">xs 4</span></div>
+          <div><span class="x" style="border-radius:var(--radius-sm)"></span><span class="caption">sm 6</span></div>
+          <div><span class="x" style="border-radius:var(--radius-md)"></span><span class="caption">md 8</span></div>
+          <div><span class="x" style="border-radius:var(--radius-lg)"></span><span class="caption">lg 12</span></div>
+          <div><span class="x" style="border-radius:var(--radius-full);width:28px"></span><span class="caption">full</span></div>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Elevation</h3><span class="caption">--shadow-*</span></div>
+        <div class="elev">
+          <div><div class="x" style="border:1px solid var(--color-border-default)"></div><div class="caption cap-under">none · static</div></div>
+          <div><div class="x" style="box-shadow:var(--shadow-overlay);border:1px solid var(--color-border-default)"></div><div class="caption cap-under">overlay</div></div>
+          <div><div class="x" style="box-shadow:var(--shadow-dialog)"></div><div class="caption cap-under">dialog</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Buttons</h3><span class="caption">.rm-btn · 28/36/44 · r6</span></div>
+        <div class="row-sm"><button class="rm-btn primary">Primary</button><button class="rm-btn secondary">Secondary</button><button class="rm-btn ghost">Ghost</button></div>
+        <div class="row-sm"><button class="rm-btn danger sm">Danger</button><button class="rm-btn danger-outline sm">Danger outline</button><button class="rm-btn ghost icon sm" aria-label="More"><span class="i i-more"></span></button><button class="rm-btn link">Link</button></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Inputs</h3><span class="caption">.rm-input · 36 · r6 · border-strong</span></div>
+        <div class="rm-field"><label class="rm-label">Business name <span class="req">*</span></label><div class="rm-input">Summit Plumbing &amp; Air</div></div>
+        <div class="rm-field"><label class="rm-label">Website</label><div class="rm-affix"><span class="pre">https://</span><div class="rm-input is-focus">summitplumbingair.com</div></div></div>
+        <div class="rm-field"><label class="rm-label">Contact email</label><div class="rm-input is-invalid">owner@summit</div><span class="rm-error"><span class="i xs i-alert-circle"></span>Enter a full email address.</span></div>
+        <div class="two" style="margin-top:var(--space-4)">
+          <div class="rm-field"><label class="rm-label">Service area</label><div class="rm-select">Denver, CO<span class="i i-chev-down"></span></div></div>
+          <div class="rm-field" style="margin-top:0"><label class="rm-label">Agency ID</label><div class="rm-input is-disabled">NP-0412</div></div>
+        </div>
+        <div class="caption cap-under">default · focus · error · select · disabled</div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Chips, badges, tags, tier</h3></div>
+        <div class="row-sm"><span class="rm-chip">Reviews</span><span class="rm-chip is-add"><span class="i i-plus"></span>Add filter</span><span class="rm-chip is-applied"><b>Tier:</b> Top rival<span class="i i-x"></span></span></div>
+        <div class="row-sm"><span class="rm-badge success"><span class="i i-check"></span>Verified</span><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span class="rm-badge danger"><span class="i i-alert-circle"></span>Failed</span></div>
+        <div class="row-sm"><span class="rm-dot success">Monitoring</span><span class="rm-tag">Website</span><span class="rm-tier top">Top rival</span><span class="rm-tier watch">Worth watching</span></div>
+        <div class="caption cap-under">chip r-full 28 · badge r4 20 · tag r4 20 · tier 10px mark</div>
+      </div>
+    </div>
+
+    <!-- Column 3 -->
+    <div class="c">
+      <div class="blk">
+        <div class="bh"><h3>Tabs &amp; segmented</h3><span class="caption">.rm-tabs 40 · .rm-seg 28</span></div>
+        <nav class="rm-tabs" style="margin-bottom:var(--space-3)" aria-label="Example tabs"><a class="rm-tab is-active" href="#">Overview</a><a class="rm-tab" href="#">Changes <span class="count">12</span></a><a class="rm-tab" href="#">Ads <span class="count">3</span></a></nav>
+        <div class="rm-seg"><button class="is-active">This week</button><button>4 weeks</button><button>12 weeks</button></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Table</h3><span class="caption">.rm-table · th 36 · row 40 · hairlines</span></div>
+        <table class="rm-table">
+          <thead><tr><th>Competitor</th><th>Tier</th><th class="num is-sorted">Rating <span class="i i-arrow-down"></span></th></tr></thead>
+          <tbody>
+            <tr class="is-hover"><td class="primary-cell">BlueRidge Heating</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.6</td></tr>
+            <tr class="is-selected"><td class="primary-cell">Apex Comfort Pros</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.4</td></tr>
+            <tr><td class="primary-cell">Valley Drain Masters</td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">4.2</td></tr>
+          </tbody>
+        </table>
+        <div class="caption cap-under">hover · selected · default · numbers right + tabular</div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Menu &amp; tooltip</h3><span class="caption">.rm-menu r8 overlay · item 32</span></div>
+        <div style="display:flex;gap:var(--space-4);align-items:flex-start">
+          <div class="rm-menu" style="min-width:0;width:200px">
+            <div class="rm-menu-item is-hover"><span class="i i-eye"></span>View evidence<span class="kbd">V</span></div>
+            <div class="rm-menu-item"><span class="i i-bell"></span>Mute alerts<span class="kbd">M</span></div>
+            <div class="rm-menu-sep"></div>
+            <div class="rm-menu-item danger"><span class="i i-trash"></span>Remove</div>
+          </div>
+          <span class="rm-tooltip">Copy link</span>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Toast</h3><span class="caption">.rm-toast · inverse · 44</span></div>
+        <div class="rm-toast"><span class="i i-check ok"></span>Brief shared with Summit's owner<button class="rm-btn ghost sm">Undo</button></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Alerts</h3><span class="caption">.rm-alert · r6 · tinted surface</span></div>
+        <div class="rm-alert info"><span class="i i-info"></span><div>Weekly scan runs Sunday 06:00 UTC.</div></div>
+        <div class="rm-alert warning" style="margin-top:var(--space-2)"><span class="i i-alert"></span><div><strong>Partial data.</strong> 2 sites blocked our crawler.</div></div>
+        <div class="rm-alert danger" style="margin-top:var(--space-2)"><span class="i i-alert-circle"></span><div>Card declined. <a href="#">Update billing</a></div></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>KPI cell</h3><span class="caption">.rm-kpi · 24 value · delta</span></div>
+        <div class="rm-kpis"><div class="rm-kpi"><div class="label">Google rating</div><div class="value">4.7 <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span></div><div class="cap">Market median 4.5</div></div><div class="rm-kpi"><div class="label">Avg. map rank</div><div class="value">3.4 <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span></div><div class="cap">25 grid points</div></div></div>
+      </div>
+    </div>
+
+    <!-- Column 4 -->
+    <div class="c">
+      <div class="blk">
+        <div class="bh"><h3>Dialog</h3><span class="caption">.rm-dialog 480 · r8 · shadow-dialog · 60%</span></div>
+        <div class="stage"><div class="rm-scrim"><div class="rm-dialog" role="dialog" aria-label="Remove competitor">
+          <div class="rm-dialog-body"><h2>Remove Apex Comfort Pros?</h2><p>Friday stops tracking Apex. Past changes stay in old briefs.</p></div>
+          <div class="rm-dialog-foot"><button class="rm-btn secondary">Cancel</button><button class="rm-btn danger">Remove competitor</button></div>
+        </div></div></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Citation pill</h3><span class="caption">.rm-cite · r4 · 20 · muted bg</span></div>
+        <p style="font-size:14px;line-height:22px">Rapid Rooter cut drain cleaning to $99 <span class="rm-cite"><span class="i i-globe"></span>Pricing page · Oct 19</span> and BlueRidge gained 9 reviews <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 20</span></p>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Composer</h3><span class="caption">.rm-composer · r8 · scope chip</span></div>
+        <div class="rm-composer" style="margin:0">
+          <div class="ph">Ask Friday about your competitors…</div>
+          <div class="bar"><span class="scope"><span class="i xs i-users"></span>Summit · 6 rivals</span><span class="send"><span class="i xs i-send"></span></span></div>
+        </div>
+        <div class="rm-disclaimer" style="margin:var(--space-2) 0 0">Friday cites public sources. Check before you act.</div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Feed row</h3><span class="caption">.rm-feed-item · icon 28 · one action</span></div>
+        <div class="rm-feed-item" style="border-bottom:0;padding:0"><span class="ic"><span class="i i-megaphone"></span></span><div class="body"><b>BlueRidge</b> started a $49 tune-up ad <span class="rm-cite">Ads · Oct 22</span><div class="meta"><span class="rm-unread"></span><span>2 hours ago</span></div></div><div class="end"><button class="rm-btn secondary sm">View</button></div></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Empty state</h3><span class="caption">.rm-empty · icon 32 · one action</span></div>
+        <div class="rm-empty" style="padding:var(--space-4) var(--space-2)"><span class="i xl i-filter"></span><h3>No competitors match these filters</h3><p>Try removing a filter or widening the date range.</p><button class="rm-btn secondary sm">Clear filters</button></div>
+      </div>
+      <div class="blk">
+        <div class="bh"><h3>Choices</h3><span class="caption">.rm-check · .rm-radio · .rm-switch</span></div>
+        <div class="row-sm" style="gap:var(--space-4)">
+          <span class="row"><span class="rm-check"></span><span class="rm-check is-on"></span><span class="rm-check is-mixed"></span></span>
+          <span class="row"><span class="rm-radio" style="margin:0"></span><span class="rm-radio is-on" style="margin:0"></span></span>
+          <span class="row"><span class="rm-switch"></span><span class="rm-switch is-on"></span></span>
+        </div>
+        <div class="caption cap-under">off / on / mixed · r4 · on = brand-secondary</div>
+      </div>
+    </div>
+  </div>
+  <span class="pin abs" style="left:28px;top:4px">1</span>
+  <span class="pin abs" style="left:338px;top:4px">2</span>
+  <span class="pin abs" style="left:660px;top:420px">3</span>
+  <span class="pin abs" style="left:700px;top:4px">4</span>
+  <span class="pin abs" style="left:1065px;top:4px">5</span>
+  <span class="pin abs" style="left:1390px;top:290px">6</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Tokens are the contract.</b> Every swatch maps 1:1 to a --color-* variable; components never hold raw hex. Spacing is a 4px grid; seven type sizes only.<span class="ref">D-16, D-17</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Shape and depth by role.</b> Radius grows with the object; two shadows, both for floating layers.<span class="ref">E04 Attio, E13 Amie · D-06, D-18</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Forms.</b> Label above, 36px controls with 3:1 borders, inline error with glyph, disabled on a subtle fill.<span class="ref">O05 Plain, D13 Mintlify, O21 Jasper · D-15</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Data and feedback.</b> Flush table rows with hairlines, menus with shortcuts and red destructive last, inverse toast with Undo, tinted alerts with a glyph.<span class="ref">C03, C04, E13, E18 Air · D-11, D-24</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Destructive confirm.</b> Cancel left of a red, specific verb; the dialog is the only place a filled danger button appears.<span class="ref">E11 Gumloop, O25 Mercury · D-24</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Friday building blocks.</b> Citation pill, composer with scope chip and disclaimer, feed row with one action, empty state that keeps a way out.<span class="ref">F06, F08, C07, C13 · D-14, D-20</span></div>
+</div>
+</div>
+</body>
+</html>

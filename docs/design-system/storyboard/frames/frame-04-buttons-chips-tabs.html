@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 4 · Buttons, chips, tabs</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .board { position: absolute; inset: 0; padding: var(--space-8); display: grid; grid-template-columns: 820px 1fr; grid-template-rows: auto 1fr; gap: var(--space-5) var(--space-6); }
+  .board > .rm-frame { min-height: 0; }
+  .matrix { display: grid; grid-template-columns: 132px repeat(5, minmax(0, 1fr)); align-items: center; row-gap: var(--space-4); column-gap: var(--space-3); }
+  .matrix .h { font-size: 12px; line-height: 16px; color: var(--color-text-muted); font-weight: 500; }
+  .matrix .rl b { display: block; font-size: 13px; line-height: 18px; font-weight: 600; }
+  .matrix .rm-btn { justify-self: start; }
+  .strip { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .strip + .strip { margin-top: var(--space-3); }
+  .subgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); padding-top: var(--space-4); margin-top: var(--space-4); border-top: 1px solid var(--color-border-default); }
+  .lbl { font-size: 12px; line-height: 16px; color: var(--color-text-muted); font-weight: 500; margin-bottom: var(--space-2); }
+  .lbl .mono { margin-left: var(--space-1); }
+  .grp + .grp { margin-top: var(--space-4); }
+  .bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 360px 1fr; gap: var(--space-6); min-height: 0; }
+  .dd { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5) var(--space-4); }
+  .dd .verdict { display: flex; align-items: center; gap: var(--space-1); font-size: 12px; font-weight: 600; margin-bottom: var(--space-2); }
+  .dd .ex { display: flex; flex-wrap: wrap; gap: var(--space-1_5); align-items: center; min-height: 28px; }
+  .loud { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: 12px; font-weight: 600; color: var(--color-text-inverse); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 4</span><h1>Buttons, chips, tabs</h1><span class="q">Every control has one job and one look; state is shown, never guessed.</span><span class="tag">Reference board 1440 × 900</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:900px">
+  <div class="board">
+
+    <!-- Buttons -->
+    <section class="rm-frame">
+      <div class="rm-frame-head"><h3>Buttons</h3><span class="caption">.rm-btn · radius 6 · 13px 500 (primary/danger 600) · leading 16px icon</span></div>
+      <div class="rm-frame-body">
+        <div class="matrix">
+          <span></span><span class="h">Default</span><span class="h">Hover</span><span class="h">Focus</span><span class="h">Disabled</span><span class="h">Loading</span>
+          <div class="rl"><b>Primary</b><span class="caption mono">.primary</span></div>
+          <button class="rm-btn primary"><span class="i i-check"></span>Save</button>
+          <button class="rm-btn primary is-hover"><span class="i i-check"></span>Save</button>
+          <button class="rm-btn primary is-focus"><span class="i i-check"></span>Save</button>
+          <button class="rm-btn primary" disabled><span class="i i-check"></span>Save</button>
+          <button class="rm-btn primary" aria-busy="true"><span class="spinner"></span>Saving…</button>
+
+          <div class="rl"><b>Secondary</b><span class="caption mono">.secondary</span></div>
+          <button class="rm-btn secondary"><span class="i i-download"></span>Export</button>
+          <button class="rm-btn secondary is-hover"><span class="i i-download"></span>Export</button>
+          <button class="rm-btn secondary is-focus"><span class="i i-download"></span>Export</button>
+          <button class="rm-btn secondary" disabled><span class="i i-download"></span>Export</button>
+          <button class="rm-btn secondary" aria-busy="true"><span class="spinner"></span>Exporting…</button>
+
+          <div class="rl"><b>Ghost</b><span class="caption mono">.ghost</span></div>
+          <button class="rm-btn ghost"><span class="i i-filter"></span>Filter</button>
+          <button class="rm-btn ghost is-hover"><span class="i i-filter"></span>Filter</button>
+          <button class="rm-btn ghost is-focus"><span class="i i-filter"></span>Filter</button>
+          <button class="rm-btn ghost" disabled><span class="i i-filter"></span>Filter</button>
+          <button class="rm-btn ghost" aria-busy="true"><span class="spinner"></span>Loading…</button>
+
+          <div class="rl"><b>Danger</b><span class="caption mono">.danger</span></div>
+          <button class="rm-btn danger"><span class="i i-trash"></span>Delete</button>
+          <button class="rm-btn danger is-hover"><span class="i i-trash"></span>Delete</button>
+          <button class="rm-btn danger is-focus"><span class="i i-trash"></span>Delete</button>
+          <button class="rm-btn danger" disabled><span class="i i-trash"></span>Delete</button>
+          <button class="rm-btn danger" aria-busy="true"><span class="spinner"></span>Deleting…</button>
+
+          <div class="rl"><b>Danger outline</b><span class="caption mono">.danger-outline</span></div>
+          <button class="rm-btn danger-outline">Stop monitoring</button>
+          <button class="rm-btn danger-outline" style="background:var(--color-state-dangerSurface)">Stop monitoring</button>
+          <button class="rm-btn danger-outline is-focus">Stop monitoring</button>
+          <button class="rm-btn danger-outline" disabled>Stop monitoring</button>
+          <button class="rm-btn danger-outline" aria-busy="true"><span class="spinner"></span>Stopping…</button>
+        </div>
+
+        <div class="subgrid">
+          <div>
+            <div class="lbl">Sizes <span class="mono">.sm 28 · md 36 · .lg 44</span></div>
+            <div class="strip"><button class="rm-btn secondary sm">Small</button><button class="rm-btn secondary">Medium</button><button class="rm-btn secondary lg">Large</button></div>
+            <div class="strip"><button class="rm-btn ghost sm"><span class="i i-arrow-right"></span>See all</button><button class="rm-btn link">Text link</button></div>
+          </div>
+          <div>
+            <div class="lbl">Icon buttons <span class="mono">.icon · aria-label</span></div>
+            <div class="strip">
+              <button class="rm-btn ghost icon sm" aria-label="More actions"><span class="i i-more"></span></button>
+              <button class="rm-btn ghost icon" aria-label="Refresh"><span class="i i-refresh"></span></button>
+              <button class="rm-btn secondary icon" aria-label="Copy link"><span class="i i-copy"></span></button>
+              <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+              <span class="rm-tooltip">Copy link</span>
+            </div>
+          </div>
+          <div>
+            <div class="lbl">Split button <span class="mono">.rm-btngroup</span></div>
+            <div class="strip"><div class="rm-btngroup"><button class="rm-btn primary"><span class="i i-send"></span>Send brief</button><button class="rm-btn primary" aria-label="More send options"><span class="i i-chev-down"></span></button></div></div>
+            <div class="caption" style="margin-top:var(--space-2)">Secondary choices live in the chevron menu.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chips & status -->
+    <section class="rm-frame">
+      <div class="rm-frame-head"><h3>Chips &amp; status</h3><span class="caption">One shape per meaning</span></div>
+      <div class="rm-frame-body">
+        <div class="grp">
+          <div class="lbl">Filter chips <span class="mono">.rm-chip · pill · 28px · interactive</span></div>
+          <div class="strip">
+            <button class="rm-chip">Reviews</button>
+            <button class="rm-chip is-add"><span class="i i-plus"></span>Competitor</button>
+            <button class="rm-chip is-applied"><b>Tier:</b> Top rival, Worth watching<span class="i i-x"></span></button>
+            <button class="rm-chip is-selected">This week</button>
+          </div>
+          <div class="caption" style="margin-top:var(--space-1_5)">default · add (dashed) · applied (value + ✕) · selected (toggle)</div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Status badges <span class="mono">.rm-badge · radius 4 · glyph + text</span></div>
+          <div class="strip">
+            <span class="rm-badge success"><span class="i i-check"></span>Verified</span>
+            <span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span>
+            <span class="rm-badge danger"><span class="i i-alert-circle"></span>Scan failed</span>
+            <span class="rm-badge info"><span class="i i-info"></span>New</span>
+            <span class="rm-badge"><span class="i i-clock"></span>Paused</span>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Dot status <span class="mono">.rm-dot · lifecycle in tables</span></div>
+          <div class="strip">
+            <span class="rm-dot success">Monitoring</span>
+            <span class="rm-dot warning">Partial data</span>
+            <span class="rm-dot danger">Blocked</span>
+            <span class="rm-dot info">Scanning</span>
+            <span class="rm-dot">Queued</span>
+            <span class="rm-dot off">Muted</span>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Tags <span class="mono">.rm-tag · neutral category</span></div>
+          <div class="strip"><span class="rm-tag">Website</span><span class="rm-tag">Ads</span><span class="rm-tag">Reviews</span><span class="rm-tag">Pricing</span><span class="rm-tag">HVAC</span></div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Competitor tier <span class="mono">.rm-tier top | watch | minor</span></div>
+          <div class="strip"><span class="rm-tier top">Top rival</span><span class="rm-tier watch">Worth watching</span><span class="rm-tier minor">Minor</span></div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Counts &amp; unread <span class="mono">.rm-count · .rm-badge-count · .rm-unread</span></div>
+          <div class="strip">
+            <span class="rm-count">14</span>
+            <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications, 3 unread"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+            <span class="row secondary-text" style="font-size:13px"><span class="rm-unread"></span>Unread alert</span>
+            <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span>
+            <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="lbl">Friday <span class="mono">.rm-friday · .rm-friday.label · the only orange</span></div>
+          <div class="strip">
+            <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+            <button class="rm-friday">Ask about BlueRidge</button>
+            <span class="rm-friday label">Friday</span>
+            <span class="rm-cite"><span class="i i-globe"></span>Ads · Oct 22</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- bottom row -->
+    <div class="bottom">
+      <section class="rm-frame">
+        <div class="rm-frame-head"><h3>Underline tabs</h3><span class="caption">.rm-tabs / .rm-tab · navigates between views</span></div>
+        <div class="rm-frame-body">
+          <nav class="rm-tabs" style="margin-bottom:var(--space-3)" aria-label="Competitor views">
+            <a class="rm-tab is-active" href="#" aria-current="page">Overview</a>
+            <a class="rm-tab" href="#" style="color:var(--color-text-primary)">Changes <span class="count">12</span></a>
+            <a class="rm-tab" href="#">Ads <span class="count">3</span></a>
+            <a class="rm-tab is-focus" href="#">Reviews <span class="count">412</span></a>
+            <a class="rm-tab" href="#">Rankings</a>
+          </nav>
+          <div class="caption">Active · hover (Changes) · focus (Reviews) · default. Active = ink 600 + 2px ink rule; counts are neutral.</div>
+          <div class="lbl" style="margin-top:var(--space-3)">Overflow at narrow widths</div>
+          <nav class="rm-tabs" style="margin-bottom:0" aria-label="Overflow example">
+            <a class="rm-tab is-active" href="#" aria-current="page">Overview</a>
+            <a class="rm-tab" href="#">Changes <span class="count">12</span></a>
+            <button class="rm-tab">More<span class="i xs i-chev-down"></span></button>
+          </nav>
+        </div>
+      </section>
+      <section class="rm-frame">
+        <div class="rm-frame-head"><h3>Segmented control</h3><span class="caption">.rm-seg · same data</span></div>
+        <div class="rm-frame-body">
+          <div class="strip"><div class="rm-seg"><button class="is-active">Map</button><button>List</button></div><div class="rm-seg"><button class="is-active">This week</button><button>4 weeks</button><button>12 weeks</button></div></div>
+          <div class="strip"><div class="rm-seg"><button class="is-active"><span class="i xs i-list"></span>List</button><button><span class="i xs i-grid"></span>Grid</button><button><span class="i xs i-pin"></span>Map</button></div></div>
+          <div class="caption" style="margin-top:var(--space-3)">2–3 options, 28px, radius 6 (track) / 4 (thumb). Switches range or layout, never pages.</div>
+        </div>
+      </section>
+      <section class="rm-frame">
+        <div class="rm-frame-head"><h3>Do / Don't</h3><span class="caption">Research anti-patterns we rejected</span></div>
+        <div class="rm-frame-body">
+          <div class="dd">
+            <div>
+              <div class="verdict" style="color:var(--color-text-danger)"><span class="i xs i-x"></span>Don't: rainbow pills (E15)</div>
+              <div class="ex"><span class="loud" style="background:var(--color-chart-rival1)">Hot</span><span class="loud" style="background:var(--color-chart-rival2)">Active</span><span class="loud" style="background:var(--color-chart-you)">Lead</span><span class="loud" style="background:var(--color-state-danger)">Lost</span></div>
+            </div>
+            <div>
+              <div class="verdict" style="color:var(--color-text-success)"><span class="i xs i-check"></span>Do: dot + text</div>
+              <div class="ex"><span class="rm-dot success">Monitoring</span><span class="rm-dot off">Muted</span></div>
+            </div>
+            <div>
+              <div class="verdict" style="color:var(--color-text-danger)"><span class="i xs i-x"></span>Don't: orange warning (E17)</div>
+              <div class="ex"><span class="loud" style="background:var(--color-brand-accent);color:var(--color-brand-fridayPillText);border-radius:var(--radius-xs)">Price drop</span></div>
+            </div>
+            <div>
+              <div class="verdict" style="color:var(--color-text-success)"><span class="i xs i-check"></span>Do: amber badge + glyph</div>
+              <div class="ex"><span class="rm-badge warning"><span class="i i-alert"></span>Price drop</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <span class="pin abs" style="left:150px;top:96px">1</span>
+  <span class="pin abs" style="left:430px;top:96px">2</span>
+  <span class="pin abs" style="left:8px;top:420px">3</span>
+  <span class="pin abs" style="left:856px;top:52px">4</span>
+  <span class="pin abs" style="left:856px;top:166px">5</span>
+  <span class="pin abs" style="left:856px;top:530px">6</span>
+  <span class="pin abs" style="left:8px;top:700px">7</span>
+  <span class="pin abs" style="left:900px;top:700px">8</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Four variants, one primary.</b> Primary #47A8E7 with an ink 600 label (OD-1), secondary outline, ghost for toolbars, danger only inside confirmations.<span class="ref">O01 Plain, D16 Mintlify · D-09</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>States are visible.</b> Hover darkens one step, focus is the shared 2px #2A6BAC ring, disabled fades to 45%, loading swaps the icon for a spinner and keeps the width.<span class="ref">E06 Linear · D-09, D-17</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Sizes 28 / 36 / 44.</b> 28 in tables and toolbars, 36 default, 44 for touch and hero CTAs. Icon-only buttons always carry an aria-label and a tooltip.<span class="ref">A13, E13 Amie · D-09, D-23</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Chip = filter.</b> Pills are interactive: add (dashed), applied (soft blue, value + ✕), selected (ink).<span class="ref">C01/C02 Stripe, C06 Navattic, P05 Mercury · D-10</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Status grammar.</b> Badges (4px, glyph + text) for attention; dots for lifecycle; neutral tags for categories; tier mark for competitor importance.<span class="ref">E01 Stripe, E03 Vercel, C03 Attio · D-10</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Friday owns orange.</b> Pill for entry points, small label for attribution, grey citation pill for evidence.<span class="ref">F06 ChatGPT, F08 Plane · D-14</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Tabs navigate, segments switch.</b> Underline tabs change the view; the segmented control changes range or layout of the same data.<span class="ref">E04 Attio, E06 Linear, O13 · D-08</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Rejected patterns.</b> Rainbow pills and an orange warning both break the colour contract.<span class="ref">E15 folk, E17 Square · D-10, D-17</span></div>
+</div>
+</div>
+</body>
+</html>

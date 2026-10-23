@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 3 · Navigation &amp; page headers</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .board { position: absolute; inset: 0; display: grid; grid-template-columns: 240px 262px 1fr; grid-template-rows: var(--layout-topBarHeight) 1fr; }
+  .col2 { display: flex; flex-direction: column; padding: var(--space-2) var(--space-3) var(--space-4) var(--space-2); position: relative; }
+  .col2 .rm-sidebar { padding: 0; }
+  .main { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-2) var(--space-2) 0; min-height: 0; }
+  .main .rm-sheet { flex: none; }
+  .main .rm-page { padding: var(--space-5) var(--space-8) var(--space-4); }
+  .zone { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--color-text-muted); margin-bottom: var(--space-3); display: flex; gap: var(--space-2); align-items: center; }
+  .compact-row { display: flex; align-items: center; gap: var(--space-6); border-bottom: 1px solid var(--color-border-default); margin-bottom: var(--space-3); }
+  .compact-row h1 { font-size: 18px; line-height: 26px; font-weight: 600; }
+  .compact-row .rm-tabs { border-bottom: 0; margin-bottom: 0; gap: var(--space-5); }
+  .compact-row .actions { margin-left: auto; display: flex; gap: var(--space-2); }
+  .ctxmenu { position: absolute; left: 236px; top: 44px; width: 248px; z-index: 20; }
+  .palette-stage { position: relative; flex: 1; min-height: 0; }
+  .palette-stage .rm-scrim { border-radius: var(--radius-md); align-items: start; padding-top: var(--space-5); }
+  .palette { width: 560px; padding: 0; }
+  .palette .q { display: flex; align-items: center; gap: var(--space-2); height: 44px; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border-default); font-size: 14px; }
+  .palette .list { padding: var(--space-1); }
+  .palette .rm-menu-item { height: 30px; }
+  .palette .foot { display: flex; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--color-border-default); }
+  .ghost-lines > div { height: 10px; border-radius: var(--radius-xs); background: var(--color-background-muted); }
+  .ghost-lines > div + div { margin-top: var(--space-3); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 3</span><h1>Navigation &amp; page headers</h1><span class="q">Where am I, where can I go, what can I do here: one answer per layer.</span><span class="tag">Board 1440 × 900 · Composed from real shell parts</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:900px">
+  <div class="board">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn" style="background:var(--color-background-interactive)" aria-expanded="true"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+
+    <!-- (a) main sidebar -->
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item" href="#"><span class="i i-chat"></span><span>Ask Friday</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-file"></span><span>Weekly briefs</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-inbox"></span><span>Alerts</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Monitor</div>
+        <a class="rm-nav-item" href="#"><span class="i i-building"></span><span>Competitors</span><span class="count">6</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-globe"></span><span>Website changes</span><span class="count">14</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-megaphone"></span><span>Ads</span></a>
+        <a class="rm-nav-item" href="#" style="background:var(--color-background-interactive);color:var(--color-text-primary)"><span class="i i-star"></span><span>Reviews</span></a>
+        <a class="rm-nav-item is-active" href="#" aria-current="page"><span class="i i-pin"></span><span>Local rankings</span></a>
+        <a class="rm-nav-item is-child" href="#"><span>Map grid</span></a>
+        <a class="rm-nav-item is-child" href="#"><span>Keywords</span><span class="count">8</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Client</div>
+        <a class="rm-nav-item" href="#"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item" href="#"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+
+    <!-- (c) settings drill-in variant -->
+    <div class="col2">
+      <div style="flex:1"></div>
+      <div class="zone"><span class="i xs i-settings"></span>Settings variant</div>
+      <aside class="rm-sidebar" aria-label="Client settings">
+        <div class="rm-nav-group">
+          <a class="rm-back" href="#"><span class="i i-chev-left"></span>Back to Summit Plumbing &amp; Air</a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">General</div>
+          <a class="rm-nav-item is-active" href="#" aria-current="page"><span>Business profile</span></a>
+          <a class="rm-nav-item" href="#"><span>Notifications</span></a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">Brand</div>
+          <a class="rm-nav-item" href="#"><span>Report branding</span></a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">Team</div>
+          <a class="rm-nav-item" href="#"><span>Members</span><span class="count">3</span></a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">Billing</div>
+          <a class="rm-nav-item" href="#"><span>Plan &amp; invoices</span></a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">Danger zone</div>
+          <a class="rm-nav-item" href="#" style="color:var(--color-text-danger)"><span>Stop monitoring</span></a>
+        </div>
+      </aside>
+    </div>
+
+    <!-- (d)(e)(f) headers + palette -->
+    <div class="main">
+      <main class="rm-sheet">
+        <div class="rm-page"><div class="rm-page-inner">
+          <div class="rm-breadcrumb"><a href="#">Summit Plumbing &amp; Air</a><span class="sep">/</span><a href="#">Monitor</a><span class="sep">/</span><span>Local rankings</span></div>
+          <div class="rm-pagehead" style="margin-bottom:var(--space-5)">
+            <div>
+              <h1>Local rankings</h1>
+              <p class="desc">Where Summit appears on Google Maps across 25 grid points around Denver.</p>
+              <div class="rm-meta"><span class="rm-live">Scanned Sunday 06:00 UTC</span><span>Next scan in 3 days</span></div>
+            </div>
+            <div class="actions">
+              <button class="rm-btn ghost icon" aria-label="More actions"><span class="i i-more"></span></button>
+              <button class="rm-btn secondary"><span class="i i-download"></span>Export</button>
+              <button class="rm-btn primary"><span class="i i-refresh"></span>Scan now</button>
+            </div>
+          </div>
+          <nav class="rm-tabs" style="margin-bottom:0" aria-label="Local rankings views">
+            <a class="rm-tab is-active" href="#" aria-current="page">Map grid</a>
+            <a class="rm-tab" href="#">Keywords <span class="count">8</span></a>
+            <a class="rm-tab" href="#" style="color:var(--color-text-primary)">Scan history <span class="count">12</span></a>
+            <a class="rm-tab" href="#">Rivals on the map <span class="count">6</span></a>
+          </nav>
+        </div></div>
+      </main>
+
+      <main class="rm-sheet">
+        <div class="rm-page" style="padding-top:var(--space-4)"><div class="rm-page-inner">
+          <div class="rm-breadcrumb"><a href="#">Summit Plumbing &amp; Air</a><span class="sep">/</span><span>Website changes</span></div>
+          <div class="compact-row">
+            <h1>Website changes</h1>
+            <nav class="rm-tabs" aria-label="Change filters">
+              <a class="rm-tab is-active" href="#" aria-current="page">All <span class="count">14</span></a>
+              <a class="rm-tab" href="#">Needs attention <span class="count">2</span></a>
+              <a class="rm-tab" href="#">Pricing <span class="count">3</span></a>
+              <a class="rm-tab" href="#">Homepage <span class="count">5</span></a>
+            </nav>
+            <div class="actions"><button class="rm-btn secondary sm"><span class="i i-download"></span>Export</button></div>
+          </div>
+          <div class="rm-toolbar" style="margin-bottom:0">
+            <span class="rm-input-search" style="width:200px"><span class="i i-search"></span>Search changes</span>
+            <button class="rm-chip is-applied"><b>Date:</b> Last 30 days<span class="i i-x"></span></button>
+            <button class="rm-chip is-add"><span class="i i-plus"></span>Competitor</button>
+            <div class="right"><div class="rm-seg"><button class="is-active">List</button><button>By competitor</button></div><button class="rm-btn ghost sm"><span class="i i-sort"></span>Newest</button></div>
+          </div>
+        </div></div>
+      </main>
+
+      <div class="palette-stage">
+        <div class="rm-sheet" style="position:absolute;inset:0;margin:0">
+          <div class="rm-page" style="padding-top:var(--space-5)"><div class="rm-page-inner ghost-lines">
+            <div style="width:30%"></div><div style="width:62%"></div><div style="width:48%"></div><div style="width:70%"></div><div style="width:40%"></div><div style="width:66%"></div><div style="width:55%"></div><div style="width:35%"></div>
+          </div></div>
+        </div>
+        <div class="rm-scrim">
+          <div class="rm-menu palette" role="dialog" aria-label="Command palette">
+            <div class="q"><span class="i i-search muted"></span><span>blue</span><span class="muted" style="font-size:13px">ridge|</span><span class="spacer"></span><span class="kbd">Esc</span></div>
+            <div class="list">
+              <div class="rm-menu-label">Competitors</div>
+              <div class="rm-menu-item is-hover"><span class="rm-avatar biz sm">BR</span>BlueRidge Heating &amp; Cooling<span class="end rm-tier top">Top rival</span></div>
+              <div class="rm-menu-item"><span class="rm-avatar biz sm">FR</span>Front Range Plumbing<span class="end rm-tier minor">Minor</span></div>
+              <div class="rm-menu-label">Pages</div>
+              <div class="rm-menu-item"><span class="i i-globe"></span>Website changes · BlueRidge<span class="end caption">Monitor</span></div>
+              <div class="rm-menu-item"><span class="i i-megaphone"></span>Ads · BlueRidge<span class="end caption">3 running</span></div>
+              <div class="rm-menu-label">Actions</div>
+              <div class="rm-menu-item"><span class="i i-chart"></span>Compare BlueRidge with Summit</div>
+              <div class="rm-menu-item"><span class="i i-bell"></span>Mute BlueRidge alerts</div>
+              <div class="rm-menu-sep"></div>
+              <div class="rm-menu-item"><span class="rm-friday label">Friday</span>Ask Friday about "blueridge"<span class="kbd">Enter</span></div>
+            </div>
+            <div class="foot caption"><span><span class="kbd">↑</span> <span class="kbd">↓</span> to move</span><span><span class="kbd">Enter</span> to open</span><span><span class="kbd">Tab</span> to ask Friday</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- (b) context switcher open -->
+  <div class="rm-menu ctxmenu" role="menu" aria-label="Switch context">
+    <div style="padding:var(--space-1)"><span class="rm-input-search is-focus" style="width:100%"><span class="i i-search"></span>Find a client…</span></div>
+    <div class="rm-menu-label" style="margin-top:var(--space-1)">Agency</div>
+    <div class="rm-menu-item"><span class="rm-avatar biz sm">N</span>Northpoint Digital<span class="end caption">12 clients</span></div>
+    <div class="rm-menu-sep"></div>
+    <div class="rm-menu-label">Clients</div>
+    <div class="rm-menu-item is-hover"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="end i i-check"></span></div>
+    <div class="rm-menu-item"><span class="rm-avatar biz sm">BS</span>Bright Smile Dental</div>
+    <div class="rm-menu-item"><span class="rm-avatar biz sm">MF</span>Mesa Family Dentistry</div>
+    <div class="rm-menu-sep"></div>
+    <div class="rm-menu-item"><span class="i i-list"></span>All clients</div>
+    <div class="rm-menu-item"><span class="i i-plus"></span>Add client</div>
+  </div>
+
+  <span class="pin abs" style="left:404px;top:14px">1</span>
+  <span class="pin abs" style="left:488px;top:52px">2</span>
+  <span class="pin abs" style="left:214px;top:333px">3</span>
+  <span class="pin abs" style="left:470px;top:428px">4</span>
+  <span class="pin abs" style="left:1404px;top:58px">5</span>
+  <span class="pin abs" style="left:1404px;top:200px">6</span>
+  <span class="pin abs" style="left:1404px;top:290px">7</span>
+  <span class="pin abs" style="left:1404px;top:500px">8</span>
+  <span class="pin abs" style="left:508px;top:284px">9</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Slash context switcher.</b> Agency / Client in the top bar; the open button keeps its hover fill. Navigation only, derived from the URL.<span class="ref">A08 Neon, A10 Supabase · D-03</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Switcher menu.</b> Search first, agency then clients, current marked ✓. Only your own memberships; other agencies via support session.<span class="ref">A08, A10, E13 Amie · D-03, D-24</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Sidebar states.</b> Active = primary-soft + 600; hover = grey fill (Reviews); children indent without icons. Counts are muted, never coloured.<span class="ref">A03 Attio, A04 Linear · D-04</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Settings drill in.</b> The sidebar swaps for a settings tree with "‹ Back"; Danger zone is always the last group.<span class="ref">A09 Vercel, D16 Mintlify · D-04, D-24</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Standard PageHeader.</b> Breadcrumb → 24px title (= menu label) → description → freshness meta; actions right, one primary.<span class="ref">A05 GitLab, A11 · D-07, D-09</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Underline tabs with counts</b> switch views of the page. Active = ink + 2px rule; hover = ink text only.<span class="ref">E04 Attio · D-08</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Compact data header.</b> 18px title with inline tabs on one line, then the toolbar; segmented control switches the same data's layout.<span class="ref">A11 LangSmith, C06 Navattic, E06 Linear · D-07, D-08</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Command palette (Ctrl K).</b> Grouped results; the last row always hands the query to Friday.<span class="ref">A16 Mistral, E13 Amie · D-14, D-24</span></div>
+  <div class="sb-note"><span class="pin">9</span><b>Breadcrumb</b> starts at the client, 13px muted with slash separators; the last crumb is the current page and not a link.<span class="ref">A05 GitLab · D-07</span></div>
+</div>
+</div>
+</body>
+</html>

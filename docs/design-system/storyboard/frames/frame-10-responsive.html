@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 10 · Responsive</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .f10 { position: absolute; inset: 0; padding: var(--space-6) 28px; display: flex; flex-direction: column; gap: var(--space-4); }
+  .f10-top { display: flex; align-items: center; gap: var(--space-3); }
+  .f10-top .rm-alert { flex: 1; }
+  .f10-row { display: grid; grid-template-columns: 300px repeat(3, 335px); gap: var(--space-6); align-items: start; }
+  .f10-col { display: flex; flex-direction: column; gap: var(--space-2); }
+  .f10-cap { display: flex; align-items: baseline; gap: var(--space-2); height: 36px; flex-direction: column; justify-content: flex-end; }
+  .f10-cap b { font-size: 14px; font-weight: 600; }
+  .f10-phone { width: 335px; height: 726px; }
+  .f10-phone .rm-m { transform: scale(.86); transform-origin: 0 0; }
+  .f10-bp { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border-default); }
+  .f10-bp + .f10-bp { padding-top: var(--space-4); }
+  .f10-bp:last-child { border-bottom: 0; }
+  .f10-bp .h { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; font-weight: 600; }
+  .f10-bp ul { margin: 0; padding-left: 16px; font-size: 12px; line-height: 18px; color: var(--color-text-secondary); }
+  .f10-bp svg { display: block; }
+  .rm-m .rm-btn.icon.lg { width: var(--size-controlLg); }
+  .rm-m-head .ttl { font-size: 16px; font-weight: 600; }
+  .rm-m-head .rm-ctx-btn { height: var(--size-controlLg); max-width: 220px; overflow: hidden; }
+  .rm-m-head .end { margin-left: auto; display: flex; }
+  .f10-kpi { display: grid; grid-template-columns: 1fr 1fr; }
+  .f10-kpi .rm-kpi { padding: var(--space-3) var(--space-4); }
+  .f10-kpi .rm-kpi:nth-child(odd) { border-left: 0; }
+  .f10-kpi .rm-kpi:nth-child(n+3) { border-top: 1px solid var(--color-border-default); }
+  .f10-sum p { font-size: 14px; line-height: 22px; margin-top: var(--space-2); }
+  .f10-chips { display: flex; gap: var(--space-2); overflow: hidden; padding: var(--space-2) 0 var(--space-2) var(--space-4); }
+  .f10-chips .rm-chip { height: 32px; }
+  .f10-list .rm-feed-item { padding: var(--space-3) var(--space-4); min-height: 64px; align-items: center; color: inherit; text-decoration: none; }
+  .f10-list .rm-feed-item .end { color: var(--color-text-muted); }
+  .f10-list .rm-feed-item .meta { gap: var(--space-2); }
+  .f10-count { display: flex; align-items: center; padding: 0 var(--space-2) 0 var(--space-4); height: 44px; }
+  .f10-count .rm-btn { margin-left: auto; }
+  .f10-feed .rm-feed-item { padding: var(--space-3) 0; }
+  .f10-tab-friday { height: 24px; padding: 0 var(--space-2_5); }
+  .f10 .rm-tabbar a { text-decoration: none; }
+  .f10-chat { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+  .rm-sheet-m .hd { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+  .rm-sheet-m .hd b { font-size: 16px; font-weight: 600; }
+  .rm-sheet-m .hd .rm-btn { margin-left: auto; }
+  .rm-sheet-m .rm-sources { margin-top: 0; }
+  .rm-sheet-m .rm-sources > div { min-height: 52px; font-size: 13px; line-height: 18px; }
+  .rm-sheet-m .rm-sources .t { display: flex; flex-direction: column; }
+  .rm-sheet-m .rm-sources .t span { font-size: 12px; color: var(--color-text-muted); }
+  .rm-sheet-m .rm-sources .i { color: var(--color-text-muted); }
+  .f10-full { width: 100%; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 10</span><h1>Responsive</h1><span class="q">Proposed: drawer below 1024, bottom tabs and bands below 768, bottom sheets for evidence.</span><span class="tag">PROPOSED · composed board 1440 × 900 · phones 390 × 844 shown at 86%</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:900px">
+  <div class="f10">
+    <div class="f10-top" data-m="top">
+      <div class="rm-alert warning"><span class="i i-alert"></span><span><strong>Proposed, not decided.</strong> Mobile evidence is limited to three references (F16 Squarespace, F17 ChatGPT iOS, F18 Perplexity). Validate with pilot owners on their phones before building.</span></div>
+    </div>
+    <div class="f10-row">
+      <!-- Breakpoint schematics -->
+      <div class="f10-col" data-m="bps">
+        <div class="f10-cap"><b>Breakpoints</b><span class="caption">Same IA everywhere; only the chrome changes.</span></div>
+        <div class="f10-bp" data-m="bp1">
+          <div class="h"><span class="rm-tag">≥ 1024</span>Desktop</div>
+          <svg width="300" height="104" viewBox="0 0 300 104" role="img" aria-label="Desktop: top bar, 240px sidebar, inset white sheet, optional Friday panel">
+            <rect x="0.5" y="0.5" width="299" height="103" rx="6" style="fill:var(--color-background-app);stroke:var(--color-border-control)"/>
+            <rect x="8" y="8" width="284" height="10" rx="2" style="fill:var(--color-background-muted)"/>
+            <rect x="8" y="26" width="56" height="70" rx="2" style="fill:var(--color-background-muted)"/>
+            <rect x="72" y="26" width="160" height="70" rx="4" style="fill:var(--color-background-surface);stroke:var(--color-border-default)"/>
+            <rect x="238" y="26" width="54" height="70" rx="2" style="fill:var(--color-background-surface);stroke:var(--color-border-control);stroke-dasharray:3 2"/>
+            <g style="fill:var(--color-text-muted);font-size:11px"><text x="14" y="42">Sidebar</text><text x="80" y="42">Sheet · 8px gutter</text><text x="243" y="42">Friday</text></g>
+          </svg>
+          <ul><li>Sidebar 240px, collapses to a 56px rail</li><li>Friday docks as a 400px panel</li></ul>
+        </div>
+        <div class="f10-bp" data-m="bp2">
+          <div class="h"><span class="rm-tag">768 – 1023</span>Tablet</div>
+          <svg width="300" height="104" viewBox="0 0 300 104" role="img" aria-label="Tablet: sidebar becomes a drawer, sheet goes full-bleed, Friday opens full screen">
+            <rect x="0.5" y="0.5" width="299" height="103" rx="6" style="fill:var(--color-background-surface);stroke:var(--color-border-control)"/>
+            <rect x="1" y="1" width="298" height="18" rx="5" style="fill:var(--color-background-app)"/>
+            <line x1="1" y1="19" x2="299" y2="19" style="stroke:var(--color-border-default)"/>
+            <g style="stroke:var(--color-text-muted);stroke-width:1.5"><line x1="8" y1="7" x2="18" y2="7"/><line x1="8" y1="10" x2="18" y2="10"/><line x1="8" y1="13" x2="18" y2="13"/></g>
+            <rect x="1" y="20" width="96" height="83" style="fill:var(--color-background-app);stroke:var(--color-border-control);stroke-dasharray:3 2"/>
+            <g style="fill:var(--color-text-muted);font-size:11px"><text x="10" y="40">Drawer (☰)</text><text x="110" y="40">Sheet full-bleed,</text><text x="110" y="55">no gutter, 24px padding</text></g>
+          </svg>
+          <ul><li>Sidebar becomes a ☰ drawer over a scrim</li><li>Sheet loses border and gutter</li></ul>
+        </div>
+        <div class="f10-bp" data-m="bp3">
+          <div class="h"><span class="rm-tag">&lt; 768</span>Phone</div>
+          <svg width="300" height="104" viewBox="0 0 300 104" role="img" aria-label="Phone: header, full-bleed sections divided by 8px bands, bottom tab bar">
+            <rect x="0.5" y="0.5" width="56" height="103" rx="8" style="fill:var(--color-background-surface);stroke:var(--color-border-control)"/>
+            <line x1="1" y1="12" x2="56" y2="12" style="stroke:var(--color-border-default)"/>
+            <rect x="1" y="38" width="55" height="5" style="fill:var(--color-background-app)"/>
+            <rect x="1" y="66" width="55" height="5" style="fill:var(--color-background-app)"/>
+            <line x1="1" y1="90" x2="56" y2="90" style="stroke:var(--color-border-default)"/>
+            <g style="fill:var(--color-text-muted);font-size:11px"><text x="70" y="16">Header: ☰ + client switcher</text><text x="70" y="44">8px canvas bands between sections</text><text x="70" y="72">No cards, no sheet border</text><text x="70" y="98">Bottom tab bar, 64px</text></g>
+          </svg>
+          <ul><li>All targets ≥ 44 × 44px</li><li>Menus, filters and sources open as bottom sheets</li></ul>
+        </div>
+      </div>
+
+      <!-- Phone 1: Overview -->
+      <div class="f10-col">
+        <div class="f10-cap"><b>Overview</b><span class="caption">&lt; 768 · Home tab</span></div>
+        <div class="f10-phone" data-m="p1">
+          <div class="rm-m">
+            <div class="rm-m-head">
+              <button class="rm-btn ghost icon lg" aria-label="Open menu"><span class="i i-menu"></span></button>
+              <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+              <div class="end"><button class="rm-btn ghost icon lg has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button></div>
+            </div>
+            <div class="rm-m-body">
+              <div class="rm-m-section">
+                <div class="rm-pagehead is-compact" style="margin-bottom:var(--space-3)"><div><h1>Overview</h1><div class="rm-meta" style="margin-top:0"><span class="rm-live">Updated 2h ago</span><span>Oct 19 – 25</span></div></div></div>
+                <div class="f10-sum"><span class="rm-friday label">Friday</span>
+                  <p>BlueRidge launched a $49 furnace tune-up ad <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span> and Apex now ranks ahead of you on the map.</p>
+                  <a href="#" class="rm-btn link" style="margin-top:var(--space-2)">Read the brief<span class="i i-arrow-right"></span></a>
+                </div>
+              </div>
+              <div class="rm-m-band"></div>
+              <div class="f10-kpi" data-m="kpi">
+                <div class="rm-kpi"><div class="label">Google rating</div><div class="value">4.7 <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span></div></div>
+                <div class="rm-kpi"><div class="label">New reviews</div><div class="value">12 <span class="rm-delta up"><span class="i i-arrow-up"></span>4</span></div></div>
+                <div class="rm-kpi"><div class="label">Avg. map rank</div><div class="value">3.4 <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span></div></div>
+                <div class="rm-kpi"><div class="label">Rival changes</div><div class="value">7</div></div>
+              </div>
+              <div class="rm-m-band"></div>
+              <div class="rm-m-section f10-feed">
+                <div class="rm-section-head" style="margin-bottom:0"><div><h2>What changed</h2></div><div class="actions"><a href="#" class="rm-btn ghost sm">All</a></div></div>
+                <div class="rm-feed-item"><span class="ic"><span class="i i-megaphone"></span></span><div class="body"><b>BlueRidge</b> started a $49 tune-up ad<div class="meta"><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span>2h</span></div></div></div>
+                <div class="rm-feed-item"><span class="ic"><span class="i i-globe"></span></span><div class="body"><b>Apex</b> added "24/7 emergency service"<div class="meta"><span class="rm-tag">Website</span><span>Yesterday</span></div></div></div>
+                <div class="rm-feed-item" style="border-bottom:0"><span class="ic"><span class="i i-star"></span></span><div class="body"><b>Valley Drain</b> replied to 5 one-star reviews<div class="meta"><span class="rm-tag">Reviews</span><span>3 days ago</span></div></div></div>
+              </div>
+            </div>
+            <nav class="rm-tabbar" aria-label="Main" data-m="tabbar">
+              <a href="#" class="is-active"><span class="i i-home"></span>Home</a>
+              <a href="#"><span class="i i-inbox"></span>Alerts</a>
+              <a href="#"><span class="rm-friday f10-tab-friday"><span class="i xs i-chat"></span></span>Ask Friday</a>
+              <a href="#"><span class="i i-file"></span>Briefs</a>
+              <a href="#"><span class="i i-menu"></span>More</a>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone 2: Competitors -->
+      <div class="f10-col">
+        <div class="f10-cap"><b>Competitors</b><span class="caption">&lt; 768 · table becomes stacked rows</span></div>
+        <div class="f10-phone" data-m="p2">
+          <div class="rm-m">
+            <div class="rm-m-head">
+              <button class="rm-btn ghost icon lg" aria-label="Open menu"><span class="i i-menu"></span></button>
+              <span class="ttl">Competitors</span>
+              <div class="end"><button class="rm-btn ghost icon lg" aria-label="Search competitors"><span class="i i-search"></span></button></div>
+            </div>
+            <div class="rm-m-body">
+              <div class="f10-chips" data-m="chips">
+                <button class="rm-chip is-selected">All 6</button>
+                <button class="rm-chip">Top rivals 2</button>
+                <button class="rm-chip">Worth watching 2</button>
+                <button class="rm-chip">Minor 2</button>
+              </div>
+              <div class="f10-count"><span class="caption">6 competitors · by tier</span><button class="rm-btn ghost"><span class="i i-sort"></span>Sort</button></div>
+              <div class="f10-list" data-m="list">
+                <a href="#" class="rm-feed-item"><span class="rm-avatar biz">BR</span><div class="body"><b>BlueRidge Heating &amp; Cooling</b><div class="meta"><span class="rm-tier top">Top rival</span><span class="num">4.6 ★ · 412</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+                <a href="#" class="rm-feed-item is-focus"><span class="rm-avatar biz">AC</span><div class="body"><b>Apex Comfort Pros</b><div class="meta"><span class="rm-tier top">Top rival</span><span class="num">4.4 ★ · 288</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+                <a href="#" class="rm-feed-item"><span class="rm-avatar biz">VD</span><div class="body"><b>Valley Drain Masters</b><div class="meta"><span class="rm-tier watch">Worth watching</span><span class="num">4.2 ★ · 167</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+                <a href="#" class="rm-feed-item"><span class="rm-avatar biz">RR</span><div class="body"><b>Rapid Rooter Co.</b><div class="meta"><span class="rm-tier watch">Worth watching</span><span class="num">3.9 ★ · 96</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+                <a href="#" class="rm-feed-item"><span class="rm-avatar biz">FR</span><div class="body"><b>Front Range Plumbing</b><div class="meta"><span class="rm-tier minor">Minor</span><span class="num">4.1 ★ · 73</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+                <a href="#" class="rm-feed-item" style="border-bottom:0"><span class="rm-avatar biz">CH</span><div class="body"><b>Cascade HVAC Services</b><div class="meta"><span class="rm-tier minor">Minor</span><span class="num">4.8 ★ · 54</span></div></div><span class="end"><span class="i i-chev-right"></span></span></a>
+              </div>
+              <div class="rm-m-band"></div>
+              <div class="rm-m-section">
+                <p class="caption" style="margin-bottom:var(--space-3)">Discovery refreshes monthly · next run Nov 1</p>
+                <button class="rm-btn secondary lg f10-full"><span class="i i-plus"></span>Add a competitor</button>
+              </div>
+            </div>
+            <nav class="rm-tabbar" aria-label="Main">
+              <a href="#"><span class="i i-home"></span>Home</a>
+              <a href="#"><span class="i i-inbox"></span>Alerts</a>
+              <a href="#"><span class="rm-friday f10-tab-friday"><span class="i xs i-chat"></span></span>Ask Friday</a>
+              <a href="#"><span class="i i-file"></span>Briefs</a>
+              <a href="#" class="is-active"><span class="i i-menu"></span>More</a>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone 3: Friday + sources sheet -->
+      <div class="f10-col">
+        <div class="f10-cap"><b>Ask Friday · sources</b><span class="caption">&lt; 768 · tap a citation → bottom sheet</span></div>
+        <div class="f10-phone" data-m="p3">
+          <div class="rm-m">
+            <div class="rm-m-head">
+              <button class="rm-btn ghost icon lg" aria-label="Back"><span class="i i-arrow-left"></span></button>
+              <span class="rm-friday label">Friday</span>
+              <div class="end"><button class="rm-btn ghost icon lg" aria-label="More"><span class="i i-more"></span></button></div>
+            </div>
+            <div class="rm-m-body">
+              <div class="f10-chat">
+                <div class="rm-msg-user">Why did our map rank drop this week?</div>
+                <div class="rm-msg-friday">
+                  <p>Your average map rank slipped from <b>2.8 to 3.4</b> <span class="rm-cite"><span class="i i-pin"></span>Rank scan · Oct 19</span>.</p>
+                  <ul>
+                    <li>Apex added "24/7 emergency service" to their homepage <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span>.</li>
+                    <li>BlueRidge gained 9 reviews <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 20</span>.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="rm-scrim"></div>
+            <div class="rm-sheet-m" data-m="sheet">
+              <div class="grab"></div>
+              <div class="hd"><b>Sources</b><span class="rm-count">4</span><button class="rm-btn ghost icon lg" aria-label="Close sources"><span class="i i-x"></span></button></div>
+              <div class="rm-sources">
+                <div><span class="i i-pin"></span><span class="t">Local rank scan, 25 points<span>Summit Plumbing &amp; Air</span></span><span class="date">Oct 19</span></div>
+                <div><span class="i i-globe"></span><span class="t">Homepage<span>apexcomfortpros.com</span></span><span class="date">Oct 21</span></div>
+                <div><span class="i i-star"></span><span class="t">Google reviews<span>BlueRidge Heating &amp; Cooling</span></span><span class="date">Oct 20</span></div>
+                <div><span class="i i-megaphone"></span><span class="t">Ads Transparency Center<span>BlueRidge Heating &amp; Cooling</span></span><span class="date">Oct 22</span></div>
+              </div>
+              <button class="rm-btn secondary lg f10-full" style="margin-top:var(--space-3)"><span class="i i-eye"></span>Open evidence</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="pin abs" style="left:4px;top:35px">1</span>
+  <span class="pin abs" style="left:4px;top:200px">2</span>
+  <span class="pin abs" style="left:4px;top:395px">3</span>
+  <span class="pin abs" style="left:4px;top:612px">4</span>
+  <span class="pin abs" style="left:330px;top:140px">5</span>
+  <span class="pin abs" style="left:330px;top:400px">6</span>
+  <span class="pin abs" style="left:330px;top:800px">7</span>
+  <span class="pin abs" style="left:689px;top:186px">8</span>
+  <span class="pin abs" style="left:1048px;top:560px">9</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Proposed, flagged as such.</b> Only three mobile references were collected, so this frame is a hypothesis for pilot testing, not a decision. Uses the warning alert, not the Friday orange.<span class="ref">F16, F17, F18 · D-23, D-17</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>≥ 1024: the desktop shell.</b> Frame + inset sheet, 240px sidebar (56px rail when collapsed), Friday docks at 400px.<span class="ref">A04 Linear, F03 · D-02, D-04, D-14</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>768–1023: drawer + full-bleed.</b> The sidebar moves behind ☰ as a drawer over the scrim; the sheet drops its border and gutter, padding 24.<span class="ref">D-23, D-05</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>&lt; 768: bands, tabs, sheets.</b> Sections run full-bleed, separated by 8px canvas bands; every target is at least 44 × 44px; pickers open as bottom sheets.<span class="ref">F16 Squarespace mobile bands · D-23</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Header keeps the context.</b> ☰ menu, client switcher (agency name drops at this width), notifications — all 44px icon buttons.<span class="ref">A08/A10 slash switchers · D-03, D-23</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>KPI strip folds to 2 × 2.</b> Same KPI cells and delta pills, hairline dividers instead of tiles; the Friday summary still comes first.<span class="ref">B09 Jobber, F16 · D-12, D-26</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Five tabs, one orange.</b> Home, Alerts, Ask Friday (the only orange element), Briefs, More. Competitors and Monitor pages live under More.<span class="ref">F18 Perplexity · D-14, D-23</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Table → stacked rows.</b> Tier tabs become a horizontally scrolling chip row; each competitor is a 64px row with tier mark, rating and chevron. Focus ring shown on Apex.<span class="ref">C03 Attio, P01 Plain dense list · D-10, D-11, D-23</span></div>
+  <div class="sb-note"><span class="pin">9</span><b>Citations open a bottom sheet.</b> Tapping a pill dims the answer and lists dated sources (52px rows) with one "Open evidence" action.<span class="ref">F17 ChatGPT iOS sources sheet, F07 Dash · D-14, D-24</span></div>
+</div>
+</div>
+</body>
+</html>

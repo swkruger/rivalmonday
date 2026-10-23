@@ -1,0 +1,234 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Rival Monday design tokens v1 (adopted 2026-10-23 — owner mandate). Format: W3C Design Tokens (DTCG) — every leaf has $value and $type; $extensions.rm.source is one of brand (decided in docs/brand/brand.md or CLAUDE.md), existing (already in packages/ui/src/styles.css), new (proposed by this research), reference (dataviz skill reference palette). No value here is sampled from a screenshot; research estimates live in docs/design-system/research/. Token paths map to CSS variables by replacing dots with dashes: color.background.app -> --color-background-app.",
+  "color": {
+    "$type": "color",
+    "background": {
+      "app": { "$value": "#F6F9FC", "$description": "App frame behind the content sheet: top bar + sidebar region.", "$extensions": { "rm": { "source": "brand", "brandToken": "canvas" } } },
+      "sidebar": { "$value": "#F6F9FC", "$description": "Sidebar = part of the frame, same as app. Separation from content comes from the white sheet and its border, not from a second grey.", "$extensions": { "rm": { "source": "brand" } } },
+      "surface": { "$value": "#FFFFFF", "$description": "Content sheet, popovers, dialogs, frames.", "$extensions": { "rm": { "source": "brand" } } },
+      "surfaceSubtle": { "$value": "#F6F9FC", "$description": "Band inside the white sheet: table header row in a frame, KPI band, sticky save bar, mobile section separators.", "$extensions": { "rm": { "source": "brand" } } },
+      "muted": { "$value": "#EEF2F6", "$description": "Grey panels with dark text: brief callouts, user chat bubble, nested reply block, segmented-control track, neutral badge.", "$extensions": { "rm": { "source": "brand", "brandToken": "muted-surface" } } },
+      "interactive": { "$value": "#EEF2F6", "$description": "Hover fill for rows, nav items, menu items, ghost buttons.", "$extensions": { "rm": { "source": "existing" } } },
+      "selected": { "$value": "#E3F2FC", "$description": "Selected nav item, selected row, applied filter chip.", "$extensions": { "rm": { "source": "brand", "brandToken": "primary-soft" } } },
+      "inverse": { "$value": "#0B2540", "$description": "Toast, bulk-action bar, tooltip.", "$extensions": { "rm": { "source": "brand", "brandToken": "ink" } } },
+      "scrim": { "$value": "#0B254052", "$description": "Dialog/sheet backdrop: ink at 32%.", "$extensions": { "rm": { "source": "new" } } }
+    },
+    "text": {
+      "primary": { "$value": "#0B2540", "$description": "Body, headings, KPI values. 15.5:1 on surface.", "$extensions": { "rm": { "source": "brand", "brandToken": "ink" } } },
+      "secondary": { "$value": "#334155", "$description": "Secondary body, table cells of lesser weight. 10.4:1.", "$extensions": { "rm": { "source": "existing" } } },
+      "muted": { "$value": "#5B6B80", "$description": "Descriptions, helper text, metadata, table headers. 5.2:1 on canvas, 4.8:1 on muted. Replaces #64748B (4.23:1 on #EEF2F6 fails AA).", "$extensions": { "rm": { "source": "new", "replaces": "#64748B" } } },
+      "inverse": { "$value": "#FFFFFF", "$extensions": { "rm": { "source": "brand" } } },
+      "link": { "$value": "#1F6FA8", "$description": "Links and text buttons. 5.4:1 on surface.", "$extensions": { "rm": { "source": "existing", "brandToken": "primary-soft-text" } } },
+      "onPrimary": { "$value": "#0B2540", "$description": "Label on action.primary: ink, 5.93:1 (OD-1 resolved 2026-10-23; replaces white at 2.62:1). For agency primaries, computed: white or ink, whichever contrasts more.", "$extensions": { "rm": { "source": "new", "replaces": "#FFFFFF" } } },
+      "accent": { "$value": "#B45309", "$description": "Amber used as small text on white. 5.0:1.", "$extensions": { "rm": { "source": "brand", "brandToken": "accent-text" } } },
+      "success": { "$value": "#166534", "$description": "Positive delta and success badge text. 7.1:1 on white, 6.4:1 on successSurface.", "$extensions": { "rm": { "source": "existing" } } },
+      "danger": { "$value": "#B91C1C", "$description": "Error messages, negative delta text. 6.5:1.", "$extensions": { "rm": { "source": "existing" } } },
+      "warning": { "$value": "#92400E", "$extensions": { "rm": { "source": "existing" } } },
+      "info": { "$value": "#1F5F8F", "$extensions": { "rm": { "source": "existing" } } }
+    },
+    "border": {
+      "default": { "$value": "#E2E8F0", "$description": "Frames, dividers, sheet edge, section rules.", "$extensions": { "rm": { "source": "brand", "brandToken": "line" } } },
+      "subtle": { "$value": "#EDF1F5", "$description": "Row dividers inside tables and lists; chart gridlines.", "$extensions": { "rm": { "source": "new" } } },
+      "control": { "$value": "#CBD5E1", "$description": "Outline of secondary buttons, segmented control, filter chips (their label identifies them).", "$extensions": { "rm": { "source": "new" } } },
+      "strong": { "$value": "#8796AB", "$description": "Boundary of inputs, selects, checkboxes, radios — the boundary is what identifies the control, so it needs 3:1 (3.01:1 on white; WCAG 1.4.11).", "$extensions": { "rm": { "source": "new" } } }
+    },
+    "action": {
+      "primary": { "$value": "#47A8E7", "$description": "Primary button fill (agency-overridable).", "$extensions": { "rm": { "source": "brand", "brandToken": "primary", "whiteLabel": true } } },
+      "primaryHover": { "$value": "#2F93D6", "$extensions": { "rm": { "source": "new", "derivedFrom": "primary" } } },
+      "primaryActive": { "$value": "#2581C2", "$extensions": { "rm": { "source": "new", "derivedFrom": "primary" } } },
+      "secondary": { "$value": "#FFFFFF", "$description": "Secondary (outline) button fill; border = border.control, text = text.primary.", "$extensions": { "rm": { "source": "new" } } },
+      "secondaryHover": { "$value": "#F6F9FC", "$extensions": { "rm": { "source": "new" } } },
+      "ghostHover": { "$value": "#EEF2F6", "$extensions": { "rm": { "source": "new" } } },
+      "danger": { "$value": "#DC2626", "$description": "Destructive fill inside a confirmation dialog only. White text 4.83:1.", "$extensions": { "rm": { "source": "brand" } } },
+      "dangerHover": { "$value": "#B91C1C", "$extensions": { "rm": { "source": "existing" } } }
+    },
+    "state": {
+      "success": { "$value": "#16A34A", "$description": "Icons, dots, chart deltas (graphics only; 3.3:1). Text uses text.success.", "$extensions": { "rm": { "source": "brand" } } },
+      "successSurface": { "$value": "#E7F6EC", "$extensions": { "rm": { "source": "existing" } } },
+      "warning": { "$value": "#D97706", "$description": "Warning icon and alert left bar. Deliberately darker and more orange than brand accent #F5A524 so a warning never reads as Friday/priority.", "$extensions": { "rm": { "source": "new" } } },
+      "warningSurface": { "$value": "#FFF7E6", "$description": "Paler than chip-warning #FEF3C7 and never solid; text = text.warning (6.65:1).", "$extensions": { "rm": { "source": "new" } } },
+      "danger": { "$value": "#DC2626", "$extensions": { "rm": { "source": "brand" } } },
+      "dangerSurface": { "$value": "#FDECEC", "$extensions": { "rm": { "source": "existing" } } },
+      "info": { "$value": "#2A6BAC", "$extensions": { "rm": { "source": "brand", "brandToken": "secondary" } } },
+      "infoSurface": { "$value": "#E3F2FC", "$extensions": { "rm": { "source": "brand" } } },
+      "neutral": { "$value": "#5B6B80", "$extensions": { "rm": { "source": "new" } } },
+      "neutralSurface": { "$value": "#EEF2F6", "$extensions": { "rm": { "source": "brand" } } }
+    },
+    "focus": {
+      "ring": { "$value": "#2A6BAC", "$description": "2px ring + 2px surface offset. 5.5:1 on white. Replaces --ring: var(--primary) (2.62:1 fails WCAG 2.4.13/1.4.11).", "$extensions": { "rm": { "source": "new", "replaces": "var(--primary)" } } }
+    },
+    "brand": {
+      "primary": { "$value": "#47A8E7", "$extensions": { "rm": { "source": "brand", "whiteLabel": true } } },
+      "secondary": { "$value": "#2A6BAC", "$extensions": { "rm": { "source": "brand", "whiteLabel": true } } },
+      "accent": { "$value": "#F5A524", "$description": "Wordmark 'monday', Friday pill, high-priority marker, star ratings. Never a warning, never a series colour.", "$extensions": { "rm": { "source": "brand" } } },
+      "fridayPillBg": { "$value": "#F5A524", "$extensions": { "rm": { "source": "brand" } } },
+      "fridayPillText": { "$value": "#3B2300", "$description": "7.2:1.", "$extensions": { "rm": { "source": "brand" } } },
+      "primarySoft": { "$value": "#E3F2FC", "$extensions": { "rm": { "source": "brand" } } },
+      "primarySoftText": { "$value": "#1F6FA8", "$description": "4.7:1 on primarySoft.", "$extensions": { "rm": { "source": "brand" } } }
+    },
+    "chart": {
+      "you": { "$value": "#2A6BAC", "$description": "The viewer's own business. Validated set with rival1/rival2: dataviz validate_palette --pairs all, light: PASS (worst CVD ΔE 9.0, normal-vision 18.1, all ≥3:1).", "$extensions": { "rm": { "source": "brand" } } },
+      "rival1": { "$value": "#E05A2B", "$description": "First highlighted rival.", "$extensions": { "rm": { "source": "new" } } },
+      "rival2": { "$value": "#14936A", "$description": "Second highlighted rival. A third highlight is not allowed — violet and magenta candidates failed the validator.", "$extensions": { "rm": { "source": "new" } } },
+      "context": { "$value": "#A3B1C2", "$description": "All other rivals / peer lines. 2.18:1 — relief rule: legend + table view required.", "$extensions": { "rm": { "source": "new" } } },
+      "peerBand": { "$value": "#EEF2F6", "$description": "Market range band behind the 'you' line.", "$extensions": { "rm": { "source": "brand" } } },
+      "grid": { "$value": "#EDF1F5", "$extensions": { "rm": { "source": "new" } } },
+      "axis": { "$value": "#5B6B80", "$extensions": { "rm": { "source": "new" } } },
+      "sequential": {
+        "100": { "$value": "#cde2fb", "$extensions": { "rm": { "source": "reference" } } },
+        "250": { "$value": "#86b6ef", "$extensions": { "rm": { "source": "reference" } } },
+        "400": { "$value": "#3987e5", "$extensions": { "rm": { "source": "reference" } } },
+        "550": { "$value": "#1c5cab", "$extensions": { "rm": { "source": "reference" } } },
+        "700": { "$value": "#0d366b", "$extensions": { "rm": { "source": "reference" } } }
+      }
+    }
+  },
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "sans": { "$value": ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": { "rm": { "source": "brand" } } },
+      "mono": { "$value": ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", "monospace"], "$extensions": { "rm": { "source": "new" } } }
+    },
+    "weight": {
+      "$type": "fontWeight",
+      "regular": { "$value": 400 },
+      "medium": { "$value": 500 },
+      "semibold": { "$value": 600 },
+      "extrabold": { "$value": 800, "$description": "Wordmark only." }
+    }
+  },
+  "typography": {
+    "$type": "typography",
+    "display": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "30px", "fontWeight": 600, "lineHeight": "36px", "letterSpacing": "-0.02em" }, "$description": "Welcome / brief hero only; max one per page." },
+    "pageTitle": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "24px", "fontWeight": 600, "lineHeight": "32px", "letterSpacing": "-0.01em" } },
+    "pageTitleCompact": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "18px", "fontWeight": 600, "lineHeight": "26px", "letterSpacing": "-0.005em" }, "$description": "Data-heavy pages with inline tabs." },
+    "sectionHeading": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "16px", "fontWeight": 600, "lineHeight": "24px", "letterSpacing": "0" } },
+    "subsectionHeading": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "14px", "fontWeight": 600, "lineHeight": "20px", "letterSpacing": "0" } },
+    "body": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "14px", "fontWeight": 400, "lineHeight": "20px", "letterSpacing": "0" } },
+    "bodyReading": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "16px", "fontWeight": 400, "lineHeight": "26px", "letterSpacing": "0" }, "$description": "Briefs and Friday answers; owners read these on phones." },
+    "bodySmall": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "13px", "fontWeight": 400, "lineHeight": "18px", "letterSpacing": "0" }, "$description": "Table cells, nav items, menu items, dense lists." },
+    "label": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "13px", "fontWeight": 500, "lineHeight": "18px", "letterSpacing": "0" }, "$description": "Form labels, filter chips, tabs, badges." },
+    "button": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "13px", "fontWeight": 500, "lineHeight": "18px", "letterSpacing": "0" } },
+    "caption": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "12px", "fontWeight": 400, "lineHeight": "16px", "letterSpacing": "0" }, "$description": "Helper text, metadata, timestamps, table headers (with medium weight). Smallest text size in the system." },
+    "groupLabel": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "12px", "fontWeight": 500, "lineHeight": "16px", "letterSpacing": "0" }, "$description": "Sidebar group labels, menu section labels. Sentence case, never uppercase." },
+    "kpi": { "$value": { "fontFamily": "{font.family.sans}", "fontSize": "24px", "fontWeight": 600, "lineHeight": "30px", "letterSpacing": "-0.01em" }, "$description": "Use with font-variant-numeric: tabular-nums." },
+    "mono": { "$value": { "fontFamily": "{font.family.mono}", "fontSize": "12px", "fontWeight": 400, "lineHeight": "16px", "letterSpacing": "0" }, "$description": "IDs, URLs, hashes only." }
+  },
+  "space": {
+    "$type": "dimension",
+    "0": { "$value": "0px" },
+    "0_5": { "$value": "2px" },
+    "1": { "$value": "4px" },
+    "1_5": { "$value": "6px" },
+    "2": { "$value": "8px" },
+    "2_5": { "$value": "10px" },
+    "3": { "$value": "12px" },
+    "4": { "$value": "16px" },
+    "5": { "$value": "20px" },
+    "6": { "$value": "24px" },
+    "8": { "$value": "32px" },
+    "10": { "$value": "40px" },
+    "12": { "$value": "48px" },
+    "16": { "$value": "64px" }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "inline": { "$value": "{space.2}", "$description": "Gap between related inline items: icon-label, button-button." },
+    "stack": { "$value": "{space.4}", "$description": "Gap between related stacked items: fields in a form." },
+    "fieldInternal": { "$value": "{space.1_5}", "$description": "Label to input; input to helper text." },
+    "group": { "$value": "{space.6}", "$description": "Between groups inside a section." },
+    "section": { "$value": "{space.10}", "$description": "Between page sections." },
+    "pageHeaderBottom": { "$value": "{space.6}" },
+    "pagePaddingDesktop": { "$value": "{space.8}" },
+    "pagePaddingTablet": { "$value": "{space.6}" },
+    "pagePaddingMobile": { "$value": "{space.4}" },
+    "sheetGutter": { "$value": "{space.2}", "$description": "Gap between the content sheet and the window edge (right, bottom) on ≥1024px." },
+    "cellX": { "$value": "{space.3}" },
+    "buttonX": { "$value": "{space.3}", "$description": "Horizontal button padding (md); sm buttons use space.2_5." },
+    "buttonXSm": { "$value": "{space.2_5}" },
+    "frameBody": { "$value": "{space.4}", "$description": "Padding inside a frame or card." }
+  },
+  "size": {
+    "$type": "dimension",
+    "controlSm": { "$value": "28px", "$description": "Toolbar / table / popover-footer buttons and chips." },
+    "controlMd": { "$value": "36px", "$description": "Default buttons, inputs, selects." },
+    "controlLg": { "$value": "44px", "$description": "Touch (<768px) controls; WCAG 2.5.8 target ≥24px is met at every size, 44px is the comfort target." },
+    "rowDefault": { "$value": "40px" },
+    "rowCompact": { "$value": "32px" },
+    "navItem": { "$value": "32px" },
+    "menuItem": { "$value": "32px" },
+    "badge": { "$value": "20px" },
+    "icon": { "$value": "16px" },
+    "iconLg": { "$value": "20px" },
+    "iconEmpty": { "$value": "32px" },
+    "avatarSm": { "$value": "20px" },
+    "avatarMd": { "$value": "28px" },
+    "avatarLg": { "$value": "40px" },
+    "iconStroke": { "$value": "1.75px", "$type": "dimension" }
+  },
+  "layout": {
+    "$type": "dimension",
+    "topBarHeight": { "$value": "48px" },
+    "sidebarWidth": { "$value": "240px" },
+    "sidebarRailWidth": { "$value": "56px" },
+    "settingsNavWidth": { "$value": "240px", "$description": "Drill-in settings nav replaces the main nav in the same column." },
+    "contentMaxWidth": { "$value": "1560px", "$extensions": { "rm": { "source": "brand" } } },
+    "formMaxWidth": { "$value": "640px" },
+    "readingMaxWidth": { "$value": "680px" },
+    "fridayPanelWidth": { "$value": "400px" },
+    "peekPanelWidth": { "$value": "440px" },
+    "detailAsideWidth": { "$value": "320px" },
+    "dialogSm": { "$value": "400px" },
+    "dialogMd": { "$value": "480px" },
+    "dialogLg": { "$value": "640px" },
+    "commandPaletteWidth": { "$value": "600px" }
+  },
+  "breakpoint": {
+    "$type": "dimension",
+    "sm": { "$value": "640px" },
+    "md": { "$value": "768px", "$description": "Below: bottom tab bar, no sidebar, full-bleed sections." },
+    "lg": { "$value": "1024px", "$description": "Below: sidebar collapses to off-canvas drawer; sheet loses its gutter and radius." },
+    "xl": { "$value": "1280px", "$description": "Friday docked panel may push content only at ≥1280; below it overlays as a sheet." },
+    "2xl": { "$value": "1536px" }
+  },
+  "radius": {
+    "$type": "dimension",
+    "none": { "$value": "0px", "$description": "Full-bleed mobile sections, table cells." },
+    "xs": { "$value": "4px", "$description": "Status badges, tags, citation pills, checkbox, tooltip, count badge, business avatar." },
+    "sm": { "$value": "6px", "$description": "Buttons, inputs, selects, nav items, menu items, segmented thumb, alerts." },
+    "md": { "$value": "8px", "$description": "Content sheet, frames, cards, popovers, menus, dialogs, toasts, composer. DEFAULT container radius." },
+    "lg": { "$value": "12px", "$description": "User chat bubble, mobile bottom-sheet top corners." },
+    "full": { "$value": "9999px", "$description": "Filter chips, Friday pill, switches, person avatars, status dots, segmented track." }
+  },
+  "borderWidth": {
+    "$type": "dimension",
+    "default": { "$value": "1px" },
+    "emphasis": { "$value": "2px", "$description": "Active tab underline, selected tile, focus ring." },
+    "accentBar": { "$value": "3px", "$description": "Alert left bar." }
+  },
+  "focus": {
+    "ringWidth": { "$value": "2px", "$type": "dimension" },
+    "ringOffset": { "$value": "2px", "$type": "dimension" }
+  },
+  "shadow": {
+    "$type": "shadow",
+    "none": { "$value": "none", "$description": "Every static surface: sheet, sections, frames, cards, tables." },
+    "overlay": { "$value": [ { "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px", "color": "#0B25400F" }, { "offsetX": "0px", "offsetY": "6px", "blur": "20px", "spread": "0px", "color": "#0B25401F" } ], "$description": "Popover, menu, select list, tooltip, toast, bulk-action bar, command palette." },
+    "dialog": { "$value": [ { "offsetX": "0px", "offsetY": "2px", "blur": "6px", "spread": "0px", "color": "#0B254014" }, { "offsetX": "0px", "offsetY": "16px", "blur": "40px", "spread": "0px", "color": "#0B25402E" } ], "$description": "Dialog and mobile bottom sheet (always with scrim)." }
+  },
+  "elevation": {
+    "$type": "number",
+    "base": { "$value": 0 },
+    "sticky": { "$value": 10, "$description": "Sticky table header, sticky save bar." },
+    "panel": { "$value": 20, "$description": "Friday docked panel and peek panel when overlaying (<1280px)." },
+    "popover": { "$value": 30 },
+    "dialog": { "$value": 40 },
+    "toast": { "$value": 50 }
+  },
+  "motion": {
+    "durationFast": { "$value": "120ms", "$type": "duration", "$description": "Hover, press, focus." },
+    "durationBase": { "$value": "200ms", "$type": "duration", "$description": "Popover, panel, sheet." },
+    "easing": { "$value": [0.2, 0, 0, 1], "$type": "cubicBezier" }
+  }
+}

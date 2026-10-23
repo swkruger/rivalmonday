@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 6 · Forms &amp; data entry</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .rm-sheet { position: relative; }
+  .rm-page { padding-bottom: 80px; }
+  .rm-fieldrow > .rm-field { margin-top: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: var(--space-6); }
+  .checks .rm-choice + .rm-choice { margin-top: 0; }
+  .checks .rm-choice { margin-bottom: var(--space-3); align-items: center; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+  .tiles .rm-tile b { display: block; font-weight: 600; color: var(--color-text-primary); }
+  .tiles .rm-tile .caption { display: block; }
+  .savebar-dock { position: absolute; left: 50%; bottom: var(--space-6); transform: translateX(-50%); width: var(--layout-formMaxWidth); }
+  .sect-head { display: flex; align-items: baseline; gap: var(--space-2); }
+  .sect-head .end { margin-left: auto; }
+  .rm-form-section > .sect-head + .desc { margin-top: 2px; }
+  .rm-form-section > .desc { font-size: 13px; line-height: 18px; color: var(--color-text-muted); margin: 2px 0 var(--space-5); }
+  .sect-head h2 { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .lbl-row { display: flex; align-items: baseline; }
+  .lbl-row .end { margin-left: auto; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 6</span><h1>Forms &amp; data entry</h1><span class="q">One 640px column, labels above, sections ruled not boxed, one way to save per group.</span><span class="tag">Desktop 1440 × 1560 · Client settings</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:1560px">
+  <div class="rm-app" style="min-height:1560px;height:1560px">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+    <aside class="rm-sidebar">
+      <a class="rm-back"><span class="i i-chev-left"></span>Back to Summit</a>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">General</div>
+        <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Business profile</span></a>
+        <a class="rm-nav-item"><span class="i i-users"></span><span>Competitors</span></a>
+        <a class="rm-nav-item"><span class="i i-bell"></span><span>Notifications</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Brand</div>
+        <a class="rm-nav-item"><span class="i i-grid"></span><span>Logo &amp; colours</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Team</div>
+        <a class="rm-nav-item"><span class="i i-users"></span><span>Members</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Billing</div>
+        <a class="rm-nav-item"><span class="i i-file"></span><span>Plan &amp; invoices</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Danger zone</div>
+        <a class="rm-nav-item"><span class="i i-alert"></span><span>Stop monitoring</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet">
+      <div class="rm-page is-form"><div class="rm-page-inner is-form">
+        <div class="rm-breadcrumb"><a>Summit Plumbing &amp; Air</a><span class="sep">/</span><a>Settings</a><span class="sep">/</span><span>Business profile</span></div>
+        <div class="rm-pagehead">
+          <div>
+            <h1>Business profile</h1>
+            <p class="desc">Friday uses this to find competitors and decide what matters to Summit.</p>
+          </div>
+        </div>
+
+        <section class="rm-form-section">
+          <h2>Business details</h2>
+          <p class="desc">Shown on briefs and used to match the right Google Business Profile.</p>
+          <div class="rm-field">
+            <label class="rm-label">Business name</label>
+            <div class="rm-input is-disabled">Summit Plumbing &amp; Air</div>
+            <span class="rm-help">Comes from the linked Google Business Profile. Ask your agency to change it.</span>
+          </div>
+          <div class="rm-field">
+            <label class="rm-label">Website<span class="req">*</span></label>
+            <div class="rm-affix"><span class="pre">https://</span><div class="rm-input is-focus">summitplumbingair.com</div></div>
+          </div>
+          <div class="rm-fieldrow">
+            <div class="rm-field">
+              <label class="rm-label">Phone<span class="opt">Optional</span></label>
+              <div class="rm-input">(303) 555-0142</div>
+            </div>
+            <div class="rm-field">
+              <label class="rm-label">Service area<span class="req">*</span></label>
+              <button class="rm-select">Denver metro · 25 mi<span class="i i-chev-down"></span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="rm-form-section">
+          <h2>Services</h2>
+          <p class="desc">Friday only flags competitor moves in the services you offer.</p>
+          <div class="rm-field">
+            <span class="rm-label">Main trade<span class="req">*</span></span>
+            <div class="tiles" role="radiogroup">
+              <div class="rm-tile" role="radio" aria-checked="false"><span class="rm-radio"></span><span><b>HVAC</b><span class="caption">Heating &amp; cooling</span></span></div>
+              <div class="rm-tile" role="radio" aria-checked="false"><span class="rm-radio"></span><span><b>Plumbing</b><span class="caption">Drains, pipes, water</span></span></div>
+              <div class="rm-tile is-on" role="radio" aria-checked="true"><span class="rm-radio is-on"></span><span><b>Both</b><span class="caption">Full home services</span></span></div>
+            </div>
+          </div>
+          <div class="rm-field" style="margin-top:var(--space-5)">
+            <span class="rm-label">Services offered</span>
+            <div class="checks" style="margin-top:var(--space-1)">
+              <label class="rm-choice"><span class="rm-check is-on"></span>Furnace repair</label>
+              <label class="rm-choice"><span class="rm-check is-on"></span>Drain cleaning</label>
+              <label class="rm-choice"><span class="rm-check is-on"></span>AC install &amp; repair</label>
+              <label class="rm-choice"><span class="rm-check is-on"></span>Water heaters</label>
+              <label class="rm-choice"><span class="rm-check is-on"></span>Heat pumps</label>
+              <label class="rm-choice"><span class="rm-check"></span>Sewer line replacement</label>
+            </div>
+          </div>
+        </section>
+
+        <section class="rm-form-section">
+          <h2>Contact</h2>
+          <p class="desc">Where Friday sends the weekly brief and urgent alerts.</p>
+          <div class="rm-field">
+            <label class="rm-label">Owner email<span class="req">*</span></label>
+            <div class="rm-input is-invalid">dana@summitplumbing</div>
+            <span class="rm-error"><span class="i xs i-alert-circle"></span>Enter a full email address, like dana@summitplumbingair.com.</span>
+          </div>
+          <div class="rm-field">
+            <div class="lbl-row"><label class="rm-label">Notes for Friday<span class="opt">Optional</span></label><span class="end caption">142 / 500</span></div>
+            <div class="rm-textarea" style="height:72px">We don't do commercial work. Our busiest season is Nov–Feb, so furnace offers from rivals matter most.</div>
+            <span class="rm-help">Plain language is fine. Friday reads this before writing each brief.</span>
+          </div>
+        </section>
+
+        <section class="rm-form-section">
+          <div class="sect-head"><h2>Notifications</h2><span class="end rm-dot success" style="font-size:12px">Saved automatically</span></div>
+          <p class="desc">Toggles apply as soon as you flip them.</p>
+          <div class="rm-rows">
+            <div><div><div class="t">Weekly brief</div><div class="d">Every Monday at 7:00 AM Mountain</div></div><span class="end"><span class="rm-switch is-on" role="switch" aria-checked="true"></span></span></div>
+            <div><div><div class="t">Needs-attention alerts</div><div class="d">A rival launches an ad, offer or price cut</div></div><span class="end"><span class="rm-switch is-on" role="switch" aria-checked="true"></span></span></div>
+            
+          </div>
+        </section>
+      </div></div>
+
+      <div class="savebar-dock">
+        <div class="rm-savebar" role="region" aria-label="Unsaved changes">
+          <span class="i i-info" style="color:var(--color-text-muted)"></span>Unsaved changes<span class="muted" style="font-weight:400">· Website, Owner email</span>
+          <div class="right"><button class="rm-btn secondary sm">Discard</button><button class="rm-btn primary sm">Save changes</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <span class="pin abs" style="left:200px;top:62px">1</span>
+  <span class="pin abs" style="left:484px;top:430px">2</span>
+  <span class="pin abs" style="left:1170px;top:383px">3</span>
+  <span class="pin abs" style="left:484px;top:280px">4</span>
+  <span class="pin abs" style="left:484px;top:661px">5</span>
+  <span class="pin abs" style="left:1170px;top:995px">6</span>
+  <span class="pin abs" style="left:484px;top:1246px">7</span>
+  <span class="pin abs" style="left:1170px;top:1490px">8</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Settings drill in.</b> The sidebar swaps to the settings nav with "‹ Back to Summit…" on top; groups General / Brand / Team / Billing / Danger zone.<span class="ref">A09 Vercel · D-04</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>One 640px column, labels above.</b> 13px/500 label, 36px input, 3:1 border. Pairs only when short and related (Phone + Service area). Sections divided by a hairline, never boxed.<span class="ref">O01, O05 Plain · D-15, D-05</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Affix + one focus ring.</b> "https://" sits in a subtle affix so people type only the domain. Focus = 2px #2A6BAC ring, 2px offset — the same ring on every control.<span class="ref">O05 Plain · D-15, D-17</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Required is marked, optional is named.</b> Red * on required labels; "Optional" in muted text. Disabled fields get a subtle fill plus a helper that says who can change them.<span class="ref">O01 Plain · D-15</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Radio tiles for a big, exclusive choice;</b> checkboxes for many. Selected tile = 2px secondary border, no fill, no shadow.<span class="ref">O07 Plain bordered radio group · D-10, D-18</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Inline error under the field.</b> Red border + glyph + a sentence that says how to fix it, with an example. Never a toast for validation.<span class="ref">O21 Jasper · D13 Mintlify · D-15</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Toggles save themselves.</b> Grouped bordered rows with switches; a green dot "Saved automatically" replaces any Save button for this group.<span class="ref">D01 Devin · O08 Plain · D-15</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Dirty-state save bar.</b> Fields above save together: a floating bar names what changed. Discard (secondary) sits left of Save (the page's only primary).<span class="ref">D08 Shopify · O08 Plain · D-09, D-15</span></div>
+</div>
+</div>
+</body>
+</html>

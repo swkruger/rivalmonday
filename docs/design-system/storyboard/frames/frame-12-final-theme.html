@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 12 · Final theme</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .f12 .rm-section + .rm-section { margin-top: var(--space-5); }
+  .f12-title { display: flex; align-items: center; gap: var(--space-4); }
+  .f12-title .rm-meta { margin-top: 0; }
+  .f12-summary { display: flex; flex-direction: column; gap: var(--space-2); }
+  .f12-summary .top { display: flex; align-items: center; gap: var(--space-2); }
+  .f12-summary p { font-size: 14px; line-height: 22px; }
+  .f12-legend { display: flex; gap: var(--space-4); margin-bottom: var(--space-2); font-size: 12px; line-height: 16px; color: var(--color-text-muted); }
+  .f12-legend span { display: inline-flex; align-items: center; gap: var(--space-1_5); }
+  .f12 .rm-section-head { margin-bottom: var(--space-3); }
+  .f12-toast { position: absolute; left: 264px; bottom: 28px; z-index: 40; }
+  .rm-friday-head .title { font-size: 14px; font-weight: 600; }
+  .rm-friday-head .end { margin-left: auto; display: flex; gap: var(--space-1); }
+  .rm-chat { gap: var(--space-4); padding-top: var(--space-4); }
+  .rm-msg-friday .who b { color: var(--color-text-primary); font-weight: 600; }
+  .rm-sources .i { color: var(--color-text-muted); }
+  .rm-sources > div { padding: var(--space-1) 0; }
+  .rm-suggest { margin-top: var(--space-1); }
+  .rm-suggest > div { padding: var(--space-2) 0; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 12</span><h1>Final cohesive theme</h1><span class="q">Overview + Friday docked: every surface, colour and type size comes from the same tokens.</span><span class="tag">Desktop 1440 × 900 · Client view · Friday panel open</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:900px">
+  <div class="rm-app has-friday" style="min-height:900px;height:900px">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask" aria-pressed="true"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item" href="#"><span class="i i-chat"></span><span>Ask Friday</span></a>
+        <a class="rm-nav-item is-active" href="#"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-file"></span><span>Weekly briefs</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-inbox"></span><span>Alerts</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Monitor</div>
+        <a class="rm-nav-item" href="#"><span class="i i-building"></span><span>Competitors</span><span class="count">6</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-globe"></span><span>Website changes</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-megaphone"></span><span>Ads</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-star"></span><span>Reviews</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-pin"></span><span>Local rankings</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Client</div>
+        <a class="rm-nav-item" href="#"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item" href="#"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item" href="#"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet">
+      <div class="rm-page f12"><div class="rm-page-inner">
+        <div class="rm-breadcrumb"><a href="#">Summit Plumbing &amp; Air</a><span class="sep">/</span><span>Overview</span></div>
+        <div class="rm-pagehead is-compact">
+          <div class="f12-title">
+            <h1>Overview</h1>
+            <div class="rm-meta"><span class="rm-live">Updated 2 hours ago</span><span>Week of Oct 19 – 25</span></div>
+          </div>
+          <div class="actions">
+            <button class="rm-btn secondary"><span class="i i-users"></span>Share brief</button>
+            <button class="rm-btn primary"><span class="i i-file"></span>Open this week's brief</button>
+          </div>
+        </div>
+
+        <section class="rm-section" data-m="band">
+          <div class="rm-band f12-summary">
+            <p><span class="rm-friday label" style="margin-right:var(--space-2)">Friday</span>BlueRidge launched a $49 furnace tune-up ad <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span> and Apex now ranks ahead of you on the map after adding 24/7 emergency service <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span>.</p>
+          </div>
+        </section>
+
+        <section class="rm-section" data-m="kpis">
+          <div class="rm-kpis">
+            <div class="rm-kpi"><div class="label">Google rating</div><div class="value">4.7 <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span></div><div class="cap">Median 4.4</div></div>
+            <div class="rm-kpi"><div class="label">New reviews</div><div class="value">12 <span class="rm-delta up"><span class="i i-arrow-up"></span>4</span></div><div class="cap">BlueRidge: 9</div></div>
+            <div class="rm-kpi"><div class="label">Avg. map rank</div><div class="value">3.4 <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span></div><div class="cap">Lower is better</div></div>
+            <div class="rm-kpi"><div class="label">Rival changes</div><div class="value">7</div><div class="cap">2 need attention</div></div>
+          </div>
+        </section>
+
+        <section class="rm-section" data-m="chart">
+          <div class="rm-section-head"><div><h2>Map rank vs top rivals <span class="caption" style="font-weight:400">· avg. of 25 grid points, lower is better</span></h2><div class="f12-legend" style="margin:var(--space-1) 0 0">
+            <span><svg width="16" height="8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" style="stroke:var(--color-chart-you);stroke-width:2"/></svg>Summit (you)</span>
+            <span><svg width="16" height="8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" style="stroke:var(--color-chart-rival1);stroke-width:2"/></svg>BlueRidge</span>
+            <span><svg width="16" height="8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" style="stroke:var(--color-chart-rival2);stroke-width:2"/></svg>Apex</span>
+            <span><svg width="16" height="8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" style="stroke:var(--color-chart-context);stroke-width:2"/></svg>Other tracked (4)</span>
+          </div></div><div class="actions"><div class="rm-seg" role="group" aria-label="Range"><button>4 weeks</button><button class="is-active">8 weeks</button></div></div></div>
+          
+          <svg width="700" height="164" viewBox="0 0 700 164" style="display:block" role="img" aria-label="Map rank over 8 weeks: BlueRidge improved to 2.1, Apex to 3.0, Summit slipped to 3.4 in the last week.">
+            <g style="stroke:var(--color-chart-grid);stroke-width:1">
+              <line x1="36" y1="12" x2="560" y2="12"/><line x1="36" y1="76" x2="560" y2="76"/><line x1="36" y1="140" x2="560" y2="140"/>
+            </g>
+            <g style="fill:var(--color-text-muted);font-size:12px" text-anchor="end">
+              <text x="28" y="16">#1</text><text x="28" y="80">#5</text><text x="28" y="144">#9</text>
+            </g>
+            <g style="fill:var(--color-text-muted);font-size:12px" text-anchor="middle">
+              <text x="111" y="160">Sep 7</text><text x="260" y="160">Sep 21</text><text x="410" y="160">Oct 5</text><text x="560" y="160">Oct 19</text>
+            </g>
+            <g style="fill:none;stroke:var(--color-chart-context);stroke-width:2;stroke-linejoin:round">
+              <polyline points="36,77.6 111,76 186,76 260,74.4 335,74.4 410,72.8 485,72.8 560,72.8"/>
+              <polyline points="36,88.8 111,90.4 186,92 260,92 335,93.6 410,93.6 485,95.2 560,95.2"/>
+              <polyline points="36,117.6 111,116 186,116 260,114.4 335,114.4 410,114.4 485,114.4 560,114.4"/>
+              <polyline points="36,135.2 111,133.6 186,133.6 260,132 335,132 410,132 485,132 560,132"/>
+            </g>
+            <polyline points="36,53.6 111,52 186,50.4 260,50.4 335,48.8 410,47.2 485,45.6 560,44" style="fill:none;stroke:var(--color-chart-rival2);stroke-width:2;stroke-linejoin:round"/>
+            <polyline points="36,39.2 111,37.6 186,37.6 260,36 335,34.4 410,32.8 485,31.2 560,29.6" style="fill:none;stroke:var(--color-chart-rival1);stroke-width:2;stroke-linejoin:round"/>
+            <polyline points="36,44 111,42.4 186,40.8 260,40.8 335,39.2 410,40.8 485,40.8 560,50.4" style="fill:none;stroke:var(--color-chart-you);stroke-width:2;stroke-linejoin:round"/>
+            <circle cx="560" cy="29.6" r="3" style="fill:var(--color-chart-rival1)"/>
+            <circle cx="560" cy="44" r="3" style="fill:var(--color-chart-rival2)"/>
+            <circle cx="560" cy="50.4" r="3" style="fill:var(--color-chart-you)"/>
+            <g style="font-size:12px">
+              <text x="570" y="33" style="fill:var(--color-text-secondary)">BlueRidge 2.1</text>
+              <text x="570" y="48" style="fill:var(--color-text-secondary)">Apex 3.0</text>
+              <text x="570" y="63" style="fill:var(--color-text-primary);font-weight:600">Summit 3.4</text>
+              <text x="570" y="78" style="fill:var(--color-text-muted)">Valley 4.8</text>
+            </g>
+          </svg>
+        </section>
+
+        <section class="rm-section" data-m="feed">
+          <div class="rm-section-head"><div><h2>What changed</h2></div><div class="actions"><a href="#" class="rm-btn ghost sm">See all changes<span class="i i-arrow-right"></span></a></div></div>
+          <div class="rm-feed-item"><span class="ic"><span class="i i-megaphone"></span></span><div class="body"><b>BlueRidge Heating &amp; Cooling</b> started a $49 furnace tune-up ad <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span><div class="meta"><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span>2 hours ago</span></div></div><div class="end"><a href="#" class="rm-btn secondary sm">View evidence</a></div></div>
+          <div class="rm-feed-item" style="border-bottom:0"><span class="ic"><span class="i i-file"></span></span><div class="body"><b>Rapid Rooter Co.</b> cut drain cleaning from $129 to $99 <span class="rm-cite"><span class="i i-globe"></span>Pricing page · Oct 19</span><div class="meta"><span class="rm-tag">Pricing</span><span>4 days ago</span></div></div><div class="end"><a href="#" class="rm-btn secondary sm">View evidence</a></div></div>
+        </section>
+      </div></div>
+    </main>
+
+    <aside class="rm-friday-panel" aria-label="Ask Friday" data-m="panel">
+      <div class="rm-friday-head">
+        <span class="rm-friday label">Friday</span>
+        <span class="title">Map rank this week</span>
+        <div class="end">
+          <button class="rm-btn ghost icon sm" aria-label="New conversation"><span class="i i-plus"></span></button>
+          <button class="rm-btn ghost icon sm" aria-label="Open full page"><span class="i i-external"></span></button>
+          <button class="rm-btn ghost icon sm" aria-label="Close Friday"><span class="i i-x"></span></button>
+        </div>
+      </div>
+      <div class="rm-chat" data-m="chat">
+        <div class="rm-msg-user">Why did our map rank drop this week?</div>
+        <div class="rm-msg-friday" data-m="answer">
+          <div class="who"><span class="rm-friday label">Friday</span><span>Checked 4 sources · Summit · 6 rivals</span></div>
+          <p>Your average map rank slipped from <b>2.8 to 3.4</b>, mostly at the north and east grid points <span class="rm-cite"><span class="i i-pin"></span>Rank scan · Oct 19</span>. Two rival moves line up with it:</p>
+          <ul>
+            <li>Apex added "24/7 emergency service" to their homepage <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span> and now outranks you for "emergency plumber".</li>
+            <li>BlueRidge gained 9 reviews <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 20</span>, widening their lead in Lakewood.</li>
+            <li>BlueRidge's $49 tune-up ad <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span> sits above the map. Ads don't change rank, but they take clicks.</li>
+          </ul>
+          <div class="rm-sources" data-m="sources">
+            <div><span class="i i-pin"></span>Local rank scan, 25 points<span class="date">Oct 19</span></div>
+            <div><span class="i i-globe"></span>apexcomfortpros.com — homepage<span class="date">Oct 21</span></div>
+            <div><span class="i i-star"></span>BlueRidge Google reviews<span class="date">Oct 20</span></div>
+            <div><span class="i i-megaphone"></span>Google Ads Transparency Center<span class="date">Oct 22</span></div>
+          </div>
+          <div class="tools">
+            <button class="rm-btn ghost icon sm" aria-label="Copy answer"><span class="i i-copy"></span></button>
+            <button class="rm-btn ghost icon sm" aria-label="Helpful"><span class="i i-thumb-up"></span></button>
+            <button class="rm-btn ghost icon sm" aria-label="Regenerate"><span class="i i-refresh"></span></button>
+          </div>
+          <div class="rm-suggest" data-m="suggest">
+            <div>Which searches did we lose to Apex?</div>
+            <div>Draft three moves to win back the north grid</div>
+          </div>
+        </div>
+      </div>
+      <div class="rm-composer is-focus" data-m="composer">
+        <div class="ph">Ask a follow-up…</div>
+        <div class="bar"><span class="scope"><span class="i xs i-users"></span>Summit · 6 rivals<span class="i xs i-chev-down"></span></span><button class="send rm-btn" style="padding:0" aria-label="Send"><span class="i i-send"></span></button></div>
+      </div>
+      <p class="rm-disclaimer">Friday answers from public sources. Check the evidence before acting.</p>
+    </aside>
+  </div>
+
+  <div class="rm-toast f12-toast" role="status" data-m="toast"><span class="i i-check ok"></span>Brief shared with Summit's owner<button class="rm-btn ghost sm">Undo</button><button class="rm-btn ghost icon sm" aria-label="Dismiss"><span class="i i-x"></span></button></div>
+
+  <span class="pin abs" style="left:1022px;top:60px">1</span>
+  <span class="pin abs" style="left:1264px;top:64px">2</span>
+  <span class="pin abs" style="left:1110px;top:128px">3</span>
+  <span class="pin abs" style="left:1404px;top:465px">4</span>
+  <span class="pin abs" style="left:1404px;top:654px">5</span>
+  <span class="pin abs" style="left:1404px;top:756px">6</span>
+  <span class="pin abs" style="left:248px;top:160px">7</span>
+  <span class="pin abs" style="left:248px;top:386px">8</span>
+  <span class="pin abs" style="left:632px;top:840px">9</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Friday docks, the page stays.</b> <code>.rm-app.has-friday</code> adds a 400px third column; the overview keeps working beside it. Panel = surface + 1px border tokens, no shadow.<span class="ref">F03 Fireflies docked panel · D-14, D-02, D-06</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Identity is one orange label.</b> Friday pill text/bg tokens, conversation title, then ghost icon buttons (new, full page, close) with aria-labels. No purple, no sparkles.<span class="ref">F08 Plane · D-14, D-09</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Bubble asks, Friday answers flat.</b> Only the user's message sits in a 12px-radius muted bubble; the answer is plain 14/22 text with bullets, like a brief.<span class="ref">F06 ChatGPT, F09 Lightfield · D-14, D-18</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>No evidence, no claim.</b> Every sentence carries a <code>[source · date]</code> pill, repeated in a dated sources list under a hairline.<span class="ref">F04/F05 Customer.io, F07 Dash · D-14</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>↳ follow-ups, not chips.</b> Two suggested next questions as hairline rows, the same rule colour as the feed.<span class="ref">F08 Plane, F09 · D-14</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Composer shows its scope.</b> "Summit · 6 rivals" scope chip, primary-blue send, 11px disclaimer. The focus ring is the shared #2A6BAC ring token.<span class="ref">F08 Plane scope chip · D-14, D-17</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Same overview, compact.</b> 18px compact header with one primary, summary band, KPI strip — the exact classes from Frames 2 and 8, no frame-specific colours.<span class="ref">B04, B09 · D-07, D-12, D-26</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Chart roles hold at any width.</b> You / BlueRidge / Apex / grey context, legend + direct labels, three faint gridlines.<span class="ref">B01–B03 Stripe · D-13</span></div>
+  <div class="sb-note"><span class="pin">9</span><b>Toast = inverse ink, one action.</b> Bottom-left of the sheet, overlay shadow, Undo + dismiss; it never covers Friday or the primary button.<span class="ref">E18 Air dark toast · D-24, D-06</span></div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 7 · Tables &amp; dense views</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .rm-sheet { position: relative; }
+  .rm-page { padding-top: var(--space-5); }
+  .cell-biz { display: flex; align-items: center; gap: var(--space-2_5); }
+  .rank { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+  .rank .track { display: inline-block; width: 64px; text-align: left; }
+  .rm-table td.act { width: 40px; text-align: right; }
+  .rm-table th.chk, .rm-table td.chk { width: 32px; }
+  .row-menu { position: absolute; z-index: 5; width: 248px; }
+  .bulk-dock { position: absolute; left: 50%; bottom: var(--space-6); transform: translateX(-50%); }
+  .strip { position: absolute; left: 0; right: 0; top: 636px; bottom: 0; padding: 0 var(--space-4) var(--space-4); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  .strip .lbl { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .strip .lbl .caption { font-weight: 600; }
+  .strip .pane { background: var(--color-background-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); }
+  .strip .rm-empty { padding: var(--space-8) var(--space-6) var(--space-6); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 7</span><h1>Tables &amp; dense views</h1><span class="q">Flush table on its own page: hairlines, numbers right-aligned, actions only on hover, bulk bar floats.</span><span class="tag">Desktop 1440 × 1000 · Client view</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:1000px">
+  <div class="rm-app" style="min-height:620px;height:620px">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-chat"></span><span>Ask Friday</span></a>
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item"><span class="i i-file"></span><span>Weekly briefs</span></a>
+        <a class="rm-nav-item"><span class="i i-inbox"></span><span>Alerts</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Monitor</div>
+        <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Competitors</span><span class="count">6</span></a>
+        <a class="rm-nav-item"><span class="i i-globe"></span><span>Website changes</span></a>
+        <a class="rm-nav-item"><span class="i i-megaphone"></span><span>Ads</span></a>
+        <a class="rm-nav-item"><span class="i i-star"></span><span>Reviews</span></a>
+        <a class="rm-nav-item"><span class="i i-pin"></span><span>Local rankings</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Client</div>
+        <a class="rm-nav-item"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet">
+      <div class="rm-page"><div class="rm-page-inner">
+        <div class="rm-breadcrumb"><a>Summit Plumbing &amp; Air</a><span class="sep">/</span><span>Competitors</span></div>
+        <div class="rm-pagehead is-compact">
+          <div><h1>Competitors</h1></div>
+          <div class="actions">
+            <button class="rm-btn secondary sm"><span class="i i-search"></span>Find more</button>
+            <button class="rm-btn primary sm"><span class="i i-plus"></span>Add competitor</button>
+          </div>
+        </div>
+        <nav class="rm-tabs" style="margin-bottom:var(--space-4)">
+          <a class="rm-tab is-active">All <span class="count">6</span></a>
+          <a class="rm-tab">Top rivals <span class="count">2</span></a>
+          <a class="rm-tab">Worth watching <span class="count">2</span></a>
+          <a class="rm-tab">Minor <span class="count">2</span></a>
+        </nav>
+        <div class="rm-toolbar">
+          <span class="rm-input-search"><span class="i i-search"></span>Search competitors</span>
+          <button class="rm-chip is-applied"><span>Tier: <b>Top rival, Worth watching</b></span><span class="i i-x" aria-label="Remove filter"></span></button>
+          <button class="rm-chip is-add"><span class="i i-plus"></span>Last change</button>
+          <button class="rm-chip is-add"><span class="i i-plus"></span>Rating</button>
+          <button class="rm-btn ghost sm">Clear</button>
+          <div class="right">
+            <button class="rm-btn ghost sm"><span class="i i-sort"></span>Sort: Map rank</button>
+            <button class="rm-btn ghost sm"><span class="i i-grid"></span>Columns</button>
+            <button class="rm-btn secondary sm"><span class="i i-download"></span>Export</button>
+          </div>
+        </div>
+        <table class="rm-table">
+          <thead><tr>
+            <th class="chk"><span class="rm-check is-mixed" role="checkbox" aria-checked="mixed" aria-label="Select all"></span></th>
+            <th>Competitor</th><th>Tier</th><th class="num">Rating</th><th class="num">Reviews</th>
+            <th class="num is-sorted">Avg. map rank <span class="i i-arrow-up"></span></th>
+            <th>Last change</th><th>Updated</th><th class="act"></th>
+          </tr></thead>
+          <tbody>
+            <tr class="is-selected">
+              <td class="chk"><span class="rm-check is-on" role="checkbox" aria-checked="true"></span></td>
+              <td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">BR</span><div>BlueRidge Heating &amp; Cooling<span class="sub">blueridgehvac.com</span></div></div></td>
+              <td><span class="rm-tier top">Top rival</span></td><td class="num">4.6</td><td class="num">412</td>
+              <td class="num"><span class="rank">2.1<span class="track"><span class="rm-bar" style="width:13px"></span></span></span></td>
+              <td><span class="rm-dot warning">Started a Google ad</span></td><td>2 hours ago</td>
+              <td class="act"></td>
+            </tr>
+            <tr class="is-selected">
+              <td class="chk"><span class="rm-check is-on" role="checkbox" aria-checked="true"></span></td>
+              <td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">AC</span><div>Apex Comfort Pros<span class="sub">apexcomfortpros.com</span></div></div></td>
+              <td><span class="rm-tier top">Top rival</span></td><td class="num">4.4</td><td class="num">288</td>
+              <td class="num"><span class="rank">3.0<span class="track"><span class="rm-bar" style="width:19px"></span></span></span></td>
+              <td><span class="rm-dot info">Homepage updated</span></td><td>Yesterday</td>
+              <td class="act"></td>
+            </tr>
+            <tr>
+              <td class="chk"><span class="rm-check" role="checkbox" aria-checked="false"></span></td>
+              <td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">VD</span><div>Valley Drain Masters<span class="sub">valleydrain.com</span></div></div></td>
+              <td><span class="rm-tier watch">Worth watching</span></td><td class="num">4.2</td><td class="num">167</td>
+              <td class="num"><span class="rank">4.8<span class="track"><span class="rm-bar" style="width:31px"></span></span></span></td>
+              <td><span class="rm-dot">Replied to 5 reviews</span></td><td>3 days ago</td>
+              <td class="act"></td>
+            </tr>
+            <tr class="is-hover">
+              <td class="chk"><span class="rm-check" role="checkbox" aria-checked="false"></span></td>
+              <td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">RR</span><div>Rapid Rooter Co.<span class="sub">rapidrooter.co</span></div></div></td>
+              <td><span class="rm-tier watch">Worth watching</span></td><td class="num">3.9</td><td class="num">96</td>
+              <td class="num"><span class="rank">6.2<span class="track"><span class="rm-bar" style="width:40px"></span></span></span></td>
+              <td><span class="rm-dot warning">Price cut $129 → $99</span></td><td>4 days ago</td>
+              <td class="act"><button class="rm-btn ghost icon sm is-hover is-focus" aria-label="Row actions" aria-expanded="true"><span class="i i-more"></span></button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="rm-pager">Showing 4 of 6 competitors<div class="right"><button class="rm-btn secondary sm is-disabled">Previous</button><button class="rm-btn secondary sm is-disabled">Next</button></div></div>
+      </div></div>
+
+      <div class="rm-menu row-menu" role="menu" style="right:33px;top:378px">
+        <div class="rm-menu-item"><span class="i i-eye"></span>Open details<span class="kbd">Enter</span></div>
+        <div class="rm-menu-item is-hover"><span class="i i-chart"></span>Compare with Summit<span class="kbd">C</span></div>
+        <div class="rm-menu-item"><span class="i i-list"></span>Change tier<span class="end i i-chev-right"></span></div>
+        <div class="rm-menu-item"><span class="i i-bell"></span>Mute for 30 days<span class="kbd">M</span></div>
+        <div class="rm-menu-sep"></div>
+        <div class="rm-menu-item danger"><span class="i i-trash"></span>Remove competitor<span class="kbd">Del</span></div>
+      </div>
+
+      <div class="bulk-dock">
+        <div class="rm-bulkbar" role="toolbar" aria-label="Bulk actions">
+          <span>2 selected</span><button class="rm-btn ghost sm">Select all 6</button><span class="vr"></span>
+          <button class="rm-btn ghost sm"><span class="i i-list"></span>Change tier</button>
+          <button class="rm-btn ghost sm"><span class="i i-bell"></span>Mute</button>
+          <button class="rm-btn ghost sm"><span class="i i-trash"></span>Remove</button><span class="vr"></span>
+          <button class="rm-btn ghost icon sm" aria-label="Clear selection"><span class="i i-x"></span></button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="strip">
+    <div>
+      <div class="lbl"><span class="rm-tag">State</span><span class="caption">Filtered to nothing — headers stay, one way out</span></div>
+      <div class="pane">
+        <div class="rm-toolbar" style="margin-bottom:var(--space-2)">
+          <span class="rm-input-search" style="width:200px"><span class="i i-search"></span>Search competitors</span>
+          <button class="rm-chip is-applied"><span>Tier: <b>Minor</b></span><span class="i i-x"></span></button>
+          <button class="rm-chip is-applied"><span>Rating: <b>below 3.5</b></span><span class="i i-x"></span></button>
+        </div>
+        <table class="rm-table">
+          <thead><tr><th class="chk"><span class="rm-check"></span></th><th>Competitor</th><th>Tier</th><th class="num">Rating</th><th class="num">Reviews</th><th class="num">Avg. map rank</th><th>Last change</th></tr></thead>
+        </table>
+        <div class="rm-empty">
+          <span class="i xl i-filter"></span>
+          <h3>No competitors match these filters</h3>
+          <p>Both Minor competitors are rated 4.1 or higher.</p>
+          <button class="rm-btn secondary sm">Clear filters</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="lbl"><span class="rm-tag">Density</span><span class="caption">Compact rows (32px) inside a mixed page — framed</span></div>
+      <div class="rm-frame">
+        <div class="rm-frame-head"><h3>Watch list</h3><span class="rm-count">6</span><span class="spacer"></span><div class="rm-seg"><button>Default</button><button class="is-active">Compact</button></div></div>
+        <table class="rm-table is-compact">
+          <thead><tr><th>Competitor</th><th>Tier</th><th class="num">Rating</th><th class="num">Reviews</th><th class="num">Map rank</th></tr></thead>
+          <tbody>
+            <tr><td class="primary-cell">BlueRidge Heating &amp; Cooling</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.6</td><td class="num">412</td><td class="num">2.1</td></tr>
+            <tr><td class="primary-cell">Apex Comfort Pros</td><td><span class="rm-tier top">Top rival</span></td><td class="num">4.4</td><td class="num">288</td><td class="num">3.0</td></tr>
+            <tr><td class="primary-cell">Valley Drain Masters</td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">4.2</td><td class="num">167</td><td class="num">4.8</td></tr>
+            <tr><td class="primary-cell">Rapid Rooter Co.</td><td><span class="rm-tier watch">Worth watching</span></td><td class="num">3.9</td><td class="num">96</td><td class="num">6.2</td></tr>
+            <tr><td class="primary-cell">Front Range Plumbing</td><td><span class="rm-tier minor">Minor</span></td><td class="num">4.1</td><td class="num">73</td><td class="num">7.4</td></tr>
+            <tr><td class="primary-cell">Cascade HVAC Services</td><td><span class="rm-tier minor">Minor</span></td><td class="num">4.8</td><td class="num">54</td><td class="num">8.5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <span class="pin abs" style="left:248px;top:104px">1</span>
+  <span class="pin abs" style="left:248px;top:198px">2</span>
+  <span class="pin abs" style="left:248px;top:241px">3</span>
+  <span class="pin abs" style="left:248px;top:280px">4</span>
+  <span class="pin abs" style="left:940px;top:447px">5</span>
+  <span class="pin abs" style="left:1131px;top:418px">6</span>
+  <span class="pin abs" style="left:528px;top:556px">7</span>
+  <span class="pin abs" style="left:350px;top:638px">8</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Compact header for data pages.</b> 18px title, actions at 28px, then underline tabs with counts. The table gets the vertical space.<span class="ref">A11 LangSmith · E04 Attio · D-07, D-08</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Filters are pill chips.</b> Applied = primary-soft fill with ✕; "+ field" chips are dashed; Clear is a ghost button. The applied strip says exactly why rows are missing.<span class="ref">C01/C02 Stripe · C06 Navattic · P05 Mercury · D-10</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Flush on its own page.</b> No frame, no zebra, no vertical lines: 1px subtle row hairlines, 40px rows, 12px muted headers. Sorted header turns ink + arrow.<span class="ref">O13 Browserbase · P01 Plain · D-11</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Businesses get square avatars,</b> name + domain sub-line. Tier mark is a shape + word, so it survives without colour.<span class="ref">D-25 · D-10</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Numbers right, tabular.</b> Map rank pairs the value with a tiny context bar (shorter = better), no extra colour. Last change is a dot status, never a coloured pill.<span class="ref">B05 Vercel · C03 Attio · E03 Vercel · D-11, D-13</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Row menu on hover/focus.</b> "⋯" appears on the hovered row; shortcuts right-aligned; destructive item last, red, after a separator.<span class="ref">E13 Amie · D-24</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Floating inverse bulk bar.</b> Appears when ≥1 row is checked: count, "Select all 6", verbs, ✕. Header checkbox shows the mixed state.<span class="ref">C04 Linear · D-11, D-06</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Empty keeps its shape.</b> Headers and filters stay so people see what produced nothing; one secondary "Clear filters". Compact 32px rows only when a table shares a page.<span class="ref">C07, C13 Delphi · D-11</span></div>
+</div>
+</div>
+</body>
+</html>

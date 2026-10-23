@@ -3,6 +3,8 @@
 # @cs/web — working notes
 Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest links, dev panel); all writes go through `@cs/tools`.
 
+**UI:** design system v1 is binding (`docs/design-system/`); rules in `packages/ui/CLAUDE.md`, migration steps and per-file Card map in `docs/design-system/09-ai-implementation-playbook.md`.
+
 ## Gotchas
 
 ### Next.js / build

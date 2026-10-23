@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 1 · Design direction</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .board { position: absolute; inset: 0; padding: var(--space-8); display: grid; grid-template-columns: 284px 1fr 404px; grid-template-rows: auto 1fr; gap: var(--space-5) var(--space-6); }
+  .board-top { grid-column: 1 / -1; display: flex; align-items: baseline; gap: var(--space-4); }
+  .board-top .rm-wordmark { font-size: 30px; }
+  .col { display: flex; flex-direction: column; gap: var(--space-4); min-height: 0; }
+  .principles { display: flex; flex-direction: column; gap: var(--space-5); padding-top: var(--space-1); }
+  .principles .p { display: grid; grid-template-columns: 24px 1fr; gap: var(--space-2); }
+  .principles .n { font-size: 12px; line-height: 20px; font-weight: 600; }
+  .principles h3 { font-size: 14px; line-height: 20px; font-weight: 600; }
+  .principles p { font-size: 13px; line-height: 18px; margin-top: var(--space-0_5); }
+  .sw-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); }
+  .sw-row + .sw-group { margin-top: var(--space-4); }
+  .sw-group > .caption { margin-bottom: var(--space-1_5); font-weight: 500; }
+  .sw .bar { height: 22px; border-radius: var(--radius-sm); border: 1px solid var(--color-border-default); }
+  .sw b { display: block; font-size: 12px; line-height: 16px; font-weight: 600; margin-top: var(--space-1); }
+  .sw .caption { white-space: nowrap; }
+  .ramp > div { display: grid; grid-template-columns: 1fr 176px; align-items: baseline; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: 1px solid var(--color-border-subtle); }
+  .ramp > div:last-child { border-bottom: 0; }
+  .ramp .s { white-space: nowrap; overflow: hidden; }
+  .ramp .caption { text-align: right; }
+  .shapes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+  .shapes > div { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .shapes .demo { height: 32px; display: flex; align-items: center; }
+  .elev { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
+  .elev .stage { height: 96px; border-radius: var(--radius-md); background: var(--color-background-app); display: grid; place-items: center; padding: var(--space-2); }
+  .elev .caption { margin-top: var(--space-2); }
+  .vig .rm-kpi { padding: var(--space-3) var(--space-4); }
+  .vig .rm-kpi .value { font-size: 18px; line-height: 26px; }
+  .vig .rm-feed-item { font-size: 13px; line-height: 18px; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 1</span><h1>Design direction &amp; visual identity</h1><span class="q">Calm, neutral, evidence-first: colour is earned by action, status and data.</span><span class="tag">Board 1440 × 900 · Not a product screen</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:900px">
+  <div class="board">
+    <div class="board-top">
+      <span class="rm-wordmark"><span class="r">rival</span><span class="m">monday</span></span>
+      <span class="secondary-text">Design system · direction board</span>
+      <span class="spacer"></span>
+      <span class="caption">Inter 400 / 500 / 600 · 800 for the wordmark only</span>
+    </div>
+
+    <!-- LEFT: principles -->
+    <div class="col">
+      <div class="rm-section-head" style="margin-bottom:0"><div><h2>Principles</h2><p class="desc">Five rules every screen is checked against.</p></div></div>
+      <div class="principles">
+        <div class="p"><span class="n muted">01</span><div><h3>One white sheet, not card soup</h3><p class="muted">Sections on white, divided by space and hairlines. Cards only for objects you pick.</p></div></div>
+        <div class="p"><span class="n muted">02</span><div><h3>Colour means something</h3><p class="muted">Neutral frame. Colour marks an action, a selection, a status or a data series. Nothing decorative.</p></div></div>
+        <div class="p"><span class="n muted">03</span><div><h3>Friday is the only orange</h3><p class="muted">The assistant pill and star ratings own #F5A524. Warnings use a darker amber, never the accent.</p></div></div>
+        <div class="p"><span class="n muted">04</span><div><h3>No evidence, no claim</h3><p class="muted">Every insight carries a dated citation pill that opens the source.</p></div></div>
+        <div class="p"><span class="n muted">05</span><div><h3>Flat until it floats</h3><p class="muted">Static surfaces have no shadow. Only menus, dialogs, toasts and bars that hover over content do.</p></div></div>
+      </div>
+      <div style="margin-top:auto;border-top:1px solid var(--color-border-default);padding-top:var(--space-4)">
+        <div class="caption" style="font-weight:500;margin-bottom:var(--space-2)">We avoid</div>
+        <div class="row" style="font-size:13px;line-height:18px"><span class="i i-x muted"></span><span class="secondary-text">Rainbow status pills and decorative gradients</span></div>
+        <div class="row" style="font-size:13px;line-height:18px;margin-top:var(--space-1_5)"><span class="i i-x muted"></span><span class="secondary-text">Cards inside cards, shadows on static boxes</span></div>
+        <div class="row" style="font-size:13px;line-height:18px;margin-top:var(--space-1_5)"><span class="i i-x muted"></span><span class="secondary-text">Purple sparkles for AI; Friday is a name, not magic</span></div>
+      </div>
+    </div>
+
+    <!-- MIDDLE: colour + type -->
+    <div class="rm-frame" style="display:flex;flex-direction:column">
+      <div class="rm-frame-head"><h3>Colour story</h3><span class="caption">Swatch · token role · hex</span></div>
+      <div class="rm-frame-body">
+        <div class="sw-group"><div class="caption">Frame &amp; text — 90% of every screen</div>
+          <div class="sw-row">
+            <div class="sw"><div class="bar" style="background:var(--color-background-app)"></div><b>Frame</b><span class="caption mono">#F6F9FC</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-background-surface)"></div><b>Sheet</b><span class="caption mono">#FFFFFF</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-background-muted)"></div><b>Grey panel</b><span class="caption mono">#EEF2F6</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-border-default)"></div><b>Hairline</b><span class="caption mono">#E2E8F0</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-text-primary)"></div><b>Ink</b><span class="caption mono">#0B2540</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-text-muted)"></div><b>Muted</b><span class="caption mono">#5B6B80</span></div>
+          </div>
+        </div>
+        <div class="sw-group" style="margin-top:var(--space-3)"><div class="caption">Brand &amp; action — the only colours with intent</div>
+          <div class="sw-row">
+            <div class="sw"><div class="bar" style="background:var(--color-action-primary)"></div><b>Primary</b><span class="caption mono">#47A8E7</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-brand-secondary)"></div><b>Secondary</b><span class="caption mono">#2A6BAC</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-background-selected)"></div><b>Selected</b><span class="caption mono">#E3F2FC</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-text-link)"></div><b>Link</b><span class="caption mono">#1F6FA8</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-brand-accent)"></div><b>Friday</b><span class="caption mono">#F5A524</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-brand-fridayPillText)"></div><b>Friday text</b><span class="caption mono">#3B2300</span></div>
+          </div>
+        </div>
+        <div class="sw-group" style="margin-top:var(--space-3)"><div class="caption">Status — always with a glyph or label</div>
+          <div class="sw-row">
+            <div class="sw"><div class="bar" style="background:var(--color-state-success)"></div><b>Success</b><span class="caption mono">#16A34A</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-state-warning)"></div><b>Warning</b><span class="caption mono">#D97706</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-state-danger)"></div><b>Danger</b><span class="caption mono">#DC2626</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-state-info)"></div><b>Info</b><span class="caption mono">#2A6BAC</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-state-neutral)"></div><b>Neutral</b><span class="caption mono">#5B6B80</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-focus-ring)"></div><b>Focus ring</b><span class="caption mono">#2A6BAC</span></div>
+          </div>
+        </div>
+        <div class="sw-group" style="margin-top:var(--space-3)"><div class="caption">Charts — you, two rivals, everyone else</div>
+          <div class="sw-row">
+            <div class="sw"><div class="bar" style="background:var(--color-chart-you)"></div><b>You</b><span class="caption mono">#2A6BAC</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-chart-rival1)"></div><b>Rival 1</b><span class="caption mono">#E05A2B</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-chart-rival2)"></div><b>Rival 2</b><span class="caption mono">#14936A</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-chart-context)"></div><b>Context</b><span class="caption mono">#A3B1C2</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-chart-peerBand)"></div><b>Peer band</b><span class="caption mono">#EEF2F6</span></div>
+            <div class="sw"><div class="bar" style="background:var(--color-chart-grid)"></div><b>Grid</b><span class="caption mono">#EDF1F5</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="rm-frame-head" style="border-top:1px solid var(--color-border-default)"><h3>Type ramp</h3><span class="caption">Inter · headings in ink</span></div>
+      <div class="rm-frame-body ramp" style="padding-top:var(--space-2);padding-bottom:var(--space-2)">
+        <div><span class="s" style="font-size:30px;line-height:38px;font-weight:600;letter-spacing:-0.01em">Summit is #3 on the map</span><span class="caption">30 / 38 · Display · 600</span></div>
+        <div><span class="s" style="font-size:24px;line-height:32px;font-weight:600">Overview</span><span class="caption">24 / 32 · Page title · 600</span></div>
+        <div><span class="s" style="font-size:18px;line-height:26px;font-weight:600">Brief section heading</span><span class="caption">18 / 26 · Compact title · 600</span></div>
+        <div><span class="s" style="font-size:16px;line-height:24px;font-weight:600">What changed this week</span><span class="caption">16 / 24 · Section · 600</span></div>
+        <div><span class="s" style="font-size:14px;line-height:20px">BlueRidge started a $49 furnace tune-up ad.</span><span class="caption">14 / 20 · Body · 400</span></div>
+        <div><span class="s" style="font-size:13px;line-height:18px;font-weight:500">Competitors · Website changes · Reviews</span><span class="caption">13 / 18 · UI &amp; nav · 500</span></div>
+        <div><span class="s muted" style="font-size:12px;line-height:16px">Updated 2 hours ago · Market median 4.5</span><span class="caption">12 / 16 · Caption · 400</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: shape, elevation, vignette -->
+    <div class="col">
+      <div class="rm-frame">
+        <div class="rm-frame-head"><h3>Shape</h3><span class="caption">Radius grows with the object</span></div>
+        <div class="rm-frame-body">
+          <div class="shapes">
+            <div><div class="demo"><span class="rm-tag">Website</span></div><span class="caption">4 · tag</span></div>
+            <div><div class="demo"><button class="rm-btn secondary sm">Export</button></div><span class="caption">6 · control</span></div>
+            <div><div class="demo"><span style="display:block;width:52px;height:32px;border:1px solid var(--color-border-control);border-radius:var(--radius-md)"></span></div><span class="caption">8 · frame</span></div>
+            <div><div class="demo"><span class="rm-msg-user" style="font-size:12px;line-height:16px;padding:var(--space-1_5) var(--space-2_5)">Why?</span></div><span class="caption">12 · bubble</span></div>
+            <div><div class="demo"><span class="rm-chip">Top rival</span></div><span class="caption">full · chip</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="rm-frame">
+        <div class="rm-frame-head"><h3>Elevation</h3><span class="caption">Shadow only when it floats</span></div>
+        <div class="rm-frame-body">
+          <div class="elev">
+            <div><div class="stage"><div class="rm-frame" style="width:100%;height:56px"></div></div><div class="caption"><b class="secondary-text">None</b> · sheet, frame, card</div></div>
+            <div><div class="stage"><div class="rm-menu" style="min-width:0;width:100%"><div class="rm-menu-item is-hover" style="height:24px;font-size:12px">Change tier</div><div class="rm-menu-item" style="height:24px;font-size:12px">Mute</div></div></div><div class="caption"><b class="secondary-text">Overlay</b> · menu, toast, bars</div></div>
+            <div><div class="stage" style="background:var(--color-background-scrim)"><div class="rm-dialog" style="width:100%;height:56px"></div></div><div class="caption"><b class="secondary-text">Dialog</b> · over a scrim</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="rm-frame vig" style="flex:1">
+        <div class="rm-frame-head"><h3>In product</h3><span class="caption">Overview, cropped</span></div>
+        <div class="rm-frame-body" style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div class="rm-band" style="padding:var(--space-3) var(--space-4);font-size:13px;line-height:20px"><span class="rm-friday label">Friday</span> BlueRidge is pushing furnace tune-ups at $49 while Apex now claims 24/7 service. <span class="rm-cite"><span class="i i-globe"></span>Ads · Oct 22</span></div>
+          <div class="rm-kpis">
+            <div class="rm-kpi"><div class="label">Google rating</div><div class="value">4.7 <span class="rm-delta up"><span class="i i-arrow-up"></span>0.1</span></div><div class="cap">Market median 4.5</div></div>
+            <div class="rm-kpi"><div class="label">Avg. map rank</div><div class="value">3.4 <span class="rm-delta down"><span class="i i-arrow-down"></span>0.6</span></div><div class="cap">25 grid points</div></div>
+          </div>
+          <div><div class="rm-feed-item"><span class="ic"><span class="i i-megaphone"></span></span><div class="body"><b>BlueRidge Heating &amp; Cooling</b> started a $49 furnace tune-up ad<div class="meta"><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span>2 hours ago</span></div></div></div>
+          <div class="rm-feed-item" style="border-bottom:0;padding-bottom:0"><span class="ic"><span class="i i-globe"></span></span><div class="body"><b>Apex Comfort Pros</b> added "24/7 emergency service" to their homepage <span class="rm-cite"><span class="i i-globe"></span>Website · Oct 21</span><div class="meta"><span class="rm-tag">Website</span><span>Yesterday</span></div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="pin abs" style="left:8px;top:92px">1</span>
+  <span class="pin abs" style="left:322px;top:102px">2</span>
+  <span class="pin abs" style="left:322px;top:170px">3</span>
+  <span class="pin abs" style="left:322px;top:364px">4</span>
+  <span class="pin abs" style="left:322px;top:460px">5</span>
+  <span class="pin abs" style="left:322px;top:552px">6</span>
+  <span class="pin abs" style="left:982px;top:102px">7</span>
+  <span class="pin abs" style="left:982px;top:254px">8</span>
+  <span class="pin abs" style="left:982px;top:484px">9</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Principles before pixels.</b> Five checks every review applies: sheet not cards, meaningful colour, Friday-only orange, evidence on every claim, flat until floating.<span class="ref">O01–O11 Plain, E15 folk (anti-pattern) · D-01, D-06, D-17</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>Neutral frame + white sheet.</b> #F6F9FC chrome and one white sheet carry most of the screen; grey panels hold dark text.<span class="ref">A04 Linear, A01 Stripe · D-02, D-17</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Two blues do the work.</b> #47A8E7 for the one primary action, #2A6BAC for selection, focus and "you" in charts.<span class="ref">brand decision · D-09, D-17</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Warning is not the accent.</b> Warnings use #D97706 with a glyph and darker text, so they never read as Friday.<span class="ref">E01 Stripe, E17 Square (anti-pattern) · D-10, D-14</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Chart palette is fixed.</b> You, at most two highlighted rivals, everyone else context grey; peer band for the market.<span class="ref">B01–B03 Stripe, B05 Vercel · D-13</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>Seven sizes, three weights.</b> 30/24/18/16/14/13/12; 600 for headings, 500 for UI, 400 for reading.<span class="ref">A11 LangSmith, O10 Plain · D-16</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Radius ladder.</b> 4 tags · 6 controls · 8 containers · 12 bubbles · full for chips and avatars.<span class="ref">E04 Attio, E06 Linear · D-18</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Two shadows only.</b> Overlay for menus/toasts/bars, dialog for modals. Sheets, frames and cards stay flat.<span class="ref">E13 Amie, O25 Mercury · D-06, D-24</span></div>
+  <div class="sb-note"><span class="pin">9</span><b>Proof in product.</b> Friday band, KPI strip and a feed row built only from the tokens on this board.<span class="ref">O12 Braintrust, B09 Jobber · D-12, D-20, D-26</span></div>
+</div>
+</div>
+</body>
+</html>

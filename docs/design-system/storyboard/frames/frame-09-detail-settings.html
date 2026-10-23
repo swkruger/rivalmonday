@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame 9 · Detail page &amp; danger zone</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .detail { display: grid; grid-template-columns: minmax(0, 1fr) var(--layout-detailAsideWidth); }
+  .detail .main { padding-right: var(--space-8); min-width: 0; }
+  .detail .aside { border-left: 1px solid var(--color-border-default); padding-left: var(--space-6); }
+  .aside h2 { font-size: 14px; line-height: 20px; font-weight: 600; margin-bottom: var(--space-2); }
+  .aside .rm-defrows > div { grid-template-columns: 112px 1fr; padding: var(--space-2) 0; font-size: 13px; }
+  .aside .rm-defrows > div:last-child { border-bottom: 0; }
+  .aside .grp + .grp { margin-top: var(--space-6); }
+  .aside .rm-select { height: var(--size-controlSm); padding: 0 var(--space-2_5); }
+  .who { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; padding: var(--space-1_5) 0; }
+  .ident { display: flex; align-items: center; gap: var(--space-3); }
+  .ident .rm-meta { margin-top: var(--space-1); }
+  .why-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .why-head h2 { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .rm-why { margin-top: 0; }
+  .ad-rows > * { min-height: 52px; }
+  .inset { position: absolute; left: 0; right: 0; top: 976px; bottom: 0; padding: 0 var(--space-4) var(--space-4); }
+  .inset .lbl { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .inset .lbl .caption { font-weight: 600; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  .dlg { position: relative; height: 380px; border-radius: var(--radius-md); overflow: hidden; background: var(--color-background-surface); border: 1px solid var(--color-border-default); }
+  .mini { position: relative; height: 380px; display: grid; grid-template-columns: 200px 1fr; background: var(--color-background-app); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); overflow: hidden; }
+  .mini .rm-sidebar { padding-top: var(--space-4); }
+  .mini .rm-sheet { margin: var(--space-2) var(--space-2) var(--space-2) 0; }
+  .mini .rm-page { padding-top: var(--space-6); }
+  .rm-dialog .rm-field { margin-top: var(--space-4); }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">FRAME 9</span><h1>Detail page + danger zone</h1><span class="q">A record page reads like a profile: story on the left, facts on the right, destruction tucked away in settings.</span><span class="tag">Desktop 1440 × 1400 · Client view</span></div>
+<div class="sb-body">
+<div class="sb-canvas" style="width:1440px;height:1400px">
+  <div class="rm-app" style="min-height:960px;height:960px">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context">
+        <span class="sep">/</span>
+        <button class="rm-ctx-btn"><span class="rm-avatar biz sm">SP</span>Summit Plumbing &amp; Air<span class="i i-updown"></span></button>
+      </nav>
+      <div class="rm-search"><span class="i i-search"></span>Search competitors, changes, briefs…<span class="kbd">Ctrl K</span></div>
+      <div class="rm-topbar-actions">
+        <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask Friday</button>
+        <button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button>
+        <button class="rm-btn ghost icon sm has-badge" aria-label="Notifications"><span class="i i-bell"></span><span class="rm-badge-count">3</span></button>
+        <span class="rm-avatar" style="margin-left:4px">JR</span>
+      </div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-chat"></span><span>Ask Friday</span></a>
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item"><span class="i i-file"></span><span>Weekly briefs</span></a>
+        <a class="rm-nav-item"><span class="i i-inbox"></span><span>Alerts</span><span class="count">3</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Monitor</div>
+        <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Competitors</span><span class="count">6</span></a>
+        <a class="rm-nav-item"><span class="i i-globe"></span><span>Website changes</span></a>
+        <a class="rm-nav-item"><span class="i i-megaphone"></span><span>Ads</span></a>
+        <a class="rm-nav-item"><span class="i i-star"></span><span>Reviews</span></a>
+        <a class="rm-nav-item"><span class="i i-pin"></span><span>Local rankings</span></a>
+      </div>
+      <div class="rm-nav-group">
+        <div class="rm-nav-label">Client</div>
+        <a class="rm-nav-item"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+      <div class="rm-sidebar-foot">
+        <a class="rm-nav-item"><span class="i i-help"></span><span>Help &amp; guides</span></a>
+        <a class="rm-nav-item"><span class="i i-panel"></span><span>Collapse</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet">
+      <div class="rm-page"><div class="rm-page-inner">
+        <div class="rm-breadcrumb"><a>Summit Plumbing &amp; Air</a><span class="sep">/</span><a>Competitors</a><span class="sep">/</span><span>BlueRidge Heating &amp; Cooling</span></div>
+        <div class="rm-pagehead">
+          <div class="ident">
+            <span class="rm-avatar biz lg">BR</span>
+            <div>
+              <h1>BlueRidge Heating &amp; Cooling</h1>
+              <div class="rm-meta"><a href="#">blueridgehvac.com <span class="i xs i-external"></span></a><span class="rm-tier top">Top rival</span><span class="rm-live">Checked 2 hours ago</span></div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="rm-btn secondary"><span class="i i-chart"></span>Compare with Summit</button>
+            <button class="rm-friday ask"><span class="i xs i-chat"></span>Ask about BlueRidge</button>
+            <button class="rm-btn ghost icon" aria-label="More actions"><span class="i i-more"></span></button>
+          </div>
+        </div>
+        <nav class="rm-tabs">
+          <a class="rm-tab is-active">Overview</a>
+          <a class="rm-tab">Changes <span class="count">12</span></a>
+          <a class="rm-tab">Ads <span class="count">3</span></a>
+          <a class="rm-tab">Reviews <span class="count">412</span></a>
+          <a class="rm-tab">Rankings</a>
+        </nav>
+
+        <div class="detail">
+          <div class="main">
+            <section class="rm-section">
+              <div class="why-head"><h2>Why it matters</h2><span class="rm-friday label">Friday</span><span class="caption">Week of Oct 19 – 25</span></div>
+              <div class="rm-why">BlueRidge is pushing hard on furnace season. A new <b>$49 furnace tune-up</b> ad runs on searches Summit also wins <span class="rm-cite"><span class="i i-megaphone"></span>Ads · Oct 22</span>, and they gained <b>9 reviews</b> this week against Summit's 12 <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 20</span>. Their map rank (2.1) still beats Summit's 3.4 in the north and west grid points.</div>
+            </section>
+
+            <section class="rm-section" style="margin-top:var(--space-8)">
+              <div class="rm-section-head"><div><h2>Recent changes</h2></div><div class="actions"><a class="rm-btn ghost sm">All 12 changes<span class="i i-arrow-right"></span></a></div></div>
+              <div class="rm-feed-day" style="padding-top:0">Thursday, Oct 22</div>
+              <div class="rm-feed-item"><span class="ic"><span class="i i-megaphone"></span></span><div class="body">Started a <b>$49 furnace tune-up</b> ad on Google Search <span class="rm-cite"><span class="i i-globe"></span>Ads · Oct 22</span><div class="meta"><span class="rm-badge warning"><span class="i i-alert"></span>Needs attention</span><span>2 hours ago</span></div></div><div class="end"><a class="rm-btn secondary sm">View evidence</a></div></div>
+              <div class="rm-feed-day">Tuesday, Oct 20</div>
+              <div class="rm-feed-item" style="border-bottom:0"><span class="ic"><span class="i i-star"></span></span><div class="body">Gained <b>9 new Google reviews</b>, average 4.8 this week <span class="rm-cite"><span class="i i-star"></span>Reviews · Oct 20</span><div class="meta"><span class="rm-tag">Reviews</span><span>3 days ago</span></div></div><div class="end"><a class="rm-btn secondary sm">View evidence</a></div></div>
+            </section>
+
+            <section class="rm-section" style="margin-top:var(--space-8)">
+              <div class="rm-section-head"><div><h2>Ads running</h2></div></div>
+              <div class="rm-rows ad-rows">
+                <div><span class="rm-avatar biz"><span class="i i-megaphone"></span></span><div><div class="t">$49 Furnace Tune-Up — Book Today</div><div class="d">Google Search · since Oct 22 · "furnace tune up denver"</div></div><span class="end"><span class="rm-dot success">Running</span></span></div>
+                <div><span class="rm-avatar biz"><span class="i i-megaphone"></span></span><div><div class="t">Same-Day AC &amp; Heating Repair</div><div class="d">Google Search · since Sep 3</div></div><span class="end"><span class="rm-dot success">Running</span></span></div>
+                <div><span class="rm-avatar biz"><span class="i i-megaphone"></span></span><div><div class="t">Heat Pumps With 2026 Rebates</div><div class="d">Google Local Services · since Aug 18</div></div><span class="end"><span class="rm-dot success">Running</span></span></div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="aside" aria-label="Details">
+            <div class="grp">
+              <h2>Details</h2>
+              <div class="rm-defrows">
+                <div><span>Website</span><a>blueridgehvac.com</a></div>
+                <div><span>Phone</span><span class="num">(303) 555-0187</span></div>
+                <div><span>Service area</span><span>Denver metro, Lakewood</span></div>
+                <div><span>Google rating</span><span class="num">4.6 <span class="muted">· Summit 4.7</span></span></div>
+                <div><span>Reviews</span><span class="num">412 <span class="muted">· +9 this week</span></span></div>
+                <div><span>Avg. map rank</span><span class="num">2.1 <span class="muted">· Summit 3.4</span></span></div>
+                <div><span>Tracking since</span><span>Mar 4, 2026</span></div>
+                <div><span>Tier</span><button class="rm-select"><span class="rm-tier top">Top rival</span><span class="i i-chev-down"></span></button></div>
+              </div>
+            </div>
+            <div class="grp">
+              <h2>Tracked by</h2>
+              <div class="who"><span class="rm-avatar sm">JR</span>Jordan Reyes <span class="muted">· Northpoint</span></div>
+              <div class="who"><span class="rm-avatar sm">DM</span>Dana Morales <span class="muted">· Summit owner</span></div>
+            </div>
+            <div class="grp">
+              <h2>Sources</h2>
+              <div class="rm-sources" style="border-top:0;margin-top:0;padding-top:0">
+                <div><span class="i xs i-globe"></span>Website, 14 pages<span class="date">Oct 23</span></div>
+                <div><span class="i xs i-megaphone"></span>Google Ads Transparency<span class="date">Oct 22</span></div>
+                <div><span class="i xs i-star"></span>Google Business Profile<span class="date">Oct 22</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div></div>
+    </main>
+  </div>
+
+  <div class="inset">
+    <div class="lbl"><span class="rm-tag">Settings</span><span class="caption">Client settings › General › Danger zone (left) and its type-to-confirm dialog (right)</span></div>
+    <div class="panes">
+    <div class="mini">
+      <aside class="rm-sidebar">
+        <a class="rm-back"><span class="i i-chev-left"></span>Back to Summit</a>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">General</div>
+          <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Business profile</span></a>
+          <a class="rm-nav-item"><span class="i i-bell"></span><span>Notifications</span></a>
+        </div>
+        <div class="rm-nav-group">
+          <div class="rm-nav-label">Team</div>
+          <a class="rm-nav-item"><span class="i i-users"></span><span>Members</span></a>
+        </div>
+      </aside>
+      <main class="rm-sheet">
+        <div class="rm-page"><div class="rm-page-inner">
+          <section class="rm-form-section" style="border-top:0;padding-top:0">
+            <h2>Danger zone</h2>
+            <p class="desc">Changes billing and what Friday keeps.</p>
+            <div class="rm-rows">
+              <div><div><div class="t">Pause monitoring</div><div class="d">No checks, briefs or seat charge until you resume.</div></div><span class="end"><button class="rm-btn secondary sm">Pause</button></span></div>
+              <div><div><div class="t">Stop monitoring Summit</div><div class="d">Deletes evidence after 30 days.</div></div><span class="end"><button class="rm-btn danger-outline sm">Stop monitoring</button></span></div>
+            </div>
+          </section>
+        </div></div>
+      </main>
+    </div>
+    <div class="dlg">
+      <div class="rm-scrim">
+        <div class="rm-dialog" role="dialog" aria-modal="true" aria-labelledby="dz-title">
+          <div class="rm-dialog-body">
+            <h2 id="dz-title">Stop monitoring Summit Plumbing &amp; Air?</h2>
+            <p>Friday stops all checks, weekly briefs and alerts for Summit. Evidence and past briefs are deleted after 30 days. This can't be undone.</p>
+            <div class="rm-field">
+              <label class="rm-label">Type <b>Summit Plumbing &amp; Air</b> to confirm</label>
+              <div class="rm-input is-focus">Summit Plumbing &amp; Air</div>
+            </div>
+          </div>
+          <div class="rm-dialog-foot"><button class="rm-btn secondary">Cancel</button><button class="rm-btn danger">Stop monitoring</button></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <span class="pin abs" style="left:248px;top:119px">1</span>
+  <span class="pin abs" style="left:972px;top:110px">2</span>
+  <span class="pin abs" style="left:248px;top:184px">3</span>
+  <span class="pin abs" style="left:248px;top:305px">4</span>
+  <span class="pin abs" style="left:248px;top:395px">5</span>
+  <span class="pin abs" style="left:1069px;top:240px">6</span>
+  <span class="pin abs" style="left:678px;top:1130px">7</span>
+  <span class="pin abs" style="left:808px;top:1064px">8</span>
+</div>
+<div class="sb-notes">
+  <div class="sb-note"><span class="pin">1</span><b>Identity first.</b> 40px square business avatar, 24px name, then website link, tier mark and freshness on one muted meta line.<span class="ref">D09 Attio record · D-25, D-07</span></div>
+  <div class="sb-note"><span class="pin">2</span><b>No primary on a detail page.</b> One secondary verb (Compare), the Friday pill scoped to this rival, and "⋯" for the rest (mute, change tier, remove).<span class="ref">A05 GitLab · D-09, D-14</span></div>
+  <div class="sb-note"><span class="pin">3</span><b>Underline tabs with counts</b> move between views of the same record; Overview is the default.<span class="ref">E04 Attio · D-08</span></div>
+  <div class="sb-note"><span class="pin">4</span><b>Friday's "why it matters" leads.</b> Grey panel, flat prose, every claim carries a dated citation pill — no evidence, no claim.<span class="ref">D10 Lightfield · F06 ChatGPT · D-19, D-14</span></div>
+  <div class="sb-note"><span class="pin">5</span><b>Feed, then grouped rows.</b> Changes use day groups and one inline action; running ads sit in bordered grouped rows with a dot status.<span class="ref">F13 Basecamp · D01 Devin · D-20, D-10</span></div>
+  <div class="sb-note"><span class="pin">6</span><b>320px aside behind a divider.</b> Label/value rows with Summit's number as muted context; tier is editable in place (inline select). Sources are dated.<span class="ref">D09 Attio · D05 Mural · F07 Dash · D-21</span></div>
+  <div class="sb-note"><span class="pin">7</span><b>Danger zone is last and quiet.</b> Grouped rows; only the button text is red (outline). Pause is offered before stop.<span class="ref">D16 Mintlify · O04 Plain billing · D-15</span></div>
+  <div class="sb-note"><span class="pin">8</span><b>Type-to-confirm for big deletes.</b> Dialog names the consequence and the delay; Cancel sits left of the solid red verb, which repeats the action name.<span class="ref">D15 Vercel · O25 Mercury · E11 Gumloop · D-24</span></div>
+</div>
+</div>
+</body>
+</html>
