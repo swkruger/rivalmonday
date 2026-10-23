@@ -5,8 +5,8 @@ import {
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
-import type { CaptureStatus } from '@cs/core';
-import { type AgencyBranding, competitor, catalogRows, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import type { AiGuard, CaptureStatus } from '@cs/core';
+import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
@@ -58,6 +58,8 @@ export interface BillingEmailSender {
 }
 
 export interface WorkerDeps {
+  /** The spend guard every worker AI call asks first (cached 30 s). */
+  aiGuard(): AiGuard;
   claimDuePages(limit: number): Promise<string[]>;
   capturePage(trackedPageId: string): Promise<{ status: CaptureStatus | 'missing'; captureId?: string }>;
   /** True once OPENROUTER_API_KEY is set — gates the intelligence engine (embeddings + decisions). */
@@ -247,9 +249,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   let warnedNoSalt = false;
   // A rejected init must not be cached forever (the worker keeps this deps object alive for its
   // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
+  /** Phase 7b1: one guard (shared 30 s cache) for the daemon's AI calls; the `*-once` CLIs build `Ai` without one. */
+  let guard: AiGuard | null = null;
+  const aiGuard = () => (guard ??= createAiGuard(getDb()));
   const getAi = () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb())))
+      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard()))
       .catch((err) => {
         ai = null;
         throw err;
@@ -294,6 +299,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   };
 
   return {
+    aiGuard,
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
     engineConfigured: () => Boolean(env.OPENROUTER_API_KEY),

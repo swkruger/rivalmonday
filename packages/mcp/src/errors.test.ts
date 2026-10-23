@@ -1,4 +1,4 @@
-import { ToolError } from '@cs/core';
+import { SPEND_PAUSED_COPY, SYSTEM_BUSY_COPY, ToolError } from '@cs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RESOURCE_ERROR_CODE, toResourceError, toToolResult } from './errors';
 
@@ -40,5 +40,12 @@ describe('internal error logging', () => {
     expect(parse(toToolResult(new ToolError('internal', "Stripe couldn't complete that. Please try again.", { userFacing: true }), 'x'))).toEqual({ code: 'internal', message: "Stripe couldn't complete that. Please try again." });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(parse(toToolResult(new ToolError('internal', 'secret detail'), 'x'))).toEqual({ code: 'internal', message: 'Something went wrong. Try again later.' });
+  });
+
+  it('mcp passes spend_paused copy through', () => {
+    const parse = (r: ReturnType<typeof toToolResult>) => JSON.parse((r.content[0] as { text: string }).text);
+    expect(parse(toToolResult(new ToolError('spend_paused', SPEND_PAUSED_COPY, { userFacing: true }), 'x'))).toEqual({ code: 'spend_paused', message: SPEND_PAUSED_COPY });
+    expect(parse(toToolResult(new ToolError('system_busy', SYSTEM_BUSY_COPY, { userFacing: true }), 'x'))).toEqual({ code: 'system_busy', message: SYSTEM_BUSY_COPY });
+    expect(parse(toToolResult(new ToolError('spend_paused', 'paused'), 'x'))).toEqual({ code: 'spend_paused', message: 'paused' });
   });
 });

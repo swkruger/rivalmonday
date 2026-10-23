@@ -1,7 +1,7 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, type JsonSchemaFormat, loadAiConfigFile } from '@cs/ai';
 import { createDataForSeo, DFS_BASE_URL, type DataForSeoClient, fetchGbpProfile, redactForModel } from '@cs/collectors';
-import { createLedgerSink, type Db, type EnvName } from '@cs/db';
+import { createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { buildSuggestionSource, type ToolDeps } from '@cs/tools';
 import { type Catalog, similarVerticals, validateDraft, type VerticalDraft } from '@cs/verticals';
 import fixture from '../../e2e/fixtures/vertical-draft.json';
@@ -70,7 +70,7 @@ export function verticalDrafterFor(name: EnvName, service: Db, catalog: Catalog,
   return createVerticalDrafter({
     dfs: () => (dfs ??= createDataForSeo({ login, password, baseUrl: baseUrl || DFS_BASE_URL, ledger: createLedgerSink(service) })),
     ai: () => {
-      ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(env.processEnv, cfg, createLedgerSink(service)));
+      ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(env.processEnv, cfg, createLedgerSink(service), undefined, createAiGuard(service)));
       return ai.catch((e: unknown) => {
         ai = undefined; // do not cache a failed build
         throw e;

@@ -2,8 +2,8 @@ import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import { ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
-import { type AccessContext, canAccessClient, hasChannel, ToolError } from '@cs/core';
-import { agency, client, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
+import { type AccessContext, AiPausedError, canAccessClient, hasChannel, SPEND_PAUSED_COPY, SYSTEM_BUSY_COPY, ToolError } from '@cs/core';
+import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -101,7 +101,7 @@ const realAi = perEnv((name: EnvName) => {
   let ai: Promise<Ai> | undefined;
   return () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service)))
+      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service), createAiGuard(service)))
       .catch((e: unknown) => {
         ai = undefined;
         throw e;
@@ -113,6 +113,13 @@ const realAi = perEnv((name: EnvName) => {
  * MCP use, so the evidence-text fallback (`evidenceStore`) works. With `ASK_FAKE_AI` each call gets a fresh scripted AI
  * (its call log never grows across turns).
  */
+/** 7b1: the decided copy for a spend/platform pause (a refused model call, or a tool refused the same way); null otherwise. */
+function askPausedCopy(err: unknown): string | null {
+  if (err instanceof AiPausedError) return err.reason === 'platform' ? SYSTEM_BUSY_COPY : SPEND_PAUSED_COPY;
+  if (err instanceof ToolError && err.userFacing && (err.code === 'spend_paused' || err.code === 'system_busy')) return err.message;
+  return null;
+}
+
 export async function askDeps(name?: EnvName): Promise<AskDeps> {
   const { app, service } = dbs(name);
   const ai = webEnv().askFakeAi ? createScriptedAskAi(E2E_SCRIPT) : await realAi(name)();
@@ -299,10 +306,11 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
       }
       await runTurn(deps!, ctx, { threadId: begun!.threadId, userMessageId: begun!.userMessageId, ...(input.seedEvidenceId ? { seedEvidenceId: input.seedEvidenceId } : {}) }, write);
     } catch (err) {
-      if (!(err instanceof ToolError && err.code === 'service_paused')) console.error('[ask] turn failed', err instanceof Error ? err.message : err);
+      const paused = askPausedCopy(err);
+      if (!paused && !(err instanceof ToolError && err.code === 'service_paused')) console.error('[ask] turn failed', err instanceof Error ? err.message : err);
       if (!finalSent) {
         const name = deps ? await assistantNameFor(deps.service, ctx.agencyId).catch(() => DEFAULT_ASSISTANT_NAME) : DEFAULT_ASSISTANT_NAME;
-        const content = err instanceof ToolError && err.code === 'service_paused' ? err.message : ASK_COPY.error(name);
+        const content = paused ?? (err instanceof ToolError && err.code === 'service_paused' ? err.message : ASK_COPY.error(name));
         write({ type: 'final', messageId: '', content, citations: [], action: null, status: 'error' });
       }
     } finally {

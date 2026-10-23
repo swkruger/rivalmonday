@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createAccessContext } from './access';
 import { hashInput } from './server/hash';
+import { AiPausedError, SPEND_PAUSED_COPY, SYSTEM_BUSY_COPY } from './spend';
 import { type AuditEvent, ToolError, ToolRegistry, countRows, mcpScopeOf, toolkit } from './tools';
 
 const A = '00000000-0000-4000-8000-00000000000a';
@@ -361,5 +362,21 @@ describe('plan features (7a2 D13)', () => {
   it('defaults to both plan features when none are given', () => {
     expect([...admin.planFeatures].sort()).toEqual(['ask', 'mcp']);
     expect(names(admin, { channel: 'ask' })).toContain('ask_read');
+  });
+});
+
+describe('ToolRegistry AiPausedError mapping', () => {
+  function pausing(reason: 'platform' | 'client') {
+    const t = defineTool({
+      name: 'ai_thing', access: 'read', description: 'calls AI', input: z.object({}), output: z.object({}), permission: 'read',
+      handler: async () => { throw new AiPausedError(reason); },
+    });
+    const reg = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: async () => {} }, Date.now, { hashInput });
+    reg.register(t);
+    return reg;
+  }
+  it('registry maps AiPausedError to userFacing system_busy / spend_paused', async () => {
+    await expect(pausing('platform').invoke(admin, 'ai_thing', {})).rejects.toMatchObject({ code: 'system_busy', message: SYSTEM_BUSY_COPY, userFacing: true });
+    await expect(pausing('client').invoke(admin, 'ai_thing', {})).rejects.toMatchObject({ code: 'spend_paused', message: SPEND_PAUSED_COPY, userFacing: true });
   });
 });

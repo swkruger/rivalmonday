@@ -1,6 +1,6 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
-import { createLedgerSink, type Db, type EnvName } from '@cs/db';
+import { createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { proposeTailoring } from '@cs/engine';
 import type { ToolDeps } from '@cs/tools';
 import type { Catalog } from '@cs/verticals';
@@ -20,7 +20,7 @@ export function runbookTailorerFor(name: EnvName, service: Db, catalog: Catalog,
   if (!env.processEnv.OPENROUTER_API_KEY) return undefined;
   let ai: Promise<Ai> | undefined;
   const client = () => {
-    ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(env.processEnv, cfg, createLedgerSink(service)));
+    ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(env.processEnv, cfg, createLedgerSink(service), undefined, createAiGuard(service)));
     return ai.catch((e: unknown) => {
       ai = undefined; // do not cache a failed build
       throw e;

@@ -1,7 +1,9 @@
+import { AiPausedError, type AiGuard, type CallScope } from '@cs/core';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db, Tx } from './client';
 import { platformSetting } from './schema/billing';
+import { client } from './schema/tenancy';
 
 /** `platform_setting` keys (seeded by migration 0086). Platform staff only (7b1). */
 export const SPEND_GUARD_SETTINGS_KEY = 'spend_guard_settings';
@@ -80,4 +82,60 @@ export function effectiveLimitUsd(spendLimitUsd: string | number | null, s: Spen
 /** Spend at or above which the client's AI/recurring work is auto-paused (`limit × clientPausePercent / 100`). */
 export function pauseThresholdUsd(limitUsd: number, s: SpendGuardSettings): number {
   return (limitUsd * s.clientPausePercent) / 100;
+}
+
+const GUARD_CACHE_MS = 30_000;
+const GUARD_LOG_EVERY_MS = 60_000;
+const GUARD_CLIENT_CACHE_MAX = 5_000;
+
+/**
+ * Refuses AI work while the platform (`ai_guard_state.state === 'paused'`) or the call's client (`client.spend_paused_at`)
+ * is spend-paused. `warn` never refuses. Reads are cached `cacheMs` (platform state once, clients per id). A failed read
+ * fails OPEN (a DB blip must not stop all AI; the hourly job re-asserts the pause) and logs one error a minute, with the
+ * error name only (never the message: it can carry query params).
+ */
+export function createAiGuard(db: Db, opts: { cacheMs?: number; now?: () => number } = {}): AiGuard {
+  const cacheMs = opts.cacheMs ?? GUARD_CACHE_MS;
+  const now = opts.now ?? Date.now;
+  let platform: { paused: boolean; until: number } | null = null;
+  const clients = new Map<string, { paused: boolean; until: number }>();
+  let lastLogged = -Infinity;
+
+  async function platformPaused(): Promise<boolean> {
+    const t = now();
+    if (platform && t < platform.until) return platform.paused;
+    const paused = (await readAiGuardState(db)).state === 'paused';
+    platform = { paused, until: t + cacheMs };
+    return paused;
+  }
+
+  async function clientPaused(clientId: string): Promise<boolean> {
+    const t = now();
+    const hit = clients.get(clientId);
+    if (hit && t < hit.until) return hit.paused;
+    const [row] = await db.select({ at: client.spendPausedAt }).from(client).where(eq(client.id, clientId));
+    const paused = row?.at != null;
+    if (clients.size >= GUARD_CLIENT_CACHE_MAX) clients.clear();
+    clients.set(clientId, { paused, until: t + cacheMs });
+    return paused;
+  }
+
+  return {
+    async assertAllowed(scope: CallScope): Promise<void> {
+      let reason: 'platform' | 'client' | null = null;
+      try {
+        if (await platformPaused()) reason = 'platform';
+        else if (scope.clientId && (await clientPaused(scope.clientId))) reason = 'client';
+      } catch (err) {
+        const t = now();
+        if (t - lastLogged >= GUARD_LOG_EVERY_MS) {
+          lastLogged = t;
+          // eslint-disable-next-line no-console -- operators must see that the guard is failing open
+          console.error('[ai-guard] state read failed; allowing the call', { error: err instanceof Error ? err.name : typeof err });
+        }
+        return;
+      }
+      if (reason) throw new AiPausedError(reason);
+    },
+  };
 }

@@ -3,9 +3,11 @@ import { join } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
+import { AiPausedError } from '@cs/core';
 import { client, platformSetting, spendGuardEvent, withTenant } from './index';
 import {
   AI_GUARD_STATE_KEY,
+  createAiGuard,
   effectiveLimitUsd,
   pauseThresholdUsd,
   readAiGuardState,
@@ -115,5 +117,57 @@ describe('spend guard schema', () => {
     expect(rows.map((r) => r.key).sort()).toEqual([AI_GUARD_STATE_KEY, SPEND_GUARD_SETTINGS_KEY]);
     expect(rows.find((r) => r.key === AI_GUARD_STATE_KEY)?.value).toEqual({ state: 'ok' });
     expect(rows.find((r) => r.key === SPEND_GUARD_SETTINGS_KEY)?.value).toEqual({});
+  });
+});
+
+describe('createAiGuard', () => {
+  const scopeA = { agencyId: IDS.agencyA, clientId: IDS.clientA1 };
+
+  it('ok and warn allow; platform paused refuses every scope', async () => {
+    const g = createAiGuard(dbs.service, { cacheMs: 0 });
+    await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined();
+    await writeAiGuardState(dbs.service, { state: 'warn' }, 'system');
+    await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined();
+    await writeAiGuardState(dbs.service, { state: 'paused' }, 'system');
+    await expect(g.assertAllowed(scopeA)).rejects.toMatchObject({ name: 'AiPausedError', reason: 'platform' });
+    await expect(g.assertAllowed({ agencyId: null, clientId: null })).rejects.toBeInstanceOf(AiPausedError);
+  });
+
+  it("a client pause refuses only that client's scope", async () => {
+    const g = createAiGuard(dbs.service, { cacheMs: 0 });
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await expect(g.assertAllowed(scopeA)).rejects.toMatchObject({ reason: 'client' });
+    await expect(g.assertAllowed({ agencyId: IDS.agencyA, clientId: IDS.clientA2 })).resolves.toBeUndefined();
+    await expect(g.assertAllowed({ agencyId: IDS.agencyA, clientId: null })).resolves.toBeUndefined();
+  });
+
+  it('caches for cacheMs, then re-reads', async () => {
+    let t = 1_000_000;
+    const g = createAiGuard(dbs.service, { cacheMs: 30_000, now: () => t });
+    await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined();
+    await writeAiGuardState(dbs.service, { state: 'paused' }, 'system');
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    t += 29_000;
+    await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined(); // cached: no re-query
+    t += 2_000;
+    await expect(g.assertAllowed(scopeA)).rejects.toMatchObject({ reason: 'platform' });
+  });
+
+  it('a read failure allows the call and logs once per minute', async () => {
+    let t = 5_000_000;
+    const boom = { select: () => { throw new Error('connection secret-host'); } } as unknown as typeof dbs.service;
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const g = createAiGuard(boom, { cacheMs: 0, now: () => t });
+      await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined();
+      await expect(g.assertAllowed(scopeA)).resolves.toBeUndefined();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(log.mock.calls)).not.toContain('secret-host');
+      t += 61_000;
+      await g.assertAllowed(scopeA);
+      expect(log).toHaveBeenCalledTimes(2);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

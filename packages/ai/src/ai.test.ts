@@ -1,4 +1,4 @@
-import type { LlmCallRecord, LedgerSink } from '@cs/core';
+import { AiPausedError, type AiGuard, type LlmCallRecord, type LedgerSink } from '@cs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { createAi } from './ai';
 import type { ChatProvider } from './chat';
@@ -211,5 +211,79 @@ tasks:
     expect(complete).toHaveBeenLastCalledWith(expect.objectContaining({ timing: { timeoutMs: 20_000, maxAttempts: 2 } }));
     await ai.embed('embeddings', ['x'], scope);
     expect(embed).toHaveBeenCalledWith(expect.objectContaining({ timing: { timeoutMs: 8_000, maxAttempts: 2 } }));
+  });
+});
+
+describe('Ai guard (7b1)', () => {
+  const clientScope = { agencyId: scope.agencyId, clientId: '00000000-0000-4000-8000-0000000000c1' };
+  const otherScope = { agencyId: scope.agencyId, clientId: '00000000-0000-4000-8000-0000000000c2' };
+
+  function guarded(guard: AiGuard) {
+    const records: LlmCallRecord[] = [];
+    const ledger: LedgerSink = { recordLlmCall: async (r) => { records.push(r); }, recordVendorCall: async () => {} };
+    const complete = vi.fn(async (req: { model: string; jsonSchema?: unknown }) => ({
+      text: req.jsonSchema ? JSON.stringify({ m: { probability: 0.99 } }) : 'brief', model: req.model, inputTokens: 1, outputTokens: 1, costUsd: 0.001,
+    }));
+    const jevDecide = vi.fn(async () => ({
+      answers: { m: { type: 'noul', value: true, probability: 0.99, confidence: 0.98 } }, model: 'jev-x', inputTokens: 1, outputTokens: 1, costUsd: 0,
+    }));
+    const embed = vi.fn(async () => ({ vectors: [[1]], model: 'e', inputTokens: 1, costUsd: 0 }));
+    const batch = {
+      id: 'anthropic' as const, submit: vi.fn(async () => 'msgbatch_1'), status: vi.fn(async () => 'ended' as const),
+      results: vi.fn(async () => [{ customId: 'x', ok: true as const, text: '{}', model: 'm', inputTokens: 1, outputTokens: 1 }]),
+    };
+    const ai = createAi(config, {
+      openrouter: { id: 'openrouter', complete } as unknown as ChatProvider,
+      jev: () => ({ id: 'jev', decide: jevDecide as unknown as DecisionProvider['decide'] }),
+      embeddings: { id: 'openrouter', embed } as unknown as import('./embeddings').EmbeddingProvider,
+      batch, ledger, guard,
+    });
+    return { ai, records, complete, jevDecide, embed, batch };
+  }
+  const paused: AiGuard = { assertAllowed: async () => { throw new AiPausedError('platform'); } };
+
+  it('paused platform state refuses chat, decide (jev + llm), embed and submitBatch with no ledger row', async () => {
+    const h = guarded(paused);
+    const msgs = [{ role: 'user' as const, content: 'x' }];
+    await expect(h.ai.chat('brief_writer', { messages: msgs }, scope)).rejects.toBeInstanceOf(AiPausedError);
+    await expect(h.ai.chatWithTools('ask_assistant', { messages: msgs, tools: [] }, scope)).rejects.toBeInstanceOf(AiPausedError);
+    await expect(h.ai.decide('decisions', {}, q, scope)).rejects.toBeInstanceOf(AiPausedError);
+    await expect(h.ai.decide('llm_decisions', {}, q, scope)).rejects.toBeInstanceOf(AiPausedError);
+    await expect(h.ai.embed('embeddings', ['a'], scope)).rejects.toBeInstanceOf(AiPausedError);
+    await expect(h.ai.submitBatch('theme_discovery_batch', [{ customId: 'x', messages: msgs }], scope)).rejects.toBeInstanceOf(AiPausedError);
+    expect(h.records).toEqual([]);
+    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.jevDecide).not.toHaveBeenCalled();
+    expect(h.embed).not.toHaveBeenCalled();
+    expect(h.batch.submit).not.toHaveBeenCalled();
+  });
+
+  it("client pause refuses only that client's scope", async () => {
+    const h = guarded({ assertAllowed: async (s) => { if (s.clientId === clientScope.clientId) throw new AiPausedError('client'); } });
+    await expect(h.ai.chat('brief_writer', { messages: [] }, clientScope)).rejects.toMatchObject({ reason: 'client' });
+    await expect(h.ai.chat('brief_writer', { messages: [] }, otherScope)).resolves.toMatchObject({ text: 'brief' });
+    expect(h.records).toHaveLength(1);
+  });
+
+  it('warn (a guard that allows) lets every call through', async () => {
+    const h = guarded({ assertAllowed: async () => {} });
+    await expect(h.ai.chat('brief_writer', { messages: [] }, scope)).resolves.toBeDefined();
+    await expect(h.ai.decide('decisions', {}, q, scope)).resolves.toBeDefined();
+    await expect(h.ai.embed('embeddings', ['a'], scope)).resolves.toBeDefined();
+    await expect(h.ai.submitBatch('theme_discovery_batch', [], scope)).resolves.toBe('msgbatch_1');
+  });
+
+  it('collectBatch is never refused', async () => {
+    const h = guarded(paused);
+    const r = await h.ai.collectBatch('theme_discovery_batch', 'msgbatch_1', scope);
+    expect(r.status).toBe('ended');
+    expect(h.records).toHaveLength(1);
+  });
+
+  it('embed asks the guard before every chunk', async () => {
+    const assertAllowed = vi.fn(async () => {});
+    const h = guarded({ assertAllowed });
+    await h.ai.embed('embeddings', Array.from({ length: 130 }, () => 'a'), scope);
+    expect(assertAllowed).toHaveBeenCalledTimes(3);
   });
 });

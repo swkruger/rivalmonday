@@ -2,7 +2,7 @@ import 'server-only';
 import { gatewayFor } from '@cs/billing';
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile, type Ai } from '@cs/ai';
 import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
-import { catalogRows, createLedgerSink, type Db, type EnvName } from '@cs/db';
+import { catalogRows, createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { createCatalog } from '@cs/verticals';
@@ -30,7 +30,7 @@ function embedQueryFor(name: EnvName, service: Db): ToolDeps['embedQuery'] {
   if (name !== 'dev' || !process.env.OPENROUTER_API_KEY) return undefined;
   let ai: Promise<Ai> | undefined;
   return async (text, scope) => {
-    ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service)));
+    ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH).then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), undefined, createAiGuard(service)));
     const client = await ai.catch((e: unknown) => {
       ai = undefined; // do not cache a failed build
       throw e;

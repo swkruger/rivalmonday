@@ -1,4 +1,4 @@
-import type { CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
+import type { AiGuard, CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
 import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
 import type { ChatMessage, ChatProvider, ChatResult, ChatTool, JsonSchemaFormat } from './chat';
 import { type AiConfig, type CallTiming, type ConfidenceThresholds, type TaskConfig, timingOf } from './config';
@@ -44,6 +44,12 @@ export interface AiDeps {
   shadowRateOverride?: number;
   /** Anthropic Message Batches; null/absent when ANTHROPIC_API_KEY is not set (batch tasks are then unavailable). */
   batch?: BatchProvider | null;
+  /**
+   * Phase 7b1: asked before every provider call (chat, decisions incl. Jev, each embedding chunk, batch submit; never batch
+   * collect); throws `AiPausedError` while the platform or the scope's client is spend-paused. A refused call writes no
+   * ledger row. Absent in worker CLIs (`*-once`).
+   */
+  guard?: AiGuard;
 }
 
 export function createAi(config: AiConfig, deps: AiDeps): Ai {
@@ -77,6 +83,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
     return {
       id: provider.id,
       async decide(state, questions) {
+        await deps.guard?.assertAllowed(scope);
         const started = now();
         let call;
         try {
@@ -112,6 +119,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
   ): Promise<ChatResult> {
     const t = task(name);
     if (t.provider !== 'openrouter' || t.mode !== 'chat') throw new Error(`Task ${name} is not a chat task`);
+    await deps.guard?.assertAllowed(scope);
     const started = now();
     let result;
     try {
@@ -176,6 +184,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       let costUsd: number | null = 0;
       let model = t.model;
       for (let i = 0; i < texts.length; i += EMBED_BATCH) {
+        await deps.guard?.assertAllowed(scope);
         const input = texts.slice(i, i + EMBED_BATCH).map((s) => s.slice(0, EMBED_MAX_CHARS));
         const started = now();
         let r: EmbeddingResult;
@@ -205,10 +214,11 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       return t?.provider === 'anthropic' && Boolean(deps.batch);
     },
 
-    async submitBatch(name, requests, _scope) {
+    async submitBatch(name, requests, scope) {
       const t = task(name);
       if (t.provider !== 'anthropic') throw new Error(`Task ${name} is not a batch task`);
       if (!deps.batch) throw new Error(`Task ${name} needs ANTHROPIC_API_KEY`);
+      await deps.guard?.assertAllowed(scope);
       return deps.batch.submit({ model: t.model, maxTokens: t.max_tokens, requests });
     },
 

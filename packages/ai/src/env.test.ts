@@ -1,4 +1,4 @@
-import type { LedgerSink } from '@cs/core';
+import { AiPausedError, type LedgerSink } from '@cs/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseAiConfig } from './config';
 import { createAiFromEnv } from './env';
@@ -55,5 +55,13 @@ describe('createAiFromEnv', () => {
     expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/embeddings');
     expect(calls[0]?.body).toMatchObject({ model: 'openai/text-embedding-3-small', input: ['hello'], dimensions: 4, provider: { data_collection: 'deny', zdr: true } });
     expect(r.vectors).toEqual([[1, 0, 0, 0]]);
+  });
+
+  it('passes the guard through: a refused call never reaches the provider', async () => {
+    const calls = stubFetch({});
+    const guard = { assertAllowed: async () => { throw new AiPausedError('client'); } };
+    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger, undefined, guard);
+    await expect(ai.embed('embeddings', ['hello'], scope)).rejects.toBeInstanceOf(AiPausedError);
+    expect(calls).toEqual([]);
   });
 });

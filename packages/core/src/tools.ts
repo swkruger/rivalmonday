@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { type TokenScope, scopeCovers } from './tokens';
 import { maskSupportFields } from './mask';
+import { AiPausedError, SPEND_PAUSED_COPY, SYSTEM_BUSY_COPY } from './spend';
 import { type AccessContext, type Feature, type Permission, type PlanFeature, type Role, hasPermission, isAgencyRole, PLAN_FEATURES } from './access';
 
-export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'billing_seat_limit' | 'service_paused' | 'invalid_code' | 'billing_not_eligible' | 'connect_not_ready' | 'no_client_owner' | 'slug_taken' | 'internal';
+export type ToolErrorCode = 'not_found' | 'permission_denied' | 'invalid_input' | 'rate_limited' | 'quota_exceeded' | 'read_only_session' | 'conflict' | 'billing_seat_limit' | 'service_paused' | 'invalid_code' | 'billing_not_eligible' | 'connect_not_ready' | 'no_client_owner' | 'slug_taken' | 'spend_paused' | 'system_busy' | 'internal';
 
 export class ToolError extends Error {
   readonly code: ToolErrorCode;
@@ -202,6 +203,11 @@ export class ToolRegistry<D> {
         raw = await tool.handler(ctx, parsed.data, this.deps, { channel: opts.channel, tokenId: opts.tokenId ?? null });
       } catch (err) {
         if (err instanceof ToolError) throw err;
+        if (err instanceof AiPausedError) {
+          throw err.reason === 'platform'
+            ? new ToolError('system_busy', SYSTEM_BUSY_COPY, { userFacing: true })
+            : new ToolError('spend_paused', SPEND_PAUSED_COPY, { userFacing: true });
+        }
         throw new ToolError('internal', `Tool ${name} failed`, { cause: err });
       }
 
