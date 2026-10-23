@@ -24,11 +24,11 @@ export interface AgencyBilling {
 
 export type PanelRole = 'owner' | 'staff' | 'viewer';
 
+/** Trial and pilot ends are date-only values (as on the agency's own billing page), so they render in UTC, never the viewer's zone. */
 const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz: 'UTC' }) : '—');
 
 /** Billing panel on the agency detail page. Controls the role cannot use are not rendered (the tools enforce as well). */
 export function BillingPanel({ billing: b, role, codes, tz }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[]; tz: string }) {
-  const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz }) : '—');
   const state = labelFor(BILLING_STATE, b.state);
   const staff = role === 'owner' || role === 'staff';
   const hidden = <input type="hidden" name="agencyId" value={b.agencyId} />;

@@ -77,6 +77,15 @@ describe('BillingPanel labels, dates and confirms', () => {
     expect(text).not.toMatch(/past_due|read_only|timer:|admin:|2025-10-13/);
   });
 
+  it('trial and pilot end dates are date-only (UTC) whatever the viewer zone; event times use the viewer zone', () => {
+    render(<BillingPanel billing={billing({ pilotEndsAt: '2026-12-01T00:00:00Z', events: [{ fromState: null, toState: 'pilot', reason: 'admin:grant_pilot', actor: 'u1', createdAt: '2026-10-13T02:00:00Z' }] }) as never} role="viewer" codes={codes} tz="America/Chicago" />);
+    const dd = (label: string) => screen.getByText(label).nextElementSibling?.textContent ?? '';
+    expect(dd('Trial ends')).toMatch(/^Nov 13/);
+    expect(dd('Pilot ends')).toMatch(/^Dec 1$/);
+    // 02:00 UTC on Oct 13 is still Oct 12 in Chicago.
+    expect(document.body.textContent).toMatch(/Oct 12/);
+  });
+
   it('invoice shows a status chip and a short date, not the raw status or an ISO date', () => {
     render(<BillingPanel billing={billing() as never} role="viewer" codes={codes} tz="UTC" />);
     expect(screen.getByText('Paid')).toBeTruthy();
