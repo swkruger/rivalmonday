@@ -58,7 +58,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (env from `playwright.config.ts`), runs as its own CI job, and never concurrently with another `cs_test` run.
 - **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites only). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.
-- **A one-off "destination stream closed early" in the E2E server log is an infra flake** (seen before 15c) — re-run once.
+- **"destination stream closed early" in the E2E server log is noise** (digest `3686933289`, no app frame): the browser closes the page mid-RSC/prefetch stream between tests; tests still pass (reproduced 3/3 runs of `workspace.spec`, 15c-2 T15). Ignore it unless an assertion fails.
 
 ### Affected-only E2E
 - **During development run `pnpm --filter @cs/web e2e:affected`** (`--dry-run`, `--base <ref>`, `--full`): tests whose tags the changed files map to (plus `@smoke`), rebuilds only when needed. It can pull one test out of a `describe.serial` file (false failure) — re-run the whole file. Full `e2e` only in `/rm-merge`.

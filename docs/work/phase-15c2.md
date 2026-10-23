@@ -24,6 +24,9 @@ Spec D1-D8 (2026-10-23): two plans by area (2a platform/agency/account, 2b clien
 ## New backlog (target → item)
 None yet.
 
+### E2E stream message (T15)
+Finding: **infra/noise, cause: client disconnect.** `e2e/workspace.spec.ts` x3 on this branch (prod build, port 3100): 6/6 passed each run; `[WebServer] x Error: The destination stream closed early.` (digest `3686933289`, "at ignore-listed frames", no app frame) appeared 1x, 1x, 3x. Always in the gap right after tests 2 and 3 (the multi-navigation tests: Moves -> Competitors -> profile; two `page.goto`s) finish or when test 4 starts, i.e. when Playwright closes the page/context while Next is still streaming an RSC/prefetch response to the browser. Same digest every time, no failing assertion, no `files/*` or SSE route involved. Comparison is branch-only (no main checkout run, per controller); 15c-1 already saw the message on main, so it is not caused by this branch. No code change; `apps/web/CLAUDE.md` note updated with the cause.
+
 ## Owner verification steps
 TBD.
 
