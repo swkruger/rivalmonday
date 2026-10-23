@@ -1,16 +1,16 @@
 # phase-15c — audit page fixes (UX/IA follow-up)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c   **Base:** main @ 55964738
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c   **Base:** main @ d7d42e47
 **Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) (approved 2026-10-21); plan [15c-1](../superpowers/plans/2026-10-21-phase-15c1-shared-pieces.md); inputs [15 spec](../superpowers/specs/2026-10-18-phase-15-ux-ia-design.md) §4, [audit](../research/2026-10-18-phase-15-ux-audit.md)
 
 ## Status (overwrite)
-15c-1 built and reviewed on 2026-10-22; rebased on 7a 2026-10-22 (health table moved to `formatRelative`, `reportError` wired to Sentry). 15c-2 and 15c-3 plans follow after 15c-1 merges.
+15c-1 built and reviewed on 2026-10-22; rebased on 7a + 15b-3a (2026-10-22): health table on `formatRelative`, `reportError` → Sentry; 15b-3a rebase was conflict-free. 15c-2 and 15c-3 plans follow after 15c-1 merges.
 
 ## Next (overwrite)
-On hold (owner, 2026-10-22): wait for `phase-15b3` to merge → owner migrates `cs_dev` (0081–0084) + `kb:seed` → rebase 15c again → owner verifies 15c-1 (steps below) → /rm-merge. Final whole-branch review done; rebased on 7a.
+Owner verification (steps below) → /rm-merge; full unit + full E2E run at 15c merge (owner deferred them from 15b-3a).
 
 ## Interfaces this branch adds or changes
-No migration (next free **0084**).
+No migration (next free **0085**).
 - `@cs/ui`: `Skeleton`, `StatusChip`, `CHIP_COLOURS`, `ConfirmDialog`, `SaveBar`, type `ChipTone`.
 - `@cs/db`: `ALERT_STATUSES`, `WEBHOOK_KINDS`, `TREND_REPORT_STATUSES`, `EVIDENCE_KINDS`; re-exports `CATALOG_STATUSES` (lives in `@cs/verticals`).
 - `apps/web`: `lib/labels.ts` (`labelFor`, value maps, `CLIENT_AUDIENCE_MAPS`), `lib/agency-only-terms.ts`, `lib/format/{date,money,distance}` (old per-folder formatters removed), `components/radius-select.tsx`, `components/page-skeleton.tsx`.
@@ -32,7 +32,7 @@ No migration (next free **0084**).
 
 ## Assumes from other branches
 - **phase-7** (merged as 7a): 15c-3's archive button needs archive exposed as a tool — 7a2 built only the worker CLI `archiveTenant`.
-- **phase-15b3** (docs only so far): 3b renames `/platform/themes`→`/platform/topics`, `?theme=`, `ThemeQueue`, `ThemeHeatmap`, `pendingThemes`.
+- **phase-15b3b** (unbuilt; 15b-3a merged): 3b renames `/platform/themes`→`/platform/topics`, `?theme=`, the page/help key, MCP tool names, `ThemeQueue`, `ThemeHeatmap`, `pendingThemes` — 15c-2 theme pages may overlap.
 - **13a** (planned, unbuilt): root `app/{not-found,error,global-error}.tsx`, host-aware titles, `client-profile-form.tsx`, `/start*`. Overlaps our error pages and miles work.
 - **phase-7-planning**: parked, no overlap.
 
