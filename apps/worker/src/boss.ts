@@ -1,7 +1,7 @@
 import PgBoss from 'pg-boss';
 import type { JobDefinition } from './jobs';
 import { workerLog } from './log';
-import { runJob } from './sentry';
+import { AI_PAUSE_DEFER_SECONDS, runJob } from './sentry';
 
 export function createBoss(url: string): PgBoss {
   const boss = new PgBoss(url);
@@ -13,17 +13,30 @@ export async function registerJobs(
   boss: PgBoss,
   // biome-ignore lint: heterogeneous job payloads
   jobs: JobDefinition<any>[],
-  opts: { pollingIntervalSeconds?: number } = {},
+  opts: {
+    pollingIntervalSeconds?: number;
+    /** 7b1: true while the platform is spend-paused; `usesAi` batches are then deferred without running. */
+    aiPaused?: () => Promise<boolean>;
+  } = {},
 ): Promise<void> {
   for (const job of jobs) {
     // pg-boss mutates the options object it is given, so pass copies. createQueue is a no-op for an
     // existing queue; updateQueue applies the options to queues created by an earlier deploy.
     await boss.createQueue(job.name, job.queue ? { name: job.name, ...job.queue } : undefined);
     if (job.queue) await boss.updateQueue(job.name, { name: job.name, ...job.queue });
-    await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2 }, async (batch) => {
+    await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2, includeMetadata: true }, async (batch) => {
+      // Re-sent with the same singleton key (a short queue keeps one *queued* job per key; this one is active).
+      const resendItem = (item: (typeof batch)[number]) => async (startAfter: number) => {
+        await boss.send(job.name, item.data as object, { startAfter, singletonKey: item.singletonKey ?? undefined });
+      };
+      if (job.usesAi && (await opts.aiPaused?.())) {
+        for (const item of batch) await resendItem(item)(AI_PAUSE_DEFER_SECONDS);
+        workerLog.info({ job: job.name, jobs: batch.length }, 'batch deferred: AI paused');
+        return { deferred: 'ai_paused' };
+      }
       let result: void | Record<string, unknown> = undefined;
       for (const item of batch) {
-        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog);
+        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, job.usesAi ? { resend: resendItem(item) } : {});
       }
       return result ?? undefined;
     });

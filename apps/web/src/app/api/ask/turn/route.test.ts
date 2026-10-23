@@ -1,6 +1,6 @@
 import { ASK_COPY, type AskDeps, type AskEvent } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedStep } from '@cs/ask/testing';
-import { type AccessContext, type AuditSink, createAccessContext, ToolRegistry, toolkit } from '@cs/core';
+import { type AccessContext, AiPausedError, type AiGuard, type AuditSink, createAccessContext, SYSTEM_BUSY_COPY, ToolRegistry, toolkit } from '@cs/core';
 import { hashInput } from '@cs/core/server';
 import { agency, askMessage, client } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   audit: undefined as unknown,
   kept: [] as Promise<unknown>[],
   depsFail: false,
+  guard: undefined as unknown,
   hints: [] as (string | null)[],
   /** When set, the viewer per client hint (else `viewer` for every hint). */
   viewerFor: null as ((hint: string | null) => unknown) | null,
@@ -48,6 +49,7 @@ vi.mock('@/server/ask', async (orig) => ({
     return {
     app: dbs.app, service: dbs.service, ai: createScriptedAskAi(m.script as ScriptedStep[]), registry, toolDeps: {} as ToolDeps,
     ...(m.audit ? { audit: m.audit as AuditSink } : {}),
+    ...(m.guard ? { guard: m.guard as AiGuard } : {}),
     };
   },
 }));
@@ -101,7 +103,7 @@ beforeEach(async () => {
   await dbs.owner.execute(sql`truncate auth."user" cascade`);
   await seedTenancy(dbs.owner);
   await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('u1', 'U1', 'u1@e.co', true)`);
-  Object.assign(m, { viewer: userViewer(ctxFor()), script: ANSWER, audit: undefined, kept: [], depsFail: false, hints: [], viewerFor: null });
+  Object.assign(m, { viewer: userViewer(ctxFor()), script: ANSWER, audit: undefined, kept: [], depsFail: false, hints: [], viewerFor: null, guard: undefined });
 });
 
 describe('POST /api/ask/turn', () => {
@@ -348,5 +350,36 @@ describe('POST /api/ask/turn and billing state (9a)', () => {
     const admin = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
     expect(admin).toEqual([{ type: 'final', messageId: '', content: 'Service is paused. Update your payment method to resume.', citations: [], action: null, status: 'error' }]);
     expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
+  });
+});
+
+describe('POST /api/ask/turn and the AI guard (7b1)', () => {
+  const pausing = (reason: 'platform' | 'client'): AiGuard => ({
+    assertAllowed: async (scope) => {
+      if (scope.clientId === null) { if (reason === 'platform') throw new AiPausedError('platform'); return; }
+      throw new AiPausedError(reason);
+    },
+  });
+  it('route emits exactly one final with C4 (client pause), stored refused, no model call', async () => {
+    m.guard = pausing('client');
+    const res = await post({ clientId: IDS.clientA1, question: 'What changed?' });
+    const evs = await events(res);
+    const rows = await dbs.owner.select().from(askMessage).where(eq(askMessage.role, 'assistant'));
+    expect(rows).toHaveLength(1);
+    expect(evs).toEqual([{ type: 'final', messageId: rows[0]!.id, content: ASK_COPY.paused, citations: [], action: null, status: 'refused' }]);
+    expect(ASK_COPY.paused).toBe('Ask is paused for the rest of this month. Your past answers are still here.');
+    expect(rows[0]).toMatchObject({ status: 'refused' });
+  });
+  it('a platform pause answers C5; agency roles are refused too', async () => {
+    m.guard = pausing('platform');
+    m.viewer = userViewer(ctxFor({ role: 'agency_admin', clientScope: 'all', features: ['ask'] }));
+    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(evs).toHaveLength(1);
+    expect(evs[0]).toMatchObject({ type: 'final', content: SYSTEM_BUSY_COPY, status: 'refused' });
+  });
+  it('an unpaused guard lets the turn run', async () => {
+    m.guard = { assertAllowed: async () => {} } satisfies AiGuard;
+    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(evs.at(-1)).toMatchObject({ type: 'final', status: 'ok' });
   });
 });

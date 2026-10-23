@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Ai, ChatMessage, ChatTool, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type AiGuard, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq } from 'drizzle-orm';
@@ -33,6 +33,8 @@ export type AskDeps = {
   registry: Registry;
   toolDeps: ToolDeps;
   now?: () => Date;
+  /** 7b1: the spend guard the route asks (via `aiPauseOf`) before `beginTurn`; the same one `ai` was built with. */
+  guard?: AiGuard;
   /** Model tool steps before the forced `toolChoice: 'none'` answer (default 8). */
   stepLimit?: number;
   /** Turn deadline from start (default 90 s). */

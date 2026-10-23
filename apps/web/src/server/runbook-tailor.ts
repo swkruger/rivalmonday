@@ -1,5 +1,6 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
+import { AiPausedError } from '@cs/core';
 import { createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { proposeTailoring } from '@cs/engine';
 import type { ToolDeps } from '@cs/tools';
@@ -26,12 +27,17 @@ export function runbookTailorerFor(name: EnvName, service: Db, catalog: Catalog,
       throw e;
     });
   };
-  return async ({ clientId, key, parentContent }) => {
-    try {
-      return await proposeTailoring({ db: service, ai: await client(), packs: catalog.packs }, clientId, key, parentContent);
-    } catch (e) {
-      console.warn(`[runbook-tailor] ${key} for ${clientId} failed: ${e instanceof Error ? e.name : 'unknown'}`);
-      return null;
-    }
-  };
+  return ({ clientId, key, parentContent }) =>
+    tailorOrNull(key, clientId, async () => proposeTailoring({ db: service, ai: await client(), packs: catalog.packs }, clientId, key, parentContent));
+}
+
+/** Any tailoring failure is `null` (the tool answers `proposed: null`); an `AiPausedError` is rethrown so the registry answers with the pause copy (7b1). */
+export async function tailorOrNull<T>(key: string, clientId: string, run: () => Promise<T | null>): Promise<T | null> {
+  try {
+    return await run();
+  } catch (e) {
+    if (e instanceof AiPausedError) throw e;
+    console.warn(`[runbook-tailor] ${key} for ${clientId} failed: ${e instanceof Error ? e.name : 'unknown'}`);
+    return null;
+  }
 }

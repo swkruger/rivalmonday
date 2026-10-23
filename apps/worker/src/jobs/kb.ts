@@ -69,7 +69,7 @@ export function createKbJobs(deps: WorkerDeps, opts: { enqueueEmbed?: (articleId
   }
 
   const embed = defineJob({
-    name: 'kb-embed',
+    name: 'kb-embed', usesAi: true,
     schema: z.object({ articleId: z.uuid().optional() }),
     cron: '15 * * * *',
     queue: { policy: 'short', retryLimit: 3, retryDelay: 30, retryBackoff: true },

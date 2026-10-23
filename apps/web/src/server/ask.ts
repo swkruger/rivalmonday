@@ -1,8 +1,8 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
-import { ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
+import { aiPauseOf, ASK_COPY, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
-import { type AccessContext, AiPausedError, canAccessClient, hasChannel, SPEND_PAUSED_COPY, SYSTEM_BUSY_COPY, ToolError } from '@cs/core';
+import { type AccessContext, type AiGuard, AiPausedError, canAccessClient, hasChannel, ToolError } from '@cs/core';
 import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -95,13 +95,19 @@ export const E2E_SCRIPT: ScriptedStep[] = [
   { kind: 'support', verdict: true, repeat: true },
 ];
 
+/** 7b1: one spend guard per environment (shared 30 s cache), used by the real `Ai` and by the route's pre-turn check. */
+const guardFor = perEnv((name: EnvName) => {
+  let guard: AiGuard | undefined;
+  return () => (guard ??= createAiGuard(dbs(name).service));
+});
+
 /** The real AI client per environment (OpenRouter + Jev), built once; a failed build is not cached. */
 const realAi = perEnv((name: EnvName) => {
   const { service } = dbs(name);
   let ai: Promise<Ai> | undefined;
   return () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service), createAiGuard(service)))
+      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service), guardFor(name)()))
       .catch((e: unknown) => {
         ai = undefined;
         throw e;
@@ -113,17 +119,22 @@ const realAi = perEnv((name: EnvName) => {
  * MCP use, so the evidence-text fallback (`evidenceStore`) works. With `ASK_FAKE_AI` each call gets a fresh scripted AI
  * (its call log never grows across turns).
  */
-/** 7b1: the decided copy for a spend/platform pause (a refused model call, or a tool refused the same way); null otherwise. */
-function askPausedCopy(err: unknown): string | null {
-  if (err instanceof AiPausedError) return err.reason === 'platform' ? SYSTEM_BUSY_COPY : SPEND_PAUSED_COPY;
-  if (err instanceof ToolError && err.userFacing && (err.code === 'spend_paused' || err.code === 'system_busy')) return err.message;
-  return null;
-}
-
 export async function askDeps(name?: EnvName): Promise<AskDeps> {
   const { app, service } = dbs(name);
   const ai = webEnv().askFakeAi ? createScriptedAskAi(E2E_SCRIPT) : await realAi(name)();
-  return { app, service, ai, registry: registry(name), toolDeps: toolDeps(name) };
+  return { app, service, ai, registry: registry(name), toolDeps: toolDeps(name), guard: guardFor(name)() };
+}
+
+/**
+ * 7b1: the Ask-facing copy for a pause that surfaces mid-turn (a refused model call, or a tool refused the same way).
+ * Same mapping as the pre-turn check in `beginTurn`: a client spend pause is C4, a platform pause is C5; never the
+ * tool-facing S1 text, which names credits.
+ */
+function askPausedCopy(err: unknown): string | null {
+  if (err instanceof AiPausedError) return err.reason === 'platform' ? ASK_COPY.busy : ASK_COPY.paused;
+  if (err instanceof ToolError && err.userFacing && err.code === 'spend_paused') return ASK_COPY.paused;
+  if (err instanceof ToolError && err.userFacing && err.code === 'system_busy') return ASK_COPY.busy;
+  return null;
 }
 
 /** e10: the agency's assistant name, "Friday" when unset or blank. */
@@ -255,7 +266,9 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
     if (!(await clientVisible(deps.app, ctx, input.clientId))) return notFound();
     // 9a: a read_only/suspended agency is refused before any quota count or model call (role-aware copy).
     await assertAgencyServiceable(deps.service, ctx);
-    begun = await beginTurn(deps.app, ctx, input);
+    // 7b1: a spend/platform pause answers with C4/C5 before any quota count or model call (every role).
+    const pause = await aiPauseOf(deps.guard, { agencyId: ctx.agencyId, clientId: input.clientId });
+    begun = await beginTurn(deps.app, ctx, input, new Date(), { pause });
   } catch (e) {
     if (e instanceof ToolError && (e.code === 'not_found' || e.code === 'permission_denied')) return notFound();
     if (e instanceof ToolError && e.code === 'invalid_input') return new Response(null, { status: 400 });
@@ -300,11 +313,13 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
   const turn = (async () => {
     try {
       if (beginError) throw beginError;
-      if (begun!.kind === 'quota') {
-        write({ type: 'final', messageId: begun!.messageId, content: ASK_COPY.quota, citations: [], action: null, status: 'quota' });
+      const b = begun!;
+      if (b.kind !== 'ok') {
+        const [content, status] = b.kind === 'quota' ? ([ASK_COPY.quota, 'quota'] as const) : ([b.kind === 'busy' ? ASK_COPY.busy : ASK_COPY.paused, 'refused'] as const);
+        write({ type: 'final', messageId: b.messageId, content, citations: [], action: null, status });
         return;
       }
-      await runTurn(deps!, ctx, { threadId: begun!.threadId, userMessageId: begun!.userMessageId, ...(input.seedEvidenceId ? { seedEvidenceId: input.seedEvidenceId } : {}) }, write);
+      await runTurn(deps!, ctx, { threadId: b.threadId, userMessageId: b.userMessageId, ...(input.seedEvidenceId ? { seedEvidenceId: input.seedEvidenceId } : {}) }, write);
     } catch (err) {
       const paused = askPausedCopy(err);
       if (!paused && !(err instanceof ToolError && err.code === 'service_paused')) console.error('[ask] turn failed', err instanceof Error ? err.message : err);

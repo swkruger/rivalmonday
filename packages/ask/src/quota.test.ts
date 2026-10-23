@@ -4,6 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { client } from '@cs/db';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { SYSTEM_BUSY_COPY } from '@cs/core';
 import { ASK_COPY, beginTurn } from './quota';
 
 const dbs = openTestDbs();
@@ -117,5 +118,32 @@ describe('beginTurn', () => {
   it('rejects empty and over-long questions', async () => {
     await expect(beginTurn(dbs.app, owner, q('   '))).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(beginTurn(dbs.app, owner, q('x'.repeat(2001)))).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+
+  it('paused client: beginTurn stores refused C4, no quota count', async () => {
+    const r = await beginTurn(dbs.app, owner, q('paused q'), new Date(), { pause: 'client' });
+    expect(r.kind).toBe('paused');
+    expect(await counted()).toBe(0);
+    const rows = await dbs.owner.select().from(askMessage).where(eq(askMessage.threadId, r.threadId));
+    expect(rows.find((m) => m.role === 'user')).toMatchObject({ content: 'paused q', countsTowardQuota: false });
+    const a = rows.find((m) => m.role === 'assistant')!;
+    expect(a).toMatchObject({ content: 'Ask is paused for the rest of this month. Your past answers are still here.', status: 'refused', countsTowardQuota: false });
+    if (r.kind === 'paused') expect(a.id).toBe(r.messageId);
+    expect(ASK_COPY.paused).toBe(a.content);
+  });
+
+  it('busy: C5 for a platform pause', async () => {
+    const r = await beginTurn(dbs.app, owner, q('busy q'), new Date(), { pause: 'platform' });
+    expect(r.kind).toBe('busy');
+    const a = (await dbs.owner.select().from(askMessage).where(eq(askMessage.threadId, r.threadId))).find((m) => m.role === 'assistant')!;
+    expect(a).toMatchObject({ content: SYSTEM_BUSY_COPY, status: 'refused' });
+    expect(ASK_COPY.busy).toBe(SYSTEM_BUSY_COPY);
+  });
+
+  it('agency roles are refused too, and a pause beats the quota check', async () => {
+    await setQuota(0);
+    expect((await beginTurn(dbs.app, admin, q('a'), new Date(), { pause: 'client' })).kind).toBe('paused');
+    expect((await beginTurn(dbs.app, owner, q('b'), new Date(), { pause: 'client' })).kind).toBe('paused');
+    expect((await beginTurn(dbs.app, owner, q('c'), new Date(), { pause: null })).kind).toBe('quota');
   });
 });

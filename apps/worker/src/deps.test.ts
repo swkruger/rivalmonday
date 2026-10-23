@@ -19,6 +19,11 @@ describe('aiGuard', () => {
   it('builds one shared guard for the daemon', () => {
     const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
     expect(deps.aiGuard()).toBe(deps.aiGuard());
-    expect(typeof deps.aiGuard().assertAllowed).toBe('function');
+    expect(typeof deps.aiGuard()!.assertAllowed).toBe('function');
+  });
+
+  it('the *-once CLIs opt out: no guard is built or passed to Ai', async () => {
+    const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv, { aiGuard: false });
+    expect(deps.aiGuard()).toBeUndefined();
   });
 });

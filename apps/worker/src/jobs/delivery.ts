@@ -29,7 +29,7 @@ export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
   });
   // retryLimit 0: a drafting alert is re-offered by the next sweep; the writer falls back to the template on model errors.
   const alertProcess = defineJob({
-    name: 'alert-process', schema: z.object({ alertId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
+    name: 'alert-process', usesAi: true, schema: z.object({ alertId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ alertId }) => workerLog.info(`[alert-process] ${alertId} → ${JSON.stringify(await deps.processAlert(alertId, new Date()))}`),
   });
   const digest = defineJob({

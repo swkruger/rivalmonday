@@ -29,7 +29,7 @@ export async function runRunbookTailor(
 /** Phase 14b: `runbook-tailor` (enqueued by `advance_client_setup` once the competitors step is done). */
 export function createRunbookJobs(deps: WorkerDeps, opts: RunbookJobOptions) {
   const tailor = defineJob({
-    name: 'runbook-tailor',
+    name: 'runbook-tailor', usesAi: true,
     schema: z.object({ clientId: z.uuid() }),
     // One retry for an infrastructure failure; an AI failure is recorded as `failed` (untailored copy) and is not thrown.
     queue: { policy: 'short', retryLimit: 1 },

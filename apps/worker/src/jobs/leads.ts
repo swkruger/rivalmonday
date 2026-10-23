@@ -8,7 +8,7 @@ import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 import { workerLog } from '../log';
 
-// Phase 11c Task 29 (spec ยง4): builds the free competitive preview for a verified lead, then sends the lead emails.
+// Phase 11c Task 29 (spec ยยง4): builds the free competitive preview for a verified lead, then sends the lead emails.
 // Platform cost: Maps and AI calls ledger with agency_id NULL (ruling A) so a public visitor cannot spend an agency's caps.
 
 export type LeadPreviewOutcome = { status: 'ready' | 'failed' } | { skipped: string };
@@ -119,7 +119,7 @@ export type LeadsCleanupResult = {
 };
 
 /**
- * Phase 11c spec ง7 + rulings C: daily retention and R1 retry. Unverified leads past `verify_expires_at` expire; declined/expired
+ * Phase 11c spec ยง7 + rulings C: daily retention and R1 retry. Unverified leads past `verify_expires_at` expire; declined/expired
  * leads are deleted after 90 days (measured from the decision, else the last update); accepted leads lose `message` and `phone`
  * after 90 days; `intake_rate` rows older than 2 days go. Previews stuck `pending` for 15 minutes become `failed`. Then the
  * guarded confirmation / agency-new / pool-new sends are retried for leads updated in the last 7 days (declined mail never is).
@@ -194,7 +194,7 @@ export async function runLeadsCleanup(d: { db: Db; email: LeadEmailDeps | null; 
 /** Phase 11c: `lead-preview`, enqueued by `verifyIntake` (singleton by lead id). */
 export function createLeadJobs(deps: WorkerDeps, opts: LeadJobOptions) {
   const preview = defineJob({
-    name: 'lead-preview',
+    name: 'lead-preview', usesAi: true,
     schema: z.object({ leadId: z.uuid() }),
     // retryLimit 0: a failure is recorded as `failed`; the lead still gets the confirmation with fallback copy.
     queue: { policy: 'short', retryLimit: 0 },

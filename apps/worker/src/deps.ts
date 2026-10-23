@@ -59,7 +59,8 @@ export interface BillingEmailSender {
 
 export interface WorkerDeps {
   /** The spend guard every worker AI call asks first (cached 30 s). */
-  aiGuard(): AiGuard;
+  /** The daemon's shared spend guard; `undefined` when built with `{ aiGuard: false }` (the `*-once` CLIs). */
+  aiGuard(): AiGuard | undefined;
   claimDuePages(limit: number): Promise<string[]>;
   capturePage(trackedPageId: string): Promise<{ status: CaptureStatus | 'missing'; captureId?: string }>;
   /** True once OPENROUTER_API_KEY is set — gates the intelligence engine (embeddings + decisions). */
@@ -194,7 +195,7 @@ const COST_ENV_KEYS = [
 ] as const;
 
 /** Everything is created lazily so importing this module has no side effects. */
-export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
+export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean } = {}): WorkerDeps {
   let db: { db: Db; close(): Promise<void> } | null = null;
   let store: ObjectStore | null = null;
   let renderer: Renderer | null = null;
@@ -251,7 +252,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv): WorkerDeps {
   // whole lifetime): clear it so the next discoverPages call retries instead of replaying the same failure.
   /** Phase 7b1: one guard (shared 30 s cache) for the daemon's AI calls; the `*-once` CLIs build `Ai` without one. */
   let guard: AiGuard | null = null;
-  const aiGuard = () => (guard ??= createAiGuard(getDb()));
+  const aiGuard = (): AiGuard | undefined => (opts.aiGuard === false ? undefined : (guard ??= createAiGuard(getDb())));
   const getAi = () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
       .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard()))

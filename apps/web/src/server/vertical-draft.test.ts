@@ -1,4 +1,5 @@
 import type { Ai } from '@cs/ai';
+import { AiPausedError } from '@cs/core';
 import type { DataForSeoClient } from '@cs/collectors';
 import type { Catalog } from '@cs/verticals';
 import { describe, expect, it, vi } from 'vitest';
@@ -44,6 +45,15 @@ describe('createVerticalDrafter', () => {
     expect(await make(down)({ placeId: 'p1', nearbyCategories: [] }, scope)).toEqual({ draft: null, similar: [] });
     const invented = answer(JSON.stringify({ ...JSON.parse(good), areas: [{ name: 'Weddings', aliases: [], quote: 'wedding hire' }] }));
     expect((await make(invented)({ placeId: 'p1', nearbyCategories: [] }, scope)).draft).toBeNull();
+  });
+});
+
+describe('createVerticalDrafter and the AI guard (7b1)', () => {
+  it('rethrows AiPausedError (the tool registry maps it to the S1/C5 copy) instead of answering draft: null', async () => {
+    for (const reason of ['platform', 'client'] as const) {
+      const paused = { chat: vi.fn(async () => { throw new AiPausedError(reason); }) } as unknown as Ai;
+      await expect(make(paused)({ placeId: 'p1', nearbyCategories: [] }, scope)).rejects.toBeInstanceOf(AiPausedError);
+    }
   });
 });
 

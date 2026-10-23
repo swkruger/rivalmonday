@@ -7,7 +7,7 @@ import { workerLog } from '../log';
 export function createReviewJobs(deps: WorkerDeps) {
   let warned = false;
   const nightly = defineJob({
-    name: 'reviews-nightly', schema: z.looseObject({}), cron: '15 4 * * *',
+    name: 'reviews-nightly', usesAi: true, schema: z.looseObject({}), cron: '15 4 * * *',
     // Topic discovery is a paid model call: never re-run by pg-boss; the next night picks up anything missed.
     queue: { retryLimit: 0 },
     handler: async () => {

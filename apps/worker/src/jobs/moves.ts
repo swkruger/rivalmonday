@@ -14,7 +14,7 @@ export function createMovesJobs(deps: WorkerDeps, queue: { enqueueMovesClient(cl
     },
   });
   const client = defineJob({
-    name: 'moves-client', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short' },
+    name: 'moves-client', usesAi: true, schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short' },
     handler: async ({ clientId }) => {
       workerLog.info(`[moves-client] ${clientId} → ${JSON.stringify(await deps.updateMoves(clientId))}`);
       if (!deps.engineConfigured()) return;

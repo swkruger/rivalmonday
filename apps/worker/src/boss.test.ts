@@ -29,13 +29,19 @@ const singleShotJob = defineJob({
 
 const outputJob = defineJob({ name: 'test-output', schema: z.object({}), handler: async () => ({ articleId: 'a1' }), queue: { retryLimit: 0, policy: 'short' } });
 
+const aiRan: string[] = [];
+const plainRan: string[] = [];
+const aiJob = defineJob({ name: 'test-ai', schema: z.object({ id: z.string() }), usesAi: true, handler: async (d) => { aiRan.push(d.id); }, queue: { retryLimit: 0, policy: 'short' } });
+const plainJob = defineJob({ name: 'test-plain', schema: z.object({ id: z.string() }), handler: async (d) => { plainRan.push(d.id); }, queue: { retryLimit: 0 } });
+const aiState = { paused: false };
+
 const failJob = defineJob({ name: 'test-fail', schema: z.object({}), handler: async () => { throw new Error('nope'); }, queue: { retryLimit: 0 } });
 
 const shortJob = defineJob({ name: 'test-short', schema: z.object({ id: z.string() }), handler: async () => {}, queue: { retryLimit: 0, policy: 'short' } });
 
 beforeAll(async () => {
   await boss.start();
-  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob, failJob], { pollingIntervalSeconds: 0.5 });
+  await registerJobs(boss, [echoJob, singleShotJob, shortJob, outputJob, failJob, aiJob, plainJob], { pollingIntervalSeconds: 0.5, aiPaused: async () => aiState.paused });
 });
 afterAll(async () => {
   await boss.stop({ graceful: false });
@@ -117,5 +123,45 @@ describe('queue dedupe (Phase 3b)', () => {
     const job = await boss.getJobById(shortJob.name, id);
     expect(job!.startAfter.getTime() - Date.now()).toBeGreaterThan(1700_000);
     await boss.deleteJob(shortJob.name, id);
+  });
+});
+
+describe('AI pause (Phase 7b1)', () => {
+  afterEach(() => { vi.restoreAllMocks(); aiState.paused = false; });
+  const waitFor = async (ok: () => boolean) => {
+    const deadline = Date.now() + 15_000;
+    while (!ok()) {
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  };
+
+  it('usesAi batch deferred with the same singletonKey while paused', async () => {
+    aiState.paused = true;
+    const realSend = boss.send.bind(boss) as (...a: unknown[]) => Promise<string | null>;
+    // The deferral (the only call with startAfter) is observed, not enqueued; the original enqueue is real.
+    const send = vi.spyOn(boss, 'send').mockImplementation((async (...a: unknown[]) => ((a[2] as { startAfter?: number } | undefined)?.startAfter ? 'resent' : realSend(...a))) as never);
+    const id = (await boss.send(aiJob.name, { id: 'p1' }, { singletonKey: 'key-1' })) as string;
+    await waitFor(() => send.mock.calls.some((c) => (c[2] as { startAfter?: number } | undefined)?.startAfter === 600));
+    expect(send).toHaveBeenCalledWith(aiJob.name, { id: 'p1' }, { startAfter: 600, singletonKey: 'key-1' });
+    expect(aiRan).not.toContain('p1');
+    const deadline = Date.now() + 15_000;
+    for (;;) {
+      const job = await boss.getJobById(aiJob.name, id);
+      if (job?.state === 'completed') break;
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  });
+
+  it('non-AI job runs while paused', async () => {
+    aiState.paused = true;
+    await boss.send(plainJob.name, { id: 'n1' });
+    await waitFor(() => plainRan.includes('n1'));
+  });
+
+  it('usesAi job runs once the pause lifts', async () => {
+    await boss.send(aiJob.name, { id: 'r1' });
+    await waitFor(() => aiRan.includes('r1'));
   });
 });

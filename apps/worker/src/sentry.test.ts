@@ -9,6 +9,7 @@ vi.mock('@sentry/node', () => ({
   withMonitor: vi.fn((_slug: string, cb: () => unknown) => cb()),
 }));
 
+import { AiPausedError } from '@cs/core';
 import { initWorkerSentry, runJob, workerSentryOptions } from './sentry';
 
 function fakeLog() {
@@ -74,5 +75,37 @@ describe('runJob', () => {
     expect(ctxs).toEqual([{ job: 'my-job', jobId: 'j1', agencyId: 'a1', clientId: 'c1' }]);
     await runJob(job, 'j2', { clientId: 7 }, async () => {}, log);
     expect(ctxs[1]).toEqual({ job: 'my-job', jobId: 'j2' });
+  });
+});
+
+describe('runJob AI pause (7b1)', () => {
+  const job = { name: 'ai-job' };
+  it('runJob platform pause resends after 600 s and completes without Sentry', async () => {
+    const { log, error } = fakeLog();
+    const resend = vi.fn(async () => {});
+    const out = await runJob(job, 'j1', {}, async () => { throw new AiPausedError('platform'); }, log, { resend });
+    expect(out).toEqual({ deferred: 'ai_paused' });
+    expect(resend).toHaveBeenCalledWith(600);
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+  it('runJob client pause completes skipped', async () => {
+    const { log, error } = fakeLog();
+    const resend = vi.fn(async () => {});
+    const out = await runJob(job, 'j1', {}, async () => { throw new AiPausedError('client'); }, log, { resend });
+    expect(out).toEqual({ skipped: 'spend_paused' });
+    expect(resend).not.toHaveBeenCalled();
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+  it('a platform pause without a resend hook still completes deferred', async () => {
+    const { log } = fakeLog();
+    expect(await runJob(job, 'j1', {}, async () => { throw new AiPausedError('platform'); }, log)).toEqual({ deferred: 'ai_paused' });
+  });
+  it('other errors still captured and rethrown', async () => {
+    const { log } = fakeLog();
+    const boom = new Error('boom');
+    await expect(runJob(job, 'j1', {}, async () => { throw boom; }, log, { resend: async () => {} })).rejects.toBe(boom);
+    expect(Sentry.captureException).toHaveBeenCalledWith(boom, expect.anything());
   });
 });

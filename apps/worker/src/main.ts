@@ -8,6 +8,7 @@ try {
   // repo-root .env is optional (e.g. production, where env vars are injected directly)
 }
 
+import { AiPausedError } from '@cs/core';
 import { startCompetitorSearch } from '@cs/tools';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { createWorkerDeps } from './deps';
@@ -186,13 +187,23 @@ const delivery = createDeliveryJobs(deps, {
     await enqueue(boss, delivery.reportPdf, { reportId }, { singletonKey: reportId });
   },
 });
+// 7b1: true while the platform is spend-paused (the guard's platform-level check); `usesAi` batches are then deferred.
+const aiPaused = async (): Promise<boolean> => {
+  try {
+    await deps.aiGuard()?.assertAllowed({ agencyId: null, clientId: null });
+    return false;
+  } catch (err) {
+    // Any other guard error: let the jobs run; each AI call asks the guard itself.
+    return err instanceof AiPausedError && err.reason === 'platform';
+  }
+};
 await registerJobs(boss, [
   heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
   rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
   engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
   modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
   delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
-]);
+], { aiPaused });
 workerLog.info('worker started');
 warnIfDeliveryUnconfigured(deps);
 

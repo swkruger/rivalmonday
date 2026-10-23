@@ -20,6 +20,11 @@ export interface JobDefinition<T> {
   cron?: string;
   /** Optional queue options; when omitted the pg-boss defaults apply (retryLimit 2, 15-minute expiry). */
   queue?: JobQueueOptions;
+  /**
+   * 7b1: the handler can reach `Ai`. While the platform is spend-paused the whole batch is re-sent with `startAfter: 600`
+   * (same singleton key) without running; a job whose own client is paused completes as `skipped`. Never failed or retried.
+   */
+  usesAi?: boolean;
 }
 
 export function defineJob<T>(def: JobDefinition<T>): JobDefinition<T> {

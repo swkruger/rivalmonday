@@ -53,7 +53,7 @@ export function createEngineJobs(
     },
   });
   const diff = defineJob({
-    name: 'engine-diff', schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    name: 'engine-diff', usesAi: true, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ captureId }) => {
       const r = await deps.diffCapture(captureId);
       for (const id of r.changeIds) await queue.enqueueTag(id);
@@ -61,7 +61,7 @@ export function createEngineJobs(
     },
   });
   const tag = defineJob({
-    name: 'engine-tag', schema: z.object({ changeId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    name: 'engine-tag', usesAi: true, schema: z.object({ changeId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ changeId }) => {
       const r = await deps.tagChange(changeId);
       if (r.eventId) await queue.enqueueScore(r.eventId);
@@ -82,7 +82,7 @@ export function createEngineJobs(
     },
   });
   const review = defineJob({
-    name: 'engine-review', schema: z.object({ reviewId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    name: 'engine-review', usesAi: true, schema: z.object({ reviewId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ reviewId }) => {
       await deps.analyzeReview(reviewId);
     },
@@ -95,7 +95,7 @@ export function createEngineJobs(
     },
   });
   const price = defineJob({
-    name: 'engine-price', schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    name: 'engine-price', usesAi: true, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ captureId }) => {
       const r = await deps.extractPrices(captureId);
       if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-price] ${captureId} → ${r.points} new, ${r.ended} ended`);

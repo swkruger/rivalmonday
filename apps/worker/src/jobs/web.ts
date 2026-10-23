@@ -29,7 +29,7 @@ export function createWebJobs(
     },
   });
   const discover = defineJob({
-    name: 'discover-pages',
+    name: 'discover-pages', usesAi: true,
     schema: z.object({ competitorId: z.uuid() }),
     queue: { policy: 'short' },
     handler: async ({ competitorId }) => {

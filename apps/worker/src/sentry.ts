@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import * as Sentry from '@sentry/node';
+import { AiPausedError } from '@cs/core';
 import { redactForLog, type LogContext, type Logger } from '@cs/core/server';
 import type { JobDefinition } from './jobs';
 
@@ -59,13 +60,21 @@ export function initWorkerSentry(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
-/** Runs one job item in a Sentry span (and cron monitor), with a child logger; failures are captured, logged and rethrown for pg-boss retry. */
+/** 7b1: how long a job refused by a platform-wide AI pause waits before it is tried again. */
+export const AI_PAUSE_DEFER_SECONDS = 600;
+
+/**
+ * Runs one job item in a Sentry span (and cron monitor), with a child logger; failures are captured, logged and rethrown
+ * for pg-boss retry. 7b1: an `AiPausedError` is not a failure and is caught before Sentry: `platform` re-sends the job
+ * via `opts.resend(600)` and completes `{ deferred: 'ai_paused' }`; `client` completes `{ skipped: 'spend_paused' }`.
+ */
 export async function runJob<T>(
   job: Pick<JobDefinition<T>, 'name' | 'cron'>,
   jobId: string,
   data: T,
   handler: (data: T) => Promise<void | Record<string, unknown>>,
   log: Logger,
+  opts: { resend?: (startAfterSeconds: number) => Promise<void> } = {},
 ): Promise<void | Record<string, unknown>> {
   const ctx: LogContext = { job: job.name, jobId };
   if (data && typeof data === 'object') {
@@ -79,6 +88,15 @@ export async function runJob<T>(
       try {
         return await handler(data);
       } catch (err) {
+        if (err instanceof AiPausedError) {
+          if (err.reason === 'platform') {
+            await opts.resend?.(AI_PAUSE_DEFER_SECONDS);
+            jlog.info({ reason: err.reason }, 'job deferred: AI paused');
+            return { deferred: 'ai_paused' };
+          }
+          jlog.info({ reason: err.reason }, 'job skipped: client AI spend paused');
+          return { skipped: 'spend_paused' };
+        }
         Sentry.captureException(err, { tags: { ...ctx } as Record<string, string> });
         jlog.error({ err }, 'job failed');
         throw err;

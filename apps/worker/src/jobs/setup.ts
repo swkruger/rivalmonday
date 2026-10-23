@@ -181,7 +181,7 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
 /** Phase 11a: `setup-suggestions` (enqueued by `create_client` with a business lookup) and the daily `setup-reminders`. */
 export function createSetupJobs(deps: WorkerDeps, opts: SetupJobOptions) {
   const suggestions = defineJob({
-    name: 'setup-suggestions',
+    name: 'setup-suggestions', usesAi: true,
     schema: z.object({ clientId: z.uuid() }),
     // retryLimit 0: a failure is recorded as `failed` and the wizard falls back to the pack's seed keywords.
     queue: { policy: 'short', retryLimit: 0 },

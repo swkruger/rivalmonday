@@ -16,7 +16,7 @@ export function createBriefJobs(deps: WorkerDeps, queue: { enqueueBriefClient(cl
   });
   // retryLimit 0: generateBrief records failures on the brief row and the next hourly tick retries (≤ 3 attempts).
   const client = defineJob({
-    name: 'brief-client', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
+    name: 'brief-client', usesAi: true, schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ clientId }) => {
       const r = await deps.generateBrief(clientId);
       workerLog.info(`[brief-client] ${clientId} → ${JSON.stringify(r)}`);
@@ -41,7 +41,7 @@ export function createStartingPointJobs(deps: WorkerDeps, queue: { enqueueStarti
   });
   // Failures are recorded on the brief row and retried by the next tick (≤ 3 attempts); retryLimit 2 covers a throw before the claim.
   const client = defineJob({
-    name: 'starting-point-client', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 2 },
+    name: 'starting-point-client', usesAi: true, schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 2 },
     handler: async ({ clientId }) => {
       const r = await deps.generateStartingPoint(clientId);
       workerLog.info(`[starting-point-client] ${clientId} → ${JSON.stringify(r)}`);

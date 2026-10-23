@@ -1,6 +1,7 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, type JsonSchemaFormat, loadAiConfigFile } from '@cs/ai';
 import { createDataForSeo, DFS_BASE_URL, type DataForSeoClient, fetchGbpProfile, redactForModel } from '@cs/collectors';
+import { AiPausedError } from '@cs/core';
 import { createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { buildSuggestionSource, type ToolDeps } from '@cs/tools';
 import { type Catalog, similarVerticals, validateDraft, type VerticalDraft } from '@cs/verticals';
@@ -33,7 +34,7 @@ export const verticalDraftJsonSchema: JsonSchemaFormat = {
 export const DRAFT_SYSTEM_PROMPT =
   'You describe a type of local business so a competitor-monitoring tool can track it. From the Google profile text below, propose: a short business-type name (no business names, places or people), the word for its customers, 3–12 service offers with common alternative names, up to 5 search keywords customers use, review topics, and which of the listed Google categories belong to this type. Quote the exact words from the text that support every service, keyword and topic. Use only the text given.';
 
-/** One AI call over the profile text. Any failure (vendor, model, bad JSON) is `draft: null`, never a throw: the UI then shows the manual form. */
+/** One AI call over the profile text. Any failure (vendor, model, bad JSON) is `draft: null`, never a throw (except an `AiPausedError`, 7b1): the UI then shows the manual form. */
 export function createVerticalDrafter(d: { dfs: () => DataForSeoClient; ai: () => Promise<Ai>; catalogue: () => Promise<{ id: string; name: string; categories: string[] }[]> }): VerticalDrafter {
   return async (input, scope) => {
     try {
@@ -54,6 +55,7 @@ export function createVerticalDrafter(d: { dfs: () => DataForSeoClient; ai: () =
       const draft = validateDraft(raw, { text, categories });
       return { draft, similar: similarVerticals(draft?.name ?? gbp.category ?? '', catalogue) };
     } catch (e) {
+      if (e instanceof AiPausedError) throw e; // 7b1: not a failure; the registry answers with the pause copy
       console.error(`[vertical-draft] ${input.placeId} failed: ${e instanceof Error ? e.name : 'unknown'}`);
       return { draft: null, similar: [] };
     }

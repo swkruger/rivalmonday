@@ -40,7 +40,7 @@ if (!serviceUrl) {
 // --poll runs the same async-task poll the vendor-poll cron job runs, once, and exits — no
 // --domain needed. Reviews and jobs always arrive this way (DataForSEO task_post/task_get).
 if (values.poll) {
-  const deps = createWorkerDeps(process.env);
+  const deps = createWorkerDeps(process.env, { aiGuard: false });
   try {
     console.log(JSON.stringify(await deps.pollVendorTasks()));
   } finally {
@@ -56,7 +56,7 @@ if (!domain) {
 }
 
 const { db, close } = createDb(serviceUrl);
-const deps = createWorkerDeps(process.env);
+const deps = createWorkerDeps(process.env, { aiGuard: false });
 try {
   const metaPageIds = values['meta-page-id'] ?? [];
   const googleAdvertiserIds = values['google-advertiser-id'] ?? [];

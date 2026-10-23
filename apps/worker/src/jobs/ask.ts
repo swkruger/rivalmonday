@@ -7,7 +7,7 @@ import { workerLog } from '../log';
 export function createAskJobs(deps: WorkerDeps) {
   // retryLimit 0: a failed generation keeps last week's row; the next brief run tries again.
   const starters = defineJob({
-    name: 'ask-starters', schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
+    name: 'ask-starters', usesAi: true, schema: z.object({ clientId: z.uuid() }), queue: { policy: 'short', retryLimit: 0 },
     handler: async ({ clientId }) => {
       if (!deps.engineConfigured()) return;
       const q = await deps.generateAskStarters(clientId);
