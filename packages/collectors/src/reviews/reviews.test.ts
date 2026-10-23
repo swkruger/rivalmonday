@@ -1,10 +1,11 @@
-import { evidence, review, vendorTask } from '@cs/db';
+import { competitor, createLedgerSink, evidence, review, vendorCall, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
+import { createDataForSeo } from '../vendors/dataforseo';
 import { VendorError } from '../vendors/errors';
 import { collectReadyReviews, collectReadyTasks } from './collect';
 import { postReviewTasks } from './post';
@@ -18,6 +19,19 @@ beforeEach(async () => {
 const TASK = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 describe('review tasks', () => {
+  it('reviews task_post chunk of 3 ledgers 3 rows', async () => {
+    const ids = [IDS.competitorX, IDS.competitorY, '00000000-0000-4000-8000-0000000000f3'];
+    await dbs.owner.insert(competitor).values({ id: ids[2]!, name: 'Third Co', domain: 'third.example' });
+    const tasks = ids.map((id, i) => ({ id: `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa${i}`, status_code: 20100, status_message: 'Task Created.', cost: 0.1, data: { tag: id }, result: null }));
+    const body = { status_code: 20000, status_message: 'Ok.', cost: 0.1, tasks };
+    const dfs = createDataForSeo({ login: 'l', password: 'p', ledger: createLedgerSink(dbs.service), fetch: (async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof globalThis.fetch });
+    await postReviewTasks({ db: dbs.service, dfs }, ids.map((id) => ({ id, placeId: `p-${id.slice(-2)}`, cid: null })));
+    const rows = await dbs.service.select().from(vendorCall);
+    expect(rows.map((r) => r.competitorId).sort()).toEqual([...ids].sort());
+    expect(rows.reduce((n, r) => n + (r.costUsd ?? 0), 0)).toBeCloseTo(0.1, 6);
+    expect(rows.reduce((n, r) => n + r.units, 0)).toBe(3);
+  });
+
   it('posts one task per competitor and records it as pending', async () => {
     const dfs = fakeDfs(() => [dfsTask([], { id: TASK, statusCode: 20100, statusMessage: 'Task Created.' })]);
     expect(await postReviewTasks({ db: dbs.service, dfs }, [{ id: IDS.competitorX, placeId: 'p1', cid: null, backfill: true }])).toEqual({

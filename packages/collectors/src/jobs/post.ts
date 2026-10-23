@@ -15,7 +15,7 @@ export async function postJobTasks(
     const batch = eligible.slice(i, i + chunkSize);
     let tasks: DfsTask[];
     try {
-      tasks = await deps.dfs.post('/serp/google/jobs/task_post', batch.map((c) => ({ keyword: c.name, ...DFS_US, depth: 20, tag: c.id })), { agencyId: null, clientId: null });
+      tasks = await deps.dfs.post('/serp/google/jobs/task_post', batch.map((c) => ({ keyword: c.name, ...DFS_US, depth: 20, tag: c.id })), { agencyId: null, clientId: null, competitorIds: batch.map((c) => c.id) });
     } catch (err) {
       // See postReviewTasks: a whole-chunk failure must not lose earlier chunks' postedIds.
       if (!(err instanceof VendorError)) throw err;

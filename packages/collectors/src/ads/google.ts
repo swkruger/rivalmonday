@@ -67,7 +67,7 @@ export async function collectGoogleAds(
     : { target: c.domain, location_code: DFS_US.location_code, depth: 40 };
   let raw: unknown[];
   try {
-    const [task] = await deps.dfs.post('/serp/google/ads_search/live/advanced', [request], { agencyId: null, clientId: null });
+    const [task] = await deps.dfs.post('/serp/google/ads_search/live/advanced', [request], { agencyId: null, clientId: null, competitorIds: [c.id] });
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed, or
     // with no task at all — never record an empty 'ok' capture in either case.
     if (!task) {

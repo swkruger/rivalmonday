@@ -1,4 +1,4 @@
-import type { LedgerSink } from '@cs/core';
+import type { CallScope, LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from './errors';
 
 export const APIFY_META_ACTOR = 'curious_coder~facebook-ads-library-scraper';
@@ -19,6 +19,7 @@ export function metaLibraryUrl(pageId: string, country = 'US'): string {
 export async function fetchMetaAdsApify(
   opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch },
   pageId: string,
+  scope: CallScope,
 ): Promise<{ items: unknown[]; truncated: boolean }> {
   const doFetch = opts.fetch ?? globalThis.fetch;
   const started = Date.now();
@@ -61,6 +62,6 @@ export async function fetchMetaAdsApify(
     if (err instanceof VendorError) throw err;
     throw new VendorError('apify', null, 'Network error calling Apify', true, { cause: err });
   } finally {
-    await safeRecordVendorCall(opts.ledger, { agencyId: null, clientId: null, vendor: 'apify', operation: APIFY_META_ACTOR, units: items.length, costUsd: null, latencyMs: Date.now() - started, ok });
+    await safeRecordVendorCall(opts.ledger, { ...scope, vendor: 'apify', operation: APIFY_META_ACTOR, units: items.length, costUsd: null, latencyMs: Date.now() - started, ok });
   }
 }

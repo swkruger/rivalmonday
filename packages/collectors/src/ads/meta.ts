@@ -87,9 +87,10 @@ export async function collectMetaAds(
 
 async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: string): Promise<MetaPageResult> {
   const base = { competitorId, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION, url: metaPageUrl(pageId) };
+  const scope = { agencyId: null, clientId: null, competitorIds: [competitorId] };
   const attempts: [string, () => Promise<{ items: unknown[]; truncated: boolean }>][] = [];
-  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, pageId)]);
-  if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, pageId)]);
+  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);
+  if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);
   const errors: string[] = [];
   for (const [vendor, run] of attempts) {
     let raw: unknown[];

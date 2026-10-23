@@ -18,7 +18,7 @@ export async function postReviewTasks(
       tasks = await deps.dfs.post(
         '/business_data/google/reviews/task_post',
         batch.map((c) => ({ ...(c.placeId ? { place_id: c.placeId } : { cid: c.cid }), ...DFS_US, depth: c.backfill ? 700 : 100, sort_by: 'newest', tag: c.id })),
-        { agencyId: null, clientId: null },
+        { agencyId: null, clientId: null, competitorIds: batch.map((c) => c.id) },
       );
     } catch (err) {
       // A whole-chunk failure (rate limit exhausted, HTTP error, …) must not lose the postedIds

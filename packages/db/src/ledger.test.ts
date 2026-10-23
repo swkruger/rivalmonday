@@ -1,10 +1,10 @@
-import { createAccessContext, ToolRegistry, toolkit } from '@cs/core';
+import { createAccessContext, type LlmCallRecord, ToolRegistry, toolkit, type VendorCallRecord } from '@cs/core';
 import { hashInput } from '@cs/core/server';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { createAuditSink } from './audit';
-import { createLedgerSink } from './ledger';
+import { createLedgerSink, splitByCompetitor } from './ledger';
 import { auditLog, llmCall, vendorCall } from './schema';
 import { monthStart, spendByClient } from './spend';
 import { withTenant } from './tenant';
@@ -39,11 +39,55 @@ describe('ledger sink', () => {
     expect(rows.map((r) => r.v).sort()).toEqual(['dental', null]);
   });
 
+  it('ledger sink writes N rows for competitorIds', async () => {
+    const sink = createLedgerSink(dbs.service);
+    await sink.recordVendorCall({ agencyId: null, clientId: null, competitorIds: [IDS.competitorX, IDS.competitorY], vendor: 'dataforseo', operation: 'reviews', units: 5, costUsd: 0.1, latencyMs: 5, ok: true });
+    await sink.recordLlmCall({ ...base, agencyId: null, clientId: null, competitorId: IDS.competitorX });
+    const v = await dbs.service.select().from(vendorCall);
+    expect(v.map((r) => [r.competitorId, r.costUsd, r.units]).sort()).toEqual([[IDS.competitorX, 0.05, 3], [IDS.competitorY, 0.05, 2]].sort());
+    const [l] = await dbs.service.select().from(llmCall);
+    expect(l?.competitorId).toBe(IDS.competitorX);
+  });
+
   it('records vendor calls', async () => {
     const sink = createLedgerSink(dbs.service);
     await expect(
       sink.recordVendorCall({ agencyId: null, clientId: null, vendor: 'dataforseo', operation: 'reviews', units: 10, costUsd: null, latencyMs: 5, ok: true }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('splitByCompetitor', () => {
+  const ids = ['c1', 'c2', 'c3'];
+  const llm: LlmCallRecord = { ...base, agencyId: null, clientId: null };
+  const vendor: VendorCallRecord = { agencyId: null, clientId: null, vendor: 'dataforseo', operation: 'reviews', units: 10, costUsd: 0.1, latencyMs: 5, ok: true };
+  it('3 ids split 0.10 into 0.033334+0.033333+0.033333', () => {
+    const rows = splitByCompetitor({ ...vendor }, ids);
+    expect(rows.map((r) => r.costUsd)).toEqual([0.033334, 0.033333, 0.033333]);
+    expect(rows.map((r) => r.competitorId)).toEqual(ids);
+  });
+  it('tokens 10 over 3 -> 4,3,3', () => {
+    const rows = splitByCompetitor({ ...llm, inputTokens: 10, outputTokens: 10 }, ids);
+    expect(rows.map((r) => r.inputTokens)).toEqual([4, 3, 3]);
+    expect(rows.map((r) => r.outputTokens)).toEqual([4, 3, 3]);
+    expect(splitByCompetitor({ ...vendor }, ids).map((r) => r.units)).toEqual([4, 3, 3]);
+  });
+  it('null cost stays null on every row', () => {
+    expect(splitByCompetitor({ ...vendor, costUsd: null }, ids).map((r) => r.costUsd)).toEqual([null, null, null]);
+  });
+  it('duplicate ids collapse', () => {
+    expect(splitByCompetitor({ ...vendor }, ['c1', 'c1', 'c2'])).toHaveLength(2);
+    expect(splitByCompetitor({ ...vendor }, ['c1', 'c1'])).toHaveLength(1);
+  });
+  it('one id -> one row, unsplit, with the id', () => {
+    const [r, ...rest] = splitByCompetitor({ ...vendor }, ['c1']);
+    expect(rest).toEqual([]);
+    expect(r).toMatchObject({ competitorId: 'c1', costUsd: 0.1, units: 10 });
+    expect(splitByCompetitor({ ...vendor }, [])[0]?.competitorId).toBeNull();
+  });
+  it('never carries competitorIds onto a row', () => {
+    const rows = splitByCompetitor({ ...vendor, competitorIds: ids }, ids);
+    for (const r of rows) expect(r).not.toHaveProperty('competitorIds');
   });
 });
 

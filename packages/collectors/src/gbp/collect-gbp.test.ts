@@ -1,9 +1,10 @@
-import { capture, client, competitor, observation } from '@cs/db';
+import { capture, client, competitor, createLedgerSink, observation, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { and, eq, ne } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
+import { createDataForSeo } from '../vendors/dataforseo';
 import { VendorError } from '../vendors/errors';
 import { collectGbpProfile, extractGbpProfile, fetchGbpProfile, isUniqueViolation } from './collect-gbp';
 
@@ -31,6 +32,15 @@ describe('collectGbpProfile', () => {
     expect(o?.data).toMatchObject({ title: 'Smith HVAC', rating: 4.6, votes: 210, isClaimed: true, additionalCategories: ['Plumber'] });
     const [c] = await dbs.service.select().from(competitor).where(eq(competitor.id, IDS.competitorX));
     expect(c?.cid).toBe('111');
+  });
+
+  it('gbp pull ledgers competitor_id', async () => {
+    const body = { status_code: 20000, status_message: 'Ok.', cost: 0.0054, tasks: [{ id: '11111111-1111-4111-8111-111111111111', status_code: 20000, status_message: 'Ok.', result: [{ items: [item] }] }] };
+    const dfs = createDataForSeo({ login: 'l', password: 'p', ledger: createLedgerSink(dbs.service), fetch: (async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof globalThis.fetch });
+    await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null });
+    const rows = await dbs.service.select().from(vendorCall);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ vendor: 'dataforseo', competitorId: IDS.competitorX, clientId: null, costUsd: 0.0054 });
   });
 
   it('skips competitors without place id or cid', async () => {

@@ -40,6 +40,13 @@ describe('collectMetaAds', () => {
     expect(rows.find((a) => a.externalId === 'A1')).toMatchObject({ isActive: true });
   });
 
+  it('apify meta ledgers the competitor scope', async () => {
+    ledger.recordVendorCall.mockClear();
+    const fetch = vi.fn(async () => new Response(JSON.stringify([apifyItem]), { status: 201 }));
+    await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageIds: ['99'] });
+    expect(ledger.recordVendorCall).toHaveBeenCalledWith(expect.objectContaining({ vendor: 'apify', agencyId: null, clientId: null, competitorIds: [IDS.competitorX] }));
+  });
+
   it('never ends active ads on an empty-but-successful vendor response (possible vendor glitch)', async () => {
     await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'OLD', isActive: true });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

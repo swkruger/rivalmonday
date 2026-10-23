@@ -1,4 +1,4 @@
-import type { LedgerSink } from '@cs/core';
+import type { CallScope, LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from './errors';
 
 /**
@@ -8,6 +8,7 @@ import { safeRecordVendorCall, VendorError } from './errors';
 export async function fetchMetaAdsScrapeCreators(
   opts: { apiKey: string; ledger: LedgerSink; fetch?: typeof fetch; maxPages?: number },
   pageId: string,
+  scope: CallScope,
 ): Promise<{ items: unknown[]; truncated: boolean }> {
   const doFetch = opts.fetch ?? globalThis.fetch;
   const out: unknown[] = [];
@@ -37,7 +38,7 @@ export async function fetchMetaAdsScrapeCreators(
       throw new VendorError('scrapecreators', null, 'Network error calling ScrapeCreators', true, { cause: err });
     } finally {
       // costUsd unknown (credit-based); credits recorded as units.
-      await safeRecordVendorCall(opts.ledger, { agencyId: null, clientId: null, vendor: 'scrapecreators', operation: 'facebook/adLibrary/company/ads', units: credits ?? 1, costUsd: null, latencyMs: Date.now() - started, ok });
+      await safeRecordVendorCall(opts.ledger, { ...scope, vendor: 'scrapecreators', operation: 'facebook/adLibrary/company/ads', units: credits ?? 1, costUsd: null, latencyMs: Date.now() - started, ok });
     }
     if (!cursor) break;
   }

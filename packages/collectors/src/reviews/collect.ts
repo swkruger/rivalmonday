@@ -15,7 +15,7 @@ const scope = { agencyId: null, clientId: null };
 
 /** A discovery review sample belongs to one client's run: its task_get is ledgered with that scope (T6). */
 async function taskScope(db: Db, vt: VendorTaskRow): Promise<CallScope> {
-  if (!vt.suggestionId) return scope;
+  if (!vt.suggestionId) return vt.competitorId ? { ...scope, competitorIds: [vt.competitorId] } : scope;
   const [s] = await db.select({ agencyId: competitorSuggestion.agencyId, clientId: competitorSuggestion.clientId }).from(competitorSuggestion).where(eq(competitorSuggestion.id, vt.suggestionId)).limit(1);
   return s ?? scope;
 }

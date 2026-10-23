@@ -93,7 +93,7 @@ export async function collectGbpProfile(
   const base = { competitorId: c.id, source: 'google_business_profile', collectorVersion: DFS_COLLECTOR_VERSION };
   let raw: unknown[];
   try {
-    const [task] = await postGbpInfo(deps.dfs, keyword, { agencyId: null, clientId: null });
+    const [task] = await postGbpInfo(deps.dfs, keyword, { agencyId: null, clientId: null, competitorIds: [c.id] });
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed
     // (e.g. place not found), or with no task at all — never record an empty 'ok' capture in either case.
     if (!task) {

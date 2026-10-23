@@ -4,6 +4,8 @@ export interface CallScope {
   clientId: string | null;
   /** The business type this spend serves (cost attribution); absent when the call is not vertical-specific. */
   verticalId?: string;
+  /** Non-empty => the ledger writes N rows (one per competitor), cost split equally. Never stored. */
+  competitorIds?: readonly string[];
 }
 
 export interface LlmCallRecord extends CallScope {
@@ -15,6 +17,8 @@ export interface LlmCallRecord extends CallScope {
   costUsd: number | null;
   latencyMs: number;
   ok: boolean;
+  /** The competitor this (split) row is attributed to. */
+  competitorId?: string | null;
 }
 
 export interface VendorCallRecord extends CallScope {
@@ -24,6 +28,7 @@ export interface VendorCallRecord extends CallScope {
   costUsd: number | null;
   latencyMs: number;
   ok: boolean;
+  competitorId?: string | null;
 }
 
 export interface LedgerSink {
