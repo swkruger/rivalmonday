@@ -4,6 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
+import { PAUSED_WRITE_ALLOW_LIST } from '../billing-guard';
 import { createToolRegistry } from '../registry';
 
 const dbs = openTestDbs();
@@ -190,6 +191,16 @@ describe('set_client_limits (platform staff only)', () => {
     expect(c.spendPausedAt).toBeNull();
     expect(c.pausedAt).toEqual(at);
     expect(c.pausedBy).toBe('someone');
+  });
+
+  it('archived client is not_found', async () => {
+    await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await expect(setLimits(staff, { competitorLimit: 6 })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await a1()).competitorLimit).toBe(5);
+  });
+
+  it('is exempt from the billing write guard (platform tool)', () => {
+    expect(PAUSED_WRITE_ALLOW_LIST).toEqual(expect.arrayContaining(['set_client_limits', 'get_client_limits']));
   });
 
   it('is audited under the client agency', async () => {

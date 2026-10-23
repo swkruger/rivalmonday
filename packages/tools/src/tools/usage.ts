@@ -88,7 +88,7 @@ export const setClientLimits = defineTool({
   supportHidden: true,
   async handler(ctx: AccessContext, input, deps) {
     const role = await requireLimitsOperator(deps, ctx, 'staff');
-    const [target] = await deps.service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, input.clientId));
+    const [target] = await deps.service.select({ agencyId: client.agencyId }).from(client).where(and(eq(client.id, input.clientId), isNull(client.archivedAt)));
     return withPlatformAudit(deps, ctx, { tool: 'set_client_limits', input, role, agencyId: target?.agencyId }, async () => {
       if (!target) throw new ToolError('not_found', 'Client not found');
       const patch: { spendLimitUsd?: number | null; competitorLimit?: number; askMonthlyQuota?: number } = {};
@@ -102,7 +102,7 @@ export const setClientLimits = defineTool({
         const [row] = await tx
           .update(client)
           .set(patch)
-          .where(eq(client.id, input.clientId))
+          .where(and(eq(client.id, input.clientId), isNull(client.archivedAt)))
           .returning({ spendLimitUsd: client.spendLimitUsd, competitorLimit: client.competitorLimit, askMonthlyQuota: client.askMonthlyQuota, spendPausedAt: client.spendPausedAt });
         if (!row) throw new ToolError('not_found', 'Client not found');
         const limit = effectiveLimitUsd(row.spendLimitUsd, settings);
@@ -190,4 +190,6 @@ export const getClientLimits = defineTool({
   },
 });
 
-export const usageTools = [getUsage, setClientLimits, getClientLimits];
+/** Platform-operator tools: exempt from the home agency's billing write guard (billing-guard PLATFORM_TOOLS). */
+export const usagePlatformTools = [setClientLimits, getClientLimits];
+export const usageTools = [getUsage, ...usagePlatformTools];

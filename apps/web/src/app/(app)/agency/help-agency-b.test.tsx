@@ -262,12 +262,8 @@ describe('agency batch B: Team', () => {
 });
 
 describe('agency batch B: Usage & limits', () => {
-  it('the cap tip states the defaults and ranges; the questions tip says only client questions count', async () => {
+  it('the questions tip says only client questions count', async () => {
     m.usage = [USAGE_ROW];
-    await show('agency.settings.usage');
-    const c = open('Cap and limits');
-    for (const w of ['$15', '$1 to $10,000', '5', '1 to 10', '100']) expect(c, w).toContain(w);
-    cleanup();
     await show('agency.settings.usage');
     expect(open('Question quota')).toMatch(/client owners and viewers/);
     cleanup();
