@@ -8,6 +8,7 @@
   "app/sign-up/actions.ts": 1,
   "app/start/actions.ts": 3,
   "app/support/exit/route.ts": 2,
+  "lib/report-error.ts": 1,
   "server/ask.ts": 1,
   "server/auth-options.ts": 2,
   "server/queue.ts": 1,
