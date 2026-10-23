@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { addDays, utcDay } from '../platform/stats';
+import { encodeCursor } from '../paging';
 import { createToolRegistry } from '../registry';
 
 const dbs = openTestDbs();
@@ -30,7 +31,7 @@ const ROW_KEYS = ['agencySeats', 'billingState', 'clientSeats', 'clientsActive',
 type Tile = { value: number; delta28d: number | null };
 type Overview = { tiles: Record<'agencies' | 'clientsActive' | 'seats' | 'wau' | 'spendMonthUsd', Tile>; series: Record<string, unknown>[] };
 type AgencyRow = Record<string, unknown> & { id: string; name: string; health: string };
-type AgencyList = { rows: AgencyRow[]; nextCursor: string | null };
+type AgencyList = { rows: AgencyRow[]; nextCursor: string | null; prevCursor: string | null };
 
 async function session(userId: string, at: Date) {
   await dbs.owner.execute(sql`insert into auth.session (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
@@ -88,7 +89,7 @@ describe('platform console tools: access', () => {
 
 describe('list_platform_agencies', () => {
   it('empty platform → rows: []', async () => {
-    expect(await registry.invoke(op, 'list_platform_agencies', {})).toEqual({ rows: [], nextCursor: null });
+    expect(await registry.invoke(op, 'list_platform_agencies', {})).toEqual({ rows: [], nextCursor: null, prevCursor: null });
   });
 
   it('rows carry exactly the allow-listed keys, live figures and a health flag', async () => {
@@ -160,8 +161,28 @@ describe('list_platform_agencies', () => {
     expect(first.rows.map((x) => x.name)).toEqual(['Agency C', 'Agency B']);
     expect(first.nextCursor).not.toBeNull();
     const second = (await registry.invoke(op, 'list_platform_agencies', { sort: 'name', dir: 'desc', limit: 2, cursor: first.nextCursor })) as AgencyList;
-    expect(second).toEqual({ rows: [expect.objectContaining({ name: 'Agency A' })], nextCursor: null });
+    expect(second).toEqual({ rows: [expect.objectContaining({ name: 'Agency A' })], nextCursor: null, prevCursor: encodeCursor(0) });
+    expect(first.prevCursor).toBeNull();
     await expect(registry.invoke(op, 'list_platform_agencies', { limit: 101 })).rejects.toMatchObject({ code: 'invalid_input' });
+  });
+});
+
+describe('list_platform_agencies query', () => {
+  const namesOf = async (query: string) => ((await registry.invoke(op, 'list_platform_agencies', { query })) as AgencyList).rows.map((x) => x.name).sort();
+  it('query under 2 chars is ignored', async () => {
+    await seedPlatform();
+    expect(await namesOf(' A ')).toEqual(['Agency A', 'Agency B']);
+    expect(await namesOf('')).toEqual(['Agency A', 'Agency B']);
+  });
+  it('query matches case-insensitively', async () => {
+    await seedPlatform();
+    expect(await namesOf(' aGENCY a')).toEqual(['Agency A']);
+  });
+  it('query escapes % and _ (name "50%_off" matches "%_", "Acme" does not)', async () => {
+    await seedPlatform();
+    await dbs.owner.insert(agency).values([{ id: '00000000-0000-4000-8000-0000000000d1', name: '50%_off' }, { id: '00000000-0000-4000-8000-0000000000d2', name: 'Acme' }]);
+    expect(await namesOf('%_')).toEqual(['50%_off']);
+    expect(await namesOf('A\\')).toEqual([]);
   });
 });
 

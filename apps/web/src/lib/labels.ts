@@ -111,5 +111,13 @@ export const MEMBERSHIP_ROLE: LabelMap<Role> = {
   client_viewer: e('Client viewer'),
 };
 
+// AgencyHealth (packages/tools/src/platform/health.ts); platform console only
+export const AGENCY_HEALTH: LabelMap<'at_risk' | 'idle' | 'growing' | 'steady'> = {
+  at_risk: e('At risk', 'danger'),
+  idle: e('Idle', 'warning'),
+  growing: e('Growing', 'success'),
+  steady: e('Steady', 'info'),
+};
+
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE];

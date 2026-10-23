@@ -59,7 +59,7 @@ describe('page gates over the tree', () => {
     for (const p of AREAS_2A) expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
   });
   it('GATED_PATHS ⊆ AREAS_2A', () => {
-    for (const p of GATED_PATHS) expect(AREAS_2A, p).toContain(p);
+    for (const p of GATED_PATHS) expect(AREAS_2A.some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
   });
   it('report: hit counts for 2a areas not yet gated (progress view)', () => {
     const lines = AREAS_2A.filter((p) => !GATED_PATHS.includes(p)).map((p) => `${String(scanPaths([p]).length).padStart(4)}  ${p}`);

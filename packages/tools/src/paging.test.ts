@@ -1,6 +1,6 @@
 import type { CallMeta } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { detailOf, encodeCursor, pageOf, pageResult } from './paging';
+import { detailOf, encodeCursor, pageOf, pageResult, prevCursorOf } from './paging';
 
 const web: CallMeta = { channel: 'web', tokenId: null };
 const mcp: CallMeta = { channel: 'mcp', tokenId: 'pat-1' };
@@ -40,5 +40,12 @@ describe('paging', () => {
     const more = pageResult([1, 2, 3], 2, 10);
     expect(more).toEqual({ rows: [1, 2], nextCursor: encodeCursor(12), hasMore: true });
     expect(pageResult([1, 2], 2, 10)).toEqual({ rows: [1, 2], nextCursor: null, hasMore: false });
+  });
+
+  it('prevCursorOf(0)=null, prevCursorOf(50,50)=cursor(0), clamps at 0', () => {
+    expect(prevCursorOf(0, 50)).toBeNull();
+    expect(prevCursorOf(50, 50)).toBe(encodeCursor(0));
+    expect(prevCursorOf(30, 50)).toBe(encodeCursor(0));
+    expect(prevCursorOf(100, 50)).toBe(encodeCursor(50));
   });
 });

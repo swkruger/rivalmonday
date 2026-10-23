@@ -3,7 +3,7 @@ import { agency, agencyBilling, agencyDailyStat, BILLING_STATES, auditLog, brief
 import { and, eq, gte, inArray, isNull, lte, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { pageOf, pageResult } from '../paging';
+import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { requirePlatformOperator } from '../platform';
 import { ACTIVATION_TOOLS } from './prospects';
 import { withPlatformAudit } from '../platform/audit';
@@ -77,7 +77,7 @@ const monthStartOf = (day: string) => `${day.slice(0, 7)}-01`;
  * active = status 'active'; seats = distinct users per role group; wau = distinct members with a session in
  * [today−6 00:00Z, now]; spend = agency-attributed llm_call + vendor_call since the UTC month start.
  */
-export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, agencyId?: string): Promise<LiveAgency[]> {
+export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, agencyId?: string, o: { nameLike?: string } = {}): Promise<LiveAgency[]> {
   const today = utcDay(now);
   const weekStart = sql`${`${addDays(today, -6)}T00:00:00.000Z`}::timestamptz`;
   const monthStart = sql`${`${monthStartOf(today)}T00:00:00.000Z`}::timestamptz`;
@@ -85,7 +85,10 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
   const members = sql`(select m.user_id from membership m where m.agency_id = a.id)`;
   const staff = sql`(select m.user_id from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES})`;
   // 7a2 D16: archived agencies and clients are deleted for the console.
-  const where: SQL = agencyId ? sql`where a.archived_at is null and a.id = ${agencyId}` : sql`where a.archived_at is null`;
+  const filters: SQL[] = [sql`a.archived_at is null`];
+  if (agencyId) filters.push(sql`a.id = ${agencyId}`);
+  if (o.nameLike) filters.push(sql`a.name ilike '%' || ${o.nameLike} || '%' escape '\\'`);
+  const where: SQL = sql`where ${sql.join(filters, sql` and `)}`;
   const rows = [
     ...(await deps.service.execute<LiveRow>(sql`
       select a.id, a.name, a.created_at,
@@ -217,15 +220,22 @@ function compareRows(sort: Sort, dir: 'asc' | 'desc') {
   };
 }
 
+/** Trimmed query for the name filter: under 2 characters is ignored; backslash, % and _ are escaped for ILIKE ... ESCAPE backslash. */
+function nameLikeOf(query: string | undefined): string | undefined {
+  const q = query?.trim() ?? '';
+  return q.length < 2 ? undefined : q.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 export const listPlatformAgencies = defineTool({
   name: 'list_platform_agencies',
   access: 'read',
-  description: 'Platform operators: every agency with live figures (clients, seats, WAU, last activity, month-to-date spend) and a health flag.',
+  description: 'Platform operators: every agency with live figures (clients, seats, WAU, last activity, month-to-date spend) and a health flag. `query` (2+ characters) filters by name, case-insensitively.',
   input: z.object({
     sort: z.enum(SORTS).optional(),
     dir: z.enum(['asc', 'desc']).optional(),
     cursor: z.string().max(200).optional(),
     limit: z.number().int().min(1).max(100).optional(),
+    query: z.string().max(100).optional(),
   }),
   output: z.object({
     rows: z.array(z.object({
@@ -243,6 +253,7 @@ export const listPlatformAgencies = defineTool({
       billingState: z.enum(BILLING_STATES),
     })),
     nextCursor: z.string().nullable(),
+    prevCursor: z.string().nullable(),
   }),
   permission: 'agency',
   audit: 'skip-web',
@@ -254,7 +265,7 @@ export const listPlatformAgencies = defineTool({
       const dir = input.dir ?? (sort === 'name' || sort === 'health' ? 'asc' : 'desc');
       const now = new Date();
       const [lives, states] = await Promise.all([
-        liveAgencies(deps, now),
+        liveAgencies(deps, now, undefined, { nameLike: nameLikeOf(input.query) }),
         deps.service.select({ id: agencyBilling.agencyId, state: agencyBilling.state }).from(agencyBilling),
       ]);
       const stateOf = new Map(states.map((r) => [r.id, r.state]));
@@ -268,6 +279,7 @@ export const listPlatformAgencies = defineTool({
       return {
         rows: page.rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), lastActivityAt: r.lastActivityAt?.toISOString() ?? null })),
         nextCursor: page.nextCursor,
+        prevCursor: prevCursorOf(offset, limit),
       };
     });
   },

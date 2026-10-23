@@ -1,10 +1,12 @@
-import { formatMoney, formatRelative } from '@/lib/format';
+import { formatDate, formatMoney, formatRelative } from '@/lib/format';
+import { AGENCY_HEALTH, BILLING_STATE, labelFor } from '@/lib/labels';
 import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
 import Link from 'next/link';
 import type { BillingState } from '@cs/db';
-import { BillingStatePill } from '../_components/billing-state-pill';
-import { type Health, HealthPill } from '../_components/health-pill';
+import { StatusChip } from '@cs/ui';
+
+type Health = 'at_risk' | 'idle' | 'growing' | 'steady';
 
 export const SORTS = ['name', 'created', 'clients', 'wau', 'lastActivity', 'spend', 'health'] as const;
 export type AgencySort = (typeof SORTS)[number];
@@ -41,9 +43,17 @@ const COLUMNS: { label: string; sort?: AgencySort; right?: boolean }[] = [
   { label: 'Billing' },
 ];
 
-const day = (iso: string) => iso.slice(0, 10);
+/** The one builder for the page's links (sort headers, search, Previous/Next): keeps `q`, `sort` and `dir`; `cursor` only when given. */
+export function agenciesHref(o: { q?: string; sort: AgencySort; dir: SortDir; cursor?: string | null }): string {
+  const p = new URLSearchParams();
+  if (o.q) p.set('q', o.q);
+  p.set('sort', o.sort);
+  p.set('dir', o.dir);
+  if (o.cursor) p.set('cursor', o.cursor);
+  return `/platform/agencies?${p.toString()}`;
+}
 
-export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date }) {
+export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date; tz?: string; query?: string }) {
   return (
     <div className="min-w-0 rounded-[14px] bg-surface p-2 shadow-card sm:p-4">
       <div className="overflow-x-auto">
@@ -61,9 +71,9 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
                     className={`whitespace-nowrap px-3 py-2 font-semibold ${c.right ? 'text-right' : ''}`}
                   >
                     {c.sort ? (
-                      <Link href={`/platform/agencies?sort=${c.sort}&dir=${next}`} className="hover:text-ink">
+                      <Link href={agenciesHref({ q: query, sort: c.sort, dir: next! })} className="hover:text-ink">
                         {c.label}
-                        {active ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                        {active && <span aria-hidden="true">{dir === 'asc' ? ' ▲' : ' ▼'}</span>}
                       </Link>
                     ) : (
                       c.label
@@ -79,21 +89,24 @@ export function AgencyTable({ rows, sort, dir, now }: { rows: AgencyRow[]; sort:
                 <td className="px-3 py-2 font-semibold">
                   <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2">{day(r.createdAt)}</td>
+                <td className="whitespace-nowrap px-3 py-2">{formatDate(r.createdAt, { tz, now })}</td>
                 <td className="px-3 py-2 text-right">{r.clientsActive}</td>
                 <td className="px-3 py-2 text-right">{r.clientsProspect}</td>
                 <td className="px-3 py-2 text-right">{r.agencySeats + r.clientSeats}</td>
                 <td className="px-3 py-2 text-right">{r.wau ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? formatRelative(r.lastActivityAt, now) : '—'}</td>
+                <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? formatRelative(r.lastActivityAt, now, { tz }) : '—'}</td>
                 <td className="px-3 py-2 text-right">{formatMoney(r.spendMonthUsd, { cents: true })}</td>
-                <td className="px-3 py-2"><HealthPill health={r.health} /></td>
-                <td className="px-3 py-2"><BillingStatePill state={r.billingState} /></td>
+                <td className="px-3 py-2"><Chip entry={labelFor(AGENCY_HEALTH, r.health)} /></td>
+                <td className="px-3 py-2"><Chip entry={labelFor(BILLING_STATE, r.billingState)} /></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {rows.length === 0 && <EmptyState {...PAGE_COPY['platform.agencies'].empty.none} guideAnchor="what-this-page-tells-you" />}
+      {rows.length === 0 && query && <p className="px-3 py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
+      {rows.length === 0 && !query && <EmptyState {...PAGE_COPY['platform.agencies'].empty.none} guideAnchor="what-this-page-tells-you" />}
     </div>
   );
 }
+
+const Chip = ({ entry }: { entry: { label: string; tone: Parameters<typeof StatusChip>[0]['tone'] } }) => <StatusChip tone={entry.tone}>{entry.label}</StatusChip>;

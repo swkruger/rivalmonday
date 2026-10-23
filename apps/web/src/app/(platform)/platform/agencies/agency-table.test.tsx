@@ -28,8 +28,25 @@ describe('AgencyTable', () => {
   it('has a Billing column with the state pill label', () => {
     render(<AgencyTable rows={[row({ billingState: 'past_due' }), row({ id: 'a2', name: 'Beta', billingState: 'read_only' })]} sort="name" dir="asc" now={NOW} />);
     expect(screen.getByRole('columnheader', { name: 'Billing' })).toBeTruthy();
-    expect(screen.getByText('Past due')).toBeTruthy();
-    expect(screen.getByText('Paused')).toBeTruthy();
+    expect(screen.getByText('Payment overdue')).toBeTruthy();
+    expect(screen.getByText('Read-only')).toBeTruthy();
+  });
+
+  it('formats dates in the viewer zone (year only when not the current one)', () => {
+    render(<AgencyTable rows={[row({ createdAt: '2025-03-01T03:00:00.000Z', lastActivityAt: '2026-08-01T12:00:00.000Z' })]} sort="name" dir="asc" now={NOW} tz="America/Chicago" />);
+    expect(screen.getByText('Feb 28, 2025')).toBeTruthy();
+    expect(screen.getByText('Aug 1')).toBeTruthy();
+  });
+
+  it('shows the query in the no-match copy', () => {
+    render(<AgencyTable rows={[]} sort="name" dir="asc" now={NOW} query="zzz" />);
+    expect(screen.getByText('No agencies match “zzz”.')).toBeTruthy();
+  });
+
+  it('sort links keep the search and show a sort arrow on the active column', () => {
+    render(<AgencyTable rows={[row()]} sort="name" dir="asc" now={NOW} query="ac" />);
+    expect(screen.getByRole('link', { name: /^Spend/ }).getAttribute('href')).toBe('/platform/agencies?q=ac&sort=spend&dir=desc');
+    expect(screen.getByRole('link', { name: /^Agency/ }).textContent).toContain('▲');
   });
 
   it('renders — for null wau and lastActivityAt', () => {

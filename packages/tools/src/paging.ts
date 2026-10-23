@@ -34,3 +34,8 @@ export function pageResult<T>(rows: T[], limit: number, offset: number): { rows:
   const hasMore = rows.length > limit;
   return { rows: hasMore ? rows.slice(0, limit) : rows, nextCursor: hasMore ? encodeCursor(offset + limit) : null, hasMore };
 }
+
+/** The cursor of the previous page (offset - limit, floored at 0), or null on the first page. */
+export function prevCursorOf(offset: number, limit: number): string | null {
+  return offset <= 0 ? null : encodeCursor(Math.max(0, offset - limit));
+}

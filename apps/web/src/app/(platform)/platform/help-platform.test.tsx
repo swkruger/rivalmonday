@@ -35,6 +35,7 @@ vi.mock('@cs/tools', () => ({
   getReviewableAskThread: async () => m.answers.ask_thread,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ get kbImport() { return m.kbImport; }, webMonitoring: false, appUrl: 'http://localhost' }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
@@ -81,7 +82,7 @@ const article = (o: object = {}) => ({
 const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   platform_overview: { tiles, series: [] },
   list_platform_activity: { items: [], nextCursor: null },
-  list_platform_agencies: { rows: [], nextCursor: null },
+  list_platform_agencies: { rows: [], nextCursor: null, prevCursor: null },
   get_platform_agency: { agency: { id: AG, name: 'Acme', createdAt: '2026-01-01T00:00:00Z', health: 'steady' }, tiles, series: [], team: { agencyAdmin: 1, accountManager: 0, clientOwner: 0, clientViewer: 0 }, clients: [] },
   list_agency_support_sessions: { rows: [] },
   get_agency_billing: { agencyId: AG, state: 'trialing', plan: null, trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, cancelAt: null, seatsSynced: null, seatSyncPending: false, seatCapExempt: false, attachedCouponId: null, invoices: [], events: [] },
