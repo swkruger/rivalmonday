@@ -31,6 +31,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
 | `/agency/leads` | admin | `list_leads`, `list_help_guides` | — |
 | `/agency/settings/intake` | admin | `get_intake_link`, `list_help_guides` | — |
+| `/agency/settings/intake/preview` | admin | `get_intake_link`, `list_help_guides` | — |
 | `/agency/prospects` | admin | `list_prospects`, `list_help_guides` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors`, `list_help_guides` | — |
 | `/agency/settings/team` | admin | `get_team`, `list_clients`, `list_help_guides` | — |

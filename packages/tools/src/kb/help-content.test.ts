@@ -35,8 +35,8 @@ const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
 const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
 /** 15b-2 Task 7, agency batch A: every page is reachable by agency roles only, so each has one `agency` guide and no client version. */
 const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
-/** 15b-2 Task 8, agency batch B: the agency settings pages. All reachable by agency roles only, so each has one `agency` guide. */
-const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
+/** 15b-2 Task 8, agency batch B: the agency settings pages (15c-2a adds the intake preview). All reachable by agency roles only, so each has one `agency` guide. */
+const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.intake.preview', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
 /**
  * 15b-2 Task 9a, platform pages: operator-only (`requireOperatorContext`), so every page has one `operator` guide and nothing else.
  */
@@ -271,7 +271,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const t of GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client')) expect(`${t.term}\n${t.short}\n${t.long ?? ''}`, t.id).not.toMatch(AGENCY_ONLY);
   });
 
-  it('agency batches A and B: agency roles read the eighteen guides in the agency context, with the three standard sections; client roles read none', async () => {
+  it('agency batches A and B: agency roles read the nineteen guides in the agency context, with the three standard sections; client roles read none', async () => {
     const list = (c: AccessContext) => registry.invoke(c, 'list_help_guides', { context: 'agency' }) as Promise<{ guides: { helpKey: string }[] }>;
     const agencyGuide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'agency' }) as Promise<Guide>;
     for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual([...AGENCY_KEYS, ...ACCOUNT_AGENCY_ROLE].sort());
@@ -311,10 +311,12 @@ describe('help content (real docs/help + GLOSSARY)', () => {
   it('agency batch B: the settings guides carry the numbers and labels the pages use, and never name the product', async () => {
     const agencyGuide = async (key: string) => text((await registry.invoke(admin, 'get_page_guide', { helpKey: key, context: 'agency' })) as Guide);
     const bill = await agencyGuide('page:agency.settings.billing');
-    for (const w of ['Payment overdue', 'Paused', 'Suspended', 'Seats', '7 days', '30 days', '1 to 90', 'extra-client price', 'active client that is not paused']) expect(bill, w).toContain(w);
+    for (const w of ['Payment overdue', 'Free trial', 'Read-only', 'Suspended', 'Clients', '7 days', '30 days', '1 to 90', 'extra-client price', 'active and not paused']) expect(bill, w).toContain(w);
     expect(bill).not.toMatch(/\$\d/);
     const intake = await agencyGuide('page:agency.settings.intake');
     for (const w of ['3 to 40', 'The old address stops working', 'does not redirect', 'Copy button HTML']) expect(intake, w).toContain(w);
+    const preview = await agencyGuide('page:agency.settings.intake.preview');
+    for (const w of ['Link is off', 'Disabled in preview', 'Accepting new leads', 'Copy link']) expect(preview, w).toContain(w);
     const access = await agencyGuide('page:agency.settings.platform-access');
     for (const w of ['60 minutes', 'read-only', 'audit log', 'Timed out', 'Access revoked']) expect(access, w).toContain(w);
     const usage = await agencyGuide('page:agency.settings.usage');
@@ -372,11 +374,11 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       agencies: ['At risk', 'Idle', 'Growing', 'Steady', '28 days', '14 days', '7 days', '30 days'],
       'agencies.detail': ['60 minutes', 'read-only', '5 to 300', 'audit log', 'View as agency'],
       billing: ['agency ids', '100', '1,000', '1 to 90', '14 if blank', '1 to 36', '30 or 90 days', 'shown once'],
-      leads: ['200', 'Declined by an agency', 'Assign', '20'],
-      reviews: ['Jev', '0.85', 'language model', 'Model said', 'gold labels', '50'],
+      leads: ['25 at a time', 'Previous and Next', 'Declined by an agency', 'Assign', '20'],
+      reviews: ['Jev', '0.85', 'language model', 'Model said', 'gold labels', '25 at a time'],
       topics: ['topic', '20', '90 days', 'fifth', '30 days', '180 days'],
-      ask: ['audit log', 'quota', '25'],
-      'ask.thread': ['Citations', 'Trace', 'cancelled'],
+      ask: ['audit log', 'Limit reached', "Couldn't answer", 'Something went wrong', '25'],
+      'ask.thread': ['Citations', 'Technical details', 'Stopped'],
       knowledge: ['Managed in repo', 'kb:seed', 'Sunday at 05:00 UTC', 'Published'],
       'knowledge.new': ['Visible to client users', 'Preview', 'Publish'],
       'knowledge.detail': ['Managed in repo', 'Auto-sync', 'Previous version', 'cannot be undone'],
