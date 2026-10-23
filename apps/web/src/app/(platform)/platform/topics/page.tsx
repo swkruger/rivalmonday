@@ -41,7 +41,7 @@ export default async function TopicProposalsPage() {
           { label: 'Recent decisions', tip: 'platform.topics.decided' },
         ]}
       />
-      <TopicQueue pending={pending} decided={decided} action={decideTopicAction} tz={tz} />
+      <TopicQueue pending={pending} decided={decided} action={decideTopicAction} tz={tz} nowMs={Date.now()} />
     </>
   );
 }

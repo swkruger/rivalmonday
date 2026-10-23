@@ -21,7 +21,9 @@ function Status({ status }: { status: string }) {
  * proposal leaving the pending list on revalidate (precedent `AlertList`, `CatalogQueue`). Each button opens a
  * `ConfirmDialog` that posts its own `decision`, so the decision never depends on which button submitted.
  */
-export function TopicQueue({ pending, decided, action, tz }: { pending: TopicProposalView[]; decided: TopicProposalView[]; action: Action; tz: string }) {
+export function TopicQueue({ pending, decided, action, tz, nowMs }: { pending: TopicProposalView[]; decided: TopicProposalView[]; action: Action; tz: string; nowMs?: number }) {
+  // The server's clock (as `AlertList`), so the server render and hydration agree on "2 days ago" and on the year.
+  const now = new Date(nowMs ?? Date.now());
   const [result, formAction, busy] = useActionState(action, { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-5">
@@ -33,7 +35,7 @@ export function TopicQueue({ pending, decided, action, tz }: { pending: TopicPro
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-ink">
               <Status status={p.status} />
-              <span>{p.verticalName} · {p.otherCount} reviews with no topic · Proposed {formatRelative(p.createdAt, undefined, { tz })}</span>
+              <span>{p.verticalName} · {p.otherCount} reviews with no topic · Proposed {formatRelative(p.createdAt, now, { tz })}</span>
             </div>
             <CardTitle>{p.name} <span className="font-mono text-xs font-normal text-muted-ink">{p.topicId}</span></CardTitle>
           </CardHeader>
@@ -80,7 +82,7 @@ export function TopicQueue({ pending, decided, action, tz }: { pending: TopicPro
               <TableHeader><TableRow><TableHead>Topic</TableHead><TableHead>Business type</TableHead><TableHead>Decision</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
               <TableBody>
                 {decided.map((d) => (
-                  <TableRow key={d.id}><TableCell>{d.name}</TableCell><TableCell>{d.verticalName}</TableCell><TableCell><Status status={d.status} /></TableCell><TableCell>{d.decidedAt ? formatDate(d.decidedAt, { tz }) : '—'}</TableCell></TableRow>
+                  <TableRow key={d.id}><TableCell>{d.name}</TableCell><TableCell>{d.verticalName}</TableCell><TableCell><Status status={d.status} /></TableCell><TableCell>{d.decidedAt ? formatDate(d.decidedAt, { tz, now }) : '—'}</TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>
