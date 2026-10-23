@@ -144,6 +144,8 @@ test.describe.serial('client billing', () => {
       await page.goto('/agency');
       await row(page).getByRole('button', { name: 'Billing actions' }).click();
       await page.getByRole('button', { name: 'Pause', exact: true }).click();
+      // 15c-2a: pausing billing is confirmed in a dialog.
+      await page.getByRole('dialog').getByRole('button', { name: 'Pause', exact: true }).click();
       await expect(page.getByRole('status').filter({ hasText: 'Client paused.' })).toBeVisible();
       await expect(row(page)).toContainText('Paused');
     });
@@ -159,6 +161,7 @@ test.describe.serial('client billing', () => {
       await page.goto('/agency');
       await row(page).getByRole('button', { name: 'Billing actions' }).click();
       await page.getByRole('button', { name: 'Resume', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Resume', exact: true }).click();
       await expect(page.getByRole('status').filter({ hasText: 'Client resumed.' })).toBeVisible();
       await expect(row(page)).toContainText('Payment needed');
       await expect(row(page)).not.toContainText('Paused');

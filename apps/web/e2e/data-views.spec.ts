@@ -95,7 +95,7 @@ test.describe('at 390 px', () => {
   test('the portfolio shows each client as a block with every field in view', { tag: ['@responsive', '@clients'] }, async ({ page }) => {
     await page.goto('/agency');
     const card = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'E2E HVAC' }) });
-    await expect(card.getByRole('link', { name: /Approve week of 2026-10-12/ })).toBeInViewport();
+    await expect(card.getByRole('link', { name: /Approve Week of Oct 12/ })).toBeInViewport();
     await expect(card.getByText('Last activity')).toBeInViewport();
     await expect(page.getByRole('table')).toBeHidden();
     expect(await noSideScroll(page), 'portfolio fits').toBe(true);

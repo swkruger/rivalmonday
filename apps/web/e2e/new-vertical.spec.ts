@@ -87,6 +87,8 @@ test.describe.serial('new business type', () => {
       await expect(card.getByText('“Guided distillery tours every hour”')).toBeVisible();
 
       await page.getByRole('button', { name: `Approve ${TYPE_NAME}` }).click();
+      // 15c-2a: approving a catalogue entry is confirmed in a dialog.
+      await page.getByRole('dialog', { name: `Approve ${TYPE_NAME}?` }).getByRole('button', { name: 'Approve', exact: true }).click();
       await expect(page.getByText(`Approved “${TYPE_NAME}”.`)).toBeVisible();
       await expect(page.getByRole('heading', { name: new RegExp(TYPE_NAME) })).toHaveCount(0);
       await expect(badge).toHaveText(shown > 1 ? `Business types${shown - 1}` : 'Business types');

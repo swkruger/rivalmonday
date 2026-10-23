@@ -158,7 +158,8 @@ test.describe('as the agency admin (also the platform operator)', () => {
 
     await page.goto(`/platform/ask/${askThreadId}`);
     await expect(page.getByRole('heading', { name: 'Seeded question about Smith pricing', exact: true })).toBeVisible();
-    await page.getByText('Trace', { exact: true }).click();
+    // 15c-2a B15: the trace sits in a closed "Technical details" disclosure.
+    await page.locator('details', { hasText: 'Trace' }).first().locator('summary').click();
     await expect(page.getByText(/"tool": "search_events"/)).toBeVisible();
 
     const res = await page.goto(`/platform/ask/${privateThreadId}`);

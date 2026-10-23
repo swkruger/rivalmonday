@@ -111,6 +111,8 @@ test('an admin turns a client feature on and off on the profile page', { tag: ['
 test('a platform operator approves a topic proposal', { tag: ['@platform', '@reviews'] }, async ({ page }) => {
   await page.goto('/platform/topics');
   await page.getByRole('button', { name: 'Approve E2E hidden fees' }).click();
+  // 15c-2a: approving a topic is confirmed in a dialog.
+  await page.getByRole('dialog', { name: 'Approve E2E hidden fees?' }).getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(page.getByText('Approved “E2E hidden fees”.')).toBeVisible();
   const old = await page.goto('/platform/themes');
   expect(old?.status()).toBe(404);
