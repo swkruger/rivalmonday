@@ -9,7 +9,7 @@ Agency-owned, white-labelable SaaS that monitors competitors of **local-service 
 ## Where things are
 | Need | Read |
 |---|---|
-| State of `main`, next up | `docs/STATE.md` (≤ 8 KB) |
+| State of `main`, next up | `docs/STATE.md` (≤ 12 KB) |
 | This branch's state | `docs/work/<branch>.md` (other branches: `git show <b>:docs/work/<b>.md`) |
 | What's built, where | `docs/ARCHITECTURE.md` |
 | Open work by target phase | `docs/BACKLOG.md` |

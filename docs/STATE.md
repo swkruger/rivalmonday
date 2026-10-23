@@ -1,6 +1,6 @@
 # State of `main`
 
-> **Overwritten, never appended. Hard cap 8 KB.** Updated by `/rm-merge` (and `/rm-wrap-up` when run on `main`).
+> **Overwritten, never appended. Hard cap 12 KB.** Updated by `/rm-merge` (and `/rm-wrap-up` when run on `main`).
 > In-flight work is NOT recorded here - each branch keeps `docs/work/<branch>.md`; `/rm-start` lists them.
 > History lives in git and in `docs/archive/`.
 

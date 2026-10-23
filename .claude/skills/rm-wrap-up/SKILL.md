@@ -19,6 +19,6 @@ Principle: **overwrite current-state sections; never append a diary.** Git keeps
    **On `main`** (coordination checkout, docs-only session) → update `docs/STATE.md` / `docs/BACKLOG.md` directly instead.
 3. **Gotchas learned this session** → add them, one bullet each, to the nearest package `CLAUDE.md` (`packages/<x>/CLAUDE.md`, `apps/<x>/CLAUDE.md`) on this branch — they merge with the code. Cross-cutting ones → `docs/gotchas-cross-cutting.md`; only a rule every session must know goes in root `CLAUDE.md` § Essentials.
 4. **Memory**: only for durable user preferences/feedback (how the owner wants to work). Never project state — that's what the docs are for.
-5. **Size caps** (check with `wc -c`): `STATE.md` ≤ 8 KB, work file ≤ 10 KB, root `CLAUDE.md` ≤ 10 KB, each package `CLAUDE.md` ≤ 10 KB, `gotchas-cross-cutting.md` ≤ 10 KB. Over the cap → condense (merge duplicates, drop superseded/obvious-from-code items) before committing.
+5. **Size caps** (check with `wc -c`): `STATE.md` ≤ 12 KB, work file ≤ 12 KB, root `CLAUDE.md` ≤ 12 KB, each package `CLAUDE.md` ≤ 12 KB, `gotchas-cross-cutting.md` ≤ 12 KB. Over the cap → condense (merge duplicates, drop superseded/obvious-from-code items) before committing.
 6. Commit the docs only: `git add docs <changed CLAUDE.md files> && git commit -m "docs(<branch>): wrap-up — <one line>"` (commit trailer per root CLAUDE.md). Never stage `.env`.
 7. Tell the user in ≤ 5 lines: what was saved, and the exact first step for the next session (`/rm-start` in `<worktree path>`).

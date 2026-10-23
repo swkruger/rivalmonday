@@ -6,7 +6,7 @@ Other sessions read it without switching branches: `git show <branch>:docs/work/
 
 `/rm-kickoff` creates it, `/rm-wrap-up` updates it, `/rm-merge` folds it into `STATE.md` / `BACKLOG.md` / `ARCHITECTURE.md` and deletes it.
 
-Cap: **10 KB**. Overwrite the Status/Next sections; don't keep a diary.
+Cap: **12 KB**. Overwrite the Status/Next sections; don't keep a diary.
 
 ## Template
 
