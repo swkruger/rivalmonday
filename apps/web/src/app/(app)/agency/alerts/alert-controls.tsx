@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
-import { formatRelative } from '@/lib/format';
 import { ALERT_STATUS, labelFor } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { approveAlertAction, dismissAlertAction } from './actions';
@@ -16,14 +15,20 @@ const selectClass = 'h-9 w-full max-w-xs rounded-sm border border-input bg-trans
 /** Unreviewed alerts expire after this many days (packages/engine/src/alerts/create.ts:ALERT_REVIEW_EXPIRY_DAYS). */
 const EXPIRY_DAYS = 7;
 
-/** The queue's client filter: a plain GET form, so it works without script and the chosen client stays in the URL. */
-export function AlertFilter({ clients, selected }: { clients: AlertQueueClient[]; selected: string | null }) {
+/**
+ * The queue's client filter: a plain GET form, so it works without script and the chosen client stays in the URL. A chosen
+ * client with nothing in the queue is not in `clients`; it still shows as the selected option (named when the page knows the
+ * name, else "This client") so the select never claims "All clients" while the list is filtered.
+ */
+export function AlertFilter({ clients, selected, selectedName }: { clients: AlertQueueClient[]; selected: string | null; selectedName?: string | null }) {
+  const missing = selected !== null && !clients.some((c) => c.id === selected);
   return (
     <form method="get" className="flex flex-wrap items-end gap-2">
       <div className="flex flex-col gap-2">
         <Label htmlFor="alert-client">Client</Label>
         <select id="alert-client" name="client" defaultValue={selected ?? ''} className={selectClass}>
           <option value="">All clients</option>
+          {missing && <option value={selected}>{selectedName || 'This client'}</option>}
           {clients.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.count})</option>)}
         </select>
       </div>
@@ -32,10 +37,10 @@ export function AlertFilter({ clients, selected }: { clients: AlertQueueClient[]
   );
 }
 
-/** Shown only when the queue was cut at the cap. */
-export function CapNotice({ capped }: { capped: boolean }) {
+/** Shown only when the queue was cut at the cap; with a client filter on, filtering further is not an option. */
+export function CapNotice({ capped, filtered = false }: { capped: boolean; filtered?: boolean }) {
   if (!capped) return null;
-  return <p role="status" className="text-sm text-ink">Showing the oldest 200 — filter by client to see more</p>;
+  return <p role="status" className="text-sm text-ink">{filtered ? 'Showing the oldest 200 for this client.' : 'Showing the oldest 200 — filter by client to see more'}</p>;
 }
 
 function Message({ state }: { state: FormResult }) {
@@ -78,13 +83,18 @@ function DismissDialog({ alertId, run, onOpen }: { alertId: string; run: RunActi
   );
 }
 
-/** "Waiting 3 days": how long it has sat in the queue. */
-function waiting(createdAt: string, now: Date, tz: string): string {
-  return `Waiting ${formatRelative(createdAt, now, { tz }).replace(/ ago$/, '')}`;
+const HOUR_MS = 3_600_000;
+/** "Waiting 3 hours" / "Waiting 2 days": how long it has sat in the queue, from elapsed hours (not a calendar date). */
+export function waiting(createdAt: string, now: Date): string {
+  const hours = Math.floor((now.getTime() - Date.parse(createdAt)) / HOUR_MS);
+  if (hours < 1) return 'Waiting under an hour';
+  if (hours < 24) return `Waiting ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+  const days = Math.floor(hours / 24);
+  return `Waiting ${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
 /** One alert waiting for review, or held for the 17:00 digest (read-only aside from Dismiss, since it was already approved). */
-function AlertCard({ alert, run, pending, assistantName, now, tz, onOpenDismiss }: { alert: AlertQueueRow; run: RunAction; pending: boolean; assistantName: string; now: Date; tz: string; onOpenDismiss: () => void }) {
+function AlertCard({ alert, run, pending, assistantName, now, onOpenDismiss }: { alert: AlertQueueRow; run: RunAction; pending: boolean; assistantName: string; now: Date; onOpenDismiss: () => void }) {
   const pendingReview = alert.status === 'pending_review';
   const status = labelFor(ALERT_STATUS, alert.status);
   return (
@@ -102,7 +112,7 @@ function AlertCard({ alert, run, pending, assistantName, now, tz, onOpenDismiss 
         <p className="my-1">{alert.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="rounded-sm bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
-          <span className="text-xs text-muted-foreground">{waiting(alert.createdAt, now, tz)}</span>
+          {pendingReview && <span className="text-xs text-muted-foreground">{waiting(alert.createdAt, now)}</span>}
           {pendingReview && <span className="text-xs text-muted-foreground">Expires if not reviewed within {EXPIRY_DAYS} days</span>}
         </div>
         {alert.written === 'template' && <p className="mt-2 text-muted-foreground">{assistantName} couldn’t verify its own wording, so this uses the evidence summary.</p>}
@@ -122,7 +132,7 @@ function AlertCard({ alert, run, pending, assistantName, now, tz, onOpenDismiss 
  * mounted: both actions revalidate the queue on success and remove the card, so state held in the card would vanish before
  * the outcome could paint. A refusal clears when the next dismiss dialog opens.
  */
-export function AlertList({ items, assistantName, tz = 'UTC', nowMs }: { items: AlertQueueRow[]; assistantName: string; tz?: string; nowMs?: number }) {
+export function AlertList({ items, assistantName, nowMs }: { items: AlertQueueRow[]; assistantName: string; nowMs?: number }) {
   const [result, setResult] = useState<FormResult>({ ok: true });
   const [pending, setPending] = useState(false);
   const now = new Date(nowMs ?? Date.now());
@@ -142,7 +152,7 @@ export function AlertList({ items, assistantName, tz = 'UTC', nowMs }: { items: 
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((item) => (
-            <AlertCard key={item.id} alert={item} run={run} pending={pending} assistantName={assistantName} now={now} tz={tz} onOpenDismiss={() => setResult({ ok: true })} />
+            <AlertCard key={item.id} alert={item} run={run} pending={pending} assistantName={assistantName} now={now} onOpenDismiss={() => setResult({ ok: true })} />
           ))}
         </div>
       )}

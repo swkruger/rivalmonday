@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./actions', () => ({ approveAlertAction: vi.fn(), dismissAlertAction: vi.fn() }));
 const { approveAlertAction, dismissAlertAction } = await import('./actions');
-const { AlertList, AlertFilter, CapNotice } = await import('./alert-controls');
+const { AlertList, AlertFilter, CapNotice, waiting } = await import('./alert-controls');
 const { HelpProvider } = await import('@/components/help/help-provider');
 /** The shell's help provider for agency staff: the empty state reads its copy from it (final review I1). */
 const asAgency = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } }}>{children}</HelpProvider>;
@@ -140,6 +140,21 @@ describe('AlertList', () => {
     expect(screen.getByText('Expires if not reviewed within 7 days')).toBeTruthy();
     expect(screen.getByText('Waiting for review')).toBeTruthy();
   });
+
+  it('waiting age counts elapsed hours and days, not calendar dates', () => {
+    const at = (iso: string) => new Date(iso);
+    expect(waiting('2026-10-01T00:00:00Z', at('2026-10-01T00:40:00Z'))).toBe('Waiting under an hour');
+    expect(waiting('2026-10-01T00:00:00Z', at('2026-10-01T01:10:00Z'))).toBe('Waiting 1 hour');
+    expect(waiting('2026-10-01T22:00:00Z', at('2026-10-02T01:00:00Z'))).toBe('Waiting 3 hours');
+    expect(waiting('2026-10-01T00:00:00Z', at('2026-10-02T05:00:00Z'))).toBe('Waiting 1 day');
+    expect(waiting('2026-10-01T00:00:00Z', at('2026-10-03T23:00:00Z'))).toBe('Waiting 2 days');
+  });
+
+  it('an approved alert held for the digest shows no waiting age', () => {
+    render(<AlertList items={[{ ...base, status: 'approved', heldForDigest: true }]} assistantName="Friday" nowMs={Date.parse('2026-10-04T00:00:00.000Z')} />);
+    expect(screen.queryByText(/^Waiting \d|^Waiting under/)).toBeNull();
+    expect(screen.queryByText(/Expires if not reviewed/)).toBeNull();
+  });
 });
 
 describe('alert filters', () => {
@@ -150,6 +165,19 @@ describe('alert filters', () => {
     expect(screen.queryByText(/Showing the oldest 200/)).toBeNull();
     rerender(<CapNotice capped />);
     expect(screen.getByText('Showing the oldest 200 — filter by client to see more')).toBeTruthy();
+    rerender(<CapNotice capped filtered />);
+    expect(screen.getByText('Showing the oldest 200 for this client.')).toBeTruthy();
+  });
+
+  it('a chosen client with nothing queued still shows as selected, never as All clients', () => {
+    const { unmount } = render(<AlertFilter clients={clients} selected="c9" />);
+    let select = screen.getByLabelText('Client') as HTMLSelectElement;
+    expect(select.value).toBe('c9');
+    expect(select.selectedOptions[0]!.textContent).toBe('This client');
+    unmount();
+    render(<AlertFilter clients={clients} selected="c9" selectedName="Zed Dental" />);
+    select = screen.getByLabelText('Client') as HTMLSelectElement;
+    expect(select.selectedOptions[0]!.textContent).toBe('Zed Dental');
   });
 
   it('select keeps the chosen client', () => {
