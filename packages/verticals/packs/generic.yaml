@@ -9,7 +9,7 @@ services:
 topics:
   - { id: response_time, name: Response time, description: How quickly the business answers, schedules and shows up }
   - { id: price_transparency, name: Price transparency, description: Clear quotes, no surprise or hidden fees }
-  - { id: technician_professionalism, name: Staff professionalism, description: Courtesy, expertise and conduct of the staff }
+  - { id: staff_professionalism, name: Staff professionalism, description: Courtesy, expertise and conduct of the staff }
   - { id: communication, name: Communication, description: Updates, explanations and follow-up }
   - { id: fix_quality, name: Quality of work, description: Problem solved the first time, no repeat visits }
 
