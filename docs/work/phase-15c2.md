@@ -1,16 +1,16 @@
 # phase-15c2 — page fixes + small features (15c spec §4)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c2   **Base:** main @ bf4ce990
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2 (C1-C11), §4; plan *to be written*. Inputs: [UX audit](../research/2026-10-18-phase-15-ux-audit.md), pre-split brief `git show 9ddfae3c:docs/work/phase-15c.md` §1 (per-area list).
+**Plan/spec:** [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) (D1-D8); [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2 (C1-C11), §4; plan *to be written*. Inputs: [UX audit](../research/2026-10-18-phase-15-ux-audit.md), pre-split brief `git show 9ddfae3c:docs/work/phase-15c.md` §1 (per-area list).
 
 ## Status (overwrite)
-Kicked off 2026-10-23; brief below. No code.
+Brainstormed 2026-10-23; spec written + builder-checked, awaiting owner approval. No code.
 
 ## Next (overwrite)
-Owner answers Brief §6 → brainstorming → mockups (C10: sheet, tabs, intake preview, page diff) → lean plan(s).
+Owner approves spec → mockups (C10: sheet, tabs, intake preview, page diff) → lean plan 15c-2a, then 15c-2b.
 
 ## Interfaces this branch adds or changes
-TBD. Spec §4 tools: `delete_ask_thread`, `delete_webhook`, `test_webhook`, `resend_invitation`, `compare_captures`; `list_platform_agencies.query`, `list_alert_queue.clientId`; `components/list-detail.tsx`; route `/agency/settings/intake/preview` (help key `page:agency.settings.intake.preview`). Migration only if Q3 picks soft delete (next free **0085**).
+Spec §3, §6, §7: `delete_ask_thread` (replaces `delete_my_ask_thread`), `ask_thread.deleted_at` (next free migration, 0085 today), `delete_webhook`, `test_webhook`, `resend_invitation` + `resendInvitation` in `access/team.ts`, `team_invite` email, `rm_pending_email` cookie, `list_platform_agencies.query`, `list_alert_queue.clientId`/`capped`, paging on `list_pool_leads`/`list_decision_reviews`, `compare_captures`, `components/list-detail.tsx`, route `/agency/settings/intake/preview`, `IntakeLanding.preview`, grep gates (spec §5).
 
 ## Assumes from other branches
 - **phase-15b3b** (unstarted): renames `/platform/themes`→`/platform/topics`, `theme-queue.tsx`, `components/charts/theme-heatmap.tsx`, `?theme=` on `c/[clientId]/reviews/page.tsx`, help key `page:platform.themes`, `get_theme_benchmark`, `search_reviews.themeId`. Our tasks on these files go last (C7); second to merge rebases.
@@ -19,7 +19,7 @@ TBD. Spec §4 tools: `delete_ask_thread`, `delete_webhook`, `test_webhook`, `res
 - **phase-7-planning** (docs only, 1 file): no code overlap. Its 7b UI (cap notices, usage page) builds on our chips/labels; 7b2 touches billing pages after 15c-3.
 
 ## Decisions (owner-approved)
-None new yet; C1-C11 + 15c-1 rulings R1 etc. bind (Brief §3).
+Spec D1-D8 (2026-10-23): two plans by area (2a platform/agency/account, 2b client); parallel with 15b-3b, theme tasks last; Ask soft delete; sweep every page + grep gates; fold Polish on touched pages; no TzCookie reload; `team_invite` email for agency invites; deleted Ask threads keep the 6b `askReviewAllowed` rule.
 
 ## New backlog (target → item)
 None yet.
