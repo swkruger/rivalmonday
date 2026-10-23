@@ -1,6 +1,6 @@
 'use client';
 import type { BriefItemView } from '@cs/tools';
-import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Switch } from '@cs/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, Switch } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
@@ -128,22 +128,29 @@ function MoveButtons({ briefId, item, first, last }: { briefId: string; item: Br
 }
 
 function RateButtons({ item }: { item: BriefItemView }) {
-  const [usefulState, usefulAction, usefulPending] = useActionState(rateItemAction, { ok: true } as FormResult);
-  const [notUsefulState, notUsefulAction, notUsefulPending] = useActionState(rateItemAction, { ok: true } as FormResult);
+  // The server keeps no per-item rating to read back, so the pressed state is the last rating saved from this page.
+  const [rated, setRated] = useState<'useful' | 'not_useful' | null>(null);
+  const rate = (verdict: 'useful' | 'not_useful') => async (prev: FormResult, fd: FormData): Promise<FormResult> => {
+    const result = await rateItemAction(prev, fd);
+    if (result.ok) setRated(verdict);
+    return result;
+  };
+  const [usefulState, usefulAction, usefulPending] = useActionState(rate('useful'), { ok: true } as FormResult);
+  const [notUsefulState, notUsefulAction, notUsefulPending] = useActionState(rate('not_useful'), { ok: true } as FormResult);
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <form action={usefulAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <input type="hidden" name="useful" value="true" />
-          <Button type="submit" variant="outline" size="sm" aria-label="Useful" disabled={usefulPending}>
+          <Button type="submit" variant={rated === 'useful' ? 'secondary' : 'outline'} size="sm" aria-label="Useful" aria-pressed={rated === 'useful'} disabled={usefulPending}>
             Useful
           </Button>
         </form>
         <form action={notUsefulAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <input type="hidden" name="useful" value="false" />
-          <Button type="submit" variant="outline" size="sm" aria-label="Not useful" disabled={notUsefulPending}>
+          <Button type="submit" variant={rated === 'not_useful' ? 'secondary' : 'outline'} size="sm" aria-label="Not useful" aria-pressed={rated === 'not_useful'} disabled={notUsefulPending}>
             Not useful
           </Button>
         </form>
@@ -177,7 +184,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
         {item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
-        {dropped && <Badge variant="outline">Dropped</Badge>}
+        {dropped && <StatusChip tone="neutral">Dropped</StatusChip>}
         <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{confidenceLabel(item.confidence).text}</span>
       </div>
       <WriteGuard>
@@ -206,7 +213,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
  * disables the switch and is checked before starting a new transition, so a toggle mid-flight is ignored rather
  * than queued.
  */
-function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clientId: string; autoSend: boolean }) {
+function AutoSendSwitch({ briefId, clientId, autoSend, sendTime }: { briefId: string; clientId: string; autoSend: boolean; sendTime: string }) {
   const [checked, setChecked] = useOptimistic(autoSend);
   const [result, setResult] = useState<FormResult>({ ok: true });
   const [isPending, startTransition] = useTransition();
@@ -216,7 +223,7 @@ function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clie
         <Switch
           checked={checked}
           disabled={isPending}
-          aria-label="Send untouched briefs automatically on Monday 07:00"
+          aria-label={`Send untouched briefs automatically on ${sendTime}`}
           onCheckedChange={(next: boolean) => {
             if (isPending) return;
             startTransition(async () => {
@@ -229,7 +236,7 @@ function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clie
             });
           }}
         />
-        <span className="text-sm">Send untouched briefs automatically on Monday 07:00</span>
+        <span className="text-sm">Send untouched briefs automatically on {sendTime}</span>
       </div>
       <Message state={result} />
     </div>
@@ -241,13 +248,13 @@ function AutoSendSwitch({ briefId, clientId, autoSend }: { briefId: string; clie
  * Both actions revalidate the page on success, which flips `status` (`ready` -> `approved`, or -> `sent`) and
  * unmounts the button or dialog in the same update; state held there would vanish before its message could paint.
  */
-function ApproveButton({ briefId, startingPoint, formAction, pending }: { briefId: string; startingPoint: boolean; formAction: (fd: FormData) => void; pending: boolean }) {
+function ApproveButton({ briefId, startingPoint, sendTime, formAction, pending }: { briefId: string; startingPoint: boolean; sendTime: string; formAction: (fd: FormData) => void; pending: boolean }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="briefId" value={briefId} />
       {startingPoint && <input type="hidden" name="kind" value="starting_point" />}
       <Button type="submit" disabled={pending}>
-        {startingPoint ? 'Approve and send' : 'Approve · send Mon 07:00'}
+        {startingPoint ? 'Approve and send' : `Approve · send ${sendTime}`}
       </Button>
     </form>
   );
@@ -285,7 +292,7 @@ function SendNowDialog({ briefId, state, formAction, pending }: { briefId: strin
  * that one shows only while the brief can still be sent, so approve → send now leaves just the send message.
  */
 /** A starting point (12b) is sent on approval, so it has no auto-send switch. */
-export function ReviewFooter({ briefId, clientId, status, autoSend, startingPoint = false }: { briefId: string; clientId: string; status: string; autoSend: boolean; startingPoint?: boolean }) {
+export function ReviewFooter({ briefId, clientId, status, autoSend, sendTime, startingPoint = false }: { briefId: string; clientId: string; status: string; autoSend: boolean; sendTime: string; startingPoint?: boolean }) {
   const [approveState, approveFormAction, approvePending] = useActionState(approveAction, { ok: true } as FormResult);
   const [sendState, sendFormAction, sendPending] = useActionState(sendNowAction, { ok: true } as FormResult);
   const canSend = status === 'ready' || status === 'approved';
@@ -293,9 +300,9 @@ export function ReviewFooter({ briefId, clientId, status, autoSend, startingPoin
     <WriteGuard>
       <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
         <div className="flex flex-wrap items-center gap-4">
-          {!startingPoint && <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} />}
+          {!startingPoint && <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} sendTime={sendTime} />}
           <div className="ml-auto flex items-center gap-3">
-            {status === 'ready' && <ApproveButton briefId={briefId} startingPoint={startingPoint} formAction={approveFormAction} pending={approvePending} />}
+            {status === 'ready' && <ApproveButton briefId={briefId} startingPoint={startingPoint} sendTime={sendTime} formAction={approveFormAction} pending={approvePending} />}
             {canSend && <SendNowDialog briefId={briefId} state={sendState} formAction={sendFormAction} pending={sendPending} />}
           </div>
         </div>

@@ -40,7 +40,8 @@ describe('brief queue', () => {
   });
 
   it('get_brief_review carries fact-check counts and the agency-only upsell tag', async () => {
-    const r = (await registry.invoke(am, 'get_brief_review', { briefId })) as { factCheck: unknown; items: { upsellTag: string | null }[]; clientName: string };
+    const r = (await registry.invoke(am, 'get_brief_review', { briefId })) as { factCheck: unknown; items: { upsellTag: string | null }[]; clientName: string; clientTimezone: string };
+    expect(r.clientTimezone).toMatch(/^[A-Za-z]+\/|^UTC$/);
     expect(r.factCheck).toEqual({ items: 1, sentences: 2 });
     expect(r.items[0]!.upsellTag).toBe('ppc');
     await expect(registry.invoke(amA2, 'get_brief_review', { briefId })).rejects.toMatchObject({ code: 'not_found' });

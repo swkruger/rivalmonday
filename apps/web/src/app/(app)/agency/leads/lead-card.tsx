@@ -1,8 +1,10 @@
 'use client';
-import { Badge, Button, Card, CardContent } from '@cs/ui';
+import { Button, Card, CardContent, StatusChip } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { NewBusinessType, type VerticalActions, useVerticalChoice } from '@/components/new-business-type';
 import { WriteGuard } from '@/components/read-only';
+import { formatDate } from '@/lib/format';
+import { LEAD_STATUS, labelFor } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
 import { acceptLeadAction, declineLeadAction } from './actions';
@@ -106,9 +108,11 @@ function DeclineForm({ lead, onCancel }: { lead: LeadView; onCancel: () => void 
   );
 }
 
-export function LeadCard({ lead, verticals, verticalActions }: { lead: LeadView; verticals: VerticalOption[]; verticalActions?: VerticalActions }) {
+/** `tz` is the viewer's zone and `nowMs` the page's clock (so the year shown agrees between server and browser). */
+export function LeadCard({ lead, verticals, verticalActions, tz = 'UTC', nowMs }: { lead: LeadView; verticals: VerticalOption[]; verticalActions?: VerticalActions; tz?: string; nowMs?: number }) {
   const [mode, setMode] = useState<'accept' | 'decline' | null>(null);
-  const date = new Date(lead.when).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const date = formatDate(lead.when, { tz, ...(nowMs !== undefined ? { now: new Date(nowMs) } : {}) });
+  const status = labelFor(LEAD_STATUS, lead.status);
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 pt-6">
@@ -118,7 +122,8 @@ export function LeadCard({ lead, verticals, verticalActions }: { lead: LeadView;
             {lead.address && <p className="text-sm text-muted-foreground">{lead.address}</p>}
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{sourceLabel(lead.source)}</Badge>
+            <StatusChip tone={status.tone}>{status.label}</StatusChip>
+            <span className="text-xs text-muted-foreground">{sourceLabel(lead.source)}</span>
             <span className="text-xs text-muted-foreground">{date}</span>
           </div>
         </div>

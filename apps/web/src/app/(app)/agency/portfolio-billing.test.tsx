@@ -15,6 +15,7 @@ const callTool = vi.fn(async (_ctx: unknown, name: string): Promise<unknown> => 
 });
 const tryCallTool = vi.fn(async (c: unknown, name: string): Promise<unknown> => callTool(c, name));
 vi.mock('@/server/tools', () => ({ callTool, tryCallTool }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & plumbing', services: [] }] }));
 vi.mock('../onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: createAccessContext({ agencyId: A, userId: 'u', role: state.role, clientScope: 'all', features: ['dashboard'] as never }) }) }));
@@ -96,5 +97,25 @@ describe('onboarding checklist on the portfolio', () => {
     render(await Page());
     expect(screen.getByText('Getting started')).toBeTruthy();
     expect(screen.queryByText('Add a payment method')).toBeNull();
+  });
+});
+
+describe('portfolio tiles and approve link (15c-2a)', () => {
+  it('portfolio approve link says "Week of Oct 12"', async () => {
+    state.role = 'agency_admin';
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_portfolio') return { items: [{ ...row, briefToApprove: { id: 'b1', deliveryDate: '2026-10-12' } }] };
+      if (name === 'get_onboarding_status') return { steps: {}, dismissed: false, completed: true };
+      return { clients: [] };
+    });
+    render(await Page());
+    expect(screen.getAllByText('Week of Oct 12').length).toBeGreaterThan(0);
+    expect(screen.queryByText('2026-10-12')).toBeNull();
+  });
+  it('the KPI tiles are h2 headings and the linked ones are links with an arrow', async () => {
+    state.role = 'agency_admin';
+    render(await Page());
+    expect(screen.getByRole('heading', { level: 2, name: 'Alerts waiting' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Briefs to approve/ }).getAttribute('href')).toBe('/agency/approvals');
   });
 });

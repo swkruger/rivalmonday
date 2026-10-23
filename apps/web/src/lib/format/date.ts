@@ -59,6 +59,11 @@ function zoneName(at: Date, tz: string): string {
   return generic.includes(' ') || generic.startsWith('GMT') ? name('short') : generic;
 }
 
+/** "CT"/"ET"/"UTC": the short generic name of `tz` at `at` (an unknown zone reads as UTC). */
+export function zoneLabel(tz: string, at: Date = new Date()): string {
+  return zoneName(at, zoneOf(tz, false));
+}
+
 /** Server-safe relative time: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", then a date in `o.tz` (UTC by default); future: "in 3 days". */
 export function formatRelative(v: string | Date, now: Date = new Date(), o: { tz?: string } = {}): string {
   const p = parse(v);

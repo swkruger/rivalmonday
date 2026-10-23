@@ -49,3 +49,11 @@ describe('LeadCard', () => {
     expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
   });
 });
+
+describe('LeadCard status and date (15c-2a)', () => {
+  it('shows the lead status as a labelled chip and the date in the viewer zone', () => {
+    render(<LeadCard lead={lead({ when: '2026-10-01T02:00:00.000Z' })} verticals={verticals} tz="America/Chicago" nowMs={Date.parse('2026-10-20T00:00:00Z')} />);
+    expect(screen.getByText('Verified')).toBeTruthy();
+    expect(screen.getByText('Sep 30')).toBeTruthy();
+  });
+});

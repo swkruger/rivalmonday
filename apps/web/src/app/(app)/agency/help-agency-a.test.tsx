@@ -48,7 +48,7 @@ vi.mock('next/navigation', () => ({
 
 const BRIEF = {
   id: 'b1', clientId: C, clientName: 'Lone Star Cooling', kind: 'weekly', deliveryDate: '2026-10-26', status: 'ready', summary: 'A quiet-ish week.', items: [], scorecard: null,
-  autoSend: false, touched: false, factCheck: { sentences: 0, items: 0 },
+  autoSend: false, clientTimezone: 'America/Chicago', touched: false, factCheck: { sentences: 0, items: 0 },
 };
 const PROFILE = { id: C, name: 'Lone Star Cooling', status: 'prospect', keywords: [], serviceArea: null };
 const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>) => {
@@ -204,14 +204,14 @@ describe('agency batch A: Approvals and the brief review', () => {
     await show('agency.approvals');
     expect(screen.getByText(/Sunny drafts each client's brief on Thursday night/)).toBeTruthy();
     expect(screen.getByText(/Monday 07:00/, { selector: 'p' })).toBeTruthy();
-    expect(screen.getByText('Nothing to review this week')).toBeTruthy();
+    expect(screen.getByText('No briefs this week')).toBeTruthy();
   });
 
   it('Approvals: the status and items tips appear once there is a brief; the status tip uses the page labels', async () => {
     m.queue = [{ briefId: 'b1', clientName: 'Lone Star Cooling', deliveryDate: '2026-10-26', status: 'ready', kind: 'weekly', activeItems: 3, droppedItems: 1, touched: false, autoSend: false }];
     await show('agency.approvals');
     const s = open('Status');
-    for (const w of ['Needs review', 'Approved', 'Sent', 'Drafting', 'Failed — retrying']) expect(s, w).toContain(w);
+    for (const w of ['Ready for review', 'Approved', 'Sent', 'Drafting', 'Failed — retrying']) expect(s, w).toContain(w);
     expect(hasTip('Items and badges')).toBe(true);
   });
 

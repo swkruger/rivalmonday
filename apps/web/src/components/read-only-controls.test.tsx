@@ -105,7 +105,7 @@ describe('write controls hide in a support session', () => {
     const { container } = inReadOnly(
       <>
         <ReviewItem briefId="b1" clientId="c1" item={item} editable first last />
-        <ReviewFooter briefId="b1" clientId="c1" status="ready" autoSend={false} />
+        <ReviewFooter briefId="b1" clientId="c1" status="ready" autoSend={false} sendTime="Monday 7:00 AM CT" />
       </>,
     );
     expect(screen.getByText('Smith cut prices')).toBeTruthy();

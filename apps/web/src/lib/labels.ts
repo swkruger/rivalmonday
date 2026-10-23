@@ -1,5 +1,5 @@
 import type { Role } from '@cs/core';
-import type { AlertStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AlertStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
 
@@ -78,6 +78,15 @@ export const REPORT_STATUS: LabelMap<TrendReportStatus | ProspectReportStatus> =
   ready: e('Ready', 'success'),
   sent: e('Sent', 'success'),
   failed: e('Failed', 'danger'),
+};
+
+// BriefStatus (packages/db/src/schema/briefs.ts); the approvals queue and the review page
+export const BRIEF_STATUS: LabelMap<BriefStatus> = {
+  generating: e('Drafting', 'info'),
+  ready: e('Ready for review', 'warning'),
+  approved: e('Approved', 'success'),
+  sent: e('Sent', 'success'),
+  failed: e('Failed — retrying', 'danger'),
 };
 
 // ask message status (packages/db/src/schema/ask.ts $type)

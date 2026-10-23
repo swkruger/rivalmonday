@@ -9,6 +9,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { verticalOptions } from '@/server/verticals';
 import { createVerticalAction, draftVerticalAction } from '../clients/new/vertical-actions';
 import { LeadCard, type LeadPreview, type LeadView } from './lead-card';
@@ -53,6 +54,7 @@ const EMPTY: Record<(typeof TABS)[number]['key'], { title: string; body: string 
   declined: COPY.empty.declined,
 };
 
+// format-gate: serialises an instant for the client component, which formats it (never shown as text)
 const iso = (d: Date | string | null): string => (d ? new Date(d).toISOString() : new Date(0).toISOString());
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -63,10 +65,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const tabKey = one((await searchParams).tab);
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
   // One status-filtered read per tab (a single unfiltered list would drop older New leads past the tool's cap while the badge counts them).
+  const tz = await viewerTimeZone();
   const [guides, lists] = await Promise.all([helpGuides(ctx, 'agency'), Promise.all(TABS.map((t) => callTool<{ leads: Summary[] }>(ctx, 'list_leads', { status: t.status })))]);
   const counts = Object.fromEntries(TABS.map((t, i) => [t.status, lists[i]!.leads.length])) as Record<Status, number>;
   const shown = lists[TABS.indexOf(tab)]!.leads;
   const verticals = await verticalOptions();
+  const nowMs = Date.now();
   const views: LeadView[] = shown.map((l) => ({
     id: l.id, source: l.source, status: l.status, ref: l.ref, businessName: l.businessName, address: l.address, contactName: l.contactName,
     email: l.email, phone: l.phone, message: l.message, preview: l.preview, clientId: l.clientId,
@@ -108,7 +112,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       ) : (
         <div className="flex flex-col gap-4">
           {views.map((v) => (
-            <LeadCard key={v.id} lead={v} verticals={verticals} verticalActions={{ draft: draftVerticalAction, create: createVerticalAction }} />
+            <LeadCard key={v.id} lead={v} tz={tz} nowMs={nowMs} verticals={verticals} verticalActions={{ draft: draftVerticalAction, create: createVerticalAction }} />
           ))}
         </div>
       )}

@@ -1,4 +1,4 @@
-import { formatRelative } from '@/lib/format';
+import { formatRelative, formatWeekOf } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { PortfolioRow } from '@cs/tools';
 import { Button, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
@@ -16,10 +16,12 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { verticalOptions } from '@/server/verticals';
 
 export const metadata = { title: 'Portfolio' };
@@ -59,6 +61,7 @@ export default async function AgencyPortfolioPage() {
   const trialing = billingSummary?.state === 'trialing';
   const billingRole = ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager';
   const now = new Date();
+  const tz = await viewerTimeZone();
   const canAddClient = ctx.clientScope === 'all';
   const verticalLabels = new Map((await verticalOptions()).map((v) => [v.id, v.name]));
   const rows = sortRows(items);
@@ -87,22 +90,10 @@ export default async function AgencyPortfolioPage() {
       {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
-        <div className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">
-          <h3 className="text-sm font-semibold">Clients</h3>
-          <div className="mt-1 text-[28px] font-extrabold tracking-tight text-secondary sm:mt-2 sm:text-[34px]">{items.length}</div>
-        </div>
-        <Link href="/agency/alerts" className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">
-          <h3 className="text-sm font-semibold">Alerts waiting</h3>
-          <div className="mt-1 text-[28px] font-extrabold tracking-tight text-secondary sm:mt-2 sm:text-[34px]">{alertsWaiting}</div>
-        </Link>
-        <Link href="/agency/approvals" className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">
-          <h3 className="text-sm font-semibold">Briefs to approve</h3>
-          <div className="mt-1 text-[28px] font-extrabold tracking-tight text-secondary sm:mt-2 sm:text-[34px]">{briefsToApprove}</div>
-        </Link>
-        <div className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">
-          <h3 className="text-sm font-semibold">High pressure</h3>
-          <div className="mt-1 text-[28px] font-extrabold tracking-tight text-secondary sm:mt-2 sm:text-[34px]">{highPressure}</div>
-        </div>
+        <StatCard title="Clients" value={String(items.length)} />
+        <StatCard title="Alerts waiting" value={String(alertsWaiting)} href="/agency/alerts" />
+        <StatCard title="Briefs to approve" value={String(briefsToApprove)} href="/agency/approvals" />
+        <StatCard title="High pressure" value={String(highPressure)} />
       </div>
 
       {items.length === 0 ? (
@@ -140,7 +131,7 @@ export default async function AgencyPortfolioPage() {
                     <Field label="Alerts"><Alerts row={row} /></Field>
                     <Field label="Brief"><Brief row={row} /></Field>
                     <Field label="Open actions"><OpenActions row={row} /></Field>
-                    <Field label="Last activity">{row.lastActivityAt ? formatRelative(row.lastActivityAt, now) : 'No activity yet'}</Field>
+                    <Field label="Last activity">{row.lastActivityAt ? formatRelative(row.lastActivityAt, now, { tz }) : 'No activity yet'}</Field>
                     <Field label="Billing"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></Field>
                   </dl>
                 </li>
@@ -169,7 +160,7 @@ export default async function AgencyPortfolioPage() {
                       <TableCell><Alerts row={row} /></TableCell>
                       <TableCell className="whitespace-normal"><Brief row={row} /></TableCell>
                       <TableCell><OpenActions row={row} /></TableCell>
-                      <TableCell>{row.lastActivityAt ? formatRelative(row.lastActivityAt, now) : 'No activity yet'}</TableCell>
+                      <TableCell>{row.lastActivityAt ? formatRelative(row.lastActivityAt, now, { tz }) : 'No activity yet'}</TableCell>
                       <TableCell className="whitespace-normal"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></TableCell>
                     </TableRow>
                   ))}
@@ -250,7 +241,7 @@ function Alerts({ row }: { row: PortfolioRow }) {
 function Brief({ row }: { row: PortfolioRow }) {
   return row.briefToApprove ? (
     <Link href={`/agency/approvals/${row.briefToApprove.id}`} className="font-semibold text-primary-soft-text">
-      Approve week of <span className="whitespace-nowrap">{row.briefToApprove.deliveryDate}</span>
+      Approve <span className="whitespace-nowrap">{formatWeekOf(row.briefToApprove.deliveryDate, { tz: 'UTC' })}</span>
     </Link>
   ) : (
     '—'

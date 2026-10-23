@@ -69,10 +69,10 @@ export const AGENCY_COPY = {
     // source: packages/engine/src/briefs/schedule.ts:BRIEF_LOCAL_WEEKDAY (Thursday, client time); apps/web/src/app/(app)/agency/approvals/[briefId]/review-controls.tsx:AutoSendSwitch (Monday 07:00)
     description: "{assistant} drafts each client's brief on Thursday night, in the client's time zone. Review and approve it for Monday 07:00. Clients set to auto-send get untouched briefs then without your approval.",
     tips: {
-      // source: apps/web/src/app/(app)/agency/approvals/status.ts:STATUS_LABEL
+      // source: apps/web/src/lib/labels.ts:BRIEF_STATUS
       status: {
         title: 'Status',
-        body: 'Needs review: drafted and waiting for you. Approved: it goes out Monday 07:00. Sent: delivered to the client. Drafting: still being written. Failed — retrying: the draft failed and will run again.',
+        body: 'Ready for review: drafted and waiting for you. Approved: it goes out Monday 07:00. Sent: delivered to the client. Drafting: still being written. Failed — retrying: the draft failed and will run again.',
       },
       // source: packages/tools/src/tools/review.ts:listBriefQueue (activeItems, droppedItems, touched, autoSend, kind quiet)
       items: {
@@ -81,7 +81,8 @@ export const AGENCY_COPY = {
       },
     },
     empty: {
-      noBriefs: { title: 'Nothing to review this week', body: "Each client's brief appears here after {assistant} drafts it on Thursday night. Open it to check every item against its evidence, then approve it." },
+      noBriefs: { title: 'No briefs this week', body: "Each client's brief appears here after {assistant} drafts it on Thursday night. Open it to check every item against its evidence, then approve it." },
+      nothingWaiting: { title: 'Nothing is waiting for your review', body: 'Nothing below needs a decision from you right now.' },
     },
   },
   'agency.approvals.detail': {

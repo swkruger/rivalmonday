@@ -92,3 +92,21 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | Status chip | Waiting for review / Approved (ALERT_STATUS) plus "Held for the 17:00 digest" |
 | Dismiss dialog | Title "Dismiss this alert?"; body "Nothing is sent to the client." + field "Reason" (required, up to 500); buttons Cancel / Dismiss |
 | Page description (added sentence) | ...The list shows the oldest 200; filter by client to see more. |
+
+### Agency > Portfolio, Approvals, Prospects, Leads (T8)
+| Where | Copy |
+|---|---|
+| Portfolio approve link | Approve Week of Oct 12 (was the ISO date) |
+| Pause dialog (client billing / client profile) | Title "Pause billing for {client}?"; body "{client} stops getting new checks, briefs and alerts, no longer takes a seat, and billing for it pauses. Everything collected so far stays, and you can resume any time."; buttons Cancel / Pause |
+| Resume dialog | Title "Resume {client}?"; body "Weekly checks, briefs and alerts start again for {client}, and it takes a seat. Resuming is refused if it would put you over your client limit."; buttons Cancel / Resume |
+| Billing pill | Chip with the same words (Paused / Payment needed / Invited / Paying / Off) |
+| Brief status (BRIEF_STATUS) | Drafting / Ready for review (was "Needs review") / Approved / Sent / Failed — retrying; the Status tip uses the same words |
+| Approvals empty, nothing at all | "No briefs this week" (was "Nothing to review this week"); body unchanged |
+| Approvals, briefs exist but none ready | "Nothing is waiting for your review. Nothing below needs a decision from you right now." |
+| Approvals columns | Week column reads "Week of Oct 12"; last (flag) column named "Actions" for screen readers |
+| Brief review title | "{client} · Week of Oct 26" |
+| Send time | Approve button "Approve · send Monday 7:00 AM CT"; switch "Send untouched briefs automatically on Monday 7:00 AM CT" (zone = the client's) |
+| Rating buttons | Useful / Not useful, announced as pressed once saved |
+| Prospects | "Ready" / "Needs setup" chips; snapshot chip Preparing / Ready / Sent / Failed (REPORT_STATUS) |
+| Leads | Chip with the lead status (Verified / Accepted / Declined); date "Oct 1" in your time zone |
+| KPI tiles | Same titles; "Alerts waiting" and "Briefs to approve" are links with an arrow |

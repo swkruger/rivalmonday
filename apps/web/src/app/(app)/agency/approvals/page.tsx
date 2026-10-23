@@ -1,17 +1,18 @@
 import { isAgencyRole } from '@cs/core';
 import type { BriefQueueRow } from '@cs/tools';
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { formatWeekOf } from '@/lib/format';
+import { BRIEF_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { STATUS_LABEL } from './status';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,9 @@ export default async function ApprovalsPage() {
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
+      {items.length > 0 && !items.some((r) => r.status === 'ready') && (
+        <p role="status" className="text-sm text-ink">{COPY.empty.nothingWaiting.title}. {COPY.empty.nothingWaiting.body}</p>
+      )}
       {items.length === 0 ? (
         <EmptyState title={COPY.empty.noBriefs.title} body={COPY.empty.noBriefs.body} guideAnchor="how-to-use-it" />
       ) : (
@@ -48,7 +52,7 @@ export default async function ApprovalsPage() {
               <TableHead>
                 <span className="inline-flex items-center gap-1.5">Items <HelpTip tip="agency.approvals.items" /></span>
               </TableHead>
-              <TableHead />
+              <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -59,11 +63,11 @@ export default async function ApprovalsPage() {
                     {row.clientName}
                   </Link>
                 </TableCell>
-                <TableCell>{row.deliveryDate}</TableCell>
+                <TableCell>{formatWeekOf(row.deliveryDate, { tz: 'UTC' })}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="secondary">{STATUS_LABEL[row.status] ?? row.status}</Badge>
-                    {row.kind === 'quiet' && <Badge variant="outline">Quiet week</Badge>}
+                    <StatusChip tone={labelFor(BRIEF_STATUS, row.status).tone}>{labelFor(BRIEF_STATUS, row.status).label}</StatusChip>
+                    {row.kind === 'quiet' && <StatusChip tone="neutral">Quiet week</StatusChip>}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -71,8 +75,8 @@ export default async function ApprovalsPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1.5">
-                    {row.touched && <Badge variant="outline">Edited</Badge>}
-                    {row.autoSend && <Badge variant="outline">Auto-send</Badge>}
+                    {row.touched && <StatusChip tone="neutral">Edited</StatusChip>}
+                    {row.autoSend && <StatusChip tone="neutral">Auto-send</StatusChip>}
                   </div>
                 </TableCell>
               </TableRow>

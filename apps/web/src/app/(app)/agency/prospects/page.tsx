@@ -1,7 +1,7 @@
 import { formatRelative } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { ProspectRow } from '@cs/tools';
-import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -9,10 +9,12 @@ import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { WriteGuard } from '@/components/read-only';
 import { PageHeader } from '@/components/page-header';
+import { REPORT_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +30,7 @@ function isReady(row: ProspectRow): boolean {
 export default async function ProspectsPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ items }, guides] = await Promise.all([callTool<{ items: ProspectRow[] }>(ctx, 'list_prospects', {}), helpGuides(ctx, 'agency')]);
+  const [{ items }, guides, tz] = await Promise.all([callTool<{ items: ProspectRow[] }>(ctx, 'list_prospects', {}), helpGuides(ctx, 'agency'), viewerTimeZone()]);
   const now = new Date();
   const canAdd = ctx.clientScope === 'all';
 
@@ -91,9 +93,9 @@ export default async function ProspectsPage() {
                   </Link>
                 </TableCell>
                 <TableCell>{row.competitors}</TableCell>
-                <TableCell>{isReady(row) ? '✓' : 'needs setup'}</TableCell>
-                <TableCell>{row.report ? <Badge variant={row.report.status === 'ready' ? 'secondary' : row.report.status === 'failed' ? 'destructive' : 'outline'}>{row.report.status}</Badge> : '—'}</TableCell>
-                <TableCell>{formatRelative(row.createdAt, now)}</TableCell>
+                <TableCell>{isReady(row) ? <StatusChip tone="success">Ready</StatusChip> : <StatusChip tone="warning">Needs setup</StatusChip>}</TableCell>
+                <TableCell>{row.report ? <StatusChip tone={labelFor(REPORT_STATUS, row.report.status).tone}>{labelFor(REPORT_STATUS, row.report.status).label}</StatusChip> : '—'}</TableCell>
+                <TableCell>{formatRelative(row.createdAt, now, { tz })}</TableCell>
               </TableRow>
             ))}
           </TableBody>

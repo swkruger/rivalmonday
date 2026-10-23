@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as Record<string, unknown>, runTool: vi.fn() }));
@@ -114,5 +114,28 @@ describe('clientBillingAction', () => {
   it('rejects an unknown intent and a non-uuid client', async () => {
     expect((await clientBillingAction({ ok: true }, fd({ intent: 'x', clientId: C }))).ok).toBe(false);
     expect((await clientBillingAction({ ok: true }, fd({ intent: 'pause', clientId: 'nope' }))).ok).toBe(false);
+  });
+});
+
+describe('Pause and Resume (15c-2a)', () => {
+  it('billing pause needs confirm', async () => {
+    render(<ClientBillingControls {...base} role="agency_admin" pill={{ key: 'paying', label: 'Paying' }} billing={billing('active')} />);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(screen.getByText('Pause billing for Target Plumbing?')).toBeTruthy();
+    expect(m.runTool).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pause' }).at(-1)!);
+    await waitFor(() => expect(m.runTool).toHaveBeenLastCalledWith(m.ctx, 'pause_client', { clientId: C }));
+  });
+  it('resume asks too, naming the client', () => {
+    render(<ClientBillingControls {...base} role="account_manager" pill={{ key: 'paused', label: 'Paused' }} billing={billing('active')} />);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(screen.getByText('Resume Target Plumbing?')).toBeTruthy();
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+  it('the pill is a labelled chip', () => {
+    render(<ClientBillingPill pill={{ key: 'payment_needed', label: 'Payment needed' } as never} />);
+    expect(screen.getByText('Payment needed')).toBeTruthy();
   });
 });

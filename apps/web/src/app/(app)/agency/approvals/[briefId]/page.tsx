@@ -1,7 +1,7 @@
 import { isAgencyRole } from '@cs/core';
 import { scorecardModel } from '@cs/engine';
 import type { BriefReview } from '@cs/tools';
-import { Badge } from '@cs/ui';
+import { StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -9,13 +9,15 @@ import { cache } from 'react';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { formatWeekOf } from '@/lib/format';
+import { BRIEF_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { Scorecard } from '@/components/views/scorecard';
 import { ReviewFooter, ReviewItem } from './review-controls';
-import { STATUS_LABEL } from '../status';
+import { mondaySendTime } from './send-time';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +31,7 @@ const loadBrief = cache(async (briefId: string) => {
   return callTool<BriefReview>(ctx, 'get_brief_review', { briefId });
 });
 
-const titleOf = (brief: BriefReview) => `${brief.clientName} · ${brief.kind === 'starting_point' ? 'Starting point' : `week of ${brief.deliveryDate}`}`;
+const titleOf = (brief: BriefReview) => `${brief.clientName} · ${brief.kind === 'starting_point' ? 'Starting point' : formatWeekOf(brief.deliveryDate, { tz: 'UTC' })}`;
 
 export async function generateMetadata({ params }: { params: Promise<{ briefId: string }> }): Promise<Metadata> {
   return { title: titleOf(await loadBrief((await params).briefId)) };
@@ -57,7 +59,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         guide={guides.has(HELP_KEY)}
         actions={
           <>
-            <Badge variant="secondary">{STATUS_LABEL[brief.status] ?? brief.status}</Badge>
+            <StatusChip tone={labelFor(BRIEF_STATUS, brief.status).tone}>{labelFor(BRIEF_STATUS, brief.status).label}</StatusChip>
             <Link href={`/c/${brief.clientId}/briefs/${brief.id}`} className="font-semibold text-primary-soft-text">
               Client view
             </Link>
@@ -104,7 +106,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         ))}
       </div>
 
-      <ReviewFooter briefId={brief.id} clientId={brief.clientId} status={brief.status} autoSend={brief.autoSend} startingPoint={startingPoint} />
+      <ReviewFooter briefId={brief.id} clientId={brief.clientId} status={brief.status} autoSend={brief.autoSend} startingPoint={startingPoint} sendTime={mondaySendTime(brief.clientTimezone)} />
     </>
   );
 }

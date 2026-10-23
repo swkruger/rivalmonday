@@ -65,7 +65,7 @@ export const BriefQueueRow = z.object({
   activeItems: z.number().int(), droppedItems: z.number().int(), touched: z.boolean(), autoSend: z.boolean(),
 });
 export type BriefQueueRow = z.infer<typeof BriefQueueRow>;
-export const BriefReview = BriefDetail.extend({ clientName: z.string(), autoSend: z.boolean(), touched: z.boolean(), factCheck: z.object({ items: z.number().int(), sentences: z.number().int() }) });
+export const BriefReview = BriefDetail.extend({ clientName: z.string(), clientTimezone: z.string(), autoSend: z.boolean(), touched: z.boolean(), factCheck: z.object({ items: z.number().int(), sentences: z.number().int() }) });
 export type BriefReview = z.infer<typeof BriefReview>;
 
 export const AlertSummary = z.object({

@@ -1,7 +1,7 @@
 'use client';
 import type { ClientBillingPill as PillData } from '@cs/billing';
-import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, Input, Label, StatusChip, type ChipTone } from '@cs/ui';
+import { useEffect, useRef, useState } from 'react';
 import { clientBillingAction } from '@/app/(app)/agency/settings/billing/client-billing/actions';
 import { centsToField } from '@/app/(app)/agency/settings/billing/client-billing/money';
 import { WriteGuard } from '@/components/read-only';
@@ -9,13 +9,13 @@ import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
 type PillKey = PillData['key'];
-const TONE: Record<PillKey, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  paused: 'outline', payment_needed: 'destructive', invited: 'secondary', paying: 'default', off: 'outline',
+const TONE: Record<PillKey, ChipTone> = {
+  paused: 'neutral', payment_needed: 'danger', invited: 'info', paying: 'success', off: 'neutral',
 };
 
 /** The billing pill: state only, never an amount, so every agency role may see it. */
 export function ClientBillingPill({ pill }: { pill: PillData }) {
-  return <Badge variant={TONE[pill.key]}>{pill.label}</Badge>;
+  return <StatusChip tone={TONE[pill.key]}>{pill.label}</StatusChip>;
 }
 
 export interface ClientBillingControlsProps {
@@ -45,7 +45,17 @@ const INITIAL: FormResult = { ok: true };
  * triggered the action (see apps/web/CLAUDE.md, UI patterns).
  */
 export function ClientBillingControls({ clientId, clientName, role, pill, billing, nextPriceCents }: ClientBillingControlsProps) {
-  const [state, formAction, pending] = useActionState(async (prev: FormResult, fd: FormData) => clientBillingAction(prev, fd), INITIAL);
+  const [state, setState] = useState<FormResult>(INITIAL);
+  const [pending, setPending] = useState(false);
+  // One runner for the menu form and the pause / resume confirm, so both report through the same result line.
+  const run = async (fd: FormData) => {
+    setPending(true);
+    try {
+      setState(await clientBillingAction(state, fd));
+    } finally {
+      setPending(false);
+    }
+  };
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'menu' | 'price' | 'off'>('menu');
   const first = useRef(state);
@@ -78,7 +88,7 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
                 <DialogTitle>{clientName}</DialogTitle>
                 <DialogDescription>{admin ? 'Billing and pause actions for this client.' : 'Pause or resume this client.'}</DialogDescription>
               </DialogHeader>
-              <form action={formAction} className="flex flex-col gap-2">
+              <form action={run} className="flex flex-col gap-2">
                 <input type="hidden" name="clientId" value={clientId} />
                 {mode === 'menu' && (
                   <>
@@ -90,7 +100,7 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
                     {admin && billing.enabled && (
                       <Button type="button" variant="outline" className="justify-start" onClick={() => setMode('off')}>Turn off billing</Button>
                     )}
-                    {paused ? submit('resume', 'Resume') : submit('pause', 'Pause')}
+                    <PauseResume clientId={clientId} clientName={clientName} paused={paused} run={run} />
                   </>
                 )}
                 {admin && mode === 'price' && (
@@ -131,5 +141,21 @@ export function ClientBillingControls({ clientId, clientName, role, pill, billin
       {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
       {state.ok && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}
     </div>
+  );
+}
+
+/** Pause / Resume change what the client gets and what the agency pays for, so each asks first (15c-2a). */
+function PauseResume({ clientId, clientName, paused, run }: { clientId: string; clientName: string; paused: boolean; run: (fd: FormData) => Promise<void> }) {
+  return (
+    <ConfirmDialog
+      trigger={<Button type="button" variant="outline" className="justify-start">{paused ? 'Resume' : 'Pause'}</Button>}
+      title={paused ? `Resume ${clientName}?` : `Pause billing for ${clientName}?`}
+      body={paused
+        ? `Weekly checks, briefs and alerts start again for ${clientName}, and it takes a seat. Resuming is refused if it would put you over your client limit.`
+        : `${clientName} stops getting new checks, briefs and alerts, no longer takes a seat, and billing for it pauses. Everything collected so far stays, and you can resume any time.`}
+      confirmLabel={paused ? 'Resume' : 'Pause'}
+      fields={{ intent: paused ? 'resume' : 'pause', clientId }}
+      action={run}
+    />
   );
 }
