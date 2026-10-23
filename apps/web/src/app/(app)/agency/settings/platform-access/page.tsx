@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { callTool } from '@/server/tools';
 import { NotifySwitch } from './notify-switch';
 
@@ -29,9 +30,10 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
   const { viewer, ctx } = await requireContext();
   if (viewer.kind !== 'user' || ctx.role !== 'agency_admin') notFound();
   const cursor = one((await searchParams).cursor)?.slice(0, 200);
-  const [{ rows, nextCursor, notifyEnabled }, guides] = await Promise.all([
+  const [{ rows, nextCursor, notifyEnabled }, guides, tz] = await Promise.all([
     callTool<{ rows: SupportSessionRow[]; nextCursor: string | null; notifyEnabled: boolean }>(ctx, 'list_support_sessions', cursor ? { cursor } : {}),
     helpGuides(ctx, 'agency'),
+    viewerTimeZone(),
   ]);
   return (
     <>
@@ -62,7 +64,7 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {rows.length === 0 ? <EmptyState {...COPY.empty.noSessions} guideAnchor="what-this-page-tells-you" /> : <SupportSessionsTable rows={rows} empty="" />}
+          {rows.length === 0 ? <EmptyState {...COPY.empty.noSessions} guideAnchor="what-this-page-tells-you" /> : <SupportSessionsTable rows={rows} empty="" tz={tz} />}
           {nextCursor && (
             <Link href={`/agency/settings/platform-access?cursor=${encodeURIComponent(nextCursor)}`} className="mt-3 inline-block text-sm font-semibold text-primary-soft-text underline">
               Older sessions

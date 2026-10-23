@@ -13,7 +13,7 @@ export function CostItemDialog({ item }: { item?: CostItem }) {
   const [kind, setKind] = useState<CostItem['kind']>(item?.kind ?? 'recurring');
   const resetKind = useCallback(() => setKind(item?.kind ?? 'recurring'), [item?.kind]);
   const { open, setOpen, formKey, shown } = useCloseOnSave(state, resetKind);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10); // format-gate: value of a date input (yyyy-mm-dd)
   return (
     <WriteGuard>
       <Dialog open={open} onOpenChange={setOpen}>

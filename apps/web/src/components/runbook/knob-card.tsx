@@ -1,5 +1,5 @@
 'use client';
-import { Badge, Button, Input, Label } from '@cs/ui';
+import { Button, Input, Label, StatusChip } from '@cs/ui';
 import { useState } from 'react';
 import { badgeFor, EnabledSwitch, type RunFn, UpdatePrompts, useCardRun } from './item-card';
 import type { RunbookItemData, RunbookLevel } from './types';
@@ -55,7 +55,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
     return (
       <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={key}>
         <div className="flex flex-wrap items-center gap-2">
-          {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+          {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
           <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
         </div>
         <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />
@@ -80,7 +80,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   return (
     <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={key}>
       <div className="flex flex-wrap items-center gap-2">
-        {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
+        {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
         {item && <div className="ml-auto"><EnabledSwitch item={item} label={KNOB_TITLE[name]} canEdit={canEdit} run={run} /></div>}
       </div>

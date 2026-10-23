@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({ role: 'staff' as string | null, callTool: vi.fn() 
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ viewer: { kind: 'user' }, ctx: { userId: 'op' } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
@@ -71,5 +72,21 @@ describe('platform agency page: billing panel', () => {
     m.role = 'viewer';
     render(await page());
     expect(screen.getByText('billing-panel viewer trialing')).toBeTruthy();
+  });
+});
+
+describe('platform agency page: labels and dates', () => {
+  it('shows the health label, short dates and client status chips instead of raw values', async () => {
+    const base = m.callTool.getMockImplementation()!;
+    m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => {
+      if (name === 'get_platform_agency') return { ...detail, agency: { ...detail.agency, health: 'at_risk', createdAt: '2025-01-01T12:00:00Z' }, clients: [{ id: 'c1', name: 'Lone Star', status: 'prospect', createdAt: '2025-03-04T10:00:00Z' }] };
+      return base(ctx, name, input);
+    });
+    render(await page());
+    expect(screen.getByText('At risk')).toBeTruthy();
+    expect(screen.getByText('Prospect')).toBeTruthy();
+    expect(screen.getByText('Mar 4, 2025')).toBeTruthy();
+    expect(document.body.textContent).toContain('Created Jan 1, 2025.');
+    expect(document.body.textContent).not.toMatch(/2025-01-01|2025-03-04|prospect/);
   });
 });

@@ -86,7 +86,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   platform_overview: { tiles, series: [] },
   list_platform_activity: { items: [], nextCursor: null },
   list_platform_agencies: { rows: [], nextCursor: null, prevCursor: null },
-  get_platform_agency: { agency: { id: AG, name: 'Acme', createdAt: '2026-01-01T00:00:00Z', health: 'steady' }, tiles, series: [], team: { agencyAdmin: 1, accountManager: 0, clientOwner: 0, clientViewer: 0 }, clients: [] },
+  get_platform_agency: { agency: { id: AG, name: 'Acme', createdAt: '2025-01-01T12:00:00Z', health: 'steady' }, tiles, series: [], team: { agencyAdmin: 1, accountManager: 0, clientOwner: 0, clientViewer: 0 }, clients: [] },
   list_agency_support_sessions: { rows: [] },
   get_agency_billing: { agencyId: AG, state: 'trialing', plan: null, trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, cancelAt: null, seatsSynced: null, seatSyncPending: false, seatCapExempt: false, attachedCouponId: null, invoices: [], events: [] },
   list_discount_codes: { codes: [] },
@@ -273,7 +273,7 @@ describe('Agencies', () => {
     const c = await tipText('platform.agencies', 'columns');
     for (const w of ['Active clients', 'WAU', 'Last activity', 'Spend this month', 'Health']) expect(c, w).toContain(w);
     const b = await tipText('platform.agencies', 'billing');
-    for (const w of ['Pilot', 'Trial', 'Active', 'Past due', 'Paused', 'Suspended', 'Cancelled', '7 days']) expect(b, w).toContain(w);
+    for (const w of ['Pilot', 'Free trial', 'Active', 'Payment overdue', 'Read-only', 'Suspended', 'Cancelled', '7 days']) expect(b, w).toContain(w);
   });
 
   it('with no agencies: a teaching empty state', async () => {
@@ -291,7 +291,7 @@ describe('Agency detail', () => {
 
   it('keeps the page-specific line "Created <date>" and the shared health tip', async () => {
     await show('platform.agencies.detail');
-    expect(document.body.textContent).toContain('Created 2026-01-01');
+    expect(document.body.textContent).toContain('Created Jan 1, 2025');
     expect(hasTip('Health')).toBe(true);
   });
 
@@ -397,7 +397,7 @@ describe('Ask reviews', () => {
   it('the audit tip says opening a conversation is recorded; the allowed tip names the client setting', async () => {
     expect(await tipText('platform.ask', 'audit')).toMatch(/audit log/);
     expect(await tipText('platform.ask', 'allowed')).toMatch(/allow/i);
-    expect(await tipText('platform.ask', 'flags')).toContain('quota');
+    expect(await tipText('platform.ask', 'flags')).toContain('Limit reached');
   });
 
   it('with no threads: a teaching empty state', async () => {

@@ -1,4 +1,5 @@
 import { listReviewableAskThreads } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -6,9 +7,12 @@ import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { formatDateTime } from '@/lib/format';
+import { ASK_MESSAGE_STATUS } from '@/lib/labels';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +25,7 @@ const COPY = PAGE_COPY['platform.ask'];
 export default async function PlatformAskPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
   const { ctx } = await requireOperatorContext();
   const { cursor } = await searchParams;
-  const guides = await helpGuides(ctx, 'platform');
+  const [guides, tz] = await Promise.all([helpGuides(ctx, 'platform'), viewerTimeZone()]);
   let page: Awaited<ReturnType<typeof listReviewableAskThreads>>;
   try {
     page = await listReviewableAskThreads(toolDeps(), ctx, { ...(cursor ? { cursor } : {}), limit: 25 });
@@ -42,7 +46,7 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
         items={[
           { label: 'Which conversations', tip: 'platform.ask.allowed' },
           { label: 'What is recorded', tip: 'platform.ask.audit' },
-          { label: 'The badges', tip: 'platform.ask.flags' },
+          { label: 'The status chips', tip: 'platform.ask.flags' },
         ]}
       />
       {page.items.length === 0 ? (
@@ -53,13 +57,13 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div>
                 <Link href={`/platform/ask/${t.id}`} className="font-semibold text-secondary hover:underline">{t.clientName}</Link>
-                <span className="ml-2 text-sm text-muted-foreground">{t.agencyName} · {t.createdAt.toISOString().slice(0, 16).replace('T', ' ')} UTC</span>
+                <span className="ml-2 text-sm text-muted-foreground">{t.agencyName} · {formatDateTime(t.createdAt, { tz, zoneLabel: true })}</span>
               </div>
-              <div className="flex gap-1.5 text-xs">
-                {t.flags.removed > 0 && <span className="rounded-full bg-muted px-2 py-0.5">{t.flags.removed} removed</span>}
-                {t.flags.error && <span className="rounded-full bg-muted px-2 py-0.5">error</span>}
-                {t.flags.refused && <span className="rounded-full bg-muted px-2 py-0.5">refused</span>}
-                {t.flags.quota && <span className="rounded-full bg-muted px-2 py-0.5">quota</span>}
+              <div className="flex flex-wrap gap-1.5">
+                {t.flags.removed > 0 && <StatusChip tone="warning">{t.flags.removed} removed</StatusChip>}
+                {t.flags.error && <StatusChip tone="danger">{ASK_MESSAGE_STATUS.error.label}</StatusChip>}
+                {t.flags.refused && <StatusChip tone="warning">{ASK_MESSAGE_STATUS.refused.label}</StatusChip>}
+                {t.flags.quota && <StatusChip tone="info">{ASK_MESSAGE_STATUS.quota.label}</StatusChip>}
               </div>
             </li>
           ))}

@@ -1,5 +1,7 @@
 'use client';
-import { Badge, Button, Input, Label, Switch } from '@cs/ui';
+import type { ChipTone } from '@cs/ui';
+import { changeTypeLabel } from '@cs/email/labels';
+import { Button, ConfirmDialog, Input, Label, StatusChip, Switch } from '@cs/ui';
 import { useOptimistic, useState, useTransition } from 'react';
 import { DiffView } from './diff';
 import type { RunbookActionResult, RunbookItemData, RunbookLevel, RunbookOp, Tailoring } from './types';
@@ -25,12 +27,12 @@ const pretty = (id: string) => id.replace(/_/g, ' ').replace(/^./, (c) => c.toUp
 /** What the level above is called in the prompts. The platform level is "standard" to agencies. */
 export const parentName = (level: RunbookLevel): string => (level === 'client' ? 'agency runbook' : 'standard runbook');
 
-export function badgeFor(item: RunbookItemData, level: RunbookLevel): { label: string; variant: 'outline' | 'secondary' | 'default' } | null {
+export function badgeFor(item: RunbookItemData, level: RunbookLevel): { label: string; tone: ChipTone } | null {
   if (level === 'platform') return null; // the base level has nothing above it to inherit from
-  if (item.state === 'new_upstream') return { label: 'New', variant: 'default' };
-  if (item.state === 'removed_upstream') return { label: 'Removed upstream', variant: 'secondary' };
-  if (item.state === 'update_available') return { label: 'Update available', variant: 'default' };
-  return item.customised ? { label: 'Customised', variant: 'secondary' } : { label: 'Inherited', variant: 'outline' };
+  if (item.state === 'new_upstream') return { label: 'New', tone: 'info' };
+  if (item.state === 'removed_upstream') return { label: 'Removed upstream', tone: 'warning' };
+  if (item.state === 'update_available') return { label: 'Update available', tone: 'info' };
+  return item.customised ? { label: 'Customised', tone: 'neutral' } : { label: 'Inherited', tone: 'neutral' };
 }
 
 export function itemTitle(item: RunbookItemData): string {
@@ -86,7 +88,14 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
         {canEdit && (
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={pending} onClick={() => setHidden(true)}>Keep</Button>
-            <Button size="sm" disabled={pending} onClick={() => go({ op: 'remove', key })}>Remove</Button>
+            <ConfirmDialog
+              trigger={<Button size="sm" disabled={pending}>Remove</Button>}
+              title={`Remove this ${noun(item.kind)}?`}
+              body={`It is no longer in the ${name}. Removing it deletes it from this runbook.`}
+              confirmLabel="Remove"
+              tone="danger"
+              action={async () => { await run({ op: 'remove', key }); }}
+            />
           </div>
         )}
       </div>
@@ -154,7 +163,17 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
       ) : <DiffView before={textOf(beforeContent)} after={textOf(parent.content)} label="this item" />}
       {canEdit && (
         <div className="flex gap-2">
-          <Button size="sm" disabled={pending} onClick={useUpdate}>Use the update</Button>
+          {item.customised ? (
+            <ConfirmDialog
+              trigger={<Button size="sm" disabled={pending}>Use the update</Button>}
+              title="Replace your version?"
+              body={`Your edits to this ${noun(item.kind)} are replaced by the version from the ${name}.`}
+              confirmLabel="Use the update"
+              action={async () => { useUpdate(); }}
+            />
+          ) : (
+            <Button size="sm" disabled={pending} onClick={useUpdate}>Use the update</Button>
+          )}
           <Button size="sm" variant="outline" disabled={pending} onClick={() => go({ op: 'dismiss', key })}>Keep mine</Button>
         </div>
       )}
@@ -162,14 +181,29 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
   );
 }
 
-/** The on/off switch every item carries; optimistic, with the result surfaced by the editor (same pattern as `AutoSendSwitch`). */
+/**
+ * The on/off switch every item carries. Switching on is immediate and optimistic (same pattern as `AutoSendSwitch`); switching off
+ * asks first, because the play, rule or setting stops applying at once. The result is surfaced by the editor.
+ */
 export function EnabledSwitch({ item, label, canEdit, run }: { item: RunbookItemData; label: string; canEdit: boolean; run: RunFn }) {
   const [checked, setChecked] = useOptimistic(item.enabled);
   const [pending, start] = useTransition();
+  const disabled = !canEdit || pending || item.state === 'new_upstream';
+  if (checked && !disabled) {
+    return (
+      <ConfirmDialog
+        trigger={<Switch checked aria-label={`${label} on or off`} onCheckedChange={() => {}} />}
+        title={`Switch off ${label}?`}
+        body="It stops applying to briefs and alerts until you switch it back on."
+        confirmLabel="Switch off"
+        action={async () => { await run({ op: 'toggle', key: item.key, enabled: false }); }}
+      />
+    );
+  }
   return (
     <Switch
       checked={checked}
-      disabled={!canEdit || pending || item.state === 'new_upstream'}
+      disabled={disabled}
       aria-label={`${label} on or off`}
       onCheckedChange={(next: boolean) => start(async () => {
         setChecked(next);
@@ -253,10 +287,10 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
   return (
     <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={item.key}>
       <div className="flex flex-wrap items-center gap-2">
-        {badge && <Badge variant={badge.variant}>{badge.label}</Badge>}
-        {play && <Badge variant="outline">{play.trigger.replace(/_/g, ' ')}</Badge>}
-        {play?.effort && <Badge variant="outline">Effort: {LEVEL_WORD[play.effort]}</Badge>}
-        {play?.impact && <Badge variant="outline">Impact: {LEVEL_WORD[play.impact]}</Badge>}
+        {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
+        {play && <StatusChip tone="neutral">{changeTypeLabel(play.trigger)}</StatusChip>}
+        {play?.effort && <StatusChip tone="neutral">Effort: {LEVEL_WORD[play.effort]}</StatusChip>}
+        {play?.impact && <StatusChip tone="neutral">Impact: {LEVEL_WORD[play.impact]}</StatusChip>}
         <div className="ml-auto"><EnabledSwitch item={item} label={title} canEdit={canEdit} run={run} /></div>
       </div>
       <h3 className="font-semibold">{title}</h3>

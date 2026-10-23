@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ConfirmForm } from './confirm-form';
+import { ConfirmForm } from '@/components/confirm-form';
 import { setSignupsPausedAction } from './actions';
 
 export interface FunnelCounts { signups: number; profileDone: number; firstClient: number; cardAdded: number }

@@ -1,6 +1,6 @@
 import { formatDate, formatMoney } from '@/lib/format';
 import { Field, fieldCls, MiniForm } from '../_components/mini-form';
-import { ConfirmForm } from './confirm-form';
+import { ConfirmForm } from '@/components/confirm-form';
 import { createDiscountCodeAction, revokeDiscountCodeAction } from './actions';
 
 export interface CodeRow {

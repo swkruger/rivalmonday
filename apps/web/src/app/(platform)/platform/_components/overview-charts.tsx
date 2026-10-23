@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatMoney } from '@/lib/format';
 import { LineChart } from '@/components/charts/line-chart';
 import type { StatPill } from '@/components/stat-card';
@@ -17,15 +18,19 @@ export function deltaPill(t: Tile, fmt: (n: number) => string = String): StatPil
 /**
  * The three platform charts (clients, seats + WAU, spend) as grid cells. NULL series values stay NULL (chart gaps).
  * `includeAgencies` adds the platform-wide agency count to the first chart (meaningless for one agency).
+ * `rangeToggle` sits in the first chart's header: it switches the range of all three.
  */
-export function PlatformCharts({ series, range, includeAgencies }: { series: Point[]; range: '12w' | '12m'; includeAgencies: boolean }) {
+export function PlatformCharts({ series, range, includeAgencies, rangeToggle }: { series: Point[]; range: '12w' | '12m'; includeAgencies: boolean; rangeToggle?: ReactNode }) {
   const period = range === '12m' ? 'month' : 'week';
   const labels = series.map((p) => (period === 'month' ? p.start.slice(0, 7) : p.start));
   const col = (k: keyof Omit<Point, 'start'>) => series.map((p) => p[k]);
   const hasData = series.some((p) => [p.agencies, p.clientsActive, p.seats, p.wau, p.spendUsd].some((v) => v !== null));
-  const chart = (title: string, s: { key: string; name: string; points: (number | null)[] }[], valueLabel: string, fmt?: (n: number) => string) => (
+  const chart = (title: string, s: { key: string; name: string; points: (number | null)[] }[], valueLabel: string, fmt?: (n: number) => string, toggle?: ReactNode) => (
     <section className={cardCls}>
-      <h2 className="font-semibold">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">{title}</h2>
+        {toggle}
+      </div>
       <div className="mt-3">
         {hasData ? <LineChart title={title} labels={labels} series={s} valueLabel={valueLabel} period={period} formatValue={fmt} /> : <p className="text-sm text-muted-foreground">{EMPTY_CHART}</p>}
       </div>
@@ -36,7 +41,7 @@ export function PlatformCharts({ series, range, includeAgencies }: { series: Poi
       {chart(includeAgencies ? 'Agencies and active clients' : 'Active clients', [
         { key: 'clientsActive', name: 'Active clients', points: col('clientsActive') },
         ...(includeAgencies ? [{ key: 'agencies', name: 'Agencies', points: col('agencies') }] : []),
-      ], 'total')}
+      ], 'total', undefined, rangeToggle)}
       {chart('Seats and weekly active users', [
         { key: 'seats', name: 'Seats', points: col('seats') },
         { key: 'wau', name: 'Weekly active users', points: col('wau') },

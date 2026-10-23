@@ -1,8 +1,10 @@
 'use client';
+import { Button } from '@cs/ui';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
+import { formatDateTime } from '@/lib/format';
 
 export type ActivityKind = 'agency_created' | 'client_created' | 'client_activated' | 'first_brief_sent' | 'health_at_risk' | 'support_session_started';
 export interface ActivityItem {
@@ -34,7 +36,7 @@ function describe(i: ActivityItem): string {
   }
 }
 
-export function ActivityFeed({ initial, loadMore }: { initial: ActivityPage; loadMore: (cursor: string) => Promise<ActivityPage> }) {
+export function ActivityFeed({ initial, loadMore, tz }: { initial: ActivityPage; loadMore: (cursor: string) => Promise<ActivityPage>; tz: string }) {
   const [page, setPage] = useState(initial);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function ActivityFeed({ initial, loadMore }: { initial: ActivityPage; loa
   };
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-[#EEF2F6]">
+      <ul className="flex flex-col divide-y divide-border">
         {page.items.map((i, n) => (
           <li key={`${i.at}-${i.kind}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-4 py-2 text-sm">
             <span>
@@ -64,14 +66,14 @@ export function ActivityFeed({ initial, loadMore }: { initial: ActivityPage; loa
               {describe(i)}
             </span>
             <time dateTime={i.at} className="text-xs text-muted-foreground">
-              {i.at.slice(0, 10)}
+              {formatDateTime(i.at, { tz, zoneLabel: true })}
             </time>
           </li>
         ))}
       </ul>
       {error && <ErrorNote compact>{error}</ErrorNote>}
       {page.nextCursor && (
-        <button type="button" onClick={more} disabled={pending} className="self-start rounded-full bg-[#EEF2F6] px-4 py-1.5 text-sm font-semibold text-ink disabled:opacity-60">
+        <button type="button" onClick={more} disabled={pending} className="self-start rounded-full bg-muted-surface px-4 py-1.5 text-sm font-semibold text-ink disabled:opacity-60">
           {pending ? 'Loading…' : 'Show more'}
         </button>
       )}

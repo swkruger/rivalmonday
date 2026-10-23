@@ -1,7 +1,9 @@
-import { formatMoney, formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
-import { BillingStatePill } from '../../_components/billing-state-pill';
-import { Field, fieldCls, MiniForm } from '../../_components/mini-form';
+import { StatusChip } from '@cs/ui';
+import { ConfirmForm } from '@/components/confirm-form';
+import { formatDate, formatMoney } from '@/lib/format';
+import { BILLING_STATE, billingReasonLabel, INVOICE_STATUS, labelFor } from '@/lib/labels';
+import { Field, fieldCls } from '../../_components/mini-form';
 import { attachDiscountAction, endPilotAction, extendTrialAction, grantPilotAction, setSeatCapExemptAction } from './billing-actions';
 
 export interface AgencyBilling {
@@ -25,13 +27,15 @@ export type PanelRole = 'owner' | 'staff' | 'viewer';
 const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz: 'UTC' }) : '—');
 
 /** Billing panel on the agency detail page. Controls the role cannot use are not rendered (the tools enforce as well). */
-export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[] }) {
+export function BillingPanel({ billing: b, role, codes, tz }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[]; tz: string }) {
+  const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz }) : '—');
+  const state = labelFor(BILLING_STATE, b.state);
   const staff = role === 'owner' || role === 'staff';
   const hidden = <input type="hidden" name="agencyId" value={b.agencyId} />;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <BillingStatePill state={b.state} />
+        <StatusChip tone={state.tone}>{state.label}</StatusChip>
         <span className="font-semibold">{b.plan ? `${b.plan.name} v${b.plan.version}` : 'No plan'}</span>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -45,22 +49,50 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
         <div><dt className="text-muted-foreground">Attached coupon</dt><dd>{b.attachedCouponId ?? '—'}</dd></div>
       </dl>
       {staff && (
-        <div className="flex flex-col gap-3 border-t border-[#EEF2F6] pt-4">
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
           {b.state === 'pilot' ? (
-            <MiniForm action={endPilotAction} submit="End pilot" variant="outline">{hidden}</MiniForm>
+            <ConfirmForm
+              action={endPilotAction}
+              submit="End pilot"
+              variant="outline"
+              title="End this pilot?"
+              body="The pilot ends now and the free trial starts."
+              confirmLabel="End pilot"
+            >{hidden}</ConfirmForm>
           ) : (
-            <MiniForm action={grantPilotAction} submit="Grant pilot" variant="outline">
+            <ConfirmForm
+              action={grantPilotAction}
+              submit="Grant pilot"
+              variant="outline"
+              title="Grant a pilot?"
+              body="The agency moves to a pilot with no card needed, until the end date if you set one."
+              confirmLabel="Grant pilot"
+            >
               {hidden}
               <Field label="Pilot ends (optional)" htmlFor="gp-end"><input id="gp-end" name="endsAt" type="date" className={fieldCls} /></Field>
-            </MiniForm>
+            </ConfirmForm>
           )}
           {b.state === 'trialing' && (
-            <MiniForm action={extendTrialAction} submit="Extend trial" variant="outline">
+            <ConfirmForm
+              action={extendTrialAction}
+              submit="Extend trial"
+              variant="outline"
+              title="Extend the free trial?"
+              body="The trial runs until the date you chose."
+              confirmLabel="Extend trial"
+            >
               {hidden}
               <Field label="New trial end" htmlFor="et-until"><input id="et-until" name="until" type="date" required className={fieldCls} /></Field>
-            </MiniForm>
+            </ConfirmForm>
           )}
-          <MiniForm action={attachDiscountAction} submit="Attach discount" variant="outline">
+          <ConfirmForm
+            action={attachDiscountAction}
+            submit="Attach discount"
+            variant="outline"
+            title="Attach this discount?"
+            body="The discount applies to this agency's subscription, or at checkout if it has none yet."
+            confirmLabel="Attach discount"
+          >
             {hidden}
             <Field label="Discount code" htmlFor="ad-code">
               <select id="ad-code" name="discountCodeId" defaultValue="" className={fieldCls}>
@@ -68,12 +100,19 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
                 {codes.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
               </select>
             </Field>
-          </MiniForm>
+          </ConfirmForm>
           {role === 'owner' && (
-            <MiniForm action={setSeatCapExemptAction} submit={b.seatCapExempt ? 'Restore pilot client cap' : 'Lift pilot client cap'} variant="outline">
+            <ConfirmForm
+              action={setSeatCapExemptAction}
+              submit={b.seatCapExempt ? 'Restore pilot client cap' : 'Lift pilot client cap'}
+              variant="outline"
+              title={b.seatCapExempt ? 'Restore the pilot client cap?' : 'Lift the pilot client cap?'}
+              body={b.seatCapExempt ? 'The agency goes back to the standard client cap while it is in pilot.' : 'The agency can add more clients than the standard cap while it is in pilot.'}
+              confirmLabel={b.seatCapExempt ? 'Restore cap' : 'Lift cap'}
+            >
               {hidden}
               <input type="hidden" name="exempt" value={b.seatCapExempt ? 'false' : 'true'} />
-            </MiniForm>
+            </ConfirmForm>
           )}
         </div>
       )}
@@ -91,7 +130,8 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
                   <span>{i.number ?? i.id}</span>
                 )}
                 <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
-                <span className="text-muted-foreground">{i.status ?? ''} · {i.created.slice(0, 10)}</span>
+                {i.status && <StatusChip tone={labelFor(INVOICE_STATUS, i.status).tone}>{labelFor(INVOICE_STATUS, i.status).label}</StatusChip>}
+                <span className="text-muted-foreground">{formatDate(i.created, { tz })}</span>
               </li>
             ))}
           </ul>
@@ -105,7 +145,15 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
           <ul className="mt-1 text-sm">
             {b.events.slice(0, 5).map((e) => (
               <li key={`${e.createdAt}-${e.toState}-${e.reason}`} className="py-0.5">
-                {e.createdAt.slice(0, 10)} · {e.fromState ?? 'none'} → {e.toState} · {e.reason}
+                <span className="text-muted-foreground">{formatDate(e.createdAt, { tz })}</span>{' · '}
+                {e.fromState ? (
+                  <>
+                    <StatusChip tone={labelFor(BILLING_STATE, e.fromState).tone}>{labelFor(BILLING_STATE, e.fromState).label}</StatusChip> <span aria-label="to">→</span>{' '}
+                  </>
+                ) : (
+                  'Started as '
+                )}
+                <StatusChip tone={labelFor(BILLING_STATE, e.toState).tone}>{labelFor(BILLING_STATE, e.toState).label}</StatusChip>{' · '}{billingReasonLabel(e.reason)}
               </li>
             ))}
           </ul>

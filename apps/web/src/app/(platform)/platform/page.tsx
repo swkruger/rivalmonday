@@ -7,6 +7,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { loadMoreActivity } from './actions';
 import { ActivityFeed, type ActivityPage } from './_components/activity-feed';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from './_components/overview-charts';
@@ -28,10 +29,11 @@ interface Overview {
 export default async function PlatformOverviewPage({ searchParams }: { searchParams: Promise<{ range?: string | string[] }> }) {
   const range = parseRange((await searchParams).range);
   const { ctx } = await requireOperatorContext();
-  const [overview, activity, guides] = await Promise.all([
+  const [overview, activity, guides, tz] = await Promise.all([
     callTool<Overview>(ctx, 'platform_overview', { range }),
     callTool<ActivityPage>(ctx, 'list_platform_activity', { limit: 20 }),
     helpGuides(ctx, 'platform'),
+    viewerTimeZone(),
   ]);
   const { tiles, series } = overview;
   return (
@@ -39,7 +41,6 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
       <PageHeader
         title="Overview"
         description={<HelpText text={COPY.description} />}
-        actions={<RangeToggle current={range} basePath="/platform" />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
@@ -59,11 +60,11 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
         <StatCard title="Spend this month" value={formatMoney(tiles.spendMonthUsd.value, { cents: true })} pill={deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
-        <PlatformCharts series={series} range={range} includeAgencies />
+        <PlatformCharts series={series} range={range} includeAgencies rangeToggle={<RangeToggle current={range} basePath="/platform" />} />
         <section className={cardCls}>
           <h2 className="font-semibold">Recent activity</h2>
           <div className="mt-3">
-            <ActivityFeed initial={activity} loadMore={loadMoreActivity} />
+            <ActivityFeed initial={activity} loadMore={loadMoreActivity} tz={tz} />
           </div>
         </section>
       </div>

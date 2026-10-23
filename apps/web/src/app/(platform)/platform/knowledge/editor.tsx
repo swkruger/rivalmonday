@@ -49,7 +49,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
       <div className="flex flex-col gap-4">
         <p className="rounded-lg bg-muted-surface p-3 text-ink">Managed in repo</p>
         <div className="rounded-[14px] bg-surface p-6 shadow-card">
-          <KbArticleView article={{ kbId: article.id, title: article.title, kind: article.kind, level: article.level, bodyMd: article.bodyMd, sourceUrl: null, updatedAt: new Date().toISOString() }} />
+          <KbArticleView article={{ kbId: article.id, title: article.title, kind: article.kind, level: article.level, bodyMd: article.bodyMd, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
         </div>
       </div>
     );
@@ -88,7 +88,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
           <textarea name="bodyMd" aria-label="Body (Markdown)" rows={18} value={body} onChange={(e) => setBody(e.target.value)} hidden={tab !== 'write'} className="w-full rounded-md border border-input bg-transparent p-3 font-mono text-sm shadow-xs" />
           {tab === 'preview' && (
             <div aria-label="Preview" className="rounded-lg border p-4">
-              <KbArticleView article={{ kbId: article?.id ?? 'preview', title, kind: article?.kind ?? 'help', level, bodyMd: body, sourceUrl: null, updatedAt: new Date().toISOString() }} />
+              <KbArticleView article={{ kbId: article?.id ?? 'preview', title, kind: article?.kind ?? 'help', level, bodyMd: body, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
             </div>
           )}
         </div>

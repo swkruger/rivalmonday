@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, Label } from '@cs/ui';
+import { Button, ConfirmDialog, Input, Label } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
@@ -169,11 +169,14 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
               busy={busy}
               approve={
                 <>
-                  <form action={formAction}>
-                    <Post fields={{ intent: 'approve-vertical', id: v.id, label: v.name }}>
-                      <Button type="submit" aria-label={`Approve ${v.name}`} disabled={busy}>Approve</Button>
-                    </Post>
-                  </form>
+                  <ConfirmDialog
+                    trigger={<Button type="button" aria-label={`Approve ${v.name}`} disabled={busy}>Approve</Button>}
+                    title={`Approve ${v.name}?`}
+                    body="It joins the business type list that every agency can choose from."
+                    confirmLabel="Approve"
+                    fields={{ intent: 'approve-vertical', id: v.id, label: v.name }}
+                    action={(fd) => formAction(fd)}
+                  />
                   <Button type="button" variant="outline" aria-label={`Edit ${v.name}`} disabled={busy} onClick={() => { setEditing((e) => !e); setMode('none'); }}>Edit</Button>
                 </>
               }
@@ -255,8 +258,7 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
     setMap(maps[id] ?? {});
   };
   return (
-    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
-      <Post fields={{ intent: 'merge-vertical', id: v.id, label: v.name, targetId, payload: JSON.stringify(map) }}>
+    <div role="group" aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
         <div className="flex flex-col gap-1">
           <Label htmlFor={`m-target-${v.id}`}>Merge into</Label>
           <select id={`m-target-${v.id}`} value={targetId} onChange={(e) => choose(e.target.value)} className={`${selectClass} max-w-sm`}>
@@ -283,11 +285,18 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
           </table>
         )}
         <div className="flex gap-2">
-          <Button type="submit" disabled={busy || !target}>Merge</Button>
+          <ConfirmDialog
+            trigger={<Button type="button" disabled={busy || !target}>Merge</Button>}
+            title={`Merge ${v.name} into ${target?.name ?? 'another business type'}?`}
+            body="Agencies and clients using it move to the other business type. This cannot be undone."
+            confirmLabel="Merge"
+            tone="danger"
+            fields={{ intent: 'merge-vertical', id: v.id, label: v.name, targetId, payload: JSON.stringify(map) }}
+            action={(fd) => { formAction(fd); onDone(); }}
+          />
           <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
         </div>
-      </Post>
-    </form>
+    </div>
   );
 }
 
@@ -310,27 +319,36 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
               setMode={setMode}
               busy={busy}
               approve={
-                <form action={formAction}>
-                  <Post fields={{ intent: 'approve-area', id: a.id, verticalId: a.verticalId, label: a.name }}>
-                    <Button type="submit" aria-label={`Approve ${a.name}`} disabled={busy}>Approve</Button>
-                  </Post>
-                </form>
+                <ConfirmDialog
+                  trigger={<Button type="button" aria-label={`Approve ${a.name}`} disabled={busy}>Approve</Button>}
+                  title={`Approve ${a.name}?`}
+                  body={`It joins the ${a.verticalName} service list that every agency can choose from.`}
+                  confirmLabel="Approve"
+                  fields={{ intent: 'approve-area', id: a.id, verticalId: a.verticalId, label: a.name }}
+                  action={(fd) => formAction(fd)}
+                />
               }
             />
             {mode === 'rename' && <RenameForm intent="rename-area" id={a.id} verticalId={a.verticalId} current={a.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {mode === 'merge' && (
-              <form action={(fd) => { formAction(fd); setMode('none'); }} aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted-surface p-4">
-                <Post fields={{ intent: 'merge-area', id: a.id, verticalId: a.verticalId, label: a.name, targetId }}>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor={`am-${a.verticalId}-${a.id}`}>Merge into</Label>
-                    <select id={`am-${a.verticalId}-${a.id}`} value={targetId} onChange={(e) => setTargetId(e.target.value)} className={selectClass}>
-                      <option value="">Choose a service</option>
-                      {siblings.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                  <Button type="submit" disabled={busy || !targetId}>Merge</Button>
-                </Post>
-              </form>
+              <div role="group" aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted-surface p-4">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`am-${a.verticalId}-${a.id}`}>Merge into</Label>
+                  <select id={`am-${a.verticalId}-${a.id}`} value={targetId} onChange={(e) => setTargetId(e.target.value)} className={selectClass}>
+                    <option value="">Choose a service</option>
+                    {siblings.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <ConfirmDialog
+                  trigger={<Button type="button" disabled={busy || !targetId}>Merge</Button>}
+                  title={`Merge ${a.name} into ${siblings.find((x) => x.id === targetId)?.name ?? 'another service'}?`}
+                  body="Clients using it move to the other service. This cannot be undone."
+                  confirmLabel="Merge"
+                  tone="danger"
+                  fields={{ intent: 'merge-area', id: a.id, verticalId: a.verticalId, label: a.name, targetId }}
+                  action={(fd) => { formAction(fd); setMode('none'); }}
+                />
+              </div>
             )}
           </>
         )}

@@ -58,12 +58,24 @@ export const GATED_PATHS: string[] = [
   'app/oauth',
   'app/onboarding',
   'components/agency',
-  // T6 owns agencies/[id]; until then the non-[id] files are listed one by one
-  'app/(platform)/platform/agencies/page.tsx',
-  'app/(platform)/platform/agencies/agency-table.tsx',
-  'app/(platform)/platform/leads',
-  'app/(platform)/platform/reviews',
+  // The platform console minus `themes` (T16 owns it), listed folder by folder
+  'app/(platform)/platform/_components',
+  'app/(platform)/platform/actions.ts',
+  'app/(platform)/platform/agencies',
+  'app/(platform)/platform/ask',
   'app/(platform)/platform/billing',
+  'app/(platform)/platform/costs',
+  'app/(platform)/platform/error.tsx',
+  'app/(platform)/platform/health',
+  'app/(platform)/platform/help',
+  'app/(platform)/platform/knowledge',
+  'app/(platform)/platform/leads',
+  'app/(platform)/platform/page.tsx',
+  'app/(platform)/platform/reviews',
+  'app/(platform)/platform/runbook',
+  'app/(platform)/platform/verticals',
+  'components/runbook',
+  'components/support-sessions-table.tsx',
 ];
 
 const ESCAPE = /format-gate:\s*\S/;

@@ -119,5 +119,47 @@ export const AGENCY_HEALTH: LabelMap<'at_risk' | 'idle' | 'growing' | 'steady'> 
   steady: e('Steady', 'info'),
 };
 
+// PlatformHealth status (packages/tools/src/platform/system-health.ts: ok / warn / down); platform console only
+export const HEALTH_STATUS: LabelMap<'ok' | 'warn' | 'down'> = {
+  ok: e('Working', 'success'),
+  warn: e('Slow', 'warning'),
+  down: e('Down', 'danger'),
+};
+
+// Stripe invoice status (packages/tools/src/tools/platform-billing.ts passes it through); platform console only
+export const INVOICE_STATUS: LabelMap<'draft' | 'open' | 'paid' | 'uncollectible' | 'void'> = {
+  draft: e('Draft'),
+  open: e('Open', 'info'),
+  paid: e('Paid', 'success'),
+  uncollectible: e('Uncollectible', 'danger'),
+  void: e('Voided'),
+};
+
+// REASONS (packages/billing/src/state.ts), written to agency_billing_event.reason; platform console only
+export const BILLING_EVENT_REASON: Record<string, string> = {
+  'signal:subscription_active': 'Subscription started',
+  'signal:payment_failed': 'Payment failed',
+  'signal:subscription_ended': 'Subscription ended',
+  'signal:cancel_at_period_end': 'Set to cancel at period end',
+  'timer:trial_ended': 'Free trial ended',
+  'timer:past_due_7d': 'Payment overdue for 7 days',
+  'timer:read_only_37d': 'Read-only for 30 days',
+  'timer:review_127d': 'Suspended for 90 days',
+  'timer:pilot_ended': 'Pilot ended',
+  'timer:cancel_at_reached': 'Cancellation date reached',
+  'admin:grant_pilot': 'Pilot granted by staff',
+  'admin:end_pilot': 'Pilot ended by staff',
+  'admin:extend_trial': 'Trial extended by staff',
+};
+
+/** Plain-words reason for a billing event; an unknown one drops its "signal:" / "timer:" / "admin:" prefix and falls back to sentence case. */
+export const billingReasonLabel = (reason: string): string => BILLING_EVENT_REASON[reason] ?? sentenceCase(reason.replace(/^[a-z]+:/, ''));
+
+// KB article status (list_kb_articles): platform console only
+export const KB_ARTICLE_STATUS: LabelMap<'draft' | 'published'> = {
+  draft: e('Draft'),
+  published: e('Published', 'success'),
+};
+
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE];

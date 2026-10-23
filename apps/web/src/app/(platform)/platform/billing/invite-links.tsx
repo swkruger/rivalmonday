@@ -5,7 +5,7 @@ import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { formatDate } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
-import { ConfirmForm } from './confirm-form';
+import { ConfirmForm } from '@/components/confirm-form';
 import { createInviteLinkAction, type InviteLinkResult, revokeInviteLinkAction } from './actions';
 import { endOfDayIso, toInt } from './parse';
 

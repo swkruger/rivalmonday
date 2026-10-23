@@ -2,7 +2,7 @@ import { ALERT_STATUSES, BILLING_STATES, CATALOG_STATUSES, CLIENT_STATUSES, EVID
 import { AGENCY_ONLY_TERMS } from './agency-only-terms';
 import { ROLES } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_STATE, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, WEBHOOK_KIND, labelFor } from './labels';
+import { ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, WEBHOOK_KIND, labelFor } from './labels';
 
 describe('labelFor', () => {
   it('falls back to sentence case with neutral tone', () => {
@@ -25,11 +25,22 @@ describe('every enum value has a label', () => {
     for (const v of WEBHOOK_KINDS) expect(WEBHOOK_KIND[v].label, v).toBeTruthy();
     for (const v of TREND_REPORT_STATUSES) expect(REPORT_STATUS[v].label, v).toBeTruthy();
   });
+  it('every HEALTH_STATUS / INVOICE_STATUS value labelled', () => {
+    expect(['ok', 'warn', 'down'].map((v) => HEALTH_STATUS[v as 'ok'].label)).toEqual(['Working', 'Slow', 'Down']);
+    expect(HEALTH_STATUS.warn.tone).toBe('warning');
+    for (const v of ['draft', 'open', 'paid', 'uncollectible', 'void'] as const) expect(INVOICE_STATUS[v].label, v).toBeTruthy();
+    for (const v of ['draft', 'published'] as const) expect(KB_ARTICLE_STATUS[v].label, v).toBeTruthy();
+  });
+  it('billing event reasons are plain words, with a prefix-free fallback', () => {
+    for (const [k, v] of Object.entries(BILLING_EVENT_REASON)) { expect(v, k).not.toMatch(/[_:]/); }
+    expect(billingReasonLabel('admin:end_pilot')).toBe('Pilot ended by staff');
+    expect(billingReasonLabel('timer:something_new')).toBe('Something new');
+  });
   it('the union-typed maps (checked by the compiler) still have entries', () => {
     for (const map of [LEAD_STATUS, ASK_MESSAGE_STATUS, REPORT_STATUS]) expect(Object.keys(map).length).toBeGreaterThan(2);
   });
   it('labels are non-empty, sentence case (no snake_case) and short', () => {
-    for (const map of [BILLING_STATE, CLIENT_STATUS, LEAD_STATUS, ALERT_STATUS, REVIEW_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, WEBHOOK_KIND, MEMBERSHIP_ROLE] as Record<string, { label: string }>[])
+    for (const map of [HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, BILLING_STATE, CLIENT_STATUS, LEAD_STATUS, ALERT_STATUS, REVIEW_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, WEBHOOK_KIND, MEMBERSHIP_ROLE] as Record<string, { label: string }>[])
       for (const [k, e] of Object.entries(map)) { expect(e.label, k).not.toMatch(/_/); expect(e.label.length, k).toBeLessThan(40); }
   });
 });

@@ -1,6 +1,6 @@
 import { formatDate, formatMoney } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
-import { ConfirmForm } from './confirm-form';
+import { ConfirmForm } from '@/components/confirm-form';
 import { createPlanVersionAction } from './actions';
 
 export interface PlanRow {

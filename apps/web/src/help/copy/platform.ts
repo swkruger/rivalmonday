@@ -66,10 +66,10 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/app/(platform)/platform/_components/billing-state-pill.tsx:BILLING_STATE_LABEL; packages/billing/src/state.ts:PAST_DUE_TO_READ_ONLY_DAYS (7), READ_ONLY_TO_SUSPENDED_DAYS (30)
+      // source: apps/web/src/lib/labels.ts:BILLING_STATE; packages/billing/src/state.ts:PAST_DUE_TO_READ_ONLY_DAYS (7), READ_ONLY_TO_SUSPENDED_DAYS (30)
       billing: {
         title: 'Billing states',
-        body: 'Pilot: on a free pilot. Trial: on its trial. Active: paying. Past due: a payment failed, or a trial or subscription ended unpaid. Paused: the agency has been read-only since it was 7 days past due. Suspended: 30 days after Paused begins. Cancelled: the subscription ended.',
+        body: 'Pilot: on a free pilot. Free trial: on its trial. Active: paying. Payment overdue: a payment failed, or a trial or subscription ended unpaid. Read-only: the agency has been read-only since it was 7 days overdue. Suspended: 30 days after Read-only begins. Cancelled: the subscription ended.',
         audience: 'operator',
         guideAnchor: 'common-questions',
       },
@@ -288,8 +288,8 @@ export const PLATFORM_COPY = {
       },
       // source: packages/tools/src/platform.ts:listReviewableAskThreads (removed = sum of trace.removedSentences; error, refused, quota = a message with that status)
       flags: {
-        title: 'The small badges',
-        body: 'N removed: sentences the answer check removed from replies. error: a reply failed. refused: the assistant declined a question. quota: the client ran out of its question allowance.',
+        title: 'The status chips',
+        body: 'N removed: sentences the answer check removed from replies. Something went wrong: a reply failed. Couldn\'t answer: the assistant declined a question. Limit reached: the client ran out of its question allowance.',
         audience: 'operator',
         guideAnchor: 'common-questions',
       },
@@ -414,28 +414,28 @@ export const PLATFORM_COPY = {
       // source: apps/worker/src/health.ts (heartbeat cron every 5 minutes); packages/tools/src/platform/system-health.ts:healthStatuses (worker: Down with no heartbeat or over 30 minutes, Watch over 11 minutes)
       worker: {
         title: 'Worker status',
-        body: 'The background worker records a heartbeat every 5 minutes. OK: the last one is under 11 minutes old. Watch: 11 to 30 minutes. Down: over 30 minutes, or no heartbeat yet.',
+        body: 'The background worker records a heartbeat every 5 minutes. Working: the last one is under 11 minutes old. Slow: 11 to 30 minutes. Down: over 30 minutes, or no heartbeat yet.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
       // source: packages/tools/src/platform/system-health.ts:healthStatuses (queue: Down when the oldest waiting job is over 2 h; Watch over 30 min or any failure in 24 h)
       queues: {
         title: 'Queue status',
-        body: 'One row per job queue. Watch: the oldest waiting job is over 30 minutes old, or a job failed in the last 24 hours. Down: the oldest waiting job is over 2 hours old. If the queue database cannot be read, the table says so and the worker shows Down.',
+        body: 'One row per job queue. Slow: the oldest waiting job is over 30 minutes old, or a job failed in the last 24 hours. Down: the oldest waiting job is over 2 hours old. If the queue database cannot be read, the table says so and the worker shows Down.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
       // source: packages/tools/src/platform/system-health.ts:healthStatuses (vendor: errors/calls over 24 h; Watch at 20%, Down at 50% or no successful call in 48 h)
       vendors: {
         title: 'Vendor status',
-        body: 'Vendors called in the last 48 hours. Watch: 20% or more of the calls in the last 24 hours failed. Down: 50% or more failed, or none succeeded in 48 hours.',
+        body: 'Vendors called in the last 48 hours. Slow: 20% or more of the calls in the last 24 hours failed. Down: 50% or more failed, or none succeeded in 48 hours.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
       // source: packages/tools/src/platform/system-health.ts:healthStatuses (source: Watch over 26 h since the last success, Down over 72 h or never)
       sources: {
         title: 'Source freshness',
-        body: 'When data last arrived: the newest successful vendor call and the newest successful web capture. Watch: over 26 hours ago. Down: over 72 hours ago, or never.',
+        body: 'When data last arrived: the newest successful vendor call and the newest successful web capture. Slow: over 26 hours ago. Down: over 72 hours ago, or never.',
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },

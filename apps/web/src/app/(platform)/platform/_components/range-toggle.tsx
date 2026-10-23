@@ -12,13 +12,13 @@ export const parseRange = (v: string | string[] | undefined): PlatformRange => (
 export function RangeToggle({ current, basePath }: { current: PlatformRange; basePath: string }) {
   const sep = basePath.includes('?') ? '&' : '?';
   return (
-    <nav aria-label="Time range" className="inline-flex gap-1 rounded-full bg-[#EEF2F6] p-1 text-sm">
+    <nav aria-label="Time range" className="inline-flex gap-1 rounded-full bg-muted-surface p-1 text-sm">
       {OPTIONS.map((o) => (
         <Link
           key={o.value}
           href={`${basePath}${sep}range=${o.value}`}
           aria-current={o.value === current ? 'true' : undefined}
-          className={`rounded-full px-3 py-1 font-semibold ${o.value === current ? 'bg-surface text-secondary shadow-card' : 'text-ink'}`}
+          className={`rounded-full px-3 py-1 font-semibold ${o.value === current ? 'bg-surface text-secondary' : 'text-ink'}`}
         >
           {o.label}
         </Link>

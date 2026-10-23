@@ -15,6 +15,7 @@ vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }) }
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: false, get kbImport() { return h.kbImport; }, appUrl: 'http://localhost' }) }));
 vi.mock('@/server/queue', () => ({ enqueueFor: () => undefined, jobStatusFor: () => undefined, queueStatsFor: () => undefined }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/store', () => ({ webStore: () => ({ get: async () => null }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
@@ -54,8 +55,8 @@ describe('/platform/knowledge', () => {
     h.invoke.mockImplementation(answer([
       row({ id: 'm', title: 'Manual one' }),
       row({ id: 's', title: 'Seed one', source: 'seed' }),
-      row({ id: 'u1', title: 'Changed', source: 'url', autoSync: true, lastSyncedAt: new Date('2026-10-05T10:00:00Z'), lastSyncChanged: true }),
-      row({ id: 'u2', title: 'Same', source: 'url', autoSync: true, lastSyncedAt: new Date('2026-10-05T10:00:00Z') }),
+      row({ id: 'u1', title: 'Changed', source: 'url', autoSync: true, lastSyncedAt: new Date('2025-10-05T10:00:00Z'), lastSyncChanged: true }),
+      row({ id: 'u2', title: 'Same', source: 'url', autoSync: true, lastSyncedAt: new Date('2025-10-05T10:00:00Z') }),
       row({ id: 'u3', title: 'Broken', source: 'url', autoSync: true, syncError: 'http_error' }),
       row({ id: 'u4', title: 'Off', source: 'url', autoSync: false }),
       row({ id: 'u5', title: 'Gave up', source: 'url', autoSync: false, syncError: 'robots_disallowed' }),
@@ -63,11 +64,11 @@ describe('/platform/knowledge', () => {
     render(await KnowledgePage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByText('Manual')).toBeTruthy();
     expect(screen.getByText('Managed in repo')).toBeTruthy();
-    expect(screen.getByText('Synced Oct 5, 2026 · changed')).toBeTruthy();
-    expect(screen.getByText('Synced Oct 5, 2026')).toBeTruthy();
-    expect(screen.getByText('The page returned an error.').className).toContain('text-red');
+    expect(screen.getByText('Synced Oct 5, 2025 · changed')).toBeTruthy();
+    expect(screen.getByText('Synced Oct 5, 2025')).toBeTruthy();
+    expect(screen.getByText('The page returned an error.').className).toContain('text-danger');
     expect(screen.getAllByText('Auto-sync off')).toHaveLength(2);
-    expect(screen.getByText("The site's robots.txt doesn't allow us to read this page.").className).toContain('text-red');
+    expect(screen.getByText("The site's robots.txt doesn't allow us to read this page.").className).toContain('text-danger');
     expect(screen.getByRole('link', { name: 'Changed' }).getAttribute('href')).toBe('/platform/knowledge/u1');
   });
 

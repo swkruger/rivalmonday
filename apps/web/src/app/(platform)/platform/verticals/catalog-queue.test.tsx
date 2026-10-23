@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 import type { FormResult } from '@/server/forms';
@@ -35,6 +35,8 @@ describe('CatalogQueue', () => {
     const action = setup();
     expect(screen.getByText(/Agency A · 1 client · draft cost \$0.031/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Approve Craft distilleries' }));
+    expect(action).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(screen.getByText('Approved “Craft distilleries”.')).toBeTruthy());
     const fd = action.mock.calls[0]![1];
     expect([fd.get('intent'), fd.get('id'), fd.get('label')]).toEqual(['approve-vertical', 'distillery', 'Craft distilleries']);
@@ -46,6 +48,8 @@ describe('CatalogQueue', () => {
     fireEvent.change(screen.getByLabelText('Merge into'), { target: { value: 'dental' } });
     fireEvent.change(screen.getByLabelText('Where Tasting room goes'), { target: { value: 'cleanings' } });
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    expect(action).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Merge' }));
     await waitFor(() => expect(action).toHaveBeenCalled());
     const fd = action.mock.calls[0]![1];
     expect(fd.get('intent')).toBe('merge-vertical');

@@ -1,3 +1,5 @@
+import { formatDateTime } from '@/lib/format';
+
 /** One `list_support_sessions` / `list_agency_support_sessions` row (`id` only on the console list). */
 export interface SupportSessionRow {
   id?: string;
@@ -16,11 +18,9 @@ const END_REASON: Record<NonNullable<SupportSessionRow['endReason']>, string> = 
   revoked: 'Access revoked',
 };
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
-
 /** Phase 8b: support-session history, shared by the agency's Platform access page and the platform agency page. */
-export function SupportSessionsTable({ rows, empty }: { rows: SupportSessionRow[]; empty: string }) {
+export function SupportSessionsTable({ rows, empty, tz }: { rows: SupportSessionRow[]; empty: string; tz: string }) {
+  const when = (iso: string) => formatDateTime(iso, { tz, zoneLabel: true });
   if (rows.length === 0) return <p className="mt-3 text-sm text-muted-foreground">{empty}</p>;
   return (
     <div className="mt-3 overflow-x-auto">
@@ -37,7 +37,7 @@ export function SupportSessionsTable({ rows, empty }: { rows: SupportSessionRow[
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id ?? r.startedAt} className="border-t border-[#EEF2F6]">
+            <tr key={r.id ?? r.startedAt} className="border-t border-border">
               <td className="whitespace-nowrap px-3 py-2">{when(r.startedAt)}</td>
               <td className="whitespace-nowrap px-3 py-2">{r.endedAt ? when(r.endedAt) : 'Open'}</td>
               <td className="px-3 py-2 font-semibold">{r.platformUserName}</td>

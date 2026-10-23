@@ -1,26 +1,23 @@
 import type { PlatformHealth } from '@cs/tools';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
-import { formatRelative } from '@/lib/format';
+import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { formatDateTime, formatRelative } from '@/lib/format';
+import { HEALTH_STATUS } from '@/lib/labels';
 
 export type HealthData = PlatformHealth;
 export type HealthStatus = PlatformHealth['worker']['status'];
 
-const LABEL: Record<HealthStatus, string> = { ok: 'OK', warn: 'Watch', down: 'Down' };
-const TONE: Record<HealthStatus, string> = {
-  ok: 'bg-[#DCFCE7] text-[#15803D]',
-  warn: 'bg-[#FFF3DC] text-[#B45309]',
-  down: 'bg-[#FEE2E2] text-[#B91C1C]',
-};
 const SOURCE_LABEL = { vendor_call: 'Vendor calls (last successful)', capture: 'Web captures (last successful)' } as const;
 
-export const StatusChip = ({ status }: { status: HealthStatus }) => (
-  <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${TONE[status]}`}>{LABEL[status]}</span>
-);
+/** Working / Slow / Down, as a chip (the one place the console shows a health status). */
+export function HealthChip({ status }: { status: HealthStatus }) {
+  const { label, tone } = HEALTH_STATUS[status];
+  return <StatusChip tone={tone}>{label}</StatusChip>;
+}
 
-/** Relative time with the absolute UTC time on hover; `now` is the server clock so hydration matches. */
-function When({ iso, now, never }: { iso: string | null; now: Date; never: string }) {
+/** Relative time with the absolute time (viewer zone) on hover; `now` is the server clock so hydration matches. */
+function When({ iso, now, never, tz }: { iso: string | null; now: Date; never: string; tz: string }) {
   if (!iso) return <span className="text-muted-foreground">{never}</span>;
-  return <time dateTime={iso} title={`${iso.slice(0, 16).replace('T', ' ')} UTC`}>{formatRelative(iso, now)}</time>;
+  return <time dateTime={iso} title={formatDateTime(iso, { tz, zoneLabel: true, now })}>{formatRelative(iso, now, { tz })}</time>;
 }
 
 function age(s: number | null): string {
@@ -30,7 +27,7 @@ function age(s: number | null): string {
   return `${Math.round(s / 3600)} h`;
 }
 
-export function WorkerTable({ worker, now }: { worker: HealthData['worker']; now: Date }) {
+export function WorkerTable({ worker, now, tz }: { worker: HealthData['worker']; now: Date; tz: string }) {
   return (
     <Table>
       <TableHeader>
@@ -38,8 +35,8 @@ export function WorkerTable({ worker, now }: { worker: HealthData['worker']; now
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell><StatusChip status={worker.status} /></TableCell>
-          <TableCell><When iso={worker.lastHeartbeatAt} now={now} never="No heartbeat yet" /></TableCell>
+          <TableCell><HealthChip status={worker.status} /></TableCell>
+          <TableCell><When tz={tz} iso={worker.lastHeartbeatAt} now={now} never="No heartbeat yet" /></TableCell>
         </TableRow>
       </TableBody>
     </Table>
@@ -60,7 +57,7 @@ export function QueuesTable({ queues, queueError = false }: { queues: HealthData
         {queues.map((q) => (
           <TableRow key={q.name}>
             <TableCell className="font-medium">{q.name}</TableCell>
-            <TableCell><StatusChip status={q.status} /></TableCell>
+            <TableCell><HealthChip status={q.status} /></TableCell>
             <TableCell>{q.queued}</TableCell>
             <TableCell>{q.active}</TableCell>
             <TableCell>{q.failed24h}</TableCell>
@@ -72,7 +69,7 @@ export function QueuesTable({ queues, queueError = false }: { queues: HealthData
   );
 }
 
-export function VendorsTable({ vendors, now }: { vendors: HealthData['vendors']; now: Date }) {
+export function VendorsTable({ vendors, now, tz }: { vendors: HealthData['vendors']; now: Date; tz: string }) {
   if (vendors.length === 0) return <p className="text-sm text-muted-foreground">No vendor calls in the last 48 hours.</p>;
   return (
     <Table>
@@ -85,10 +82,10 @@ export function VendorsTable({ vendors, now }: { vendors: HealthData['vendors'];
         {vendors.map((v) => (
           <TableRow key={v.vendor}>
             <TableCell className="font-medium">{v.vendor}</TableCell>
-            <TableCell><StatusChip status={v.status} /></TableCell>
+            <TableCell><HealthChip status={v.status} /></TableCell>
             <TableCell>{v.calls24h}</TableCell>
             <TableCell>{v.errors24h}</TableCell>
-            <TableCell><When iso={v.lastOkAt} now={now} never="None in 48 h" /></TableCell>
+            <TableCell><When tz={tz} iso={v.lastOkAt} now={now} never="None in 48 h" /></TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -96,7 +93,7 @@ export function VendorsTable({ vendors, now }: { vendors: HealthData['vendors'];
   );
 }
 
-export function SourcesTable({ sources, now }: { sources: HealthData['sources']; now: Date }) {
+export function SourcesTable({ sources, now, tz }: { sources: HealthData['sources']; now: Date; tz: string }) {
   return (
     <Table>
       <TableHeader>
@@ -106,8 +103,8 @@ export function SourcesTable({ sources, now }: { sources: HealthData['sources'];
         {sources.map((s) => (
           <TableRow key={s.kind}>
             <TableCell className="font-medium">{SOURCE_LABEL[s.kind]}</TableCell>
-            <TableCell><StatusChip status={s.status} /></TableCell>
-            <TableCell><When iso={s.lastOkAt} now={now} never="Never" /></TableCell>
+            <TableCell><HealthChip status={s.status} /></TableCell>
+            <TableCell><When tz={tz} iso={s.lastOkAt} now={now} never="Never" /></TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -157,6 +157,51 @@ describe('RunbookEditor', () => {
     const action = vi.fn(async () => ({ ok: false as const, error: 'Not found' }));
     render(<RunbookEditor data={data([play('a', 'Some play')])} canEdit action={action} />);
     fireEvent.click(screen.getAllByRole('switch')[0]!);
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Switch off' }));
     await screen.findByText('Not found');
+  });
+
+  it('runbook trigger shows "Price change" for price_change', () => {
+    render(<RunbookEditor data={data([play('a', 'Some play'), play('b', 'Rival move', { content: { trigger: 'territory_expansion', title: 'Rival move', template: 'x' } })])} canEdit action={ok} />);
+    expect(screen.getAllByText('Price change').length).toBeGreaterThan(0);
+    expect(screen.getByText('Territory expansion')).toBeTruthy();
+    expect(screen.queryByText('price change')).toBeNull();
+    expect(screen.queryByText('price_change')).toBeNull();
+  });
+
+  it('switching a play off asks first; switching on does not', async () => {
+    const action = vi.fn(async () => ({ ok: true as const }));
+    render(<RunbookEditor data={data([play('a', 'Some play'), play('b', 'Other play', { enabled: false })])} canEdit action={action} />);
+    const [on, off] = screen.getAllByRole('switch');
+    fireEvent.click(off!);
+    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'toggle', key: 'play:b', enabled: true }));
+    action.mockClear();
+    fireEvent.click(on!);
+    expect(action).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Switch off' }));
+    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'toggle', key: 'play:a', enabled: false }));
+  });
+
+  it('removing an item no longer in the level above asks first', async () => {
+    const action = vi.fn(async () => ({ ok: true as const }));
+    render(<RunbookEditor data={data([play('e', 'Dropped play', withState('removed_upstream'))])} canEdit action={action} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(action).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'remove', key: 'play:e' }));
+  });
+
+  it('using the update on a customised item asks first', async () => {
+    const action = vi.fn(async () => ({ ok: true as const }));
+    const item = play('c', 'My wording', {
+      customised: true, content: { trigger: 'price_change', title: 'My wording', template: 'Mine.' },
+      ...withState('update_available', { parent: { content: { trigger: 'price_change', title: 'Theirs', template: 'Theirs.' }, version: 2 } }),
+    });
+    render(<RunbookEditor data={data([item])} canEdit action={action} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Review update' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use the update' }));
+    expect(action).not.toHaveBeenCalled();
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Use the update' }));
+    await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c' }));
   });
 });

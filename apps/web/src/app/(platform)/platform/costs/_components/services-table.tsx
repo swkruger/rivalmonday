@@ -1,5 +1,5 @@
 import { formatRelative } from '@/lib/format';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { type ChipTone, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { daysLeftText, formatAmount } from './format';
 import { ServiceSettingsDialog } from './service-settings-dialog';
 import type { CostService, ServiceStatus } from './types';
@@ -7,18 +7,11 @@ import type { CostService, ServiceStatus } from './types';
 export const STATUS_LABEL: Record<ServiceStatus, string> = {
   ok: 'OK', low: 'Low', error: 'Error', unavailable: 'Unavailable on this plan', not_configured: 'Not configured', disabled: 'Off',
 };
-const STATUS_TONE: Record<ServiceStatus, string> = {
-  ok: 'bg-[#DCFCE7] text-[#15803D]',
-  low: 'bg-[#FFF3DC] text-[#B45309]',
-  error: 'bg-[#FEE2E2] text-[#B91C1C]',
-  unavailable: 'bg-muted-surface text-ink',
-  not_configured: 'bg-muted-surface text-ink',
-  disabled: 'bg-muted-surface text-ink',
+const STATUS_TONE: Record<ServiceStatus, ChipTone> = {
+  ok: 'success', low: 'warning', error: 'danger', unavailable: 'neutral', not_configured: 'neutral', disabled: 'neutral',
 };
 
-export const StatusBadge = ({ status }: { status: ServiceStatus }) => (
-  <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_TONE[status]}`}>{STATUS_LABEL[status]}</span>
-);
+export const StatusBadge = ({ status }: { status: ServiceStatus }) => <StatusChip tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</StatusChip>;
 
 /** Vendor balances and usage, one row each. `now` is passed in (server clock) so relative times match on hydration. */
 export function ServicesTable({ services, now }: { services: CostService[]; now: Date }) {

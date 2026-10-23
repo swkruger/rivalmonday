@@ -1,4 +1,5 @@
 import { getReviewableAskThread } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -7,14 +8,20 @@ import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { formatDateTime } from '@/lib/format';
+import { ASK_MESSAGE_STATUS, labelFor } from '@/lib/labels';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { isHiddenToolError, toolDeps } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 
 export const dynamic = 'force-dynamic';
 
 const HELP_KEY = 'page:platform.ask.thread';
 const COPY = PAGE_COPY['platform.ask.thread'];
+
+/** Who spoke, in the reviewer's words. The assistant shows its default name, as everywhere else in web (server/theme.ts): the thread does not carry a renamed one. */
+const ROLE_LABEL: Record<string, string> = { user: 'Client', assistant: 'Friday', action: 'Tool' };
 
 /** One read per request (each read is audit-logged), shared by the tab title and the page. */
 const loadThread = cache(async (threadId: string) => {
@@ -35,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ threadId:
 export default async function PlatformAskThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const thread = await loadThread((await params).threadId);
   const { ctx } = await requireOperatorContext();
-  const guides = await helpGuides(ctx, 'platform');
+  const [guides, tz] = await Promise.all([helpGuides(ctx, 'platform'), viewerTimeZone()]);
   return (
     <>
       <PageHeader
@@ -51,14 +58,19 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
       />
       <TipRow
         items={[
-          { label: 'Citations and trace', tip: 'platform.ask.thread.trace' },
+          { label: 'Citations and technical details', tip: 'platform.ask.thread.trace' },
           { label: 'Message status', tip: 'platform.ask.thread.status' },
         ]}
       />
       <ol className="flex flex-col gap-3">
         {thread.messages.map((m) => (
           <li key={m.id} className="rounded-lg border bg-card p-4">
-            <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">{m.role} · {m.status}</div>
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-ink">{ROLE_LABEL[m.role] ?? labelFor(ASK_MESSAGE_STATUS, m.role).label}</span>
+              <StatusChip tone={labelFor(ASK_MESSAGE_STATUS, m.status).tone}>{labelFor(ASK_MESSAGE_STATUS, m.status).label}</StatusChip>
+              {/* format-gate: machine-readable dateTime attribute */}
+              <time dateTime={new Date(m.createdAt).toISOString()}>{formatDateTime(m.createdAt, { tz, zoneLabel: true })}</time>
+            </div>
             <p className="whitespace-pre-wrap">{m.content}</p>
             {m.citations.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -71,11 +83,21 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
                 ))}
               </p>
             )}
-            {m.action != null && <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">{JSON.stringify(m.action, null, 2)}</pre>}
-            {m.trace != null && (
+            {(m.action != null || m.trace != null) && (
               <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-muted-foreground">Trace</summary>
-                <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">{JSON.stringify(m.trace, null, 2)}</pre>
+                <summary className="cursor-pointer text-xs text-muted-foreground">Technical details</summary>
+                {m.action != null && (
+                  <>
+                    <p className="mt-1 text-xs font-semibold text-ink">Action</p>
+                    <pre className="mt-1 overflow-x-auto rounded-sm bg-muted-surface p-2 text-xs">{JSON.stringify(m.action, null, 2)}</pre>
+                  </>
+                )}
+                {m.trace != null && (
+                  <>
+                    <p className="mt-1 text-xs font-semibold text-ink">Trace</p>
+                    <pre className="mt-1 overflow-x-auto rounded-sm bg-muted-surface p-2 text-xs">{JSON.stringify(m.trace, null, 2)}</pre>
+                  </>
+                )}
               </details>
             )}
           </li>

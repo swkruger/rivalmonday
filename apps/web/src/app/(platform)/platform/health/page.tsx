@@ -5,6 +5,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { type HealthData, QueuesTable, SourcesTable, VendorsTable, WorkerTable } from './_components/health-tables';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ const COPY = PAGE_COPY['platform.health'];
 /** Platform operators only: the tool's `permission_denied` becomes a 404 in `callTool`. */
 export default async function PlatformHealthPage() {
   const { ctx } = await requireOperatorContext();
-  const [data, guides] = await Promise.all([callTool<HealthData>(ctx, 'get_platform_health', {}), helpGuides(ctx, 'platform')]);
+  const [data, guides, tz] = await Promise.all([callTool<HealthData>(ctx, 'get_platform_health', {}), helpGuides(ctx, 'platform'), viewerTimeZone()]);
   const now = new Date(data.generatedAt);
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
@@ -39,7 +40,7 @@ export default async function PlatformHealthPage() {
           <h2 className="font-semibold">Worker</h2>
           <HelpTip tip="platform.health.worker" />
         </div>
-        <WorkerTable worker={data.worker} now={now} />
+        <WorkerTable worker={data.worker} now={now} tz={tz} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center gap-1.5">
@@ -53,14 +54,14 @@ export default async function PlatformHealthPage() {
           <h2 className="font-semibold">Vendors</h2>
           <HelpTip tip="platform.health.vendors" />
         </div>
-        <VendorsTable vendors={data.vendors} now={now} />
+        <VendorsTable vendors={data.vendors} now={now} tz={tz} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center gap-1.5">
           <h2 className="font-semibold">Sources</h2>
           <HelpTip tip="platform.health.sources" />
         </div>
-        <SourcesTable sources={data.sources} now={now} />
+        <SourcesTable sources={data.sources} now={now} tz={tz} />
       </section>
     </div>
   );

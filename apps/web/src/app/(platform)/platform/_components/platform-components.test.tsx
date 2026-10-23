@@ -3,20 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 import { ActivityFeed, type ActivityItem } from './activity-feed';
-import { HealthPill } from './health-pill';
 import { RangeToggle } from './range-toggle';
-
-describe('HealthPill', () => {
-  it.each([
-    ['at_risk', 'At risk'],
-    ['idle', 'Idle'],
-    ['growing', 'Growing'],
-    ['steady', 'Steady'],
-  ] as const)('renders the %s label as text', (h, label) => {
-    render(<HealthPill health={h} />);
-    expect(screen.getByText(label)).toBeTruthy();
-  });
-});
 
 describe('RangeToggle', () => {
   it('marks the current range and links to the other', () => {
@@ -45,7 +32,7 @@ describe('ActivityFeed', () => {
           ],
           nextCursor: null,
         }}
-        loadMore={vi.fn()}
+        loadMore={vi.fn()} tz="UTC"
       />,
     );
     expect(screen.getByText(/signed up/i)).toBeTruthy();
@@ -59,15 +46,21 @@ describe('ActivityFeed', () => {
 
   it('shows "Show more" only with a cursor and appends the next page', async () => {
     const loadMore = vi.fn(async (_c: string) => ({ items: [item({ agencyName: 'Zed Co', agencyId: 'z' })], nextCursor: null }));
-    render(<ActivityFeed initial={{ items: [item({})], nextCursor: 'c1' }} loadMore={loadMore} />);
+    render(<ActivityFeed initial={{ items: [item({})], nextCursor: 'c1' }} loadMore={loadMore} tz="UTC" />);
     fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
     await waitFor(() => expect(screen.getByText(/Zed Co/)).toBeTruthy());
     expect(loadMore).toHaveBeenCalledWith('c1');
     expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
   });
 
+  it('shows the time in the viewer zone with its label, not an ISO date', () => {
+    render(<ActivityFeed initial={{ items: [item({ at: '2026-10-01T15:00:00.000Z' })], nextCursor: null }} loadMore={vi.fn()} tz="America/Chicago" />);
+    expect(screen.getByText(/10:00 AM CT/)).toBeTruthy();
+    expect(screen.queryByText(/2026-10-01/)).toBeNull();
+  });
+
   it('shows an empty message', () => {
-    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><ActivityFeed initial={{ items: [], nextCursor: null }} loadMore={vi.fn()} /></HelpProvider>);
+    render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><ActivityFeed initial={{ items: [], nextCursor: null }} loadMore={vi.fn()} tz="UTC" /></HelpProvider>);
     expect(screen.getByText('No activity yet')).toBeTruthy();
   });
 });

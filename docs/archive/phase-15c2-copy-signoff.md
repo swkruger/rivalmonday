@@ -55,3 +55,28 @@ The Billing column now uses BILLING_STATE labels (Free trial, Payment overdue, R
 | Guide / page description | Mention the five tabs and the confirms |
 
 Note: "Invite links still work" while sign-ups are paused is confirmed in `packages/tools/src/access/signup.ts` (only the open sign-up path checks `signupsPaused`).
+
+### Platform > other pages sweep (T6)
+| Where | Copy |
+|---|---|
+| HEALTH_STATUS chips (Health page) | Working (ok) · Slow (warn) · Down (down); tips and guide reworded from OK / Watch to Working / Slow |
+| INVOICE_STATUS chips | Draft · Open · Paid · Uncollectible · Voided |
+| Billing event reasons | Subscription started · Payment failed · Subscription ended · Set to cancel at period end · Free trial ended · Payment overdue for 7 days · Read-only for 30 days · Suspended for 90 days · Pilot ended · Cancellation date reached · Pilot granted by staff · Pilot ended by staff · Trial extended by staff (unknown reason: sentence case without its prefix) |
+| Billing event line | {Oct 12, 2025} · {from chip} → {to chip} · {reason}; a first event reads "Started as {chip}" |
+| End pilot: title / body / confirm | End this pilot? / The pilot ends now and the free trial starts. / End pilot |
+| Grant pilot: title / body / confirm | Grant a pilot? / The agency moves to a pilot with no card needed, until the end date if you set one. / Grant pilot |
+| Extend trial: title / body / confirm | Extend the free trial? / The trial runs until the date you chose. / Extend trial |
+| Attach discount: title / body / confirm | Attach this discount? / The discount applies to this agency's subscription, or at checkout if it has none yet. / Attach discount |
+| Pilot client cap: title / body / confirm | Lift the pilot client cap? / The agency can add more clients than the standard cap while it is in pilot. / Lift cap (restore: Restore the pilot client cap? / The agency goes back to the standard client cap while it is in pilot. / Restore cap) |
+| Ask reviews chips | {n} removed · Something went wrong · Couldn't answer · Limit reached (replace "error", "refused", "quota"); tip renamed "The status chips" and reworded to match |
+| Ask thread | Speaker: Client / Friday (the default assistant name) / Tool; status chip from ASK_MESSAGE_STATUS (Answered, Limit reached, Couldn't answer, Something went wrong, Stopped); message time in the viewer's zone; "Action" and "Trace" JSON now inside a closed "Technical details" toggle; tip "Citations and technical details" reworded |
+| Business types: Approve vertical / service | Approve {name}? / It joins the business type list that every agency can choose from. (service: ...the {type} service list...) / Approve |
+| Business types: Merge vertical / service | Merge {name} into {target}? / Agencies and clients using it move to the other business type. This cannot be undone. (service: Clients using it move to the other service. ...) / Merge |
+| Runbook: switch off | Switch off {item}? / It stops applying to briefs and alerts until you switch it back on. / Switch off |
+| Runbook: remove | Remove this {play, rule or setting}? / It is no longer in the {standard runbook, agency runbook}. Removing it deletes it from this runbook. / Remove |
+| Runbook: use update on a customised item | Replace your version? / Your edits to this {play, rule or setting} are replaced by the version from the {standard runbook, agency runbook}. / Use the update |
+| Runbook chips | Trigger shown as "Price change" (was "price change"); inheritance badges become chips |
+| Billing states tip | Reworded to the chip labels (Free trial, Payment overdue, Read-only) |
+| Dates | Overview activity: "Oct 21, 9:00 AM CT"; support sessions, health "last success" tooltip, knowledge "Synced Oct 5" in the viewer's zone |
+
+Not changed: the "Agency management is coming soon" line (15c-3). Overview charts still pass ISO keys to LineChart, which already prints "Oct 20" and "Oct 2026" (checked, nothing to change).

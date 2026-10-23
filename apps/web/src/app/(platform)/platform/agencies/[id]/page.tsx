@@ -1,5 +1,5 @@
-import { formatMoney } from '@/lib/format';
 import { platformRole } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import { EmptyState } from '@/components/help/empty-state';
@@ -8,13 +8,15 @@ import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
+import { formatDate, formatMoney } from '@/lib/format';
+import { AGENCY_HEALTH, CLIENT_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
-import { type Health, HealthPill } from '../../_components/health-pill';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
 import { type AgencyBilling, BillingPanel } from './billing-panel';
@@ -24,6 +26,8 @@ export const dynamic = 'force-dynamic';
 
 const HELP_KEY = 'page:platform.agencies.detail';
 const COPY = PAGE_COPY['platform.agencies.detail'];
+
+type Health = 'at_risk' | 'idle' | 'growing' | 'steady';
 
 interface Detail {
   agency: { id: string; name: string; createdAt: string; health: Health };
@@ -64,11 +68,13 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const range = parseRange(sp.range);
   const { ctx } = await requireOperatorContext();
   const { agency, tiles, series, team, clients } = await loadAgency(id, range);
-  const [{ rows: sessions }, role, guides] = await Promise.all([
+  const [{ rows: sessions }, role, guides, tz] = await Promise.all([
     callTool<{ rows: SupportSessionRow[] }>(ctx, 'list_agency_support_sessions', { agencyId: agency.id }),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
     helpGuides(ctx, 'platform'),
+    viewerTimeZone(),
   ]);
+  const health = labelFor(AGENCY_HEALTH, agency.health);
   const canStart = role === 'owner' || role === 'staff';
   const [billing, codes] = await Promise.all([
     callTool<AgencyBilling>(ctx, 'get_agency_billing', { agencyId: agency.id }),
@@ -88,16 +94,15 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies', href: '/platform/agencies' }, { label: agency.name }]}
         description={
           <>
-            <HelpText text={COPY.description} /> Created {agency.createdAt.slice(0, 10)}.
+            <HelpText text={COPY.description} /> Created {formatDate(agency.createdAt, { tz })}.
           </>
         }
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
         actions={
           <>
-            <HealthPill health={agency.health} />
+            <StatusChip tone={health.tone}>{health.label}</StatusChip>
             {canStart && <SupportDialog agencyId={agency.id} />}
-            <RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />
           </>
         }
       />
@@ -116,14 +121,14 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         <StatCard title="Spend this month" value={formatMoney(tiles.spendMonthUsd.value, { cents: true })} pill={deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
-        <PlatformCharts series={series} range={range} includeAgencies={false} />
+        <PlatformCharts series={series} range={range} includeAgencies={false} rangeToggle={<RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />} />
         <section className={cardCls}>
           <h2 className="font-semibold">Team</h2>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
             {TEAM.map((t) => (
               <div key={t.key}>
                 <dt className="text-muted-foreground">{t.label}</dt>
-                <dd className="text-xl font-extrabold text-secondary">{team[t.key]}</dd>
+                <dd className="text-xl font-semibold text-secondary">{team[t.key]}</dd>
               </div>
             ))}
           </dl>
@@ -147,10 +152,10 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
               </thead>
               <tbody>
                 {clients.map((c) => (
-                  <tr key={c.id} className="border-t border-[#EEF2F6]">
+                  <tr key={c.id} className="border-t border-border">
                     <td className="px-3 py-2 font-semibold">{c.name}</td>
-                    <td className="px-3 py-2">{c.status}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{c.createdAt.slice(0, 10)}</td>
+                    <td className="px-3 py-2"><StatusChip tone={labelFor(CLIENT_STATUS, c.status).tone}>{labelFor(CLIENT_STATUS, c.status).label}</StatusChip></td>
+                    <td className="whitespace-nowrap px-3 py-2">{formatDate(c.createdAt, { tz })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -160,11 +165,11 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       </section>
       <section className={cardCls}>
         <h2 className="mb-3 font-semibold">Billing</h2>
-        <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} />
+        <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} tz={tz} />
       </section>
       <section className={cardCls}>
         <h2 className="font-semibold">Support sessions</h2>
-        <SupportSessionsTable rows={sessions} empty="No support sessions yet." />
+        <SupportSessionsTable rows={sessions} empty="No support sessions yet." tz={tz} />
       </section>
       <p className="text-sm text-muted-foreground">Agency management is coming soon.</p>
     </>

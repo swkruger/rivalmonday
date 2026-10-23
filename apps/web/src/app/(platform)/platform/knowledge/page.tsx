@@ -1,14 +1,17 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
+import { StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
+import { KB_ARTICLE_STATUS, labelFor } from '@/lib/labels';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { kbImportStatusAction, startKbImportAction } from './actions';
 import { ImportPanel } from './import-panel';
 import { KIND_OPTION, type KbTargets, LEVEL_OPTION, selectClass } from './scope-fields';
@@ -45,7 +48,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
     ...(sp.cursor ? { cursor: sp.cursor } : {}),
   };
   const page = await callTool<{ items: KbListItem[]; nextCursor: string | null }>(ctx, 'list_kb_articles', { ...filters, limit: 25 });
-  const [targets, guides] = await Promise.all([callTool<KbTargets>(ctx, 'list_kb_targets', {}), helpGuides(ctx, 'platform')]);
+  const [targets, guides, tz] = await Promise.all([callTool<KbTargets>(ctx, 'list_kb_targets', {}), helpGuides(ctx, 'platform'), viewerTimeZone()]);
   const clients = targets.agencies.filter((a) => !sp.agencyId || a.id === sp.agencyId).flatMap((a) => a.clients);
   const more = new URLSearchParams(Object.entries(sp).filter(([k, v]) => k !== 'cursor' && v) as [string, string][]);
   if (page.nextCursor) more.set('cursor', page.nextCursor);
@@ -92,9 +95,9 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-muted px-2 py-0.5">{a.status === 'published' ? 'Published' : 'Draft'}</span>
-                <span className="rounded-full bg-muted px-2 py-0.5">{SOURCE_BADGE[a.source]}</span>
-                <SyncBadge a={a} />
+                <StatusChip tone={labelFor(KB_ARTICLE_STATUS, a.status).tone}>{labelFor(KB_ARTICLE_STATUS, a.status).label}</StatusChip>
+                <StatusChip tone="neutral">{SOURCE_BADGE[a.source]}</StatusChip>
+                <SyncBadge a={a} tz={tz} />
               </div>
             </li>
           ))}

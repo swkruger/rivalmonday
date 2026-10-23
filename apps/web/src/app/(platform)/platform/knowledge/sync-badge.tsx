@@ -1,4 +1,5 @@
 import type { KbKind, KbLevel } from '@cs/core';
+import { formatDate } from '@/lib/format';
 import { importErrorCopy } from './import-errors';
 
 export interface KbListItem {
@@ -17,17 +18,15 @@ export interface KbListItem {
   updatedAt: Date;
 }
 
-const date = (d: Date) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-
 /** URL rows only: the sync error (decided copy for its code) in red, "Auto-sync off" once sync is off, else "Synced {date}" plus " · changed" when the last sync changed the body. */
-export function SyncBadge({ a }: { a: KbListItem }) {
+export function SyncBadge({ a, tz }: { a: KbListItem; tz: string }) {
   if (a.source !== 'url') return null;
   return (
     <>
-      {a.syncError && <span className="text-xs text-red-700">{importErrorCopy(a.syncError)}</span>}
+      {a.syncError && <span className="text-xs text-danger">{importErrorCopy(a.syncError)}</span>}
       {!a.autoSync && <span className="text-xs text-muted-foreground">Auto-sync off</span>}
       {a.autoSync && !a.syncError && a.lastSyncedAt && (
-        <span className="text-xs text-muted-foreground">Synced {date(a.lastSyncedAt)}{a.lastSyncChanged ? ' · changed' : ''}</span>
+        <span className="text-xs text-muted-foreground">Synced {formatDate(a.lastSyncedAt, { tz })}{a.lastSyncChanged ? ' · changed' : ''}</span>
       )}
     </>
   );

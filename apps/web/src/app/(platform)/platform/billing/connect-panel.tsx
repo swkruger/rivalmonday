@@ -1,6 +1,6 @@
 import { formatMoney } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
-import { ConfirmForm } from './confirm-form';
+import { ConfirmForm } from '@/components/confirm-form';
 import { setConnectFeeAction } from './actions';
 
 export interface ConnectAgencyRow {
