@@ -7,7 +7,7 @@
 15c-1 built and reviewed on 2026-10-22; rebased on 7a 2026-10-22 (health table moved to `formatRelative`, `reportError` wired to Sentry). 15c-2 and 15c-3 plans follow after 15c-1 merges.
 
 ## Next (overwrite)
-Final whole-branch review → owner verification → /rm-merge.
+On hold (owner, 2026-10-22): wait for `phase-15b3` to merge → owner migrates `cs_dev` (0081–0084) + `kb:seed` → rebase 15c again → owner verifies 15c-1 (steps below) → /rm-merge. Final whole-branch review done; rebased on 7a.
 
 ## Interfaces this branch adds or changes
 No migration (next free **0084**).
