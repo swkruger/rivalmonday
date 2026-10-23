@@ -22,10 +22,10 @@ describe('TzCookie', () => {
     clearCookie();
   });
 
-  it('writes the cookie and refreshes once when missing', () => {
+  it('TzCookie writes rm_tz and never calls router.refresh', () => {
     render(<TzCookie />);
     expect(document.cookie).toContain('rm_tz=America%2FChicago');
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('does nothing when the cookie already matches', () => {

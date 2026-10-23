@@ -36,7 +36,7 @@ describe('no route-level loading.tsx', () => {
   // would arrive as 200 instead of 404 ("page refusals -> 404", binding). Use <Suspense fallback={<PageSkeleton />}>
   // inside the page, after its access checks, instead.
   it('no loading.tsx under app/(app) or app/(platform)', () => {
-    const app = join(process.cwd(), 'src', 'app');
+    const app = join(__dirname, '..', 'app');
     expect([...findLoading(join(app, '(app)')), ...findLoading(join(app, '(platform)'))]).toEqual([]);
   });
 });

@@ -59,8 +59,8 @@ function zoneName(at: Date, tz: string): string {
   return generic.includes(' ') || generic.startsWith('GMT') ? name('short') : generic;
 }
 
-/** Server-safe relative time: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", then a UTC date; future: "in 3 days". */
-export function formatRelative(v: string | Date, now: Date = new Date()): string {
+/** Server-safe relative time: "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", then a date in `o.tz` (UTC by default); future: "in 3 days". */
+export function formatRelative(v: string | Date, now: Date = new Date(), o: { tz?: string } = {}): string {
   const p = parse(v);
   if (!p) return String(v);
   const diff = now.getTime() - p.at.getTime();
@@ -74,7 +74,7 @@ export function formatRelative(v: string | Date, now: Date = new Date()): string
   if (hours < 24) return when(`${hours} h`);
   if (days === 1) return future ? 'tomorrow' : 'yesterday';
   if (days < 30) return when(`${days} days`);
-  return formatDate(p.at, { tz: 'UTC', now });
+  return formatDate(p.at, { tz: o.tz ?? 'UTC', now });
 }
 
 /** "Week of Oct 20": the Monday of the week containing `v`, in `tz`. */

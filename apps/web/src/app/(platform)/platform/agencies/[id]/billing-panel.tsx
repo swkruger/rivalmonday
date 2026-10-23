@@ -90,7 +90,7 @@ export function BillingPanel({ billing: b, role, codes }: { billing: AgencyBilli
                 ) : (
                   <span>{i.number ?? i.id}</span>
                 )}
-                <span>{formatMoney(i.amountPaidCents, { unit: 'cents', cents: true })}</span>
+                <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
                 <span className="text-muted-foreground">{i.status ?? ''} · {i.created.slice(0, 10)}</span>
               </li>
             ))}

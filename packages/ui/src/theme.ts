@@ -10,6 +10,23 @@ export function mixHex(a: string, b: string, t: number): string {
   return `#${ca.map((x, i) => Math.round(x + (cb[i]! - x) * t).toString(16).padStart(2, '0')).join('')}`;
 }
 
+const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+const luminance = (hex: string) => {
+  const [r, g, b] = channels(hex);
+  return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+};
+
+/** WCAG 2.x contrast ratio between two #rrggbb colours (1 to 21). */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+}
+
+/** White text when its contrast on `bg` is at least 2.6 (keeps white on the decided default #47A8E7, 2.62), else the ink colour. */
+export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
+  return contrastRatio('#FFFFFF', bg) >= 2.6 ? '#FFFFFF' : '#0B2540';
+}
+
 const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
 
 /**
@@ -25,6 +42,7 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
   return {
     '--primary': primary,
     '--secondary': secondary,
+    '--color-primary-foreground': readableTextOn(primary),
     '--primary-soft': isDefault ? DEFAULT_SOFT.soft : mixHex(primary, '#ffffff', 0.86),
     '--primary-soft-text': isDefault ? DEFAULT_SOFT.text : mixHex(primary, RIVAL_MONDAY_TOKENS.ink, 0.45),
   };

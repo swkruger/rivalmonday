@@ -1,5 +1,7 @@
 /** Distances: stored and sent to tools in kilometres, shown and typed in miles (15c spec §3.3). */
-export const KM_PER_MILE = 1.609344;
+import { KM_PER_MILE } from '@cs/core';
+
+export { KM_PER_MILE };
 
 export function kmToMiles(km: number): number {
   return km / KM_PER_MILE;

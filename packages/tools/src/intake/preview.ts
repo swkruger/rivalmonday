@@ -1,3 +1,4 @@
+import { KM_PER_MILE } from '@cs/core';
 import type { MapsPlace } from '@cs/collectors';
 import type { JsonSchemaFormat } from '@cs/ai';
 import type { LeadPreview, SetupLookup } from '@cs/db';
@@ -7,7 +8,6 @@ import type { LeadPreview, SetupLookup } from '@cs/db';
 type Snap = Extract<LeadPreview, { status: 'ready' }>;
 
 const MAX_NEARBY = 5;
-const KM_PER_MILE = 1.609344;
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const r = (x: number) => (x * Math.PI) / 180;

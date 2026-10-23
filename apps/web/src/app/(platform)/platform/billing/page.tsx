@@ -76,7 +76,7 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
         ]}
       />
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        <StatCard title="MRR" value={formatMoney(overview.mrrCents, { unit: 'cents', cents: true })} hint="From the latest daily stats" />
+        <StatCard title="MRR" value={formatMoney(overview.mrrCents, { unit: 'cents' })} hint="From the latest daily stats" />
         <StatCard title="Paid seats" value={String(overview.paidSeats)} hint="From the latest daily stats" />
         <div className="col-span-2 rounded-[14px] bg-surface p-6 shadow-card">
           <h3 className="text-sm font-semibold text-muted-foreground">Agencies by state</h3>

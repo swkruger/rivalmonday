@@ -46,6 +46,12 @@ describe('formatWeekOf', () => {
 });
 
 describe('formatRelative', () => {
+  it('formatRelative beyond 30 days uses the zone: 2026-08-01T03:00Z in America/Chicago is Jul 31', () => {
+    expect(formatRelative('2026-08-01T03:00:00Z', now, { tz: 'America/Chicago' })).toBe('Jul 31');
+  });
+  it('formatRelative without tz still UTC', () => {
+    expect(formatRelative('2026-08-01T03:00:00Z', now)).toBe('Aug 1');
+  });
   const at = (ms: number) => new Date(now.getTime() - ms);
   const MIN = 60_000;
   it('buckets', () => {

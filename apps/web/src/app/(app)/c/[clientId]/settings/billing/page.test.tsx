@@ -36,7 +36,7 @@ describe('client billing page (9b)', () => {
     render(await open());
     expect(text()).toContain('Cool Agency');
     expect(text()).toContain('Active');
-    expect(text()).toContain('$129.00 on Dec 1');
+    expect(text()).toContain('$129 on Dec 1');
     expect(screen.getByRole('button', { name: 'Manage payment' })).toBeTruthy();
     expect(m.calls[0]).toEqual([m.ctx, 'get_my_billing', { clientId: C }]);
   });

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { mixHex, themeVars } from './theme';
+import { mixHex, readableTextOn, themeVars } from './theme';
 
 describe('mixHex', () => {
   it('mixes channel-wise and rounds', () => {
@@ -13,7 +13,7 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--color-primary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8',
     });
   });
 
@@ -26,6 +26,19 @@ describe('themeVars', () => {
   it('never emits a non-hex value (Review Focus 5)', () => {
     const v = themeVars({ primary: 'red;}body{display:none', secondary: 'url(x)' });
     expect(Object.values(v).every((x) => /^#[0-9a-fA-F]{6}$/.test(x))).toBe(true);
+  });
+});
+
+describe('readableTextOn', () => {
+  it('readableTextOn keeps white on #47A8E7', () => {
+    expect(readableTextOn('#47A8E7')).toBe('#FFFFFF');
+  });
+  it('readableTextOn picks ink on #F5D90A', () => {
+    expect(readableTextOn('#F5D90A')).toBe('#0B2540');
+  });
+  it('themeVars sets --color-primary-foreground', () => {
+    expect(themeVars({ primary: '#F5D90A', secondary: '#000000' })['--color-primary-foreground']).toBe('#0B2540');
+    expect(themeVars({ primary: '#123ABC', secondary: '#000000' })['--color-primary-foreground']).toBe('#FFFFFF');
   });
 });
 

@@ -17,7 +17,7 @@ export interface CodeRow {
 }
 
 const APPLIES: Record<CodeRow['appliesTo'], string> = { base: 'Base price', seats: 'Seats', both: 'Base and seats' };
-const off = (c: CodeRow) => (c.percentOff !== null ? `${c.percentOff}% off` : `${formatMoney(c.amountOffCents ?? 0, { unit: 'cents', cents: true })} off`);
+const off = (c: CodeRow) => (c.percentOff !== null ? `${c.percentOff}% off` : `${formatMoney(c.amountOffCents ?? 0, { unit: 'cents' })} off`);
 const length = (c: CodeRow) => (c.duration === 'repeating' ? `${c.durationMonths} months` : c.duration === 'once' ? 'First invoice' : 'Forever');
 const status = (c: CodeRow) => (c.revokedAt ? 'Revoked' : c.expiresAt && Date.parse(c.expiresAt) <= Date.now() ? 'Expired' : 'Active');
 

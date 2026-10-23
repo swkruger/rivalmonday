@@ -33,7 +33,7 @@ afterEach(cleanup);
 describe('/platform/billing', () => {
   it('shows MRR, paid seats and agencies by state', async () => {
     render(await Page());
-    expect(screen.getByText('$1,250.00')).toBeTruthy();
+    expect(screen.getByText('$1,250')).toBeTruthy();
     expect(screen.getByText('17')).toBeTruthy();
     expect(screen.getByText('Active')).toBeTruthy();
     expect(screen.getByText('Past due')).toBeTruthy();

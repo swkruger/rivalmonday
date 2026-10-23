@@ -52,12 +52,12 @@ describe('/agency/settings/billing', () => {
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_billing_summary', {});
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_connect_status', {});
     expect(screen.getByText('Standard')).toBeTruthy();
-    expect(screen.getAllByText(/\$299\.00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$299/).length).toBeGreaterThan(0);
     expect(screen.getByText('Trial')).toBeTruthy();
     expect(screen.getByText(/Trial ends Nov 13/)).toBeTruthy();
     expect(screen.getByText(/4 of 3 included/)).toBeTruthy();
     expect(screen.getByText(/1 extra/)).toBeTruthy();
-    expect(screen.getByText('$348.00')).toBeTruthy();
+    expect(screen.getByText('$348')).toBeTruthy();
     expect(screen.getByText(/FRIEND/)).toBeTruthy();
     const inv = screen.getByRole('link', { name: /A-0001/ });
     expect(inv.getAttribute('href')).toBe('https://invoice.stripe.com/i/1');

@@ -113,7 +113,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <CardContent className="flex flex-col gap-2">
           {s.plan && (
             <p>
-              {formatMoney(s.plan.basePriceCents, { unit: 'cents', cents: true })} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatMoney(s.plan.seatPriceCents, { unit: 'cents', cents: true })} per month.
+              {formatMoney(s.plan.basePriceCents, { unit: 'cents' })} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatMoney(s.plan.seatPriceCents, { unit: 'cents' })} per month.
             </p>
           )}
           {date && <p className="font-semibold">{date}</p>}
@@ -125,8 +125,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </p>
           {s.nextInvoice && (
             <p>
-              Next invoice: <strong>{formatMoney(s.nextInvoice.amountDueCents, { unit: 'cents', cents: true })}</strong> on {formatDate(s.nextInvoice.periodEnd, { tz: 'UTC' })}
-              {s.nextInvoice.discountCents > 0 ? ` (includes ${formatMoney(s.nextInvoice.discountCents, { unit: 'cents', cents: true })} discount)` : ''}.
+              Next invoice: <strong>{formatMoney(s.nextInvoice.amountDueCents, { unit: 'cents' })}</strong> on {formatDate(s.nextInvoice.periodEnd, { tz: 'UTC' })}
+              {s.nextInvoice.discountCents > 0 ? ` (includes ${formatMoney(s.nextInvoice.discountCents, { unit: 'cents' })} discount)` : ''}.
             </p>
           )}
           {s.discount && <p>Discount: {s.discount.code ?? 'applied'}</p>}
@@ -162,7 +162,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               {s.recentInvoices.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3">
                   <span>{formatDate(i.created, { tz: 'UTC' })}</span>
-                  <span>{formatMoney(i.amountPaidCents, { unit: 'cents', cents: true })}</span>
+                  <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
                   <span className="capitalize text-muted-foreground">{i.status ?? ''}</span>
                   {i.hostedInvoiceUrl && (
                     <a href={i.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text underline">

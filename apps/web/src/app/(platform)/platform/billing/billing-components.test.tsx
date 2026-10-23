@@ -42,10 +42,10 @@ describe('PlanEditor', () => {
     expect(screen.getByLabelText('Base price ($/month)')).toBeTruthy();
   });
 
-  it.each([false])('staff/viewer (canEdit=%s) see the read-only table only', (canEdit) => {
+  it.each([false])('billing amounts render $299 not $299.00; staff/viewer (canEdit=%s) see the read-only table only', (canEdit) => {
     render(<PlanEditor plans={[plan(), plan({ id: 'p1', version: 1, isCurrent: false })]} canEdit={canEdit} />);
     expect(screen.queryByRole('button', { name: 'Publish new version' })).toBeNull();
-    expect(screen.getAllByText('$299.00')).toHaveLength(2);
+    expect(screen.getAllByText('$299')).toHaveLength(2);
     expect(screen.getByText('Current')).toBeTruthy();
   });
 });
@@ -159,7 +159,7 @@ describe('ConnectPanel', () => {
     render(<ConnectPanel overview={overview} canEdit={false} />);
     expect(screen.getByText('Acme Agency')).toBeTruthy();
     expect(screen.getByText('Beta Co')).toBeTruthy();
-    expect(screen.getAllByText('$297.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$297').length).toBeGreaterThan(0);
     expect(screen.getByText('2.5%')).toBeTruthy(); // platform default
     expect(screen.getByText('1%')).toBeTruthy(); // Acme override
     expect(screen.getByText('Restricted')).toBeTruthy();

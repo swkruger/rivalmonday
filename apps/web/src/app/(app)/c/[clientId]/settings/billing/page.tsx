@@ -100,10 +100,10 @@ export default async function ClientBillingPage({ params, searchParams }: { para
           {!b.paused && b.nextChargeDate && (
             <p className="text-sm">
               <span className="text-muted-foreground">Next charge </span>
-              <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents', cents: true })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</span>
+              <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents' })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</span>
             </p>
           )}
-          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents', cents: true })}</span></p>}
+          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</span></p>}
           {b.endsOn && <p className="text-sm">Your plan ends on {formatDate(b.endsOn, { tz: 'UTC' })}. There will be no further charges.</p>}
           {b.canManagePayment && <PaymentButton action={managePaymentAction.bind(null, clientId)} label="Manage payment" />}
         </CardContent>
