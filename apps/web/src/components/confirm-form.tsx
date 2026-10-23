@@ -34,7 +34,9 @@ export function ConfirmForm({ action, submit, variant = 'default', title, body, 
         }} className={className ?? 'flex flex-wrap items-end gap-2'}>
         {children}
         <ConfirmDialog
-          trigger={<Button type="button" variant={variant}>{submit}</Button>}
+          // An invalid form (a required field left empty) shows the browser's message and never opens the dialog: preventing the
+          // click's default stops the dialog trigger from toggling.
+          trigger={<Button type="button" variant={variant} onClick={(e) => { if (formRef.current && !formRef.current.reportValidity()) e.preventDefault(); }}>{submit}</Button>}
           title={title}
           body={body}
           confirmLabel={confirmLabel}

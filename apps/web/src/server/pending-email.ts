@@ -43,8 +43,9 @@ export const RESEND_PER_HOUR = 5;
 export async function takeResendSlot(service: Db, email: string, now = new Date()): Promise<boolean> {
   return service.transaction(async (tx) => {
     const h = emailHash(email);
-    // Serialises concurrent resends for one address so two requests cannot both see 4 and both insert.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${h}))`);
+    // Serialises concurrent resends for one address so two requests cannot both see 4 and both insert. The prefix keeps this
+    // lock key apart from other advisory locks taken on a bare `hashtext`.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('email-resend:' || ${h}))`);
     const [{ n }] = [...(await tx.execute<{ n: number }>(sql`select count(*)::int as n from email_resend where email_hash = ${h} and sent_at > ${now.toISOString()}::timestamptz - interval '1 hour'`))];
     if (n >= RESEND_PER_HOUR) return false;
     await tx.insert(emailResend).values({ emailHash: h, sentAt: now });

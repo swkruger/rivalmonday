@@ -137,7 +137,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
     );
   }
   const play = item.kind === 'play';
-  const useUpdate = () => {
+  const applyUpdate = () => {
     if (level === 'client' && play) {
       go({ op: 'retailor', key }, (r) => {
         setProposed(r.ok ? r.proposed ?? null : null);
@@ -169,10 +169,10 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
               title="Replace your version?"
               body={`Your edits to this ${noun(item.kind)} are replaced by the version from the ${name}.`}
               confirmLabel="Use the update"
-              action={async () => { useUpdate(); }}
+              action={async () => { applyUpdate(); }}
             />
           ) : (
-            <Button size="sm" disabled={pending} onClick={useUpdate}>Use the update</Button>
+            <Button size="sm" disabled={pending} onClick={applyUpdate}>Use the update</Button>
           )}
           <Button size="sm" variant="outline" disabled={pending} onClick={() => go({ op: 'dismiss', key })}>Keep mine</Button>
         </div>
