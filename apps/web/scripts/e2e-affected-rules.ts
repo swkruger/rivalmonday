@@ -176,6 +176,7 @@ export const RULES: Rule[] = [
   // --- Web components and server modules (by who renders/uses them) ---
   { pattern: re(`${WEB}src/dev-panel/`), tags: ['@dev-panel'], why: 'dev panel' },
   { pattern: re(`${COMP}(?:auth-card|sign-out-button)\\.tsx$`), tags: ['@auth'], why: 'sign-in pages' },
+  { pattern: re(`${WEB}src/lib/keep-next\\.ts$`), tags: ['@auth'], why: 'sign-in next path on check-email and the error returns' },
   { pattern: re(`${COMP}read-only\\.tsx$`), tags: 'all', why: 'read-only provider and WriteGuard (wrap write controls everywhere)' },
   { pattern: re(`${COMP}support-sessions-table\\.tsx$`), tags: ['@support', '@platform'], why: 'support-session history table (platform agency page and Platform access)' },
   { pattern: re(`${COMP}(?:client-home-basic|client-lists|stat-card)\\.tsx$`), tags: ['@overview', '@reviews', '@starting-point'], why: 'client overview/reviews (stat tiles also render the scorecard)' },
@@ -203,7 +204,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}(?:guest|links|files|store)\\.ts$`), tags: GUEST_FILES, why: 'guest links and stored files' },
   { pattern: re(`${SERVER}logo\\.ts$`), tags: ['@onboarding'], why: 'logo pipeline (sharp normalisation; the wizard E2E uploads a logo)' },
   { pattern: re(`${SERVER}support-[^/]+\\.ts$`), tags: ['@support'], why: 'support session cookie, mask and email modules' },
-  { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|onboarding-start|turnstile)\\.ts$`), tags: ['@auth', '@onboarding'], why: 'sign-in email / sign-out / sign-up' },
+  { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|pending-email|onboarding-start|turnstile)\\.ts$`), tags: ['@auth', '@onboarding'], why: 'sign-in email / sign-out / sign-up' },
 
   // --- Domain packages: keyword rules (more specific first) ---
   kw('alert-rules', ['@alert-rules'], 'alert rules'),

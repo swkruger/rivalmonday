@@ -8,6 +8,7 @@ import { auth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
 import { webEnv } from '@/server/env';
+import { PENDING_EMAIL_COOKIE, pendingEmailCookieOptions, signPendingEmail } from '@/server/pending-email';
 import { openPendingSignup } from '@/server/pending-signup';
 import { SIGNUP_COOKIE, SIGNUP_TTL_SECONDS, signSignupCookie } from '@/server/signup-cookie';
 import { verifyTurnstile } from '@/server/turnstile';
@@ -65,6 +66,9 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
   });
   // Malformed input (e.g. a token that is not an invite token) is treated as a refusal, not an error.
   const sendLink = parsed.success ? (await startAgencySignup(service, parsed.data, now)).sendLink : false;
+
+  // B5: every email path sets the resend cookie (refused included: same name, options and timing); Google doesn't.
+  if (!wantsGoogle) (await cookies()).set(PENDING_EMAIL_COOKIE, signPendingEmail(env.authSecret, { email, flow: 'signup', next: CALLBACK }, now), pendingEmailCookieOptions());
 
   let googleUrl: string | null = null;
   try {

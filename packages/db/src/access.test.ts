@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, errorText, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { invitation, membership } from './schema';
+import { emailResend, invitation, membership } from './schema';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -64,5 +64,18 @@ describe('invitation', () => {
 
   it('rejects malformed emails', async () => {
     expect(await errorText(dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'nope', role: 'agency_admin', invitedBy: 't', expiresAt: inDays(1) }))).toMatch(/invitation_email_check/);
+  });
+});
+
+describe('email_resend', () => {
+  it('email_resend is RLS-forced and invisible to app_user', async () => {
+    await dbs.service.insert(emailResend).values({ emailHash: 'a'.repeat(64) });
+    expect(await dbs.service.select().from(emailResend)).toHaveLength(1);
+    const [flags] = [...(await dbs.owner.execute<{ rls: boolean; force: boolean }>(sql`select relrowsecurity as rls, relforcerowsecurity as force from pg_class where oid = 'public.email_resend'::regclass`))];
+    expect(flags).toEqual({ rls: true, force: true });
+    expect(await errorText(dbs.app.select().from(emailResend))).toMatch(/permission denied/);
+    expect(await errorText(dbs.app.insert(emailResend).values({ emailHash: 'b'.repeat(64) }))).toMatch(/permission denied/);
+    const [grants] = [...(await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from information_schema.role_table_grants where table_name = 'email_resend' and grantee = 'app_user'`))];
+    expect(grants!.n).toBe(0);
   });
 });

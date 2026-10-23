@@ -3,7 +3,9 @@ import { Button, Input, Label } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authClient } from '@/lib/auth-client';
+import { keepNext } from '@/lib/keep-next';
 import { ErrorNote } from '@/components/form-error';
+import { rememberPendingEmail } from './check-email/actions';
 
 const ERRORS: Record<string, string> = {
   link: 'That sign-in link expired or was already used. Ask for a new one below.',
@@ -13,12 +15,6 @@ const ERRORS: Record<string, string> = {
 /** Phase 11b Q3: `?email=` only fills the field (display only); anything that is not a plain email address is ignored. */
 const EMAIL_HINT = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 const validHint = (v: string | null | undefined): string => (v && v.length <= 320 && EMAIL_HINT.test(v) ? v : '');
-
-/**
- * 15a §2.10: a client `next` (`/c/…`) rides along to check-email and the error returns, so those pages can brand by that
- * client's agency (`authBranding`; the server re-validates the id). Other paths are left off, as before.
- */
-const keepNext = (path: string, next: string) => (next.startsWith('/c/') ? `${path}${path.includes('?') ? '&' : '?'}next=${encodeURIComponent(next)}` : path);
 
 /**
  * The same "check your email" result is shown for any address, invited or not (decision 2) — this component never
@@ -37,11 +33,15 @@ export function SignInForm({ next, googleEnabled, error, emailHint = null }: { n
     e.preventDefault();
     setBusy(true);
     const res = await authClient.signIn.magicLink({ email: email.trim(), callbackURL: next, errorCallbackURL: keepNext('/sign-in?reason=link', next) });
-    setBusy(false);
     if (res.error) {
+      setBusy(false);
       setProblem('We could not send a link just now. Wait a minute and try again.');
       return;
     }
+    // 15c-2a B5: the signed cookie behind check-email's "Resend email" (the server re-validates `next`). A failure only
+    // means the resend button will offer "Start again", so it never blocks the way to check-email.
+    await rememberPendingEmail(email.trim(), next).catch(() => undefined);
+    setBusy(false);
     router.push(keepNext('/sign-in/check-email', next));
   }
 

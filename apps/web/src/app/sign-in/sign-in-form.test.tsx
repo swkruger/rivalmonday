@@ -6,6 +6,9 @@ const magicLink = vi.fn(async (): Promise<{ data: { status: boolean } | null; er
 const social = vi.fn(async () => ({ data: null, error: null }));
 vi.mock('@/lib/auth-client', () => ({ authClient: { signIn: { magicLink, social } } }));
 
+const remember = vi.fn(async () => undefined);
+vi.mock('./check-email/actions', () => ({ rememberPendingEmail: remember }));
+
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
@@ -22,6 +25,15 @@ describe('SignInForm', () => {
       expect(magicLink).toHaveBeenCalledWith({ email: 'pat@example.com', callbackURL: '/inbox', errorCallbackURL: '/sign-in?reason=link' }),
     );
     expect(push).toHaveBeenCalledWith('/sign-in/check-email');
+    expect(remember).toHaveBeenCalledWith('pat@example.com', '/inbox');
+  });
+
+  it('a failing remember step still goes to check-email', async () => {
+    remember.mockRejectedValueOnce(new Error('cookie'));
+    render(<SignInForm next="/" googleEnabled={false} error={null} />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'pat@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/sign-in/check-email'));
   });
 
   it('15a §2.10: a client next path rides along to check-email and the error pages (they brand by its agency)', async () => {
@@ -62,6 +74,7 @@ describe('SignInForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/could not send/i));
     expect(push).not.toHaveBeenCalled();
+    expect(remember).not.toHaveBeenCalled();
   });
 
   it('prefills a valid email param and ignores an invalid one', () => {

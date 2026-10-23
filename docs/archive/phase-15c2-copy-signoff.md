@@ -194,3 +194,11 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | /start/v, agency | "<Agency> has your details and will be in touch about next steps." (replaces "will be in touch within one business day") |
 | /start/v, platform | "We'll match you with a local marketing partner and they'll be in touch." (unchanged) + link "Back to the start page" |
 | /start/v nearby table | Column "Distance" (values "0.8 mi", "3 mi"; was "Distance (mi)") |
+
+### Sign-in / sign-up: resend email (T14)
+| Where | Copy |
+|---|---|
+| Check your email (sign-in and sign-up) | Button "Resend email" (outline, under the existing copy) |
+| After any resend click | Button "Resend in {n} s" (disabled, counts down from 60) |
+| Result line (every outcome: sent, unknown address, limit reached) | "If that address can sign in, a new email is on its way." |
+| Resend after the 15-minute window | The button becomes a link "Start again" (to `/sign-in` or `/sign-up`) |

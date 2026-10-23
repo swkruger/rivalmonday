@@ -610,6 +610,20 @@
       "when": 1792741468432,
       "tag": "0086_review_checked_at",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1792756296164,
+      "tag": "0087_email_resend",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1792756304838,
+      "tag": "0088_email_resend_rls",
+      "breakpoints": true
     }
   ]
 }

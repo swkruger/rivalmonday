@@ -25,6 +25,7 @@ vi.mock('next/navigation', () => ({
   },
 }));
 const { startSignup } = await import('./actions');
+const { PENDING_EMAIL_COOKIE, verifyPendingEmail } = await import('@/server/pending-email');
 
 const form = (o: Record<string, string> = {}) => {
   const f = new FormData();
@@ -64,6 +65,32 @@ describe('startSignup', () => {
     expect(await redirectOf(startSignup(empty, form()))).toBe('/sign-in/check-email?for=signup');
     expect(Date.now() - t0).toBeGreaterThanOrEqual(395);
     expect(m.magic).not.toHaveBeenCalled();
+  });
+
+  it('startSignup sets rm_pending_email for refused sign-ups too', async () => {
+    await redirectOf(startSignup(empty, form()));
+    const accepted = m.cookieSet.mock.calls.find((c) => c[0] === PENDING_EMAIL_COOKIE)!;
+    m.cookieSet.mockReset();
+    m.start.mockResolvedValue({ ok: true, sendLink: false });
+    await redirectOf(startSignup(empty, form()));
+    const refused = m.cookieSet.mock.calls.find((c) => c[0] === PENDING_EMAIL_COOKIE)!;
+    expect(m.cookieSet).toHaveBeenCalledTimes(1);
+    expect(refused[2]).toEqual(accepted[2]);
+    expect(refused[2]).toMatchObject({ httpOnly: true, sameSite: 'lax', path: '/', maxAge: 900 });
+    for (const c of [accepted, refused]) expect(verifyPendingEmail('s'.repeat(40), c[1] as string)).toEqual({ email: 'pat@acme.com', flow: 'signup', next: '/onboarding/start' });
+    // A malformed invite token is a refusal too.
+    m.cookieSet.mockReset();
+    await redirectOf(startSignup(empty, form({ inviteToken: 'garbage' })));
+    expect(m.cookieSet.mock.calls.map((c) => c[0])).toEqual([PENDING_EMAIL_COOKIE]);
+  });
+
+  it('a Turnstile failure sets no rm_pending_email; the Google path neither', async () => {
+    m.turnstile.mockResolvedValue(false);
+    await startSignup(empty, form());
+    expect(m.cookieSet).not.toHaveBeenCalled();
+    m.turnstile.mockResolvedValue(true);
+    await startSignup(empty, form({ intent: 'google' }));
+    expect(m.cookieSet.mock.calls.map((c) => c[0])).toEqual(['rm_signup']);
   });
 
   it('a Turnstile failure re-renders with the message and sends nothing', async () => {

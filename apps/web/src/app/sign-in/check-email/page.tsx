@@ -5,6 +5,7 @@ import { authBranding, authHintFromNext, authTitle, defaultBranding } from '@/se
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { safeNext } from '@/server/safe-next';
+import { ResendButton } from './resend-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,11 +26,13 @@ export default async function CheckEmailPage({ searchParams }: { searchParams: P
   const params = await searchParams;
   const signup = params.for === 'signup';
   const next = nextOf(params);
+  const backToSignIn = next && next !== '/' ? `/sign-in?next=${encodeURIComponent(next)}` : '/sign-in';
   return (
     <AuthCard branding={await brandingFor(params)} title="Check your email">
       {signup ? (
         <>
           <p className="text-ink">Check your inbox. If you can create an agency with this address, we&apos;ve sent a link to confirm it. The link works for 15 minutes.</p>
+          <ResendButton startAgainHref="/sign-up" />
           <Link href="/sign-up" className="mt-4 inline-block text-sm text-secondary underline">
             Back to sign-up
           </Link>
@@ -37,7 +40,8 @@ export default async function CheckEmailPage({ searchParams }: { searchParams: P
       ) : (
         <>
           <p className="text-ink">If this address has access, a sign-in link is on its way. It works once and expires in 15 minutes.</p>
-          <Link href={next && next !== '/' ? `/sign-in?next=${encodeURIComponent(next)}` : '/sign-in'} className="mt-4 inline-block text-sm text-secondary underline">
+          <ResendButton startAgainHref={backToSignIn} />
+          <Link href={backToSignIn} className="mt-4 inline-block text-sm text-secondary underline">
             Back to sign in
           </Link>
         </>

@@ -65,3 +65,17 @@ export const invitation = pgTable(
     check('invitation_email_check', sql`email ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'`),
   ],
 );
+
+/**
+ * Phase 15c-2a (B4): per-address counter for the check-email "Resend email" button. Stores sha256(lower(email)),
+ * never the address. Service role only (forced RLS, no policy, nothing for app_user).
+ */
+export const emailResend = pgTable(
+  'email_resend',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    emailHash: text('email_hash').notNull(),
+    sentAt: ts('sent_at').notNull().defaultNow(),
+  },
+  (t) => [index('email_resend_hash_sent_idx').on(t.emailHash, t.sentAt)],
+);
