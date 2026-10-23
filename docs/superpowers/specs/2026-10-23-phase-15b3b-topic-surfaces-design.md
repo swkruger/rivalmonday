@@ -114,7 +114,7 @@ Topics that the first analysis asked but left below τ are **not** gaps: the `> 
 - an edited review's upsert clears `checked_at`.
 
 ## 6. Copy review and sign-off (E5)
-`docs/work/phase-15b3b-copy-signoff.md` (moved to `docs/archive/` at merge, as for 15c-1) lists, each as current text → proposed text:
+`docs/archive/phase-15b3b-copy-signoff.md` (moved to `docs/archive/` at merge, as for 15c-1) lists, each as current text → proposed text:
 - the guide `docs/help/pages/platform.topics.operator.md`, after the rename;
 - the `platform.topics.*` tips and page copy in `help/copy/platform.ts`;
 - the PageHeader title and breadcrumb for `/platform/topics`;

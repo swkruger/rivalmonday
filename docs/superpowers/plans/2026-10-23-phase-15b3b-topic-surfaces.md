@@ -31,7 +31,7 @@ Spec E1–E6 and its "My calls" bind. Plan-local calls (P = plan):
 - **P11 `packages/mcp/src/prompts.ts` needs no change** (it never names the benchmark tool). The 8b tool-access register `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md:98` is updated (tools CLAUDE.md requires it).
 
 ## File structure
-- **Create:** `packages/db/migrations/<N>_generic_topic_id.sql`, `packages/db/migrations/<N+1>_review_checked_at.sql` (+ `meta/*`), `packages/db/src/generic-topic-id.test.ts`, `packages/engine/src/reviews/reask.test.ts`, `docs/work/phase-15b3b-copy-signoff.md`.
+- **Create:** `packages/db/migrations/<N>_generic_topic_id.sql`, `packages/db/migrations/<N+1>_review_checked_at.sql` (+ `meta/*`), `packages/db/src/generic-topic-id.test.ts`, `packages/engine/src/reviews/reask.test.ts`, `docs/archive/phase-15b3b-copy-signoff.md`.
 - **Rename (git mv):** `apps/web/src/app/(platform)/platform/themes/` → `topics/` (`theme-queue.tsx`(+test) → `topic-queue.tsx`(+test)); `apps/web/src/components/charts/theme-heatmap.tsx`(+test) → `topic-heatmap.tsx`(+test); `docs/help/pages/platform.themes.operator.md` → `platform.topics.operator.md`.
 - **Modify:** per task.
 
@@ -66,7 +66,7 @@ Spec E1–E6 and its "My calls" bind. Plan-local calls (P = plan):
 
 ### Task 1: Copy sign-off doc
 **Goal:** Put every changed user-facing string in front of the owner before Task 6 applies it (spec §6, E5).
-**Files:** create `docs/work/phase-15b3b-copy-signoff.md` (moved to `docs/archive/` at merge).
+**Files:** create `docs/archive/phase-15b3b-copy-signoff.md` (moved to `docs/archive/` at merge).
 **Behaviour:** one table per surface, columns *Where (file:key)* / *Current* / *Proposed*. Copy the decided text below verbatim; "unchanged" rows list the text and say "unchanged — id/key rename only". End with **Decisions for the owner** (below) and a sign-off line (`Approved as a whole / with changes: …, date`).
 
 **Proposed copy (decided; applied in Tasks 4 and 6):**

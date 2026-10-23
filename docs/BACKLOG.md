@@ -20,6 +20,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Switch `cost_usd` (`packages/db/src/schema/ledger.ts`, `doublePrecision`) to `numeric` before real spend data — *from Phase 1 review*
 
 ### Scale & performance
+- [ ] Re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it — *from 15b-3b*
 - [ ] Worker concurrency: let `rival-search` (vendor-bound) run 3–5 jobs at once inside the single worker (pg-boss local concurrency), then shorten `RIVAL_MONTHLY_SPACING_SECONDS` — cheap first step, keeps one replica — *from owner Q 2026-10-15*
 - [ ] Multiple worker replicas / autoscaling on queue depth: move per-host crawl politeness (`collectors/src/web/rate-limit.ts`) and vendor rate limits into Postgres (advisory locks or a rate table), check every cron job tolerates a second runner (sweeps, vendor-poll), optionally split crawler vs API-only workers; then lift the one-replica rule in root CLAUDE.md — *from owner Q 2026-10-15*
 - [ ] Page latency on the remote Neon DB: pages took 28–36 s in E2E (Playwright timeouts raised to 90 s/test, 15 s/expect in `playwright.config.ts`) — look before launch — *from 5c-2*
@@ -62,6 +63,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review*
 
 ### Pilot
+- [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
 
@@ -115,7 +117,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Pre-existing on main: `apps/worker/src/jobs/leads.ts` fails the UTF-8 check (polish) — *found at 13b merge*
 
 ## Phase 15 follow-ups (UX & information architecture)
-- [ ] **15b-3b** topic rename, surfaces (3a data & engine merged): routes `/platform/themes` → `/platform/topics` + `?theme=` → `?topic=`, help key `page:platform.themes` (+ guide file, `kb:seed`), MCP/Ask tool names (`get_theme_benchmark`, `search_reviews` `themeId`), delete `toLegacyThemeFields`; `workspace-fixtures.ts` `seedReview` `analysis.themes` → `topics` (test-only, with `reputation.test.ts`); tool descriptions + 'Unknown theme' (`reputation.ts`), `nav-counts` description, `vertical-draft` prompt — *phase-15b3*
 - [ ] Soon (15b-2 help hardening): filter agency-only `TipRow` labels out of client payloads server-side (alerts/profile/notifications pages pass literal labels); `@cs/core/glossary` subpath + bundle gate (agency-only terms `routing`/`seat`/`paused`/`upsell-tag` kept out of client bundles only by tree-shaking); `account.onboarding.skip` → `audience: 'agency'`; coverage reach lists not cross-checked against page role gates; Help pages list guides for pages the viewer can't open; spread-header helpKey check is per file; strip Markdown from Help search excerpts; Help search button focus ring — *phase-15b2*
 - [ ] Owner decision (15b-2 sign-off): scorecard/briefs-detail say "First moves still open" vs glossary "First steps" — *phase-15b2*
 - [ ] Flaky: `competitors/[competitorId]/page-controls.test.tsx` PinPageSwitch "falls back to the server value" failed once in the 15b-2 full suite (expected 'true' to be 'false'), passes alone 4/4 — RAF timing under load (see `apps/web/CLAUDE.md` PinPageSwitch note) — *phase-15b2 merge*
@@ -136,13 +137,17 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Validate the responsive proposal (D-23: drawer < 1024, bottom tab bar < 768) with 3–5 pilot owners on phones before PR 10. — *design-system*
 
 ## Polish (small UI/UX fixes, any time)
-- [ ] `docs/OPS.md:9` says "Latest migration `0037`" (stale) — *phase-15b3*
+- [ ] Pack YAML flow-mapping descriptions containing commas are truncated (generic `staff_professionalism` is stored as "Courtesy"): quote descriptions + new migration — *from 15b-3b*
+- [ ] `review_analysis.checked_at` has no index; the daily-cap count scans the table each idle sweep. Add one if volume grows — *from 15b-3b*
+- [ ] Vertical-edit re-ask trigger fires on any `vertical.updated_at` bump (area version bumps, renames, reviewed status; a generic edit hits every inheriting vertical); on cs_dev ~84% of analysed reviews have a below-tau seed topic, so each bump re-asks most of that vertical's 180-day reviews and shares the 2,000/day cap with approval re-asks. Fix: topics-specific edit marker (`config->'topics'` hash or `topics_edited_at`) or order approval gaps first — *from 15b-3b*
+- [ ] Duplicate `engine-reask` job can be queued while one runs (singleton `short` policy covers only queued jobs): at most one extra Jev call under backlog, data deduped under FOR UPDATE; optional `pg_try_advisory_xact_lock(hashtext('reask:'||id))` guard. Also a review whose decide keeps throwing (Jev and LLM down) is re-offered every 5 min with no backoff — *from 15b-3b*
+- [ ] `scripts/local-test-db.sh env` prints `/cs_test`; the per-worktree DB name only comes from the kickoff sed, so a reviewer using the script's output hits the shared `cs_test` — *from 15b-3b*
 
 ### Phase 14 follow-ups (verticals & runbooks)
 - [ ] 14b: prospects never tailored on activation; paid `retailor_runbook_item` has no rate limit; "Keep"/"Not now" not persisted; preview lacks candidate vars
 - [ ] 14b: `set_alert_rules` column + item writes non-atomic; create-vs-pause race; platform thresholds knob shadows a pack's own routing; redundant runbook loads per brief; score stage needs a thresholds-only loader / per-run cache
 - [ ] 14b: legacy `customised` flag conflates pack-vs-generic wording with human edits ('*' then tailors fewer HVAC plays); redaction tokens can be written back from askModel; starting-point actions from tailored templates lack a fact check
-- [ ] 14a: batch theme discovery untagged; draft-cap index/atomicity; `add_business_area` has no ownership check; rename skips similarity checks; `position` column for areas; client-data check skips seed keywords; merged areas can point across verticals; generic theme `technician_professionalism`; Distillery E2E rows linger (fresh DB)
+- [ ] 14a: draft-cap index/atomicity; `add_business_area` has no ownership check; rename skips similarity checks; `position` column for areas; client-data check skips seed keywords; merged areas can point across verticals; Distillery E2E rows linger (fresh DB)
 
 ### Phase 6 UI polish
 - [ ] Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice — *from 6b*
@@ -264,7 +269,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Review-spike thresholds (`REVIEW_SPIKE_Z`, `REVIEW_SPIKE_MIN`, `REVIEW_BASELINE_WEEKS`) not pack-tunable; `review_spike` reuses one z-score for velocity and complaint Poisson — *from 3b/3c*
 - [ ] GBP category/service additions/removals are one change per entry, not grouped per capture — *from 3b*
 - [ ] `alignBlocks` same-key pairing can give a volatile block's identity to an inserted sibling (shared with diffing — fix carefully) — *from 3d Task 12*
-- [ ] Late-added vertical doesn't re-analyse already-analysed reviews; theme approved mid-window not asked of older reviews — *from 3c (decisions 4, 8)*
 - [ ] Churn: log reports pre-cap suppressed count; `CHURN_SUPPRESSED_MAX` untested; masked non-money blocks on churned pages go to `suppressed` (check spec intent) — *from 3d Task 13*
 - [ ] `extractZips`: `'TX 36000 BTU'` reads as a ZIP; "24000 filters and 36000 belts" list misread (decision 17, accepted) — *from 3d Task 14*
 - [ ] `volatile_block` with null `key_capture_id` resolves at window start; AM-unmasked row resolves at index 0 once its capture ages out; masked block shifting onto an unmasked key loses its mask — *from 3d Task 12*
@@ -298,7 +302,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 3b minors: hiring-move summary not truncated; `buildStructuredSummary` branches untested; `FakeAi` doesn't record scope; `engine-once --moves` untested at CLI; consolidate the "no-retry queues" worker test — *from 3b Tasks 10, 15*
 - [ ] 3c minors: `TITLE_WORDS` includes `'the'`; GBP `domain` not in redaction names; `review_analysis` confidence spans all verticals; `ReviewInsightsResult.errors` conflated; `priceMatrix` test gaps — *from 3c Tasks 1–10*
 - [ ] 3d minors: task-constant doc comments; `ai.ts` ~135 duplicate jev check; shadow vs review reason precedence; `formatReport` column widths; `validThresholds` evaluated twice; `volatile.test` raise `testTimeout` — *from 3d Tasks 1–14*
-- [ ] 4a minors: `clientFk` typed `any`; `rebuildEventText` business names; `schedule.ts:103,107` non-null asserts; `select.ts:2` "top 3–5" wording; `playbooks.ts:106` `themeName` fallback; `$50000` via ZIP path; verify/test gaps (Tasks 9–13) — *from 4a per-task*
+- [ ] 4a minors: `clientFk` typed `any`; `rebuildEventText` business names; `schedule.ts:103,107` non-null asserts; `select.ts:2` "top 3–5" wording; `$50000` via ZIP path; verify/test gaps (Tasks 9–13) — *from 4a per-task*
 - [ ] 4b minors: `delivery.test` coverage; `addContact` duplicate-email raw error; `updateClientDelivery` empty patch; Teams markdown escaping; transport error tests; non-atomic file transport; `createBrowserCache` duplicated; `WorkerDeps` doc comments — *from 4b Tasks 1–18*
 - [ ] 5a minors: last-admin revocation deadlock → raw 500; pending invitations left on member removal; N+1 in `myNotificationSettings`; `files.ts` duplicates `isHiddenToolError`; branding fetched twice per request; test gaps (T3–T19) — *from 5a per-task*
 - [ ] 5b-1 minors: zod bounds looser than limits; `packFor` vs `deps.packs`; `add_tracked_page` keeps old `source`; `list_brief_queue` N+1 `isUntouched`; E2E near Better Auth's 5-link/IP/60s limit — *from 5b-1 per-task*
