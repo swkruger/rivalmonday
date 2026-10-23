@@ -1,10 +1,10 @@
 # phase-7b1 — cost guards: credits, platform-owned limits, spend pause, spike guard, housekeeping
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b1   **Base:** (set at execution start)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b1   **Base:** `b93f7ff4` (main)
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7b1-cost-guards.md) · [spec](../superpowers/specs/2026-10-22-phase-7b-money-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Planned ahead; not started.
+Execution started 2026-10-23 (worktree created; test DB `cs_phase_7b1_test`).
 
 ## Next (overwrite)
 `/rm-kickoff phase-7b1` → Task 0 pre-flight → SDD. May run in parallel with phase-7c1.
