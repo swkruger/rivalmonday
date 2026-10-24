@@ -73,7 +73,7 @@ select created_at, kind, scope, client_id, observed_usd, baseline_usd, limit_usd
 select id, name, agency_id, spend_limit_usd, spend_paused_at from client where spend_paused_at is not null;
 select key, value, updated_at from platform_setting where key in ('ai_guard_state', 'spend_guard_settings');
 ```
-`ai_guard_state.value` is `{ state: 'ok' | 'warn' | 'paused', since, scope, observedUsd, baselineUsd, snoozeUntil }`. If the pause looks wrong (e.g. a one-off backfill), check `llm_call`/`vendor_call` for the 24 h window first, then Reset with a note. `collect-once` and the other `*-once` CLIs run unguarded by design.
+`ai_guard_state.value` is `{ state: 'ok' | 'warn' | 'paused', since, scope, observedUsd, baselineUsd, snoozeUntil, resetBy? }`. If the pause looks wrong (e.g. a one-off backfill), check `llm_call`/`vendor_call` for the 24 h window first, then Reset with a note. `collect-once` and the other `*-once` CLIs run unguarded by design.
 - **Jev:** `provider = 'jev'` rows stay in the ledger and on Costs but count towards nothing here until Jev is priced (`SPEND_GUARD_EXCLUDED_PROVIDERS`).
 
 ## Crawler ban
