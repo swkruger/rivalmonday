@@ -20,7 +20,7 @@ Prospects are listed too, with a Prospect badge.
 1. **Scan the tiles and the Status column** for clients that are near their limit or past it.
 2. **Read what each state means.** *Limit reached* changes nothing: monitoring, briefs and Ask carry on as normal. *Paused* means AI and monitoring work for that client has stopped until the 1st of next month. Past briefs and evidence stay available.
 3. **Contact support** if a paused client needs a higher limit.
-4. **Read the note under the table.** Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine's shared work are not split across clients yet, so they are not in these figures. If you cover all clients, credits that are not tied to a client are shown there too, with the month's total.
+4. **Read the note under the table.** Shared monitoring of a competitor (Google profile, reviews, ads, job posts) is split equally between the clients that track it. The intelligence engine's own shared work is not split across clients, so it is not in these figures. If you cover all clients, credits that are not tied to a client are shown there too, with the month's total.
 
 ## Common questions
 
@@ -38,7 +38,7 @@ Only questions from the client's owners and viewers. Questions your own team ask
 
 ### Why are the credits lower than I expected?
 
-Only work tied to a client is included. Shared work is not split across clients yet.
+Work tied to a client is included, plus an equal share of each competitor's shared monitoring for every client that tracks it. The intelligence engine's own shared work is not split across clients.
 
 ### Why does a client show Over limit under Competitors?
 

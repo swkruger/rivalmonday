@@ -244,6 +244,14 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['change'],
   },
   {
+    // source: packages/core/src/spend.ts:usdToCredits, spendLevel (SPEND_NEAR_RATIO 0.8); packages/tools/src/tools/usage.ts:creditsView; pause rules: spec 2026-10-22-phase-7b-money-design.md §3 (draft for owner sign-off)
+    id: 'credits',
+    term: 'Credits',
+    audience: 'all',
+    short: "How this product counts the AI and data work done for a client each month. Each client has a monthly credit limit, and a calendar month in UTC is the period.",
+    long: 'Reaching the limit changes nothing: monitoring, briefs and Ask carry on, and the client shows as Limit reached. If work runs well past the limit, AI and monitoring work for that client pauses until the 1st of next month, while past briefs and evidence stay available.',
+  },
+  {
     // source: packages/engine/src/briefs/writer.ts:UPSELL_TAGS; stripped from every client read (spec §8.5)
     id: 'upsell-tag',
     term: 'Upsell tag',

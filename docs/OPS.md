@@ -58,6 +58,24 @@ pnpm --filter @cs/worker purge-archived --older-than 90d [--dry-run]
 ```
 `archive` hides the row everywhere at once (archived = deleted; `--undo` restores it losslessly). It **refuses** while a live Stripe/Connect subscription exists: cancel it in Stripe first. `purge-archived` hard-deletes agencies/clients archived more than n days ago (**n >= 30**, planned 90) and cascades; ledger and audit rows stay, detached and anonymised; evidence and captures are not pruned; Better Auth users stay (sign-in lands on `/no-access`). Always `--dry-run` first. Verified leads nobody actioned are deleted after 180 days and pending notifications over 7 days overdue become `skipped` by the daily jobs (no command).
 
+## Spend guard (7b1)
+Two guards stop runaway AI spend (spec `2026-10-22-phase-7b-money-design.md` §3/§4). Tenants see credits (1 USD = 100), you see USD. Nothing here touches `client.paused_at`, seats or Stripe.
+- **Client pause:** the hourly `spend-guard` job (cron `7 * * * *`) sets `client.spend_paused_at` when a client's month-to-date spend reaches 130 % of its limit (default $15, per-client override). It lifts on the 1st (UTC) or when the limit is raised. Schedulers use `clientWorkAllowed`; in-flight AI calls for that client throw `AiPausedError` and the worker completes the job as `{ skipped: 'spend_paused' }`.
+- **Spike guard:** the same job compares the last 24 h of spend (all providers, OpenRouter, Anthropic; Jev excluded) with the baseline; +100 % = warn (staff email, Health/platform banner), +200 % = pause **all** AI calls. Queued `usesAi` jobs are re-sent with a 600 s delay (cron jobs just wait for the next tick); Ask answers "heavy load".
+- **Read it:** `get_spend_guard` / `get_ai_guard_state` (Platform -> Health, "Spend guard" card, platform viewers and up); settings on Platform -> Costs -> "Limits & spike guard" (owner, `update_spend_guard_settings`).
+- **Reset a spike warn/pause:** Health -> Reset (owner/staff, tool `reset_ai_pause`), note required (<= 200 chars). Snoozes the guard 24 h (`spikeSnoozeHours`): a pause-level reading then only warns. Refused when the state is already OK.
+- **Raise or clear a client's limit:** Platform -> Agencies -> the agency -> "Client limits" (tool `set_client_limits`, owner/staff). Blank override = platform default. Raising the limit so that spend falls under the new pause threshold (limit x pause %) lifts the pause in the same transaction and writes `client_unpaused`. Agencies cannot change limits.
+- **Manual unpause:** only via `set_client_limits` (raise the limit). Never `UPDATE client SET paused_at ...` and avoid hand-editing `spend_paused_at`; the next hourly run would re-apply the pause anyway while spend is over the threshold.
+- **Inspect (service role, read-only):**
+```sql
+select created_at, kind, scope, client_id, observed_usd, baseline_usd, limit_usd, actor, note
+  from spend_guard_event order by created_at desc limit 50;
+select id, name, agency_id, spend_limit_usd, spend_paused_at from client where spend_paused_at is not null;
+select key, value, updated_at from platform_setting where key in ('ai_guard_state', 'spend_guard_settings');
+```
+`ai_guard_state.value` is `{ state: 'ok' | 'warn' | 'paused', since, scope, observedUsd, baselineUsd, snoozeUntil }`. If the pause looks wrong (e.g. a one-off backfill), check `llm_call`/`vendor_call` for the 24 h window first, then Reset with a note. `collect-once` and the other `*-once` CLIs run unguarded by design.
+- **Jev:** `provider = 'jev'` rows stay in the ledger and on Costs but count towards nothing here until Jev is priced (`SPEND_GUARD_EXCLUDED_PROVIDERS`).
+
 ## Crawler ban
 
 Don't point the web crawler at real competitors until `https://rivalmonday.app/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.

@@ -498,7 +498,7 @@ export const AGENCY_COPY = {
       // source: packages/tools/src/tools/usage.ts:getUsage, creditsView (credits = cost tied to the client since packages/db monthStart, UTC; agencyLevelCredits, totalCredits); apps/web/src/app/(app)/agency/settings/usage/page.tsx (footnote)
       spend: {
         title: 'What credits include',
-        body: "The AI and data work tied to the client so far this month, counted in credits against the client's monthly credit limit. The month is a UTC calendar month. Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine's shared work are not split across clients yet, so they are not in these figures. If you cover all clients, credits that are not tied to a client are listed under the table. Limits are set by the platform team; contact support to change one.",
+        body: "The AI and data work tied to the client so far this month, counted in credits against the client's monthly credit limit. The month is a UTC calendar month. Shared monitoring of a competitor (Google profile, reviews, ads, job posts) is split equally between the clients that track it. The intelligence engine's own shared work is not split across clients, so it is not in these figures. If you cover all clients, credits that are not tied to a client are listed under the table. Limits are set by the platform team; contact support to change one.",
         guideAnchor: 'what-this-page-tells-you',
       },
       // source: packages/core/src/spend.ts:SPEND_NEAR_RATIO (0.8), spendLevel; packages/tools/src/spend-guard.ts (reached = nothing changes; paused = recurring AI work stops until the 1st); apps/web/src/components/spend-badge.tsx
