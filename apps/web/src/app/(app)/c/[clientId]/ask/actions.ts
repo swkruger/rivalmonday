@@ -35,6 +35,7 @@ export async function confirmAskAction(messageId: string, decision: 'confirm' | 
     const rows = await tx.execute<{ action: AskAction; thread_id: string; client_id: string }>(sql`
       UPDATE ask_message SET action = jsonb_set(action, '{state}', to_jsonb(${target}::text))
       WHERE id = ${messageId} AND action->>'state' = 'proposed'
+        AND EXISTS (SELECT 1 FROM ask_thread t WHERE t.id = ask_message.thread_id AND t.deleted_at IS NULL)
       RETURNING action, thread_id, client_id`);
     const row = rows[0];
     return row ? { action: row.action, threadId: row.thread_id, clientId: row.client_id } : null;

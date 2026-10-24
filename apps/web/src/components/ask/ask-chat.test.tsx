@@ -160,6 +160,18 @@ describe('AskChat', () => {
   });
 });
 
+describe('AskChat deleted thread', () => {
+  it('a 404 turn into an existing thread opens a new conversation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'What changed?' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(router.replace).toHaveBeenCalledWith('/c/11111111-1111-4111-8111-111111111111/ask');
+    expect(screen.queryByText("Friday couldn't answer just now — please try again.")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('ConfirmCard', () => {
   it('runs the confirm action and shows a refusal', async () => {
     confirmAction.mockResolvedValue({ ok: false, error: 'Not found' });

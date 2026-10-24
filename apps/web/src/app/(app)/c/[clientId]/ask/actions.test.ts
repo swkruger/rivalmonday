@@ -116,6 +116,17 @@ describe('confirmAskAction', () => {
   });
 });
 
+describe('confirmAskAction deleted thread', () => {
+  it('confirmAskAction refuses a proposed action in a deleted thread and leaves it proposed', async () => {
+    const { threadId, messageId } = await seedAction();
+    await dbs.owner.update(askThread).set({ deletedAt: new Date() }).where(eq(askThread.id, threadId));
+    await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not found' });
+    await expect(confirmAskAction(messageId, 'cancel')).resolves.toEqual({ ok: false, error: 'Not found' });
+    expect(m.runTool).not.toHaveBeenCalled();
+    expect((await actionOf(messageId)).state).toBe('proposed');
+  });
+});
+
 describe('confirmAskAction pinning (7a2 D12)', () => {
   const pinnedTo = (clientId: string) => expect.objectContaining({ clientScope: [clientId] });
 
@@ -204,14 +215,14 @@ describe('deleteAskThreadAction', () => {
   };
   const T = '22222222-2222-4222-8222-222222222222';
 
-  it('runs delete_ask_thread and revalidates the Ask pages', async () => {
+  it('runs delete_ask_thread with clientId and threadId', async () => {
     await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T }))).resolves.toEqual({ ok: true });
     expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'delete_ask_thread', { clientId: IDS.clientA1, threadId: T });
     expect(m.revalidated).toContain(`/c/${IDS.clientA1}/ask`);
     expect(m.redirected).toBeNull();
   });
 
-  it('deleting the open thread goes back to a new question', async () => {
+  it('redirects only for the active thread', async () => {
     await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T, active: '1' }))).rejects.toThrow('NEXT_REDIRECT');
     expect(m.redirected).toBe(`/c/${IDS.clientA1}/ask`);
   });

@@ -146,6 +146,7 @@ export function AskChat(props: AskChatProps) {
     setTurns((ts) => [...ts, { key, question, final: null }]);
 
     const got: { final: FinalEvent | null; threadId: string | null } = { final: null, threadId: null };
+    let gone = false;
     try {
       const seed = seedRef.current;
       seedRef.current = undefined;
@@ -154,6 +155,8 @@ export function AskChat(props: AskChatProps) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ clientId, ...(threadId ? { threadId } : {}), question, ...(seed ? { seedEvidenceId: seed } : {}) }),
       });
+      // P5: the thread was deleted (here or in another tab): start a new conversation instead of an error.
+      gone = threadId !== null && res.status === 404;
       if (res.ok && res.body) {
         got.threadId = res.headers.get('x-ask-thread-id');
         await readAskStream(res.body, (e) => {
@@ -163,6 +166,12 @@ export function AskChat(props: AskChatProps) {
       }
     } catch {
       // network failure: the error copy below
+    }
+    if (gone) {
+      setTurns((ts) => ts.filter((t) => t.key !== key));
+      setBusy(false);
+      router.replace(`/c/${clientId}/ask`);
+      return;
     }
     const f = got.final;
     const final: ChatMessage = f

@@ -64,7 +64,6 @@ const CLIENT_EXEMPT: Record<string, string> = {
   'app/(app)/settings/notifications/contact-form.tsx': 'page is a 404 in a support session',
   'app/(app)/settings/notifications/pref-switch.tsx': 'page is a 404 in a support session',
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',
-  'components/ask/thread-list.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
   'components/ask/ask-chat.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
   'components/ask/confirm-card.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
   'components/sign-out-button.tsx': 'sign-out only; no write tool',

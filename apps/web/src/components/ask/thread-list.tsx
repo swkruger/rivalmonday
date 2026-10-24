@@ -1,12 +1,16 @@
 'use client';
 import type { AskThreadSummary } from '@cs/tools';
-import { Button, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
+import { Button, ConfirmDialog, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { MessagesSquare, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useState } from 'react';
+import { ErrorNote } from '@/components/form-error';
+import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 
 export type DeleteThreadAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
+
+type RowError = Record<string, string | undefined>;
 
 interface ThreadListProps {
   clientId: string;
@@ -15,28 +19,44 @@ interface ThreadListProps {
   deleteAction: DeleteThreadAction;
 }
 
-function DeleteButton({ clientId, thread, active, deleteAction }: { clientId: string; thread: AskThreadSummary; active: boolean; deleteAction: DeleteThreadAction }) {
-  const [state, formAction, pending] = useActionState(deleteAction, { ok: true } as FormResult);
+function ResultLine({ error }: { error: string | undefined }) {
+  if (!error) return null;
+  return <ErrorNote compact focusKey={error} className="px-2.5 pb-2">{error}</ErrorNote>;
+}
+
+function DeleteButton({ clientId, thread, active, deleteAction, onError }: { clientId: string; thread: AskThreadSummary; active: boolean; deleteAction: DeleteThreadAction; onError: (id: string, error: string | undefined) => void }) {
   return (
-    <form action={formAction} className="flex-shrink-0">
-      <input type="hidden" name="clientId" value={clientId} />
-      <input type="hidden" name="threadId" value={thread.id} />
-      {active && <input type="hidden" name="active" value="1" />}
-      <button
-        type="submit"
-        disabled={pending}
-        aria-label={`Delete thread “${thread.title}”`}
-        title={!state.ok && state.error ? state.error : 'Delete thread'}
-        className="grid h-7 w-7 place-items-center rounded-md text-muted-ink hover:bg-muted-surface hover:text-danger disabled:opacity-50"
-      >
-        <Trash2 aria-hidden className="h-3.5 w-3.5" />
-      </button>
-    </form>
+    <ConfirmDialog
+      trigger={
+        <button
+          type="button"
+          aria-label={`Delete conversation “${thread.title}”`}
+          title="Delete conversation"
+          className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md text-muted-ink hover:bg-muted-surface hover:text-danger"
+        >
+          <Trash2 aria-hidden className="h-3.5 w-3.5" />
+        </button>
+      }
+      title="Delete this conversation?"
+      body="It disappears from your list. This can't be undone."
+      confirmLabel="Delete"
+      tone="danger"
+      fields={{ clientId, threadId: thread.id, active: active ? '1' : '0' }}
+      action={async (fd) => {
+        onError(thread.id, undefined);
+        const r = await deleteAction({ ok: true }, fd);
+        if (!r.ok) onError(thread.id, r.error);
+      }}
+    />
   );
 }
 
 /** The author's own threads (spec "Web": thread delete for the author). */
 export function ThreadList({ clientId, threads, activeId, deleteAction }: ThreadListProps) {
+  const readOnly = useReadOnly();
+  // Result lines live here (always mounted), keyed by thread: the dialog unmounts with its row on revalidate.
+  const [errors, setErrors] = useState<RowError>({});
+  const onError = (id: string, error: string | undefined) => setErrors((prev) => ({ ...prev, [id]: error }));
   return (
     <nav aria-label="Your questions" className="flex flex-col gap-2">
       <Button asChild variant="outline" size="sm" className="justify-start">
@@ -52,7 +72,8 @@ export function ThreadList({ clientId, threads, activeId, deleteAction }: Thread
           {threads.map((t) => {
             const active = t.id === activeId;
             return (
-              <li key={t.id} className={`flex items-center gap-1 rounded-lg ${active ? 'bg-primary-soft' : 'hover:bg-muted-surface'}`}>
+              <li key={t.id} className={`rounded-lg ${active ? 'bg-primary-soft' : 'hover:bg-muted-surface'}`}>
+                <div className="flex items-center gap-1">
                 <Link
                   href={`/c/${clientId}/ask/${t.id}`}
                   aria-current={active ? 'page' : undefined}
@@ -61,7 +82,9 @@ export function ThreadList({ clientId, threads, activeId, deleteAction }: Thread
                 >
                   {t.title}
                 </Link>
-                <DeleteButton clientId={clientId} thread={t} active={active} deleteAction={deleteAction} />
+                {!readOnly && <DeleteButton clientId={clientId} thread={t} active={active} deleteAction={deleteAction} onError={onError} />}
+                </div>
+                <ResultLine error={errors[t.id]} />
               </li>
             );
           })}
