@@ -356,7 +356,11 @@ export async function runTurn(
   const reserveMs = Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
   const abortTimer = setTimeout(() => ac.abort(), Math.max(0, deadlineMs - reserveMs - (now().getTime() - started)));
   try {
-    outcome = await loop();
+    try {
+      outcome = await loop();
+    } finally {
+      clearTimeout(abortTimer);
+    }
   } catch (err) {
     // 7b1: a pause that begins mid-turn (a model call refused by the guard) gets the pause copy, not the generic error.
     const paused = askPausedCopy(err);
@@ -367,7 +371,6 @@ export async function runTurn(
       outcome = { role: 'assistant', content: ASK_COPY.error(assistantName), status: 'error' };
     }
   }
-  clearTimeout(abortTimer);
   await finish(outcome);
 
   /** The model loop and grounding. Any throw here (model, verifier) becomes the error copy; nothing is persisted inside. */

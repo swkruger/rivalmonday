@@ -66,6 +66,7 @@ export async function postJson(
       try {
         return await res.json();
       } catch (err) {
+        if (signal?.aborted) throw aborted(err);
         throw new AiProviderError(provider, res.status, `${provider} returned invalid JSON`, false, { cause: err });
       }
     }

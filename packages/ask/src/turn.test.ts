@@ -281,14 +281,14 @@ describe('runTurn', () => {
   });
 
   it('a hanging tool-step call is aborted at deadline - reserve and the final call runs', async () => {
-    // deadline 200 ms: the reserve is min(45 s, 100 ms), so the step signal fires at ~100 ms
+    // deadline 2 s: the reserve is min(45 s, 1 s), so the step signal fires at ~1 s
     const t0 = Date.now();
     const { ai, trace, last } = await turn(
       [
         { kind: 'chat', reply: { hang: true } },
         { kind: 'chat', reply: { text: `Partial answer [ev:${EV1}].` } },
       ],
-      { extra: { deadlineMs: 200 } },
+      { extra: { deadlineMs: 2_000 } },
     );
     expect(Date.now() - t0).toBeLessThan(5_000);
     expect(ai.calls.chat).toHaveLength(2);
@@ -300,13 +300,16 @@ describe('runTurn', () => {
   });
 
   it('final call has its own 45 s signal', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
     const { ai } = await turn(
       [
         { kind: 'chat', reply: { hang: true } },
         { kind: 'chat', reply: { text: `Answer [ev:${EV1}].` } },
       ],
-      { extra: { deadlineMs: 200 } },
+      { extra: { deadlineMs: 2_000 } },
     );
+    expect(timeoutSpy).toHaveBeenCalledWith(45_000);
+    timeoutSpy.mockRestore();
     const [step, final] = ai.calls.chat;
     expect(final!.signal).toBeDefined();
     expect(final!.signal).not.toBe(step!.signal);

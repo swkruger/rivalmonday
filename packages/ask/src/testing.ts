@@ -70,6 +70,7 @@ export function createScriptedAskAi(script: ScriptedStep[]): ScriptedAskAi {
       if (!step) throw new Error('createScriptedAskAi: chat script exhausted');
       const reply = typeof step.reply === 'function' ? step.reply(snapshot) : step.reply;
       if ('hang' in reply) {
+        if (req.toolChoice === 'none') throw new Error('createScriptedAskAi: a { hang: true } reply was used for the forced final call');
         // A call that never answers: it rejects only when the caller's signal aborts it.
         return await new Promise<never>((_, reject) => {
           const abort = () => reject(new Error('scripted call aborted'));
