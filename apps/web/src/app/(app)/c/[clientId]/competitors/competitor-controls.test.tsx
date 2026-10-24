@@ -277,7 +277,7 @@ describe('SuggestionsPanel tiers and selection', () => {
     expect(button.className).toContain('bg-white');
     expect(button.className).toContain('text-ink');
     expect(button.parentElement?.className).toContain('bg-ink');
-    expect(screen.getByText('You can track 2 more.').className).toContain('text-[#E2E8F0]');
+    expect(screen.getByText('You can track 2 more.').className).toContain('text-muted-surface-2');
   });
 
   it('pre-ticks preselected and counts them in Track selected', () => {
