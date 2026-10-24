@@ -258,7 +258,7 @@ describe('AppShell spend banners (7b1)', () => {
   it('admin banner lists paused clients, AM sees none', async () => {
     m.paused = PAUSED;
     const { unmount } = await shell('agency_admin');
-    expect(screen.getByRole('region', { name: 'Usage' }).textContent).toContain('AI work for A1 HVAC is paused until Nov 1');
+    expect(screen.getByRole('region', { name: 'Usage' }).textContent).toContain('AI work for A1 HVAC is paused until November 1');
     expect(m.spendCalls).toEqual([{}]);
     unmount();
     m.spendCalls = [];

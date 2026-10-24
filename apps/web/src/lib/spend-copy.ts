@@ -1,11 +1,17 @@
-import { formatDate } from '@/lib/format';
+/** "November 1" (year added when not the current one, UTC) — the same long form as the Task 9 email. */
+function longDate(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const year = (x: Date) => x.getUTCFullYear();
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', ...(year(d) !== year(now) ? { year: 'numeric' } : {}), timeZone: 'UTC' });
+}
 
 /** C1 (owner sign-off): a client at 100 % of its credits. Nothing is switched off. */
 export const reachedCopy = (clientName: string) => `${clientName} has used this month's credits. Nothing changes — monitoring, briefs and Ask carry on as normal.`;
 
 /** C2 (owner sign-off): agency admins, one line per paused client. */
 export const pausedForAgency = (name: string, until: string) =>
-  `AI work for ${name} is paused until ${formatDate(until, { tz: 'UTC' })} — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.`;
+  `AI work for ${name} is paused until ${longDate(until)} — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.`;
 
 /** C3 (owner sign-off): client roles, their own client. An unbranded agency would read "Rival Monday": the copy then says "your team" (nothing client-facing names the platform). */
 export const pausedForClient = (agencyName: string) => {

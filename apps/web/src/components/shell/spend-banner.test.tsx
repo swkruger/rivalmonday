@@ -13,7 +13,7 @@ describe('SpendBanner', () => {
   it('admin banner lists paused clients (C2) with a link to usage', () => {
     render(<SpendBanner audience="agency" agencyName="Acme" items={[item(1)]} />);
     const region = screen.getByRole('region', { name: 'Usage' });
-    expect(region.textContent).toContain("AI work for Client 1 is paused until Nov 1 — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.");
+    expect(region.textContent).toContain("AI work for Client 1 is paused until November 1 — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.");
     expect(screen.getByRole('link', { name: 'View usage' }).getAttribute('href')).toBe('/agency/settings/usage');
     expect(region.className).toContain('bg-muted-surface');
     expect(region.className).not.toMatch(/destructive|amber|red|orange/);
