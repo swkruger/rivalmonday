@@ -1,16 +1,16 @@
 # phase-7b1 — cost guards: credits, platform-owned limits, spend pause, spike guard, housekeeping
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b1   **Base:** `b93f7ff4` (main)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b1   **Base:** `8e89d375` (main; rebased 2026-10-23 onto 15b-3b + 15c-2a)
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7b1-cost-guards.md) · [spec](../superpowers/specs/2026-10-22-phase-7b-money-design.md) — owner-approved 2026-10-23.
 
 ## Status (overwrite)
-Implementation complete (tasks 0–16, ~30 commits). Final whole-branch review pending (full unit + E2E `--base main`, run once).
+Implementation complete (tasks 0–16, ~33 commits), rebased on main `8e89d375` (migrations renumbered to 0089–0091; `engine-reask` marked `usesAi`; page-gate/viewer-tz fixes). Final whole-branch review pending (full unit + E2E `--base main`, run once).
 
 ## Next (overwrite)
-Final review -> fix wave -> owner sign-off of the copy below -> `/rm-merge` (owner go-ahead). Renumber migrations if 15c2 took 0085.
+Final review -> fix wave -> owner sign-off of the copy below -> `/rm-merge` (owner go-ahead).
 
 ## Interfaces this branch adds or changes
-- **Migrations:** 0085 `ledger_cost_numeric` (`cost_usd numeric(14,6)`), 0086 `spend_guard` (`client.spend_limit_usd numeric(10,2)` [replaces `monthly_cap_usd`], `client.spend_paused_at`, `llm_call`/`vendor_call.competitor_id`, `spend_guard_event`, `platform_setting` keys `spend_guard_settings`, `ai_guard_state`), 0087 `retry_backoff` (`model_batch.provider_batch_id` nullable + status `pending`; `move.rec_attempts`/`rec_retry_after`).
+- **Migrations:** 0089 `ledger_cost_numeric` (`cost_usd numeric(14,6)`), 0090 `spend_guard` (`client.spend_limit_usd numeric(10,2)` [replaces `monthly_cap_usd`], `client.spend_paused_at`, `llm_call`/`vendor_call.competitor_id`, `spend_guard_event`, `platform_setting` keys `spend_guard_settings`, `ai_guard_state`), 0091 `retry_backoff` (`model_batch.provider_batch_id` nullable + status `pending`; `move.rec_attempts`/`rec_retry_after`).
 - **Tools:** `get_my_usage`, `get_spend_status` (tenant, credits only), `get_client_limits`, `set_client_limits` (now platform owner/staff only; input `spendLimitUsd`), `get_spend_guard`, `get_ai_guard_state`, `update_spend_guard_settings` (owner), `reset_ai_pause` (staff). `get_usage`/`get_portfolio` return `credits` (`SpendCredits`), no USD.
 - **Worker:** job `spend-guard` (`'7 * * * *'`, short, retryLimit 1); `usesAi` job flag (platform pause -> re-send `startAfter: 600`; cron jobs wait for the next tick); `createWorkerDeps(env, { aiGuard: false })` for `*-once`.
 - **AI guard:** `AiGuard.assertAllowed(scope)` / `AiPausedError('platform'|'client')`; `createAiGuard` (`@cs/db`, 30 s cache); registry maps to `spend_paused` / `system_busy`. `ChatRequest.signal` (Ask abort).
@@ -18,7 +18,7 @@ Final review -> fix wave -> owner sign-off of the copy below -> `/rm-merge` (own
 - **Email kinds:** `client_spend_paused` (agency billing notice), `platform_spend_alert` (staff). **Routes:** client `/c/<id>/settings/usage`; agency usage page now read-only.
 
 ## Decisions
-Spec d1–d19 bind. Plan-local 1–13: numeric ledger; migration 0087; guard also stops Jev calls; `*-once` CLIs unguarded; per-move rec backoff; stateless PDF backoff; `pending` batch row; `get_my_usage.questions` null for client roles; three extra read tools; C1 inline note; C6 on the 9b sender; one `client_paused` event/month; rank budget 130 %. Owner 2026-10-23: **test suites run once at the final review**, not per task. Controller rulings (cost if wrong):
+Spec d1–d19 bind. Plan-local 1–13: numeric ledger; migration 0091 (was 0087); guard also stops Jev calls; `*-once` CLIs unguarded; per-move rec backoff; stateless PDF backoff; `pending` batch row; `get_my_usage.questions` null for client roles; three extra read tools; C1 inline note; C6 on the 9b sender; one `client_paused` event/month; rank budget 130 %. Owner 2026-10-23: **test suites run once at the final review**, not per task. Controller rulings (cost if wrong):
 1. Every task keeps `pnpm typecheck` green; web consumers get minimal compile fixes; T5 deletes the agency limits form. (small duplicate edit)
 2. T9 `summary.spike` = unchanged guard state; T10 inserts the spike step. (trivial)
 3. workflow.spec usage rewrite moved T11 -> T5. (T11 re-touches the spec)
