@@ -1,6 +1,6 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import {
-  agency, AiGuardState, client, effectiveLimitUsd, monthStart, platformSetting, readAiGuardState, readSpendGuardSettings, SPEND_GUARD_SETTINGS_KEY,
+  agency, AiGuardState, client, lockAiGuardState, effectiveLimitUsd, monthStart, platformSetting, readAiGuardState, readSpendGuardSettings, SPEND_GUARD_SETTINGS_KEY,
   SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
 } from '@cs/db';
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
@@ -137,7 +137,7 @@ export const getAiGuardState = defineTool({
 
 /** Every field optional with no default (a `.partial()` of a defaulted schema would reset omitted keys to their defaults). */
 const SettingsPatch = z.object(
-  Object.fromEntries(Object.entries(SpendGuardSettings.shape).map(([k, v]) => [k, (v as z.ZodDefault<z.ZodNumber>).unwrap().optional()])) as {
+  Object.fromEntries(Object.entries(SpendGuardSettings.shape).map(([k, v]) => [k, (v instanceof z.ZodDefault ? (v.unwrap() as z.ZodNumber) : (v as z.ZodNumber)).optional()])) as {
     [K in keyof SpendGuardSettings]: z.ZodOptional<z.ZodNumber>;
   },
 );
@@ -182,7 +182,8 @@ export const resetAiPause = defineTool({
     return withPlatformAudit(deps, ctx, { tool: 'reset_ai_pause', input, role }, async () => {
       const settings = await readSpendGuardSettings(deps.service);
       return deps.service.transaction(async (tx) => {
-        const prev = await readAiGuardState(tx);
+        const prev = await lockAiGuardState(tx);
+        if (prev.state === 'ok') throw new ToolError('invalid_input', 'Nothing to reset');
         const next: AiGuardState = {
           state: 'ok',
           snoozeUntil: new Date(Date.now() + settings.spikeSnoozeHours * HOUR_MS).toISOString(),

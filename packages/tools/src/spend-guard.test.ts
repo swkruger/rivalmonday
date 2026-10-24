@@ -174,6 +174,43 @@ describe('readSpikes', () => {
     expect(r.baselineUsd).toBe(30); // rate7 = 1, rateW = 20 / 2 = 10; x N = 3 serviceable clients
   });
 
+  it('both floors 0 and no history: ratio 0 (no signal), finite output', async () => {
+    const zero = SpendGuardSettings.parse({ spikeFloorUsdPerDay: 0, spikeFloorUsdPerClientDay: 0 });
+    await plat('openrouter', 10, recent);
+    expect(await scope('total', zero)).toMatchObject({ observedUsd: 10, baselineUsd: 0, ratioPercent: 0 });
+    await dbs.owner.delete(llmCall);
+    expect(await scope('total', zero)).toMatchObject({ observedUsd: 0, baselineUsd: 0, ratioPercent: 0 });
+  });
+
+  it('zero baseline never warns or pauses a run', async () => {
+    await dbs.owner.execute(sql`insert into platform_setting (key, value, updated_by) values ('spend_guard_settings', '{"spikeFloorUsdPerDay":0,"spikeFloorUsdPerClientDay":0}'::jsonb, 't')`);
+    await plat('openrouter', 10, recent);
+    expect((await runSpendGuard(deps(), NOW)).spike).toBe('ok');
+    expect(staff).toHaveLength(0);
+  });
+
+  it('7 stat rows with 0 active clients: floor only', async () => {
+    await stats(0);
+    await plat('openrouter', 40, new Date('2026-10-10T12:00:00Z'));
+    await plat('openrouter', 10, recent);
+    expect(await scope('total')).toMatchObject({ baselineUsd: 5, floorOnly: true });
+  });
+
+  it('jev is excluded from the baseline sums too', async () => {
+    await stats(2);
+    await plat('jev', 400, new Date('2026-10-10T12:00:00Z'));
+    await plat('jev', 400, new Date('2026-10-06T18:00:00Z'));
+    expect(await scope('total')).toMatchObject({ baselineUsd: 5, floorOnly: true });
+  });
+
+  it('before 12:00 UTC the same-weekday midpoint day (8th day back) is still found', async () => {
+    await stats(2); // Oct 6..13
+    await plat('openrouter', 20, new Date('2026-10-06T12:00:00Z')); // window Oct 6 06:00 - Oct 7 06:00, midpoint day Oct 6
+    const early = new Date('2026-10-14T06:00:00Z');
+    const r = (await readSpikes(dbs.service, early, DEFAULTS)).find((x) => x.scope === 'total')!;
+    expect(r.baselineUsd).toBe(30);
+  });
+
   it('jev and vendor_call excluded from observed', async () => {
     await plat('jev', 50, recent);
     await dbs.owner.insert(vendorCall).values({ agencyId: IDS.agencyA, clientId: null, vendor: 'v', operation: 'o', units: 1, costUsd: 50, latencyMs: 1, ok: true, createdAt: recent });

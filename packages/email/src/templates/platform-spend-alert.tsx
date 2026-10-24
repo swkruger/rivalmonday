@@ -15,7 +15,7 @@ export function PlatformSpendAlertEmail(p: PlatformSpendAlertProps) {
         <Text key={i}>{l}</Text>
       ))}
       <Button href={p.url} style={button(p.branding)}>
-        Open usage
+        {p.kind === 'client_paused' ? 'Open usage' : 'Open Health'}
       </Button>
     </Layout>
   );

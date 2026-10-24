@@ -1,5 +1,5 @@
 import {
-  type AiGuardState, agency, agencyDailyStat, billingNotice, client, clientServiceable, type Db, effectiveLimitUsd, llmCall, monthStart, pauseThresholdUsd, readAiGuardState,
+  type AiGuardState, agency, agencyDailyStat, billingNotice, client, clientServiceable, type Db, effectiveLimitUsd, llmCall, monthStart, pauseThresholdUsd, lockAiGuardState, readAiGuardState,
   readSpendGuardSettings, SPEND_GUARD_EXCLUDED_PROVIDERS, type SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
 } from '@cs/db';
 import { and, eq, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
@@ -176,7 +176,7 @@ export async function readSpikes(db: Db, now: Date, s: SpendGuardSettings): Prom
   const day0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const [nRow] = await db.select({ n: sql<number>`count(*)::int` }).from(client).where(clientServiceable(client));
   const n = Number(nRow?.n ?? 0);
-  // 8 days back: the same-weekday window's midpoint can fall one day before the 7 full days.
+  // Deliberate deviation from the 7-day brief: 8 days back, so before 12:00 UTC the same-weekday window's midpoint day is still found.
   const rows = await db
     .select({ day: agencyDailyStat.day, clients: sql<number>`coalesce(sum(${agencyDailyStat.clientsActive}), 0)::int` })
     .from(agencyDailyStat)
@@ -200,7 +200,9 @@ export async function readSpikes(db: Db, now: Date, s: SpendGuardSettings): Prom
       rate = Math.max(rate7, rateW);
     }
     const baselineUsd = Math.max(rate * n, floor);
-    out.push({ scope, observedUsd, baselineUsd, ratioPercent: Math.round((observedUsd / baselineUsd - 1) * 100), floorOnly: rate * n <= floor });
+    // No baseline (both floors 0 and no history, or N = 0) means no spike signal: never Infinity/NaN.
+    const ratioPercent = baselineUsd > 0 ? Math.round((observedUsd / baselineUsd - 1) * 100) : 0;
+    out.push({ scope, observedUsd, baselineUsd, ratioPercent, floorOnly: rate * n <= floor });
   }
   return out;
 }
@@ -240,10 +242,15 @@ async function runSpikeGuard(deps: SpendGuardDeps, now: Date, s: SpendGuardSetti
   } else {
     next = { state: 'ok', ...keep };
   }
-  await db.transaction(async (tx) => {
+  const applied = await db.transaction(async (tx) => {
+    // A staff reset (or another run) that landed while we were reading must not be overwritten: bail, the next run recomputes.
+    const latest = await lockAiGuardState(tx);
+    if (JSON.stringify(latest) !== JSON.stringify(cur)) return latest;
     if (event) await tx.insert(spendGuardEvent).values({ kind: event, ...snap });
     await writeAiGuardState(tx, next, 'system');
+    return null;
   });
+  if (applied) return applied.state;
 
   if (alert) {
     // Best-effort after the state is written, like the client part.

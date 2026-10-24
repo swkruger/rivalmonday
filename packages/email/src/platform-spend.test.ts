@@ -32,5 +32,12 @@ describe('platform_spend_alert email (C9)', () => {
     expect(out.subject).toBe('Smith HVAC (Acme) paused for spend');
     expect(out.text).toContain('used $19.50 of its $15.00 limit');
     expect(out.html).toContain('href="https://app.test/platform/agencies/a1"');
+    expect(out.html).toContain('Open usage');
+  });
+
+  it('spike alerts say Open Health', async () => {
+    const out = await renderEmail({ template: 'platform_spend_alert', props: { branding: rm, kind: 'spike_paused', title: 'Paused', lines: ['x'], url: 'https://app.test/platform/health' } });
+    expect(out.html).toContain('Open Health');
+    expect(out.html).not.toContain('Open usage');
   });
 });

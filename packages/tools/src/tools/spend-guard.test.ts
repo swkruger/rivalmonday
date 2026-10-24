@@ -61,6 +61,12 @@ describe('spend guard tools', () => {
     expect(detail.events[0]).toMatchObject({ kind: 'spike_reset', note: 'runaway loop fixed' });
   });
 
+  it('reset_ai_pause from ok is refused (nothing to reset)', async () => {
+    await expect(call(staff, 'reset_ai_pause', { note: 'x' })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(await readAiGuardState(dbs.service)).toEqual({ state: 'ok' });
+    expect(await dbs.owner.select().from(spendGuardEvent)).toHaveLength(0);
+  });
+
   it('update_spend_guard_settings: staff refused, owner merges, invalid merge (pause <= warn) refused', async () => {
     await expect(call(staff, 'update_spend_guard_settings', { spikeWarnPercent: 120 })).rejects.toMatchObject({ code: 'not_found' });
     const r = await call(pOwner, 'update_spend_guard_settings', { spikeWarnPercent: 120, clientMonthlyLimitUsd: 20 });

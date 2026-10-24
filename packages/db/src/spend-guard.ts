@@ -66,6 +66,12 @@ export async function readAiGuardState(db: Db | Tx): Promise<AiGuardState> {
   return { state: 'ok' };
 }
 
+/** Row-locks `ai_guard_state` (when it exists) for the rest of the transaction, then reads it: serialises the hourly run and a staff reset. */
+export async function lockAiGuardState(tx: Tx): Promise<AiGuardState> {
+  await tx.select({ k: platformSetting.key }).from(platformSetting).where(eq(platformSetting.key, AI_GUARD_STATE_KEY)).for('update');
+  return readAiGuardState(tx);
+}
+
 export async function writeAiGuardState(db: Db | Tx, s: AiGuardState, by: string): Promise<void> {
   const value = AiGuardState.parse(s);
   await db
