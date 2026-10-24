@@ -22,7 +22,8 @@ const errorCopy = (assistantName: string) => `${assistantName} couldn't answer j
 const disclosureCopy = (productName: string | null) => `Conversations may be reviewed by ${productName ?? 'our support team'} to improve answers.`;
 
 type FinalEvent = Extract<AskEvent, { type: 'final' }>;
-type ChatMessage = Pick<AskMessageView, 'id' | 'role' | 'content' | 'citations' | 'status' | 'action'>;
+/** `id` is null for a turn that never persisted (the local error line, the local user echo). */
+type ChatMessage = Omit<Pick<AskMessageView, 'id' | 'role' | 'content' | 'citations' | 'status' | 'action'>, 'id'> & { id: string | null };
 type LocalTurn = { key: number; question: string; final: ChatMessage | null };
 
 /** Q3: reads `data: <json>\n\n` frames from the turn response; tolerant of frames split across chunks. */
@@ -176,11 +177,11 @@ export function AskChat(props: AskChatProps) {
     const f = got.final;
     const final: ChatMessage = f
       ? { id: f.messageId, role: f.action ? 'action' : 'assistant', content: f.content, citations: f.citations, status: f.status, action: actionView(f.action) }
-      : { id: '', role: 'assistant', content: errorCopy(assistantName), citations: [], status: 'error', action: null };
+      : { id: null, role: 'assistant', content: errorCopy(assistantName), citations: [], status: 'error', action: null };
     setTurns((ts) => ts.map((t) => (t.key === key ? { ...t, final } : t)));
     setBusy(false);
     // A pre-persistence error has no message id: nothing to reload, the local copy stays.
-    if (!final.id) return;
+    if (final.id === null) return;
     if (!threadId && got.threadId) router.replace(`/c/${clientId}/ask/${got.threadId}`);
     else router.refresh();
   }
@@ -216,7 +217,7 @@ export function AskChat(props: AskChatProps) {
         ))}
         {pendingTurns.map((t) => (
           <div key={`local-${t.key}`} className="flex flex-col gap-4">
-            <MessageItem m={{ id: '', role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />
+            <MessageItem m={{ id: null, role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />
             {t.final && <MessageItem m={t.final} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />}
           </div>
         ))}

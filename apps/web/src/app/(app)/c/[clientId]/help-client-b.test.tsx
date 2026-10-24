@@ -23,7 +23,7 @@ const m = vi.hoisted(() => ({
 vi.mock('@/server/current-viewer', () => ({
   requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: m.role, userId: 'u1', agencyId: 'a1', clientScope: [C], features: new Set(m.features), planFeatures: new Set(['ask', 'mcp']) } }),
 }));
-vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
+vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny', assistantNameForRequest: async () => 'Sunny' }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@cs/mcp', () => ({ displayNameFor: async () => null }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ assistantName: 'Sunny' }) }));

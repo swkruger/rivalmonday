@@ -10,11 +10,10 @@ import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
-import { assistantNameFor } from '@/server/ask';
+import { assistantNameForRequest } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
-import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 import { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from './actions';
 
@@ -27,10 +26,10 @@ const tipsFor = (threadId: string | null): readonly { label: string; tip: TipKey
   { label: 'Making changes', tip: 'client.ask.changes' },
 ];
 
-/** Both Ask pages' tab title, "Ask {assistant}" like the menu item (the shell's cached branding read supplies the name). */
+/** Both Ask pages' tab title, "Ask {assistant}" like the menu item (the request-cached name read the page itself uses). */
 export async function askMetadata(): Promise<Metadata> {
-  const { viewer } = await requireContext();
-  return { title: `Ask ${(await themeForViewer(viewer)).assistantName}` };
+  const { ctx } = await requireContext();
+  return { title: `Ask ${await assistantNameForRequest(ctx.agencyId)}` };
 }
 
 /**
@@ -56,8 +55,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
     helpGuides(ctx, 'client', clientId),
   ]);
   if (thread && thread.clientId !== clientId) notFound();
-  const { service } = dbs();
-  const [assistantName, productName] = await Promise.all([assistantNameFor(service, ctx.agencyId), displayNameFor(service, ctx.agencyId)]);
+  const [assistantName, productName] = await Promise.all([assistantNameForRequest(ctx.agencyId), displayNameFor(dbs().service, ctx.agencyId)]);
   const list = { clientId, threads: threads.items, activeId: thread?.id ?? null, deleteAction: deleteAskThreadAction };
   const askTitle = `Ask ${assistantName}`;
   const client = { id: clientId, name: profile.name };
@@ -108,7 +106,7 @@ async function supportAskView(clientId: string, threadId: string | null, ctx: Ac
   if (!hasChannel(ctx, 'ask')) notFound();
   const [profile, assistantName, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    assistantNameFor(dbs().service, ctx.agencyId),
+    assistantNameForRequest(ctx.agencyId),
     helpGuides(ctx, 'client', clientId),
   ]);
   const askTitle = `Ask ${assistantName}`;

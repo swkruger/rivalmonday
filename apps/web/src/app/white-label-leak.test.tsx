@@ -56,7 +56,7 @@ vi.mock('@/server/tools', () => {
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => null }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@/server/nav', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/server/nav')>()), navCounts: async () => ({}) }));
-vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
+vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny', assistantNameForRequest: async () => 'Sunny' }));
 vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => null }));
 vi.mock('@/server/billing-redirect', () => ({ billingRedirectFor: () => null }));
 vi.mock('@/server/run-tool', () => ({ runTool: async () => ({ ok: true }) }));

@@ -309,12 +309,19 @@ describe('POST /api/ask/turn', () => {
     expect(evs[0]).toMatchObject({ type: 'final', status: 'error', content: ASK_COPY.error('Max'), citations: [], action: null });
   });
 
+  it('pre-persist error final has messageId null', async () => {
+    m.depsFail = true;
+    const evs = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
+    expect(evs).toHaveLength(1);
+    expect(evs[0]).toMatchObject({ type: 'final', status: 'error', messageId: null });
+  });
+
   it('a failure before the turn starts → error final with the default name', async () => {
     m.depsFail = true;
     const res = await post({ clientId: IDS.clientA1, question: 'What changed?' });
     expect(res.headers.get('x-ask-thread-id')).toBeNull();
     const evs = await events(res);
-    expect(evs).toEqual([{ type: 'final', messageId: '', content: ASK_COPY.error('Friday'), citations: [], action: null, status: 'error' }]);
+    expect(evs).toEqual([{ type: 'final', messageId: null, content: ASK_COPY.error('Friday'), citations: [], action: null, status: 'error' }]);
   });
 
   it('the turn completes after the client disconnects', async () => {
@@ -344,11 +351,11 @@ describe('POST /api/ask/turn and billing state (9a)', () => {
     await pauseAgency(dbs.owner, IDS.agencyA);
     const res = await post({ clientId: IDS.clientA1, question: 'What changed?' });
     expect(res.status).toBe(200);
-    expect(await events(res)).toEqual([{ type: 'final', messageId: '', content: 'This workspace is temporarily unavailable.', citations: [], action: null, status: 'error' }]);
+    expect(await events(res)).toEqual([{ type: 'final', messageId: null, content: 'This workspace is temporarily unavailable.', citations: [], action: null, status: 'error' }]);
     expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
     m.viewer = userViewer(ctxFor({ role: 'agency_admin', clientScope: 'all', features: ['ask'] }));
     const admin = await events(await post({ clientId: IDS.clientA1, question: 'What changed?' }));
-    expect(admin).toEqual([{ type: 'final', messageId: '', content: 'Service is paused. Update your payment method to resume.', citations: [], action: null, status: 'error' }]);
+    expect(admin).toEqual([{ type: 'final', messageId: null, content: 'Service is paused. Update your payment method to resume.', citations: [], action: null, status: 'error' }]);
     expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
   });
 });

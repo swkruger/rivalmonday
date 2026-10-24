@@ -46,7 +46,7 @@ export type AskDeps = {
 /** Q11: `final.status` also carries 'quota' (sent by the route when `beginTurn` stops the question). */
 export type AskEvent =
   | { type: 'progress'; label: string }
-  | { type: 'final'; messageId: string; content: string; citations: string[]; action: AskAction | null; status: 'ok' | 'refused' | 'error' | 'quota' };
+  | { type: 'final'; messageId: string | null; content: string; citations: string[]; action: AskAction | null; status: 'ok' | 'refused' | 'error' | 'quota' };
 
 export type AskTrace = {
   model: string;

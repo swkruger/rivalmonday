@@ -160,6 +160,19 @@ describe('AskChat', () => {
   });
 });
 
+describe('AskChat network failure', () => {
+  it("a network failure shows the error copy and doesn't refresh", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'What changed?' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(await screen.findByText("Friday couldn't answer just now — please try again.")).toBeTruthy();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('AskChat deleted thread', () => {
   it('a 404 turn into an existing thread opens a new conversation', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));

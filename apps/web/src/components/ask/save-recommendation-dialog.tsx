@@ -1,7 +1,7 @@
 'use client';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
 import Link from 'next/link';
-import { useId, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { ToolResult } from '@/server/run-tool';
 import { plainAnswer } from './answer';
@@ -51,20 +51,30 @@ export function SaveRecommendationDialog({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
+  // Blocks a second submit while one is in flight (set before `pending` flips).
+  const inFlight = useRef(false);
   const readOnly = useReadOnly();
   if (readOnly || evidenceIds.length === 0) return null;
+  // Saved once: the trigger is not offered again; only the status line stays.
+  if (saved) return <SavedLine clientId={clientId} />;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     start(async () => {
       setError(null);
-      const r = await saveAction({ clientId, title: title.trim(), rationale: rationale.trim(), effort, impact, evidenceIds });
-      if (!r.ok) {
-        setError(r.error);
-        return;
+      try {
+        const r = await saveAction({ clientId, title: title.trim(), rationale: rationale.trim(), effort, impact, evidenceIds });
+        if (!r.ok) {
+          setError(r.error);
+          return;
+        }
+        setSaved(true);
+        setOpen(false);
+      } finally {
+        inFlight.current = false;
       }
-      setSaved(true);
-      setOpen(false);
     });
   };
 
@@ -124,15 +134,18 @@ export function SaveRecommendationDialog({
           </form>
         </DialogContent>
       </Dialog>
-      {saved && (
-        <p role="status" className="text-xs text-muted-foreground">
-          Saved to{' '}
-          <Link href={`/c/${clientId}/recommendations`} className="font-medium text-primary-soft-text hover:underline">
-            Recommendations
-          </Link>
-          .
-        </p>
-      )}
     </div>
+  );
+}
+
+function SavedLine({ clientId }: { clientId: string }) {
+  return (
+    <p role="status" className="text-xs text-muted-foreground">
+      Saved to{' '}
+      <Link href={`/c/${clientId}/recommendations`} className="font-medium text-primary-soft-text hover:underline">
+        Recommendations
+      </Link>
+      .
+    </p>
   );
 }

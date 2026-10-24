@@ -6,6 +6,7 @@ import { type AccessContext, type AiGuard, canAccessClient, hasChannel, ToolErro
 import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
+import { cache } from 'react';
 import { z } from 'zod';
 import { dbs } from './db';
 import { webEnv } from './env';
@@ -131,6 +132,9 @@ export async function assistantNameFor(service: Db, agencyId: string): Promise<s
   const name = row?.branding?.assistantName;
   return typeof name === 'string' && name.trim() ? name.trim() : DEFAULT_ASSISTANT_NAME;
 }
+
+/** One assistant-name read per request: `generateMetadata`, the page and its support view share it (React `cache()`, keyed by agency). */
+export const assistantNameForRequest: (agencyId: string) => Promise<string> = cache((agencyId: string) => assistantNameFor(dbs().service, agencyId));
 
 /** Spec "Web": the turn request body. */
 export const AskTurnBody = z.object({
@@ -314,7 +318,7 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
       if (!finalSent) {
         const name = deps ? await assistantNameFor(deps.service, ctx.agencyId).catch(() => DEFAULT_ASSISTANT_NAME) : DEFAULT_ASSISTANT_NAME;
         const content = paused ?? (err instanceof ToolError && err.code === 'service_paused' ? err.message : ASK_COPY.error(name));
-        write({ type: 'final', messageId: '', content, citations: [], action: null, status: 'error' });
+        write({ type: 'final', messageId: null, content, citations: [], action: null, status: 'error' });
       }
     } finally {
       close();
