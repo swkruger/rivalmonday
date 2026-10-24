@@ -67,6 +67,18 @@ Planner calls (marked **[P]**; owner may overrule at approval):
 - [ ] Confirm type exports used by T1 (`MoveStatus`, `RecommendationStatus` from `@cs/db`; `CaptureStatus`, `PageType`, `Cadence` from `@cs/core`; `StepStatus` from `@cs/tools`) and that `ALERTS_PER_DAY` is not yet exported from `@cs/engine`.
 - [ ] Record findings under this task; commit `docs(phase-15c2b2): pre-flight`.
 
+**Findings (2026-10-24):**
+- Rebase: no-op (main 2fb4c106 is the merge base). `boss.test.ts`: 13/13 pass on `cs_phase_15c2b2_test`.
+- In-flight: `phase-7c1` and `phase-16` still unmerged. 7c1 web overlap is only `apps/web/e2e/{ai-connections.spec,seed}.ts` (no `src` file); phase-16 is docs only. No conflict with File structure; recheck `e2e/seed.ts` before T15 if 7c1 merges.
+- Paths: every cited path exists (`number.ts` is the only create). `spend-copy.ts` exists.
+- Gate scan over `src` ('.'): 42 hits in 24 files (plan expected 26 files; same 42 hits): ads/ad-card 1, briefs/page 4, changes/viewer 1, competitors/competitor-controls 1, [competitorId]/page 3, sections 1, timeline 3, evidence/[evidenceId]/page 2, pitch-snapshot/page 1, pricing/page 1, rankings/page 2, reviews/review-item 1, settings/billing/page 1, settings/delivery/page 1, charts/line-chart 2, charts/rank-trend 1, client-lists 2, place-summary 1, prospect-landscape 1, rival/signal-pills 1, views/alert-view 3, views/brief-view 5, views/report-view 2, `lib/page-gates.ts:76` 1. Nothing outside the expected areas.
+- Cited lines re-verified (viewer `formatFullUtc`, move-card/setup `STATUS_LABEL`, `bg-[#...]` in diff-text, feed, ad-card, price-card, competitor page, home `BAR`, competitor-controls:351 `disabled:bg-[#CBD5E1]`).
+- Tips in `CardTitle`: the 4 planned plus a fifth, `changes/viewer.tsx:108` (`client.changes.score`, ScorePanel). -> T3: convert it too.
+- Types: `MoveStatus`, `RecommendationStatus` (@cs/db), `CaptureStatus`/`PageType`/`Cadence` (@cs/core domain.ts), `StepStatus` (@cs/tools setup/state.ts) all exported. `MoveStatus` is only emerging|active|fading, but `move-card.tsx` `STATUS_LABEL` also has `closed` -> T1/T3: label map must keep `closed` (type it on `MoveRow['status']`, not `MoveStatus`).
+- `ALERTS_PER_DAY = 3` (engine `alerts/route.ts:12`) is ALREADY exported from `@cs/engine`: `index.ts:41` `export * from './alerts'` and `alerts/index.ts:3` `export * from './route'`. -> T14/P7: no engine edit; import it directly (drop `packages/engine/src/index.ts` from the file list).
+- Effort/impact values are 'L'|'M'|'H' (DB check constraints on brief_item and recommendation) - T9 can rely on it.
+- `changes/feed.tsx` is a server module (no 'use client'); it already imports `channelLabel` (exported from `@cs/tools` via workspace/labels) -> T3 OK as planned.
+
 ### Task 1: Shared labels, formatters and token map
 **Goal:** Every map and helper later tasks need, so route tasks only consume them.
 **Files:** modify `apps/web/src/lib/labels.ts` (+ `labels.test.ts`), `lib/format/date.ts` (+ `date.test.ts`), `lib/format/index.ts`, create `lib/format/number.ts` (+ `number.test.ts`), `lib/spend-copy.ts` (+ `spend-copy.test.ts`), `packages/engine/src/index.ts`, `components/charts/{line-chart,rank-trend}.tsx` (+ tests), `components/runbook/item-card.tsx`, `lib/page-gates.ts`.
