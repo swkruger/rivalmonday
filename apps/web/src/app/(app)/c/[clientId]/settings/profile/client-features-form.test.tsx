@@ -36,6 +36,13 @@ describe('ClientFeaturesForm review toggle', () => {
 });
 
 describe('ClientFeaturesForm', () => {
+  it('shows the Save features bar only while a switch has changed', () => {
+    render(<ClientFeaturesForm clientId="c1" features={['dashboard']} action={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Save features' })).toBeNull();
+    fireEvent.click(screen.getByLabelText(/Alert rules/));
+    expect(screen.getByRole('button', { name: 'Save features' })).toBeTruthy();
+  });
+
   it('shows the current features and posts the checked ones', async () => {
     const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Features saved.' }));
     render(<ClientFeaturesForm clientId="c1" features={['dashboard']} action={action} />);
@@ -45,6 +52,7 @@ describe('ClientFeaturesForm', () => {
     fireEvent.click(screen.getByLabelText(/Manage competitors/));
     fireEvent.click(screen.getByRole('button', { name: 'Save features' }));
     await waitFor(() => expect(screen.getByText('Features saved.')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Save features' })).toBeNull();
     const fd = action.mock.calls[0]![1];
     expect(fd.get('clientId')).toBe('c1');
     expect(fd.getAll('feature').sort()).toEqual(['alert_rules', 'dashboard', 'manage_competitors']);
@@ -53,6 +61,8 @@ describe('ClientFeaturesForm', () => {
   it('keeps a feature that has no switch yet', async () => {
     const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Features saved.' }));
     render(<ClientFeaturesForm clientId="c1" features={['ask']} action={action} />);
+    fireEvent.click(screen.getByLabelText(/Alert rules/));
+    fireEvent.click(screen.getByLabelText(/Alert rules/));
     fireEvent.click(screen.getByRole('button', { name: 'Save features' }));
     await waitFor(() => expect(action).toHaveBeenCalled());
     expect(action.mock.calls[0]![1].getAll('feature')).toEqual(['ask']);
@@ -61,7 +71,9 @@ describe('ClientFeaturesForm', () => {
   it('shows an error from the server', async () => {
     const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: false as const, error: 'Client not found' }));
     render(<ClientFeaturesForm clientId="c1" features={[]} action={action} />);
+    fireEvent.click(screen.getByLabelText(/Alert rules/));
     fireEvent.click(screen.getByRole('button', { name: 'Save features' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Client not found'));
+    expect((screen.getByLabelText(/Alert rules/) as HTMLInputElement).checked).toBe(true);
   });
 });

@@ -78,6 +78,18 @@ describe('client billing page (9b)', () => {
     expect(screen.queryByRole('button', { name: 'Manage payment' })).toBeNull();
   });
 
+  it('billing status is a chip; unknown state reads "Not available"', async () => {
+    m.data = base;
+    const { unmount } = render(await open());
+    expect(document.querySelector('[data-slot="badge"]')).toBeNull();
+    expect(screen.getByText('Active').className).toMatch(/chip-success/);
+    unmount();
+    m.data = { ...base, state: 'disconnected' };
+    render(await open());
+    expect(screen.getByText('Not available')).toBeTruthy();
+    expect(text()).toContain('Please contact Cool Agency about your billing.');
+  });
+
   it('shows a neutral message after Checkout returns', async () => {
     m.data = base;
     render(await open({ checkout: 'done' }));

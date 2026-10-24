@@ -7,7 +7,7 @@ title: Billing
 
 Your plan for {{client}}'s monitoring, which your agency bills you for directly. The card is called **Your plan with** and your agency's name.
 
-- **Status** says where your plan stands: *Active*, *Payment needed*, *Awaiting payment setup*, *Cancelled*, *Paused* or *Not set up*. A line under it says what to do, when there is something to do.
+- **Status** says where your plan stands: *Active*, *Payment needed*, *Awaiting payment setup*, *Cancelled*, *Paused*, *Not set up* or *Not available*. *Not available* means your agency has not shared the billing details here; contact them. A line under it says what to do, when there is something to do.
 - **Next charge** gives the date and amount of your next payment. If there is no next date, **Monthly amount** shows instead. A plan that is ending says “Your plan ends on” the date, with no further charges.
 - **Manage payment** opens a secure payment page where you update your payment method and see your invoices, then brings you back here.
 

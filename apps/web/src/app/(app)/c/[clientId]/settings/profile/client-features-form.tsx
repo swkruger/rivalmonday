@@ -1,6 +1,6 @@
 'use client';
-import { Button } from '@cs/ui';
-import { useActionState } from 'react';
+import { SaveBar } from '@cs/ui';
+import { useActionState, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -22,11 +22,19 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
   reviewAllowed?: boolean;
   action: (prev: FormResult, fd: FormData) => Promise<FormResult>;
 }) {
-  const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
+  // React 19 resets a form after every action, errors included; every checkbox is controlled (and onReset is blocked), so a refused save keeps the choices.
+  const [on, setOn] = useState<string[]>(features);
+  const [review, setReview] = useState(reviewAllowed);
+  const [dirty, setDirty] = useState(false);
+  const [state, formAction, pending] = useActionState(async (prev: FormResult, fd: FormData) => {
+    const r = await action(prev, fd);
+    if (r.ok) setDirty(false);
+    return r;
+  }, { ok: true } as FormResult);
   const readOnly = useReadOnly();
   const kept = features.filter((f) => !SWITCHES.some((s) => s.value === f));
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+    <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
       <input type="hidden" name="clientId" value={clientId} />
       {kept.map((f) => (
         <input key={f} type="hidden" name="feature" value={f} />
@@ -36,7 +44,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
         <legend className="mb-1 text-lg font-bold">Client features</legend>
         {SWITCHES.map((s) => (
           <label key={s.value} className="flex items-start gap-3 rounded-lg border border-line p-3">
-            <input type="checkbox" name="feature" value={s.value} defaultChecked={features.includes(s.value)} className="mt-1 h-4 w-4" />
+            <input type="checkbox" name="feature" value={s.value} checked={on.includes(s.value)} onChange={(e) => setOn((cur) => (e.target.checked ? [...cur, s.value] : cur.filter((x) => x !== s.value)))} className="mt-1 h-4 w-4" />
             <span>
               <span className="block font-medium">{s.label}</span>
               <span className="block text-sm text-muted-foreground">{s.help}</span>
@@ -48,7 +56,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
         <>
           <input type="hidden" name="askReviewPresent" value="1" />
           <label className="flex items-start gap-3 rounded-lg border border-line p-3">
-            <input type="checkbox" name="askReviewAllowed" defaultChecked={reviewAllowed} className="mt-1 h-4 w-4" />
+            <input type="checkbox" name="askReviewAllowed" checked={review} onChange={(e) => setReview(e.target.checked)} className="mt-1 h-4 w-4" />
             <span>
               <span className="block font-medium">Allow review to improve answers</span>
               <span className="block text-sm text-muted-foreground">Lets the platform team read this client&apos;s Ask conversations to improve answer quality.</span>
@@ -62,13 +70,18 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
       <WriteGuard>
-        <div>
-          <Button type="submit" disabled={pending}>
-            Save features
-          </Button>
-        </div>
+        <SaveBar
+          dirty={dirty}
+          pending={pending}
+          saveLabel="Save features"
+          onReset={() => {
+            setOn(features);
+            setReview(reviewAllowed);
+            setDirty(false);
+          }}
+        />
       </WriteGuard>
     </form>
   );

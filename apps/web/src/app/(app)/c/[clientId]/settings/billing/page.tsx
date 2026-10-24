@@ -1,5 +1,5 @@
 import { formatMoney, formatDate } from '@/lib/format';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
 import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -9,6 +9,7 @@ import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { CLIENT_PLAN_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
@@ -39,15 +40,17 @@ export const CHECKOUT_CANCELLED_COPY = 'Payment setup was cancelled.';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-function statusOf(b: MyBilling): { label: string; tone: 'default' | 'secondary' | 'destructive'; detail: string | null } {
-  if (b.paused) return { label: 'Paused', tone: 'destructive', detail: `Monitoring is paused. Please contact ${b.agencyName}.` };
-  if (!b.enabled) return { label: 'Not set up', tone: 'secondary', detail: `Billing is not set up for this workspace. Please contact ${b.agencyName} with any questions.` };
+type PlanStatus = keyof typeof CLIENT_PLAN_STATUS;
+
+function statusOf(b: MyBilling): { status: PlanStatus; detail: string | null } {
+  if (b.paused) return { status: 'paused', detail: `Monitoring is paused. Please contact ${b.agencyName}.` };
+  if (!b.enabled) return { status: 'not_set_up', detail: `Billing is not set up for this workspace. Please contact ${b.agencyName} with any questions.` };
   switch (b.state) {
-    case 'active': return { label: 'Active', tone: 'default', detail: null };
-    case 'payment_needed': return { label: 'Payment needed', tone: 'destructive', detail: 'Your last payment did not go through. Please update your payment method.' };
-    case 'invited': return { label: 'Awaiting payment setup', tone: 'secondary', detail: `Check your email for the payment link from ${b.agencyName}.` };
-    case 'cancelled': return { label: 'Cancelled', tone: 'secondary', detail: null };
-    default: return { label: 'Not available', tone: 'secondary', detail: `Please contact ${b.agencyName} about your billing.` };
+    case 'active': return { status: 'active', detail: null };
+    case 'payment_needed': return { status: 'payment_needed', detail: 'Your last payment did not go through. Please update your payment method.' };
+    case 'invited': return { status: 'invited', detail: `Check your email for the payment link from ${b.agencyName}.` };
+    case 'cancelled': return { status: 'cancelled', detail: null };
+    default: return { status: 'unavailable', detail: `Please contact ${b.agencyName} about your billing.` };
   }
 }
 
@@ -67,6 +70,7 @@ export default async function ClientBillingPage({ params, searchParams }: { para
     helpGuides(ctx, 'client', clientId),
   ]);
   const status = statusOf(b);
+  const chip = labelFor(CLIENT_PLAN_STATUS, status.status);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 
   return (
@@ -94,7 +98,7 @@ export default async function ClientBillingPage({ params, searchParams }: { para
         <CardContent className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Status</span>
-            <Badge variant={status.tone}>{status.label}</Badge>
+            <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
           </div>
           {status.detail && <p className="text-sm">{status.detail}</p>}
           {!b.paused && b.nextChargeDate && (

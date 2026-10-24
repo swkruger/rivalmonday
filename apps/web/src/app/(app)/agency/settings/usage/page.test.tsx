@@ -42,6 +42,13 @@ describe('agency usage page (7b1)', () => {
     expect(container.textContent).toContain('3,400 credits');
   });
 
+  it('agency questions cell quota 0 reads the same, no "At quota"', async () => {
+    m.data = { month: '2026-10', agencyLevelCredits: null, totalCredits: 10, items: [row({ questions: { used: 4, quota: 0 } })] };
+    await show();
+    expect(screen.getByText('4 used · Ask turned off by limit')).toBeTruthy();
+    expect(screen.queryByText('At quota')).toBeNull();
+  });
+
   it('tiles count near, reached and paused; the C1 note shows only on a reached row', async () => {
     m.data = {
       month: '2026-10', agencyLevelCredits: null, totalCredits: 10,

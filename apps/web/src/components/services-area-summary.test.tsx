@@ -23,6 +23,10 @@ describe('ServicesAreaSummary', () => {
     expect(screen.getByText(/3 ZIP codes/)).toBeTruthy();
     expect(screen.getByText(/Granbury/)).toBeTruthy();
   });
+  it('area summary omits 0 ZIP codes', () => {
+    render(<ServicesAreaSummary profile={{ ...base, serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 16.1, zips: [] } }} serviceNames={{}} />);
+    expect(screen.queryByText(/ZIP/)).toBeNull();
+  });
   it('says so when there is no service area', () => {
     render(<ServicesAreaSummary profile={{ ...base, placeId: null, serviceArea: null }} serviceNames={{}} />);
     expect(screen.getByText('No service area set yet.')).toBeTruthy();

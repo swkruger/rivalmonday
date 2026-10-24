@@ -9,7 +9,7 @@ import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { SpendBadge } from '@/components/spend-badge';
 import { formatCreditsOf } from '@/lib/format';
-import { pausedForClient, reachedCopy } from '@/lib/spend-copy';
+import { askQuotaText, pausedForClient, reachedCopy } from '@/lib/spend-copy';
 import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
@@ -80,7 +80,7 @@ export default async function ClientUsagePage({ params }: { params: Promise<{ cl
             <CardTitle>Ask questions this month</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-lg font-semibold">{`${questions.used} of ${questions.quota}`}</span>
+            <span className="text-lg font-semibold">{askQuotaText(questions)}</span>
           </CardContent>
         </Card>
       )}

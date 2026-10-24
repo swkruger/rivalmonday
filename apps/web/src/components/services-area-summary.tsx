@@ -6,7 +6,7 @@ export function ServicesAreaSummary({ profile, serviceNames }: { profile: Pick<C
   const rows: [string, string][] = [
     ['Services', profile.services.length ? profile.services.map((s) => serviceNames[s] ?? s).join(', ') : 'None yet'],
     ['Keywords', profile.keywords.length ? profile.keywords.join(', ') : 'None yet'],
-    ['Area', a ? [`${Math.round(kmToMiles(a.radiusKm))} miles around the business`, `${a.zips.length} ZIP codes`, ...(a.towns?.length ? [a.towns.join(', ')] : [])].join(' · ') : 'No service area set yet.'],
+    ['Area', a ? [`${Math.round(kmToMiles(a.radiusKm))} miles around the business`, ...(a.zips.length ? [`${a.zips.length} ZIP codes`] : []), ...(a.towns?.length ? [a.towns.join(', ')] : [])].join(' · ') : 'No service area set yet.'],
     ['Google Business Profile', profile.placeId ? 'Linked' : 'Not linked'],
   ];
   return (

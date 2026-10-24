@@ -55,6 +55,13 @@ describe('client usage page (7b1)', () => {
     expect(screen.getByText('4 of 100')).toBeTruthy();
   });
 
+  it('client usage quota 0 reads "4 used · Ask turned off by limit"', async () => {
+    m.role = 'agency_admin';
+    m.data = usage('ok', 100, { used: 4, quota: 0 });
+    await show();
+    expect(screen.getByText('4 used · Ask turned off by limit')).toBeTruthy();
+  });
+
   it('reached shows C1; paused shows C3 with the agency name', async () => {
     m.data = usage('reached', 1600);
     const { unmount } = await show();
