@@ -3,27 +3,29 @@
  * import `@cs/tools` types. Items arrive newest-first; grouping preserves that order.
  */
 import type { TimelineItem } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
 import { TrendingUp } from 'lucide-react';
 import Link from 'next/link';
+import { formatDate, formatMonth, localDay } from '@/lib/format';
+import { MOVE_STATUS, labelFor } from '@/lib/labels';
+import { requireContext } from '@/server/current-viewer';
+import { callTool } from '@/server/tools';
 import { RoutePill } from '../../changes/feed';
 import { changesHref } from '../../changes/params';
 import { movesHref } from '../../moves/move-card';
 
-const monthLabel = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-
-export function Timeline({ clientId, items }: { clientId: string; items: TimelineItem[] }) {
+export function Timeline({ clientId, items, timezone }: { clientId: string; items: TimelineItem[]; timezone: string }) {
   if (items.length === 0) return <p className="text-muted-foreground">No changes from this competitor in this period.</p>;
   const groups = new Map<string, TimelineItem[]>();
   for (const it of items) {
-    const key = it.at.slice(0, 7);
+    const key = localDay(it.at, timezone).slice(0, 7);
     groups.set(key, [...(groups.get(key) ?? []), it]);
   }
   return (
     <div className="flex flex-col gap-5">
       {[...groups.values()].map((rows) => (
-        <section key={rows[0]!.at.slice(0, 7)}>
-          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{monthLabel(rows[0]!.at)}</h3>
+        <section key={localDay(rows[0]!.at, timezone).slice(0, 7)}>
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{formatMonth(rows[0]!.at, { tz: timezone, style: 'long' })}</h3>
           <ul className="flex flex-col gap-1">
             {rows.map((it) =>
               it.kind === 'move' ? (
@@ -35,8 +37,8 @@ export function Timeline({ clientId, items }: { clientId: string; items: Timelin
                     <span className="min-w-0 flex-1 truncate font-semibold text-ink">
                       {it.label} · {it.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">{shortDate(it.at)}</span>
-                    {it.status && <span className="text-xs font-semibold capitalize text-muted-foreground">{it.status}</span>}
+                    <span className="text-xs text-muted-foreground">{formatDate(it.at, { tz: timezone })}</span>
+                    {it.status && <StatusChip tone={labelFor(MOVE_STATUS, it.status).tone}>{labelFor(MOVE_STATUS, it.status).label}</StatusChip>}
                   </Link>
                 </li>
               ) : (
@@ -45,7 +47,7 @@ export function Timeline({ clientId, items }: { clientId: string; items: Timelin
                     <span className="min-w-0 flex-1 truncate text-ink">
                       {it.label} · {it.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">{shortDate(it.at)}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(it.at, { tz: timezone })}</span>
                     {it.route && it.score !== null && (
                       <>
                         <span className="text-xs font-semibold tabular-nums text-ink">{it.score}</span>
@@ -61,4 +63,11 @@ export function Timeline({ clientId, items }: { clientId: string; items: Timelin
       ))}
     </div>
   );
+}
+
+/** The Timeline's own read, streamed behind a Suspense boundary (P3); it runs after the page's access-checking reads. */
+export async function TimelineCard({ clientId, competitorId, days, timezone }: { clientId: string; competitorId: string; days: number; timezone: string }) {
+  const { ctx } = await requireContext();
+  const timeline = await callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days });
+  return <Timeline clientId={clientId} items={timeline.items} timezone={timezone} />;
 }

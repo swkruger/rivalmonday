@@ -18,12 +18,22 @@ describe('competitor profile sections (decision 13)', () => {
     expect(screen.getByRole('link', { name: 'See pricing' }).getAttribute('href')).toBe(`/c/${C}/pricing?competitor=${X}&service=ac_tune_up`);
   });
 
+  it('prices section hides See pricing with no prices', () => {
+    render(<PricesSection clientId={C} competitorId={X} matrix={{
+      services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],
+      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [], change: null }] }],
+    }} />);
+    expect(screen.getByText('No prices seen on its website yet.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'See pricing' })).toBeNull();
+    expect(screen.queryByText('AC tune-up')).toBeNull();
+  });
+
   it('shows the newest active ads, or says there are none', () => {
-    const { unmount } = render(<AdsSection clientId={C} competitorId={X} ads={{ hasMore: false, items: [{ id: 'a', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: null, title: '$49 tune-up', text: null, landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null }] }} />);
+    const { unmount } = render(<AdsSection clientId={C} competitorId={X} timezone="UTC" ads={{ hasMore: false, items: [{ id: 'a', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: null, title: '$49 tune-up', text: null, landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null }] }} />);
     expect(screen.getByText('$49 tune-up')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'See ads' }).getAttribute('href')).toBe(`/c/${C}/ads?competitor=${X}`);
     unmount();
-    render(<AdsSection clientId={C} competitorId={X} ads={{ hasMore: false, items: [] }} />);
+    render(<AdsSection clientId={C} competitorId={X} timezone="UTC" ads={{ hasMore: false, items: [] }} />);
     expect(screen.getByText('No active ads.')).toBeTruthy();
   });
 

@@ -1,8 +1,8 @@
 import type { AdList, GeoGridView, PriceMatrixView, TopicBenchmarkView } from '@cs/tools';
 import Link from 'next/link';
+import { formatDate } from '@/lib/format';
 import { formatPrice, pricingHref } from '../../pricing/format';
 
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const pct = (x: number | null) => (x === null ? '—' : `${Math.round(x * 100)}%`);
 const LINK = 'mt-3 inline-block text-sm font-semibold text-primary-soft-text';
 
@@ -18,7 +18,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 export function PricesSection({ clientId, competitorId, matrix }: { clientId: string; competitorId: string; matrix: PriceMatrixView }) {
   const row = matrix.rows.find((r) => r.competitorId === competitorId);
   const names = new Map(matrix.services.map((s) => [s.id, s.name]));
-  const cells = row?.cells.slice(0, 5) ?? [];
+  const cells = (row?.cells ?? []).filter((c) => c.prices.length > 0).slice(0, 5);
   return (
     <Section id="profile-prices" title="Prices">
       {cells.length === 0 ? <p className="text-sm text-muted-foreground">No prices seen on its website yet.</p> : (
@@ -31,12 +31,12 @@ export function PricesSection({ clientId, competitorId, matrix }: { clientId: st
           ))}
         </ul>
       )}
-      <Link href={pricingHref(clientId, cells[0] ? { competitor: competitorId, service: cells[0].serviceId } : {})} className={LINK}>See pricing</Link>
+      {cells[0] && <Link href={pricingHref(clientId, { competitor: competitorId, service: cells[0].serviceId })} className={LINK}>See pricing</Link>}
     </Section>
   );
 }
 
-export function AdsSection({ clientId, competitorId, ads }: { clientId: string; competitorId: string; ads: AdList }) {
+export function AdsSection({ clientId, competitorId, ads, timezone }: { clientId: string; competitorId: string; ads: AdList; timezone: string }) {
   return (
     <Section id="profile-ads" title="Ads">
       {ads.items.length === 0 ? <p className="text-sm text-muted-foreground">No active ads.</p> : (
@@ -44,7 +44,7 @@ export function AdsSection({ clientId, competitorId, ads }: { clientId: string; 
           {ads.items.map((a) => (
             <li key={a.id} className="py-2">
               <span className="font-semibold text-ink">{a.title ?? a.text?.slice(0, 80) ?? 'Untitled ad'}</span>
-              <span className="block text-xs text-muted-foreground">{a.platform === 'meta' ? 'Meta' : 'Google'} · first seen {fmt(a.firstSeenAt)}</span>
+              <span className="block text-xs text-muted-foreground">{a.platform === 'meta' ? 'Meta' : 'Google'} · first seen {formatDate(a.firstSeenAt, { tz: timezone })}</span>
             </li>
           ))}
         </ul>

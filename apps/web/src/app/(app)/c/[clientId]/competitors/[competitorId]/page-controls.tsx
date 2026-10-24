@@ -55,7 +55,7 @@ export function PinPageSwitch({ clientId, competitorId, page }: { clientId: stri
   );
 }
 
-export function AddPageForm({ clientId, competitorId, pageTypes }: { clientId: string; competitorId: string; pageTypes: string[] }) {
+export function AddPageForm({ clientId, competitorId, pageTypes }: { clientId: string; competitorId: string; pageTypes: { value: string; label: string }[] }) {
   const [state, formAction, pending] = useActionState(addPageAction, { ok: true } as FormResult);
   if (useReadOnly()) return null;
   return (
@@ -70,10 +70,10 @@ export function AddPageForm({ clientId, competitorId, pageTypes }: { clientId: s
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="page-type">Type</Label>
-          <select id="page-type" name="pageType" className={selectClass} defaultValue={pageTypes[0]}>
+          <select id="page-type" name="pageType" className={selectClass} defaultValue={pageTypes[0]?.value}>
             {pageTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
+              <option key={t.value} value={t.value}>
+                {t.label}
               </option>
             ))}
           </select>

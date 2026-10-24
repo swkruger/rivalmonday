@@ -1,16 +1,18 @@
-import { formatRelative } from '@/lib/format';
+import { formatDate, formatRelative } from '@/lib/format';
+import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TimelineItem, TrackedPageView } from '@cs/tools';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
+import { Card, StatusChip, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { cache } from 'react';
+import { cache, Suspense } from 'react';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PageSkeleton } from '@/components/page-skeleton';
 import { PressureBadge } from '@/components/pressure-badge';
 import { AdMatchChips } from '@/components/rival/ad-match-chips';
 import { ratedLabel } from '@/components/rival/rated-label';
@@ -25,16 +27,13 @@ import { callTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
 import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
 import { sourceStatusLabel } from './source-status';
-import { Timeline } from './timeline';
+import { TimelineCard } from './timeline';
 
 export const dynamic = 'force-dynamic';
 
 const PERIODS = [30, 90, 365] as const;
 const HELP_KEY = 'page:client.competitors.detail';
 const COPY = PAGE_COPY['client.competitors.detail'];
-
-const fmtDate = (iso: string, withYear = false) =>
-  new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
 
 function Kpi({ label, help, children }: { label: string; help?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -78,9 +77,8 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, timeline, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides] = await Promise.all([
+  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides] = await Promise.all([
     loadCompetitor(ctx, clientId, competitorId),
-    callTool<{ items: TimelineItem[] }>(ctx, 'get_competitor_timeline', { clientId, competitorId, days }),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
     callTool<AdList>(ctx, 'list_ads', { clientId, competitorId, limit: 3 }),
@@ -95,6 +93,7 @@ export default async function CompetitorProfilePage({
   ]);
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
+  const tz = client.timezone;
   const agency = isAgencyRole(ctx.role);
 
   return (
@@ -104,7 +103,7 @@ export default async function CompetitorProfilePage({
         breadcrumb={clientCrumbs({ id: clientId, name: client.name }, { label: 'Competitors', href: `/c/${clientId}/competitors` }, profile.name)}
         description={
           <>
-            <HelpText text={COPY.description} /> {`Tracked since ${fmtDate(profile.addedAt, true)}.`}
+            <HelpText text={COPY.description} /> {`Tracked since ${formatDate(profile.addedAt, { tz, withYear: 'always' })}.`}
           </>
         }
         helpKey={HELP_KEY}
@@ -144,9 +143,13 @@ export default async function CompetitorProfilePage({
         <Kpi label="Google rating">
           {profile.gbp ? (
             <>
-              <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.gbp.rating ?? '—'} ★</span>
+              {profile.gbp.rating === null ? (
+                <span className="text-sm text-muted-foreground">No rating yet</span>
+              ) : (
+                <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.gbp.rating} ★</span>
+              )}
               <span className="text-sm text-muted-foreground">{profile.gbp.reviews ?? 0} reviews</span>
-              {profile.gbpAsOf && <span className="text-xs text-muted-foreground">as of {fmtDate(profile.gbpAsOf)}</span>}
+              {profile.gbpAsOf && <span className="text-xs text-muted-foreground">as of {formatDate(profile.gbpAsOf, { tz })}</span>}
             </>
           ) : (
             <span className="text-sm text-muted-foreground">No Google profile yet</span>
@@ -166,14 +169,16 @@ export default async function CompetitorProfilePage({
         <Kpi label="Pages monitored" help={<HelpTip tip="client.competitors.detail.pagesMonitored" />}>
           <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.pages.active}</span>
           {profile.pages.blocked > 0 && (
-            <span className="w-fit rounded-md bg-[#FEE2E2] px-2 py-0.5 text-xs font-semibold text-[#B91C1C]">Site blocks monitoring</span>
+            <StatusChip tone="danger" className="w-fit">
+              Site blocks monitoring
+            </StatusChip>
           )}
         </Kpi>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <PricesSection clientId={clientId} competitorId={competitorId} matrix={matrix} />
-        <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} />
+        <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} timezone={tz} />
         <ReviewsSection clientId={clientId} competitorId={competitorId} benchmark={benchmark} />
         <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
       </div>
@@ -196,17 +201,19 @@ export default async function CompetitorProfilePage({
             </nav>
           </CardHeader>
           <CardContent>
-            <Timeline clientId={clientId} items={timeline.items} />
+            <Suspense fallback={<PageSkeleton cards={1} />}>
+              <TimelineCard clientId={clientId} competitorId={competitorId} days={days} timezone={tz} />
+            </Suspense>
           </CardContent>
         </Card>
 
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-1.5">
-                Collection status
+              <div className="flex items-center gap-1.5">
+                <CardTitle>Collection status</CardTitle>
                 <HelpTip tip="client.competitors.detail.collection" />
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               {profile.sources.length === 0 ? (
@@ -217,8 +224,8 @@ export default async function CompetitorProfilePage({
                   <li key={s.source} className="flex items-baseline justify-between gap-2">
                     <span className="font-semibold text-ink">{s.label}</span>
                     <span className="text-muted-foreground">
-                      {s.lastRunAt ? `${formatRelative(s.lastRunAt, now)}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
-                      {s.active ? '' : ' · paused'}
+                      {s.lastRunAt ? `${formatRelative(s.lastRunAt, now, { tz })}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
+                      {s.active ? '' : ' · Paused'}
                     </span>
                   </li>
                 ))}
@@ -226,14 +233,14 @@ export default async function CompetitorProfilePage({
               )}
             </CardContent>
           </Card>
-          <PagesCard clientId={clientId} competitorId={competitorId} pages={pages.items} agency={agency} />
+          <PagesCard clientId={clientId} competitorId={competitorId} pages={pages.items} agency={agency} tz={tz} />
         </div>
       </div>
     </>
   );
 }
 
-function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string; competitorId: string; pages: TrackedPageView[]; agency: boolean }) {
+function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: string; competitorId: string; pages: TrackedPageView[]; agency: boolean; tz: string }) {
   return (
     <Card>
       <CardHeader>
@@ -263,11 +270,11 @@ function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string
               {pages.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{p.url}</TableCell>
-                  <TableCell>{p.pageType}</TableCell>
-                  <TableCell>{p.cadence}</TableCell>
-                  <TableCell>{p.lastCapturedAt ? p.lastCapturedAt.slice(0, 10) : '—'}</TableCell>
+                  <TableCell>{labelFor(PAGE_TYPE, p.pageType).label}</TableCell>
+                  <TableCell>{labelFor(CADENCE, p.cadence).label}</TableCell>
+                  <TableCell>{p.lastCapturedAt ? formatDate(p.lastCapturedAt, { tz }) : '—'}</TableCell>
                   <TableCell>{agency ? <PinPageSwitch clientId={clientId} competitorId={competitorId} page={p} /> : p.pinned ? 'Pinned' : '—'}</TableCell>
-                  <TableCell>{!p.active && <Badge variant="secondary">Inactive</Badge>}</TableCell>
+                  <TableCell>{!p.active && <StatusChip tone="neutral">Inactive</StatusChip>}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -277,7 +284,7 @@ function PagesCard({ clientId, competitorId, pages, agency }: { clientId: string
           <WriteGuard>
             <div className="mt-5 border-t border-line pt-5">
               {webEnv().webMonitoring ? (
-                <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={[...PAGE_TYPES]} />
+                <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={PAGE_TYPES.map((t) => ({ value: t, label: labelFor(PAGE_TYPE, t).label }))} />
               ) : (
                 <p className="text-muted-foreground">Website monitoring is switched off for now, so pages can’t be added.</p>
               )}
