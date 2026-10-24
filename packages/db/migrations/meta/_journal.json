@@ -626,17 +626,24 @@
       "breakpoints": true
     },
     {
-      "idx": 86,
+      "idx": 89,
       "version": "7",
-      "when": 1792748204873,
-      "tag": "0086_spend_guard",
+      "when": 1792756364838,
+      "tag": "0089_ledger_cost_numeric",
       "breakpoints": true
     },
     {
-      "idx": 87,
+      "idx": 90,
       "version": "7",
-      "when": 1792806848996,
-      "tag": "0087_retry_backoff",
+      "when": 1792756424838,
+      "tag": "0090_spend_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1792756484838,
+      "tag": "0091_retry_backoff",
       "breakpoints": true
     }
   ]

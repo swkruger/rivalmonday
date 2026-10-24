@@ -108,7 +108,7 @@ describe('spend guard schema', () => {
   });
 
   it('migration seeds both platform_setting rows once', async () => {
-    const file = readFileSync(join(__dirname, '../migrations/0086_spend_guard.sql'), 'utf8');
+    const file = readFileSync(join(__dirname, '../migrations/0090_spend_guard.sql'), 'utf8');
     const insert = file.split('--> statement-breakpoint').find((s) => /INSERT INTO platform_setting/i.test(s));
     expect(insert).toBeTruthy();
     await dbs.owner.execute(sql.raw(insert as string));

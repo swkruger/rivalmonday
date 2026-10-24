@@ -5,7 +5,7 @@ import type { Db, Tx } from './client';
 import { platformSetting } from './schema/billing';
 import { client } from './schema/tenancy';
 
-/** `platform_setting` keys (seeded by migration 0086). Platform staff only (7b1). */
+/** `platform_setting` keys (seeded by migration 0090). Platform staff only (7b1). */
 export const SPEND_GUARD_SETTINGS_KEY = 'spend_guard_settings';
 export const AI_GUARD_STATE_KEY = 'ai_guard_state';
 
