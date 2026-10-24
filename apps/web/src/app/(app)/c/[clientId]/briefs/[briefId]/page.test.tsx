@@ -20,9 +20,9 @@ const detail = (id: string, deliveryDate: string, kind = 'weekly') => ({
   ...summary(id, deliveryDate), kind, periodStart: '2026-10-01T00:00:00.000Z', periodEnd: '2026-10-08T00:00:00.000Z', approvedAt: null,
   scorecard: null, trend: null, items: [], summary: `Summary of ${id}`,
 });
-const list = [summary('b3', '2026-10-20'), summary('b2', '2026-10-13'), summary('b1', '2026-10-06')];
+const list = [summary('b3', '2026-10-19'), summary('b2', '2026-10-12'), summary('b1', '2026-10-05')];
 
-const mount = (brief = detail('b2', '2026-10-13')) =>
+const mount = (brief = detail('b2', '2026-10-12')) =>
   callTool.mockImplementation(async (_ctx: unknown, name: string) => {
     if (name === 'get_client_profile') return { id: C, name: 'Cool Air', timezone: 'UTC' };
     if (name === 'get_brief') return brief;
@@ -37,11 +37,11 @@ describe('Brief page (15a §2.8)', () => {
   it('one h1 naming the week, breadcrumb client › Briefs & reports › date, both neighbours from list_briefs at its max', async () => {
     mount();
     await show('b2');
-    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Week of Oct 13']);
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Week of Oct 12']);
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Cool Air' }).getAttribute('href')).toBe(`/c/${C}`);
     expect(within(crumbs).getByRole('link', { name: 'Briefs & reports' }).getAttribute('href')).toBe(`/c/${C}/briefs`);
-    expect(crumbs.textContent).toContain('Oct 13');
+    expect(crumbs.textContent).toContain('Oct 12');
     expect(callTool.mock.calls.find((c) => c[1] === 'list_briefs')![2]).toEqual({ clientId: C, limit: 52 });
     expect(screen.getByRole('link', { name: '‹ Previous' }).getAttribute('href')).toBe(`/c/${C}/briefs/b1`);
     expect(screen.getByRole('link', { name: 'Next ›' }).getAttribute('href')).toBe(`/c/${C}/briefs/b3`);
@@ -49,12 +49,12 @@ describe('Brief page (15a §2.8)', () => {
   });
 
   it('the newest brief has no Next, the oldest no Previous', async () => {
-    mount(detail('b3', '2026-10-20'));
+    mount(detail('b3', '2026-10-19'));
     const { unmount } = await show('b3');
     expect(screen.queryByRole('link', { name: 'Next ›' })).toBeNull();
     expect(screen.getByRole('link', { name: '‹ Previous' })).toBeTruthy();
     unmount();
-    mount(detail('b1', '2026-10-06'));
+    mount(detail('b1', '2026-10-05'));
     await show('b1');
     expect(screen.queryByRole('link', { name: '‹ Previous' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Next ›' })).toBeTruthy();
@@ -68,14 +68,14 @@ describe('Brief page (15a §2.8)', () => {
   });
 
   it('a starting point is titled as such; the tab title matches the h1', async () => {
-    mount(detail('b2', '2026-10-13', 'starting_point'));
+    mount(detail('b2', '2026-10-12', 'starting_point'));
     await show('b2');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your starting point');
     expect(await generateMetadata({ params: Promise.resolve({ clientId: C, briefId: 'b2' }) })).toEqual({ title: 'Your starting point' });
   });
 
   it("404s on another client's brief", async () => {
-    mount({ ...detail('b2', '2026-10-13'), clientId: '00000000-0000-4000-8000-0000000000ff' });
+    mount({ ...detail('b2', '2026-10-12'), clientId: '00000000-0000-4000-8000-0000000000ff' });
     await expect(BriefPage({ params: Promise.resolve({ clientId: C, briefId: 'b2' }) })).rejects.toThrow('NEXT_NOT_FOUND');
   });
 });

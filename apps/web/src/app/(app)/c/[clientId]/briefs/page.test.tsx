@@ -113,8 +113,26 @@ describe('Briefs & reports (15a §2.8)', () => {
     viewer.role = 'account_manager';
     mount({ list_briefs: { items: [brief('b2', '2026-10-20', 'ready'), brief('b1', '2026-10-13', 'sent')], nextCursor: null } });
     await show();
-    expect(screen.getByText('Needs review')).toBeTruthy();
+    expect(screen.getByText('Ready for review')).toBeTruthy();
     expect(screen.getByText('Sent')).toBeTruthy();
+  });
+
+  it('briefs list: agency sees a "Ready for review" chip, client none', async () => {
+    mount({ list_briefs: { items: [brief('b2', '2026-10-19', 'ready')], nextCursor: null } });
+    const { container, unmount } = await show();
+    expect(container.querySelector('[data-slot="status-chip"]')).toBeNull();
+    unmount();
+    viewer.role = 'account_manager';
+    await show();
+    expect(screen.getByText('Ready for review').getAttribute('data-slot')).toBe('status-chip');
+  });
+
+  it('starting point rows carry an info chip for everyone; the tab list wrapper is min-w-0', async () => {
+    mount({ list_briefs: { items: [brief('b1', '2026-10-06', 'sent', 'starting_point')], nextCursor: null } });
+    await show();
+    expect(screen.getByText('Starting point').getAttribute('data-tone')).toBe('info');
+    expect(views().parentElement!.className).toContain('min-w-0');
+    expect(views().parentElement!.className).toContain('flex-wrap');
   });
 
   it.each([

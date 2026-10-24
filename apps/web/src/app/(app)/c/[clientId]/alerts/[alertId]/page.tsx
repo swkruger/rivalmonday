@@ -76,7 +76,7 @@ export default async function AlertPage({ params }: { params: Promise<{ clientId
           </span>
         )}
       </div>
-      <AlertView alert={alert} agency={agency} titled={false} />
+      <AlertView alert={alert} agency={agency} timezone={profile.timezone} titled={false} />
       <PrevNext previous={previous} next={next} />
     </>
   );

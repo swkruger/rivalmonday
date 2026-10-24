@@ -14,7 +14,7 @@ import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatWeekOf } from '@/lib/format';
 import { neighbours } from '../neighbours';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ const loadBrief = cache(async (clientId: string, briefId: string) => {
   return { ctx, brief, profile, list };
 });
 
-const titleOf = (brief: BriefDetail) => (brief.kind === 'starting_point' ? 'Your starting point' : `Week of ${formatDate(brief.deliveryDate, { tz: 'UTC' })}`);
+const titleOf = (brief: BriefDetail) => (brief.kind === 'starting_point' ? 'Your starting point' : formatWeekOf(brief.deliveryDate, { tz: 'UTC' }));
 
 export async function generateMetadata({ params }: { params: Promise<{ clientId: string; briefId: string }> }): Promise<Metadata> {
   const { clientId, briefId } = await params;
@@ -90,7 +90,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
           ))}
         </div>
       )}
-      <BriefView brief={brief} agency={agency} titled={false} />
+      <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} />
       <PrevNext previous={previous} next={next} />
     </>
   );

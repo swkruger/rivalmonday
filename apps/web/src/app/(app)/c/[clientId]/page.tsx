@@ -132,7 +132,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
               <EmptyState {...COPY.empty.noBrief} />
             </section>
           )}
-          {latest && <BriefView brief={latest} agency={agency} archiveHref={`/c/${clientId}/briefs`} />}
+          {latest && <BriefView brief={latest} agency={agency} timezone={profile.timezone} archiveHref={`/c/${clientId}/briefs`} />}
         </div>
 
         <div className="flex flex-col gap-5">

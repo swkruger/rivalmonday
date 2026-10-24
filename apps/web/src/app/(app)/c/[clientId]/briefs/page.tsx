@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import { type AlertSummary, type BriefSummary, type ClientProfile, encodeCursor, type ReportSummary } from '@cs/tools';
-import { Badge, TabsLink, TabsLinkList } from '@cs/ui';
+import { StatusChip, TabsLink, TabsLinkList } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { clientCrumbs } from '@/components/client-crumbs';
@@ -13,8 +13,9 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { one, type SearchParams } from '@/server/search-params';
 import { callTool } from '@/server/tools';
-import { ALERT_STATUS, BRIEF_STATUS, type BriefsTab, REPORT_STATUS, TABS } from './copy';
 import { formatDate } from '@/lib/format';
+import { ALERT_STATUS, BRIEF_STATUS, type LabelEntry, labelFor, REPORT_STATUS } from '@/lib/labels';
+import { type BriefsTab, TABS } from './copy';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Briefs & reports' };
@@ -31,7 +32,7 @@ const MAX_PAGE = 50_000;
 type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
 type Paged<T> = { items: T[]; nextCursor?: string | null };
 /** `date`: a delivery date, an ISO timestamp or (an unsent report) its quarter — formatted at render. */
-interface Row { id: string; href: string; date: string; summary: string; kind: string | null; status: string }
+interface Row { id: string; href: string; date: string; summary: string; tag: string | null; status: LabelEntry }
 interface TabPage { rows: Row[]; hasMore: boolean }
 
 const parseTab = (v: string | undefined): BriefsTab => (TABS.some((t) => t.key === v) ? (v as BriefsTab) : 'briefs');
@@ -54,7 +55,7 @@ async function loadTab(ctx: Ctx, tab: BriefsTab, clientId: string, page: number)
       hasMore: Boolean(r.nextCursor),
       rows: r.items.map((b) => ({
         id: b.id, href: `/c/${clientId}/briefs/${b.id}`, date: b.deliveryDate, summary: b.summary,
-        kind: b.kind === 'starting_point' ? 'Starting point' : null, status: BRIEF_STATUS[b.status] ?? b.status,
+        tag: b.kind === 'starting_point' ? 'Starting point' : null, status: labelFor(BRIEF_STATUS, b.status),
       })),
     };
   }
@@ -64,7 +65,7 @@ async function loadTab(ctx: Ctx, tab: BriefsTab, clientId: string, page: number)
       hasMore: Boolean(r.nextCursor),
       rows: r.items.map((a) => ({
         id: a.id, href: `/c/${clientId}/alerts/${a.id}`, date: a.deliveredAt ?? a.createdAt, summary: `${a.competitorName} — ${a.headline}`,
-        kind: null, status: ALERT_STATUS[a.status] ?? a.status,
+        tag: null, status: labelFor(ALERT_STATUS, a.status),
       })),
     };
   }
@@ -73,7 +74,7 @@ async function loadTab(ctx: Ctx, tab: BriefsTab, clientId: string, page: number)
     hasMore: r.items.length > offset + PER_PAGE,
     rows: r.items.slice(offset, offset + PER_PAGE).map((x) => ({
       id: x.id, href: `/c/${clientId}/reports/${x.id}`, date: x.sentAt ?? x.quarter, summary: `Competitor trends — ${x.quarter}`,
-      kind: null, status: REPORT_STATUS[x.status] ?? x.status,
+      tag: null, status: labelFor(REPORT_STATUS, x.status),
     })),
   };
 }
@@ -106,7 +107,7 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
         guide={guides.has(HELP_KEY)}
       />
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <TabsLinkList aria-label="Briefs and reports views" className="max-w-full overflow-x-auto">
           {TABS.map((t) => (
             <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
@@ -130,9 +131,9 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
             <li key={r.id}>
               <Link href={r.href} className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted-surface">
                 <span className="w-28 shrink-0 font-semibold tabular-nums">{formatDate(r.date, { tz: profile.timezone })}</span>
-                {r.kind && <Badge variant="outline" className="shrink-0">{r.kind}</Badge>}
+                {r.tag && <StatusChip tone="info" className="shrink-0">{r.tag}</StatusChip>}
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.summary}</span>
-                {agency && <Badge variant="secondary" className="shrink-0">{r.status}</Badge>}
+                {agency && <StatusChip tone={r.status.tone} className="shrink-0">{r.status.label}</StatusChip>}
               </Link>
             </li>
           ))}

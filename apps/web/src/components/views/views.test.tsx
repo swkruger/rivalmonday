@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import type { AlertDetail, BriefDetail, ReportDetail } from '@cs/tools';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AlertView } from './alert-view';
 import { BriefView } from './brief-view';
 import { ReportView } from './report-view';
+
+// Pin "now" (Date only) so the year-less date format is stable.
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+afterAll(() => { vi.useRealTimers(); });
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const item = (n: number, extra: Partial<BriefDetail['items'][number]> = {}): BriefDetail['items'][number] => ({
@@ -31,6 +35,13 @@ const scorecard: NonNullable<BriefDetail['scorecard']> = {
   evidenceIds: [], openFirstMoves: [{ recommendationId: '00000000-0000-4000-8000-0000000000c1', title: 'Reply to your reviews' }],
 };
 
+const alertFixture: AlertDetail = {
+  id: '00000000-0000-4000-8000-0000000000d1', clientId: C, competitorName: 'Smith HVAC', headline: 'Cut its AC tune-up price to $69.',
+  score: 82, status: 'delivered', createdAt: '2026-10-04T09:00:00Z', deliveredAt: '2026-10-04T09:05:00Z', body: 'The pricing page now shows $69, down from $89.',
+  evidenceIds: ['e1', 'e2', 'e3'], written: 'template',
+};
+const alert = alertFixture;
+
 const opensInNewTab = (a: HTMLElement) => {
   expect(a.getAttribute('target')).toBe('_blank');
   expect(a.getAttribute('rel')).toContain('noopener');
@@ -42,9 +53,9 @@ describe('BriefView starting point and quiet week', () => {
     items: [item(1, { competitorId: null, subject: 'self', competitorName: 'A1 HVAC', headline: 'Reply to reviews' })],
   };
   it('renders starting point sections: title, chip, intro, tiles, scorecard, then the finding', () => {
-    render(<BriefView brief={sp} agency={false} />);
+    render(<BriefView brief={sp} agency={false} timezone="UTC" />);
     expect(screen.getByText('Your starting point')).toBeTruthy();
-    expect(screen.getByText('Starting point · 2026-10-12')).toBeTruthy();
+    expect(screen.getByText('Starting point · Oct 12')).toBeTruthy();
     expect(screen.getByText(/stands against the 1 rival we now watch/)).toBeTruthy();
     for (const l of ['Rating', 'New reviews · 90 d', 'Reply rate', 'Top-3 in map pack']) expect(screen.getAllByText(l).length).toBeGreaterThan(0);
     expect(screen.getAllByText('31%')).toHaveLength(2);
@@ -56,48 +67,48 @@ describe('BriefView starting point and quiet week', () => {
     expect(screen.queryByText('Where you stand')).toBeNull();
   });
   it('self item renders without competitor', () => {
-    render(<BriefView brief={sp} agency={false} />);
+    render(<BriefView brief={sp} agency={false} timezone="UTC" />);
     const article = screen.getByRole('heading', { name: 'Reply to reviews' }).closest('article')!;
     expect(article.textContent).not.toContain('A1 HVAC');
   });
   it('quiet week shows Where you stand, open first moves and the trend table', () => {
-    render(<BriefView brief={{ ...sp, kind: 'quiet', summary: 'Quiet.', items: [], trend: { windowDays: 30, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.6, prevAvgRating: 4.5, activeAds: null }] } }} agency={false} />);
+    render(<BriefView brief={{ ...sp, kind: 'quiet', summary: 'Quiet.', items: [], trend: { windowDays: 30, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.6, prevAvgRating: 4.5, activeAds: null }] } }} agency={false} timezone="UTC" />);
     expect(screen.getByText('Where you stand')).toBeTruthy();
     expect(screen.getByText('First moves still open')).toBeTruthy();
     expect(screen.getByText('Reply to your reviews')).toBeTruthy();
     expect(screen.getByText('4.5 → 4.6')).toBeTruthy();
   });
   it('quiet trend ratings use the shared rating format (a second decimal when needed)', () => {
-    render(<BriefView brief={{ ...sp, kind: 'quiet', summary: 'Quiet.', items: [], trend: { windowDays: 30, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.65, prevAvgRating: null, activeAds: null }] } }} agency={false} />);
+    render(<BriefView brief={{ ...sp, kind: 'quiet', summary: 'Quiet.', items: [], trend: { windowDays: 30, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.65, prevAvgRating: null, activeAds: null }] } }} agency={false} timezone="UTC" />);
     expect(screen.getByText('— → 4.65')).toBeTruthy();
   });
   it('the baseline item renders without an empty why-it-matters or "Recommended:" line', () => {
     const baseline = item(1, { competitorId: null, subject: 'self', competitorName: 'A1 HVAC', headline: 'Your baseline is set', whatChanged: 'We now track your profile.', whyItMatters: '', recommendedAction: '' });
-    render(<BriefView brief={{ ...sp, items: [baseline] }} agency={false} />);
+    render(<BriefView brief={{ ...sp, items: [baseline] }} agency={false} timezone="UTC" />);
     const article = screen.getByRole('heading', { name: 'Your baseline is set' }).closest('article')!;
     expect(article.textContent).not.toContain('Recommended:');
     expect(article.querySelectorAll('p')).toHaveLength(1);
-    render(<BriefView brief={sp} agency={false} />);
+    render(<BriefView brief={sp} agency={false} timezone="UTC" />);
     expect(screen.getByRole('heading', { name: 'Reply to reviews' }).closest('article')!.textContent).toContain('Recommended: Do R');
   });
 });
 
 describe('BriefView', () => {
   it('words the confidence, not only the amber border', () => {
-    render(<BriefView brief={{ ...brief, items: [item(1, { confidence: 0.9 }), item(2, { confidence: 0.6 })] }} agency={false} />);
+    render(<BriefView brief={{ ...brief, items: [item(1, { confidence: 0.9 }), item(2, { confidence: 0.6 })] }} agency={false} timezone="UTC" />);
     expect(screen.getByText('High confidence 90%')).toBeTruthy();
     expect(screen.getByText('Confidence 60%')).toBeTruthy();
   });
 
   it('opens the PDF in a new browser tab', () => {
-    render(<BriefView brief={brief} agency={false} />);
+    render(<BriefView brief={brief} agency={false} timezone="UTC" />);
     const a = screen.getByRole('link', { name: 'Download PDF' });
     expect(a.getAttribute('href')).toBe(`/files/brief/${brief.id}`);
     opensInNewTab(a);
   });
 
   it('renders active items in ord order with anchors and evidence counts', () => {
-    const { container } = render(<BriefView brief={brief} agency={false} />);
+    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" />);
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
     expect(container.querySelector('#item-00000000-0000-4000-8000-000000000001')).not.toBeNull();
     expect(screen.getAllByRole('link', { name: 'Evidence 1' })).toHaveLength(2);
@@ -107,47 +118,77 @@ describe('BriefView', () => {
   });
 
   it('shows agency-only upsell tags and dropped items to agency roles', () => {
-    render(<BriefView brief={brief} agency />);
+    render(<BriefView brief={brief} agency timezone="UTC" />);
     expect(screen.getByText(/ppc_audit/)).toBeTruthy();
     expect(screen.getByText('Headline 3')).toBeTruthy();
   });
 
   it('the Overview card links to the brief archive; the brief page drops the card title (15a §2.8)', () => {
-    const { unmount } = render(<BriefView brief={brief} agency={false} archiveHref={`/c/${C}/briefs`} />);
+    const { unmount } = render(<BriefView brief={brief} agency={false} timezone="UTC" archiveHref={`/c/${C}/briefs`} />);
     expect(screen.getByRole('link', { name: 'Brief archive →' }).getAttribute('href')).toBe(`/c/${C}/briefs`);
-    expect(screen.getByText(`Week of ${brief.deliveryDate}`)).toBeTruthy();
+    expect(screen.getByText('Week of Oct 12')).toBeTruthy();
     unmount();
-    render(<BriefView brief={brief} agency={false} titled={false} />);
+    render(<BriefView brief={brief} agency={false} timezone="UTC" titled={false} />);
     expect(screen.queryByRole('link', { name: 'Brief archive →' })).toBeNull();
-    expect(screen.queryByText(`Week of ${brief.deliveryDate}`)).toBeNull();
+    expect(screen.queryByText('Week of Oct 12')).toBeNull();
     expect(screen.getByRole('link', { name: 'Download PDF' })).toBeTruthy();
   });
 
   it('renders a quiet brief without items', () => {
-    render(<BriefView brief={{ ...brief, kind: 'quiet', items: [], summary: 'No significant competitor moves this week.' }} agency={false} />);
+    render(<BriefView brief={{ ...brief, kind: 'quiet', items: [], summary: 'No significant competitor moves this week.' }} agency={false} timezone="UTC" />);
     expect(screen.getByText('No significant competitor moves this week.')).toBeTruthy();
   });
 });
 
+describe('BriefView status and dates (15c-2b-2)', () => {
+  it('week of a date-only deliveryDate is the same in Pacific/Kiritimati', () => {
+    const { unmount } = render(<BriefView brief={brief} agency={false} timezone="Pacific/Kiritimati" />);
+    expect(screen.getByText('Week of Oct 12')).toBeTruthy();
+    unmount();
+    render(<BriefView brief={{ ...brief, deliveryDate: '2026-10-14' }} agency={false} timezone="America/Los_Angeles" />);
+    expect(screen.getByText('Week of Oct 12')).toBeTruthy();
+  });
+  it('agency sees the labelled status and dropped chips', () => {
+    render(<BriefView brief={brief} agency timezone="UTC" />);
+    expect(screen.getByText('Sent')).toBeTruthy();
+    expect(screen.getByText('Dropped')).toBeTruthy();
+  });
+  it('client role sees no status chip, score or dropped item', () => {
+    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" />);
+    expect(container.querySelector('[data-slot="status-chip"]')).toBeNull();
+    expect(screen.queryByText('Dropped')).toBeNull();
+    expect(screen.queryByText('Headline 3')).toBeNull();
+    expect(screen.queryByText(/ppc_audit|Upsell/)).toBeNull();
+    const { container: a } = render(<AlertView alert={{ ...alertFixture }} agency={false} timezone="UTC" />);
+    expect(a.querySelector('[data-slot="status-chip"]')).toBeNull();
+    expect(screen.queryByText(/Score \d/)).toBeNull();
+  });
+});
+
 describe('AlertView', () => {
-  const alert: AlertDetail = {
-    id: '00000000-0000-4000-8000-0000000000d1', clientId: C, competitorName: 'Smith HVAC', headline: 'Cut its AC tune-up price to $69.',
-    score: 82, status: 'delivered', createdAt: '2026-10-04T09:00:00Z', deliveredAt: '2026-10-04T09:05:00Z', body: 'The pricing page now shows $69, down from $89.',
-    evidenceIds: ['e1', 'e2', 'e3'], written: 'template',
-  };
+  it('alert view time is "Oct 4, 9:05 AM CT" style in the client zone', () => {
+    render(<AlertView alert={{ ...alert, deliveredAt: '2026-10-12T14:00:00Z' }} agency={false} timezone="America/Chicago" />);
+    expect(screen.getByText('Oct 12, 9:00 AM CT')).toBeTruthy();
+  });
+
+  it('agency sees a neutral score chip and the labelled status', () => {
+    render(<AlertView alert={alert} agency timezone="UTC" />);
+    expect(screen.getByText('Score 82')).toBeTruthy();
+    expect(screen.getByText('Sent')).toBeTruthy();
+  });
 
   it('shows the template-fallback note to agency roles only', () => {
-    render(<AlertView alert={alert} agency />);
+    render(<AlertView alert={alert} agency timezone="UTC" />);
     expect(screen.getByText(/template text/i)).toBeTruthy();
   });
 
   it('never shows the template-fallback note to client roles, even when written is template', () => {
-    render(<AlertView alert={alert} agency={false} />);
+    render(<AlertView alert={alert} agency={false} timezone="UTC" />);
     expect(screen.queryByText(/template text/i)).toBeNull();
   });
 
   it('renders the competitor name, headline, body and evidence count for every role', () => {
-    render(<AlertView alert={alert} agency={false} />);
+    render(<AlertView alert={alert} agency={false} timezone="UTC" />);
     expect(screen.getByRole('heading', { level: 2, name: alert.headline })).toBeTruthy();
     expect(screen.getByText('Smith HVAC')).toBeTruthy();
     expect(screen.getByText(alert.body)).toBeTruthy();

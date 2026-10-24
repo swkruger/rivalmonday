@@ -1,9 +1,11 @@
 import type { BriefDetail } from '@cs/tools';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
 import { formatMetric, scorecardModel } from '@cs/engine';
 import Link from 'next/link';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { formatDate, formatWeekOf } from '@/lib/format';
+import { BRIEF_ITEM_STATUS, BRIEF_STATUS, labelFor } from '@/lib/labels';
 import { OpenFirstMoves, Scorecard } from './scorecard';
 
 const fmt = (n: number | null) => formatMetric('rating', n);
@@ -43,7 +45,7 @@ function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
  * `archiveHref` (the Overview card) adds "Brief archive →"; `titled={false}` (the brief page, whose `PageHeader` names
  * the week) drops the card's own title.
  */
-export function BriefView({ brief, agency, archiveHref, titled = true }: { brief: BriefDetail; agency: boolean; archiveHref?: string; titled?: boolean }) {
+export function BriefView({ brief, agency, timezone, archiveHref, titled = true }: { brief: BriefDetail; agency: boolean; timezone: string; archiveHref?: string; titled?: boolean }) {
   const items = [...brief.items].filter((i) => agency || i.status === 'active').sort((a, b) => a.ord - b.ord);
   const startingPoint = brief.kind === 'starting_point';
   const model = brief.scorecard ? scorecardModel(brief.scorecard, { clientName: brief.items.find((i) => i.subject === 'self')?.competitorName ?? '' }) : null;
@@ -51,9 +53,9 @@ export function BriefView({ brief, agency, archiveHref, titled = true }: { brief
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center gap-3">
-        {titled && <CardTitle className="text-[17px]">{startingPoint ? 'Your starting point' : `Week of ${brief.deliveryDate}`}</CardTitle>}
-        {startingPoint && <Badge variant="outline">Starting point · {brief.deliveryDate}</Badge>}
-        {agency && <Badge variant="secondary">{brief.status}</Badge>}
+        {titled && <CardTitle className="text-[17px]">{startingPoint ? 'Your starting point' : formatWeekOf(brief.deliveryDate, { tz: 'UTC' })}</CardTitle>}
+        {startingPoint && <StatusChip tone="info">Starting point · {formatDate(brief.deliveryDate, { tz: 'UTC' })}</StatusChip>}
+        {agency && <StatusChip tone={labelFor(BRIEF_STATUS, brief.status).tone}>{labelFor(BRIEF_STATUS, brief.status).label}</StatusChip>}
         {(deliverable || archiveHref) && (
           <span className="ml-auto flex items-center gap-4">
             {deliverable && (
@@ -98,8 +100,8 @@ export function BriefView({ brief, agency, archiveHref, titled = true }: { brief
             )}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <EvidenceChips clientId={brief.clientId} ids={i.evidenceIds} />
-              {agency && i.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {i.upsellTag}</span>}
-              {agency && i.status !== 'active' && <Badge variant="outline">{i.status}</Badge>}
+              {agency && i.upsellTag && <span className="rounded-md bg-chip-warning-bg px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {i.upsellTag}</span>}
+              {agency && i.status !== 'active' && <StatusChip tone={labelFor(BRIEF_ITEM_STATUS, i.status).tone}>{labelFor(BRIEF_ITEM_STATUS, i.status).label}</StatusChip>}
               <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{confidenceLabel(i.confidence).text}</span>
             </div>
           </article>

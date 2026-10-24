@@ -106,7 +106,7 @@ test('agency approves starting point → client sees tiles, scorecard, cards', {
   const client = await clientCtx.newPage();
   await client.goto(`/c/${ready.id}/briefs/${ready.briefId}`);
   await expect(client.getByText('Your starting point', { exact: true })).toBeVisible();
-  await expect(client.getByText(/^Starting point · \d{4}-\d{2}-\d{2}$/)).toBeVisible();
+  await expect(client.getByText(/^Starting point · [A-Z][a-z]{2} \d{1,2}(, \d{4})?$/)).toBeVisible();
   await expect(client.getByText(`Where ${ready.name} stands against the 2 rivals we now watch. Weekly briefs from here show what changes.`)).toBeVisible();
   for (const label of ['Rating', 'New reviews · 90 d', 'Reply rate', 'Top-3 in map pack']) await expect(client.getByRole('heading', { name: label })).toBeVisible();
   await expect(client.getByText('rivals 4.6 median')).toBeVisible();
