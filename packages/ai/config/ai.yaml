@@ -30,6 +30,8 @@ tasks:
   # No temperature: no sonnet-5 endpoint accepts it, so with require_parameters (sent with tools) OpenRouter skipped
   # sonnet-5 entirely and every turn ran on the fallback (probe 2026-10-13).
   ask_assistant:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 6000, request_path: true, timeout_ms: 20000, max_attempts: 2 }
+  # Phase 7c1: eval-set pre-labels (owner confirms by exception). Not under test. No temperature / json_schema (see CLAUDE.md).
+  eval_prelabel:   { provider: openrouter, model: anthropic/claude-sonnet-5, fallbacks: [anthropic/claude-sonnet-4.6], max_tokens: 800 }
   ask_starters:    { provider: openrouter, model: anthropic/claude-haiku-4.5, temperature: 0.5, max_tokens: 400 }
   value_extract:   { provider: openrouter, model: anthropic/claude-haiku-4.5 }
   # kept: model-ops key (15b-3 C7)

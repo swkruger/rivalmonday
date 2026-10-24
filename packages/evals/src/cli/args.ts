@@ -3,8 +3,8 @@ import { SUITES, type Suite } from '../case';
 
 export const EVAL_USAGE = [
   'Usage: pnpm --filter @cs/evals eval <command> --suite <changes|reviews|briefs|ask|all> [options]',
-  '  build   --suite <s>                              rebuild case inputs from source data',
-  '  label   --suite <s> (--export <file> | --import <file> --by <name> | --prelabel)',
+  '  build   --suite <changes|reviews>                rebuild cases (cs_dev via DATABASE_URL, read-only; golden; synthetic)',
+  '  label   --suite <changes|reviews> (--export <file> | --import <file> --by <name> | --prelabel [--max-usd n])',
   '  run     --suite <s> [--mode replay|live] [--max-usd n] [--report-dir d] [--update-baseline]',
   '  record  --suite <s> [--max-usd n] [--report-dir d]     live run that rewrites cassettes/<suite>.json',
   '  --max-usd defaults to $EVAL_MAX_USD, else 5; live/record in CI (CI=true) refuse without one of them.',
@@ -16,7 +16,7 @@ export const DEFAULT_REPORT_DIR = 'eval-report';
 type Common = { suite: Suite | 'all' };
 export type EvalCommand =
   | (Common & { cmd: 'build' })
-  | (Common & { cmd: 'label'; export?: string; import?: string; by?: string; prelabel: boolean })
+  | (Common & { cmd: 'label'; export?: string; import?: string; by?: string; prelabel: boolean; maxUsd?: number })
   | (Common & { cmd: 'run'; mode: 'replay' | 'live'; maxUsd?: number; reportDir: string; updateBaseline: boolean })
   | (Common & { cmd: 'record'; maxUsd?: number; reportDir: string });
 
@@ -51,6 +51,8 @@ export function parseEvalArgs(argv: string[]): EvalCommand | { error: string } {
   }
   const reportDir = str('report-dir') ?? DEFAULT_REPORT_DIR;
 
+  if ((cmd === 'build' || cmd === 'label') && s !== 'changes' && s !== 'reviews') return fail(`${cmd} supports --suite changes|reviews only (briefs/ask cases are authored)`);
+
   switch (cmd) {
     case 'build':
       return { cmd, suite: s };
@@ -59,8 +61,9 @@ export function parseEvalArgs(argv: string[]): EvalCommand | { error: string } {
       if (modes !== 1) return fail('label needs exactly one of --export <file>, --import <file> --by <name>, --prelabel');
       if (str('import') !== undefined && !str('by')) return fail('--import needs --by <name>');
       if (str('by') && str('import') === undefined) return fail('--by only applies to --import');
+      if (maxUsd !== undefined && values.prelabel !== true) return fail('--max-usd only applies to --prelabel');
       return {
-        cmd, suite: s, prelabel: values.prelabel === true,
+        cmd, suite: s, prelabel: values.prelabel === true, ...(maxUsd !== undefined ? { maxUsd } : {}),
         ...(str('export') !== undefined ? { export: str('export') } : {}),
         ...(str('import') !== undefined ? { import: str('import'), by: str('by') } : {}),
       };

@@ -25,6 +25,11 @@ describe('parseEvalArgs', () => {
     expect(parseEvalArgs(['label', '--suite', 'reviews'])).toHaveProperty('error');
     expect(parseEvalArgs(['label', '--suite', 'reviews', '--prelabel', '--export', 'f'])).toHaveProperty('error');
     expect(parseEvalArgs(['label', '--suite', 'reviews', '--import', 'f.csv'])).toHaveProperty('error');
+    expect(parseEvalArgs(['label', '--suite', 'changes', '--prelabel', '--max-usd', '5'])).toMatchObject({ prelabel: true, maxUsd: 5 });
+    expect(parseEvalArgs(['label', '--suite', 'changes', '--export', 'f.csv', '--max-usd', '5'])).toHaveProperty('error');
+    expect(parseEvalArgs(['label', '--suite', 'briefs', '--prelabel'])).toHaveProperty('error');
+    expect(parseEvalArgs(['build', '--suite', 'ask'])).toHaveProperty('error');
+    expect(parseEvalArgs(['build', '--suite', 'all'])).toHaveProperty('error');
   });
   it('rejects an unknown suite, missing suite, unknown command, bad numbers and unknown flags', () => {
     expect(parseEvalArgs(['run', '--suite', 'nope'])).toHaveProperty('error', expect.stringContaining('unknown suite "nope"'));

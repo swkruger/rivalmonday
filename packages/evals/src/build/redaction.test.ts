@@ -1,0 +1,39 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { DATA_DIR, type EvalCase, readCases, SUITES, type Suite } from '../case';
+import { contactLeaks } from './common';
+import { buildGolden } from './golden';
+import { buildSynthetic } from './synthetic';
+
+const jsonlSuites = (): Suite[] => {
+  let files: string[] = [];
+  try {
+    files = readdirSync(DATA_DIR).filter((f) => f.endsWith('.jsonl'));
+  } catch {
+    return [];
+  }
+  return files.map((f) => f.slice(0, -'.jsonl'.length)).filter((s): s is Suite => (SUITES as readonly string[]).includes(s));
+};
+
+describe('redaction scan', () => {
+  it('no email or phone anywhere in data/', () => {
+    for (const suite of jsonlSuites()) {
+      expect(contactLeaks(readCases(suite)), join(DATA_DIR, `${suite}.jsonl`)).toEqual([]);
+    }
+  });
+
+  it('the scan catches a planted phone and email (negative self-test)', () => {
+    const planted: EvalCase = {
+      id: 'changes-planted', suite: 'changes', source: 'synthetic', vertical: 'dental', blocking: false,
+      input: { state: { after: 'Call (972) 555-0100 today', nested: [{ note: 'mail front@example.com' }] }, verticalIds: ['dental'], questionKeys: [] },
+      label: null, labelBy: null, confirmedAt: null,
+    };
+    expect(contactLeaks([planted])).toEqual(['changes-planted.input.state.after', 'changes-planted.input.state.nested[0].note']);
+  });
+
+  it('golden and synthetic builders emit no contact details (the hvac fixture page carries a phone number)', () => {
+    expect(contactLeaks(buildGolden())).toEqual([]);
+    expect(contactLeaks([...buildSynthetic('changes', 40, 1), ...buildSynthetic('reviews', 40, 1)])).toEqual([]);
+  });
+});

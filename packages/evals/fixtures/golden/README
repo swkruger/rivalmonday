@@ -1,0 +1,26 @@
+Golden archive pairs (phase 7c1, spec decision 12: at most 20, saved by hand)
+==========================================================================
+
+`eval build --suite changes` reads every sub-directory here (sorted by name, first 20) as one before/after pair of a
+competitor web page and turns each changed block into an unlabelled `changes` case (source `archive`, id
+`changes-archive-<dir>-<n>`). Labels come from `eval label --prelabel` and the owner's CSV confirmation.
+
+Layout, one directory per pair (lowercase name, e.g. `acme-dental-specials-2025`):
+
+  <pair>/before.html   the older snapshot (raw HTML as served by web.archive.org, `id_` URL form so no Wayback toolbar)
+  <pair>/after.html    the newer snapshot of the same page
+  <pair>/meta.json     { "vertical": "dental" | "hvac_plumbing",
+                         "competitorName": "Acme Dental",
+                         "pageUrl": "https://acme.example/specials",
+                         "pageType": "specials",            (optional)
+                         "beforeUrl": "https://web.archive.org/web/<ts>id_/...",
+                         "afterUrl":  "https://web.archive.org/web/<ts>id_/..." }
+
+How to save a pair:
+- Pick a local dental or HVAC/plumbing competitor page with a meaningful change between two archive.org snapshots
+  (price, offer, new service, area, hiring). Download each snapshot with the `id_` modifier in a browser
+  (`https://web.archive.org/web/<timestamp>id_/<url>`) and save it as before.html / after.html. Do not crawl the live
+  site (crawler conduct rules) and do not edit the HTML except to delete obvious tracking scripts.
+- Keep files LF-only. Text passes the engine's own block extraction + alignBlocks + numeric facts, then
+  `redactForModel` (contact details and person names are removed before anything is written to data/).
+- Run `pnpm --filter @cs/evals eval build --suite changes` and check `pnpm --filter @cs/evals test` (the redaction scan).

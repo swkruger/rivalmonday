@@ -68,6 +68,15 @@ export function buildReviewQuestions(verticals: VerticalTopics[]): Record<string
   return q;
 }
 
+/** Decision state for one review (analysis and re-ask). Review text reaches the model only through `redactForModel`; reviewer names are never read. */
+export function buildReviewState(input: { businessTypes: string[]; rating: number | null; text: string; competitorName: string }): Record<string, unknown> {
+  return {
+    business_type: input.businessTypes.join(' / '),
+    rating: input.rating,
+    review: redactForModel(input.text, { businessNames: [input.competitorName] }).slice(0, MAX_REVIEW_CHARS),
+  };
+}
+
 /** One analysis row per vertical. Answers still below threshold after the cascade are left out (not asked / null sentiment), never guessed. */
 export function resolveReviewAnalysis(
   result: DecisionResult<string>,
@@ -115,11 +124,7 @@ export async function analyzeReview(deps: { db: Db; ai: Ai; packs: PackLoader },
           return { pack, topics: await topicsForVertical(deps.db, pack) };
         }),
       );
-      const state = {
-        business_type: verticals.map((v) => v.pack.name).join(' / '),
-        rating: row.r.rating,
-        review: redactForModel(text, { businessNames: [row.competitorName] }).slice(0, MAX_REVIEW_CHARS),
-      };
+      const state = buildReviewState({ businessTypes: verticals.map((v) => v.pack.name), rating: row.r.rating, text, competitorName: row.competitorName });
       const result = await deps.ai.decide('review_decisions', state, buildReviewQuestions(verticals), singleVerticalScope(verticalIds));
       return resolveReviewAnalysis(result, verticals, { reviewId, competitorId: row.r.competitorId, textSha: sha256Hex(text) });
     },
@@ -273,11 +278,7 @@ export async function reaskReview(deps: { db: Db; ai: Ai; packs: PackLoader; now
 
   const packs = new Map(await Promise.all(verticalIds.map(async (v) => [v, await deps.packs(v)] as const)));
   const questions = buildReaskQuestions(gaps, packs);
-  const state = {
-    business_type: verticalIds.map((v) => packs.get(v)!.name).join(' / '),
-    rating: row.r.rating,
-    review: redactForModel(text, { businessNames: [row.competitorName] }).slice(0, MAX_REVIEW_CHARS),
-  };
+  const state = buildReviewState({ businessTypes: verticalIds.map((v) => packs.get(v)!.name), rating: row.r.rating, text, competitorName: row.competitorName });
   const result = await deps.ai.decide('review_decisions', state, questions, singleVerticalScope(gaps.map((g) => g.verticalId)));
   const low = new Set(result.needsReview);
   const a = result.answers;
