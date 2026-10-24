@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type DiffSegment, MAX_DIFF_CELLS, wordDiff } from './word-diff';
+import { type DiffSegment, diffCells, MAX_DIFF_CELLS, wordDiff } from './word-diff';
 
 const side = (segs: DiffSegment[], drop: 'insert' | 'delete') => segs.filter((s) => s.op !== drop).map((s) => s.text).join('');
 
@@ -35,5 +35,12 @@ describe('wordDiff', () => {
     const big = Array.from({ length: Math.ceil(Math.sqrt(MAX_DIFF_CELLS)) + 10 }, (_, i) => `w${i}`).join(' ');
     const d = wordDiff(big, `${big} x`);
     expect(d).toEqual([{ op: 'delete', text: big }, { op: 'insert', text: `${big} x` }]);
+  });
+});
+
+describe('diffCells', () => {
+  it('multiplies token counts', () => {
+    expect(diffCells('a b', 'a b c')).toBe(3 * 5);
+    expect(diffCells('', 'a')).toBe(0);
   });
 });

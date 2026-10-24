@@ -45,6 +45,7 @@ get_event (events.ts) | read | read-only
 submit_feedback (events.ts) | write | inserts feedback
 get_evidence (evidence.ts) | read | read-only
 compare_snapshots (evidence.ts) | read | read-only
+compare_captures (evidence.ts) | read | read-only (no ensureBlocks)
 fetch (fetch.ts) | read | read-only
 list_kb_articles (knowledge-admin.ts) | read | read-only
 list_kb_targets (knowledge-admin.ts) | read | read-only

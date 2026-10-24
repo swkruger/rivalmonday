@@ -258,6 +258,14 @@ export const CompareView = z.object({
   diff: z.array(z.object({ op: z.enum(['equal', 'insert', 'delete']), text: z.string() })), facts: z.array(FactView), details: z.array(DetailLineView),
 });
 export type CompareView = z.infer<typeof CompareView>;
+const CaptureRef = z.object({ captureId: uuid, capturedAt: iso });
+export const CaptureCompareView = z.object({
+  state: z.enum(['ok', 'first', 'no_blocks', 'not_web']),
+  before: CaptureRef.nullable(), after: CaptureRef, pageUrl: z.string().nullable(),
+  blocks: z.array(z.object({ kind: z.enum(['added', 'removed', 'modified', 'unchanged']), segments: z.array(z.object({ op: z.enum(['equal', 'insert', 'delete']), text: z.string() })) })),
+  truncated: z.boolean(), maskedCount: z.number().int().nonnegative(),
+});
+export type CaptureCompareView = z.infer<typeof CaptureCompareView>;
 export const EvidenceView = z.object({
   evidenceId: uuid, kind: z.string(), sha256: z.string(), bytes: z.number().int(), contentType: z.string(), captureId: uuid, capturedAt: iso, captureStatus: z.string(),
   channel: z.string(), channelLabel: z.string(), url: z.string().nullable(), collectorVersion: z.string(), legalHold: z.boolean(),

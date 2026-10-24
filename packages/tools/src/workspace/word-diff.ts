@@ -9,6 +9,11 @@ export const MAX_DIFF_CELLS = 4_000_000;
 
 const tokens = (s: string): string[] => s.match(/\s+|[^\s]+/g) ?? [];
 
+/** LCS cells `wordDiff(before, after)` would fill; callers sum this to budget a whole page. */
+export function diffCells(before: string, after: string): number {
+  return tokens(before).length * tokens(after).length;
+}
+
 function merge(segs: DiffSegment[]): DiffSegment[] {
   const out: DiffSegment[] = [];
   for (const s of segs) {

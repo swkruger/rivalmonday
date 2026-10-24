@@ -1,15 +1,16 @@
 import { hasFeature, toolkit, ToolError } from '@cs/core';
 import { capture, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, evidence, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
-import { and, desc, eq, or } from 'drizzle-orm';
+import { alignBlocks, loadBlocks, maskedBlockKeys } from '@cs/engine';
+import { and, desc, eq, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel } from '../workspace/model-text';
 import { clientEvents, eventJoin, firstVisibleEvent, workspaceClient } from '../workspace/scope';
-import { wordDiff } from '../workspace/word-diff';
-import { CompareView, EvidenceView } from './schemas';
+import { type DiffSegment, diffCells, MAX_DIFF_CELLS, wordDiff } from '../workspace/word-diff';
+import { CaptureCompareView, CompareView, EvidenceView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -81,4 +82,61 @@ export const compareSnapshots = defineTool({
   },
 });
 
-export const evidenceTools = [getEvidence, compareSnapshots];
+/** Most blocks one whole-page comparison returns (the rest are dropped and `truncated` is set). */
+export const MAX_COMPARE_BLOCKS = 600;
+
+export const compareCaptures = defineTool({
+  name: 'compare_captures',
+  access: 'read',
+  permission: 'read',
+  description: 'The whole stored page of one web capture compared with the previous successful capture of the same page, block by block, with a word-level diff of changed blocks.',
+  input: z.object({ clientId: uuid, captureId: uuid }),
+  output: CaptureCompareView,
+  // Web-only (no channels): block text is shown as stored (P9). Read-only: never extracts blocks (no ensureBlocks).
+  async handler(ctx, { clientId, captureId }, deps) {
+    const c = await workspaceClient(deps, ctx, clientId);
+    const [cap] = await deps.service.select({ id: capture.id, competitorId: capture.competitorId, trackedPageId: capture.trackedPageId, source: capture.source,
+      status: capture.status, capturedAt: capture.capturedAt, url: capture.url }).from(capture).where(eq(capture.id, captureId));
+    if (!cap || !(await competitorLinked(deps, ctx, c.id, cap.competitorId))) throw new ToolError('not_found', 'Capture not found');
+    const after = { captureId: cap.id, capturedAt: cap.capturedAt.toISOString() };
+    const empty = (state: 'first' | 'no_blocks' | 'not_web', before: { captureId: string; capturedAt: string } | null = null) =>
+      ({ state, before, after, pageUrl: cap.url ?? null, blocks: [], truncated: false, maskedCount: 0 });
+    if (cap.source !== 'web' || !cap.trackedPageId) return empty('not_web');
+    const [prev] = await deps.service.select({ id: capture.id, capturedAt: capture.capturedAt }).from(capture)
+      .where(and(eq(capture.trackedPageId, cap.trackedPageId), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
+      .orderBy(desc(capture.capturedAt), desc(capture.id)).limit(1);
+    const [afterBlocks, beforeBlocks, masked] = await Promise.all([loadBlocks(deps.service, cap.id), prev ? loadBlocks(deps.service, prev.id) : [], maskedBlockKeys(deps.service, cap.trackedPageId)]);
+    // Order matters: a capture without stored blocks (failed, or never extracted) is no_blocks before it can be first.
+    if (cap.status !== 'ok' || afterBlocks.length === 0) return empty('no_blocks', prev ? { captureId: prev.id, capturedAt: prev.capturedAt.toISOString() } : null);
+    if (!prev) return empty('first');
+    const before = { captureId: prev.id, capturedAt: prev.capturedAt.toISOString() };
+    if (beforeBlocks.length === 0) return empty('no_blocks', before);
+
+    const all = alignBlocks(beforeBlocks, afterBlocks);
+    // P11: a masked (volatile) block is left out of the page view and counted.
+    const shown = all.filter((a) => !masked.has((a.after ?? a.before)!.blockKey));
+    const maskedCount = all.length - shown.length;
+    let truncated = shown.length > MAX_COMPARE_BLOCKS;
+    let spent = 0;
+    const blocks = shown.slice(0, MAX_COMPARE_BLOCKS).map((a) => {
+      let segments: DiffSegment[];
+      if (a.kind === 'unchanged') segments = [{ op: 'equal', text: a.after!.text }];
+      else if (a.kind === 'added') segments = [{ op: 'insert', text: a.after!.text }];
+      else if (a.kind === 'removed') segments = [{ op: 'delete', text: a.before!.text }];
+      else {
+        const cells = diffCells(a.before!.text, a.after!.text);
+        if (spent + cells <= MAX_DIFF_CELLS) {
+          spent += cells;
+          segments = wordDiff(a.before!.text, a.after!.text);
+        } else {
+          truncated = true;
+          segments = [{ op: 'delete', text: a.before!.text }, { op: 'insert', text: a.after!.text }];
+        }
+      }
+      return { kind: a.kind, segments };
+    });
+    return { state: 'ok' as const, before, after, pageUrl: cap.url ?? null, blocks, truncated, maskedCount };
+  },
+});
+
+export const evidenceTools = [getEvidence, compareSnapshots, compareCaptures];
