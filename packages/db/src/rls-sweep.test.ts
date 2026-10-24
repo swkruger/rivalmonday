@@ -30,32 +30,51 @@ const qual = (t: string) => {
 const regclassOf = (t: string) => (t.includes('.') ? t : `public.${t}`);
 const rowsOf = (r: unknown) => r as unknown as Record<string, any>[];
 
-const rowsMatching = (t: string, pk: Pk) =>
-  sql`SELECT count(*)::int AS n FROM ${qual(t)} t WHERE to_jsonb(t) @> ${JSON.stringify(pk)}::jsonb`;
+const errText = (e: unknown) => {
+  const err = e as { message?: string; cause?: { message?: string } };
+  return `${err.message ?? ''} ${err.cause?.message ?? ''}`;
+};
+const isDenied = (e: unknown) => /permission denied/i.test(errText(e));
 
-/** How many of the given pk rows are visible: the owner (no RLS) or `app_user` under `scope` (null = no tenant context). */
-async function visibleCount(who: 'owner' | TenantScope | null, t: string, pks: Pk[]): Promise<number> {
-  const q = sql`SELECT count(*)::int AS n FROM ${qual(t)} t
-    WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(${JSON.stringify(pks)}::jsonb) p WHERE to_jsonb(t) @> p.value)`;
-  try {
-    const r = who === 'owner' ? await dbs.owner.execute(q) : who === null ? await dbs.app.execute(q) : await withTenant(dbs.app, who, (tx) => tx.execute(q));
-    return rowsOf(r)[0]!.n;
-  } catch (e) {
-    const err = e as { message?: string; cause?: { message?: string } };
-    if (who !== 'owner' && /permission denied/i.test(`${err.message ?? ''} ${err.cause?.message ?? ''}`)) return 0; // refused = sees nothing
-    throw e;
-  }
+/** What app_user may do on a table at all. "Permission denied" only counts as a refusal when it holds no such privilege (else it hides a wrong-reason error). */
+async function privs(t: string) {
+  const r = await dbs.owner.execute(sql`
+    SELECT has_any_column_privilege('app_user', ${regclassOf(t)}, 'SELECT') AS sel,
+           has_any_column_privilege('app_user', ${regclassOf(t)}, 'UPDATE') AS upd,
+           has_table_privilege('app_user', ${regclassOf(t)}, 'DELETE') AS del`);
+  return rowsOf(r)[0] as { sel: boolean; upd: boolean; del: boolean };
 }
 
-/** SELECT count(*) of the whole table as app_user; a privilege error counts as refused (null). */
+/** Predicate on the pk columns only (column-level SELECT grants make whole-row `to_jsonb(t)` raise permission denied). */
+const pkMatch = (t: string, pk: Pk) => {
+  const conds = Object.keys(pk).map((c) => sql`t.${sql.identifier(c)} IS NOT DISTINCT FROM r.${sql.identifier(c)}`);
+  return sql`EXISTS (SELECT 1 FROM jsonb_populate_record(null::${qual(t)}, ${JSON.stringify(pk)}::jsonb) r WHERE ${sql.join(conds, sql` AND `)})`;
+};
+
+/** How many of the given pk rows are visible, each pk checked individually: the owner (no RLS) or `app_user` under `scope` (null = no tenant context). */
+async function visibleCount(who: 'owner' | TenantScope | null, t: string, pks: Pk[]): Promise<number> {
+  let n = 0;
+  for (const pk of pks) {
+    const q = sql`SELECT count(*)::int AS n FROM ${qual(t)} t WHERE ${pkMatch(t, pk)}`;
+    try {
+      const r = who === 'owner' ? await dbs.owner.execute(q) : who === null ? await dbs.app.execute(q) : await withTenant(dbs.app, who, (tx) => tx.execute(q));
+      n += rowsOf(r)[0]!.n;
+    } catch (e) {
+      if (who !== 'owner' && isDenied(e) && !(await privs(t)).sel) continue; // no SELECT privilege at all: refused
+      throw e;
+    }
+  }
+  return n;
+}
+
+/** SELECT count(*) of the whole table as app_user; 'denied' only when app_user has no SELECT privilege at all. */
 async function visibleTotal(who: TenantScope | null, t: string): Promise<number | 'denied'> {
   const q = sql`SELECT count(*)::int AS n FROM ${qual(t)}`;
   try {
     const r = who === null ? await dbs.app.execute(q) : await withTenant(dbs.app, who, (tx) => tx.execute(q));
     return rowsOf(r)[0]!.n;
   } catch (e) {
-    const err = e as { message?: string; cause?: { message?: string } };
-    if (/permission denied/i.test(`${err.message ?? ''} ${err.cause?.message ?? ''}`)) return 'denied';
+    if (isDenied(e) && !(await privs(t)).sel) return 'denied';
     throw e;
   }
 }
@@ -70,7 +89,7 @@ async function insertableColumns(t: string): Promise<string[]> {
 
 /** Re-inserts (as app_user under `scope`) the full row identified by `pk`; resolves to the error text, rejects when the INSERT succeeds. */
 async function reinsertAs(scope: TenantScope, t: string, pk: Pk): Promise<string> {
-  const [row] = (await dbs.owner.execute(sql`SELECT to_jsonb(t) AS j FROM ${qual(t)} t WHERE to_jsonb(t) @> ${JSON.stringify(pk)}::jsonb`)) as unknown as { j: unknown }[];
+  const [row] = (await dbs.owner.execute(sql`SELECT to_jsonb(t) AS j FROM ${qual(t)} t WHERE ${pkMatch(t, pk)}`)) as unknown as { j: unknown }[];
   if (!row) throw new Error(`no row of ${t} matches ${JSON.stringify(pk)}`);
   const cols = sql.join((await insertableColumns(t)).map((c) => sql.identifier(c)), sql`, `);
   return errorText(withTenant(dbs.app, scope, (tx) => tx.execute(sql`
@@ -90,13 +109,13 @@ async function updateColumn(t: string, pk: Pk): Promise<string> {
 async function mutateAs(scope: TenantScope, t: string, pk: Pk, op: 'update' | 'delete'): Promise<number | 'denied'> {
   const col = op === 'update' ? await updateColumn(t, pk) : '';
   const q = op === 'delete'
-    ? sql`DELETE FROM ${qual(t)} t WHERE to_jsonb(t) @> ${JSON.stringify(pk)}::jsonb`
-    : sql`UPDATE ${qual(t)} t SET ${sql.identifier(col)} = t.${sql.identifier(col)} WHERE to_jsonb(t) @> ${JSON.stringify(pk)}::jsonb`;
+    ? sql`DELETE FROM ${qual(t)} t WHERE ${pkMatch(t, pk)}`
+    : sql`UPDATE ${qual(t)} t SET ${sql.identifier(col)} = t.${sql.identifier(col)} WHERE ${pkMatch(t, pk)}`;
   try { return ((await withTenant(dbs.app, scope, (tx) => tx.execute(q))) as unknown as { count: number }).count; }
   catch (e) {
-    const err = e as { message?: string; cause?: { message?: string } };
-    if (/permission denied/i.test(`${err.message ?? ''} ${err.cause?.message ?? ''}`)) return 'denied';
-    throw e; // any other error fails the case (wrong-reason refusal)
+    const p = await privs(t);
+    if (isDenied(e) && !(op === 'update' ? p.upd : p.del)) return 'denied'; // no such privilege at all
+    throw e; // any other error (or a denial despite the privilege) fails the case: wrong-reason refusal
   }
 }
 
@@ -151,6 +170,7 @@ describe('RLS sweep: tenant_client', () => {
   });
 
   it.each(tables)('%s: B cannot update or delete A rows', async (t) => {
+    await expectSeeded(t, pksOf(t, mine));
     for (const k of mine) {
       for (const pk of w.rows[t]?.[k] ?? []) {
         for (const op of ['update', 'delete'] as const) expectNoRows(await mutateAs(scopeB, t, pk, op));
@@ -160,10 +180,9 @@ describe('RLS sweep: tenant_client', () => {
   });
 
   it.each(tables)('%s: B cannot re-insert an A row', async (t) => {
-    for (const k of mine) {
-      const pk = w.rows[t]?.[k]?.[0];
-      if (pk) expect(await reinsertAs(scopeB, t, pk)).toMatch(REFUSED);
-    }
+    const firsts = mine.map((k) => w.rows[t]?.[k]?.[0]).filter((x): x is Pk => !!x);
+    expect(firsts.length, `${t}: no A-side row`).toBeGreaterThan(0);
+    for (const pk of firsts) expect(await reinsertAs(scopeB, t, pk)).toMatch(REFUSED);
   });
 });
 
@@ -182,6 +201,7 @@ describe('RLS sweep: tenant_agency', () => {
   });
 
   it.each(tables)('%s: B cannot update or delete A rows', async (t) => {
+    await expectSeeded(t, pksOf(t, ['A']));
     for (const pk of w.rows[t]?.A ?? []) {
       for (const op of ['update', 'delete'] as const) expectNoRows(await mutateAs(scopeB, t, pk, op));
     }
@@ -270,15 +290,13 @@ describe('RLS sweep: service_only', () => {
         expectNoRows(await visibleTotal(scope, t));
         const upd = await withTenant(dbs.app, scope, (tx) => tx.execute(sql`DELETE FROM ${qual(t)}`)).then(
           (x) => (x as unknown as { count: number }).count,
-          (e: { message?: string; cause?: { message?: string } }) => {
-            if (!/permission denied/i.test(`${e.message ?? ''} ${e.cause?.message ?? ''}`)) throw e;
+          (e: unknown) => {
+            if (!isDenied(e) || p.del) throw e; // denial is only a valid refusal when app_user holds no DELETE privilege
             return 'denied' as const;
           },
         );
         expectNoRows(upd);
       }
-      // the catalog rules out a vacuous 0: even a SELECT grant sits behind forced RLS with no policy (see the policy-state case)
-      void p.sel;
     }
   });
 });
@@ -325,6 +343,31 @@ describe('RLS sweep: platform', () => {
   });
 });
 
+/**
+ * Positive control: under the table's own tenant (agency admin of A) at least one of its rows IS visible, so a blanket
+ * privilege error or an always-empty table can never read as isolation. Tables where app_user holds no SELECT privilege
+ * are skipped (the 0 is then the privilege itself, asserted by the catalog); tables whose policy needs more than a plain
+ * agency-admin scope are listed with a reason.
+ */
+const adminA: TenantScope = { agencyId: IDS.agencyA, clientScope: 'all', userId: 'world-admin-a', role: 'agency_admin' };
+/** Author-only policies (ask_thread / ask_message: user_id = app_user_id()): the thread's own author, A1's owner, sees A1's rows. */
+const authorA1: TenantScope = { agencyId: IDS.agencyA, clientScope: [IDS.clientA1], userId: 'world-owner-a1', role: 'client_owner' };
+const POSITIVE_SCOPE: Record<string, { scope: TenantScope; tenants: TenantKey[] }> = {
+  ask_thread: { scope: authorA1, tenants: ['A1'] },
+  ask_message: { scope: authorA1, tenants: ['A1'] },
+};
+const POSITIVE_EXCEPTIONS: Record<string, string> = {};
+describe('RLS sweep: positive control (own tenant sees own rows)', () => {
+  const tables = [...tablesOf('tenant_client'), ...tablesOf('tenant_agency')];
+  it.each(tables)('%s: agency admin of A sees A rows', async (t) => {
+    if (POSITIVE_EXCEPTIONS[t]) return;
+    if (!(await privs(t)).sel) return;
+    const o = POSITIVE_SCOPE[t];
+    const pks = pksOf(t, o?.tenants ?? ['A', 'A1', 'A2']);
+    expect(await visibleCount(o?.scope ?? adminA, t, pks), `${t}: own tenant sees none of its rows`).toBeGreaterThan(0);
+  });
+});
+
 describe('RLS sweep self-test (probe table with a permissive policy)', () => {
   const probe = 'cs_sweep_probe.leaky';
   const pk: Pk = { id: '00000000-0000-4000-8000-000000000001', agency_id: IDS.agencyA };
@@ -352,6 +395,32 @@ describe('RLS sweep self-test (probe table with a permissive policy)', () => {
     expect(text).toMatch(/duplicate key/i);
     expect(text).not.toMatch(REFUSED);
     // B can update and delete A's row
+    expect(await mutateAs(scopeB, probe, pk, 'update')).toBe(1);
+    expect(await mutateAs(scopeB, probe, pk, 'delete')).toBe(1);
+    expect(await visibleCount('owner', probe, [pk])).toBe(0);
+  });
+});
+
+describe('RLS sweep self-test (column-level SELECT grant)', () => {
+  const probe = 'cs_sweep_probe.partial';
+  const pk: Pk = { id: '00000000-0000-4000-8000-000000000002' };
+
+  beforeAll(async () => {
+    await dbs.owner.execute(sql`CREATE SCHEMA IF NOT EXISTS cs_sweep_probe`);
+    await dbs.owner.execute(sql`DROP TABLE IF EXISTS cs_sweep_probe.partial`);
+    await dbs.owner.execute(sql`CREATE TABLE cs_sweep_probe.partial (id uuid PRIMARY KEY, agency_id uuid NOT NULL, secret text)`);
+    await dbs.owner.execute(sql`ALTER TABLE cs_sweep_probe.partial ENABLE ROW LEVEL SECURITY`);
+    await dbs.owner.execute(sql`ALTER TABLE cs_sweep_probe.partial FORCE ROW LEVEL SECURITY`);
+    await dbs.owner.execute(sql`CREATE POLICY partial_all ON cs_sweep_probe.partial FOR ALL USING (true) WITH CHECK (true)`);
+    await dbs.owner.execute(sql`GRANT USAGE ON SCHEMA cs_sweep_probe TO app_user`);
+    await dbs.owner.execute(sql`GRANT SELECT (id, agency_id), UPDATE (agency_id), DELETE ON cs_sweep_probe.partial TO app_user`);
+    await dbs.owner.execute(sql`INSERT INTO cs_sweep_probe.partial (id, agency_id, secret) VALUES (${pk.id as string}, ${IDS.agencyA}, 'CANARY-probe')`);
+  });
+
+  it('a permissive policy is caught even when whole-row reads are denied (api_token shape)', async () => {
+    expect((await privs(probe)).sel).toBe(true);
+    expect(await visibleCount(scopeB, probe, [pk])).toBe(1);
+    expect(await visibleTotal(scopeB, probe)).toBe(1);
     expect(await mutateAs(scopeB, probe, pk, 'update')).toBe(1);
     expect(await mutateAs(scopeB, probe, pk, 'delete')).toBe(1);
     expect(await visibleCount('owner', probe, [pk])).toBe(0);
