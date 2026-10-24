@@ -50,8 +50,8 @@ describe('SignalPills', () => {
     expect(rating.className).toContain('text-primary-soft-text');
     const reviews = pill(/^6 reviews · 30 d\./);
     expect(reviews.getAttribute('data-state')).toBe('hot');
-    expect(reviews.className).toContain('bg-[#FFF3DC]');
-    expect(reviews.className).toContain('text-[#B45309]');
+    expect(reviews.className).toContain('bg-chip-warning-bg');
+    expect(reviews.className).toContain('text-accent-text');
     expect(reviews.getAttribute('aria-label')).toContain('6 new reviews in the last 30 days · new activity');
     const arrow = reviews.querySelector('[aria-hidden="true"]');
     expect(arrow?.textContent).toBe('↑');

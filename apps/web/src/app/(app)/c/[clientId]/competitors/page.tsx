@@ -66,13 +66,13 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       />
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-1.5">
-            Tracked competitors
+          <div className="flex items-center gap-1.5">
+            <CardTitle>Tracked competitors</CardTitle>
             <HelpTip tip="client.competitors.tiers" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} />
+          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} timezone={profile.timezone} />
           {canManage && (
             <WriteGuard>
               <div className="mt-5 border-t border-line pt-5">

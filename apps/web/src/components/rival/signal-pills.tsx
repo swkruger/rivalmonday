@@ -1,6 +1,7 @@
 import type { SuggestionView } from '@cs/tools';
 import { Tooltip, TooltipProvider } from '@cs/ui';
 import type { ReactNode } from 'react';
+import { formatCount } from '@/lib/format';
 import { StarIcon } from './signal-icons';
 
 type Signals = SuggestionView['signals'];
@@ -10,7 +11,7 @@ export type PillState = 'active' | 'hot' | 'none' | 'unchecked';
 /** The overview StatCard palette: info = soft primary, hot = soft amber; "none" is plain text, "not checked" a dashed outline. */
 const STATE_CLASS: Record<PillState, string> = {
   active: 'rounded-full bg-primary-soft px-2 font-semibold text-primary-soft-text',
-  hot: 'rounded-full bg-[#FFF3DC] px-2 font-semibold text-[#B45309]',
+  hot: 'rounded-full bg-chip-warning-bg px-2 font-semibold text-accent-text',
   none: 'px-1 font-medium text-muted-ink',
   unchecked: 'rounded-full border border-dashed border-[#CBD5E1] px-2 font-medium text-muted-ink',
 };
@@ -18,7 +19,7 @@ const NOT_CHECKED = 'Not checked';
 
 type Pill = { key: string; state: PillState; icon?: ReactNode; text: string; tip: string };
 
-const n = (v: number) => v.toLocaleString('en-US');
+const n = formatCount;
 const plural = (v: number, one: string, many: string) => `${n(v)} ${v === 1 ? one : many}`;
 const unchecked = (key: string, label: string): Pill => ({ key, state: 'unchecked', text: `${label} · not checked`, tip: NOT_CHECKED });
 

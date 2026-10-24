@@ -55,10 +55,12 @@ describe('weekly search limit', () => {
 });
 
 describe('client owner views', () => {
-  it('hides the paid search for client owners and shows a hint instead', () => {
-    render(<SuggestionsPanel clientId="c1" ready suggestions={[]} initialSearch="idle" atLimit={false} limit={5} canSearch={false} />);
+  it('empty-room line names the agency, never "account manager"', async () => {
+    const { HelpProvider } = await import('@/components/help/help-provider');
+    render(<HelpProvider value={{ audience: 'client', names: { agency: 'Acme', assistant: 'Friday' } }}><SuggestionsPanel clientId="c1" ready suggestions={[]} initialSearch="idle" atLimit={false} limit={5} canSearch={false} /></HelpProvider>);
     expect(screen.queryByRole('button', { name: /Find competitors/ })).toBeNull();
-    expect(screen.getByText('Your account manager can look for more competitors for you.')).toBeTruthy();
+    expect(screen.getByText('Acme can look for more competitors for you.')).toBeTruthy();
+    expect(screen.queryByText(/account manager/i)).toBeNull();
   });
 
   it('never polls the search status when canSearch is false, even if a search is running', async () => {
@@ -75,7 +77,7 @@ describe('client owner views', () => {
   });
 
   it('shows no remove button when the user may not manage competitors', () => {
-    render(<TrackedCompetitorsTable clientId="c1" items={[{ id: 'x', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-01T00:00:00Z', activePages: 0 }]} canRemove={false} />);
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[{ id: 'x', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-01T00:00:00Z', activePages: 0 }]} canRemove={false} />);
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
   });
 });
@@ -217,21 +219,32 @@ describe('row messages survive revalidation', () => {
     const { HelpProvider } = await import('@/components/help/help-provider');
     // A client owner who manages competitors: the empty state reads its copy from the shell's help provider.
     const wrapper = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'client', names: { agency: 'Acme', assistant: 'Sunny' } }}>{children}</HelpProvider>;
-    const { rerender } = render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />, { wrapper });
+    const { rerender } = render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked]} canRemove />, { wrapper });
     fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
-    rerender(<TrackedCompetitorsTable clientId="c1" items={[]} canRemove />);
+    rerender(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[]} canRemove />);
     await waitFor(() => expect(screen.getByText('Competitor removed. Its history is kept.')).toBeTruthy());
     expect(screen.getByText(/Add one with the form below/)).toBeTruthy();
   });
 
-  it('shows a remove refusal inside the open dialog', async () => {
+  it('stop tracking: cancel does nothing; a refusal shows on that row only', async () => {
+    const second: TrackedCompetitor = { ...tracked, id: 'x2', name: 'Jones Air' };
     vi.mocked(removeCompetitorAction).mockResolvedValueOnce({ ok: false, error: 'Not found' });
-    render(<TrackedCompetitorsTable clientId="c1" items={[tracked]} canRemove />);
-    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
-    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('Not found'));
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked, second]} canRemove />);
+    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+    expect(removeCompetitorAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Stop tracking Jones Air?')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: /stop tracking/i }));
+    await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Not found');
+    expect(alert.closest('tr')?.previousElementSibling?.textContent).toContain('Jones Air');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 
@@ -309,25 +322,36 @@ describe('SuggestionsPanel tiers and selection', () => {
   });
 });
 
+describe('tracked table dates', () => {
+  it('"Since" reads "Oct 13" in the client zone', () => {
+    const t: TrackedCompetitor = { id: 'x1', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-13T02:00:00.000Z', activePages: 0 };
+    render(<TrackedCompetitorsTable clientId="c1" items={[t]} canRemove={false} timezone="America/Chicago" />);
+    expect(screen.getByText('Oct 12')).toBeTruthy();
+    cleanup();
+    render(<TrackedCompetitorsTable clientId="c1" items={[t]} canRemove={false} timezone="UTC" />);
+    expect(screen.getByText('Oct 13')).toBeTruthy();
+  });
+});
+
 describe('TrackedCompetitorsTable ratings', () => {
   const tracked: TrackedCompetitor = { id: 'x1', name: 'Smith HVAC', domain: 'smith.example', placeId: null, addedAt: '2026-09-01T00:00:00.000Z', activePages: 2 };
   const other: TrackedCompetitor = { ...tracked, id: 'x2', name: 'Jones Air' };
   const rating = { competitorId: 'x1', tier: 'top' as const, signals: { ...NO_SIGNALS, rating: 4.7, votes: 90 }, computedAt: '2026-10-13T09:00:00.000Z' };
 
   it('client user sees a tier pill after the name, no Tier column, no match chips', () => {
-    render(<TrackedCompetitorsTable clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
     expect(screen.queryByRole('columnheader', { name: /^Tier/ })).toBeNull();
     expect(screen.getByRole('columnheader', { name: /^Signals/ })).toBeTruthy();
     const nameCell = screen.getByRole('link', { name: 'Smith HVAC' }).closest('td')!;
     expect(within(nameCell as HTMLElement).getByText('Top rival')).toBeTruthy();
-    expect(within(nameCell as HTMLElement).getByText('Rated Tue 13 Oct')).toBeTruthy();
+    expect(within(nameCell as HTMLElement).getByText('Rated Oct 13')).toBeTruthy();
     expect(screen.getAllByRole('list', { name: 'Signals' })).toHaveLength(1);
     expect(screen.queryByText(/Matched automatically|Possible .* account/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
   });
 
   it('says "Not rated yet" for a competitor with no signal row, never a tier', () => {
-    render(<TrackedCompetitorsTable clientId="c1" items={[other]} canRemove={false} signals={[rating]} />);
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[other]} canRemove={false} signals={[rating]} />);
     expect(screen.getByText('Not rated yet')).toBeTruthy();
     expect(screen.queryByText('Minor')).toBeNull();
   });
@@ -336,7 +360,7 @@ describe('TrackedCompetitorsTable ratings', () => {
     const mk = (id: string, name: string): TrackedCompetitor => ({ ...tracked, id, name });
     const items = [mk('n1', 'Zulu Unrated'), mk('m1', 'Minor Co'), mk('w2', 'Watch Beta'), mk('t1', 'Top Zed'), mk('w1', 'Watch Alpha'), mk('n0', 'Alpha Unrated'), mk('t0', 'Top Able')];
     const sig = (competitorId: string, tier: 'top' | 'watch' | 'minor') => ({ ...rating, competitorId, tier });
-    render(<TrackedCompetitorsTable clientId="c1" items={items} canRemove={false} signals={[sig('m1', 'minor'), sig('w2', 'watch'), sig('t1', 'top'), sig('w1', 'watch'), sig('t0', 'top')]} />);
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={items} canRemove={false} signals={[sig('m1', 'minor'), sig('w2', 'watch'), sig('t1', 'top'), sig('w1', 'watch'), sig('t0', 'top')]} />);
     expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Top Able', 'Top Zed', 'Watch Alpha', 'Watch Beta', 'Minor Co', 'Alpha Unrated', 'Zulu Unrated']);
     // No group rows: one row per competitor plus the header.
     expect(screen.getAllByRole('row')).toHaveLength(items.length + 1);
@@ -349,14 +373,14 @@ describe('TrackedCompetitorsTable empty state by viewer', () => {
 
   it('a read-only agency viewer gets an explanation, not a blank block', async () => {
     const { HelpProvider } = await import('@/components/help/help-provider');
-    render(<HelpProvider value={{ audience: 'agency', names }}><TrackedCompetitorsTable clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
+    render(<HelpProvider value={{ audience: 'agency', names }}><TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
     expect(screen.getByRole('heading', { name: 'No competitors tracked yet' })).toBeTruthy();
     expect(screen.getByText(/No competitors are tracked for Lone Star Cooling yet\. This session is read-only/)).toBeTruthy();
   });
 
   it('a view-only client is told their agency sets competitors up', async () => {
     const { HelpProvider } = await import('@/components/help/help-provider');
-    render(<HelpProvider value={{ audience: 'client', names }}><TrackedCompetitorsTable clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
+    render(<HelpProvider value={{ audience: 'client', names }}><TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
     expect(screen.getByText('Your competitors appear here once Cool Comfort has set them up.')).toBeTruthy();
     expect(screen.queryByText(/read-only/)).toBeNull();
   });

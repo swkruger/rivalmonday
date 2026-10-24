@@ -1,11 +1,12 @@
 'use client';
 import type { CompetitorSignalView, HiddenReason, SuggestionView, Tier, TrackedCompetitor } from '@cs/tools';
-import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useState, useTransition } from 'react';
+import { Fragment, useActionState, useEffect, useState, useTransition } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
+import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { useReadOnly } from '@/components/read-only';
 import { SignalPills } from '@/components/rival/signal-pills';
@@ -14,7 +15,7 @@ import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
-import { kmToMiles } from '@/lib/format';
+import { formatDate, kmToMiles } from '@/lib/format';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
@@ -274,10 +275,10 @@ export function SuggestionsPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-1.5">
-          Suggested competitors
+        <div className="flex items-center gap-1.5">
+          <CardTitle>Suggested competitors</CardTitle>
           <HelpTip tip="client.competitors.suggestions" />
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {canSearch && !readOnly && !ready && (
@@ -308,7 +309,7 @@ export function SuggestionsPanel({
             <SearchProgress progress={progress} status={status} found={suggestions.length} failedOnLoad={failedOnLoad} />
           </form>
         ) : (
-          <p className="text-sm text-muted-foreground">Your account manager can look for more competitors for you.</p>
+          <p className="text-sm text-muted-foreground"><HelpText text="{agency} can look for more competitors for you." /></p>
         )}
         <Message state={rowState} />
         <Message state={bulkState} />
@@ -341,7 +342,7 @@ export function SuggestionsPanel({
           </section>
         ))}
         {suggestions.length > 0 && !readOnly && (
-          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-ink p-3 text-[#E2E8F0] shadow-md">
+          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-ink p-3 text-muted-surface-2 shadow-md">
             {/* Disabled keeps full opacity on a pale slate fill so the label stays readable (ink on #CBD5E1 ≈ 10:1). */}
             <Button
               type="button"
@@ -352,8 +353,8 @@ export function SuggestionsPanel({
             >
               Track selected ({selected.size})
             </Button>
-            {room === 0 && <span className="text-sm text-[#E2E8F0]">This client already tracks {limit} competitors</span>}
-            {room > 0 && selected.size >= room && <span className="text-sm text-[#E2E8F0]">You can track {room} more.</span>}
+            {room === 0 && <span className="text-sm text-muted-surface-2">This client already tracks {limit} competitors</span>}
+            {room > 0 && selected.size >= room && <span className="text-sm text-muted-surface-2">You can track {room} more.</span>}
           </div>
         )}
         {hiddenList.length > 0 && (
@@ -402,36 +403,22 @@ export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: stri
   );
 }
 
-function RemoveCompetitorButton({ clientId, competitorId, name, action, pending, result }: { clientId: string; competitorId: string; name: string; action: RowAction; pending: boolean; result: RowResult }) {
+function RemoveCompetitorButton({ clientId, competitorId, name, action, onOpen }: { clientId: string; competitorId: string; name: string; action: (fd: FormData) => Promise<void>; onOpen: () => void }) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Remove
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Stop tracking {name}?</DialogTitle>
-          <DialogDescription>Its history is kept, and collection stops if no other client tracks it.</DialogDescription>
-        </DialogHeader>
-        {!result.ok && result.rowId === competitorId && <Message state={result} />}
-        <form action={action}>
-          <input type="hidden" name="clientId" value={clientId} />
-          <input type="hidden" name="competitorId" value={competitorId} />
-          <DialogFooter>
-            <Button type="submit" variant="destructive" disabled={pending}>
-              Stop tracking
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      trigger={<Button type="button" variant="outline" size="sm" onClick={onOpen}>Remove</Button>}
+      title={`Stop tracking ${name}?`}
+      body="Its history is kept, and collection stops if no other client tracks it."
+      confirmLabel="Stop tracking"
+      tone="danger"
+      fields={{ clientId, competitorId }}
+      action={action}
+    />
   );
 }
 
-/** The tracked-competitors table; a successful removal's message shows above it (a refusal shows in the open dialog). */
-export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp, signals = [] }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean; signals?: CompetitorSignalView[] }) {
+/** The tracked-competitors table; a successful removal's message shows above it, a refusal under its own row. */
+export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveProp, signals = [], timezone }: { clientId: string; items: TrackedCompetitor[]; canRemove: boolean; signals?: CompetitorSignalView[]; timezone: string }) {
   const byCompetitor = new Map(signals.map((x) => [x.competitorId, x]));
   // Flat list: Top rival → Worth watching → Minor → not rated, then by name.
   const rank = (id: string) => {
@@ -440,7 +427,16 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
   };
   const ordered = [...items].sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name, 'en-US'));
   const canRemove = canRemoveProp && !useReadOnly();
-  const [result, action, pending] = useActionState(removeAction, { ok: true } as RowResult);
+  const [result, setResult] = useState<RowResult>({ ok: true });
+  const [pending, setPending] = useState(false);
+  const action = async (fd: FormData) => {
+    setPending(true);
+    try {
+      setResult(await removeAction(result, fd));
+    } finally {
+      setPending(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-4">
       {result.ok && <Message state={result} />}
@@ -482,7 +478,8 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
             {ordered.map((c) => {
               const rated = byCompetitor.get(c.id);
               return (
-              <TableRow key={c.id}>
+              <Fragment key={c.id}>
+              <TableRow>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
@@ -490,18 +487,26 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                     </Link>
                     {rated && <TierChip tier={rated.tier} />}
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-ink">{rated ? ratedLabel(rated.computedAt) : 'Not rated yet'}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-ink">{rated ? ratedLabel(rated.computedAt, timezone) : 'Not rated yet'}</p>
                 </TableCell>
                 <TableCell>{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
                 <TableCell>{c.domain ?? '—'}</TableCell>
                 <TableCell>{c.activePages}</TableCell>
-                <TableCell>{c.addedAt.slice(0, 10)}</TableCell>
+                <TableCell>{formatDate(c.addedAt, { tz: timezone })}</TableCell>
                 {canRemove && (
                   <TableCell>
-                    <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} pending={pending} result={result} />
+                    <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} onOpen={() => setResult({ ok: true })} />
                   </TableCell>
                 )}
               </TableRow>
+              {!result.ok && result.rowId === c.id && (
+                <TableRow>
+                  <TableCell colSpan={canRemove ? 6 : 5}>
+                    <Message state={result} />
+                  </TableCell>
+                </TableRow>
+              )}
+              </Fragment>
               );
             })}
           </TableBody>

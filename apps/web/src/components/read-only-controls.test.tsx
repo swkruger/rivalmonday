@@ -119,7 +119,7 @@ describe('write controls hide in a support session', () => {
     const items = [{ id: 'k1', name: 'Peachtree Air', domain: 'peachtreeair.com', activePages: 3, addedAt: '2026-10-01T00:00:00Z' }] as never;
     const { container } = inReadOnly(
       <>
-        <TrackedCompetitorsTable clientId="c1" items={items} canRemove />
+        <TrackedCompetitorsTable timezone="UTC" clientId="c1" items={items} canRemove />
         <AddCompetitorForm clientId="c1" atLimit={false} limit={5} />
       </>,
     );

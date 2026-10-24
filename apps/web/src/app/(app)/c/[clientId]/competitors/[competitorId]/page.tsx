@@ -128,7 +128,7 @@ export default async function CompetitorProfilePage({
             <TierChip tier={rated.tier} />
             <HelpTip tip="client.competitors.tiers" />
             <SignalPills signals={rated.signals} mode="tracked" />
-            <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt)}</span>
+            <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt, client.timezone)}</span>
             <HelpTip tip="client.competitors.rated" />
           </div>
         ) : (
