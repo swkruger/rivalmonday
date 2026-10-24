@@ -30,16 +30,25 @@ export function createSpendMeter(): SpendMeter {
  * Cost is read from `meter`: pass the same meter's `ledger` to `createAiFromEnv` so the inner Ai reports into it.
  */
 export function budgetedAi(inner: Ai, maxUsd: number, meter: SpendMeter = createSpendMeter()): Ai & { spent(): number } {
-  const gate = () => {
-    if (meter.spent() >= maxUsd) throw new BudgetExceededError(meter.spent(), maxUsd);
+  // Calls in flight have not landed in the ledger yet; reserve the null-cost price for each so concurrent
+  // calls cannot all pass the gate while spent is still 0 (overshoot stays about one call).
+  let inflight = 0;
+  const guarded = async <T>(call: () => Promise<T>): Promise<T> => {
+    if (meter.spent() + inflight * NULL_COST_USD >= maxUsd) throw new BudgetExceededError(meter.spent(), maxUsd);
+    inflight++;
+    try {
+      return await call();
+    } finally {
+      inflight--;
+    }
   };
   return {
-    chat: async (task, input, scope) => (gate(), inner.chat(task, input, scope)),
-    chatWithTools: async (task, req, scope) => (gate(), inner.chatWithTools(task, req, scope)),
-    decide: async (task, state, questions, scope) => (gate(), inner.decide(task, state, questions, scope)),
-    embed: async (task, texts, scope) => (gate(), inner.embed(task, texts, scope)),
+    chat: (task, input, scope) => guarded(() => inner.chat(task, input, scope)),
+    chatWithTools: (task, req, scope) => guarded(() => inner.chatWithTools(task, req, scope)),
+    decide: (task, state, questions, scope) => guarded(() => inner.decide(task, state, questions, scope)),
+    embed: (task, texts, scope) => guarded(() => inner.embed(task, texts, scope)),
     batchAvailable: (task) => inner.batchAvailable(task),
-    submitBatch: async (task, requests, scope) => (gate(), inner.submitBatch(task, requests, scope)),
+    submitBatch: (task, requests, scope) => guarded(() => inner.submitBatch(task, requests, scope)),
     collectBatch: (task, id, scope, scopeFor) => inner.collectBatch(task, id, scope, scopeFor),
     spent: () => meter.spent(),
   };

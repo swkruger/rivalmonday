@@ -50,4 +50,31 @@ describe('budgetedAi', () => {
     await meter.ledger.recordVendorCall({ costUsd: null } as never);
     expect(meter.spent()).toBeCloseTo(0.05);
   });
+
+  it('concurrent calls cannot all pass the gate: in-flight calls reserve $0.05 each', async () => {
+    const meter = createSpendMeter();
+    let started = 0;
+    let release!: () => void;
+    const gateOpen = new Promise<void>((r) => { release = r; });
+    const ai = {
+      chat: async () => { started++; await gateOpen; await meter.ledger.recordLlmCall(rec(0.05)); return { text: 'x' }; },
+      batchAvailable: () => false,
+    } as unknown as Ai;
+    const b = budgetedAi(ai, 0.1, meter);
+    const results = Promise.allSettled(Array.from({ length: 5 }, () => b.chat('t', { messages: [] }, scope)));
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    const settled = await results;
+    expect(started).toBe(2);
+    expect(settled.filter((s) => s.status === 'fulfilled')).toHaveLength(2);
+    expect(settled.filter((s) => s.status === 'rejected' && s.reason instanceof BudgetExceededError)).toHaveLength(3);
+    expect(b.spent()).toBeCloseTo(0.1);
+  });
+
+  it('releases the reservation when a call fails', async () => {
+    const meter = createSpendMeter();
+    const ai = { chat: async () => { throw new Error('boom'); }, batchAvailable: () => false } as unknown as Ai;
+    const b = budgetedAi(ai, 0.1, meter);
+    for (let i = 0; i < 5; i++) await expect(b.chat('t', { messages: [] }, scope)).rejects.toThrow('boom');
+  });
 });
