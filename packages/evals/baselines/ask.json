@@ -1,0 +1,13 @@
+{
+  "answered": 46,
+  "case_errors": 0,
+  "cases": 50,
+  "citations_per_answer": 0.5435,
+  "grounding_removed_rate": 0.2988,
+  "guard_in_scope": 46,
+  "guard_injection": 4,
+  "guard_out_of_scope": 0,
+  "guard_unsure": 0,
+  "proposed_actions": 0,
+  "refused": 4
+}

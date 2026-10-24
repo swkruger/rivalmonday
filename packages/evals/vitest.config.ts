@@ -7,5 +7,5 @@ try {
   // repo-root .env is optional (e.g. CI, where env vars are injected directly)
 }
 
-// No DB global-setup: unit tests here never touch Postgres (prepareTestDb is only called by the Ask suite at run time).
+// No DB global-setup: only the Ask suite touches Postgres, and its runner calls prepareTestDb itself (run.test.ts, eval run).
 export default defineConfig({ test: { testTimeout: 20_000 } });

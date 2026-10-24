@@ -561,6 +561,9 @@ importers:
       '@cs/ai':
         specifier: workspace:*
         version: link:../ai
+      '@cs/ask':
+        specifier: workspace:*
+        version: link:../ask
       '@cs/collectors':
         specifier: workspace:*
         version: link:../collectors
@@ -573,6 +576,9 @@ importers:
       '@cs/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cs/tools':
+        specifier: workspace:*
+        version: link:../tools
       '@cs/verticals':
         specifier: workspace:*
         version: link:../verticals

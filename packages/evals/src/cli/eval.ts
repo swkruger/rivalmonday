@@ -1,5 +1,4 @@
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import './load-env';
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import { createDb, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
@@ -8,14 +7,6 @@ import { buildCsDev } from '../build/cs-dev';
 import { expandSuites, runEvals } from '../run';
 import { DEFAULT_REPORT_DIR, parseEvalArgs, resolveMaxUsd } from './args';
 import { runBuild, runLabel } from './dataset';
-
-/** packages/evals/src/cli -> repo root. */
-const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
-try {
-  process.loadEnvFile(join(repoRoot, '.env'));
-} catch {
-  // .env is optional (variables may come from the shell or CI); never print it.
-}
 
 const parsed = parseEvalArgs(process.argv.slice(2));
 if ('error' in parsed) {
