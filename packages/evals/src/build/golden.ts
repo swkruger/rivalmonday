@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { NumericChange } from '@cs/db';
-import { alignBlocks, buildTagState, diffFacts, extractBlocks, extractNumericFacts } from '@cs/engine';
+import { alignBlocks, buildTagState, diffFacts, extractBlocks, extractNumericFacts, MONEY_KINDS } from '@cs/engine';
 import { type EvalCase, PACKAGE_DIR } from '../case';
 import { type ChangeInput, isEvalVertical, labelCase, questionsFor, redactDeep, slug } from './common';
 
@@ -10,6 +10,10 @@ export const ENGINE_FIXTURE_DIR = join(PACKAGE_DIR, '..', 'engine', 'test', 'fix
 /** Hand-saved archive.org before/after pairs: see fixtures/golden/README. */
 export const GOLDEN_FIXTURE_DIR = join(PACKAGE_DIR, 'fixtures', 'golden');
 export const MAX_ARCHIVE_PAIRS = 20;
+/** Spec decision 12: 60 golden cases in total, archive pairs included. */
+export const GOLDEN_TOTAL = 60;
+/** Archive budget: blocks are taken round-robin across pairs (each pair's best block first) until this many. */
+export const ARCHIVE_MAX_CASES = 20;
 
 export interface GoldenPage { file: string; vertical: string; competitorName: string; pageUrl: string; html: string }
 interface PageMeta { file: string; vertical: string; competitorName: string; pageUrl: string }
@@ -129,36 +133,67 @@ export function changeInput(meta: { verticalIds: string[]; competitorName: strin
 
 const pageSlug = (file: string) => slug(file.replace(/\.html$/, ''));
 
-function archiveCases(): EvalCase[] {
-  if (!existsSync(GOLDEN_FIXTURE_DIR)) return [];
-  const dirs = readdirSync(GOLDEN_FIXTURE_DIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort().slice(0, MAX_ARCHIVE_PAIRS);
-  return dirs.flatMap((dir) => {
-    const at = (f: string) => readFileSync(join(GOLDEN_FIXTURE_DIR, dir, f), 'utf8').replace(/\r\n/g, '\n');
+/** Most informative first: money facts, then any numeric fact, then the most changed text; ties keep page order. */
+function rankChanges(changes: GoldenChange[]): { ch: GoldenChange; i: number }[] {
+  const score = (c: GoldenChange) => [
+    c.numericChanges.some((n) => MONEY_KINDS.has(n.kind)) ? 1 : 0,
+    c.numericChanges.length > 0 ? 1 : 0,
+    Math.abs((c.afterText ?? '').length - (c.beforeText ?? '').length) + (c.kind === 'modified' ? 0 : (c.afterText ?? c.beforeText ?? '').length),
+  ];
+  return changes
+    .map((ch, i) => ({ ch, i, s: score(ch) }))
+    .sort((a, b) => b.s[0]! - a.s[0]! || b.s[1]! - a.s[1]! || b.s[2]! - a.s[2]! || a.i - b.i)
+    .map(({ ch, i }) => ({ ch, i }));
+}
+
+/** ≤ MAX_ARCHIVE_PAIRS pairs (sorted by dir name), ≤ ARCHIVE_MAX_CASES cases picked round-robin over the ranked blocks of each pair. */
+function archiveCases(fixtureDir: string): EvalCase[] {
+  if (!existsSync(fixtureDir)) return [];
+  const dirs = readdirSync(fixtureDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort().slice(0, MAX_ARCHIVE_PAIRS);
+  const ranked = dirs.map((dir) => {
+    const at = (f: string) => readFileSync(join(fixtureDir, dir, f), 'utf8').replace(/\r\n/g, '\n');
     const meta = JSON.parse(at('meta.json')) as { vertical: string; competitorName: string; pageUrl: string; pageType?: string };
     if (!isEvalVertical(meta.vertical)) throw new Error(`fixtures/golden/${dir}: vertical "${meta.vertical}" has no eval pack`);
-    return goldenChanges(at('before.html'), at('after.html')).map((ch, i) =>
+    return rankChanges(goldenChanges(at('before.html'), at('after.html'))).map(({ ch, i }) =>
       labelCase('changes', `changes-archive-${slug(dir)}-${i}`, 'archive', changeInput({ ...meta, verticalIds: [meta.vertical], pageType: meta.pageType ?? null }, ch)),
     );
   });
+  const out: EvalCase[] = [];
+  for (let round = 0; out.length < ARCHIVE_MAX_CASES && ranked.some((r) => r.length > round); round++) {
+    for (const r of ranked) if (r[round] && out.length < ARCHIVE_MAX_CASES) out.push(r[round]!);
+  }
+  return out;
 }
 
-/** 4 engine fixture pages × scripted mutations (labelled) + their natural v1→v2 diffs + fixtures/golden pairs (unlabelled). Deterministic. */
-export function buildGolden(): EvalCase[] {
+/** Round-robin across groups (one from each in turn), so trimming keeps every page represented. */
+function interleave<T>(groups: T[][]): T[] {
+  const out: T[] = [];
+  for (let i = 0; groups.some((g) => g.length > i); i++) for (const g of groups) if (g[i] !== undefined) out.push(g[i]!);
+  return out;
+}
+
+/**
+ * 4 engine fixture pages × scripted mutations (labelled) + their natural v1→v2 diffs + fixtures/golden pairs (unlabelled).
+ * Deterministic; at most GOLDEN_TOTAL cases: archive picks first, then scripted cases round-robin by page, then natural diffs.
+ */
+export function buildGolden(opts: { fixtureDir?: string } = {}): EvalCase[] {
   const page = (file: string) => GOLDEN_PAGES.find((p) => p.file === file)!;
-  const out: EvalCase[] = [];
+  const scripted = new Map<string, EvalCase[]>();
+  const natural: EvalCase[] = [];
   for (const mu of GOLDEN_MUTATIONS) {
     const p = page(mu.page);
     const changes = goldenChanges(p.html, p.html.replace(mu.find, mu.replace));
     if (changes.length !== 1) throw new Error(`golden mutation ${mu.page}/${mu.id} changed ${changes.length} blocks (expected 1)`);
     const input = changeInput({ ...p, verticalIds: [p.vertical], pageType: 'home' }, changes[0]!);
     const label = { meaningful: String(mu.meaningful), change_type: mu.changeType, [`service_${p.vertical}`]: mu.service };
-    out.push(labelCase('changes', `changes-golden-${pageSlug(mu.page)}-${mu.id}`, 'golden', input, label, 'script'));
+    scripted.set(mu.page, [...(scripted.get(mu.page) ?? []), labelCase('changes', `changes-golden-${pageSlug(mu.page)}-${mu.id}`, 'golden', input, label, 'script')]);
   }
   for (const [a, b] of NATURAL_PAIRS) {
     const p = page(a);
     goldenChanges(p.html, page(b).html).forEach((ch, i) => {
-      out.push(labelCase('changes', `changes-golden-${pageSlug(a)}-to-v2-${i}`, 'golden', changeInput({ ...p, verticalIds: [p.vertical], pageType: 'home' }, ch)));
+      natural.push(labelCase('changes', `changes-golden-${pageSlug(a)}-to-v2-${i}`, 'golden', changeInput({ ...p, verticalIds: [p.vertical], pageType: 'home' }, ch)));
     });
   }
-  return [...out, ...archiveCases()];
+  const archive = archiveCases(opts.fixtureDir ?? GOLDEN_FIXTURE_DIR);
+  return [...archive, ...[...interleave([...scripted.values()]), ...natural].slice(0, GOLDEN_TOTAL - archive.length)];
 }
