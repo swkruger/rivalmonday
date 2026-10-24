@@ -4,7 +4,7 @@
 **Plan/spec:** [lean plan](../superpowers/plans/2026-10-24-phase-15c2b2-client-page-sweep.md) (no new spec, Q1). Inputs: [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) D9–D15 · [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) §4–5, §8 · [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2–3 · pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md).
 
 ## Status (overwrite)
-Lean plan written; awaiting owner approval.
+Plan owner-approved 2026-10-24 (incl. P1–P12); execution started.
 
 ## Next (overwrite)
 Owner approves plan → Task 0 pre-flight → SDD.
