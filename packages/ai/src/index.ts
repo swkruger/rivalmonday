@@ -1,5 +1,6 @@
 export * from './ai';
 export * from './anthropic-batch';
+export * from './cassette';
 export * from './chat';
 export * from './config';
 export * from './decisions/cascade';
