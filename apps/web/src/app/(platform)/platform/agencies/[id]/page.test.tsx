@@ -12,6 +12,7 @@ vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
 vi.mock('../../_components/range-toggle', () => ({ parseRange: () => '28d', RangeToggle: () => null }));
 vi.mock('./billing-panel', () => ({ BillingPanel: ({ role, billing }: { role: string; billing: { state: string } }) => <div>billing-panel {role} {billing.state}</div> }));
+vi.mock('./client-limits', () => ({ ClientLimitsTable: ({ canEdit, data }: { canEdit: boolean; data: { items: unknown[] } }) => <div>client-limits {canEdit ? 'edit' : 'read'} {data.items.length}</div> }));
 vi.mock('./support-dialog', () => ({ SupportDialog: ({ agencyId }: { agencyId: string }) => <button type="button">View as agency {agencyId}</button> }));
 const { default: Page } = await import('./page');
 
@@ -32,6 +33,7 @@ beforeEach(() => {
   m.callTool.mockImplementation(async (_ctx: unknown, name: string) => {
     if (name === 'get_platform_agency') return detail;
     if (name === 'get_agency_billing') return { state: 'trialing' };
+    if (name === 'get_client_limits') return { defaultLimitUsd: 15, pausePercent: 130, items: [{}, {}] };
     if (name === 'list_discount_codes') return { codes: [{ id: 'd1', code: 'FRIEND', revokedAt: null }, { id: 'd2', code: 'OLD', revokedAt: '2026-10-01T00:00:00Z' }] };
     return { rows: [session] };
   });
@@ -88,5 +90,18 @@ describe('platform agency page: labels and dates', () => {
     expect(screen.getByText('Mar 4, 2025')).toBeTruthy();
     expect(document.body.textContent).toContain('Created Jan 1, 2025.');
     expect(document.body.textContent).not.toMatch(/2025-01-01|2025-03-04|prospect/);
+  });
+});
+
+describe('platform agency page: client limits', () => {
+  it('loads get_client_limits and lets staff edit', async () => {
+    render(await page());
+    expect(m.callTool).toHaveBeenCalledWith({ userId: 'op' }, 'get_client_limits', { agencyId: AG });
+    expect(screen.getByText('client-limits edit 2')).toBeTruthy();
+  });
+  it('a viewer gets the table read-only', async () => {
+    m.role = 'viewer';
+    render(await page());
+    expect(screen.getByText('client-limits read 2')).toBeTruthy();
   });
 });

@@ -12,6 +12,7 @@ import { CostItemsTable } from './_components/cost-items-table';
 import { MonthlyChart } from './_components/monthly-chart';
 import { RefreshButton } from './_components/refresh-button';
 import { ServicesTable } from './_components/services-table';
+import { type GuardSettings, SpendGuardSettings } from './_components/spend-guard-settings';
 import { SummaryCards } from './_components/summary-cards';
 import type { CostsData } from './_components/types';
 
@@ -26,7 +27,11 @@ const COPY = PAGE_COPY['platform.costs'];
 /** Owners only: the tool's `permission_denied` becomes a 404 in `callTool`. */
 export default async function PlatformCostsPage() {
   const { ctx } = await requireOperatorContext();
-  const [data, guides] = await Promise.all([callTool<CostsData>(ctx, 'list_platform_costs', {}), helpGuides(ctx, 'platform')]);
+  const [data, guard, guides] = await Promise.all([
+    callTool<CostsData>(ctx, 'list_platform_costs', {}),
+    callTool<{ settings: GuardSettings }>(ctx, 'get_spend_guard', {}),
+    helpGuides(ctx, 'platform'),
+  ]);
   return (
     <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
       <PageHeader
@@ -65,6 +70,13 @@ export default async function PlatformCostsPage() {
           <HelpTip tip="platform.costs.ai" />
         </div>
         <AiByVerticalTable rows={data.aiByVertical} />
+      </section>
+      <section className={card}>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Limits &amp; spike guard</h2>
+          <HelpTip tip="platform.costs.limits" />
+        </div>
+        <SpendGuardSettings settings={guard.settings} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center justify-between gap-3">

@@ -98,6 +98,13 @@ export const PLATFORM_COPY = {
         body: 'The number of different people in this agency in each role: agency admins, account managers, client owners and client viewers.',
         audience: 'operator',
       },
+      // source: packages/tools/src/tools/usage.ts:getClientLimits, setClientLimits (staff and owners write; blank override = platform default; raising the limit above spend lifts a spend pause)
+      clientLimits: {
+        title: 'Client limits',
+        body: 'Each client\'s spend this month, its effective monthly limit and its level. Leave the limit override blank to use the platform default. Competitors and Ask per month cap how many rivals a client can track and how many questions it can ask. Saving a higher limit lifts a spend pause when the client is back under the pause level. Owners and staff edit; viewers read only.',
+        audience: 'operator',
+        guideAnchor: 'common-questions',
+      },
       // source: apps/web/src/app/(platform)/platform/agencies/[id]/billing-panel.tsx:BillingPanel (staff controls, owner-only cap switch); packages/billing/src/access.ts:decide (pilot cap)
       billingPanel: {
         title: 'The billing panel',
@@ -408,9 +415,16 @@ export const PLATFORM_COPY = {
     },
   },
   'platform.health': {
-    // source: apps/web/src/app/(platform)/platform/health/page.tsx (Phase 7a1: worker, queues, vendors and sources; spend lives on Costs)
-    description: 'Is the worker alive, are jobs flowing, and are the data sources fresh. Spend lives under Costs.',
+    // source: apps/web/src/app/(platform)/platform/health/page.tsx (Phase 7a1: worker, queues, vendors and sources; 7b1: spend guard card; spend totals live on Costs)
+    description: 'Is the worker alive, are jobs flowing, and are the data sources fresh. The spend guard shows whether AI work is running normally. Spend totals live under Costs.',
     tips: {
+      // source: packages/tools/src/spend-guard.ts:readSpikes, evaluateSpikes (warn at the warn percent, pause at the pause percent unless snoozed; below the floor never triggers); packages/tools/src/tools/spend-guard.ts:resetAiPause (staff, note required, snoozes the guard)
+      spendGuard: {
+        title: 'The spend guard',
+        body: 'Watches AI spend against its normal level for each provider and for all providers together. Warning: spend is above normal by the warn percentage. Paused: it is above normal by the pause percentage, so all AI calls are held and queued work waits. A "floor" marker means the reading is too small in dollars to trigger anything. Staff and owners can Reset with a short note; the guard then stays quiet for the snooze period. Clients paused for reaching their own limit are listed below.',
+        audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
+      },
       // source: apps/worker/src/health.ts (heartbeat cron every 5 minutes); packages/tools/src/platform/system-health.ts:healthStatuses (worker: Down with no heartbeat or over 30 minutes, Watch over 11 minutes)
       worker: {
         title: 'Worker status',
@@ -445,6 +459,13 @@ export const PLATFORM_COPY = {
     // source: apps/worker/src/jobs/platform-costs.ts (daily snapshot cron '0 6 * * *', UTC); the old wording named the product, which the shared copy test forbids
     description: 'What it costs to run the platform: vendor balances, monthly spend and manual costs. API balances refresh daily at 06:00 UTC.',
     tips: {
+      // source: packages/db/src/spend-guard.ts:SpendGuardSettings (the eight settings); packages/tools/src/tools/spend-guard.ts:updateSpendGuardSettings (owners only, partial patch, pause percent must stay above warn percent)
+      limits: {
+        title: 'Limits and spike guard',
+        body: 'Platform-wide defaults for AI spend: the credits rate shown to agencies and clients, the default monthly limit per client, the percentage of that limit at which a client is paused, and the spike guard\'s warn and pause levels, daily floors and snooze time. Only the fields you change are saved. A client\'s own limit is set on its agency page.',
+        audience: 'operator',
+        guideAnchor: 'common-questions',
+      },
       // source: packages/tools/src/platform/costs/math.ts:serviceStatus (low = remaining under the threshold, or days left at or under warn days), burnRate (balance drops over the last 14 days, needs two readings at least 12 hours apart); packages/tools/src/tools/platform-costs.ts (warnDays default 7); apps/web/.../costs/_components/services-table.tsx:STATUS_LABEL
       services: {
         title: 'Service status',

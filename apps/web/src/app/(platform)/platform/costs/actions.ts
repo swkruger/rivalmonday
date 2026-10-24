@@ -71,3 +71,24 @@ export async function archiveCostItemAction(_p: FormResult, fd: FormData): Promi
   revalidatePath(PATH);
   return { ok: true, message: 'Archived.' };
 }
+
+const GUARD_KEYS = [
+  'creditsPerUsd', 'clientMonthlyLimitUsd', 'clientPausePercent', 'spikeWarnPercent', 'spikePausePercent', 'spikeFloorUsdPerDay', 'spikeFloorUsdPerClientDay', 'spikeSnoozeHours',
+] as const;
+
+/** Owner-only (the tool enforces it). The form sends just the changed fields; the tool refuses an empty patch or an invalid merge. */
+export async function updateSpendGuardSettingsAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const patch: Record<string, number> = {};
+  for (const k of GUARD_KEYS) {
+    if (!fd.has(k)) continue;
+    const n = Number(str(fd, k));
+    if (!str(fd, k) || !Number.isFinite(n)) return { ok: false, error: 'Enter numbers only' };
+    patch[k] = n;
+  }
+  if (Object.keys(patch).length === 0) return { ok: false, error: 'Nothing to change' };
+  const r = await runTool(ctx, 'update_spend_guard_settings', patch);
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: 'Saved.' };
+}

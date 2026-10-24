@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({ callTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: {} }) }));
 vi.mock('@/server/tools', () => ({ callTool: h.callTool }));
-vi.mock('./actions', () => ({ refreshCostsAction: vi.fn(), updateCostServiceAction: vi.fn(), saveCostItemAction: vi.fn(), archiveCostItemAction: vi.fn() }));
+vi.mock('./actions', () => ({ refreshCostsAction: vi.fn(), updateCostServiceAction: vi.fn(), saveCostItemAction: vi.fn(), archiveCostItemAction: vi.fn(), updateSpendGuardSettingsAction: vi.fn() }));
 import PlatformCostsPage from './page';
 
 const data = {
@@ -13,6 +13,7 @@ const data = {
   summary: { mtdUsd: 3, projectedMonthUsd: 9.5, lowCount: 2 }, refreshQueued: true,
   aiByVertical: [{ verticalId: 'dental', name: 'Dental practices', calls: 12, costUsd: 0.42 }, { verticalId: 'draft', name: 'Drafts not yet created', calls: 3, costUsd: 0.1 }],
 };
+const guard = { settings: { creditsPerUsd: 100, clientMonthlyLimitUsd: 15, clientPausePercent: 130, spikeWarnPercent: 100, spikePausePercent: 200, spikeFloorUsdPerDay: 5, spikeFloorUsdPerClientDay: 0.5, spikeSnoozeHours: 24 } };
 beforeEach(() => { h.callTool.mockReset(); });
 afterEach(cleanup);
 
@@ -23,8 +24,10 @@ describe('/platform/costs', () => {
   });
 
   it('renders the decided copy, summary and a disabled refresh while queued', async () => {
-    h.callTool.mockResolvedValue(data);
+    h.callTool.mockImplementation(async (_c: unknown, name: string) => (name === 'get_spend_guard' ? guard : data));
     render(await PlatformCostsPage());
+    expect(screen.getByRole('heading', { name: 'Limits & spike guard' })).toBeTruthy();
+    expect(screen.getByText('100 credits = $1')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Costs', level: 1 })).toBeTruthy();
     expect(screen.getByText('What it costs to run the platform: vendor balances, monthly spend and manual costs. API balances refresh daily at 06:00 UTC.')).toBeTruthy();
     expect(screen.getByText('Monthly spend (approximate: balance services are estimated from daily readings)')).toBeTruthy();

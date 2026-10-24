@@ -5,6 +5,7 @@ import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
+import { AiGuardBanner, type AiGuardBannerState } from './platform/_components/ai-guard-banner';
 import { CostWarningStrip } from './platform/costs/_components/cost-warning-strip';
 import type { CostService } from './platform/costs/_components/types';
 
@@ -18,6 +19,8 @@ export const metadata: Metadata = { title: { default: 'Rival Monday', template: 
  * context, and shows no support banner — `requireOperatorContext()` ignores `rm_support`.
  *
  * 15a: `zone="platform"` — always the platform menu, Rival Monday branding and the default theme (spec §2.3).
+ *
+ * 7b1: every operator role sees the AI spend guard banner (C7 warn / C8 paused) from `get_ai_guard_state`; a failed read shows none.
  *
  * 8c: the platform role is resolved once here. Owners get the Costs nav item and, when a service is low on balance, the
  * warning strip; the strip read must never break a page, so any failure shows no strip.
@@ -34,8 +37,15 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       low = [];
     }
   }
+  let guard: AiGuardBannerState | null = null;
+  try {
+    guard = await callTool<AiGuardBannerState>(ctx, 'get_ai_guard_state', {});
+  } catch {
+    guard = null;
+  }
   return (
     <AppShell viewer={viewer} ctx={ctx} platformRole={role} zone="platform">
+      <AiGuardBanner state={guard} />
       <CostWarningStrip low={low} />
       {children}
     </AppShell>

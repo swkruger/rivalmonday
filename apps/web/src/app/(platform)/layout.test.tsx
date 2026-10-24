@@ -70,7 +70,7 @@ describe('route-group layouts (Phase 8b M5)', () => {
   it('layout renders no strip for staff (and does not read costs) and swallows a tool error', async () => {
     m.platformRole.mockResolvedValue('staff');
     render(await PlatformLayout({ children: <p>page</p> }));
-    expect(m.callTool).not.toHaveBeenCalled();
+    expect(m.callTool).not.toHaveBeenCalledWith(expect.anything(), 'list_platform_costs', expect.anything());
     expect(screen.queryByRole('region', { name: 'Low balance warning' })).toBeNull();
     cleanup();
     m.platformRole.mockResolvedValue('owner');
@@ -78,6 +78,33 @@ describe('route-group layouts (Phase 8b M5)', () => {
     render(await PlatformLayout({ children: <p>page still renders</p> }));
     expect(screen.getByText('page still renders')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Low balance warning' })).toBeNull();
+  });
+});
+
+describe('AI spend guard banner (7b1)', () => {
+  const guard = (state: unknown) =>
+    m.callTool.mockImplementation(async (_c: unknown, name: string) => (name === 'get_ai_guard_state' ? state : { services: [] }));
+
+  it('layout shows C8 when paused, nothing when ok', async () => {
+    guard({ state: 'paused', scope: 'total', observedUsd: 40, baselineUsd: 10 });
+    const { unmount } = render(await PlatformLayout({ children: <p>page</p> }));
+    expect(screen.getByRole('region', { name: 'AI spend guard' }).textContent).toContain('All AI calls are paused after a spend spike (all providers).');
+    unmount();
+    guard({ state: 'ok' });
+    render(await PlatformLayout({ children: <p>page</p> }));
+    expect(screen.queryByRole('region', { name: 'AI spend guard' })).toBeNull();
+  });
+
+  it('shows C7 when warn, to staff as well as owners, and survives a tool error', async () => {
+    m.platformRole.mockResolvedValue('viewer');
+    guard({ state: 'warn', scope: 'anthropic', observedUsd: 30, baselineUsd: 10 });
+    const { unmount } = render(await PlatformLayout({ children: <p>page</p> }));
+    expect(screen.getByRole('region', { name: 'AI spend guard' }).textContent).toContain('AI spend is 200% above normal (Anthropic).');
+    unmount();
+    m.callTool.mockRejectedValue(new Error('boom'));
+    render(await PlatformLayout({ children: <p>still here</p> }));
+    expect(screen.getByText('still here')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'AI spend guard' })).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
+import { HelpTip } from '@/components/help/help-tip';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
@@ -20,6 +21,7 @@ import { viewerTimeZone } from '@/server/viewer-tz';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
 import { type AgencyBilling, BillingPanel } from './billing-panel';
+import { type ClientLimits, ClientLimitsTable } from './client-limits';
 import { SupportDialog } from './support-dialog';
 
 export const dynamic = 'force-dynamic';
@@ -76,7 +78,8 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   ]);
   const health = labelFor(AGENCY_HEALTH, agency.health);
   const canStart = role === 'owner' || role === 'staff';
-  const [billing, codes] = await Promise.all([
+  const [limits, billing, codes] = await Promise.all([
+    callTool<ClientLimits>(ctx, 'get_client_limits', { agencyId: agency.id }),
     callTool<AgencyBilling>(ctx, 'get_agency_billing', { agencyId: agency.id }),
     canStart
       ? callTool<{ codes: { id: string; code: string; revokedAt: string | null }[] }>(ctx, 'list_discount_codes', {}).then((r) => r.codes.filter((c) => !c.revokedAt))
@@ -162,6 +165,13 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
             </table>
           </div>
         )}
+      </section>
+      <section className={cardCls}>
+        <div className="mb-3 flex items-center gap-1.5">
+          <h2 className="font-semibold">Client limits</h2>
+          <HelpTip tip="platform.agencies.detail.clientLimits" />
+        </div>
+        <ClientLimitsTable data={limits} canEdit={canStart} />
       </section>
       <section className={cardCls}>
         <h2 className="mb-3 font-semibold">Billing</h2>

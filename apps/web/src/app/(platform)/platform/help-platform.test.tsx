@@ -106,6 +106,11 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   list_kb_targets: { agencies: [] },
   get_kb_article_admin: article(),
   list_platform_costs: costs,
+  get_spend_guard: {
+    settings: { creditsPerUsd: 100, clientMonthlyLimitUsd: 15, clientPausePercent: 130, spikeWarnPercent: 100, spikePausePercent: 200, spikeFloorUsdPerDay: 5, spikeFloorUsdPerClientDay: 0.5, spikeSnoozeHours: 24 },
+    state: { state: 'ok' }, scopes: [], pausedClients: [], events: [],
+  },
+  get_client_limits: { defaultLimitUsd: 15, pausePercent: 130, items: [] },
   list_catalog_review: { verticals: [], areas: [], count: 0 },
   list_verticals: { verticals: [] },
   get_runbook: { level: 'platform', items: [], vars: [], businessAreas: [], source: 'platform' },
@@ -296,6 +301,11 @@ describe('Agency detail', () => {
     expect(hasTip('Health')).toBe(true);
   });
 
+  it('the client limits tip says a blank override uses the default and who edits', async () => {
+    const t = await tipText('platform.agencies.detail', 'clientLimits');
+    for (const w of ['blank', 'default', 'lifts a spend pause', 'viewers read only']) expect(t, w).toContain(w);
+  });
+
   it('with no clients: a teaching empty state', async () => {
     await show('platform.agencies.detail');
     expect(screen.getByText('No clients yet')).toBeTruthy();
@@ -451,8 +461,13 @@ describe('Knowledge', () => {
 describe('Health', () => {
   it('shows the four sections with their tips and points at Costs for spend', async () => {
     await show('platform.health');
-    for (const id of ['worker', 'queues', 'vendors', 'sources']) expect(hasTip(copyOf('platform.health').tips![id]!.title), id).toBe(true);
+    for (const id of ['spendGuard', 'worker', 'queues', 'vendors', 'sources']) expect(hasTip(copyOf('platform.health').tips![id]!.title), id).toBe(true);
     expect(document.body.textContent).toMatch(/Costs/);
+  });
+
+  it('the spend guard tip says what warning and paused mean, and that staff reset it', async () => {
+    const t = await tipText('platform.health', 'spendGuard');
+    for (const w of ['Warning', 'Paused', 'floor', 'Reset']) expect(t, w).toContain(w);
   });
 
   it('the tips carry the thresholds the status rules use', async () => {
@@ -482,6 +497,11 @@ describe('Costs', () => {
     const c = await tipText('platform.costs', 'monthly');
     for (const w of ['six months', 'approximate']) expect(c, w).toContain(w);
     expect(await tipText('platform.costs', 'ai')).toContain('30 days');
+  });
+
+  it('the limits tip names the settings and that only changed fields are saved', async () => {
+    const t = await tipText('platform.costs', 'limits');
+    for (const w of ['default monthly limit', 'snooze', 'Only the fields you change']) expect(t, w).toContain(w);
   });
 
   it('with no manual costs or AI calls: both teach', async () => {
