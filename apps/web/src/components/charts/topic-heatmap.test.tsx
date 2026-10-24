@@ -9,7 +9,7 @@ const t = (topicId: string, share: number | null, sentiment: number | null, shar
 const benchmark = {
   topics: [{ id: 'response_time', name: 'Response time' }, { id: 'upsell_pressure', name: 'Upsell pressure' }],
   businesses: [
-    { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 2, prevAvgRating: 4, topics: [t('response_time', 0.34, 0.6, 0.08), t('upsell_pressure', null, null)] },
+    { competitorId: 's', name: 'A1 HVAC', self: true, reviews: 4, avgRating: 4.5, prevReviews: 2, prevAvgRating: 4, topics: [t('response_time', 0.34, 0.3, 0.08), t('upsell_pressure', null, null)] },
     { competitorId: 'x', name: 'Smith HVAC', self: false, reviews: 3, avgRating: 3, prevReviews: 3, prevAvgRating: 3, topics: [t('response_time', 0.5, -1), t('upsell_pressure', 0.2, null)] },
   ],
 };
@@ -53,6 +53,37 @@ describe('TopicHeatmap', () => {
     expect(legend.textContent).toContain('▲▼ the share moved by 5 or more points');
     expect(legend.textContent).toContain('previous 90 days');
     expect(legend.textContent).not.toMatch(/theme/i);
+  });
+
+  it('table cell reads "34% · Positive · ▲ 8 pts"', () => {
+    render(<TopicHeatmap title="T" benchmark={benchmark} />);
+    const row = screen.getByRole('rowheader', { name: 'Response time' }).closest('tr')!;
+    const cells = [...row.querySelectorAll('td')].map((n) => n.textContent);
+    expect(cells).toEqual(['34% · Positive · ▲ 8 pts', '50% · Very negative']);
+    expect(screen.getByRole('columnheader', { name: 'You' }).className).toContain('text-you');
+  });
+
+  it('table cell with no data reads "—"', () => {
+    render(<TopicHeatmap title="T" benchmark={benchmark} />);
+    const row = screen.getByRole('rowheader', { name: 'Upsell pressure' }).closest('tr')!;
+    expect([...row.querySelectorAll('td')].map((n) => n.textContent)).toEqual(['—', '20% · No sentiment']);
+  });
+
+  it('table and chart agree for every cell', () => {
+    const { container } = render(<TopicHeatmap title="T" benchmark={benchmark} />);
+    for (const tp of benchmark.topics) {
+      const tr = screen.getByRole('rowheader', { name: tp.name }).closest('tr')!;
+      benchmark.businesses.forEach((b, j) => {
+        const td = tr.querySelectorAll('td')[j]!.textContent!;
+        const title = container.querySelector(`[data-cell="${tp.id}|${b.competitorId}"]`)!.closest('g')!.querySelector('rect title')!.textContent!;
+        expect(title).toContain(td);
+      });
+    }
+  });
+
+  it('svg keeps its natural width (minWidth)', () => {
+    render(<TopicHeatmap title="T" benchmark={benchmark} />);
+    expect(screen.getByRole('img').getAttribute('style')).toContain('min-width: 408px');
   });
 
   it('says so when there is nothing to show', () => {

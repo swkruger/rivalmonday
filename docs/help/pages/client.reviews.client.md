@@ -18,7 +18,7 @@ What customers say on Google about {{client}} and its competitors.
    - The **number** is the share of the reviews checked for that topic in the last 90 days that mention it.
    - The **color** is how positive those mentions are: blue is positive, red is negative and gray is neutral.
    - A **dash** means there are not enough reviews. **▲** or **▼** means the share moved by 5 points or more compared with the previous 90 days.
-   - Prefer a table? Open **Show as table** under the heatmap. The second number there is the sentiment, from -1 (very negative) to +1 (very positive).
+   - Prefer a table? Open **Show as table** under the heatmap. Each cell reads like the heatmap, for example "34% · Positive · ▲ 8 pts": the share, the sentiment word, and how far the share moved compared with the previous 90 days.
 2. **Find what competitors are praised or criticized for.** A topic that is blue for a competitor and red for {{client}} is worth acting on.
 3. **Read the reviews behind it.** Filter **Reviews** by business, topic, stars, period or words, then select **Search**.
 4. **Keep an eye on replies.** A low reply rate next to competitors who reply often is an easy thing to fix.
