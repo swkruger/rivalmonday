@@ -128,15 +128,19 @@ export async function applyTopicProposal(db: Db | Tx, ctx: TopicDiscoveryContext
   // The pending check above is check-then-insert (not transactional), so a concurrent run can slip a 'proposed'
   // row in between: `topic_proposal_pending_unique` (one 'proposed' row per vertical) is the real guard, and a
   // violation here means we lost the race, not that something is wrong — treat it the same as the early check.
+  // Run in a savepoint (a nested transaction when `db` is a Tx): a unique violation aborts a bare Postgres transaction,
+  // which would fail every later statement of a batch apply.
   try {
-    const [row] = await db
-      .insert(topicProposal)
-      .values({
-        verticalId: ctx.verticalId, topicId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
-        otherCount: ctx.otherCount, sampleReviewIds: ctx.sampleReviewIds,
-      })
-      .returning({ id: topicProposal.id });
-    return { status, proposalId: row!.id };
+    return await db.transaction(async (sp) => {
+      const [row] = await sp
+        .insert(topicProposal)
+        .values({
+          verticalId: ctx.verticalId, topicId: valid ? parsed!.id : '', name: valid ? name : '', description: valid ? description : '', status,
+          otherCount: ctx.otherCount, sampleReviewIds: ctx.sampleReviewIds,
+        })
+        .returning({ id: topicProposal.id });
+      return { status, proposalId: row!.id };
+    });
   } catch (err) {
     if (valid && isUniqueViolation(err)) return { skipped: 'a proposal is awaiting approval' };
     throw err;
@@ -249,8 +253,8 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
     } catch (err) {
       if (err instanceof AiPausedError) {
         // Spend-paused: no batch, and the synchronous path would be refused as well; tomorrow's run tries again.
-        console.warn(`[review-insights] topic discovery skipped: ${err.message}`);
-        sync = false;
+        // Rethrown so the worker's runJob maps it (platform -> defer, client -> skipped: spend_paused).
+        throw err;
       } else if (err instanceof BatchSubmitError) {
         // The provider rejected the submission (e.g. a misconfigured key): nothing is in flight, so run the sync path tonight.
         console.warn(`[review-insights] ${err.message}; running topic discovery synchronously`);

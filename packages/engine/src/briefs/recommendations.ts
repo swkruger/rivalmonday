@@ -140,7 +140,9 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
     } catch (err) {
       out.failed++;
       // A spend-guard refusal is not an AI outcome: the move is offered again once the pause lifts.
-      if (!(err instanceof AiPausedError)) await backoff(m).catch(() => undefined);
+      // It is rethrown so the worker's runJob maps it (platform -> defer, client -> skipped: spend_paused).
+      if (err instanceof AiPausedError) throw err;
+      await backoff(m).catch(() => undefined);
       console.warn(`[briefs] move recommendation for ${m.id} failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }

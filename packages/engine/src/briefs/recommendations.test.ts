@@ -1,5 +1,5 @@
-import { createAccessContext } from '@cs/core';
-import { client, feedback, move, moveEvent, recommendation } from '@cs/db';
+import { AiPausedError, createAccessContext } from '@cs/core';
+import { changeEvent, client, feedback, move, moveEvent, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -109,6 +109,20 @@ describe('recommendForMoves backoff (7b1 Decision 5)', () => {
     expect(await state()).toMatchObject({ a: 1 });
     await dbs.owner.update(move).set({ moveType: 'no_such_move_type', recAttempts: 0, recRetryAfter: null }).where(eq(move.id, moveId));
     expect(await run(ai, day(1))).toMatchObject({ skipped: 1 });
+    expect(await state()).toEqual({ a: 0, r: null });
+    // No live events: every supporting event retracted.
+    await dbs.owner.update(move).set({ moveType: 'price_war' }).where(eq(move.id, moveId));
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(0) });
+    const before = ai.calls.chat.length;
+    expect(await run(ai, day(2))).toMatchObject({ skipped: 1 });
+    expect(ai.calls.chat).toHaveLength(before);
+    expect(await state()).toEqual({ a: 0, r: null });
+  });
+
+  it('a spend pause is rethrown (for the worker to map) and does not count as an attempt', async () => {
+    const paused = new AiPausedError('client');
+    const ai = createFakeAi({ chat: () => { throw paused; }, decide: supportAll });
+    await expect(run(ai, day(0))).rejects.toBe(paused);
     expect(await state()).toEqual({ a: 0, r: null });
   });
 

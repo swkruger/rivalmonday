@@ -23,7 +23,7 @@ export async function collectModelBatches(deps: { db: Db; ai: Ai }, opts: { now?
   const r: BatchCollectResult = { checked: 0, ended: 0, applied: 0, failed: 0, expired: 0 };
   const swept = await deps.db
     .update(modelBatch)
-    .set({ status: 'failed', error: 'orphaned before submit', endedAt: now })
+    .set({ status: 'failed', error: 'orphaned before submit (check provider)', endedAt: now })
     .where(and(eq(modelBatch.status, 'pending'), lt(modelBatch.createdAt, new Date(now.getTime() - BATCH_PENDING_STALE_MINUTES * 60_000))))
     .returning({ id: modelBatch.id });
   r.expired += swept.length;

@@ -1,3 +1,4 @@
+import { AiPausedError } from '@cs/core';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
@@ -21,6 +22,7 @@ export function createMovesJobs(deps: WorkerDeps, queue: { enqueueMovesClient(cl
       try {
         workerLog.info(`[moves-client] ${clientId} recommendations → ${JSON.stringify(await deps.recommendForMoves(clientId))}`);
       } catch (err) {
+        if (err instanceof AiPausedError) throw err; // runJob maps a spend pause (defer / skipped: spend_paused)
         workerLog.warn(`[moves-client] ${clientId} recommendations failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     },

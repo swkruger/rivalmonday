@@ -8,7 +8,7 @@ import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
 import { collectModelBatches } from '../model-ops/batches';
 import { createPackLoader } from '../tag/tag-stage';
-import { decideTopicProposal, discoverTopic, runReviewInsights, submitTopicDiscoveryBatch, THEME_BATCH_TASK } from './discovery';
+import { applyTopicProposal, decideTopicProposal, discoverTopic, runReviewInsights, submitTopicDiscoveryBatch, THEME_BATCH_TASK } from './discovery';
 import { buildReviewQuestions, themeKey, topicsForVertical } from './topics';
 
 const dbs = openTestDbs();
@@ -216,9 +216,25 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
     const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => { throw paused; } } });
     await expect(submitTopicDiscoveryBatch({ db: dbs.service, ai, packs }, ['hvac_plumbing'], { now })).rejects.toBe(paused);
     expect(await dbs.owner.select().from(modelBatch)).toMatchObject([{ status: 'failed', providerBatchId: null }]);
-    const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
-    expect(r).toMatchObject({ batched: 0, batchFallbacks: 0, proposals: 0, errors: 0 });
+    // runReviewInsights rethrows it (no sync fallback) so the worker's runJob can map the pause.
+    await dbs.owner.update(modelBatch).set({ status: 'failed' });
+    await expect(runReviewInsights({ db: dbs.service, ai, packs }, { now })).rejects.toBe(paused);
     expect(ai.calls.chat).toEqual([]);
+    expect((await dbs.owner.select().from(modelBatch)).every((b) => b.status === 'failed')).toBe(true);
+  });
+
+  it('a proposed row slipped in between prepare and apply does not abort the batch transaction', async () => {
+    await dbs.owner.insert(topicProposal).values({ verticalId: 'hvac_plumbing', topicId: 'other_theme', name: 'Other', description: 'd', status: 'proposed', otherCount: 1 });
+    const ctx = { verticalId: 'hvac_plumbing', topicIds: [], rejectedIds: [], otherCount: 20, sampleReviewIds: [] } as never;
+    const out = await dbs.service.transaction(async (tx) => {
+      // Hide the committed row from the early re-read so the insert itself hits topic_proposal_pending_unique.
+      const blind = new Proxy(tx, { get(t, p, r) { if (p === 'select') return () => ({ from: () => ({ where: async () => [] }) }); const v = Reflect.get(t, p, r); return typeof v === 'function' ? v.bind(t) : v; } });
+      const res = await applyTopicProposal(blind as never, ctx, JSON.stringify(WARRANTY));
+      await tx.update(modelBatch).set({ error: 'still usable' }); // would throw "current transaction is aborted" without the savepoint
+      return res;
+    });
+    expect(out).toEqual({ skipped: 'a proposal is awaiting approval' });
+    expect((await dbs.owner.select().from(topicProposal)).filter((p) => p.status === 'proposed')).toHaveLength(1);
   });
 
   it('re-applying an ended batch creates no second proposal', async () => {
@@ -249,7 +265,7 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
     expect(r).toMatchObject({ checked: 0, expired: 1 });
     const rows = await dbs.owner.select().from(modelBatch).orderBy(modelBatch.createdAt);
     expect(rows.map((x) => x.status)).toEqual(['failed', 'pending']);
-    expect(rows[0]).toMatchObject({ error: 'orphaned before submit', endedAt: expect.any(Date) });
+    expect(rows[0]).toMatchObject({ error: 'orphaned before submit (check provider)', endedAt: expect.any(Date) });
   });
 
   it('applies an ended batch: proposes the topic and closes the batch', async () => {
