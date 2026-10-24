@@ -243,3 +243,63 @@ Not changed: the "Agency management is coming soon" line (15c-3). Overview chart
 | After any resend click | Button "Resend in {n} s" (disabled, counts down from 60) |
 | Result line (every outcome: sent, unknown address, limit reached) | "If that address can sign in, a new email is on its way." |
 | Resend after the 15-minute window | The button becomes a link "Start again" (to `/sign-in` or `/sign-up`) |
+
+## 15c-2b
+
+### 2b-1
+
+Page groups: Ask, Platform > Ask, Changes, Evidence, Moves, plus the 15c-2a items applied in Task 0. Source of truth is the code; each row names file:line (paths under `apps/web/src/`).
+
+### Owner decisions
+1. **Reviewers can read a deleted conversation (P17).** Is saying reviewers can still read a deleted conversation (while review is allowed) the wording you want? Client guides now read: "Delete a conversation with the bin icon beside it and confirm. It leaves your list for good. While conversations may be reviewed (the line under the box), the people it names can still read it."
+2. **Client `privacy` tip.** `help/copy/client.ts:325` still ends "Delete a thread with the bin icon beside it." Add the P17 sentence there too (and say "conversation")?
+
+#### Ask > delete (client)
+| Where | Copy |
+|---|---|
+| Bin button label / tooltip (`components/ask/thread-list.tsx:33-34`) | aria-label "Delete conversation “{title}”"; tooltip "Delete conversation" |
+| Dialog title / body / button (`thread-list.tsx:40-42`) | "Delete this conversation?" / "It disappears from your list. This can't be undone." / "Delete" (danger) |
+| Row error (`thread-list.tsx:22-25`, `ask/actions.ts:134-135`) | The tool's error text under the row (e.g. "Not found"); cleared on the next attempt |
+| Deleted in another tab (`components/ask/ask-chat.tsx:159-176`) | No message: the next question opens a new conversation |
+| Guides (`docs/help/pages/client.ask.client.md:23`, `client.ask.thread.md:19`) | P17 paragraph above; "Its messages are deleted with it." removed |
+
+#### Platform > Ask (operator)
+| Where | Copy |
+|---|---|
+| List chip (`app/(platform)/platform/ask/page.tsx:63`) | Chip (neutral) "Deleted by user" |
+| Thread subtitle (`platform/ask/[threadId]/page.tsx:59`) | Chip "Deleted by user" then "Deleted {date, time, zone}." |
+| Flags tip (`help/copy/platform.ts:292`) | "... Deleted by user: the person removed it from their list; it stays here for review." |
+| Guides (`docs/help/pages/platform.ask.operator.md:16`, `platform.ask.thread.operator.md:8`) | Same sentence |
+
+#### Changes (`app/(app)/c/[clientId]/changes/`)
+| Where | Copy |
+|---|---|
+| Tab label (`viewer.tsx:28`) | "Whole page" (web changes with an after capture only) |
+| Tabs nav label (`viewer.tsx:205`) | "Evidence views" (aria-label) |
+| `ListDetail` titles (`page.tsx:118-119`) | list region "Changes"; phone sheet title "Change details" |
+
+#### Moves (`app/(app)/c/[clientId]/moves/page.tsx:156-157`)
+| Where | Copy |
+|---|---|
+| `ListDetail` titles | list region "Moves"; phone sheet title "Move details" |
+
+#### Whole-page diff (`components/whole-page-diff.tsx`)
+| Where | Copy |
+|---|---|
+| Chips (`:30`) | "Added" (success) / "Removed" (danger) / "Changed" (info) |
+| Header (`:93`) | "Compared with the capture from {date, time, zone}" |
+| Collapsed run (`:79`) | "{n} unchanged sections" (runs of more than 2) |
+| Masked (`:69`) | "{n} sections change on every visit and are hidden." |
+| Truncated (`:70`) | "This page changed too much to compare word by word, so some sections show as removed and added in full." |
+| First capture (`:66`) | "This is the first capture of this page, so there is nothing to compare yet." |
+| No blocks / not web (`:67`) | "Comparison not available for this capture." |
+| No differences (`:71`) | "No differences on this page." |
+| Screen-reader text (`:38,42`) | "added: {text}" / "removed: {text}" |
+| Evidence page section (`evidence/[evidenceId]/page.tsx:169`) | Heading "Compare with previous" (web captures) |
+
+#### Applied from 15c-2a sign-off (Task 0, for the record)
+| Where | Copy |
+|---|---|
+| Branding editor (`components/agency/branding-editor.tsx:121`) | "Buttons will use dark text so they stay readable." removed |
+| Agency billing (`agency/settings/billing/page.tsx:118`, guide `agency.settings.billing.agency.md:11`) | "Download client report (CSV)" |
+| Team invites cell (`agency/settings/team/page.tsx:119`) | "{date} · expires {date}" (no "Sent") |

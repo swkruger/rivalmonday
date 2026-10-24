@@ -1,72 +1,44 @@
 # phase-15c2b — page fixes: client pages, ListDetail, compare_captures, Ask delete
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c2b   **Base:** main @ 8e89d375
+**Kind:** feature (2b-1), then sweep (2b-2)   **Worktree:** ../CompetitorSpy-wt/phase-15c2b   **Base:** main @ 8e89d375
 **Plan/spec:** [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) + [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) · [2b-1 plan](../superpowers/plans/2026-10-23-phase-15c2b1-features.md) (2b-2 plan after 2b-1)
 
 ## Status (overwrite)
-Spec approved 2026-10-23 (D9–D15). 2b-1 plan written, awaiting owner approval.
+2b-1 Tasks 0-12 done; final whole-branch review next. E2E `e2e:affected` was 136/136 at Task 11. Copy sign-off: `docs/archive/phase-15c2-copy-signoff.md` § 15c-2b (2 owner questions).
 
 ## Next (overwrite)
-Owner approves 2b-1 plan → SDD from Task 0. 2b-2 planned after 2b-1 and after phase-7b1 merges.
+Final 2b-1 review + fix wave -> owner: verify + decide merge of 2b-1 or continue to 2b-2 planning after phase-7b1 merges.
 
 ## Interfaces this branch adds or changes
-Planned: migration `ask_thread.deleted_at` (next free at execution); tools `delete_ask_thread` (replaces `delete_my_ask_thread`), `compare_captures`; `components/list-detail.tsx`; `GATED_PATHS` extended to all `src`.
+- Migration **0089** `ask_thread_deleted_at` (`ask_thread.deleted_at`, live index, owner grant). If phase-7b1 merges first its 0085-0087 move to 0089-0091 and ours becomes >= 0092 (renumber at rebase).
+- Tools: `delete_ask_thread` (input `{ clientId, threadId }`, soft delete, replaces `delete_my_ask_thread`); `compare_captures` (web-only, read-only, `get_evidence` access, returns `CaptureCompareView`). Tenant reads filter `deleted_at IS NULL`; operators see deleted threads (`deletedAt` on `ReviewableAskThreadItem`).
+- `components/list-detail.tsx`: `ListDetail` props `list, detail, selectedId, sheetOpen, closeHref, listLabel, detailTitle, empty?`; `list-detail-sheet.tsx` (phone Sheet, URL-driven); `whole-page-diff.tsx`.
+- `AskEvent` `final.messageId: string | null`; `assistantNameForRequest` in `apps/web/src/server/ask.ts`; `AREAS_2B` in `apps/web/src/lib/page-gates.ts`; Changes `?tab=page`, `effectiveTab` in `changes/params.ts`.
 
 ## Assumes from other branches
-- **phase-7b1** (executing, unmerged): migrations 0085–0087 on its branch, renumber to 0089–0091 → our next free at execution likely **≥ 0092**. Edits files we sweep: `c/[clientId]/rankings/{actions,scan-copy,scan-now-button}`, new `c/[clientId]/settings/usage/page.tsx`, `settings/layout.test.tsx`, `lib/format/money.ts`, `help/copy/client.ts`, `server/ask.ts`, `packages/ask/src/{quota,turn,starters}.ts` (our deleted-thread filter hits the same `quota.ts`/`turn.ts`), `e2e/client-billing.spec.ts`. Second to merge rebases.
-- **phase-16** (brief only, no code): restyles all 26 client pages, `Card`/shadow codemod (09 PR 4) on every page, `sheet.tsx` bottom variant, `changes/viewer.tsx` → 440px peek panel (D-21), Ask docked panel (D-14). Its brief assumes 15c2 work lands first and it rebases. See Q2.
+- **phase-7b1** (unmerged): migrations renumber (above); touches `server/ask.ts`, `packages/ask/src/{quota,turn,starters}.ts` and client pages 2b-2 sweeps (`settings/usage`, rankings scan-now). Second to merge rebases.
+- **phase-16** (brief only): restyles client pages, `sheet.tsx` bottom variant, Ask docked panel; assumes 15c2 lands first.
 
 ## Decisions (owner-approved)
-None yet beyond 15c spec C1–C11 and 15c-2 spec D1–D8.
+Spec D9-D15 and plan P1-P18 (see plan). Owner chose: split 2b (2b-1 features, 2b-2 sweep), 2b before phase-16, right Sheet for the phone detail, wait for 7b1 before the sweep, all five 6b Ask items.
 
-## New backlog (target → item)
-None yet.
+## New backlog (target -> item)
+- Message-keyed server dedupe for "save as recommendation" (P6; changes `add_recommendation` input) -> only if the owner wants it; today a reload shows the button again.
+- Client `privacy` tip (`help/copy/client.ts:325`) still says "Delete a thread with the bin icon beside it." -> owner question 2 in the sign-off.
 
 ## Owner verification steps
-TBD.
+1. On `cs_dev`, ask a question, delete it via the dialog, confirm it is gone and `/platform/ask` shows "Deleted by user".
+2. A client without review allowed: the deleted thread is absent from `/platform/ask`.
+3. Changes on a web price change: the "Whole page" tab shows collapsed unchanged sections and chips; a review/ad change shows no such tab.
+4. The evidence page of a web capture shows "Compare with previous".
+5. Phone width (DevTools 390 px): Changes and Moves open the detail in a right sheet only after tapping an item; back and Esc close it.
+6. Save an Ask answer as a recommendation twice quickly: one row.
 
-## Brief
-### 1. Scope
-Roadmap row 15 lists "15c-2b client pages … to be planned". Build (15c-2 spec D1, §4.2 2b):
-- **Sweep `(app)/c/[clientId]/**`** (all 26 client routes) + remaining components (views, charts, ask, rival…) to "fixed" (§4.1): chips+labels, `lib/format/*` in the **client's** zone (C8), confirms, `SaveBar`, `Suspense`+`PageSkeleton`, labelled controls, no tips in `CardTitle`, empty states, help keys.
-- **Grep gates 1–4** (§5) on the rest; the last task asserts them over all `src`.
-- **`ListDetail`** (15c §4 C9 + 15c-2 §7): two columns ≥ `lg`, right `Sheet` below via `matchMedia` client wrapper, `listLabel`/`detailTitle`, close → `router.push(closeHref)`; Changes + Moves adopt it. Changes gets real `TabsLink` tabs (`?tab=`, unknown → first).
-- **`compare_captures`** (15c §4, 15c-2 §7): previous `ok` web capture of the same `tracked_page`; `loadBlocks`+`alignBlocks`, `wordDiff` segments + `maskedCount`, `MAX_DIFF_CELLS` → `truncated`; no `ensureBlocks`; `get_evidence` access. "Whole page" tab in Changes viewer + "Compare with previous" on evidence page; > 2 unchanged blocks collapse.
-- **Ask soft delete** (§3, D3, D8): migration (§3.1 SQL), `delete_ask_thread` (§3.2 copy for sign-off), readers filter `deleted_at` (§3.3), `confirmAskAction` thread check, operator chip "Deleted by user".
-- **Folded Polish** (§4.3, D5): Ask UI (6b), feed hex → token, heatmap "Show as table" (last, topic-file task, D2/C7: now `topic-heatmap.tsx`, Reviews `?topic=`, 15b-3b merged).
-- **Task 0** (STATE, sign-off doc line 10): proposals 3 (drop branding contrast line), 6 ("Download client report (CSV)"), 8 (drop "Sent" in Team invite cell); `runbook-editor` flake. Copy goes in a new § 15c-2b of `docs/archive/phase-15c2-copy-signoff.md`.
-- Tests §8; E2E: Ask delete, 390 px Changes sheet.
+## Brief (short)
+Scope: 2b-1 = Ask soft delete + folded 6b Ask polish, `compare_captures` + whole-page diff, `ListDetail` (Changes, Moves), Task 0 (15c-2a proposals 3, 6, 8; runbook-editor flake). 2b-2 = sweep of all `(app)/c/[clientId]/**` to "fixed" (chips, `lib/format/*` in the client's zone, confirms, `SaveBar`, `Suspense`+`PageSkeleton`, labelled controls, help keys), grep gates 1-4 over all `src` (`GATED_PATHS`), folded polish (feed hex -> token, heatmap "Show as table" in `topic-heatmap.tsx`), routed items listed in the 15c-2 backlog entry in `docs/BACKLOG.md`.
 
-### 2. Already built — reuse, don't rebuild
-- `@cs/ui`: `StatusChip`, `ConfirmDialog`, `SaveBar`, `Skeleton`, `Sheet`, `TabsLink`.
-- Web: `lib/labels.ts` (`labelFor`, `REVIEW_STATUS`, `BRIEF_STATUS`, `ASK_MESSAGE_STATUS`, `EVIDENCE_KIND`, `CLIENT_AUDIENCE_MAPS`), `lib/format/*`, `lib/page-gates.ts` (`AREAS_2A`, `GATED_PATHS`, `// format-gate:`), `components/{page-skeleton,prev-next,form-error,evidence-chips}.tsx`, `views/*-view.tsx`, `charts/topic-heatmap.tsx`, `ask/{thread-list,ask-chat}.tsx`.
-- Tools: `tools/ask-threads.ts` (`delete_my_ask_thread` hard-deletes today), `tools/evidence.ts` (`compare_snapshots`, 5c-1), `workspace/word-diff.ts` (`wordDiff`, `MAX_DIFF_CELLS`); engine `web/{blocks,align,volatile,diff-stage}.ts`.
-- Changes: `c/[clientId]/changes/{viewer,feed,diff-text,params}.tsx`; Moves `move-card.tsx`.
+Reuse: `@cs/ui` (`StatusChip`, `ConfirmDialog`, `SaveBar`, `Sheet`, `TabsLink`), `lib/labels.ts`, `lib/format/*`, `lib/page-gates.ts`, `views/*-view.tsx`; engine `web/{blocks,align,volatile}`; `wordDiff`/`MAX_DIFF_CELLS`.
 
-### 3. Binding decisions
-Root `CLAUDE.md` § Decisions: DS v1 for all UI; Phase 15 (PageHeader + help key, Ask first); 15c (miles, tz, no route `loading.tsx`, C1–C11); 15b help (owner signs copy, no agency wording to clients); white-label; writes via `runTool`, refusals → 404. 15c-2 D1–D8. **DS v1 vs phase-16:** DS is binding, but its tokens/primitives land in phase-16 (09 §9); 09 §458 says land 15c-2 first or fold into PR 7/8, never both on the same files in parallel.
+Binding: root `CLAUDE.md` Decisions (DS v1, Phase 15/15b/15c, white-label, writes via `runTool`, refusals -> 404); DS tokens/primitives arrive in phase-16, so new UI uses today's tokens (sections before cards, no new shadows, chip grammar).
 
-### 4. Backlog to fold in (verbatim)
-- "**15c-2b** client pages (15c-2 spec D1, D8, §3, §4.2–4.3, §7 …): `ListDetail` sheet below `lg` (Changes, Moves), `compare_captures` whole-page diff + evidence section, Ask soft delete (migration after 0088), sweep `(app)/c/[clientId]/**` (labels, dates, confirms; mobile mockups first), grep gates 1–4 on the remaining areas and a last task over all `src` (extend `GATED_PATHS`). Routed items: changes viewer `formatFullUtc`, `competitors/[competitorId]/page.tsx:36`, `rankings/page.tsx:35,223`, `report-view.tsx:6`, `prospect-landscape.tsx:48`, `pitch-snapshot/page.tsx:40`, BriefView/AlertView mixed dates, briefs tab list overflow, Moves "N signals" → "N changes", Report empty state, "Google place id" label, Ask visibility line, alert-rules band bar, client billing guide "Not available", tips inside `CardTitle`, `formatWeekOf` caller, per-page REVIEW_STATUS maps; folded Polish: Ask UI (6b), feed hex → token, heatmap "Show as table". **Task 0:** fix flaky `runbook-editor.test.tsx` … ; apply 15c-2a sign-off proposals 3, 6, 8 … Coordinate with **phase-16**" — *phase-15c2*
-- "Ask UI: thread delete is one-click with error only in a tooltip; save dialog allows duplicate saves; pre-persist error has empty `messageId`; quota 0 shows "N of 0"; `assistantName` read twice" — *from 6b*
-- "Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); alert-rules "3 a day" text hard-coded" — *from 5c-1*
-- "Heatmap "Show as table" cells unstyled and omit the delta; SVG text shrinks at phone width" — *from 5c-2 Task 11*
-- D5 candidates: BACKLOG § Evidence, timeline & profile and § Data views items on client pages — plan decides each.
-
-### 5. In-flight workstreams
-See **Assumes from other branches**.
-
-### 6. Open questions for the owner
-1. **Split 15c-2b?** a) one plan (D1 as written); b) **2b-1 features** (Ask delete + migration, `compare_captures`, `ListDetail`, Task 0) → **2b-2 sweep + gates + topic-heatmap task**; c) split by page groups. *Rec b:* features are mostly backend and DS-neutral; the sweep is what collides with phase-16 and 7b1.
-2. **Sequencing vs phase-16.** a) **2b first on today's UI; phase-16 rebases** — new UI (ListDetail, diff, confirms) follows DS rules expressible with current tokens (sections before cards, no new shadows, chip grammar); phase-16 starts only `packages/ui`/shell work in parallel, its container sweep (PR 4) after 2b merges; b) build client pages to DS v1 now — needs DS tokens/primitives that don't exist yet; c) wait and fold 2b's sweep into phase-16's client-page sub-phase. *Rec a* (09 §458; phase-16 brief Q3 assumes it).
-3. **Mobile detail shape.** a) right `Sheet` per 15c §4/C9; phase-16 PR 10 may switch; b) DS bottom sheet (`side="bottom"`) / 440px peek panel (D-21) now. *Rec a:* C9 stands; DS primitives arrive later.
-4. **Order vs phase-7b1.** a) **wait for 7b1 to merge, then sweep its client pages** (`settings/usage`, rankings scan-now); b) exclude 7b1's files and gate them later. *Rec a* (7b1 executing; 2b-1 can start first).
-5. **6b Ask polish scope.** a) **all five 6b items**; b) delete-related only. *Rec a* (D5).
-
-## Pre-flight findings (2b-1 Task 0, 2026-10-23)
-- Rebase on main: already up to date. Main's last migration is `0088_email_resend_rls`; **this branch takes 0089** (generate with `--custom`/generate at that point; re-check just before merge).
-- 7b1 NOT merged (`phase-7b1` still in `--no-merged`). It touches `apps/web/src/server/ask.ts`, `packages/ask/src/{quota,starters,turn}.ts` (+tests) and carries migrations 0085-0087 numbered against an old base; main has since taken 0085-0088, so 7b1 must renumber to 0089+ on its rebase. Whichever merges second renumbers. Expect conflicts on `ask.ts`/`turn.ts` for the Ask-delete task.
-- Conflict scan: `delete_my_ask_thread` appears in `packages/tools/src/tools/{ask-threads,ask-threads.test,access-marks.test}.ts`, `c/[clientId]/ask/actions(.test).ts`, `packages/ask/src/turn.test.ts`, 8b doc and the 15c2 specs (as expected). Tab selectors in e2e: `rankings.spec.ts` (Trend, Compare), `workspace.spec.ts` (Text changes, Capture details). `loadBlocks`, `alignBlocks`, `maskedBlockKeys` are exported from `@cs/engine` (`export *` of web/blocks, align, volatile). `capture_block` has a SELECT RLS policy `app_competitor_visible(competitor_id)` (0016), no write grants for app roles.
-- D14 copy 3, 6, 8 applied; no other "Download seat report" / "Buttons will use dark text" in apps/web or e2e (invite-form.test.tsx fixtures still carry "Sent ..." as plain strings, unrelated).
-- Flake cause (test, not app): `UpdatePrompts` flips `stage` to `tailored` inside the `retailor` transition, so Approve renders disabled until the transition settles; the test clicked it immediately (no-op), so only `retailor` had been called. Fixed by waiting for Approve to be enabled and `findByRole` for "Use as is".
-- E2E on 3100, never two suites at once (no E2E_PORT in .env).
+Pre-flight (Task 0): rebase on main clean; 7b1 not merged; `capture_block` readable via RLS `app_competitor_visible`; runbook-editor flake was a test race (Approve disabled until the retailor transition settled), fixed. E2E on 3100, never two suites at once.
