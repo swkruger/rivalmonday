@@ -10,11 +10,11 @@ export function DiffText({ segments }: { segments: CompareView['diff'] }) {
     <p className="whitespace-pre-wrap rounded-lg bg-muted-surface p-4 font-mono text-sm leading-relaxed">
       {segments.map((s, i) =>
         s.op === 'delete' ? (
-          <del key={i} aria-label={`removed: ${s.text}`} className="bg-[#FEE2E2] text-[#B91C1C]">
+          <del key={i} aria-label={`removed: ${s.text}`} className="bg-chip-danger-bg text-chip-danger-text">
             {s.text}
           </del>
         ) : s.op === 'insert' ? (
-          <ins key={i} aria-label={`added: ${s.text}`} className="bg-[#DCFCE7] text-[#15803D] no-underline">
+          <ins key={i} aria-label={`added: ${s.text}`} className="bg-chip-success-bg text-chip-success-text no-underline">
             {s.text}
           </ins>
         ) : (

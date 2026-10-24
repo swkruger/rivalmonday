@@ -260,10 +260,10 @@ export const CLIENT_COPY = {
         body: 'Emerging: just spotted. Active: it has held for 7 days, or the evidence is strong. Fading: no new supporting change for 30 days. Closed: the pattern has not held for 30 days. Open covers every move that is not closed.',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: apps/web/src/app/(app)/c/[clientId]/moves/move-card.tsx (eventCount shown as "N signals"); packages/tools/src/tools/moves.ts (eventCount = live supporting events)
+      // source: apps/web/src/app/(app)/c/[clientId]/moves/move-card.tsx (eventCount shown as "N changes"); packages/tools/src/tools/moves.ts (eventCount = live supporting events)
       signals: {
-        title: 'Signals on a move',
-        body: 'The signals on a move are the changes that support it: "3 signals" means three changes by this competitor fit the pattern. The list shows each one with its evidence. They are not the signal pills on the Competitors page.',
+        title: 'Changes behind a move',
+        body: 'A move is backed by changes: “3 changes” means three changes by this competitor fit the pattern. The list shows each one with its evidence. They are not the signal pills on the Competitors page.',
         guideAnchor: 'how-to-use-it',
       },
     },

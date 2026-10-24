@@ -1,5 +1,5 @@
 import { hasFeature, hasPermission } from '@cs/core';
-import { type CaptureCompareView, changeTypeOptions, channelLabel, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
+import { type CaptureCompareView, changeTypeOptions, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -70,7 +70,7 @@ export default async function ChangesPage({
     helpGuides(ctx, 'client', clientId),
   ]);
   const services = (await verticalOptions()).find((v) => v.id === profile.verticalId)?.services.filter((s) => profile.services.includes(s.id)) ?? [];
-  const rows = feed.items.map((r) => ({ ...r, channels: r.channels.map(channelLabel) }));
+  const rows = feed.items;
   const selectedId = p.event ?? rows[0]?.eventId ?? null;
   const groups = groupByWeek(rows, new Date());
 
@@ -135,7 +135,7 @@ export default async function ChangesPage({
               </div>
             ) : (
               <>
-                <FeedList clientId={clientId} params={p} groups={groups} selectedId={selectedId} timezone={profile.timezone} />
+                <FeedList clientId={clientId} params={p} groups={groups} selectedId={selectedId} currentId={p.event ?? null} timezone={profile.timezone} />
                 {feed.hasMore && (
                   <div className="border-t border-line p-3 text-center">
                     <Link href={changesHref(clientId, { ...p, offset: p.offset + 50, event: undefined })} className="font-semibold text-primary-soft-text">

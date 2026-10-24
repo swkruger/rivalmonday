@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 const listDetail = vi.fn();
+const cards: { id: string; current: boolean; selected: boolean }[] = [];
 const M1 = '00000000-0000-4000-8000-0000000000a1';
 const M2 = '00000000-0000-4000-8000-0000000000a2';
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: 'agency_admin', features: new Set(['dashboard']) } }) }));
@@ -14,7 +15,7 @@ vi.mock('@/components/page-header', () => ({ PageHeader: () => null }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: () => null }));
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
-vi.mock('./move-card', () => ({ MoveCard: () => null, movesHref: (id: string, p: { status?: string; move?: string } = {}) => `/c/${id}/moves${p.status && p.status !== 'open' ? `?status=${p.status}` : ''}` }));
+vi.mock('./move-card', () => ({ MoveCard: (p: { move: { id: string }; current: boolean; selected: boolean }) => { cards.push({ id: p.move.id, current: p.current, selected: p.selected }); return null; }, movesHref: (id: string, p: { status?: string; move?: string } = {}) => `/c/${id}/moves${p.status && p.status !== 'open' ? `?status=${p.status}` : ''}` }));
 vi.mock('@/components/list-detail', () => ({ ListDetail: (p: unknown) => { listDetail(p); return null; } }));
 
 import MovesPage from './page';
@@ -34,7 +35,7 @@ const go = async (sp: Record<string, string> = {}) => {
 };
 
 describe('MovesPage ListDetail', () => {
-  beforeEach(() => { callTool.mockReset(); listDetail.mockReset(); mount(); });
+  beforeEach(() => { callTool.mockReset(); listDetail.mockReset(); cards.length = 0; mount(); });
 
   it('bare visit passes sheetOpen false with the first move selected', async () => {
     const p = await go();
@@ -42,6 +43,17 @@ describe('MovesPage ListDetail', () => {
     expect(p.selectedId).toBe(M1);
     expect(p.listLabel).toBe('Moves');
     expect(p.detailTitle).toBe('Move details');
+  });
+
+  it('moves: auto-selected card has no aria-current, ?move card has it', async () => {
+    let p = await go();
+    render(p.list as React.ReactElement);
+    expect(cards).toEqual([{ id: M1, current: false, selected: true }, { id: M2, current: false, selected: false }]);
+    cards.length = 0;
+    listDetail.mockReset();
+    p = await go({ move: M2 });
+    render(p.list as React.ReactElement);
+    expect(cards).toEqual([{ id: M1, current: false, selected: false }, { id: M2, current: true, selected: true }]);
   });
 
   it('?move= passes sheetOpen true', async () => {

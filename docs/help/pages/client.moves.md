@@ -7,9 +7,9 @@ title: Moves
 
 Patterns across several of a competitor's changes, such as a price war, a promo blitz or an ad surge. A single change is just a change; a move is what several of them add up to, and each move lists the changes behind it.
 
-- **The list on the left** shows each move with its competitor, its status, how many changes support it (for example "3 signals" over 21 days) and its confidence.
+- **The list on the left** shows each move with its competitor, its status, how many changes support it (for example "3 changes" over 21 days) and its confidence.
 - **Status** tells you where a move stands. **Emerging**: just spotted. **Active**: it has held for 7 days, or the evidence is strong. **Fading**: no new supporting change for 30 days. **Closed**: the pattern has not held for 30 days.
-- **Signals** on a move are the changes that support it. They are not the signal pills on the Competitors page.
+- **Changes** on a move are the ones that support it. They are not the signal pills on the Competitors page.
 - **Confidence** grows with each extra supporting change and each extra channel, such as the website and ads.
 - **The panel on the right** shows when the move was first detected, its latest evidence, key facts, and the **Evidence chain**: every supporting change with its score.
 

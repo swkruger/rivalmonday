@@ -163,7 +163,7 @@ export default async function MovesPage({
             ) : (
               <div className="flex flex-col gap-1">
                 {items.map((m) => (
-                  <MoveCard key={m.id} move={m} selected={m.id === selectedId} href={movesHref(clientId, { status, move: m.id })} />
+                  <MoveCard key={m.id} move={m} selected={m.id === selectedId} current={m.id === moveParam} href={movesHref(clientId, { status, move: m.id })} />
                 ))}
               </div>
             )}

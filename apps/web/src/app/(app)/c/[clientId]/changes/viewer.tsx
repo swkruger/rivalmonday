@@ -5,21 +5,18 @@
  */
 import type { CaptureCompareView, CompareView, EventDetail, SnapshotSide } from '@cs/tools';
 import { humanise } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, TabsLink, TabsLinkList } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip, TabsLink, TabsLinkList } from '@cs/ui';
 import Link from 'next/link';
 import { EvidenceImage } from '@/components/evidence-image';
 import { WholePageDiff } from '@/components/whole-page-diff';
 import { HelpTip } from '@/components/help/help-tip';
 import { submitFeedbackAction } from './actions';
 import { DiffText } from './diff-text';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { CAPTURE_STATUS, labelFor, MOVE_STATUS } from '@/lib/labels';
 import { FeedbackButtons } from './feedback-buttons';
 import { RoutePill } from './feed';
 import { changesHref, effectiveTab, type ChangesParams } from './params';
-
-function formatFullUtc(iso: string): string {
-  return new Date(iso).toUTCString();
-}
 
 const TABS: { id: ChangesParams['tab']; label: string }[] = [
   { id: 'side', label: 'Side by side' },
@@ -37,7 +34,7 @@ function FactorBar({ label, value, sub }: { label: string; value: number; sub?: 
         <span className="tabular-nums text-muted-foreground">{value.toFixed(2)}</span>
       </div>
       <div className="h-[6px] w-full overflow-hidden rounded-full bg-muted-surface-2">
-        <div role="img" aria-label={value.toFixed(2)} className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+        <div role="img" aria-label={`${label} ${value.toFixed(2)}`} className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
@@ -71,7 +68,7 @@ function Snapshot({ clientId, label, side, pageUrl, timezone }: { clientId: stri
   );
 }
 
-function CaptureDetails({ clientId, label, side }: { clientId: string; label: string; side: SnapshotSide | null }) {
+function CaptureDetails({ clientId, label, side, timezone }: { clientId: string; label: string; side: SnapshotSide | null; timezone: string }) {
   const evidenceId = side?.screenshot?.evidenceId ?? side?.textEvidenceId ?? null;
   return (
     <div className="flex flex-col gap-3">
@@ -79,11 +76,17 @@ function CaptureDetails({ clientId, label, side }: { clientId: string; label: st
       <dl className="flex flex-col gap-3">
         <div>
           <dt className="text-xs font-medium text-muted-foreground">Captured</dt>
-          <dd>{side ? formatFullUtc(side.capturedAt) : '—'}</dd>
+          <dd>{side ? formatDateTime(side.capturedAt, { tz: timezone, zoneLabel: true }) : '—'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-muted-foreground">Status</dt>
-          <dd>{side?.status ?? '—'}</dd>
+          <dd>
+            {side ? (
+              <StatusChip tone={labelFor(CAPTURE_STATUS, side.status).tone}>{labelFor(CAPTURE_STATUS, side.status).label}</StatusChip>
+            ) : (
+              '—'
+            )}
+          </dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-muted-foreground">SHA-256</dt>
@@ -237,9 +240,9 @@ export function EventViewer({
               {tab === 'text' && (
                 <div className="flex flex-col gap-3">
                   {compare.facts.length > 0 && (
-                    <span className="inline-flex w-fit items-center rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                    <StatusChip tone="neutral" className="w-fit">
                       {compare.facts.length} number change{compare.facts.length === 1 ? '' : 's'}
-                    </span>
+                    </StatusChip>
                   )}
                   <DiffText segments={compare.diff} />
                   {compare.facts.length > 0 && (
@@ -259,8 +262,8 @@ export function EventViewer({
 
               {tab === 'details' && (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <CaptureDetails clientId={clientId} label="Before" side={compare.before} />
-                  <CaptureDetails clientId={clientId} label="After" side={compare.after} />
+                  <CaptureDetails clientId={clientId} label="Before" side={compare.before} timezone={timezone} />
+                  <CaptureDetails clientId={clientId} label="After" side={compare.after} timezone={timezone} />
                 </div>
               )}
             </CardContent>
@@ -278,7 +281,7 @@ export function EventViewer({
                     href={`/c/${clientId}/moves?status=all&move=${m.id}`}
                     className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-ink"
                   >
-                    {m.label} · {m.status}
+                    {m.label} · {labelFor(MOVE_STATUS, m.status).label}
                   </Link>
                 ))}
               </div>

@@ -198,11 +198,11 @@ describe('client batch A: descriptions and tips by audience', () => {
     }
   });
 
-  it('Moves: statuses tip, and the signals tip once a move is selected', async () => {
+  it('Moves: statuses tip, and the changes tip once a move is selected', async () => {
     for (const audience of ['client', 'agency'] as const) {
       await show(page('client.moves'), audience);
       expect(screen.getByText(/Patterns across several changes/)).toBeTruthy();
-      tipNames(['Move statuses', 'Signals on a move']);
+      tipNames(['Move statuses', 'Changes behind a move']);
       cleanup();
     }
   });

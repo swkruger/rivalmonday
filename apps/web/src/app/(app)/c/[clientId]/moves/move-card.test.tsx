@@ -20,9 +20,21 @@ const move = {
 };
 
 describe('MoveCard', () => {
-  it('names the move, its status, signal count and span', () => {
-    render(<MoveCard move={move} selected={false} href="/x" />);
+  it('names the move, its status, change count and span', () => {
+    render(<MoveCard move={move} selected={false} current={false} href="/x" />);
     expect(screen.getByRole('link', { name: /Territory expansion · Peachtree Air Pros/ })).toBeTruthy();
-    expect(screen.getByText('Emerging · 3 signals over 21 days · confidence 55%')).toBeTruthy();
+    expect(screen.getByText('Emerging · 3 changes over 21 days · confidence 55%')).toBeTruthy();
+  });
+
+  it('move card reads "Emerging · 3 changes over 21 days · confidence 55%" and singular for one', () => {
+    render(<MoveCard move={{ ...move, eventCount: 1 }} selected={false} current={false} href="/x" />);
+    expect(screen.getByText('Emerging · 1 change over 21 days · confidence 55%')).toBeTruthy();
+  });
+
+  it('aria-current follows current, not selected', () => {
+    const { rerender } = render(<MoveCard move={move} selected current={false} href="/x" />);
+    expect(screen.getByRole('link').getAttribute('aria-current')).toBeNull();
+    rerender(<MoveCard move={move} selected current href="/x" />);
+    expect(screen.getByRole('link').getAttribute('aria-current')).toBe('true');
   });
 });

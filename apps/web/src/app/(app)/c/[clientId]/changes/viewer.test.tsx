@@ -21,6 +21,29 @@ const P = (tab: ChangesParams['tab']): ChangesParams => ({ route: 'flagged', day
 const view = (compare: CompareView, tab: ChangesParams['tab']) =>
   render(<EventViewer clientId="c" params={P(tab)} detail={detail} compare={compare} canGiveFeedback={false} timezone="UTC" />);
 
+describe('EventViewer capture details', () => {
+  const zoned = (tz: string, after: unknown, d = detail) =>
+    render(<EventViewer clientId="c" params={P('details')} detail={d} compare={mk('web', after)} canGiveFeedback={false} timezone={tz} />);
+
+  it('captured time shows the client zone label, not toUTCString', () => {
+    zoned('America/New_York', { ...side, capturedAt: '2026-10-22T18:30:00Z' });
+    const text = document.body.textContent ?? '';
+    expect(text).not.toContain('GMT');
+    expect(text).toContain('2:30 PM ET');
+  });
+
+  it('capture status "robots_disallowed" reads "Site asks not to be monitored"', () => {
+    zoned('UTC', { ...side, status: 'robots_disallowed' });
+    expect(screen.getByText('Site asks not to be monitored')).toBeTruthy();
+    expect(screen.queryByText('robots_disallowed')).toBeNull();
+  });
+
+  it('part-of-moves links read the move status label', () => {
+    zoned('UTC', side, { ...detail, moves: [{ id: 'm1', label: 'Price war', status: 'emerging' }] } as unknown as EventDetail);
+    expect(screen.getByRole('link', { name: 'Price war · Emerging' })).toBeTruthy();
+  });
+});
+
 describe('EventViewer tabs', () => {
   it('tabs are links with aria-current', () => {
     view(mk('web', side), 'text');

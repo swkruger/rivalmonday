@@ -186,7 +186,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           <div className="mt-3 flex flex-col gap-1">
             {moves.items.length === 0 && <EmptyState {...COPY.empty.noMoves} />}
             {moves.items.slice(0, 3).map((m) => (
-              <MoveCard key={m.id} move={m} selected={false} href={movesHref(clientId, { move: m.id })} />
+              <MoveCard key={m.id} move={m} selected={false} current={false} href={movesHref(clientId, { move: m.id })} />
             ))}
           </div>
         </section>

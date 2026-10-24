@@ -3,30 +3,24 @@
  * is rendered entirely on the server, so it may freely import `@cs/tools` types (the restriction is only for client
  * components, HANDOVER §6). Reused by later tasks: `RoutePill` (9, 13), `changesHref`/`ChangesParams` (9, 11, 13).
  */
-import type { EventRow } from '@cs/tools';
-import { Button, Input } from '@cs/ui';
+import { channelLabel, type EventRow } from '@cs/tools';
+import { Button, Input, StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { HelpTip } from '@/components/help/help-tip';
 import { formatDate } from '@/lib/format';
+import { EVENT_ROUTE, labelFor } from '@/lib/labels';
 import type { WeekLabel } from './group';
 import { changesHref, type ChangesParams } from './params';
 
-const ROUTE_LABEL: Record<EventRow['route'], string> = { alert: 'Alert', brief: 'Brief', archive: 'Archived' };
-const ROUTE_TONE: Record<EventRow['route'], string> = {
-  alert: 'bg-[#FEE2E2] text-[#B91C1C]',
-  brief: 'bg-[#FFF3DC] text-[#B45309]',
-  archive: 'bg-muted-surface-2 text-muted-foreground',
-};
-
-/** The route pill shown next to an event's score — Alert/Brief/Archived, in the status-pill colours (Global Constraints). */
+/** The route chip shown next to an event's score: Alert/Brief/Archived. The score stays in the accessible name. */
 export function RoutePill({ route, score }: { route: EventRow['route']; score: number }) {
+  const { label, tone } = labelFor(EVENT_ROUTE, route);
+  const name = `Score ${score}, routed to ${label.toLowerCase()}`;
   return (
-    <span
-      aria-label={`Score ${score}, routed to ${ROUTE_LABEL[route].toLowerCase()}`}
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${ROUTE_TONE[route]}`}
-    >
-      {ROUTE_LABEL[route]}
-    </span>
+    <StatusChip tone={tone} title={name}>
+      <span className="sr-only">{`${name}: `}</span>
+      <span aria-hidden="true">{label}</span>
+    </StatusChip>
   );
 }
 
@@ -112,20 +106,24 @@ export function FilterBar({
 }
 
 /**
- * Rows grouped by week. `channels` on each row is expected to already hold display labels (mapped by the page with
- * `channelLabel`, never raw channel codes) — this component is purely presentational.
+ * Rows grouped by week. `channels` are raw codes; the row shows them through `channelLabel`. `currentId` is the event
+ * the URL names (`?event=`): only that row gets `aria-current` (P2). `selectedId` (the auto-selected first row
+ * included) drives the highlight on `lg:` and up, where the detail pane is visible.
  */
 export function FeedList({
   clientId,
   params,
   groups,
   selectedId,
+  currentId,
   timezone,
 }: {
   clientId: string;
   params: ChangesParams;
   groups: { label: WeekLabel; items: EventRow[] }[];
-  selectedId?: string;
+  selectedId?: string | null;
+  /** The event named by `?event=`; null when the first row is auto-selected. */
+  currentId?: string | null;
   timezone: string;
 }) {
   return (
@@ -135,15 +133,16 @@ export function FeedList({
           <div className="px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-ink first:pt-3">{group.label}</div>
           <ul className="flex flex-col">
             {group.items.map((row) => {
-              const current = row.eventId === selectedId;
+              const selected = row.eventId === selectedId;
+              const current = row.eventId === currentId;
               return (
                 <li key={row.eventId}>
                   <Link
                     href={changesHref(clientId, { ...params, event: row.eventId, change: undefined, tab: 'side' })}
                     aria-current={current ? 'true' : undefined}
                     className={
-                      current
-                        ? 'grid grid-cols-[1fr_auto] items-start gap-3 bg-primary-soft px-4 py-3 shadow-[inset_3px_0_0_var(--color-primary)]'
+                      selected
+                        ? 'grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 hover:bg-muted-surface lg:bg-primary-soft lg:shadow-[inset_3px_0_0_var(--color-primary)]'
                         : 'grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 hover:bg-muted-surface'
                     }
                   >
@@ -152,7 +151,7 @@ export function FeedList({
                         {row.competitorName} · {row.summary}
                       </h4>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {row.typeLabel} · {row.channels.join(', ')} · {formatDate(row.occurredAt, { tz: timezone })}
+                        {row.typeLabel} · {row.channels.map(channelLabel).join(', ')} · {formatDate(row.occurredAt, { tz: timezone })}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

@@ -6,10 +6,9 @@
 import type { MoveRow } from '@cs/tools';
 import { TrendingUp } from 'lucide-react';
 import Link from 'next/link';
+import { labelFor, MOVE_STATUS } from '@/lib/labels';
 
 const DAY = 24 * 60 * 60 * 1000;
-
-const STATUS_LABEL: Record<MoveRow['status'], string> = { emerging: 'Emerging', active: 'Active', fading: 'Fading', closed: 'Closed' };
 
 /** Pre-flight F12: colour by status — active → accent (amber), emerging → primary, fading/closed → muted. */
 const TILE: Record<MoveRow['status'], string> = {
@@ -38,17 +37,21 @@ export function movesHref(clientId: string, p: { status?: 'open' | 'closed' | 'a
   return `/c/${clientId}/moves${s ? `?${s}` : ''}`;
 }
 
-export function MoveCard({ move, selected, href }: { move: MoveRow; selected: boolean; href: string }) {
+/**
+ * `selected` is the visual highlight (the first card is auto-selected); `current` is true only when the URL names this
+ * move (`?move=`) and drives `aria-current` (P2). The highlight shows on `lg:` and up, where the detail pane is visible.
+ */
+export function MoveCard({ move, selected, current, href }: { move: MoveRow; selected: boolean; current: boolean; href: string }) {
   const days = moveDays(move);
   const pct = Math.round(move.confidence * 100);
-  const signals = `${move.eventCount} signal${move.eventCount === 1 ? '' : 's'}`;
+  const changes = `${move.eventCount} change${move.eventCount === 1 ? '' : 's'}`;
   return (
     <Link
       href={href}
-      aria-current={selected ? 'true' : undefined}
+      aria-current={current ? 'true' : undefined}
       className={
         selected
-          ? 'flex items-start gap-3 rounded-[14px] bg-primary-soft p-3 shadow-[inset_3px_0_0_var(--color-primary)]'
+          ? 'flex items-start gap-3 rounded-[14px] p-3 hover:bg-muted-surface lg:bg-primary-soft lg:shadow-[inset_3px_0_0_var(--color-primary)]'
           : 'flex items-start gap-3 rounded-[14px] p-3 hover:bg-muted-surface'
       }
     >
@@ -60,7 +63,7 @@ export function MoveCard({ move, selected, href }: { move: MoveRow; selected: bo
           {move.label} · {move.competitorName}
         </h4>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {STATUS_LABEL[move.status]} · {signals} over {days} days · confidence {pct}%
+          {labelFor(MOVE_STATUS, move.status).label} · {changes} over {days} days · confidence {pct}%
         </p>
       </div>
     </Link>
