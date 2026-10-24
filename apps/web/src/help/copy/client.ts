@@ -347,10 +347,10 @@ export const CLIENT_COPY = {
         body: 'A weekly brief arrives on Monday morning: what changed, why it matters and what to do. An alert is a change important enough to send between briefs. A quarterly report gives the numbers for the quarter that just ended. A brief tagged Starting point is the first one, showing where {client} stands before weekly briefs begin.',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: apps/web/src/app/(app)/c/[clientId]/briefs/copy.ts:BRIEF_STATUS, ALERT_STATUS, REPORT_STATUS; apps/web/src/app/(app)/c/[clientId]/briefs/page.tsx (chips for agency roles only; client roles only get delivered items)
+      // source: apps/web/src/lib/labels.ts:BRIEF_STATUS, ALERT_STATUS, REPORT_STATUS; apps/web/src/app/(app)/c/[clientId]/briefs/page.tsx (chips for agency roles only; client roles only get delivered items)
       status: {
         title: 'Status chips',
-        body: 'The chip shows where each item stands in your review, such as Needs review, Approved or Sent. Items waiting for review are in Approvals. Client users only see items that were delivered, and no chips.',
+        body: 'The chip shows where each item stands in your review, such as Ready for review (briefs), Waiting for review (alerts), Approved or Sent. Items waiting for review are in Approvals. Client users only see items that were delivered, and no chips.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },
@@ -405,7 +405,7 @@ export const CLIENT_COPY = {
         body: 'An alert is a change that was important enough to send straight away. Smaller changes wait for the weekly brief, and the smallest are only recorded. Every alert links to the evidence behind it.',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: packages/engine/src/score/score.ts:scoreForClient (score 0-100, alert level); apps/web/src/app/(app)/c/[clientId]/briefs/copy.ts:ALERT_STATUS; apps/web/src/components/views/alert-view.tsx ("Template text")
+      // source: packages/engine/src/score/score.ts:scoreForClient (score 0-100, alert level); apps/web/src/lib/labels.ts:ALERT_STATUS; apps/web/src/components/views/alert-view.tsx ("Template text")
       score: {
         title: 'Score, status and template text',
         body: 'The score is the change\'s score from 0 to 100; an alert is sent when it reaches the client\'s alert level (Settings › Alert rules). The status shows where the alert is in your review. "Template text" means the written text did not pass verification, so a fixed template was used instead.',

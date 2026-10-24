@@ -189,7 +189,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     expect(askC).not.toMatch(/Allow review|Client features|quota|allowance|Assistant name|support session/i);
     expect(askC).toContain('Possible reason:');
     const briefsA = text(await guide(admin, 'page:client.briefs'));
-    for (const w of ['Thursday night', 'Auto-send', 'Needs review', 'overdue']) expect(briefsA, w).toContain(w);
+    for (const w of ['Thursday night', 'Auto-send', 'Ready for review', 'overdue']) expect(briefsA, w).toContain(w);
     const briefsC = text(await guide(owner, 'page:client.briefs'));
     expect(briefsC).not.toMatch(/Thursday|Auto-send|Needs review|overdue|status chip/i);
     expect(briefsC).toContain('Monday morning');

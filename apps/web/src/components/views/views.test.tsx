@@ -40,8 +40,6 @@ const alertFixture: AlertDetail = {
   score: 82, status: 'delivered', createdAt: '2026-10-04T09:00:00Z', deliveredAt: '2026-10-04T09:05:00Z', body: 'The pricing page now shows $69, down from $89.',
   evidenceIds: ['e1', 'e2', 'e3'], written: 'template',
 };
-const alert = alertFixture;
-
 const opensInNewTab = (a: HTMLElement) => {
   expect(a.getAttribute('target')).toBe('_blank');
   expect(a.getAttribute('rel')).toContain('noopener');
@@ -159,39 +157,39 @@ describe('BriefView status and dates (15c-2b-2)', () => {
     expect(screen.queryByText('Dropped')).toBeNull();
     expect(screen.queryByText('Headline 3')).toBeNull();
     expect(screen.queryByText(/ppc_audit|Upsell/)).toBeNull();
-    const { container: a } = render(<AlertView alert={{ ...alertFixture }} agency={false} timezone="UTC" />);
+    const { container: a } = render(<AlertView alert={alertFixture} agency={false} timezone="UTC" />);
     expect(a.querySelector('[data-slot="status-chip"]')).toBeNull();
     expect(screen.queryByText(/Score \d/)).toBeNull();
   });
 });
 
 describe('AlertView', () => {
-  it('alert view time is "Oct 4, 9:05 AM CT" style in the client zone', () => {
-    render(<AlertView alert={{ ...alert, deliveredAt: '2026-10-12T14:00:00Z' }} agency={false} timezone="America/Chicago" />);
+  it('alert view time is "Oct 12, 9:00 AM CT" for a Chicago client', () => {
+    render(<AlertView alert={{ ...alertFixture, deliveredAt: '2026-10-12T14:00:00Z' }} agency={false} timezone="America/Chicago" />);
     expect(screen.getByText('Oct 12, 9:00 AM CT')).toBeTruthy();
   });
 
   it('agency sees a neutral score chip and the labelled status', () => {
-    render(<AlertView alert={alert} agency timezone="UTC" />);
+    render(<AlertView alert={alertFixture} agency timezone="UTC" />);
     expect(screen.getByText('Score 82')).toBeTruthy();
     expect(screen.getByText('Sent')).toBeTruthy();
   });
 
   it('shows the template-fallback note to agency roles only', () => {
-    render(<AlertView alert={alert} agency timezone="UTC" />);
+    render(<AlertView alert={alertFixture} agency timezone="UTC" />);
     expect(screen.getByText(/template text/i)).toBeTruthy();
   });
 
   it('never shows the template-fallback note to client roles, even when written is template', () => {
-    render(<AlertView alert={alert} agency={false} timezone="UTC" />);
+    render(<AlertView alert={alertFixture} agency={false} timezone="UTC" />);
     expect(screen.queryByText(/template text/i)).toBeNull();
   });
 
   it('renders the competitor name, headline, body and evidence count for every role', () => {
-    render(<AlertView alert={alert} agency={false} timezone="UTC" />);
-    expect(screen.getByRole('heading', { level: 2, name: alert.headline })).toBeTruthy();
+    render(<AlertView alert={alertFixture} agency={false} timezone="UTC" />);
+    expect(screen.getByRole('heading', { level: 2, name: alertFixture.headline })).toBeTruthy();
     expect(screen.getByText('Smith HVAC')).toBeTruthy();
-    expect(screen.getByText(alert.body)).toBeTruthy();
+    expect(screen.getByText(alertFixture.body)).toBeTruthy();
     expect(screen.getAllByRole('link', { name: /^Evidence \d/ })).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Evidence 1' }).getAttribute('href')).toBe(`/c/${C}/evidence/e1`);
   });
