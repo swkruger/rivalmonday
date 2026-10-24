@@ -66,7 +66,9 @@ export function WholePageDiff({ view, timezone }: { view: CaptureCompareView; ti
   if (view.state === 'first') notes.push('This is the first capture of this page, so there is nothing to compare yet.');
   else if (view.state === 'no_blocks' || view.state === 'not_web') notes.push('Comparison not available for this capture.');
   else {
-    if (view.maskedCount > 0) notes.push(`${view.maskedCount} sections change on every visit and are hidden.`);
+    if (view.maskedCount === 1) notes.push('1 section changes on every visit and is hidden.');
+    else if (view.maskedCount > 1) notes.push(`${view.maskedCount} sections change on every visit and are hidden.`);
+    if (view.blocksCapped) notes.push('This page is too long to compare in full, so only the first part is shown.');
     if (view.truncated) notes.push('This page changed too much to compare word by word, so some sections show as removed and added in full.');
     if (!view.blocks.some((b) => b.kind !== 'unchanged')) notes.push('No differences on this page.');
     body = (
@@ -90,7 +92,7 @@ export function WholePageDiff({ view, timezone }: { view: CaptureCompareView; ti
   }
   return (
     <div className="flex flex-col gap-3">
-      {view.before && <p className="text-sm text-muted-foreground">Compared with the capture from {formatDateTime(view.before.capturedAt, { tz: timezone, zoneLabel: true })}</p>}
+      {view.state === 'ok' && view.before && <p className="text-sm text-muted-foreground">Compared with the capture from {formatDateTime(view.before.capturedAt, { tz: timezone, zoneLabel: true })}</p>}
       {notes.map((n) => (
         <p key={n} className="text-sm text-muted-foreground">
           {n}

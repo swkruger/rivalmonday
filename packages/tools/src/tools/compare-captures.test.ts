@@ -76,6 +76,7 @@ describe('compare_captures', () => {
     expect(v.blocks.find((b) => b.kind === 'added')!.segments).toEqual([{ op: 'insert', text: 'brand new block nothing alike zebra' }]);
     expect(v.blocks.find((b) => b.kind === 'removed')!.segments).toEqual([{ op: 'delete', text: 'gone entirely different words here' }]);
     expect(v.truncated).toBe(false);
+    expect(v.blocksCapped).toBe(false);
   });
 
   it('masked keys are left out and counted', async () => {
@@ -88,13 +89,23 @@ describe('compare_captures', () => {
     expect(v.blocks[0]!.kind).toBe('unchanged');
   });
 
-  it('caps blocks at MAX_COMPARE_BLOCKS and sets truncated', async () => {
+  it('masks an alignment when the before key is masked and the after key differs', async () => {
+    await cap(ago(2), [['a', 'one'], ['m', 'clock 10:01']]);
+    const after = await cap(ago(1), [['a', 'one'], ['n', 'clock 10:02']]);
+    await dbs.owner.insert(volatileBlock).values({ trackedPageId: pageId, competitorId: IDS.competitorX, blockKey: 'm' } as never);
+    const v = await cmp(after);
+    expect(v.maskedCount).toBe(1);
+    expect(v.blocks).toHaveLength(1);
+  });
+
+  it('caps blocks at MAX_COMPARE_BLOCKS and sets blocksCapped, not truncated', async () => {
     const mk = (s: string): [string, string][] => Array.from({ length: 601 }, (_, i) => [`k${i}`, `${s} ${i}`]);
     await cap(ago(2), mk('same'));
     const after = await cap(ago(1), mk('same'));
     const v = await cmp(after);
     expect(v.blocks).toHaveLength(600);
-    expect(v.truncated).toBe(true);
+    expect(v.blocksCapped).toBe(true);
+    expect(v.truncated).toBe(false);
   });
 
   it('page budget sets truncated and falls back to delete+insert', async () => {

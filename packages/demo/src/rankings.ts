@@ -213,6 +213,6 @@ async function seedRankEvent(ctx: SeedContext, s: RankEventSpec): Promise<string
   await db.insert(eventScore).values({
     agencyId: s.agencyId, clientId: s.clientId, eventId: ev!.id, score: s.score, route, factors: rankFactors(s.score), packVersion: 1, scoredAt: new Date(s.occurredAt.getTime() + 3_600_000),
   });
-  ids.events.push({ id: ev!.id, client: 'loneStar', competitorId: s.competitorId, changeId: ch!.id, changeType: s.changeType, source: 'rank', route, score: s.score, occurredAt: s.occurredAt, summary, evidenceIds: [] });
+  ids.events.push({ id: ev!.id, client: 'loneStar', competitorId: s.competitorId, changeId: ch!.id, changeType: s.changeType, source: 'rank', route, score: s.score, occurredAt: s.occurredAt, summary, evidenceIds: [], captureId: '' });
   return ev!.id;
 }

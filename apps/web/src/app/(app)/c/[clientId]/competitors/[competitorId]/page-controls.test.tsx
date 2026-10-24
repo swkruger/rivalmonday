@@ -27,6 +27,7 @@ describe('PinPageSwitch (decision 17)', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Not found'));
     const fd = setPinAction.mock.calls[0]![1] as FormData;
     expect([fd.get('pageId'), fd.get('pinned')]).toEqual(['p1', 'true']);
-    expect(sw.getAttribute('aria-checked')).toBe('false');
+    // The optimistic value reverts when the transition settles, which can land just after the alert renders.
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('false'));
   });
 });

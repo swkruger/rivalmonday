@@ -58,6 +58,9 @@ describe('page gates over the tree', () => {
   it('AREAS_2A ⊆ existing folders', () => {
     for (const p of AREAS_2A) expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
   });
+  it('AREAS_2B ⊆ existing paths', () => {
+    for (const p of AREAS_2B) expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
+  });
   it('GATED_PATHS ⊆ AREAS_2A ∪ AREAS_2B', () => {
     for (const p of GATED_PATHS) expect([...AREAS_2A, ...AREAS_2B].some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
   });

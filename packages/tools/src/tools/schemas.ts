@@ -263,7 +263,7 @@ export const CaptureCompareView = z.object({
   state: z.enum(['ok', 'first', 'no_blocks', 'not_web']),
   before: CaptureRef.nullable(), after: CaptureRef, pageUrl: z.string().nullable(),
   blocks: z.array(z.object({ kind: z.enum(['added', 'removed', 'modified', 'unchanged']), segments: z.array(z.object({ op: z.enum(['equal', 'insert', 'delete']), text: z.string() })) })),
-  truncated: z.boolean(), maskedCount: z.number().int().nonnegative(),
+  truncated: z.boolean(), blocksCapped: z.boolean(), maskedCount: z.number().int().nonnegative(),
 });
 export type CaptureCompareView = z.infer<typeof CaptureCompareView>;
 export const EvidenceView = z.object({

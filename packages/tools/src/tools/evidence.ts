@@ -1,8 +1,8 @@
 import { hasFeature, toolkit, ToolError } from '@cs/core';
-import { capture, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, evidence, trackedPage, withTenant } from '@cs/db';
+import { capture, captureBlock, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, evidence, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
-import { alignBlocks, loadBlocks, maskedBlockKeys } from '@cs/engine';
-import { and, desc, eq, lt, or } from 'drizzle-orm';
+import { alignBlocks, maskedBlockKeys } from '@cs/engine';
+import { and, asc, desc, eq, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
@@ -85,6 +85,11 @@ export const compareSnapshots = defineTool({
 /** Most blocks one whole-page comparison returns (the rest are dropped and `truncated` is set). */
 export const MAX_COMPARE_BLOCKS = 600;
 
+/** The block columns a comparison needs (not the 512-dim `embedding`); ordered like the engine's `loadBlocks`. */
+const loadCompareBlocks = (deps: ToolDeps, captureId: string) =>
+  deps.service.select({ ord: captureBlock.ord, path: captureBlock.path, blockKey: captureBlock.blockKey, text: captureBlock.text }).from(captureBlock)
+    .where(eq(captureBlock.captureId, captureId)).orderBy(asc(captureBlock.ord));
+
 export const compareCaptures = defineTool({
   name: 'compare_captures',
   access: 'read',
@@ -100,12 +105,12 @@ export const compareCaptures = defineTool({
     if (!cap || !(await competitorLinked(deps, ctx, c.id, cap.competitorId))) throw new ToolError('not_found', 'Capture not found');
     const after = { captureId: cap.id, capturedAt: cap.capturedAt.toISOString() };
     const empty = (state: 'first' | 'no_blocks' | 'not_web', before: { captureId: string; capturedAt: string } | null = null) =>
-      ({ state, before, after, pageUrl: cap.url ?? null, blocks: [], truncated: false, maskedCount: 0 });
+      ({ state, before, after, pageUrl: cap.url ?? null, blocks: [], truncated: false, blocksCapped: false, maskedCount: 0 });
     if (cap.source !== 'web' || !cap.trackedPageId) return empty('not_web');
     const [prev] = await deps.service.select({ id: capture.id, capturedAt: capture.capturedAt }).from(capture)
       .where(and(eq(capture.trackedPageId, cap.trackedPageId), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
       .orderBy(desc(capture.capturedAt), desc(capture.id)).limit(1);
-    const [afterBlocks, beforeBlocks, masked] = await Promise.all([loadBlocks(deps.service, cap.id), prev ? loadBlocks(deps.service, prev.id) : [], maskedBlockKeys(deps.service, cap.trackedPageId)]);
+    const [afterBlocks, beforeBlocks, masked] = await Promise.all([loadCompareBlocks(deps, cap.id), prev ? loadCompareBlocks(deps, prev.id) : [], maskedBlockKeys(deps.service, cap.trackedPageId)]);
     // Order matters: a capture without stored blocks (failed, or never extracted) is no_blocks before it can be first.
     if (cap.status !== 'ok' || afterBlocks.length === 0) return empty('no_blocks', prev ? { captureId: prev.id, capturedAt: prev.capturedAt.toISOString() } : null);
     if (!prev) return empty('first');
@@ -114,9 +119,10 @@ export const compareCaptures = defineTool({
 
     const all = alignBlocks(beforeBlocks, afterBlocks);
     // P11: a masked (volatile) block is left out of the page view and counted.
-    const shown = all.filter((a) => !masked.has((a.after ?? a.before)!.blockKey));
+    const shown = all.filter((a) => !(a.before && masked.has(a.before.blockKey)) && !(a.after && masked.has(a.after.blockKey)));
     const maskedCount = all.length - shown.length;
-    let truncated = shown.length > MAX_COMPARE_BLOCKS;
+    const blocksCapped = shown.length > MAX_COMPARE_BLOCKS;
+    let truncated = false;
     let spent = 0;
     const blocks = shown.slice(0, MAX_COMPARE_BLOCKS).map((a) => {
       let segments: DiffSegment[];
@@ -135,7 +141,7 @@ export const compareCaptures = defineTool({
       }
       return { kind: a.kind, segments };
     });
-    return { state: 'ok' as const, before, after, pageUrl: cap.url ?? null, blocks, truncated, maskedCount };
+    return { state: 'ok' as const, before, after, pageUrl: cap.url ?? null, blocks, truncated, blocksCapped, maskedCount };
   },
 });
 

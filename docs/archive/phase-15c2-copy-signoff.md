@@ -289,8 +289,9 @@ Page groups: Ask, Platform > Ask, Changes, Evidence, Moves, plus the 15c-2a item
 | Chips (`:30`) | "Added" (success) / "Removed" (danger) / "Changed" (info) |
 | Header (`:93`) | "Compared with the capture from {date, time, zone}" |
 | Collapsed run (`:79`) | "{n} unchanged sections" (runs of more than 2) |
-| Masked (`:69`) | "{n} sections change on every visit and are hidden." |
+| Masked (`:69`) | "{n} sections change on every visit and are hidden." (one section: "1 section changes on every visit and is hidden.") |
 | Truncated (`:70`) | "This page changed too much to compare word by word, so some sections show as removed and added in full." |
+| Too long (capped at 600 sections) | "This page is too long to compare in full, so only the first part is shown." |
 | First capture (`:66`) | "This is the first capture of this page, so there is nothing to compare yet." |
 | No blocks / not web (`:67`) | "Comparison not available for this capture." |
 | No differences (`:71`) | "No differences on this page." |

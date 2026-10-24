@@ -49,10 +49,10 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
-| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `compare_captures`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals`, `list_help_guides` | — |
 | `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_topic_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile`, `list_help_guides` | — |
-| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `compare_captures`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report`, `list_help_guides` | — |
 | `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile`, `list_help_guides` | `get_price_history`: one competitor shows no prices |

@@ -17,7 +17,7 @@ import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { saveAskRecommendation } from '../../ask/actions';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +55,8 @@ const loadEvidence = cache((ctx: Ctx, clientId: string, evidenceId: string) => c
 /** Async body of the "Compare with previous" section: the diff against this capture's predecessor. */
 async function ComparePrevious({ clientId, captureId, timezone }: { clientId: string; captureId: string; timezone: string }) {
   const { ctx } = await requireContext();
-  const view = await callTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId });
+  const view = await tryCallTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId }).catch(() => null);
+  if (!view) return <p className="text-sm text-muted-foreground">Comparison not available for this capture.</p>;
   return <WholePageDiff view={view} timezone={timezone} />;
 }
 

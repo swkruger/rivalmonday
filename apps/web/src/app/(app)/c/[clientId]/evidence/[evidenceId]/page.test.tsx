@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: 'agency_owner', userId: 'u1' } }) }));
-vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a) }));
+vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 vi.mock('@/server/help', () => ({ helpGuides: async () => new Set() }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => null }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
@@ -29,11 +29,36 @@ function hasId(node: unknown, id: string): boolean {
   return !!props && (props.id === id || hasId(props.children, id));
 }
 
+/** The `ComparePrevious` element (async server component) inside the page tree. */
+function findSection(node: unknown): { type: unknown; props: unknown } {
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const f = findSection(n);
+      if (f) return f;
+    }
+    return undefined as never;
+  }
+  if (!node || typeof node !== 'object') return undefined as never;
+  const el = node as { type?: unknown; props?: { clientId?: string; captureId?: string; children?: unknown } };
+  if (typeof el.type === 'function' && el.props?.captureId) return el as never;
+  return findSection(el.props?.children);
+}
+
 describe('Evidence page "Compare with previous"', () => {
   it('section only for web evidence', async () => {
     mount('web');
     expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'compare-previous-heading')).toBe(true);
     mount('google_ads');
     expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'compare-previous-heading')).toBe(false);
+  });
+
+  it('a throw from compare_captures shows the note instead of failing the page', async () => {
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'compare_captures') throw new Error('boom');
+      return name === 'get_client_profile' ? { name: 'Cool Air', timezone: 'UTC' } : evidence('web');
+    });
+    const section = findSection(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }));
+    const body = (await (section.type as (p: unknown) => Promise<unknown>)(section.props)) as { props: { children: string } };
+    expect(body.props.children).toBe('Comparison not available for this capture.');
   });
 });

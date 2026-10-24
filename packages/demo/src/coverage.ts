@@ -209,6 +209,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'search_events', input: (ids) => ({ clientId: ls(ids), route: 'all', days: 90 }), path: 'items' },
       { tool: 'get_event', input: (ids) => ({ clientId: ls(ids), eventId: lsEvent(ids).id }), path: 'changes' },
       { tool: 'compare_snapshots', input: (ids) => ({ clientId: ls(ids), changeId: lsEvent(ids).changeId }), path: 'after' },
+      { tool: 'compare_captures', input: (ids) => ({ clientId: ls(ids), captureId: lsEvent(ids).captureId }), path: 'blocks' },
       { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       lsProfile,
       lsGuides,
@@ -238,7 +239,13 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       lsProfile,
     ],
   },
-  { route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [{ tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' }, lsProfile] },
+  {
+    route: '/c/[clientId]/evidence/[evidenceId]', as: 'admin', calls: [
+      { tool: 'get_evidence', input: (ids) => ({ clientId: ls(ids), evidenceId: lsEvent(ids).evidenceIds[0] }), path: 'citedBy' },
+      { tool: 'compare_captures', input: (ids) => ({ clientId: ls(ids), captureId: lsEvent(ids).captureId }), path: 'blocks' },
+      lsProfile,
+    ],
+  },
   {
     route: '/c/[clientId]/moves', as: 'admin', calls: [
       { tool: 'list_moves', input: (ids) => ({ clientId: ls(ids), status: 'all' }), path: 'items' },

@@ -17,6 +17,7 @@ const base: CaptureCompareView = {
   pageUrl: 'https://x.example',
   blocks: [],
   truncated: false,
+  blocksCapped: false,
   maskedCount: 0,
 };
 
@@ -51,5 +52,22 @@ describe('WholePageDiff', () => {
     expect(screen.getByText('Comparison not available for this capture.')).toBeTruthy();
     rerender(<WholePageDiff timezone="UTC" view={{ ...base, blocks: [u('a')] }} />);
     expect(screen.getByText('No differences on this page.')).toBeTruthy();
+  });
+
+  it('singular masked note for one section', () => {
+    render(<WholePageDiff timezone="UTC" view={{ ...base, maskedCount: 1, blocks: [added] }} />);
+    expect(screen.getByText('1 section changes on every visit and is hidden.')).toBeTruthy();
+  });
+
+  it('shows the too-long note when blocksCapped, without the word-by-word note', () => {
+    render(<WholePageDiff timezone="UTC" view={{ ...base, blocksCapped: true, blocks: [added] }} />);
+    expect(screen.getByText('This page is too long to compare in full, so only the first part is shown.')).toBeTruthy();
+    expect(screen.queryByText(/word by word/)).toBeNull();
+  });
+
+  it('hides the "Compared with" header unless the comparison is available', () => {
+    render(<WholePageDiff timezone="UTC" view={{ ...base, state: 'no_blocks' }} />);
+    expect(screen.getByText('Comparison not available for this capture.')).toBeTruthy();
+    expect(screen.queryByText(/Compared with the capture from/)).toBeNull();
   });
 });

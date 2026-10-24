@@ -1,5 +1,6 @@
 import type { ChangeType } from '@cs/core';
-import { capture, type ChangeDetails, changeEvent, detectedChange, eventChange, eventScore, move, moveEvent, type NumericChange, type ScoreFactors } from '@cs/db';
+import { capture, captureBlock, type ChangeDetails, changeEvent, detectedChange, eventChange, eventScore, move, moveEvent, type NumericChange, type ScoreFactors } from '@cs/db';
+import { createHash } from 'node:crypto';
 import { DAY } from './clock';
 import type { SeedContext } from './context';
 import { type PageMock, pageHtml, pageMockWebp, pageText, putEvidence, vendorCapture } from './evidence';
@@ -172,6 +173,13 @@ async function seedEvent(ctx: SeedContext, spec: EventSpec, i: number): Promise<
     const blocks = pageBlocks(comp, spec);
     const before = await webCapture(ctx, comp, trackedPageId, url, new Date(at.getTime() - DAY), { title: comp.name, url, blocks: blocks.before, highlight: null });
     const after = await webCapture(ctx, comp, trackedPageId, url, at, { title: comp.name, url, blocks: blocks.after, highlight: blocks.changed });
+    const pageIdForBlocks = trackedPageId;
+    // The stored page text (capture_block rows) the whole-page diff compares; the changed block keeps its key across captures.
+    for (const [cap, texts] of [[before.captureId, blocks.before], [after.captureId, blocks.after]] as const) {
+      await db.insert(captureBlock).values(texts.map((text, ord) => ({
+        captureId: cap, competitorId: comp.id, trackedPageId: pageIdForBlocks, ord, blockKey: `demo-${i}-b${ord}`, path: 'main/p', text, textSha: createHash('sha256').update(text).digest('hex'),
+      })));
+    }
     beforeCaptureId = before.captureId;
     afterCaptureId = after.captureId;
     evidenceIds = [after.screenshotId];
@@ -194,7 +202,7 @@ async function seedEvent(ctx: SeedContext, spec: EventSpec, i: number): Promise<
     agencyId: ids.agencyId, clientId: ids.clients[spec.client], eventId: ev!.id, score: spec.score, route, factors: factorsFor(spec.client, spec.score),
     packVersion: 1, scoredAt: new Date(at.getTime() + 3_600_000),
   });
-  ids.events.push({ id: ev!.id, client: spec.client, competitorId: comp.id, changeId: ch!.id, changeType: spec.type, source: spec.source, route, score: spec.score, occurredAt: at, summary, evidenceIds });
+  ids.events.push({ id: ev!.id, client: spec.client, competitorId: comp.id, changeId: ch!.id, changeType: spec.type, source: spec.source, route, score: spec.score, occurredAt: at, summary, evidenceIds, captureId: afterCaptureId });
 }
 
 interface MoveSpec {

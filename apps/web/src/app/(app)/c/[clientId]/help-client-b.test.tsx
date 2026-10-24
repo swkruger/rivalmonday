@@ -74,6 +74,8 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
         evidenceId: EV, kind: 'screenshot', sha256: 'abc123', bytes: 10, contentType: 'image/png', captureId: EV, capturedAt: '2026-10-10T12:00:00.000Z', captureStatus: 'ok', channel: 'web', channelLabel: 'Website',
         url: 'https://smithhvac.com/prices', collectorVersion: 'v1', legalHold: false, competitorId: EV, competitorName: 'Smith HVAC', servable: true, citedBy: [],
       };
+    case 'compare_captures':
+      return { state: 'first', before: null, after: { captureId: EV, capturedAt: '2026-10-10T12:00:00.000Z' }, pageUrl: null, blocks: [], truncated: false, blocksCapped: false, maskedCount: 0 };
     case 'get_prospect_report':
       return {
         report: {
@@ -325,6 +327,8 @@ describe('client batch B: Alert, Report, Evidence', () => {
       cleanup();
     }
     await show(page('client.evidence.detail'), 'client');
+    // The async compare section suspends until its tool read resolves; wait so it cannot swallow the popover clicks.
+    await screen.findByText(/first capture of this page/);
     expect(open('Where this was captured')).toMatch(/captured automatically by our monitoring service/);
     expect(open('What the fingerprint is')).toMatch(/changing even one character gives a completely different one/);
   });

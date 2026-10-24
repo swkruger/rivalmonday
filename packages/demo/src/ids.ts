@@ -27,6 +27,8 @@ export interface DemoEvent {
   summary: string;
   /** The after screenshot (web) or the vendor JSON (other sources). */
   evidenceIds: string[];
+  /** The "after" capture of a web event (empty for rank events, which have no capture). */
+  captureId: string;
 }
 
 export interface DemoMove {
