@@ -1,3 +1,4 @@
+import { formatDate, formatMonth } from '@/lib/format';
 /** Decision 18 + the dataviz method: fixed-order categorical slots (validated 2026-10-08), legend for >= 2 series, table view, native tooltips. */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'] as const;
 export const OTHER_COLOR = '#94a3b8';
@@ -67,9 +68,6 @@ const niceMax = (v: number) => {
   const n = Math.ceil(v / p) * p;
   return n % 2 === 0 ? n : n + 1; // even, so the mid gridline is an integer
 };
-const shortDate = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const monthLabel = (ym: string) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 type Period = 'week' | 'month' | 'scan';
 const HEAD: Record<Period, string> = { week: 'Week of', month: 'Month', scan: 'Scan of' };
 
@@ -93,7 +91,7 @@ export function LineChart({
   period?: Period;
 }) {
   const series = input.map((s) => ({ ...s, points: s.points.slice(0, labels.length) }));
-  const labelOf = (l: string) => (period === 'month' ? monthLabel(l) : shortDate(l));
+  const labelOf = (l: string) => (period === 'month' ? formatMonth(l, { tz: 'UTC' }) : formatDate(l, { tz: 'UTC', withYear: 'never' }));
   const fmt = formatValue ?? ((v: number) => String(v));
   const tick = formatValue ?? ((v: number) => String(Math.round(v)));
   const when = (l: string) => (period === 'month' ? labelOf(l) : `${period === 'scan' ? 'scan of' : 'week of'} ${labelOf(l)}`);

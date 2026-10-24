@@ -62,6 +62,12 @@ describe('LineChart', () => {
     expect(screen.getByText('No data yet.')).toBeTruthy();
   });
 
+  it('line-chart ticks read "Oct 12" not ISO', () => {
+    const { container } = render(<LineChart title="T" valueLabel="ads" labels={['2026-10-05', '2026-10-12']} series={[{ key: 'a', name: 'A', points: [1, 2] }]} />);
+    expect(screen.getAllByText('Oct 12').length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/2026-10-12/);
+  });
+
   it('paints Other grey', () => {
     render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'other', name: 'Other', points: [1, 1, 1, 1] }, { key: 'a', name: 'A', points: [1, 1, 1, 1] }]} />);
     expect(document.querySelector('polyline[data-series="other"]')?.getAttribute('stroke')).toBe(OTHER_COLOR);

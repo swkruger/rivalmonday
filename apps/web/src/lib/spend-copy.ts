@@ -18,3 +18,7 @@ export const pausedForClient = (agencyName: string) => {
   const who = !agencyName.trim() || agencyName === 'Rival Monday' ? 'your' : `your ${agencyName}`;
   return `Monitoring and new briefs are paused for the rest of this month. Your past briefs and evidence are still here, and ${who} team has been told.`;
 };
+
+/** D12(d) (owner sign-off): the Ask usage cell. A quota of 0 means a platform limit turned Ask off. */
+export const askQuotaText = (q: { used: number; quota: number }): string =>
+  q.quota === 0 ? `${q.used} used · Ask turned off by limit` : `${q.used} of ${q.quota}`;

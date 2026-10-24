@@ -25,11 +25,11 @@ const yearIn = (d: Date, tz: string): string => new Intl.DateTimeFormat('en-US',
  * "Oct 21" in the current year, "Oct 21, 2025" otherwise (year compared in `tz`). A date-only value ("2026-10-13") is that
  * calendar day in every zone; anything that is not a date comes back unchanged.
  */
-export function formatDate(v: string | Date, o: { tz: string; withYear?: 'auto' | 'always'; now?: Date }): string {
+export function formatDate(v: string | Date, o: { tz: string; withYear?: 'auto' | 'always' | 'never'; now?: Date }): string {
   const p = parse(v);
   if (!p) return String(v);
   const tz = zoneOf(o.tz, p.dateOnly);
-  const showYear = o.withYear === 'always' || yearIn(p.at, tz) !== yearIn(o.now ?? new Date(), zoneOf(o.tz, false));
+  const showYear = o.withYear !== 'never' && (o.withYear === 'always' || yearIn(p.at, tz) !== yearIn(o.now ?? new Date(), zoneOf(o.tz, false)));
   return p.at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(showYear ? { year: 'numeric' } : {}), timeZone: tz });
 }
 
@@ -96,4 +96,23 @@ export function formatWeekOf(v: string | Date, o: { tz: string; now?: Date }): s
   const monday = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) - sinceMonday));
   const showYear = String(monday.getUTCFullYear()) !== yearIn(o.now ?? new Date(), tz);
   return `Week of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(showYear ? { year: 'numeric' } : {}), timeZone: 'UTC' })}`;
+}
+
+const YEAR_MONTH = /^\d{4}-\d{2}$/;
+
+/** "Oct 2026" / "October 2026" (`style: 'long'`); a 'YYYY-MM' string is that month in every zone (no shift). The year always shows. */
+export function formatMonth(v: string | Date, o: { tz: string; style?: 'short' | 'long'; now?: Date }): string {
+  const ym = typeof v === 'string' && YEAR_MONTH.test(v);
+  const p = parse(ym ? `${v}-01` : v);
+  if (!p) return String(v);
+  const tz = zoneOf(o.tz, p.dateOnly);
+  return p.at.toLocaleDateString('en-US', { month: o.style === 'long' ? 'long' : 'short', year: 'numeric', timeZone: tz });
+}
+
+/** "2026-10-18": the calendar day of `v` in `tz` (keys, chart labels); a date-only value comes back unchanged, a non-date as-is. */
+export function localDay(v: string | Date, tz: string): string {
+  const p = parse(v);
+  if (!p) return String(v);
+  if (p.dateOnly) return v as string;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: zoneOf(tz, false), year: 'numeric', month: '2-digit', day: '2-digit' }).format(p.at);
 }

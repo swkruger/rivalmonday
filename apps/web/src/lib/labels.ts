@@ -1,5 +1,6 @@
-import type { Role } from '@cs/core';
-import type { AGENCY_KINDS, AlertStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
+import type { AGENCY_KINDS, AlertStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { MoveRow, StepStatus } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
 
@@ -191,8 +192,66 @@ export const KB_ARTICLE_STATUS: LabelMap<'draft' | 'published'> = {
   published: e('Published', 'success'),
 };
 
+// list_moves status (MoveRow['status']: MoveStatus plus 'closed' once closed_at is set)
+export const MOVE_STATUS: LabelMap<MoveRow['status']> = { emerging: e('Emerging', 'info'), active: e('Active', 'warning'), fading: e('Fading'), closed: e('Closed') };
+
+// where an event was routed (alert / brief / archive)
+export const EVENT_ROUTE: LabelMap<'alert' | 'brief' | 'archive'> = { alert: e('Alert', 'danger'), brief: e('Brief', 'warning'), archive: e('Archived') };
+
+// CAPTURE_STATUSES (packages/core/src/domain.ts)
+export const CAPTURE_STATUS: LabelMap<CaptureStatus> = {
+  ok: e('Captured', 'success'),
+  unchanged: e('No change since last capture'),
+  blocked: e('Blocked by the site', 'danger'),
+  robots_disallowed: e('Site asks not to be monitored', 'warning'),
+  vendor_error: e('Data provider error', 'danger'),
+  timeout: e('Timed out', 'warning'),
+  error: e('Failed', 'danger'),
+};
+
+// PAGE_TYPES (packages/core/src/domain.ts)
+export const PAGE_TYPE: LabelMap<PageType> = {
+  home: e('Home page'), pricing: e('Pricing'), service: e('Service'), service_area: e('Service area'), promo: e('Promotion'),
+  careers: e('Careers'), team: e('Team'), about: e('About'), contact: e('Contact'), blog: e('Blog'), other: e('Other'),
+};
+
+// CADENCES (packages/core/src/domain.ts)
+export const CADENCE: LabelMap<Cadence> = { daily: e('Daily'), weekly: e('Weekly') };
+
+// RecommendationStatus (packages/db/src/schema/briefs.ts)
+export const RECOMMENDATION_STATUS: LabelMap<RecommendationStatus> = {
+  todo: e('To do'), in_progress: e('In progress', 'info'), done: e('Done', 'success'), dismissed: e('Dismissed'),
+};
+
+// runbook play effort / impact
+export const LEVEL: LabelMap<'L' | 'M' | 'H'> = { L: e('Low'), M: e('Medium'), H: e('High') };
+
+// setup wizard StepStatus (packages/tools/src/setup/state.ts)
+export const SETUP_STEP_STATUS: LabelMap<StepStatus> = {
+  todo: e('Not started'), running: e('Running', 'info'), done: e('Done', 'success'), skipped: e('Skipped'), blocked: e('Needs attention', 'warning'),
+};
+
+// the client's plan state on the billing / plan card
+export const CLIENT_PLAN_STATUS: LabelMap<'paused' | 'not_set_up' | 'active' | 'payment_needed' | 'invited' | 'cancelled' | 'unavailable'> = {
+  paused: e('Paused', 'warning'),
+  not_set_up: e('Not set up'),
+  active: e('Active', 'success'),
+  payment_needed: e('Payment needed', 'danger'),
+  invited: e('Awaiting payment setup', 'info'),
+  cancelled: e('Cancelled'),
+  unavailable: e('Not available'),
+};
+
+export const AD_STATE: LabelMap<'active' | 'ended'> = { active: e('Active', 'success'), ended: e('Ended') };
+
+// brief item status; agency-only (not in CLIENT_AUDIENCE_MAPS)
+export const BRIEF_ITEM_STATUS: LabelMap<'active' | 'dropped'> = { active: e('Included'), dropped: e('Dropped') };
+
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
-export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE];
+export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [
+  ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE,
+  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE,
+];
 
 // spend_guard_event.kind (packages/db/src/schema/platform.ts check constraint; 7b1, platform only)
 type SpendGuardEventKind = 'client_reached' | 'client_paused' | 'client_unpaused' | 'spike_warn' | 'spike_paused' | 'spike_reset';

@@ -2,7 +2,10 @@ import { AGENCY_KINDS, ALERT_STATUSES, BILLING_STATES, CATALOG_STATUSES, CLIENT_
 import { AGENCY_ONLY_TERMS } from './agency-only-terms';
 import { ROLES } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor } from './labels';
+import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor, MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS } from './labels';
+import { CADENCES, CAPTURE_STATUSES, PAGE_TYPES } from '@cs/core';
+
+const NEW_MAPS = [MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS];
 
 describe('labelFor', () => {
   it('falls back to sentence case with neutral tone', () => {
@@ -44,7 +47,7 @@ describe('every enum value has a label', () => {
     for (const map of [LEAD_STATUS, ASK_MESSAGE_STATUS, REPORT_STATUS]) expect(Object.keys(map).length).toBeGreaterThan(2);
   });
   it('labels are non-empty, sentence case (no snake_case) and short', () => {
-    for (const map of [HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, TOPIC_PROPOSAL_STATUS, BILLING_STATE, CLIENT_STATUS, LEAD_STATUS, ALERT_STATUS, REVIEW_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, WEBHOOK_KIND, AGENCY_NOTICE_KIND, MEMBERSHIP_ROLE] as Record<string, { label: string }>[])
+    for (const map of [HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, TOPIC_PROPOSAL_STATUS, BILLING_STATE, CLIENT_STATUS, LEAD_STATUS, ALERT_STATUS, REVIEW_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, WEBHOOK_KIND, AGENCY_NOTICE_KIND, MEMBERSHIP_ROLE, ...NEW_MAPS] as Record<string, { label: string }>[])
       for (const [k, e] of Object.entries(map)) { expect(e.label, k).not.toMatch(/_/); expect(e.label.length, k).toBeLessThan(40); }
   });
 });
@@ -52,5 +55,34 @@ describe('every enum value has a label', () => {
 describe('client-audience maps', () => {
   it('contain no agency-only terms', () => {
     for (const map of CLIENT_AUDIENCE_MAPS) for (const [k, e] of Object.entries(map)) expect(e.label, k).not.toMatch(AGENCY_ONLY_TERMS);
+  });
+});
+
+describe('15c-2b-2 maps', () => {
+  it('every new map value is labelled and sentence case', () => {
+    for (const v of CAPTURE_STATUSES) expect(CAPTURE_STATUS[v].label, v).toBeTruthy();
+    for (const v of PAGE_TYPES) expect(PAGE_TYPE[v].label, v).toBeTruthy();
+    for (const v of CADENCES) expect(CADENCE[v].label, v).toBeTruthy();
+    for (const map of NEW_MAPS as Record<string, { label: string }>[])
+      for (const [k, e] of Object.entries(map)) {
+        expect(e.label, k).toBeTruthy();
+        expect(e.label, k).not.toMatch(/_/);
+        expect(e.label[0], k).toBe(e.label[0]!.toUpperCase());
+        expect(e.label.slice(1), k).not.toMatch(/[A-Z][a-z]/);
+      }
+  });
+  it('new client-facing maps are in CLIENT_AUDIENCE_MAPS', () => {
+    for (const m of [MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE])
+      expect(CLIENT_AUDIENCE_MAPS.includes(m as never)).toBe(true);
+    expect(CLIENT_AUDIENCE_MAPS.includes(BRIEF_ITEM_STATUS as never)).toBe(false);
+  });
+  it('labels decided copy', () => {
+    expect(MOVE_STATUS.closed.label).toBe('Closed');
+    expect(LEVEL.M.label).toBe('Medium');
+    expect(CLIENT_PLAN_STATUS.invited.label).toBe('Awaiting payment setup');
+  });
+  it('ALERTS_PER_DAY is exported from @cs/engine and equals 3', async () => {
+    const { ALERTS_PER_DAY } = await import('@cs/engine');
+    expect(ALERTS_PER_DAY).toBe(3);
   });
 });

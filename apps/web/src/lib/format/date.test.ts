@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatRelative, formatWeekOf } from './date';
+import { formatDate, formatDateTime, formatMonth, formatRelative, formatWeekOf, localDay } from './date';
 
 const now = new Date('2026-10-21T15:00:00Z');
 
@@ -63,5 +63,34 @@ describe('formatRelative', () => {
     expect(formatRelative('2026-07-01T12:00:00Z', now)).toBe('Jul 1');
     expect(formatRelative(at(-30 * 60 * MIN), now)).toBe('tomorrow');
     expect(formatRelative(at(-3 * 24 * 60 * MIN - 1000), now)).toBe('in 3 days');
+  });
+});
+
+describe('formatMonth', () => {
+  it('formatMonth(2026-10) is "Oct 2026"', () => {
+    expect(formatMonth('2026-10', { tz: 'UTC' })).toBe('Oct 2026');
+    expect(formatMonth('2026-10', { tz: 'America/Los_Angeles' })).toBe('Oct 2026');
+  });
+  it('long style reads "October 2026"', () => {
+    expect(formatMonth('2026-10', { tz: 'UTC', style: 'long' })).toBe('October 2026');
+  });
+  it('shows the year for another year too (always)', () => {
+    expect(formatMonth('2025-03', { tz: 'UTC', now })).toBe('Mar 2025');
+    expect(formatMonth(new Date('2026-10-19T03:00:00Z'), { tz: 'America/Los_Angeles' })).toBe('Oct 2026');
+  });
+});
+
+describe('localDay', () => {
+  it('is the calendar day in the zone', () => {
+    expect(localDay('2026-10-19T03:00:00Z', 'America/Los_Angeles')).toBe('2026-10-18');
+  });
+  it('leaves a date-only value unchanged', () => {
+    expect(localDay('2026-10-19', 'America/Los_Angeles')).toBe('2026-10-19');
+  });
+});
+
+describe('formatDate withYear never', () => {
+  it('drops the year even for another year', () => {
+    expect(formatDate('2025-10-13T12:00:00Z', { tz: 'UTC', now, withYear: 'never' })).toBe('Oct 13');
   });
 });

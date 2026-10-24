@@ -3,6 +3,7 @@ import type { ChipTone } from '@cs/ui';
 import { changeTypeLabel } from '@cs/email/labels';
 import { Button, ConfirmDialog, Input, Label, StatusChip, Switch } from '@cs/ui';
 import { useOptimistic, useState, useTransition } from 'react';
+import { LEVEL, labelFor } from '@/lib/labels';
 import { DiffView } from './diff';
 import type { RunbookActionResult, RunbookItemData, RunbookLevel, RunbookOp, Tailoring } from './types';
 
@@ -17,7 +18,6 @@ export interface PlayContent {
 }
 
 const area = 'w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const LEVEL_WORD = { L: 'Low', M: 'Medium', H: 'High' } as const;
 /** The same fallbacks `renderPlaybook` (engine) uses when a brief has no value for a placeholder. */
 const FALLBACK: Record<string, string> = { competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic' };
 
@@ -289,8 +289,8 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         {play && <StatusChip tone="neutral">{changeTypeLabel(play.trigger)}</StatusChip>}
-        {play?.effort && <StatusChip tone="neutral">Effort: {LEVEL_WORD[play.effort]}</StatusChip>}
-        {play?.impact && <StatusChip tone="neutral">Impact: {LEVEL_WORD[play.impact]}</StatusChip>}
+        {play?.effort && <StatusChip tone="neutral">Effort: {labelFor(LEVEL, play.effort).label}</StatusChip>}
+        {play?.impact && <StatusChip tone="neutral">Impact: {labelFor(LEVEL, play.impact).label}</StatusChip>}
         <div className="ml-auto"><EnabledSwitch item={item} label={title} canEdit={canEdit} run={run} /></div>
       </div>
       <h3 className="font-semibold">{title}</h3>
