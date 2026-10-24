@@ -293,10 +293,10 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'common-questions',
       },
-      // source: packages/tools/src/platform.ts:listReviewableAskThreads (removed = sum of trace.removedSentences; error, refused, quota = a message with that status)
+      // source: packages/tools/src/platform.ts:listReviewableAskThreads (removed = sum of trace.removedSentences; error, refused, quota = a message with that status); packages/tools/src/platform.ts:ReviewableAskThreadItem.deletedAt (askThread.deleted_at, no filter for operators)
       flags: {
         title: 'The status chips',
-        body: 'N removed: sentences the answer check removed from replies. Something went wrong: a reply failed. Couldn\'t answer: the assistant declined a question. Limit reached: the client ran out of its question allowance.',
+        body: 'N removed: sentences the answer check removed from replies. Something went wrong: a reply failed. Couldn\'t answer: the assistant declined a question. Limit reached: the client ran out of its question allowance. Deleted by user: the person removed it from their list; it stays here for review.',
         audience: 'operator',
         guideAnchor: 'common-questions',
       },

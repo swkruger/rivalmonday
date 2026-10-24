@@ -60,6 +60,7 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
                 <span className="ml-2 text-sm text-muted-foreground">{t.agencyName} · {formatDateTime(t.createdAt, { tz, zoneLabel: true })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {t.deletedAt && <StatusChip tone="neutral">Deleted by user</StatusChip>}
                 {t.flags.removed > 0 && <StatusChip tone="warning">{t.flags.removed} removed</StatusChip>}
                 {t.flags.error && <StatusChip tone="danger">{ASK_MESSAGE_STATUS.error.label}</StatusChip>}
                 {t.flags.refused && <StatusChip tone="warning">{ASK_MESSAGE_STATUS.refused.label}</StatusChip>}

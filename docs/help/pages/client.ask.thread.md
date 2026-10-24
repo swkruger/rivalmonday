@@ -16,7 +16,7 @@ One of your conversations with {{assistant}}, with every question and answer in 
 1. **Keep asking in the same conversation** to build on an earlier answer. {{assistant}} reads the most recent earlier messages of the conversation.
 2. **Save useful answers.** Under an answer that cites evidence, **Save as recommendation** adds it to the Recommendations page.
 3. **Start a new topic** with **New question** in the list.
-4. **Delete a conversation** with the bin icon beside it in the list. Its messages are deleted with it.
+4. **Delete a conversation** with the bin icon beside it and confirm. It leaves your list for good. While conversations may be reviewed (the line under the box), the people it names can still read it.
 
 ## Common questions
 

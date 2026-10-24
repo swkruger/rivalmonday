@@ -116,6 +116,34 @@ describe('platform Ask review (6b e6)', () => {
     await expect(getReviewableAskThread(deps(), as('op'), '00000000-0000-4000-8000-000000000999')).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('operator list keeps deleted threads with deletedAt', async () => {
+    const live = await thread(IDS.clientA1, 'Live');
+    const gone = await thread(IDS.clientA1, 'Gone');
+    const at = new Date('2026-10-02T12:00:00Z');
+    await dbs.owner.update(askThread).set({ deletedAt: at }).where(eq(askThread.id, gone));
+    const list = await listReviewableAskThreads(deps(), as('op'), {});
+    const by = Object.fromEntries(list.items.map((i) => [i.id, i.deletedAt]));
+    expect(by[live]).toBeNull();
+    expect(by[gone]).toEqual(at);
+  });
+
+  it('operator detail returns deletedAt', async () => {
+    const gone = await thread(IDS.clientA1, 'Gone');
+    const at = new Date('2026-10-02T12:00:00Z');
+    await dbs.owner.update(askThread).set({ deletedAt: at }).where(eq(askThread.id, gone));
+    expect((await getReviewableAskThread(deps(), as('op'), gone)).deletedAt).toEqual(at);
+    const live = await thread(IDS.clientA1, 'Live');
+    expect((await getReviewableAskThread(deps(), as('op'), live)).deletedAt).toBeNull();
+  });
+
+  it('deleted thread of a non-review client stays hidden', async () => {
+    const gone = await thread(IDS.clientA2, 'Gone');
+    await dbs.owner.update(askThread).set({ deletedAt: new Date() }).where(eq(askThread.id, gone));
+    await dbs.owner.update(client).set({ askReviewAllowed: false }).where(eq(client.id, IDS.clientA2));
+    expect((await listReviewableAskThreads(deps(), as('op'), {})).items.map((i) => i.id)).not.toContain(gone);
+    await expect(getReviewableAskThread(deps(), as('op'), gone)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('view writes one audit row', async () => {
     const id = await thread(IDS.clientA1, 'T', [{}]);
     const t = await getReviewableAskThread(deps(), as('op'), id);

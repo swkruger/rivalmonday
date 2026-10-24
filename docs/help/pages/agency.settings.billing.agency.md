@@ -8,7 +8,7 @@ title: Billing
 Your agency's plan, what it covers, what you will be invoiced next, and how your own clients pay you. Only agency admins can open it.
 
 - **The plan card** names your plan and its state (Pilot, Free trial, Active, Payment overdue, Read-only, Suspended or Cancelled), with the key date for that state. Under it, one line spells out your price: the monthly price, how many clients the plan includes, and the price of each extra client. Plans can be priced differently, so read your figures from that line.
-- **Clients** counts your active clients against the clients the plan includes. A client counts when it is active and not paused. Prospects do not count, and a paused client stops counting. *Download seat report (CSV)* lists each active client and the date it was added.
+- **Clients** counts your active clients against the clients the plan includes. A client counts when it is active and not paused. Prospects do not count, and a paused client stops counting. *Download client report (CSV)* lists each active client and the date it was added.
 - **Next invoice** shows the amount and date, less any discount. It is the plan price plus any extra clients.
 - **Client billing** is separate from your plan: it is how your own clients pay you through your Stripe account.
 - **Discount code** and **Recent invoices** are at the bottom.

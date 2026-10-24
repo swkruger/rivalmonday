@@ -53,7 +53,13 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Ask reviews', href: '/platform/ask' }, { label: thread.title }]}
         description={
           <>
-            {thread.clientName} · {thread.agencyName}. <HelpText text={COPY.description} />
+            {thread.clientName} · {thread.agencyName}.{' '}
+            {thread.deletedAt && (
+              <>
+                <StatusChip tone="neutral">Deleted by user</StatusChip> Deleted {formatDateTime(thread.deletedAt, { tz, zoneLabel: true })}.{' '}
+              </>
+            )}
+            <HelpText text={COPY.description} />
           </>
         }
         helpKey={HELP_KEY}

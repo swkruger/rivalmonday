@@ -13,6 +13,7 @@ Each row shows the client, its agency, the start time (in your time zone) and st
 - **Something went wrong**: a reply failed.
 - **Couldn't answer**: the assistant declined a question.
 - **Limit reached**: the client used up its question allowance.
+- **Deleted by user**: the person removed it from their list; it stays here for review.
 
 **Opening a conversation is recorded** in the agency's audit log, with your name and the time. Listing them is not recorded.
 

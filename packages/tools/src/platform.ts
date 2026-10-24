@@ -48,6 +48,8 @@ export interface ReviewableAskThreadItem {
   agencyName: string;
   clientName: string;
   createdAt: Date;
+  /** Set when the person deleted the thread from their list; operators still see it. */
+  deletedAt: Date | null;
   flags: { removed: number; error: boolean; refused: boolean; quota: boolean };
 }
 
@@ -76,6 +78,7 @@ export async function listReviewableAskThreads(
       agencyName: agency.name,
       clientName: client.name,
       createdAt: askThread.createdAt,
+      deletedAt: askThread.deletedAt,
       removed: sql<number>`coalesce((select sum(coalesce((m.trace->>'removedSentences')::int, 0)) from ask_message m where m.thread_id = ${askThread.id}), 0)::int`,
       error: sql<boolean>`exists (select 1 from ask_message m where m.thread_id = ${askThread.id} and m.status = 'error')`,
       refused: sql<boolean>`exists (select 1 from ask_message m where m.thread_id = ${askThread.id} and m.status = 'refused')`,
@@ -90,7 +93,7 @@ export async function listReviewableAskThreads(
     .offset(offset);
   const page = pageResult(rows, limit, offset);
   return {
-    items: page.rows.map((r) => ({ id: r.id, agencyName: r.agencyName, clientName: r.clientName, createdAt: r.createdAt, flags: { removed: r.removed, error: r.error, refused: r.refused, quota: r.quota } })),
+    items: page.rows.map((r) => ({ id: r.id, agencyName: r.agencyName, clientName: r.clientName, createdAt: r.createdAt, deletedAt: r.deletedAt, flags: { removed: r.removed, error: r.error, refused: r.refused, quota: r.quota } })),
     nextCursor: page.nextCursor,
   };
 }
@@ -114,6 +117,7 @@ export interface ReviewableAskThread {
   agencyName: string;
   clientName: string;
   createdAt: Date;
+  deletedAt: Date | null;
   messages: ReviewableAskMessage[];
 }
 
@@ -123,7 +127,7 @@ export async function getReviewableAskThread(deps: ReviewDeps, ctx: AccessContex
   const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(threadId);
   const [t] = valid
     ? await deps.service
-        .select({ id: askThread.id, title: askThread.title, createdAt: askThread.createdAt, agencyId: askThread.agencyId, agencyName: agency.name, clientName: client.name })
+        .select({ id: askThread.id, title: askThread.title, createdAt: askThread.createdAt, deletedAt: askThread.deletedAt, agencyId: askThread.agencyId, agencyName: agency.name, clientName: client.name })
         .from(askThread)
         .innerJoin(client, and(eq(client.id, askThread.clientId), eq(client.agencyId, askThread.agencyId)))
         .innerJoin(agency, eq(agency.id, askThread.agencyId))

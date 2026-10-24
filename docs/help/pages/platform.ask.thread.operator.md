@@ -5,7 +5,7 @@ title: Ask conversation
 ---
 ## What this page tells you
 
-One assistant conversation, read-only and as plain text. The subtitle names the client and its agency. Opening this page was recorded in the agency's audit log.
+One assistant conversation, read-only and as plain text. The subtitle names the client and its agency. Opening this page was recorded in the agency's audit log. **Deleted by user**: the person removed it from their list; it stays here for review.
 
 Each message shows who spoke (the client, the assistant or a tool step), a status chip and the time: **Answered**, **Limit reached** (the question allowance was used up), **Couldn't answer**, **Something went wrong** or **Stopped**. Under a message you may see:
 

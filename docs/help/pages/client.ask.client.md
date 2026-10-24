@@ -20,7 +20,7 @@ title: Ask {{assistant}}
 3. **Save what is useful.** Under an answer that cites evidence, **Save as recommendation** adds it to your Recommendations page with the evidence attached.
 4. **Confirm before anything changes.** {{assistant}} can propose saving a recommendation, changing a recommendation's status or rating a change. It shows a card describing the change, and nothing happens until you select **Confirm**.
 5. **Ask about one piece of evidence.** On an evidence page, **Ask {{assistant}} about this** opens a question grounded on it.
-6. **Delete a conversation** with the bin icon beside it in the list.
+6. **Delete a conversation** with the bin icon beside it and confirm. It leaves your list for good. While conversations may be reviewed (the line under the box), the people it names can still read it.
 
 ## Common questions
 

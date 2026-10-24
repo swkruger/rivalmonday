@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToolError } from '@cs/core';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const list = vi.fn();
@@ -55,5 +55,19 @@ describe('platform Ask review pages', () => {
     expect(details.open).toBe(false);
     expect(within(details).getByText('Technical details')).toBeTruthy();
     expect(details.querySelectorAll('pre')).toHaveLength(2);
+  });
+
+  it('shows a Deleted by user chip', async () => {
+    list.mockResolvedValue({ items: [
+      { id: 't1', agencyName: 'Ag', clientName: 'Lone Star', createdAt: new Date('2026-10-01T10:00:00Z'), deletedAt: new Date('2026-10-02T10:00:00Z'), flags: { removed: 0, error: false, refused: false, quota: false } },
+      { id: 't2', agencyName: 'Ag', clientName: 'Other', createdAt: new Date('2026-10-01T10:00:00Z'), deletedAt: null, flags: { removed: 0, error: false, refused: false, quota: false } },
+    ], nextCursor: null });
+    render(await ListPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getAllByText('Deleted by user')).toHaveLength(1);
+    cleanup();
+    get.mockResolvedValue({ id: 't1', title: 'Q', agencyId: 'a', agencyName: 'Ag', clientName: 'Lone Star', createdAt: new Date(), deletedAt: new Date('2026-10-02T10:00:00Z'), messages: [] });
+    render(await ThreadPage({ params: Promise.resolve({ threadId: 't1' }) }));
+    expect(screen.getByText('Deleted by user')).toBeTruthy();
+    expect(screen.getByText(/Deleted Oct 2, 10:00 AM UTC/)).toBeTruthy();
   });
 });
