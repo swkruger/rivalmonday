@@ -21,7 +21,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 ## Git & commits
 - Trailer on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagent commits may name their own model). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
-- **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files.
+- **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files (subagent Write/Edit can do it too). If git thinks the file is clean, `git checkout` is a no-op: `rm <file> && git checkout -- <file>`.
 - A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows (now `/App/`).
 - **Root `.pnpmfile.cjs` ships with every install** (CI, Docker, Vercel; lockfile checksums it): drops drizzle-orm's `@opentelemetry/api` peer so `@sentry/nextjs` doesn't fork drizzle-orm.
 
