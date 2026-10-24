@@ -44,7 +44,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
 - **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
 - **Confirms with a result line:** `ConfirmForm` (`components/confirm-form.tsx`) for forms with visible fields; `ConfirmDialog` + `fields` + row-keyed result lines for row actions (`AlertList`, `TopicQueue`). Never a bare `ConfirmDialog` plus state inside the row.
-- **Gates ratchet:** `lib/page-gates.ts` `GATED_PATHS = [...AREAS_2A]`; new pages in those areas are gated automatically. Escape a hit with `// format-gate: <reason>` (a reason is required).
+- **Gates:** `lib/page-gates.ts` gates all of `src`; whole-file exemptions only in `GATE_EXEMPT` (non-UI, with a reason). Escape a line with `// format-gate: <reason>` (a reason is required).
 - **No `loading.tsx` under `app/(app)` or `app/(platform)`** — it turns `notFound()` into HTTP 200; use `<Suspense fallback={<PageSkeleton/>}>` inside pages after access checks.
 - **No mobile layout** (232px sidebar; 390px overview E2E is `fixme`).
 

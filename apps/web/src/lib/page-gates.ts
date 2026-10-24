@@ -1,6 +1,5 @@
-// Page-fix grep gates (15c-2a spec §5, gates 1-4) with a ratchet: gates are enforced only over
-// GATED_PATHS; each area task appends its folders (and fixes every hit); the last task (T16) asserts
-// GATED_PATHS ⊇ AREAS_2A. Regexes are deliberately simple line matchers; a false positive is fixed
+// Page-fix grep gates (15c-2a spec §5, gates 1-4), enforced over all of apps/web/src (15c-2b-2 T16);
+// whole-file exemptions only in GATE_EXEMPT. AREAS_2A/2B are the history of the ratchet. Regexes are deliberately simple line matchers; a false positive is fixed
 // with an escape comment that names its reason: `// format-gate: <reason>` or `{/* format-gate: <reason> */}`
 // on the same or the previous line (an empty reason does not count).
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -46,7 +45,13 @@ export const AREAS_2A: readonly string[] = [
 /** 15c-2b files, each appended by the task that creates it (ratchet continues; the full-`src` run is 2b-2). */
 export const AREAS_2B: string[] = ['components/whole-page-diff.tsx', 'components/list-detail.tsx', 'components/list-detail-sheet.tsx', 'components/charts/line-chart.tsx', 'components/charts/rank-trend.tsx', 'app/(app)/c/[clientId]/page.tsx', 'app/(app)/c/[clientId]/overview-kpis.ts', 'app/(app)/c/[clientId]/layout.tsx', 'app/(app)/c/[clientId]/help', 'components/client-lists.tsx', 'components/starting-point-card.tsx', 'components/stat-card.tsx', 'components/pressure-badge.tsx', 'components/client-home-basic.tsx', 'app/(app)/c/[clientId]/changes', 'app/(app)/c/[clientId]/moves', 'app/(app)/c/[clientId]/competitors/page.tsx', 'app/(app)/c/[clientId]/competitors/competitor-controls.tsx', 'app/(app)/c/[clientId]/competitors/actions.ts', 'app/(app)/c/[clientId]/competitors/search-state.ts', 'components/rival', 'app/(app)/c/[clientId]/competitors/[competitorId]', 'app/(app)/c/[clientId]/pricing', 'app/(app)/c/[clientId]/ads', 'app/(app)/c/[clientId]/reviews', 'components/place-summary.tsx', 'app/(app)/c/[clientId]/rankings', 'app/(app)/c/[clientId]/recommendations', 'components/recommendation-board.tsx', 'app/(app)/c/[clientId]/briefs', 'app/(app)/c/[clientId]/alerts', 'components/views/brief-view.tsx', 'components/views/alert-view.tsx', 'components/views/scorecard.tsx', 'app/(app)/c/[clientId]/reports', 'app/(app)/c/[clientId]/pitch-snapshot', 'components/views/report-view.tsx', 'components/prospect-landscape.tsx', 'app/(app)/c/[clientId]/evidence', 'app/(app)/c/[clientId]/ask', 'components/ask', 'app/(app)/c/[clientId]/setup', 'app/(app)/c/[clientId]/settings', 'components/client-profile-form.tsx', 'components/services-area-summary.tsx', 'app/(app)/agency/settings/usage/questions-cell.tsx'];
 
-export const GATED_PATHS: string[] = [...AREAS_2A, ...AREAS_2B];
+/** Whole files the gates skip: non-UI code whose source contains the patterns on purpose. Path relative to apps/web/src → reason. */
+export const GATE_EXEMPT: Record<string, string> = {
+  'lib/page-gates.ts': "the gates' own patterns (e.g. /<Badge\b/) are string literals",
+};
+
+/** All of apps/web/src (tests and lib/format/** still skipped). */
+export const GATED_PATHS: string[] = ['.'];
 
 const ESCAPE = /format-gate:\s*\S/;
 const DATE_RE = /\.slice\(\s*0\s*,\s*10\s*\)|toLocaleDateString\(|toLocaleTimeString\(|toLocaleString\(|toISOString\(\)/;
@@ -110,7 +115,7 @@ export function sourceFilesUnder(paths: readonly string[]): string[] {
   for (const p of paths) {
     for (const f of walk(join(SRC_ROOT, p))) {
       const rel = relative(SRC_ROOT, f).split(sep).join('/');
-      if (!/\.tsx?$/.test(rel) || /\.test\./.test(rel) || rel.startsWith('lib/format/')) continue;
+      if (!/\.tsx?$/.test(rel) || /\.test\./.test(rel) || rel.startsWith('lib/format/') || rel in GATE_EXEMPT) continue;
       files.push(rel);
     }
   }

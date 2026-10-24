@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AREAS_2A, AREAS_2B, BADGE_ALLOW, GATED_PATHS, SRC_ROOT, scanAllHelpText, scanHelpText, scanPaths, scanSource } from './page-gates';
+import { AREAS_2A, AREAS_2B, BADGE_ALLOW, GATE_EXEMPT, GATED_PATHS, SRC_ROOT, scanAllHelpText, scanHelpText, scanPaths, scanSource, sourceFilesUnder } from './page-gates';
 
 const gates = (file: string, src: string) => scanSource(file, src).map((h) => h.gate);
 const fmt = (h: { file: string; line: number; gate: string; text: string }) => `${h.file}:${h.line} ${h.gate} ${h.text}`;
@@ -61,11 +61,20 @@ describe('page gates over the tree', () => {
   it('AREAS_2B ⊆ existing paths', () => {
     for (const p of AREAS_2B) expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
   });
-  it('GATED_PATHS ⊆ AREAS_2A ∪ AREAS_2B', () => {
-    for (const p of GATED_PATHS) expect([...AREAS_2A, ...AREAS_2B].some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
+  it('GATE_EXEMPT entries are existing non-.tsx files with a reason', () => {
+    for (const [p, reason] of Object.entries(GATE_EXEMPT)) {
+      expect(p.endsWith('.tsx'), p).toBe(false);
+      expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
+      expect(reason.trim().length, p).toBeGreaterThan(0);
+    }
   });
-  it('gated paths cover AREAS_2A', () => {
-    // Every 2a area is gated: it equals a gated entry or sits under one.
-    for (const a of AREAS_2A) expect(GATED_PATHS.some((g) => a === g || a.startsWith(`${g}/`)), a).toBe(true);
+  it('a planted <Badge in a components/ fixture path is flagged', () => {
+    expect(gates('components/x.tsx', '<Badge>{label}</Badge>')).toEqual(['badge']);
+  });
+  it('scanPaths(GATED_PATHS) covers app/api and server files', () => {
+    const files = sourceFilesUnder(GATED_PATHS);
+    expect(files.some((f) => /^app\/api\/.+\/route\.ts$/.test(f))).toBe(true);
+    expect(files.some((f) => /^server\/[^/]+\.ts$/.test(f))).toBe(true);
+    expect(files).not.toContain('lib/page-gates.ts');
   });
 });
