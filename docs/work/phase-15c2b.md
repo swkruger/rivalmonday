@@ -4,10 +4,10 @@
 **Plan/spec:** [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) + [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) · [2b-1 plan](../superpowers/plans/2026-10-23-phase-15c2b1-features.md) (2b-2 plan after 2b-1)
 
 ## Status (overwrite)
-2b-1 Tasks 0-12 done; final whole-branch review next. E2E `e2e:affected` was 136/136 at Task 11. Copy sign-off: `docs/archive/phase-15c2-copy-signoff.md` § 15c-2b (2 owner questions).
+2b-1 done 2026-10-24 (Tasks 0-12 + final review fix wave 009617dd, re-review clean). `test:affected --base main` ran before the fix wave: 3 failures (demo coverage, help-client-b, page-controls race), all fixed and re-run focused. `e2e:affected` 136/136 at Task 11. Copy sign-off: `docs/archive/phase-15c2-copy-signoff.md` § 15c-2b (2 owner questions).
 
 ## Next (overwrite)
-Final 2b-1 review + fix wave -> owner: verify + decide merge of 2b-1 or continue to 2b-2 planning after phase-7b1 merges.
+Owner: verify (steps below) + answer the 2 copy questions; decide merge of 2b-1 now or after 2b-2. 2b-2 planning starts after phase-7b1 merges. Deferred to 2b-2: auto-selected row keeps `aria-current` below lg with no sheet open.
 
 ## Interfaces this branch adds or changes
 - Migration **0089** `ask_thread_deleted_at` (`ask_thread.deleted_at`, live index, owner grant). If phase-7b1 merges first its 0085-0087 move to 0089-0091 and ours becomes >= 0092 (renumber at rebase).
