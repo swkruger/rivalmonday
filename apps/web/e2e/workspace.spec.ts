@@ -21,6 +21,35 @@ test('the changes feed opens the evidence viewer with both snapshots and the tex
   await expect(page.getByText('Thanks — saved.')).toBeVisible();
 });
 
+test('at 390 px the change detail opens in a sheet that back closes and refresh keeps', { tag: ['@changes', '@responsive'] }, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/agency');
+  await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
+  await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
+  const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
+  await page.goto(`/c/${clientId}/changes`);
+  const item = page.getByRole('link', { name: /Smith HVAC cut its AC tune-up to \$79/ }).first();
+  const sheet = page.getByRole('dialog');
+  await expect(item).toBeVisible();
+  await expect(sheet).toHaveCount(0);
+
+  await item.click();
+  await expect(sheet.getByText('Change details', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/event=/);
+
+  await page.goBack();
+  await expect(sheet).toHaveCount(0);
+
+  await item.click();
+  await expect(sheet).toBeVisible();
+  await page.reload();
+  await expect(sheet).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await expect(page).not.toHaveURL(/event=/);
+});
+
 test('a move shows its evidence chain and the competitor profile its timeline', { tag: ['@moves', '@evidence', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();

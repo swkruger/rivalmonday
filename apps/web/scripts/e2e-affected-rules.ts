@@ -185,6 +185,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}starting-point-card\\.tsx$`), tags: ['@starting-point', '@overview'], why: 'client-home starting-point progress card' },
   { pattern: re(`${COMP}client-profile-form\\.tsx$`), tags: ['@clients', '@profile', '@prospects'], why: 'client/prospect forms' },
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
+  { pattern: re(`${COMP}list-detail[^/]*\\.tsx$`), tags: ['@changes', '@moves', '@responsive'], why: 'ListDetail and its sheet: the Changes and Moves list + detail layout (15c-2b)' },
+  { pattern: re(`${COMP}whole-page-diff\\.tsx$`), tags: ['@changes', '@evidence'], why: 'whole-page text diff in the change detail (15c-2b)' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
   { pattern: re(`${COMP}setup-badge\\.tsx$`), tags: ['@setup', '@clients', '@overview'], why: 'Finish setup badge (client overview and portfolio)' },
   { pattern: re(`${COMP}pressure-badge\\.tsx$`), tags: ['@clients', '@competitors'], why: 'pressure badge' },

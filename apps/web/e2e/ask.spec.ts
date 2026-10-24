@@ -124,6 +124,43 @@ test.describe('as a client user', () => {
     }
   });
 
+  test('deleting a conversation needs a confirm; it leaves the list and operators see "Deleted by user"', { tag: ['@ask', '@platform'] }, async ({ page, browser }, testInfo) => {
+    const { askCo } = fx();
+    await page.goto(`/c/${askCo.id}/ask`);
+    await ask(page, 'Which rival changed its prices this month?');
+    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/ask/[0-9a-f-]{36}$`));
+    const id = /\/ask\/([0-9a-f-]{36})$/.exec(page.url())![1]!;
+    const bin = page.getByRole('button', { name: /^Delete conversation “/ }).first();
+    const dialog = page.getByRole('dialog');
+
+    await bin.click();
+    await expect(dialog.getByText('Delete this conversation?', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/ask/${id}$`));
+
+    await bin.click();
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/ask$`));
+    await expect(page.locator(`a[href$="/ask/${id}"]`)).toHaveCount(0);
+    const gone = await page.goto(`/c/${askCo.id}/ask/${id}`);
+    expect(gone?.status()).toBe(404);
+
+    // The operator console keeps the thread, marked as deleted by the user.
+    await ensureAdminState(browser, testInfo);
+    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: ADMIN_STATE });
+    try {
+      const op = await context.newPage();
+      await op.goto('/platform/ask');
+      const row = op.getByRole('listitem').filter({ has: op.locator(`a[href="/platform/ask/${id}"]`) });
+      await expect(row).toContainText('Deleted by user');
+      await op.goto(`/platform/ask/${id}`);
+      await expect(op.getByText('Deleted by user').first()).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+
   test('the Ask page has no horizontal page scroll at 390 px with a long URL', { tag: ['@ask', '@responsive'] }, async ({ page }) => {
     const { askCo } = fx();
     await page.setViewportSize({ width: 390, height: 844 });

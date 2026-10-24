@@ -200,6 +200,14 @@ describe('parseSpecTests', () => {
     expect(resolve('apps/web/src/components/help/help-tip.tsx').tags).toContain('@help');
     expect(resolve('apps/web/e2e/help.spec.ts').mode).toBe('some');
   });
+
+  it('maps ListDetail and the whole-page diff to the Changes/Moves tags (15c-2b)', () => {
+    const resolve = (...files: string[]) => resolveAffected(files, SPEC_TAGS);
+    for (const f of ['apps/web/src/components/list-detail.tsx', 'apps/web/src/components/list-detail-sheet.tsx']) {
+      expect(resolve(f).tags).toEqual(expect.arrayContaining(['@changes', '@moves', '@responsive']));
+    }
+    expect(resolve('apps/web/src/components/whole-page-diff.tsx').tags).toEqual(expect.arrayContaining(['@changes', '@evidence']));
+  });
 });
 
 describe('coverage guard', () => {
