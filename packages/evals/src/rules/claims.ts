@@ -1,7 +1,7 @@
 /**
  * Deterministic "no evidence, no claim" rule (blocking B2, plan Task 10). Every date, number and tracked competitor name
  * in the text must appear in the evidence; any bait string is a violation outright. Dates are read (and stripped) first,
- * so a date's digits are never also read as numbers. A percent may match an evidence percent rounded to a whole number.
+ * so a date's digits are never also read as numbers. A percent may match an evidence percent rounded or truncated to a whole number.
  */
 export interface ClaimViolation { kind: 'number' | 'date' | 'name' | 'bait'; token: string }
 
@@ -28,7 +28,7 @@ export function claimViolations(text: string, ev: { text: string; competitorName
   for (const d of c.set) if (!e.set.has(d)) out.push({ kind: 'date', token: d });
   const evNums = numbers(e.rest);
   for (const n of numbers(c.rest)) {
-    const ok = evNums.some((x) => x.value === n.value || (n.pct && x.pct && Math.round(x.value) === n.value));
+    const ok = evNums.some((x) => x.value === n.value || (n.pct && x.pct && (Math.round(x.value) === n.value || Math.trunc(x.value) === n.value)));
     if (!ok) out.push({ kind: 'number', token: n.raw });
   }
   for (const name of ev.competitorNames) {

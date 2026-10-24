@@ -13,6 +13,14 @@ describe('claimViolations', () => {
     expect(claimViolations('Prices fell about 16 % this week.', ev('Numbers: $89 → $76 (-14.6%)'))).toEqual([{ kind: 'number', token: '16 %' }]);
   });
 
+  it('33 % matches 33.7% (truncated percent)', () => {
+    expect(claimViolations('They cut the price by 33 %.', ev('Numbers: $89 → $59 (-33.7%)'))).toEqual([]);
+  });
+
+  it('32 % does not match 33.7%', () => {
+    expect(claimViolations('They cut the price by 32 %.', ev('Numbers: $89 → $59 (-33.7%)'))).toEqual([{ kind: 'number', token: '32 %' }]);
+  });
+
   it("a number only in another candidate's evidence is a violation", () => {
     // Per-item checks pass only that item's own evidence: $49 lives in the other candidate.
     const own = ev('Event: AC tune-up price changed\nBefore: "AC tune-up $89"\nAfter: "AC tune-up $69"');
