@@ -13,9 +13,9 @@ test('the changes feed opens the evidence viewer with both snapshots and the tex
   const shots = page.getByRole('img', { name: /snapshot of https:\/\/smithhvac\.example\/pricing/ });
   await expect(shots).toHaveCount(2);
   await expect.poll(() => shots.first().evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
-  await page.getByRole('tab', { name: 'Text changes' }).click();
+  await page.getByRole('link', { name: 'Text changes' }).click();
   await expect(page.locator('ins', { hasText: '$79' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Capture details' }).click();
+  await page.getByRole('link', { name: 'Capture details' }).click();
   await expect(page.getByText(/SHA-256/).first()).toBeVisible();
   await page.getByRole('button', { name: 'Useful' }).click();
   await expect(page.getByText('Thanks — saved.')).toBeVisible();

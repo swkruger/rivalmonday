@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AREAS_2A, BADGE_ALLOW, GATED_PATHS, SRC_ROOT, scanAllHelpText, scanHelpText, scanPaths, scanSource } from './page-gates';
+import { AREAS_2A, AREAS_2B, BADGE_ALLOW, GATED_PATHS, SRC_ROOT, scanAllHelpText, scanHelpText, scanPaths, scanSource } from './page-gates';
 
 const gates = (file: string, src: string) => scanSource(file, src).map((h) => h.gate);
 const fmt = (h: { file: string; line: number; gate: string; text: string }) => `${h.file}:${h.line} ${h.gate} ${h.text}`;
@@ -58,8 +58,8 @@ describe('page gates over the tree', () => {
   it('AREAS_2A ⊆ existing folders', () => {
     for (const p of AREAS_2A) expect(existsSync(join(SRC_ROOT, p)), p).toBe(true);
   });
-  it('GATED_PATHS ⊆ AREAS_2A', () => {
-    for (const p of GATED_PATHS) expect(AREAS_2A.some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
+  it('GATED_PATHS ⊆ AREAS_2A ∪ AREAS_2B', () => {
+    for (const p of GATED_PATHS) expect([...AREAS_2A, ...AREAS_2B].some((a) => p === a || p.startsWith(`${a}/`)), p).toBe(true);
   });
   it('gated paths cover AREAS_2A', () => {
     // Every 2a area is gated: it equals a gated entry or sits under one.

@@ -1,5 +1,5 @@
 import { hasFeature, hasPermission } from '@cs/core';
-import { changeTypeOptions, channelLabel, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
+import { type CaptureCompareView, changeTypeOptions, channelLabel, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ import { callTool, tryCallTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
 import { FeedList, FilterBar } from './feed';
 import { groupByWeek } from './group';
-import { changesHref, parseChangesParams } from './params';
+import { changesHref, effectiveTab, parseChangesParams } from './params';
 import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
@@ -87,6 +87,11 @@ export default async function ChangesPage({
     compare = changeId ? await callTool<CompareView>(ctx, 'compare_snapshots', { clientId, changeId }) : null;
   }
 
+  let wholePage: CaptureCompareView | null = null;
+  if (compare?.after && effectiveTab(p.tab, compare) === 'page') {
+    wholePage = await callTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId: compare.after.captureId });
+  }
+
   return (
     <>
       <PageHeader
@@ -143,6 +148,7 @@ export default async function ChangesPage({
               params={p}
               detail={detail}
               compare={compare}
+              wholePage={wholePage}
               timezone={profile.timezone}
               canGiveFeedback={hasPermission(ctx, 'feedback') && !ctx.userId.startsWith('contact:')}
             />

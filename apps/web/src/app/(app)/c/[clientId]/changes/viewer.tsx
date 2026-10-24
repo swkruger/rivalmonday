@@ -3,18 +3,19 @@
  * `@cs/tools` types and reads `EventDetail`/`CompareView` produced by Task 8's page. Tabs and the change selector
  * are plain links driven by `ChangesParams` (`changesHref`), matching the GET-driven filter pattern from `feed.tsx`.
  */
-import type { CompareView, EventDetail, SnapshotSide } from '@cs/tools';
+import type { CaptureCompareView, CompareView, EventDetail, SnapshotSide } from '@cs/tools';
 import { humanise } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, TabsLink, TabsLinkList } from '@cs/ui';
 import Link from 'next/link';
 import { EvidenceImage } from '@/components/evidence-image';
+import { WholePageDiff } from '@/components/whole-page-diff';
 import { HelpTip } from '@/components/help/help-tip';
 import { submitFeedbackAction } from './actions';
 import { DiffText } from './diff-text';
 import { formatDate } from '@/lib/format';
 import { FeedbackButtons } from './feedback-buttons';
 import { RoutePill } from './feed';
-import { changesHref, type ChangesParams } from './params';
+import { changesHref, effectiveTab, type ChangesParams } from './params';
 
 function formatFullUtc(iso: string): string {
   return new Date(iso).toUTCString();
@@ -24,6 +25,7 @@ const TABS: { id: ChangesParams['tab']; label: string }[] = [
   { id: 'side', label: 'Side by side' },
   { id: 'text', label: 'Text changes' },
   { id: 'details', label: 'Capture details' },
+  { id: 'page', label: 'Whole page' },
 ];
 
 function FactorBar({ label, value, sub }: { label: string; value: number; sub?: string }) {
@@ -128,6 +130,7 @@ export function EventViewer({
   params,
   detail,
   compare,
+  wholePage = null,
   canGiveFeedback,
   timezone,
 }: {
@@ -135,11 +138,15 @@ export function EventViewer({
   params: ChangesParams;
   detail: EventDetail;
   compare: CompareView | null;
+  /** `compare_captures` output, loaded by the page only while the Whole page tab is active. */
+  wholePage?: CaptureCompareView | null;
   canGiveFeedback: boolean;
   timezone: string;
 }) {
   const activeChange = detail.changes.find((c) => c.changeId === params.change) ?? detail.changes[0];
   const hasCaptures = !!compare?.before && !!compare?.after;
+  const tab = effectiveTab(params.tab, compare);
+  const tabs = TABS.filter((t) => t.id !== 'page' || (compare?.channel === 'web' && !!compare.after));
 
   return (
     <div className="flex flex-col gap-4">
@@ -195,30 +202,17 @@ export function EventViewer({
         </>
       ) : (
         <>
-          <div role="tablist" className="flex w-fit gap-1 rounded-lg bg-muted-surface p-1">
-            {TABS.map((t) => {
-              const active = params.tab === t.id;
-              return (
-                <Link
-                  key={t.id}
-                  role="tab"
-                  aria-selected={active ? 'true' : 'false'}
-                  href={changesHref(clientId, { ...params, tab: t.id })}
-                  className={
-                    active
-                      ? 'rounded-md bg-surface px-3 py-1.5 text-sm font-semibold text-ink shadow-card'
-                      : 'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'
-                  }
-                >
-                  {t.label}
-                </Link>
-              );
-            })}
-          </div>
+          <TabsLinkList aria-label="Evidence views" className="max-w-full self-start overflow-x-auto">
+            {tabs.map((t) => (
+              <TabsLink key={t.id} asChild active={t.id === tab} className="flex-none px-3">
+                <Link href={changesHref(clientId, { ...params, tab: t.id })}>{t.label}</Link>
+              </TabsLink>
+            ))}
+          </TabsLinkList>
 
           <Card>
             <CardContent>
-              {params.tab === 'side' &&
+              {tab === 'side' &&
                 (compare.before === null && compare.after === null ? (
                   <div className="flex flex-col gap-3">
                     <p className="text-sm text-muted-foreground">This change comes from {compare.channelLabel}; there is no page snapshot.</p>
@@ -240,7 +234,7 @@ export function EventViewer({
                   </div>
                 ))}
 
-              {params.tab === 'text' && (
+              {tab === 'text' && (
                 <div className="flex flex-col gap-3">
                   {compare.facts.length > 0 && (
                     <span className="inline-flex w-fit items-center rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
@@ -261,7 +255,9 @@ export function EventViewer({
                 </div>
               )}
 
-              {params.tab === 'details' && (
+              {tab === 'page' && wholePage && <WholePageDiff view={wholePage} timezone={timezone} />}
+
+              {tab === 'details' && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <CaptureDetails clientId={clientId} label="Before" side={compare.before} />
                   <CaptureDetails clientId={clientId} label="After" side={compare.after} />

@@ -15,3 +15,10 @@ describe('changes params', () => {
     expect(changesHref(C, { route: 'all', days: 30, event: E, tab: 'text' })).toBe(`/c/${C}/changes?route=all&event=${E}&tab=text`);
   });
 });
+
+describe('tab=page', () => {
+  it('tab=page parses; unknown tab → side', () => {
+    expect(parseChangesParams({ tab: 'page' }).tab).toBe('page');
+    expect(parseChangesParams({ tab: 'nope' }).tab).toBe('side');
+  });
+});

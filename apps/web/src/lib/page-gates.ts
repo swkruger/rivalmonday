@@ -43,7 +43,10 @@ export const AREAS_2A: readonly string[] = [
 ];
 
 /** Folders (or files) enforced, relative to apps/web/src: all of 2a since T16 (the ratchet is complete). */
-export const GATED_PATHS: string[] = [...AREAS_2A];
+/** 15c-2b files, each appended by the task that creates it (ratchet continues; the full-`src` run is 2b-2). */
+export const AREAS_2B: string[] = ['components/whole-page-diff.tsx'];
+
+export const GATED_PATHS: string[] = [...AREAS_2A, ...AREAS_2B];
 
 const ESCAPE = /format-gate:\s*\S/;
 const DATE_RE = /\.slice\(\s*0\s*,\s*10\s*\)|toLocaleDateString\(|toLocaleTimeString\(|toLocaleString\(|toISOString\(\)/;

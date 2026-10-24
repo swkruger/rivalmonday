@@ -6,7 +6,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SLUG = /^[a-z0-9_]{1,80}$/;
 const ROUTES = ['flagged', 'all', 'archive'] as const;
 const DAYS = [7, 30, 90, 365] as const;
-const TABS = ['side', 'text', 'details'] as const;
+const TABS = ['side', 'text', 'details', 'page'] as const;
 
 export interface ChangesParams {
   competitor?: string;
@@ -86,4 +86,12 @@ export function changesHref(clientId: string, p: Partial<ChangesParams>): string
   }
   const s = qs.toString();
   return `/c/${clientId}/changes${s ? `?${s}` : ''}`;
+}
+
+/**
+ * The tab actually shown: `page` (Whole page) exists only for web changes that have an `after` capture; any other
+ * request for it falls back to the first tab. Shared by the page (which loads the diff) and the viewer.
+ */
+export function effectiveTab(tab: ChangesParams['tab'], compare: { channel: string; after: unknown } | null): ChangesParams['tab'] {
+  return tab === 'page' && !(compare?.channel === 'web' && compare.after) ? 'side' : tab;
 }

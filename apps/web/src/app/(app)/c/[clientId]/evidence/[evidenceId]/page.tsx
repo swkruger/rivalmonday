@@ -1,15 +1,17 @@
 import { hasChannel, hasFeature, hasPermission } from '@cs/core';
-import type { ClientProfile, EvidenceView } from '@cs/tools';
+import type { CaptureCompareView, ClientProfile, EvidenceView } from '@cs/tools';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { cache, type ReactNode } from 'react';
+import { cache, type ReactNode, Suspense } from 'react';
 import { RATIONALE_MAX, SaveRecommendationDialog, TITLE_MAX } from '@/components/ask/save-recommendation-dialog';
 import { EvidenceImage } from '@/components/evidence-image';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PageSkeleton } from '@/components/page-skeleton';
+import { WholePageDiff } from '@/components/whole-page-diff';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { assistantNameFor } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
@@ -49,6 +51,13 @@ function DetailRow({ label, value, tip }: { label: string; value: ReactNode; tip
 type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
 /** One `get_evidence` per request (keyed by the request's cached ctx), shared by the tab title and the page. */
 const loadEvidence = cache((ctx: Ctx, clientId: string, evidenceId: string) => callTool<EvidenceView>(ctx, 'get_evidence', { clientId, evidenceId }));
+
+/** Async body of the "Compare with previous" section: the diff against this capture's predecessor. */
+async function ComparePrevious({ clientId, captureId, timezone }: { clientId: string; captureId: string; timezone: string }) {
+  const { ctx } = await requireContext();
+  const view = await callTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId });
+  return <WholePageDiff view={view} timezone={timezone} />;
+}
 
 const titleOf = (evidence: EvidenceView) => `Evidence — ${evidence.competitorName}`;
 
@@ -153,6 +162,17 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
           </dl>
         </CardContent>
       </Card>
+
+      {evidence.channel === 'web' && (
+        <section aria-labelledby="compare-previous-heading" className="flex flex-col gap-3">
+          <h2 id="compare-previous-heading" className="text-lg font-semibold text-ink">
+            Compare with previous
+          </h2>
+          <Suspense fallback={<PageSkeleton />}>
+            <ComparePrevious clientId={clientId} captureId={evidence.captureId} timezone={profile.timezone} />
+          </Suspense>
+        </section>
+      )}
 
       {hasFeature(ctx, 'dashboard') && evidence.citedBy.length > 0 && (
         <Card>
