@@ -1,5 +1,6 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
+import Link from 'next/link';
 import { useState } from 'react';
 import { WriteGuard } from '@/components/read-only';
 
@@ -21,7 +22,7 @@ export function BillingStep({
   let body: React.ReactNode;
   if (!isAdmin) body = <p className="text-muted-foreground">An agency admin turns on billing.</p>;
   else if (skipped) body = <p className="text-muted-foreground">Billing for clients starts once your plan is active.</p>;
-  else if (!prefill?.ready) body = <p className="text-muted-foreground">Connect Stripe in Settings → Billing to bill this client.</p>;
+  else if (!prefill?.ready) body = <p className="text-muted-foreground"><Link href="/agency/settings/billing" className="font-semibold text-primary-soft-text">Connect Stripe in Settings → Billing</Link> to bill this client.</p>;
   else {
     body = (
       <form onSubmit={(e) => { e.preventDefault(); onEnable(price, fee); }} onReset={(e) => e.preventDefault()} className="flex flex-col gap-3">

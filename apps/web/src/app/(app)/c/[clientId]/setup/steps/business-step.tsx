@@ -54,13 +54,14 @@ const toggled = (set: Set<string>, v: string) => {
 /** Save errors about the fields inside "Advanced" (source: apps/web/src/server/forms.ts:parseClientProfileForm centre message). */
 const ADVANCED_ERROR = /centre|latitude|longitude|place id/i;
 
-export function BusinessStep({ view, profile, pending, onSave, error = null }: { view: ClientSetupView; profile: ProfileInitial; pending: boolean; onSave: (fd: FormData) => void; error?: string | null }) {
+export function BusinessStep({ view, profile, maxKeywords, pending, onSave, error = null }: { view: ClientSetupView; profile: ProfileInitial; maxKeywords: number; pending: boolean; onSave: (fd: FormData) => void; error?: string | null }) {
   const ready = readySuggestions(view.suggestions);
   const waiting = view.suggestions.status === 'pending';
   const area = profile.serviceArea;
   const { lookup } = view;
   const centerHint = useFieldHint('center');
   const placeHint = useFieldHint('placeId');
+  const extraHint = useFieldHint('extraKeywords');
   // "Advanced" stays closed unless a save error is about one of its fields; the agency can still toggle it.
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [seenError, setSeenError] = useState<string | null>(null);
@@ -135,9 +136,9 @@ export function BusinessStep({ view, profile, pending, onSave, error = null }: {
             <Chip key={k} name="keywords" value={k} label={k} checked={keywords.has(k)} onToggle={() => setKeywords((p) => toggled(p, k))} quote={quoteOf.get(k)} />
           ))}
         </div>
-        <Label htmlFor="extraKeywords">Add your own (one per line)</Label>
-        <textarea id="extraKeywords" name="extraKeywords" value={extra} onChange={(e) => setExtra(e.target.value)} className={areaClass} />
-        <p className="text-sm text-muted-foreground">Used for competitor discovery and local-ranking scans, e.g. “ac repair”.</p>
+        <Label htmlFor="extraKeywords">Add your own (one per line, up to {maxKeywords} in total)</Label>
+        <textarea id="extraKeywords" name="extraKeywords" value={extra} onChange={(e) => setExtra(e.target.value)} className={areaClass} {...extraHint.describedBy} />
+        <FieldHint id="extraKeywords">Used for competitor discovery and local-ranking scans, e.g. “ac repair”.</FieldHint>
       </fieldset>
 
       {quotes.length > 0 && (

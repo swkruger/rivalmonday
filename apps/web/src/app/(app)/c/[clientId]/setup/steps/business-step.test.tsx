@@ -16,7 +16,7 @@ const baseView = (suggestions: ClientSetupView['suggestions']): ClientSetupView 
   vertical: { name: 'Dental practices', services: [{ id: 'implants', name: 'Implants' }], seedKeywords: ['dentist near me', 'teeth whitening'] },
 });
 const profile = { services: [], keywords: [], placeId: null, serviceArea: null };
-const show = (s: ClientSetupView['suggestions']) => render(<BusinessStep view={baseView(s)} profile={profile} pending={false} onSave={() => {}} />);
+const show = (s: ClientSetupView['suggestions']) => render(<BusinessStep maxKeywords={5} view={baseView(s)} profile={profile} pending={false} onSave={() => {}} />);
 const advanced = () => screen.getByText('Advanced').closest('details') as HTMLDetailsElement;
 const ready = (services: { value: string; quote: string }[], keywords: { value: string; quote: string }[]): ClientSetupView['suggestions'] => ({
   status: 'ready', services, keywords, newAreas: [], sources: ['gbp'], generatedAt: '2026-10-17T00:00:00.000Z',
@@ -91,18 +91,32 @@ describe('BusinessStep Advanced disclosure', () => {
 
   it('opens when the save error is about the centre, stays closed for a radius error', () => {
     const view = baseView({ status: 'none' } as ClientSetupView['suggestions']);
-    const { rerender } = render(<BusinessStep view={view} profile={profile} pending={false} onSave={() => {}} error="Radius must be between 2 and 25 miles." />);
+    const { rerender } = render(<BusinessStep maxKeywords={5} view={view} profile={profile} pending={false} onSave={() => {}} error="Radius must be between 2 and 25 miles." />);
     expect(advanced().open).toBe(false);
-    rerender(<BusinessStep view={view} profile={profile} pending={false} onSave={() => {}} error={'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)'} />);
+    rerender(<BusinessStep maxKeywords={5} view={view} profile={profile} pending={false} onSave={() => {}} error={'Enter the centre as "latitude, longitude" (e.g. 33.95, -84.33)'} />);
     expect(advanced().open).toBe(true);
   });
 
   it('still submits the centre and place id values while closed', () => {
     let fd: FormData | undefined;
-    render(<BusinessStep view={baseView({ status: 'none' } as ClientSetupView['suggestions'])} profile={{ ...profile, placeId: 'ChIJabc' }} pending={false} onSave={(f) => { fd = f; }} />);
+    render(<BusinessStep maxKeywords={5} view={baseView({ status: 'none' } as ClientSetupView['suggestions'])} profile={{ ...profile, placeId: 'ChIJabc' }} pending={false} onSave={(f) => { fd = f; }} />);
     fireEvent.change(screen.getByLabelText(/Map centre/), { target: { value: '33.95, -84.33' } });
     fireEvent.submit(screen.getByRole('button', { name: /Save and find competitors/ }).closest('form')!);
     expect(fd!.get('center')).toBe('33.95, -84.33');
     expect(fd!.get('placeId')).toBe('ChIJabc');
+  });
+});
+
+describe('BusinessStep fields', () => {
+  it('keyword label names the limit', () => {
+    show(ready([], []));
+    expect(screen.getByLabelText('Add your own (one per line, up to 5 in total)')).toBeTruthy();
+  });
+
+  it('every setup hint is aria-describedby', () => {
+    const { container } = show(ready([], []));
+    const hints = [...container.querySelectorAll('p[id$="-hint"]')];
+    expect(hints.length).toBeGreaterThanOrEqual(3);
+    for (const h of hints) expect(container.querySelector(`[aria-describedby="${h.id}"]`), h.id).toBeTruthy();
   });
 });

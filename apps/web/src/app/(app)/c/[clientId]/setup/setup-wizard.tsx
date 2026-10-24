@@ -89,8 +89,8 @@ function Stepper({ current, steps, list }: { current: StepKey; steps: ClientSetu
 }
 
 export function SetupWizard({
-  clientId, agency, isAdmin, view: initial, profile, billing,
-}: { clientId: string; agency: boolean; isAdmin: boolean; view: ClientSetupView; profile: ProfileInitial; billing: BillingPrefill | null }) {
+  clientId, agency, isAdmin, view: initial, profile, billing, maxKeywords,
+}: { clientId: string; agency: boolean; isAdmin: boolean; view: ClientSetupView; profile: ProfileInitial; billing: BillingPrefill | null; maxKeywords: number }) {
   const readOnly = useReadOnly();
   const view = useSetupPoll(clientId, initial);
   const [pending, start] = useTransition();
@@ -135,7 +135,7 @@ export function SetupWizard({
       )}
       {notice?.kind === 'ok' && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{notice.text}</p>}
       {current === 'profile' && (
-        <BusinessStep view={view} profile={profile} pending={pending} error={notice?.kind === 'error' ? notice.text : null} onSave={(fd) => run(() => saveSetupProfileAction(clientId, fd))} />
+        <BusinessStep view={view} profile={profile} maxKeywords={maxKeywords} pending={pending} error={notice?.kind === 'error' ? notice.text : null} onSave={(fd) => run(() => saveSetupProfileAction(clientId, fd))} />
       )}
       {current === 'search' && (
         <SearchStep

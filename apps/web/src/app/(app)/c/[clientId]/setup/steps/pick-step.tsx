@@ -53,6 +53,7 @@ export function PickStep({
           })}
         </fieldset>
       ))}
+      {open.length > 0 && <p role="status" className="text-sm text-muted-foreground">{selected.size} selected</p>}
       <WriteGuard>
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={pending} onClick={() => onDone([...selected])}>Done picking</Button>

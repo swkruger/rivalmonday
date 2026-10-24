@@ -15,6 +15,11 @@ describe('BillingStep notes', () => {
 
   it('not skipped and Connect not ready shows the Connect note', () => {
     render(<BillingStep isAdmin prefill={{ ready: false, priceCents: null, setupFeeCents: null }} skipped={false} pending={false} onEnable={noop} onSkip={noop} />);
-    expect(screen.getByText('Connect Stripe in Settings → Billing to bill this client.')).toBeTruthy();
+    expect(screen.getByText(/Connect Stripe in Settings → Billing/)).toBeTruthy();
+  });
+
+  it('billing step links to agency billing', () => {
+    render(<BillingStep isAdmin prefill={{ ready: false, priceCents: null, setupFeeCents: null }} skipped={false} pending={false} onEnable={noop} onSkip={noop} />);
+    expect(screen.getByRole('link', { name: 'Connect Stripe in Settings → Billing' }).getAttribute('href')).toBe('/agency/settings/billing');
   });
 });

@@ -123,7 +123,7 @@ test.describe('client owner', () => {
     await expect(page.getByText('Not in our list yet. Tick to add it as a service; our team reviews new ones.')).toBeVisible();
     await newChip.check();
 
-    await page.getByLabel('Add your own (one per line)').fill('emergency furnace repair');
+    await page.getByLabel('Add your own (one per line, up to 5 in total)').fill('emergency furnace repair');
     await page.getByText('Advanced', { exact: true }).click(); // map centre and place id live in the closed Advanced disclosure
     await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');
     await page.getByLabel('Service area radius').selectOption({ label: '20 mi' });

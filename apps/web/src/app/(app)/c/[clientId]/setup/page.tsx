@@ -1,5 +1,6 @@
 import { isAgencyRole } from '@cs/core';
-import type { ClientProfile } from '@cs/tools';
+import { MAX_KEYWORDS, type ClientProfile } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cache } from 'react';
@@ -7,6 +8,7 @@ import { clientCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { SETUP_STEP_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
@@ -22,7 +24,6 @@ const HELP_KEY = 'page:client.setup';
 const COPY = PAGE_COPY['client.setup'];
 
 const STEP_LABEL = { profile: 'Your business', search: 'Finding competitors', competitors: 'Pick competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
-const STATUS_LABEL = { todo: 'Not started', running: 'Running', done: 'Done', skipped: 'Skipped', blocked: 'Needs attention' } as const;
 
 type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
 
@@ -84,7 +85,7 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
             {(Object.keys(STEP_LABEL) as (keyof typeof STEP_LABEL)[]).filter((k) => state.steps[k] !== undefined).map((k) => (
               <li key={k} className="flex items-center justify-between gap-3 rounded-lg bg-muted-surface px-3 py-2">
                 <span>{STEP_LABEL[k]}</span>
-                <span className="text-sm font-semibold">{STATUS_LABEL[state.steps[k]!]}</span>
+                <StatusChip tone={labelFor(SETUP_STEP_STATUS, state.steps[k]!).tone}>{labelFor(SETUP_STEP_STATUS, state.steps[k]!).label}</StatusChip>
               </li>
             ))}
           </ul>
@@ -113,7 +114,7 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
         ]}
       />
       <SetupWizard
-        clientId={clientId} agency={agency} isAdmin={isAdmin} view={view} billing={billing}
+        clientId={clientId} agency={agency} isAdmin={isAdmin} view={view} billing={billing} maxKeywords={MAX_KEYWORDS}
         profile={{ services: profile.services, keywords: profile.keywords, placeId: profile.placeId, serviceArea: profile.serviceArea }}
       />
     </>
