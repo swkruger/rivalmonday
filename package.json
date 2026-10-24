@@ -8,6 +8,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
     "test:affected": "node scripts/test-affected.mjs",
+    "eval:replay": "pnpm --filter @cs/evals eval run --suite all --mode replay",
     "db:up": "docker compose up -d db",
     "db:migrate": "pnpm --filter @cs/db migrate",
     "kb:seed": "pnpm --filter @cs/worker kb-seed",

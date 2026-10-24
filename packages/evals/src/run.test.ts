@@ -1,0 +1,73 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { AiConfig } from '@cs/ai';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type EvalCase, writeCases } from './case';
+import { runEvals } from './run';
+import type { SuiteRunner } from './report';
+
+const mk = (id: string): EvalCase => ({
+  id, suite: 'briefs', source: 'authored', vertical: 'hvac', blocking: true, input: {}, label: null, labelBy: null, confirmedAt: null,
+});
+let dir: string;
+const base = () => ({
+  mode: 'replay' as const, record: false, maxUsd: 5, updateBaseline: false, config: { tasks: {} } as unknown as AiConfig, env: {},
+  reportDir: join(dir, 'report'), dataDir: join(dir, 'data'), cassetteDir: join(dir, 'cass'), baselineDir: join(dir, 'base'), log: () => {},
+});
+beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'evals-run-')); });
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+describe('runEvals', () => {
+  it('a suite with zero cases passes with a no-cases note', async () => {
+    const out = await runEvals({ ...base(), suites: ['changes', 'reviews', 'briefs', 'ask'] });
+    expect(out.failed).toBe(false);
+    expect(out.reports.every((r) => r.note === 'no cases')).toBe(true);
+    expect(JSON.parse(readFileSync(join(dir, 'report', 'ask.json'), 'utf8'))).toMatchObject({ suite: 'ask', mode: 'replay', costUsd: 0 });
+  });
+
+  it('fails on a blocking failure, computes baselineDelta, and updates the baseline in replay', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const runner = (blocking: boolean): SuiteRunner => ({
+      suite: 'briefs',
+      run: async () => ({ blocking: blocking ? [{ rule: 'B2', caseId: 'brief-a', detail: 'unsupported' }] : [], metrics: { precision: 0.9 } }),
+    });
+    const bad = await runEvals({ ...base(), suites: ['briefs'], runners: { briefs: runner(true) }, updateBaseline: true });
+    expect(bad.failed).toBe(true);
+    expect(bad.reports[0]!.baselineDelta).toBeNull();
+    const ok = await runEvals({ ...base(), suites: ['briefs'], runners: { briefs: { suite: 'briefs', run: async () => ({ blocking: [], metrics: { precision: 0.8 } }) } } });
+    expect(ok.failed).toBe(false);
+    expect(ok.reports[0]!.baselineDelta).toEqual({ precision: -0.1 }); // accuracy drops never fail
+  });
+
+  it('a cassette miss in replay is an error (exit 1)', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const config = { tasks: { t: { provider: 'openrouter', model: 'm' } } } as unknown as AiConfig;
+    const runner: SuiteRunner = { suite: 'briefs', run: async (_c, ai) => { await ai.chat('t', { messages: [] }, {} as never); return { blocking: [], metrics: {} }; } };
+    const out = await runEvals({ ...base(), config, suites: ['briefs'], runners: { briefs: runner } });
+    expect(out.failed).toBe(true);
+    expect(out.errors[0]).toMatch(/No recorded reply|Re-record/);
+  });
+
+  it('cases without a registered runner fail', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const out = await runEvals({ ...base(), suites: ['briefs'], runners: {} });
+    expect(out.failed).toBe(true);
+  });
+
+  it('live mode stops at the budget and reports cost', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const runner: SuiteRunner = {
+      suite: 'briefs',
+      run: async (_c, ai) => { for (let i = 0; i < 5; i++) await ai.chat('t', { messages: [] }, {} as never); return { blocking: [], metrics: {} }; },
+    };
+    let calls = 0;
+    const out = await runEvals({
+      ...base(), suites: ['briefs'], mode: 'live', maxUsd: 1, runners: { briefs: runner },
+      makeLiveAi: (meter) => ({ chat: async () => { calls++; await meter.ledger.recordLlmCall({ costUsd: 0.6 } as never); return {}; } }) as never,
+    });
+    expect(calls).toBe(2);
+    expect(out.failed).toBe(true);
+    expect(out.errors[0]).toMatch(/Eval budget reached/);
+  });
+});

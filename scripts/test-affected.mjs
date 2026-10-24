@@ -36,6 +36,7 @@ const GRAPH_BLIND = [
   /^pnpm-lock\.yaml$/,
   /^turbo\.json$/,
   /\.(sql|ya?ml|json)$/,
+  /\.jsonl$/, // eval case sets
 ];
 const blind = changed.filter((f) => GRAPH_BLIND.some((re) => re.test(f)));
 const fileLevel = !flag('--packages-only') && blind.length === 0;

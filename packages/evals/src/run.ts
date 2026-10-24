@@ -1,0 +1,91 @@
+import { join } from 'node:path';
+import { type Ai, type AiConfig, CassetteMissError, createAiFromEnv, createCassetteAi } from '@cs/ai';
+import { BudgetExceededError, budgetedAi, createSpendMeter, type SpendMeter } from './budget';
+import { BASELINE_DIR, CASSETTE_DIR, DATA_DIR, readCases, SUITES, type Suite } from './case';
+import { baselineDelta, type EvalReport, readBaseline, renderMarkdown, type SuiteRunner, writeBaseline, writeReport } from './report';
+
+/** Suite runners register here (Tasks 10-12). A suite with cases but no runner is an error. */
+export const RUNNERS: Partial<Record<Suite, SuiteRunner>> = {};
+
+export interface RunOptions {
+  suites: Suite[];
+  mode: 'replay' | 'live';
+  /** Live + cassette record + flush. */
+  record: boolean;
+  maxUsd: number;
+  reportDir: string;
+  updateBaseline: boolean;
+  config: AiConfig;
+  env: NodeJS.ProcessEnv;
+  dataDir?: string;
+  cassetteDir?: string;
+  baselineDir?: string;
+  runners?: Partial<Record<Suite, SuiteRunner>>;
+  /** Test seam: replaces createAiFromEnv in live/record mode. The meter's ledger is what the live Ai must report into. */
+  makeLiveAi?: (meter: SpendMeter) => Ai;
+  log?: (s: string) => void;
+}
+
+export interface RunOutcome { reports: EvalReport[]; failed: boolean; errors: string[] }
+
+export const expandSuites = (s: Suite | 'all'): Suite[] => (s === 'all' ? [...SUITES] : [s]);
+
+/** Exit 1 (failed) on any blocking failure, cassette miss, budget stop or schema error; accuracy deltas never fail. */
+export async function runEvals(o: RunOptions): Promise<RunOutcome> {
+  const log = o.log ?? ((s: string) => console.log(s));
+  const runners = o.runners ?? RUNNERS;
+  const reports: EvalReport[] = [];
+  const errors: string[] = [];
+  const live = o.mode === 'live' || o.record;
+  const mode = live ? 'live' : 'replay';
+  // One meter and one cap across all suites of this invocation.
+  const meter = createSpendMeter();
+  let liveAi: (Ai & { spent(): number }) | null = null;
+  const ensureLive = () =>
+    (liveAi ??= budgetedAi(
+      o.makeLiveAi ? o.makeLiveAi(meter) : createAiFromEnv({ ...o.env, AI_SHADOW_RATE: '0' }, o.config, meter.ledger),
+      o.maxUsd,
+      meter,
+    ));
+
+  for (const suite of o.suites) {
+    try {
+      const cases = readCases(suite, o.dataDir ?? DATA_DIR);
+      if (cases.length === 0) {
+        const r: EvalReport = { suite, mode, costUsd: 0, blocking: [], metrics: {}, baselineDelta: null, note: 'no cases' };
+        reports.push(r);
+        writeReport(r, o.reportDir);
+        log(renderMarkdown(r));
+        continue;
+      }
+      const runner = runners[suite];
+      if (!runner) throw new Error(`${cases.length} case(s) but no runner is registered`);
+      const file = join(o.cassetteDir ?? CASSETTE_DIR, `${suite}.json`);
+      const before = meter.spent();
+      const cassette = o.record
+        ? createCassetteAi(ensureLive(), { mode: 'record', file, config: o.config })
+        : o.mode === 'replay'
+          ? createCassetteAi(null, { mode: 'replay', file, config: o.config })
+          : null;
+      const result = await runner.run(cases, cassette ?? ensureLive(), { mode });
+      cassette?.flush();
+      const bdir = o.baselineDir ?? BASELINE_DIR;
+      const report: EvalReport = {
+        suite,
+        mode,
+        costUsd: Math.round((meter.spent() - before) * 1e6) / 1e6,
+        ...result,
+        baselineDelta: baselineDelta(result.metrics, readBaseline(suite, bdir)),
+      };
+      if (o.updateBaseline && !live) writeBaseline(suite, result.metrics, bdir);
+      reports.push(report);
+      writeReport(report, o.reportDir);
+      log(renderMarkdown(report));
+    } catch (err) {
+      errors.push(`${suite}: ${err instanceof Error ? err.message : String(err)}`);
+      if (err instanceof BudgetExceededError) break;
+      if (err instanceof CassetteMissError) continue;
+    }
+  }
+  return { reports, failed: errors.length > 0 || reports.some((r) => r.blocking.length > 0), errors };
+}
