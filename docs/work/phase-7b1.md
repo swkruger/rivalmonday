@@ -18,16 +18,16 @@ Owner sign-off of the copy below -> `/rm-merge` (owner go-ahead).
 - **Email kinds:** `client_spend_paused` (agency billing notice), `platform_spend_alert` (staff). **Routes:** client `/c/<id>/settings/usage`; agency usage page now read-only.
 
 ## Decisions
-Spec d1–d19 bind. Plan-local 1–13: numeric ledger; migration 0091 (was 0087); guard also stops Jev calls; `*-once` CLIs unguarded; per-move rec backoff; stateless PDF backoff; `pending` batch row; `get_my_usage.questions` null for client roles; three extra read tools; C1 inline note; C6 on the 9b sender; one `client_paused` event/month; rank budget 130 %. Owner 2026-10-23: **test suites run once at the final review**, not per task. Controller rulings:
-1. Every task keeps `pnpm typecheck` green; web consumers get minimal compile fixes; T5 deletes the agency limits form. (small duplicate edit)
-2. T9 `summary.spike` = unchanged guard state; T10 inserts the spike step. (trivial)
+Spec d1–d19 bind; plan-local 1–13 in the plan. Owner 2026-10-23: **test suites run once at the final review**, not per task. Controller rulings:
+1. Every task keeps `pnpm typecheck` green; web consumers get minimal compile fixes; T5 deletes the agency limits form.
+2. T9 `summary.spike` = unchanged guard state; T10 inserts the spike step.
 3. workflow.spec usage rewrite moved T11 -> T5. (T11 re-touches the spec)
-4. `*-once` CLIs unguarded via `{ aiGuard: false }`. (trivial)
+4. `*-once` CLIs unguarded via `{ aiGuard: false }`.
 5. Mid-turn `AiPausedError` copy stays as Ask fallback; runbook-tailor rethrows `AiPausedError`. (small)
 6. Cron jobs not re-sent on platform pause (standard queues don't dedupe `singletonKey`); resend passed for all jobs. (small)
 7. One-time auto competitor search refused as `spend_paused` is not retried after the pause lifts. (agency runs a manual search)
 8. Spike `baselineUsd <= 0` -> ratio 0 (no warn/pause); spec floors keep `min(0)`. (a zero-floor config never spike-pauses until history exists)
-9. History lookback 8 days (finds the same-weekday midpoint before 12:00 UTC) vs the brief's 7. (none)
+9. History lookback 8 days (finds the same-weekday midpoint before 12:00 UTC) vs the brief's 7.
 10. Null-scope ledger paths (engine vertical stages, discovery/classify, leads, embeddings, own Playwright crawl) stay unattributed (spec d8 platform overhead). (some shared spend never reaches a client limit; spike guard still sees it)
 
 ## Owner verification (copy is used verbatim; edit at the code paths named)
@@ -46,6 +46,7 @@ Spec d1–d19 bind. Plan-local 1–13: numeric ledger; migration 0091 (was 0087)
 - l.282: "Failing PDF render re-enqueued hourly for 7 days (≤ ~500 attempts) — add a failure counter/backoff if noisy — *from 4b final review*"
 
 ## New backlog (target → item)
+- Future: buying extra credits (self-serve top-up).
 - Phase 7b2/later: confirm the Jev price, then lift the d19 exclusion (`SPEND_GUARD_EXCLUDED_PROVIDERS`).
 - Engine/worker: handlers that swallow `AiPausedError` internally (generateBrief, alert template fallback, setup-suggestions, lead-preview) lose one in-flight attempt; a prospect snapshot queued before a pause still runs its vendor pulls.
 - Set aside by review: archived-agency clients still count as O11 trackers; spend-paused runbook tailoring stays `skipped`; events aging out during a pause are never scored; `app_user` can read `spend_limit_usd`/`spend_paused_at` under RLS (same as old `monthly_cap_usd`).
