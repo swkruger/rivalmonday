@@ -88,7 +88,7 @@ export function createEngineJobs(
     },
   });
   const reask = defineJob({
-    name: 'engine-reask', schema: z.object({ reviewId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    name: 'engine-reask', usesAi: true, schema: z.object({ reviewId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
     handler: async ({ reviewId }) => {
       const r = await deps.reaskReview(reviewId);
       if (r.questions > 0) workerLog.info(`[engine-reask] ${reviewId} → ${r.questions} question(s)`);
