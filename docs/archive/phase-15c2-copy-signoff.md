@@ -304,3 +304,116 @@ Page groups: Ask, Platform > Ask, Changes, Evidence, Moves, plus the 15c-2a item
 | Branding editor (`components/agency/branding-editor.tsx:121`) | "Buttons will use dark text so they stay readable." removed |
 | Agency billing (`agency/settings/billing/page.tsx:118`, guide `agency.settings.billing.agency.md:11`) | "Download client report (CSV)" |
 | Team invites cell (`agency/settings/team/page.tsx:119`) | "{date} · expires {date}" (no "Sent") |
+
+### 2b-2
+
+Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the end of the branch; the source of truth is the code. Labels come from the shared maps in `lib/labels.ts` (same text everywhere a status shows).
+
+### Owner decisions (2b-2)
+1. **Changes on a phone (P2).** Rows are no longer announced as "current" below `lg:` (the detail pane is hidden there; tapping opens the sheet). On desktop the open row still carries `aria-current`. OK?
+2. **Tool refusal still says "place id" (P4).** UI, guides and help now say "Google Place ID". The refusal text from the tool (`packages/tools/src/client-input.ts:52`, "Google place id looks wrong") is unchanged because this phase changes no tool. Leave it for a later tool pass?
+3. **Band bar shows no examples (P10).** Settings > Alert rules draws the three bands with their score ranges only, no example changes. OK?
+4. **Colours left as hex (phase-16).** No token exists for them, so they stay: disabled button `bg-[#CBD5E1]` (`competitors/competitor-controls.tsx`), unticked suggestion border `#CBD5E1` (`competitors/signal-pills.tsx`), tier chips `#E2E8F0`/`#F1F5F9`/`#4A5D73` (competitors tier chip), heatmap constants INK/WHITE/LINE and sentiment fills (`components/charts/topic-heatmap.tsx:3-5`). Add tokens in phase-16?
+5. **Capture status wording for owners.** `CAPTURE_STATUS` (`lib/labels.ts`) now shows to client owners: "Captured", "No change since last capture", "Blocked by the site", "Site asks not to be monitored", "Data provider error", "Timed out", "Failed". OK for owners, or soften "Blocked by the site"?
+6. **Guides still say "3 instant alerts a day".** The page uses the engine constant (`ALERTS_PER_DAY`), but guide Markdown cannot interpolate it (`docs/help/pages/client.settings.alerts.agency.md:20,29`, `client.settings.delivery.agency.md:21`, `client.alerts.detail.agency.md`, `client.changes.agency.md`, `agency.alerts.agency.md`). Fine while the limit is 3?
+7. **Status wording.** Briefs and alerts no longer say "Needs review": briefs "Ready for review", alerts "Waiting for review" / "Being drafted". Agency approvals guides still say "Needs review" (`agency.approvals.agency.md:10,16`, `agency.approvals.detail.agency.md:33`); fixed in the final wave unless you object.
+8. **Heatmap tooltip is shorter.** The cell tooltip is now "{business}, {topic}: 34% · Positive · ▲ 8 pts" (same text as the table). It no longer says "vs previous 90 days" or explains the share; the guides and the page tip carry that. OK?
+9. **Alert-rules page lost a sentence.** "Below {n}: archived — still visible under Changes." is gone from `settings/alerts/page.tsx`; the band bar and its legend replace the three plain-words lines.
+
+#### Overview (`app/(app)/c/[clientId]/`)
+| Where | Copy |
+|---|---|
+| Brief links (`overview-kpis.ts:87`) | "Brief · Week of Oct 19" / "Starting point · Oct 15" (was ISO dates) |
+| Brief list status (`components/client-lists.tsx:17`) | Agency sees a chip (Ready for review, Approved, Sent...); client roles see none |
+| No Place ID (`overview-kpis.ts:62`) | "Add your Google Place ID to compare" (was "place id") |
+| Recommendations open (`page.tsx`) | Chip from the shared labels: To do / In progress |
+
+#### Changes and Moves
+| Where | Copy |
+|---|---|
+| Captured (`changes/viewer.tsx`) | Date, time and the client's zone ("Oct 12, 9:00 AM CT"), not the UTC string |
+| Capture status (`viewer.tsx`) | Chip from `CAPTURE_STATUS` (decision 5) |
+| Route pill (`changes/feed.tsx`) | Chip "Alert" (red) / "Brief" (amber) / "Archived"; hover title and screen-reader text name the score |
+| Move card (`moves/move-card.tsx:47,66`) | "Active · 3 changes over 14 days · confidence 80%" (was "3 signals") |
+| Move tip (`help/copy/client.ts`, key `client.moves.signals`) | Title "Changes behind a move" (was "Signals on a move"); body "A move is backed by changes: “3 changes” means three changes by this competitor fit the pattern. The list shows each one with its evidence. They are not the signal pills on the Competitors page." Guide `client.moves.*` lines 10/12 follow |
+| Tips | Moved beside the card titles, not inside them |
+
+#### Competitors and competitor profile
+| Where | Copy |
+|---|---|
+| Google Place ID (`competitors/competitor-controls.tsx:286,395`, `overview-kpis.ts:62`, setup, 6 agency guides, help copy) | "Google place id" -> "Google Place ID" |
+| Empty room (`competitor-controls.tsx:312`) | "{agency} can look for more competitors for you." |
+| Stop tracking (`competitor-controls.tsx:410-412`) | Asks first: title "Stop tracking {name}?", button "Stop tracking", Cancel keeps it; a refusal shows on that row |
+| Since column (`competitor-controls.tsx:473,495`) | "Oct 13" in the client zone (was a long weekday date) |
+| Rated (`components/rival/rated-label.ts:5`) | "Rated Oct 13" (was "Rated Tue 13 Oct") |
+| No rating (`competitors/[competitorId]/page.tsx:147`) | "No rating yet" |
+| Pages table | Page type and cadence in words (Home page, Pricing, Service area, Daily, Weekly); Inactive as a chip |
+| Collection status | Relative time in the client zone, "· Paused" when paused; a site that blocks monitoring shows a red chip |
+
+#### Pricing, Ads, Reviews
+| Where | Copy |
+|---|---|
+| Price tag (`pricing/price-card.tsx:44`) | "Promo" (was "PROMO"); help copy `client.ts:168` and `client.pricing.md:13` follow |
+| Prices | Cents kept ("$89.50"); empty price cells hidden; "See pricing" hidden when none |
+| Ad state (ad cards) | Chip "Active" / "Ended"; dates in the client zone |
+| Review line (`reviews/review-item.tsx:6`) | "Google reviewer · on your profile" for the client's own reviews; dates "Oct 3" |
+| Ads Apply / Reviews Search buttons | Label colour is ink on the primary colour (was white) |
+
+#### Rankings
+| Where | Copy |
+|---|---|
+| Dates (`rankings/page.tsx`) | Scan names and "Scan of ..." in the profile zone, short form |
+| Keyword limit (`rankings/rank-settings-sheet.tsx:73`) | "That is the most keywords one scan can cover. Untick one to pick another." |
+
+#### Recommendations
+| Where | Copy |
+|---|---|
+| Chips (`components/recommendation-board.tsx:125`) | "Effort: Low" / "Impact: High"; owner "For you" (client roles) / "Client" (agency view) / "Agency" |
+| Empty column (`recommendation-board.tsx:146`) | "Nothing here yet." |
+| Tip (`help/copy/client.ts:292-293`) | Title "For you or Agency" |
+
+#### Briefs, Alerts, Reports, Pitch snapshot
+| Where | Copy |
+|---|---|
+| Status chips (`lib/labels.ts:60,61,87`) | "Needs review" -> briefs "Ready for review"; alerts "Waiting for review" / "Being drafted" (decision 7). Status tip (`client.ts:353`) and guide `client.briefs.agency.md` follow |
+| Brief rows (`briefs/page.tsx:58`) | Blue "Starting point" tag on starting-point briefs; "Week of Oct 19" on weekly ones |
+| Alert time (`components/views/alert-view.tsx`) | Date, time and client zone label |
+| Report empty state (`help/copy/client.ts:443`) | Title "No figures in this report"; body "This quarter had no data to report for {client}. The next report comes after the quarter ends." |
+| Report dates and move status | Period and move dates short, move status in words |
+| Pitch snapshot (`pitch-snapshot/page.tsx:41`) | "Generated Sep 1." in the client zone |
+
+#### Evidence and Ask
+| Where | Copy |
+|---|---|
+| Evidence page (`evidence/[evidenceId]/page.tsx`) | Captured with zone label; capture status chip (decision 5); kind in lower-case words |
+| Composer line (`components/ask/ask-chat.tsx:253`) | Review off: "Only you can see your conversations." (new, always shown); review on: "Conversations may be reviewed by {product} to improve answers." |
+| Empty thread list (`components/ask/thread-list.tsx:69`) | "Your questions appear here." |
+| Privacy tip (`help/copy/client.ts:325`, Q6, approved, for the record) | Ends "Delete a conversation with the bin icon beside it and confirm. While conversations may be reviewed, the people named in that line can still read it." |
+
+#### Setup
+| Where | Copy |
+|---|---|
+| Step status (`setup/page.tsx`) | Chip: Not started / Running / Done / Skipped / Needs attention |
+| Competitor pick (`setup/steps/pick-step.tsx:56`) | "{n} selected" (live) |
+| Keyword field (`setup/steps/business-step.tsx:139`) | "Add your own (one per line, up to 5 in total)" |
+| Billing step (`setup/steps/billing-step.tsx`) | Links to Agency settings > Billing for admins |
+
+#### Settings
+| Where | Copy |
+|---|---|
+| Alert rules (`settings/alerts/band-bar.tsx:10-18`) | Legend "Archived", "Weekly brief", "Instant alert" with ranges; aria-label "Scores 0 to {b-1}: archived. {b} to {a-1}: weekly brief. {a} to 100: instant alert." (numbers follow the fields). Page (`page.tsx:55`, agency view): "Instant alerts are still limited to 3 a day; extra ones go into the daily digest." Range sentence removed (decision 9) |
+| Delivery (`settings/delivery/delivery-controls.tsx:16`) | "Alerts wait for the 17:00 digest (business time zone)." |
+| Recipient roles (`lib/labels.ts:135`) | "Client owner" / "Client viewer" (also in the add-recipient select) |
+| Deactivate (`delivery-controls.tsx:160-170`) | Confirm dialog "Deactivate {email}?", button "Deactivate"; Cancel does nothing |
+| Save bars | Alert rules, Delivery, Profile ("Save profile"), Features ("Save features") show Save / Discard only after a change |
+| Billing (`settings/billing/page.tsx`; guide `client.settings.billing.*.md:10`; tip `client.ts:658`) | Status is a chip; "Not available" means the agency has not shared billing details here; contact them |
+| Usage, client and agency (`lib/spend-copy.ts:24`) | Quota 0: "4 used · Ask turned off by limit" (was "4 of 0" / "At quota") |
+| Services area summary | Omits "0 ZIP codes" |
+
+#### Heatmap (Reviews)
+| Where | Copy |
+|---|---|
+| Table cell (`components/charts/topic-heatmap.tsx:30-35,119`) | "34% · Positive · ▲ 8 pts"; no sentiment "No sentiment"; no share "—"; points shown from 5 up |
+| Tooltip (`topic-heatmap.tsx:72`) | "{business}, {topic}: 34% · Positive · ▲ 8 pts" (decision 8) |
+| Phone | The chart keeps its width and scrolls sideways |
+| Guides (`client.reviews.{agency,client}.md`) | The table sentence now describes the cell |
