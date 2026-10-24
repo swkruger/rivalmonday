@@ -29,7 +29,7 @@ const BATCH_B = [...BATCH_B_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`])
  * 15b-2 Task 6, client batch C. Delivery and Runbook are agency-only (a client role gets a 404): agency guide only.
  * Billing is client-owner-only (an agency role gets a 404): client guide only.
  */
-const BATCH_C_SPLIT = ['page:client.setup', 'page:client.settings.profile', 'page:client.settings.alerts', 'page:client.settings.ai'];
+const BATCH_C_SPLIT = ['page:client.setup', 'page:client.settings.profile', 'page:client.settings.alerts', 'page:client.settings.ai', 'page:client.settings.usage'];
 const BATCH_C_AGENCY_ONLY = ['page:client.settings.delivery', 'page:client.settings.runbook'];
 const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
 const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
@@ -134,7 +134,8 @@ describe('help content (real docs/help + GLOSSARY)', () => {
 
   it('batch A: the agency versions carry the agency-only content, the client versions leave it out', async () => {
     const rankA = text(await guide(admin, 'page:client.rankings'));
-    for (const w of ['Rank settings', 'Scan now', 'once every 7 days', '10 manual scans a day', 'Sunday', 'monthly cost cap']) expect(rankA, w).toContain(w);
+    for (const w of ['Rank settings', 'Scan now', 'once every 7 days', '10 manual scans a day', 'Sunday', 'monthly credit limit']) expect(rankA, w).toContain(w);
+    expect(rankA).not.toMatch(/\$|cost/i);
     const rankC = text(await guide(owner, 'page:client.rankings'));
     expect(rankC).not.toMatch(/Scan now|Rank settings|manual scan|7 days|cost cap|UTC|Sunday/i);
     expect(rankC).toContain('counts as 21');
@@ -320,7 +321,8 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const access = await agencyGuide('page:agency.settings.platform-access');
     for (const w of ['60 minutes', 'read-only', 'audit log', 'Timed out', 'Access revoked']) expect(access, w).toContain(w);
     const usage = await agencyGuide('page:agency.settings.usage');
-    for (const w of ['80%', '$1 to $10,000', '$15', '1 to 10', '0 to 100,000', 'UTC', 'Only questions from the client']) expect(usage, w).toContain(w);
+    for (const w of ['80%', 'monthly credit limit', 'Near limit', 'Limit reached', 'UTC', 'split equally', 'Only questions from the client']) expect(usage, w).toContain(w);
+    expect(usage).not.toMatch(/\$|cost/i);
     const hooks = await agencyGuide('page:agency.settings.slack-teams');
     for (const w of ['hooks.slack.com', 'webhook.office.com', 'logic.azure.com', 'environment.api.powerplatform.com']) expect(hooks, w).toContain(w);
     const team = await agencyGuide('page:agency.settings.team');

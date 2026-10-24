@@ -17,7 +17,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 <!-- coverage:start -->
 | Screen | Signed in as | Tools that must return data | Empty on purpose |
 |---|---|---|---|
-| `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary`, `list_help_guides` | — |
+| `/agency` | admin | `get_portfolio`, `list_client_billing_status`, `get_onboarding_status`, `get_billing_summary`, `list_help_guides` | `get_spend_status`: no demo client is spend-paused |
 | `/agency/settings/ai` | admin | `list_api_tokens`, `list_help_guides` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue`, `list_help_guides` | — |
 | `/agency/approvals` | admin | `list_brief_queue`, `list_help_guides` | — |
@@ -64,6 +64,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
 | `/c/[clientId]/settings/ai` | admin | `get_client_profile`, `list_api_tokens`, `list_help_guides` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/c/[clientId]/settings/ai (client owner)` | ownerLoneStar | `get_client_profile`, `list_api_tokens` | — |
+| `/c/[clientId]/settings/usage` | admin | `get_client_profile`, `get_my_usage`, `list_help_guides` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules`, `list_help_guides` | — |
 | `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook`, `list_help_guides` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_client_recipients`, `list_help_guides` | — |
@@ -83,11 +84,11 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform` | operator | `platform_overview`, `list_platform_activity`, `list_help_guides` | — |
 | `/platform/runbook` | operator | `get_runbook`, `list_help_guides` | — |
 | `/platform/agencies` | operator | `list_platform_agencies`, `list_help_guides` | — |
-| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes`, `list_help_guides` | — |
+| `/platform/agencies/[id]` | operator | `get_platform_agency`, `list_agency_support_sessions`, `get_agency_billing`, `list_discount_codes`, `get_client_limits`, `list_help_guides` | — |
 | `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel`, `list_help_guides` | `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo |
-| `/platform/costs` | operator | `list_platform_costs`, `list_help_guides` | — |
+| `/platform/costs` | operator | `list_platform_costs`, `get_spend_guard`, `list_help_guides` | — |
 | `/platform/leads` | operator | `list_pool_leads`, `list_help_guides` | — |
-| `/platform/health` | operator | `get_platform_health`, `list_help_guides` | — |
+| `/platform/health` | operator | `get_platform_health`, `get_spend_guard`, `list_help_guides` | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads`, `list_help_guides` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread`, `list_help_guides` | — |
 | `/platform/knowledge` | operator | `list_kb_articles`, `list_kb_targets`, `list_help_guides` | — |

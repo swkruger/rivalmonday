@@ -198,9 +198,9 @@ export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [ALERT_STATUS, 
 type SpendGuardEventKind = 'client_reached' | 'client_paused' | 'client_unpaused' | 'spike_warn' | 'spike_paused' | 'spike_reset';
 export const SPEND_GUARD_EVENT_KIND: LabelMap<SpendGuardEventKind> = {
   client_reached: e('Client reached limit', 'info'),
-  client_paused: e('Client paused', 'warning'),
+  client_paused: e('Client paused', 'info'),
   client_unpaused: e('Client resumed', 'success'),
   spike_warn: e('Spike warning', 'info'),
-  spike_paused: e('Spike pause', 'danger'),
+  spike_paused: e('Spike pause', 'info'),
   spike_reset: e('Guard reset', 'success'),
 };

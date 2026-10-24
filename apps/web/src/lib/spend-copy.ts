@@ -1,5 +1,5 @@
 /** "November 1" (year added when not the current one, UTC) — the same long form as the Task 9 email. */
-function longDate(iso: string, now = new Date()): string {
+export function longDate(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const year = (x: Date) => x.getUTCFullYear();

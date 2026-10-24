@@ -97,7 +97,7 @@ export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings', '/e
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
  * than in every entry; the coverage test requires each layout read to be listed and its entry to call it.
  */
-export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team' };
+export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team', get_spend_status: '/agency' };
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
@@ -108,6 +108,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       // Phase 10: the getting-started checklist (the demo agency is mid-wizard) and its plan sub-line.
       onboardingStatus,
       { tool: 'get_billing_summary', input: none, path: 'state' },
+      { tool: 'get_spend_status', input: none, path: 'paused', expect: 'empty', why: 'no demo client is spend-paused' },
     ],
   },
   {
@@ -296,6 +297,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_api_tokens', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
     ],
   },
+  { route: '/c/[clientId]/settings/usage', as: 'admin', calls: [lsProfile, { tool: 'get_my_usage', input: (ids) => ({ clientId: ls(ids) }), path: 'credits.limit' }] },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/runbook', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'items' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }, { tool: 'list_client_recipients', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
@@ -328,6 +330,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_agency_support_sessions', input: (ids) => ({ agencyId: ids.agencyId }), path: 'rows' },
       { tool: 'get_agency_billing', input: (ids) => ({ agencyId: ids.agencyId }), path: 'state' },
       { tool: 'list_discount_codes', input: none, path: 'codes' },
+      { tool: 'get_client_limits', input: (ids) => ({ agencyId: ids.agencyId }), path: 'defaultLimitUsd' },
     ],
   },
   {
@@ -342,9 +345,9 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups' },
     ],
   },
-  { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }] },
+  { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },
   { route: '/platform/leads', as: 'operator', calls: [{ tool: 'list_pool_leads', input: none, path: 'leads' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
-  { route: '/platform/health', as: 'operator', calls: [{ tool: 'get_platform_health', input: none, path: 'sources' }] },
+  { route: '/platform/health', as: 'operator', calls: [{ tool: 'get_platform_health', input: none, path: 'sources' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
   { route: '/platform/knowledge', as: 'operator', calls: [{ tool: 'list_kb_articles', input: none, path: 'items' }, { tool: 'list_kb_targets', input: none, path: 'agencies' }] },
@@ -389,7 +392,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
   '/c/[clientId]/pricing', '/c/[clientId]/rankings', '/c/[clientId]/recommendations', '/c/[clientId]/reports/[reportId]', '/c/[clientId]/settings/ai',
   '/c/[clientId]/settings/alerts', '/c/[clientId]/settings/billing', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/profile',
-  '/c/[clientId]/settings/runbook', '/c/[clientId]/setup',
+  '/c/[clientId]/settings/runbook', '/c/[clientId]/settings/usage', '/c/[clientId]/setup',
   '/platform', '/platform/agencies', '/platform/agencies/[id]', '/platform/ask', '/platform/ask/[threadId]', '/platform/billing', '/platform/costs',
   '/platform/health', '/platform/knowledge', '/platform/knowledge/new', '/platform/knowledge/[id]', '/platform/leads', '/platform/reviews',
   '/platform/runbook', '/platform/topics', '/platform/verticals',

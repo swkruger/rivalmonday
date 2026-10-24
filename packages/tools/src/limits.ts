@@ -1,10 +1,6 @@
-/** Decision 6 (5b-2): defaults for the per-client columns `client.competitor_limit` / `client.monthly_cap_usd` (spec §4.1, §11). */
+/** Decision 6 (5b-2): default for the per-client column `client.competitor_limit` (spec §4.1, §11). */
 export const DEFAULT_COMPETITOR_LIMIT = 5;
 export const MAX_COMPETITOR_LIMIT = 10;
-export const DEFAULT_MONTHLY_CAP_USD = 15;
-export const MAX_MONTHLY_CAP_USD = 10000;
-/** Spec §11: warn at 80 % of the monthly cap (enforcement is Phase 7). */
-export const SPEND_WARNING_RATIO = 0.8;
 /** Spec §4.1: cap ≈ 25 tracked pages per competitor. */
 export const MAX_ACTIVE_PAGES = 25;
 /** Decision 17 (5b-2): a new paid competitor search waits this long after the client's last one finished. */
@@ -14,7 +10,7 @@ export const RIVAL_SEARCHES_PER_AGENCY_DAY = 5;
 /** Phase 12a D4 (P7): converting a prospect reuses its last finished search when it is at most this old. */
 export const RIVAL_SEARCH_REUSE_DAYS = 30;
 /** Phase 13b: manual "Scan now" — one per client per 7 days, and at most 10 per agency per UTC day. */
-/** Phase 7b1: a prospect gets one snapshot per 24 h (a `ready` report counts; failed/running don't). */
-export const PROSPECT_SNAPSHOT_COOLDOWN_HOURS = 24;
 export const RANK_MANUAL_PER_CLIENT_DAYS = 7;
 export const RANK_MANUAL_PER_AGENCY_DAY = 10;
+/** Phase 7b1: a prospect gets one snapshot per 24 h (a `ready` report counts; failed/running don't). */
+export const PROSPECT_SNAPSHOT_COOLDOWN_HOURS = 24;

@@ -120,7 +120,7 @@ export default async function UsagePage() {
       )}
 
       <p className="text-muted-ink">
-        Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine’s shared work are not yet split across clients; they’ll be allocated in a later release.
+        Shared monitoring of a competitor (Google profile, reviews, ads, job posts) is split equally between the clients that track it. The intelligence engine’s own shared work is not split across clients, so it is not in these figures.
         {agencyLevelCredits !== null && <> Credits not tied to a client: {formatCredits(agencyLevelCredits)}.</>} Total this month: {formatCredits(totalCredits)}.
       </p>
     </>

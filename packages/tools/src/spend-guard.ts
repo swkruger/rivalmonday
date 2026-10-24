@@ -25,8 +25,11 @@ export interface SpendGuardSummary {
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-/** "November 1" style, UTC: the first day of the month after `now`. */
-const nextMonthLabel = (now: Date): string => `${MONTHS[(now.getUTCMonth() + 1) % 12]} 1`;
+/** "November 1" style, UTC: the first day of the month after `now`; the year is added when it is not the current one ("January 1, 2027"), as in the web banner. */
+export const nextMonthLabel = (now: Date): string => {
+  const m = now.getUTCMonth() + 1;
+  return `${MONTHS[m % 12]} 1${m > 11 ? `, ${now.getUTCFullYear() + 1}` : ''}`;
+};
 const usd = (n: number) => `$${n.toFixed(2)}`;
 /** Both once-per-month kinds share this race guard (`spend_guard_event_client_once`). */
 const ONCE_PER_MONTH = {
