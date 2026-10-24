@@ -1,6 +1,6 @@
 'use client';
 import { Button, Label, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { RadiusSelect, DEFAULT_RADIUS_KM } from '@/components/radius-select';
 import { WriteGuard } from '@/components/read-only';
@@ -18,6 +18,7 @@ type Settings = Pick<RankSettingsView, 'keywords' | 'allKeywords' | 'gridSize' |
  * component, so it survives the revalidation.
  */
 export function RankSettingsSheet({ clientId, settings }: { clientId: string; settings: Settings }) {
+  const keywordHintId = useId();
   const [open, setOpen] = useState(false);
   const [keywords, setKeywords] = useState<string[]>(settings.keywords);
   const [grid, setGrid] = useState<5 | 7>(settings.gridSize);
@@ -58,7 +59,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
           <SheetContent side="right" aria-describedby={undefined} className="w-[360px] gap-4">
             <SheetTitle className="text-lg">Rank settings</SheetTitle>
             <form action={action} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5">
-              <fieldset className="flex flex-col gap-2">
+              <fieldset className="flex flex-col gap-2" aria-describedby={full ? keywordHintId : undefined}>
                 <legend className="mb-1 text-sm font-semibold text-ink">Keywords to scan (up to {MAX_RANK_KEYWORDS})</legend>
                 {settings.allKeywords.map((k, i) => {
                   const checked = keywords.includes(k);
@@ -69,6 +70,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
                     </label>
                   );
                 })}
+                {full && <p id={keywordHintId} className="text-sm text-muted-foreground">That is the most keywords one scan can cover. Untick one to pick another.</p>}
               </fieldset>
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-1 text-sm font-semibold text-ink">Grid</legend>

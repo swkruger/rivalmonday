@@ -48,6 +48,25 @@ describe('ScanNowButton', () => {
     expect(container.innerHTML).toBe('');
   });
 
+  it('scan-now note is aria-describedby of the button', () => {
+    for (const state of ['cap', 'agency_daily_limit', 'spend_paused'] as const) {
+      render(<ScanNowButton clientId="c1" scan={scan(state, `note for ${state}`)} />);
+      const button = screen.getByRole('button', { name: 'Scan now' });
+      const note = document.getElementById(button.getAttribute('aria-describedby')!);
+      expect(note?.textContent).toBe(`note for ${state}`);
+      cleanup();
+    }
+    render(<ScanNowButton clientId="c1" scan={scan('available')} />);
+    expect(screen.getByRole('button', { name: 'Scan now' }).getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('weekly_limit label stays on the disabled button', () => {
+    render(<ScanNowButton clientId="c1" scan={scan('weekly_limit', 'Next scan available Wed 21 Oct')} />);
+    const b = screen.getByRole('button', { name: 'Next scan available Wed 21 Oct' }) as HTMLButtonElement;
+    expect(b.disabled).toBe(true);
+    expect(b.getAttribute('aria-describedby')).toBeNull();
+  });
+
   it('queues a scan, then shows it running with the ETA message', async () => {
     requestRankScan.mockResolvedValue({ ok: true, message: 'Scan queued — results in about 4 minutes.' });
     render(<ScanNowButton clientId="c1" scan={scan('available')} />);

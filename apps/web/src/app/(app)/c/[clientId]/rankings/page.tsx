@@ -24,7 +24,7 @@ import { ScanNowButton } from './scan-now-button';
 import { ScanSlider } from './scan-slider';
 import { sovSeries } from './sov';
 import { type RankQuery, type RankTab, RankTabs } from './tabs';
-import { formatMiles } from '@/lib/format';
+import { formatDate, formatMiles, localDay } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Local rankings' };
@@ -32,7 +32,6 @@ export const metadata: Metadata = { title: 'Local rankings' };
 const HELP_KEY = 'page:client.rankings';
 const COPY = PAGE_COPY['client.rankings'];
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
 type TrendScan = RankTrendView['scans'][number];
 /** Two scans' grid coordinates match: same length, every value within 1e-6. */
@@ -96,6 +95,7 @@ export default async function RankingsPage({ params, searchParams }: {
     compare = { a, b, stale, grids };
   }
 
+  const tz = profile.timezone;
   const chosen = geo.businesses.find((b) => b.key === geo.business);
   const chosenName = chosen ? (chosen.self ? 'You' : chosen.name) : '';
   const summary = `Top 3 at ${geo.top3} of ${geo.points} points · average rank ${geo.avgRank ?? '—'}`;
@@ -171,13 +171,13 @@ export default async function RankingsPage({ params, searchParams }: {
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="font-semibold text-ink">From scan</span>
                     <select name="a" defaultValue={compare.a.scanId} className={selectCls}>
-                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{fmtDate(s.finishedAt)}</option>)}
+                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="font-semibold text-ink">To scan</span>
                     <select name="b" defaultValue={compare.b.scanId} className={selectCls}>
-                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{fmtDate(s.finishedAt)}</option>)}
+                      {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>
                 </>
@@ -198,7 +198,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   </p>
                   <RankTrend scans={history} keyword={geo.keyword ?? ''} />
                   <div className="mt-4">
-                    <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: fmtDate(s.finishedAt) }))} value={geo.scan?.id ?? null} query={query} />
+                    <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: formatDate(s.finishedAt, { tz }) }))} value={geo.scan?.id ?? null} query={query} />
                   </div>
                 </section>
 
@@ -208,7 +208,7 @@ export default async function RankingsPage({ params, searchParams }: {
                     <HelpTip tip="client.rankings.grid" />
                   </div>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    {geo.scan && `Scan of ${fmtDate(geo.scan.finishedAt)} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${formatMiles(geo.radiusKm)} radius`}
+                    {geo.scan && `Scan of ${formatDate(geo.scan.finishedAt, { tz })} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${formatMiles(geo.radiusKm)} radius`}
                   </p>
                   <p className="mb-3 font-semibold text-ink">{summary}</p>
                   <GeoGrid title={`Local rankings for ${geo.keyword}`} summary={summary} cells={geo.cells} businessName={chosenName} keyword={geo.keyword ?? ''} map={geo.map} lats={geo.lats} lngs={geo.lngs} />
@@ -223,7 +223,7 @@ export default async function RankingsPage({ params, searchParams }: {
                     <p className="mb-3 text-sm text-muted-foreground">Share of the top-3 local-pack places, scan by scan ({sov.keyword ?? 'all keywords'}).</p>
                     <LineChart
                       title="Share of top-3 local-pack slots"
-                      labels={sov.scans.map((s) => s.finishedAt.slice(0, 10))}
+                      labels={sov.scans.map((s) => localDay(s.finishedAt, tz))}
                       series={sovSeries(sov)}
                       valueLabel="share of top-3 places"
                       period="scan"
@@ -251,7 +251,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
                   <HelpTip tip="client.rankings.compare" />
                 </div>
-                <p className="mb-3 text-sm text-muted-foreground">Change from the scan of {fmtDate(compare.a.finishedAt)} to the scan of {fmtDate(compare.b.finishedAt)}.</p>
+                <p className="mb-3 text-sm text-muted-foreground">Change from the scan of {formatDate(compare.a.finishedAt, { tz })} to the scan of {formatDate(compare.b.finishedAt, { tz })}.</p>
                 {compare.grids ? (
                   <ChangeGrid
                     title={`Change in local rank for ${geo.keyword}`}

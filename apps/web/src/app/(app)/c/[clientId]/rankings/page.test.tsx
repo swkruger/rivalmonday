@@ -85,7 +85,7 @@ describe('RankingsPage', () => {
         if (name === 'get_geogrid') return input.scanId === S1 ? ready(S1, [[5, 2], [3, null]]) : ready(input.scanId ?? S3);
         if (name === 'get_rank_trend') return { scans: [trendScan(S3, keys[2], keys[2] !== keys[1]), trendScan(S2, keys[1]), trendScan(S1, keys[0])], nextCursor: null };
         if (name === 'get_share_of_voice') return sov;
-        if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air' };
+        if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', timezone: 'America/Chicago' };
         throw new Error(`unexpected ${name}`);
       });
     };
@@ -103,6 +103,38 @@ describe('RankingsPage', () => {
       expect(screen.getByText(/from the weekly rank scan\./)).toBeTruthy();
       const trendCall = callTool.mock.calls.find((c) => c[1] === 'get_rank_trend')!;
       expect(trendCall[2]).toMatchObject({ clientId: 'c1', keyword: 'ac repair' });
+    });
+
+    // 2026-10-19T02:00Z is still Oct 18 in Chicago.
+    const lateScan = '2026-10-19T02:00:00.000Z';
+
+    it('scan options read "Oct 18" in the client zone', async () => {
+      mount();
+      const base = callTool.getMockImplementation()!;
+      callTool.mockImplementation(async (ctx: unknown, name: string, input: { scanId?: string }) => {
+        const out = await base(ctx, name, input);
+        if (name === 'get_rank_trend') return { ...out, scans: out.scans.map((s: object, i: number) => (i === 0 ? { ...s, finishedAt: lateScan } : s)) };
+        return out;
+      });
+      await render5({ tab: 'compare' });
+      const options = [...(screen.getByLabelText('To scan') as HTMLSelectElement).options].map((o) => o.textContent);
+      expect(options).toContain('Oct 18');
+      expect(options).not.toContain('Oct 19');
+    });
+
+    it('share-of-voice labels are client-zone days', async () => {
+      mount();
+      const base = callTool.getMockImplementation()!;
+      callTool.mockImplementation(async (ctx: unknown, name: string, input: { scanId?: string }) => {
+        if (name === 'get_share_of_voice') {
+          return { keyword: null, scans: [{ scanId: S2, finishedAt: at[S2] }, { scanId: S3, finishedAt: lateScan }], series: [{ key: 'self', name: 'Cool Air', self: true, points: [0.2, 0.4] }] };
+        }
+        return base(ctx, name, input);
+      });
+      await render5();
+      const chart = screen.getByRole('img', { name: /Share of top-3 local-pack slots/ });
+      expect(chart.textContent).toContain('Oct 18');
+      expect(chart.textContent).not.toContain('Oct 19');
     });
 
     it('Compare refuses mismatched scans with the decided copy', async () => {

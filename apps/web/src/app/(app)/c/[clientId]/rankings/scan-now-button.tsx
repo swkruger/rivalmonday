@@ -1,6 +1,6 @@
 'use client';
 import { Button } from '@cs/ui';
-import { useActionState } from 'react';
+import { useActionState, useId } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -16,6 +16,7 @@ const INITIAL: FormResult = { ok: true };
  * component, so it survives the page revalidation the action triggers.
  */
 export function ScanNowButton({ clientId, scan }: { clientId: string; scan: RankScanInfo }) {
+  const noteId = useId();
   const [state, action, pending] = useActionState(async (_p: FormResult) => requestRankScan(clientId), INITIAL);
   if (scan.state === 'not_ready') return null;
   const queued = state.ok && Boolean(state.message);
@@ -26,9 +27,9 @@ export function ScanNowButton({ clientId, scan }: { clientId: string; scan: Rank
     <WriteGuard>
       <div className="flex max-w-md flex-col items-end gap-1.5">
         <form action={action}>
-          <Button type="submit" variant="outline" disabled={pending || running || scan.state !== 'available'}>{label}</Button>
+          <Button type="submit" variant="outline" disabled={pending || running || scan.state !== 'available'} aria-describedby={note ? noteId : undefined}>{label}</Button>
         </form>
-        {note && <p className="text-right text-sm text-muted-foreground">{note}</p>}
+        {note && <p id={noteId} className="text-right text-sm text-muted-foreground">{note}</p>}
         {!state.ok && <ErrorNote compact focusKey={state} className="justify-end text-right">{state.error}</ErrorNote>}
         {state.ok && state.message && <p role="status" className="text-right text-sm text-ink">{state.message}</p>}
       </div>
