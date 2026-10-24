@@ -280,6 +280,39 @@ describe('runTurn', () => {
     expect(trace.deadlineHit).toBe(true);
   });
 
+  it('a hanging tool-step call is aborted at deadline - reserve and the final call runs', async () => {
+    // deadline 200 ms: the reserve is min(45 s, 100 ms), so the step signal fires at ~100 ms
+    const t0 = Date.now();
+    const { ai, trace, last } = await turn(
+      [
+        { kind: 'chat', reply: { hang: true } },
+        { kind: 'chat', reply: { text: `Partial answer [ev:${EV1}].` } },
+      ],
+      { extra: { deadlineMs: 200 } },
+    );
+    expect(Date.now() - t0).toBeLessThan(5_000);
+    expect(ai.calls.chat).toHaveLength(2);
+    expect(ai.calls.chat[0]!.signal?.aborted).toBe(true);
+    expect(ai.calls.chat[1]!.toolChoice).toBe('none');
+    expect(trace.deadlineHit).toBe(true);
+    expect(last.status).toBe('ok');
+    expect(last.content).not.toContain('went wrong');
+  });
+
+  it('final call has its own 45 s signal', async () => {
+    const { ai } = await turn(
+      [
+        { kind: 'chat', reply: { hang: true } },
+        { kind: 'chat', reply: { text: `Answer [ev:${EV1}].` } },
+      ],
+      { extra: { deadlineMs: 200 } },
+    );
+    const [step, final] = ai.calls.chat;
+    expect(final!.signal).toBeDefined();
+    expect(final!.signal).not.toBe(step!.signal);
+    expect(final!.signal!.aborted).toBe(false);
+  });
+
   it('write tool becomes proposed action and is never invoked', async () => {
     const input = { clientId: IDS.clientA1, title: 'Bundle tune-ups', rationale: 'Acme cut its price to $69.', evidenceIds: [EV1], effort: 'L', impact: 'M' };
     const { ai, events, last, rows } = await turn([

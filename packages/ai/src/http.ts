@@ -38,20 +38,24 @@ export async function postJson(
   headers: Record<string, string>,
   deps: HttpDeps,
   timing?: CallTiming,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const timeoutMs = timing?.timeoutMs ?? deps.timeoutMs;
   const maxRetries = timing ? timing.maxAttempts - 1 : deps.maxRetries;
+  const aborted = (cause?: unknown) => new AiProviderError(provider, null, `${provider} call aborted`, false, cause === undefined ? undefined : { cause });
   for (let attempt = 0; ; attempt++) {
     const canRetry = attempt < maxRetries;
     let res: Response;
+    const s = signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]) : AbortSignal.timeout(timeoutMs);
     try {
       res = await deps.fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: s,
       });
     } catch (err) {
+      if (signal?.aborted) throw aborted(err);
       if (canRetry) {
         await deps.sleep(deps.baseDelayMs * 2 ** attempt);
         continue;
@@ -68,6 +72,7 @@ export async function postJson(
 
     const retryable = RETRYABLE_STATUS.has(res.status);
     if (retryable && canRetry) {
+      if (signal?.aborted) throw aborted();
       await deps.sleep(deps.baseDelayMs * 2 ** attempt);
       continue;
     }

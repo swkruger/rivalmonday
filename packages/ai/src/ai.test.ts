@@ -60,6 +60,18 @@ describe('Ai facade', () => {
     expect(bad.records[0]).toMatchObject({ ok: false });
   });
 
+  it('aborted call ledgered ok false, cost null; the signal reaches the provider', async () => {
+    const h = harness();
+    const ac = new AbortController();
+    h.complete.mockImplementationOnce((async (req: { signal?: AbortSignal }) => {
+      ac.abort();
+      throw new Error(`aborted:${req.signal === ac.signal}`);
+    }) as never);
+    await expect(h.ai.chatWithTools('ask_assistant', { messages: [], tools: [], signal: ac.signal }, scope)).rejects.toThrow('aborted:true');
+    expect(h.records).toHaveLength(1);
+    expect(h.records[0]).toMatchObject({ ok: false, costUsd: null });
+  });
+
   it('chatWithTools rejects a non-chat task', async () => {
     const { ai } = harness();
     await expect(ai.chatWithTools('embeddings', { messages: [], tools: [] }, scope)).rejects.toThrow(/not a chat task/);

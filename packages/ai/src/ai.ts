@@ -21,7 +21,7 @@ export const EMBED_MAX_CHARS = 8000;
 
 export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
-  chatWithTools(task: string, req: { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none' }, scope: CallScope): Promise<ChatResult>;
+  chatWithTools(task: string, req: { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none'; signal?: AbortSignal }, scope: CallScope): Promise<ChatResult>;
   decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
   batchAvailable(task: string): boolean;
@@ -114,7 +114,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
 
   async function runChat(
     name: string,
-    input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat; tools?: ChatTool[]; toolChoice?: 'auto' | 'none' },
+    input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat; tools?: ChatTool[]; toolChoice?: 'auto' | 'none'; signal?: AbortSignal },
     scope: CallScope,
   ): Promise<ChatResult> {
     const t = task(name);

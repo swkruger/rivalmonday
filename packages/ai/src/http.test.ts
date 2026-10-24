@@ -83,4 +83,41 @@ describe('postJson', () => {
     await expect(postJson('p', 'u', {}, {}, d, { timeoutMs: 1000, maxAttempts: 2 })).rejects.toBeInstanceOf(AiProviderError);
     expect(d.calls).toBe(2);
   });
+
+  it('http: aborted signal stops without retry', async () => {
+    const ac = new AbortController();
+    const d = deps([ok({})]);
+    d.fetch = vi.fn(async () => {
+      ac.abort();
+      throw new DOMException('aborted', 'AbortError');
+    }) as unknown as typeof fetch;
+    const err = await postJson('p', 'u', {}, {}, d, undefined, ac.signal).catch((e) => e);
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(err).toMatchObject({ provider: 'p', status: null, retryable: false, message: 'p call aborted' });
+    expect(d.fetch).toHaveBeenCalledTimes(1);
+    expect(d.sleeps).toEqual([]);
+  });
+
+  it('http: aborted before a retry sleep throws without sleeping', async () => {
+    const ac = new AbortController();
+    const d = deps([status(503), ok({})]);
+    const fetchOnce = d.fetch;
+    d.fetch = vi.fn(async (...a: Parameters<typeof fetch>) => {
+      const r = await fetchOnce(...a);
+      ac.abort();
+      return r;
+    }) as unknown as typeof fetch;
+    await expect(postJson('p', 'u', {}, {}, d, undefined, ac.signal)).rejects.toMatchObject({ message: 'p call aborted', retryable: false });
+    expect(d.sleeps).toEqual([]);
+  });
+
+  it('http: timeout still retries', async () => {
+    const ac = new AbortController();
+    const d = deps([new DOMException('timed out', 'TimeoutError'), ok({ done: 1 })]);
+    await expect(postJson('p', 'u', {}, {}, d, undefined, ac.signal)).resolves.toEqual({ done: 1 });
+    expect(d.sleeps).toEqual([100]);
+    const [, init] = (d.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    ac.abort();
+    expect(init.signal?.aborted).toBe(true); // the combined signal follows the caller's
+  });
 });

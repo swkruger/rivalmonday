@@ -350,6 +350,11 @@ export async function runTurn(
 
   type Outcome = { role: 'assistant' | 'action'; content: string; status: 'ok' | 'error'; citations?: string[]; action?: AskAction };
   let outcome: Outcome;
+  // 7b1: the turn deadline stops in-flight model calls. Non-final calls share this signal, which fires when the final-call
+  // reserve begins; the forced final call gets its own. A client disconnect does not abort (spec §7 default).
+  const ac = new AbortController();
+  const reserveMs = Math.min(FINAL_CALL_RESERVE_MS, deadlineMs / 2);
+  const abortTimer = setTimeout(() => ac.abort(), Math.max(0, deadlineMs - reserveMs - (now().getTime() - started)));
   try {
     outcome = await loop();
   } catch (err) {
@@ -362,6 +367,7 @@ export async function runTurn(
       outcome = { role: 'assistant', content: ASK_COPY.error(assistantName), status: 'error' };
     }
   }
+  clearTimeout(abortTimer);
   await finish(outcome);
 
   /** The model loop and grounding. Any throw here (model, verifier) becomes the error copy; nothing is persisted inside. */
@@ -376,8 +382,23 @@ export async function runTurn(
       // budgetHit records only a final call the budget forced (not a turn that crossed it on its last call).
       const overBudget = knownCostUsd >= ASK_TURN_BUDGET_USD;
       if (overBudget) trace.budgetHit = true;
-      const last = step >= stepLimit || overDeadline || overBudget;
-      const res = await deps.ai.chatWithTools('ask_assistant', { messages: [...chat], tools, toolChoice: last ? 'none' : 'auto' }, scope);
+      let last = step >= stepLimit || overDeadline || overBudget;
+      const call = (final: boolean) =>
+        deps.ai.chatWithTools(
+          'ask_assistant',
+          { messages: [...chat], tools, toolChoice: final ? 'none' : 'auto', signal: final ? AbortSignal.timeout(FINAL_CALL_RESERVE_MS) : ac.signal },
+          scope,
+        );
+      let res: Awaited<ReturnType<typeof call>>;
+      try {
+        res = await call(last);
+      } catch (err) {
+        // The deadline aborted a hanging tool-step call: it was ledgered as failed; answer from what the turn has.
+        if (last || !ac.signal.aborted) throw err;
+        trace.deadlineHit = true;
+        last = true;
+        res = await call(true);
+      }
       trace.model = res.model;
       addCost(res.costUsd);
       if (last || res.toolCalls.length === 0) {

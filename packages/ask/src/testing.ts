@@ -3,10 +3,11 @@ import type { CallScope } from '@cs/core';
 
 /** What one scripted `chatWithTools` call returns: tool calls (args as an object or a raw string) and/or final text. */
 export type ScriptedReply =
+  | { hang: true }
   | { text?: string; toolCalls?: { name: string; args: unknown; id?: string }[]; model?: string; costUsd?: number | null }
   | { error: string };
 
-export type ScriptedChatRequest = { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none' };
+export type ScriptedChatRequest = { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none'; signal?: AbortSignal };
 
 /**
  * One scripted answer. Each kind is its own queue, consumed in order; a step with `repeat: true` is never consumed
@@ -63,11 +64,19 @@ export function createScriptedAskAi(script: ScriptedStep[]): ScriptedAskAi {
   const ai: ScriptedAskAi = {
     calls,
     async chatWithTools(task, req, scope): Promise<ChatResult> {
-      const snapshot: ScriptedChatRequest = { messages: [...req.messages], tools: req.tools, toolChoice: req.toolChoice };
+      const snapshot: ScriptedChatRequest = { messages: [...req.messages], tools: req.tools, toolChoice: req.toolChoice, signal: req.signal };
       calls.chat.push({ ...snapshot, task, scope });
       const step = take(chat);
       if (!step) throw new Error('createScriptedAskAi: chat script exhausted');
       const reply = typeof step.reply === 'function' ? step.reply(snapshot) : step.reply;
+      if ('hang' in reply) {
+        // A call that never answers: it rejects only when the caller's signal aborts it.
+        return await new Promise<never>((_, reject) => {
+          const abort = () => reject(new Error('scripted call aborted'));
+          if (req.signal?.aborted) abort();
+          else req.signal?.addEventListener('abort', abort, { once: true });
+        });
+      }
       if ('error' in reply) throw new Error(reply.error);
       const toolCalls = (reply.toolCalls ?? []).map((c) => ({
         id: c.id ?? `call_${++seq}`, name: c.name, arguments: typeof c.args === 'string' ? c.args : JSON.stringify(c.args ?? {}),

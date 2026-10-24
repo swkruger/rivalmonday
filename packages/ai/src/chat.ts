@@ -26,6 +26,8 @@ export interface ChatRequest {
   toolChoice?: 'auto' | 'none';
   /** Per-call timeout/attempts (from the task); absent = the provider's construction-time defaults. */
   timing?: CallTiming;
+  /** Aborts the in-flight call (and its retries); an aborted call is not retried. */
+  signal?: AbortSignal;
 }
 
 export interface ChatResult {
