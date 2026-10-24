@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
+import { ListDetail } from '@/components/list-detail';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
@@ -70,7 +71,7 @@ export default async function ChangesPage({
   ]);
   const services = (await verticalOptions()).find((v) => v.id === profile.verticalId)?.services.filter((s) => profile.services.includes(s.id)) ?? [];
   const rows = feed.items.map((r) => ({ ...r, channels: r.channels.map(channelLabel) }));
-  const selectedId = p.event ?? rows[0]?.eventId;
+  const selectedId = p.event ?? rows[0]?.eventId ?? null;
   const groups = groupByWeek(rows, new Date());
 
   let detail: EventDetail | null = null;
@@ -110,7 +111,13 @@ export default async function ChangesPage({
         services={services.map((s) => ({ id: s.id, name: s.name }))}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
+      <ListDetail
+        selectedId={selectedId}
+        sheetOpen={!!p.event}
+        closeHref={changesHref(clientId, { ...p, event: undefined, change: undefined, tab: 'side' })}
+        listLabel="Changes"
+        detailTitle="Change details"
+        list={
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 ? (
@@ -140,9 +147,10 @@ export default async function ChangesPage({
             )}
           </CardContent>
         </Card>
-
-        <div>
-          {detail ? (
+        }
+        detail={
+          <div>
+            {detail ? (
             <EventViewer
               clientId={clientId}
               params={p}
@@ -157,8 +165,10 @@ export default async function ChangesPage({
           ) : (
             <EmptyState {...COPY.empty.noSelection} />
           )}
-        </div>
-      </div>
+          </div>
+        }
+        empty={<EmptyState {...COPY.empty.noSelection} />}
+      />
     </>
   );
 }

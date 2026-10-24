@@ -8,6 +8,7 @@ import { clientCrumbs } from '@/components/client-crumbs';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
+import { ListDetail } from '@/components/list-detail';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
@@ -120,7 +121,7 @@ export default async function MovesPage({
     callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId, status }),
     helpGuides(ctx, 'client', clientId),
   ]);
-  const selectedId = moveParam ?? items[0]?.id;
+  const selectedId = moveParam ?? items[0]?.id ?? null;
   // A bookmarked `?move=` may be closed out of its events, removed or not this client's: the list still renders and
   // the panel says so (same text for every case — no existence leak). The page-level gates above still 404.
   const detail = !selectedId
@@ -148,7 +149,13 @@ export default async function MovesPage({
         <HelpTip tip="client.moves.statuses" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
+      <ListDetail
+        selectedId={selectedId}
+        sheetOpen={!!moveParam}
+        closeHref={movesHref(clientId, { status })}
+        listLabel="Moves"
+        detailTitle="Move details"
+        list={
         <Card>
           <CardContent className="p-2">
             {items.length === 0 ? (
@@ -162,8 +169,9 @@ export default async function MovesPage({
             )}
           </CardContent>
         </Card>
-
-        <div>
+        }
+        detail={
+          <div>
           {detail ? (
             <Card>
               <CardContent className="flex flex-col gap-4">
@@ -193,8 +201,10 @@ export default async function MovesPage({
               </CardContent>
             </Card>
           )}
-        </div>
-      </div>
+          </div>
+        }
+        empty={<EmptyState {...COPY.empty.noSelection} />}
+      />
     </>
   );
 }
