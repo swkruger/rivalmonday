@@ -23,6 +23,11 @@ describe('StartingPointCard', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
+  it('starting point review link names the brief', () => {
+    render(<StartingPointCard agency reviewHref="/agency/approvals/b9" status={{ state: 'ready_for_review' }} />);
+    expect(screen.getByRole('link', { name: 'Review it' }).getAttribute('href')).toBe('/agency/approvals/b9');
+  });
+
   it('agency does not see the review link while still preparing', () => {
     render(<StartingPointCard agency status={{ state: 'preparing', checks: { profile: false, reviews: false, rankings: null, competitors: null } }} />);
     expect(screen.queryByRole('link')).toBeNull();

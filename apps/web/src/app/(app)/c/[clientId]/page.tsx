@@ -25,8 +25,10 @@ import { PageHeader } from '@/components/page-header';
 import { pendingStartingPoint, StartingPointCard } from '@/components/starting-point-card';
 import { openSetupSteps, SetupBadge } from '@/components/setup-badge';
 import { StatCard } from '@/components/stat-card';
+import { StatusChip } from '@cs/ui';
 import { BriefView } from '@/components/views/brief-view';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
+import { RECOMMENDATION_STATUS, labelFor } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
@@ -36,7 +38,7 @@ import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Overview' };
 
-const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-[#DC2626]', elevated: 'bg-amber', low: 'bg-primary' };
+const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-danger', elevated: 'bg-amber', low: 'bg-primary' };
 const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
 const linkCls = 'font-semibold text-primary-soft-text';
 const HELP_KEY = 'page:client.overview';
@@ -48,6 +50,11 @@ const KPI_TIPS: Readonly<Record<string, TipKey>> = {
   'Active competitor ads': 'client.overview.activeAds',
   'Your rating vs area': 'client.overview.ratingVsArea',
 };
+
+function RecStatus({ status }: { status: string }) {
+  const s = labelFor(RECOMMENDATION_STATUS, status);
+  return <StatusChip tone={s.tone}>{s.label}</StatusChip>;
+}
 
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -70,6 +77,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
+  const startingBrief = briefs.items.find((b) => b.kind === 'starting_point');
   const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
   const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
@@ -114,7 +122,11 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
 
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         <div className="flex min-w-0 flex-col gap-5">
-          {preparing && <StartingPointCard status={preparing} agency={agency} />}
+          {preparing && (
+            <section className={cardCls}>
+              <StartingPointCard status={preparing} agency={agency} reviewHref={startingBrief ? `/agency/approvals/${startingBrief.id}` : '/agency/approvals'} />
+            </section>
+          )}
           {!latest && !preparing && (
             <section className={cardCls}>
               <EmptyState {...COPY.empty.noBrief} />
@@ -160,7 +172,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-2">
         <section className={cardCls}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -180,20 +192,6 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </section>
         <section className={cardCls}>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Competitor ad activity</h2>
-            <span className="text-xs text-muted-foreground">12 weeks</span>
-          </div>
-          <div className="mt-3">
-            <LineChart
-              title="Active competitor ads per week"
-              valueLabel="active ads"
-              labels={ads.weeks}
-              series={foldSeries(ads.series.map((s) => ({ key: s.competitorId, name: s.name, points: s.points })))}
-            />
-          </div>
-        </section>
-        <section className={cardCls}>
-          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <h2 className="font-semibold">Recommendations</h2>
               <HelpTip term="recommendation" />
@@ -205,7 +203,9 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
             {openRecs.slice(0, 4).map((r) => (
               <div key={r.id} className="rounded-lg bg-muted-surface px-3 py-2">
                 <div className="font-semibold">{r.title}</div>
-                <div className="text-xs text-muted-foreground">{r.status === 'in_progress' ? 'In progress' : 'To do'}</div>
+                <div className="mt-1">
+                  <RecStatus status={r.status} />
+                </div>
               </div>
             ))}
           </div>
@@ -214,6 +214,21 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           </Link>
         </section>
       </div>
+
+      <section className={cardCls}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Competitor ad activity</h2>
+          <span className="text-xs text-muted-foreground">12 weeks</span>
+        </div>
+        <div className="mt-3">
+          <LineChart
+            title="Active competitor ads per week"
+            valueLabel="active ads"
+            labels={ads.weeks}
+            series={foldSeries(ads.series.map((s) => ({ key: s.competitorId, name: s.name, points: s.points })))}
+          />
+        </div>
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className={cardCls}>

@@ -12,6 +12,16 @@ describe('StatCard', () => {
     expect(screen.getByText('Across websites')).toBeTruthy();
   });
 
+  it('stat card pills use chip tokens (no bg-[#)', () => {
+    for (const tone of ['up', 'down', 'warn', 'info'] as const) {
+      const { unmount } = render(<StatCard title="T" value="1" pill={{ text: `pill-${tone}`, tone }} />);
+      const cls = screen.getByText(`pill-${tone}`).className;
+      expect(cls).not.toContain('bg-[#');
+      expect(cls).not.toContain('text-[#');
+      unmount();
+    }
+  });
+
   it('the linked card follows design system v1 (border, rounded-md, no shadow) and pads p-4 on phones', () => {
     render(<StatCard title="Alerts waiting" value="1" href="/agency/alerts" />);
     const link = screen.getByRole('link', { name: /Alerts waiting/ });

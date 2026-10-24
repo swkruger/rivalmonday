@@ -16,8 +16,8 @@ const LABELS = [
   ['competitors', 'Competitors'],
 ] as const;
 
-/** Client home while the starting point is not sent yet. Once it is ready for review every check reads done; only agency users get the review link. */
-export function StartingPointCard({ status, agency }: { status: Pending; agency: boolean }) {
+/** Client home while the starting point is not sent yet. Once it is ready for review every check reads done; only agency users get the review link (`reviewHref`: the brief's approval page, else the approvals list). */
+export function StartingPointCard({ status, agency, reviewHref = '/agency/approvals' }: { status: Pending; agency: boolean; reviewHref?: string }) {
   const checks = status.state === 'preparing' ? status.checks : { profile: true, reviews: true, rankings: true, competitors: true };
   return (
     <div>
@@ -34,7 +34,7 @@ export function StartingPointCard({ status, agency }: { status: Pending; agency:
         })}
       </ul>
       {agency && status.state === 'ready_for_review' && (
-        <Link href="/agency/approvals" className="mt-3 inline-block font-semibold text-primary-soft-text">
+        <Link href={reviewHref} className="mt-3 inline-block font-semibold text-primary-soft-text">
           Review it
         </Link>
       )}

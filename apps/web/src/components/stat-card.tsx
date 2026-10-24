@@ -9,9 +9,9 @@ export interface StatPill {
 }
 
 const TONE: Record<StatPill['tone'], string> = {
-  up: 'bg-[#DCFCE7] text-[#15803D]',
-  down: 'bg-[#FEE2E2] text-[#B91C1C]',
-  warn: 'bg-[#FFF3DC] text-[#B45309]',
+  up: 'bg-chip-success-bg text-chip-success-text',
+  down: 'bg-chip-danger-bg text-chip-danger-text',
+  warn: 'bg-chip-warning-bg text-accent-text',
   info: 'bg-primary-soft text-primary-soft-text',
 };
 

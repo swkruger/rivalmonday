@@ -1,6 +1,6 @@
 const TONE: Record<string, string> = {
-  high: 'bg-[#FDE8E8] text-[#B42318]',
-  elevated: 'bg-[#FFF3DC] text-accent-text',
+  high: 'bg-chip-danger-bg text-chip-danger-text',
+  elevated: 'bg-chip-warning-bg text-accent-text',
   low: 'bg-muted-surface text-muted-ink',
 };
 

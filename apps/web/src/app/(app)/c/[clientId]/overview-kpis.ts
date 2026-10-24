@@ -1,4 +1,5 @@
 import type { WorkspaceOverview } from '@cs/tools';
+import { formatDate, formatWeekOf } from '@/lib/format';
 
 export interface Pill {
   text: string;
@@ -83,4 +84,4 @@ export function latestBrief<T extends { generatedAt: string | null; deliveryDate
 
 /** Header-line label for the brief shown on the Overview (without the leading separator). */
 export const briefLabel = (b: { kind: string; deliveryDate: string }): string =>
-  b.kind === 'starting_point' ? `Starting point · ${b.deliveryDate}` : `Brief for the week of ${b.deliveryDate}`;
+  b.kind === 'starting_point' ? `Starting point · ${formatDate(b.deliveryDate, { tz: 'UTC' })}` : `Brief · ${formatWeekOf(b.deliveryDate, { tz: 'UTC' })}`;

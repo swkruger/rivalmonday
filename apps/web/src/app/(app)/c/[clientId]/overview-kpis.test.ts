@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
 const base = { clientId: 'c', trackedCompetitors: 5, zips: 12, changes7d: 14, alerts7d: 3, priceMoves7d: 2, priceCuts7d: 1, activeAds: 23, activeAds7dAgo: 14, rating: { self: 4.8, competitorAverage: 4.5 }, pressure: [], pitchSnapshot: false };
@@ -54,8 +54,10 @@ describe('latestBrief', () => {
 });
 
 describe('brief labels', () => {
+  beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-21T12:00:00Z')); });
+  afterAll(() => { vi.useRealTimers(); });
   it('label switches on kind', () => {
-    expect(briefLabel({ kind: 'starting_point', deliveryDate: '2026-10-15' })).toBe('Starting point · 2026-10-15');
-    expect(briefLabel({ kind: 'weekly', deliveryDate: '2026-10-19' })).toBe('Brief for the week of 2026-10-19');
+    expect(briefLabel({ kind: 'starting_point', deliveryDate: '2026-10-15' })).toBe('Starting point · Oct 15');
+    expect(briefLabel({ kind: 'weekly', deliveryDate: '2026-10-19' })).toBe('Brief · Week of Oct 19');
   });
 });

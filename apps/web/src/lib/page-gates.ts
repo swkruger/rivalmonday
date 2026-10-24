@@ -44,7 +44,7 @@ export const AREAS_2A: readonly string[] = [
 
 /** Folders (or files) enforced, relative to apps/web/src: all of 2a since T16 (the ratchet is complete). */
 /** 15c-2b files, each appended by the task that creates it (ratchet continues; the full-`src` run is 2b-2). */
-export const AREAS_2B: string[] = ['components/whole-page-diff.tsx', 'components/list-detail.tsx', 'components/list-detail-sheet.tsx', 'components/charts/line-chart.tsx', 'components/charts/rank-trend.tsx'];
+export const AREAS_2B: string[] = ['components/whole-page-diff.tsx', 'components/list-detail.tsx', 'components/list-detail-sheet.tsx', 'components/charts/line-chart.tsx', 'components/charts/rank-trend.tsx', 'app/(app)/c/[clientId]/page.tsx', 'app/(app)/c/[clientId]/overview-kpis.ts', 'app/(app)/c/[clientId]/layout.tsx', 'app/(app)/c/[clientId]/help', 'components/client-lists.tsx', 'components/starting-point-card.tsx', 'components/stat-card.tsx', 'components/pressure-badge.tsx', 'components/client-home-basic.tsx'];
 
 export const GATED_PATHS: string[] = [...AREAS_2A, ...AREAS_2B];
 

@@ -9,18 +9,21 @@ const alert = { id: 'a1', clientId: 'c1', competitorName: 'Smith HVAC', headline
 describe('BriefLinkList', () => {
   it('links each brief to its page by week', () => {
     render(<BriefLinkList clientId="c1" items={[brief]} empty="No briefs yet." agency={false} />);
-    expect(screen.getByRole('link', { name: /week of 2026-10-05/i }).getAttribute('href')).toBe('/c/c1/briefs/b1');
+    expect(screen.getByRole('link', { name: /week of Oct 5/i }).getAttribute('href')).toBe('/c/c1/briefs/b1');
   });
   it('labels a starting point as such', () => {
     render(<BriefLinkList clientId="c1" items={[{ ...brief, id: 'b2', kind: 'starting_point' }]} empty="x" agency={false} />);
-    expect(screen.getByRole('link', { name: /starting point 2026-10-05/i }).getAttribute('href')).toBe('/c/c1/briefs/b2');
+    expect(screen.getByRole('link', { name: /^starting point/i }).getAttribute('href')).toBe('/c/c1/briefs/b2');
   });
-  it('shows the status chip to agency roles only (15a §2.8)', () => {
-    const { unmount } = render(<BriefLinkList clientId="c1" items={[brief]} empty="x" agency={false} />);
+  it('BriefLinkList reads "Week of Oct 12" and a "Sent" chip for agency, no chip for client', () => {
+    const b = { ...brief, deliveryDate: '2026-10-12' };
+    const { unmount } = render(<BriefLinkList clientId="c1" items={[b]} empty="x" agency={false} />);
+    expect(screen.getByText('Week of Oct 12')).toBeTruthy();
+    expect(screen.queryByText('Sent')).toBeNull();
     expect(screen.queryByText('sent')).toBeNull();
     unmount();
-    render(<BriefLinkList clientId="c1" items={[brief]} empty="x" agency />);
-    expect(screen.getByText('sent')).toBeTruthy();
+    render(<BriefLinkList clientId="c1" items={[b]} empty="x" agency />);
+    expect(screen.getByText('Sent')).toBeTruthy();
   });
   it('shows the empty message', () => {
     render(<BriefLinkList clientId="c1" items={[]} empty="No earlier briefs." agency={false} />);
