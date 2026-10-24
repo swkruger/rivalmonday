@@ -179,3 +179,7 @@ export async function applySingleMigration(url: string, tag: string, edit: (sql:
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+// Phase 7c1: the isolation world (RLS sweep, tool isolation suite, Ask evals) and the per-table isolation classes.
+export * from './isolation-world';
+export * from './table-classes';
