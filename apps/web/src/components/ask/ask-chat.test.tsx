@@ -39,6 +39,17 @@ describe('AskChat', () => {
     expect(screen.getByText('Conversations may be reviewed by Summit Insights to improve answers.')).toBeTruthy();
   });
 
+  it('composer line without review reads "Only you can see your conversations."', () => {
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    expect(screen.getByText('Only you can see your conversations.')).toBeTruthy();
+  });
+
+  it('composer line with review keeps the disclosure', () => {
+    render(<AskChat {...base} productName="Summit Insights" reviewAllowed messages={[]} />);
+    expect(screen.getByText('Conversations may be reviewed by Summit Insights to improve answers.')).toBeTruthy();
+    expect(screen.queryByText('Only you can see your conversations.')).toBeNull();
+  });
+
   it('15a §2.10 fix 1: no white-label name → "our support team" (platform staff review, 6b e5/e6), never a product name', () => {
     const { container } = render(<AskChat {...base} productName={null} reviewAllowed messages={[]} />);
     expect(screen.getByText('Conversations may be reviewed by our support team to improve answers.')).toBeTruthy();

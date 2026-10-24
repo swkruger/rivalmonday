@@ -319,10 +319,10 @@ export const CLIENT_COPY = {
         title: 'Starter questions',
         body: 'Four suggested questions, written from what competitors did in the last 7 days. Until the first set exists you see general ones. Pick one to ask it, or type your own.',
       },
-      // source: apps/web/src/components/ask/ask-chat.tsx:disclosureCopy; apps/web/src/components/ask/thread-list.tsx (delete, "Only you can see them"); apps/web/src/app/(app)/c/[clientId]/ask/ask-screen.tsx:ASK_PRIVATE_COPY; packages/tools/src/tools/ask-threads.ts:getAskStarters (reviewAllowed)
+      // source: apps/web/src/components/ask/ask-chat.tsx:disclosureCopy; apps/web/src/components/ask/thread-list.tsx (delete); apps/web/src/app/(app)/c/[clientId]/ask/ask-screen.tsx:ASK_PRIVATE_COPY; packages/tools/src/tools/ask-threads.ts:getAskStarters (reviewAllowed)
       privacy: {
         title: 'Who can see your questions',
-        body: 'Your questions and answers are private to you; other people at {client} or {agency} cannot open them. When a line under the box says conversations may be reviewed to improve answers, the people it names can read them. That line shows only while review is allowed for {client}. Delete a thread with the bin icon beside it.',
+        body: 'Your questions and answers are private to you; other people at {client} or {agency} cannot open them. When a line under the box says conversations may be reviewed to improve answers, the people it names can read them. That line shows only while review is allowed for {client}. Delete a conversation with the bin icon beside it and confirm. While conversations may be reviewed, the people named in that line can still read it.',
         guideAnchor: 'common-questions',
       },
       // source: packages/ask/src/actions.ts:actionSummary (add_recommendation, update_recommendation_status, submit_feedback); apps/web/src/components/ask/confirm-card.tsx; apps/web/src/components/ask/save-recommendation-dialog.tsx

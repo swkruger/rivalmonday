@@ -66,7 +66,7 @@ export function ThreadList({ clientId, threads, activeId, deleteAction }: Thread
         </Link>
       </Button>
       {threads.length === 0 ? (
-        <p className="px-1 text-xs text-muted-foreground">Your questions appear here. Only you can see them.</p>
+        <p className="px-1 text-xs text-muted-foreground">Your questions appear here.</p>
       ) : (
         <ul className="flex flex-col gap-0.5">
           {threads.map((t) => {

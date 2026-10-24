@@ -209,6 +209,7 @@ describe('client batch B: Ask and Ask thread', () => {
     expect(text).toMatch(/Cool Comfort/);
     expect(text).toMatch(/may be reviewed to improve answers/);
     expect(text).not.toMatch(/Rival Monday/i);
+    expect(text.endsWith('Delete a conversation with the bin icon beside it and confirm. While conversations may be reviewed, the people named in that line can still read it.')).toBe(true);
   });
 
   it('Ask: shows no usage or quota wording anywhere on the page (owner decision e4)', async () => {

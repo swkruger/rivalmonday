@@ -250,7 +250,7 @@ export function AskChat(props: AskChatProps) {
             Ask
           </Button>
         </div>
-        {reviewAllowed && <p className="text-xs text-muted-foreground">{disclosureCopy(productName)}</p>}
+        <p className="text-xs text-muted-foreground">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
       </form>
     </section>
   );

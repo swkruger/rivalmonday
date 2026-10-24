@@ -1,6 +1,6 @@
 import { hasChannel, hasFeature, hasPermission } from '@cs/core';
 import type { CaptureCompareView, ClientProfile, EvidenceView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cache, type ReactNode, Suspense } from 'react';
@@ -18,23 +18,14 @@ import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { CAPTURE_STATUS, EVIDENCE_KIND, labelFor } from '@/lib/labels';
 import { saveAskRecommendation } from '../../ask/actions';
 
 export const dynamic = 'force-dynamic';
 
 const HELP_KEY = 'page:client.evidence.detail';
 const COPY = PAGE_COPY['client.evidence.detail'];
-
-/** `get_evidence`'s `kind` values that are never served raw (decision 6) — their readable label for the placeholder message. */
-const RAW_KIND_LABEL: Record<string, string> = { html: 'page HTML', vendor_json: 'vendor data' };
-
-function formatUtc(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
-}
-
-function formatUtcDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-}
 
 function DetailRow({ label, value, tip }: { label: string; value: ReactNode; tip?: TipKey }) {
   return (
@@ -78,7 +69,8 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
   const { clientId, evidenceId } = await params;
   const { viewer, ctx } = await requireContext();
   const [evidence, profile, guides] = await Promise.all([loadEvidence(ctx, clientId, evidenceId), callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), helpGuides(ctx, 'client', clientId)]);
-  const captured = formatUtc(evidence.capturedAt);
+  const captured = formatDateTime(evidence.capturedAt, { tz: profile.timezone, zoneLabel: true });
+  const status = labelFor(CAPTURE_STATUS, evidence.captureStatus);
   // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
   // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
   const canAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasChannel(ctx, 'ask');
@@ -94,7 +86,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, ...(hasFeature(ctx, 'dashboard') ? [{ label: 'Changes', href: `/c/${clientId}/changes` }] : []), 'Evidence')}
         description={
           <>
-            <HelpText text={COPY.description} /> {`${evidence.channelLabel} · captured ${captured} · status ${evidence.captureStatus}`}
+            <HelpText text={COPY.description} /> {`${evidence.channelLabel} · captured ${captured} · status ${status.label}`}
           </>
         }
         helpKey={HELP_KEY}
@@ -103,7 +95,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
 
       {assistantName && (
         <div className="flex flex-wrap items-center gap-3">
-          <Link href={`/c/${clientId}/ask?seed=${evidenceId}`} className="inline-flex h-9 items-center rounded-md bg-amber px-4 text-sm font-semibold text-[#3B2300]">
+          <Link href={`/c/${clientId}/ask?seed=${evidenceId}`} className="inline-flex h-9 items-center rounded-md bg-amber px-4 text-sm font-semibold text-amber-text">
             {`Ask ${assistantName} about this`}
           </Link>
           {canRecommend && (
@@ -138,7 +130,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
             </a>
           ) : (
             <p className="text-muted-foreground">
-              This evidence is stored as raw {RAW_KIND_LABEL[evidence.kind] ?? evidence.kind} and kept unchanged; it isn’t displayed here. Its fingerprint is below.
+              This evidence is stored as raw {labelFor(EVIDENCE_KIND, evidence.kind).label.toLowerCase()} and kept unchanged; it isn’t displayed here. Its fingerprint is below.
             </p>
           )}
         </CardContent>
@@ -153,7 +145,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
             <DetailRow label="Source" tip="client.evidence.detail.captured" value={evidence.channel === 'web' ? `${evidence.channelLabel} · captured by our monitoring service` : evidence.channelLabel} />
             <DetailRow label="URL" value={evidence.url ?? '—'} />
             <DetailRow label="Captured" value={captured} />
-            <DetailRow label="Status" tip="client.evidence.detail.status" value={evidence.captureStatus} />
+            <DetailRow label="Status" tip="client.evidence.detail.status" value={<StatusChip tone={status.tone}>{status.label}</StatusChip>} />
             <DetailRow label="SHA-256" tip="client.evidence.detail.fingerprint" value={<span className="font-mono break-all">{evidence.sha256}</span>} />
             <DetailRow
               label="Kept"
@@ -185,7 +177,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               {evidence.citedBy.map((c) => (
                 <li key={c.eventId}>
                   <Link href={`/c/${clientId}/changes?event=${c.eventId}`} className="font-semibold text-primary-soft-text">
-                    {c.typeLabel} · {c.summary} · {formatUtcDate(c.occurredAt)}
+                    {c.typeLabel} · {c.summary} · {formatDate(c.occurredAt, { tz: profile.timezone })}
                   </Link>
                 </li>
               ))}

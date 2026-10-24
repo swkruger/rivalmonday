@@ -18,8 +18,16 @@ const evidence = (channel: string) => ({
   channel, channelLabel: channel, competitorName: 'Smith', capturedAt: '2026-10-21T14:00:00Z', captureStatus: 'ok', kind: 'text', url: null,
   sha256: 'x', legalHold: false, citedBy: [], captureId: 'cap1',
 });
-const mount = (channel: string) =>
-  callTool.mockImplementation(async (_c: unknown, name: string) => (name === 'get_client_profile' ? { name: 'Cool Air', timezone: 'UTC' } : evidence(channel)));
+const mount = (channel: string, extra: Record<string, unknown> = {}, timezone = 'UTC') =>
+  callTool.mockImplementation(async (_c: unknown, name: string) => (name === 'get_client_profile' ? { name: 'Cool Air', timezone } : { ...evidence(channel), ...extra }));
+
+/** All text in a React element tree (not rendered): every prop value, so `DetailRow value={…}` is included. */
+function textOf(node: unknown): string {
+  if (Array.isArray(node)) return node.map(textOf).join('');
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (!node || typeof node !== 'object') return '';
+  return Object.values((node as { props?: Record<string, unknown> }).props ?? {}).map(textOf).join(' ');
+}
 
 /** Depth-first search of a React element tree (not rendered: the compare body is an async server component). */
 function hasId(node: unknown, id: string): boolean {
@@ -60,5 +68,18 @@ describe('Evidence page "Compare with previous"', () => {
     const section = findSection(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }));
     const body = (await (section.type as (p: unknown) => Promise<unknown>)(section.props)) as { props: { children: string } };
     expect(body.props.children).toBe('Comparison not available for this capture.');
+  });
+
+  it('evidence captured time has the client zone label', async () => {
+    mount('web', {}, 'America/Chicago');
+    const tree = await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) });
+    expect(textOf(tree)).toContain('Oct 21, 9:00 AM CT');
+  });
+
+  it('robots_disallowed status reads "Site asks not to be monitored"', async () => {
+    mount('web', { captureStatus: 'robots_disallowed' });
+    const tree = await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) });
+    expect(textOf(tree)).toContain('Site asks not to be monitored');
+    expect(textOf(tree)).not.toContain('robots_disallowed');
   });
 });
