@@ -293,7 +293,7 @@ async function seedAgency(b: WorldBuilder, a: 'A' | 'B', planId: string): Promis
   await b.ins('agency_billing', a, { agency_id: agencyId, state: 'active', plan_id: planId, stripe_customer_id: `cus_world_${lc}_${b.c(a)}` });
   await b.ins('agency_billing_event', a, { id: b.id('agency_billing_event', a), agency_id: agencyId, from_state: 'trialing', to_state: 'active', reason: `Card added ${b.c(a)}`, actor: 'system' });
   await b.ins('agency_connect', a, { agency_id: agencyId, stripe_account_id: `acct_world_${lc}_${b.c(a)}`, status: 'connected', charges_enabled: true, details_submitted: true, connected_at: b.at(20) });
-  await b.ins('agency_daily_stat', a, { agency_id: agencyId, day: b.date(1), clients_active: a === 'A' ? 2 : 1, agency_seats: 1, billing_state: 'active' });
+  await b.ins('agency_daily_stat', a, { agency_id: agencyId, day: '2026-01-01', clients_active: a === 'A' ? 2 : 1, agency_seats: 1, billing_state: 'active' });
   await b.ins('agency_webhook', a, { id: b.id('agency_webhook', a), agency_id: agencyId, kind: 'slack', url: `https://hooks.slack.example/world-${lc}?c=${b.c(a)}`, created_by: admin.userId });
   await b.ins('billing_notice', a, { id: b.id('billing_notice', a), agency_id: agencyId, kind: 'trial_ending', params: { note: b.c(a) }, dedupe_key: `world-notice-${lc} ${b.c(a)}`, audience: 'agency' });
   const contact = await b.ins('contact', a, { id: b.id('contact', a), agency_id: agencyId, role: 'agency_admin', name: `Admin ${a} ${b.c(a)}`, email: admin.email, user_id: admin.userId });
