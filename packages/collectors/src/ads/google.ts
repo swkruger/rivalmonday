@@ -1,3 +1,4 @@
+import type { CallScope } from '@cs/core';
 import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
@@ -58,6 +59,7 @@ export const googleAdsCaptureUrl = (pinned: string[], domain: string | null): st
 export async function collectGoogleAds(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; domain: string | null; name: string; googleAdvertiserIds?: string[] },
+  scope: CallScope = { agencyId: null, clientId: null, competitorIds: [c.id] },
 ): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads?: number; dropped?: number; ended?: number; retired?: number }> {
   const pinned = (c.googleAdvertiserIds ?? []).slice(0, 25); // ads_search accepts at most 25 advertiser ids
   if (pinned.length === 0 && !c.domain) return { status: 'skipped' };
@@ -67,7 +69,7 @@ export async function collectGoogleAds(
     : { target: c.domain, location_code: DFS_US.location_code, depth: 40 };
   let raw: unknown[];
   try {
-    const [task] = await deps.dfs.post('/serp/google/ads_search/live/advanced', [request], { agencyId: null, clientId: null, competitorIds: [c.id] });
+    const [task] = await deps.dfs.post('/serp/google/ads_search/live/advanced', [request], scope);
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed, or
     // with no task at all — never record an empty 'ok' capture in either case.
     if (!task) {

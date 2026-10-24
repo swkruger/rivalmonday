@@ -1,3 +1,4 @@
+import type { CallScope } from '@cs/core';
 import { ad, client, clientCompetitor, competitor, type Db, observation, prospectReport, rankSnapshot } from '@cs/db';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { ensureSelfCompetitor } from '../local/self';
@@ -11,7 +12,7 @@ export const PROSPECT_STALE_HOURS = 3;
 export type SnapshotSource = 'gbp' | 'ads_google' | 'ads_meta';
 export interface ProspectSnapshotDeps {
   db: Db;
-  runSource(competitorId: string, source: SnapshotSource): Promise<{ status: string }>;
+  runSource(competitorId: string, source: SnapshotSource, scope?: CallScope): Promise<{ status: string }>;
   scanRankings(clientId: string, opts: { gridSize: number; maxKeywords: number }): Promise<{ snapshots: number; failed: number; scanId: string | null }>;
   now?: () => Date;
 }
@@ -33,9 +34,11 @@ export async function runProspectSnapshot(deps: ProspectSnapshotDeps, clientId: 
     const [c] = await deps.db.select().from(client).where(eq(client.id, clientId));
     if (!c || c.status !== 'prospect') throw new Error('This business is no longer a prospect');
     const notes: string[] = [];
+    // The prospect pays for these pulls: attribute them to it (no competitor split) so its spend and caps see them.
+    const scope: CallScope = { agencyId: c.agencyId, clientId };
     const run = async (b: { id: string; name: string }, source: SnapshotSource): Promise<string> => {
       try {
-        const { status } = await deps.runSource(b.id, source);
+        const { status } = await deps.runSource(b.id, source, scope);
         if (status === 'vendor_error') notes.push(`${b.name}: ${LABEL[source]} unavailable from the data provider`);
         return status;
       } catch (err) {

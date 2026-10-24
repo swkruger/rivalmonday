@@ -1,4 +1,4 @@
-import type { LedgerSink } from '@cs/core';
+import type { CallScope, LedgerSink } from '@cs/core';
 import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, isNull, or } from 'drizzle-orm';
@@ -72,9 +72,10 @@ type MetaDeps = { db: Db; store: ObjectStore; ledger: LedgerSink; apify?: { toke
 export async function collectMetaAds(
   deps: MetaDeps,
   c: { id: string; metaPageIds: string[] },
+  scope: CallScope = { agencyId: null, clientId: null, competitorIds: [c.id] },
 ): Promise<{ status: 'ok' | 'vendor_error' | 'skipped'; ads: number; deactivated: number; pages: MetaPageResult[] }> {
   const pages: MetaPageResult[] = [];
-  for (const pageId of c.metaPageIds) pages.push(await collectMetaPage(deps, c.id, pageId));
+  for (const pageId of c.metaPageIds) pages.push(await collectMetaPage(deps, c.id, pageId, scope));
   if (pages.length === 0) return { status: 'skipped', ads: 0, deactivated: 0, pages };
   const ok = pages.filter((p) => p.status === 'ok');
   return {
@@ -85,9 +86,8 @@ export async function collectMetaAds(
   };
 }
 
-async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: string): Promise<MetaPageResult> {
+async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: string, scope: CallScope): Promise<MetaPageResult> {
   const base = { competitorId, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION, url: metaPageUrl(pageId) };
-  const scope = { agencyId: null, clientId: null, competitorIds: [competitorId] };
   const attempts: [string, () => Promise<{ items: unknown[]; truncated: boolean }>][] = [];
   if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);
   if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);

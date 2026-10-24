@@ -5,7 +5,7 @@ import {
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
-import type { AiGuard, CaptureStatus } from '@cs/core';
+import type { AiGuard, CallScope, CaptureStatus } from '@cs/core';
 import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
@@ -104,7 +104,7 @@ export interface WorkerDeps {
   /** Links clients with a place id to their own business as a self competitor (reviews + GBP only). */
   ensureSelfCompetitors(): Promise<number>;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
-  runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta'): Promise<{ status: string }>;
+  runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta', scope?: CallScope): Promise<{ status: string }>;
   /**
    * Posts reviews/jobs DataForSEO tasks. Reviews and jobs are handled independently: a failure
    * posting one never touches the other. Each item ends up 'posted' (task created), released
@@ -272,7 +272,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     packs,
     runbookTiers,
   });
-  const runSource: WorkerDeps['runSource'] = async (competitorId, source) => {
+  const runSource: WorkerDeps['runSource'] = async (competitorId, source, scope) => {
     const [c] = await loadCompetitors([competitorId]);
     if (!c) {
       await markSourceResult(getDb(), competitorId, source, 'missing');
@@ -281,9 +281,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     const base = { db: getDb(), store: getStore() };
     try {
       const r =
-        source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c)
-        : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c)
-        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c);
+        source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c, scope)
+        : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c, scope)
+        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c, scope);
       await markSourceResult(getDb(), competitorId, source, r.status);
       return r;
     } catch (err) {

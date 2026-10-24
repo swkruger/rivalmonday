@@ -47,6 +47,14 @@ describe('collectMetaAds', () => {
     expect(ledger.recordVendorCall).toHaveBeenCalledWith(expect.objectContaining({ vendor: 'apify', agencyId: null, clientId: null, competitorIds: [IDS.competitorX] }));
   });
 
+  it('apify meta with a prospect scope ledgers the prospect client and no competitor', async () => {
+    ledger.recordVendorCall.mockClear();
+    const fetch = vi.fn(async () => new Response(JSON.stringify([apifyItem]), { status: 201 }));
+    await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageIds: ['99'] }, { agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+    expect(ledger.recordVendorCall).toHaveBeenCalledWith(expect.objectContaining({ vendor: 'apify', agencyId: IDS.agencyA, clientId: IDS.clientA2 }));
+    expect((ledger.recordVendorCall.mock.calls as unknown as Record<string, unknown>[][])[0]?.[0]).not.toHaveProperty('competitorIds');
+  });
+
   it('never ends active ads on an empty-but-successful vendor response (possible vendor glitch)', async () => {
     await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'OLD', isActive: true });
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

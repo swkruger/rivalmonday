@@ -55,6 +55,15 @@ describe('google ads', () => {
     expect((await dbs.service.select().from(ad)).map((a) => [a.platform, a.externalId])).toEqual([['google', 'c1']]);
   });
 
+  it('regular collection still ledgers the competitor scope; a prospect scope carries the client and no competitor', async () => {
+    const dfs = fakeDfs(() => [dfsTask([{ items: [item('c1', RECENT_SHOWN)] }])]);
+    const c = { id: IDS.competitorX, domain: 'smithhvac.example', name: 'Smith HVAC' };
+    await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, c);
+    await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs }, c, { agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+    expect(dfs.calls[0]?.scope).toEqual({ agencyId: null, clientId: null, competitorIds: [IDS.competitorX] });
+    expect(dfs.calls[1]?.scope).toEqual({ agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+  });
+
   it('skips competitors without a domain', async () => {
     expect(await collectGoogleAds({ db: dbs.service, store: createMemoryStore(), dfs: fakeDfs(() => []) }, { id: IDS.competitorX, domain: null, name: 'Smith HVAC' })).toEqual({ status: 'skipped' });
   });

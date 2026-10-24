@@ -2,17 +2,18 @@ import { assertCanActivateClient } from '@cs/billing';
 import { type AccessContext, canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { failProspectReport, PROSPECT_STALE_HOURS } from '@cs/collectors';
 import { client, clientCompetitor, clientSetup, prospectReport, withTenant } from '@cs/db';
-import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { postCommitSeatSync } from '../billing-guard';
 import { enqueueOf, type ToolDeps } from '../deps';
-import { RIVAL_SEARCH_REUSE_DAYS } from '../limits';
+import { PROSPECT_SNAPSHOT_COOLDOWN_HOURS, RIVAL_SEARCH_REUSE_DAYS } from '../limits';
 import { latestDoneRun, startCompetitorSearchQuietly } from '../rival-search';
 import { completeIfDone } from '../setup/state';
 import { ProspectReportView, ProspectRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
+const P1 = 'This business had a snapshot in the last 24 hours — try again tomorrow.';
 const STALE_MS = PROSPECT_STALE_HOURS * 3_600_000;
 type ReportRow = typeof prospectReport.$inferSelect;
 
@@ -85,6 +86,9 @@ export const runProspectSnapshotTool = defineTool({
       if ((links?.n ?? 0) === 0) throw new ToolError('invalid_input', 'Pick at least one competitor first');
       const [last] = await tx.select().from(prospectReport).where(eq(prospectReport.clientId, clientId)).orderBy(desc(prospectReport.createdAt)).limit(1);
       if (last && effective(last, new Date()).status === 'running') throw new ToolError('invalid_input', 'A snapshot is already running — it usually takes a few minutes');
+      const since = new Date(Date.now() - PROSPECT_SNAPSHOT_COOLDOWN_HOURS * 3_600_000);
+      const [recent] = await tx.select({ id: prospectReport.id }).from(prospectReport).where(and(eq(prospectReport.clientId, clientId), eq(prospectReport.status, 'ready'), gte(prospectReport.createdAt, since))).limit(1);
+      if (recent) throw new ToolError('invalid_input', P1, { userFacing: true });
       const [row] = await tx.insert(prospectReport).values({ agencyId: ctx.agencyId, clientId, status: 'running' }).returning({ id: prospectReport.id });
       return row!.id;
     });

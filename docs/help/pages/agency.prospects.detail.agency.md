@@ -9,7 +9,7 @@ One prospect's hub, in four steps: **Profile**, **Competitors**, **Snapshot** an
 
 - **Profile** shows how many keywords the prospect has and whether a service area is set.
 - **Competitors** shows how many competitors are picked, out of the prospect's limit, and their names.
-- **Snapshot** runs a one-off check. It builds a Google profile and ads table, and shows how the business and its competitors appear on Google Maps across a 3 by 3 grid of the service area. It uses Google Business Profile, ad-library and Google Maps data, with no AI-written text, and usually takes a few minutes. The page shows the cost per snapshot.
+- **Snapshot** runs a one-off check. It builds a Google profile and ads table, and shows how the business and its competitors appear on Google Maps across a 3 by 3 grid of the service area. It uses Google Business Profile, ad-library and Google Maps data, with no AI-written text, and usually takes a few minutes. You can run one snapshot per business per day.
 - **Landscape** appears under the snapshot when it is ready.
 
 ## How to use it

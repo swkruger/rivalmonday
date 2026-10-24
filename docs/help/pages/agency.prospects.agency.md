@@ -26,9 +26,9 @@ Leads from your intake link are under Leads. Accepting a lead creates a prospect
 
 Agency admins and account managers who cover all clients. Other account managers see the prospects they are assigned to.
 
-### Does a prospect cost anything?
+### Is a prospect monitored?
 
-A prospect itself is not monitored. Running a snapshot has a small data cost, which the prospect's page shows before you run it.
+No. A prospect is not monitored. You can run one snapshot per business per day; a second run within 24 hours waits until the next day.
 
 ### Where did a converted prospect go?
 

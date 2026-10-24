@@ -52,6 +52,28 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
     expect(queued).toHaveLength(2);
   });
 
+  describe('24 h cooldown (P1)', () => {
+    const P1 = 'This business had a snapshot in the last 24 hours — try again tomorrow.';
+    const seedReport = (status: 'ready' | 'failed', hoursAgo: number) =>
+      dbs.owner.insert(prospectReport).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, status, createdAt: new Date(Date.now() - hoursAgo * 3_600_000) });
+
+    it('second snapshot within 24 h refused with P1', async () => {
+      await seedReport('ready', 2);
+      await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'invalid_input', message: P1, userFacing: true });
+      expect(queued).toHaveLength(0);
+    });
+    it('after a failed run it is allowed', async () => {
+      await seedReport('failed', 2);
+      await registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 });
+      expect(queued).toHaveLength(1);
+    });
+    it('after 24 h allowed', async () => {
+      await seedReport('ready', 25);
+      await registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 });
+      expect(queued).toHaveLength(1);
+    });
+  });
+
   it('a spend-paused prospect is refused spend_paused (S1): no report row, nothing queued', async () => {
     await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA2));
     await expect(registry.invoke(admin, 'run_prospect_snapshot', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'spend_paused', message: SPEND_PAUSED_COPY, userFacing: true });

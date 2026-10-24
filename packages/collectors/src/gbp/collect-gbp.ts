@@ -87,13 +87,15 @@ export async function fetchGbpProfile(dfs: DataForSeoClient, q: { placeId: strin
 export async function collectGbpProfile(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
   c: { id: string; placeId: string | null; cid: string | null },
+  /** Ledger attribution; a prospect snapshot passes its client so the pull is not split to the competitor. */
+  scope: CallScope = { agencyId: null, clientId: null, competitorIds: [c.id] },
 ): Promise<{ status: 'ok' | 'not_found' | 'vendor_error' | 'skipped'; captureId?: string }> {
   const keyword = c.placeId ? `place_id:${c.placeId}` : c.cid ? `cid:${c.cid}` : null;
   if (!keyword) return { status: 'skipped' };
   const base = { competitorId: c.id, source: 'google_business_profile', collectorVersion: DFS_COLLECTOR_VERSION };
   let raw: unknown[];
   try {
-    const [task] = await postGbpInfo(deps.dfs, keyword, { agencyId: null, clientId: null, competitorIds: [c.id] });
+    const [task] = await postGbpInfo(deps.dfs, keyword, scope);
     // DataForSEO can return HTTP 200 with an OK envelope while an individual task still failed
     // (e.g. place not found), or with no task at all — never record an empty 'ok' capture in either case.
     if (!task) {

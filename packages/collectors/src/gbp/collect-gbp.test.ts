@@ -43,6 +43,15 @@ describe('collectGbpProfile', () => {
     expect(rows[0]).toMatchObject({ vendor: 'dataforseo', competitorId: IDS.competitorX, clientId: null, costUsd: 0.0054 });
   });
 
+  it('prospect gbp pull ledgers the prospect client_id and no competitor_id', async () => {
+    const body = { status_code: 20000, status_message: 'Ok.', cost: 0.0054, tasks: [{ id: '11111111-1111-4111-8111-111111111111', status_code: 20000, status_message: 'Ok.', result: [{ items: [item] }] }] };
+    const dfs = createDataForSeo({ login: 'l', password: 'p', ledger: createLedgerSink(dbs.service), fetch: (async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof globalThis.fetch });
+    await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs }, { id: IDS.competitorX, placeId: 'p1', cid: null }, { agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+    const rows = await dbs.service.select().from(vendorCall);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: null });
+  });
+
   it('skips competitors without place id or cid', async () => {
     expect(await collectGbpProfile({ db: dbs.service, store: createMemoryStore(), dfs: fakeDfs(() => []) }, { id: IDS.competitorX, placeId: null, cid: null })).toEqual({ status: 'skipped' });
   });

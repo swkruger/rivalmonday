@@ -78,6 +78,14 @@ describe('runProspectSnapshot (decisions 10, 11)', () => {
     expect(r.data).toMatchObject({ keywords: ['dentist'], points: 9, notes: [] });
   });
 
+  it('attributes every source pull to the prospect client (no competitor split)', async () => {
+    const scopes: unknown[] = [];
+    const base = fakeDeps();
+    await runProspectSnapshot({ ...base, runSource: async (id, s, scope) => { scopes.push(scope); return base.runSource(id, s); } }, IDS.clientA2, reportId);
+    expect(scopes.length).toBeGreaterThan(0);
+    for (const sc of scopes) expect(sc).toEqual({ agencyId: IDS.agencyA, clientId: IDS.clientA2 });
+  });
+
   it('notes a failed source and still finishes', async () => {
     const base = fakeDeps();
     const deps = fakeDeps({ runSource: async (id, s) => { if (s === 'ads_google') throw new Error('DataForSEO 500'); return base.runSource(id, s); } });
