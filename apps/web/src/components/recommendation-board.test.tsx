@@ -31,4 +31,25 @@ describe('RecommendationBoard', () => {
     expect(screen.getByRole('button', { name: 'Dismiss Rec a' })).toBeTruthy();
     expect(screen.getByText('Upsell: ppc')).toBeTruthy();
   });
+
+  it('effort and impact read "Effort: Low" / "Impact: High"', () => {
+    render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
+    expect(screen.getByText('Effort: Low')).toBeTruthy();
+    expect(screen.getByText('Impact: High')).toBeTruthy();
+  });
+
+  it('client role sees "For you", agency sees "Client"', () => {
+    const { unmount } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
+    expect(screen.getByText('For you')).toBeTruthy();
+    unmount();
+    render(<RecommendationBoard action={vi.fn()} clientId="c1" agency canEdit items={[rec('a', 'todo')]} />);
+    expect(screen.getByText('Client')).toBeTruthy();
+    expect(screen.queryByText('For you')).toBeNull();
+  });
+
+  it('an empty column says "Nothing here yet."', () => {
+    render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
+    expect(within(screen.getByRole('region', { name: 'Done' })).getByText('Nothing here yet.')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'To do' })).queryByText('Nothing here yet.')).toBeNull();
+  });
 });

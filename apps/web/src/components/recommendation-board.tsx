@@ -1,8 +1,9 @@
 'use client';
 import type { RecommendationView } from '@cs/tools';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label } from '@cs/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip } from '@cs/ui';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { LEVEL, labelFor } from '@/lib/labels';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -119,11 +120,11 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
       <p className="font-bold">{item.title}</p>
       <p className="mt-1 text-muted-foreground">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Effort {item.effort}</span>
-        <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">Impact {item.impact}</span>
-        <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{item.owner === 'client' ? 'For you' : 'Agency'}</span>
-        <span className="rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{SOURCE_LABEL[item.source] ?? item.source}</span>
-        {agency && item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
+        <StatusChip tone="neutral">Effort: {labelFor(LEVEL, item.effort).label}</StatusChip>
+        <StatusChip tone="neutral">Impact: {labelFor(LEVEL, item.impact).label}</StatusChip>
+        <StatusChip tone="neutral">{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</StatusChip>
+        <StatusChip tone="neutral">{SOURCE_LABEL[item.source] ?? item.source}</StatusChip>
+        {agency && item.upsellTag && <StatusChip tone="warning">Upsell: {item.upsellTag}</StatusChip>}
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
       </div>
       {canEdit &&
@@ -139,6 +140,10 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
         ))}
     </article>
   );
+}
+
+function EmptyColumn() {
+  return <p className="text-sm text-muted-foreground">Nothing here yet.</p>;
 }
 
 interface RecommendationBoardProps {
@@ -168,18 +173,21 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
       <div className="grid gap-5 lg:grid-cols-3">
         <section aria-label="To do" className="flex flex-col gap-3">
           <h2 className="font-semibold">To do ({todo.length})</h2>
+          {todo.length === 0 && <EmptyColumn />}
           {todo.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
         </section>
         <section aria-label="In progress" className="flex flex-col gap-3">
           <h2 className="font-semibold">In progress ({inProgress.length})</h2>
+          {inProgress.length === 0 && <EmptyColumn />}
           {inProgress.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
         </section>
         <section aria-label="Done" className="flex flex-col gap-3">
           <h2 className="font-semibold">Done ({done.length})</h2>
+          {done.length === 0 && <EmptyColumn />}
           {done.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
