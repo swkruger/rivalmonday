@@ -10,7 +10,7 @@
 Owner: verify (steps below) + answer the 2 copy questions; decide merge of 2b-1 now or after 2b-2. 2b-2 planning starts after phase-7b1 merges. Deferred to 2b-2: auto-selected row keeps `aria-current` below lg with no sheet open.
 
 ## Interfaces this branch adds or changes
-- Migration **0089** `ask_thread_deleted_at` (`ask_thread.deleted_at`, live index, owner grant). If phase-7b1 merges first its 0085-0087 move to 0089-0091 and ours becomes >= 0092 (renumber at rebase).
+- Migration **0092** `ask_thread_deleted_at` (`ask_thread.deleted_at`, live index, owner grant); renumbered from 0089 at the rebase onto main (7b1 owns 0089-0091).
 - Tools: `delete_ask_thread` (input `{ clientId, threadId }`, soft delete, replaces `delete_my_ask_thread`); `compare_captures` (web-only, read-only, `get_evidence` access, returns `CaptureCompareView`). Tenant reads filter `deleted_at IS NULL`; operators see deleted threads (`deletedAt` on `ReviewableAskThreadItem`).
 - `components/list-detail.tsx`: `ListDetail` props `list, detail, selectedId, sheetOpen, closeHref, listLabel, detailTitle, empty?`; `list-detail-sheet.tsx` (phone Sheet, URL-driven); `whole-page-diff.tsx`.
 - `AskEvent` `final.messageId: string | null`; `assistantNameForRequest` in `apps/web/src/server/ask.ts`; `AREAS_2B` in `apps/web/src/lib/page-gates.ts`; Changes `?tab=page`, `effectiveTab` in `changes/params.ts`.
