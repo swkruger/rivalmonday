@@ -21,7 +21,7 @@ describe('ReviewItem', () => {
     expect(screen.getByText(/Owner replied: Sorry about that/)).toBeTruthy();
   });
 
-  it('own review meta says "on your profile"; handles and handles a rating-only review', () => {
+  it('own review meta says "on your profile" and handles a rating-only review', () => {
     render(<ReviewItem review={{ reviewId: 'r', competitorId: 's', name: 'A1 HVAC', self: true, rating: null, text: null, postedAt: null, topics: [], sentiment: null, ownerAnswer: null }} timezone="UTC" />);
     expect(screen.getByText('Google reviewer · on your profile')).toBeTruthy();
     expect(screen.getByText('No written review.')).toBeTruthy();

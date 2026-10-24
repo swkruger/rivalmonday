@@ -165,7 +165,7 @@ export const CLIENT_COPY = {
       // source: packages/tools/src/tools/pricing.ts:getPriceMatrix (change = lowest price now vs 90 days ago, only when both known and different; promo flag); apps/web/src/app/(app)/c/[clientId]/pricing/price-card.tsx (CHANGE_TONE)
       priceChange: {
         title: 'Price change tag',
-        body: "Compares the competitor's lowest price for a service now with its lowest price 90 days ago. A red ▼ means the price fell and a green ▲ means it rose. The tag shows only when both prices are known and they differ, and it always looks back 90 days, whatever period you pick for the history. PROMO marks a price listed as a promotion.",
+        body: "Compares the competitor's lowest price for a service now with its lowest price 90 days ago. A red ▼ means the price fell and a green ▲ means it rose. The tag shows only when both prices are known and they differ, and it always looks back 90 days, whatever period you pick for the history. Promo marks a price listed as a promotion.",
         guideAnchor: 'how-to-use-it',
       },
       // source: packages/tools/src/tools/pricing.ts:getPriceMatrix (services[].offered = the client's own services)
