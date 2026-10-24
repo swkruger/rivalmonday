@@ -12,6 +12,7 @@ import { ProspectLandscape } from '@/components/prospect-landscape';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { callTool } from '@/server/tools';
 import { convertAction, runSnapshotAction } from './actions';
 import { ConvertButton } from './convert-button';
@@ -98,7 +99,7 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
       {report?.status === 'ready' && report.data && (
         <div className="rounded-[14px] bg-surface p-6 shadow-card">
           <h2 className="font-semibold">Landscape</h2>
-          <ProspectLandscape data={report.data} />
+          <ProspectLandscape data={report.data} timezone={await viewerTimeZone()} />
         </div>
       )}
 

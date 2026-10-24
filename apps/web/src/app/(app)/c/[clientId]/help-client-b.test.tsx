@@ -337,7 +337,7 @@ describe('client batch B: Alert, Report, Evidence', () => {
 describe('client batch B: Pitch snapshot (agency only)', () => {
   it('description with the client name and the date; both tips for agency roles', async () => {
     await show(page('client.pitch-snapshot'), 'agency');
-    expect(screen.getByText(/The market picture shown to Lone Star Cooling before it became a client.*Generated 2026-09-02\./)).toBeTruthy();
+    expect(screen.getByText(/The market picture shown to Lone Star Cooling before it became a client.*Generated Sep 1./)).toBeTruthy();
     tipNames(['Where the figures come from', 'Reading map visibility']);
     expect(open('Reading map visibility')).toMatch(/not counted as 21/);
   });

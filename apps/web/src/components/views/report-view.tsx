@@ -1,9 +1,15 @@
 import { changeTypeLabel } from '@cs/email';
+import { MOVE_LABELS } from '@cs/tools';
 import type { TrendReportData } from '@cs/db';
 import type { ReportDetail } from '@cs/tools';
 import { Card, CardContent, CardHeader, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { EmptyState } from '@/components/help/empty-state';
+import { PAGE_COPY } from '@/help/copy';
+import { formatDate } from '@/lib/format';
+import { labelFor, MOVE_STATUS, sentenceCase } from '@/lib/labels';
 
-const dateOnly = (iso: string) => iso.slice(0, 10);
+const EMPTY = PAGE_COPY['client.reports.detail'].empty.noData;
+
 const ratingArrow = (avg: number | null, prev: number | null) => {
   if (avg == null || prev == null || avg === prev) return '';
   return avg > prev ? ' ▲' : ' ▼';
@@ -27,10 +33,10 @@ export function ReportView({ report, titled = true }: { report: ReportDetail; ti
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <p className="text-muted-foreground">
-          {dateOnly(report.periodStart)} to {dateOnly(report.periodEnd)}
+          {formatDate(report.periodStart, { tz: 'UTC' })} to {formatDate(report.periodEnd, { tz: 'UTC' })}
         </p>
         {!data ? (
-          <p>This report has no data.</p>
+          <EmptyState {...EMPTY} />
         ) : (
           <>
             <Table aria-label="Businesses">
@@ -76,7 +82,7 @@ export function ReportView({ report, titled = true }: { report: ReportDetail; ti
                 <ul className="flex flex-col gap-1">
                   {data.moves.map((m, idx) => (
                     <li key={idx}>
-                      {m.moveType} &middot; {m.competitorName} &middot; {m.status} &middot; first detected {dateOnly(m.firstDetectedAt)}
+                      {MOVE_LABELS[m.moveType] ?? sentenceCase(m.moveType)} &middot; {m.competitorName} &middot; {labelFor(MOVE_STATUS, m.status).label} &middot; first detected {formatDate(m.firstDetectedAt, { tz: 'UTC' })}
                     </li>
                   ))}
                 </ul>

@@ -439,6 +439,9 @@ export const CLIENT_COPY = {
         body: 'Briefs sent and alerts delivered during the quarter, and the recommendations created in it, counted by where each one stood when the report was made: Done, In progress or Dismissed.',
       },
     },
+    empty: {
+      noData: { title: 'No figures in this report', body: 'This quarter had no data to report for {client}. The next report comes after the quarter ends.' },
+    },
   },
   'client.evidence.detail': {
     description: 'The stored proof behind a point in a brief or alert: what was captured, when, and its fingerprint.',

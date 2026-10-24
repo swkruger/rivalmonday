@@ -13,7 +13,7 @@ const data = {
 
 describe('ProspectLandscape', () => {
   it('shows profiles, ads and map visibility, marks the prospect, and lists notes', () => {
-    render(<ProspectLandscape data={data} />);
+    render(<ProspectLandscape data={data} timezone="UTC" />);
     const profile = within(screen.getByRole('table', { name: 'Google profile and ads' }));
     expect(profile.getByText('Peach Dental')).toBeTruthy();
     expect(profile.getByText('(prospect)')).toBeTruthy();
@@ -22,5 +22,10 @@ describe('ProspectLandscape', () => {
     const ranks = within(screen.getByRole('table', { name: 'Map visibility' }));
     expect(ranks.getByText('5/9 · top 3: 2 · avg 3.4')).toBeTruthy();
     expect(screen.getByText(/Meta ads unavailable/)).toBeTruthy();
+  });
+
+  it('prospect landscape on the agency page uses the viewer zone', () => {
+    render(<ProspectLandscape data={{ ...data, generatedAt: '2026-10-08T02:00:00.000Z' }} timezone="America/Chicago" />);
+    expect(screen.getByText(/Generated Oct 7 from/)).toBeTruthy();
   });
 });

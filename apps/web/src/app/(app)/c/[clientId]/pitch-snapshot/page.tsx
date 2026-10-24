@@ -8,6 +8,7 @@ import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { ProspectLandscape } from '@/components/prospect-landscape';
 import { PAGE_COPY } from '@/help/copy';
+import { formatDate } from '@/lib/format';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
@@ -37,7 +38,7 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Pitch snapshot')}
         description={
           <>
-            <HelpText text={COPY.description} /> {`Generated ${(report.finishedAt ?? report.createdAt).slice(0, 10)}.`}
+            <HelpText text={COPY.description} /> {`Generated ${formatDate(report.finishedAt ?? report.createdAt, { tz: profile.timezone })}.`}
           </>
         }
         helpKey={HELP_KEY}
@@ -54,7 +55,7 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
         </span>
       </div>
       <div className="rounded-[14px] bg-surface p-6 shadow-card">
-        <ProspectLandscape data={report.data} />
+        <ProspectLandscape data={report.data} timezone={profile.timezone} />
       </div>
     </>
   );

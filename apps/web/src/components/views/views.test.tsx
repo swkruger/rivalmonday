@@ -208,13 +208,35 @@ describe('ReportView', () => {
     expect(screen.getByText('12')).toBeTruthy();
   });
 
+  const withMoves: ReportDetail = {
+    id: '00000000-0000-4000-8000-0000000000c3', clientId: C, quarter: '2026-Q3', status: 'sent', sentAt: null, hasPdf: false, periodStart: '2026-07-01T00:00:00Z', periodEnd: '2026-09-30T00:00:00Z',
+    data: { quarter: '2026-Q3', windowDays: 90, businesses: [], eventsByType: {}, moves: [{ moveType: 'price_war', competitorName: 'Smith HVAC', status: 'active', firstDetectedAt: '2026-08-14T09:00:00Z' }], briefsSent: 1, alertsDelivered: 0, recommendations: { created: 0, done: 0, inProgress: 0, dismissed: 0 } },
+  } as unknown as ReportDetail;
+
+  it('report period reads "Jul 1 to Sep 30"', () => {
+    render(<ReportView report={withMoves} />);
+    expect(screen.getByText('Jul 1 to Sep 30')).toBeTruthy();
+  });
+
+  it('report moves read "Price war · … · Active", never price_war', () => {
+    render(<ReportView report={withMoves} />);
+    expect(screen.getByText('Price war · Smith HVAC · Active · first detected Aug 14')).toBeTruthy();
+    expect(screen.queryByText(/price_war/)).toBeNull();
+  });
+
+  it('empty report shows the empty state', () => {
+    render(<ReportView report={{ ...withMoves, data: null }} />);
+    expect(screen.getByText('No figures in this report')).toBeTruthy();
+  });
+
   it('renders a placeholder when the report has no data', () => {
     const report: ReportDetail = {
       id: '00000000-0000-4000-8000-0000000000c2', clientId: C, quarter: '2026-Q4', status: 'sent', sentAt: null, hasPdf: false, periodStart: '2026-10-01T00:00:00Z', periodEnd: '2026-12-31T00:00:00Z',
       data: null,
     };
     render(<ReportView report={report} />);
-    expect(screen.getByText('This report has no data.')).toBeTruthy();
+    expect(screen.getByText('No figures in this report')).toBeTruthy();
+    expect(screen.queryByText('This report has no data.')).toBeNull();
     opensInNewTab(screen.getByRole('link', { name: 'Download PDF' }));
   });
 });

@@ -1,10 +1,11 @@
 import type { ProspectReportData } from '@cs/db';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { formatDate } from '@/lib/format';
 
 const count = (n: number | null) => (n === null ? 'not checked' : String(n));
 
 /** Decision 11: figures only, straight from the stored data — no model text. */
-export function ProspectLandscape({ data }: { data: ProspectReportData }) {
+export function ProspectLandscape({ data, timezone }: { data: ProspectReportData; timezone: string }) {
   const name = (b: ProspectReportData['businesses'][number]) => (
     <>
       {b.name} {b.self && <span className="text-muted-ink">(prospect)</span>}
@@ -45,7 +46,7 @@ export function ProspectLandscape({ data }: { data: ProspectReportData }) {
         </TableBody>
       </Table>
       {data.notes.length > 0 && <ul className="list-disc pl-5 text-sm text-muted-ink">{data.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
-      <p className="text-xs text-muted-ink">Generated {data.generatedAt.slice(0, 10)} from Google Business Profile, ad-library and Google Maps data across a 3×3 grid of the service area. No AI-written text.</p>
+      <p className="text-xs text-muted-ink">Generated {formatDate(data.generatedAt, { tz: timezone })} from Google Business Profile, ad-library and Google Maps data across a 3×3 grid of the service area. No AI-written text.</p>
     </div>
   );
 }
