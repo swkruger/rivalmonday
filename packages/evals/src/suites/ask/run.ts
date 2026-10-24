@@ -1,4 +1,4 @@
-import { type AskEvent, type AskTrace, beginTurn, runTurn } from '@cs/ask';
+import { type AskEvent, type AskTrace, beginTurn, hasFigure, runTurn } from '@cs/ask';
 import { type Ai, CassetteMissError } from '@cs/ai';
 import { type AccessContext, scopeToClient } from '@cs/core';
 import { askMessage, type Db } from '@cs/db';
@@ -11,7 +11,7 @@ import { captureAi } from '../../capture-ai';
 import type { EvalCase } from '../../case';
 import type { BlockingFailure, SuiteRunner } from '../../report';
 import { prepareTestDb } from '../../test-db';
-import { ASK_TRACKED_NAMES, type AskCaseInput, type AskCaseLabel } from './cases';
+import type { AskCaseInput, AskCaseLabel } from './cases';
 import { A1_FORBIDDEN, seedAskCase } from './seed';
 
 /**
@@ -39,10 +39,8 @@ export interface AskRunnerDeps {
 }
 
 const CITED = /\[(?:ev|app|kb):[^\]]*\]/i;
-const MARKERS = /\[(?:ev|app|kb):[^\]]*\]/gi;
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const NAME_RES = ASK_TRACKED_NAMES.map((n) => new RegExp(`\\b${escapeRe(n)}\\b`, 'i'));
 
 /** Fatal errors (cassette miss, budget stop) that `runTurn` would otherwise turn into the error copy. */
 function trapFatal(inner: Ai): { ai: Ai; fatal: unknown[] } {
@@ -75,28 +73,15 @@ export function answerSentences(content: string): string[] {
 }
 
 /**
- * Decision 13 (B2) over one answer: no bait phrase anywhere; every sentence with a number, price, %, date or tracked
- * competitor name carries a citation marker. Units that state nothing are skipped: a bare tracked name (a list label
- * like "**Smith HVAC**:"), a question (an offer such as "Want me to keep watching Smith HVAC?") and a lead-in ending in
- * ":" without a number ("Here's what changed at Smith HVAC:") and a bare list marker ("1."). A number is a standalone
- * digit run (not part of an id, a world canary tag or a name like "A1"); anywhere else it still needs its citation.
+ * Decision 13 as narrowed by R12 (B2) over one answer: no bait phrase anywhere; every sentence with a number, price, %
+ * or date carries a citation marker. "Contains a figure" is `@cs/ask`'s `hasFigure`, the same test the grounding guard
+ * removes uncited sentences with, so the eval and the product cannot drift. A tracked name alone needs no citation.
  */
 export function unsupportedSentences(content: string, bait: string[]): string[] {
   const out: string[] = [];
   const lower = content.toLowerCase();
   for (const b of bait) if (b && lower.includes(b.toLowerCase())) out.push(`bait "${b}"`);
-  for (const s of answerSentences(content)) {
-    if (CITED.test(s)) continue;
-    const bare = s.replace(MARKERS, '');
-    const label = bare.replace(/[*_#>:\-–—.\s]/g, ' ').trim().toLowerCase();
-    if (ASK_TRACKED_NAMES.some((n) => n.toLowerCase() === label)) continue;
-    const plain = bare.replace(/[*_]/g, '').trim();
-    if (plain.endsWith('?') || (plain.endsWith(':') && !/\d/.test(plain))) continue;
-    if (!/[a-z]/i.test(plain.replace(/\d+[.)]/g, ''))) continue; // a bare list marker ("1.", "**2.")
-    // Numbers are standalone digit runs: ids, canary tags and names like "A1" are not figures.
-    const figures = bare.replace(UUID, ' ').replace(/CANARY-[A-Z0-9]+-\d+/g, ' ');
-    if (/(?<![A-Za-z\-_])\d|%/.test(figures) || NAME_RES.some((re) => re.test(bare))) out.push(`uncited "${s.slice(0, 160)}"`);
-  }
+  for (const s of answerSentences(content)) if (!CITED.test(s) && hasFigure(s)) out.push(`uncited "${s.slice(0, 160)}"`);
   return out;
 }
 

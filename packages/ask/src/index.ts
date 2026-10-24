@@ -7,3 +7,4 @@ export * from './prompt';
 export * from './turn';
 export * from './starters';
 export * from './app-data';
+export * from './figures';

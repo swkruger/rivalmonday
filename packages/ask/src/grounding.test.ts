@@ -114,4 +114,15 @@ After [ev:${B}].`);
     expect(r.removed).toBe(1);
     expect(r.citations).toEqual([`kb:${K}`]);
   });
+
+  it('7c1 R13: removes an uncited sentence with a figure even when the checker supports it; keeps cited and figure-free ones', async () => {
+    const r = await groundAnswer(fakeAi(), scope, `They cut the tune-up to $69 [ev:${A}]. That is a 30% drop. Rivals may respond.`, ev);
+    expect(r.content).toBe(`They cut the tune-up to $69 [ev:${A}]. Rivals may respond.`);
+    expect(r.removed).toBe(1);
+    expect(r.citations).toEqual([`ev:${A}`]);
+  });
+  it('7c1 R13: an answer of only uncited figures becomes the no-evidence line', async () => {
+    const r = await groundAnswer(fakeAi(), scope, 'They charge $89 since Oct 22.', ev);
+    expect(r).toEqual({ content: NO, citations: [], removed: 1 });
+  });
 });

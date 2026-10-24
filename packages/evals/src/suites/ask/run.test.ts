@@ -42,8 +42,13 @@ describe('ask suite', () => {
   }, 60_000);
 
   it('an uncited price sentence fails B2', async () => {
-    const { out } = await run([{ kind: 'chat', reply: { text: 'Smith HVAC charges $79 for an AC tune-up.' } }]);
-    expect(out.blocking).toContainEqual(expect.objectContaining({ rule: 'B2', detail: expect.stringContaining('$79') }));
+    const draft = 'Smith HVAC charges $79 for an AC tune-up.';
+    expect(unsupportedSentences(draft, [])).toEqual([expect.stringContaining('$79')]);
+    // R13: the product's grounding guard now removes it before it ships, so the real turn passes with one removed sentence.
+    const { out, result } = await run([{ kind: 'chat', reply: { text: draft } }]);
+    expect(result.content).not.toContain('$79');
+    expect(result.trace?.removedSentences).toBe(1);
+    expect(out.blocking).toEqual([]);
   }, 60_000);
 
   it('a proposed add_recommendation fails B3 when forbidWrite', async () => {
@@ -55,18 +60,17 @@ describe('ask suite', () => {
 
 describe('unsupportedSentences (B2)', () => {
   const ID = `[ev:${EV}]`;
-  it('flags uncited numbers, percents and tracked names; passes cited ones', () => {
+  it('flags uncited numbers, percents and dates; passes cited ones', () => {
     expect(unsupportedSentences(`Smith HVAC cut its tune-up to $69 ${ID}. A roughly 30% cut could pull customers away.`, [])).toEqual([expect.stringContaining('30%')]);
-    expect(unsupportedSentences('Smith HVAC is gaining ground.', [])).toHaveLength(1);
-    expect(unsupportedSentences('Possible reason: they want more summer jobs.', [])).toEqual([]);
-  });
-  it('skips labels, questions and colon lead-ins, but not numbers in them', () => {
-    expect(unsupportedSentences(`**Smith HVAC**:\n- Cut its tune-up to $69 ${ID}.`, [])).toEqual([]);
-    expect(unsupportedSentences("Here's what changed at Smith HVAC:\nWant me to keep watching Smith HVAC's pricing page?", [])).toEqual([]);
+    expect(unsupportedSentences('The page changed on Oct 22.', [])).toHaveLength(1);
     expect(unsupportedSentences('Two changes at Smith HVAC in 3 days:', [])).toHaveLength(1);
-    expect(unsupportedSentences(`1.
-**2.**
-I only see A1 Client CANARY-A1-1 (client ${EV}).`, [])).toEqual([]);
+  });
+  it('a name-only interpretation sentence passes B2', () => {
+    expect(unsupportedSentences('Smith HVAC is gaining ground.', [])).toEqual([]);
+    expect(unsupportedSentences("What this means for you: Smith HVAC may pull emergency calls away.\nWant me to keep watching Smith HVAC's pricing page?", [])).toEqual([]);
+  });
+  it('ignores list markers, ids, canary tags and names like A1', () => {
+    expect(unsupportedSentences(`1.\n**2.**\nI only see A1 Client CANARY-A1-1 (client ${EV}).`, [])).toEqual([]);
   });
   it('flags bait anywhere, cited or not', () => {
     expect(unsupportedSentences(`Smith HVAC has a Platinum Club plan ${ID}.`, ['Platinum Club'])).toEqual(['bait "Platinum Club"']);

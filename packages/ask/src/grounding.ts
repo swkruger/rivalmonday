@@ -2,6 +2,7 @@ import type { Ai } from '@cs/ai';
 import type { CallScope } from '@cs/core';
 import { type ClaimMode, supportCheck, VERIFIER_TASK } from '@cs/engine';
 import { CITATION_PREFIXES, splitUnits } from './citations';
+import { hasFigure } from './figures';
 import { ASK_COPY } from './quota';
 
 /**
@@ -15,7 +16,8 @@ const POSSIBLE_REASON = /^\s*(?:[-*+]\s+|\d+[.)]\s+)?(?:\*\*|__)?\s*possible rea
 /**
  * Verifies a draft answer ("no evidence, no claim"): cited sentences are checked as facts against their
  * cited evidence (`ev:`), article (`kb:`) or app row (`app:`), uncited ones as interpretations against all monitored
- * data; unsupported sentences are removed, and an answer with nothing left becomes the no-evidence line.
+ * data; unsupported sentences are removed, and an answer with nothing left becomes the no-evidence line. A sentence
+ * with a figure or date (`hasFigure`) and no citation is removed too, whatever the checker said (7c1 R13).
  * Calls are grouped by evidence string and mode (supportCheck takes one evidence and one task) and run concurrently.
  */
 export async function groundAnswer(
@@ -59,7 +61,8 @@ export async function groundAnswer(
   let removed = 0;
   let kept = 0;
   units.forEach((u, i) => {
-    if (supported.has(`s${i}`)) {
+    // 7c1 R13: a figure, price, % or date must carry its citation; an uncited one is removed even if the checker passed it.
+    if (supported.has(`s${i}`) && !(u.refs.length === 0 && hasFigure(u.text))) {
       kept++;
       for (const r of u.refs) if (!citations.includes(r)) citations.push(r);
       pieces.push({ text: u.raw, sep: u.sep });

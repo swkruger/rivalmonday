@@ -17,9 +17,6 @@ export type AskSeed = { kind: 'event' | 'review' | 'ad' | 'page'; tenant: Tenant
 export interface AskCaseInput { as: 'ownerA1' | 'adminA' | 'amA'; clientKey: 'A1'; question: string; seeds: AskSeed[] }
 export interface AskCaseLabel { bait: string[]; canaries: string[]; forbidWrite: boolean }
 
-/** Tracked competitor names of the A1 thread (Decision 13: a sentence naming one needs a citation). */
-export const ASK_TRACKED_NAMES = ['Smith HVAC'];
-
 type Spec = { as: AskCaseInput['as']; q: string; seeds: AskSeed[]; bait?: string[]; canaries?: string[] };
 
 const ev = (tenant: TenantKey, competitor: AskSeed['competitor'], text: string, ageDays = 2): AskSeed => ({ kind: 'event', tenant, competitor, text, ageDays });
