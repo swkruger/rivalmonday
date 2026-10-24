@@ -661,7 +661,7 @@ describe('actionAllowed (7a2 D12)', () => {
   });
   it('actionAllowed rejects a non-write tool', () => {
     expect(actionAllowed({ tool: 'search_events', input: { clientId: A1 } }, A1)).toBe(false);
-    expect(actionAllowed({ tool: 'delete_my_ask_thread', input: { threadId: EV1 } }, A1)).toBe(false);
+    expect(actionAllowed({ tool: 'delete_ask_thread', input: { threadId: EV1 } }, A1)).toBe(false);
     expect(actionAllowed({ tool: 'constructor', input: { clientId: A1 } }, A1)).toBe(false);
   });
   it('rejects a mismatched clientId', () => {

@@ -1,13 +1,14 @@
 import { createAccessContext, type Feature, ToolError } from '@cs/core';
-import { askMessage, askStarter, askThread, client } from '@cs/db';
+import { askMessage, askStarter, askThread, auditLog, client } from '@cs/db';
 import { IDS, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GENERIC_STARTERS } from '../ask-tools';
 import { allTools } from './all';
+import { createToolRegistry } from '../registry';
 import { dbs, registry } from './workspace-fixtures';
 
-const ASK_THREAD_TOOLS = ['list_my_ask_threads', 'get_my_ask_thread', 'delete_my_ask_thread', 'get_ask_starters'];
+const ASK_THREAD_TOOLS = ['list_my_ask_threads', 'get_my_ask_thread', 'delete_ask_thread', 'get_ask_starters'];
 
 const user = (userId: string, features: Feature[] = ['ask'], role: 'client_owner' | 'agency_admin' = 'client_owner') =>
   createAccessContext({ agencyId: IDS.agencyA, userId, role, clientScope: role === 'agency_admin' ? 'all' : [IDS.clientA1], features });
@@ -67,7 +68,7 @@ describe('ask thread tools: channels', () => {
     const id = await seedThread('u-me', 'Mine');
     expect(await code(registry.invoke(guest, 'list_my_ask_threads', { clientId: IDS.clientA1 }))).toBe('not_found');
     expect(await code(registry.invoke(guest, 'get_my_ask_thread', { threadId: id }))).toBe('not_found');
-    expect(await code(registry.invoke(guest, 'delete_my_ask_thread', { threadId: id }))).toBe('not_found');
+    expect(await code(registry.invoke(guest, 'delete_ask_thread', { clientId: IDS.clientA1, threadId: id }))).toBe('not_found');
     expect(await code(registry.invoke(guest, 'get_ask_starters', { clientId: IDS.clientA1 }))).toBe('not_found');
   });
 });
@@ -122,17 +123,62 @@ describe('get_my_ask_thread', () => {
   });
 });
 
-describe('delete_my_ask_thread', () => {
-  it('delete own only', async () => {
+describe('delete_ask_thread', () => {
+  const del = (c: typeof me, threadId: string, clientId: string = IDS.clientA1) => registry.invoke(c, 'delete_ask_thread', { clientId, threadId });
+
+  it('deletes own thread → { deleted: true } and sets deleted_at', async () => {
+    const mine = await seedThread('u-me', 'Mine');
+    expect(await del(me, mine)).toEqual({ deleted: true });
+    const [row] = await dbs.owner.select().from(askThread).where(eq(askThread.id, mine));
+    expect(row!.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it("refuses another user's thread", async () => {
+    const theirs = await seedThread('u-other', 'Theirs');
+    expect(await code(del(me, theirs))).toBe('not_found');
+    const [row] = await dbs.owner.select().from(askThread).where(eq(askThread.id, theirs));
+    expect(row!.deletedAt).toBeNull();
+  });
+
+  it('refuses an already-deleted thread', async () => {
+    const mine = await seedThread('u-me', 'Mine');
+    await del(me, mine);
+    expect(await code(del(me, mine))).toBe('not_found');
+  });
+
+  it('refuses the wrong client', async () => {
+    const a1 = await seedThread('u-me', 'A1');
+    const both = user('u-me', ['ask'], 'agency_admin');
+    expect(await code(del(both, a1, IDS.clientA2))).toBe('not_found');
+    const [row] = await dbs.owner.select().from(askThread).where(eq(askThread.id, a1));
+    expect(row!.deletedAt).toBeNull();
+  });
+
+  it('deleted thread disappears from list and get', async () => {
+    const keep = await seedThread('u-me', 'Keep');
+    const gone = await seedThread('u-me', 'Gone');
+    await del(me, gone);
+    const out = (await registry.invoke(me, 'list_my_ask_threads', { clientId: IDS.clientA1 })) as { items: { id: string }[] };
+    expect(out.items.map((i) => i.id)).toEqual([keep]);
+    expect(await code(registry.invoke(me, 'get_my_ask_thread', { threadId: gone }))).toBe('not_found');
+  });
+
+  it('messages are kept', async () => {
     const mine = await seedThread('u-me', 'Mine');
     await seedMessage(mine, 'u-me', { role: 'user', content: 'q' });
-    const theirs = await seedThread('u-other', 'Theirs');
-    expect(await code(registry.invoke(me, 'delete_my_ask_thread', { threadId: theirs }))).toBe('not_found');
-    expect(await dbs.owner.select().from(askThread).where(eq(askThread.id, theirs))).toHaveLength(1);
-    expect(await registry.invoke(me, 'delete_my_ask_thread', { threadId: mine })).toEqual({ id: mine });
-    expect(await dbs.owner.select().from(askThread).where(eq(askThread.id, mine))).toHaveLength(0);
-    expect(await dbs.owner.select().from(askMessage).where(eq(askMessage.threadId, mine))).toHaveLength(0);
-    expect(await code(registry.invoke(me, 'delete_my_ask_thread', { threadId: mine }))).toBe('not_found');
+    await del(me, mine);
+    expect(await dbs.owner.select().from(askMessage).where(eq(askMessage.threadId, mine))).toHaveLength(1);
+  });
+
+  it('writes one ok audit row for delete_ask_thread with no content', async () => {
+    const mine = await seedThread('u-me', 'Secret title');
+    const audited = createToolRegistry({ app: dbs.app, service: dbs.service });
+    await audited.invoke(me, 'delete_ask_thread', { clientId: IDS.clientA1, threadId: mine });
+    const rows = await dbs.owner.select().from(auditLog).where(eq(auditLog.tool, 'delete_ask_thread'));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.outcome).toBe('ok');
+    expect(rows[0]!.inputHash).toBeTruthy();
+    expect(JSON.stringify(rows[0])).not.toContain('Secret title');
   });
 });
 

@@ -1,13 +1,13 @@
-import { type AccessContext, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, hasChannel, toolkit, ToolError } from '@cs/core';
 import { askMessage, askStarter, askThread, client, withTenant } from '@cs/db';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { GENERIC_STARTERS } from '../ask-tools';
 import type { ToolDeps } from '../deps';
 import { workspaceClient } from '../workspace/scope';
 
 /**
- * Phase 6b Q13: the web's reads (and the one delete) of a user's own Ask threads and a client's starter questions.
+ * Phase 6b Q13: the web's reads (and the soft delete) of a user's own Ask threads and a client's starter questions.
  * Web channel only (explicit literal), feature `ask`, guests refused. RLS is author-only (migration ask_rls); every
  * query still filters by `ctx.userId`, so an agency admin never reads a client user's thread (e5).
  */
@@ -77,7 +77,7 @@ export const listMyAskThreads = defineTool({
       tx
         .select({ id: askThread.id, title: askThread.title, updatedAt: askThread.updatedAt })
         .from(askThread)
-        .where(and(eq(askThread.clientId, c.id), eq(askThread.userId, ctx.userId)))
+        .where(and(eq(askThread.clientId, c.id), eq(askThread.userId, ctx.userId), isNull(askThread.deletedAt)))
         .orderBy(desc(askThread.updatedAt), desc(askThread.id))
         .limit(THREAD_LIMIT),
     );
@@ -101,7 +101,7 @@ export const getMyAskThread = defineTool({
       const [t] = await tx
         .select({ id: askThread.id, clientId: askThread.clientId, title: askThread.title })
         .from(askThread)
-        .where(and(eq(askThread.id, input.threadId), eq(askThread.userId, ctx.userId)));
+        .where(and(eq(askThread.id, input.threadId), eq(askThread.userId, ctx.userId), isNull(askThread.deletedAt)));
       if (!t) throw new ToolError('not_found', 'Thread not found');
       const rows = await tx
         .select({
@@ -119,23 +119,29 @@ export const getMyAskThread = defineTool({
   },
 });
 
-export const deleteMyAskThread = defineTool({
-  name: 'delete_my_ask_thread',
+export const deleteAskThread = defineTool({
+  name: 'delete_ask_thread',
   access: 'write',
   supportHidden: true,
-  description: "Delete one of the signed-in user's own Ask threads and its messages.",
-  input: z.object({ threadId: uuid }),
-  output: z.object({ id: uuid }),
+  description: "Delete one of the signed-in user's own Ask conversations from their list (kept for review; never shown to them again).",
+  input: z.object({ clientId: uuid, threadId: uuid }),
+  output: z.object({ deleted: z.literal(true) }),
   permission: 'read',
   feature: 'ask',
   channels: WEB_ONLY,
   async handler(ctx, input, deps) {
     refuseGuest(ctx);
+    if (!hasChannel(ctx, 'ask')) throw new ToolError('not_found', 'Not found');
+    const c = await workspaceClient(deps, ctx, input.clientId);
     const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx.delete(askThread).where(and(eq(askThread.id, input.threadId), eq(askThread.userId, ctx.userId))).returning({ id: askThread.id }),
+      tx
+        .update(askThread)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(askThread.id, input.threadId), eq(askThread.clientId, c.id), eq(askThread.userId, ctx.userId), isNull(askThread.deletedAt)))
+        .returning({ id: askThread.id }),
     );
     if (rows.length === 0) throw new ToolError('not_found', 'Thread not found');
-    return { id: rows[0]!.id };
+    return { deleted: true as const };
   },
 });
 
@@ -161,4 +167,4 @@ export const getAskStarters = defineTool({
   },
 });
 
-export const askThreadTools = [listMyAskThreads, getMyAskThread, deleteMyAskThread, getAskStarters];
+export const askThreadTools = [listMyAskThreads, getMyAskThread, deleteAskThread, getAskStarters];

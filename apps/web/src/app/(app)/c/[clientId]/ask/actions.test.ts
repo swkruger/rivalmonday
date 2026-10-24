@@ -145,7 +145,7 @@ describe('confirmAskAction pinning (7a2 D12)', () => {
   });
 
   it('a stored non-write tool is never run', async () => {
-    for (const tool of ['search_events', 'delete_my_ask_thread', 'invite_member']) {
+    for (const tool of ['search_events', 'delete_ask_thread', 'invite_member']) {
       const { messageId } = await seedAction('u1', { tool, input: { clientId: IDS.clientA1, threadId: EV1 } });
       await expect(confirmAskAction(messageId, 'confirm')).resolves.toEqual({ ok: false, error: 'Not allowed' });
       expect(await actionOf(messageId)).toMatchObject({ state: 'failed', error: 'Not allowed' });
@@ -204,9 +204,9 @@ describe('deleteAskThreadAction', () => {
   };
   const T = '22222222-2222-4222-8222-222222222222';
 
-  it('runs delete_my_ask_thread and revalidates the Ask pages', async () => {
+  it('runs delete_ask_thread and revalidates the Ask pages', async () => {
     await expect(deleteAskThreadAction({ ok: true }, fd({ clientId: IDS.clientA1, threadId: T }))).resolves.toEqual({ ok: true });
-    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'delete_my_ask_thread', { threadId: T });
+    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'delete_ask_thread', { clientId: IDS.clientA1, threadId: T });
     expect(m.revalidated).toContain(`/c/${IDS.clientA1}/ask`);
     expect(m.redirected).toBeNull();
   });

@@ -122,7 +122,7 @@ export async function saveAskRecommendation(input: {
 const field = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 
 /**
- * Thread delete for the author (spec "Web"): `delete_my_ask_thread` through `runTool` (author-only in the tool and RLS).
+ * Thread delete for the author (spec "Web"): `delete_ask_thread` through `runTool` (author-only in the tool and RLS).
  * Deleting the open thread goes back to a new question; otherwise the list just refreshes.
  */
 export async function deleteAskThreadAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
@@ -130,7 +130,7 @@ export async function deleteAskThreadAction(_prev: FormResult, fd: FormData): Pr
   if (viewer.kind !== 'user') return NOT_FOUND;
   const clientId = field(fd, 'clientId');
   if (!isUuid(clientId)) return NOT_FOUND;
-  const r = await runTool(ctx, 'delete_my_ask_thread', { threadId: field(fd, 'threadId') });
+  const r = await runTool(ctx, 'delete_ask_thread', { clientId, threadId: field(fd, 'threadId') });
   if (!r.ok) return r;
   revalidatePath(`/c/${clientId}/ask`, 'layout');
   if (field(fd, 'active') === '1') redirect(`/c/${clientId}/ask`);

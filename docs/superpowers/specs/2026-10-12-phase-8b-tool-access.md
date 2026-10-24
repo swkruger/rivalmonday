@@ -20,7 +20,7 @@ list_oauth_grants (api-tokens.ts) | read | read-only
 revoke_oauth_grant (api-tokens.ts) | write | revokes grant
 list_my_ask_threads (ask-threads.ts) | read | read-only
 get_my_ask_thread (ask-threads.ts) | read | read-only
-delete_my_ask_thread (ask-threads.ts) | write | deletes thread (permission is read, but it deletes); supportHidden
+delete_ask_thread (ask-threads.ts) | write | soft-deletes own thread (sets deleted_at; permission is read); supportHidden
 get_ask_starters (ask-threads.ts) | read | read-only
 list_briefs (briefs.ts) | read | read-only
 get_brief (briefs.ts) | read | read-only
