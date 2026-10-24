@@ -1,13 +1,13 @@
 # phase-15c2b — page fixes: client pages, ListDetail, compare_captures, Ask delete
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c2b   **Base:** main @ 8e89d375
-**Plan/spec:** [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) (2b parts) · plan TBD; pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md)
+**Plan/spec:** [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) + [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) · [2b-1 plan](../superpowers/plans/2026-10-23-phase-15c2b1-features.md) (2b-2 plan after 2b-1)
 
 ## Status (overwrite)
-Brief written; nothing built.
+Spec approved 2026-10-23 (D9–D15). 2b-1 plan written, awaiting owner approval.
 
 ## Next (overwrite)
-Owner answers Brief §6 → brainstorming → mockups (mobile sheet, whole-page diff) → lean plan → approval → SDD.
+Owner approves 2b-1 plan → SDD from Task 0. 2b-2 planned after 2b-1 and after phase-7b1 merges.
 
 ## Interfaces this branch adds or changes
 Planned: migration `ask_thread.deleted_at` (next free at execution); tools `delete_ask_thread` (replaces `delete_my_ask_thread`), `compare_captures`; `components/list-detail.tsx`; `GATED_PATHS` extended to all `src`.
