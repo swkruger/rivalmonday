@@ -58,9 +58,16 @@ export function stringLeaves(value: unknown, path = '$'): { path: string; value:
   return [];
 }
 
-/** Paths of string leaves that still hold an email address or phone number (detector only: data must already be redacted). */
+/**
+ * Paths of string leaves that still hold an email address or phone number (detector only: data must already be redacted).
+ * The case's own `id` is skipped: it is a builder-made identifier (slug + hex hash), never copied text, and a hex hash
+ * can hold a 10-digit run the phone pattern matches (`reviews-csdev-0f78ba5785855770`).
+ */
 export function contactLeaks(cases: EvalCase[]): string[] {
-  return cases.flatMap((c) => stringLeaves(c, c.id).filter((l) => redactContactInfo(l.value) !== l.value).map((l) => l.path));
+  return cases.flatMap((c) => {
+    const { id: _id, ...rest } = c;
+    return stringLeaves(rest, c.id).filter((l) => redactContactInfo(l.value) !== l.value).map((l) => l.path);
+  });
 }
 
 /** Case id slug: lowercase [a-z0-9-]. */

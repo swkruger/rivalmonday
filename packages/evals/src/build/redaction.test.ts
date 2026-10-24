@@ -32,6 +32,16 @@ describe('redaction scan', () => {
     expect(contactLeaks([planted])).toEqual(['changes-planted.input.state.after', 'changes-planted.input.state.nested[0].note']);
   });
 
+  it('a case id whose hex hash holds a phone-shaped digit run is not a leak; the same run in input still is', () => {
+    const id = 'reviews-csdev-0f78ba5785855770';
+    const c: EvalCase = {
+      id, suite: 'reviews', source: 'cs_dev', vertical: 'dental', blocking: false,
+      input: { state: { review: 'Great visit' }, verticalIds: ['dental'], questionKeys: [] }, label: null, labelBy: null, confirmedAt: null,
+    };
+    expect(contactLeaks([c])).toEqual([]);
+    expect(contactLeaks([{ ...c, input: { state: { review: 'ref 5785855770' }, verticalIds: ['dental'], questionKeys: [] } }])).toEqual([`${id}.input.state.review`]);
+  });
+
   it('golden and synthetic builders emit no contact details (the hvac fixture page carries a phone number)', () => {
     expect(contactLeaks(buildGolden())).toEqual([]);
     expect(contactLeaks([...buildSynthetic('changes', 40, 1), ...buildSynthetic('reviews', 40, 1)])).toEqual([]);
