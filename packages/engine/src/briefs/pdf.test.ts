@@ -4,7 +4,7 @@ import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
-import { briefPdfKey, listBriefsMissingPdf, renderBriefPdf } from './pdf';
+import { briefPdfKey, listBriefsMissingPdf, PDF_RETRY_HOURS, renderBriefPdf } from './pdf';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -59,9 +59,21 @@ describe('listBriefsMissingPdf', () => {
     const done = await seedBrief('sent', '2026-10-12');
     const old = await seedBrief('sent', '2026-09-28');
     await seedBrief('approved', '2026-10-19');
-    await dbs.owner.update(brief).set({ sentAt: day(5) }).where(eq(brief.status, 'sent'));
+    await dbs.owner.update(brief).set({ sentAt: new Date(day(10).getTime() - 8 * 3_600_000) }).where(eq(brief.status, 'sent'));
     await dbs.owner.update(brief).set({ pdfKey: 'k' }).where(eq(brief.id, done));
     await dbs.owner.update(brief).set({ sentAt: day(-3) }).where(eq(brief.id, old));
     expect(await listBriefsMissingPdf(dbs.service, day(10))).toEqual([missing]);
+  });
+
+  it('PDF re-enqueued at 1,2,4,8 h, not at 3 or 5 h', async () => {
+    const id = await seedBrief('sent', '2026-10-05');
+    const sent = day(0);
+    await dbs.owner.update(brief).set({ sentAt: sent }).where(eq(brief.id, id));
+    const at = (h: number, extraMin = 30) => new Date(sent.getTime() + h * 3_600_000 + extraMin * 60_000);
+    for (const h of [1, 2, 4, 8, 128]) expect(await listBriefsMissingPdf(dbs.service, at(h))).toEqual([id]);
+    for (const h of [0, 3, 5, 6, 7, 9, 100]) expect(await listBriefsMissingPdf(dbs.service, at(h))).toEqual([]);
+    expect(PDF_RETRY_HOURS(1)).toBe(true);
+    expect(PDF_RETRY_HOURS(0)).toBe(false);
+    expect(PDF_RETRY_HOURS(6)).toBe(false);
   });
 });

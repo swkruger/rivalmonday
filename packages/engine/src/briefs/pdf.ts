@@ -13,11 +13,15 @@ export interface PdfDeps {
 /** How long after sending a missing PDF is still re-rendered (the hourly delivery ticks re-enqueue it). */
 export const PDF_CATCHUP_DAYS = 7;
 
-/** Sent briefs from the last 7 days whose PDF never rendered (the email already links it): the hourly tick re-enqueues them. */
+/** Stateless backoff (7b1 Decision 6): re-render only when the whole hours since sending is a power of two (1, 2, 4 … 128 h; at most 8 renders over 7 days). */
+export const PDF_RETRY_HOURS = (h: number): boolean => Number.isInteger(h) && h >= 1 && (h & (h - 1)) === 0;
+export const pdfRetryDue = (sentAt: Date | null, now: Date): boolean => sentAt !== null && PDF_RETRY_HOURS(Math.floor((now.getTime() - sentAt.getTime()) / 3_600_000));
+
+/** Sent briefs from the last 7 days whose PDF never rendered (the email already links it): the hourly tick re-enqueues them on the backoff hours only. */
 export async function listBriefsMissingPdf(db: Db, now: Date): Promise<string[]> {
-  const rows = await db.select({ id: brief.id }).from(brief)
+  const rows = await db.select({ id: brief.id, sentAt: brief.sentAt }).from(brief)
     .where(and(eq(brief.status, 'sent'), isNull(brief.pdfKey), gt(brief.sentAt, new Date(now.getTime() - PDF_CATCHUP_DAYS * 86_400_000))));
-  return rows.map((r) => r.id);
+  return rows.filter((r) => pdfRetryDue(r.sentAt, now)).map((r) => r.id);
 }
 
 export const briefPdfKey = (agencyId: string, briefId: string) => `briefs/${agencyId}/${briefId}${PDF_KEY_SUFFIX}`;

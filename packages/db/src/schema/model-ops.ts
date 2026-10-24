@@ -7,7 +7,7 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 export type DecisionSampleReason = 'shadow' | 'review';
 export type LabelSource = 'human' | 'review';
-export type ModelBatchStatus = 'submitted' | 'ended' | 'failed';
+export type ModelBatchStatus = 'pending' | 'submitted' | 'ended' | 'failed';
 
 /** One provider's answers inside a sample (answers keyed by question key, as returned by @cs/ai). */
 export interface SampleAnswers {
@@ -60,7 +60,8 @@ export const modelBatch = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     task: text('task').notNull(),
     provider: text('provider').notNull(),
-    providerBatchId: text('provider_batch_id').notNull().unique(),
+    /** Null while `pending` (row written before the provider submit, 7b1 Decision 7). */
+    providerBatchId: text('provider_batch_id').unique(),
     // kept: model-ops key (15b-3 C7)
     purpose: text('purpose').notNull(), // 'theme_discovery'
     status: text('status').$type<ModelBatchStatus>().notNull().default('submitted'),

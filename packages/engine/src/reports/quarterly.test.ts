@@ -95,7 +95,8 @@ describe('listReportsMissingPdf', () => {
       { ...base, clientId: IDS.clientA2, quarter: '2026-Q3', sentAt: at('2026-10-05T13:30:00Z'), pdfKey: 'k' },
       { ...base, clientId: IDS.clientA1, quarter: '2026-Q2', sentAt: at('2026-07-05T13:30:00Z') },
     ]).returning({ id: trendReport.id });
-    expect(await listReportsMissingPdf(dbs.service, at('2026-10-06T00:00:00Z'))).toEqual([rows[0]!.id]);
+    expect(await listReportsMissingPdf(dbs.service, at('2026-10-05T21:45:00Z'))).toEqual([rows[0]!.id]);
+    expect(await listReportsMissingPdf(dbs.service, at('2026-10-05T16:45:00Z'))).toEqual([]);
   });
 });
 

@@ -304,6 +304,9 @@ export const move = pgTable(
     lastEvidenceAt: ts('last_evidence_at').notNull(),
     closedAt: ts('closed_at'),
     updatedAt: ts('updated_at').notNull().defaultNow(),
+    /** AI outcomes that failed to produce a recommendation (7b1 Decision 5); no retry before `recRetryAfter`, none after 5. */
+    recAttempts: integer('rec_attempts').notNull().default(0),
+    recRetryAfter: ts('rec_retry_after'),
   },
   (t) => [
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),

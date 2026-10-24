@@ -1,4 +1,5 @@
 import type { Ai, BatchItemResult } from '@cs/ai';
+import { AiPausedError } from '@cs/core';
 import { modelBatch, review, reviewAnalysis, topicProposal } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
@@ -7,7 +8,7 @@ import { createFakeAi } from '../../test/fake-ai';
 import { day } from '../../test/seed';
 import { collectModelBatches } from '../model-ops/batches';
 import { createPackLoader } from '../tag/tag-stage';
-import { decideTopicProposal, discoverTopic, runReviewInsights, THEME_BATCH_TASK } from './discovery';
+import { decideTopicProposal, discoverTopic, runReviewInsights, submitTopicDiscoveryBatch, THEME_BATCH_TASK } from './discovery';
 import { buildReviewQuestions, themeKey, topicsForVertical } from './topics';
 
 const dbs = openTestDbs();
@@ -157,7 +158,8 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
     expect(r).toMatchObject({ batched: 0, batchFallbacks: 1, proposals: 1, errors: 0 });
     expect(ai.calls.batches).toHaveLength(1);
     expect(ai.calls.chat.map((c) => c.task)).toEqual(['theme_discovery']);
-    expect(await dbs.service.select().from(modelBatch)).toEqual([]);
+    // The pending row written before the submit is marked failed (nothing is in flight).
+    expect(await dbs.service.select().from(modelBatch)).toMatchObject([{ status: 'failed', providerBatchId: null, error: expect.stringMatching(/key not scoped/) }]);
     const [p] = await dbs.service.select().from(topicProposal);
     expect(p).toMatchObject({ verticalId: 'hvac_plumbing', status: 'proposed' });
   });
@@ -165,10 +167,10 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
   it('an error after a successful submit (recording the batch) is counted and never re-run synchronously', async () => {
     await unmatched(20);
     const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => 'msgbatch_orphan' } });
-    // Wrap the service db so only the model_batch insert fails; every read goes through unchanged.
+    // Wrap the service db so only the model_batch update (recording the provider id) fails; every read goes through unchanged.
     const db = new Proxy(dbs.service, {
       get(t, p, recv) {
-        if (p === 'insert') return (table: unknown) => (table === modelBatch ? { values: async () => { throw new Error('insert failed'); } } : t.insert(table as never));
+        if (p === 'update') return (table: unknown) => (table === modelBatch ? { set: () => ({ where: async () => { throw new Error('update failed'); } }) } : t.update(table as never));
         const v = Reflect.get(t, p, recv);
         return typeof v === 'function' ? v.bind(t) : v;
       },
@@ -185,6 +187,69 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
     expect(ai.calls.chat).toEqual([]);
     expect(errors.join(' ')).toContain('msgbatch_orphan');
     expect(await dbs.service.select().from(topicProposal)).toEqual([]);
+    // The row stays pending (not failed): the provider batch may be live, so it is never re-run.
+    expect(await dbs.service.select().from(modelBatch)).toMatchObject([{ status: 'pending', providerBatchId: null }]);
+  });
+
+  it('pending row exists before submit and becomes submitted', async () => {
+    await unthemed(20);
+    const seen: unknown[] = [];
+    const ai = createFakeAi({
+      batch: { submit: () => { seen.push('submit'); return 'msgbatch_1'; } },
+    });
+    const wrapped = { ...ai, submitBatch: async (...a: Parameters<typeof ai.submitBatch>) => { seen.push(await dbs.owner.select().from(modelBatch)); return ai.submitBatch(...a); } };
+    await runReviewInsights({ db: dbs.service, ai: wrapped, packs }, { now });
+    expect(seen[0]).toMatchObject([{ status: 'pending', providerBatchId: null, purpose: 'theme_discovery', requestCount: 1 }]);
+    expect(await dbs.owner.select().from(modelBatch)).toMatchObject([{ status: 'submitted', providerBatchId: 'msgbatch_1' }]);
+  });
+
+  it('submit throw marks the row failed', async () => {
+    await unthemed(20);
+    const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => { throw new Error('boom'); } } });
+    await runReviewInsights({ db: dbs.service, ai, packs }, { now });
+    expect(await dbs.owner.select().from(modelBatch)).toMatchObject([{ status: 'failed', providerBatchId: null, error: expect.stringMatching(/boom/) }]);
+  });
+
+  it('a spend-paused submit marks the row failed and surfaces AiPausedError (no sync fallback, no BatchSubmitError)', async () => {
+    await unthemed(20);
+    const paused = new AiPausedError('platform');
+    const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => { throw paused; } } });
+    await expect(submitTopicDiscoveryBatch({ db: dbs.service, ai, packs }, ['hvac_plumbing'], { now })).rejects.toBe(paused);
+    expect(await dbs.owner.select().from(modelBatch)).toMatchObject([{ status: 'failed', providerBatchId: null }]);
+    const r = await runReviewInsights({ db: dbs.service, ai, packs }, { now });
+    expect(r).toMatchObject({ batched: 0, batchFallbacks: 0, proposals: 0, errors: 0 });
+    expect(ai.calls.chat).toEqual([]);
+  });
+
+  it('re-applying an ended batch creates no second proposal', async () => {
+    await unthemed(20);
+    await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
+    const none = JSON.stringify({ found: false });
+    // A concurrent collector ends the batch while this one is polling: this one must not apply the items again.
+    const ai = batching(() => {
+      return { status: 'ended', results: [{ customId: 'hvac_plumbing', ok: true, text: none, model: 'm', inputTokens: 1, outputTokens: 1 }] };
+    });
+    const flipping = { ...ai, collectBatch: async (...a: Parameters<typeof ai.collectBatch>) => { const res = await ai.collectBatch(...a); await dbs.owner.update(modelBatch).set({ status: 'ended' }); return res; } };
+    expect(await collectModelBatches({ db: dbs.service, ai: flipping }, { now })).toMatchObject({ checked: 1, ended: 0, applied: 0 });
+    expect(await dbs.owner.select().from(topicProposal)).toEqual([]);
+    // And two collectors racing on one submitted batch apply it once.
+    await dbs.owner.update(modelBatch).set({ status: 'submitted' });
+    await Promise.all([collectModelBatches({ db: dbs.service, ai }, { now }), collectModelBatches({ db: dbs.service, ai }, { now })]);
+    expect(await dbs.owner.select().from(topicProposal)).toHaveLength(1);
+  });
+
+  it('stale pending swept to failed', async () => {
+    const base = { task: THEME_BATCH_TASK, provider: 'anthropic', purpose: 'theme_discovery', items: {}, requestCount: 1, status: 'pending' as const };
+    const t = new Date();
+    await dbs.owner.insert(modelBatch).values([
+      { ...base, createdAt: new Date(t.getTime() - 61 * 60_000) },
+      { ...base, createdAt: new Date(t.getTime() - 30 * 60_000) },
+    ]);
+    const r = await collectModelBatches({ db: dbs.service, ai: batching() }, { now: t });
+    expect(r).toMatchObject({ checked: 0, expired: 1 });
+    const rows = await dbs.owner.select().from(modelBatch).orderBy(modelBatch.createdAt);
+    expect(rows.map((x) => x.status)).toEqual(['failed', 'pending']);
+    expect(rows[0]).toMatchObject({ error: 'orphaned before submit', endedAt: expect.any(Date) });
   });
 
   it('applies an ended batch: proposes the topic and closes the batch', async () => {

@@ -2,7 +2,7 @@ import { PDF_KEY_SUFFIX } from '@cs/core';
 import { agencyServiceable, clientServiceable, alert, brief, changeEvent, client, competitor, type Db, eventScore, move, moveEvent, recommendation, type TrendReportData, trendReport } from '@cs/db';
 import { renderTrendReportDocument, type TrendReportEmailProps } from '@cs/email';
 import { and, eq, gt, gte, isNull, lt, ne, sql } from 'drizzle-orm';
-import { PDF_CATCHUP_DAYS, type PdfDeps } from '../briefs/pdf';
+import { PDF_CATCHUP_DAYS, type PdfDeps, pdfRetryDue } from '../briefs/pdf';
 import { safeTimezone } from '../briefs/schedule';
 import { trendSnapshot } from '../briefs/trend';
 import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
@@ -104,9 +104,9 @@ export async function runQuarterlyReports(deps: { db: Db; packs: PackLoader; del
 
 /** Sent reports from the last 7 days whose PDF never rendered (the email already links it): the hourly tick re-enqueues them. */
 export async function listReportsMissingPdf(db: Db, now: Date): Promise<string[]> {
-  const rows = await db.select({ id: trendReport.id }).from(trendReport)
+  const rows = await db.select({ id: trendReport.id, sentAt: trendReport.sentAt }).from(trendReport)
     .where(and(eq(trendReport.status, 'sent'), isNull(trendReport.pdfKey), gt(trendReport.sentAt, new Date(now.getTime() - PDF_CATCHUP_DAYS * 86_400_000))));
-  return rows.map((r) => r.id);
+  return rows.filter((r) => pdfRetryDue(r.sentAt, now)).map((r) => r.id);
 }
 
 export const reportPdfKey = (agencyId: string, reportId: string) => `reports/${agencyId}/${reportId}${PDF_KEY_SUFFIX}`;

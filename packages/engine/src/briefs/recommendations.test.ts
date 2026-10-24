@@ -86,6 +86,55 @@ describe('recommendForMoves', () => {
   });
 });
 
+describe('recommendForMoves backoff (7b1 Decision 5)', () => {
+  const failing = () => createFakeAi({ chat: () => { throw new Error('openrouter down'); }, decide: supportAll });
+  const run = (ai: ReturnType<typeof createFakeAi>, at: Date) => recommendForMoves({ db: dbs.service, ai, generic, packs }, IDS.clientA1, { now: at });
+  const state = async () => (await dbs.owner.select({ a: move.recAttempts, r: move.recRetryAfter }).from(move).where(eq(move.id, moveId)))[0]!;
+  const hours = (d: Date, h: number) => new Date(d.getTime() + h * 3_600_000);
+
+  it('move rec failing twice waits 1 then 2 days', async () => {
+    const ai = failing();
+    expect(await run(ai, day(0))).toMatchObject({ failed: 1 });
+    expect(await state()).toEqual({ a: 1, r: hours(day(0), 24) });
+    // Still backing off: not offered, no AI call.
+    expect(await run(ai, hours(day(0), 23))).toEqual({ created: 0, skipped: 0, failed: 0 });
+    expect(ai.calls.chat).toHaveLength(1);
+    expect(await run(ai, hours(day(0), 24))).toMatchObject({ failed: 1 });
+    expect(await state()).toEqual({ a: 2, r: hours(day(0), 24 + 48) });
+  });
+
+  it('verifier keeping nothing counts as an attempt; no-playbook and no-events skips do not', async () => {
+    const ai = createFakeAi({ chat: () => rec('Smith HVAC will cut to $39 next.'), decide: supportAll });
+    expect(await run(ai, day(0))).toMatchObject({ skipped: 1 });
+    expect(await state()).toMatchObject({ a: 1 });
+    await dbs.owner.update(move).set({ moveType: 'no_such_move_type', recAttempts: 0, recRetryAfter: null }).where(eq(move.id, moveId));
+    expect(await run(ai, day(1))).toMatchObject({ skipped: 1 });
+    expect(await state()).toEqual({ a: 0, r: null });
+  });
+
+  it('stops after 5 attempts', async () => {
+    const ai = failing();
+    let t = day(0);
+    for (let i = 1; i <= 5; i++) {
+      expect(await run(ai, t)).toMatchObject({ failed: 1 });
+      const st = await state();
+      expect(st.a).toBe(i);
+      t = st.r!;
+    }
+    expect(ai.calls.chat).toHaveLength(5);
+    // delays were 1, 2, 4, 8, 16 days; the sixth run never calls the model.
+    expect(await run(ai, hours(t, 24 * 400))).toEqual({ created: 0, skipped: 0, failed: 0 });
+    expect(ai.calls.chat).toHaveLength(5);
+  });
+
+  it('success clears backoff', async () => {
+    await run(failing(), day(0));
+    expect(await state()).toMatchObject({ a: 1 });
+    expect(await run(createFakeAi({ chat: () => rec(), decide: supportAll }), hours(day(0), 24))).toMatchObject({ created: 1 });
+    expect(await state()).toEqual({ a: 0, r: null });
+  });
+});
+
 describe('updateRecommendationStatus', () => {
   it('lets a client owner move a recommendation and records feedback; viewers are refused; dismissal needs a reason', async () => {
     await recommendForMoves({ db: dbs.service, ai: createFakeAi({ chat: () => rec(), decide: supportAll }), generic, packs }, IDS.clientA1, { now: day(0) });

@@ -1,7 +1,8 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
 import { isUniqueViolation, redactForModel } from '@cs/collectors';
-import { competitor, type Db, modelBatch, review, reviewAnalysis, topicProposal, type TopicProposalStatus } from '@cs/db';
-import { and, desc, eq, gt, lte, sql } from 'drizzle-orm';
+import { AiPausedError } from '@cs/core';
+import { competitor, type Db, modelBatch, review, reviewAnalysis, topicProposal, type Tx, type TopicProposalStatus } from '@cs/db';
+import { and, desc, eq, gt, inArray, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { PackLoader } from '../tag/tag-stage';
 import { detectComplaintSpikes } from './complaints';
@@ -60,7 +61,7 @@ export async function prepareTopicDiscovery(
   const [inFlight] = await deps.db
     .select({ id: modelBatch.id })
     .from(modelBatch)
-    .where(and(eq(modelBatch.status, 'submitted'), eq(modelBatch.purpose, THEME_BATCH_PURPOSE), sql`${modelBatch.items} ? ${verticalId}`))
+    .where(and(inArray(modelBatch.status, ['pending', 'submitted']), eq(modelBatch.purpose, THEME_BATCH_PURPOSE), sql`${modelBatch.items} ? ${verticalId}`))
     .limit(1);
   if (inFlight) return { skipped: 'a topic-discovery batch is in flight' };
   const [last] = await deps.db.select({ at: topicProposal.createdAt }).from(topicProposal).where(eq(topicProposal.verticalId, verticalId)).orderBy(desc(topicProposal.createdAt)).limit(1);
@@ -107,7 +108,7 @@ export async function prepareTopicDiscovery(
 }
 
 /** Validates a model's proposal text and records it (or a 'none'). Used by the sync path and by batch collection. */
-export async function applyTopicProposal(db: Db, ctx: TopicDiscoveryContext, text: string): Promise<{ status: 'proposed' | 'none'; proposalId: string } | { skipped: string }> {
+export async function applyTopicProposal(db: Db | Tx, ctx: TopicDiscoveryContext, text: string): Promise<{ status: 'proposed' | 'none'; proposalId: string } | { skipped: string }> {
   let parsed: z.infer<typeof proposalSchema> | null = null;
   try {
     const p = proposalSchema.safeParse(JSON.parse(text));
@@ -181,17 +182,23 @@ export async function submitTopicDiscoveryBatch(
     else prepared.push(p);
   }
   if (prepared.length === 0) return { batchId: null, submitted: [], skipped };
+  // Row first (7b1 Decision 7): a crash between the provider submit and the record leaves a `pending` row the orphan sweep closes, never an unknown live batch.
+  const [row] = await deps.db.insert(modelBatch).values({
+    task: THEME_BATCH_TASK, provider: 'anthropic', providerBatchId: null, purpose: THEME_BATCH_PURPOSE, status: 'pending',
+    items: Object.fromEntries(prepared.map((p) => [p.context.verticalId, p.context])), requestCount: prepared.length,
+  }).returning({ id: modelBatch.id });
   let batchId: string;
   try {
     batchId = await deps.ai.submitBatch(THEME_BATCH_TASK, prepared.map((p) => ({ customId: p.context.verticalId, messages: p.messages, jsonSchema: p.jsonSchema })), PLATFORM);
   } catch (err) {
+    const text = err instanceof Error ? `${err.name}: ${err.message}`.slice(0, 500) : String(err).slice(0, 500);
+    await deps.db.update(modelBatch).set({ status: 'failed', error: text, endedAt: opts.now ?? new Date() }).where(eq(modelBatch.id, row!.id)).catch(() => undefined);
+    // A spend-guard refusal keeps its own type (the caller must not fall back to the synchronous path, which would be refused too).
+    if (err instanceof AiPausedError) throw err;
     throw new BatchSubmitError(err);
   }
   try {
-    await deps.db.insert(modelBatch).values({
-      task: THEME_BATCH_TASK, provider: 'anthropic', providerBatchId: batchId, purpose: THEME_BATCH_PURPOSE,
-      items: Object.fromEntries(prepared.map((p) => [p.context.verticalId, p.context])), requestCount: prepared.length,
-    });
+    await deps.db.update(modelBatch).set({ providerBatchId: batchId, status: 'submitted' }).where(eq(modelBatch.id, row!.id));
   } catch (err) {
     const cause = (err as { cause?: unknown }).cause;
     const msg = cause instanceof Error ? cause.message : err instanceof Error ? err.message : String(err);
@@ -240,7 +247,11 @@ export async function runReviewInsights(deps: { db: Db; ai: Ai; packs: PackLoade
     try {
       r.batched = (await submitTopicDiscoveryBatch(deps, verticals, { now: opts.now })).submitted.length;
     } catch (err) {
-      if (err instanceof BatchSubmitError) {
+      if (err instanceof AiPausedError) {
+        // Spend-paused: no batch, and the synchronous path would be refused as well; tomorrow's run tries again.
+        console.warn(`[review-insights] topic discovery skipped: ${err.message}`);
+        sync = false;
+      } else if (err instanceof BatchSubmitError) {
         // The provider rejected the submission (e.g. a misconfigured key): nothing is in flight, so run the sync path tonight.
         console.warn(`[review-insights] ${err.message}; running topic discovery synchronously`);
         r.batchFallbacks++;
