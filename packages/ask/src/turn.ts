@@ -4,7 +4,7 @@ import { redactForModel } from '@cs/collectors';
 import { type AccessContext, type AiGuard, AiPausedError, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { type AskAction, type AskWriteTool, actionSummary } from './actions';
 import { type AppDatum, collectAppData, withAppPaths } from './app-data';
 import { groundAnswer } from './grounding';
@@ -238,7 +238,7 @@ export async function runTurn(
     const [thread] = await tx
       .select({ id: askThread.id, agencyId: askThread.agencyId, clientId: askThread.clientId, userId: askThread.userId })
       .from(askThread)
-      .where(and(eq(askThread.id, input.threadId), eq(askThread.userId, ctx.userId)));
+      .where(and(eq(askThread.id, input.threadId), eq(askThread.userId, ctx.userId), isNull(askThread.deletedAt)));
     if (!thread) return null;
     const messages = await tx
       .select({ id: askMessage.id, role: askMessage.role, content: askMessage.content, status: askMessage.status })

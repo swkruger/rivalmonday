@@ -96,6 +96,28 @@ describe('beginTurn', () => {
     expect(await dbs.owner.select().from(askThread)).toHaveLength(1);
   });
 
+  it('beginTurn into a deleted thread is not_found and inserts nothing', async () => {
+    const mine = await beginTurn(dbs.app, owner, q());
+    await dbs.owner.update(askThread).set({ deletedAt: new Date() }).where(eq(askThread.id, mine.threadId));
+    const before = await dbs.owner.select().from(askMessage);
+    await expect(beginTurn(dbs.app, owner, q('again', { threadId: mine.threadId }))).rejects.toMatchObject({ code: 'not_found' });
+    expect(await dbs.owner.select().from(askMessage)).toHaveLength(before.length);
+    const fresh = await beginTurn(dbs.app, owner, q('new question'));
+    expect(fresh.kind).toBe('ok');
+    expect(fresh.threadId).not.toBe(mine.threadId);
+  });
+
+  it('quota used is unchanged after a delete', async () => {
+    await setQuota(2);
+    const first = await beginTurn(dbs.app, owner, q('one'));
+    await beginTurn(dbs.app, viewer, q('two'));
+    expect(await counted()).toBe(2);
+    await dbs.owner.update(askThread).set({ deletedAt: new Date() }).where(eq(askThread.id, first.threadId));
+    expect(await counted()).toBe(2);
+    expect((await beginTurn(dbs.app, owner, q('three'))).kind).toBe('quota');
+    expect(await counted()).toBe(2);
+  });
+
   it('guest → not_found', async () => {
     const guest = createAccessContext({ agencyId: IDS.agencyA, userId: 'contact:abc', role: 'client_viewer', clientScope: [IDS.clientA1], features: ['ask'] });
     await expect(beginTurn(dbs.app, guest, q())).rejects.toMatchObject({ code: 'not_found' });

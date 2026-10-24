@@ -1,7 +1,7 @@
 import { type AccessContext, AiPausedError, type AiGuard, canAccessClient, hasChannel, isClientRole, SYSTEM_BUSY_COPY, ToolError } from '@cs/core';
 import { askMessage, askThread, client, type Db, type Tx, withTenant } from '@cs/db';
 import { monthStart } from '@cs/tools';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 export const ASK_COPY = {
   quota: "You have reached this month's quota.",
@@ -42,7 +42,7 @@ async function findOwnThread(tx: Tx, ctx: AccessContext, threadId: string, clien
   const [row] = await tx
     .select({ id: askThread.id, agencyId: askThread.agencyId, clientId: askThread.clientId, userId: askThread.userId })
     .from(askThread)
-    .where(and(eq(askThread.id, threadId), eq(askThread.clientId, clientId), eq(askThread.userId, ctx.userId)));
+    .where(and(eq(askThread.id, threadId), eq(askThread.clientId, clientId), eq(askThread.userId, ctx.userId), isNull(askThread.deletedAt)));
   return row;
 }
 
