@@ -16,9 +16,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Retention keeps `brief_item.evidence_ids`, `recommendation.evidence_ids` and `alert.evidence_ids` evidence for the brief's/alert's lifetime — *from 4a/4b cross-phase*
 
 ### Budget & cost
-- [ ] Enforce caps (pause Ask/jobs at 100 %) and allocate shared collection cost to clients — *from 5b-2 (decision 18)*
-- [ ] Prospect snapshots: add a cooldown (≈ $0.10–0.15 per re-run) and attribute GBP/ads pulls to the prospect (usage page under-reports) — *from 5b-2 final review Minor 3*
-- [ ] Switch `cost_usd` (`packages/db/src/schema/ledger.ts`, `doublePrecision`) to `numeric` before real spend data — *from Phase 1 review*
 
 ### Scale & performance
 - [ ] Re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it — *from 15b-3b*
@@ -46,7 +43,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Multi-membership is resolved for Ask only; other routes still pick one membership — *from 6b*
 
 ### 7a follow-ups
-- [ ] 7b: Ask turn deadline: a true AbortSignal through `chatWithTools` (today 90 s soft deadline, 45 s final-call reserve, route `maxDuration` 300) — *from 7a*
 - [ ] 7c: embeddings 8 s x2 also bound worker batch embedding; if `llm_call` shows embeddings ok=false at ~8 s, add an `embeddings_batch` task (30000x3, not request_path) — *from 7a*
 - [ ] 7c: `withQueueStatsReporting` default report path (logger + Sentry) untested; `EnvUrls.owner` -> `queue`; `withMonitor` should check in only for the cron payload; job retries re-capture to Sentry — *from 7a*
 - [ ] 7c: `ensureQueueGrants` is a single attempt and its failure is not in health state (web enqueues refused until restart while `/healthz` stays green) — *from 7a*
@@ -67,6 +63,11 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
+- [ ] Future: buying extra credits (self-serve top-up) — *phase-7b1*
+- [ ] 7b2/later: confirm the Jev price, then lift the d19 exclusion (`SPEND_GUARD_EXCLUDED_PROVIDERS`) — *phase-7b1*
+- [ ] 7b1 engine/worker: handlers that swallow `AiPausedError` internally (generateBrief, alert template fallback, setup-suggestions, lead-preview) lose one in-flight attempt; a prospect snapshot queued before a pause still runs its vendor pulls; archived-agency clients still count as O11 trackers; spend-paused runbook tailoring stays `skipped`; events aging out during a pause are never scored; `app_user` can read `spend_limit_usd`/`spend_paused_at` under RLS; one-time auto competitor search refused as `spend_paused` is not retried (agency runs a manual search); null-scope ledger paths (engine vertical stages, discovery/classify, leads, embeddings, own crawl) stay unattributed — *phase-7b1*
+- [ ] 7b1 polish (db/tools/worker): `spend-guard.ts` bare `console.warn`; extra `platform_setting` read per budget/usage/portfolio call; no negative cache on guard read failure; `sendStaffEmail` ~ `sendLowEmail`; `rowsOf` duplicated; `spendByClient` CTE scans all competitors; swept orphan batches counted as `expired`; PDF tick jitter; dead `if (!providerId)` branch; non-limit `set_client_limits` edits can lift a pause when under threshold; failed pending-row update can duplicate a provider batch after the 1 h sweep (cost only); missing tests (jobs/post batch ids, ads/google scope, mid-embed refusal, web guard wiring, body-read abort, exact-24 h edge); `timeoutSpy.mockRestore` not in `finally`; E2E "destination stream closed early" noise — *phase-7b1*
+- [ ] 7b1 polish (web): events table shows raw kind enum and actor UUID; costs action error punctuation; client-limits input width classes; blank competitor/Ask field shows raw zod message; layout guard read runs after the costs read; prospect detail guide "Run snapshot again" lacks a 24 h pointer — *phase-7b1*
 
 ## Phase 9 follow-ups (billing)
 **Soon**
@@ -277,7 +278,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Merge: concurrent tag jobs can create two events for one offer; `drain.ts` counts a merged change as `events++` — *from 3b Task 11*
 - [ ] Moves: territory-signal tagging not exclusive; price-war `else if` drops ad-burst evidence; `MovesRunResult.updated` counts unchanged; nightly race fails on `move_open_unique` (accepted) — *from 3b Tasks 13–14*
 - [ ] AM "updated" path doesn't recompute `details.offer`/summary or clear `needs_review` on detach — *from 3d final review*
-- [ ] Anthropic batch: submit precedes `model_batch` insert (orphans not auto-reconciled); apply not idempotent; `collectModelBatches` no per-item try/catch; no `ok:false` ledger row on submit/status/results throw — *from 3d Tasks 8–9, 4a*
+- [ ] Anthropic batch: `collectModelBatches` no per-item try/catch; no `ok:false` ledger row on submit/status/results throw (pending row, orphan sweep and idempotent apply done in 7b1) — *from 3d Tasks 8–9, 4a*
 - [ ] `ensureSelfCompetitor` read-then-write race on a place-id change — *from 5b-1*
 - [ ] Structured: `ad` started/stopped queries lack `ORDER BY`; jobs lookback ignores `capture.source`; `upsertReviews` hard-codes `source: 'google'` — *from 3b Tasks 2, 5–7*
 - [ ] Prices: unhyphenated "off peak" read as discount; dead `-1` in `pricesInBlock`; over-cap pages (> `PRICE_MAX_BLOCKS`) end no spans — *from 3c Tasks 8–9*
@@ -285,11 +286,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Briefs, alerts & delivery
 - [ ] Brief rules: period-header dates allowed in rules-only fields; "detected in this period" can overstate for late-scored events; word numbers ("three") and weekdays unchecked — *from 4a*
 - [ ] Two active items for one move both get a recommendation; re-featured moves re-list earlier-featured events — *from 4a*
-- [ ] Failing move recommendations retry nightly with no backoff — *from 4a*
 - [ ] Long verifier runs vs the 30-min `BRIEF_STALE_MINUTES`: batch `supportCheck` or heartbeat the claim — *from 4a*
 - [ ] `recommendationFromItem` cuts `recommended_action` at 200 chars mid-word — *from 4a*
 - [ ] `brief-once --force` orphans AM feedback rows — *from 4a*
-- [ ] Failing PDF render re-enqueued hourly for 7 days (≤ ~500 attempts) — add a failure counter/backoff if noisy — *from 4b final review*
 - [ ] `alert_digest` rows not re-checked for retraction at send time; possible duplicate `alert-process` spend on a race; auto-send vs concurrent-edit race — *from 4b final review*
 - [ ] Alerts: approval feedback says "approved" when release withdraws; withdrawn alert sends no `am_alert`; > 7-day alert approvable before sweep expiry; client with no contacts still marked delivered — *from 4b Tasks 12–13*
 - [ ] Quarterly report counts recommendations by *current* status, not at quarter end; `renderReportPdf` untested, no status guard — *from 4b Task 17*
