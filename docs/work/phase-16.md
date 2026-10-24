@@ -1,13 +1,13 @@
 # phase-16 — design system v1 across the web app, page by page
 
-**Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 0fcf0a75
+**Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 8e89d375 (rebased 2026-10-23, after 15c-2a merged)
 **Plan/spec:** none yet; inputs `docs/design-system/`.
 
 ## Status (overwrite)
-Brief written; no spec/plan; nothing built.
+**ON HOLD (owner, 2026-10-23):** no changes until Phase 7 (7b/7c) and Phase 15 (15c-2b, 15c-3) are done and merged. Brief written; brainstorming partly done (Decisions below); no spec/plan; nothing built.
 
 ## Next (overwrite)
-Owner answers Brief §5 → brainstorming → spec → lean plan(s) → approval → SDD.
+After 7 + 15 merge: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
 
 ## Interfaces this branch adds or changes
 Per 09 §9: tokens, new `@cs/ui` primitives, `Card` = frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`. No migrations expected (next free: 0087).
@@ -18,7 +18,11 @@ Both restart after phase-16 and rebase onto it.
 - **phase-7b1** (0085/0086, collide with main): `agency/page.tsx`, `settings/usage/{page,limits-form}`, `rankings/scan-now-button`, `spend-badge`, `help/copy/agency.ts`.
 
 ## Decisions (owner-approved)
-None yet beyond root `CLAUDE.md` § Decisions.
+- D1 Look only: every page keeps its content and behaviour; adopt the new design (storyboard look: one sheet, sections over cards, fewer cards, cleaner). Priority pages: Overview, Brief detail.
+- D2 All pages in one pass to the new design; owner verifies after review and requests per-page changes (no per-page pre-approval).
+- D3 Context switcher stays in the left sidebar (15a D4 kept; overrides storyboard Frame 2's top-bar switcher).
+- D4 Runs after Phase 7 and Phase 15 are merged (reverses the earlier "design system first").
+- Open: OD-5 bottom tabs on phones vs 15a D8 (drawer only) — not yet decided.
 
 ## New backlog (target → item)
 None yet.
