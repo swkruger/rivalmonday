@@ -1,5 +1,6 @@
 import type { SetupLookup } from '@cs/db';
 import { BadgeCheck } from 'lucide-react';
+import { formatCount } from '@/lib/format';
 
 /**
  * US numbers (10 digits, or 11 with a leading 1; a "+" prefix must be "+1") as `(817) 286-3655`; anything else raw.
@@ -15,7 +16,7 @@ export function formatPhone(raw: string): string {
 
 /** Phase 11 fixes D4: the card body for a Google Maps business match. The caller keeps the surrounding `<button aria-pressed>`. */
 export function PlaceSummary({ place, isClaimed, possibleDuplicate }: { place: SetupLookup; isClaimed: boolean | null; possibleDuplicate: boolean }) {
-  const rating = place.rating !== null ? `${place.rating} ★${place.votes !== null ? ` ${place.votes.toLocaleString('en-US')} reviews` : ''}` : null;
+  const rating = place.rating !== null ? `${place.rating} ★${place.votes !== null ? ` ${formatCount(place.votes)} reviews` : ''}` : null;
   const reputation = [place.category, rating].filter(Boolean).join(' · ');
   const contact = [place.phone && formatPhone(place.phone), place.domain].filter(Boolean).join(' · ');
   return (

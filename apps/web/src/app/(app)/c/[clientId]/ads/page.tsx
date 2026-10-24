@@ -1,5 +1,5 @@
 import { hasFeature } from '@cs/core';
-import type { AdActivityView, AdList, ClientProfile } from '@cs/tools';
+import type { AdActivityView, AdList, ClientProfile, TrackedCompetitor } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -39,9 +39,10 @@ export default async function AdsPage({ params, searchParams }: {
   const status = pick(one(sp.status), ['active', 'ended', 'all'] as const, 'active');
   const offset = offsetParam(sp);
 
-  const [profile, activity, guides] = await Promise.all([
+  const [profile, activity, tracked, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
+    callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
     helpGuides(ctx, 'client', clientId),
   ]);
   const list = await tryCallTool<AdList>(ctx, 'list_ads', {
@@ -77,7 +78,7 @@ export default async function AdsPage({ params, searchParams }: {
           <span className="font-semibold text-ink">Competitor</span>
           <select name="competitor" defaultValue={competitorId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
             <option value="">All competitors</option>
-            {activity.series.map((s) => <option key={s.competitorId} value={s.competitorId}>{s.name}</option>)}
+            {tracked.items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -96,7 +97,7 @@ export default async function AdsPage({ params, searchParams }: {
             <option value="all">All</option>
           </select>
         </label>
-        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Apply</button>
+        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Apply</button>
       </form>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -118,7 +119,7 @@ export default async function AdsPage({ params, searchParams }: {
         <>
           <h2 className="sr-only">Ads</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {list.items.map((a) => <AdCard key={a.id} ad={a} />)}
+            {list.items.map((a) => <AdCard key={a.id} ad={a} timezone={profile.timezone} />)}
           </div>
           {list.hasMore && <Link href={`/c/${clientId}/ads?${more.toString()}`} className="font-semibold text-primary-soft-text">More ads</Link>}
         </>

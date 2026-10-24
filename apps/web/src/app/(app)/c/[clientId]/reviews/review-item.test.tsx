@@ -11,18 +11,19 @@ describe('ReviewItem', () => {
           reviewId: 'r', competitorId: 'x', name: 'Smith HVAC', self: false, rating: 2, text: 'Tech was late', postedAt: '2026-10-03T00:00:00.000Z',
           topics: [{ id: 'response_time', name: 'Response time' }], sentiment: 0, ownerAnswer: 'Sorry about that',
         }}
+        timezone="UTC"
       />,
     );
     expect(screen.getByLabelText('2 of 5 stars')).toBeTruthy();
-    expect(screen.getByText(/Google reviewer · Smith HVAC · Oct 3, 2026/)).toBeTruthy();
+    expect(screen.getByText(/Google reviewer · Smith HVAC · Oct 3/)).toBeTruthy();
     expect(screen.getByText('Tech was late')).toBeTruthy();
     expect(screen.getByText('Response time')).toBeTruthy();
     expect(screen.getByText(/Owner replied: Sorry about that/)).toBeTruthy();
   });
 
-  it('names the self business "You" and handles a rating-only review', () => {
-    render(<ReviewItem review={{ reviewId: 'r', competitorId: 's', name: 'A1 HVAC', self: true, rating: null, text: null, postedAt: null, topics: [], sentiment: null, ownerAnswer: null }} />);
-    expect(screen.getByText(/Google reviewer · You/)).toBeTruthy();
+  it('own review meta says "on your profile"; handles and handles a rating-only review', () => {
+    render(<ReviewItem review={{ reviewId: 'r', competitorId: 's', name: 'A1 HVAC', self: true, rating: null, text: null, postedAt: null, topics: [], sentiment: null, ownerAnswer: null }} timezone="UTC" />);
+    expect(screen.getByText('Google reviewer · on your profile')).toBeTruthy();
     expect(screen.getByText('No written review.')).toBeTruthy();
   });
 });

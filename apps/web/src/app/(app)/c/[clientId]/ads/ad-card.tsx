@@ -1,13 +1,17 @@
 import type { AdView } from '@cs/tools';
+import { StatusChip } from '@cs/ui';
+import { formatDate } from '@/lib/format';
+import { AD_STATE, labelFor } from '@/lib/labels';
 
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const displayUrl = (u: string) => {
   const s = u.replace(/^https?:\/\//, '');
   return s.length > 60 ? `${s.slice(0, 59)}…` : s;
 };
 
 /** Decision 5: a text card — no images (vendor media URLs expire). The landing URL is shown as text, never linked. */
-export function AdCard({ ad }: { ad: AdView }) {
+export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
+  const fmt = (iso: string) => formatDate(iso, { tz: timezone });
+  const state = labelFor(AD_STATE, ad.active ? 'active' : 'ended');
   const platform = ad.platform === 'meta' ? 'Meta' : 'Google';
   return (
     <article className="flex flex-col gap-2 rounded-[14px] bg-surface p-5 shadow-card">
@@ -15,9 +19,7 @@ export function AdCard({ ad }: { ad: AdView }) {
         <span>{platform}</span>
         {ad.format && <span>· {ad.format}</span>}
         <span>· {ad.competitorName}</span>
-        <span className={`ml-auto rounded-full px-2 py-0.5 font-bold ${ad.active ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-muted-surface-2 text-muted-foreground'}`}>
-          {ad.active ? 'Active' : 'Ended'}
-        </span>
+        <StatusChip tone={state.tone} className="ml-auto">{state.label}</StatusChip>
       </div>
       {ad.title && <h3 className="font-bold text-ink">{ad.title}</h3>}
       {ad.text && <p className="line-clamp-4 whitespace-pre-line text-sm text-ink">{ad.text}</p>}

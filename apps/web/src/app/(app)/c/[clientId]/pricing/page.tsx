@@ -1,22 +1,22 @@
 import { hasFeature } from '@cs/core';
-import type { ClientProfile, PriceHistoryView, PriceMatrixView } from '@cs/tools';
+import type { ClientProfile, PriceMatrixView } from '@cs/tools';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { LineChart } from '@/components/charts/line-chart';
+import { Suspense } from 'react';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
+import { PageSkeleton } from '@/components/page-skeleton';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { helpGuides } from '@/server/help';
 import { one, uuidParam } from '@/server/search-params';
-import { callTool, tryCallTool } from '@/server/tools';
+import { callTool } from '@/server/tools';
 import { pricingHref } from './format';
-import { historySeries } from './history-series';
+import { PERIODS, PriceHistoryCard } from './history-card';
 import { PriceCard } from './price-card';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,6 @@ export const metadata: Metadata = { title: 'Pricing' };
 const HELP_KEY = 'page:client.pricing';
 const COPY = PAGE_COPY['client.pricing'];
 
-const PERIODS = [90, 180, 365] as const;
 type Period = (typeof PERIODS)[number];
 const parseDays = (v: string | string[] | undefined): Period => {
   const n = Number(one(v));
@@ -53,7 +52,6 @@ export default async function PricingPage({ params, searchParams }: {
   const selected = matrix.rows.some((r) => r.competitorId === competitor && r.cells.some((c) => c.serviceId === service))
     ? { competitorId: competitor!, serviceId: service! }
     : null;
-  const history = selected ? await tryCallTool<PriceHistoryView>(ctx, 'get_price_history', { clientId, serviceId: selected.serviceId, days }) : null;
   const anyPrice = matrix.rows.some((r) => r.cells.length > 0);
 
   return (
@@ -99,34 +97,9 @@ export default async function PricingPage({ params, searchParams }: {
                 hrefFor={(serviceId) => pricingHref(clientId, { competitor: row.competitorId, service: serviceId, days })}
               >
                 {selected?.competitorId === row.competitorId && (
-                  <div className="mt-4 border-t border-line pt-4">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-ink">{history ? `${history.serviceName} — price history` : 'Price history'}</h3>
-                      <nav aria-label="Period" className="flex gap-3 text-sm">
-                        {PERIODS.map((d) => (
-                          <Link
-                            key={d}
-                            href={pricingHref(clientId, { competitor: selected.competitorId, service: selected.serviceId, days: d })}
-                            aria-current={d === days ? 'page' : undefined}
-                            className={d === days ? 'font-semibold text-ink' : 'text-muted-foreground hover:text-ink'}
-                          >
-                            {d} days
-                          </Link>
-                        ))}
-                      </nav>
-                    </div>
-                    {history ? (
-                      <LineChart
-                        title={`${history.serviceName} price history`}
-                        labels={history.labels}
-                        series={historySeries(history)}
-                        valueLabel="lowest price"
-                        formatValue={(v) => `$${Math.round(v).toLocaleString('en-US')}`}
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">This price history is no longer available.</p>
-                    )}
-                  </div>
+                  <Suspense fallback={<PageSkeleton cards={1} />}>
+                    <PriceHistoryCard clientId={clientId} competitorId={selected.competitorId} serviceId={selected.serviceId} days={days} />
+                  </Suspense>
                 )}
               </PriceCard>
             ))}

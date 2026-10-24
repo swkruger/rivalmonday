@@ -1,11 +1,12 @@
 import type { PriceMatrixView } from '@cs/tools';
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { formatChange, formatPrice } from './format';
 
 type Row = PriceMatrixView['rows'][number];
 type Service = PriceMatrixView['services'][number];
 
-const CHANGE_TONE = { down: 'bg-[#FEE2E2] text-[#B91C1C]', up: 'bg-[#DCFCE7] text-[#15803D]' } as const;
+const CHANGE_TONE = { down: 'bg-chip-danger-bg text-chip-danger-text', up: 'bg-chip-success-bg text-chip-success-text' } as const;
 
 /** Decision 2: one card per competitor; each priced service is a link that opens its history under the card (`children`). */
 export function PriceCard({ row, services, selectedServiceId, hrefFor, children }: {
@@ -40,8 +41,9 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                     {s?.offered && <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">Your service</span>}
                   </span>
                   <span className="font-bold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
-                  {cell.prices.some((p) => p.promo) && <span className="rounded-full bg-[#FFF3DC] px-2 py-0.5 text-xs font-bold text-accent-text">PROMO</span>}
+                  {cell.prices.some((p) => p.promo) && <span className="rounded-full bg-chip-warning-bg px-2 py-0.5 text-xs font-bold text-accent-text">Promo</span>}
                   {change && <span title="Change against 90 days ago" className={`rounded-full px-2 py-0.5 text-xs font-bold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
+                  <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
             );

@@ -24,9 +24,17 @@ describe('PriceCard', () => {
     expect(tune.getAttribute('aria-current')).toBe('true');
     expect(tune.textContent).toContain('Your service');
     expect(tune.textContent).toContain('$79');
-    expect(tune.textContent).toContain('PROMO');
+    expect(tune.textContent).toContain('Promo');
     expect(tune.textContent).toContain('▼ $20');
     expect(screen.getByRole('link', { name: /Furnace repair/ }).textContent).toContain('from $129');
+  });
+
+  it('price change chip uses chip tokens', () => {
+    render(<PriceCard row={row} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    const chip = screen.getByText('▼ $20').parentElement!;
+    expect(chip.className).toContain('bg-chip-danger-bg');
+    expect(chip.className).not.toContain('[#');
+    expect(screen.getByText('Promo').className).toContain('bg-chip-warning-bg');
   });
 
   it('gives the change pill screen-reader wording', () => {

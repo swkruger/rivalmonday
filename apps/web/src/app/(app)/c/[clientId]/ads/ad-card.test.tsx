@@ -11,7 +11,7 @@ const base = {
 
 describe('AdCard', () => {
   it('shows the creative text, dates, the targeting note and the library link (decision 5)', () => {
-    render(<AdCard ad={base} />);
+    render(<AdCard ad={base} timezone="UTC" />);
     expect(screen.getByRole('heading', { name: '$49 tune-up' })).toBeTruthy();
     expect(screen.getByText('Book now')).toBeTruthy();
     expect(screen.getByText('smithhvac.example/tuneup?utm=1')).toBeTruthy();
@@ -22,8 +22,14 @@ describe('AdCard', () => {
     expect([link.getAttribute('href'), link.getAttribute('rel')]).toEqual([base.libraryUrl, 'noopener noreferrer']);
   });
 
+  it('ad card dates in the client zone, "Active" chip', () => {
+    render(<AdCard ad={{ ...base, firstSeenAt: '2026-09-12T02:00:00.000Z' }} timezone="America/Chicago" />);
+    expect(screen.getByText(/First seen Sep 11/)).toBeTruthy();
+    expect(screen.getByText('Active').className).toContain('bg-chip-success-bg');
+  });
+
   it('marks an ended Google ad and has no link without a library url', () => {
-    render(<AdCard ad={{ ...base, platform: 'google', active: false, endedAt: '2026-09-30T00:00:00.000Z', libraryUrl: null }} />);
+    render(<AdCard ad={{ ...base, platform: 'google', active: false, endedAt: '2026-09-30T00:00:00.000Z', libraryUrl: null }} timezone="UTC" />);
     expect(screen.getByText('Ended')).toBeTruthy();
     expect(screen.getByText(/ended Sep 30/)).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();

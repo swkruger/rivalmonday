@@ -150,7 +150,7 @@ export default async function ReviewsPage({ params, searchParams }: {
             <span className="font-semibold text-ink">Contains</span>
             <input name="q" defaultValue={text ?? ''} maxLength={100} className="rounded-md border border-line bg-surface px-2 py-1.5" />
           </label>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Search</button>
+          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Search</button>
         </form>
         {!reviews ? (
           <p className="rounded-lg bg-muted-surface p-3 text-ink">
@@ -160,7 +160,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           <EmptyState {...COPY.empty.noMatch} />
         ) : (
           <>
-            <div className="flex flex-col divide-y divide-line">{reviews.items.map((r) => <ReviewItem key={r.reviewId} review={r} />)}</div>
+            <div className="flex flex-col divide-y divide-line">{reviews.items.map((r) => <ReviewItem key={r.reviewId} review={r} timezone={profile.timezone} />)}</div>
             {reviews.hasMore && <Link href={`/c/${clientId}/reviews?${more.toString()}`} className="font-semibold text-primary-soft-text">More reviews</Link>}
           </>
         )}

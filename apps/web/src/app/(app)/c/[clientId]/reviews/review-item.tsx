@@ -1,10 +1,9 @@
 import type { ReviewView } from '@cs/tools';
-
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+import { formatDate } from '@/lib/format';
 
 /** Decision 6: text as published; the reviewer is always "Google reviewer". */
-export function ReviewItem({ review }: { review: ReviewView }) {
-  const meta = ['Google reviewer', review.self ? 'You' : review.name, ...(review.postedAt ? [fmt(review.postedAt)] : [])].join(' · ');
+export function ReviewItem({ review, timezone }: { review: ReviewView; timezone: string }) {
+  const meta = ['Google reviewer', review.self ? 'on your profile' : review.name, ...(review.postedAt ? [formatDate(review.postedAt, { tz: timezone })] : [])].join(' · ');
   return (
     <article className="flex flex-col gap-1.5 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

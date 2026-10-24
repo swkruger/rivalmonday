@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { formatChange, formatPrice, pricingHref } from './format';
 
 describe('pricing format', () => {
-  it('formats prices with their qualifier and unit (decision 2)', () => {
+  it('formatPrice(89.5) is "$89.50"; formats prices with their qualifier and unit (decision 2)', () => {
     expect(formatPrice({ amount: 89, unit: 'USD', qualifier: 'exact' })).toBe('$89');
     expect(formatPrice({ amount: 79, unit: 'USD', qualifier: 'from' })).toBe('from $79');
     expect(formatPrice({ amount: 1200, unit: 'USD', qualifier: 'up_to' })).toBe('up to $1,200');
-    expect(formatPrice({ amount: 95.5, unit: 'USD/hour', qualifier: 'exact' })).toBe('$95.5/hour');
+    expect(formatPrice({ amount: 95.5, unit: 'USD/hour', qualifier: 'exact' })).toBe('$95.50/hour');
+    expect(formatPrice({ amount: 89.5, unit: 'USD', qualifier: 'exact' })).toBe('$89.50');
   });
 
   it('marks a cut down and a rise up, and nothing without a change', () => {

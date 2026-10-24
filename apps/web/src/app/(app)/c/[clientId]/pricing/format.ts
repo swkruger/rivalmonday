@@ -1,8 +1,9 @@
 import type { PriceNowView } from '@cs/tools';
+import { formatMoney } from '@/lib/format';
 
-const money = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+const money = (n: number) => formatMoney(n);
 
-/** Decision 2: `$89`, `from $79`, `up to $1,200`, `$95/hour`. */
+/** Decision 2: `$89`, `$89.50`, `from $79`, `up to $1,200`, `$95/hour`. */
 export function formatPrice(p: Pick<PriceNowView, 'amount' | 'unit' | 'qualifier'>): string {
   const per = p.unit.startsWith('USD/') ? `/${p.unit.slice(4)}` : '';
   const base = `${money(p.amount)}${per}`;
