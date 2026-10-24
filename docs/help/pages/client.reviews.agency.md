@@ -27,7 +27,7 @@ What customers say on Google about {{client}} and its competitors. Client users 
 
 ### Why are the rating or review counts missing?
 
-The page needs {{client}}'s own Google business on file. Add the Google place id under **Settings › Business profile**; the numbers appear after the next Google profile check. Until then the page shows a note instead of the numbers.
+The page needs {{client}}'s own Google business on file. Add the Google Place ID under **Settings › Business profile**; the numbers appear after the next Google profile check. Until then the page shows a note instead of the numbers.
 
 ### Which reviews count?
 

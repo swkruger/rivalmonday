@@ -246,7 +246,7 @@ export const CLIENT_COPY = {
       noKeywordsAgency: { title: 'Rank tracking has not started', body: 'Add keywords and a service area on the Business profile page. The weekly scan then picks the client up, or you can start one with Scan now.', audience: 'agency' },
       noKeywordsClient: { title: 'Rank tracking has not started', body: "Rank tracking starts once {agency} has set up {client}'s keywords and service area.", audience: 'client' },
       noScan: { title: 'No scan yet', body: 'Scans run once a week. The first one fills this page with a map of where {client} shows up in local results.' },
-      noBusinessAgency: { title: 'No business to show yet', body: "Add {client}'s Google place id on the Business profile page, or track a competitor, to see a grid.", audience: 'agency' },
+      noBusinessAgency: { title: 'No business to show yet', body: "Add {client}'s Google Place ID on the Business profile page, or track a competitor, to see a grid.", audience: 'agency' },
       noBusinessClient: { title: 'No business to show yet', body: "The grid appears once {agency} has added {client}'s Google business or a competitor.", audience: 'client' },
       compareNeedsTwo: { title: 'Compare needs two scans', body: 'Scans run once a week, so Compare is available after the second one.' },
     },

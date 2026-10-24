@@ -30,7 +30,7 @@ function ratingPill(self: number | null, avg: number | null): Pill | null {
 
 /**
  * The four Overview KPI cards (mockup 01). Pure: every missing figure degrades to "—" with an honest hint. The
- * "add your place id" hint is for agency roles only — client users can't edit the profile.
+ * "add your Place ID" hint is for agency roles only — client users can't edit the profile.
  */
 export function kpiCards(o: WorkspaceOverview, { agency }: { agency: boolean }): KpiCard[] {
   return [
@@ -59,7 +59,7 @@ export function kpiCards(o: WorkspaceOverview, { agency }: { agency: boolean }):
       hint:
         o.rating.self === null
           ? agency
-            ? 'Add your Google place id to compare'
+            ? 'Add your Google Place ID to compare'
             : 'Not available yet'
           : o.rating.competitorAverage === null
             ? 'No competitor ratings yet'

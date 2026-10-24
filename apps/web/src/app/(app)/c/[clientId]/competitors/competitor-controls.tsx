@@ -223,7 +223,7 @@ export function SuggestionsPanel({
   nextSearchLabel = null,
 }: {
   clientId: string;
-  /** Keywords, a service area and a Google place id are all present. */
+  /** Keywords, a service area and a Google Place ID are all present. */
   ready: boolean;
   suggestions: SuggestionView[];
   atLimit: boolean;
@@ -283,7 +283,7 @@ export function SuggestionsPanel({
       <CardContent className="flex flex-col gap-5">
         {canSearch && !readOnly && !ready && (
           <p className="text-muted-foreground">
-            Add keywords, a service area and a Google place id to search.{' '}
+            Add keywords, a service area and a Google Place ID to search.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
               Go to Business profile
             </Link>
@@ -392,7 +392,7 @@ export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: stri
           <Input id="competitor-domain" name="domain" placeholder="smithhvac.com" className="w-56" />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="competitor-place-id">Google place id (optional)</Label>
+          <Label htmlFor="competitor-place-id">Google Place ID (optional)</Label>
           <Input id="competitor-place-id" name="placeId" className="w-56" />
         </div>
         <Button type="submit" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined}>

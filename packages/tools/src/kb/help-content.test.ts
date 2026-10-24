@@ -236,7 +236,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
 
   it('batch C: the agency versions carry the agency-only content, the client versions leave it out', async () => {
     const setupA = text(await guide(admin, 'page:client.setup'));
-    for (const w of ['Invite the owner', 'Billing', 'Google place id', 'Dismiss setup', '48-hour', '14 days']) expect(setupA, w).toContain(w);
+    for (const w of ['Invite the owner', 'Billing', 'Google Place ID', 'Dismiss setup', '48-hour', '14 days']) expect(setupA, w).toContain(w);
     const setupC = text(await guide(owner, 'page:client.setup'));
     expect(setupC).not.toMatch(/Invite the owner|Billing|Dismiss setup|place id|prospect/i);
     for (const w of ['Advanced', '48 hours', '14 days', 'Pick competitors']) expect(setupC, w).toContain(w);
@@ -470,7 +470,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
 
   it('the agency versions cover what agency staff need', async () => {
     const overview = text(await guide(admin, 'page:client.overview'));
-    for (const w of ['Upsell', 'Approvals', 'Pitch snapshot', 'Settings › Delivery', 'place id']) expect(overview, w).toContain(w);
+    for (const w of ['Upsell', 'Approvals', 'Pitch snapshot', 'Settings › Delivery', 'Place ID']) expect(overview, w).toContain(w);
     const changes = text(await guide(admin, 'page:client.changes'));
     for (const w of ['routing', 'Settings › Alert rules', 'Archived']) expect(changes, w).toContain(w);
     const reviews = text(await guide(admin, 'page:client.reviews'));

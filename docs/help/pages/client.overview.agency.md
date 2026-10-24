@@ -25,7 +25,7 @@ The client's home page: how {{client}} stands against its competitors this week.
 
 ### Why does the rating card show a dash?
 
-The client's own Google business has not been read yet. Add its Google place id under **Settings › Business profile**; the rating appears after the next Google profile check.
+The client's own Google business has not been read yet. Add its Google Place ID under **Settings › Business profile**; the rating appears after the next Google profile check.
 
 ### How is competitive pressure worked out?
 

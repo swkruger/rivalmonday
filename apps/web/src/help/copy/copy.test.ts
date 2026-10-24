@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { type EmptyCopy, PAGE_COPY, type PageKey, type Tip } from '.';
 
@@ -34,5 +36,22 @@ describe('PAGE_COPY content', () => {
 
   it('guide anchors are guide section slugs', () => {
     for (const e of entries) if ('anchor' in e && e.anchor !== undefined) expect(SLUGS, e.where).toContain(e.anchor);
+  });
+
+  it('no "place id" in lower case in client UI copy', () => {
+    const root = join(__dirname, '../../../../..');
+    const files = [
+      'apps/web/src/help/copy/client.ts',
+      'apps/web/src/components/client-profile-form.tsx',
+      'apps/web/src/app/(app)/c/[clientId]/competitors/competitor-controls.tsx',
+      'apps/web/src/app/(app)/c/[clientId]/setup/steps/business-step.tsx',
+      'apps/web/src/app/(app)/c/[clientId]/reviews/self-notice.tsx',
+      'apps/web/src/app/(app)/c/[clientId]/overview-kpis.ts',
+      ...['competitors', 'overview', 'rankings', 'reviews', 'settings.profile', 'setup'].map((n) => `docs/help/pages/client.${n}.agency.md`),
+    ];
+    for (const f of files) {
+      const lines = readFileSync(join(root, f), 'utf8').split(/\r?\n/).filter((l) => !l.includes('ADVANCED_ERROR'));
+      expect(lines.filter((l) => /place id/.test(l)), f).toEqual([]);
+    }
   });
 });

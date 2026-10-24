@@ -17,8 +17,8 @@ The businesses monitored for {{client}}. Client users see the same list, without
 
 1. **Open a competitor** to see its prices, ads, reviews, rankings and timeline.
 2. **Track suggestions.** Top rivals start ticked, up to the room left under the limit. Tick or untick, then select **Track selected**. **Dismiss** removes a suggestion; **Show hidden** lists what the search left out and why, such as a different kind of business or one outside the service area.
-3. **Find competitors.** The button needs keywords, a service area and a Google place id on the Business profile page (the page links to it when one is missing). A full search takes 20 to 40 minutes and you can leave the page. A client can have one manual search per week; until then the button names the next day it is available.
-4. **Add one by hand.** Enter a name (required), and a website or Google place id if you have them, then **Add competitor**. The button is off when the client is at its limit.
+3. **Find competitors.** The button needs keywords, a service area and a Google Place ID on the Business profile page (the page links to it when one is missing). A full search takes 20 to 40 minutes and you can leave the page. A client can have one manual search per week; until then the button names the next day it is available.
+4. **Add one by hand.** Enter a name (required), and a website or Google Place ID if you have them, then **Add competitor**. The button is off when the client is at its limit.
 5. **Stop tracking.** **Remove** keeps the competitor's history. Collection stops if no other client tracks it.
 
 ## Common questions
@@ -33,7 +33,7 @@ The client is at its competitor limit, shown in the page header. Remove a compet
 
 ### Why is Find competitors greyed out?
 
-Either something is missing (keywords, a service area or a Google place id), a search is already running, or the client already had its manual search this week. The button says which.
+Either something is missing (keywords, a service area or a Google Place ID), a search is already running, or the client already had its manual search this week. The button says which.
 
 ### Can the client add competitors themselves?
 

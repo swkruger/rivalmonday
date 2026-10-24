@@ -12,13 +12,13 @@ describe('SelfNotice', () => {
 
   it('asks the agency to add a place id, with a Business profile link', () => {
     render(<SelfNotice clientId="c1" selfPending={false} isAgency />);
-    expect(screen.getByText(/Add your Google place id on the Business profile page/)).toBeTruthy();
+    expect(screen.getByText(/Add your Google Place ID on the Business profile page/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open Business profile' }).getAttribute('href')).toBe('/c/c1/settings/profile');
   });
 
   it('shows clients the text only', () => {
     render(<SelfNotice clientId="c1" selfPending={false} isAgency={false} />);
-    expect(screen.getByText(/Add your Google place id on the Business profile page/)).toBeTruthy();
+    expect(screen.getByText(/Add your Google Place ID on the Business profile page/)).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();
   });
 });

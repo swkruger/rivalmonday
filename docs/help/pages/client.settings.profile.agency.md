@@ -9,7 +9,7 @@ The details that decide who counts as a competitor for {{client}}, and which par
 
 - **Services** are what the business offers. **Search keywords** are the searches customers use, up to 5. Both are used to find competitors and to scan local rankings.
 - **Service area** is a radius around a centre point, plus ZIP codes and towns if listed. The map centre is the point the radius is measured from.
-- **Google place id** links the business's Google listing, which lets us benchmark its reviews against its competitors'.
+- **Google Place ID** links the business's Google listing, which lets us benchmark its reviews against its competitors'.
 - **Client features** switch parts of the workspace on or off for the client: the dashboard, alert rules, managing competitors, {{assistant}} and the AI connection page. A feature that is off is hidden from the client, not from your team.
 - The **Billing** line near the top (active clients only) shows the client's billing status and the actions you are allowed to take.
 

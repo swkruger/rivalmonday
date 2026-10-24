@@ -81,9 +81,9 @@ describe('BusinessStep Advanced disclosure', () => {
     const d = advanced();
     expect(d.open).toBe(false);
     expect(d.contains(screen.getByLabelText(/Map centre/))).toBe(true);
-    expect(d.contains(screen.getByLabelText('Google place id'))).toBe(true);
+    expect(d.contains(screen.getByLabelText('Google Place ID'))).toBe(true);
     expect(screen.getByLabelText(/Map centre/).getAttribute('aria-describedby')).toBe('center-hint');
-    expect(screen.getByLabelText('Google place id').getAttribute('aria-describedby')).toBe('placeId-hint');
+    expect(screen.getByLabelText('Google Place ID').getAttribute('aria-describedby')).toBe('placeId-hint');
     expect(document.getElementById('center-hint')!.textContent).toBeTruthy();
     expect(document.getElementById('placeId-hint')!.textContent).toBeTruthy();
     expect(d.contains(screen.getByLabelText(/radius/i))).toBe(false);

@@ -177,7 +177,7 @@ export function BusinessStep({ view, profile, pending, onSave, error = null }: {
             <FieldHint id="center">The middle of the service area, filled in from the Google lookup. Change it only if the business serves around a different point. The radius is measured from here.</FieldHint>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="placeId">Google place id</Label>
+            <Label htmlFor="placeId">Google Place ID</Label>
             <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} className="max-w-md" {...placeHint.describedBy} />
             <FieldHint id="placeId">Identifies the business’s Google listing. It lets us benchmark the business’s own reviews against its competitors. Leave it as found unless the listing is wrong.</FieldHint>
           </div>

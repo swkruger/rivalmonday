@@ -128,7 +128,7 @@ test.describe('client owner', () => {
     await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');
     await page.getByLabel('Service area radius').selectOption({ label: '20 mi' });
     await page.getByLabel('ZIP codes served').fill('76048');
-    await page.getByLabel('Google place id').fill('e2e-setup-owner-place');
+    await page.getByLabel('Google Place ID').fill('e2e-setup-owner-place');
     await page.getByRole('button', { name: 'Save and find competitors' }).click();
 
     // The profile is complete and a search already ran, so the wizard moves on to picking.

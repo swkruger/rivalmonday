@@ -37,7 +37,7 @@ They show for agency staff only, and not when the client is paused or inactive o
 
 ### Why is there no grid?
 
-The page says what is missing: keywords and a service area on the Business profile page, a first scan, or a Google place id for the business (or a tracked competitor) to show.
+The page says what is missing: keywords and a service area on the Business profile page, a first scan, or a Google Place ID for the business (or a tracked competitor) to show.
 
 ### Why can't I compare two scans?
 

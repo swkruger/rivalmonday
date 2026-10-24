@@ -17,7 +17,7 @@ Setup is resumable. It reopens at the first step that is not done, and any step 
 ## How to use it
 
 1. **Check the business details**, then choose **Save and find competitors**. Services and keywords are pre-ticked from the Google profile when it had them; add your own keywords, one per line.
-2. **Open Advanced only when something is off.** It holds the map centre and the Google place id. Both are filled in from the lookup. The centre is what the radius is measured from; the place id is what lets us benchmark the business's own reviews against its competitors' reviews.
+2. **Open Advanced only when something is off.** It holds the map centre and the Google Place ID. Both are filled in from the lookup. The centre is what the radius is measured from; the Place ID is what lets us benchmark the business's own reviews against its competitors' reviews.
 3. **Wait for the search**, or leave the page and come back. If it fails, choose **Find competitors** to try again, or skip the step.
 4. **Tick the competitors to watch** and choose **Done picking**. This is the step that starts the starting-point clock.
 5. **Invite the owner** (the button is also on the first three steps) and, for a client, turn on billing. Both can be skipped.

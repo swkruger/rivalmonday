@@ -94,7 +94,7 @@ export function ClientProfileForm(props: Props) {
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="placeId">Google place id (optional)</Label>
+        <Label htmlFor="placeId">Google Place ID (optional)</Label>
         <Input id="placeId" name="placeId" defaultValue={props.initial?.placeId ?? ''} className="max-w-md" />
         <p className="text-muted-foreground">Lets us benchmark the business’s own reviews against its competitors.</p>
       </div>

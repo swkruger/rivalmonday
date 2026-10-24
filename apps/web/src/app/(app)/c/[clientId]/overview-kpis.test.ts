@@ -17,7 +17,7 @@ describe('kpiCards', () => {
     expect(c[0]!.pill).toBeNull();
     expect(c[1]!.pill).toBeNull();
     expect(c[2]).toMatchObject({ value: '—', pill: null, hint: 'The first weekly ad check fills this in' });
-    expect(c[3]).toMatchObject({ value: '—', pill: null, hint: 'Add your Google place id to compare' });
+    expect(c[3]).toMatchObject({ value: '—', pill: null, hint: 'Add your Google Place ID to compare' });
     expect(kpiCards({ ...base, rating: { self: null, competitorAverage: 4.5 } }, { agency: false })[3]).toMatchObject({ value: '—', pill: null, hint: 'Not available yet' });
     expect(kpiCards({ ...base, rating: { self: 4.2, competitorAverage: 4.5 } }, { agency: true })[3]!.pill).toEqual({ text: '−0.3 below avg', tone: 'down' });
   });
