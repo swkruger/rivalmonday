@@ -13,7 +13,7 @@ How and when {{client}} receives alerts and briefs, and who they go to. Everythi
   - **Digest only** never sends alerts one by one; they go out together in the digest.
 - **Send untouched briefs automatically** approves and sends a weekly brief on Monday from 07:00 if nobody has edited, dropped or reordered anything in it. A brief you touched waits for your approval.
 - **Business time zone** is the clock for Monday 07:00 briefs, the 17:00 digest, quarterly reports (from 08:00 in the first week of a quarter) and the daily alert count.
-- **Recipients** lists the people who get this client's alerts and briefs, with their role (Owner or Viewer) and whether they have an account.
+- **Recipients** lists the people who get this client's alerts and briefs, with their role (Client owner or Client viewer) and whether they have an account.
 
 ## How to use it
 

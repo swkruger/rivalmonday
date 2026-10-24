@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 import type { FormResult } from '@/server/forms';
 import { AlertRulesForm } from './alert-rules-form';
 
 const rules = { alert: 70, brief: 40, custom: false, defaults: { alert: 70, brief: 40 } };
+afterEach(cleanup);
 
 describe('AlertRulesForm', () => {
   it('posts both thresholds and keeps the message visible', async () => {
@@ -16,11 +17,12 @@ describe('AlertRulesForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(screen.getByText('Alert rules saved.')).toBeTruthy());
     const fd = action.mock.calls[0]![1];
-    expect([fd.get('intent'), fd.get('alert'), fd.get('brief')]).toEqual(['save', '60', '30']);
+    expect([fd.get('intent'), fd.get('alert'), fd.get('brief')]).toEqual([null, '60', '30']);
   });
   it('shows an error from the server', async () => {
     const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: false as const, error: 'The brief threshold must be lower than the alert threshold.' }));
     render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={action} />);
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '90' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('lower than the alert'));
   });
@@ -46,5 +48,39 @@ describe('AlertRulesForm', () => {
     expect(screen.queryByRole('button', { name: /Use the defaults/ })).toBeNull();
     rerender(<AlertRulesForm clientId="c1" rules={{ ...rules, alert: 80, custom: true }} canEdit action={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Use the defaults (70/40)' })).toBeTruthy();
+  });
+});
+
+describe('AlertRulesForm bar and SaveBar', () => {
+  it('band bar follows typed values', () => {
+    render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={vi.fn()} />);
+    expect(screen.getByText('40–69')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '20' } });
+    expect(screen.getByText('20–69')).toBeTruthy();
+    expect(screen.getByRole('img').getAttribute('aria-label')).toContain('20 to 69: weekly brief');
+  });
+  it('keeps the last valid bar while the pair is invalid', () => {
+    render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '90' } });
+    expect(screen.getByText('40–69')).toBeTruthy();
+  });
+  it('shows Save only once the form is dirty, and hides it after a successful save', async () => {
+    const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Alert rules saved.' }));
+    render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={action} />);
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Instant alert from score'), { target: { value: '80' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Alert rules saved.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect((screen.getByLabelText('Instant alert from score') as HTMLInputElement).value).toBe('80');
+  });
+  it('a refused save keeps the typed values and the bar', async () => {
+    const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: false as const, error: 'no' }));
+    render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={action} />);
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '90' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('no'));
+    expect((screen.getByLabelText('Weekly brief from score') as HTMLInputElement).value).toBe('90');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
   });
 });

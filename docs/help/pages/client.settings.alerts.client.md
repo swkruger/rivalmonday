@@ -11,7 +11,7 @@ The two scores that decide what happens to a competitor change for {{client}}. E
 - **From the weekly brief level up to the alert level**, it goes in your weekly brief.
 - **Below the brief level**, it is archived, but you can still see it on the Changes page with its evidence.
 
-The page states your current levels in plain words. New levels apply to changes detected from now on; changes already scored keep their place.
+A bar from 0 to 100 shows the three bands (archived, weekly brief, instant alert) and their score ranges. New levels apply to changes detected from now on; changes already scored keep their place.
 
 ## How to use it
 

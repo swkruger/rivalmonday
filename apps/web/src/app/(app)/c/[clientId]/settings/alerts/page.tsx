@@ -1,4 +1,5 @@
 import { hasFeature, hasPermission, isAgencyRole } from '@cs/core';
+import { ALERTS_PER_DAY } from '@cs/engine';
 import type { AlertRulesView } from '@cs/tools';
 import { Card, CardContent } from '@cs/ui';
 import type { Metadata } from 'next';
@@ -50,11 +51,8 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
       <Card>
         <CardContent className="flex flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>
-          <p>
-            From {rules.alert}: an instant alert. From {rules.brief} to {rules.alert - 1}: the weekly brief. Below {rules.brief}: archived — still visible under Changes.
-          </p>
           <p>New thresholds apply to changes detected from now on; changes already scored keep their place.</p>
-          {isAgencyRole(ctx.role) && <p>Instant alerts are still limited to 3 a day; extra ones go into the daily digest.</p>}
+          {isAgencyRole(ctx.role) && <p>Instant alerts are still limited to {ALERTS_PER_DAY} a day; extra ones go into the daily digest.</p>}
           {isAgencyRole(ctx.role) && (
             <p>
               <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">

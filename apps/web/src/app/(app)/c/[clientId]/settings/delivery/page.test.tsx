@@ -45,3 +45,12 @@ describe('ClientDeliveryPage recipients (8b, 7a2)', () => {
     expect(container.textContent).toContain('owner@client.com');
   });
 });
+
+describe('ClientDeliveryPage recipient labels', () => {
+  it('recipient role reads "Client owner"', async () => {
+    m.viewer = { viewer: { kind: 'user' }, ctx: { role: 'agency_admin' } };
+    const { container } = render(await open());
+    expect(container.textContent).toContain('Client owner');
+    expect(container.querySelector('[data-slot="status-chip"]')?.textContent).toBe('Has account');
+  });
+});

@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, RecipientView } from '@cs/tools';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
@@ -13,6 +13,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
+import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
 import { callTool } from '@/server/tools';
 import { timezoneOptions } from '@/server/timezones';
 import { AddRecipientForm, DeactivateRecipientButton, DeliveryForm } from './delivery-controls';
@@ -22,8 +23,6 @@ export const metadata: Metadata = { title: 'Delivery' };
 
 const HELP_KEY = 'page:client.settings.delivery';
 const COPY = PAGE_COPY['client.settings.delivery'];
-
-const ROLE_LABEL: Record<string, string> = { client_owner: 'Owner', client_viewer: 'Viewer' };
 
 export default async function ClientDeliveryPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -55,10 +54,10 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
       />
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-1.5">
-            Recipients
+          <div className="flex items-center gap-1.5">
+            <CardTitle>Recipients</CardTitle>
             <HelpTip tip="client.settings.delivery.recipients" />
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           {recipients.length === 0 ? (
@@ -82,9 +81,9 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
                   <TableRow key={r.contactId}>
                     <TableCell className="font-medium">{r.email}</TableCell>
                     <TableCell>{r.name ?? '—'}</TableCell>
-                    <TableCell>{ROLE_LABEL[r.role] ?? r.role}</TableCell>
-                    <TableCell>{r.hasAccount && <Badge variant="secondary">Has account</Badge>}</TableCell>
-                    <TableCell>{r.active ? 'Active' : 'Inactive'}</TableCell>
+                    <TableCell>{labelFor(MEMBERSHIP_ROLE, r.role).label}</TableCell>
+                    <TableCell>{r.hasAccount && <StatusChip tone="neutral">Has account</StatusChip>}</TableCell>
+                    <TableCell><StatusChip tone={r.active ? 'success' : 'neutral'}>{r.active ? 'Active' : 'Inactive'}</StatusChip></TableCell>
                     <WriteGuard>
                       <TableCell>{r.active && <DeactivateRecipientButton clientId={clientId} contactId={r.contactId} email={r.email} />}</TableCell>
                     </WriteGuard>

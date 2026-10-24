@@ -11,7 +11,7 @@ The two scores that decide what happens to a competitor change for {{client}}. E
 - **From the weekly brief level up to the alert level**, it goes in the weekly brief.
 - **Below the brief level**, it is archived. It is still listed on the Changes page.
 
-The page states the client's current levels in plain words. If they are not the defaults, **Use the defaults** puts them back. New levels apply to changes detected from now on; changes already scored keep their place.
+A bar from 0 to 100 shows the three bands (archived, weekly brief, instant alert) and their score ranges, and follows the numbers as you type. If they are not the defaults, **Use the defaults** puts them back. New levels apply to changes detected from now on; changes already scored keep their place.
 
 ## How to use it
 

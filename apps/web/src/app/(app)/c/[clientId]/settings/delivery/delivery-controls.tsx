@@ -1,7 +1,8 @@
 'use client';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, Switch } from '@cs/ui';
+import { Button, ConfirmDialog, Input, Label, SaveBar, Switch } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { HelpTip } from '@/components/help/help-tip';
+import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
@@ -12,7 +13,7 @@ const selectClass = 'h-9 w-full max-w-sm rounded-md border border-input bg-trans
 const MODES: { value: 'direct' | 'after_am_check' | 'digest_only'; label: string; help: string }[] = [
   { value: 'direct', label: 'Direct', help: 'Alerts go to the client at once.' },
   { value: 'after_am_check', label: 'I review alerts first (default)', help: 'You approve each alert first.' },
-  { value: 'digest_only', label: 'Digest only', help: 'Alerts wait for the 17:00 digest.' },
+  { value: 'digest_only', label: 'Digest only', help: 'Alerts wait for the 17:00 digest (business time zone).' },
 ];
 
 export function DeliveryForm({
@@ -30,19 +31,32 @@ export function DeliveryForm({
    * and hydrated `<select>` list the exact same options — never built again here (Review Focus / fix round 1). */
   timezoneOptions: string[];
 }) {
-  const [state, formAction, pending] = useActionState(saveDeliveryAction, { ok: true } as FormResult);
+  const [dirty, setDirty] = useState(false);
+  // React 19 resets a form after every action, errors included; every field is controlled (and onReset is blocked), so a refused save keeps what was chosen.
+  const [mode, setMode] = useState(alertMode);
   const [autoSend, setAutoSend] = useState(briefAutoSend);
+  const [zone, setZone] = useState(timezone);
+  const [state, formAction, pending] = useActionState(async (prev: FormResult, fd: FormData) => {
+    const r = await saveDeliveryAction(prev, fd);
+    if (r.ok) setDirty(false);
+    return r;
+  }, { ok: true } as FormResult);
   const readOnly = useReadOnly();
 
   return (
-    <form action={formAction} className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
+    <form
+      action={formAction}
+      onReset={(e) => e.preventDefault()}
+      onChange={() => setDirty(true)}
+      className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card"
+    >
       <input type="hidden" name="clientId" value={clientId} />
       {!state.ok && state.error && (
         <ErrorNote focusKey={state}>
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
 
       <fieldset disabled={readOnly} className="contents">
       <fieldset className="flex flex-col gap-3">
@@ -52,19 +66,25 @@ export function DeliveryForm({
         </legend>
         {MODES.map((m) => (
           <label key={m.value} className="flex items-start gap-3 rounded-lg border border-line p-3">
-            <input type="radio" name="alertMode" value={m.value} defaultChecked={m.value === alertMode} className="mt-1 h-4 w-4" />
+            <input
+              type="radio" name="alertMode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)}
+              aria-describedby={`alert-mode-${m.value}-help`} className="mt-1 h-4 w-4"
+            />
             <span>
               <span className="block font-medium">{m.label}</span>
-              <span className="block text-sm text-muted-foreground">{m.help}</span>
+              <span id={`alert-mode-${m.value}-help`} className="block text-sm text-muted-foreground">{m.help}</span>
             </span>
           </label>
         ))}
       </fieldset>
 
       <div className="flex items-center gap-3">
-        <Switch checked={autoSend} onCheckedChange={setAutoSend} aria-label="Send untouched briefs automatically on Monday 07:00" />
+        <Switch
+          id="brief-auto-send" checked={autoSend}
+          onCheckedChange={(v) => { setAutoSend(v); setDirty(true); }}
+        />
         <input type="hidden" name="briefAutoSend" value={autoSend ? 'on' : ''} />
-        <Label>Send untouched briefs automatically on Monday 07:00</Label>
+        <Label htmlFor="brief-auto-send">Send untouched briefs automatically on Monday 07:00</Label>
         <HelpTip tip="client.settings.delivery.autoSend" />
       </div>
 
@@ -73,7 +93,7 @@ export function DeliveryForm({
           <Label htmlFor="timezone">Business time zone</Label>
           <HelpTip tip="client.settings.delivery.timezone" />
         </div>
-        <select id="timezone" name="timezone" defaultValue={timezone} className={selectClass}>
+        <select id="timezone" name="timezone" value={zone} onChange={(e) => setZone(e.target.value)} className={selectClass}>
           {timezoneOptions.map((tz) => (
             <option key={tz} value={tz}>
               {tz}
@@ -85,9 +105,17 @@ export function DeliveryForm({
       </fieldset>
 
       <WriteGuard>
-        <Button type="submit" disabled={pending} className="self-start">
-          Save
-        </Button>
+        <SaveBar
+          dirty={dirty}
+          pending={pending}
+          saveLabel="Save"
+          onReset={() => {
+            setMode(alertMode);
+            setAutoSend(briefAutoSend);
+            setZone(timezone);
+            setDirty(false);
+          }}
+        />
       </WriteGuard>
     </form>
   );
@@ -117,8 +145,8 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
         <div className="flex flex-col gap-2">
           <Label htmlFor="recipient-role">Role</Label>
           <select id="recipient-role" name="role" className={selectClass} defaultValue="client_viewer">
-            <option value="client_owner">Owner</option>
-            <option value="client_viewer">Viewer</option>
+            <option value="client_owner">{labelFor(MEMBERSHIP_ROLE, 'client_owner').label}</option>
+            <option value="client_viewer">{labelFor(MEMBERSHIP_ROLE, 'client_viewer').label}</option>
           </select>
         </div>
         <Button type="submit" disabled={pending}>
@@ -130,35 +158,22 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
 }
 
 export function DeactivateRecipientButton({ clientId, contactId, email }: { clientId: string; contactId: string; email: string }) {
-  const [state, formAction, pending] = useActionState(deactivateRecipientAction, { ok: true } as FormResult);
-  if (useReadOnly()) return null;
+  const [result, setResult] = useState<FormResult>({ ok: true });
+  const readOnly = useReadOnly();
+  if (readOnly) return null;
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Deactivate
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Deactivate {email}?</DialogTitle>
-          <DialogDescription>Links already sent to this person stop working.</DialogDescription>
-        </DialogHeader>
-        {!state.ok && state.error && (
-          <ErrorNote focusKey={state}>
-            {state.error}
-          </ErrorNote>
-        )}
-        <form action={formAction}>
-          <input type="hidden" name="clientId" value={clientId} />
-          <input type="hidden" name="contactId" value={contactId} />
-          <DialogFooter>
-            <Button type="submit" variant="destructive" disabled={pending}>
-              Deactivate
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <div className="flex flex-col items-start gap-2">
+      <ConfirmDialog
+        trigger={<Button type="button" variant="outline" size="sm" onClick={() => setResult({ ok: true })}>Deactivate</Button>}
+        title={`Deactivate ${email}?`}
+        body="Links already sent to this person stop working."
+        confirmLabel="Deactivate"
+        tone="danger"
+        fields={{ clientId, contactId }}
+        action={async (fd) => { setResult(await deactivateRecipientAction(result, fd)); }}
+      />
+      {/* The refusal sits outside the dialog, under the row's button. */}
+      {!result.ok && result.error && <ErrorNote focusKey={result} compact>{result.error}</ErrorNote>}
+    </div>
   );
 }
