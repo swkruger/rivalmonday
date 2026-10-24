@@ -95,7 +95,7 @@ describe('privilege guard', () => {
     //                           client to another agency via agency_id. The (client, UPDATE) pair below still shows
     //                           up because has_any_column_privilege reports true for any granted column.
     //   api_token / oauth_grant_binding UPDATE — column-level (Phase 6a): only revoked_at is granted; inserts are service role.
-    //   ask_thread INSERT/DELETE + UPDATE(title, updated_at), ask_message INSERT + UPDATE(action) — author-only RLS (Phase 6b, 0043).
+    //   ask_thread INSERT/DELETE + UPDATE(title, updated_at, deleted_at), ask_message INSERT + UPDATE(action) — author-only RLS (Phase 6b, 0043).
     //   agency_profile INSERT + UPDATE — agency admin edits its own profile under RLS (Phase 10, 0066).
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,

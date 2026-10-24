@@ -102,4 +102,37 @@ describe('ask RLS', () => {
     const [c] = await dbs.owner.select({ q: client.askMonthlyQuota, r: client.askReviewAllowed }).from(client).where(eq(client.id, IDS.clientA1));
     expect(c).toEqual({ q: 100, r: true });
   });
+
+  describe('soft delete (deleted_at)', () => {
+    const own = scopeFor(IDS.agencyA, 'u1', 'client_owner');
+
+    it('owner can set deleted_at on own thread', async () => {
+      const rows = await withTenant(dbs.app, own, (tx) =>
+        tx.execute(sql`update ask_thread set deleted_at = now() where id = ${T1} returning id`),
+      );
+      expect(rows.length).toBe(1);
+      const [r] = await dbs.owner.execute(sql`select deleted_at from ask_thread where id = ${T1}`);
+      expect(r!.deleted_at).not.toBeNull();
+    });
+
+    it("app_user cannot update another user's deleted_at", async () => {
+      const rows = await withTenant(dbs.app, own, (tx) =>
+        tx.execute(sql`update ask_thread set deleted_at = now() where id = ${T2} returning id`),
+      );
+      expect(rows.length).toBe(0);
+    });
+
+    it('app_user cannot update client_id', async () => {
+      const err = await errorText(
+        withTenant(dbs.app, own, (tx) => tx.execute(sql`update ask_thread set client_id = client_id where id = ${T1}`)),
+      );
+      expect(err).toMatch(/permission denied/);
+    });
+
+    it('ask_thread_user_live_idx exists and is partial', async () => {
+      const rows = await dbs.owner.execute(sql`select indexdef from pg_indexes where indexname = 'ask_thread_user_live_idx'`);
+      expect(rows.length).toBe(1);
+      expect(String(rows[0]!.indexdef)).toContain('WHERE (deleted_at IS NULL)');
+    });
+  });
 });

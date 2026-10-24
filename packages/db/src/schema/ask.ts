@@ -18,9 +18,11 @@ export const askThread = pgTable(
     title: text('title').notNull(),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
+    deletedAt: ts('deleted_at'),
   },
   (t) => [
     index('ask_thread_user_idx').on(t.userId, t.clientId, t.updatedAt.desc()),
+    index('ask_thread_user_live_idx').on(t.clientId, t.userId, t.updatedAt.desc()).where(sql`${t.deletedAt} IS NULL`),
     // Target of ask_message's composite FK: a message's thread must belong to the same user.
     unique('ask_thread_id_user_id_unique').on(t.id, t.userId),
     foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
