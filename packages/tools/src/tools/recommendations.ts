@@ -1,10 +1,11 @@
-import { appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { appLinkFor, isAgencyRole, toolkit } from '@cs/core';
 import { recommendation, withTenant } from '@cs/db';
 import { updateRecommendationStatus } from '@cs/engine';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { detailOf, pageOf, pageResult } from '../paging';
+import { requireVisibleClient } from '../workspace/scope';
 import { pageFields, pagedItems, RecommendationView, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -21,7 +22,7 @@ export const listRecommendations = defineTool({
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, input, deps, meta) {
     const { clientId } = input;
-    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    await requireVisibleClient(deps, ctx, clientId);
     const { offset, limit } = pageOf(input, meta, 300);
     const fetched = await withTenant(deps.app, ctx, (tx) =>
       tx.select().from(recommendation).where(eq(recommendation.clientId, clientId)).orderBy(desc(recommendation.updatedAt), desc(recommendation.id)).offset(offset).limit(limit + 1));

@@ -1,10 +1,11 @@
-import { canAccessClient, grantableScopes, isAgencyRole, TOKEN_SCOPES, toolkit, ToolError, type AccessContext, type TokenScope } from '@cs/core';
+import { grantableScopes, isAgencyRole, TOKEN_SCOPES, toolkit, ToolError, type AccessContext, type TokenScope } from '@cs/core';
 import { generatePat } from '@cs/core/server';
 import { apiToken, client, oauthGrantBinding, withTenant } from '@cs/db';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { deletePluginConsent, revokePluginTokens } from '../access/oauth';
 import type { ToolDeps } from '../deps';
+import { requireVisibleClient } from '../workspace/scope';
 import { ApiTokenView, OAuthGrantView } from './schemas';
 
 /**
@@ -22,12 +23,14 @@ function requireSignedIn(ctx: AccessContext) {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to manage AI connections');
 }
 
-/** The client a list is narrowed to: client roles are forced to their own; agency roles may pick one they can access. */
-function listClientFilter(ctx: AccessContext, clientId: string | undefined): string | null {
+/**
+ * The client a list is narrowed to: client roles are forced to their own; agency roles may pick one they can access.
+ * 7c1: a named client outside the caller's scope (or agency) is `not_found` for every role, never an empty or own list.
+ */
+async function listClientFilter(deps: ToolDeps, ctx: AccessContext, clientId: string | undefined): Promise<string | null> {
+  if (clientId) await requireVisibleClient(deps, ctx, clientId);
   if (!isAgencyRole(ctx.role)) return ctx.clientScope === 'all' ? null : ctx.clientScope[0] ?? null;
-  if (!clientId) return null;
-  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-  return clientId;
+  return clientId ?? null;
 }
 
 async function clientNames(deps: ToolDeps, ctx: AccessContext, ids: (string | null)[]): Promise<Map<string, string>> {
@@ -107,7 +110,7 @@ export const listApiTokens = defineTool({
   channels: ['web'],
   async handler(ctx, input, deps) {
     requireSignedIn(ctx);
-    const only = listClientFilter(ctx, input.clientId);
+    const only = await listClientFilter(deps, ctx, input.clientId);
     const rows = await withTenant(deps.app, ctx, (tx) =>
       tx.select({
         id: apiToken.id, name: apiToken.name, prefix: apiToken.tokenPrefix, scope: apiToken.scope, clientId: apiToken.clientId, userId: apiToken.userId,
@@ -135,7 +138,7 @@ export const listOauthGrants = defineTool({
   channels: ['web'],
   async handler(ctx, input, deps) {
     requireSignedIn(ctx);
-    const only = listClientFilter(ctx, input.clientId);
+    const only = await listClientFilter(deps, ctx, input.clientId);
     const rows = await withTenant(deps.app, ctx, (tx) =>
       tx.select({
         id: oauthGrantBinding.id, oauthClientId: oauthGrantBinding.oauthClientId, scope: oauthGrantBinding.scope, clientId: oauthGrantBinding.clientId,

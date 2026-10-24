@@ -32,6 +32,11 @@ describe('recommendations (Review Focus 4)', () => {
     await expect(registry.invoke(ownerA2, 'list_recommendations', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it("refuses another agency's client (7c1 isolation: not_found, never an empty list)", async () => {
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(registry.invoke(adminB, 'list_recommendations', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('lets owners and agencies change status, never viewers; dismissal needs a reason', async () => {
     await registry.invoke(owner, 'update_recommendation_status', { recommendationId: recId, status: 'in_progress' });
     expect((await dbs.owner.select().from(recommendation).where(eq(recommendation.id, recId)))[0]!.status).toBe('in_progress');

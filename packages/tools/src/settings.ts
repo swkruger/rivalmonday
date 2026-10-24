@@ -3,7 +3,7 @@ import { hashInput } from '@cs/core/server';
 import { agency, type AgencyBranding, agencyWebhook, type AlertMode, auditLog, client, contact, type Db } from '@cs/db';
 import { type Branding, resolveBranding } from '@cs/email';
 import { addAgencyWebhook, addContact, ALERT_MODES, loadBranding, postWebhook, updateClientDelivery, type WebhookPostResult, webhookUrlProblem } from '@cs/engine';
-import { and, asc, count, eq, gt, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import { validTimezone } from './timezone';
 
 const requireAdmin = (ctx: AccessContext) => {
@@ -156,6 +156,9 @@ export interface RecipientView {
 
 export async function listClientRecipients(service: Db, ctx: AccessContext, clientId: string): Promise<RecipientView[]> {
   requireAgencyFor(ctx, clientId);
+  // 7c1: refuse another agency's (or an archived) client instead of answering with an empty list.
+  const [own] = await service.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt)));
+  if (!own) throw new ToolError('not_found', 'Client not found');
   const rows = await service.select().from(contact).where(and(eq(contact.agencyId, ctx.agencyId), eq(contact.clientId, clientId))).orderBy(asc(sql`lower(${contact.email})`));
   return rows.map((c) => ({ contactId: c.id, email: c.email, name: c.name, role: c.role, active: c.active, hasAccount: c.userId !== null }));
 }

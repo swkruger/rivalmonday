@@ -3,6 +3,7 @@ import { trendReport, withTenant } from '@cs/db';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../registry';
+import { requireVisibleClient } from '../workspace/scope';
 import { ReportDetail, ReportSummary, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -16,7 +17,7 @@ export const listTrendReports = defineTool({
   output: z.object({ items: z.array(ReportSummary) }),
   permission: 'read',
   async handler(ctx, { clientId }, deps) {
-    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    await requireVisibleClient(deps, ctx, clientId);
     const where = isAgencyRole(ctx.role) ? eq(trendReport.clientId, clientId) : and(eq(trendReport.clientId, clientId), eq(trendReport.status, 'sent'));
     const rows = await withTenant(deps.app, ctx, (tx) => tx.select().from(trendReport).where(where).orderBy(desc(trendReport.quarter)));
     return { items: rows.map(summary) };

@@ -92,6 +92,10 @@ describe('trend reports', () => {
     const detail = (await registry.invoke(admin, 'get_trend_report', { reportId: ids.sentReport })) as { quarter: string; data: unknown };
     expect(detail).toMatchObject({ quarter: '2026-Q3', data: { quarter: '2026-Q3' } });
   });
+
+  it("refuses another agency's client (7c1 isolation: not_found, never an empty list)", async () => {
+    await expect(registry.invoke(otherAgency, 'list_trend_reports', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+  });
 });
 
 it('audits every call, including refusals', async () => {

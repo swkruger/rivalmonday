@@ -3,6 +3,7 @@ import { askMessage, client, effectiveLimitUsd, readSpendGuardSettings } from '@
 import { and, asc, count, eq, gte, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { requireVisibleClient } from '../workspace/scope';
 import { monthStart, spendByClient } from '../usage';
 import { SpendCredits } from './schemas';
 import { creditsView } from './usage';
@@ -58,12 +59,14 @@ export const getSpendStatusTool = defineTool({
     const now = new Date();
     const until = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
     const where = [eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt), isNotNull(client.spendPausedAt)];
+    // 7c1: a named client outside the caller's scope or agency is `not_found`, never an empty list.
+    if (clientId) await requireVisibleClient(deps, ctx, clientId);
     if (isAgencyRole(ctx.role)) {
       if (ctx.clientScope !== 'all') where.push(inArray(client.id, [...ctx.clientScope]));
       if (clientId) where.push(eq(client.id, clientId));
     } else {
-      // Client roles see only the one client they asked about, and only if it is theirs.
-      if (!clientId || !canAccessClient(ctx, clientId)) return { paused: [] };
+      // Client roles see only the one client they asked about (theirs, checked above).
+      if (!clientId) return { paused: [] };
       where.push(eq(client.id, clientId));
     }
     const rows = await deps.service.select({ clientId: client.id, name: client.name }).from(client).where(and(...where)).orderBy(asc(client.name));

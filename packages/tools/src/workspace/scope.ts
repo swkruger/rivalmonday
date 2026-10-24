@@ -28,6 +28,16 @@ export async function workspaceClient(deps: ToolDeps, ctx: AccessContext, client
   return { id: c.id, name: c.name, verticalId: c.verticalId, services: c.services ?? [], zips: c.serviceArea?.zips.length ?? 0, selfCompetitorId: c.selfCompetitorId, placeId: c.placeId, keywords: c.keywords ?? [], radiusKm: c.serviceArea?.radiusKm ?? null };
 }
 
+/**
+ * 7c1: `not_found` unless the client is in the caller's scope and visible through RLS (same agency, not archived). A
+ * client-keyed list must refuse an out-of-scope client, never answer it with an empty list.
+ */
+export async function requireVisibleClient(deps: ToolDeps, ctx: AccessContext, clientId: string): Promise<void> {
+  if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+  const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)));
+  if (!c) throw new ToolError('not_found', 'Client not found');
+}
+
 /** Decision 3 joins: event_score → event, and the event's competitor still tracked by this client. */
 export const eventJoin = {
   change: eq(changeEvent.id, eventScore.eventId),

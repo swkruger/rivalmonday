@@ -104,6 +104,16 @@ describe('create_api_token', () => {
 });
 
 describe('list_api_tokens', () => {
+  it('refuses a named client outside the caller scope or agency for every role (7c1 isolation)', async () => {
+    const ownerA2 = mk('client_owner', 'own1', [IDS.clientA2]);
+    for (const tool of ['list_api_tokens', 'list_oauth_grants']) {
+      await expect(call(adminB, tool, { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+      await expect(call(ownerA2, tool, { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+      await expect(call(mk('account_manager', 'am1', [IDS.clientA1]), tool, { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+      expect(await call(owner, tool, { clientId: IDS.clientA1 })).toMatchObject({ items: [] });
+    }
+  });
+
   it('masks an e-mail owner name inside a support session; plain names and non-session reads stay as they are (8b)', async () => {
     await dbs.owner.execute(sql`update auth."user" set name = 'Bo <bo@agency.io>' where id = 'am2'`);
     await create(am);
@@ -147,8 +157,10 @@ describe('list_api_tokens', () => {
     expect(all.items.map((i) => i.name).sort()).toEqual(['agency-wide', 'bound']);
     const f = (await call(admin, 'list_api_tokens', { clientId: IDS.clientA1 })) as { items: { name: string; clientName: string }[] };
     expect(f.items).toMatchObject([{ name: 'bound', clientName: 'A1 HVAC' }]);
-    const forced = (await call(owner, 'list_api_tokens', { clientId: IDS.clientA2 })) as { items: { name: string }[] };
+    const forced = (await call(owner, 'list_api_tokens', {})) as { items: { name: string }[] };
     expect(forced.items.map((i) => i.name)).toEqual(['bound']);
+    // 7c1: naming another client is not_found (it used to fall back to the owner's own list)
+    await expect(call(owner, 'list_api_tokens', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
     await call(owner, 'revoke_api_token', { tokenId: own.id });
     expect(((await call(admin, 'list_api_tokens', { clientId: IDS.clientA1 })) as { items: unknown[] }).items).toHaveLength(0);
   });

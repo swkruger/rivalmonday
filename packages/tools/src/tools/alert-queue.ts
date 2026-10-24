@@ -4,6 +4,7 @@ import { approveAlert, dismissAlert } from '@cs/engine';
 import { and, asc, count, eq, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { requireVisibleClient } from '../workspace/scope';
 import { AlertQueueClient, AlertQueueRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -29,6 +30,7 @@ export const listAlertQueue = defineTool({
   output: z.object({ items: z.array(AlertQueueRow), capped: z.boolean(), clients: z.array(AlertQueueClient) }),
   permission: 'agency',
   async handler(ctx, { clientId }, deps) {
+    if (clientId) await requireVisibleClient(deps, ctx, clientId);
     const { rows, clients } = await withTenant(deps.app, ctx, async (tx) => {
       const rows = await tx
         .select({ a: alert, clientName: client.name, competitorName: competitor.name })

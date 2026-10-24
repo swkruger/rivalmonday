@@ -61,6 +61,13 @@ describe('get_spend_status', () => {
     const o = (await registry.invoke(owner, 'get_spend_status', { clientId: A1 })) as { paused: { clientId: string }[] };
     expect(o.paused.map((p) => p.clientId)).toEqual([A1]);
     expect(((await registry.invoke(owner, 'get_spend_status', {})) as { paused: unknown[] }).paused).toEqual([]);
-    expect(((await registry.invoke(owner, 'get_spend_status', { clientId: IDS.clientA2 })) as { paused: unknown[] }).paused).toEqual([]);
+  });
+
+  it('refuses a named client outside the caller scope or agency (7c1 isolation: not_found, never an empty list)', async () => {
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA2));
+    await expect(registry.invoke(owner, 'get_spend_status', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(am, 'get_spend_status', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(registry.invoke(adminB, 'get_spend_status', { clientId: A1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });

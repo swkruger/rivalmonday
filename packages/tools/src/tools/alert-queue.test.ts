@@ -41,6 +41,13 @@ async function bulkAlerts(clientId: string, n: number): Promise<void> {
 }
 
 describe('alert queue', () => {
+  it('refuses a clientId outside the caller scope or agency (7c1 isolation: not_found, never an empty queue)', async () => {
+    await expect(queue(am, { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(queue(adminB, { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await queue(adminB)).items).toEqual([]);
+  });
+
   it('capped is true with 201 queued alerts and items has 200', async () => {
     await bulkAlerts(IDS.clientA1, 199); // + the 2 queued by beforeEach = 201
     const r = await queue(admin);
@@ -73,9 +80,8 @@ describe('alert queue', () => {
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
-  it('invisible clientId returns empty', async () => {
-    const r = await queue(amA2, { clientId: IDS.clientA1 });
-    expect(r).toMatchObject({ items: [], capped: false, clients: [] });
+  it('invisible clientId is not_found (7c1: was an empty queue)', async () => {
+    await expect(queue(amA2, { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('lists alerts waiting for review and digest-held ones, scoped', async () => {

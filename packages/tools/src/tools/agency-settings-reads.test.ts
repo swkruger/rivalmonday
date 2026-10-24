@@ -69,6 +69,9 @@ describe('agency settings read tools (7a2 Task 7)', () => {
     await expect(registry.invoke(am, 'list_webhooks', {})).rejects.toMatchObject({ code: 'permission_denied' });
     await expect(registry.invoke(am, 'get_agency_branding', {})).rejects.toMatchObject({ code: 'permission_denied' });
     await expect(registry.invoke(am, 'list_client_recipients', { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
+    // 7c1 isolation: another agency's client is refused, never answered with an empty list
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(registry.invoke(adminB, 'list_client_recipients', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
     expect(((await registry.invoke(am, 'get_team', {})) as { members: unknown[] }).members).toEqual([]);
   });
 
