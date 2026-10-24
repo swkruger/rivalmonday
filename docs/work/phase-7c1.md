@@ -1,10 +1,10 @@
 # phase-7c1 — quality gates: isolation suite, RLS sweep, MCP contract, evals + cassettes + CI
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7c1   **Base:** (set at execution start)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7c1   **Base:** main @ 37b028ba
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7c1-quality-gates.md) · [spec](../superpowers/specs/2026-10-22-phase-7c-quality-scale-pilot-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Planned ahead; not started.
+Execution started 2026-10-24 (7b1 already on main). Task 0 pre-flight next.
 
 ## Next (overwrite)
 `/rm-kickoff phase-7c1` → Task 0 pre-flight → SDD. May run in parallel with phase-7b1. Task 9 (labelling) is owner-gated (≤ $10 pre-label, ~1–2 h owner).
