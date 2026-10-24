@@ -62,3 +62,11 @@ See **Assumes from other branches**.
 3. **Mobile detail shape.** a) right `Sheet` per 15c §4/C9; phase-16 PR 10 may switch; b) DS bottom sheet (`side="bottom"`) / 440px peek panel (D-21) now. *Rec a:* C9 stands; DS primitives arrive later.
 4. **Order vs phase-7b1.** a) **wait for 7b1 to merge, then sweep its client pages** (`settings/usage`, rankings scan-now); b) exclude 7b1's files and gate them later. *Rec a* (7b1 executing; 2b-1 can start first).
 5. **6b Ask polish scope.** a) **all five 6b items**; b) delete-related only. *Rec a* (D5).
+
+## Pre-flight findings (2b-1 Task 0, 2026-10-23)
+- Rebase on main: already up to date. Main's last migration is `0088_email_resend_rls`; **this branch takes 0089** (generate with `--custom`/generate at that point; re-check just before merge).
+- 7b1 NOT merged (`phase-7b1` still in `--no-merged`). It touches `apps/web/src/server/ask.ts`, `packages/ask/src/{quota,starters,turn}.ts` (+tests) and carries migrations 0085-0087 numbered against an old base; main has since taken 0085-0088, so 7b1 must renumber to 0089+ on its rebase. Whichever merges second renumbers. Expect conflicts on `ask.ts`/`turn.ts` for the Ask-delete task.
+- Conflict scan: `delete_my_ask_thread` appears in `packages/tools/src/tools/{ask-threads,ask-threads.test,access-marks.test}.ts`, `c/[clientId]/ask/actions(.test).ts`, `packages/ask/src/turn.test.ts`, 8b doc and the 15c2 specs (as expected). Tab selectors in e2e: `rankings.spec.ts` (Trend, Compare), `workspace.spec.ts` (Text changes, Capture details). `loadBlocks`, `alignBlocks`, `maskedBlockKeys` are exported from `@cs/engine` (`export *` of web/blocks, align, volatile). `capture_block` has a SELECT RLS policy `app_competitor_visible(competitor_id)` (0016), no write grants for app roles.
+- D14 copy 3, 6, 8 applied; no other "Download seat report" / "Buttons will use dark text" in apps/web or e2e (invite-form.test.tsx fixtures still carry "Sent ..." as plain strings, unrelated).
+- Flake cause (test, not app): `UpdatePrompts` flips `stage` to `tailored` inside the `retailor` transition, so Approve renders disabled until the transition settles; the test clicked it immediately (no-op), so only `retailor` had been called. Fixed by waiting for Approve to be enabled and `findByRole` for "Use as is".
+- E2E on 3100, never two suites at once (no E2E_PORT in .env).
