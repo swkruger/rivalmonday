@@ -57,7 +57,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Crawler conduct is non-negotiable:** honest UA `RivalMondayBot`, RFC 9309 robots (5xx/unreachable ⇒ disallow), ≥3 s per host, blocked ⇒ record, never evade. No real competitor site is crawled until `WEB_MONITORING_ENABLED='true'`.
 - **Worker = one replica** (in-process per-host limits); no `collect-once --poll` while it runs.
 - **A fresh per-worktree test DB has no `pgboss` schema** (E2E: `relation "pgboss.job" does not exist`): run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once (`/rm-kickoff` does).
-- **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. A folder left by `git worktree remove --force` on Windows: `cmd /c rd /s /q "\\?\<abs path>"`, then `git worktree prune`.
+- **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. A folder left by `git worktree remove` (even without `--force`, "Directory not empty") on Windows: `cmd /c rd /s /q "\\?\<abs path>"`, then `git worktree prune`.
 - **After merging a branch that adds a workspace package, run `pnpm install` in the main checkout** (else `ERR_MODULE_NOT_FOUND @cs/<pkg>`).
-- **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`.
+- **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`. vitest/tsc accept a stray cp1252 byte; only `next build` fails ("invalid utf-8 sequence", 7b1).
 
