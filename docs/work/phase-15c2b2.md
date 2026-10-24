@@ -1,16 +1,16 @@
 # phase-15c2b2 — client-page sweep (15c-2b part 2)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c2b2   **Base:** main @ 2fb4c106
-**Plan/spec:** none yet. Inputs: [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) D9–D15 · [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) §4–5, §8 · [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2–3 · pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md).
+**Plan/spec:** [lean plan](../superpowers/plans/2026-10-24-phase-15c2b2-client-page-sweep.md) (no new spec, Q1). Inputs: [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) D9–D15 · [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) §4–5, §8 · [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2–3 · pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md).
 
 ## Status (overwrite)
-Brief done; owner decisions Q1–Q7 recorded; writing lean plan.
+Lean plan written; awaiting owner approval.
 
 ## Next (overwrite)
-Owner answers Brief §5 → brainstorming → lean plan (no new spec expected).
+Owner approves plan → Task 0 pre-flight → SDD.
 
 ## Interfaces this branch adds or changes
-Expected: new `lib/labels.ts` maps; `GATED_PATHS` = all `src`. No migration, no tool (re-check in plan).
+Planned: `lib/labels.ts` maps (MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS); `lib/format` `formatMonth`, `localDay`, `formatCount`, `formatDate` `withYear: 'never'`; `lib/spend-copy.ts` `askQuotaText`; `@cs/engine` exports `ALERTS_PER_DAY`; `page-gates.ts` `GATE_EXEMPT`, `GATED_PATHS = ['.']`. No migration, no tool.
 
 ## Assumes from other branches
 - **phase-16** (docs only, ON HOLD until 7 + 15 merge): rebases onto us; its container sweep/client restyle wait for 2b-2 (D10). No migration; its Assumes are stale.
@@ -30,7 +30,15 @@ Expected: new `lib/labels.ts` maps; `GATED_PATHS` = all `src`. No migration, no 
 None yet.
 
 ## Owner verification steps
-TBD.
+1. As a client owner of a client in another time zone than yours, open Changes, an alert and an evidence page: times carry the client's zone label ("CT"), and no date is in ISO form.
+2. Changes at phone width (390 px): landing shows the list only, no row is announced as current; tapping a change opens the sheet.
+3. Settings › Alert rules: type new thresholds and watch the band bar follow; Save appears only after a change; the page says "3 a day".
+4. Settings › Delivery: change the alert mode, then Discard; deactivate a recipient and press Cancel — nothing happens; confirm — the row turns Inactive.
+5. Competitors: "Stop tracking" asks first and Cancel keeps the competitor; the "Since" column reads "Oct 13".
+6. Ask: with review off the composer says "Only you can see your conversations."; with review on it shows the review sentence; the Privacy tip ends with the new sentences.
+7. Usage (client and agency): a client whose Ask limit is 0 reads "N used · Ask turned off by limit".
+8. Reviews: open "Show as table" — cells show share, sentiment word and the ▲/▼ points; on a phone the chart scrolls sideways instead of shrinking.
+9. Read the § 15c-2b-2 sign-off section and answer its owner decisions.
 
 ## Brief
 
