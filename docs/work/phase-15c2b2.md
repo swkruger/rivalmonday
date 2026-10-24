@@ -4,7 +4,7 @@
 **Plan/spec:** none yet. Inputs: [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) D9–D15 · [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) §4–5, §8 · [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2–3 · pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md).
 
 ## Status (overwrite)
-Kickoff brief written; nothing designed or built.
+Brief done; owner decisions Q1–Q7 recorded; writing lean plan.
 
 ## Next (overwrite)
 Owner answers Brief §5 → brainstorming → lean plan (no new spec expected).
@@ -17,8 +17,14 @@ Expected: new `lib/labels.ts` maps; `GATED_PATHS` = all `src`. No migration, no 
 - **phase-7c1** (executing, base 37b028ba, no migration): edits tools `my-usage`, `recommendations`, `reports`, `alert-queue`, `settings`, `workspace/scope.ts` (`requireVisibleClient`). 2b-2 stays UI-only on those; a new/changed tool needs a 7c1 isolation fixture from whichever merges second.
 - **Migrations:** main at 0092; next free **0093**; nobody claims one.
 
-## Decisions (owner-approved)
-None yet.
+## Decisions (owner-approved 2026-10-24)
+- Q1 One branch, one lean plan (~16 tasks by route group; gates ratchet per task; full-`src` gate then heatmap last). No new spec (2b spec D9–D15 covers it).
+- Q2 "Fixed" bar only; DS v1 rules for new UI only (D10); existing Cards stay for phase-16.
+- Q3 No mockups (D11).
+- Q4 Gates 1–4 over all of `src`, explicit escapes for non-UI code.
+- Q5 P6 dedupe: keep as is (stays in BACKLOG).
+- Q6 Guide P17 wording approved; `privacy` tip ends "Delete a conversation with the bin icon beside it and confirm. While conversations may be reviewed, the people named in that line can still read it."
+- Q7 D12(d) quota copy on both client card and agency `questions-cell.tsx`.
 
 ## New backlog (target → item)
 None yet.
