@@ -62,7 +62,7 @@ describe('/agency/settings/billing', () => {
     const inv = screen.getByRole('link', { name: /A-0001/ });
     expect(inv.getAttribute('href')).toBe('https://invoice.stripe.com/i/1');
     expect(inv.getAttribute('target')).toBe('_blank');
-    expect(screen.getByRole('link', { name: 'Download seat report (CSV)' }).getAttribute('href')).toBe('/agency/settings/billing/seats.csv');
+    expect(screen.getByRole('link', { name: 'Download client report (CSV)' }).getAttribute('href')).toBe('/agency/settings/billing/seats.csv');
   });
 
   it('billing shows Read-only, not Paused, for read_only', async () => {

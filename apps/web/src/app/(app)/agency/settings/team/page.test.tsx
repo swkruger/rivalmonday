@@ -55,7 +55,7 @@ describe('TeamPage emails (8b, 7a2)', () => {
   it('invite rows show the sent and expiry dates in the viewer zone and the shared role label (B3, B14)', async () => {
     m.viewer = { viewer: { kind: 'user' }, ctx: { role: 'agency_admin' } };
     const { container } = render(await TeamPage());
-    expect(container.textContent).toContain('new@acme.com Agency admin Sent Oct 18 · expires Nov 1');
+    expect(container.textContent).toContain('new@acme.com Agency admin Oct 18 · expires Nov 1');
     expect(container.textContent).toContain('Johnjohn@acme.comAgency admin');
   });
 });

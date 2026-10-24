@@ -61,7 +61,6 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
   const logoSrc = previewLogo(resolved.logoUrl, draft.logoUrl);
   const set = (k: keyof AgencyBranding) => (v: string) => setDraft((d) => ({ ...d, [k]: v }));
   draftRef.current = draft;
-  const darkButtons = readableTextOn(resolved.primary) !== '#FFFFFF';
   const wizard = footer !== undefined; // the onboarding step keeps its own "Save and continue" button; the settings page gets the SaveBar
 
   async function upload(file: File) {
@@ -119,7 +118,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
             <p className="text-sm text-muted-foreground">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
             {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
           </div>
-          <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} {...(darkButtons ? { note: 'Buttons will use dark text so they stay readable.' } : {})} />
+          <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
           <ColorField label="Secondary colour" value={draft.secondary ?? ''} onChange={set('secondary')} />
           <div className="flex flex-col gap-2">
             <Label htmlFor="fromName">Email from-name</Label>

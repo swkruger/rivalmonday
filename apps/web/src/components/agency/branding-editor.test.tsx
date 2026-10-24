@@ -47,11 +47,10 @@ describe('BrandingEditor', () => {
     expect(screen.getByLabelText('Secondary colour')).toBeTruthy();
   });
 
-  it('shows the dark-button line only when the primary gets dark text', () => {
+  it('shows no note under the primary colour, even when it gets dark text', () => {
     render(<BrandingEditor initial={{ primary: '#F5D90A' }} agencyName="Acme" action={action} />);
     const input = screen.getByLabelText('Primary colour');
-    expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe('Buttons will use dark text so they stay readable.');
-    fireEvent.change(input, { target: { value: '#0B2540' } });
+    expect(input.getAttribute('aria-describedby')).toBeNull();
     expect(screen.queryByText('Buttons will use dark text so they stay readable.')).toBeNull();
   });
 

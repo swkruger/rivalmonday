@@ -96,9 +96,12 @@ describe('RunbookEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use the update' }));
     await screen.findByText('Tailored for this client');
     expect(screen.getByText('Tailored text')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    // The stage flips inside the retailor transition, so Approve is disabled until that transition settles; clicking a disabled button is a no-op.
+    const approve = await screen.findByRole('button', { name: 'Approve' });
+    await waitFor(() => expect((approve as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(approve);
     await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c', content: { trigger: 'price_change', title: 'Updated play', template: 'Tailored text' }, businessAreaIds: null }));
-    expect(screen.getByRole('button', { name: 'Use as is' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Use as is' })).toBeTruthy();
   });
 
   it('disables the switches and hides the edit controls for read-only roles', () => {

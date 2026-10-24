@@ -115,7 +115,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <p>
             Clients: {s.seats.used} of {s.seats.included} included{s.seats.extra > 0 ? `, ${s.seats.extra} extra` : ''}.{' '}
             <a href="/agency/settings/billing/seats.csv" className="font-semibold text-primary-soft-text underline">
-              Download seat report (CSV)
+              Download client report (CSV)
             </a>
           </p>
           {s.nextInvoice && (

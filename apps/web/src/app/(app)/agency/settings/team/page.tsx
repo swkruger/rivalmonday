@@ -116,7 +116,7 @@ export default async function TeamPage() {
                 email: i.email,
                 roleLabel: labelFor(MEMBERSHIP_ROLE, i.role).label,
                 clientLabel: i.clientId ? (i.clientName ?? 'Unknown client') : 'All clients',
-                dates: `Sent ${formatDate(i.sentAt, { tz })} · expires ${formatDate(i.expiresAt, { tz })}`,
+                dates: `${formatDate(i.sentAt, { tz })} · expires ${formatDate(i.expiresAt, { tz })}`,
               }))}
             />
           )}
