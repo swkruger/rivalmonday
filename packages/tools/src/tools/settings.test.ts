@@ -66,6 +66,14 @@ describe('settings writes are audited tools (m4)', () => {
     await expect(registry.invoke(am, 'update_client_delivery', { clientId: IDS.clientA2, alertMode: 'direct' })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it("refuses another agency's client (7c1 isolation): no recipient, no timezone change", async () => {
+    // agency B's admin has clientScope 'all', so the scope check alone let these through (a failed FK insert / a silent no-op)
+    const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
+    await expect(registry.invoke(adminB, 'add_client_recipient', { clientId: IDS.clientA1, email: 'x@b.co', name: null, role: 'client_viewer' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(adminB, 'update_client_delivery', { clientId: IDS.clientA1, timezone: 'America/Denver' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await dbs.owner.select().from(contact)).toEqual([]);
+  });
+
   it('lets a signed-in user change their own contact, never a guest', async () => {
     const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_viewer', email: 'u1@e.co', userId: 'u1' }).returning();
     await registry.invoke(me, 'update_my_contact', { contactId: c!.id, timezone: 'America/Denver', quietHours: { start: '21:00', end: '07:00' } });

@@ -38,6 +38,10 @@ SDD from Task 1. Task 9 (labelling) is owner-gated (≤ $10 pre-label, ~1–2 h 
 3. Task 1 classification rule: `service_only` = forced RLS + no policy (11 still grant SELECT); `platform` is not app_user-readable; mixed and EXISTS-derived tables classed as above.
 4. Task 4 `fingerprintA`: also fingerprints tenant-bearing `service_only` tables (most agency writes land there).
 
+## Isolation leaks fixed (tool, scenario, fix)
+- Task 3 (a named out-of-scope client answered with an empty/own list; fix `requireVisibleClient` → `not_found`): `list_alert_queue`, `list_trend_reports`, `list_recommendations`, `list_client_recipients`, `list_api_tokens`, `list_oauth_grants`, `get_spend_status`.
+- Task 4: `add_client_recipient` adminB→A1 (scope `'all'` passed `canAccessClient`; only the composite FK stopped the insert, as `internal`) and `update_client_delivery` adminB→A1 `{timezone}` (silent no-op success) → `requireOwnClient` (`settings.ts`: own agency, not archived) → `not_found`; regression test in `tools/settings.test.ts`.
+
 ## Interfaces this branch adds or changes
 See the plan's Interfaces blocks; migrations take the next free number at execution.
 

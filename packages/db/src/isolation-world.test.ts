@@ -16,6 +16,8 @@ const REQUIRED: Partial<Record<TableClass, TenantKey[]>> = {
 const NO_FREE_TEXT = new Set([
   'client_competitor', 'event_change', 'move_event', 'alert_event', 'event_score', 'agency_daily_stat', 'review_analysis', 'competitor_signal', 'notification_pref',
   'agency_onboarding', 'intake_link', 'runbook',
+  // client invitations: the only free text is the email, stored lower-cased (the agency-level row keeps a canary)
+  'invitation',
 ]);
 
 const rowsMatching = async (table: string, pk: Record<string, unknown>) => {

@@ -5,17 +5,25 @@
  *  - `agency`: agency-level, no client input — client roles refuse; adminB / amA may run, output carries nothing forbidden;
  *  - `platform`: operator-only — every non-operator refuses, the operator is the positive control;
  *  - `caller`: only ever about the caller (or a global catalogue) — adminB / ownerA2 run, output carries nothing forbidden.
- * Task 3 covers the `access: 'read'` tools; Task 4 adds the write tools and `VIEWER_WRITES`.
+ * Task 3 covers the `access: 'read'` tools; Task 4 the `access: 'write'` tools (the suite reseeds the world per write tool,
+ * so a positive control may mutate) and `VIEWER_WRITES`.
  * A failing case is a leak: fix the tool, never weaken the fixture. `skipPositive` needs a concrete, non-tenancy reason.
  */
-import type { IsolationWorld, TenantKey } from '@cs/db/test-helpers';
+import { createHash } from 'node:crypto';
+import { type IsolationWorld, type TenantKey, type WorldUser, worldId } from '@cs/db/test-helpers';
 
 export interface IsolationTarget { tenant: 'A1' | 'A2' | 'B1'; agencyId: string; clientId: string }
+/**
+ * `positiveAs` (Task 4): the user of the positive control when it is not `adminA` — for "my …" tools that act only on
+ * the caller's own row (e.g. a client owner's own contact), so the control proves the path works for the right user.
+ */
+export type PositiveUser = Exclude<WorldUser, 'operator'>;
 export type IsolationFixture =
-  | { kind: 'client' | 'object'; input: (w: IsolationWorld, t: IsolationTarget) => unknown; skipPositive?: string }
+  | { kind: 'client' | 'object'; input: (w: IsolationWorld, t: IsolationTarget) => unknown; skipPositive?: string; positiveAs?: PositiveUser }
   | { kind: 'agency'; input: (w: IsolationWorld) => unknown; skipPositive?: string }
   | { kind: 'platform'; input?: (w: IsolationWorld) => unknown; skipPositive?: string }
-  | { kind: 'caller'; reason: string; input?: (w: IsolationWorld) => unknown };
+  // `user` (Task 4): the scenario's caller, so a global-catalogue write can name a distinct row per caller
+  | { kind: 'caller'; reason: string; input?: (w: IsolationWorld, user?: WorldUser) => unknown };
 
 /** Primary-key column `col` (default `id`) of the `i`-th world row of `table` seeded for `tenant`. */
 function idOf(w: IsolationWorld, table: string, tenant: TenantKey, i = 0, col = 'id'): string {
@@ -37,6 +45,18 @@ const object = (input: (w: IsolationWorld, t: IsolationTarget) => unknown, skipP
   skipPositive ? { kind: 'object', input, skipPositive } : { kind: 'object', input };
 const agency = (input: Record<string, unknown> = {}): IsolationFixture => ({ kind: 'agency', input: () => input });
 const platform = (input?: (w: IsolationWorld) => unknown): IsolationFixture => (input ? { kind: 'platform', input } : { kind: 'platform' });
+const NOT_A_PROSPECT = "needs a prospect client: the world's clients are all active (a prospect would change every client list); covered in prospects.test.ts";
+const A1_SUBSCRIBED = 'needs A1 off / invited: the world bills A1 (active subscription) so the disable / price / portal controls run; covered in client-billing.test.ts';
+/** A client-level runbook owner for the target. */
+const runbookOwner = (t: IsolationTarget) => ({ level: 'client' as const, clientId: t.clientId });
+const runbook = (extra: Record<string, unknown> = {}): IsolationFixture => ({ kind: 'client', input: (_w, t) => ({ owner: runbookOwner(t), key: 'play:world_play', ...extra }) });
+/** Membership of the target client (A1: its owner; B1 has no client members, so agency B's admin). */
+const membershipOf = (w: IsolationWorld, t: IsolationTarget): string => idOf(w, 'membership', t.tenant === 'B1' ? 'B' : t.tenant);
+/** A1's second Ask thread belongs to adminA (the control's user); A2 / B1 have one thread each. */
+const askThreadOf = (w: IsolationWorld, t: IsolationTarget): string => idOf(w, 'ask_thread', t.tenant, t.tenant === 'A1' ? 1 : 0);
+/** A 1x1 transparent PNG (the smallest image `upload_agency_logo` accepts) and its sha256. */
+const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+const PNG_1X1_SHA = createHash('sha256').update(Buffer.from(PNG_1X1, 'base64')).digest('hex');
 
 export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // ── client: profile, setup, briefs, alerts, reports ────────────────────────────────────────────────
@@ -97,10 +117,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // ── client: tokens, billing, usage ─────────────────────────────────────────────────────────────────
   list_api_tokens: client(),
   list_oauth_grants: client(),
-  get_my_billing: {
-    kind: 'client', input: (_w, t) => ({ clientId: t.clientId }),
-    skipPositive: "client-owner-only by role (`requireOwnerOf`): an agency admin is refused whatever the tenant; the owner's own view is covered in my-billing.test.ts",
-  },
+  // client-owner-only by role (`requireOwnerOf`): the control runs as A1's owner
+  get_my_billing: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }), positiveAs: 'ownerA1' },
   get_my_usage: client(),
   get_spend_status: client(),
 
@@ -111,10 +129,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_trend_report: object((w, t) => ({ reportId: idOf(w, 'trend_report', t.tenant) })),
   get_kb_article: object((w, t) => ({ kbId: idOf(w, 'kb_article', t.tenant) })),
   fetch: object((w, t) => ({ id: `event:${idOf(w, 'event', t.tenant)}` })),
-  get_my_ask_thread: object(
-    (w, t) => ({ threadId: idOf(w, 'ask_thread', t.tenant) }),
-    "Ask threads are per user: the world's A1 thread belongs to ownerA1 and the positive control runs as adminA (own-thread refusal, not tenancy)",
-  ),
+  get_my_ask_thread: object((w, t) => ({ threadId: askThreadOf(w, t) })),
   // † agency-level object: amA→A2 is refused because leads are admin-only
   get_lead: object((w, t) => ({ leadId: idOf(w, 'lead', agencyTenant(t)) })),
 
@@ -172,7 +187,185 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
 
   // ── caller: global catalogue ───────────────────────────────────────────────────────────────────────
   list_verticals: { kind: 'caller', reason: 'the global vertical catalogue: the same rows for every caller' },
+
+  // ════════════════════════════════════ write tools (Task 4) ════════════════════════════════════════
+
+  // ── client writes: profile, delivery, settings ─────────────────────────────────────────────────────
+  update_client_profile: client({ keywords: ['ac repair', 'furnace repair'] }),
+  set_brief_auto_send: client({ enabled: true }),
+  // timezone only: the path that writes without the RLS-checked delivery update
+  update_client_delivery: client({ timezone: 'America/Denver' }),
+  add_client_recipient: client({ email: 'new-recipient@world.example', name: null, role: 'client_viewer' }),
+  invite_member: client({ email: 'new-member@world.example', role: 'client_viewer' }),
+  set_alert_rules: client({ alert: 75, brief: 45 }),
+  update_client_rank_settings: client({ keywords: ['ac repair'], gridSize: 5, radiusKm: 10 }),
+  request_rank_scan: client(),
+  submit_feedback: clientWith((w, t) => ({ eventId: idOf(w, 'event', t.tenant), verdict: 'useful', reason: 'Spot on' })),
+  add_recommendation: clientWith((w, t) => ({
+    title: 'Match the tune-up price', rationale: 'The rival cut its tune-up price this week.', evidenceIds: [idOf(w, 'evidence', competitorTenant(t), 1)], effort: 'M', impact: 'M',
+  })),
+  run_prospect_snapshot: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }), skipPositive: NOT_A_PROSPECT },
+  convert_prospect: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }), skipPositive: NOT_A_PROSPECT },
+
+  // ── client writes: competitors, pages, ads ─────────────────────────────────────────────────────────
+  request_competitor_suggestions: client(),
+  accept_competitor_suggestions: clientWith((w, t) => ({ ids: [idOf(w, 'competitor_suggestion', t.tenant)] })),
+  add_competitor: client({ name: 'Northside Air', domain: 'northsideair.example' }),
+  remove_competitor: clientWith((w, t) => ({ competitorId: competitorOf(w, t) })),
+  set_page_pin: clientWith((w, t) => ({ pageId: idOf(w, 'tracked_page', competitorTenant(t)), pinned: true })),
+  add_tracked_page: clientWith((w, t) => ({
+    competitorId: competitorOf(w, t), url: `https://${t.tenant === 'A2' ? 'brightsmiles' : 'smithhvac'}.example/services`, pageType: 'service',
+  })),
+  confirm_ad_match: clientWith((w, t) => ({ competitorId: competitorOf(w, t), platform: 'google', accountId: 'AR-world-1' })),
+  remove_ad_match: clientWith((w, t) => ({ competitorId: competitorOf(w, t), platform: 'google', accountId: 'AR-world-1' })),
+
+  // ── client writes: setup wizard ────────────────────────────────────────────────────────────────────
+  save_setup_profile: client({ keywords: ['ac repair'] }),
+  pick_setup_competitors: clientWith((w, t) => ({ accept: [idOf(w, 'competitor_suggestion', t.tenant)], dismiss: [] })),
+  advance_client_setup: client({ action: 'dismiss' }),
+  invite_client_owner: client({ name: 'New Owner', email: 'new-owner@world.example' }),
+  send_competitor_review: client(),
+
+  // ── client writes: lifecycle and billing ───────────────────────────────────────────────────────────
+  pause_client: client(),
+  resume_client: client(),
+  enable_client_billing: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId, priceCents: 9900 }), skipPositive: A1_SUBSCRIBED },
+  disable_client_billing: client({ confirm: true }),
+  resend_client_payment_link: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }), skipPositive: A1_SUBSCRIBED },
+  set_client_price: client({ priceCents: 12900, applyTo: 'new_only' }),
+  open_billing_portal: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }), positiveAs: 'ownerA1' }, // client-owner-only by role
+
+  // ── client writes: runbook (client level; platform / agency levels are role-gated, not tenant data) ───
+  update_runbook_item: runbook({ content: { trigger: 'map_climb', title: 'Check the map', template: 'Check the map pack this week.' } }),
+  set_runbook_item_enabled: runbook({ enabled: false }),
+  pull_runbook_update: runbook(),
+  dismiss_runbook_update: runbook(),
+  add_runbook_item: { kind: 'client', input: (_w, t) => ({ owner: runbookOwner(t), key: 'play:world_play_2' }) },
+  remove_runbook_item: runbook(),
+  retailor_runbook_item: runbook(),
+
+  // ── object writes: alerts, suggestions, briefs, recommendations ────────────────────────────────────
+  approve_alert: object((w, t) => ({ alertId: idOf(w, 'alert', t.tenant) })),
+  dismiss_alert: object((w, t) => ({ alertId: idOf(w, 'alert', t.tenant), reason: 'Not relevant' })),
+  accept_competitor_suggestion: object((w, t) => ({ suggestionId: idOf(w, 'competitor_suggestion', t.tenant) })),
+  dismiss_competitor_suggestion: object((w, t) => ({ suggestionId: idOf(w, 'competitor_suggestion', t.tenant) })),
+  edit_brief_item: object((w, t) => ({ itemId: idOf(w, 'brief_item', t.tenant), headline: 'Rival cut prices' })),
+  drop_brief_item: object((w, t) => ({ itemId: idOf(w, 'brief_item', t.tenant), reason: 'Duplicate' })),
+  rate_brief_item: object((w, t) => ({ itemId: idOf(w, 'brief_item', t.tenant), useful: true })),
+  reorder_brief_items: object((w, t) => ({ briefId: idOf(w, 'brief', t.tenant), itemIds: [idOf(w, 'brief_item', t.tenant)] })),
+  approve_brief: object((w, t) => ({ briefId: idOf(w, 'brief', t.tenant) })),
+  send_brief_now: object((w, t) => ({ briefId: idOf(w, 'brief', t.tenant) })),
+  update_recommendation_status: object((w, t) => ({ recommendationId: idOf(w, 'recommendation', t.tenant), status: 'done' })),
+
+  // ── object writes: team, recipients, own contact ───────────────────────────────────────────────────
+  revoke_membership: object((w, t) => ({ membershipId: membershipOf(w, t) })),
+  revoke_invitation: object((w, t) => ({ invitationId: idOf(w, 'invitation', t.tenant) })),
+  resend_invitation: object((w, t) => ({ invitationId: idOf(w, 'invitation', t.tenant) })),
+  deactivate_recipient: object((w, t) => ({ contactId: idOf(w, 'contact', t.tenant) })),
+  // "my" tools: the target's owner contact; the control runs as that owner (A1)
+  set_my_notification_pref: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), kind: 'alert', channel: 'email', enabled: false }), positiveAs: 'ownerA1' },
+  update_my_contact: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), timezone: 'America/Chicago' }), positiveAs: 'ownerA1' },
+  delete_my_ask_thread: object((w, t) => ({ threadId: askThreadOf(w, t) })),
+
+  // ── object writes: † agency-level objects (amA→A2 names agency A's object; refused because admin-only) ─
+  set_webhook_active: object((w, t) => ({ webhookId: idOf(w, 'agency_webhook', agencyTenant(t)), active: false })),
+  delete_webhook: object((w, t) => ({ webhookId: idOf(w, 'agency_webhook', agencyTenant(t)) })),
+  test_webhook: object((w, t) => ({ webhookId: idOf(w, 'agency_webhook', agencyTenant(t)) })),
+  revoke_api_token: object((w, t) => ({ tokenId: idOf(w, 'api_token', agencyTenant(t)) })),
+  // the binding's pk is `consent_id`; its `id` (the grant id) is the deterministic first world id
+  revoke_oauth_grant: object((_w, t) => ({ grantId: worldId('oauth_grant_binding', agencyTenant(t), 1) })),
+  accept_lead: object((w, t) => ({ leadId: idOf(w, 'lead', agencyTenant(t)), verticalId: 'hvac_plumbing' })),
+  decline_lead: object((w, t) => ({ leadId: idOf(w, 'lead', agencyTenant(t)), notify: false })),
+
+  // ── agency writes ──────────────────────────────────────────────────────────────────────────────────
+  create_client: agency({ name: 'Eastside Heating', verticalId: 'hvac_plumbing', services: [], keywords: ['furnace repair'], serviceArea: null, placeId: null }),
+  update_agency_branding: agency({ displayName: 'Brand Co' }),
+  add_webhook: agency({ kind: 'slack', url: 'https://hooks.slack.com/services/T000/B000/world' }),
+  set_support_access_notify: agency({ enabled: true }),
+  create_checkout_session: agency(),
+  create_portal_session: agency(),
+  redeem_discount_code: agency({ code: 'WORLD10' }),
+  start_stripe_connect: agency(),
+  disconnect_stripe: agency({ confirm: true }),
+  set_client_billing_defaults: agency({ priceCents: 9900 }),
+  mark_onboarding_step: agency({ step: 'branding', action: 'done' }),
+  dismiss_onboarding_checklist: agency(),
+  mark_onboarding_redirected: agency(),
+  update_agency_profile: agency({
+    name: 'Agency Renamed', contactName: 'Pat Doe', contactEmail: 'pat@agency.example', phone: '(404) 555-0100', timezone: 'America/Chicago',
+  }),
+  upload_agency_logo: agency({ png: PNG_1X1, sha256: PNG_1X1_SHA }),
+  update_intake_link: agency({ enabled: false }),
+
+  // ── platform writes (operator-only) ────────────────────────────────────────────────────────────────
+  set_client_limits: platform((w) => ({ clientId: w.ids.clientA1, competitorLimit: 5 })),
+  resolve_decision_review: platform((w) => ({ reviewId: idOf(w, 'decision_review', 'A1'), answers: { q1: 'true' } })),
+  decide_topic_proposal: platform((w) => ({ proposalId: w.platformIds.topicProposal, decision: 'rejected' })),
+  upsert_kb_article: platform(() => ({ level: 'platform', kind: 'help', title: 'World help', bodyMd: 'How it works.', status: 'draft' })),
+  delete_kb_article: platform((w) => ({ id: idOf(w, 'kb_article', 'A') })),
+  set_kb_auto_sync: platform((w) => ({ id: idOf(w, 'kb_article', 'A'), autoSync: false })),
+  import_kb_url: platform(() => ({ url: 'https://example.com/help', level: 'platform', kind: 'help', autoSync: false })),
+  start_support_session: platform((w) => ({ agencyId: w.ids.agencyA, reason: 'Checking a reported issue' })),
+  refresh_platform_costs: platform(),
+  update_platform_cost_service: platform(() => ({ service: 'openrouter', enabled: true })),
+  save_platform_cost_item: platform(() => ({ name: 'Hosting', kind: 'one_off', amountUsd: 10, startsOn: '2026-01-01' })),
+  archive_platform_cost_item: platform((w) => ({ id: w.platformIds.costItem })),
+  create_plan_version: platform(() => ({ name: 'World plan v2', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30 })),
+  create_discount_code: platform(() => ({ code: 'NEWCODE', percentOff: 10, appliesTo: 'base', duration: 'once' })),
+  revoke_discount_code: platform((w) => ({ id: w.platformIds.discountCode })),
+  create_invite_link: platform(() => ({ offer: 'trial' })),
+  revoke_invite_link: platform((w) => ({ id: w.platformIds.inviteLink })),
+  // agency B is trialing in the world (A is active), a valid source state for these two
+  grant_pilot: platform((w) => ({ agencyId: w.ids.agencyB })),
+  end_pilot: {
+    kind: 'platform', input: (w) => ({ agencyId: w.ids.agencyB }),
+    skipPositive: 'needs an agency on a pilot: the world has one active (A) and one trialing (B) agency; covered in platform-billing.test.ts',
+  },
+  extend_trial: platform((w) => ({ agencyId: w.ids.agencyB, until: new Date(Date.now() + 40 * 86_400_000).toISOString() })),
+  attach_agency_discount: platform((w) => ({ agencyId: w.ids.agencyA, discountCodeId: w.platformIds.discountCode })),
+  set_seat_cap_exempt: platform((w) => ({ agencyId: w.ids.agencyA, exempt: true })),
+  set_connect_fee_percent: platform((w) => ({ agencyId: w.ids.agencyA, percent: 1 })),
+  set_signups_paused: platform(() => ({ paused: true })),
+  assign_lead: platform((w) => ({ leadId: w.platformIds.poolLead, agencyId: w.ids.agencyA })),
+  review_vertical: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, action: 'approve' })),
+  review_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, areaId: w.platformIds.unreviewedArea, action: 'approve' })),
+  merge_vertical: platform((w) => ({ sourceId: w.platformIds.unreviewedVertical, targetId: 'hvac_plumbing', areaMap: { [w.platformIds.unreviewedArea]: null, [w.platformIds.unreviewedArea2]: null } })),
+  merge_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, sourceAreaId: w.platformIds.unreviewedArea, targetAreaId: w.platformIds.unreviewedArea2 })),
+  update_spend_guard_settings: platform(() => ({ creditsPerUsd: 100 })),
+  reset_ai_pause: {
+    kind: 'platform', input: () => ({ note: 'Checked the spike' }),
+    skipPositive: "needs a paused / warned platform AI guard: the world's guard is ok (a paused one would block every AI path); covered in spend-guard.test.ts",
+  },
+
+  // ── caller writes: own token / session, global catalogue ───────────────────────────────────────────
+  create_api_token: { kind: 'caller', reason: "creates the caller's own token in the caller's own agency (and client)", input: () => ({ name: 'World token', scope: 'read' }) },
+  end_support_session: { kind: 'caller', reason: "ends only the caller's own support session", input: () => ({}) },
+  create_vertical: {
+    kind: 'caller', reason: 'adds an unreviewed row to the global catalogue, attributed to the caller agency',
+    // one distinct catalogue row per caller (a second agency naming the same type would get "a similar type exists")
+    input: (_w, user) => (user === 'adminB'
+      ? { name: 'Gutter Guards', areas: [{ name: 'Gutter repair' }], categories: ['Gutter cleaning service'] }
+      : { name: 'Window Washing', areas: [{ name: 'Window cleaning' }], categories: ['Window cleaning service'] }),
+  },
+  add_business_area: {
+    kind: 'caller', reason: 'adds an unreviewed area (attributed to the caller agency) to a global catalogue row; editing another agency\'s unreviewed row is checked separately',
+    input: () => ({ verticalId: 'hvac_plumbing', name: 'Duct cleaning' }),
+  },
+  update_vertical: {
+    kind: 'caller', reason: 'edits a catalogue row the caller agency created while unreviewed; another agency\'s row is checked separately',
+    input: (w) => ({ verticalId: w.platformIds.unreviewedVertical, audienceNoun: 'homeowners' }),
+  },
+  draft_vertical: {
+    kind: 'caller', reason: 'drafts from public profile text; the draft cache is global by place id (no tenant data)',
+    input: () => ({ placeId: 'world-place-new', nearbyCategories: [] }),
+  },
 };
 
-/** `permission: 'read'` + `access: 'write'` tools a client viewer may call (reviewed snapshot; Task 4 fills). */
-export const VIEWER_WRITES: readonly string[] = [];
+/**
+ * `permission: 'read'` + `access: 'write'` tools a client viewer may call (reviewed snapshot; `isolation.test.ts`
+ * asserts it equals the computed set). Each acts only on the caller's own row: own notification prefs / contact, own
+ * API tokens and OAuth grants, own Ask threads.
+ */
+export const VIEWER_WRITES: readonly string[] = [
+  'create_api_token', 'delete_my_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact',
+];

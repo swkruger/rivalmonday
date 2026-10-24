@@ -13,6 +13,15 @@ const requireAgencyFor = (ctx: AccessContext, clientId: string) => {
   if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles manage delivery');
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
 };
+/**
+ * 7c1: the client must also be this agency's own (and not archived) — `canAccessClient` alone passes any client for an
+ * admin's `'all'` scope. Same `not_found` as an unknown client.
+ */
+async function requireOwnClient(service: Db, ctx: AccessContext, clientId: string): Promise<void> {
+  requireAgencyFor(ctx, clientId);
+  const [own] = await service.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt)));
+  if (!own) throw new ToolError('not_found', 'Client not found');
+}
 
 /** True for a Postgres unique-violation (SQLSTATE 23505), including Drizzle 0.44's driver-error wrapper (HANDOVER §6). */
 export function isUniqueViolation(err: unknown): boolean {
@@ -155,10 +164,8 @@ export interface RecipientView {
 }
 
 export async function listClientRecipients(service: Db, ctx: AccessContext, clientId: string): Promise<RecipientView[]> {
-  requireAgencyFor(ctx, clientId);
   // 7c1: refuse another agency's (or an archived) client instead of answering with an empty list.
-  const [own] = await service.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt)));
-  if (!own) throw new ToolError('not_found', 'Client not found');
+  await requireOwnClient(service, ctx, clientId);
   const rows = await service.select().from(contact).where(and(eq(contact.agencyId, ctx.agencyId), eq(contact.clientId, clientId))).orderBy(asc(sql`lower(${contact.email})`));
   return rows.map((c) => ({ contactId: c.id, email: c.email, name: c.name, role: c.role, active: c.active, hasAccount: c.userId !== null }));
 }
@@ -168,7 +175,7 @@ export async function addClientRecipient(
   ctx: AccessContext,
   input: { clientId: string; email: string; name?: string | null; role: 'client_owner' | 'client_viewer' },
 ): Promise<string> {
-  requireAgencyFor(ctx, input.clientId);
+  await requireOwnClient(service, ctx, input.clientId);
   if (input.role !== 'client_owner' && input.role !== 'client_viewer') throw new ToolError('invalid_input', 'Recipients are client owners or viewers');
   try {
     return await addContact(service, { agencyId: ctx.agencyId, clientId: input.clientId, role: input.role, email: input.email.trim(), name: input.name?.trim() || null });
@@ -192,7 +199,7 @@ export async function updateClientDeliverySettings(
   clientId: string,
   patch: { alertMode?: AlertMode; briefAutoSend?: boolean; timezone?: string },
 ): Promise<void> {
-  requireAgencyFor(ctx, clientId);
+  await requireOwnClient(deps.service, ctx, clientId);
   if (patch.alertMode && !ALERT_MODES.includes(patch.alertMode)) throw new ToolError('invalid_input', 'Unknown alert mode');
   if (patch.timezone !== undefined) {
     if (!validTimezone(patch.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');

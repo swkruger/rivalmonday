@@ -15,7 +15,7 @@ import { type AccessContext, type ClientScope, FEATURES, PLAN_FEATURES, type Rol
 import { eq, sql } from 'drizzle-orm';
 import type { Db } from '../src/client';
 import { agency, client, clientCompetitor, competitor } from '../src/schema';
-import { IDS, seedTenancy } from './helpers';
+import { IDS, seedPlatformCostServices, seedTenancy } from './helpers';
 
 export type TenantKey = 'A' | 'A1' | 'A2' | 'B' | 'B1' | 'X' | 'Y' | 'Z';
 export type WorldUser = 'adminA' | 'adminB' | 'amA' | 'ownerA1' | 'ownerA2' | 'viewerA1' | 'operator';
@@ -37,6 +37,15 @@ export interface IsolationWorld {
   forbidden(user: WorldUser): TenantKey[];
   /** Evidence object key -> stored text, for a memory evidence store (`fetch`, `get_evidence`). */
   evidenceText: Map<string, string>;
+  /**
+   * Platform-level rows (class `platform` / no tenant; not recorded in `rows`) that the operator tools' positive
+   * controls act on: an agency-A-created unreviewed vertical with two areas, a pool lead, a discount code, an invite
+   * link, a cost item and a topic proposal.
+   */
+  platformIds: {
+    unreviewedVertical: string; unreviewedArea: string; unreviewedArea2: string; poolLead: string; discountCode: string; inviteLink: string; costItem: string;
+    topicProposal: string;
+  };
 }
 
 const TENANTS: readonly TenantKey[] = ['A', 'A1', 'A2', 'B', 'B1', 'X', 'Y', 'Z'];
@@ -290,7 +299,10 @@ async function seedAgency(b: WorldBuilder, a: 'A' | 'B', planId: string): Promis
   });
   await b.ins('kb_chunk', a, { id: b.id('kb_chunk', a), article_id: kb.id, level: 'agency', agency_id: agencyId, client_visible: true, ord: 0, text: `Agency knowledge ${b.c(a)}` });
   // service_only, agency-level
-  await b.ins('agency_billing', a, { agency_id: agencyId, state: 'active', plan_id: planId, stripe_customer_id: `cus_world_${lc}_${b.c(a)}` });
+  // A is a paying agency; B is on its trial (so the operator's grant-pilot / extend-trial controls have a valid source state)
+  await b.ins('agency_billing', a, {
+    agency_id: agencyId, state: a === 'A' ? 'active' : 'trialing', plan_id: planId, stripe_customer_id: `cus_world_${lc}_${b.c(a)}`, ...(a === 'B' ? { trial_ends_at: b.at(-20) } : {}),
+  });
   await b.ins('agency_billing_event', a, { id: b.id('agency_billing_event', a), agency_id: agencyId, from_state: 'trialing', to_state: 'active', reason: `Card added ${b.c(a)}`, actor: 'system' });
   await b.ins('agency_connect', a, { agency_id: agencyId, stripe_account_id: `acct_world_${lc}_${b.c(a)}`, status: 'connected', charges_enabled: true, details_submitted: true, connected_at: b.at(20) });
   await b.ins('agency_daily_stat', a, { agency_id: agencyId, day: '2026-01-01', clients_active: a === 'A' ? 2 : 1, agency_seats: 1, billing_state: 'active' });
@@ -309,7 +321,9 @@ async function seedAgency(b: WorldBuilder, a: 'A' | 'B', planId: string): Promis
     });
   }
   const runbook = await b.ins('runbook', a, { id: b.id('runbook', a), level: 'agency', agency_id: agencyId });
-  await b.ins('runbook_item', a, { runbook_id: runbook.id, item_key: 'play:world_play', kind: 'play', content: { title: `Agency play ${b.c(a)}` }, updated_by: admin.userId });
+  // valid play content (`playContentSchema`); `play:world_play_2` is agency-only, so a client can adopt it
+  await b.ins('runbook_item', a, { runbook_id: runbook.id, item_key: 'play:world_play', kind: 'play', content: { trigger: 'map_climb', title: `Agency play ${b.c(a)}`, template: 'Check the map pack this week.' }, updated_by: admin.userId });
+  await b.ins('runbook_item', a, { runbook_id: runbook.id, item_key: 'play:world_play_2', kind: 'play', content: { trigger: 'price_change', title: `Agency price play ${b.c(a)}`, template: 'Review your prices.' }, updated_by: admin.userId });
   await b.ins('support_session', a, {
     id: b.id('support_session', a), platform_user_id: worldUsers().operator.userId, agency_id: agencyId, reason: `Support check ${b.c(a)}`, started_at: b.at(2), expires_at: b.at(2, 1),
     ended_at: b.at(2, 1), end_reason: 'exit',
@@ -318,7 +332,11 @@ async function seedAgency(b: WorldBuilder, a: 'A' | 'B', planId: string): Promis
   return { agencyId, adminUser: admin.userId, adminContactId: contact.id as string };
 }
 
-interface ClientSpec { key: 'A1' | 'A2' | 'B1'; clientId: string; agency: AgencyRefs; pub: PublicRefs; owner: UserSpec | null; viewer: UserSpec | null; askUser: string }
+interface ClientSpec {
+  key: 'A1' | 'A2' | 'B1'; clientId: string; agency: AgencyRefs; pub: PublicRefs; owner: UserSpec | null; viewer: UserSpec | null; askUser: string;
+  /** A second Ask thread's owner (A1: the agency admin, so the tool suite's per-user thread controls run as adminA). */
+  secondAskUser?: string;
+}
 
 async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
   const { key: t, clientId } = s;
@@ -327,8 +345,15 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
   const lc = t.toLowerCase();
   const base = { agency_id: agencyId, client_id: clientId };
 
-  const [cl] = await b.db.update(client).set({ name: `${t} Client ${b.c(t)}`, features: [...FEATURES] }).where(eq(client.id, clientId)).returning({ id: client.id });
+  // a complete profile (keywords, service area, place id), so discovery / rank settings controls can run
+  const [cl] = await b.db.update(client).set({
+    name: `${t} Client ${b.c(t)}`, features: [...FEATURES], keywords: ['ac repair'], placeId: `world-self-${lc}`,
+    serviceArea: { center: { lat: 30.27, lng: -97.74 }, radiusKm: 10, zips: ['78701'] },
+  }).where(eq(client.id, clientId)).returning({ id: client.id });
   b.track('client', t, { id: cl!.id });
+  // one possible ad-account match awaiting confirmation (confirm_ad_match / remove_ad_match)
+  await b.db.execute(sql`UPDATE client_competitor SET pending_ad_matches = ${JSON.stringify([{ platform: 'google', accountId: 'AR-world-1', name: 'Smith ads', strength: 'strong' }])}::jsonb
+    WHERE client_id = ${clientId} AND competitor_id = ${competitorId}`);
   b.track('client_competitor', t, { client_id: clientId, competitor_id: competitorId });
 
   // tenant_client
@@ -337,7 +362,7 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
     lookup: { placeId: `world-self-${lc}`, cid: null, title: `${t} Self ${b.c(t)}`, address: null, city: 'Austin', category: null, phone: null, domain: null, rating: null, votes: null, lat: 30.27, lng: -97.74 },
   });
   await b.ins('competitor_signal', t, { ...base, competitor_id: competitorId, tier: 'top', overlap: 0.8, activity: 0.7, signals: {} });
-  const run = await b.ins('discovery_run', t, { id: b.id('discovery_run', t), ...base, status: 'done', trigger: 'manual', keywords: [`ac repair ${b.c(t)}`], kept: 1, finished_at: b.at(10) });
+  const run = await b.ins('discovery_run', t, { id: b.id('discovery_run', t), ...base, status: 'done', trigger: 'manual', keywords: [`ac repair ${b.c(t)}`], kept: 1, started_at: b.at(10), finished_at: b.at(10) });
   await b.ins('competitor_suggestion', t, {
     id: b.id('competitor_suggestion', t), ...base, name: `Suggested rival ${b.c(t)}`, place_id: `world-sugg-${lc}`, appearances: 3, overlap_score: 0.5, run_id: run.id, tier: 'watch',
   });
@@ -404,7 +429,10 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
   await b.ins('vendor_call', t, { id: b.id('vendor_call', t), ...base, vendor: 'dataforseo', operation: `maps ${b.c(t)}`, units: 1, cost_usd: 0.02, latency_ms: 100, ok: true });
 
   // service_only, client-level
-  await b.ins('client_billing', t, { ...base, enabled: true, price_cents: 9900, state: 'active', stripe_subscription_id: `sub_world_${lc}_${b.c(t)}`, last_paid_at: b.at(5) });
+  await b.ins('client_billing', t, {
+    ...base, enabled: true, price_cents: 9900, billed_price_cents: 9900, state: 'active', stripe_customer_id: `cus_world_${lc}`, stripe_price_id: `price_world_${lc}`,
+    stripe_subscription_id: `sub_world_${lc}_${b.c(t)}`, last_paid_at: b.at(5),
+  });
   const ownerContact = await b.ins('contact', t, {
     id: b.id('contact', t), ...base, role: 'client_owner', name: `Owner ${t} ${b.c(t)}`, email: s.owner?.email ?? `owner-${lc}@world.example`, user_id: s.owner?.userId ?? null,
   });
@@ -420,19 +448,60 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
     dedupe_key: `world-notification-${lc} ${b.c(t)}`, title: `Notification ${b.c(t)}`, body: `Notification body ${b.c(t)}`, status: 'sent', sent_at: b.at(1),
   });
   await b.ins('notification_pref', t, { contact_id: ownerContact.id, agency_id: agencyId, kind: 'alert', channel: 'email', enabled: true });
+  // emails are stored lower-cased (`normalizeEmail`), so a client invitation carries no canary (resend matches on lower(email))
   await b.ins('invitation', t, {
-    id: b.id('invitation', t), ...base, email: `${b.c(t)}@world.example`, role: 'client_viewer', invited_by: s.agency.adminUser, expires_at: b.at(-7),
+    id: b.id('invitation', t), ...base, email: `invite-${lc}@world.example`, role: 'client_viewer', invited_by: s.agency.adminUser, expires_at: b.at(-7),
   });
   await b.ins('billing_notice', t, { id: b.id('billing_notice', t), ...base, kind: 'client_payment_failed', params: { note: b.c(t) }, dedupe_key: `world-notice-${lc} ${b.c(t)}`, audience: 'client' });
   const sample = await b.ins('decision_sample', t, {
-    id: b.id('decision_sample', t), task: 'change_triage', reason: 'shadow', ...base, state: { text: b.c(t) }, questions: {}, final_answers: {},
+    id: b.id('decision_sample', t), task: 'change_triage', reason: 'shadow', ...base, state: { text: b.c(t) }, final_answers: {},
+    questions: { q1: { type: 'noul', instructions: 'Is this a real change?' } },
   });
   await b.ins('decision_label', t, { sample_id: sample.id, question_key: 'q1', value: `yes ${b.c(t)}`, source: 'human', labeled_by: 'world' });
   await b.ins('decision_review', t, { id: b.id('decision_review', t), subject_type: 'detected_change', subject_id: change.id, keys: ['q1'], answers: { q1: b.c(t) }, sample_id: sample.id });
   await b.ins('score_failure', t, { event_id: eventId, ...base, attempts: 1, error: `Scoring failed ${b.c(t)}` });
   await b.ins('spend_guard_event', t, { id: b.id('spend_guard_event', t), kind: 'client_reached', ...base, month: `${b.date(0).slice(0, 7)}-01`, scope: 'total', observed_usd: 10, limit_usd: 10, note: `Reached ${b.c(t)}` });
   const runbook = await b.ins('runbook', t, { id: b.id('runbook', t), level: 'client', ...base });
-  await b.ins('runbook_item', t, { runbook_id: runbook.id, item_key: 'play:world_play', kind: 'play', content: { title: `Client play ${b.c(t)}` }, updated_by: s.agency.adminUser });
+  await b.ins('runbook_item', t, {
+    runbook_id: runbook.id, item_key: 'play:world_play', kind: 'play', content: { trigger: 'map_climb', title: `Client play ${b.c(t)}`, template: 'Check the map pack this week.' }, updated_by: s.agency.adminUser,
+  });
+  if (s.secondAskUser) {
+    // seeded last so the client's earlier canaries keep their numbers
+    const second = await b.ins('ask_thread', t, { id: b.id('ask_thread', t), ...base, user_id: s.secondAskUser, title: `Thread ${b.c(t)}` });
+    await b.ins('ask_message', t, { id: b.id('ask_message', t), thread_id: second.id, ...base, user_id: s.secondAskUser, role: 'user', content: `Who moved? ${b.c(t)}` });
+  }
+}
+
+/** Platform rows for the operator tools (no tenant canaries: they are platform data, invisible to every app_user). */
+async function seedPlatform(b: WorldBuilder, db: Db): Promise<IsolationWorld['platformIds']> {
+  await seedPlatformCostServices(db);
+  const unreviewedVertical = 'world_pool_care';
+  await b.ins('vertical', null, {
+    id: unreviewedVertical, name: 'Pool Care', status: 'unreviewed', version: 1, gbp_categories: ['pool cleaning service'], config: {}, created_by_agency_id: IDS.agencyA,
+  });
+  await b.ins('vertical_category', null, { category_lc: 'pool cleaning service', vertical_id: unreviewedVertical, kind: 'primary' });
+  for (const [id, name] of [['pool_repair', 'Pool repair'], ['pool_opening', 'Pool opening']]) {
+    await b.ins('business_area', null, { vertical_id: unreviewedVertical, id, name, status: 'unreviewed', created_by_agency_id: IDS.agencyA });
+  }
+  const lead = await b.ins('lead', null, {
+    id: hashUuid('lead:pool'), source: 'platform', status: 'verified', contact_name: 'Pool lead', email: 'pool-lead@world.example', verified_at: b.at(1),
+    lookup: { placeId: 'world-pool-lead', cid: null, title: 'Pool lead business', address: null, city: 'Austin', category: 'HVAC contractor', phone: null, domain: null, rating: null, votes: null, lat: 30.27, lng: -97.74 },
+  });
+  const code = await b.ins('discount_code', null, {
+    id: hashUuid('discount_code:world'), code: 'WORLD10', stripe_coupon_id: 'coupon_world', stripe_promotion_code_id: 'promo_world', percent_off: 10, applies_to: 'base', duration: 'once',
+    created_by: 'world',
+  });
+  const link = await b.ins('agency_invite_link', null, {
+    id: hashUuid('agency_invite_link:world'), token_hash: sha256('world-invite-link'), token_prefix: 'rm_inv_w', offer: 'trial', expires_at: b.at(-14), created_by: 'world',
+  });
+  const item = await b.ins('platform_cost_item', null, { id: hashUuid('platform_cost_item:world'), name: 'World hosting', kind: 'one_off', amount_usd: 10, starts_on: b.date(30), created_by: 'world' });
+  const proposal = await b.ins('topic_proposal', null, {
+    id: hashUuid('topic_proposal:world'), vertical_id: 'hvac_plumbing', topic_id: 'world_topic', name: 'Wait times', description: 'Reviews about waiting', other_count: 3,
+  });
+  return {
+    unreviewedVertical, unreviewedArea: 'pool_repair', unreviewedArea2: 'pool_opening', poolLead: lead.id as string, discountCode: code.id as string, inviteLink: link.id as string,
+    costItem: item.id as string, topicProposal: proposal.id as string,
+  };
 }
 
 /** Seeds the isolation world into an emptied database (call `truncateAll(owner)` first). */
@@ -441,7 +510,7 @@ export async function seedIsolationWorld(owner: Db): Promise<IsolationWorld> {
   await b.loadPrimaryKeys();
   await seedUsers(b, owner);
   const plan = await b.ins('plan', null, {
-    id: hashUuid('plan:world'), code: 'world', version: 1, name: 'World plan', base_price_cents: 22900, included_seats: 3, seat_price_cents: 9900, trial_days: 30,
+    id: hashUuid('plan:world'), code: 'standard', version: 1, name: 'World plan', base_price_cents: 22900, included_seats: 3, seat_price_cents: 9900, trial_days: 30,
     is_current: true, created_by: 'world', features: [...PLAN_FEATURES],
   });
 
@@ -452,9 +521,12 @@ export async function seedIsolationWorld(owner: Db): Promise<IsolationWorld> {
 
   const agencyA = await seedAgency(b, 'A', plan.id as string);
   const agencyB = await seedAgency(b, 'B', plan.id as string);
-  await seedClient(b, { key: 'A1', clientId: IDS.clientA1, agency: agencyA, pub: pub.X, owner: worldUsers().ownerA1, viewer: worldUsers().viewerA1, askUser: worldUsers().ownerA1.userId });
+  await seedClient(b, { key: 'A1', clientId: IDS.clientA1, agency: agencyA, pub: pub.X, owner: worldUsers().ownerA1, viewer: worldUsers().viewerA1, askUser: worldUsers().ownerA1.userId,
+    secondAskUser: worldUsers().adminA.userId,
+  });
   await seedClient(b, { key: 'A2', clientId: IDS.clientA2, agency: agencyA, pub: pub.Y, owner: worldUsers().ownerA2, viewer: null, askUser: worldUsers().ownerA2.userId });
   await seedClient(b, { key: 'B1', clientId: IDS.clientB1, agency: agencyB, pub: pub.X, owner: null, viewer: null, askUser: worldUsers().adminB.userId });
+  const platformIds = await seedPlatform(b, owner);
 
   const users = Object.fromEntries(
     Object.entries(worldUsers()).map(([k, u]) => [k, { userId: u.userId, email: u.email, agencyId: u.agencyId, role: u.role, clientScope: u.clientScope }]),
@@ -473,5 +545,6 @@ export async function seedIsolationWorld(owner: Db): Promise<IsolationWorld> {
     idsOf: (tenant) => [...idSet.get(tenant)!],
     forbidden: (user) => [...FORBIDDEN[user]],
     evidenceText: b.evidenceText,
+    platformIds,
   };
 }

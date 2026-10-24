@@ -1,16 +1,18 @@
-import { ToolError, ToolRegistry, toolkit } from '@cs/core';
+import { type AccessContext, ToolError, ToolRegistry, toolkit } from '@cs/core';
 import { hashInput } from '@cs/core/server';
 import { type IsolationWorld, seedIsolationWorld, truncateAll } from '@cs/db/test-helpers';
+import { sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { dbs } from '../tools/workspace-fixtures';
 import type { IsolationFixture } from './fixtures';
-import { findForeign, isolationDeps, runToolCases } from './harness';
+import { findForeign, fingerprintA, isolationDeps, runToolCases, type WriteProbe } from './harness';
 
 /** The harness's own tests (plan Review focus 1): it must fail a leaky tool and a wrong-reason refusal. */
 let w: IsolationWorld;
 let registry: ToolRegistry<ToolDeps>;
+let probe: WriteProbe;
 
 const { defineTool } = toolkit<ToolDeps>();
 const clientFx: IsolationFixture = { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }) };
@@ -41,10 +43,50 @@ const tight = defineTool({
   },
 });
 
+const ownsClient = (ctx: AccessContext, clientId: string): boolean => {
+  const agencyOf: Record<string, string> = { [w.ids.clientA1]: w.ids.agencyA, [w.ids.clientA2]: w.ids.agencyA, [w.ids.clientB1]: w.ids.agencyB };
+  return agencyOf[clientId] === ctx.agencyId && (ctx.clientScope === 'all' || ctx.clientScope.includes(clientId));
+};
+// Writes the client's brief summary first, checks tenancy second: a refusal that still mutated A.
+const writeThenRefuse = defineTool({
+  name: 'planted_write_then_refuse', access: 'write', description: 'test', permission: 'manage',
+  input: z.object({ clientId: z.string().uuid() }), output: z.object({ ok: z.boolean() }),
+  async handler(ctx, { clientId }, deps) {
+    await deps.service.execute(sql`UPDATE brief SET summary = 'planted' WHERE client_id = ${clientId}`);
+    if (!ownsClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    return { ok: true };
+  },
+});
+// Enqueues and calls the billing gateway before refusing.
+const sideEffectThenRefuse = defineTool({
+  name: 'planted_side_effect_then_refuse', access: 'write', description: 'test', permission: 'manage',
+  input: z.object({ clientId: z.string().uuid() }), output: z.object({ ok: z.boolean() }),
+  async handler(ctx, { clientId }, deps) {
+    await deps.enqueue?.('rank-scan', { clientId }, `planted:${clientId}`);
+    await deps.billing?.createCustomer({ agencyId: ctx.agencyId, name: 'planted' });
+    if (!ownsClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    return { ok: true };
+  },
+});
+// Checks first, then writes: tenancy-correct (the viewer is refused by the registry for `manage`).
+const tightWrite = defineTool({
+  name: 'planted_tight_write', access: 'write', description: 'test', permission: 'manage',
+  input: z.object({ clientId: z.string().uuid() }), output: z.object({ ok: z.boolean() }),
+  async handler(ctx, { clientId }, deps) {
+    if (!ownsClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    await deps.service.execute(sql`UPDATE brief SET summary = 'positive' WHERE client_id = ${clientId}`);
+    await deps.enqueue?.('rank-scan', { clientId }, `planted:${clientId}`);
+    return { ok: true };
+  },
+});
+
 beforeAll(async () => {
   await truncateAll(dbs.owner);
   w = await seedIsolationWorld(dbs.owner);
-  registry = new ToolRegistry<ToolDeps>(isolationDeps(w).deps, { record: async () => {} }, Date.now, { hashInput }).register(leaky, wrongReason, tight);
+  const iso = isolationDeps(w);
+  probe = { owner: dbs.owner, enqueued: iso.enqueued, gateway: iso.gateway };
+  registry = new ToolRegistry<ToolDeps>(iso.deps, { record: async () => {} }, Date.now, { hashInput })
+    .register(leaky, wrongReason, tight, writeThenRefuse, sideEffectThenRefuse, tightWrite);
 });
 
 describe('isolation harness', () => {
@@ -92,5 +134,50 @@ describe('isolation harness', () => {
     expect(findForeign({ byId: { [id]: 1 } }, w, ['B1'])).toContain(id);
     expect(findForeign(`Client ${id} not found`, w, ['B1'], new Set([id]))).toBeNull();
     expect(findForeign({ n: 3, d: null, t: true }, w, ['B1'])).toBeNull();
+  });
+
+  it('a refused write that still mutated A is a leak', async () => {
+    const results = await runToolCases(registry, w, writeThenRefuse, clientFx, probe);
+    expect(results.find((r) => r.scenario === 'adminB→A1')).toMatchObject({ outcome: 'leak' });
+    expect(results.find((r) => r.scenario === 'adminB→A1')?.detail).toContain('brief/A1');
+    expect(results.find((r) => r.scenario === 'amA→A2')?.detail).toContain('brief/A2');
+  });
+
+  it('a refused write that enqueues or calls the billing gateway is a leak', async () => {
+    probe.enqueued.length = 0;
+    const results = await runToolCases(registry, w, sideEffectThenRefuse, clientFx, probe);
+    const adminB = results.find((r) => r.scenario === 'adminB→A1');
+    expect(adminB).toMatchObject({ outcome: 'leak' });
+    expect(adminB?.detail).toMatch(/enqueue/);
+    expect(adminB?.detail).toMatch(/createCustomer/);
+  });
+
+  it('a tenancy-correct write passes, the viewer included, and its positive control may mutate', async () => {
+    await truncateAll(dbs.owner);
+    w = await seedIsolationWorld(dbs.owner);
+    probe.enqueued.length = 0;
+    probe.gateway.calls.length = 0;
+    const results = await runToolCases(registry, w, tightWrite, clientFx, probe);
+    expect(results.map((r) => `${r.scenario}:${r.outcome}`)).toEqual([
+      'adminB→A1:refused', 'ownerA2→A1:refused', 'amA→A2:refused', 'viewerA1→A1:refused', 'positive:adminA→A1:ok',
+    ]);
+    expect(probe.enqueued).toHaveLength(1);
+  });
+
+  it('fingerprintA covers A rows (incl. parent-linked tables) only, never audit_log', async () => {
+    await truncateAll(dbs.owner);
+    w = await seedIsolationWorld(dbs.owner);
+    const before = await fingerprintA(dbs.owner, w);
+    expect(Object.keys(before)).toEqual(expect.arrayContaining(['brief/A1', 'brief/A2', 'agency/A', 'contact/A', 'membership/A1', 'runbook_item/A1', 'event_change/A1', 'notification/A2']));
+    expect(Object.keys(before).some((k) => k.startsWith('audit_log/') || k.startsWith('mcp_rate_window/') || k.startsWith('competitor/'))).toBe(false);
+    await dbs.owner.execute(sql`UPDATE brief SET summary = 'b-side' WHERE client_id = ${w.ids.clientB1}`);
+    await dbs.owner.execute(sql`INSERT INTO audit_log (agency_id, user_id, role, tool, input_hash, outcome, duration_ms, channel) VALUES (${w.ids.agencyA}, 'u', 'agency_admin', 'x', 'x', 'ok', 1, 'web')`);
+    expect(await fingerprintA(dbs.owner, w)).toEqual(before);
+    await dbs.owner.execute(sql`UPDATE runbook_item SET enabled = NOT enabled WHERE runbook_id IN (SELECT id FROM runbook WHERE client_id = ${w.ids.clientA1})`);
+    // a deleted row counts too (the key disappears)
+    await dbs.owner.execute(sql`DELETE FROM ask_starter WHERE client_id = ${w.ids.clientA2}`);
+    const after = await fingerprintA(dbs.owner, w);
+    const changed = Object.keys({ ...before, ...after }).filter((k) => before[k] !== after[k]).sort();
+    expect(changed).toEqual(['ask_starter/A2', 'runbook_item/A1']);
   });
 });
