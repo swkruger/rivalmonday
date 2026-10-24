@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AiConfig } from '@cs/ai';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type EvalCase, writeCases } from './case';
 import { runEvals } from './run';
 import type { SuiteRunner } from './report';
@@ -69,5 +69,31 @@ describe('runEvals', () => {
     expect(calls).toBe(2);
     expect(out.failed).toBe(true);
     expect(out.errors[0]).toMatch(/Eval budget reached/);
+  });
+  it("a runner's today pins the cassette clock, so dated requests replay on a later day", async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const config = { tasks: { t: { provider: 'openrouter', model: 'm' } } } as unknown as AiConfig;
+    const runner: SuiteRunner = {
+      suite: 'briefs', today: '2026-10-19T12:00:00.000Z',
+      run: async (_c, ai) => {
+        const r = await ai.chat('t', { messages: [{ role: 'user', content: 'Brief period: 2026-10-12 to 2026-10-19' }] }, {} as never);
+        return { blocking: [], metrics: { replied: r.text === 'ok 2026-10-14' ? 1 : 0 } };
+      },
+    };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-10-20T00:00:00Z'));
+      const rec = await runEvals({
+        ...base(), config, suites: ['briefs'], record: true, mode: 'live', runners: { briefs: runner },
+        makeLiveAi: () => ({ chat: async () => ({ text: 'ok 2026-10-14' }) }) as never,
+      });
+      expect(rec.failed).toBe(false);
+      vi.setSystemTime(new Date('2026-12-01T00:00:00Z'));
+      const out = await runEvals({ ...base(), config, suites: ['briefs'], runners: { briefs: runner } });
+      expect(out.errors).toEqual([]);
+      expect(out.reports[0]!.metrics).toEqual({ replied: 1 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

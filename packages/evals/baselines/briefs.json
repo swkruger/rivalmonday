@@ -1,0 +1,11 @@
+{
+  "case_errors": 0,
+  "cases": 50,
+  "draft_b2_rate": 0.0778,
+  "draft_items": 90,
+  "dropped_items": 44,
+  "dropped_sentences": 166,
+  "items_kept": 46,
+  "min_items_met_rate": 0.68,
+  "verifier_keep_rate": 0.5111
+}

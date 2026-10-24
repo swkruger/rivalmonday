@@ -17,6 +17,8 @@ export interface EvalReport {
 export interface RunContext { mode: 'replay' | 'live' }
 export interface SuiteRunner {
   suite: Suite;
+  /** Pins the cassette clock (ISO instant) so cases with fixed dates replay on any day; omitted = wall clock. */
+  today?: string;
   run(cases: EvalCase[], ai: Ai, ctx: RunContext): Promise<Omit<EvalReport, 'suite' | 'mode' | 'costUsd' | 'baselineDelta'>>;
 }
 

@@ -2,10 +2,11 @@ import { join } from 'node:path';
 import { type Ai, type AiConfig, CassetteMissError, createAiFromEnv, createCassetteAi } from '@cs/ai';
 import { BudgetExceededError, budgetedAi, createSpendMeter, type SpendMeter } from './budget';
 import { BASELINE_DIR, CASSETTE_DIR, DATA_DIR, readCases, SUITES, type Suite } from './case';
+import { briefsRunner } from './suites/briefs/run';
 import { baselineDelta, type EvalReport, readBaseline, renderMarkdown, type SuiteRunner, writeBaseline, writeReport } from './report';
 
 /** Suite runners register here (Tasks 10-12). A suite with cases but no runner is an error. */
-export const RUNNERS: Partial<Record<Suite, SuiteRunner>> = {};
+export const RUNNERS: Partial<Record<Suite, SuiteRunner>> = { briefs: briefsRunner };
 
 export interface RunOptions {
   suites: Suite[];
@@ -62,10 +63,12 @@ export async function runEvals(o: RunOptions): Promise<RunOutcome> {
       if (!runner) throw new Error(`${cases.length} case(s) but no runner is registered`);
       const file = join(o.cassetteDir ?? CASSETTE_DIR, `${suite}.json`);
       const before = meter.spent();
+      const today = runner.today;
+      const now = today ? () => new Date(today) : undefined;
       const cassette = o.record
-        ? createCassetteAi(ensureLive(), { mode: 'record', file, config: o.config })
+        ? createCassetteAi(ensureLive(), { mode: 'record', file, config: o.config, now })
         : o.mode === 'replay'
-          ? createCassetteAi(null, { mode: 'replay', file, config: o.config })
+          ? createCassetteAi(null, { mode: 'replay', file, config: o.config, now })
           : null;
       const result = await runner.run(cases, cassette ?? ensureLive(), { mode });
       cassette?.flush();
