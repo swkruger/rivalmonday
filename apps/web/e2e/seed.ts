@@ -194,7 +194,15 @@ export async function seed(): Promise<void> {
     ]).returning({ id: client.id, name: client.name });
     for (const m of mcpClients) await createInvitation(db, { agencyId, email: 'mcp-owner@e2e.test', role: 'client_owner', clientId: m.id, invitedBy: 'e2e-seed' });
     await mkdir(dirname(MCP_CLIENTS_FILE), { recursive: true });
-    await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: mcpClients[0], second: mcpClients[1] }));
+    // A sent brief item in the first workspace: the OAuth E2E fetches it with a token bound to the second (must be not_found).
+    const [firstBrief] = await db.insert(brief).values({
+      agencyId, clientId: mcpClients[0]!.id, deliveryDate: '2026-10-05', periodStart: new Date('2026-09-29T00:00:00Z'), periodEnd: new Date('2026-10-05T00:00:00Z'), status: 'sent', summary: 'First Heating Co quiet week.',
+    }).returning({ id: brief.id });
+    const [firstItem] = await db.insert(briefItem).values({
+      agencyId, clientId: mcpClients[0]!.id, briefId: firstBrief!.id, ord: 1, competitorId: comp!.id, headline: 'Smith HVAC cut furnace repair to $79',
+      whatChanged: 'Smith HVAC dropped its furnace repair price.', whyItMatters: 'It undercuts the local market.', recommendedAction: 'Consider a matching offer.', confidence: 0.9, effort: 'L', impact: 'H',
+    }).returning({ id: briefItem.id });
+    await writeFile(MCP_CLIENTS_FILE, JSON.stringify({ first: { ...mcpClients[0], briefItemId: firstItem!.id }, second: mcpClients[1] }));
 
     await seedRivals(db, { agencyId });
     await seedStartingPoint(db, { agencyId });

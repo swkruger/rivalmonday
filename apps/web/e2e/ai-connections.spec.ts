@@ -65,12 +65,21 @@ test('an admin creates a token, sees it once, and revokes it', { tag: ['@ai-conn
   expect(res.status()).toBe(401);
 });
 
+/**
+ * Tools a client-bound read token lists for a workspace with only the `mcp` feature (no `dashboard`): the client read list of
+ * packages/mcp/src/integration.test.ts minus its dashboard-gated tools.
+ */
+const WORKSPACE_READ = [
+  'fetch', 'get_brief', 'get_client_profile', 'get_competitor_signals', 'get_evidence', 'list_alerts', 'list_briefs', 'list_client_competitors', 'list_recommendations',
+  'list_verticals', 'search', 'search_knowledge',
+];
+
 const b64url = (b: Buffer) => b.toString('base64url');
 
 test('a client owner picks a workspace on the consent page', { tag: ['@ai-connections', '@auth'] }, async ({ browser, playwright }, testInfo) => {
   // An AI app has no browser session: its requests carry no cookies (the file-level admin storage state would).
   const request = await playwright.request.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
-  const clients = JSON.parse(await readFile(MCP_CLIENTS_FILE, 'utf8')) as Record<'first' | 'second', { id: string; name: string }>;
+  const clients = JSON.parse(await readFile(MCP_CLIENTS_FILE, 'utf8')) as Record<'first' | 'second', { id: string; name: string }> & { first: { briefItemId: string } };
   const appUrl = `http://localhost:${process.env.E2E_PORT ?? 3100}`;
   const redirectUri = 'http://127.0.0.1:47123/callback';
   const scope = 'read feedback offline_access';
@@ -130,6 +139,17 @@ test('a client owner picks a workspace on the consent page', { tag: ['@ai-connec
     expect(chosen.body.name).toBe(clients.second.name);
     const other = await callTool(request, accessToken, 'get_client_profile', { clientId: clients.first.id });
     expect(other).toMatchObject({ isError: true, body: { code: 'not_found' } });
+
+    // 6. The token's tool list is exactly the read list for this workspace's features; search and fetch stay inside the chosen workspace.
+    const list = await mcp(request, accessToken, 'tools/list');
+    expect(list.status()).toBe(200);
+    const listed = ((await list.json()) as { result: { tools: { name: string }[] } }).result.tools.map((t) => t.name).sort();
+    expect(listed).toEqual([...WORKSPACE_READ].sort());
+    const found = await callTool(request, accessToken, 'search', { query: 'plumber', clientId: clients.second.id });
+    expect(found.isError).toBe(false);
+    expect(Array.isArray(found.body.results)).toBe(true);
+    const foreign = await callTool(request, accessToken, 'fetch', { id: `brief_item:${clients.first.briefItemId}` });
+    expect(foreign).toMatchObject({ isError: true, body: { code: 'not_found' } });
   } finally {
     await context.close();
     await request.dispose();

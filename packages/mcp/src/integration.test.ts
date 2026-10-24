@@ -1,8 +1,8 @@
 import { createAccessContext, type AccessContext, type Feature } from '@cs/core';
-import { agency, alert, apiToken, auditLog, brief, briefItem, client as clientTable, createAuditSink, membership } from '@cs/db';
+import { agency, alert, apiToken, auditLog, brief, briefItem, client as clientTable, createAuditSink, membership, oauthGrantBinding } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
-import { dbs, resetWorkspace, seedEvent } from '@cs/tools/test-fixtures';
+import { dbs, resetWorkspace, seedCapture, seedEvent, seedReview } from '@cs/tools/test-fixtures';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { and, eq, sql } from 'drizzle-orm';
@@ -23,6 +23,13 @@ const READ = [
   'get_rating_trend', 'get_geogrid', 'get_rank_trend', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
   'search', 'fetch', 'search_knowledge', 'get_competitor_signals', 'list_verticals',
 ];
+/** Exact client-role lists (owner/viewer), derived once from the registry and reviewed: no agency-only, manage or admin tools. */
+const CLIENT_READ = [
+  'compare_snapshots', 'fetch', 'get_ad_activity', 'get_brief', 'get_client_profile', 'get_competitor_profile', 'get_competitor_signals', 'get_competitor_timeline', 'get_event',
+  'get_evidence', 'get_geogrid', 'get_move', 'get_price_history', 'get_price_matrix', 'get_rank_trend', 'get_rating_trend', 'get_share_of_voice', 'get_topic_benchmark', 'list_ads',
+  'list_alerts', 'list_briefs', 'list_client_competitors', 'list_moves', 'list_recommendations', 'list_verticals', 'search', 'search_events', 'search_knowledge', 'search_reviews',
+];
+const CLIENT_FEEDBACK = ['add_recommendation', 'submit_feedback', 'update_recommendation_status'];
 const FEEDBACK = ['submit_feedback', 'update_recommendation_status', 'add_recommendation'];
 const MANAGE = ['set_alert_rules', 'update_client_profile', 'set_page_pin', 'run_prospect_snapshot'];
 
@@ -31,6 +38,8 @@ const USERS = {
   owner: { id: 'u-owner', agencyId: IDS.agencyA, role: 'client_owner', clientId: IDS.clientA1 },
   viewer: { id: 'u-viewer', agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA1 },
   adminB: { id: 'u-adminb', agencyId: IDS.agencyB, role: 'agency_admin', clientId: null },
+  /** Account manager scoped to A1 only (membership.client_scope). */
+  am: { id: 'u-am', agencyId: IDS.agencyA, role: 'account_manager', clientId: null, scope: [IDS.clientA1] },
 } as const;
 type Who = keyof typeof USERS;
 
@@ -44,8 +53,9 @@ async function mint(w: Who, scope: 'read' | 'feedback' | 'manage'): Promise<{ id
 }
 
 const open: Client[] = [];
-async function connect(token: string): Promise<Client> {
-  const transport = new StreamableHTTPClientTransport(MCP_URL, { fetch: inProcessFetch as typeof fetch, requestInit: { headers: { authorization: `Bearer ${token}` } } });
+async function connect(token: string, handlerDeps: McpHandlerDeps = d): Promise<Client> {
+  const fetchIn = (url: string | URL, init?: RequestInit) => handleMcpRequest(new Request(url, init), handlerDeps);
+  const transport = new StreamableHTTPClientTransport(MCP_URL, { fetch: fetchIn as typeof fetch, requestInit: { headers: { authorization: `Bearer ${token}` } } });
   const c = new Client({ name: 'it', version: '1.0.0' });
   await c.connect(transport);
   open.push(c);
@@ -75,7 +85,7 @@ beforeEach(async () => {
   await dbs.owner.execute(sql`truncate auth."user", auth.verification, auth."rateLimit" cascade`);
   for (const u of Object.values(USERS)) {
     await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values (${u.id}, ${u.id}, ${`${u.id}@e.co`}, true)`);
-    await dbs.service.insert(membership).values({ userId: u.id, agencyId: u.agencyId, role: u.role, clientId: u.clientId, createdBy: 't' });
+    await dbs.service.insert(membership).values({ userId: u.id, agencyId: u.agencyId, role: u.role, clientId: u.clientId, clientScope: 'scope' in u ? [...u.scope] : null, createdBy: 't' });
   }
   await dbs.owner.update(clientTable).set({ features: ['dashboard', 'mcp'] }).where(eq(clientTable.id, IDS.clientA1));
 });
@@ -108,6 +118,9 @@ describe('/mcp end to end with the SDK client', () => {
     for (const t of FEEDBACK) expect(lists['owner/read']).not.toContain(t);
     expect(lists['owner/feedback']).toContain('submit_feedback');
     expect(lists['viewer/read']).toEqual(lists['owner/read']);
+    expect(lists['owner/read']).toEqual([...CLIENT_READ].sort());
+    expect(lists['owner/feedback']).toEqual([...CLIENT_READ, ...CLIENT_FEEDBACK].sort());
+    expect(lists['viewer/read']).toEqual([...CLIENT_READ].sort());
     for (const t of lists['owner/feedback']!) expect(lists['admin/feedback']).toContain(t);
   });
 
@@ -203,7 +216,54 @@ describe('/mcp end to end with the SDK client', () => {
     const own = (json(await call(v, 'search', { query: 'whitening' })) as { results: { id: string }[] }).results.map((r) => r.id);
     expect(own).toEqual([`event:${mine.eventId}`]);
     expect(errorOf(await call(v, 'fetch', { id: `event:${other.eventId}` }))).toEqual(NOT_FOUND);
-    expect(errorOf(await call(v, 'get_client_profile', { clientId: IDS.clientA2 })).code).toMatch(/not_found|invalid_input/);
+    expect(errorOf(await call(v, 'get_client_profile', { clientId: IDS.clientA2 })).code).toBe('not_found');
+  });
+
+  it('cross-agency: adminB gets not_found for A1 on get_client_profile, list_briefs, search(clientId), fetch brief_item', async () => {
+    const [b] = await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, ...period, deliveryDate: '2026-10-05', status: 'sent', summary: 'Quiet week.' }).returning();
+    const [item] = await dbs.owner.insert(briefItem).values({
+      agencyId: IDS.agencyA, clientId: IDS.clientA1, briefId: b!.id, ord: 1, competitorId: IDS.competitorX, headline: 'Furnace repair headline', whatChanged: 'Smith HVAC furnace repair changed',
+      whyItMatters: 'It matters', recommendedAction: 'Respond', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: [], status: 'active',
+    }).returning();
+    const c = await connect((await mint('adminB', 'read')).token);
+    expect(errorOf(await call(c, 'get_client_profile', { clientId: IDS.clientA1 })).code).toBe('not_found');
+    expect(errorOf(await call(c, 'list_briefs', { clientId: IDS.clientA1 })).code).toBe('not_found');
+    expect(errorOf(await call(c, 'search', { query: 'furnace', clientId: IDS.clientA1 })).code).toBe('not_found');
+    expect(errorOf(await call(c, 'fetch', { id: `brief_item:${item!.id}` }))).toEqual(NOT_FOUND);
+  });
+
+  it('cross-agency, OAuth-bound: a client-owner grant bound to A1 gets not_found for A2', async () => {
+    await dbs.service.insert(oauthGrantBinding).values({ consentId: 'consent-it', oauthClientId: 'oc', agencyId: IDS.agencyA, userId: USERS.owner.id, clientId: IDS.clientA1, scope: 'read' });
+    const oauthDeps: McpHandlerDeps = { ...d, verifyOAuth: async (t) => (t === 'opaque-oauth' ? { userId: USERS.owner.id, consentId: 'consent-it' } : null) };
+    const c = await connect('opaque-oauth', oauthDeps);
+    expect((await call(c, 'get_client_profile', { clientId: IDS.clientA1 })).isError).toBeUndefined();
+    expect(errorOf(await call(c, 'get_client_profile', { clientId: IDS.clientA2 })).code).toBe('not_found');
+    // An agency admin's grant cannot be bound to a client: there is no matching client membership, so the token is dead (401).
+    await dbs.service.insert(oauthGrantBinding).values({ consentId: 'consent-adm', oauthClientId: 'oc', agencyId: IDS.agencyA, userId: USERS.admin.id, clientId: IDS.clientA1, scope: 'read' });
+    const admDeps: McpHandlerDeps = { ...d, verifyOAuth: async () => ({ userId: USERS.admin.id, consentId: 'consent-adm' }) };
+    await expect(connect('opaque-oauth', admDeps)).rejects.toThrow();
+  });
+
+  it('P18: an account manager scoped to A1 fetches X evidence via A1 and gets not_found for a Y one', async () => {
+    const x = await seedCapture({ competitorId: IDS.competitorX });
+    const y = await seedCapture({ competitorId: IDS.competitorY });
+    const c = await connect((await mint('am', 'read')).token);
+    const ok = await call(c, 'fetch', { id: `evidence:${x.ids.screenshot}` });
+    expect(ok.isError).toBeUndefined();
+    expect(json(ok)).toMatchObject({ id: `evidence:${x.ids.screenshot}` });
+    expect(errorOf(await call(c, 'fetch', { id: `evidence:${y.ids.screenshot}` }))).toEqual(NOT_FOUND);
+    expect(errorOf(await call(c, 'get_client_profile', { clientId: IDS.clientA2 })).code).toBe('not_found');
+  });
+
+  it('review cross-client: an A1 owner sees only X reviews; clientId A2 and fetch of a Y review are not_found', async () => {
+    const x = await seedReview({ competitorId: IDS.competitorX, text: 'Smith crew was prompt', rating: 5 });
+    const y = await seedReview({ competitorId: IDS.competitorY, text: 'Bright Smiles hygienist was gentle', rating: 4 });
+    const c = await connect((await mint('owner', 'read')).token);
+    const mine = json(await call(c, 'search_reviews', { clientId: IDS.clientA1, detail: 'full' })) as { items: { reviewId: string }[] };
+    expect(mine.items.map((r) => r.reviewId)).toEqual([x]);
+    expect(errorOf(await call(c, 'search_reviews', { clientId: IDS.clientA2 })).code).toBe('not_found');
+    expect(errorOf(await call(c, 'fetch', { id: `review:${y}` }))).toEqual(NOT_FOUND);
+    expect((await call(c, 'fetch', { id: `review:${x}` })).isError).toBeUndefined();
   });
 
   it('61st call in a minute gives rate_limited', async () => {
