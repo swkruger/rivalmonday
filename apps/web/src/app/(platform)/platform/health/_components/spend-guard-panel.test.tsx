@@ -16,7 +16,7 @@ const DATA: SpendGuardData = {
     { scope: 'openrouter', observedUsd: 2.5, baselineUsd: 1, ratioPercent: 150, floorOnly: true },
   ],
   pausedClients: [{ clientId: 'c1', clientName: 'Acme HVAC', agencyId: 'a1', agencyName: 'Agency One', spendPausedAt: '2026-10-20T00:00:00.000Z', spendUsd: 21, limitUsd: 15 }],
-  events: [{ id: 'e1', kind: 'spike_pause', createdAt: '2026-10-22T10:00:00.000Z', scope: 'total', observedUsd: 40, baselineUsd: 10, limitUsd: null, actor: 'system', note: null }],
+  events: [{ id: 'e1', kind: 'spike_paused', createdAt: '2026-10-22T10:00:00.000Z', scope: 'total', observedUsd: 40, baselineUsd: 10, limitUsd: null, actor: 'system', note: null }],
 };
 
 describe('SpendGuardPanel', () => {
@@ -27,7 +27,7 @@ describe('SpendGuardPanel', () => {
     expect(screen.getByText('OpenRouter')).toBeTruthy();
     expect(screen.getByText('floor')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Agency One' }).getAttribute('href')).toBe('/platform/agencies/a1');
-    expect(screen.getByText('spike_pause')).toBeTruthy();
+    expect(screen.getByText('Spike pause')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
   });
 

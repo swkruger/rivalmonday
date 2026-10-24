@@ -1,6 +1,7 @@
 import { StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { formatDateTime, formatMoney } from '@/lib/format';
+import { SPEND_GUARD_EVENT_KIND, labelFor } from '@/lib/labels';
 import { spendScopeLabel } from '@/lib/platform-spend-copy';
 import { ResetAiPause } from './reset-ai-pause';
 
@@ -20,13 +21,13 @@ const STATE_CHIP = {
 const th = 'px-3 py-2 font-semibold';
 const td = 'px-3 py-2';
 const money = (n: number | null) => (n === null ? '—' : formatMoney(n, { cents: true }));
-const when = (iso: string) => formatDateTime(iso, { tz: 'UTC', zoneLabel: true });
 
 /**
  * Spend guard card on /platform/health (7b1 d13): state, per-scope spike readings, spend-paused clients and the last
  * events. Platform surfaces may show dollars. `canReset` = staff or owner; viewers get no Reset button.
  */
-export function SpendGuardPanel({ data, canReset }: { data: SpendGuardData; canReset: boolean }) {
+export function SpendGuardPanel({ data, canReset, tz = 'UTC' }: { data: SpendGuardData; canReset: boolean; tz?: string }) {
+  const when = (iso: string) => formatDateTime(iso, { tz, zoneLabel: true });
   const chip = STATE_CHIP[data.state.state];
   return (
     <div className="flex flex-col gap-5">
@@ -123,7 +124,7 @@ export function SpendGuardPanel({ data, canReset }: { data: SpendGuardData; canR
                 {data.events.map((e) => (
                   <tr key={e.id} className="border-t border-[#EEF2F6]">
                     <td className={`${td} whitespace-nowrap`}>{when(e.createdAt)}</td>
-                    <td className={td}>{e.kind}</td>
+                    <td className={td}>{labelFor(SPEND_GUARD_EVENT_KIND, e.kind).label}</td>
                     <td className={td}>{e.scope ? spendScopeLabel(e.scope) : '—'}</td>
                     <td className={`${td} text-right`}>{e.observedUsd === null ? '—' : `${money(e.observedUsd)} / ${money(e.baselineUsd)}`}</td>
                     <td className={td}>{e.actor}</td>

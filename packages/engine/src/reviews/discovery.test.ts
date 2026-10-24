@@ -192,7 +192,7 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
   });
 
   it('pending row exists before submit and becomes submitted', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const seen: unknown[] = [];
     const ai = createFakeAi({
       batch: { submit: () => { seen.push('submit'); return 'msgbatch_1'; } },
@@ -204,14 +204,14 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
   });
 
   it('submit throw marks the row failed', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => { throw new Error('boom'); } } });
     await runReviewInsights({ db: dbs.service, ai, packs }, { now });
     expect(await dbs.owner.select().from(modelBatch)).toMatchObject([{ status: 'failed', providerBatchId: null, error: expect.stringMatching(/boom/) }]);
   });
 
   it('a spend-paused submit marks the row failed and surfaces AiPausedError (no sync fallback, no BatchSubmitError)', async () => {
-    await unthemed(20);
+    await unmatched(20);
     const paused = new AiPausedError('platform');
     const ai = createFakeAi({ chat: () => JSON.stringify(WARRANTY), batch: { submit: () => { throw paused; } } });
     await expect(submitTopicDiscoveryBatch({ db: dbs.service, ai, packs }, ['hvac_plumbing'], { now })).rejects.toBe(paused);
@@ -238,7 +238,7 @@ describe('batched topic discovery (Phase 3d decision 10)', () => {
   });
 
   it('re-applying an ended batch creates no second proposal', async () => {
-    await unthemed(20);
+    await unmatched(20);
     await runReviewInsights({ db: dbs.service, ai: batching(), packs }, { now });
     const none = JSON.stringify({ found: false });
     // A concurrent collector ends the batch while this one is polling: this one must not apply the items again.

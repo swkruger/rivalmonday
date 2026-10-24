@@ -50,7 +50,7 @@ export default async function PlatformHealthPage() {
           <h2 className="font-semibold">Spend guard</h2>
           <HelpTip tip="platform.health.spendGuard" />
         </div>
-        <SpendGuardPanel data={guard} canReset={role === 'owner' || role === 'staff'} />
+        <SpendGuardPanel data={guard} canReset={role === 'owner' || role === 'staff'} tz={tz} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center gap-1.5">

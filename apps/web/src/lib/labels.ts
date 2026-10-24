@@ -193,3 +193,14 @@ export const KB_ARTICLE_STATUS: LabelMap<'draft' | 'published'> = {
 
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE];
+
+// spend_guard_event.kind (packages/db/src/schema/platform.ts check constraint; 7b1, platform only)
+type SpendGuardEventKind = 'client_reached' | 'client_paused' | 'client_unpaused' | 'spike_warn' | 'spike_paused' | 'spike_reset';
+export const SPEND_GUARD_EVENT_KIND: LabelMap<SpendGuardEventKind> = {
+  client_reached: e('Client reached limit', 'info'),
+  client_paused: e('Client paused', 'warning'),
+  client_unpaused: e('Client resumed', 'success'),
+  spike_warn: e('Spike warning', 'info'),
+  spike_paused: e('Spike pause', 'danger'),
+  spike_reset: e('Guard reset', 'success'),
+};

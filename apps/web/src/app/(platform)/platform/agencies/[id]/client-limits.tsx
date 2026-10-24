@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { useReadOnly } from '@/components/read-only';
 import { formatMoney } from '@/lib/format';
+import { CLIENT_STATUS, labelFor } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { fieldCls } from '../../_components/mini-form';
 import { setClientLimitsAction } from './actions';
@@ -45,7 +46,11 @@ function Row({ item, defaultLimitUsd, canEdit }: { item: ClientLimitItem; defaul
     <tr className="border-t border-[#EEF2F6]">
       <th scope="row" className={`${td} text-left font-semibold`}>
         {item.name}
-        {item.status !== 'active' && <span className="ml-2 text-xs font-normal text-muted-foreground">{item.status}</span>}
+        {item.status !== 'active' && (
+          <span className="ml-2 inline-block">
+            <StatusChip tone={labelFor(CLIENT_STATUS, item.status).tone}>{labelFor(CLIENT_STATUS, item.status).label}</StatusChip>
+          </span>
+        )}
       </th>
       <td className={`${td} text-right`}>{formatMoney(item.spendUsd, { cents: true })}</td>
       <td className={`${td} text-right`}>{formatMoney(item.effectiveLimitUsd, { cents: true })}</td>
