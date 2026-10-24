@@ -67,8 +67,8 @@ test('an admin dismisses a pending alert with a reason', { tag: ['@alerts'] }, a
 test('usage shows credits and the near-limit badge (read-only)', { tag: ['@usage'] }, async ({ page }) => {
   await page.goto('/agency/settings/usage');
   // Seed: $13 spent against the $15 default limit = 1300 of 1500 credits (only platform staff change limits).
-  await expect(page.getByText('1300 of 1500 credits')).toBeVisible();
-  await expect(page.getByText(/87% · near limit/)).toBeVisible();
+  await expect(page.getByText('1,300 of 1,500 credits')).toBeVisible();
+  await expect(page.getByText('Near limit', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('textbox')).toHaveCount(0);
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /save/i })).toHaveCount(0);

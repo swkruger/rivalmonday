@@ -69,6 +69,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
   { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
+  { pattern: re(`${COMP}shell/spend-banner`), tags: ['@usage', '@navigation'], why: 'spend pause banner in the shell' },
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },
   {
     pattern: re(`${SERVER}(?:auth|auth-options|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env|billing-redirect|billing-state)\\.ts$`),
@@ -118,6 +119,7 @@ export const RULES: Rule[] = [
   { pattern: re(`(?:${COMP}runbook/|${SERVER}runbook-[^/]+\\.ts$)`), tags: ['@runbook'], why: 'runbook editor components and server helpers' },
   { pattern: re(`${AGENCY}prospects/`), tags: ['@prospects', '@clients'], why: 'prospects' },
   { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
+  { pattern: re(`${C}settings/usage/`), tags: ['@usage'], why: 'client credits page (client owner and agency roles)' },
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
   { pattern: re(`${AGENCY}settings/team/`), tags: ['@support', '@navigation'], why: 'agency team page (a support session opens it; old /agency/team redirects here)' },
   { pattern: re(`${AGENCY}settings/branding/`), tags: ['@navigation'], why: 'agency branding page (old /agency/branding redirects here)' },

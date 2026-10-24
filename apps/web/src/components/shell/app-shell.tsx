@@ -15,6 +15,7 @@ import { showsClientBilling } from '@/components/shell/nav-items';
 import { Sidebar } from '@/components/shell/sidebar';
 import type { NavFallback } from '@/components/shell/sidebar-nav';
 import { ShellTheme } from '@/components/shell/shell-theme';
+import { SpendBanner } from '@/components/shell/spend-banner';
 import { SupportBanner } from '@/components/shell/support-banner';
 import { TopBar } from '@/components/shell/top-bar';
 import { TzCookie } from '@/components/shell/tz-cookie';
@@ -74,6 +75,13 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const support = viewer.kind === 'support' ? viewer.session : null;
   // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
   const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
+  // 7b1: calm pause notice. Agency admins (not account managers) see their paused clients, client roles their own client;
+  // never in the platform zone. Cosmetic, so a failed read only drops the banner (the shell must render).
+  const spendAudience = zone === 'platform' ? null : ctx.role === 'agency_admin' ? 'agency' : ctx.role === 'client_owner' || ctx.role === 'client_viewer' ? 'client' : null;
+  const spendPaused =
+    spendAudience && (spendAudience === 'agency' || singleClientId)
+      ? await callTool<{ paused: { clientId: string; name: string; until: string }[] }>(ctx, 'get_spend_status', spendAudience === 'agency' ? {} : { clientId: singleClientId }).then((r) => r.paused ?? [], () => [])
+      : [];
   const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
   // Each zone reads only the badges it can show: agency counts outside the platform zone, platform counts inside it (P1:
   // `(app)` never shows the platform menu).
@@ -129,6 +137,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
             {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
               <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
             )}
+            {spendAudience && <SpendBanner items={spendPaused} audience={spendAudience} agencyName={branding.displayName} />}
             {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} />}
             <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
           </div>

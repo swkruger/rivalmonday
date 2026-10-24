@@ -234,10 +234,10 @@ export const CLIENT_COPY = {
         title: 'Compare two scans',
         body: 'Pick two scans to see the change at each point: blue means the business moved up, orange means it moved down, "=" means no change, and the number is how many places. Only scans with the same settings can be compared.',
       },
-      // source: packages/tools/src/limits.ts:RANK_MANUAL_PER_CLIENT_DAYS (7), RANK_MANUAL_PER_AGENCY_DAY (10); packages/tools/src/rank-scan.ts:rankScanAvailability (UTC day; monthly cost cap); apps/worker/src/jobs/vendor.ts:rankSchedule (Sunday 06:00 UTC); packages/collectors/src/rankings/settings.ts (RANK_MAX_KEYWORDS 5)
+      // source: packages/tools/src/limits.ts:RANK_MANUAL_PER_CLIENT_DAYS (7), RANK_MANUAL_PER_AGENCY_DAY (10); packages/tools/src/rank-scan.ts:rankScanAvailability (UTC day; monthly credit limit); apps/worker/src/jobs/vendor.ts:rankSchedule (Sunday 06:00 UTC); packages/collectors/src/rankings/settings.ts (RANK_MAX_KEYWORDS 5)
       scanNow: {
         title: 'Manual scan limits',
-        body: 'The weekly scan runs on Sundays at 06:00 UTC. Scan now starts an extra one. A client can be scanned by hand once every 7 days, and your agency can start 10 manual scans a day (counted per UTC day). A scan that would push the client past its monthly cost cap is refused. Rank settings change the keywords (up to 5), grid size and radius for the next scan.',
+        body: 'The weekly scan runs on Sundays at 06:00 UTC. Scan now starts an extra one. A client can be scanned by hand once every 7 days, and your agency can start 10 manual scans a day (counted per UTC day). A scan that would take the client past its monthly credit limit waits until next month. Rank settings change the keywords (up to 5), grid size and radius for the next scan.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },
@@ -666,6 +666,23 @@ export const CLIENT_COPY = {
         title: 'Manage payment details',
         body: 'Opens a secure payment page where you update your payment method and see your invoices, then brings you back here. The button appears once payment details exist; before that, use the payment link {agency} emailed you.',
         guideAnchor: 'how-to-use-it',
+      },
+    },
+  },
+  'client.settings.usage': {
+    description: "This month's credits for {client}'s monitoring, compared with the monthly limit. Months run on UTC.",
+    tips: {
+      // source: packages/tools/src/tools/my-usage.ts:getMyUsageTool (credits used, limit; UTC month); apps/web/src/app/(app)/c/[clientId]/settings/usage/page.tsx
+      credits: {
+        title: 'Credits',
+        body: 'Credits measure the monitoring and AI work done for {client} this month, against the monthly limit. The count starts again on the 1st of each month (UTC).',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: packages/core/src/spend.ts:SPEND_NEAR_RATIO (0.8), spendLevel; apps/web/src/components/spend-badge.tsx; apps/web/src/lib/spend-copy.ts
+      status: {
+        title: 'Near limit, limit reached and paused',
+        body: 'From 80% of the limit the page says Near limit. At 100% it says Limit reached: nothing changes, and monitoring, briefs and Ask carry on as normal. Well past the limit, monitoring and new briefs pause for the rest of the month and the page says Paused. Past briefs and evidence stay available, and your agency is told.',
+        guideAnchor: 'common-questions',
       },
     },
   },

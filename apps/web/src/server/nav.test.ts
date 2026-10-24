@@ -49,7 +49,7 @@ describe('navForViewer', () => {
     const owner = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard'] });
     const s = navForViewer({ kind: 'user', ctx: owner }, 'client', C);
     expect(s.map((x) => x.id)).toEqual(['top', 'insights', 'act', 'foot']);
-    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: owner }), C))).toEqual([`/c/${C}/settings/profile`]);
+    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: owner }), C))).toEqual([`/c/${C}/settings/profile`, `/c/${C}/settings/usage`]);
   });
 
   it('guests never get Client settings', () => {
@@ -62,7 +62,7 @@ describe('client AI connection tab', () => {
   it('is hidden from guests even when the client has the mcp feature (the token tools refuse guests)', () => {
     const withMcp = createAccessContext({ agencyId: A, userId: 'contact:x', role: 'client_owner', clientScope: [C], features: ['mcp'] });
     expect(settingsNavFor('client', navFlagsFor({ kind: 'guest', ctx: withMcp }), C)).toEqual([]);
-    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }), C))).toEqual([`/c/${C}/settings/ai`]);
+    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: { ...withMcp, userId: 'u' } }), C))).toEqual([`/c/${C}/settings/ai`, `/c/${C}/settings/usage`]);
   });
 });
 
@@ -157,7 +157,7 @@ describe('client Billing tab (9b)', () => {
   it('shows last only when flagged (client owner with billing on); never for agency roles', () => {
     const flags = { ...navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), clientBilling: true };
     expect(settingsNavFor('client', flags, C)[0]!.items.at(-1)).toMatchObject({ href: `/c/${C}/settings/billing`, label: 'Billing' });
-    expect(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), C)).toEqual([]);
+    expect(hrefs(settingsNavFor('client', navFlagsFor({ kind: 'user', ctx: ctx('client_owner') }), C))).toEqual([`/c/${C}/settings/usage`]);
     const agency = settingsNavFor('client', { ...navFlagsFor({ kind: 'user', ctx: ctx('agency_admin') }), clientBilling: true }, C);
     expect(hrefs(agency)).not.toContain(`/c/${C}/settings/billing`);
   });

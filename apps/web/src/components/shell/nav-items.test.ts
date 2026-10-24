@@ -10,9 +10,9 @@ const accountManager: NavRoleFlags = { ...agencyAdmin, isAgencyAdmin: false };
 const scopedAm: NavRoleFlags = { ...accountManager, leads: false };
 const operator: NavRoleFlags = { ...agencyAdmin, isPlatformOperator: true, isPlatformOwner: false };
 const platformOwner: NavRoleFlags = { ...operator, isPlatformOwner: true };
-const clientOwner: NavRoleFlags = { isAgency: false, isAgencyAdmin: false, isUser: true, homePath: B, dashboard: true, alertRules: true, mcp: true, ask: true, assistantName: 'Friday', inbox: true, leads: false };
-const clientViewer: NavRoleFlags = { ...clientOwner, dashboard: false, alertRules: false, mcp: false, ask: false };
-const guest: NavRoleFlags = { ...clientOwner, isUser: false, mcp: false, ask: false };
+const clientOwner: NavRoleFlags = { isAgency: false, isAgencyAdmin: false, isUser: true, homePath: B, dashboard: true, alertRules: true, mcp: true, ask: true, assistantName: 'Friday', inbox: true, leads: false, usage: true };
+const clientViewer: NavRoleFlags = { ...clientOwner, dashboard: false, alertRules: false, mcp: false, ask: false, usage: false };
+const guest: NavRoleFlags = { ...clientOwner, isUser: false, mcp: false, ask: false, usage: false };
 const support: NavRoleFlags = { ...agencyAdmin, isUser: false, inbox: false, backToPlatform: '/platform/agencies/x' };
 
 const ids = (s: NavSection[]) => s.map((x) => x.id);
@@ -208,15 +208,21 @@ describe('settingsNavFor agency', () => {
 describe('settingsNavFor client', () => {
   it('agency roles: Business profile, Delivery, Alert rules, Runbook, AI connection; never client Billing', () => {
     const s = settingsNavFor('client', { ...agencyAdmin, clientBilling: true }, C);
-    expect(labels(s)).toEqual([['main', null, ['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']]]);
-    expect(hrefs(s)).toEqual([`${B}/settings/profile`, `${B}/settings/delivery`, `${B}/settings/alerts`, `${B}/settings/runbook`, `${B}/settings/ai`]);
+    expect(labels(s)).toEqual([['main', null, ['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection', 'Usage']]]);
+    expect(hrefs(s)).toEqual([`${B}/settings/profile`, `${B}/settings/delivery`, `${B}/settings/alerts`, `${B}/settings/runbook`, `${B}/settings/ai`, `${B}/settings/usage`]);
   });
 
   it('client owner: Billing only while billing is on', () => {
-    expect(labels(settingsNavFor('client', clientOwner, C))).toEqual([['main', null, ['Business profile', 'Alert rules', 'AI connection']]]);
+    expect(labels(settingsNavFor('client', clientOwner, C))).toEqual([['main', null, ['Business profile', 'Alert rules', 'AI connection', 'Usage']]]);
     const on = settingsNavFor('client', { ...clientOwner, clientBilling: true }, C);
-    expect(on[0]!.items.map((i) => i.label)).toEqual(['Business profile', 'Alert rules', 'AI connection', 'Billing']);
+    expect(on[0]!.items.map((i) => i.label)).toEqual(['Business profile', 'Alert rules', 'AI connection', 'Usage', 'Billing']);
     expect(on[0]!.items.at(-1)!.href).toBe(`${B}/settings/billing`);
+  });
+
+  it('Usage tab: agency roles and the client owner; never a viewer or a guest', () => {
+    expect(settingsNavFor('client', clientViewer, C)).toEqual([]);
+    expect(settingsNavFor('client', { ...clientViewer, alertRules: true }, C)[0]!.items.map((i) => i.label)).toEqual(['Alert rules']);
+    expect(settingsNavFor('client', guest, C)[0]!.items.map((i) => i.label)).not.toContain('Usage');
   });
 
   it('client viewer without features: nothing', () => {

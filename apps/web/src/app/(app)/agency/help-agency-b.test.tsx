@@ -268,7 +268,7 @@ describe('agency batch B: Usage & limits', () => {
     expect(open('Question quota')).toMatch(/client owners and viewers/);
     cleanup();
     await show('agency.settings.usage');
-    const n = open('Near cap and over cap');
+    const n = open('Near limit, limit reached and paused');
     expect(n).toMatch(/80%/);
     expect(n).toMatch(/100%/);
   });
@@ -276,7 +276,7 @@ describe('agency batch B: Usage & limits', () => {
   it('the spend tip says what is counted and what is not split by client', async () => {
     m.usage = [USAGE_ROW];
     await show('agency.settings.usage');
-    const s = open('What spend includes');
+    const s = open('What credits include');
     expect(s).toMatch(/UTC/);
     expect(s).toMatch(/not split/);
   });

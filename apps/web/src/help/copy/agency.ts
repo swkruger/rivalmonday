@@ -19,7 +19,7 @@ export const AGENCY_COPY = {
       // source: packages/tools/src/tools/usage.ts:creditsView, packages/core/src/spend.ts:SPEND_NEAR_RATIO (0.8), packages/db usage.ts:monthStart
       budget: {
         title: 'Budget',
-        body: "This month's AI and data spend for the client as a share of its monthly cap. It turns amber from 80% (near cap) and red at 100% (over cap).",
+        body: "This month's credits used by the client, as a share of its monthly credit limit. From 80% it reads Near limit and at 100% Limit reached; nothing changes at that point. Well past the limit, AI and monitoring work for the client pauses until next month and it reads Paused.",
       },
       // source: packages/tools/src/tools/portfolio.ts:getPortfolio (pending_review alerts; alerts delivered in the last 7 days; newest brief with status ready)
       alertsBriefs: {
@@ -493,24 +493,24 @@ export const AGENCY_COPY = {
     },
   },
   'agency.settings.usage': {
-    description: "This month's AI and data spend for each client against its monthly cap, and the limits you set for it. Months run on UTC.",
+    description: "This month's credits used by each client against its monthly credit limit, with competitors and Ask questions. Months run on UTC.",
     tips: {
-      // source: packages/tools/src/tools/usage.ts:getUsage (llm_call and vendor_call cost tied to the client since packages/db monthStart, UTC; agencyLevelSpend); apps/web/src/app/(app)/agency/settings/usage/page.tsx (footnote)
+      // source: packages/tools/src/tools/usage.ts:getUsage, creditsView (credits = cost tied to the client since packages/db monthStart, UTC; agencyLevelCredits, totalCredits); apps/web/src/app/(app)/agency/settings/usage/page.tsx (footnote)
       spend: {
-        title: 'What spend includes',
-        body: "The AI and data costs tied to the client so far this month, against its monthly cap. The month is a UTC calendar month. Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine's shared work are not split across clients yet, so they are not in these figures. If you cover all clients, spend that is not tied to a client is listed under the table.",
+        title: 'What credits include',
+        body: "The AI and data work tied to the client so far this month, counted in credits against the client's monthly credit limit. The month is a UTC calendar month. Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine's shared work are not split across clients yet, so they are not in these figures. If you cover all clients, credits that are not tied to a client are listed under the table. Limits are set by the platform team; contact support to change one.",
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: packages/core/src/spend.ts:SPEND_NEAR_RATIO (0.8), spendLevel; apps/web/src/components/spend-badge.tsx; packages/collectors/src/rankings/budget.ts (the only cap check: a map rank scan that would go over the cap is skipped)
+      // source: packages/core/src/spend.ts:SPEND_NEAR_RATIO (0.8), spendLevel; packages/tools/src/spend-guard.ts (reached = nothing changes; paused = recurring AI work stops until the 1st); apps/web/src/components/spend-badge.tsx
       share: {
-        title: 'Near cap and over cap',
-        body: "The share is spend divided by the client's cap. It turns amber, labelled near cap, from 80% and red, labelled over cap, at 100% or more; the two tiles count the clients in each state. The cap is a warning level, not a hard stop: the only thing that checks it is the map rank scan, which skips a scan that would take the client over.",
+        title: 'Near limit, limit reached and paused',
+        body: "The status compares the client's credits with its limit. From 80% it reads Near limit. At 100% it reads Limit reached: nothing changes, and monitoring, briefs and Ask carry on as normal. Well past the limit, AI and monitoring work for that client pauses until the 1st of next month, and it reads Paused; past briefs and evidence stay available. The three tiles count the clients in each state.",
         guideAnchor: 'common-questions',
       },
       // source: apps/web/src/app/(app)/agency/settings/usage/page.tsx (competitors of competitorLimit, Over limit); packages/tools/src/tools/usage.ts:getUsage
       competitors: {
         title: 'Competitor limit',
-        body: 'How many competitors the client tracks now, out of the most it may track. "Over limit" shows when it tracks more than its limit, for example after you lowered the limit.',
+        body: 'How many competitors the client tracks now, out of the most it may track. "Over limit" shows when it tracks more than its limit, for example after the limit was lowered.',
         guideAnchor: 'common-questions',
       },
       // source: apps/web/src/app/(app)/agency/settings/usage/questions-cell.tsx; packages/ask/src/quota.ts:beginTurn (client roles only; agency users are never counted nor stopped); packages/tools/src/tools/usage.ts:getUsage (counts_toward_quota, this UTC month)
@@ -519,15 +519,9 @@ export const AGENCY_COPY = {
         body: "The Ask questions the client's people have asked this UTC month, against the client's monthly quota. Only questions from client owners and viewers count; your own team's questions use none. At quota, the client's people cannot ask more until next month.",
         guideAnchor: 'common-questions',
       },
-      // source: packages/db/src/spend-guard.ts:SpendGuardSettings.clientMonthlyLimitUsd (15), packages/tools/src/limits.ts:DEFAULT_COMPETITOR_LIMIT (5), MAX_COMPETITOR_LIMIT (10); packages/tools/src/tools/usage.ts:setClientLimits (quota 0 to 100000); packages/db/src/schema/tenancy.ts:askMonthlyQuota (default 100); limits-form.tsx
-      limits: {
-        title: 'Cap and limits',
-        body: 'Admins set three limits for each client. Cap is the monthly spend in dollars ($1 to $10,000; new clients start at $15). Limit is how many competitors the client may track (1 to 10; new clients start at 5). Questions per month is the Ask quota (0 to 100,000; new clients start at 100). Save applies the three to that client.',
-        guideAnchor: 'how-to-use-it',
-      },
     },
     empty: {
-      noClients: { title: 'No clients to show yet', body: 'Clients and prospects appear here with their spend, competitors and questions once you add them.' },
+      noClients: { title: 'No clients to show yet', body: 'Clients and prospects appear here with their credits, competitors and questions once you add them.' },
     },
   },
 } as const satisfies Record<`agency.${string}`, PageCopy>;

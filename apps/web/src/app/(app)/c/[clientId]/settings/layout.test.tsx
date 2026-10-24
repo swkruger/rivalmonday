@@ -37,7 +37,7 @@ describe('Client settings layout (15a §2.5)', () => {
     as('user', 'agency_admin');
     render(await SettingsLayout({ children: <p>page body</p>, params }));
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
-    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']);
+    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection', 'Usage']);
     expect(within(nav()!).getByRole('link', { name: 'Business profile' }).getAttribute('href')).toBe(`/c/${C}/settings/profile`);
     expect(screen.getByText('page body')).toBeTruthy();
   });
@@ -45,19 +45,19 @@ describe('Client settings layout (15a §2.5)', () => {
   it('gives a client owner with billing on Billing and no Delivery', async () => {
     as('user', 'client_owner', ALL, true);
     render(await SettingsLayout({ children: null, params }));
-    expect(tabs()).toEqual(['Business profile', 'Alert rules', 'AI connection', 'Billing']);
+    expect(tabs()).toEqual(['Business profile', 'Alert rules', 'AI connection', 'Usage', 'Billing']);
   });
 
   it('hides Billing while billing is off for the client, and the feature-gated tabs without their features', async () => {
     as('user', 'client_owner', ['alert_rules']);
     render(await SettingsLayout({ children: null, params }));
-    expect(tabs()).toEqual(['Alert rules']);
+    expect(tabs()).toEqual(['Alert rules', 'Usage']);
   });
 
   it('keeps the agency tabs in a support session, with AI connection (the page serves support read-only)', async () => {
     as('support', 'agency_admin');
     render(await SettingsLayout({ children: null, params }));
-    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection']);
+    expect(tabs()).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection', 'Usage']);
   });
 
   it('still renders the page for a guest, with no settings header or sub-nav (the page keeps its own guard)', async () => {
@@ -68,8 +68,8 @@ describe('Client settings layout (15a §2.5)', () => {
     expect(screen.queryByRole('heading', { name: 'Client settings' })).toBeNull();
   });
 
-  it('still renders the page when no tab is visible (a client owner on the Billing page with billing off)', async () => {
-    as('user', 'client_owner', []);
+  it('still renders the page when no tab is visible (a client viewer with no feature on the Billing page)', async () => {
+    as('user', 'client_viewer', []);
     render(await SettingsLayout({ children: <p>billing page</p>, params }));
     expect(screen.getByText('billing page')).toBeTruthy();
     expect(nav()).toBeNull();
@@ -87,7 +87,7 @@ describe('client settings page titles', () => {
     const agency = { ...flags, isAgency: true, homePath: '/agency' };
     const items = [...settingsNavFor('client', agency, 'x'), ...settingsNavFor('client', flags, 'x')].flatMap((s) => s.items);
     const labels = new Map(items.map((i) => [i.href.slice('/c/x/settings/'.length), i.label]));
-    expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile', 'runbook']);
+    expect([...labels.keys()].sort()).toEqual(['ai', 'alerts', 'billing', 'delivery', 'profile', 'runbook', 'usage']);
     for (const [dir, label] of labels) {
       const source = readFileSync(join(here, dir, 'page.tsx'), 'utf8');
       const titles = [...source.matchAll(/<PageHeader[^>]*\btitle="([^"]*)"/g)].map((x) => x[1]);

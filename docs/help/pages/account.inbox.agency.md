@@ -13,7 +13,7 @@ Each row shows the title, the time, the start of the message and a grey label fo
 - **Brief ready for review**: a client's weekly brief is ready for your approval.
 - **Brief failed**: the brief could not be produced and nothing will be sent for that week.
 - **Brief overdue**: a brief was still waiting for approval at 07:00 client time, so it was not sent.
-- **Rank scan skipped**: a map ranking scan would have gone over the client's monthly cost cap. The notice points you to Usage to raise the cap.
+- **Rank scan skipped**: a map ranking scan would have gone over the client's monthly credit limit. The notice points you to Usage.
 - **Competitor suggestions ready**: suggested competitors are waiting for you to pick from, so the client's first brief can start.
 - **Client updated their setup**: someone at the client changed their setup in the last day.
 - **Setup waiting on you**: a client's setup has been waiting on you for 3 days, and again at 7 days.

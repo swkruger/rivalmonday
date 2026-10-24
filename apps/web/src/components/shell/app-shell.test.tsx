@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
-  logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
+  logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], paused: [] as { clientId: string; name: string; until: string }[], spendCalls: [] as unknown[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
 let pathname = '/agency';
 vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -17,7 +17,12 @@ vi.mock('@/server/theme', () => ({
     return { branding: { displayName: 'Acme Agency', logoUrl: m.logoUrl }, style: { '--primary': primary }, assistantName: 'Friday' };
   },
 }));
-vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: m.clients }) }));
+vi.mock('@/server/tools', () => ({
+  callTool: async (_ctx: unknown, name: string, input: unknown) => {
+    if (name === 'get_spend_status') { m.spendCalls.push(input); return { paused: m.paused }; }
+    return { items: m.clients };
+  },
+}));
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
@@ -55,6 +60,8 @@ beforeEach(() => {
   pathname = '/agency';
   m.realSidebar = false;
   m.clients = [];
+  m.paused = [];
+  m.spendCalls = [];
   m.logoUrl = null;
   m.counts.mockClear();
   m.themed.length = 0;
@@ -233,5 +240,51 @@ describe('AppShell client billing (9b)', () => {
     m.notice = { paused: false, paymentNeeded: false, enabled: false };
     await shell('client_owner');
     expect(screen.getByTestId('sidebar').dataset.billing).toBe('false');
+  });
+});
+
+describe('AppShell spend banners (7b1)', () => {
+  // formatDate omits the current year, so pin "now" (Date only).
+  beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-23T12:00:00Z')); });
+  afterAll(() => { vi.useRealTimers(); });
+  const CL = '00000000-0000-4000-8000-0000000000a1';
+  const PAUSED = [{ clientId: CL, name: 'A1 HVAC', until: '2026-11-01' }];
+  const as = (role: string, scope: 'all' | string[] = 'all') => {
+    const c = { agencyId: AG, userId: 'u', role, clientScope: scope, features: new Set(), planFeatures: new Set(['ask', 'mcp']) };
+    return { viewer: { kind: 'user', userId: 'u', email: 'u@c.test', name: 'U', ctx: c, membership: { id: 'm', clientName: 'A1 HVAC', agencyName: 'Acme Agency' }, memberships: [{ id: 'm' }] }, ctx: c };
+  };
+  const shell = async (role: string, scope?: 'all' | string[]) => { const { viewer, ctx: c } = as(role, scope); return render(await AppShell({ viewer: viewer as never, ctx: c as never, children: <p>page</p> })); };
+
+  it('admin banner lists paused clients, AM sees none', async () => {
+    m.paused = PAUSED;
+    const { unmount } = await shell('agency_admin');
+    expect(screen.getByRole('region', { name: 'Usage' }).textContent).toContain('AI work for A1 HVAC is paused until Nov 1');
+    expect(m.spendCalls).toEqual([{}]);
+    unmount();
+    m.spendCalls = [];
+    await shell('account_manager');
+    expect(screen.queryByRole('region', { name: 'Usage' })).toBeNull();
+    expect(m.spendCalls).toEqual([]);
+  });
+
+  it('client banner shows C3 for the client roles, scoped to their client', async () => {
+    m.paused = PAUSED;
+    const { unmount } = await shell('client_owner', [CL]);
+    expect(screen.getByRole('region', { name: 'Usage' }).textContent).toContain('Monitoring and new briefs are paused for the rest of this month.');
+    expect(screen.getByRole('region', { name: 'Usage' }).textContent).toContain('your Acme Agency team has been told');
+    expect(m.spendCalls).toEqual([{ clientId: CL }]);
+    unmount();
+    await shell('client_viewer', [CL]);
+    expect(screen.getByRole('region', { name: 'Usage' })).toBeTruthy();
+  });
+
+  it('no banner when nothing is paused, and the platform zone never reads the status', async () => {
+    const { unmount } = await shell('agency_admin');
+    expect(screen.queryByRole('region', { name: 'Usage' })).toBeNull();
+    unmount();
+    m.spendCalls = [];
+    const { viewer, ctx: c } = as('agency_admin');
+    render(await AppShell({ viewer: viewer as never, ctx: c as never, platformRole: 'owner', zone: 'platform', children: <p>page</p> }));
+    expect(m.spendCalls).toEqual([]);
   });
 });

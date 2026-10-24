@@ -6,10 +6,10 @@ const STYLE: Record<SpendCredits['level'], string> = {
   reached: 'bg-muted-surface text-secondary',
   paused: 'bg-muted-surface text-secondary',
 };
-const LABEL: Record<SpendCredits['level'], string> = { ok: '', near: ' · near limit', reached: ' · limit reached', paused: ' · paused' };
+const LABEL: Record<Exclude<SpendCredits['level'], 'ok'>, string> = { near: 'Near limit', reached: 'Limit reached', paused: 'Paused' };
 
-/** 7b1: month-to-date credits as a share of the client's limit; calm colours only (the full read-only UI is Task 11). */
+/** 7b1: month-to-date credits against the client's limit. Calm colours only (owner preference): ok shows the percentage, the other levels their label. */
 export function SpendBadge({ credits }: { credits: SpendCredits }) {
-  const pct = Math.round(credits.ratio * 100);
-  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${STYLE[credits.level]}`}>{`${pct}%${LABEL[credits.level]}`}</span>;
+  const text = credits.level === 'ok' ? `${Math.round(credits.ratio * 100)}%` : LABEL[credits.level];
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${STYLE[credits.level]}`}>{text}</span>;
 }

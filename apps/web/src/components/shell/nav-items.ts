@@ -69,6 +69,8 @@ export interface NavRoleFlags {
   assistantName?: string;
   /** Phase 8b M2: false inside a support session (`/inbox` 404s there); omitted means shown. Used by the top bar (15a Task 5). */
   inbox?: boolean;
+  /** 7b1: the client settings Usage tab: agency roles (always) and the signed-in client owner; never viewers or guests. */
+  usage?: boolean;
   /** 9b: a client owner with billing switched on for their client sees the Billing tab. */
   clientBilling?: boolean;
   /** Phase 11c: agency users who cover all clients see the Leads entry (agency admin or scope `all`). */
@@ -225,6 +227,7 @@ function clientSettings(flags: NavRoleFlags, base: string): NavSection | null {
     // Phase 14b: the client's own runbook (agency roles only; the page 404s for client roles).
     if (flags.isAgency) add(`${base}/settings/runbook`, 'Runbook', 'runbook');
     if (flags.mcp || flags.clientAi) add(`${base}/settings/ai`, 'AI connection', 'ai');
+    if (flags.isAgency || flags.usage) add(`${base}/settings/usage`, 'Usage', 'usage');
     if (!flags.isAgency && flags.clientBilling) add(`${base}/settings/billing`, 'Billing', 'billing');
   });
 }

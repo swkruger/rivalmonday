@@ -29,7 +29,7 @@ The weekly scan starts every Sunday at 06:00 UTC for each client that has keywor
 
 ### What limits Scan now?
 
-A client can be scanned by hand once every 7 days (the button then reads "Next scan available" with the day). Your agency can start 10 manual scans a day, counted per UTC day; after that the button is off and says so. A scan that would push the client past its monthly cost cap is refused, with the cap in the message. Only one scan can run for a client at a time.
+A client can be scanned by hand once every 7 days (the button then reads "Next scan available" with the day). Your agency can start 10 manual scans a day, counted per UTC day; after that the button is off and says so. A scan that would take the client past its monthly credit limit is refused until next month, and the message says so. Only one scan can run for a client at a time.
 
 ### Why are Rank settings and Scan now missing?
 

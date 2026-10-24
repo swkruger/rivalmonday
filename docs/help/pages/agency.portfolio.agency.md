@@ -10,7 +10,7 @@ Every active client in one table, sorted by what needs you first. A client with 
 The four tiles at the top count your clients, the alerts waiting for your check, the briefs to approve and the clients under high pressure. The columns are:
 
 - **Pressure** shows how much the client's busiest competitor has been doing over the last 30 days, from 0 to 100. The label reads High pressure (70 and above), Medium pressure (40 to 69), Low pressure (1 to 39) or Quiet (0). The line under it names that competitor and the main reasons.
-- **Budget** is this month's AI and data spend as a share of the client's monthly cap. It turns amber from 80% (near cap) and red at 100% (over cap).
+- **Budget** is this month's credits used as a share of the client's monthly credit limit. It reads *Near limit* from 80%, *Limit reached* at 100% (nothing changes) and *Paused* well past the limit, when AI and monitoring work for the client stops until next month.
 - **Alerts** counts the alerts held for your check. The line under it shows how many alerts were sent to the client in the last 7 days.
 - **Brief** links to the newest brief that needs review.
 - **Open actions** counts the client's recommendations that are To do or In progress.
@@ -23,7 +23,7 @@ A **Finish setup** chip under a client's name means its setup is still open. It 
 
 1. **Start with the clients at the top.** Click the alert count to go to Alert review, or **Approve week of ...** to review that client's brief.
 2. **Check the pressure label** to decide where to look next. Click a client's name to open its overview.
-3. **Watch Budget** for clients near their cap, then raise the cap or investigate under Agency settings.
+3. **Watch Budget** for clients near their limit, then check the details under Agency settings, Usage & limits.
 4. **Add a client** with the button at the top right. Agency admins and account managers who cover all clients see it.
 5. **Use the Getting started card** if it shows. Agency admins see five steps: complete your agency profile, invite your team, review your plan, add your logo and colours, and add your first client. The card goes away when all five are done or when you dismiss it.
 
@@ -41,6 +41,6 @@ Quiet means no competitor of that client has had a change that made the brief or
 
 The table lists active clients. Prospects are under Prospects.
 
-### Where do I change a client's cap or alert level?
+### Where do I see a client's credit limit or change an alert level?
 
-The cap is in Agency settings under Usage & limits. Alert levels are in the client's Settings under Alert rules.
+Credits and limits are shown in Agency settings under Usage & limits (read-only; contact support to change a limit). Alert levels are in the client's Settings under Alert rules.

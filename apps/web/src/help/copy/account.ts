@@ -19,10 +19,10 @@ export const ACCOUNT_COPY = {
         body: 'A bold title is unread. Selecting a notification marks it read and takes you to the page it is about; a notice with nothing to open brings you back here. Mark all read marks every notification you have, not only the ones on this page.',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS, AGENCY_KINDS; packages/engine/src/alerts/route.ts:notifyAm (alert to review or sent), briefs/notify.ts (brief ready or failed), briefs/deliver.ts:notifyOverdue (not sent at 07:00 client time), delivery/rank-notices.ts:notifyRankScanSkipped (monthly cost cap); apps/worker/src/jobs/setup.ts (setup reminders: suggestions ready, client changed their setup, idle)
+      // source: apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:CLIENT_KINDS, AGENCY_KINDS; packages/engine/src/alerts/route.ts:notifyAm (alert to review or sent), briefs/notify.ts (brief ready or failed), briefs/deliver.ts:notifyOverdue (not sent at 07:00 client time), delivery/rank-notices.ts:notifyRankScanSkipped (monthly credit limit); apps/worker/src/jobs/setup.ts (setup reminders: suggestions ready, client changed their setup, idle)
       labelsAgency: {
         title: 'What the labels mean',
-        body: 'The grey label names the kind of notice. Client alerts (agency): an alert to review, or one that was already sent, for a client you cover. Brief ready for review and Brief failed: a client\'s weekly brief is ready for your approval, or could not be produced. Brief overdue: a brief was still waiting for approval at 07:00 client time. Rank scan skipped: a map ranking scan would have gone over the client\'s monthly cost cap. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client\'s setup stands. Quarterly report: a client\'s quarterly report is ready.',
+        body: 'The grey label names the kind of notice. Client alerts (agency): an alert to review, or one that was already sent, for a client you cover. Brief ready for review and Brief failed: a client\'s weekly brief is ready for your approval, or could not be produced. Brief overdue: a brief was still waiting for approval at 07:00 client time. Rank scan skipped: a map ranking scan would have gone over the client\'s monthly credit limit. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client\'s setup stands. Quarterly report: a client\'s quarterly report is ready.',
         audience: 'agency',
         guideAnchor: 'what-this-page-tells-you',
       },
@@ -80,7 +80,7 @@ export const ACCOUNT_COPY = {
       // source: apps/web/src/server/inbox.ts:NOTIFICATION_KIND_LABELS; packages/db/src/schema/delivery.ts:AGENCY_KINDS; packages/engine/src/delivery/contacts.ts:recipientsFor (agency contacts: a client scope limits which clients' notices arrive); the briefs, alerts and rank notices cited under account.inbox.labelsAgency
       agencyKinds: {
         title: 'Agency notices',
-        body: 'Client alerts (agency): an alert to review or one already sent. Brief ready for review, Brief failed and Brief overdue: where a client\'s weekly brief stands. Rank scan skipped: a map ranking scan went over the client\'s monthly cost cap. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client\'s setup stands. An account manager who covers only some clients gets these only for those clients. Slack and Teams messages are set up under Agency settings, not here.',
+        body: 'Client alerts (agency): an alert to review or one already sent. Brief ready for review, Brief failed and Brief overdue: where a client\'s weekly brief stands. Rank scan skipped: a map ranking scan went over the client\'s monthly credit limit. Competitor suggestions ready, Client updated their setup and Setup waiting on you: where a client\'s setup stands. An account manager who covers only some clients gets these only for those clients. Slack and Teams messages are set up under Agency settings, not here.',
         audience: 'agency',
         guideAnchor: 'what-this-page-tells-you',
       },

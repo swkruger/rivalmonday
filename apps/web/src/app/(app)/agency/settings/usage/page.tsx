@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
+import { formatCredits, formatCreditsOf } from '@/lib/format';
+import { reachedCopy } from '@/lib/spend-copy';
 import { SpendBadge } from '@/components/spend-badge';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
@@ -25,9 +27,8 @@ const COPY = PAGE_COPY['agency.settings.usage'];
 export default async function UsagePage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const [{ month, items, agencyLevelCredits }, guides] = await Promise.all([callTool<{ month: string; items: UsageRow[]; agencyLevelCredits: number | null; totalCredits: number }>(ctx, 'get_usage', {}), helpGuides(ctx, 'agency')]);
-  const atWarning = items.filter((r) => r.credits.level === 'near').length;
-  const atOver = items.filter((r) => (r.credits.level === 'reached' || r.credits.level === 'paused')).length;
+  const [{ month, items, agencyLevelCredits, totalCredits }, guides] = await Promise.all([callTool<{ month: string; items: UsageRow[]; agencyLevelCredits: number | null; totalCredits: number }>(ctx, 'get_usage', {}), helpGuides(ctx, 'agency')]);
+  const count = (level: UsageRow['credits']['level']) => items.filter((r) => r.credits.level === level).length;
 
   return (
     <>
@@ -43,15 +44,13 @@ export default async function UsagePage() {
         guide={guides.has(HELP_KEY)}
       />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="rounded-md border border-line bg-surface p-6">
-          <h3 className="text-sm font-semibold">Near cap</h3>
-          <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{atWarning}</div>
-        </div>
-        <div className="rounded-md border border-line bg-surface p-6">
-          <h3 className="text-sm font-semibold">Over cap</h3>
-          <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{atOver}</div>
-        </div>
+      <div className="grid gap-5 sm:grid-cols-3">
+        {([['Near limit', count('near')], ['Limit reached', count('reached')], ['Paused', count('paused')]] as const).map(([label, n]) => (
+          <div key={label} className="rounded-md border border-line bg-surface p-6">
+            <h3 className="text-sm font-semibold">{label}</h3>
+            <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{n}</div>
+          </div>
+        ))}
       </div>
 
       {items.length === 0 ? (
@@ -63,13 +62,13 @@ export default async function UsagePage() {
             <TableHead>Client</TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Spend
+                Credits
                 <HelpTip tip="agency.settings.usage.spend" />
               </span>
             </TableHead>
             <TableHead>
               <span className="inline-flex items-center gap-1.5">
-                Share
+                Status
                 <HelpTip tip="agency.settings.usage.share" />
               </span>
             </TableHead>
@@ -101,7 +100,8 @@ export default async function UsagePage() {
                 )}
               </TableCell>
               <TableCell>
-                {row.credits.used} of {row.credits.limit} credits
+                {formatCreditsOf(row.credits.used, row.credits.limit)}
+                {row.credits.level === 'reached' && <div className="mt-1 max-w-[34ch] text-xs text-muted-ink">{reachedCopy(row.name)}</div>}
               </TableCell>
               <TableCell>
                 <SpendBadge credits={row.credits} />
@@ -121,7 +121,7 @@ export default async function UsagePage() {
 
       <p className="text-muted-ink">
         Shared monitoring of competitors (Google profile, reviews, ads) and the intelligence engine’s shared work are not yet split across clients; they’ll be allocated in a later release.
-        {agencyLevelCredits !== null && <> Agency-level credits not tied to a client: {agencyLevelCredits}</>}
+        {agencyLevelCredits !== null && <> Credits not tied to a client: {formatCredits(agencyLevelCredits)}.</>} Total this month: {formatCredits(totalCredits)}.
       </p>
     </>
   );

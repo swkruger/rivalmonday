@@ -27,6 +27,8 @@ export function navFlagsFor(v: { kind: 'user' | 'guest' | 'support'; ctx: Access
     clientAi: (v.kind === 'user' || v.kind === 'support') && hasChannel(v.ctx, 'mcp'),
     // Q2: guests have no Ask (and a magic-link contact id is never a thread author). Phase 8b: a support viewer sees
     // the module, which only says Ask conversations are private to their authors.
+    // 7b1: the client Usage tab (get_my_usage refuses viewers and guest contacts).
+    usage: v.kind === 'user' && v.ctx.role === 'client_owner',
     ask: (v.kind === 'user' || v.kind === 'support') && !v.ctx.userId.startsWith('contact:') && hasChannel(v.ctx, 'ask'),
     assistantName,
     // Phase 8b M2: the operator's own inbox is not part of the agency view (`/inbox` 404s in a session).

@@ -113,6 +113,27 @@ test.describe.serial('client billing', () => {
     });
   });
 
+  test('the client owner sees credits on the Usage page and no questions block; the viewer gets a 404', { tag: ['@client-billing', '@usage'] }, async ({ browser }, testInfo) => {
+    const { clientId } = await ids();
+    await as(browser, testInfo, 'owner', async (page) => {
+      await page.goto(`/c/${clientId}`);
+      // The Usage tab sits in Client settings for the owner (15a §2.5).
+      await page.getByRole('link', { name: 'Client settings', exact: true }).first().click();
+      await page.getByRole('navigation', { name: 'Settings' }).getByRole('link', { name: 'Usage', exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/c/${clientId}/settings/usage$`));
+      await expect(page.getByRole('heading', { name: 'Usage', exact: true, level: 1 })).toBeVisible();
+      await expect(page.getByText('Credits this month')).toBeVisible();
+      await expect(page.getByText(/of 1,500 credits/)).toBeVisible();
+      await expect(page.getByText(/Ask questions/)).toHaveCount(0);
+      await expect(page).toHaveTitle(`Usage · ${CB_AGENCY}`);
+      expect(await page.locator('main').innerText()).not.toContain('$');
+      expect(await page.locator('body').innerText()).not.toMatch(LEAK);
+    });
+    await as(browser, testInfo, 'viewer', async (page) => {
+      expect((await page.goto(`/c/${clientId}/settings/usage`))?.status()).toBe(404);
+    });
+  });
+
   test('a failed payment shows Payment needed to the agency and the banner to the client owner only', { tag: ['@client-billing'] }, async ({ browser }, testInfo) => {
     const { clientId } = await ids();
     // What a completed Checkout followed by Stripe's invoice.payment_failed webhook leaves behind (the webhook route is
