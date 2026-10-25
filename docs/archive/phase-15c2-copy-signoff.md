@@ -310,6 +310,8 @@ Page groups: Ask, Platform > Ask, Changes, Evidence, Moves, plus the 15c-2a item
 Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the end of the branch; the source of truth is the code. Labels come from the shared maps in `lib/labels.ts` (same text everywhere a status shows).
 
 ### Owner decisions (2b-2)
+**Approved by the owner 2026-10-24:** all 2b-2 copy and decisions 1–10 as written (2: tool refusal wording left for a later tool pass; 4: tokens in phase-16; 5: wording kept).
+
 1. **Changes on a phone (P2).** Rows are no longer announced as "current" below `lg:` (the detail pane is hidden there; tapping opens the sheet). On desktop the open row still carries `aria-current`. OK?
 2. **Tool refusal still says "place id" (P4).** UI, guides and help now say "Google Place ID". The refusal text from the tool (`packages/tools/src/client-input.ts:52`, "Google place id looks wrong") is unchanged because this phase changes no tool. Leave it for a later tool pass?
 3. **Band bar shows no examples (P10).** Settings > Alert rules draws the three bands with their score ranges only, no example changes. OK?

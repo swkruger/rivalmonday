@@ -4,11 +4,11 @@
 **Plan/spec:** [lean plan](../superpowers/plans/2026-10-24-phase-15c2b2-client-page-sweep.md) (no new spec, Q1). Inputs: [2b spec](../superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md) D9–D15 · [15c-2 spec](../superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) §4–5, §8 · [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §2–3 · pattern [15c-2a plan](../superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md).
 
 ## Status (overwrite)
-All 18 tasks done; final whole-branch review next. Sign-off: `docs/archive/phase-15c2-copy-signoff.md` § 2b-2 (9 owner decisions).
+All 18 tasks + final review + one fix wave done (re-review clean). test:affected green; e2e:affected 136/137, the one failure (smoke ISO locator) fixed and its spec re-run green. Copy sign-off § 2b-2 approved by owner 2026-10-24 (decisions 1–10).
 
 
 ## Next (overwrite)
-Final review + one fix wave (agency approvals guides "Needs review"; heatmap tooltip; PageSkeleton as in-card fallback; `text-white` on `bg-primary` sweep; alert-rules-form ref write in render) -> /rm-wrap-up -> owner verification -> /rm-merge.
+Owner verification (steps 1–9 below) -> /rm-merge on the owner's go-ahead.
 
 
 ## Interfaces this branch adds or changes
@@ -54,7 +54,7 @@ Final review + one fix wave (agency approvals guides "Needs review"; heatmap too
 7. Ask: with review off the composer says "Only you can see your conversations."; with review on it shows the review sentence; the Privacy tip ends with the new sentences.
 8. Usage (client and agency): a client whose Ask limit is 0 reads "N used · Ask turned off by limit".
 9. Reviews: open "Show as table" — cells show share, sentiment word and the ▲/▼ points; on a phone the chart scrolls sideways instead of shrinking.
-10. Read the § 15c-2b-2 sign-off section and answer its owner decisions.
+10. ~~Read the § 15c-2b-2 sign-off section~~ — approved 2026-10-24.
 
 ## Brief
 Superseded by the approved plan (scope, reuse list, decisions): see the lean plan linked above and the 2b spec D9-D15. The planning brief and open questions were resolved as Q1-Q7.
