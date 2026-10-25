@@ -155,9 +155,9 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
       try {
         if (await tx.transaction((sp) => resumeClient(sp, clientId, ACTOR))) post.syncSeatsFor = agencyId;
       } catch (e) {
-        // Only the seat-cap refusal is expected; anything else fails the event so Stripe retries.
-        if (!(e instanceof ToolError && e.code === 'billing_seat_limit')) throw e;
-        console.warn(`connect webhook: auto-pause not lifted on event ${event.id} (seat limit)`);
+        // Only the seat-cap refusal and an operator hold are expected; anything else fails the event so Stripe retries.
+        if (!(e instanceof ToolError && (e.code === 'billing_seat_limit' || e.code === 'service_paused'))) throw e;
+        console.warn(`connect webhook: auto-pause not lifted on event ${event.id} (${e.code === 'service_paused' ? 'agency on hold' : 'seat limit'})`);
       }
     }
   }

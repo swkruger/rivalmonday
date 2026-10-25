@@ -1,5 +1,5 @@
 import { type AgencyBillingRow, type Db, type PlanRow, agency, agencyBilling, agencyDailyStat, billingNotice } from '@cs/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
 import { clientMrrCents, runConnectDaily } from './connect-daily';
@@ -87,9 +87,21 @@ export async function runBillingDaily(db: Db, gw: BillingGateway | null, now: Da
   // 7a2 D16: an archived agency is deleted for schedulers (no reminders, timers or reconciliation).
   const agencies = await db.select({ id: agency.id }).from(agency).where(isNull(agency.archivedAt));
 
+  // 15c-3a (A4): a held agency's billing work is frozen; only the stat row is still written (MRR 0).
+  const held = new Set((await db.select({ id: agency.id }).from(agency).where(and(isNotNull(agency.suspendedAt), isNull(agency.archivedAt)))).map((a) => a.id));
+
   for (const { id: agencyId } of agencies) {
     try {
       let row = await load(db, agencyId);
+      if (held.has(agencyId)) {
+        const frozen = await db
+          .update(agencyDailyStat)
+          .set({ billingState: row?.state ?? 'pilot', paidSeats: 0, mrrCents: 0, clientMrrCents: 0 })
+          .where(and(eq(agencyDailyStat.agencyId, agencyId), eq(agencyDailyStat.day, yesterday)))
+          .returning({ day: agencyDailyStat.day });
+        if (!frozen.length) missingStats++;
+        continue;
+      }
       if (gw && row?.seatSyncPending) {
         result.seatRetries++;
         await syncSeats(db, gw, agencyId);

@@ -257,7 +257,7 @@ export async function handleAskTurn(req: Request, o: AskTurnOptions): Promise<Re
     deps = await o.deps();
     if (!(await clientVisible(deps.app, ctx, input.clientId))) return notFound();
     // 9a: a read_only/suspended agency is refused before any quota count or model call (role-aware copy).
-    await assertAgencyServiceable(deps.service, ctx);
+    await assertAgencyServiceable(deps.service, ctx, deps.toolDeps.supportEmail);
     // 7b1: a spend/platform pause answers with C4/C5 before any quota count or model call (every role).
     const pause = await aiPauseOf(deps.guard, { agencyId: ctx.agencyId, clientId: input.clientId });
     begun = await beginTurn(deps.app, ctx, input, new Date(), { pause });

@@ -231,6 +231,15 @@ describe('agency hold (phase 15c3a)', () => {
     expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ onHold: false, readOnly: false });
   });
 
+  it('assertCanActivateClient refuses a held agency with service_paused', async () => {
+    await setBilling(dbs.owner, planId, { state: 'active' });
+    await hold();
+    await expect(dbs.service.transaction((tx) => assertCanActivateClient(tx, AGENCY, { role: 'agency_admin' }))).rejects.toMatchObject({
+      code: 'service_paused',
+      message: HOLD_MESSAGE('support@rivalmonday.app'),
+    });
+  });
+
   it('holdMessage: agency staff get the hold copy, everyone else the generic one', () => {
     const exact = HOLD_MESSAGE('support@rivalmonday.app');
     expect(DEFAULT_SUPPORT_EMAIL).toBe('support@rivalmonday.app');

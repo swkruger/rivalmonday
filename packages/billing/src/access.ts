@@ -134,6 +134,8 @@ export async function assertCanActivateClient(tx: Tx, agencyId: string, opts: { 
   const now = opts.now ?? new Date();
   const [row = null] = await tx.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId)).for('update');
   if (!row) await tx.select({ id: agency.id }).from(agency).where(eq(agency.id, agencyId)).for('update');
+  // 15c-3a: a held agency activates nothing, whatever its seats or Stripe state.
+  if (await isOnHold(tx, agencyId)) throw new ToolError('service_paused', holdMessage(opts.role ?? 'agency_admin'), { userFacing: true });
   const { reducedTrial, includedSeats, maxActiveClients, activeClients } = await allowanceFor(tx, agencyId, row);
   const d = decide(row, activeClients, maxActiveClients, now);
   if (d.ok) return;

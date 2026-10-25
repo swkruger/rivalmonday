@@ -1,5 +1,5 @@
 import { ToolError } from '@cs/core';
-import { agencyWebhook, client, notification } from '@cs/db';
+import { agency, agencyWebhook, client, notification } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -45,6 +45,13 @@ describe('pauseClient', () => {
 });
 
 describe('resumeClient', () => {
+  it('resumeClient refuses on hold', async () => {
+    await pause();
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
+    await expect(resume()).rejects.toMatchObject({ code: 'service_paused' });
+    expect((await row()).pausedAt).not.toBeNull();
+  });
+
   it('clears paused_at/paused_by', async () => {
     await pause();
     expect(await resume()).toBe(true);

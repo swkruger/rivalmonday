@@ -1,6 +1,6 @@
 import { type Db, agencyBilling } from '@cs/db';
 import { eq } from 'drizzle-orm';
-import { countActiveClients, planFor } from './access';
+import { countActiveClients, isOnHold, planFor } from './access';
 import type { BillingGateway } from './types';
 
 /**
@@ -8,6 +8,7 @@ import type { BillingGateway } from './types';
  * renewal. Gateway failure marks `seat_sync_pending` (the daily job retries) and never throws.
  */
 export async function syncSeats(db: Db, gw: BillingGateway, agencyId: string): Promise<'synced' | 'skipped' | 'pending'> {
+  if (await isOnHold(db, agencyId)) return 'skipped'; // 15c-3a: a held agency's billing work is frozen
   const [row] = await db.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
   if (!row?.stripeSubscriptionId || row.state === 'pilot') return 'skipped';
   const [p, active] = await Promise.all([planFor(db, row), countActiveClients(db, agencyId)]);

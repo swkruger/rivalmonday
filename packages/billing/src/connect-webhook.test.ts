@@ -1,4 +1,4 @@
-import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, stripeConnectEvent } from '@cs/db';
+import { agency, agencyBilling, agencyConnect, billingNotice, client, clientBilling, stripeConnectEvent } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -339,6 +339,16 @@ describe('handleConnectEvent: auto-pause lift (R14)', () => {
     await pauseA1('user-1');
     await handle(ev('i1', 'invoice.paid', { subscription: 'sub_1' }));
     expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+  });
+
+  it('a held agency: resume is refused with service_paused, tolerated, the event still processes', async () => {
+    await active({ state: 'payment_needed', paymentFailedSince: new Date((T0 - 50) * 1000) });
+    await setBilling(dbs.owner, planId, { state: 'active' });
+    await pauseA1('auto');
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, IDS.agencyA));
+    expect(await handle(ev('i1', 'invoice.paid', { subscription: 'sub_1' }))).toBe('processed');
+    expect((await clientRow()).pausedAt).not.toBeNull();
+    expect((await record('i1'))?.processedAt).not.toBeNull();
   });
 
   it('I1: an unexpected resume failure is not swallowed: the event stays unprocessed with the error recorded and a retry succeeds', async () => {

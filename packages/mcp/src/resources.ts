@@ -25,7 +25,7 @@ export async function enforceRateLimit(s: McpSession): Promise<void> {
 /** I7: a paused (`read_only`/`suspended`) agency's data is not served, here as on `tools/call` (role-aware copy). */
 async function guard(s: McpSession, tool: string): Promise<void> {
   await enforceRateLimit(s);
-  await assertAgencyServiceable(s.service, s.ctx);
+  await assertAgencyServiceable(s.service, s.ctx, s.deps.supportEmail);
   requireTool(s, tool);
 }
 

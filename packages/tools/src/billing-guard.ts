@@ -1,4 +1,4 @@
-import { ACCOUNT_NEEDS_ATTENTION_MESSAGE, billingAccess, syncSeats } from '@cs/billing';
+import { ACCOUNT_NEEDS_ATTENTION_MESSAGE, billingAccess, holdMessage, syncSeats } from '@cs/billing';
 import { type WriteGuard, ToolError } from '@cs/core';
 import type { ToolDeps } from './deps';
 import { knowledgeAdminTools } from './tools/knowledge-admin';
@@ -44,9 +44,11 @@ export const PAUSED_WRITE_ALLOW_LIST: readonly string[] = [
   ...PLATFORM_TOOLS,
 ];
 
-/** Up-front refusal for non-registry entry points (Ask turn, MCP `tools/call`): `service_paused` for a `read_only`/`suspended` agency, role-aware copy. */
-export async function assertAgencyServiceable(service: ToolDeps['service'], ctx: { agencyId: string; role: string }): Promise<void> {
+/** Up-front refusal for non-registry entry points (Ask turn, MCP `tools/call`): `service_paused` for a held, `read_only` or `suspended` agency, role-aware copy. */
+export async function assertAgencyServiceable(service: ToolDeps['service'], ctx: { agencyId: string; role: string }, supportEmail?: string): Promise<void> {
   const access = await billingAccess(service, ctx.agencyId);
+  // 15c-3a (C6): an operator hold wins over any Stripe state, and no payment lifts it.
+  if (access.onHold) throw new ToolError('service_paused', holdMessage(ctx.role, supportEmail), { userFacing: true });
   if (access.readOnly || access.suspended) throw new ToolError('service_paused', pausedMessage(ctx.role));
 }
 
@@ -54,6 +56,6 @@ export async function assertAgencyServiceable(service: ToolDeps['service'], ctx:
 export function billingWriteGuard(deps: ToolDeps): WriteGuard {
   return async (ctx, tool) => {
     if (PAUSED_WRITE_ALLOW_LIST.includes(tool.name)) return;
-    await assertAgencyServiceable(deps.service, ctx);
+    await assertAgencyServiceable(deps.service, ctx, deps.supportEmail);
   };
 }

@@ -39,7 +39,7 @@ export function createMcpServer(args: {
     const { name, arguments: input } = req.params;
     try {
       await enforceRateLimit(session);
-      await assertAgencyServiceable(service, ctx); // 9a: read_only/suspended agency -> service_paused (resources too, I7; tools/list and prompts carry no agency data)
+      await assertAgencyServiceable(service, ctx, deps.supportEmail); // 9a: read_only/suspended agency -> service_paused (resources too, I7; tools/list and prompts carry no agency data)
       const out = await registry.invoke(ctx, name, input ?? {}, opts);
       return { content: [{ type: 'text', text: JSON.stringify(out) }] };
     } catch (e) {

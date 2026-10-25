@@ -1,11 +1,16 @@
-import { agencyBilling, agencyBillingEvent, agencyDailyStat, billingNotice } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, billingNotice } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { runConnectDaily } from './connect-daily';
 import { runBillingDaily } from './daily';
 import { fakeGateway } from './fake-gateway';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
+vi.mock('./connect-daily', async (orig) => {
+  const m = await orig<typeof import('./connect-daily')>();
+  return { ...m, runConnectDaily: vi.fn(m.runConnectDaily) };
+});
 afterEach(() => vi.restoreAllMocks());
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -209,5 +214,22 @@ describe('runBillingDaily stats', () => {
     await setBilling(dbs.owner, planId, { state: 'pilot' });
     await runBillingDaily(dbs.service, fakeGateway(), NOW);
     expect(await stat()).toBeUndefined();
+  });
+});
+
+describe('runBillingDaily on hold (phase 15c3a)', () => {
+  it('held agency: no Connect/timer/seat work, stat written with MRR 0', async () => {
+    const gw = fakeGateway();
+    await withSub(gw, { state: 'trialing', trialEndsAt: day('2026-10-13'), seatSyncPending: true, billableSeatsSynced: 4 });
+    await seedStat();
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
+    vi.mocked(runConnectDaily).mockClear();
+    const r = await runBillingDaily(dbs.service, gw, NOW);
+    expect(r).toMatchObject({ transitions: 0, reminders: 0, seatRetries: 0, drift: 0 });
+    expect(await row()).toMatchObject({ state: 'trialing', seatSyncPending: true });
+    expect(vi.mocked(runConnectDaily).mock.calls.filter((c) => c[2] === AGENCY)).toHaveLength(0);
+    expect(gw.callsTo('updateSeatQuantity')).toHaveLength(0);
+    expect(gw.callsTo('getSubscription')).toHaveLength(0);
+    expect(await stat()).toMatchObject({ billingState: 'trialing', paidSeats: 0, mrrCents: 0, clientMrrCents: 0 });
   });
 });

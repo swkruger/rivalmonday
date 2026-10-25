@@ -1,4 +1,4 @@
-import { agencyBilling, plan } from '@cs/db';
+import { agency, agencyBilling, plan } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,15 @@ const withSub = (gw: ReturnType<typeof fakeGateway>, v: Partial<typeof agencyBil
 };
 
 describe('syncSeats', () => {
+  it('syncSeats skips a held agency', async () => {
+    const gw = fakeGateway();
+    await withSub(gw, { billableSeatsSynced: 5 });
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
+    expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('skipped');
+    expect(gw.calls).toHaveLength(0);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 5 });
+  });
+
   it('skips without a subscription and for pilots', async () => {
     const gw = fakeGateway();
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('skipped'); // no row

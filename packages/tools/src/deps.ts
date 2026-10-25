@@ -50,6 +50,8 @@ export interface ToolDeps {
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */
   billing?: BillingGateway;
+  /** Phase 15c3a: `SUPPORT_REPLY_TO` (web); names the contact in the agency-hold refusal copy. Absent: the default support address. */
+  supportEmail?: string;
   /** Phase 14a: drafts a new business type from a Google profile with one AI call (web builds it; a fixture under SETUP_FAKE_LOOKUP). Absent: `draft_vertical` answers `draft: null` and the UI shows the manual form. */
   verticalDrafter?: (input: { placeId: string; nearbyCategories: string[] }, scope: CallScope) => Promise<{ draft: VerticalDraft | null; similar: { id: string; name: string }[] }>;
   /** Phase 14b: one AI rewrite of a play for a client (web builds it; a fixture under SETUP_FAKE_LOOKUP/demo/test). Absent: `retailor_runbook_item` answers `proposed: null`. Never writes. */

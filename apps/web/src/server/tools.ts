@@ -81,6 +81,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     runbookTailorer: runbookTailorerFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     ...(webEnv().webhookFakeSend ? { webhookFetch: fakeWebhookFetch } : {}),
+    supportEmail: webEnv().supportReplyTo,
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured
   };
 });
