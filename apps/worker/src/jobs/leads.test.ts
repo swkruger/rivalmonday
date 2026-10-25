@@ -223,6 +223,19 @@ describe('leads-cleanup', () => {
     expect(await row(recentAccepted)).toMatchObject({ message: 'hi', phone: '555' });
   });
 
+  it('old accepted/unverified leads survive the 180-day cleanup per its rule', async () => {
+    // O8 deletes only `verified` leads nobody decided on. An accepted lead is scrubbed (90 d) but kept; an unverified one
+    // whose link is still valid is not touched however old its row is.
+    const old = ago(200 * DAYS);
+    const verified = await mk({ status: 'verified', verifiedAt: old, updatedAt: old, confirmationSentAt: old, agencyNotifiedAt: old });
+    const accepted = await mk({ status: 'accepted', verifiedAt: old, decidedAt: old, updatedAt: old, message: 'hi', phone: '555', confirmationSentAt: old, agencyNotifiedAt: old });
+    const unverified = await mk({ status: 'unverified', verifiedAt: null, updatedAt: old, verifyExpiresAt: new Date(Date.now() + 3600_000) });
+    expect(await cleanup()).toMatchObject({ deletedVerified: 1, deleted: 0, expired: 0 });
+    expect(await dbs.service.select().from(lead).where(eq(lead.id, verified))).toEqual([]);
+    expect(await row(accepted)).toMatchObject({ status: 'accepted', message: null, phone: null });
+    expect(await row(unverified)).toMatchObject({ status: 'unverified' });
+  });
+
   it('purges rate rows older than 2 days', async () => {
     await dbs.service.insert(intakeRate).values([
       { key: 'old', windowStart: ago(3 * DAYS), count: 1 },

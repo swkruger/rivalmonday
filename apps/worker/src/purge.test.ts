@@ -1,5 +1,5 @@
 import { hashInput } from '@cs/core/server';
-import { agency, agencyBilling, type Db, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
+import { agency, agencyBilling, type Db, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, notification, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,6 +94,38 @@ describe('purgeArchived', () => {
     expect(await auditUsers(IDS.agencyA)).toEqual(['contact:' + otherGuest!.id, 'multi', 'owner-a1', 'purged', 'purged', 'staff'].sort());
     expect(await auditUsers(IDS.agencyB)).toEqual(['owner-a2']);
     expect((await dbs.owner.select({ u: membership.userId }).from(membership)).map((r) => r.u).sort()).toEqual(['multi', 'owner-a1', 'staff']);
+  });
+
+  it('purged client with an agency-level membership keeps the membership', async () => {
+    await addUser('staff');
+    await addUser('owner-a2');
+    await dbs.service.insert(membership).values([
+      { userId: 'staff', agencyId: IDS.agencyA, role: 'account_manager', createdBy: 't' },
+      { userId: 'owner-a2', agencyId: IDS.agencyA, clientId: IDS.clientA2, role: 'client_owner', createdBy: 't' },
+    ]);
+    await audit(IDS.agencyA, 'staff');
+    await dbs.owner.update(client).set({ archivedAt: daysAgo(91) }).where(eq(client.id, IDS.clientA2));
+    expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: false, now: NOW })).toEqual({ agencies: 0, clients: 1, auditAnonymised: 0 });
+    expect(await exists(client, IDS.clientA2)).toBe(false);
+    // The client-scoped membership went with the client; the agency-level one (client_id NULL) and its audit trail stay.
+    expect(await dbs.owner.select({ u: membership.userId, c: membership.clientId }).from(membership)).toEqual([{ u: 'staff', c: null }]);
+    expect(await auditUsers(IDS.agencyA)).toEqual(['staff']);
+  });
+
+  it('a retried pending notification with future not_before survives purge of another tenant', async () => {
+    const [c1] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' }).returning({ id: contact.id });
+    const [c2] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, role: 'client_owner', email: 'o@a2.example' }).returning({ id: contact.id });
+    const base = { agencyId: IDS.agencyA, kind: 'alert', subjectType: 'alert', subjectId: IDS.clientA1, title: 't', body: 'b', channel: 'email', status: 'pending', attempts: 2 } as const;
+    const later = new Date(NOW.getTime() + 3_600_000);
+    await dbs.service.insert(notification).values([
+      { ...base, clientId: IDS.clientA1, contactId: c1!.id, dedupeKey: 'keep', notBefore: later, error: 'try again' },
+      { ...base, clientId: IDS.clientA2, contactId: c2!.id, dedupeKey: 'go', notBefore: later },
+    ]);
+    const before = (await dbs.owner.select().from(notification).where(eq(notification.dedupeKey, 'keep')))[0]!;
+    await dbs.owner.update(client).set({ archivedAt: daysAgo(91) }).where(eq(client.id, IDS.clientA2));
+    expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: false, now: NOW })).toMatchObject({ clients: 1 });
+    expect((await dbs.owner.select().from(notification)).map((n) => n.dedupeKey)).toEqual(['keep']);
+    expect((await dbs.owner.select().from(notification))[0]).toEqual(before);
   });
 
   it('a client archived long ago inside an archived (not yet due) agency is left for the agency purge', async () => {

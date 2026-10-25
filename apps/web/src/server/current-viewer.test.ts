@@ -80,6 +80,15 @@ describe('current viewer with a support cookie', () => {
     expect(ctx).toMatchObject({ agencyId: IDS.agencyB, role: 'agency_admin', clientScope: 'all', support: { sessionId: s.id, platformUserId: 'op' } });
   });
 
+  it('support viewer context gets the default plan features', async () => {
+    // The synthetic support context is built without a plan lookup: every plan feature, whatever the agency bought.
+    const s = await open();
+    m.cookies = { rm_support: signSupportCookie(s.id) };
+    const { ctx } = await requireContext();
+    expect(ctx.support).toBeDefined();
+    expect([...ctx.planFeatures].sort()).toEqual(['ask', 'mcp']);
+  });
+
   it('a member-less operator still gets the support viewer', async () => {
     await dbs.service.delete(membership);
     const s = await open();

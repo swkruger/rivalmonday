@@ -138,6 +138,35 @@ describe('row-level security', () => {
     expect(updateText).toMatch(/permission denied/i);
   });
 
+  it('agency RLS update test is not vacuous', async () => {
+    // The test above stops at the privilege check, so RLS never ran. Grant UPDATE to get past it (files run serially).
+    const upd = (agencyId: string) =>
+      withTenant(dbs.app, { agencyId, clientScope: 'all' }, async (tx) => {
+        const res = (await tx.update(agency).set({ name: 'Hijacked' }).where(eq(agency.id, IDS.agencyA))) as unknown as { count: number };
+        return res.count;
+      });
+    const nameOf = async () => (await dbs.owner.select({ name: agency.name }).from(agency).where(eq(agency.id, IDS.agencyA)))[0]?.name;
+    const original = await nameOf();
+    await dbs.owner.execute(sql`GRANT UPDATE (name) ON agency TO app_user`);
+    try {
+      // A's row exists and is visible to A, so "0 rows" for B means the policy hid it, not that it is missing.
+      const visibleToA = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.select().from(agency));
+      expect(visibleToA.map((r) => r.id)).toEqual([IDS.agencyA]);
+      expect(await upd(IDS.agencyB)).toBe(0);
+      expect(await nameOf()).toBe(original);
+      // The shipped SELECT-only policy also refuses the owning agency; a temporary tenant-scoped UPDATE policy proves the
+      // predicate is what separates A from B (A reaches 1 row, B still 0).
+      await dbs.owner.execute(sql`CREATE POLICY tmp_agency_update ON agency FOR UPDATE USING (id = app_agency_id()) WITH CHECK (id = app_agency_id())`);
+      expect(await upd(IDS.agencyB)).toBe(0);
+      expect(await nameOf()).toBe(original);
+      expect(await upd(IDS.agencyA)).toBe(1);
+      expect(await nameOf()).toBe('Hijacked');
+    } finally {
+      await dbs.owner.execute(sql`DROP POLICY IF EXISTS tmp_agency_update ON agency`);
+      await dbs.owner.execute(sql`REVOKE UPDATE (name) ON agency FROM app_user`);
+    }
+  });
+
   it('app_user cannot insert new competitors', async () => {
     const text = await errorText(
       withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>

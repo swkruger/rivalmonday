@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
+const m = vi.hoisted(() => ({ ask: false }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: 'agency_owner', userId: 'u1' } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 vi.mock('@/server/help', () => ({ helpGuides: async () => new Set() }));
-vi.mock('@/server/ask', () => ({ assistantNameFor: async () => null }));
+vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
-vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasChannel: () => false, hasFeature: () => false, hasPermission: () => false }));
+vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasChannel: () => m.ask, hasFeature: () => false, hasPermission: () => false }));
 vi.mock('react', async (orig) => ({ ...(await orig<typeof import('react')>()), cache: <T,>(f: T) => f }));
 vi.mock('@/components/ask/save-recommendation-dialog', () => ({ RATIONALE_MAX: 10, TITLE_MAX: 10, SaveRecommendationDialog: () => null }));
 vi.mock('../../ask/actions', () => ({ saveAskRecommendation: vi.fn() }));
@@ -81,5 +82,16 @@ describe('Evidence page "Compare with previous"', () => {
     const tree = await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) });
     expect(textOf(tree)).toContain('Site asks not to be monitored');
     expect(textOf(tree)).not.toContain('robots_disallowed');
+  });
+});
+
+describe('Evidence page Ask entry point (plan-off, 7a2 D13)', () => {
+  const open = async () => textOf(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }));
+  it('evidence page hides Ask when canAsk is false', async () => {
+    mount('web');
+    m.ask = true;
+    expect(await open()).toContain('Ask Friday about this');
+    m.ask = false;
+    expect(await open()).not.toContain('Ask Friday');
   });
 });

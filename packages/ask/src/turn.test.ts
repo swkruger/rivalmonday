@@ -1,6 +1,6 @@
-import { type AccessContext, type AuditEvent, createAccessContext, ToolError, ToolRegistry, toolkit } from '@cs/core';
+import { type AccessContext, type AuditEvent, createAccessContext, scopeToClient, ToolError, ToolRegistry, toolkit } from '@cs/core';
 import { hashInput } from '@cs/core/server';
-import { agency, askMessage, askThread, auditLog, capture, evidence } from '@cs/db';
+import { agency, askMessage, askThread, auditLog, capture, evidence, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { ASK_WRITE_TOOLS, createToolRegistry, type ToolDeps } from '@cs/tools';
 import { asc, eq, sql } from 'drizzle-orm';
@@ -590,6 +590,20 @@ describe('runTurn client pinning (7a2 D12)', () => {
     const ai = await adminTurn([{ kind: 'chat', reply: { toolCalls: [{ name: 'fetch', args: { id: `evidence:${e!.id}` } }] } }, done], reg);
     expect(toolMessages(ai)).toEqual(['<data tool="fetch">{"error":"not_found"}</data>']);
     expect(toolMessages(ai).join('')).not.toContain('Teeth');
+  });
+
+  it("pinned admin cannot update_recommendation_status on another client's recommendation", async () => {
+    // update_recommendation_status has no clientId in its input: only the pinned context stands between the thread and A2's rows.
+    const [rec] = await dbs.owner.insert(recommendation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, title: 'Offer a bundle', rationale: 'Because of reasons.', effort: 'L', impact: 'H', owner: 'client', source: 'brief' }).returning();
+    const input = { recommendationId: rec!.id, status: 'done' };
+    const statusOf = async () => (await dbs.owner.select().from(recommendation).where(eq(recommendation.id, rec!.id)))[0]!.status;
+    const before = await statusOf();
+    const reg = real();
+    await expect(reg.invoke(scopeToClient(admin, IDS.clientA1), 'update_recommendation_status', input, { channel: 'ask' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await statusOf()).toBe(before);
+    // Control: the same admin, pinned to the recommendation's own client, may.
+    await expect(reg.invoke(scopeToClient(admin, IDS.clientA2), 'update_recommendation_status', input, { channel: 'ask' })).resolves.toEqual({ ok: true });
+    expect(await statusOf()).toBe('done');
   });
 
   it('describe is computed with the pinned context', async () => {

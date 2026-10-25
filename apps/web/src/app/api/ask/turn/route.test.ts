@@ -165,6 +165,22 @@ describe('POST /api/ask/turn', () => {
     expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
   });
 
+  it("multi-agency user whose other agency's plan lacks ask gets not_found for that agency's client", async () => {
+    // Agency A (plan with Ask) is the null-hint membership; the body's client belongs to agency B, whose plan has no Ask.
+    const early = userViewer(ctxFor());
+    const hinted = userViewer(ctxFor({ agencyId: IDS.agencyB, clientScope: [IDS.clientB1], planFeatures: ['mcp'] }));
+    m.viewerFor = (hint) => (hint === IDS.clientB1 ? hinted : early);
+    const res = await post({ clientId: IDS.clientB1, question: 'What changed?' });
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('');
+    expect(m.hints).toEqual([null, IDS.clientB1]);
+    expect(await dbs.owner.select().from(askMessage)).toHaveLength(0);
+    // Control: the same user asking about agency A's client still gets an answer.
+    const ok = await post({ clientId: IDS.clientA1, question: 'What changed?' });
+    expect(ok.status).toBe(200);
+    await ok.text();
+  });
+
   it('missing Origin → 404', async () => {
     const req = request({ headers: { origin: '' } });
     expect((await POST(req)).status).toBe(404);
