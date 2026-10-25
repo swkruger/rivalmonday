@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#47A8E7; --primary-soft:#E6F3FC; --secondary:#2A6BAC; --accent:#F5A524;
+  --ink:#0B2540; --muted:#5B6B80; --faint:#8796AB; --line:#DDE4EC; --input:#8796AB;
+  --canvas:#F6F9FC; --panel:#EEF2F6; --surface:#fff; --danger:#C2410C; --ok:#1F8A4C;
+}
+@page{size:1440px 900px;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff;font-family:Inter,system-ui,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:1440px;height:900px;position:relative;overflow:hidden;page-break-after:always;background:#fff}
+.page:last-child{page-break-after:auto}
+.tag{position:absolute;top:14px;right:18px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ink);padding:4px 8px;border-radius:4px;z-index:9}
+
+/* wordmark */
+.wm{font-weight:600;font-size:20px;letter-spacing:-.02em}.wm .r{color:var(--secondary)}.wm .m{color:var(--accent)}
+
+/* split onboarding page */
+.split{display:grid;grid-template-columns:640px 1fr;height:100%}
+.left{display:flex;flex-direction:column;padding:36px 64px 32px 72px}
+.top{display:flex;align-items:center;justify-content:space-between}
+.exit{font-size:13px;color:var(--muted);font-weight:500}
+.prog{margin-top:56px}
+.prog .lbl{font-size:13px;color:var(--muted);font-weight:500;margin-bottom:10px}
+.bars{display:flex;gap:6px}.bars i{flex:1;height:4px;border-radius:9999px;background:var(--panel)}.bars i.on{background:var(--primary)}
+h1{font-size:30px;line-height:1.2;font-weight:600;letter-spacing:-.015em;margin-top:36px}
+.sub{font-size:15px;color:var(--muted);margin-top:10px;line-height:1.5;max-width:460px}
+.form{margin-top:32px;display:flex;flex-direction:column;gap:20px;max-width:440px}
+.f label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+.f label .req{color:var(--danger)}.f label .opt{color:var(--faint);font-weight:400}
+.in{height:40px;border:1px solid var(--input);border-radius:6px;padding:0 12px;display:flex;align-items:center;font-size:14px;background:#fff}
+.in.ph{color:var(--faint)}.in.focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.foot{margin-top:auto;display:flex;align-items:center;gap:16px;max-width:440px}
+.btn{height:40px;border-radius:6px;padding:0 18px;display:inline-flex;align-items:center;font-size:14px;font-weight:500}
+.btn.p{background:var(--primary);color:var(--ink)}
+.btn.g{border:1px solid var(--line);color:var(--ink);background:#fff}
+.skip{font-size:14px;color:var(--muted);font-weight:500}
+.sp{flex:1}
+.right{background:var(--canvas);position:relative;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line)}
+.caption{position:absolute;left:56px;right:56px;bottom:40px;font-size:13px;color:var(--muted);text-align:center}
+.caption b{color:var(--ink);font-weight:600}
+
+/* floating preview window */
+.win{background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(11,37,64,.06),0 12px 40px rgba(11,37,64,.12);overflow:hidden}
+.chrome{height:30px;background:var(--panel);display:flex;align-items:center;gap:6px;padding:0 12px}
+.chrome i{width:8px;height:8px;border-radius:50%;background:#C9D3DE}
+.sk{height:8px;border-radius:9999px;background:var(--panel)}
+.hl{outline:2px dashed var(--accent);outline-offset:3px;border-radius:4px}
+
+/* chips/dots */
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--panel);color:var(--ink)}
+.chip.top{background:#FDEBD0;color:#7A4A00}.chip.worth{background:var(--primary-soft);color:#174E7A}.chip.minor{background:var(--panel);color:var(--muted)}
+
+/* cover */
+.cover{padding:72px 96px}
+.cover h2{font-size:36px;font-weight:600;letter-spacing:-.02em;margin-top:28px}
+.cover p.lead{font-size:16px;color:var(--muted);margin-top:12px;max-width:820px;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:44px}
+.col h3{font-size:14px;font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--secondary)}
+.col ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.col li{font-size:14px;line-height:1.5;padding-left:16px;position:relative}
+.col li:before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--primary)}
+.guess{margin-top:40px;padding:16px 20px;background:var(--panel);border-radius:8px;font-size:14px;line-height:1.55;max-width:1100px}
+
+/* list rows */
+.opt-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.opt-row.sel{border-color:var(--primary);background:var(--primary-soft)}
+.cb{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--input);flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink);font-weight:600}
+.cb.on{background:var(--primary);border-color:var(--primary)}
+.radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--input);flex:none}
+.radio.on{border:5px solid var(--primary)}
+.meta{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* dialog page */
+.app{position:absolute;inset:0;background:var(--canvas);display:grid;grid-template-columns:240px 1fr}
+.side{background:#fff;border-right:1px solid var(--line);padding:20px 16px}
+.scrim{position:absolute;inset:0;background:rgba(11,37,64,.45)}
+.dlg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:920px;height:560px;background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(11,37,64,.3);display:grid;grid-template-columns:1fr 400px;overflow:hidden}
+</style>
+</head>
+<body>
+
+<!-- 0. COVER -->
+<section class="page cover">
+  <div class="wm"><span class="r">rival</span><span class="m">monday</span></div>
+  <h2>Agency and client onboarding: mockups for discussion</h2>
+  <p class="lead">Direction: onboarding sits outside the app (no sidebar), one idea per step, only required inputs, progress always visible. The left half holds the step and the right half shows a live preview of what is being built, or an illustration where there is nothing to preview yet. Not final copy or final fields.</p>
+  <div class="grid">
+    <div class="col"><h3>Pages in this PDF</h3><ul>
+      <li>1 · Agency: about you (3 required fields)</li>
+      <li>2 · Agency: make it yours, with a live white-label preview</li>
+      <li>3 · Client: find the business, with a map preview</li>
+      <li>4 · Client: pick competitors, with a live "Where you stand" preview</li>
+      <li>5 · Option: the same step as a split dialog over the app</li>
+    </ul></div>
+    <div class="col"><h3>Shared rules</h3><ul>
+      <li>Full screen, white form side, #F6F9FC preview side</li>
+      <li>Wordmark top left, "Save and exit" top right</li>
+      <li>Step label + segmented bar; Back · Skip for now · Continue</li>
+      <li>Required = red *, optional = muted "(optional)"</li>
+      <li>Saves on every step and reopens at the first open step</li>
+      <li>Below 1024px the preview panel is hidden</li>
+    </ul></div>
+    <div class="col"><h3>From Mobbin</h3><ul>
+      <li>Split with product preview: Lindy, HoneyBook, Maze</li>
+      <li>Split with illustration: Mixpanel, Asana, Remote</li>
+      <li>One question per screen: QuickBooks, Uxcel</li>
+      <li>Split dialog: Docusign, Squarespace</li>
+    </ul></div>
+  </div>
+  <div class="guess"><b>My guesses, for you to correct:</b> agency onboarding goes from 4 steps to 3 (about you · make it yours · invite team), and plan/billing moves to a banner in the app; the long agency profile (legal name, tax ID, billing address) moves to Settings. Client setup keeps its 5 steps (find · services · competitors · invite owner · billing) with the same rules.</div>
+</section>
+
+<!-- 1. AGENCY STEP 1 -->
+<section class="page"><span class="tag">1 · Agency onboarding</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><span class="exit">Save and exit</span></div>
+    <div class="prog"><div class="lbl">Step 1 of 3 · About you</div><div class="bars"><i class="on"></i><i></i><i></i></div></div>
+    <h1>Welcome, Brightside Marketing</h1>
+    <p class="sub">Three quick details so your clients know who to contact. Everything else can wait for Settings.</p>
+    <div class="form">
+      <div class="f"><label>Your name <span class="req">*</span></label><div class="in focus">Sam Lee</div></div>
+      <div class="f"><label>Phone <span class="req">*</span></label><div class="in">(512) 555-0142</div><div class="hint">Shown on client briefs as the agency's contact.</div></div>
+      <div class="f"><label>Time zone <span class="req">*</span></label><div class="in" style="justify-content:space-between">Central Time (Chicago)<span style="color:var(--faint)">▾</span></div><div class="hint">We picked this from your browser.</div></div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div style="padding:28px 32px">
+        <div style="font-size:12px;color:var(--muted);font-weight:500">Weekly brief · Mon Oct 26</div>
+        <div style="font-size:20px;font-weight:600;margin-top:6px">Three things your rivals did this week</div>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
+          <div class="sk" style="width:92%"></div><div class="sk" style="width:78%"></div><div class="sk" style="width:85%"></div>
+        </div>
+        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px">
+          <div style="width:40px;height:40px;border-radius:9999px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">SL</div>
+          <div class="hl" style="padding:2px 6px"><div style="font-size:14px;font-weight:600">Sam Lee · Brightside Marketing</div><div style="font-size:13px;color:var(--muted)">(512) 555-0142 · Questions? Reply to this email.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> The details appear on your clients' weekly brief as you type.</div>
+  </div>
+</div>
+</section>
+
+<!-- 2. AGENCY STEP 2 -->
+<section class="page"><span class="tag">2 · Agency onboarding</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><span class="exit">Save and exit</span></div>
+    <div class="prog"><div class="lbl">Step 2 of 3 · Make it yours</div><div class="bars"><i class="on"></i><i class="on"></i><i></i></div></div>
+    <h1>Put your brand on it</h1>
+    <p class="sub">Your clients see your logo and colour, not ours.</p>
+    <div class="form">
+      <div class="f"><label>Logo <span class="opt">(optional)</span></label>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:56px;height:56px;border-radius:8px;background:#163A5F;color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center">B</div>
+          <span class="btn g">Upload logo</span><span style="font-size:13px;color:var(--muted)">PNG or SVG, square</span>
+        </div></div>
+      <div class="f"><label>Brand colour <span class="opt">(optional)</span></label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="width:32px;height:32px;border-radius:9999px;background:#163A5F;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--primary)"></span>
+          <span style="width:32px;height:32px;border-radius:9999px;background:#0F7B6C"></span>
+          <span style="width:32px;height:32px;border-radius:9999px;background:#B4235A"></span>
+          <span style="width:32px;height:32px;border-radius:9999px;background:#E2711D"></span>
+          <div class="in" style="width:120px;margin-left:6px">#163A5F</div>
+        </div><div class="hint">We keep text readable on any colour you pick.</div></div>
+      <div class="f"><label>Name your clients see <span class="opt">(optional)</span></label><div class="in">Brightside Marketing</div></div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Skip for now</span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:680px">
+      <div class="chrome"><i></i><i></i><i></i><span style="margin-left:10px;font-size:11px;color:var(--muted)">app.brightside-marketing.com</span></div>
+      <div style="display:grid;grid-template-columns:150px 1fr;height:380px">
+        <div style="background:#163A5F;padding:16px 14px;color:#fff" class="">
+          <div class="hl" style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px"><span style="width:22px;height:22px;border-radius:4px;background:#fff;color:#163A5F;display:inline-flex;align-items:center;justify-content:center;font-size:12px">B</span>Brightside</div>
+          <div style="margin-top:22px;display:flex;flex-direction:column;gap:12px;font-size:12px;opacity:.9"><span>Overview</span><span>Competitors</span><span>Changes</span><span>Rankings</span><span>Briefs</span></div>
+        </div>
+        <div style="padding:20px 22px">
+          <div style="font-size:16px;font-weight:600">Overview</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">
+            <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="font-size:11px;color:var(--muted)">Your rating</div><div style="font-size:20px;font-weight:600">4.7</div></div>
+            <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="font-size:11px;color:var(--muted)">Rival moves</div><div style="font-size:20px;font-weight:600">6</div></div>
+            <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="font-size:11px;color:var(--muted)">Map rank</div><div style="font-size:20px;font-weight:600">#3</div></div>
+          </div>
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:9px"><div class="sk" style="width:90%"></div><div class="sk" style="width:70%"></div><div class="sk" style="width:80%"></div></div>
+          <div class="hl" style="margin-top:20px;display:inline-flex;height:32px;padding:0 14px;border-radius:6px;background:#163A5F;color:#fff;font-size:12px;font-weight:500;align-items:center">Open this week's brief</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> Your client's dashboard in your colours.</div>
+  </div>
+</div>
+</section>
+
+<!-- 3. CLIENT: FIND THE BUSINESS -->
+<section class="page"><span class="tag">3 · Client onboarding</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><span class="exit">Save and exit</span></div>
+    <div class="prog"><div class="lbl">Step 1 of 5 · Find the business</div><div class="bars"><i class="on"></i><i></i><i></i><i></i><i></i></div></div>
+    <h1>Which business are we watching for?</h1>
+    <p class="sub">We'll use its Google listing to fill in the rest.</p>
+    <div class="form">
+      <div class="row2">
+        <div class="f"><label>Business name <span class="req">*</span></label><div class="in">Cool Breeze HVAC</div></div>
+        <div class="f"><label>City or ZIP <span class="req">*</span></label><div class="in">Austin, TX</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="opt-row sel"><span class="radio on"></span><div><div style="font-weight:500">Cool Breeze Heating &amp; Air</div><div class="meta">4210 Burnet Rd, Austin · ★ 4.7 (312)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div style="font-weight:500">Cool Breeze HVAC Services</div><div class="meta">Round Rock, TX · ★ 4.2 (58)</div></div></div>
+        <div style="font-size:13px;color:var(--secondary);font-weight:500;margin-top:4px">Can't find it? Enter details by hand</div>
+      </div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <svg width="600" height="300" viewBox="0 0 600 300" style="display:block;background:#E9EEF3">
+        <g stroke="#fff" stroke-width="10" fill="none"><path d="M-10 90 L620 120"/><path d="M180 -10 L230 310"/><path d="M420 -10 L380 310"/><path d="M-10 230 L620 200"/></g>
+        <g stroke="#fff" stroke-width="4" fill="none"><path d="M-10 160 L620 165"/><path d="M300 -10 L310 310"/><path d="M520 -10 L500 310"/><path d="M90 -10 L110 310"/></g>
+        <rect x="430" y="20" width="120" height="60" rx="6" fill="#D6E9D3"/>
+        <circle cx="300" cy="150" r="70" fill="rgba(71,168,231,.12)" stroke="#47A8E7" stroke-dasharray="4 4"/>
+        <g transform="translate(300 150)"><path d="M0 0 C-14 -18 -14 -34 0 -38 C14 -34 14 -18 0 0Z" fill="#2A6BAC"/><circle cy="-26" r="5" fill="#fff"/></g>
+      </svg>
+      <div style="padding:20px 24px;display:flex;gap:16px;align-items:center">
+        <div style="width:48px;height:48px;border-radius:8px;background:var(--panel)"></div>
+        <div><div style="font-weight:600;font-size:16px">Cool Breeze Heating &amp; Air</div><div style="font-size:13px;color:var(--muted)">HVAC contractor · 4210 Burnet Rd, Austin · ★ 4.7 (312 reviews)</div></div>
+      </div>
+    </div>
+    <div class="caption"><b>Preview.</b> The listing we'll track. Service area is set on the next step.</div>
+  </div>
+</div>
+</section>
+
+<!-- 4. CLIENT: PICK COMPETITORS -->
+<section class="page"><span class="tag">4 · Client onboarding</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><span class="exit">Save and exit</span></div>
+    <div class="prog"><div class="lbl">Step 3 of 5 · Competitors</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+    <h1>Who should we watch?</h1>
+    <p class="sub">We found 8 businesses competing for the same customers. Pick up to 5. You can change this any time.</p>
+    <div class="form" style="gap:8px">
+      <div class="opt-row sel"><span class="cb on">✓</span><div style="flex:1"><div style="font-weight:500">Arctic Air Austin</div><div class="meta">★ 4.8 (540) · 2.1 mi</div></div><span class="chip top">Top rival</span></div>
+      <div class="opt-row sel"><span class="cb on">✓</span><div style="flex:1"><div style="font-weight:500">Lone Star Comfort</div><div class="meta">★ 4.5 (221) · 3.4 mi</div></div><span class="chip top">Top rival</span></div>
+      <div class="opt-row"><span class="cb"></span><div style="flex:1"><div style="font-weight:500">Capital City Cooling</div><div class="meta">★ 4.6 (97) · 4.0 mi</div></div><span class="chip worth">Worth watching</span></div>
+      <div class="opt-row"><span class="cb"></span><div style="flex:1"><div style="font-weight:500">Hill Country HVAC</div><div class="meta">★ 4.1 (40) · 6.8 mi</div></div><span class="chip minor">Minor</span></div>
+      <div style="font-size:13px;color:var(--secondary);font-weight:500;margin-top:6px">Show 4 more · Add one we missed</div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Ask the owner to pick</span><span class="btn p">Continue with 2</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div style="padding:26px 30px">
+        <div style="font-size:12px;color:var(--muted);font-weight:500">Preview · first brief</div>
+        <div style="font-size:20px;font-weight:600;margin-top:4px">Where you stand</div>
+        <div style="display:flex;gap:16px;margin-top:14px;font-size:12px;color:var(--muted)">
+          <span><span class="dot" style="background:#2A6BAC"></span> You</span><span><span class="dot" style="background:#F5A524"></span> Arctic Air</span><span><span class="dot" style="background:#0F7B6C"></span> Lone Star</span>
+        </div>
+        <div style="margin-top:20px;font-size:13px;font-weight:500">Google rating</div>
+        <svg width="540" height="84" style="display:block;margin-top:8px" font-family="Inter" font-size="12" fill="#0B2540">
+          <rect x="0" y="0" width="470" height="20" rx="4" fill="#2A6BAC"/><text x="478" y="15">4.7</text>
+          <rect x="0" y="30" width="480" height="20" rx="4" fill="#F5A524"/><text x="488" y="45">4.8</text>
+          <rect x="0" y="60" width="450" height="20" rx="4" fill="#0F7B6C"/><text x="458" y="75">4.5</text>
+        </svg>
+        <div style="margin-top:18px;font-size:13px;font-weight:500">Number of reviews</div>
+        <svg width="540" height="84" style="display:block;margin-top:8px" font-family="Inter" font-size="12" fill="#0B2540">
+          <rect x="0" y="0" width="270" height="20" rx="4" fill="#2A6BAC"/><text x="278" y="15">312</text>
+          <rect x="0" y="30" width="468" height="20" rx="4" fill="#F5A524"/><text x="476" y="45">540</text>
+          <rect x="0" y="60" width="191" height="20" rx="4" fill="#0F7B6C"/><text x="199" y="75">221</text>
+        </svg>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> Every rival you tick joins the scorecard on the right.</div>
+  </div>
+</div>
+</section>
+
+<!-- 5. SPLIT DIALOG OPTION -->
+<section class="page"><span class="tag">5 · Option: split dialog</span>
+<div class="app">
+  <div class="side"><div class="wm" style="font-size:17px"><span class="r">rival</span><span class="m">monday</span></div>
+    <div style="margin-top:28px;display:flex;flex-direction:column;gap:14px;font-size:14px;color:var(--muted)"><span>Home</span><span>Clients</span><span>Approvals</span><span>Leads</span><span>Settings</span></div></div>
+  <div style="padding:32px 40px"><div style="font-size:24px;font-weight:600">Clients</div>
+    <div style="margin-top:24px;background:#fff;border:1px solid var(--line);border-radius:8px;height:420px"></div></div>
+</div>
+<div class="scrim"></div>
+<div class="dlg">
+  <div style="padding:36px 40px;display:flex;flex-direction:column">
+    <div style="font-size:13px;color:var(--muted);font-weight:500">Cool Breeze Heating &amp; Air · Step 4 of 5</div>
+    <div style="font-size:24px;font-weight:600;margin-top:10px;letter-spacing:-.01em">Invite the owner</div>
+    <p style="font-size:14px;color:var(--muted);margin-top:8px;line-height:1.5">They'll get a sign-in link and can review the competitors you picked.</p>
+    <div class="form" style="margin-top:24px">
+      <div class="f"><label>Owner's name <span class="req">*</span></label><div class="in">Maria Gonzales</div></div>
+      <div class="f"><label>Owner's email <span class="req">*</span></label><div class="in">maria@coolbreezeac.com</div></div>
+    </div>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:16px"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Skip for now</span><span class="btn p">Send invite</span></div>
+  </div>
+  <div style="background:var(--canvas);border-left:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:28px">
+    <div class="win" style="width:320px">
+      <div style="padding:20px">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px"><span style="width:22px;height:22px;border-radius:4px;background:#163A5F;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px">B</span>Brightside Marketing</div>
+        <div style="font-size:16px;font-weight:600;margin-top:14px;line-height:1.3">Maria, see what your competitors are up to</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px"><div class="sk" style="width:95%"></div><div class="sk" style="width:80%"></div></div>
+        <div style="margin-top:16px;display:inline-flex;height:30px;padding:0 12px;border-radius:6px;background:#163A5F;color:#fff;font-size:12px;font-weight:500;align-items:center">Open my dashboard</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:16px;text-align:center">The email Maria receives, from your agency.</div>
+  </div>
+</div>
+</section>
+
+</body>
+</html>

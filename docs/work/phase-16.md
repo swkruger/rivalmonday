@@ -1,10 +1,10 @@
 # phase-16 — design system v1 across the web app, page by page
 
 **Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 8e89d375 (rebased 2026-10-23, after 15c-2a merged)
-**Plan/spec:** none yet; inputs `docs/design-system/`.
+**Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (draft, awaiting owner approval); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**ON HOLD (owner, 2026-10-23):** no changes until Phase 7 (7b/7c) and Phase 15 (15c-2b, 15c-3) are done and merged. Brief written; brainstorming partly done (Decisions below); no spec/plan; nothing built.
+**ON HOLD for code (owner, 2026-10-23):** no code changes until Phase 7 (7b/7c) and Phase 15 (15c-2b, 15c-3) are done and merged; planning continues. 2026-10-24: 16-onboarding brainstormed with Mobbin references + PDF mockups; spec drafted and builder-checked (O1–O13). Nothing built.
 
 ## Next (overwrite)
 After 7 + 15 merge: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
@@ -23,6 +23,7 @@ Both restart after phase-16 and rebase onto it.
 - D3 Context switcher stays in the left sidebar (15a D4 kept; overrides storyboard Frame 2's top-bar switcher).
 - D4 Runs after Phase 7 and Phase 15 are merged (reverses the earlier "design system first").
 - Open: OD-5 bottom tabs on phones vs 15a D8 (drawer only) — not yet decided.
+- D5 (2026-10-24) **16-onboarding** sub-phase: agency (4 steps) + client (7 steps) + intake as full-page split flows with live previews; owner lands on Overview; replaces DS D-22/L7. Spec: [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (O1–O13). Mockups `docs/design-system/mockups/onboarding/`.
 
 ## New backlog (target → item)
 None yet.
