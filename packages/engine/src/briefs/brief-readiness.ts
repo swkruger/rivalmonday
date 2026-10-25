@@ -13,6 +13,8 @@ export interface ReadinessIssue {
   severity: 'warning' | 'critical';
   /** The local Monday the briefs are for (`YYYY-MM-DD`); for `starting_point_late` the UTC date the starting point was due. */
   deliveryDate: string;
+  /** Weekly issues: the clients' (safe) IANA time zone; issues are grouped per zone. Absent for `starting_point_late`. */
+  timezone?: string;
   dedupeKey: string;
   clients: { clientId: string; clientName: string; agencyName: string }[];
 }
@@ -43,9 +45,22 @@ export function weeklyCheckpoint(now: Date, tz: string): { deliveryDate: string;
 
 type IssueClient = ReadinessIssue['clients'][number];
 
+const ymd = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const addDays = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** clientId → status of its brief on that date (`null` = none). `anyKind = false` ignores starting points. */
+async function briefStatuses(db: Db, pairs: { clientId: string; date: string }[], anyKind: boolean): Promise<Map<string, string | null>> {
+  const found = await db.execute<{ client_id: string; status: string | null }>(sql`
+    SELECT d.client_id, b.status
+      FROM unnest(ARRAY[${sql.join(pairs.map((p) => sql`${p.clientId}`), sql`, `)}]::uuid[],
+                  ARRAY[${sql.join(pairs.map((p) => sql`${p.date}`), sql`, `)}]::date[]) AS d(client_id, delivery_date)
+      LEFT JOIN brief b ON b.client_id = d.client_id AND b.delivery_date = d.delivery_date${anyKind ? sql`` : sql` AND b.kind <> 'starting_point'`}`);
+  return new Map([...found].map((r) => [r.client_id, r.status]));
+}
+
 /**
  * Every brief or starting point that should exist by now and does not. Clients: workable (`clientWorkAllowed`: active, not
- * paused/archived/spend-paused) in a serviceable agency. Weekly issues are grouped per (checkpoint, delivery date); a late
+ * paused/archived/spend-paused) in a serviceable agency. Weekly issues are grouped per (checkpoint, delivery date, time zone); a late
  * starting point is one issue per client.
  */
 export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessIssue[]> {
@@ -64,39 +79,37 @@ export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessI
     .orderBy(agency.name, client.name);
 
   const groups = new Map<string, ReadinessIssue>();
-  const add = (checkpoint: ReadinessCheckpoint, deliveryDate: string, c: IssueClient) => {
-    const dedupeKey = `${checkpoint}:${deliveryDate}`;
+  const add = (checkpoint: ReadinessCheckpoint, deliveryDate: string, timezone: string, c: IssueClient) => {
+    // Per time zone: each zone crosses its checkpoint at its own hour, and a resolved key never reopens.
+    const dedupeKey = `${checkpoint}:${deliveryDate}:${timezone}`;
     let g = groups.get(dedupeKey);
-    if (!g) groups.set(dedupeKey, (g = { checkpoint, severity: checkpoint === 'pre_delivery_unapproved' ? 'warning' : 'critical', deliveryDate, dedupeKey, clients: [] }));
+    if (!g) groups.set(dedupeKey, (g = { checkpoint, severity: checkpoint === 'pre_delivery_unapproved' ? 'warning' : 'critical', deliveryDate, timezone, dedupeKey, clients: [] }));
     g.clients.push(c);
   };
 
   // Weekly: the clients inside a checkpoint window that were already active when its generation window opened.
-  const expected: { c: (typeof rows)[number]; deliveryDate: string; preDelivery: boolean }[] = [];
+  const expected: { c: (typeof rows)[number]; tz: string; deliveryDate: string; preDelivery: boolean }[] = [];
   for (const c of rows) {
-    const cp = weeklyCheckpoint(now, safeTimezone(c.timezone));
+    const tz = safeTimezone(c.timezone);
+    const cp = weeklyCheckpoint(now, tz);
     if (!cp || (c.activatedAt ?? c.createdAt).getTime() > cp.windowOpenedAt.getTime()) continue;
-    expected.push({ c, deliveryDate: cp.deliveryDate, preDelivery: cp.preDelivery });
+    expected.push({ c, tz, deliveryDate: cp.deliveryDate, preDelivery: cp.preDelivery });
   }
   if (expected.length > 0) {
     // One query for every (client, delivery date): any kind counts (a starting point may hold that Monday).
-    const found = await db.execute<{ client_id: string; status: string | null }>(sql`
-      SELECT d.client_id, b.status
-        FROM unnest(ARRAY[${sql.join(expected.map((e) => sql`${e.c.id}`), sql`, `)}]::uuid[],
-                    ARRAY[${sql.join(expected.map((e) => sql`${e.deliveryDate}`), sql`, `)}]::date[]) AS d(client_id, delivery_date)
-        LEFT JOIN brief b ON b.client_id = d.client_id AND b.delivery_date = d.delivery_date`);
-    const status = new Map([...found].map((r) => [r.client_id, r.status]));
-    for (const { c, deliveryDate, preDelivery } of expected) {
+    const status = await briefStatuses(db, expected.map((e) => ({ clientId: e.c.id, date: e.deliveryDate })), true);
+    for (const { c, tz, deliveryDate, preDelivery } of expected) {
       const s = status.get(c.id) ?? null;
       const ic = { clientId: c.id, clientName: c.name, agencyName: c.agencyName };
-      if (preDelivery && (s === null || s === 'failed')) add('pre_delivery', deliveryDate, ic);
-      else if (preDelivery && s === 'ready' && !c.briefAutoSend) add('pre_delivery_unapproved', deliveryDate, ic);
-      else if (s === null || !OK_STATUSES.has(s)) add('generation_closed', deliveryDate, ic);
+      if (preDelivery && (s === null || s === 'failed')) add('pre_delivery', deliveryDate, tz, ic);
+      else if (preDelivery && s === 'ready' && !c.briefAutoSend) add('pre_delivery_unapproved', deliveryDate, tz, ic);
+      else if (s === null || !OK_STATUSES.has(s)) add('generation_closed', deliveryDate, tz, ic);
     }
   }
 
   const issues = [...groups.values()];
   // Starting points: due at clock start + 48 h, late 6 h after that.
+  const overdue: { c: (typeof rows)[number]; tz: string; due: Date; dueLocal: { date: string; monday: boolean } }[] = [];
   for (const c of rows) {
     if (c.spStatus !== null && OK_STATUSES.has(c.spStatus)) continue;
     const setup = c.setupClientId ? { competitorsDoneAt: c.competitorsDoneAt, completedAt: c.completedAt, dismissedAt: c.dismissedAt } : null;
@@ -104,6 +117,21 @@ export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessI
     if (!start) continue;
     const due = new Date(start.getTime() + STARTING_POINT_WAIT_HOURS * HOUR_MS);
     if (now.getTime() < due.getTime() + STARTING_POINT_LATE_HOURS * HOUR_MS) continue;
+    const tz = safeTimezone(c.timezone);
+    const p = localParts(due, tz);
+    overdue.push({ c, tz, due, dueLocal: { date: ymd(p.year, p.month, p.day), monday: p.weekday === 1 } });
+  }
+  // The starting point claims `delivery_date` = local today, so on a local Monday already holding the client's weekly brief it
+  // cannot be created until Tuesday: lateness then counts from Tuesday 00:00 local (late from Tuesday 06:00 local).
+  const mondays = overdue.filter((o) => o.dueLocal.monday);
+  const blocked = mondays.length ? await briefStatuses(db, mondays.map((o) => ({ clientId: o.c.id, date: o.dueLocal.date })), false) : new Map<string, string | null>();
+  for (const { c, tz, due, dueLocal } of overdue) {
+    if (dueLocal.monday && blocked.get(c.id)) {
+      const p = localParts(now, tz);
+      const tuesday = addDays(dueLocal.date, 1);
+      const nowLocal = ymd(p.year, p.month, p.day);
+      if (nowLocal < tuesday || (nowLocal === tuesday && p.hour < STARTING_POINT_LATE_HOURS)) continue;
+    }
     issues.push({
       checkpoint: 'starting_point_late', severity: 'critical', deliveryDate: due.toISOString().slice(0, 10), dedupeKey: `starting_point_late:${c.id}`,
       clients: [{ clientId: c.id, clientName: c.name, agencyName: c.agencyName }],

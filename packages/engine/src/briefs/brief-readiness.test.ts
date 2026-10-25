@@ -65,7 +65,7 @@ describe('findReadinessIssues', () => {
     await seedBrief(IDS.clientB1, { status: 'approved' });
     const issues = await findReadinessIssues(dbs.service, FRI_NOON);
     expect(issues).toEqual([{
-      checkpoint: 'generation_closed', severity: 'critical', deliveryDate: MONDAY, dedupeKey: `brief_readiness:generation_closed:${MONDAY}`,
+      checkpoint: 'generation_closed', severity: 'critical', deliveryDate: MONDAY, timezone: CHI, dedupeKey: `brief_readiness:generation_closed:${MONDAY}:${CHI}`,
       clients: [{ clientId: IDS.clientA1, clientName: 'A1 HVAC', agencyName: 'Agency A' }],
     }]);
     expect(await findReadinessIssues(dbs.service, at('2026-10-23T16:59:00Z'))).toEqual([]);
@@ -114,7 +114,7 @@ describe('findReadinessIssues', () => {
     await seedAllReady('approved');
     await dbs.owner.update(brief).set({ status: 'ready' }).where(and(eq(brief.clientId, IDS.clientA1), eq(brief.deliveryDate, MONDAY)));
     expect(await findReadinessIssues(dbs.service, SUN_19)).toEqual([{
-      checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: MONDAY, dedupeKey: `brief_readiness:pre_delivery_unapproved:${MONDAY}`,
+      checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: MONDAY, timezone: CHI, dedupeKey: `brief_readiness:pre_delivery_unapproved:${MONDAY}:${CHI}`,
       clients: [{ clientId: IDS.clientA1, clientName: 'A1 HVAC', agencyName: 'Agency A' }],
     }]);
     expect(await findReadinessIssues(dbs.service, FRI_NOON)).toEqual([]); // ready is fine before Sunday 19:00
@@ -128,7 +128,7 @@ describe('findReadinessIssues', () => {
     await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
     const issues = await findReadinessIssues(dbs.service, SUN_19);
     expect(issues).toHaveLength(1);
-    expect(issues[0]).toMatchObject({ checkpoint: 'pre_delivery', severity: 'critical', dedupeKey: `brief_readiness:pre_delivery:${MONDAY}` });
+    expect(issues[0]).toMatchObject({ checkpoint: 'pre_delivery', severity: 'critical', dedupeKey: `brief_readiness:pre_delivery:${MONDAY}:${CHI}` });
     expect(issues[0]!.clients.map((c) => c.clientId)).toEqual([IDS.clientA1, IDS.clientB1]);
   });
 
@@ -142,6 +142,19 @@ describe('findReadinessIssues', () => {
       checkpoint: 'starting_point_late', severity: 'critical', deliveryDate: '2026-10-22', dedupeKey: `brief_readiness:starting_point_late:${IDS.clientA1}`,
       clients: [{ clientId: IDS.clientA1, clientName: 'A1 HVAC', agencyName: 'Agency A' }],
     }]);
+  });
+
+  it('starting point due on a local Monday holding the weekly brief is late only from Tuesday 06:00 local', async () => {
+    await dbs.owner.delete(brief).where(eq(brief.clientId, IDS.clientA1)); // no starting point yet
+    await dbs.owner.update(client).set({ activatedAt: at('2026-10-24T08:00:00Z') }).where(eq(client.id, IDS.clientA1)); // due Mon 03:00 CDT
+    const MON_09 = at('2026-10-26T14:00:00Z');
+    expect((await findReadinessIssues(dbs.service, MON_09)).map((i) => i.checkpoint)).toEqual(['starting_point_late']); // nothing blocks the claim
+    await seedBrief(IDS.clientA1); // the weekly brief holds Monday: the starting point can claim only from Tuesday
+    expect(await findReadinessIssues(dbs.service, MON_09)).toEqual([]);
+    expect(await findReadinessIssues(dbs.service, at('2026-10-27T10:59:00Z'))).toEqual([]); // Tue 05:59 CDT
+    expect(await findReadinessIssues(dbs.service, at('2026-10-27T11:00:00Z'))).toEqual([expect.objectContaining({
+      checkpoint: 'starting_point_late', deliveryDate: '2026-10-26', dedupeKey: `brief_readiness:starting_point_late:${IDS.clientA1}`,
+    })]);
   });
 
   it('starting point uses the setup clock; an open setup without competitors is not due', async () => {
@@ -162,10 +175,25 @@ describe('checkBriefReadiness', () => {
     await seedBrief(IDS.clientB1);
   });
 
+  it('weekly alerts are per time zone: a zone resolved earlier does not swallow a later one', async () => {
+    await dbs.owner.update(client).set({ timezone: 'America/New_York' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ timezone: 'America/Los_Angeles' }).where(eq(client.id, IDS.clientB1));
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
+    const east = await checkBriefReadiness(dbs.service, at('2026-10-23T16:00:00Z')); // Fri 12:00 EDT; 09:00 PDT
+    expect(east.toEmail.map((a) => a.dedupeKey)).toEqual([`brief_readiness:generation_closed:${MONDAY}:America/New_York`]);
+    await markOpsAlertEmailed(dbs.service, east.toEmail[0]!.id, at('2026-10-23T16:00:00Z'));
+    await seedBrief(IDS.clientA1);
+    expect((await checkBriefReadiness(dbs.service, at('2026-10-23T17:00:00Z'))).resolved).toBe(1);
+    const west = await checkBriefReadiness(dbs.service, at('2026-10-23T19:00:00Z')); // Fri 12:00 PDT
+    expect(west.open.map((a) => a.dedupeKey)).toEqual([`brief_readiness:generation_closed:${MONDAY}:America/Los_Angeles`]);
+    expect(west.toEmail).toHaveLength(1);
+    expect((west.toEmail[0]!.summary as { clients: { clientId: string }[] }).clients.map((c) => c.clientId)).toEqual([IDS.clientB1]);
+  });
+
   it('second run updates last_seen_at, no second email', async () => {
     const first = await checkBriefReadiness(dbs.service, FRI_NOON);
     expect(first.toEmail).toHaveLength(1);
-    expect(first.toEmail[0]).toMatchObject({ kind: 'brief_readiness', severity: 'critical', dedupeKey: `brief_readiness:generation_closed:${MONDAY}`, firstSeenAt: FRI_NOON, lastSeenAt: FRI_NOON, emailedAt: null });
+    expect(first.toEmail[0]).toMatchObject({ kind: 'brief_readiness', severity: 'critical', dedupeKey: `brief_readiness:generation_closed:${MONDAY}:${CHI}`, firstSeenAt: FRI_NOON, lastSeenAt: FRI_NOON, emailedAt: null });
     expect(first.toEmail[0]!.summary).toEqual({ checkpoint: 'generation_closed', deliveryDate: MONDAY, clients: [{ clientId: IDS.clientA1, clientName: 'A1 HVAC', agencyName: 'Agency A' }] });
     await markOpsAlertEmailed(dbs.service, first.toEmail[0]!.id, FRI_NOON);
     const later = new Date(FRI_NOON.getTime() + 3_600_000);

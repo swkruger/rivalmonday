@@ -71,7 +71,7 @@ describe('brief-readiness job', () => {
     const a1 = rows.find((r) => r.dedupeKey.endsWith(IDS.clientA1))!;
     expect(a1.emailedAt).toBeNull();
     expect(rows.filter((r) => r.emailedAt !== null)).toHaveLength(2);
-    expect(err).toHaveBeenCalledWith({ alertId: a1.id }, '[brief-readiness] staff email failed');
+    expect(err).toHaveBeenCalledWith({ alertId: a1.id, errors: ['Error'] }, '[brief-readiness] staff email failed');
   });
 
   it('no recipients: nothing marked emailed', async () => {

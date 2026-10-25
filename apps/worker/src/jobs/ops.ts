@@ -26,18 +26,19 @@ export function createOpsJobs(deps: WorkerDeps) {
         if (to.length === 0) workerLog.warn(`[brief-readiness] no staff recipients; ${toEmail.length} alert(s) not emailed`);
         else {
           for (const alert of toEmail) {
-            let ok = true;
+            // PII-free failure reasons (error class names only: messages may carry addresses or vendor bodies).
+            const errors = new Set<string>();
             for (const addr of to) {
               try {
                 await br.send(addr, alert);
-              } catch {
-                ok = false;
+              } catch (err) {
+                errors.add(err instanceof Error ? err.name : typeof err);
               }
             }
-            if (ok) {
+            if (errors.size === 0) {
               await markOpsAlertEmailed(deps.serviceDb(), alert.id, now);
               emailed++;
-            } else workerLog.error({ alertId: alert.id }, '[brief-readiness] staff email failed');
+            } else workerLog.error({ alertId: alert.id, errors: [...errors] }, '[brief-readiness] staff email failed');
           }
         }
       }
