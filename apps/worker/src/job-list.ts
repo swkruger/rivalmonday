@@ -65,8 +65,9 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     },
   });
   const web = createWebJobs(deps, {
-    enqueueCapture: async (trackedPageId) => {
-      await enqueue(boss, web.capture, { trackedPageId });
+    enqueueCapture: async (trackedPageId, startAfter) => {
+      const singletonKey = `capture:${trackedPageId}`;
+      await enqueue(boss, web.capture, { trackedPageId }, startAfter === undefined ? { singletonKey } : { singletonKey, startAfter });
     },
     enqueueDiff: async (captureId) => {
       if (deps.engineConfigured()) await enqueue(boss, engine.diff, { captureId }, { singletonKey: captureId });

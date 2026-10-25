@@ -46,16 +46,8 @@ export function emptyPage(url: string, status: RenderStatus, error: string | nul
 export function createBrowserCache(launch: () => Promise<Browser>) {
   let cached: Promise<Browser> | null = null;
 
-  async function get(): Promise<Browser> {
-    if (cached) {
-      try {
-        const existing = await cached;
-        if (existing.isConnected()) return existing;
-      } catch {
-        // Launch itself failed; fall through and relaunch below.
-      }
-      cached = null;
-    }
+  /** Starts a launch and caches it at once, so concurrent callers share it (7c2: up to 4 capture pollers). */
+  function relaunch(): Promise<Browser> {
     const launching: Promise<Browser> = launch().then((b) => {
       // The browser can die later (crash, OOM, manual kill) without us calling close():
       // drop the cache so the next render relaunches instead of hanging on a dead handle.
@@ -64,13 +56,23 @@ export function createBrowserCache(launch: () => Promise<Browser>) {
       });
       return b;
     });
-    cached = launching;
-    try {
-      return await launching;
-    } catch (err) {
+    launching.catch(() => {
       if (cached === launching) cached = null;
-      throw err;
+    });
+    cached = launching;
+    return launching;
+  }
+
+  async function get(): Promise<Browser> {
+    const current = cached;
+    if (current) {
+      // A failed launch reads as dead: fall through and relaunch below.
+      const existing = await current.catch(() => null);
+      if (existing?.isConnected()) return existing;
+      if (cached === current) cached = null;
     }
+    // Single flight: a caller that found the same dead browser first has already started the relaunch; share it.
+    return cached ?? relaunch();
   }
 
   async function close(): Promise<void> {

@@ -35,4 +35,12 @@ describe('capturePage', () => {
     expect(await capturePage({ db: dbs.service, store: createMemoryStore(), renderer }, '00000000-0000-4000-8000-000000000000')).toEqual({ status: 'missing' });
     expect(renderer.render).not.toHaveBeenCalled();
   });
+
+  it('returns deferred with retryInMs', async () => {
+    const renderer = { render: vi.fn(), renderOrDefer: vi.fn(async () => ({ deferred: true as const, retryInMs: 4200 })), close: async () => {} };
+    expect(await capturePage({ db: dbs.service, store: createMemoryStore(), renderer }, PAGE)).toEqual({ status: 'deferred', retryInMs: 4200 });
+    expect(renderer.renderOrDefer).toHaveBeenCalledWith('https://s.example/pricing');
+    expect(renderer.render).not.toHaveBeenCalled();
+    expect(await dbs.service.select().from(capture)).toHaveLength(0);
+  });
 });

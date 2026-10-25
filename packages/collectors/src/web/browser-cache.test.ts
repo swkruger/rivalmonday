@@ -85,4 +85,31 @@ describe('createBrowserCache', () => {
     await cache.close();
     expect(closed).toBe(true);
   });
+
+  it('two concurrent callers after a disconnect launch once', async () => {
+    let launches = 0;
+    const state = { value: true };
+    const { browser: first, disconnect } = fakeBrowser(state);
+    const second = fakeBrowser({ value: true }).browser;
+    let finishLaunch!: () => void;
+    const cache = createBrowserCache(async () => {
+      launches++;
+      if (launches === 1) return first;
+      await new Promise<void>((r) => { finishLaunch = r; });
+      return second;
+    });
+
+    await cache.get();
+    state.value = false; // dead, found by isConnected() (no event yet)
+    const a = cache.get();
+    const b = cache.get();
+    await new Promise((r) => setImmediate(r));
+    disconnect(); // the late event must not drop the relaunch in flight
+    finishLaunch();
+    expect(await a).toBe(second);
+    expect(await b).toBe(second);
+    expect(launches).toBe(2);
+    expect(await cache.get()).toBe(second);
+    expect(launches).toBe(2);
+  });
 });

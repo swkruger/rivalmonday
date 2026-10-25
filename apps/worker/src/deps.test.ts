@@ -10,7 +10,18 @@ const vendorMocks = vi.hoisted(() => ({
   collectMetaAds: vi.fn(async () => ({ status: 'ok' })),
   claimDueSources: vi.fn(),
 }));
-vi.mock('@cs/collectors', async (orig) => ({ ...(await orig<typeof import('@cs/collectors')>()), ...vendorMocks }));
+const robotsArgs = vi.hoisted(() => [] as unknown[][]);
+vi.mock('@cs/collectors', async (orig) => {
+  const real = await orig<typeof import('@cs/collectors')>();
+  class RobotsPolicy extends real.RobotsPolicy {
+    constructor(...args: ConstructorParameters<typeof real.RobotsPolicy>) {
+      super(...args);
+      robotsArgs.push(args);
+    }
+  }
+  return { ...real, ...vendorMocks, RobotsPolicy };
+});
+import { HostRateLimiter } from '@cs/collectors';
 import { createWorkerDeps, reviewsSkipReason } from './deps';
 
 describe('reviewsSkipReason', () => {
@@ -97,5 +108,14 @@ describe('vendor limiter (Phase 7c2)', () => {
     await a.collectModelBatches().catch(() => undefined);
     await a.collectModelBatches().catch(() => undefined);
     expect(createAiFromEnv).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('web politeness (Phase 7c2)', () => {
+  it('the robots policy takes its fetch slots from the shared host limiter', () => {
+    robotsArgs.length = 0;
+    createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
+    expect(robotsArgs).toHaveLength(1);
+    expect(robotsArgs[0]![4]).toBeInstanceOf(HostRateLimiter);
   });
 });

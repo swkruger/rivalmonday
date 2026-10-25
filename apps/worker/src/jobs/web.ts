@@ -7,7 +7,8 @@ export const WEB_SCHEDULE_BATCH = 200;
 
 export function createWebJobs(
   deps: WorkerDeps,
-  queue: { enqueueCapture(trackedPageId: string): Promise<void>; enqueueDiff?(captureId: string): Promise<void> },
+  /** `enqueueCapture` must use `singletonKey: 'capture:<id>'` (with the short policy: one queued capture per page). */
+  queue: { enqueueCapture(trackedPageId: string, startAfterSeconds?: number): Promise<void>; enqueueDiff?(captureId: string): Promise<void> },
 ) {
   const schedule = defineJob({
     name: 'web-schedule',
@@ -22,8 +23,16 @@ export function createWebJobs(
   const capture = defineJob({
     name: 'web-capture-page',
     schema: z.object({ trackedPageId: z.uuid() }),
+    queue: { policy: 'short' },
     handler: async ({ trackedPageId }) => {
       const r = await deps.capturePage(trackedPageId);
+      // 7c2: the host is busy or its next slot is too far away — come back later instead of holding a poller asleep.
+      if (r.status === 'deferred') {
+        const retryInSeconds = Math.ceil((r.retryInMs ?? 0) / 1000);
+        await queue.enqueueCapture(trackedPageId, retryInSeconds);
+        workerLog.info(`[web-capture-page] ${trackedPageId} deferred ${retryInSeconds}s`);
+        return { deferred: true, retryInSeconds };
+      }
       workerLog.info(`[web-capture-page] ${trackedPageId} → ${r.status}`);
       if (r.status === 'ok' && r.captureId && queue.enqueueDiff) await queue.enqueueDiff(r.captureId);
     },

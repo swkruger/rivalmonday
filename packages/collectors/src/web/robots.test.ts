@@ -108,4 +108,41 @@ describe('RobotsPolicy', () => {
       await server.close();
     }
   });
+
+  it('a robots fetch waits for a limiter slot', async () => {
+    const order: string[] = [];
+    const limiter = { wait: vi.fn(async () => { order.push('wait'); }) };
+    const fetchText = vi.fn(async () => { order.push('fetch'); return { status: 200, body: robots }; });
+    const p = new RobotsPolicy(fetchText, () => 0, 1000, 1000, limiter);
+    await p.check('https://site.example/a');
+    await p.check('https://site.example/b'); // cached: no second slot
+    expect(order).toEqual(['wait', 'fetch']);
+    expect(limiter.wait).toHaveBeenCalledWith('https://site.example/robots.txt', null);
+  });
+
+  it('two concurrent checks of one origin fetch once', async () => {
+    let resolve!: (v: { status: number; body: string }) => void;
+    const fetchText = vi.fn(() => new Promise<{ status: number; body: string }>((r) => { resolve = r; }));
+    const p = new RobotsPolicy(fetchText);
+    const a = p.check('https://site.example/pricing');
+    const b = p.check('https://site.example/no-bots/x');
+    await vi.waitFor(() => expect(fetchText).toHaveBeenCalledTimes(1));
+    resolve({ status: 200, body: robots });
+    expect(await a).toMatchObject({ allowed: true });
+    expect(await b).toMatchObject({ allowed: false, reason: 'disallowed' });
+    expect(fetchText).toHaveBeenCalledTimes(1);
+  });
+
+  it('peek never fetches', async () => {
+    const { p, fetchText, advance } = policy({ status: 200, body: robots });
+    expect(p.peek('https://site.example/a')).toBeNull();
+    expect(fetchText).not.toHaveBeenCalled();
+    await p.check('https://site.example/a');
+    expect(p.peek('https://site.example/no-bots/x')).toMatchObject({ allowed: false, reason: 'disallowed' });
+    expect(p.peek('https://site.example/pricing')).toEqual(await p.check('https://site.example/pricing'));
+    expect(p.peek('https://other.example/')).toBeNull();
+    advance(1001); // expired: peek reports nothing rather than a stale verdict
+    expect(p.peek('https://site.example/pricing')).toBeNull();
+    expect(fetchText).toHaveBeenCalledTimes(1);
+  });
 });

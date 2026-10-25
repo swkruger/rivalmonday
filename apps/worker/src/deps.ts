@@ -3,9 +3,9 @@ import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
-  runProspectSnapshot, scanRankings, type SourceKind,
+  runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer,
 } from '@cs/collectors';
-import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope, type CaptureStatus } from '@cs/core';
+import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
 import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
@@ -63,7 +63,8 @@ export interface WorkerDeps {
   /** The daemon's shared spend guard; `undefined` when built with `{ aiGuard: false }` (the `*-once` CLIs). */
   aiGuard(): AiGuard | undefined;
   claimDuePages(limit: number): Promise<string[]>;
-  capturePage(trackedPageId: string): Promise<{ status: CaptureStatus | 'missing'; captureId?: string }>;
+  /** 7c2: `deferred` (+ `retryInMs`) when the page's host is busy or its next slot is > 10 s away. */
+  capturePage(trackedPageId: string): Promise<CapturePageResult>;
   /** True once OPENROUTER_API_KEY is set — gates the intelligence engine (embeddings + decisions). */
   engineConfigured(): boolean;
   diffCapture(captureId: string): Promise<{ ran: boolean; changeIds: string[] }>;
@@ -205,9 +206,8 @@ const COST_ENV_KEYS = [
 export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean; appPoolMax?: number } = {}): WorkerDeps {
   let db: { db: Db; close(): Promise<void> } | null = null;
   let store: ObjectStore | null = null;
-  let renderer: Renderer | null = null;
+  let renderer: PoliteRenderer | null = null;
   let ai: Promise<Ai> | null = null;
-  const robots = new RobotsPolicy(defaultFetchText);
   // 7c2: one limiter per process for every vendor/AI call (Anthropic batches go through the SDK and are not limited). Waits
   // over 5 s are logged at debug with vendor and ms only.
   const vendors = createVendorLimiter(undefined, undefined, (vendor, ms) => workerLog.debug({ vendor, waitedMs: ms }, '[vendor-limiter] waited for a slot'));
@@ -215,6 +215,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
+  // 7c2: robots.txt fetches take a slot from the same limiter as page renders.
+  const robots = new RobotsPolicy(defaultFetchText, undefined, undefined, undefined, limiter);
   const catalog = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 });
   const packs = catalog.packs;
   const generic = () => catalog.generic();
