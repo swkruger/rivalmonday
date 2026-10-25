@@ -35,7 +35,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Phase 6 follow-ups (MCP, Ask, knowledge base)
 - [ ] MCP `manage` scope for client roles; ANN vector index (events, pages, `kb_chunk`) — *from 6a/6c*
 - [ ] MCP hardening: vector-only pages; unredacted model-written titles; uncapped `fetch` brief text; connector name `rival-monday` not white-labelled; screenshot mime hard-coded; `resources.ts` upsell offset-0; `add_recommendation` not one tx; `revoke_oauth_grant` partial failure; consent second-tab race; `clientScope[0]` assumption — *from 6a*
-- [ ] MCP tests: cross-agency, P18 scoped member, review cross-client leak, page-level `/sign-in` OAuth, exact client-role `tools/list` — *from 6a*
 - [ ] Ask hardening: widen composite FK to `(id,user_id,client_id,agency_id)`; unknown clientId → raw FK 23503; starters skipped if `notifyBriefOutcome` throws; `dataBlock tool=` unescaped; per-call model budget; trace args may quote tool text; `askReviewAllowed` write non-atomic — *from 6b*
 - [ ] Ask parked: lookalike markers as plain text; delete has no isUuid precheck; SSE `final.action` echoes proposed input; unseen thread after pre-persist error; `?q=` auto-send counts toward quota (auto-send known starters only); `0044` relies on owner BYPASSRLS — *from 6b*
 - [ ] Ask grounding: sentence split on "1."/"e.g."; nested-bullet indent lost; empty-evidence verifier call; metadata-only fallback for html/screenshot evidence; pure how-to answers: uncited filler sentences now checked against empty `ev:` text (watch traces) — *from 6b/6c*
@@ -55,6 +54,12 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 7a2/7c: purge dry-run counts are not one snapshot; no test for a purged-client + agency-level membership, a retried pending row with future `not_before`, or old accepted/unverified leads surviving; plan-off tests for agency `settings/ai` and evidence `canAsk` — *from 7a*
 - [ ] Later: orphaned Better Auth users after purge; evidence/object pruning via `evidenceReferenced`; guarded forward proxy / undici `connect.lookup` (DNS rebinding, `route.fetch` buffering), POST->GET on sub-resource 30x, script redirects after DOMContentLoaded, WebRTC/preconnect unrouted (SSRF guard) — *from 7a*
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
+
+### 7c1 follow-ups (quality gates, evals)
+- [ ] Evals: `record --case <id>` single-case merge; flush cassette on budget stop; omit `topic.*`/`sentiment.mae` when n=0; validate baseline JSON; cassette `version` guard; rebuild `changes` once real web changes exist (R15) and re-baseline after the owner confirms labels — *phase-7c1*
+- [ ] Ask: citation-repair follow-up for thinner answers (guard runs after `supportCheck`; misses spelled-out numbers/relative dates); eval B2 splitter vs guard `splitUnits` divergence; ~2 % invalid-JSON turns (likely per-call `AbortSignal.timeout` firing during `res.json()`, mislabelled) — *phase-7c1*
+- [ ] Isolation suite gaps: shared `global_public` rows and `auth` schema outside the write fingerprint; viewer "other user's row" cases; `reinsertAs` accepts "permission denied" without an INSERT-privilege check; dedupe `requireOwnClient`/`requireVisibleClient` — *phase-7c1*
+- [ ] Briefs evals: bare-year and bare-number bait B2 edge cases; injection H1/H3 target-phrase canaries — *phase-7c1*
 
 ### Model ops
 - [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review*
@@ -213,6 +218,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
 - [ ] Sign off copy marked in the 7b1/7b2/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, duplicate-subscription notice, feedback links) — *phase-7-planning*
+- [ ] `ask-inject-09`: make the Ask prompt paraphrase injected text (it quotes the phrase while refusing in most live runs; B3 failed 7 of 10 live), re-record ask; until then keep `evals-live` advisory (not a required check) — *phase-7c1*
 - [ ] Confirm Jev's real price (`ai.yaml` placeholder); until then Jev is excluded from credit limits and the spike guard — *phase-7-planning*
 - [ ] Staging setup before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon staging branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
 - [ ] Postmark webhook: answer 500 or 200 on handler errors (500 makes Postmark retry)? — *7a2 T8*
