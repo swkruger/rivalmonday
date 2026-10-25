@@ -1,4 +1,4 @@
-import { type AgencyBillingRow, type Db, type PlanRow, agency, agencyBilling, agencyDailyStat, billingNotice } from '@cs/db';
+import { type AgencyBillingRow, type Db, type PlanRow, agency, agencyBilling, agencyDailyStat, billingNotice, plan } from '@cs/db';
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
@@ -54,6 +54,15 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
     await db.update(agencyBilling).set({ billableSeatsSynced: sub.seatQuantity, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
     drift++;
     await syncSeats(db, gw, row.agencyId);
+  }
+  // 15c-3b: the subscription should carry the prices of the plan version the agency is on. Report only; never auto-fix.
+  if (row.planId) {
+    const [p] = await db.select().from(plan).where(eq(plan.id, row.planId));
+    const has = (priceId: string) => sub.items.some((i) => i.priceId === priceId);
+    if (p && ((p.stripeBasePriceId && !has(p.stripeBasePriceId)) || (sub.seatQuantity > 0 && p.stripeSeatPriceId && !has(p.stripeSeatPriceId)))) {
+      drift++;
+      console.error('[billing-daily] plan price drift', { agencyId: row.agencyId });
+    }
   }
   return drift;
 }

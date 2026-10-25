@@ -118,6 +118,39 @@ describe('stripeGateway', () => {
     await expect(gw(c).updateSeatQuantity('sub_1', 1, { prorate: true })).rejects.toThrow(/seat/);
   });
 
+  it('swapSubscriptionPlan swaps base and seat items with proration none', async () => {
+    const c = mockClient();
+    c.subscriptions.update.mockResolvedValueOnce({ items: { data: [{ current_period_end: 1_800_200_000 }] } } as never);
+    const r = await gw(c).swapSubscriptionPlan('sub_1', { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 3 });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+      items: [{ id: 'si_b', price: 'pb2' }, { id: 'si_s', price: 'ps2', quantity: 3 }], proration_behavior: 'none',
+    });
+    expect(r).toEqual({ currentPeriodEnd: new Date(1_800_200_000_000) });
+  });
+
+  it('swapSubscriptionPlan adds the seat line when absent and qty>0', async () => {
+    const c = mockClient();
+    c.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_1', items: { data: [{ id: 'si_b', quantity: 1, price: { id: 'price_b', metadata: { [PRICE_ROLE_KEY]: 'base' } } }] } } as never);
+    c.subscriptions.update.mockResolvedValueOnce({ items: { data: [] } } as never);
+    const r = await gw(c).swapSubscriptionPlan('sub_1', { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 2 });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', { items: [{ id: 'si_b', price: 'pb2' }, { price: 'ps2', quantity: 2 }], proration_behavior: 'none' });
+    expect(r.currentPeriodEnd).toBeNull();
+  });
+
+  it('swapSubscriptionPlan removes the seat line when qty 0', async () => {
+    const c = mockClient();
+    c.subscriptions.update.mockResolvedValueOnce({ items: { data: [] } } as never);
+    await gw(c).swapSubscriptionPlan('sub_1', { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 0 });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', { items: [{ id: 'si_b', price: 'pb2' }, { id: 'si_s', deleted: true }], proration_behavior: 'none' });
+  });
+
+  it('swapSubscriptionPlan throws without a base line', async () => {
+    const c = mockClient();
+    c.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_1', items: { data: [{ id: 'si_s', quantity: 1, price: { id: 'price_s', metadata: { [PRICE_ROLE_KEY]: 'seat' } } }] } } as never);
+    await expect(gw(c).swapSubscriptionPlan('sub_1', { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 1 })).rejects.toThrow(/base/);
+    expect(c.subscriptions.update).not.toHaveBeenCalled();
+  });
+
   it('attachSubscriptionDiscount sets the coupon as a subscription discount', async () => {
     const c = mockClient();
     await gw(c).attachSubscriptionDiscount({ subscriptionId: 'sub_1', couponId: 'co_1' });

@@ -143,6 +143,12 @@ export interface BillingGateway extends ConnectGateway {
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
   /** Sets the seat line's quantity; adds the line (price `seatPriceId`) when the subscription has none and `qty > 0`. */
   updateSeatQuantity(subscriptionId: string, qty: number, opts: { prorate: boolean; seatPriceId?: string | null }): Promise<void>;
+  /**
+   * Moves the subscription to another plan version's prices: base line -> `basePriceId`, seat line -> `seatPriceId` at
+   * `seatQuantity` (added when absent and > 0, removed at 0). No proration: the new prices apply from the next billing date.
+   * Throws when the subscription has no base line.
+   */
+  swapSubscriptionPlan(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<{ currentPeriodEnd: Date | null }>;
   getSubscription(subscriptionId: string): Promise<GatewaySubscription>;
   upcomingInvoice(subscriptionId: string): Promise<UpcomingInvoice | null>;
   listInvoices(customerId: string, limit?: number): Promise<GatewayInvoice[]>;

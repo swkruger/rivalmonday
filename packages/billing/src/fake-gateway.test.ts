@@ -20,6 +20,21 @@ describe('fakeGateway', () => {
     expect(gw.calls.map((c) => c.method)).toEqual(['createCustomer', 'createCheckoutSession', 'getSubscription', 'updateSeatQuantity', 'getSubscription']);
   });
 
+  it('swapSubscriptionPlan records swaps and updates items', async () => {
+    const gw = fakeGateway();
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', seatQuantity: 1, items: [{ id: 'si_base_1', priceId: 'pb', quantity: 1 }, { id: 'si_seat_1', priceId: 'ps', quantity: 1 }] });
+    const i = { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 4 };
+    await gw.swapSubscriptionPlan('sub_1', i);
+    expect(gw.swaps).toEqual([{ subscriptionId: 'sub_1', ...i }]);
+    const s = await gw.getSubscription('sub_1');
+    expect(s.seatQuantity).toBe(4);
+    expect(s.items.map((x) => x.priceId).sort()).toEqual(['pb2', 'ps2']);
+    await gw.swapSubscriptionPlan('sub_1', { ...i, seatQuantity: 0 });
+    expect((await gw.getSubscription('sub_1')).items.map((x) => x.priceId)).toEqual(['pb2']);
+    gw.failNext();
+    await expect(gw.swapSubscriptionPlan('sub_1', i)).rejects.toThrow(/fake gateway failure/);
+  });
+
   it('mints prefixed ids with a random suffix (never a guessable counter)', async () => {
     const a = (await fakeGateway().createCustomer({ agencyId: 'a', name: 'n' })).id;
     const b = (await fakeGateway().createCustomer({ agencyId: 'a', name: 'n' })).id;

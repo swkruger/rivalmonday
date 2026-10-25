@@ -48,6 +48,8 @@ export interface FakeGateway extends BillingGateway {
   seedConnectedSubscription(s: Partial<ConnectedSubscription> & { id: string; stripeAccount: string; customerId: string }): FakeConnectedSubscription;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
   failNext(error?: Error): void;
+  /** Every `swapSubscriptionPlan` call, in order. */
+  readonly swaps: Array<{ subscriptionId: string; basePriceId: string; seatPriceId: string; seatQuantity: number }>;
   seedSubscription(sub: Partial<GatewaySubscription> & { id: string; customerId: string }): GatewaySubscription;
   seedInvoice(customerId: string, inv: Partial<GatewayInvoice> & { id: string }): GatewayInvoice;
   seedUpcoming(subscriptionId: string, upcoming: UpcomingInvoice | null): void;
@@ -69,6 +71,7 @@ export interface FakeGatewayOptions {
 
 export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
   const calls: FakeCall[] = [];
+  const swaps: FakeGateway['swaps'] = [];
   const customers = new Map<string, FakeCustomer>();
   const subscriptions = new Map<string, GatewaySubscription>();
   const invoices = new Map<string, GatewayInvoice[]>();
@@ -137,7 +140,7 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
   const seat = (s: GatewaySubscription) => s.items.find((i) => i.id.startsWith('si_seat'));
 
   const gw: FakeGateway = {
-    calls, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
+    calls, swaps, customers, subscriptions, invoices, coupons, promotionCodes, subscriptionCoupons,
     connectedAccounts, connectedProducts, connectedPrices, connectedSubscriptions, connectedCheckouts, connectedCharges, connectedPortalConfigurations,
     seedConnectedCharge(c) { connectedCharges.set(c.id, c); },
     seedConnectedPrice(p) {
@@ -239,6 +242,20 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
       s.seatQuantity = qty;
       if (line) line.quantity = qty;
       else s.items.push({ id: nid('si_seat'), priceId: opts.seatPriceId!, quantity: qty });
+    },
+    async swapSubscriptionPlan(id, i) {
+      enter('swapSubscriptionPlan', id, i);
+      const s = sub(id);
+      const base = s.items.find((x) => !x.id.startsWith('si_seat'));
+      if (!base) throw new Error(`fake gateway: subscription ${id} has no base line`);
+      swaps.push({ subscriptionId: id, ...i });
+      base.priceId = i.basePriceId;
+      const line = seat(s);
+      if (line && i.seatQuantity > 0) { line.priceId = i.seatPriceId; line.quantity = i.seatQuantity; }
+      else if (line) s.items = s.items.filter((x) => x !== line);
+      else if (i.seatQuantity > 0) s.items.push({ id: nid('si_seat'), priceId: i.seatPriceId, quantity: i.seatQuantity });
+      s.seatQuantity = i.seatQuantity;
+      return { currentPeriodEnd: s.currentPeriodEnd };
     },
     async getSubscription(id) {
       enter('getSubscription', id);

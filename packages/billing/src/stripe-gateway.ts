@@ -27,6 +27,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
   const stripe = opts.client ?? new Stripe(secretKey, { timeout: 10_000, maxNetworkRetries: 1 });
 
   const seatItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'seat');
+  const baseItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'base');
 
   return {
     async createCustomer(i) {
@@ -85,6 +86,17 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         items: [line ? { id: line.id, quantity: qty } : { price: o.seatPriceId!, quantity: qty }],
         proration_behavior: o.prorate ? 'create_prorations' : 'none',
       });
+    },
+    async swapSubscriptionPlan(subscriptionId, i) {
+      const s = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
+      const base = baseItem(s);
+      if (!base) throw new Error(`Subscription ${subscriptionId} has no base line`);
+      const seat = seatItem(s);
+      const items: Stripe.SubscriptionUpdateParams.Item[] = [{ id: base.id, price: i.basePriceId }];
+      if (seat) items.push(i.seatQuantity > 0 ? { id: seat.id, price: i.seatPriceId, quantity: i.seatQuantity } : { id: seat.id, deleted: true });
+      else if (i.seatQuantity > 0) items.push({ price: i.seatPriceId, quantity: i.seatQuantity });
+      const updated = await stripe.subscriptions.update(subscriptionId, { items, proration_behavior: 'none' });
+      return { currentPeriodEnd: date(updated.items.data[0]?.current_period_end) };
     },
     async getSubscription(id): Promise<GatewaySubscription> {
       const s = await stripe.subscriptions.retrieve(id, { expand: ['items.data.price', 'default_payment_method'] });

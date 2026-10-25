@@ -1,4 +1,4 @@
-import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, billingNotice } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, billingNotice, plan } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -124,6 +124,24 @@ describe('runBillingDaily seats and drift', () => {
     expect(r.drift).toBe(1);
     expect(gw.subscriptions.get('sub_1')!.seatQuantity).toBe(2);
     expect((await row()).billableSeatsSynced).toBe(2);
+  });
+
+  it('reconcile reports plan price drift', async () => {
+    const gw = fakeGateway();
+    await dbs.owner.update(plan).set({ stripeBasePriceId: 'pb', stripeSeatPriceId: 'ps' }).where(eq(plan.id, planId));
+    await addClients(dbs.owner, 3);
+    await withSub(gw, { billableSeatsSynced: 2 }, { seatQuantity: 2, items: [{ id: 'si_b', priceId: 'pb_old', quantity: 1 }, { id: 'si_seat_1', priceId: 'ps', quantity: 2 }] });
+    const r = await runBillingDaily(dbs.service, gw, NOW);
+    expect(r.drift).toBe(1);
+    expect(console.error).toHaveBeenCalledWith('[billing-daily] plan price drift', { agencyId: AGENCY });
+  });
+
+  it('no drift when prices match', async () => {
+    const gw = fakeGateway();
+    await dbs.owner.update(plan).set({ stripeBasePriceId: 'pb', stripeSeatPriceId: 'ps' }).where(eq(plan.id, planId));
+    await addClients(dbs.owner, 3);
+    await withSub(gw, { billableSeatsSynced: 2 }, { seatQuantity: 2, items: [{ id: 'si_b', priceId: 'pb', quantity: 1 }, { id: 'si_seat_1', priceId: 'ps', quantity: 2 }] });
+    expect((await runBillingDaily(dbs.service, gw, NOW)).drift).toBe(0);
   });
 
   it('a subscription canceled at Stripe ends it and forgets the id (R26); no seat sync against it', async () => {
