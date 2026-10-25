@@ -1,13 +1,13 @@
 # phase-7c2 — scale & pilot: concurrency, vendor limiter, capture pacing, due scans, readiness, rehearsal, feedback, PILOT.md
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7c2   **Base:** (set at execution start)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7c2   **Base:** main f275eee7
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7c2-scale-pilot.md) · [spec](../superpowers/specs/2026-10-22-phase-7c-quality-scale-pilot-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Planned ahead; not started.
+Execution started 2026-10-25 (worktree + test DB `cs_phase_7c2_test`). 7b1 + 7c1 merged; 7b2 not yet (no dependency).
 
 ## Next (overwrite)
-After phase-7b1 merges: `/rm-kickoff phase-7c2` → Task 0 → SDD. Task 12 (staging rehearsal) waits for the owner's staging setup.
+Task 0 pre-flight → SDD. Task 12 (staging rehearsal) waits for the owner's staging setup.
 
 ## Interfaces this branch adds or changes
 See the plan's Interfaces blocks; migrations take the next free number at execution.
