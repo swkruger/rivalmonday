@@ -252,14 +252,17 @@ describe('listStartingPointDue set-based prefilter (7c2 T4)', () => {
     await dbs.owner.delete(brief);
     await dbs.owner.delete(client);
     const values: (typeof client.$inferInsert)[] = [];
+    // Distinct creation times (a second apart): both scans order by created_at, so ties would make the order comparison flaky.
+    let seq = 0;
+    const created = (h: number) => new Date(hoursAgo(h).getTime() - ++seq * 1000);
     // Created 1 h / 72 h ago: the old ones are past the 48 h wait (due when their brief state allows), the young ones are not ready.
-    for (const age of [1, 72]) for (const sp of SP) values.push({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: `${age}h/${sp.name}`, createdAt: hoursAgo(age) });
+    for (const age of [1, 72]) for (const sp of SP) values.push({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: `${age}h/${sp.name}`, createdAt: created(age) });
     values.push(
-      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'paused', createdAt: hoursAgo(72), pausedAt: NOW },
-      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'prospect', createdAt: hoursAgo(72), status: 'prospect' },
-      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'archived', createdAt: hoursAgo(72), archivedAt: NOW },
-      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'spend-paused', createdAt: hoursAgo(72), spendPausedAt: NOW },
-      { agencyId: AGENCY_C, verticalId: 'hvac_plumbing', name: 'suspended-agency', createdAt: hoursAgo(72) },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'paused', createdAt: created(72), pausedAt: NOW },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'prospect', createdAt: created(72), status: 'prospect' },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'archived', createdAt: created(72), archivedAt: NOW },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'spend-paused', createdAt: created(72), spendPausedAt: NOW },
+      { agencyId: AGENCY_C, verticalId: 'hvac_plumbing', name: 'suspended-agency', createdAt: created(72) },
     );
     const ins = await dbs.owner.insert(client).values(values).returning({ id: client.id });
     await pauseAgency(dbs.owner, AGENCY_C, 'suspended');
