@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { BOT_TOKEN } from '../web/user-agent';
-import { assertPublicUrl, createGuardedFetchText, defaultFetchText, guardedFetchText, isPublicAddress, isPublicHttpUrl, type LookupFn, SsrfBlockedError } from './guard';
+import { allowlistedAssert, assertPublicUrl, createGuardedFetchText, defaultFetchText, guardedFetchText, isPublicAddress, isPublicHttpUrl, type LookupFn, SsrfBlockedError } from './guard';
 
 describe('isPublicHttpUrl', () => {
   it.each(['https://example.com/a', 'http://www.example.co.uk/x?y=1', 'https://8.8.8.8/', 'https://[2606:4700::1111]/'])('allows %s', (u) => {
@@ -235,5 +235,34 @@ describe('guardedFetchText against a real socket', () => {
     expect(result.status).toBe(200);
     expect(result.body.length).toBeLessThanOrEqual(MAX_BODY);
     expect(lastUserAgent).toContain(BOT_TOKEN);
+  });
+});
+
+describe('allowlistedAssert', () => {
+  const publicLookup: LookupFn = async () => ['93.184.216.34'];
+  const assert = allowlistedAssert([' Listed.example ', 'other.example'], (u) => assertPublicUrl(u, publicLookup));
+  it('allowlisted host passes (case-insensitive, trimmed)', async () => {
+    await expect(assert('https://listed.example/a')).resolves.toBeUndefined();
+    await expect(assert('https://LISTED.example/a')).resolves.toBeUndefined();
+  });
+  it('sub-domain/suffix of a listed host refuses', async () => {
+    for (const u of ['https://www.listed.example/', 'https://evil-listed.example/', 'https://listed.example.evil.test/', 'https://example/', 'not a url']) {
+      await expect(assert(u)).rejects.toBeInstanceOf(SsrfBlockedError);
+    }
+  });
+  it('an empty allowlist refuses everything', async () => {
+    await expect(allowlistedAssert([' ', ''], async () => {})('https://listed.example/')).rejects.toBeInstanceOf(SsrfBlockedError);
+  });
+  it('listed host resolving to 127.0.0.1 still refuses', async () => {
+    const a = allowlistedAssert(['listed.example'], (u) => assertPublicUrl(u, async () => ['127.0.0.1']));
+    await expect(a('https://listed.example/')).rejects.toBeInstanceOf(SsrfBlockedError);
+  });
+  it('redirect hop to a non-listed host refuses in the guarded fetch', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: 'https://evil.test/x' } }))
+      .mockResolvedValue(new Response('ok', { status: 200 }));
+    const f = createGuardedFetchText({ fetch: fetch as unknown as typeof globalThis.fetch, assertUrl: assert });
+    await expect(f('https://listed.example/start')).rejects.toBeInstanceOf(SsrfBlockedError);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

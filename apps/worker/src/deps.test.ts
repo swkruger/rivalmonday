@@ -119,3 +119,15 @@ describe('web politeness (Phase 7c2)', () => {
     expect(robotsArgs[0]![4]).toBeInstanceOf(HostRateLimiter);
   });
 });
+
+describe('CRAWL_HOST_ALLOWLIST (7c2)', () => {
+  it('narrows the robots fetch to listed hosts; unset keeps the standard guard', async () => {
+    robotsArgs.length = 0;
+    createWorkerDeps({ CRAWL_HOST_ALLOWLIST: ' Listed.example, other.example ' });
+    const withList = robotsArgs.at(-1)![0] as (url: string) => Promise<unknown>;
+    await expect(withList('https://unlisted.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
+    await expect(withList('https://www.listed.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
+    createWorkerDeps({});
+    expect(robotsArgs.at(-1)![0]).toBe((await import('@cs/collectors')).defaultFetchText);
+  });
+});

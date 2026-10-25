@@ -107,6 +107,21 @@ export async function assertPublicUrl(url: string, lookup: LookupFn = systemLook
   if (addrs.length === 0 || !addrs.every(isPublicAddress)) throw new SsrfBlockedError(url);
 }
 
+/**
+ * Staging crawl allowlist (7c2): only an exact, lower-cased host in `allow` passes (no suffix or wildcard), and the
+ * inner check (default `assertPublicUrl`) still runs, so a listed host resolving to a private address is refused.
+ * Use it as `assertUrl` for every crawl path (robots fetch, renderer incl. redirect hops, discovery fetch).
+ */
+export function allowlistedAssert(allow: readonly string[], inner: (url: string) => Promise<void> = (u) => assertPublicUrl(u)) {
+  const hosts = new Set(allow.map((h) => h.trim().toLowerCase()).filter(Boolean));
+  return async (url: string): Promise<void> => {
+    let host: string;
+    try { host = new URL(url).hostname.toLowerCase(); } catch { throw new SsrfBlockedError(url); }
+    if (!hosts.has(host)) throw new SsrfBlockedError(url); // exact host match, no suffix/wildcard
+    await inner(url); // still public-address checked
+  };
+}
+
 const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 10_000;
 const isRedirect = (status: number) => status === 301 || status === 302 || status === 303 || status === 307 || status === 308;

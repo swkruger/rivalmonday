@@ -1,7 +1,7 @@
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
-  createDataForSeo, type DataForSeoClient, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
+  createDataForSeo, type DataForSeoClient, allowlistedAssert, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer,
 } from '@cs/collectors';
@@ -224,7 +224,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
   const limiter = new HostRateLimiter();
   // 7c2: robots.txt fetches take a slot from the same limiter as page renders.
-  const robots = new RobotsPolicy(defaultFetchText, undefined, undefined, undefined, limiter);
+  // 7c2 staging: CRAWL_HOST_ALLOWLIST narrows all three crawl paths (robots fetch, renderer incl. redirect hops, discovery
+  // fetch) to exact listed hosts (still public-address checked). Unset = the standard guard. main.ts refuses it in production.
+  const crawlAllow = (env.CRAWL_HOST_ALLOWLIST ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+  const crawlAssert = crawlAllow.length > 0 ? allowlistedAssert(crawlAllow) : undefined;
+  const crawlFetchText = crawlAssert ? createGuardedFetchText({ assertUrl: crawlAssert }) : defaultFetchText;
+  const robots = new RobotsPolicy(crawlFetchText, undefined, undefined, undefined, limiter);
   const catalog = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 });
   const packs = catalog.packs;
   const generic = () => catalog.generic();
@@ -241,7 +246,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     return db.db;
   };
   const getStore = () => (store ??= createStoreFromEnv(env));
-  const getRenderer = () => (renderer ??= createPoliteRenderer({ robots, limiter, renderer: createPlaywrightRenderer() }));
+  const getRenderer = () => (renderer ??= createPoliteRenderer({ robots, limiter, renderer: createPlaywrightRenderer(crawlAssert ? { assertUrl: crawlAssert } : undefined) }));
   let dfs: DataForSeoClient | null = null;
   const getDfs = () => {
     if (!dfs) {
@@ -387,7 +392,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       const [c] = await getDb().select().from(competitor).where(eq(competitor.id, competitorId)).limit(1);
       if (!c?.domain) return { skipped: 'competitor has no domain' };
       return discoverPages(
-        { db: getDb(), store: getStore(), renderer: getRenderer(), robots, fetchText: defaultFetchText, limiter, ai: await getAi() },
+        { db: getDb(), store: getStore(), renderer: getRenderer(), robots, fetchText: crawlFetchText, limiter, ai: await getAi() },
         { id: c.id, domain: c.domain, name: c.name },
       );
     },

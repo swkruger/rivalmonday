@@ -12,7 +12,7 @@ import { AiPausedError } from '@cs/core';
 import { createBoss, registerJobs } from './boss';
 import { appPoolMax, applyConcurrency, parseConcurrencyOverrides, QUEUE_CONCURRENCY } from './concurrency';
 import { createWorkerDeps, type WorkerDeps } from './deps';
-import { missingProdEnv } from './env';
+import { missingProdEnv, rehearsalEnvErrors } from './env';
 import { healthState, startHealthServer } from './health';
 import { createJobList } from './job-list';
 import { warnIfDeliveryUnconfigured } from './jobs/delivery';
@@ -24,6 +24,13 @@ initWorkerSentry(process.env);
 const missing = missingProdEnv(process.env);
 if (missing.length > 0) {
   process.stderr.write(`[worker] missing required env: ${missing.join(', ')}\n`);
+  process.exit(1);
+}
+
+const rehearsalErrors = rehearsalEnvErrors(process.env);
+if (rehearsalErrors.length > 0) {
+  process.stderr.write(`[worker] ${rehearsalErrors.join('; ')}
+`);
   process.exit(1);
 }
 

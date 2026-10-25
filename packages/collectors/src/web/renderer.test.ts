@@ -2,7 +2,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startFixtureServer } from '../../test/fixtures-server';
-import { SsrfBlockedError } from '../net/guard';
+import { allowlistedAssert, SsrfBlockedError } from '../net/guard';
 import { createPlaywrightRenderer } from './renderer';
 
 let server: Awaited<ReturnType<typeof startFixtureServer>>;
@@ -120,6 +120,25 @@ describe('Playwright renderer', () => {
     const ok = await renderer.render(server.url('/ok'));
     expect(ok.status).toBe('ok');
     await ok.close();
+  });
+
+  it('allowlist: a non-listed start host aborts without any request; a listed host still goes through the inner check on every hop', async () => {
+    const notListed = createPlaywrightRenderer({ timeoutMs: 3000, assertUrl: allowlistedAssert(['example.test'], permissive) });
+    const listed = createPlaywrightRenderer({ timeoutMs: 3000, assertUrl: allowlistedAssert(['127.0.0.1'], refusing('/secret')) });
+    try {
+      const hitsBefore = server.hits.length;
+      const blocked = await notListed.render(server.url('/ok'));
+      expect(blocked).toMatchObject({ status: 'error', error: 'ssrf_blocked' });
+      await blocked.close();
+      expect(server.hits.length).toBe(hitsBefore);
+      const hop = await listed.render(server.url('/redir'));
+      expect(hop).toMatchObject({ status: 'error', error: 'ssrf_blocked' });
+      await hop.close();
+      expect(server.hits).not.toContain('/secret');
+    } finally {
+      await notListed.close();
+      await listed.close();
+    }
   });
 
   it('aborts a redirect to 127.0.0.1 (the guard admits only the start URL) and never requests it', async () => {
