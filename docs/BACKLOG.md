@@ -45,7 +45,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### 7a follow-ups
 - [ ] 7c: embeddings 8 s x2 also bound worker batch embedding; if `llm_call` shows embeddings ok=false at ~8 s, add an `embeddings_batch` task (30000x3, not request_path) — *from 7a*
-- [ ] 7c: `withMonitor` should check in only for the cron payload; job retries re-capture to Sentry — *from 7a*
 - [ ] 7c: structured logging: `JSON.stringify` interpolated in messages; `redactForLog` may strip keys `text/content/body/output`; `tracesSampleRate` hard-coded 0.1; `main.ts` order/shutdown untested — *from 7a*
 - [ ] 7c: tests: predeploy missing/wrong-typed thresholds untested; `ci.yml` edits do not trigger the shape test under `test:affected`; e2e "destination stream closed early" noise — *from 7a*
 - [ ] 7a2/7c: `Sentry.captureException(raw pg error)` skips `redactForLog` (beforeSend still redacts); `scrubUrl` guard skips lowercase/prefixed transaction names, `ws:` URLs, leading whitespace; `tagRequest` only via `callTool` — *from 7a*
