@@ -34,7 +34,8 @@ import { workerLog } from './log';
 
 /** Phase 10 (R5): the sign-up lifecycle emails on the `billing_notice` outbox (Rival Monday-branded). */
 export type OnboardingEmail =
-  | { template: 'agency_welcome'; props: Omit<AgencyWelcomeProps, 'branding'> }
+  /** The sender adds `supportEmail` (7c2: the same address as the Reply-To). */
+  | { template: 'agency_welcome'; props: Omit<AgencyWelcomeProps, 'branding' | 'supportEmail'> }
   | { template: 'platform_signup_notice'; props: Omit<PlatformSignupNoticeProps, 'branding'> }
   /** The sender adds `unsubscribeUrl` (signed with BETTER_AUTH_SECRET) and the one-click List-Unsubscribe headers. */
   | { template: 'onboarding_tip'; props: Omit<OnboardingTipProps, 'branding' | 'unsubscribeUrl'> };
@@ -608,7 +609,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
           return;
         }
         const r = email.template === 'agency_welcome'
-          ? await renderEmail({ template: 'agency_welcome', props: { ...email.props, branding } })
+          ? await renderEmail({ template: 'agency_welcome', props: { ...email.props, branding, supportEmail: replyTo } })
           : await renderEmail({ template: 'platform_signup_notice', props: { ...email.props, branding } });
         await getEmailTransport().send({ ...base, subject: r.subject, html: r.html, text: r.text }, scope);
       },

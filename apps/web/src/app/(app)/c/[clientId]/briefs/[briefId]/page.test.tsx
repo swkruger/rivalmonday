@@ -22,9 +22,10 @@ const detail = (id: string, deliveryDate: string, kind = 'weekly') => ({
 });
 const list = [summary('b3', '2026-10-19'), summary('b2', '2026-10-12'), summary('b1', '2026-10-05')];
 
-const mount = (brief = detail('b2', '2026-10-12')) =>
+const mount = (brief = detail('b2', '2026-10-12'), feedback: { email: string; name: string | null } | null = { email: 'sam@acme.example', name: 'Sam' }) =>
   callTool.mockImplementation(async (_ctx: unknown, name: string) => {
     if (name === 'get_client_profile') return { id: C, name: 'Cool Air', timezone: 'UTC' };
+    if (name === 'get_feedback_contact') return feedback;
     if (name === 'get_brief') return brief;
     if (name === 'list_briefs') return { items: list, nextCursor: null };
     throw new Error(`unexpected ${name}`);
@@ -72,6 +73,36 @@ describe('Brief page (15a §2.8)', () => {
     await show('b2');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your starting point');
     expect(await generateMetadata({ params: Promise.resolve({ clientId: C, briefId: 'b2' }) })).toEqual({ title: 'Your starting point' });
+  });
+
+  it('brief page shows the link for client roles only (7c2)', async () => {
+    mount();
+    const { unmount } = await show('b2');
+    const link = screen.getByRole('link', { name: 'Email Sam' });
+    expect(link.getAttribute('href')).toBe(`mailto:sam@acme.example?subject=${encodeURIComponent('Feedback: Cool Air — Week of Oct 12')}`);
+    expect(link.parentElement!.textContent).toBe('Something look off? Email Sam.');
+    expect(callTool.mock.calls.find((c) => c[1] === 'get_feedback_contact')![2]).toEqual({ clientId: C });
+    unmount();
+
+    mount(detail('b2', '2026-10-12'), { email: 'hello@acme.example', name: null });
+    const second = await show('b2');
+    expect(screen.getByRole('link', { name: 'Email your agency' }).getAttribute('href')).toMatch(/^mailto:hello@acme\.example\?subject=/);
+    second.unmount();
+
+    mount(detail('b2', '2026-10-12'), null); // no agency contact: hidden
+    const third = await show('b2');
+    expect(screen.queryByText(/Something look off/)).toBeNull();
+    third.unmount();
+
+    for (const role of ['agency_admin', 'account_manager']) {
+      viewer.role = role;
+      callTool.mockReset();
+      mount();
+      const r = await show('b2');
+      expect(screen.queryByText(/Something look off/)).toBeNull();
+      expect(callTool.mock.calls.some((c) => c[1] === 'get_feedback_contact')).toBe(false);
+      r.unmount();
+    }
   });
 
   it("404s on another client's brief", async () => {

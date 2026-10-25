@@ -1,6 +1,11 @@
 import type { LeadPreview, OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
+/** 7c2: who a client writes to about a brief or alert (the AM, else the agency admin: `replyToFor`). */
+export interface FeedbackContact {
+  email: string;
+  name: string | null;
+}
 interface Base {
   branding: Branding;
   recipientName: string | null;
@@ -13,6 +18,8 @@ export interface AlertEmailProps extends Base {
   /** YYYY-MM-DD, client-local. */
   detectedOn: string;
   link: string;
+  /** 7c2: the feedback line; hidden when absent or null. */
+  feedback?: FeedbackContact | null;
 }
 export interface DigestEmailProps extends Base {
   date: string;
@@ -57,6 +64,8 @@ export interface BriefEmailProps extends Base {
   link: string | null;
   pdfLink: string | null;
   signOff: string | null;
+  /** 7c2: the feedback line; hidden when absent or null and never in the PDF variant. */
+  feedback?: FeedbackContact | null;
 }
 export interface TrendReportEmailProps extends Base {
   quarter: string;
@@ -199,6 +208,8 @@ export interface AgencyWelcomeProps {
   branding: Branding;
   agencyName: string;
   url: string;
+  /** 7c2: where pilot agencies write to us (`SUPPORT_REPLY_TO`, else support@rivalmonday.app). */
+  supportEmail: string;
 }
 export interface OnboardingTipProps {
   branding: Branding;

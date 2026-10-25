@@ -68,6 +68,13 @@ describe('deliverDueBriefs', () => {
     expect(await sentRows('am_alert')).toEqual([]);
   });
 
+  it('briefEmailProps carries replyToFor: the client email has the feedback contact (the AM)', async () => {
+    const id = await seedBrief('approved', [{ ord: 0, headline: 'H0' }]);
+    await deliverBrief(deps(), id, MON_0705);
+    const email = (await sentRows()).find((r) => r.channel === 'email')!;
+    expect((email.payload as { props: { feedback: unknown } }).props.feedback).toEqual({ email: 'am@a.example', name: 'Sam' });
+  });
+
   it('delivers a quiet brief with its trend snapshot', async () => {
     const id = await seedBrief('approved', []);
     await deliverBrief(deps(), id, MON_0705);
@@ -142,9 +149,15 @@ describe('sendBriefNow', () => {
   });
 });
 
-describe('briefEmailProps scorecard', () => {
+describe('briefEmailProps scorecard and feedback', () => {
   const view = (scorecard: unknown) => ({ b: { id: 'b1', deliveryDate: '2026-10-12', kind: 'quiet', summary: 's', trend: null, scorecard }, clientName: 'A1', items: [], branding: {}, signOff: '—' }) as unknown as BriefDeliveryView;
   const opts = { recipientName: null, link: null, pdfLink: null, itemLink: () => null };
+  it('feedback is the view replyTo (null when the agency has no AM or admin contact)', () => {
+    const v = view(null);
+    expect(briefEmailProps({ ...v, replyTo: { email: 'am@a.example', name: 'Sam' } }, opts).feedback).toEqual({ email: 'am@a.example', name: 'Sam' });
+    expect(briefEmailProps({ ...v, replyTo: null }, opts).feedback).toBeNull();
+  });
+
   it('warns and sends without a scorecard that does not parse; a missing one is silent', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(briefEmailProps(view({ tiles: 'nope' }), opts).scorecard).toBeNull();

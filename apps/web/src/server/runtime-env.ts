@@ -1,4 +1,5 @@
 import 'server-only';
+import { DEFAULT_SUPPORT_EMAIL } from '@cs/core';
 import { type EnvName, resolveEnvironment } from '@cs/db';
 import { DEMO_OPERATOR_EMAIL } from '@cs/demo/users';
 import { activeEnvName, processGuardOn, webRepoRoot } from './dev-guard';
@@ -29,3 +30,6 @@ export function platformAdminsFor(base: readonly string[], name: EnvName, guardO
 }
 
 export const platformAdmins = (name: EnvName = activeEnvName()): string[] => platformAdminsFor(webEnv().platformAdmins, name, processGuardOn());
+
+/** 7c2: where pilot agencies write to us ("Send feedback"): `SUPPORT_REPLY_TO`, else the support address. */
+export const supportEmail = (): string => webEnv().supportReplyTo ?? DEFAULT_SUPPORT_EMAIL;

@@ -47,6 +47,7 @@ describe('billingEmail().sendOnboarding', () => {
     }
     expect(welcome!.to).toBe('jo@acme.test');
     expect(welcome!.html).toContain('https://app.rm.test/onboarding/start');
+    expect(welcome!.text).toContain('Questions or feedback during the pilot? Email support@rivalmonday.app. We read every message.');
     expect(notice!.html).toContain(`https://app.rm.test/platform/agencies/${AGENCY}`);
   });
 
@@ -67,6 +68,7 @@ describe('billingEmail().sendOnboarding', () => {
     const mail = make({ SUPPORT_REPLY_TO: 'help@agency-ops.test' }).billingEmail();
     await mail.sendOnboarding('jo@acme.test', AGENCY, { template: 'agency_welcome', props: { agencyName: 'A', url: 'https://app.rm.test/onboarding/start' } });
     expect((await outbox())[0]!.replyTo).toBe('help@agency-ops.test');
+    expect((await outbox())[0]!.text).toContain('Email help@agency-ops.test. We read every message.');
   });
 
   it('a tip without BETTER_AUTH_SECRET throws (retried) and sends nothing', async () => {

@@ -3,6 +3,7 @@
 import { Button, Heading, Link, Section, Text } from 'react-email';
 import { button, greeting, Layout, panel } from '../layout';
 import type { BriefEmailProps } from '../types';
+import { FeedbackLine } from './feedback-line';
 import { Scorecard } from './scorecard';
 import { TrendTable } from './trend-table';
 
@@ -32,6 +33,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
       {p.signOff ? <Text style={{ marginTop: 16 }}>{p.signOff}</Text> : null}
       {p.link && !doc ? <Button href={p.link} style={button(p.branding)}>Open in your dashboard</Button> : null}
       {p.pdfLink && !doc ? <Text><Link href={p.pdfLink}>Download as PDF</Link></Text> : null}
+      {doc ? null : <FeedbackLine feedback={p.feedback} subject={briefSubject(p)} />}
     </Layout>
   );
 }

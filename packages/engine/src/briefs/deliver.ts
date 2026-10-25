@@ -1,6 +1,6 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
 import { agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
-import type { Branding, BriefEmailProps } from '@cs/email';
+import type { Branding, BriefEmailProps, FeedbackContact } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
 import { replyToFor } from '../delivery/contacts';
@@ -24,6 +24,8 @@ export interface BriefDeliveryView {
   items: (typeof briefItem.$inferSelect & { competitorName: string })[];
   branding: Branding;
   signOff: string | null;
+  /** 7c2: `replyToFor` (the AM, else the agency admin) — the client email's feedback line; null hides it. */
+  replyTo: FeedbackContact | null;
 }
 
 export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefDeliveryView> {
@@ -37,7 +39,7 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
     .orderBy(asc(briefItem.ord));
   const branding = await loadBranding(conn, row.b.agencyId);
   const am = await replyToFor(conn, row.b.agencyId, row.b.clientId);
-  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}` };
+  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}`, replyTo: am };
 }
 
 const scorecardOf = (v: BriefDeliveryView) => {
@@ -50,7 +52,7 @@ const scorecardOf = (v: BriefDeliveryView) => {
   return scorecardModel(parsed.data, { clientName: v.clientName });
 };
 
-/** Client-facing props (decision 15): only active items, never the upsell tag. */
+/** Client-facing props (decision 15): only active items, never the upsell tag. `feedback` = the view's `replyTo` (the PDF overrides it with null). */
 export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null }): BriefEmailProps {
   return {
     branding: v.branding, recipientName: opts.recipientName, clientName: v.clientName, deliveryDate: v.b.deliveryDate, kind: v.b.kind as BriefEmailProps['kind'], summary: v.b.summary,
@@ -58,7 +60,7 @@ export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: str
       competitorName: i.competitorName, headline: i.headline, whatChanged: i.whatChanged, whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction,
       subject: i.subject, effort: i.effort as 'L' | 'M' | 'H', impact: i.impact as 'L' | 'M' | 'H', link: opts.itemLink(i.id),
     })),
-    trend: v.b.trend, scorecard: scorecardOf(v), link: opts.link, pdfLink: opts.pdfLink, signOff: v.signOff,
+    trend: v.b.trend, scorecard: scorecardOf(v), link: opts.link, pdfLink: opts.pdfLink, signOff: v.signOff, feedback: v.replyTo,
   };
 }
 

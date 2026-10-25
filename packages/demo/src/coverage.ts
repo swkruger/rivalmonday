@@ -201,7 +201,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   },
   // Phase 15a: Briefs & reports, one tab per list (`?tab=briefs|alerts|reports`).
   { route: '/c/[clientId]/briefs', as: 'admin', calls: [lsProfile, lsBriefs, lsAlerts, lsReports] },
-  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }, lsProfile, lsBriefs] },
+  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }, lsProfile, lsBriefs, { tool: 'get_feedback_contact', input: (ids) => ({ clientId: ls(ids) }), path: 'email' }] },
   // 12b: the starting point (tiles, scorecard rows, self findings) and a quiet week whose scorecard carries deltas and open first moves.
   { route: '/c/[clientId]/briefs/[briefId] (starting point)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'scorecard.rows' }] },
   { route: '/c/[clientId]/briefs/[briefId] (starting point findings)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'items' }] },

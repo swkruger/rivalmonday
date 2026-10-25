@@ -3,6 +3,7 @@
 import { Button, Heading, Text } from 'react-email';
 import { button, greeting, Layout } from '../layout';
 import type { AlertEmailProps } from '../types';
+import { FeedbackLine } from './feedback-line';
 
 export function AlertEmail(p: AlertEmailProps) {
   return (
@@ -11,6 +12,7 @@ export function AlertEmail(p: AlertEmailProps) {
       <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.headline}</Heading>
       <Text>{p.body}</Text>
       <Button href={p.link} style={button(p.branding)}>See the evidence</Button>
+      <FeedbackLine feedback={p.feedback} subject={alertSubject(p)} />
     </Layout>
   );
 }

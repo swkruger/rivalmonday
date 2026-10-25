@@ -3,6 +3,7 @@ import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@c
 import { alert, type AlertStatus, changeEvent, client, competitor, type Db, feedback, type Tx, withTenant } from '@cs/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { safeTimezone } from '../briefs/schedule';
+import { replyToFor } from '../delivery/contacts';
 import { type DeliveryConfig, loadBranding, notify } from '../delivery/outbox';
 import { localClock } from '../delivery/time';
 import type { PackLoader } from '../tag/tag-stage';
@@ -47,10 +48,12 @@ export async function releaseAlert(tx: Tx, cfg: DeliveryConfig, a: AlertRow, now
   const branding = await loadBranding(tx, a.agencyId);
   const comp = await competitorName(tx, a.competitorId);
   const detectedOn = localClock(a.createdAt, c.tz).date;
+  // 7c2: loaded once per alert; the client email's feedback line (hidden when the agency has no AM or admin contact).
+  const feedback = await replyToFor(tx, a.agencyId, a.clientId);
   await notify(tx, cfg, {
     agencyId: a.agencyId, clientId: a.clientId, kind: 'alert', audience: 'client', subjectType: 'alert', subjectId: a.id, dedupe: `alert:${a.id}`,
     link: { t: 'alert', id: a.id }, now,
-    build: (r, link) => ({ title: a.headline, body: a.body, email: { template: 'alert', props: { branding, recipientName: r?.name ?? null, clientName: c.name, competitorName: comp, headline: a.headline, body: a.body, detectedOn, link } } }),
+    build: (r, link) => ({ title: a.headline, body: a.body, email: { template: 'alert', props: { branding, recipientName: r?.name ?? null, clientName: c.name, competitorName: comp, headline: a.headline, body: a.body, detectedOn, link, feedback } } }),
   });
   return 'immediate';
 }

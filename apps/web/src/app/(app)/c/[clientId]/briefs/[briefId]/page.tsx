@@ -1,5 +1,5 @@
 import { isAgencyRole } from '@cs/core';
-import type { BriefDetail, BriefSummary, ClientProfile } from '@cs/tools';
+import type { BriefDetail, BriefSummary, ClientProfile, FeedbackContact } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -64,6 +64,8 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
   // Client roles only see active items (BriefView filters the same way).
   const tips = briefTips(brief, brief.items.some((i) => agency || i.status === 'active'));
   const { previous, next } = neighbours(list?.items ?? null, brief.id, (id) => `/c/${clientId}/briefs/${id}`);
+  // 7c2: client roles can write to their agency (AM, else admin); hidden for agency roles, on refusal and without a contact.
+  const feedback = agency ? null : await tryCallTool<FeedbackContact>(ctx, 'get_feedback_contact', { clientId });
   return (
     <>
       <PageHeader
@@ -91,6 +93,15 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
         </div>
       )}
       <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} />
+      {feedback?.email && (
+        <p className="text-sm text-muted-foreground">
+          {'Something look off? '}
+          <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-primary-soft-text">
+            Email {feedback.name?.trim() || 'your agency'}
+          </a>
+          .
+        </p>
+      )}
       <PrevNext previous={previous} next={next} />
     </>
   );

@@ -57,6 +57,14 @@ describe('processAlert', () => {
     expect(await processAlert(deps, alertId, NOW)).toEqual({ status: 'skipped' }); // already processed
   });
 
+  it('the client alert email carries the feedback contact (replyToFor); the AM notice does not', async () => {
+    const { alertId } = await newAlert('direct');
+    await processAlert(deps, alertId, NOW);
+    const email = (await kinds('alert')).find((n) => n.channel === 'email')!;
+    expect((email.payload as { props: { feedback: unknown } }).props.feedback).toEqual({ email: 'am@a.example', name: null });
+    for (const n of await kinds('am_alert')) expect(JSON.stringify(n.payload ?? {})).not.toContain('"feedback"');
+  });
+
   it('after_am_check: waits for an AM; nothing reaches the client until approval', async () => {
     const { alertId } = await newAlert('after_am_check');
     expect((await processAlert(deps, alertId, NOW)).status).toBe('pending_review');

@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Text } from 'react-email';
+import { Button, Link, Text } from 'react-email';
 import { button, Layout } from '../layout';
 import type { AgencyWelcomeProps } from '../types';
 
@@ -15,6 +15,11 @@ export function AgencyWelcomeEmail(p: AgencyWelcomeProps) {
       <Button href={p.url} style={button(p.branding)}>
         Continue setup
       </Button>
+      <Text style={{ marginTop: 16 }}>
+        {'Questions or feedback during the pilot? Email '}
+        <Link href={`mailto:${p.supportEmail}`}>{p.supportEmail}</Link>
+        {'. We read every message.'}
+      </Text>
     </Layout>
   );
 }

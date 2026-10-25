@@ -45,7 +45,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId] (client owner)` | ownerLoneStar | `list_my_ask_threads`, `get_my_ask_thread` | `get_my_ask_thread`: threads are author-only |
 | `/c/[clientId]/briefs` | admin | `get_client_profile`, `list_briefs`, `list_alerts`, `list_trend_reports`, `list_help_guides` | — |
-| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief`, `get_client_profile`, `list_briefs`, `list_help_guides` | — |
+| `/c/[clientId]/briefs/[briefId]` | ownerLoneStar | `get_brief`, `get_client_profile`, `list_briefs`, `get_feedback_contact`, `list_help_guides` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (starting point findings)` | ownerBrazos | `get_brief` | — |
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |

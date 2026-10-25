@@ -13,11 +13,14 @@ export function TopBar({
   switcher,
   unread,
   menu,
+  supportEmail = null,
 }: {
   viewer: Exclude<Viewer, { kind: 'member-less' }>;
   switcher: SwitcherProps;
   unread: number;
   menu?: React.ReactNode;
+  /** 7c2: "Send feedback" in the avatar menu; the shell sets it for agency roles only. */
+  supportEmail?: string | null;
 }) {
   return (
     <header className="flex h-[68px] flex-shrink-0 items-center border-b border-border bg-surface">
@@ -30,7 +33,7 @@ export function TopBar({
         {/* Phase 8b M2: no bell in a support session (the operator's own inbox 404s there). */}
         {switcher.flags.inbox !== false && <InboxBell unread={unread} />}
         {viewer.kind !== 'guest' ? (
-          <AvatarMenu viewer={viewer} switcher={switcher} />
+          <AvatarMenu viewer={viewer} switcher={switcher} supportEmail={supportEmail} />
         ) : (
           // Important I1 (final review): a guest reaching "Sign out" (not "Sign in") can always end their session.
           <GuestSignOutButton />

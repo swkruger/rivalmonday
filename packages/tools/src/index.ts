@@ -38,6 +38,7 @@ export { latestDoneRun, listMonthlyRivalClients, manualSearchWeek, nextManualSea
 // Shared by the `fetch` tool and the MCP `evidence://` / `brief://` resources (@cs/mcp); every refusal is `not_found`.
 export { type FetchOutput, fetchItem, ITEM_TYPES, type ItemType, parseItemId } from './search/fetch-item';
 export type { AskActionView, AskMessageView, AskThreadSummary, AskThreadView } from './tools/ask-threads';
+export type { FeedbackContact } from './tools/feedback';
 // Phase 6c: the worker's kb-import / kb-sync jobs save and rechunk through the same service-connection writer as the tools.
 export { type ArticleInput, rechunk, saveArticle } from './kb/write';
 export { parseSeedFile, seedKnowledge } from './kb/seed';

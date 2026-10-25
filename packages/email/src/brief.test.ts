@@ -85,6 +85,34 @@ describe('brief email', () => {
   });
 });
 
+describe('brief feedback line (7c2)', () => {
+  const sam = { email: 'sam@acme.example', name: 'Sam' };
+  it('brief shows the named feedback line', async () => {
+    const r = await renderEmail({ template: 'brief', props: { ...brief, feedback: sam } });
+    expect(r.text).toContain('Something look off? Reply to this email or write to Sam at sam@acme.example');
+    expect(r.html).toContain(`href="mailto:sam@acme.example?subject=${encodeURIComponent('Feedback: Weekly competitor brief for A1 HVAC — 2026-10-05')}"`);
+    expect(r.html).not.toMatch(/rival ?monday/i);
+  });
+
+  it('falls back to "your agency"', async () => {
+    const r = await renderEmail({ template: 'brief', props: { ...brief, feedback: { email: 'hello@acme.example', name: null } } });
+    expect(r.text).toContain('Something look off? Reply to this email or write to your agency at hello@acme.example');
+  });
+
+  it('hidden when feedback is null', async () => {
+    for (const feedback of [null, undefined]) {
+      const r = await renderEmail({ template: 'brief', props: { ...brief, feedback } });
+      expect(r.text).not.toContain('Something look off?');
+    }
+  });
+
+  it('PDF variant has no feedback line', async () => {
+    const html = await renderBriefDocument({ ...brief, link: null, pdfLink: null, feedback: sam });
+    expect(html).not.toContain('Something look off?');
+    expect(html).not.toContain('mailto:');
+  });
+});
+
 describe('trend report', () => {
   const report: TrendReportEmailProps = {
     branding, recipientName: null, clientName: 'A1 HVAC', quarter: '2026-Q3', link: 'https://app.example/l/r', pdfLink: null,

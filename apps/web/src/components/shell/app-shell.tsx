@@ -24,7 +24,7 @@ import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
 import { helpAgencyName } from '@/server/help';
 import { navCounts, navFlagsFor } from '@/server/nav';
-import { platformAdmins } from '@/server/runtime-env';
+import { platformAdmins, supportEmail } from '@/server/runtime-env';
 import { themeForViewer } from '@/server/theme';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -133,7 +133,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
           <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
           <div className="flex min-w-0 flex-1 flex-col">
             {viewer.kind === 'guest' && <GuestBanner />}
-            <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} />
+            <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} supportEmail={viewer.kind === 'user' && isAgencyRole(ctx.role) ? supportEmail() : null} />
             {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
               <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
             )}

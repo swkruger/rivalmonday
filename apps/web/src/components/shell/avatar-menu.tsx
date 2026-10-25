@@ -1,4 +1,4 @@
-import type { Role } from '@cs/core';
+import { isAgencyRole, type Role } from '@cs/core';
 import type { MembershipSummary } from '@cs/tools';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@cs/ui';
 import Link from 'next/link';
@@ -27,10 +27,12 @@ function roleLine(m: MembershipSummary): string {
  * membership — the action sets the cookie, no write tool; never rendered for support viewers, who have no
  * memberships here), Sign out. Help (15b-1) opens the live context's Help page. A support viewer is a signed-in operator, so it gets the real
  * sign-out (which also ends the session, Phase 8b M2); its own notification settings 404 there, so no link.
- * Guests never reach this (they keep `GuestSignOutButton`).
+ * Guests never reach this (they keep `GuestSignOutButton`). 7c2: agency roles (signed in as themselves) get "Send feedback",
+ * a `mailto:` to `supportEmail` (the shell passes it for agency roles only); support viewers and client roles never do.
  */
-export function AvatarMenu({ viewer, switcher }: { viewer: Extract<Viewer, { kind: 'user' } | { kind: 'support' }>; switcher: SwitcherProps }) {
+export function AvatarMenu({ viewer, switcher, supportEmail = null }: { viewer: Extract<Viewer, { kind: 'user' } | { kind: 'support' }>; switcher: SwitcherProps; supportEmail?: string | null }) {
   const others = viewer.kind === 'user' ? viewer.memberships.filter((m) => m.id !== viewer.membership.id) : [];
+  const feedbackTo = viewer.kind === 'user' && isAgencyRole(viewer.membership.role) ? supportEmail : null;
   const line = viewer.kind === 'user' ? roleLine(viewer.membership) : `Support session · ${viewer.session.agencyName}`;
   return (
     <DropdownMenu>
@@ -49,6 +51,11 @@ export function AvatarMenu({ viewer, switcher }: { viewer: Extract<Viewer, { kin
           </DropdownMenuItem>
         )}
         <HelpMenuItem {...switcher} />
+        {feedbackTo && (
+          <DropdownMenuItem asChild>
+            <a href={`mailto:${feedbackTo}?subject=Pilot%20feedback`}>Send feedback</a>
+          </DropdownMenuItem>
+        )}
         {others.length > 0 && (
           <>
             <DropdownMenuSeparator />

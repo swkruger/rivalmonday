@@ -207,6 +207,7 @@ update_my_contact (settings.ts) | write | updates contact
 list_theme_proposals (themes.ts) | read | read-only
 get_nav_counts (nav-counts.ts) | read | read-only counts (agency menu badges)
 get_platform_nav_counts (nav-counts.ts) | read | read-only counts; platform operator
+get_feedback_contact (feedback.ts) | read | read-only; the client's AM, else the agency admin (replyToFor); web only; email/name masked in support (7c2)
 decide_theme_proposal (themes.ts) | write | decides proposal
 get_usage (usage.ts) | read | read-only
 set_client_limits (usage.ts) | write | updates client limits; platform staff only, supportHidden; lifts a spend pause + writes spend_guard_event in one tx (7b1)

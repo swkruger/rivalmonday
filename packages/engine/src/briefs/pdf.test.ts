@@ -4,6 +4,7 @@ import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
+import { addContact } from '../delivery/contacts';
 import { briefPdfKey, listBriefsMissingPdf, PDF_RETRY_HOURS, renderBriefPdf } from './pdf';
 
 const dbs = openTestDbs();
@@ -37,6 +38,15 @@ describe('renderBriefPdf', () => {
     expect(html).not.toMatch(/upsell|\blsa\b/i);
     expect(calls[0]!.meta).toEqual({ title: 'A1 HVAC — weekly competitor brief 2026-10-05', author: 'Agency A', subject: 'Weekly competitor brief' });
     expect(calls[0]!.allowUrls).toEqual([]);
+  });
+
+  it('the PDF has no feedback line even when the agency has a contact', async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example', name: 'Sam' });
+    const id = await seedBrief('sent');
+    const calls: string[] = [];
+    await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async (html: string) => (calls.push(html), new Uint8Array([1])) }, id);
+    expect(calls[0]).not.toContain('Something look off?');
+    expect(calls[0]).not.toContain('mailto:');
   });
 
   it('brief PDF re-render overwrites', async () => {

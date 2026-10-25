@@ -10,19 +10,25 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('agency_welcome email', () => {
   it('renders subject, body and button', async () => {
-    const out = await renderEmail({ template: 'agency_welcome', props: { branding, agencyName: 'Acme Agency', url: 'https://app.rivalmonday.test/agency/onboarding' } });
+    const out = await renderEmail({ template: 'agency_welcome', props: { branding, agencyName: 'Acme Agency', url: 'https://app.rivalmonday.test/agency/onboarding', supportEmail: 'support@rivalmonday.app' } });
     expect(out.subject).toBe('Welcome to Rival Monday');
     expect(out.text).toContain('Acme Agency is set up. Next: tell us about your agency, invite your team and add your first client. It takes about 10 minutes, and you can stop anytime.');
     expect(out.text).toContain('Continue setup');
     expect(out.html).toContain('href="https://app.rivalmonday.test/agency/onboarding"');
     expect(out.html).toContain('#2A6BAC');
   });
+
+  it('welcome shows supportEmail', async () => {
+    const out = await renderEmail({ template: 'agency_welcome', props: { branding, agencyName: 'Acme Agency', url: 'https://app.rivalmonday.test/agency/onboarding', supportEmail: 'help@rm.test' } });
+    expect(out.text).toContain('Questions or feedback during the pilot? Email help@rm.test. We read every message.');
+    expect(out.html).toContain('href="mailto:help@rm.test"');
+  });
 });
 
 describe('agency-welcome logging', () => {
   it('rendering never calls console.*', async () => {
     const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
-    await renderEmail({ template: 'agency_welcome', props: { branding, agencyName: 'A', url: URL } });
+    await renderEmail({ template: 'agency_welcome', props: { branding, agencyName: 'A', url: URL, supportEmail: 'support@rivalmonday.app' } });
     for (const s of spies) expect(s).not.toHaveBeenCalled();
   });
 });

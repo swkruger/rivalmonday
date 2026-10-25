@@ -82,6 +82,20 @@ describe('AvatarMenu (spec §2.9)', () => {
     expect(within(openMenu()).getByRole('menuitem', { name: 'Help' }).getAttribute('href')).toBe(`/c/${CLIENT}/help`);
   });
 
+  it('avatar menu shows Send feedback for agency roles only (7c2)', () => {
+    const { unmount } = render(<AvatarMenu viewer={user([current])} switcher={switcher()} supportEmail="support@rivalmonday.app" />);
+    expect(within(openMenu()).getByRole('menuitem', { name: 'Send feedback' }).getAttribute('href')).toBe('mailto:support@rivalmonday.app?subject=Pilot%20feedback');
+    unmount();
+    // A client role (even if an address were passed) and a support viewer never get it; nor does an agency role without one.
+    const clientUser = { kind: 'user', userId: 'u', email: 'jo@x.test', name: 'Jo', ctx: {}, membership: m('m9', 'client_owner', 'Acme Agency', 'Brazos Plumbing'), memberships: [] } as never;
+    const support = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', ctx: {}, session: { agencyName: 'Target Agency' } } as never;
+    for (const [viewer, email] of [[clientUser, 'support@rivalmonday.app'], [support, 'support@rivalmonday.app'], [user([current]), null]] as const) {
+      const r = render(<AvatarMenu viewer={viewer} switcher={switcher()} supportEmail={email} />);
+      expect(within(openMenu()).queryByRole('menuitem', { name: 'Send feedback' })).toBeNull();
+      r.unmount();
+    }
+  });
+
   it('a support viewer also gets Help', () => {
     nav.path = '/agency';
     const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', ctx: {}, session: { agencyName: 'Target Agency' } } as never;

@@ -63,6 +63,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_client_profile: client(),
   get_client_setup: client(),
   get_starting_point_status: client(),
+  get_feedback_contact: { kind: 'client', input: (_w, t) => ({ clientId: t.clientId }) },
   list_briefs: client(),
   list_alerts: client(),
   list_alert_queue: client(),
