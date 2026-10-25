@@ -1,6 +1,7 @@
 import { render } from '@react-email/render';
 import { createElement, type ReactElement } from 'react';
 import { AgencyHoldEmail, agencyHoldSubject } from './templates/agency-hold';
+import { AgencyPlanChangeEmail, agencyPlanChangeSubject } from './templates/agency-plan-change';
 import { AgencyInviteEmail, agencyInviteSubject } from './templates/agency-invite';
 import { AgencyWelcomeEmail, agencyWelcomeSubject } from './templates/agency-welcome';
 import { OnboardingTipEmail, onboardingTipSubject } from './templates/onboarding-tip';
@@ -43,6 +44,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(SupportSessionStartedEmail, p.props), subject: supportSessionStartedSubject() };
     case 'agency_hold':
       return { el: createElement(AgencyHoldEmail, p.props), subject: agencyHoldSubject(p.props.kind, p.props.agencyName) };
+    case 'agency_plan_change':
+      return { el: createElement(AgencyPlanChangeEmail, p.props), subject: agencyPlanChangeSubject() };
     case 'platform_spend_alert':
       return { el: createElement(PlatformSpendAlertEmail, p.props), subject: platformSpendAlertSubject(p.props) };
     case 'platform_ops_alert':

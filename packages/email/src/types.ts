@@ -1,3 +1,4 @@
+import type { PlanFeature } from '@cs/core';
 import type { LeadPreview, OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
@@ -95,6 +96,20 @@ export interface AgencyHoldProps {
   agencyName: string;
   kind: 'started' | 'lifted';
   supportEmail: string;
+}
+/** 15c-3b: one plan version's price terms (cents). */
+export type PlanTerms = { basePriceCents: number; includedSeats: number; seatPriceCents: number };
+/** 15c-3b: the platform tells an agency's admins its plan is changing (moved to the current standard version). */
+export interface AgencyPlanChangeProps {
+  branding: Branding;
+  recipientName: string | null;
+  agencyName: string;
+  before: PlanTerms;
+  after: PlanTerms;
+  featuresAdded: PlanFeature[];
+  featuresRemoved: PlanFeature[];
+  /** `date` is date-only UTC (YYYY-MM-DD); null reads "your next billing date". */
+  effective: { kind: 'next_billing'; date: string | null } | { kind: 'on_subscribe' };
 }
 /** 7b1: staff alert for a client spend pause or a platform spike (USD allowed: platform staff only). */
 export interface PlatformSpendAlertProps {
@@ -286,7 +301,8 @@ export type EmailPayload =
   | { template: 'lead_verify'; props: LeadVerifyProps }
   | { template: 'lead_confirmation'; props: LeadConfirmationProps }
   | { template: 'lead_declined'; props: LeadDeclinedProps }
-  | { template: 'lead_new'; props: LeadNewProps };
+  | { template: 'lead_new'; props: LeadNewProps }
+  | { template: 'agency_plan_change'; props: AgencyPlanChangeProps };
 export interface RenderedEmail {
   subject: string;
   html: string;
