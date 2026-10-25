@@ -339,7 +339,11 @@ export const getPlatformAgency = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     const role = await requirePlatformOperator(deps, ctx);
-    const found = UUID_RE.test(input.agencyId) ? await requireAgency(deps, input.agencyId, { allowArchived: true }).catch(() => null) : null;
+    const found = UUID_RE.test(input.agencyId) ? await requireAgency(deps, input.agencyId, { allowArchived: true }).catch((e: unknown) => {
+      // Only "no such agency" maps to not_found; DB/other failures propagate.
+      if (e instanceof ToolError && e.code === 'not_found') return null;
+      throw e;
+    }) : null;
     const exists = found !== null;
     // Unknown agency: no target audit_log to write into (FK), so the not_found call lands on the platform log.
     return withPlatformAudit(deps, ctx, { tool: 'get_platform_agency', input, role, agencyId: exists ? input.agencyId : undefined }, async () => {

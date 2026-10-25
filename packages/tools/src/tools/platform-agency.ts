@@ -188,7 +188,7 @@ export const platformSuspendAgencyTool = defineTool({
   name: 'platform_suspend_agency',
   access: 'write', // pauses Stripe collection, sends emails
   description: 'Platform staff: put an agency on hold (read-only, scheduled work and billing paused); its admins get an email.',
-  input: z.object({ agencyId: Id, reason: z.string().trim().min(3).max(500) }),
+  input: z.object({ agencyId: Id, reason: z.string().trim().min(3).max(500) }), // zod 4 counts code points, matching the DB CHECK's char_length
   output: z.object({ suspendedAt: z.string(), billing: HoldBillingOut, emailsSent: z.number().int() }),
   permission: 'agency',
   audit: 'skip-web',

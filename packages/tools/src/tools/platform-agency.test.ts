@@ -290,13 +290,18 @@ describe('platform_suspend_agency', () => {
   });
 
   it('reason under 3 or over 500 chars → invalid_input; viewer → permission_denied; archived → not_found', async () => {
-    for (const reason of ['  ab ', 'x'.repeat(501)]) expect((await fails(call(staff, 'platform_suspend_agency', { agencyId: A, reason }))).code).toBe('invalid_input');
+    for (const reason of ['  ab ', 'x'.repeat(501), '\u{1F600}\u{1F600}', '\u{1F600}'.repeat(501)]) expect((await fails(call(staff, 'platform_suspend_agency', { agencyId: A, reason }))).code).toBe('invalid_input');
     expect((await fails(call(viewer, 'platform_suspend_agency', { agencyId: A, reason: REASON }))).code).toBe('permission_denied');
     await dbs.owner.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, A));
     const held: [string, Record<string, unknown>][] = [['platform_suspend_agency', { reason: REASON }], ['platform_unsuspend_agency', {}], ['platform_retry_hold_billing', {}], ['platform_archive_agency', {}]];
     for (const [name, input] of held) expect((await fails(call(owner, name, { agencyId: A, ...input }))).code, name).toBe('not_found');
     expect((await agencyRow()).suspendedAt).toBeNull();
     expect(gw.calls).toEqual([]);
+  });
+
+  it('reason length counts code points like the DB CHECK: 500 emoji is accepted', async () => {
+    await call(staff, 'platform_suspend_agency', { agencyId: A, reason: '\u{1F600}'.repeat(500) });
+    expect((await agencyRow()).suspendedAt).not.toBeNull();
   });
 });
 

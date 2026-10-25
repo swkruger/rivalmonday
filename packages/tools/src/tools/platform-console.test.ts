@@ -3,11 +3,18 @@ import { hashInput } from '@cs/core/server';
 import { agency, agencyBilling, agencyBillingEvent, clientBilling, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { addDays, utcDay } from '../platform/stats';
 import { encodeCursor } from '../paging';
 import { createToolRegistry } from '../registry';
+import { requireAgency } from './platform-billing';
+
+// Pass-through spy so one test can make the agency lookup fail with a non-ToolError.
+vi.mock('./platform-billing', async (importOriginal) => {
+  const m = await importOriginal<typeof import('./platform-billing')>();
+  return { ...m, requireAgency: vi.fn(m.requireAgency) };
+});
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -311,6 +318,13 @@ describe('get_platform_agency', () => {
     await expect(registry.invoke(op, 'get_platform_agency', { agencyId: 'nope', range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
     const rows = await dbs.owner.select().from(platformAuditLog);
     expect(rows.map((r) => [r.tool, r.outcome])).toEqual([['get_platform_agency', 'not_found'], ['get_platform_agency', 'not_found']]);
+  });
+
+  it('a non-ToolError from the agency lookup propagates as internal (not mapped to not_found)', async () => {
+    await seedPlatform();
+    const boom = new Error('connection reset');
+    vi.mocked(requireAgency).mockRejectedValueOnce(boom);
+    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })).rejects.toMatchObject({ code: 'internal', cause: boom });
   });
 
   it('refuses non-operators with permission_denied and writes nothing', async () => {
