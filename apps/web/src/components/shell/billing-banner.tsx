@@ -12,6 +12,7 @@ const BILLING_HREF = '/agency/settings/billing';
 export function BillingBanner({ role, state, trialEndsAt, pausesOn, onHold = false, supportEmail }: { role: string; state: BillingState; trialEndsAt: string | null; pausesOn: string | null; onHold?: boolean; supportEmail: string }) {
   // Platform hold (15c-3a): every agency role sees the hold sentence; Stripe-state banners are suppressed.
   if (onHold && (role === 'agency_admin' || role === 'account_manager')) return <Bar tone="warning">{HOLD_MESSAGE(supportEmail)}</Bar>;
+  if (onHold && role.startsWith('client_')) return <Bar tone="danger">Your agency&apos;s account needs attention.</Bar>;
   if (role === 'account_manager') {
     return state === 'past_due' || state === 'read_only' ? <Bar tone="danger">Your agency&apos;s account needs attention.</Bar> : null;
   }
@@ -41,7 +42,7 @@ export function BillingBanner({ role, state, trialEndsAt, pausesOn, onHold = fal
 }
 
 function Bar({ tone, action, children }: { tone: 'info' | 'warning' | 'danger'; action?: string; children: string | string[] }) {
-  const colours = tone === 'danger' ? 'bg-destructive text-white' : tone === 'warning' ? 'bg-amber/20 text-ink' : 'bg-muted-surface text-ink';
+  const colours = tone === 'danger' ? 'bg-destructive text-white' : tone === 'warning' ? 'bg-chip-warning-bg text-chip-warning-text' : 'bg-muted-surface text-ink';
   return (
     <div role="region" aria-label="Billing" data-tone={tone} className={`flex flex-wrap items-center gap-3 px-4 py-2 text-sm font-semibold lg:px-7 ${colours}`}>
       <span>{children}</span>

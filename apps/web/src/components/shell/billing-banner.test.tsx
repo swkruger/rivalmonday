@@ -75,11 +75,5 @@ describe('BillingBanner (billing, spec § Enforcement)', () => {
     }
   });
 
-  it('on hold: client roles see no hold text', () => {
-    for (const role of ['client_owner', 'client_viewer'] as const) {
-      const { container, unmount } = render(<BillingBanner role={role} state="active" trialEndsAt={null} pausesOn={null} onHold supportEmail="help@acme.test" />);
-      expect(container.innerHTML).toBe('');
-      unmount();
-    }
-  });
+it('on hold: client roles see only the neutral line, no hold text or email', () => {    for (const role of ['client_owner', 'client_viewer'] as const) {      const { container, unmount } = render(<BillingBanner role={role} state="active" trialEndsAt={null} pausesOn={null} onHold supportEmail="help@acme.test" />);      expect(screen.getByText("Your agency's account needs attention.")).toBeTruthy();      expect(container.textContent).not.toMatch(/on hold|help@acme.test/);      unmount();    }  });
 });
