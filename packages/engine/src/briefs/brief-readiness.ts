@@ -114,7 +114,7 @@ export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessI
 
 /**
  * Records this run's issues in `ops_alert` (kind `brief_readiness`): a new key is inserted, an open one refreshed
- * (`last_seen_at`, `summary`, `severity`; `first_seen_at` kept), an open one no longer reported resolved. A resolved key is
+ * (`last_seen_at`, `summary`, `severity`; `first_seen_at` kept; `emailed_at` cleared when the alert gained a client), an open one no longer reported resolved. A resolved key is
  * never reopened. `toEmail` = open rows not yet emailed.
  */
 export async function checkBriefReadiness(db: Db, now: Date): Promise<{ open: OpsAlert[]; toEmail: OpsAlert[]; resolved: number }> {
@@ -124,7 +124,18 @@ export async function checkBriefReadiness(db: Db, now: Date): Promise<{ open: Op
       const summary = { clients: i.clients, deliveryDate: i.deliveryDate, checkpoint: i.checkpoint };
       await tx.insert(opsAlert)
         .values({ kind: 'brief_readiness', dedupeKey: i.dedupeKey, severity: i.severity, summary, firstSeenAt: now, lastSeenAt: now })
-        .onConflictDoUpdate({ target: opsAlert.dedupeKey, set: { lastSeenAt: now, summary, severity: i.severity }, setWhere: isNull(opsAlert.resolvedAt) });
+        .onConflictDoUpdate({
+          target: opsAlert.dedupeKey,
+          set: {
+            lastSeenAt: now, summary, severity: i.severity,
+            // A client new to this open alert re-arms its email (the email lists every client); a shrinking or unchanged set does not.
+            emailedAt: sql`CASE WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements(excluded.summary->'clients') n
+                 WHERE NOT (coalesce(ops_alert.summary->'clients', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('clientId', n->>'clientId'))))
+              THEN NULL ELSE ops_alert.emailed_at END`,
+          },
+          setWhere: isNull(opsAlert.resolvedAt),
+        });
     }
     const keys = issues.map((i) => i.dedupeKey);
     const resolved = await tx.update(opsAlert).set({ resolvedAt: now })

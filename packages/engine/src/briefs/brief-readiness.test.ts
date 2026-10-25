@@ -176,6 +176,33 @@ describe('checkBriefReadiness', () => {
     expect(second.resolved).toBe(0);
   });
 
+  it('an emailed alert that gains a client is emailed again', async () => {
+    const first = await checkBriefReadiness(dbs.service, FRI_NOON);
+    await markOpsAlertEmailed(dbs.service, first.toEmail[0]!.id, FRI_NOON);
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
+    const later = new Date(FRI_NOON.getTime() + 3_600_000);
+    const r = await checkBriefReadiness(dbs.service, later);
+    expect(r.toEmail).toHaveLength(1);
+    expect(r.toEmail[0]).toMatchObject({ id: first.toEmail[0]!.id, emailedAt: null, firstSeenAt: FRI_NOON, lastSeenAt: later });
+    expect((r.toEmail[0]!.summary as { clients: { clientId: string }[] }).clients.map((c) => c.clientId)).toEqual([IDS.clientA1, IDS.clientB1]);
+  });
+
+  it('an emailed alert whose set shrinks or is unchanged is not re-emailed', async () => {
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
+    const first = await checkBriefReadiness(dbs.service, FRI_NOON);
+    expect((first.toEmail[0]!.summary as { clients: unknown[] }).clients).toHaveLength(2);
+    await markOpsAlertEmailed(dbs.service, first.toEmail[0]!.id, FRI_NOON);
+    const t1 = new Date(FRI_NOON.getTime() + 3_600_000);
+    const unchanged = await checkBriefReadiness(dbs.service, t1);
+    expect(unchanged.toEmail).toEqual([]);
+    await seedBrief(IDS.clientB1);
+    const shrunk = await checkBriefReadiness(dbs.service, new Date(t1.getTime() + 3_600_000));
+    expect(shrunk.toEmail).toEqual([]);
+    expect(shrunk.open).toHaveLength(1);
+    expect(shrunk.open[0]).toMatchObject({ emailedAt: FRI_NOON });
+    expect((shrunk.open[0]!.summary as { clients: { clientId: string }[] }).clients.map((c) => c.clientId)).toEqual([IDS.clientA1]);
+  });
+
   it('not yet emailed stays in toEmail on the next run', async () => {
     await checkBriefReadiness(dbs.service, FRI_NOON);
     expect((await checkBriefReadiness(dbs.service, new Date(FRI_NOON.getTime() + 3_600_000))).toEmail).toHaveLength(1);
