@@ -48,6 +48,7 @@ export const getPlatformHealth = defineTool({
   output: platformHealthOutput,
   permission: 'agency',
   supportHidden: true,
+  supportMask: ['briefReadiness.issues[].emailedAt'], // a timestamp (nothing to mask); listed because the key matches /email/i. supportHidden anyway.
   async handler(ctx: AccessContext, _input, deps) {
     await requirePlatformOperator(deps, ctx);
     if (!deps.queueStats) throw new ToolError('internal', 'Queue status is not configured');
