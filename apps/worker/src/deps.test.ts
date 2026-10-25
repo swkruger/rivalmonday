@@ -127,9 +127,7 @@ describe('CRAWL_HOST_ALLOWLIST (7c2)', () => {
     const withList = robotsArgs.at(-1)![0] as (url: string) => Promise<unknown>;
     await expect(withList('https://unlisted.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
     await expect(withList('https://www.listed.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
-    createWorkerDeps({ CRAWL_HOST_ALLOWLIST: ',', NODE_ENV: 'development' });
-    const empty = robotsArgs.at(-1)![0] as (url: string) => Promise<unknown>;
-    await expect(empty('https://example.com/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
+    expect(() => createWorkerDeps({ CRAWL_HOST_ALLOWLIST: ',', NODE_ENV: 'development' })).toThrow(/CRAWL_HOST_ALLOWLIST has no hosts/);
     createWorkerDeps({});
     expect(robotsArgs.at(-1)![0]).toBe((await import('@cs/collectors')).defaultFetchText);
   });
