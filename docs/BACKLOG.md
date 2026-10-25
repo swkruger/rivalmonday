@@ -75,6 +75,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 7b1 polish (web): events table shows raw kind enum and actor UUID; costs action error punctuation; client-limits input width classes; blank competitor/Ask field shows raw zod message; layout guard read runs after the costs read; prospect detail guide "Run snapshot again" lacks a 24 h pointer — *phase-7b1*
 
 ## Phase 9 follow-ups (billing)
+- [ ] Client billing page: add an agency contact link ("contact {agency}"); `get_my_billing` returns no contact — *phase-15c2b2*
 **Soon**
 - [ ] `disable_client_billing`: re-check the row inside the tx (race with an ACH Checkout completing → subscription never cancelled) — *9b R27*
 - [ ] Daily reconcile `payment_needed → active` doesn't lift a `paused_by='auto'` pause or set `last_paid_at` (paid client stays auto-paused; "is now paying" mail a month late) — *9b final M3*
@@ -127,10 +128,12 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Soon (15b-2 help hardening): filter agency-only `TipRow` labels out of client payloads server-side (alerts/profile/notifications pages pass literal labels); `@cs/core/glossary` subpath + bundle gate (agency-only terms `routing`/`seat`/`paused`/`upsell-tag` kept out of client bundles only by tree-shaking); `account.onboarding.skip` → `audience: 'agency'`; coverage reach lists not cross-checked against page role gates; Help pages list guides for pages the viewer can't open; spread-header helpKey check is per file; strip Markdown from Help search excerpts; Help search button focus ring — *phase-15b2*
 - [ ] Owner decision (15b-2 sign-off): scorecard/briefs-detail say "First moves still open" vs glossary "First steps" — *phase-15b2*
 - [ ] Owner decision (P6, 15c-2b-1): message-keyed server dedupe for "save as recommendation" (changes `add_recommendation` input); today a reload shows the Save button again for an already-saved answer — *from 15c-2b-1*
-- [ ] Owner question (15c-2b-1 sign-off Q2): client `privacy` tip (`help/copy/client.ts:325`) still ends "Delete a thread with the bin icon beside it."; add the P17 reviewer sentence and say "conversation"? — *from 15c-2b-1*
+- [ ] Tools pass: refusal "Google place id looks wrong" (`packages/tools/src/client-input.ts:52`) still lower-case (owner decision 2) — *phase-15c2b2*
+- [ ] Forms: a stale error stays after Discard on SaveBar forms (alert rules, delivery, profile, features; also the `settings/notifications/contact-form.tsx` pattern they copy) — *phase-15c2b2*
+- [ ] Reports: quarterly report move dates render in UTC (`ReportView` takes no `timezone`); evidence copy "stored as raw saved page" reads oddly (`evidence/[evidenceId]/page.tsx:133`, lower-cased `EVIDENCE_KIND` label) — *phase-15c2b2*
+- [ ] 15c-2b-2 leftovers (found, out of scope): `e2e/client-setup.spec.ts:127` comment says "place id"; starting-point-card `<h3>` without `<h2>`; Overview "N open" is a hand-rolled span; defaults `<form>` outside the card (spacing); no test pins thread-list empty line or TimelineCard wiring; billing chip test asserts className not `data-tone` — *phase-15c2b2*
 - [ ] Flaky: `competitors/[competitorId]/page-controls.test.tsx` PinPageSwitch "falls back to the server value" failed once in the 15b-2 full suite (expected 'true' to be 'false'), passes alone 4/4 — RAF timing under load (see `apps/web/CLAUDE.md` PinPageSwitch note) — *phase-15b2 merge*. Also `src/server/mcp.test.ts` "PAT round-trip … returns tools/list" timed out at 30 s once in the 15c-2a `test:affected` run (78 min, all pkgs), passes alone 7/7 — *phase-15c2a merge*
 - [ ] Tooling: `e2e:affected` tag selection pulls single tests out of `describe.serial` files (false failures in `kb.spec`/`new-vertical.spec`); `pnpm test:affected --base <sha>` selects no tests (use the default merge-base) — *phase-15b2*
-- [ ] **15c-2b-2** client-page sweep (2b-1 merged 2026-10-24: ListDetail, `compare_captures`, Ask soft delete, Task 0; [2b spec](superpowers/specs/2026-10-23-phase-15c2b-client-pages-design.md), 15c-2 [spec](superpowers/specs/2026-10-23-phase-15c2-page-fixes-design.md) D1, D8, §3, §4.2–4.3, §7; start `/rm-kickoff phase-15c2b2`; plan pattern [15c-2a plan](superpowers/plans/2026-10-23-phase-15c2a-page-fixes.md)): sweep `(app)/c/[clientId]/**` to "fixed" (chips, `lib/format/*` in the client's zone, confirms, `SaveBar`, `Suspense`+`PageSkeleton`, labelled controls, help keys; mobile mockups first), grep gates 1–4 over all `src` (extend `GATED_PATHS` beyond `AREAS_2B`). Routed items: changes viewer `formatFullUtc`, `competitors/[competitorId]/page.tsx:36`, `rankings/page.tsx:35,223`, `report-view.tsx:6`, `prospect-landscape.tsx:48`, `pitch-snapshot/page.tsx:40`, BriefView/AlertView mixed dates, briefs tab list overflow, Moves "N signals" → "N changes", Report empty state, "Google place id" label, Ask visibility line, alert-rules band bar, client billing guide "Not available", tips inside `CardTitle`, `formatWeekOf` caller, per-page REVIEW_STATUS maps; folded polish: feed hex → token, heatmap "Show as table" (`topic-heatmap.tsx`), `aria-current` on the auto-selected ListDetail row below `lg` with no sheet open, Ask quota 0 shows "N of 0" (6b (d), quota text D12(d)). After 7b1 (merged): sweeps `settings/usage` and rankings scan-now. Coordinate with **phase-16** (design system; same files) — *phase-15c2*
 - [ ] 13a/15c-3: agency privacy URL and agency site URL in branding (agency `/start/v` CTA link, intake privacy link); Team invite From address is the lead-mail from-address (rivalmonday envelope for white-label) → 13a neutral domain — *phase-15c2a*
 - [ ] 15c-1 deferred minors (no target): one shared `ui-primitives.test.tsx`; ConfirmDialog input id should use `useId`; chip hex duplicated in `status-chip.tsx` and `styles.css`; `labelFor` value type collapses to string; `EVIDENCE_KINDS`/`ALERT_STATUSES` SQL parity not enforced; `global-error` lacks Inter; PageSkeleton title height; "Other" series #94a3b8 fails dataviz checks (pre-existing); categorical slots pass dataviz adjacent-pair checks but fail the all-pairs normal floor (orange↔amber 13.7, orange↔pink 12.9; pre-existing); legacy stored radius >40 km shows custom and is rejected — *phase-15c1*
 - [ ] **15c-3** agency management (15c spec; separate plans, hold = read-only + collection paused); its archive button needs archive exposed as a tool (7a2 built only the worker CLI `archiveTenant`) — *phase-15c*
@@ -142,6 +145,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] `--color-secondary-foreground` is still a literal (15c-2a made `--primary-foreground` a runtime var via `readableTextOn`) — *phase-15c2a*
+- [ ] Hex without tokens (existing Cards stay for phase-16, Q2): disabled `bg-[#CBD5E1]`; signal-pills unticked border `#CBD5E1`; tier chip `#E2E8F0`/`#F1F5F9`/`#4A5D73`; topic-heatmap INK/WHITE/LINE and sentiment fills — *phase-15c2b2*
 - [ ] **Next phase candidate:** `/rm-kickoff design-system`. Migrate the app to `docs/design-system/` following `09-ai-implementation-playbook.md` § 9 (11 PRs: tokens → primitives → new primitives → container sweep → shell + PageHeader → Overview slice (owner review) → workspace pages → detail/settings → Friday + briefs → responsive → lock-in). 153 Card/shadow-card usages mapped. Coordinate with **15c-2** (same files). — *design-system*
 - [ ] Validate the responsive proposal (D-23: drawer < 1024, bottom tab bar < 768) with 3–5 pilot owners on phones before PR 10. — *design-system*
 
@@ -174,12 +178,10 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Evidence: chip ordering can make an `html`/`vendor_json` piece "Evidence 1"; `EvidenceImage` `onError` can miss a pre-hydration 404 (add a mount-time `complete`/`naturalWidth` check) — *from 5c-1 final review*
 - [ ] `compare_snapshots` screenshot fallback doesn't filter `capture.status` (a blocked capture's screenshot can be "as of") — *from 5c-1 final review*
 - [ ] Timeline includes open moves that started before the period; profile's "Open moves" KPI link is unfiltered — *from 5c-1 final review*
-- [ ] Competitor profile: KPI cards `text-xl` vs the brand's 34px; dangling " · " when `lastStatus` is null; empty sources list has no text; empty prices array renders an empty span; "See pricing" under "No prices seen" — *from 5c-1/5c-2 task minors*
 - [ ] Long `del`/`ins` `aria-label`s on the large-diff fallback — *from 5c-1 final review*
 
 ### Data views & charts
 - [ ] Ads "More ads" link loops to page 1 past the offset cap of 5000; Reviews "More" link resets past the cap; `?business=self` while the self business is pending says "no longer available" — *from 5c-2 Tasks 7, 12*
-- [ ] Heatmap "Show as table" cells unstyled and omit the delta; SVG text shrinks at phone width — *from 5c-2 Task 11*
 - [ ] Legend: rival "Other (average)" rating is an unweighted mean of monthly averages — *from 5c-2 re-review*
 - [ ] `ReportView`'s "Changes detected" isn't sorted by count like the email; trend table plain-text fallback lists one cell per line — *from 5a T14, 4b Task 6*
 
@@ -193,7 +195,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `PrefSwitch` discards `isPending` and doesn't revert on a failed `setPrefAction` — *from 5a T17*
 - [ ] Dismiss/remove dialog refusal text persists across close/reopen — *from 5b-1 re-review*
 - [ ] Usage page has no empty state for a zero-client agency; `list_alert_queue`'s `.limit(200)` gives no UI hint — *from 5b-2 Task 4, 5b-1 Task 12*
-- [ ] Feed brief pill hardcodes `text-[#B45309]` (use `text-accent-text`); alert-rules "3 a day" text hard-coded — *from 5c-1*
 
 ### Phase 8 follow-ups (console, support sessions, costs)
 - [ ] Console stats: `wau`/`last_activity_at` ignore `membership.created_at`; `runDailyStats` accepts today/future `day`; backfill is 400×agencies sequential queries — *from 8a*
