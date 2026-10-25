@@ -137,6 +137,23 @@ describe('createVendorLimiter', () => {
     await flush();
     expect(seen).toEqual([['jev', 5_001]]);
   });
+
+  it('a throwing onSlowWait does not leak the slot: the waiter is still granted and later waiters too', async () => {
+    const clock = fakeClock();
+    const lim = createVendorLimiter({ jev: { concurrent: 1 } }, clock, () => { throw new Error('logger broke'); });
+    const hold = await lim.acquire('jev');
+    let second: (() => void) | undefined;
+    void lim.acquire('jev').then((r) => (second = r));
+    await clock.advance(6_000);
+    hold();
+    await flush();
+    expect(second).toBeTypeOf('function');
+    let third = false;
+    void lim.acquire('jev').then(() => (third = true));
+    second!();
+    await flush();
+    expect(third).toBe(true);
+  });
 });
 
 describe('timedFetch', () => {

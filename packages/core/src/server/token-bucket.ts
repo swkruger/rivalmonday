@@ -86,7 +86,9 @@ export function createVendorLimiter(
         grant: () => {
           signal?.removeEventListener('abort', onAbort);
           const waited = clock.now() - queuedAt;
-          if (waited > SLOW_WAIT_MS) onSlowWait?.(v, waited);
+          if (waited > SLOW_WAIT_MS) {
+            try { onSlowWait?.(v, waited); } catch { /* a broken logger must never leak the slot just taken */ }
+          }
           resolve(() => { if (released) return; released = true; s.inFlight--; void pump(v); });
         },
       };
