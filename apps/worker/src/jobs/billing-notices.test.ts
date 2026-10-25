@@ -196,6 +196,18 @@ describe('7b1 client_spend_paused agency notice', () => {
   });
 });
 
+describe('7b2 client-duplicate-subscription agency notice', () => {
+  it('delivers client-duplicate-subscription to agency admins with the client name', async () => {
+    await dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'agency', kind: 'client-duplicate-subscription', params: {}, dedupeKey: 'client-duplicate-subscription:x:sub_2' });
+    await run();
+    expect(sentClient).toHaveLength(0);
+    expect(sentAgencyClient.map((s) => s.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
+    const [c] = await dbs.owner.execute<{ name: string }>(sql`select name from client where id = ${IDS.clientA1}`);
+    expect(sentAgencyClient[0]!.props).toMatchObject({ kind: 'client-duplicate-subscription', clientName: c!.name, billingUrl: 'https://app.rm.test/agency/settings/billing' });
+    expect(await dbs.owner.select().from(billingNotice).where(sql`sent_at is null`)).toHaveLength(0);
+  });
+});
+
 describe('Phase 10 onboarding kinds (R5)', () => {
   const pending = (over: Partial<PendingSignupRow> = {}) =>
     ({ agencyName: 'Acme Agency', contactName: 'Jo Smith', email: 'jo@acme.test', source: 'open', ...over }) as PendingSignupRow;

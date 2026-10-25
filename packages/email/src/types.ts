@@ -178,7 +178,7 @@ export interface ClientBillingNoticeProps {
   /** The button target: the Stripe Checkout link (client-payment-link) or the client's billing page (client-payment-needed). */
   actionUrl: string;
 }
-export type AgencyClientBillingNoticeKind = 'client-payment-failed' | 'client-paid' | 'client-auto-paused' | 'client_spend_paused';
+export type AgencyClientBillingNoticeKind = 'client-payment-failed' | 'client-paid' | 'client-auto-paused' | 'client_spend_paused' | 'client-duplicate-subscription';
 /** Phase 9b Task 8: agency admins, Rival Monday branding. */
 export interface AgencyClientBillingNoticeProps {
   branding: Branding;

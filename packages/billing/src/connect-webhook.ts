@@ -1,6 +1,6 @@
-import { type Db, type Tx, agencyConnect, clientBilling, stripeConnectEvent } from '@cs/db';
+import { type Db, type Tx, agencyConnect, billingNotice, clientBilling, stripeConnectEvent } from '@cs/db';
 import { and, eq } from 'drizzle-orm';
-import type { ClientBillingSignal } from './client-billing-state';
+import { type ClientBillingSignal, noticeAudience } from './client-billing-state';
 import { liftAutoPause } from './client-pause';
 import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect, forgetConnectedAccount } from './connect-apply';
 import type { ConnectEventLike } from './connect-gateway-types';
@@ -81,6 +81,14 @@ async function customerOfCharge(gw: BillingGateway, account: string, obj: Obj, t
   return (await gw.getConnectedCharge({ stripeAccount: account, chargeId })).customerId;
 }
 
+/** 7b2 M8: a second live subscription for an already-subscribed client is a real double charge; tell the agency admins (once per subscription). */
+async function queueDuplicateSubscriptionNotice(tx: Tx, agencyId: string, clientId: string, subscriptionId: string): Promise<void> {
+  await tx.insert(billingNotice).values({
+    agencyId, clientId, audience: noticeAudience('client-duplicate-subscription'), kind: 'client-duplicate-subscription', params: {},
+    dedupeKey: `client-duplicate-subscription:${clientId}:${subscriptionId}`,
+  }).onConflictDoNothing({ target: billingNotice.dedupeKey });
+}
+
 async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, post: PostCommit): Promise<Outcome> {
   if (!HANDLED.has(event.type)) return 'ignored';
   const account = event.account;
@@ -147,7 +155,10 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
 
   // R3/R11: the transition table drops older deliveries and subscriptions other than the tracked one.
   const r = await applyClientBillingSignal(tx, clientId, signal, ACTOR, eventAt);
-  if (r.ignored) return ignored(event, r.ignored);
+  if (r.ignored) {
+    if (signal.type === 'checkout_completed') await queueDuplicateSubscriptionNotice(tx, agencyId, clientId, signal.subscriptionId);
+    return ignored(event, r.ignored);
+  }
   if (!r.changed) return ignored(event, 'no_change');
   if (r.staleCheckoutSessionId) post.expireSession = { account, sessionId: r.staleCheckoutSessionId };
 

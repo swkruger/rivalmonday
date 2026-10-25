@@ -22,7 +22,7 @@ export type ClientBillingSignal = (
   | { type: 'reconciled'; subscriptionId: string; target: 'active' | 'payment_needed' | 'cancelled' | null; billedPriceCents: number | null; /** 7b2 M3: Stripe status is `active` (not `trialing`). */ paid?: boolean }
 ) & { eventAt?: Date };
 
-export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed' | 'client-payment-failed' | 'client-paid' | 'client-auto-paused';
+export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed' | 'client-payment-failed' | 'client-paid' | 'client-auto-paused' | 'client-duplicate-subscription';
 
 export interface ClientBillingTransition {
   state: ClientBillingState;
@@ -33,7 +33,7 @@ export interface ClientBillingTransition {
 
 /** Who reads a notice: the client owner (agency-branded) or the agency admins (Rival Monday-branded). */
 export const noticeAudience = (kind: ClientBillingNoticeKind): 'agency' | 'client' =>
-  kind === 'client-paid' || kind === 'client-payment-failed' || kind === 'client-auto-paused' ? 'agency' : 'client';
+  kind === 'client-paid' || kind === 'client-payment-failed' || kind === 'client-auto-paused' || kind === 'client-duplicate-subscription' ? 'agency' : 'client';
 
 const SUBSCRIBED: readonly ClientBillingState[] = ['active', 'payment_needed'];
 
@@ -61,7 +61,8 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
   const st = row.state;
   // R11: a tracked live subscription only answers to its own id; non-checkout subscription events need a tracked id.
   if ((s.type === 'payment_succeeded' || s.type === 'payment_failed' || s.type === 'subscription_cancelled' || s.type === 'reconciled') && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
-  if (s.type === 'checkout_completed' && SUBSCRIBED.includes(st) && row.stripeSubscriptionId && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
+  // 7b2 M8: includes a processing (invited + tracked) row; the webhook turns this into an agency notice.
+  if (s.type === 'checkout_completed' && isSubscribed(row) && row.stripeSubscriptionId !== s.subscriptionId) return { ignored: 'untracked_subscription' };
   switch (s.type) {
     case 'invited':
       // A running subscription is managed through set_client_price / disable, never re-invited.

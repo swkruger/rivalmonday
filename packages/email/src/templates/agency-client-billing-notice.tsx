@@ -15,6 +15,8 @@ export const agencyClientBillingNoticeSubject = (p: Pick<AgencyClientBillingNoti
       return `${p.clientName} was paused after ${p.n ?? ''} days without payment`;
     case 'client_spend_paused':
       return `${p.clientName}: AI work paused until ${p.until ?? ''}`;
+    case 'client-duplicate-subscription':
+      return `${p.clientName} may be paying twice`;
   }
 };
 
@@ -28,6 +30,8 @@ export const agencyClientBillingNoticeBody = (p: Pick<AgencyClientBillingNoticeP
       return `${p.clientName}'s monitoring and briefs are paused until payment is sorted out.`;
     case 'client_spend_paused':
       return `AI work for ${p.clientName} is paused until ${p.until ?? ''} — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.`;
+    case 'client-duplicate-subscription':
+      return `${p.clientName} completed a new payment while their existing subscription is still running, so they may be charged twice. Check their subscriptions in your Stripe dashboard and cancel the one you don't need.`;
   }
 };
 

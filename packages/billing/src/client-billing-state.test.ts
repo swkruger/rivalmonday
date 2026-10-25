@@ -119,6 +119,16 @@ describe('nextClientBillingState transition table', () => {
     expect(raw(tracked, PAID)).toMatchObject({ state: 'active' });
   });
 
+  it('R11/M8: checkout for another subscription on a processing (invited + tracked) row is ignored', () => {
+    const processing = row('invited', { stripeSubscriptionId: 'sub_1' });
+    expect(raw(processing, { ...PAID, subscriptionId: 'sub_2' })).toEqual({ ignored: 'untracked_subscription' });
+    expect(raw(processing, { ...PAID, subscriptionId: 'sub_1' })).not.toHaveProperty('ignored');
+  });
+
+  it('M8: client-duplicate-subscription is an agency notice', () => {
+    expect(noticeAudience('client-duplicate-subscription')).toBe('agency');
+  });
+
   it('price_changed with billed also moves the billed price; without it the billed price is untouched', () => {
     const sub = row('active', { stripeSubscriptionId: SUB, billedPriceCents: 9900 });
     expect(next(sub, { type: 'price_changed', priceCents: 7000, stripePriceId: 'p' })!.patch).not.toHaveProperty('billedPriceCents');

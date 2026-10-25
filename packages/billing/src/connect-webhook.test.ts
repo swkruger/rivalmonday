@@ -222,6 +222,42 @@ describe('handleConnectEvent: checkout.session.completed', () => {
     expect(await handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', client_reference_id: IDS.clientA1, customer: 'cus_1', subscription: 'sub_2' }))).toBe('ignored');
     expect((await billing()).stripeSubscriptionId).toBe('sub_1');
   });
+
+  const second = (id: string, session = 'cs_1') => ev(id, 'checkout.session.completed', { id: session, client_reference_id: IDS.clientA1, customer: 'cus_1', subscription: 'sub_2' });
+
+  it('M8: a second live subscription queues one agency notice and keeps the tracked id', async () => {
+    await active();
+    sub({ id: 'sub_2' });
+    expect(await handle(second('m1'))).toBe('ignored');
+    expect((await billing()).stripeSubscriptionId).toBe('sub_1');
+    const n = await notices();
+    expect(n).toHaveLength(1);
+    expect(n[0]).toMatchObject({ kind: 'client-duplicate-subscription', audience: 'agency', agencyId: IDS.agencyA, clientId: IDS.clientA1, params: {} });
+  });
+
+  it('M8: one notice across redelivery', async () => {
+    await active();
+    sub({ id: 'sub_2' });
+    await handle(second('m1'));
+    expect(await handle(second('m1'))).toBe('duplicate');
+    expect(await handle(second('m2'))).toBe('ignored'); // a different event id for the same subscription
+    expect(await notices()).toHaveLength(1);
+  });
+
+  it('M8: a non-live second subscription queues nothing', async () => {
+    await active();
+    sub({ id: 'sub_2', status: 'canceled' });
+    expect(await handle(second('m1'))).toBe('ignored');
+    expect(await notices()).toHaveLength(0);
+  });
+
+  it("M8: another agency's account never reaches the client", async () => {
+    await active();
+    gw.seedConnectedSubscription({ id: 'sub_2', stripeAccount: ACCT_B, customerId: 'cus_1', unitAmountCents: 9900 });
+    expect(await handle({ ...second('m1'), account: ACCT_B })).toBe('ignored');
+    expect(await notices()).toHaveLength(0);
+    expect((await billing()).stripeSubscriptionId).toBe('sub_1');
+  });
 });
 
 describe('handleConnectEvent: invoices, cancellation, refund, dispute', () => {

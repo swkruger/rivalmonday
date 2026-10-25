@@ -20,7 +20,7 @@ type Recipient = { id: string; email: string };
 /** Client-facing (agency-branded) kinds, delivered to the client's owners. */
 const CLIENT_KINDS = new Set(['client-payment-link', 'client-payment-needed']);
 /** Agency-facing (Rival Monday-branded) kinds about one client, delivered to agency admins. */
-const AGENCY_CLIENT_KINDS = new Set(['client-payment-failed', 'client-paid', 'client-auto-paused', 'client_spend_paused']);
+const AGENCY_CLIENT_KINDS = new Set(['client-payment-failed', 'client-paid', 'client-auto-paused', 'client_spend_paused', 'client-duplicate-subscription']);
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
