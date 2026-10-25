@@ -4,10 +4,10 @@
 **Plan/spec:** spec [2026-10-25-phase-15c3b-plan-versions-design.md](../superpowers/specs/2026-10-25-phase-15c3b-plan-versions-design.md) (owner-approved 2026-10-25, replaces 15c §5.5) · plan [2026-10-25-phase-15c3b-plan-versions.md](../superpowers/plans/2026-10-25-phase-15c3b-plan-versions.md) (Tasks 0-6).
 
 ## Status (overwrite)
-Spec + plan owner-approved 2026-10-25. Execution started 2026-10-25 (SDD); Task 0 pre-flight done.
+Tasks 0-6 implemented 2026-10-25; final review pending.
 
 ## Next (overwrite)
-SDD Tasks 1-6, final review, then `/rm-wrap-up`.
+Final whole-branch review -> fix wave -> `/rm-wrap-up`; `/rm-merge` on owner go-ahead.
 
 ## Interfaces this branch adds or changes
 No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan` (owner write); `create_plan_version.features`; `list_plans` gains `features`; `BillingGateway.swapSubscriptionPlan`; email `agency_plan_change`; `reconcile()` price-id drift check.
@@ -24,7 +24,11 @@ No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan`
 None yet.
 
 ## Owner verification steps
-TBD.
+1. Platform > Billing > Plans: publish a new version with MCP unticked; the table shows Includes "Ask" for it.
+2. The "Agencies not on the current version" section lists agencies on v1; held agencies are greyed and cannot be ticked.
+3. Move two test agencies, one with a Stripe test subscription: Stripe shows the new prices from the next billing date and no proration invoice item.
+4. The agency's admins receive the plan-change email; the agency page shows "Plan v2" and the Manage menu item disappears.
+5. Sign the copy file `docs/archive/phase-15c3b-copy-signoff.md` (incl. the "1 client seats" question).
 
 ## Brief
 ### 1. Scope (roadmap row 15: "15c-3b plans *to be planned*")
@@ -54,12 +58,5 @@ Root CLAUDE.md: Billing Phase 9 (pilot / 30-day trial / $229 incl. 3 seats, $99/
 - If touched: "`syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early" — *9a ledger*
 - If touched: "grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU)" — *9a ledger*
 
-### 5. Open questions for the owner (by design impact)
-1. **Split?** a) **one plan** (rec.); b) 3b-1 catalogue, then 3b-2 change plan; c) fold change plan into 7b2.
-2. **Plan features (Q5).** a) **`create_plan` takes `features`; `create_plan_version` takes optional `features`, defaulting to the code's current version** (rec.); b) every plan gets both, changed only by a new version; c) editable in place.
-3. **Discount codes on private plans** (coupons are limited to `standard` products). a) **codes stay standard-only; refuse attach/redeem for an agency on a private plan; price the deal in the plan** (rec.); b) `create_discount_code` gains `planCodes`; c) unrestricted coupons.
-4. **Assign before or at sign-up.** a) **Change plan only (works pre-card: sets `plan_id`; inserts a pilot row if none)** (rec.); b) `create_invite_link` gains `planId`.
-5. **Trial length on a mid-trial change.** a) **keep `trial_ends_at`; use Extend trial** (rec.); b) recompute from the new `trialDays`.
-6. **Fewer included seats than active clients** (pilot/trialing cap). a) **allow; dialog warns; new activations refused until under** (rec.); b) refuse the change.
-7. **What agencies see.** a) **plan name + prices as today** (rec.); b) "Custom plan".
-8. **Retiring a private plan.** a) **not in 3b (backlog)** (rec.); b) add `retired` visibility.
+### 5. Open questions
+Answered 2026-10-25: one sub-phase, private plans dropped (see Decisions and the spec).

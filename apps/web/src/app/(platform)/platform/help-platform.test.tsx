@@ -94,6 +94,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   list_discount_codes: { codes: [] },
   get_billing_overview: { mrrCents: 125000, paidSeats: 17, agenciesByState: { pilot: 2, trialing: 1, active: 3, past_due: 0, read_only: 0, suspended: 0, cancelled: 1 } },
   list_plans: { plans: [] },
+  list_plan_agencies: { currentPlanId: 'p2', currentVersion: 2, agencies: [] },
   list_invite_links: { links: [] },
   get_signups_paused: { paused: false },
   get_signup_funnel: { open: funnel, invite: funnel },
