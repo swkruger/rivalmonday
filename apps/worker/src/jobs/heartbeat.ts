@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import { defineJob, type JobDefinition } from '../jobs';
 import { healthState } from '../health';
@@ -13,7 +14,7 @@ export interface HeartbeatDeps {
 /**
  * Every 5 minutes: marks the worker alive, retries the cs_web queue grants (7c2; `/healthz` is 503 while they fail) and
  * returns a resource sample as the job output (read by the rehearsal report). A failing sample never fails the beat
- * (its two fields are then `null`).
+ * (its two fields are then `null`). Grants going from ok/unknown to failed send one Sentry event; repeats only log.
  */
 export function createHeartbeatJob(deps: HeartbeatDeps): JobDefinition<Record<string, unknown>> {
   return defineJob({
@@ -26,6 +27,7 @@ export function createHeartbeatJob(deps: HeartbeatDeps): JobDefinition<Record<st
         await deps.ensureGrants();
       } catch (err) {
         queueGrants = 'failed';
+        if (healthState.queueGrantsOk !== false) Sentry.captureException(err);
         workerLog.error({ err }, 'queue grants for cs_web failed; web enqueues will be refused');
       }
       healthState.queueGrantsOk = queueGrants === 'ok';

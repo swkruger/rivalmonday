@@ -12,8 +12,13 @@ const { defineTool } = toolkit<ToolDeps>();
 
 const HOUR_MS = 3_600_000;
 const READINESS_ISSUES_MAX = 20;
+const READINESS_CHECKPOINTS = new Set(['generation_closed', 'pre_delivery', 'pre_delivery_unapproved', 'starting_point_late']);
+const READINESS_SEVERITIES = new Set(['warning', 'critical']);
 
-/** 7c2: open `brief_readiness` ops alerts (service-only table), newest first. */
+/**
+ * 7c2: open `brief_readiness` ops alerts (service-only table), newest first. A row with an unknown checkpoint or severity, or
+ * a malformed summary, is skipped so one odd row cannot fail the output parse (and the whole health page).
+ */
 async function readinessIssues(deps: ToolDeps): Promise<BriefReadiness['issues']> {
   const rows = await deps.service
     .select()
@@ -21,16 +26,17 @@ async function readinessIssues(deps: ToolDeps): Promise<BriefReadiness['issues']
     .where(and(eq(opsAlert.kind, 'brief_readiness'), isNull(opsAlert.resolvedAt)))
     .orderBy(desc(opsAlert.firstSeenAt), opsAlert.dedupeKey)
     .limit(READINESS_ISSUES_MAX);
-  return rows.map((r) => {
-    const s = r.summary as { clients?: unknown; deliveryDate?: unknown; checkpoint?: unknown };
-    return {
-      checkpoint: String(s.checkpoint ?? ''),
+  return rows.flatMap((r) => {
+    const s = (r.summary ?? {}) as { clients?: unknown; deliveryDate?: unknown; checkpoint?: unknown };
+    if (typeof s.checkpoint !== 'string' || !READINESS_CHECKPOINTS.has(s.checkpoint) || !READINESS_SEVERITIES.has(r.severity) || typeof s.deliveryDate !== 'string') return [];
+    return [{
+      checkpoint: s.checkpoint,
       severity: r.severity as 'warning' | 'critical',
-      deliveryDate: String(s.deliveryDate ?? ''),
+      deliveryDate: s.deliveryDate,
       clients: Array.isArray(s.clients) ? s.clients.length : 0,
       firstSeenAt: r.firstSeenAt.toISOString(),
       emailedAt: r.emailedAt ? r.emailedAt.toISOString() : null,
-    };
+    }];
   });
 }
 

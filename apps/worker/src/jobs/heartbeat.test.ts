@@ -1,4 +1,7 @@
+import * as Sentry from '@sentry/node';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 import { healthState } from '../health';
 import { workerLog } from '../log';
 import { createHeartbeatJob } from './heartbeat';
@@ -7,6 +10,7 @@ const sample = async () => ({ dbConnections: 7, dbMaxConnections: 100 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(Sentry.captureException).mockClear();
   Object.assign(healthState, { lastHeartbeatAt: null, queueGrantsOk: null });
 });
 
@@ -35,6 +39,24 @@ describe('heartbeat job', () => {
     expect(await job.handler({})).toMatchObject({ queueGrants: 'ok' });
     expect(healthState.queueGrantsOk).toBe(true);
     expect(ensureGrants).toHaveBeenCalledTimes(2);
+  });
+
+  it('captures one Sentry event when grants go from ok or unknown to failed, not every beat', async () => {
+    vi.spyOn(workerLog, 'error').mockImplementation(() => {});
+    const boom = new Error('permission denied');
+    let fail = true;
+    const job = createHeartbeatJob({ ensureGrants: async () => { if (fail) throw boom; }, sample });
+    await job.handler({}); // unknown -> failed
+    await job.handler({}); // still failed
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureException).toHaveBeenCalledWith(boom);
+    fail = false;
+    await job.handler({}); // recovered
+    fail = true;
+    await job.handler({}); // ok -> failed again
+    await job.handler({});
+    expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+    expect(workerLog.error).toHaveBeenCalledTimes(4);
   });
 
   it('heartbeat output carries rssMb and dbConnections', async () => {

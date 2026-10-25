@@ -284,6 +284,21 @@ describe('summarizeBriefReadiness', () => {
     expect(await summarizeBriefReadiness(dbs.service, SAT)).toMatchObject({ due: 2, approved: 0, sent: 1, missing: 1 });
   });
 
+  it('summarizeBriefReadiness counts a client as due on Thursday 23:00 local', async () => {
+    const THU_23 = at('2026-10-23T04:00:00Z'); // Thu 23:00 CDT: generation running, no alarm yet
+    await seedBrief(IDS.clientA2); // ready
+    await seedBrief(IDS.clientB1, { status: 'generating' });
+    expect(await findReadinessIssues(dbs.service, THU_23)).toEqual([]);
+    expect(await summarizeBriefReadiness(dbs.service, THU_23)).toEqual({
+      ...zero, checkedAt: THU_23.toISOString(), deliveryDate: MONDAY, due: 3, ready: 1, missing: 2, awaitingApproval: 1,
+    });
+    // Thu 21:59 CDT: the window has not opened yet.
+    expect(await summarizeBriefReadiness(dbs.service, at('2026-10-23T02:59:00Z'))).toMatchObject({ deliveryDate: MONDAY, due: 0, ready: 0, missing: 0 });
+    // A client activated after the window opened (Thu 22:30 CDT) is not expected.
+    await dbs.owner.update(client).set({ activatedAt: at('2026-10-23T03:30:00Z') }).where(eq(client.id, IDS.clientA1));
+    expect(await summarizeBriefReadiness(dbs.service, THU_23)).toMatchObject({ due: 2, missing: 1 });
+  });
+
   it('outside the checkpoint window nothing is due and the date is the next Monday', async () => {
     await seedAllReady();
     const TUE = at('2026-10-27T15:00:00Z'); // Tue 10:00 CDT

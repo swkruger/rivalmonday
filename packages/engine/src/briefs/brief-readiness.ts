@@ -2,7 +2,7 @@ import { agency, agencyServiceable, brief, client, clientSetup, clientWorkAllowe
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { DELIVERY_LOCAL_HOUR } from './deliver';
 import { STARTING_POINT_WAIT_HOURS } from './readiness';
-import { BRIEF_CATCHUP_UNTIL_HOUR, BRIEF_LOCAL_HOUR, BRIEF_LOCAL_WEEKDAY, DEFAULT_TIMEZONE, deliveryDateFor, localParts, safeTimezone } from './schedule';
+import { BRIEF_CATCHUP_UNTIL_HOUR, BRIEF_LOCAL_HOUR, BRIEF_LOCAL_WEEKDAY, briefDue, DEFAULT_TIMEZONE, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { startingPointClockStart } from './setup-clock';
 
 /** 7c2: when a client's weekly brief (or one-off starting point) is checked for readiness. */
@@ -188,7 +188,7 @@ export interface BriefReadinessSummary {
   checkedAt: string;
   /** The `America/Chicago` cycle's delivery date; each client is counted against its own zone's date. */
   deliveryDate: string;
-  /** Clients inside a checkpoint window (Fri 12:00 to Mon 06:59 local) that were active when its generation window opened. */
+  /** Clients inside their cycle's span (Thu 22:00 to Mon 06:59 local) that were active when its generation window opened. */
   due: number;
   ready: number;
   approved: number;
@@ -202,9 +202,24 @@ export interface BriefReadinessSummary {
 }
 
 /**
- * Live readiness counts. Per workable client its current cycle: inside a checkpoint window (`weeklyCheckpoint`) the client
- * is due for that date (same rules as `findReadinessIssues`); outside it the cycle is the next Monday and nothing is due yet.
- * Status counts cover due clients only, by the brief (any kind) holding the client's own delivery date.
+ * The span a client counts as due in the readiness summary: from its generation window opening (Thursday 22:00 local)
+ * through Monday 06:59 local of that cycle's delivery Monday. Wider than `weeklyCheckpoint` (alarms start Friday 12:00)
+ * so operators can watch generation progress. `null` outside it.
+ */
+function summaryCycle(now: Date, tz: string): { deliveryDate: string; windowOpenedAt: Date } | null {
+  const cp = weeklyCheckpoint(now, tz);
+  if (cp) return cp;
+  if (!briefDue(now, tz)) return null; // Thu 22:00 to Fri 11:59 local is the remaining part of the span
+  const p = localParts(now, tz);
+  const hoursSinceOpen = ((p.weekday - BRIEF_LOCAL_WEEKDAY + 7) % 7) * 24 + p.hour - BRIEF_LOCAL_HOUR;
+  return { deliveryDate: deliveryDateFor(now, tz), windowOpenedAt: new Date(now.getTime() - hoursSinceOpen * HOUR_MS - (now.getTime() % HOUR_MS)) };
+}
+
+/**
+ * Live readiness counts. Per workable client its current cycle: from Thursday 22:00 through Monday 06:59 local
+ * (`summaryCycle`) the client is due for that Monday if it was active when the window opened; outside it the cycle is the
+ * next Monday and nothing is due yet. Status counts cover due clients only, by the brief (any kind) holding the client's
+ * own delivery date.
  */
 export async function summarizeBriefReadiness(db: Db, now: Date): Promise<BriefReadinessSummary> {
   const rows = await db
@@ -213,13 +228,13 @@ export async function summarizeBriefReadiness(db: Db, now: Date): Promise<BriefR
     .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));
   const due: { c: (typeof rows)[number]; date: string }[] = [];
   for (const c of rows) {
-    const cp = weeklyCheckpoint(now, safeTimezone(c.timezone));
+    const cp = summaryCycle(now, safeTimezone(c.timezone));
     if (cp && (c.activatedAt ?? c.createdAt).getTime() <= cp.windowOpenedAt.getTime()) due.push({ c, date: cp.deliveryDate });
   }
   const status = due.length ? await briefStatuses(db, due.map((d) => ({ clientId: d.c.id, date: d.date })), true) : new Map<string, string | null>();
   const out: BriefReadinessSummary = {
     checkedAt: now.toISOString(),
-    deliveryDate: weeklyCheckpoint(now, DEFAULT_TIMEZONE)?.deliveryDate ?? deliveryDateFor(now, DEFAULT_TIMEZONE),
+    deliveryDate: summaryCycle(now, DEFAULT_TIMEZONE)?.deliveryDate ?? deliveryDateFor(now, DEFAULT_TIMEZONE),
     due: due.length, ready: 0, approved: 0, sent: 0, missing: 0, failed: 0, awaitingApproval: 0, startingPointsLate: 0,
   };
   for (const { c } of due) {

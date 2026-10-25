@@ -101,7 +101,20 @@ describe('get_platform_health', () => {
       { checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
       { checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 3, firstSeenAt: ago(30 * HOUR).toISOString(), emailedAt: ago(29 * HOUR).toISOString() },
     ]);
-    // Tuesday: outside every checkpoint window, so nothing is due yet.
+    // Tuesday: outside every cycle span, so nothing is due yet.
     expect(out.briefReadiness).toMatchObject({ checkedAt: NOW.toISOString(), deliveryDate: '2026-10-26', due: 0, missing: 0 });
+  });
+
+  it('skips an open issue row with an unknown checkpoint or malformed summary instead of failing', async () => {
+    const base = { kind: 'brief_readiness', severity: 'critical', firstSeenAt: ago(HOUR), lastSeenAt: ago(HOUR) };
+    await dbs.owner.insert(opsAlert).values([
+      { ...base, dedupeKey: 'empty', summary: {} },
+      { ...base, dedupeKey: 'odd', summary: { clients: [], deliveryDate: '2026-10-26', checkpoint: 'something_new' } },
+      { ...base, dedupeKey: 'ok', summary: { clients: 'x', deliveryDate: '2026-10-26', checkpoint: 'pre_delivery' } },
+    ]);
+    const out = await health();
+    expect(out.briefReadiness.issues).toEqual([
+      { checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 0, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
+    ]);
   });
 });
