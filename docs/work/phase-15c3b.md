@@ -1,19 +1,19 @@
 # phase-15c3b — plan features per version + move agencies to the current version
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3b   **Base:** main @ 015a948c
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-15c3b   **Base:** main @ 015a948c
 **Plan/spec:** spec [2026-10-25-phase-15c3b-plan-versions-design.md](../superpowers/specs/2026-10-25-phase-15c3b-plan-versions-design.md) (owner-approved 2026-10-25, replaces 15c §5.5) · plan [2026-10-25-phase-15c3b-plan-versions.md](../superpowers/plans/2026-10-25-phase-15c3b-plan-versions.md) (Tasks 0-6).
 
 ## Status (overwrite)
-Spec owner-approved 2026-10-25. Lean plan written, awaiting owner approval. No migration.
+Spec + plan owner-approved 2026-10-25. Execution started 2026-10-25 (SDD); Task 0 pre-flight done.
 
 ## Next (overwrite)
-Owner approves the plan -> SDD from Task 0 (pre-flight).
+SDD Tasks 1-6, final review, then `/rm-wrap-up`.
 
 ## Interfaces this branch adds or changes
 No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan` (owner write); `create_plan_version.features`; `list_plans` gains `features`; `BillingGateway.swapSubscriptionPlan`; email `agency_plan_change`; `reconcile()` price-id drift check.
 
 ## Assumes from other branches
-- **phase-7b2** (executing, no migration): edits `packages/tools/src/tools/billing.ts` (`redeem_discount_code`), `access/signup-complete.ts` (`couponFor`), `packages/billing/src/index.ts` (+ `discount.ts`), `connect-*`, `billing-daily.ts`. It does not edit `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts`. Overlaps: `index.ts` exports (append-only); check whether its `billing-daily.ts` work touches `packages/billing/src/daily.ts` `reconcile()` (we add a price-id check). Second to merge rebases.
+- **phase-7b2** (executing on its branch, no migration; as of 2026-10-25 touches `packages/billing/src/index.ts`, `packages/email/src/types.ts`, not `daily.ts`/`stripe-gateway.ts`): edits `packages/tools/src/tools/billing.ts` (`redeem_discount_code`), `access/signup-complete.ts` (`couponFor`), `packages/billing/src/index.ts` (+ `discount.ts`), `connect-*`, `billing-daily.ts`. It does not edit `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts`. Overlaps: `index.ts` exports (append-only); check whether its `billing-daily.ts` work touches `packages/billing/src/daily.ts` `reconcile()` (we add a price-id check). Second to merge rebases.
 - **phase-16** (docs only, code on hold): will restyle `/platform/billing` + `/platform/agencies/[id]` later. 16-onboarding removes the wizard `plan` step but leaves `trial.ts`/checkout alone. No overlap now.
 - Migration: none (private plans dropped).
 
