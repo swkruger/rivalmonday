@@ -1,13 +1,15 @@
-import { brief, briefItem, changeEvent, client, competitor, move, moveEvent, recommendation, review } from '@cs/db';
+import { agency, agencyServiceable, brief, briefItem, changeEvent, client, clientWorkAllowed, competitor, type Db, move, moveEvent, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import type { EventCandidate, MoveCandidate } from './gather';
 import * as scorecardMod from './scorecard';
-import { committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
+import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, committableItems, generateBrief, listBriefDueClients, QUIET_SUMMARY } from './generate';
+import { briefDue, deliveryDateFor, safeTimezone } from './schedule';
 import type { VerifiedItem } from './verify';
 import { loadVerticalPack } from '@cs/verticals';
 const generic = () => loadVerticalPack('generic');
@@ -19,6 +21,7 @@ vi.mock('./scorecard', async (orig) => {
   return { ...m, buildScorecard: (...a: Parameters<typeof m.buildScorecard>) => { if (scorecardFail.on) throw new Error('scorecard boom'); return m.buildScorecard(...a); } };
 });
 
+const AGENCY_C = randomUUID();
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
@@ -291,5 +294,97 @@ describe('listBriefDueClients and a spend-paused client (7b1)', () => {
     const ids = await listBriefDueClients(dbs.service, NOW);
     expect(ids).not.toContain(IDS.clientA1);
     expect(ids).toContain(IDS.clientB1);
+  });
+});
+
+/** Today's per-client implementation, kept verbatim as the oracle for the set-based scan (7c2 T4). */
+async function legacyListBriefDueClients(db: Db, now: Date): Promise<string[]> {
+  const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));
+  const due: string[] = [];
+  for (const c of clients) {
+    const tz = safeTimezone(c.timezone);
+    if (!briefDue(now, tz)) continue;
+    const [b] = await db.select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDateFor(now, tz)), ne(brief.kind, 'starting_point')));
+    const stale = b?.status === 'generating' && now.getTime() - b.updatedAt.getTime() > BRIEF_STALE_MINUTES * 60_000;
+    if (!b || (b.status === 'failed' && b.attempts < BRIEF_MAX_ATTEMPTS) || stale) due.push(c.id);
+  }
+  return due;
+}
+
+describe('listBriefDueClients set-based scan (7c2 T4)', () => {
+  const ZONES = ['America/Chicago', 'Pacific/Kiritimati', 'Asia/Kolkata', 'Mars/Base', 'UTC'] as const; // NOT NULL + regex check: no null/empty zone can be stored; an unknown-but-well-formed zone (Mars/Base) can
+  type State = { name: string; row?: (now: Date) => Partial<typeof brief.$inferInsert> };
+  const minutesAgo = (now: Date, m: number) => new Date(now.getTime() - m * 60_000);
+  const STATES: State[] = [
+    { name: 'none' },
+    { name: 'failed-2', row: () => ({ status: 'failed', attempts: 2 }) },
+    { name: 'failed-3', row: () => ({ status: 'failed', attempts: 3 }) },
+    { name: 'generating-29', row: (n) => ({ status: 'generating', updatedAt: minutesAgo(n, 29) }) },
+    { name: 'generating-31', row: (n) => ({ status: 'generating', updatedAt: minutesAgo(n, 31) }) },
+    { name: 'ready', row: () => ({ status: 'ready' }) },
+    { name: 'quiet-sent', row: () => ({ status: 'sent', kind: 'quiet' }) },
+    { name: 'starting-point', row: () => ({ status: 'sent', kind: 'starting_point' }) },
+  ];
+  const other = (o: Partial<typeof client.$inferInsert>) => ({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', timezone: 'America/Chicago', ...o });
+
+  let rows: { id: string; tz: string; state: State }[] = [];
+  async function seedWorld() {
+    await dbs.owner.delete(client); // cascades the seeded briefs/links; the world below replaces the default three
+    rows = [];
+    const values: (typeof client.$inferInsert)[] = [];
+    for (const tz of ZONES) for (const state of STATES) values.push(other({ name: `${tz}/${state.name}`, timezone: tz, agencyId: values.length % 2 ? IDS.agencyA : IDS.agencyB }));
+    values.push(
+      other({ name: 'paused', pausedAt: new Date() }),
+      other({ name: 'prospect', status: 'prospect' }),
+      other({ name: 'archived', archivedAt: new Date() }),
+      other({ name: 'spend-paused', spendPausedAt: new Date() }),
+      other({ name: 'suspended-agency', agencyId: AGENCY_C }),
+    );
+    const ins = await dbs.owner.insert(client).values(values).returning({ id: client.id, name: client.name, timezone: client.timezone });
+    rows = ins.map((c, i) => ({ id: c.id, tz: c.timezone, state: STATES[i % STATES.length]! }));
+  }
+  async function seedBriefs(now: Date) {
+    await dbs.owner.delete(brief);
+    const values: (typeof brief.$inferInsert)[] = [];
+    const agencies = new Map((await dbs.owner.select({ id: client.id, agencyId: client.agencyId }).from(client)).map((c) => [c.id, c.agencyId]));
+    for (const r of rows) {
+      if (!r.state.row) continue;
+      const tz = safeTimezone(r.tz);
+      values.push({ agencyId: agencies.get(r.id)!, clientId: r.id, deliveryDate: deliveryDateFor(now, tz), periodStart: now, periodEnd: now, status: 'ready', ...r.state.row(now) });
+    }
+    if (values.length) await dbs.owner.insert(brief).values(values);
+  }
+
+  it('set-based scan equals legacy', { timeout: 300_000 }, async () => {
+    await dbs.owner.insert(agency).values({ id: AGENCY_C, name: 'Agency C' });
+    await seedWorld();
+    await pauseAgency(dbs.owner, AGENCY_C, 'suspended');
+    // Half-hour grid across the Thursday-night/Friday-noon windows of every zone, Thu 21:59/22:00 and Fri 11:59/12:00 Chicago included, plus DST-change weeks.
+    const instants: Date[] = [];
+    const grid = (startIso: string, hours: number) => { for (let i = 0; i <= hours * 2; i++) instants.push(new Date(Date.parse(startIso) + i * 30 * 60_000)); };
+    grid('2026-10-01T06:00:00Z', 36);   // Thu 01:00 CDT … Fri 13:00 CDT, all five zones
+    grid('2026-10-29T12:00:00Z', 30);   // week before the US fall-back
+    grid('2026-11-05T12:00:00Z', 30);   // week after it (CST)
+    grid('2026-03-12T12:00:00Z', 30);   // week of the spring-forward (Sun 2026-03-08 → Thu is CDT)
+    for (const iso of ['2026-10-02T02:59:00Z', '2026-10-02T03:00:00Z', '2026-10-02T16:59:00Z', '2026-10-02T17:00:00Z']) instants.push(new Date(iso));
+    let nonEmpty = 0;
+    for (const now of instants) {
+      await seedBriefs(now);
+      const want = await legacyListBriefDueClients(dbs.service, now);
+      const got = await listBriefDueClients(dbs.service, now);
+      expect(got, now.toISOString()).toEqual(want);
+      if (want.length) nonEmpty++;
+    }
+    expect(nonEmpty).toBeGreaterThan(20); // the comparison is not vacuous
+  });
+
+  it('returns [] without a query when no client is in its window', async () => {
+    const spy = vi.spyOn(dbs.service, 'execute');
+    try {
+      expect(await listBriefDueClients(dbs.service, new Date('2026-10-05T15:00:00Z'))).toEqual([]); // Mon 10:00 Chicago
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { agencyServiceable, brief, briefItem, client, clientWorkAllowed, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
-import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 import { startingPointClockStart } from './setup-clock';
 
@@ -60,18 +60,25 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
 
 /**
  * Serviceable active clients (prospects get none, D10; nor do paused clients or read_only/suspended agencies, 9a/9b) with no starting point yet — or one that failed with attempts left or went stale while
- * generating — whose readiness is met or whose 48 h wait is over. One lookup per client: fine at pilot scale.
+ * generating — whose readiness is met or whose 48 h wait is over. One set-based query finds the candidates (no starting point / retryable / stale);
+ * the per-client readiness check runs only for those.
  */
 export async function listStartingPointDue(db: Db, now: Date): Promise<string[]> {
   // 9a/9b: a read_only/suspended agency or a paused client gets no starting point (generation costs model calls).
-  const clients = await db.select({ id: client.id }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId))).orderBy(client.createdAt);
+  const staleBefore = new Date(now.getTime() - BRIEF_STALE_MINUTES * 60_000);
+  const candidates = await db.select({ id: client.id }).from(client)
+    .leftJoin(brief, and(eq(brief.clientId, client.id), sql`${brief.kind} = 'starting_point'`))
+    .where(and(
+      clientWorkAllowed(client), agencyServiceable(client.agencyId),
+      or(
+        isNull(brief.id),
+        and(eq(brief.status, 'failed'), lt(brief.attempts, BRIEF_MAX_ATTEMPTS)),
+        and(eq(brief.status, 'generating'), lt(brief.updatedAt, staleBefore)),
+      ),
+    ))
+    .orderBy(client.createdAt);
   const due: string[] = [];
-  for (const c of clients) {
-    const [b] = await db
-      .select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt })
-      .from(brief).where(and(eq(brief.clientId, c.id), sql`${brief.kind} = 'starting_point'`)).limit(1);
-    const stale = b?.status === 'generating' && now.getTime() - b.updatedAt.getTime() > BRIEF_STALE_MINUTES * 60_000;
-    if (b && !(b.status === 'failed' && b.attempts < BRIEF_MAX_ATTEMPTS) && !stale) continue;
+  for (const c of candidates) {
     const r = await startingPointReadiness(db, c.id, now);
     if (r.ready || r.timedOut) due.push(c.id);
   }

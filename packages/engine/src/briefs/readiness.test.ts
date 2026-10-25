@@ -1,10 +1,12 @@
-import { brief, briefItem, capture, client, clientSetup, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { agency, agencyServiceable, brief, briefItem, capture, client, clientWorkAllowed, clientSetup, clientCompetitor, competitor, discoveryRun, evidence, observation, rankScan, recommendation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
 import { listStartingPointDue, resetStartingPoint, startingPointReadiness } from './readiness';
 
+const AGENCY_C = randomUUID();
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const NOW = new Date('2026-10-15T12:00:00Z');
@@ -214,5 +216,79 @@ describe('resetStartingPoint', () => {
   it('nothing to delete → deleted: false; another client is untouched', async () => {
     expect(await resetStartingPoint(dbs.service, IDS.clientA1)).toEqual({ deleted: false });
     expect(await dbs.owner.select().from(brief).where(eq(brief.clientId, IDS.clientA2))).toHaveLength(1);
+  });
+});
+
+/** Today's per-client implementation, kept verbatim as the oracle for the set-based prefilter (7c2 T4). */
+async function legacyListStartingPointDue(db: typeof dbs.service, now: Date): Promise<string[]> {
+  const clients = await db.select({ id: client.id }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId))).orderBy(client.createdAt);
+  const due: string[] = [];
+  for (const c of clients) {
+    const [b] = await db
+      .select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt })
+      .from(brief).where(and(eq(brief.clientId, c.id), sql`${brief.kind} = 'starting_point'`)).limit(1);
+    const stale = b?.status === 'generating' && now.getTime() - b.updatedAt.getTime() > BRIEF_STALE_MINUTES * 60_000;
+    if (b && !(b.status === 'failed' && b.attempts < BRIEF_MAX_ATTEMPTS) && !stale) continue;
+    const r = await startingPointReadiness(db, c.id, now);
+    if (r.ready || r.timedOut) due.push(c.id);
+  }
+  return due;
+}
+
+describe('listStartingPointDue set-based prefilter (7c2 T4)', () => {
+  const minutesAgo = (m: number) => new Date(NOW.getTime() - m * 60_000);
+  const SP: { name: string; row?: Partial<typeof brief.$inferInsert> }[] = [
+    { name: 'none' },
+    { name: 'failed-2', row: { status: 'failed', attempts: 2 } },
+    { name: 'failed-3', row: { status: 'failed', attempts: 3 } },
+    { name: 'generating-29', row: { status: 'generating', updatedAt: minutesAgo(29) } },
+    { name: 'generating-31', row: { status: 'generating', updatedAt: minutesAgo(31) } },
+    { name: 'ready', row: { status: 'ready' } },
+    { name: 'sent', row: { status: 'sent' } },
+  ];
+
+  it('set-based scan equals legacy', async () => {
+    await dbs.owner.insert(agency).values({ id: AGENCY_C, name: 'Agency C' });
+    await dbs.owner.delete(brief);
+    await dbs.owner.delete(client);
+    const values: (typeof client.$inferInsert)[] = [];
+    // Created 1 h / 72 h ago: the old ones are past the 48 h wait (due when their brief state allows), the young ones are not ready.
+    for (const age of [1, 72]) for (const sp of SP) values.push({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: `${age}h/${sp.name}`, createdAt: hoursAgo(age) });
+    values.push(
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'paused', createdAt: hoursAgo(72), pausedAt: NOW },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'prospect', createdAt: hoursAgo(72), status: 'prospect' },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'archived', createdAt: hoursAgo(72), archivedAt: NOW },
+      { agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', name: 'spend-paused', createdAt: hoursAgo(72), spendPausedAt: NOW },
+      { agencyId: AGENCY_C, verticalId: 'hvac_plumbing', name: 'suspended-agency', createdAt: hoursAgo(72) },
+    );
+    const ins = await dbs.owner.insert(client).values(values).returning({ id: client.id });
+    await pauseAgency(dbs.owner, AGENCY_C, 'suspended');
+    const briefs: (typeof brief.$inferInsert)[] = [];
+    ins.forEach((c, i) => {
+      const sp = SP[i % SP.length]!;
+      if (i < 2 * SP.length && sp.row) briefs.push({ agencyId: IDS.agencyA, clientId: c.id, deliveryDate: '2026-10-14', periodStart: hoursAgo(72), periodEnd: hoursAgo(20), status: 'ready', kind: 'starting_point', summary: 's', ...sp.row });
+    });
+    // One weekly (non-starting-point) brief must not count as a starting point.
+    briefs.push({ agencyId: IDS.agencyA, clientId: ins[0]!.id, deliveryDate: '2026-10-12', periodStart: hoursAgo(72), periodEnd: hoursAgo(20), status: 'sent', kind: 'standard', summary: 's' });
+    await dbs.owner.insert(brief).values(briefs);
+    const want = await legacyListStartingPointDue(dbs.service, NOW);
+    expect(want.length).toBeGreaterThanOrEqual(3); // non-vacuous
+    expect(await listStartingPointDue(dbs.service, NOW)).toEqual(want);
+  });
+
+  it('listStartingPointDue skips readiness for a client with a sent starting point', async () => {
+    // beforeEach gave A2/B1 a sent starting point; A1 has none and is past the wait → readiness runs for it (several selects).
+    await activate(hoursAgo(72));
+    const spy = vi.spyOn(dbs.service, 'select');
+    try {
+      expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
+      expect(spy.mock.calls.length).toBeGreaterThan(1);
+      spy.mockClear();
+      await dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-10-14', periodStart: hoursAgo(72), periodEnd: hoursAgo(20), status: 'sent', kind: 'starting_point', summary: 's' });
+      expect(await listStartingPointDue(dbs.service, NOW)).toEqual([]);
+      expect(spy.mock.calls.length).toBe(1); // only the candidate query: no per-client brief lookup, no readiness reads
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

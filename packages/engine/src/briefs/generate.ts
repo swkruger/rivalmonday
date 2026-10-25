@@ -161,17 +161,29 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
 /**
  * Active clients (prospects get no briefs, 5b-2 decision 9) whose Thursday-night window is open and whose brief for that Monday is missing, retryable or stale.
  * Starting points are ignored (Phase 12b Q3); one holding that Monday makes the weekly run skip.
- * Scans every client with one brief lookup each: fine at pilot scale (≤ 15 clients); Phase 7 scale needs a set-based query.
+ * Two queries regardless of client count: the serviceable clients, then one anti-join against `brief` for those in their window.
+ * The time-zone math stays in JS (SQL `AT TIME ZONE` throws on a bad zone name).
  */
 export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> {
   const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client).where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));
-  const due: string[] = [];
+  const ids: string[] = [];
+  const dates: string[] = [];
   for (const c of clients) {
     const tz = safeTimezone(c.timezone);
     if (!briefDue(now, tz)) continue;
-    const [b] = await db.select({ status: brief.status, attempts: brief.attempts, updatedAt: brief.updatedAt }).from(brief).where(and(eq(brief.clientId, c.id), eq(brief.deliveryDate, deliveryDateFor(now, tz)), ne(brief.kind, 'starting_point')));
-    const stale = b?.status === 'generating' && now.getTime() - b.updatedAt.getTime() > BRIEF_STALE_MINUTES * 60_000;
-    if (!b || (b.status === 'failed' && b.attempts < BRIEF_MAX_ATTEMPTS) || stale) due.push(c.id);
+    ids.push(c.id);
+    dates.push(deliveryDateFor(now, tz));
   }
-  return due;
+  if (ids.length === 0) return [];
+  const staleBefore = new Date(now.getTime() - BRIEF_STALE_MINUTES * 60_000).toISOString();
+  const rows = await db.execute<{ id: string }>(sql`
+    SELECT d.client_id AS id
+      FROM unnest(ARRAY[${sql.join(ids.map((x) => sql`${x}`), sql`, `)}]::uuid[],
+                  ARRAY[${sql.join(dates.map((x) => sql`${x}`), sql`, `)}]::date[]) WITH ORDINALITY AS d(client_id, delivery_date, ord)
+      LEFT JOIN brief b ON b.client_id = d.client_id AND b.delivery_date = d.delivery_date AND b.kind <> 'starting_point'
+     WHERE b.id IS NULL
+        OR (b.status = 'failed' AND b.attempts < ${BRIEF_MAX_ATTEMPTS})
+        OR (b.status = 'generating' AND b.updated_at < ${staleBefore}::timestamptz)
+     ORDER BY d.ord`);
+  return [...rows].map((r) => r.id);
 }
