@@ -6,7 +6,7 @@ import { allTools } from './all';
 const WRITE_TOOLS = [
   'accept_competitor_suggestion', 'accept_competitor_suggestions', 'accept_lead', 'add_business_area', 'add_client_recipient', 'add_competitor', 'add_recommendation', 'add_tracked_page', 'add_webhook',
   'advance_client_setup', 'approve_alert', 'approve_brief', 'archive_platform_cost_item', 'assign_lead', 'attach_agency_discount', 'confirm_ad_match', 'convert_prospect', 'create_api_token', 'create_checkout_session',
-  'create_client', 'create_vertical', 'create_discount_code', 'decline_lead', 'delete_webhook', 'create_invite_link', 'create_plan_version', 'create_portal_session', 'deactivate_recipient', 'decide_topic_proposal',
+  'create_client', 'create_vertical', 'create_discount_code', 'decline_lead', 'delete_webhook', 'create_invite_link', 'create_plan_version', 'move_agencies_to_current_plan', 'create_portal_session', 'deactivate_recipient', 'decide_topic_proposal',
   'delete_kb_article', 'delete_ask_thread', 'dismiss_onboarding_checklist', 'mark_onboarding_redirected', 'mark_onboarding_step', 'disable_client_billing', 'disconnect_stripe', 'dismiss_alert', 'dismiss_competitor_suggestion', 'drop_brief_item',
   'edit_brief_item', 'enable_client_billing', 'end_pilot', 'end_support_session', 'extend_trial', 'grant_pilot', 'import_kb_url', 'invite_client_owner', 'invite_member', 'open_billing_portal',
   'pause_client', 'pick_setup_competitors', 'rate_brief_item', 'redeem_discount_code', 'remove_ad_match', 'remove_competitor', 'resend_client_payment_link', 'resume_client', 'revoke_discount_code',

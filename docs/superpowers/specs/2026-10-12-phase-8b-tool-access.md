@@ -169,7 +169,9 @@ list_invite_links (platform-billing.ts) | read | read-only; platform staff; supp
 get_agency_billing (platform-billing.ts) | read | gateway invoice read only; platform operator
 get_billing_overview (platform-billing.ts) | read | read-only; platform operator
 get_connect_overview (platform-billing.ts) | read | read-only; platform operator
+list_plan_agencies (platform-plan-move.ts) | read | read-only; platform operator
 create_plan_version (platform-billing.ts) | write | creates Stripe prices; platform owner
+move_agencies_to_current_plan (platform-plan-move.ts) | write | sets plan_id, swaps Stripe subscription prices, emails admins; platform owner
 create_discount_code (platform-billing.ts) | write | creates Stripe coupon/promotion code; platform owner
 revoke_discount_code (platform-billing.ts) | write | deactivates promotion code; platform owner
 create_invite_link (platform-billing.ts) | write | stores hashed invite token; platform staff

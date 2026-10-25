@@ -347,6 +347,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
     route: '/platform/billing', as: 'operator', calls: [
       { tool: 'get_billing_overview', input: none, path: 'agenciesByState' },
       { tool: 'list_plans', input: none, path: 'plans' },
+      { tool: 'list_plan_agencies', input: none, path: 'agencies', expect: 'empty', why: 'every demo agency is on the current plan version' },
       { tool: 'list_discount_codes', input: none, path: 'codes' },
       { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
       { tool: 'get_connect_overview', input: none, path: 'agencies' },
