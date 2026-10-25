@@ -58,3 +58,24 @@ describe('renderEmail', () => {
     expect(r.html).toContain('Open setup');
   });
 });
+
+describe('agency_hold', () => {
+  const rm = resolveBranding('Rival Monday', null);
+  const props = (kind: 'started' | 'lifted') => ({ branding: rm, recipientName: 'Ann Admin', agencyName: 'Peak Digital', kind, supportEmail: 'help@rivalmonday.app' });
+
+  it('started: exact subject and both body lines', async () => {
+    const r = await renderEmail({ template: 'agency_hold', props: props('started') });
+    expect(r.subject).toBe('Your Peak Digital account is on hold');
+    expect(r.text).toContain('Hi Ann,');
+    expect(r.text).toContain('Your Peak Digital account is on hold. Your team can still sign in and see everything, but changes and scheduled work are paused, and so is billing.');
+    expect(r.text).toContain('To restore it, reply to this email or contact help@rivalmonday.app.');
+  });
+
+  it('lifted: exact subject and body line, no restore line', async () => {
+    const r = await renderEmail({ template: 'agency_hold', props: { ...props('lifted'), recipientName: null } });
+    expect(r.subject).toBe('Your Peak Digital account is active again');
+    expect(r.text).toContain('Hi,');
+    expect(r.text).toContain('The hold on your Peak Digital account has been lifted. Your team can make changes again, and scheduled work and billing resume today.');
+    expect(r.text).not.toContain('To restore it');
+  });
+});

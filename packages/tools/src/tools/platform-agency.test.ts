@@ -1,13 +1,15 @@
+import { fakeGateway, type FakeGateway, holdBillingIssue } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agency, auditLog, invitation, membership, platformAdmin } from '@cs/db';
+import { agency, agencyBilling, agencyConnect, auditLog, clientBilling, invitation, membership, platformAdmin } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
 import { and, eq, isNull } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { inviteMember, LAST_ADMIN_MESSAGE } from '../access/team';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
+import { ARCHIVE_BILLING_MESSAGE } from './platform-agency';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -22,8 +24,9 @@ const adminA = createAccessContext({ agencyId: A, userId: 'admin', role: 'agency
 
 let transport: ReturnType<typeof createMemoryTransport>;
 let registry: ReturnType<typeof createToolRegistry>;
+let gw: FakeGateway;
 const deps = (): ToolDeps => ({
-  app: dbs.app, service: dbs.service, appUrl: 'https://app.test', platformAdmins: ['op@example.com'],
+  app: dbs.app, service: dbs.service, appUrl: 'https://app.test', platformAdmins: ['op@example.com'], billing: gw,
   leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] },
 });
 const call = (ctx: AccessContext, name: string, input: unknown = {}) => registry.invoke(ctx, name, input);
@@ -37,6 +40,7 @@ let ids: { admin: string; am: string; co: string; invite: string };
 
 beforeEach(async () => {
   transport = createMemoryTransport();
+  gw = fakeGateway();
   await truncateAll(dbs.owner);
   await truncateAuth(dbs.owner);
   for (const u of ['op', 'staff', 'viewer', 'admin', 'am', 'co']) await seedUser(dbs.owner, u, `${u}@example.com`);
@@ -226,5 +230,151 @@ describe('platform_revoke_invitation', () => {
     expect(await call(staff, 'platform_revoke_invitation', { agencyId: A, invitationId: ids.invite })).toEqual({ revoked: true });
     expect((await dbs.owner.select().from(invitation).where(eq(invitation.id, ids.invite)))[0]!.revokedAt).not.toBeNull();
     expect((await fails(call(staff, 'platform_revoke_invitation', { agencyId: A, invitationId: ids.invite }))).code).toBe('not_found');
+  });
+});
+
+// ---- Task 7: hold, lift, retry, archive ----
+
+const REASON = 'Unpaid invoice INV-SECRET-42';
+const agencyRow = async () => (await dbs.owner.select().from(agency).where(eq(agency.id, A)))[0]!;
+const ACCT = 'acct_a';
+
+/** Agency A pays (platform sub) and bills A1 through Connect; a second admin so the hold email goes to two people. */
+async function seedHoldWorld() {
+  await seedUser(dbs.owner, 'admin2', 'admin2@example.com');
+  await dbs.service.insert(membership).values({ userId: 'admin2', agencyId: A, role: 'agency_admin', createdBy: 'seed' });
+  await dbs.owner.insert(agencyBilling).values({ agencyId: A, state: 'active', stripeCustomerId: 'cus_a', stripeSubscriptionId: 'sub_platform' });
+  gw.seedSubscription({ id: 'sub_platform', customerId: 'cus_a' });
+  gw.seedConnectedAccount({ id: ACCT, chargesEnabled: true, detailsSubmitted: true });
+  await dbs.owner.insert(agencyConnect).values({ agencyId: A, stripeAccountId: ACCT, status: 'connected', chargesEnabled: true, detailsSubmitted: true });
+  gw.seedConnectedSubscription({ id: 'sub_c1', stripeAccount: ACCT, customerId: 'cus_c1' });
+  await dbs.owner.insert(clientBilling).values({ clientId: IDS.clientA1, agencyId: A, state: 'active', enabled: true, priceCents: 9900, stripeSubscriptionId: 'sub_c1' });
+}
+
+describe('platform_suspend_agency', () => {
+  beforeEach(seedHoldWorld);
+
+  it('sets the hold columns, pauses every subscription, emails each admin once, one audit row', async () => {
+    const r = (await call(staff, 'platform_suspend_agency', { agencyId: A, reason: `  ${REASON}  ` })) as { suspendedAt: string; billing: { done: number; failed: unknown[] }; emailsSent: number };
+    expect(r.billing).toEqual({ done: 2, failed: [] });
+    expect(r.emailsSent).toBe(2);
+    const row = await agencyRow();
+    expect(row).toMatchObject({ suspendedReason: REASON, suspendedBy: 'staff' });
+    expect(row.suspendedAt!.toISOString()).toBe(r.suspendedAt);
+    expect(gw.callsTo('pauseCollection').map((c) => c.args)).toEqual([['sub_platform', undefined], ['sub_c1', { stripeAccount: ACCT }]]);
+    expect(transport.sent.map((m) => m.to).sort()).toEqual(['admin2@example.com', 'admin@example.com']);
+    expect(transport.sent.every((m) => m.subject === 'Your Agency A account is on hold')).toBe(true);
+    expect(await audits('platform_suspend_agency')).toMatchObject([{ agencyId: A, role: 'platform_staff', outcome: 'ok' }]);
+  });
+
+  it('the hold email never contains the reason', async () => {
+    await call(staff, 'platform_suspend_agency', { agencyId: A, reason: REASON });
+    expect(transport.sent).toHaveLength(2);
+    for (const m of transport.sent) expect(`${m.subject}${m.text}${m.html}`).not.toContain('INV-SECRET-42');
+  });
+
+  it('a second suspend → invalid_input "This agency is already on hold."', async () => {
+    await call(staff, 'platform_suspend_agency', { agencyId: A, reason: REASON });
+    expect(await fails(call(staff, 'platform_suspend_agency', { agencyId: A, reason: 'again' }))).toMatchObject({ code: 'invalid_input', message: 'This agency is already on hold.', userFacing: true });
+    expect((await agencyRow()).suspendedReason).toBe(REASON);
+  });
+
+  it('a gateway failure keeps the hold and reports it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    gw.failCollectionFor('sub_c1');
+    const r = (await call(staff, 'platform_suspend_agency', { agencyId: A, reason: REASON })) as { billing: { done: number; failed: unknown[] }; emailsSent: number };
+    expect(r.billing.failed).toHaveLength(1);
+    expect(r.emailsSent).toBe(2);
+    expect((await agencyRow()).suspendedAt).not.toBeNull();
+    expect(await holdBillingIssue(dbs.service, A)).toBe('pause');
+  });
+
+  it('reason under 3 or over 500 chars → invalid_input; viewer → permission_denied; archived → not_found', async () => {
+    for (const reason of ['  ab ', 'x'.repeat(501)]) expect((await fails(call(staff, 'platform_suspend_agency', { agencyId: A, reason }))).code).toBe('invalid_input');
+    expect((await fails(call(viewer, 'platform_suspend_agency', { agencyId: A, reason: REASON }))).code).toBe('permission_denied');
+    await dbs.owner.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, A));
+    const held: [string, Record<string, unknown>][] = [['platform_suspend_agency', { reason: REASON }], ['platform_unsuspend_agency', {}], ['platform_retry_hold_billing', {}], ['platform_archive_agency', {}]];
+    for (const [name, input] of held) expect((await fails(call(owner, name, { agencyId: A, ...input }))).code, name).toBe('not_found');
+    expect((await agencyRow()).suspendedAt).toBeNull();
+    expect(gw.calls).toEqual([]);
+  });
+});
+
+describe('platform_unsuspend_agency', () => {
+  beforeEach(seedHoldWorld);
+
+  it('clears the hold, resumes collection, runs the skipped seat sync (R6), emails "lifted"', async () => {
+    await call(staff, 'platform_suspend_agency', { agencyId: A, reason: REASON });
+    await dbs.owner.update(agencyBilling).set({ seatSyncPending: true, billableSeatsSynced: 5 }).where(eq(agencyBilling.agencyId, A));
+    transport.sent.length = 0;
+    const r = (await call(staff, 'platform_unsuspend_agency', { agencyId: A })) as { billing: { done: number; failed: unknown[] }; emailsSent: number };
+    expect(r).toEqual({ billing: { done: 2, failed: [] }, emailsSent: 2 });
+    expect(await agencyRow()).toMatchObject({ suspendedAt: null, suspendedReason: null, suspendedBy: null });
+    expect(gw.callsTo('resumeCollection').map((c) => c.args[0])).toEqual(['sub_platform', 'sub_c1']);
+    expect(gw.callsTo('updateSeatQuantity')).toHaveLength(1);
+    expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, A)))[0]!.seatSyncPending).toBe(false);
+    expect(transport.sent.map((m) => m.subject)).toEqual(['Your Agency A account is active again', 'Your Agency A account is active again']);
+    expect(await audits('platform_unsuspend_agency')).toMatchObject([{ agencyId: A, outcome: 'ok' }]);
+  });
+
+  it('not held → invalid_input "This agency isn\'t on hold."', async () => {
+    expect(await fails(call(staff, 'platform_unsuspend_agency', { agencyId: A }))).toMatchObject({ code: 'invalid_input', message: "This agency isn't on hold.", userFacing: true });
+    expect(gw.calls).toEqual([]);
+    expect(transport.sent).toEqual([]);
+  });
+});
+
+describe('platform_retry_hold_billing', () => {
+  beforeEach(seedHoldWorld);
+
+  it('after a forced failure, the retry pauses the remainder and clears the issue', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    gw.failCollectionFor('sub_c1');
+    await call(staff, 'platform_suspend_agency', { agencyId: A, reason: REASON });
+    expect(await holdBillingIssue(dbs.service, A)).toBe('pause');
+    gw.clearCollectionFailures();
+    expect(await call(staff, 'platform_retry_hold_billing', { agencyId: A })).toEqual({ done: 2, failed: [] });
+    expect(gw.pausedCollection.has('sub_c1')).toBe(true);
+    expect(await holdBillingIssue(dbs.service, A)).toBeNull();
+  });
+
+  it('when not held, the retry resumes', async () => {
+    expect(await call(staff, 'platform_retry_hold_billing', { agencyId: A })).toEqual({ done: 2, failed: [] });
+    expect(gw.callsTo('resumeCollection')).toHaveLength(2);
+    expect(gw.callsTo('pauseCollection')).toEqual([]);
+    expect((await fails(call(viewer, 'platform_retry_hold_billing', { agencyId: A }))).code).toBe('permission_denied');
+  });
+});
+
+describe('platform_archive_agency / platform_unarchive_agency', () => {
+  it('owner archives (the agency then 404s elsewhere) and unarchives', async () => {
+    const r = (await call(owner, 'platform_archive_agency', { agencyId: A })) as { archivedAt: string };
+    const row = await agencyRow();
+    expect(row.archivedAt!.toISOString()).toBe(r.archivedAt);
+    expect((await fails(call(staff, 'platform_rename_agency', { agencyId: A, name: 'Nope' }))).code).toBe('not_found');
+    expect(await audits('platform_archive_agency')).toMatchObject([{ agencyId: A, role: 'platform_owner', outcome: 'ok' }]);
+    expect(await call(owner, 'platform_unarchive_agency', { agencyId: A })).toEqual({ ok: true });
+    expect((await agencyRow()).archivedAt).toBeNull();
+    expect(await call(staff, 'platform_rename_agency', { agencyId: A, name: 'Back' })).toEqual({ name: 'Back' });
+    expect(await audits('platform_unarchive_agency')).toMatchObject([{ agencyId: A, outcome: 'ok' }]);
+  });
+
+  it('staff and viewer → permission_denied for both', async () => {
+    for (const ctx of [staff, viewer]) {
+      for (const name of ['platform_archive_agency', 'platform_unarchive_agency']) expect((await fails(call(ctx, name, { agencyId: A }))).code, name).toBe('permission_denied');
+    }
+    expect((await agencyRow()).archivedAt).toBeNull();
+  });
+
+  it('live billing → invalid_input with ARCHIVE_BILLING_MESSAGE, nothing archived', async () => {
+    await dbs.owner.insert(clientBilling).values({ clientId: IDS.clientA1, agencyId: A, state: 'active', enabled: true, priceCents: 9900, stripeSubscriptionId: 'sub_c1' });
+    expect(await fails(call(owner, 'platform_archive_agency', { agencyId: A }))).toMatchObject({ code: 'invalid_input', message: ARCHIVE_BILLING_MESSAGE, userFacing: true });
+    expect(ARCHIVE_BILLING_MESSAGE).toBe('This agency still has active billing. Cancel it in Stripe first, then archive.');
+    expect((await agencyRow()).archivedAt).toBeNull();
+  });
+
+  it('unknown agency → not_found for both', async () => {
+    const UNKNOWN = '00000000-0000-4000-8000-00000000dead';
+    for (const name of ['platform_archive_agency', 'platform_unarchive_agency']) expect((await fails(call(owner, name, { agencyId: UNKNOWN }))).code, name).toBe('not_found');
   });
 });

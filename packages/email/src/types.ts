@@ -79,6 +79,14 @@ export interface SupportSessionStartedProps {
   date: string;
   reason: string;
 }
+/** 15c-3a: the platform tells an agency's admins its account was put on hold / the hold was lifted (no reason, ever). */
+export interface AgencyHoldProps {
+  branding: Branding;
+  recipientName: string | null;
+  agencyName: string;
+  kind: 'started' | 'lifted';
+  supportEmail: string;
+}
 /** 7b1: staff alert for a client spend pause or a platform spike (USD allowed: platform staff only). */
 export interface PlatformSpendAlertProps {
   branding: Branding;
@@ -241,6 +249,7 @@ export type EmailPayload =
   | { template: 'trend_report'; props: TrendReportEmailProps }
   | { template: 'sign_in'; props: SignInEmailProps }
   | { template: 'support_session_started'; props: SupportSessionStartedProps }
+  | { template: 'agency_hold'; props: AgencyHoldProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'platform_spend_alert'; props: PlatformSpendAlertProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }

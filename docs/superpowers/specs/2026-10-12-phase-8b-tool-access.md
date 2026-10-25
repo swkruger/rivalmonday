@@ -187,6 +187,11 @@ platform_remove_member (platform-agency.ts) | write | deletes membership (last-a
 platform_invite_agency_admin (platform-agency.ts) | write | inserts invitation; sends team_invite as the agency; platform staff; 20 / agency / 24 h
 platform_resend_invitation (platform-agency.ts) | write | resets invitation expiry; re-sends the invite as the agency; platform staff; shares 3 / 24 h with resend_invitation
 platform_revoke_invitation (platform-agency.ts) | write | revokes invitation; platform staff
+platform_suspend_agency (platform-agency.ts) | write | sets agency.suspended_*; then pauses Stripe collection (platform + Connect subs) and emails agency_hold to the agency's admins; platform staff
+platform_unsuspend_agency (platform-agency.ts) | write | clears agency.suspended_*; then resumes Stripe collection, post-commit seat sync, emails agency_hold (lifted); platform staff
+platform_retry_hold_billing (platform-agency.ts) | write | re-runs the Stripe collection pause (held) / resume (lifted), inserts agency_billing_event; platform staff
+platform_archive_agency (platform-agency.ts) | write | sets agency.archived_at (refused with live billing); platform owner
+platform_unarchive_agency (platform-agency.ts) | write | clears agency.archived_at (archived agencies allowed); platform owner
 get_signups_paused (platform-signups.ts) | read | read-only; platform operator
 get_signup_funnel (platform-signups.ts) | read | read-only aggregate counts; platform operator
 set_signups_paused (platform-signups.ts) | write | upserts platform_setting; platform owner

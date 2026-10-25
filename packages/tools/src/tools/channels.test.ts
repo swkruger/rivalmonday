@@ -28,6 +28,7 @@ const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_cli
   'attach_agency_discount', 'create_discount_code', 'create_invite_link', 'create_plan_version', 'end_pilot', 'extend_trial', 'get_agency_billing', 'get_billing_overview', 'get_connect_overview', 'grant_pilot', 'list_discount_codes', 'list_invite_links', 'list_plans', 'revoke_discount_code', 'revoke_invite_link', 'set_connect_fee_percent', 'set_seat_cap_exempt',
   'get_signups_paused', 'set_signups_paused', 'get_signup_funnel',
   'list_agency_people', 'platform_rename_agency', 'platform_change_member_role', 'platform_remove_member', 'platform_invite_agency_admin', 'platform_resend_invitation', 'platform_revoke_invitation',
+  'platform_suspend_agency', 'platform_unsuspend_agency', 'platform_retry_hold_billing', 'platform_archive_agency', 'platform_unarchive_agency',
   'list_leads', 'get_lead', 'list_pool_leads', 'assign_lead',
   'list_catalog_review', 'count_catalog_review', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area'];
 

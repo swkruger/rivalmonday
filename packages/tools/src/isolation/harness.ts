@@ -17,6 +17,7 @@
 import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, type CallOptions, type Permission, ToolError, type ToolChannel, type ToolRegistry, type TokenScope } from '@cs/core';
 import type { Db } from '@cs/db';
+import { createMemoryTransport } from '@cs/email';
 import { TABLE_CLASS, type IsolationWorld, type TenantKey, type WorldUser } from '@cs/db/test-helpers';
 import { type SQL, sql } from 'drizzle-orm';
 import type { z } from 'zod';
@@ -69,6 +70,8 @@ export function isolationDeps(w: IsolationWorld): { deps: ToolDeps; enqueued: un
     appUrl: 'https://app.example',
     delivery: { appUrl: 'https://app.example', linkSecrets: ['isolation-link-secret-0123456789abcdef'], fromAddress: 'briefs@app.example' },
     webhookFetch,
+    // direct sends (team invites, hold emails, lead notices) go to memory, never "email is not configured"
+    leadEmail: { transport: createMemoryTransport(), appUrl: 'https://app.example', fromAddress: 'team@app.example', platformAdmins: [] },
     platformAdmins: [],
     setupLookup: async () => [],
     evidenceStore: {

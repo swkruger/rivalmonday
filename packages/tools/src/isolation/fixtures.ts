@@ -343,6 +343,17 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   platform_invite_agency_admin: platform((w) => ({ agencyId: w.ids.agencyA, email: 'new-admin@world.example' })),
   platform_resend_invitation: platform((w) => ({ agencyId: w.ids.agencyA, invitationId: idOf(w, 'invitation', 'A') })),
   platform_revoke_invitation: platform((w) => ({ agencyId: w.ids.agencyA, invitationId: idOf(w, 'invitation', 'A') })),
+  platform_suspend_agency: platform((w) => ({ agencyId: w.ids.agencyA, reason: 'World hold check' })),
+  platform_unsuspend_agency: {
+    kind: 'platform', input: (w) => ({ agencyId: w.ids.agencyA }),
+    skipPositive: "needs a held agency: the world's agencies are not on hold (a held agency would refuse every agency write); covered in platform-agency.test.ts",
+  },
+  platform_retry_hold_billing: platform((w) => ({ agencyId: w.ids.agencyA })),
+  platform_archive_agency: {
+    kind: 'platform', input: (w) => ({ agencyId: w.ids.agencyA }),
+    skipPositive: "needs an agency without live billing: the world bills every client (active Connect subscriptions), so archive is refused by design; covered in platform-agency.test.ts",
+  },
+  platform_unarchive_agency: platform((w) => ({ agencyId: w.ids.agencyA })),
   reset_ai_pause: {
     kind: 'platform', input: () => ({ note: 'Checked the spike' }),
     skipPositive: "needs a paused / warned platform AI guard: the world's guard is ok (a paused one would block every AI path); covered in spend-guard.test.ts",
