@@ -316,15 +316,30 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 4. **Colours left as hex (phase-16).** No token exists for them, so they stay: disabled button `bg-[#CBD5E1]` (`competitors/competitor-controls.tsx`), unticked suggestion border `#CBD5E1` (`competitors/signal-pills.tsx`), tier chips `#E2E8F0`/`#F1F5F9`/`#4A5D73` (competitors tier chip), heatmap constants INK/WHITE/LINE and sentiment fills (`components/charts/topic-heatmap.tsx:3-5`). Add tokens in phase-16?
 5. **Capture status wording for owners.** `CAPTURE_STATUS` (`lib/labels.ts`) now shows to client owners: "Captured", "No change since last capture", "Blocked by the site", "Site asks not to be monitored", "Data provider error", "Timed out", "Failed". OK for owners, or soften "Blocked by the site"?
 6. **Guides still say "3 instant alerts a day".** The page uses the engine constant (`ALERTS_PER_DAY`), but guide Markdown cannot interpolate it (`docs/help/pages/client.settings.alerts.agency.md:20,29`, `client.settings.delivery.agency.md:21`, `client.alerts.detail.agency.md`, `client.changes.agency.md`, `agency.alerts.agency.md`). Fine while the limit is 3?
-7. **Status wording.** Briefs and alerts no longer say "Needs review": briefs "Ready for review", alerts "Waiting for review" / "Being drafted". Agency approvals guides still say "Needs review" (`agency.approvals.agency.md:10,16`, `agency.approvals.detail.agency.md:33`); fixed in the final wave unless you object.
+7. **Status wording.** Briefs and alerts no longer say "Needs review": briefs "Ready for review", alerts "Waiting for review" / "Being drafted". The agency approvals guides (`agency.approvals.agency.md:10,16`, `agency.approvals.detail.agency.md:33`) were changed to "Ready for review" in the final wave too.
 8. **Heatmap tooltip is shorter.** The cell tooltip is now "{business}, {topic}: 34% · Positive · ▲ 8 pts" (same text as the table). It no longer says "vs previous 90 days" or explains the share; the guides and the page tip carry that. OK?
 9. **Alert-rules page lost a sentence.** "Below {n}: archived — still visible under Changes." is gone from `settings/alerts/page.tsx`; the band bar and its legend replace the three plain-words lines.
+10. **New copy, needs approval: billing confirm.** Setup › Billing now asks before it emails the owner (`setup/steps/billing-step.tsx`): title "Turn on billing?", body "The owner gets an email with a payment link for $249/month plus $99 setup." (the "plus … setup" part only when a fee is typed), confirm button "Turn on billing", Cancel sends nothing. OK?
+
+#### Status and enum labels (`lib/labels.ts`, shared maps)
+| Map | Labels |
+|---|---|
+| `PAGE_TYPE` | Home page, Pricing, Service, Service area, Promotion, Careers, Team, About, Contact, Blog, Other |
+| `BRIEF_ITEM_STATUS` (agency only) | Included, Dropped (was raw "dropped") |
+| `MOVE_STATUS` | Emerging, Active, Fading, Closed |
+| `LEVEL` | Low, Medium, High (was L / M / H) |
+| `CAPTURE_STATUS` | Captured, No change since last capture, Blocked by the site, Site asks not to be monitored, Data provider error, Timed out, Failed (decision 5) |
+| `EVENT_ROUTE` | Alert, Brief, Archived |
+| `SETUP_STEP_STATUS` | Not started, Running, Done, Skipped, Needs attention |
+| `CLIENT_PLAN_STATUS` | Paused, Not set up, Active, Payment needed, Awaiting payment setup, Cancelled, Not available |
+| `AD_STATE` | Active, Ended |
+| `RECOMMENDATION_STATUS` | To do, In progress, Done, Dismissed |
 
 #### Overview (`app/(app)/c/[clientId]/`)
 | Where | Copy |
 |---|---|
 | Brief links (`overview-kpis.ts:87`) | "Brief · Week of Oct 19" / "Starting point · Oct 15" (was ISO dates) |
-| Brief list status (`components/client-lists.tsx:17`) | Agency sees a chip (Ready for review, Approved, Sent...); client roles see none |
+| Brief list status (`components/client-lists.tsx:19-33`, `BriefStatusChip`) | Agency sees a chip (Ready for review, Approved, Sent...); client roles see none |
 | No Place ID (`overview-kpis.ts:62`) | "Add your Google Place ID to compare" (was "place id") |
 | Recommendations open (`page.tsx`) | Chip from the shared labels: To do / In progress |
 
@@ -349,6 +364,7 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 | No rating (`competitors/[competitorId]/page.tsx:147`) | "No rating yet" |
 | Pages table | Page type and cadence in words (Home page, Pricing, Service area, Daily, Weekly); Inactive as a chip |
 | Collection status | Relative time in the client zone, "· Paused" when paused; a site that blocks monitoring shows a red chip |
+| Score factors (`changes/viewer.tsx:37`, `FactorBar`) | Accessible name "{label} {value}", e.g. "Relevance 0.80" |
 
 #### Pricing, Ads, Reviews
 | Where | Copy |
@@ -370,12 +386,15 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 |---|---|
 | Chips (`components/recommendation-board.tsx:125`) | "Effort: Low" / "Impact: High"; owner "For you" (client roles) / "Client" (agency view) / "Agency" |
 | Empty column (`recommendation-board.tsx:146`) | "Nothing here yet." |
-| Tip (`help/copy/client.ts:292-293`) | Title "For you or Agency" |
+| Tip `owner` (`help/copy/client.ts`) | Title "For you or Agency"; body adds "Agency users see "For you" as "Client"." |
+| Tip `effortImpact` (`help/copy/client.ts`) | "Rough estimates, shown as Low, Medium or High: how much work the step is (Effort) and how much it could help (Impact). …" (was "L, M or H for low, medium or high") |
+| Guides (`client.recommendations.client.md:11,35`, `.agency.md:12,42-44`) | "Low, Medium or High"; agency guide says **Client** or **Agency**; FAQ "What does "Client" mean on a card?" — "A step the business owner can take; the client sees it as **For you**. **Agency** marks a step your agency can take." |
 
 #### Briefs, Alerts, Reports, Pitch snapshot
 | Where | Copy |
 |---|---|
-| Status chips (`lib/labels.ts:60,61,87`) | "Needs review" -> briefs "Ready for review"; alerts "Waiting for review" / "Being drafted" (decision 7). Status tip (`client.ts:353`) and guide `client.briefs.agency.md` follow |
+| Status chips (`lib/labels.ts:60,61,87`) | "Needs review" -> briefs "Ready for review"; alerts "Waiting for review" / "Being drafted" (decision 7). Status tip (`client.ts:353`) and guide `client.briefs.agency.md` follow; the agency approvals guides (`agency.approvals.agency.md:10,16`, `agency.approvals.detail.agency.md:33`) now say "Ready for review" too |
+| Report status (`REPORT_STATUS`) | Guide `client.briefs.agency.md` and the status tip now list **Failed** alongside Preparing / Ready / Sent ("a report that could not be prepared shows Failed") |
 | Brief rows (`briefs/page.tsx:58`) | Blue "Starting point" tag on starting-point briefs; "Week of Oct 19" on weekly ones |
 | Alert time (`components/views/alert-view.tsx`) | Date, time and client zone label |
 | Report empty state (`help/copy/client.ts:443`) | Title "No figures in this report"; body "This quarter had no data to report for {client}. The next report comes after the quarter ends." |
@@ -385,7 +404,7 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 #### Evidence and Ask
 | Where | Copy |
 |---|---|
-| Evidence page (`evidence/[evidenceId]/page.tsx`) | Captured with zone label; capture status chip (decision 5); kind in lower-case words |
+| Evidence page (`evidence/[evidenceId]/page.tsx`) | Captured with zone label; capture status chip (decision 5); kind in lower-case words: "This evidence is stored as raw {kind} and kept unchanged; it isn’t displayed here." |
 | Composer line (`components/ask/ask-chat.tsx:253`) | Review off: "Only you can see your conversations." (new, always shown); review on: "Conversations may be reviewed by {product} to improve answers." |
 | Empty thread list (`components/ask/thread-list.tsx:69`) | "Your questions appear here." |
 | Privacy tip (`help/copy/client.ts:325`, Q6, approved, for the record) | Ends "Delete a conversation with the bin icon beside it and confirm. While conversations may be reviewed, the people named in that line can still read it." |
@@ -396,14 +415,14 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 | Step status (`setup/page.tsx`) | Chip: Not started / Running / Done / Skipped / Needs attention |
 | Competitor pick (`setup/steps/pick-step.tsx:56`) | "{n} selected" (live) |
 | Keyword field (`setup/steps/business-step.tsx:139`) | "Add your own (one per line, up to 5 in total)" |
-| Billing step (`setup/steps/billing-step.tsx`) | Links to Agency settings > Billing for admins |
+| Billing step (`setup/steps/billing-step.tsx`) | Links to Agency settings > Billing for admins; turning billing on asks first (decision 10, new copy, needs approval) |
 
 #### Settings
 | Where | Copy |
 |---|---|
 | Alert rules (`settings/alerts/band-bar.tsx:10-18`) | Legend "Archived", "Weekly brief", "Instant alert" with ranges; aria-label "Scores 0 to {b-1}: archived. {b} to {a-1}: weekly brief. {a} to 100: instant alert." (numbers follow the fields). Page (`page.tsx:55`, agency view): "Instant alerts are still limited to 3 a day; extra ones go into the daily digest." Range sentence removed (decision 9) |
 | Delivery (`settings/delivery/delivery-controls.tsx:16`) | "Alerts wait for the 17:00 digest (business time zone)." |
-| Recipient roles (`lib/labels.ts:135`) | "Client owner" / "Client viewer" (also in the add-recipient select) |
+| Recipient roles (`settings/delivery/delivery-controls.tsx`) | The Delivery list and the add-recipient select now use the shared `MEMBERSHIP_ROLE` map ("Client owner" / "Client viewer") instead of "Owner" / "Viewer"; the map itself is unchanged |
 | Deactivate (`delivery-controls.tsx:160-170`) | Confirm dialog "Deactivate {email}?", button "Deactivate"; Cancel does nothing |
 | Save bars | Alert rules, Delivery, Profile ("Save profile"), Features ("Save features") show Save / Discard only after a change |
 | Billing (`settings/billing/page.tsx`; guide `client.settings.billing.*.md:10`; tip `client.ts:658`) | Status is a chip; "Not available" means the agency has not shared billing details here; contact them |
@@ -414,6 +433,6 @@ Client-page sweep. Paths are under `apps/web/src/` and refer to the code at the 
 | Where | Copy |
 |---|---|
 | Table cell (`components/charts/topic-heatmap.tsx:30-35,119`) | "34% · Positive · ▲ 8 pts"; no sentiment "No sentiment"; no share "—"; points shown from 5 up |
-| Tooltip (`topic-heatmap.tsx:72`) | "{business}, {topic}: 34% · Positive · ▲ 8 pts" (decision 8) |
+| Tooltip (`topic-heatmap.tsx:72`) | "{business}, {topic}: 34% · Positive · ▲ 8 pts" (decision 8); a cell without a share adds " (not enough reviews)" |
 | Phone | The chart keeps its width and scrolls sideways |
 | Guides (`client.reviews.{agency,client}.md`) | The table sentence now describes the cell |
