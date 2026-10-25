@@ -682,6 +682,45 @@ describe('per-client billing tools (Task 5)', () => {
       expect(gw.calls).toEqual([]);
       expect(await row(A1)).toMatchObject({ enabled: false, state: 'disconnected' });
     });
+    const JUST_PAID = 'This client has just paid. Refresh to see the latest status.';
+    const midCall = (set: Partial<typeof clientBilling.$inferInsert>) => {
+      const orig = gw.expireConnectedCheckout.bind(gw);
+      gw.expireConnectedCheckout = async (...a: Parameters<typeof orig>) => {
+        await dbs.owner.update(clientBilling).set(set).where(eq(clientBilling.clientId, A1));
+        return orig(...a);
+      };
+    };
+    const invitedRow = () => dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'invited', enabled: true, priceCents: 9900, stripePriceId: 'price_def', checkoutSessionId: 'cs_open' });
+    it('R27: refuses when a Checkout completes mid-disable', async () => {
+      await ready();
+      await invitedRow();
+      midCall({ state: 'active', stripeSubscriptionId: 'sub_new', enabled: true });
+      expect(await fails(call(admin, 'disable_client_billing', { clientId: A1, confirm: true }))).toMatchObject({ code: 'conflict', message: JUST_PAID });
+      expect(await row(A1)).toMatchObject({ state: 'active', enabled: true, stripeSubscriptionId: 'sub_new' });
+      expect(gw.callsTo('cancelConnectedSubscriptionAtPeriodEnd')).toEqual([]);
+    });
+    it('R27: processing (R16) completion mid-disable also refuses', async () => {
+      await ready();
+      await invitedRow();
+      midCall({ state: 'invited', stripeSubscriptionId: 'sub_new' });
+      expect(await fails(call(admin, 'disable_client_billing', { clientId: A1, confirm: true }))).toMatchObject({ code: 'conflict', message: JUST_PAID });
+      expect(await row(A1)).toMatchObject({ enabled: true, stripeSubscriptionId: 'sub_new' });
+      expect(gw.callsTo('cancelConnectedSubscriptionAtPeriodEnd')).toEqual([]);
+    });
+    it('R27: an active row whose tracked subscription is the one cancelled succeeds', async () => {
+      await ready();
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, stripeSubscriptionId: 'sub_9', stripeCustomerId: 'cus_9' });
+      gw.seedConnectedSubscription({ id: 'sub_9', stripeAccount: 'acct_1', customerId: 'cus_9' });
+      expect(await call(admin, 'disable_client_billing', { clientId: A1, confirm: true })).toMatchObject({ ok: true, state: 'active', cancelAtPeriodEnd: true });
+      expect(await row(A1)).toMatchObject({ enabled: false, state: 'active', stripeSubscriptionId: 'sub_9' });
+    });
+    it('R27: disconnected agency never refuses', async () => {
+      await ready({ status: 'disconnected', chargesEnabled: false });
+      await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, stripeSubscriptionId: 'sub_9' });
+      expect(await call(admin, 'disable_client_billing', { clientId: A1, confirm: true })).toMatchObject({ ok: true, cancelAtPeriodEnd: false });
+      expect(gw.calls).toEqual([]);
+      expect(await row(A1)).toMatchObject({ enabled: false });
+    });
     it('is idempotent', async () => {
       await ready();
       await call(admin, 'enable_client_billing', { clientId: A1 });

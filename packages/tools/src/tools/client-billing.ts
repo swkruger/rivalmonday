@@ -626,24 +626,29 @@ export const disableClientBillingTool = defineTool({
     const row = await billingRowOf(deps, c.id);
     if (!row) return { ok: true as const, state: 'off' as const, cancelAtPeriodEnd: false };
     let cancelAtPeriodEnd = false;
+    // After a disconnect Rival Monday no longer touches the agency's Stripe account: the change is local only.
+    const connect = await connectRowOf(deps, ctx.agencyId);
+    const live = !!connect?.stripeAccountId && connect.status !== 'disconnected';
+    // The subscription this call cancelled (set only after a successful cancel).
+    let cancelled: string | null = null;
     // R21: an invited row with a tracked subscription (first payment processing) is subscribed too.
-    if (row.enabled && isSubscribed(row)) {
-      // After a disconnect Rival Monday no longer touches the agency's Stripe account: the change is local only.
-      const connect = await connectRowOf(deps, ctx.agencyId);
-      if (connect?.stripeAccountId && connect.status !== 'disconnected') {
-        try {
-          await gw.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: connect.stripeAccountId, subscriptionId: row.stripeSubscriptionId! });
-        } catch (e) {
-          stripeFailed(ctx.agencyId, 'cancelConnectedSubscriptionAtPeriodEnd', e);
-        }
-        cancelAtPeriodEnd = true;
+    if (row.enabled && isSubscribed(row) && live) {
+      try {
+        await gw.cancelConnectedSubscriptionAtPeriodEnd({ stripeAccount: connect!.stripeAccountId!, subscriptionId: row.stripeSubscriptionId! });
+      } catch (e) {
+        stripeFailed(ctx.agencyId, 'cancelConnectedSubscriptionAtPeriodEnd', e);
       }
+      cancelled = row.stripeSubscriptionId;
+      cancelAtPeriodEnd = true;
     }
-    if (row.state === 'invited' && !row.stripeSubscriptionId) {
-      const connect = await connectRowOf(deps, ctx.agencyId);
-      if (connect?.stripeAccountId && connect.status !== 'disconnected') await expireQuietly(deps, ctx.agencyId, connect.stripeAccountId, row.checkoutSessionId);
-    }
-    const r = await deps.service.transaction((tx) => applyClientBillingSignal(tx, c.id, { type: 'disabled' }, ctx.userId));
+    if (row.state === 'invited' && !row.stripeSubscriptionId && live) await expireQuietly(deps, ctx.agencyId, connect!.stripeAccountId!, row.checkoutSessionId);
+    const r = await deps.service.transaction(async (tx) => {
+      const [cur] = await tx.select().from(clientBilling).where(eq(clientBilling.clientId, c.id)).for('update');
+      // R27 (7b2): a Checkout that completed after our read left a subscription this call did not cancel.
+      // Refuse and write nothing; the admin refreshes and disables again (which then cancels it).
+      if (cur && live && cur.enabled && isSubscribed(cur) && cur.stripeSubscriptionId !== cancelled) throw refuse('conflict', JUST_PAID_MESSAGE);
+      return applyClientBillingSignal(tx, c.id, { type: 'disabled' }, ctx.userId);
+    });
     return { ok: true as const, state: r.state ?? 'off', cancelAtPeriodEnd };
   },
 });
