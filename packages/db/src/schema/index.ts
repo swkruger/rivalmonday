@@ -14,6 +14,7 @@ export * from './ledger';
 export * from './mcp';
 export * from './model-ops';
 export * from './onboarding';
+export * from './ops';
 export * from './platform';
 export * from './support';
 export * from './platform-costs';

@@ -47,7 +47,7 @@ describe('row-level security', () => {
         tx.insert(client).values({ agencyId: IDS.agencyB, name: 'Sneaky', verticalId: 'dental' }),
       ),
     );
-    expect(text).toMatch(/row-level security/i);
+    expect(text).toMatch(/permission denied/i);
   });
 
   it('does not leak tenant settings to the next query on a pooled connection', async () => {

@@ -78,7 +78,7 @@ describe('privilege guard', () => {
     // check that nothing ever hands app_user that privilege.
     //
     // Allow-list, derived from the migrations:
-    //   client             INSERT/UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); never revoked.
+    //   client             UPDATE/DELETE — FOR ALL tenant-isolation policy (0001); INSERT revoked in 0094 (clients are created on the service connection).
     //   client_competitor  INSERT/DELETE — FOR ALL tenant-isolation policy (0001); UPDATE revoked in 0053 (pending_ad_matches is service-written).
     //   competitor_suggestion UPDATE only        — 0010 revokes INSERT/DELETE; 0011 revokes the table-wide
     //                                              UPDATE and re-grants UPDATE on just the `status` column,
@@ -112,7 +112,6 @@ describe('privilege guard', () => {
       { table: 'ask_thread', priv: 'INSERT' },
       { table: 'ask_thread', priv: 'UPDATE' },
       { table: 'client', priv: 'DELETE' },
-      { table: 'client', priv: 'INSERT' },
       { table: 'client', priv: 'UPDATE' },
       { table: 'client_competitor', priv: 'DELETE' },
       { table: 'client_competitor', priv: 'INSERT' },

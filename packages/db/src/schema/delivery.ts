@@ -158,6 +158,7 @@ export const notification = pgTable(
     unique('notification_dedupe_key_unique').on(t.dedupeKey),
     index('notification_due_idx').on(t.status, t.notBefore),
     index('notification_contact_idx').on(t.contactId, t.createdAt),
+    index('notification_provider_id_idx').on(t.providerId),
     clientFk(t),
     check('notification_channel_check', sql`channel IN ('in_app', 'email', 'slack', 'teams', 'sms')`),
     check('notification_status_check', sql`status IN ('pending', 'sending', 'sent', 'failed', 'skipped')`),

@@ -75,7 +75,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   review_revision: 'global_public',
   tracked_page: 'global_public',
 
-  // service_only (35)
+  // service_only (36)
   agency_billing: 'service_only',
   agency_billing_event: 'service_only',
   agency_connect: 'service_only',
@@ -102,6 +102,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   runbook: 'service_only',
   runbook_item: 'service_only',
   score_failure: 'service_only',
+  ops_alert: 'service_only',
   spend_guard_event: 'service_only',
   stage_run: 'service_only',
   stripe_connect_event: 'service_only',
