@@ -266,6 +266,12 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       if (!line) throw new Error(`Connected subscription ${i.subscriptionId} has no items`);
       await stripe.subscriptions.update(i.subscriptionId, { items: [{ id: line.id, price: i.priceId }], proration_behavior: 'none' }, opt);
     },
+    async pauseCollection(subscriptionId, o) {
+      await stripe.subscriptions.update(subscriptionId, { pause_collection: { behavior: 'void' } }, o?.stripeAccount ? { stripeAccount: o.stripeAccount } : undefined);
+    },
+    async resumeCollection(subscriptionId, o) {
+      await stripe.subscriptions.update(subscriptionId, { pause_collection: '' }, o?.stripeAccount ? { stripeAccount: o.stripeAccount } : undefined);
+    },
     async cancelConnectedSubscriptionAtPeriodEnd(i) {
       await stripe.subscriptions.update(i.subscriptionId, { cancel_at_period_end: true }, { stripeAccount: i.stripeAccount });
     },

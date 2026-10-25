@@ -1,4 +1,4 @@
-import { agencyBilling, agencyBillingEvent, plan, stripeEvent } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, plan, stripeEvent } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,6 +39,16 @@ describe('handleStripeEvent', () => {
     expect(await handle(ev('evt_1', 'checkout.session.completed', { subscription: 'sub_1' }))).toBe('processed');
     expect(await row()).toMatchObject({ state: 'active', stripeSubscriptionId: 'sub_1', planId: v2!.id, billableSeatsSynced: 5, lastStripeEventAt: new Date(T0 * 1000) });
     expect((await record('evt_1'))?.processedAt).not.toBeNull();
+  });
+
+  it('checkout on a held agency pauses the new subscription after commit; unheld does not (15c3a)', async () => {
+    await seed('trialing');
+    gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 1, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }] });
+    expect(await handle(ev('evt_a', 'checkout.session.completed', { subscription: 'sub_1' }))).toBe('processed');
+    expect(gw.callsTo('pauseCollection')).toHaveLength(0);
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
+    expect(await handle(ev('evt_b', 'checkout.session.completed', { subscription: 'sub_1' }, T0 + 5))).toBe('processed');
+    expect(gw.callsTo('pauseCollection')).toEqual([{ method: 'pauseCollection', args: ['sub_1', undefined] }]);
   });
 
   it('a stale checkout.session.completed still records subscription, plan and seats (R12)', async () => {

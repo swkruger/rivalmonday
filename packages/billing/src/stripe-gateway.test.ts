@@ -89,6 +89,18 @@ describe('stripeGateway', () => {
     expect(firstArg(c.checkout.sessions.create).line_items).toEqual([{ price: 'price_b', quantity: 1 }]);
   });
 
+  it('pauseCollection / resumeCollection send pause_collection and the Stripe-Account option only when given', async () => {
+    const c = mockClient();
+    await gw(c).pauseCollection('sub_1');
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { pause_collection: { behavior: 'void' } }, undefined);
+    await gw(c).pauseCollection('sub_1', { stripeAccount: 'acct_1' });
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { pause_collection: { behavior: 'void' } }, { stripeAccount: 'acct_1' });
+    await gw(c).resumeCollection('sub_1', { stripeAccount: 'acct_1' });
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { pause_collection: '' }, { stripeAccount: 'acct_1' });
+    await gw(c).resumeCollection('sub_1');
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { pause_collection: '' }, undefined);
+  });
+
   it('updateSeatQuantity adds the seat line when the subscription has none', async () => {
     const c = mockClient();
     const noSeat = { id: 'sub_1', items: { data: [{ id: 'si_b', quantity: 1, price: { id: 'price_b', metadata: { [PRICE_ROLE_KEY]: 'base' } } }] } };

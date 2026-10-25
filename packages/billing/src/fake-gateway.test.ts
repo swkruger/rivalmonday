@@ -108,4 +108,22 @@ describe('fakeGateway', () => {
     expect(gw.verifyWebhook(body, FAKE_WEBHOOK_SIGNATURE).id).toBe('evt_1');
     expect(() => gw.verifyWebhook(body, 'nope')).toThrow(InvalidSignature);
   });
+
+  it('pauseCollection / resumeCollection track state, check the target and honour per-subscription failures', async () => {
+    const gw = fakeGateway();
+    gw.seedSubscription({ id: 'sub_p', customerId: 'cus' });
+    gw.seedConnectedAccount({ id: 'acct_1' });
+    gw.seedConnectedSubscription({ id: 'sub_c', stripeAccount: 'acct_1', customerId: 'cus_c' });
+    await gw.pauseCollection('sub_p');
+    await gw.pauseCollection('sub_c', { stripeAccount: 'acct_1' });
+    expect([...gw.pausedCollection].sort()).toEqual(['sub_c', 'sub_p']);
+    await gw.resumeCollection('sub_p');
+    expect([...gw.pausedCollection]).toEqual(['sub_c']);
+    await expect(gw.pauseCollection('sub_none')).rejects.toMatchObject({ code: 'resource_missing' });
+    gw.failCollectionFor('sub_p');
+    await expect(gw.pauseCollection('sub_p')).rejects.toThrow();
+    gw.clearCollectionFailures();
+    await gw.pauseCollection('sub_p');
+    expect(gw.callsTo('pauseCollection')).toHaveLength(5);
+  });
 });

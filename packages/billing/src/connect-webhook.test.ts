@@ -160,6 +160,21 @@ describe('handleConnectEvent: checkout.session.completed', () => {
     expect(n[0]).toMatchObject({ kind: 'client-paid', audience: 'agency', clientId: IDS.clientA1, agencyId: IDS.agencyA });
   });
 
+  it('a held agency: the new subscription is paused on the connected account (15c3a)', async () => {
+    await invited();
+    sub();
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, IDS.agencyA));
+    expect(await handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1' }))).toBe('processed');
+    expect(gw.callsTo('pauseCollection')).toEqual([{ method: 'pauseCollection', args: ['sub_1', { stripeAccount: ACCT_A }] }]);
+  });
+
+  it('an unheld agency: no pauseCollection (15c3a)', async () => {
+    await invited();
+    sub();
+    await handle(ev('c1', 'checkout.session.completed', { id: 'cs_1', customer: 'cus_1', subscription: 'sub_1' }));
+    expect(gw.callsTo('pauseCollection')).toHaveLength(0);
+  });
+
   it('finds the client by client_reference_id when its session was since replaced, and expires the superseded session (R13c)', async () => {
     await invited({ checkoutSessionId: 'cs_new' });
     await dbs.owner.insert(billingNotice).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, audience: 'client', kind: 'client-payment-link', params: { checkoutUrl: 'x' }, dedupeKey: 'k1' });

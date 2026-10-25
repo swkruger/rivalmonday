@@ -52,6 +52,11 @@ export interface FakeGateway extends BillingGateway {
   seedInvoice(customerId: string, inv: Partial<GatewayInvoice> & { id: string }): GatewayInvoice;
   seedUpcoming(subscriptionId: string, upcoming: UpcomingInvoice | null): void;
   callsTo(method: string): FakeCall[];
+  /** Subscription ids (platform or connected) whose collection is currently paused. */
+  readonly pausedCollection: Set<string>;
+  /** `pauseCollection` / `resumeCollection` for this subscription id reject (sticky until `clearCollectionFailures`). */
+  failCollectionFor(subscriptionId: string, error?: Error): void;
+  clearCollectionFailures(): void;
 }
 
 export interface FakeGatewayOptions {
@@ -79,6 +84,8 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
   const connectedCharges = new Map<string, { id: string; stripeAccount: string; customerId: string | null }>();
   const connectedPortalConfigurations = new Map<string, { id: string; stripeAccount: string }>();
   let failure: Error | null = null;
+  const pausedCollection = new Set<string>();
+  const collectionFailures = new Map<string, Error>();
   /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
   const nid = (p: string) => `${p}_fake_${randomBytes(4).toString('hex')}`;
 
@@ -120,6 +127,13 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
     if (!p.active) throw Object.assign(new Error(`fake gateway: price ${id} is inactive`), { code: 'price_inactive' });
     return p;
   };
+  /** Pause/resume target check: the configured failure, then the subscription must exist (on the account, for Connect). */
+  const collectionSub = (id: string, acct?: string): void => {
+    const f = collectionFailures.get(id);
+    if (f) throw f;
+    if (acct) connectedSub(acct, id);
+    else sub(id);
+  };
   const seat = (s: GatewaySubscription) => s.items.find((i) => i.id.startsWith('si_seat'));
 
   const gw: FakeGateway = {
@@ -149,6 +163,9 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
     },
     failNext(error = new Error('fake gateway failure')) { failure = error; },
     callsTo: (m) => calls.filter((c) => c.method === m),
+    pausedCollection,
+    failCollectionFor(id, error = new Error('fake gateway collection failure')) { collectionFailures.set(id, error); },
+    clearCollectionFailures() { collectionFailures.clear(); },
     seedSubscription(p) {
       const s: GatewaySubscription = {
         status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: new Date(Date.now() + 30 * 864e5), trialEnd: null,
@@ -198,6 +215,16 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
         ],
       });
       return { url: `${i.successUrl}${i.successUrl.includes('?') ? '&' : '?'}fake_checkout=${subId}` };
+    },
+    async pauseCollection(id, o) {
+      enter('pauseCollection', id, o);
+      collectionSub(id, o?.stripeAccount);
+      pausedCollection.add(id);
+    },
+    async resumeCollection(id, o) {
+      enter('resumeCollection', id, o);
+      collectionSub(id, o?.stripeAccount);
+      pausedCollection.delete(id);
     },
     async createPortalSession(i) {
       enter('createPortalSession', i);

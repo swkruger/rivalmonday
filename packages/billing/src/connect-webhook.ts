@@ -5,6 +5,7 @@ import type { ClientBillingSignal } from './client-billing-state';
 import { resumeClient } from './client-pause';
 import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect, forgetConnectedAccount } from './connect-apply';
 import type { ConnectEventLike } from './connect-gateway-types';
+import { pauseIfHeld } from './hold';
 import { syncSeats } from './seats';
 import type { BillingGateway } from './types';
 import { LIVE_SUBSCRIPTION_STATUSES } from './webhook';
@@ -38,6 +39,8 @@ interface PostCommit {
   expireSession?: { account: string; sessionId: string };
   /** R23: a payment lifted an auto-pause, so the agency's 9a seat count changed. */
   syncSeatsFor?: string;
+  /** Phase 15c3a: a subscription created while the agency is on hold is paused (no-op for an unheld agency). */
+  pauseHeldFor?: { agencyId: string; subscriptionId: string; stripeAccount: string };
 }
 
 type Outcome = 'processed' | 'ignored';
@@ -111,6 +114,7 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
       // The price actually billed comes from Stripe, not from the event (or from what we last intended to charge).
       const sub = await gw.getConnectedSubscription({ stripeAccount: account, subscriptionId });
       if (!LIVE_SUBSCRIPTION_STATUSES.includes(sub.status)) return ignored(event, 'subscription_not_live');
+      post.pauseHeldFor = { agencyId, subscriptionId, stripeAccount: account };
       const [row] = await tx.select({ priceCents: clientBilling.priceCents }).from(clientBilling).where(eq(clientBilling.clientId, clientId));
       // Never record 0: with neither Stripe's amount nor the intended price the billed price is left as it was.
       const priceCents = sub.unitAmountCents ?? row?.priceCents ?? null;
@@ -195,6 +199,9 @@ export async function handleConnectEvent(db: Db, gw: BillingGateway, event: Conn
     // R23: the lifted client takes a seat again. Never throws; a failure sets seat_sync_pending for the daily job.
     await syncSeats(db, gw, post.syncSeatsFor).catch((e: unknown) =>
       console.error('[billing] seat sync after auto-pause lift failed', { agencyId: post.syncSeatsFor }, (e as { name?: string } | null)?.name));
+  }
+  if (post.pauseHeldFor) {
+    await pauseIfHeld(db, gw, post.pauseHeldFor.agencyId, post.pauseHeldFor.subscriptionId, { stripeAccount: post.pauseHeldFor.stripeAccount });
   }
   if (post.expireSession) {
     // R13c: the link the client did not use is superseded by the one they paid with. Best effort, after commit.

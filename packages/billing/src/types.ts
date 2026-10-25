@@ -152,5 +152,9 @@ export interface BillingGateway extends ConnectGateway {
   deactivatePromotionCode(id: string): Promise<void>;
   /** Replaces the subscription's discounts with this coupon (subscription-level discount). */
   attachSubscriptionDiscount(i: { subscriptionId: string; couponId: string }): Promise<void>;
+  /** Phase 15c3a: stops invoicing without cancelling (`pause_collection: { behavior: 'void' }`); `stripeAccount` targets a client's Connect subscription. */
+  pauseCollection(subscriptionId: string, o?: { stripeAccount?: string }): Promise<void>;
+  /** Undoes `pauseCollection` (`pause_collection: ''`). */
+  resumeCollection(subscriptionId: string, o?: { stripeAccount?: string }): Promise<void>;
   verifyWebhook(rawBody: string, signature: string): StripeEventLike;
 }
