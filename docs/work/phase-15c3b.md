@@ -13,9 +13,9 @@ Owner reviews the spec -> `superpowers:writing-plans` (lean) -> owner approval -
 No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan` (owner write); `create_plan_version.features`; `list_plans` gains `features`; `BillingGateway.swapSubscriptionPlan`; email `agency_plan_change`; `reconcile()` price-id drift check.
 
 ## Assumes from other branches
-- **phase-7b2** (executing, no migration): edits `packages/tools/src/tools/billing.ts` (`redeem_discount_code`), `access/signup-complete.ts` (`couponFor`), `packages/billing/src/index.ts` (+ `discount.ts`), `connect-*`, `billing-daily.ts`. It does not edit `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts`. Overlaps: `index.ts` exports (append-only), and `billing.ts` only if Q4 b/c. Second to merge rebases.
+- **phase-7b2** (executing, no migration): edits `packages/tools/src/tools/billing.ts` (`redeem_discount_code`), `access/signup-complete.ts` (`couponFor`), `packages/billing/src/index.ts` (+ `discount.ts`), `connect-*`, `billing-daily.ts`. It does not edit `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts`. Overlaps: `index.ts` exports (append-only); check whether its `billing-daily.ts` work touches `packages/billing/src/daily.ts` `reconcile()` (we add a price-id check). Second to merge rebases.
 - **phase-16** (docs only, code on hold): will restyle `/platform/billing` + `/platform/agencies/[id]` later. 16-onboarding removes the wizard `plan` step but leaves `trial.ts`/checkout alone. No overlap now.
-- Migration: main ends at 0094, so this branch takes **0095**.
+- Migration: none (private plans dropped).
 
 ## Decisions (owner-approved)
 2026-10-25: private/separate plans dropped (15c §5.5 replaced). P1 one sub-phase; P2 batch move by selection + single-agency Manage item; P3 new price from next billing date (no proration); P4 admins emailed. Design calls P5-P15 in the spec.
