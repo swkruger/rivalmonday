@@ -38,6 +38,8 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
 - **Subagents:** run focused tests in the foreground (`timeout: 600000`); **never hand back while a test run is still running**. On API timeouts, resume rather than restart.
 
+- Subagent Python edits can leave CRLF working copies; `git status` may then show files `M` with identical blobs (`git hash-object` = index). Check `git diff --quiet`; never commit them. In a fresh worktree `pnpm --filter @cs/web exec vitest` can say "not found": run `apps/web/node_modules/.bin/vitest`.
+
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
 
