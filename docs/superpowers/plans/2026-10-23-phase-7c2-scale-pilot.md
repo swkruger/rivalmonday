@@ -52,7 +52,7 @@
 - **7c1 (quality gates, no migrations):** SQL fixes for leaks its suites find move into this plan's Task 5 migration (owner-approved); a new tool needs an `ISOLATION_FIXTURES` entry (`get_feedback_contact`, Task 11) and a new table a `TABLE_CLASS` entry (`ops_alert: 'service_only'`, Task 5); if 7c1 is merged, add them in those tasks; if not, 7c1's pre-flight picks them up.
 - **7b2, 15c-2, 15b-3b, 15c-3, 13a:** 15c-2 moves `/platform/health` chips to `@cs/ui` `StatusChip` (use whichever exists); 13a touches `deps.ts`/`main.ts`/`turbo.json`/email sending; 15b-3b renames tools (no overlap here). Small hunks; the second to land rebases.
 - **Not in this plan:** the Launch gate (shell DB stages) and the live deploy (7a1 Task 12). **Staging must exist before this plan's Task 12** (owner, decision 19; Neon staging branch needs the prod Neon project, O17).
-- **Migrations:** one (`ops_alert` + hardening), number = next free at execution (main ends `0084`; 15c-3, 13a, 7b1 may claim first).
+- **Migrations:** one (`ops_alert` + hardening), number = next free at execution (T0 2026-10-25: main ends `0092`, so this branch claims `0093`; phase-16 adds none; 15c-3, 13a may claim first).
 
 ## Review focus
 1. **N pollers on one queue** — shared lazy singletons, a throwing handler on one poller, graceful stop waiting for all N, 7b1's deferral on every poller (Task 1 tests).
@@ -71,7 +71,7 @@
 - **Session state vs pooler:** `rg -n "pg_advisory_lock\(|set_config\([^)]*false\)|SET SESSION|\bLISTEN\b|\.prepare\(" packages apps --glob '!*.test.*'` must stay empty for worker paths (empty on 2026-10-23).
 - **`client` INSERT:** `rg -n "insert\(client\)" packages apps --glob '!*.test.*' --glob '!**/e2e/**' --glob '!packages/demo/**'` — today only `packages/tools/src/tools/onboarding.ts` (service tx). List tests inserting `client` as `app_user` (they move to the service/owner connection).
 - **Fetch sites:** `rg -n "AbortSignal.timeout" packages/ai/src packages/collectors/src/{vendors,rankings}` — expect `http.ts`, `dataforseo.ts:108`, `apify.ts:35`, `scrapecreators.ts:22`, `static-map.ts:38`.
-- **Cron schemas:** every `defineJob` with `cron` has a schema accepting `{ _cron: true }` (`z.looseObject`).
+- **Cron schemas:** every `defineJob` with `cron` has a schema accepting `{ _cron: true }` (`z.looseObject`). (T0 2026-10-25) All accept it, but `kb-embed` and `kb-sync` use `z.object` (zod 4 strips unknown keys), and `registerJobs` hands `runJob` the PARSED data: `_cron` would be lost there. Task 7: `registerJobs` passes `isCron: item.data?._cron === true` (raw data) to `runJob`, or change both schemas to `z.looseObject`; do not read `_cron` from parsed data.
 - **Concurrency safety:** read the handlers of the 12 raised queues and their `deps` methods for module-level mutable state (e.g. `warnedNoSalt`, caches); note any that needs a guard.
 - Conflict-scan every task's Files against `main` and in-flight branches.
 **Done when:** findings in `docs/work/phase-7c2.md`; plan edited where needed.
@@ -247,7 +247,7 @@ async renderOrDefer(url, opts = {}) {
 ```ts
 export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> {
   const clients = await db.select({ id: client.id, timezone: client.timezone }).from(client)
-    .where(and(clientServiceable(client), agencyServiceable(client.agencyId)));   // 7b1: clientWorkAllowed(client)
+    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));   // already so on main (7b1 merged)
   const ids: string[] = [], dates: string[] = [];
   for (const c of clients) {                       // tz math stays in JS: SQL AT TIME ZONE throws on bad zones
     const tz = safeTimezone(c.timezone);
@@ -275,7 +275,7 @@ export async function listBriefDueClients(db: Db, now: Date): Promise<string[]> 
 
 ### Task 5: Migration — `ops_alert` + hardening
 **Goal:** The service-only alert table, `client` INSERT closed for `app_user`, `notification.provider_id` index.
-**Files:** create `packages/db/migrations/<next>_ops_alert.sql` (plain `generate --name=ops_alert` for the table/index, then a `--custom` statement block for RLS/grants per `packages/db/CLAUDE.md`), `packages/db/src/schema/ops.ts`; modify `packages/db/src/schema/index.ts`, `packages/db/src/schema/delivery.ts` (index), the privilege guard test (`packages/db/src/evidence.test.ts` "app_user has exactly the … allow-list": drop `client` INSERT), tests that insert `client` as `app_user`; create `packages/db/src/ops-alert.test.ts`. If 7c1 is merged: `TABLE_CLASS.ops_alert = 'service_only'`.
+**Files:** create `packages/db/migrations/<next>_ops_alert.sql` (plain `generate --name=ops_alert` for the table/index, then a `--custom` statement block for RLS/grants per `packages/db/CLAUDE.md`), `packages/db/src/schema/ops.ts`; modify `packages/db/src/schema/index.ts`, `packages/db/src/schema/delivery.ts` (index), the privilege guard test (`packages/db/src/evidence.test.ts` "app_user has exactly the … allow-list": drop `client` INSERT), tests that insert `client` as `app_user` (T0 2026-10-25: only `packages/db/src/tenant.test.ts:47` "cannot write rows into another agency" — expects `/row-level security/`, becomes `/permission denied/`; the rls-sweep `REFUSED` regex already accepts both; also fix the `client INSERT/UPDATE/DELETE ... never revoked` comment in `evidence.test.ts:81`); create `packages/db/src/ops-alert.test.ts`. If 7c1 is merged: `TABLE_CLASS.ops_alert = 'service_only'`.
 **Interfaces:** `opsAlert` table — `id uuid pk defaultRandom`, `kind text not null check (kind in ('brief_readiness'))`, `dedupe_key text not null unique`, `severity text not null check in ('warning','critical')`, `summary jsonb not null default '{}'`, `first_seen_at timestamptz not null default now()`, `last_seen_at timestamptz not null default now()`, `emailed_at timestamptz`, `resolved_at timestamptz`. Types `OpsAlert`, `OpsAlertSeverity`.
 **SQL (RLS/grants part):**
 ```sql
