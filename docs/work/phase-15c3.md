@@ -1,13 +1,13 @@
 # phase-15c3 — agency management on `/platform/agencies/<id>`
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3   **Base:** main @ e31e1255
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (awaiting owner review) · mockups `docs/design-system/mockups/agency-management/` (approved); plan to be written.
+**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (owner-approved 2026-10-25) · [15c-3a plan](../superpowers/plans/2026-10-25-phase-15c3a-agency-management.md) (awaiting approval) · mockups `docs/design-system/mockups/agency-management/` (approved).
 
 ## Status (overwrite)
 2026-10-25: kickoff, open questions answered, mockups approved, 15c-3a spec drafted + builder-checked. Nothing built.
 
 ## Next (overwrite)
-Owner reviews the 15c-3a spec → writing-plans (lean) → approval → SDD. 15c-3b (plans, §5.5) gets its own spec/plan after 3a merges.
+Owner approves the 15c-3a plan → Task 0 pre-flight → SDD. 15c-3b (plans, §5.5) gets its own spec/plan after 3a merges.
 
 ## Interfaces this branch adds or changes
 Per 15c spec §5: migration (next free) `agency.suspended_at/_reason/_by`, `plan.visibility`; 13 platform tools (§5.1–5.5); `BillingGateway` += `pauseCollection`/`resumeCollection`/`swapSubscriptionPlan`; `billingAccess().onHold`; `agencyServiceable` excludes held agencies.
