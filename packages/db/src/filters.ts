@@ -3,11 +3,11 @@ import { client } from './schema/tenancy';
 
 /**
  * Phase 9a (P2): true when the agency may be serviced by worker schedulers. An agency without an
- * `agency_billing` row is serviceable; `read_only` and `suspended` are not, nor is an archived agency (7a2 D16). Pass the agency id column (or a raw `sql` fragment such as `sql.raw('cl.agency_id')` inside hand-written aliased SQL).
+ * `agency_billing` row is serviceable; `read_only` and `suspended` are not, nor is an archived (7a2 D16) or held (15c3a, `suspended_at`) agency. Pass the agency id column (or a raw `sql` fragment such as `sql.raw('cl.agency_id')` inside hand-written aliased SQL).
  */
 export function agencyServiceable(agencyIdCol: AnyColumn | SQL): SQL {
   return sql`(NOT EXISTS (SELECT 1 FROM agency_billing ab WHERE ab.agency_id = ${agencyIdCol} AND ab.state IN ('read_only', 'suspended'))
-    AND NOT EXISTS (SELECT 1 FROM agency ax WHERE ax.id = ${agencyIdCol} AND ax.archived_at IS NOT NULL))`;
+    AND NOT EXISTS (SELECT 1 FROM agency ax WHERE ax.id = ${agencyIdCol} AND (ax.archived_at IS NOT NULL OR ax.suspended_at IS NOT NULL)))`;
 }
 
 /**

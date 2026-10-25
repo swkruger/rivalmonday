@@ -1,9 +1,9 @@
-import { ToolError } from '@cs/core';
-import { agencyBilling, agencyOnboarding, client } from '@cs/db';
+import { DEFAULT_SUPPORT_EMAIL, ToolError } from '@cs/core';
+import { agency, agencyBilling, agencyOnboarding, client } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { assertCanActivateClient, billingAccess, countActiveClients } from './access';
+import { ACCOUNT_NEEDS_ATTENTION_MESSAGE, HOLD_MESSAGE, assertCanActivateClient, billingAccess, countActiveClients, holdMessage, isOnHold } from './access';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
 const dbs = openTestDbs();
@@ -26,7 +26,7 @@ describe('billingAccess', () => {
   it('treats a missing row as a non-exempt pilot using the current standard plan', async () => {
     expect(await billingAccess(dbs.service, AGENCY)).toEqual({
       state: 'pilot', canAddActiveClient: true, readOnly: false, suspended: false, activeClients: 2, includedSeats: 3, seatCapExempt: false,
-      reducedTrial: false, maxActiveClients: 3,
+      reducedTrial: false, maxActiveClients: 3, onHold: false,
     });
     await addClients(dbs.owner, 1);
     expect((await billingAccess(dbs.service, AGENCY)).canAddActiveClient).toBe(false);
@@ -211,5 +211,34 @@ describe('reduced trial allowance (phase 10 f12)', () => {
     await attempt(); // 2 of 3
     await addClients(dbs.owner, 1);
     expect(await refusal(attempt())).toBe("You've used your 3 included clients. Upgrade to add more.");
+  });
+});
+
+describe('agency hold (phase 15c3a)', () => {
+  const hold = (id = AGENCY) =>
+    dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, id));
+
+  it('onHold: held + Stripe active -> readOnly, not suspended', async () => {
+    await setBilling(dbs.owner, planId, { state: 'active' });
+    await hold();
+    expect(await isOnHold(dbs.service, AGENCY)).toBe(true);
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ onHold: true, readOnly: true, suspended: false, state: 'active' });
+  });
+
+  it('onHold: not held -> false', async () => {
+    await setBilling(dbs.owner, planId, { state: 'active' });
+    expect(await isOnHold(dbs.service, AGENCY)).toBe(false);
+    expect(await billingAccess(dbs.service, AGENCY)).toMatchObject({ onHold: false, readOnly: false });
+  });
+
+  it('holdMessage: agency staff get the hold copy, everyone else the generic one', () => {
+    const exact = HOLD_MESSAGE('support@rivalmonday.app');
+    expect(DEFAULT_SUPPORT_EMAIL).toBe('support@rivalmonday.app');
+    expect(exact).toBe('This account is on hold. Contact support@rivalmonday.app to restore it.');
+    expect(holdMessage('agency_admin')).toBe(exact);
+    expect(holdMessage('account_manager')).toBe(exact);
+    expect(holdMessage('client_owner')).toBe(ACCOUNT_NEEDS_ATTENTION_MESSAGE);
+    expect(holdMessage('client_viewer')).toBe(ACCOUNT_NEEDS_ATTENTION_MESSAGE);
+    expect(holdMessage('agency_admin', 'help@x.co')).toBe(HOLD_MESSAGE('help@x.co'));
   });
 });

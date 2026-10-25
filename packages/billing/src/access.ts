@@ -1,4 +1,4 @@
-import { ToolError } from '@cs/core';
+import { DEFAULT_SUPPORT_EMAIL, ToolError } from '@cs/core';
 import { type AgencyBillingRow, type BillingState, type Db, type PlanRow, type Tx, agency, agencyBilling, agencyOnboarding, client, clientServiceable, plan } from '@cs/db';
 import { and, count, eq } from 'drizzle-orm';
 
@@ -19,6 +19,8 @@ export interface BillingAccess {
   reducedTrial: boolean;
   /** The active-client cap the decision uses: `TRIAL_ACTIVE_CLIENTS` when `reducedTrial`, else the plan's included seats. */
   maxActiveClients: number;
+  /** Phase 15c3a: platform staff put the agency on hold (`agency.suspended_at`); implies `readOnly`. */
+  onHold: boolean;
 }
 
 /** Phase 10 f12: active clients an open sign-up may monitor while trialing. */
@@ -82,27 +84,41 @@ function decide(row: AgencyBillingRow | null, activeClients: number, maxActiveCl
   }
 }
 
+/** Phase 15c3a: true when platform staff hold the agency (`agency.suspended_at IS NOT NULL`). */
+export async function isOnHold(db: BillingDb, agencyId: string): Promise<boolean> {
+  const [a] = await db.select({ suspendedAt: agency.suspendedAt }).from(agency).where(eq(agency.id, agencyId));
+  return a?.suspendedAt != null;
+}
+
 /** Read-only view of what the agency may do (a missing row counts as a non-exempt pilot). */
 export async function billingAccess(db: BillingDb, agencyId: string, now: Date = new Date()): Promise<BillingAccess> {
   const [row = null] = await db.select().from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
   const { reducedTrial, includedSeats, maxActiveClients, activeClients } = await allowanceFor(db, agencyId, row);
   const state: BillingState = row?.state ?? 'pilot';
+  const onHold = await isOnHold(db, agencyId);
   return {
     state,
     canAddActiveClient: decide(row, activeClients, maxActiveClients, now).ok,
-    readOnly: state === 'read_only',
+    readOnly: state === 'read_only' || onHold,
     suspended: state === 'suspended',
     activeClients,
     includedSeats,
     seatCapExempt: row?.seatCapExempt ?? false,
     reducedTrial,
     maxActiveClients,
+    onHold,
   };
 }
 
 export const PAYMENT_NEEDED_MESSAGE = 'Payment needed — update your payment method to add clients.';
 /** R28: refused-state copy for agency staff who cannot fix billing (only the admin sees payment words). */
 export const ACCOUNT_NEEDS_ATTENTION_MESSAGE = "Your agency's account needs attention.";
+/** Phase 15c3a: the hold copy shown to agency admins / account managers. */
+export const HOLD_MESSAGE = (supportEmail: string) => `This account is on hold. Contact ${supportEmail} to restore it.`;
+/** Agency staff see the hold copy; every other role (client roles, contacts) the generic needs-attention line. */
+export function holdMessage(role: string, supportEmail?: string): string {
+  return role === 'agency_admin' || role === 'account_manager' ? HOLD_MESSAGE(supportEmail ?? DEFAULT_SUPPORT_EMAIL) : ACCOUNT_NEEDS_ATTENTION_MESSAGE;
+}
 const refusedStateMessage = (role: string | undefined) => (role === undefined || role === 'agency_admin' ? PAYMENT_NEEDED_MESSAGE : ACCOUNT_NEEDS_ATTENTION_MESSAGE);
 export const seatLimitMessage = (includedSeats: number) => `You've used your ${includedSeats} included clients. Upgrade to add more.`;
 /** Phase 10 f12 (R7): the reduced-trial cap copy (decided; with the standard plan: "…monitor up to 3."). */

@@ -95,6 +95,22 @@ describe('agencyServiceable', () => {
     const ids = await serviceable();
     expect(ids.includes(IDS.agencyA)).toBe(ok);
   });
+
+  it('excludes a held agency, includes an unheld one, still excludes archived (phase 15c3a)', async () => {
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, IDS.agencyA));
+    const held = await serviceable();
+    expect(held).not.toContain(IDS.agencyA);
+    expect(held).toContain(IDS.agencyB);
+    await dbs.owner.update(agency).set({ suspendedAt: null, suspendedReason: null, suspendedBy: null }).where(eq(agency.id, IDS.agencyA));
+    expect(await serviceable()).toContain(IDS.agencyA);
+    await dbs.owner.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyA));
+    expect(await serviceable()).not.toContain(IDS.agencyA);
+  });
+
+  it('agency_suspended_consistent refuses suspended_at without a reason or actor', async () => {
+    const text = await errorText(dbs.owner.update(agency).set({ suspendedAt: new Date() }).where(eq(agency.id, IDS.agencyA)));
+    expect(text).toContain('agency_suspended_consistent');
+  });
 });
 
 describe('agencyReducedTrial (phase 10 f12)', () => {

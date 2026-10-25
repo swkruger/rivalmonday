@@ -5,7 +5,7 @@ import {
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
-import type { AiGuard, CallScope, CaptureStatus } from '@cs/core';
+import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope, type CaptureStatus } from '@cs/core';
 import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
@@ -38,7 +38,7 @@ export type OnboardingEmail =
   | { template: 'onboarding_tip'; props: Omit<OnboardingTipProps, 'branding' | 'unsubscribeUrl'> };
 
 /** Phase 10 (R12): Reply-To of every sign-up lifecycle email. */
-export const DEFAULT_SUPPORT_REPLY_TO = 'support@rivalmonday.app';
+export const DEFAULT_SUPPORT_REPLY_TO = DEFAULT_SUPPORT_EMAIL;
 
 export interface BillingEmailSender {
   /** APP_URL without a trailing slash. */

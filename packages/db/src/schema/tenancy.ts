@@ -31,8 +31,16 @@ export const agency = pgTable('agency', {
   notifySupportAccess: boolean('notify_support_access').notNull().default(false),
   /** Phase 7a2: archived (hidden, no work) — purged 30 days later. Service role only. */
   archivedAt: timestamp('archived_at', { withTimezone: true }),
+  /** Phase 15c3a: platform-staff hold (read-only, billing frozen). All three set or all null. Service role only. */
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+  suspendedReason: text('suspended_reason'),
+  /** Better Auth user id of the staff member who set the hold. */
+  suspendedBy: text('suspended_by'),
   createdAt: createdAt(),
-});
+}, (t) => [
+  check('agency_suspended_reason_len', sql`${t.suspendedReason} IS NULL OR char_length(${t.suspendedReason}) BETWEEN 3 AND 500`),
+  check('agency_suspended_consistent', sql`(${t.suspendedAt} IS NULL) = (${t.suspendedReason} IS NULL) AND (${t.suspendedAt} IS NULL) = (${t.suspendedBy} IS NULL)`),
+]);
 
 export const client = pgTable(
   'client',
