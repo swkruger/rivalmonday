@@ -1,6 +1,6 @@
 import { type AuditEvent, createAccessContext } from '@cs/core';
 import { hashInput } from '@cs/core/server';
-import { agency, agencyBilling, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
+import { agency, agencyBilling, agencyBillingEvent, clientBilling, agencyDailyStat, auditLog, brief, client, llmCall, membership, platformAdmin, platformAuditLog, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -26,7 +26,7 @@ const DAY = 86_400_000;
 const now = () => new Date();
 const today = () => utcDay(now());
 const ago = (days: number) => new Date(Date.now() - days * DAY);
-const ROW_KEYS = ['agencySeats', 'billingState', 'clientSeats', 'clientsActive', 'clientsProspect', 'createdAt', 'health', 'id', 'lastActivityAt', 'name', 'spendMonthUsd', 'wau'];
+const ROW_KEYS = ['agencySeats', 'archivedAt', 'billingState', 'clientSeats', 'clientsActive', 'clientsProspect', 'createdAt', 'health', 'id', 'lastActivityAt', 'name', 'onHold', 'spendMonthUsd', 'wau'];
 
 type Tile = { value: number; delta28d: number | null };
 type Overview = { tiles: Record<'agencies' | 'clientsActive' | 'seats' | 'wau' | 'spendMonthUsd', Tile>; series: Record<string, unknown>[] };
@@ -89,7 +89,7 @@ describe('platform console tools: access', () => {
 
 describe('list_platform_agencies', () => {
   it('empty platform → rows: []', async () => {
-    expect(await registry.invoke(op, 'list_platform_agencies', {})).toEqual({ rows: [], nextCursor: null, prevCursor: null });
+    expect(await registry.invoke(op, 'list_platform_agencies', {})).toEqual({ rows: [], nextCursor: null, prevCursor: null, counts: { onHold: 0, archived: 0 } });
   });
 
   it('rows carry exactly the allow-listed keys, live figures and a health flag', async () => {
@@ -120,7 +120,8 @@ describe('list_platform_agencies', () => {
     expect(r.rows[0]).toMatchObject({ clientsActive: 1, clientsProspect: 0 });
     const overview = (await registry.invoke(op, 'platform_overview', { range: '12w' })) as Overview;
     expect(overview.tiles.agencies.value).toBe(1);
-    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyB, range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
+    const archivedOne = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyB, range: '12w' })) as { archivedAt: string | null };
+    expect(archivedOne.archivedAt).not.toBeNull();
     const one = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })) as { clients: { id: string }[] };
     expect(one.clients.map((c) => c.id)).toEqual([IDS.clientA1]);
     const feed = (await registry.invoke(op, 'list_platform_activity', {})) as { items: { agencyId: string; clientName?: string }[] };
@@ -161,7 +162,7 @@ describe('list_platform_agencies', () => {
     expect(first.rows.map((x) => x.name)).toEqual(['Agency C', 'Agency B']);
     expect(first.nextCursor).not.toBeNull();
     const second = (await registry.invoke(op, 'list_platform_agencies', { sort: 'name', dir: 'desc', limit: 2, cursor: first.nextCursor })) as AgencyList;
-    expect(second).toEqual({ rows: [expect.objectContaining({ name: 'Agency A' })], nextCursor: null, prevCursor: encodeCursor(0) });
+    expect(second).toEqual({ rows: [expect.objectContaining({ name: 'Agency A' })], nextCursor: null, prevCursor: encodeCursor(0), counts: { onHold: 0, archived: 0 } });
     expect(first.prevCursor).toBeNull();
     await expect(registry.invoke(op, 'list_platform_agencies', { limit: 101 })).rejects.toMatchObject({ code: 'invalid_input' });
   });
@@ -246,6 +247,63 @@ describe('platform console audit', () => {
 type Detail = { agency: Record<string, unknown>; tiles: Record<string, Tile>; series: Record<string, unknown>[]; team: Record<string, number>; clients: Record<string, unknown>[] };
 type Activity = { items: { at: string; kind: string; agencyId: string; agencyName: string; clientName?: string }[]; nextCursor: string | null };
 const RANDOM = '00000000-0000-4000-8000-0000000000ff';
+
+describe('status filter, counts and hold/archive detail (15c-3a)', () => {
+  type Counts = { counts: { onHold: number; archived: number } };
+  const list = async (input: Record<string, unknown> = {}) => (await registry.invoke(op, 'list_platform_agencies', input)) as AgencyList & Counts;
+  async function seedStates() {
+    await seedPlatform();
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'Unpaid invoice', suspendedBy: 'staff' }).where(eq(agency.id, IDS.agencyA));
+    await dbs.owner.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyB));
+    await dbs.owner.insert(agency).values({ id: '00000000-0000-4000-8000-0000000000c1', name: 'Plain Co' });
+  }
+
+  it('filters by status; counts ignore status', async () => {
+    await seedStates();
+    const active = await list();
+    expect(active.rows.map((r) => r.id).sort()).toEqual([IDS.agencyA, '00000000-0000-4000-8000-0000000000c1'].sort());
+    expect(active.rows.find((r) => r.id === IDS.agencyA)).toMatchObject({ onHold: true, archivedAt: null });
+    expect((await list({ status: 'on_hold' })).rows.map((r) => r.id)).toEqual([IDS.agencyA]);
+    const arch = await list({ status: 'archived' });
+    expect(arch.rows.map((r) => r.id)).toEqual([IDS.agencyB]);
+    expect(arch.rows[0]).toMatchObject({ onHold: false, archivedAt: expect.any(String) });
+    expect((await list({ status: 'all' })).rows).toHaveLength(3);
+    for (const status of ['active', 'on_hold', 'archived', 'all']) expect((await list({ status })).counts).toEqual({ onHold: 1, archived: 1 });
+  });
+
+  it('pages with a cursor within a status', async () => {
+    await seedStates();
+    const p1 = await list({ status: 'all', sort: 'name', limit: 2 });
+    expect(p1.rows).toHaveLength(2);
+    const p2 = await list({ status: 'all', sort: 'name', limit: 2, cursor: p1.nextCursor });
+    expect(p2.rows).toHaveLength(1);
+  });
+
+  it('detail of a held agency: hold, billing issue, archive blockers', async () => {
+    await seedStates();
+    await dbs.owner.update(agency).set({ suspendedBy: 'op' }).where(eq(agency.id, IDS.agencyA));
+    await dbs.owner.execute(sql`update auth."user" set name = 'Olive Operator' where id = 'op'`);
+    await dbs.owner.insert(agencyBillingEvent).values({ agencyId: IDS.agencyA, toState: 'pilot', reason: 'admin_hold_billing_failed', actor: 'test' });
+    await dbs.owner.insert(clientBilling).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, enabled: true, state: 'active', stripeSubscriptionId: 'sub_x' });
+    const d = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyA, range: '12w' })) as Record<string, any>;
+    expect(d.hold).toMatchObject({ reason: 'Unpaid invoice', byName: 'Olive Operator' });
+    expect(typeof d.hold.since).toBe('string');
+    expect(d.holdBillingIssue).toBe('pause');
+    expect(d.archivedAt).toBeNull();
+    expect(d.tiles).not.toBeNull();
+    expect(d.archiveBlockers).toEqual({ agencyPlan: false, clientSubscriptions: 1 });
+  });
+
+  it('detail of an archived agency: null health/tiles/series, team and clients still returned', async () => {
+    await seedStates();
+    const d = (await registry.invoke(op, 'get_platform_agency', { agencyId: IDS.agencyB, range: '12w' })) as Record<string, any>;
+    expect(d.archivedAt).toEqual(expect.any(String));
+    expect([d.agency.health, d.tiles, d.series, d.hold]).toEqual([null, null, null, null]);
+    expect(d.clients.map((c: { id: string }) => c.id)).toContain(IDS.clientB1);
+    expect(d.team).toEqual(expect.objectContaining({ agencyAdmin: expect.any(Number) }));
+    await expect(registry.invoke(op, 'get_platform_agency', { agencyId: RANDOM, range: '12w' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
 
 describe('get_platform_agency', () => {
   it('unknown or malformed agencyId → not_found (audited on the platform log, no FK error)', async () => {

@@ -1,3 +1,4 @@
+import { holdBillingIssue } from '@cs/billing';
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyDailyStat, BILLING_STATES, auditLog, brief, client, membership, supportSession } from '@cs/db';
 import { and, eq, gte, inArray, isNull, lte, type SQL, sql } from 'drizzle-orm';
@@ -5,6 +6,8 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { requirePlatformOperator } from '../platform';
+import { liveBilling } from '../platform/archive';
+import { requireAgency } from './platform-billing';
 import { ACTIVATION_TOOLS } from './prospects';
 import { withPlatformAudit } from '../platform/audit';
 import { type AgencyHealth, healthFlag } from '../platform/health';
@@ -51,6 +54,8 @@ export interface LiveAgency {
   lastBriefSentAt: Date | null;
   spendMonthUsd: number;
   clientsActive28dAgo: number | null;
+  suspendedAt: string | null;
+  archivedAt: string | null;
 }
 
 type LiveRow = {
@@ -67,9 +72,12 @@ type LiveRow = {
   last_brief_sent_at: string | Date | null;
   spend_month_usd: string;
   clients_active_28d: number | null;
+  suspended_at: string | Date | null;
+  archived_at: string | Date | null;
 };
 
 const dateOrNull = (v: string | Date | null): Date | null => (v === null ? null : new Date(v));
+const isoOrNull = (v: string | Date | null): string | null => (v === null ? null : new Date(v).toISOString());
 const monthStartOf = (day: string) => `${day.slice(0, 7)}-01`;
 
 /**
@@ -77,18 +85,22 @@ const monthStartOf = (day: string) => `${day.slice(0, 7)}-01`;
  * active = status 'active'; seats = distinct users per role group; wau = distinct members with a session in
  * [today−6 00:00Z, now]; spend = agency-attributed llm_call + vendor_call since the UTC month start.
  */
-export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, agencyId?: string, o: { nameLike?: string } = {}): Promise<LiveAgency[]> {
+export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, agencyId?: string, o: { nameLike?: string; archived?: 'exclude' | 'only' | 'include'; onHoldOnly?: boolean } = {}): Promise<LiveAgency[]> {
   const today = utcDay(now);
   const weekStart = sql`${`${addDays(today, -6)}T00:00:00.000Z`}::timestamptz`;
   const monthStart = sql`${`${monthStartOf(today)}T00:00:00.000Z`}::timestamptz`;
   const d28 = addDays(today, -28);
   const members = sql`(select m.user_id from membership m where m.agency_id = a.id)`;
   const staff = sql`(select m.user_id from membership m where m.agency_id = a.id and m.role in ${AGENCY_ROLES})`;
-  // 7a2 D16: archived agencies and clients are deleted for the console.
-  const filters: SQL[] = [sql`a.archived_at is null`];
+  // 7a2 D16: archived agencies are deleted for the console unless a caller asks for them (15c-3a: status filter, detail read).
+  const filters: SQL[] = [];
+  const archived = o.archived ?? 'exclude';
+  if (archived === 'exclude') filters.push(sql`a.archived_at is null`);
+  if (archived === 'only') filters.push(sql`a.archived_at is not null`);
+  if (o.onHoldOnly) filters.push(sql`a.suspended_at is not null`);
   if (agencyId) filters.push(sql`a.id = ${agencyId}`);
   if (o.nameLike) filters.push(sql`a.name ilike '%' || ${o.nameLike} || '%' escape '\\'`);
-  const where: SQL = sql`where ${sql.join(filters, sql` and `)}`;
+  const where: SQL = filters.length ? sql`where ${sql.join(filters, sql` and `)}` : sql``;
   const rows = [
     ...(await deps.service.execute<LiveRow>(sql`
       select a.id, a.name, a.created_at,
@@ -104,7 +116,8 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
           (select coalesce(sum(cost_usd), 0) from llm_call where agency_id = a.id and created_at >= ${monthStart})
           + (select coalesce(sum(cost_usd), 0) from vendor_call where agency_id = a.id and created_at >= ${monthStart})
         )::numeric, 4)::text as spend_month_usd,
-        (select d.clients_active from agency_daily_stat d where d.agency_id = a.id and d.day = ${d28}::date) as clients_active_28d
+        (select d.clients_active from agency_daily_stat d where d.agency_id = a.id and d.day = ${d28}::date) as clients_active_28d,
+        a.suspended_at, a.archived_at
       from agency a ${where}`)),
   ];
   return rows.map((r) => ({
@@ -121,6 +134,8 @@ export async function liveAgencies(deps: Pick<ToolDeps, 'service'>, now: Date, a
     lastBriefSentAt: dateOrNull(r.last_brief_sent_at),
     spendMonthUsd: Number(r.spend_month_usd),
     clientsActive28dAgo: r.clients_active_28d,
+    suspendedAt: isoOrNull(r.suspended_at),
+    archivedAt: isoOrNull(r.archived_at),
   }));
 }
 
@@ -191,7 +206,7 @@ export const platformOverview = defineTool({
 
 const SORTS = ['name', 'created', 'clients', 'wau', 'lastActivity', 'spend', 'health'] as const;
 type Sort = (typeof SORTS)[number];
-type ListRow = { id: string; name: string; createdAt: Date; clientsActive: number; clientsProspect: number; agencySeats: number; clientSeats: number; wau: number | null; lastActivityAt: Date | null; spendMonthUsd: number; health: AgencyHealth; billingState: (typeof BILLING_STATES)[number] };
+type ListRow = { id: string; name: string; createdAt: Date; clientsActive: number; clientsProspect: number; agencySeats: number; clientSeats: number; wau: number | null; lastActivityAt: Date | null; spendMonthUsd: number; health: AgencyHealth; billingState: (typeof BILLING_STATES)[number]; onHold: boolean; archivedAt: string | null };
 
 const SORT_KEY: Record<Sort, (r: ListRow) => number | string | null> = {
   name: (r) => r.name.toLowerCase(),
@@ -236,6 +251,7 @@ export const listPlatformAgencies = defineTool({
     cursor: z.string().max(200).optional(),
     limit: z.number().int().min(1).max(100).optional(),
     query: z.string().max(100).optional(),
+    status: z.enum(['active', 'on_hold', 'archived', 'all']).optional(),
   }),
   output: z.object({
     rows: z.array(z.object({
@@ -251,7 +267,10 @@ export const listPlatformAgencies = defineTool({
       spendMonthUsd: z.number(),
       health: HealthEnum,
       billingState: z.enum(BILLING_STATES),
+      onHold: z.boolean(),
+      archivedAt: z.string().nullable(),
     })),
+    counts: z.object({ onHold: z.number().int(), archived: z.number().int() }),
     nextCursor: z.string().nullable(),
     prevCursor: z.string().nullable(),
   }),
@@ -264,15 +283,25 @@ export const listPlatformAgencies = defineTool({
       const sort = input.sort ?? 'name';
       const dir = input.dir ?? (sort === 'name' || sort === 'health' ? 'asc' : 'desc');
       const now = new Date();
-      const [lives, states] = await Promise.all([
-        liveAgencies(deps, now, undefined, { nameLike: nameLikeOf(input.query) }),
+      const status = input.status ?? 'active';
+      const [lives, states, [cnt]] = await Promise.all([
+        liveAgencies(deps, now, undefined, {
+          nameLike: nameLikeOf(input.query),
+          archived: status === 'archived' ? 'only' : status === 'all' ? 'include' : 'exclude',
+          onHoldOnly: status === 'on_hold',
+        }),
         deps.service.select({ id: agencyBilling.agencyId, state: agencyBilling.state }).from(agencyBilling),
+        deps.service.select({
+          onHold: sql<number>`count(*) filter (where ${agency.suspendedAt} is not null and ${agency.archivedAt} is null)::int`,
+          archived: sql<number>`count(*) filter (where ${agency.archivedAt} is not null)::int`,
+        }).from(agency),
       ]);
       const stateOf = new Map(states.map((r) => [r.id, r.state]));
       const all: ListRow[] = lives.map((a) => ({
         id: a.id, name: a.name, createdAt: a.createdAt, clientsActive: a.clientsActive, clientsProspect: a.clientsProspect,
         agencySeats: a.agencySeats, clientSeats: a.clientSeats, wau: a.wau, lastActivityAt: a.lastActivityAt,
         spendMonthUsd: a.spendMonthUsd, health: healthOf(a, now), billingState: stateOf.get(a.id) ?? 'pilot',
+        onHold: a.suspendedAt !== null && a.archivedAt === null, archivedAt: a.archivedAt,
       }));
       all.sort(compareRows(sort, dir));
       const page = pageResult(all.slice(offset, offset + limit + 1), limit, offset);
@@ -280,6 +309,7 @@ export const listPlatformAgencies = defineTool({
         rows: page.rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), lastActivityAt: r.lastActivityAt?.toISOString() ?? null })),
         nextCursor: page.nextCursor,
         prevCursor: prevCursorOf(offset, limit),
+        counts: { onHold: cnt?.onHold ?? 0, archived: cnt?.archived ?? 0 },
       };
     });
   },
@@ -292,12 +322,16 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const getPlatformAgency = defineTool({
   name: 'get_platform_agency',
   access: 'read',
-  description: 'Platform operators: one agency — health, live tiles with 28-day deltas, series, team counts per role and its clients (id, name, status, created).',
+  description: 'Platform operators: one agency (archived ones read-only, without health/tiles/series) — hold and archive state, health, live tiles with 28-day deltas, series, team counts per role and its clients (id, name, status, created).',
   input: z.object({ agencyId: AgencyId, range: PlatformRangeInput }),
   output: z.object({
-    agency: z.object({ id: z.string(), name: z.string(), createdAt: z.string(), health: HealthEnum }),
-    tiles: PlatformTiles,
-    series: z.array(PlatformSeriesPoint),
+    agency: z.object({ id: z.string(), name: z.string(), createdAt: z.string(), health: HealthEnum.nullable() }),
+    tiles: PlatformTiles.nullable(),
+    series: z.array(PlatformSeriesPoint).nullable(),
+    hold: z.object({ since: z.string(), reason: z.string(), byName: z.string() }).nullable(),
+    archivedAt: z.string().nullable(),
+    holdBillingIssue: z.enum(['pause', 'resume']).nullable(),
+    archiveBlockers: z.object({ agencyPlan: z.boolean(), clientSubscriptions: z.number().int() }),
     team: z.object({ agencyAdmin: z.number().int(), accountManager: z.number().int(), clientOwner: z.number().int(), clientViewer: z.number().int() }),
     clients: z.array(z.object({ id: z.string(), name: z.string(), status: z.string(), createdAt: z.string() })),
   }),
@@ -305,14 +339,16 @@ export const getPlatformAgency = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     const role = await requirePlatformOperator(deps, ctx);
-    const exists = UUID_RE.test(input.agencyId) && (await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, input.agencyId), isNull(agency.archivedAt))).limit(1)).length > 0;
+    const found = UUID_RE.test(input.agencyId) ? await requireAgency(deps, input.agencyId, { allowArchived: true }).catch(() => null) : null;
+    const exists = found !== null;
     // Unknown agency: no target audit_log to write into (FK), so the not_found call lands on the platform log.
     return withPlatformAudit(deps, ctx, { tool: 'get_platform_agency', input, role, agencyId: exists ? input.agencyId : undefined }, async () => {
-      if (!exists) throw new ToolError('not_found', 'Agency not found');
+      if (!found) throw new ToolError('not_found', 'Agency not found');
       const now = new Date();
-      const [live, rows, teamRows, clientRows] = await Promise.all([
-        liveAgencies(deps, now, input.agencyId),
-        statRows(deps, input.range, now, input.agencyId),
+      const isArchived = found.archivedAt !== null;
+      const [live, rows, teamRows, clientRows, holdRows, issue, blockers] = await Promise.all([
+        liveAgencies(deps, now, input.agencyId, { archived: 'include' }),
+        isArchived ? Promise.resolve([] as SeriesRow[]) : statRows(deps, input.range, now, input.agencyId),
         deps.service
           .select({ role: membership.role, n: sql<number>`count(distinct ${membership.userId})::int` })
           .from(membership)
@@ -323,14 +359,26 @@ export const getPlatformAgency = defineTool({
           .from(client)
           .where(and(eq(client.agencyId, input.agencyId), isNull(client.archivedAt)))
           .orderBy(client.name, client.id),
+        deps.service.execute<{ reason: string | null; name: string | null; email: string | null }>(sql`
+          select a.suspended_reason as reason, u.name, u.email from agency a left join auth."user" u on u.id = a.suspended_by
+          where a.id = ${input.agencyId} and a.suspended_at is not null`),
+        holdBillingIssue(deps.service, input.agencyId),
+        liveBilling(deps.service, input.agencyId),
       ]);
       const a = live[0];
       if (!a) throw new ToolError('not_found', 'Agency not found');
       const n = (r: string) => teamRows.find((t) => t.role === r)?.n ?? 0;
       return {
-        agency: { id: a.id, name: a.name, createdAt: a.createdAt.toISOString(), health: healthOf(a, now) },
-        tiles: tilesOf(live, rows, now),
-        series: bucketSeries(rows, input.range, now),
+        agency: { id: a.id, name: a.name, createdAt: a.createdAt.toISOString(), health: isArchived ? null : healthOf(a, now) },
+        tiles: isArchived ? null : tilesOf(live, rows, now),
+        series: isArchived ? null : bucketSeries(rows, input.range, now),
+        hold: a.suspendedAt === null || !holdRows[0] ? null : {
+          since: a.suspendedAt, reason: holdRows[0].reason ?? '',
+          byName: holdRows[0].name?.trim() || holdRows[0].email?.split('@')[0] || 'Platform staff',
+        },
+        archivedAt: a.archivedAt,
+        holdBillingIssue: issue,
+        archiveBlockers: blockers,
         team: { agencyAdmin: n('agency_admin'), accountManager: n('account_manager'), clientOwner: n('client_owner'), clientViewer: n('client_viewer') },
         clients: clientRows.map((c) => ({ id: c.id, name: c.name, status: c.status, createdAt: c.createdAt.toISOString() })),
       };
