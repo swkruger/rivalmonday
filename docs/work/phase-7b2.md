@@ -1,13 +1,13 @@
 # phase-7b2 — billing correctness (Phase 9 leftovers: R27, M3, M8, fake gateway, max_redemptions)
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b2   **Base:** (set at execution start)
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7b2   **Base:** 015a948c
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7b2-billing-correctness.md) · [spec](../superpowers/specs/2026-10-22-phase-7b-money-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Planned ahead; not started.
+Execution started 2026-10-25 (base main 015a948c). Task 0 pre-flight next.
 
 ## Next (overwrite)
-Wait for phase-15c's 15c-3 (agency suspension) to merge; then `/rm-kickoff phase-7b2` → Task 0 pre-flight → SDD.
+Task 0 pre-flight → SDD.
 
 ## Interfaces this branch adds or changes
 See the plan's Interfaces blocks; migrations take the next free number at execution.
