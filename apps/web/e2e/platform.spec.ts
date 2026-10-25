@@ -142,7 +142,22 @@ test.describe.serial('agency management', () => {
     }
   });
 
+  // A failure mid-way must not leave the agency on hold for the later specs.
+  test.afterAll(async () => {
+    const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
+    try {
+      await db.execute(sql`update agency set suspended_at = null, suspended_reason = null, suspended_by = null where name = ${MANAGE_AGENCY}`);
+    } finally {
+      await close();
+    }
+  });
+
   test('staff puts an agency on hold and lifts it', { tag: ['@platform'] }, async ({ browser }, testInfo) => {
+    // Control: before the hold the add-client form is editable, so the disabled state below is caused by the hold.
+    await as(browser, testInfo, MANAGE_STATE, async (page) => {
+      await page.goto('/agency/clients/new');
+      await expect(page.getByLabel('Business name')).toBeEnabled();
+    });
     await as(browser, testInfo, ADMIN_STATE, async (page) => {
       await openAgency(page, MANAGE_AGENCY);
       await page.getByRole('button', { name: 'Manage', exact: true }).click();
@@ -168,6 +183,8 @@ test.describe.serial('agency management', () => {
     await as(browser, testInfo, MANAGE_STATE, async (page) => {
       await page.goto('/agency');
       await expect(page.getByText(HOLD_SENTENCE)).toHaveCount(0);
+      await page.goto('/agency/clients/new');
+      await expect(page.getByLabel('Business name')).toBeEnabled();
     });
   });
 
