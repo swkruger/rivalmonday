@@ -64,3 +64,13 @@ Root CLAUDE.md: separate plans, hold = read-only + collection paused; refusals 4
 7. **Held agencies on lists.** a) **"On hold" chip + filter on `/platform/agencies`** (rec.); b) detail only.
 8. **Email admins on hold/lift?** a) **no, banner only** (rec., spec); b) yes.
 9. **Branding URLs item.** a) **leave for 13a** (rec.); b) fold in.
+
+## Pre-flight (Task 0, 2026-10-25)
+- Rebase on main: nothing to do (HEAD 023e6f01 current). TEST_* URLs all point at `cs_phase_15c3_test`.
+- Unmerged: `phase-7c2` (executing, claims migration 0093 `ops_alert`) and `phase-16` (docs-only). main ends at 0092; this branch takes 0093 only if 7c2 not merged first, else 0094; second merger renumbers + regenerates journal/snapshot.
+- `agencyServiceable(` non-test call count: 37 (plan expected ~29).
+- `resumeClient`/`assertCanActivateClient`: all pass `role` where a ctx exists (tools client-pause/onboarding/prospects). Exception: `packages/billing/src/connect-webhook.ts:156` calls `resumeClient(sp, clientId, ACTOR)` with no role (system actor, intended).
+- `archiveTenant`: only `apps/worker/src/purge.ts`, `apps/worker/src/cli/archive.ts`, `purge.test.ts` (as expected).
+- Webhooks: `apps/web/src/app/api/stripe/webhook/route.ts` -> `handleStripeEvent` (`packages/billing/src/webhook.ts:162`); `.../connect-webhook/route.ts` -> `handleConnectEvent` (`packages/billing/src/connect-webhook.ts:172`). Platform handler has NO post-commit gateway step (single `db.transaction`, returns at ~l.168). Connect handler has a `PostCommit` object (`post.syncSeatsFor`, `post.expireSession`) run after commit at l.194-205: add `post.pauseHeldFor` there for the `checkout.session.completed` case (dispatch l.105-119, where `account` is the stripeAccount). Platform: add post-commit block in `handleStripeEvent` after the transaction (needs a PostCommit mirror; `recordCheckoutFacts` webhook.ts:53 is where the subscription id is recorded). `pauseIfHeld` does not exist yet.
+- 8b tool-access doc: `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md`. `access-marks.test.ts`: `packages/tools/src/tools/access-marks.test.ts`. `ISOLATION_FIXTURES`: `packages/tools/src/isolation/fixtures.ts:61` (test `isolation.test.ts`).
+- Help guides: `docs/help/pages/platform.agencies.detail.operator.md` (detail), `docs/help/pages/platform.agencies.operator.md` (list). Pages: `apps/web/src/app/(platform)/platform/agencies/page.tsx` and `[id]/page.tsx`.
