@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEMO_CONNECT_ACCOUNTS, DEMO_CONNECT_SUBSCRIPTIONS, demoConnectIds } from './demo-connect';
 import type { FakeGateway } from './fake-gateway';
-import { type DbEnvName, type GatewayEnv, type GatewayMode, gatewayFor, gatewayMode, usesFakeGateway } from './gateway';
+import { type DbEnvName, type GatewayEnv, type GatewayMode, type GatewayOptions, gatewayFor, gatewayMode, usesFakeGateway } from './gateway';
 
 const KEY = { STRIPE_SECRET_KEY: 'sk_test_x' };
 
@@ -22,9 +22,16 @@ describe('gatewayFor selection (R27)', () => {
     ['E2E flag under next start', { BILLING_FAKE_GATEWAY: '1', NODE_ENV: 'production' }, 'dev', 'fake'],
     ['E2E flag wins over a key', { ...KEY, BILLING_FAKE_GATEWAY: '1' }, 'dev', 'fake'],
     ['E2E flag, other value', { BILLING_FAKE_GATEWAY: 'yes' }, 'dev', 'none'],
-  ] as [string, GatewayEnv, DbEnvName, GatewayMode][])('%s', (_n, env, envName, mode) => {
-    expect(gatewayMode(env, envName)).toBe(mode);
-    expect(usesFakeGateway(env, envName)).toBe(mode === 'fake');
+    ['flag ignored when not allowed', { BILLING_FAKE_GATEWAY: '1' }, 'dev', 'none', { allowFakeFlag: false }],
+    ['flag ignored, key set', { ...KEY, BILLING_FAKE_GATEWAY: '1' }, 'dev', 'real', { allowFakeFlag: false }],
+    ['test env still fake', { BILLING_FAKE_GATEWAY: '1' }, 'test', 'fake', { allowFakeFlag: false }],
+  ] as [string, GatewayEnv, DbEnvName, GatewayMode, GatewayOptions?][])('%s', (_n, env, envName, mode, opts) => {
+    expect(gatewayMode(env, envName, opts)).toBe(mode);
+    if (!opts) expect(usesFakeGateway(env, envName)).toBe(mode === 'fake');
+  });
+
+  it('gatewayFor passes the options through: no gateway when the flag is not allowed', () => {
+    expect(gatewayFor({ BILLING_FAKE_GATEWAY: '1' }, 'dev', { allowFakeFlag: false })).toBeNull();
   });
 
   it('returns a recording fake, the Stripe gateway, or null (billing not configured)', () => {

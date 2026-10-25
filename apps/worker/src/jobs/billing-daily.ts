@@ -18,6 +18,7 @@ export interface BillingJobOptions {
  * gateway is null and only the Stripe steps are skipped (R27).
  */
 export function createBillingJobs(deps: WorkerDeps, opts: BillingJobOptions) {
+  if (opts.env.BILLING_FAKE_GATEWAY?.trim()) workerLog.warn('[billing-daily] BILLING_FAKE_GATEWAY is ignored by the worker');
   const daily = defineJob({
     name: 'billing-daily',
     schema: z.looseObject({}),
@@ -28,7 +29,7 @@ export function createBillingJobs(deps: WorkerDeps, opts: BillingJobOptions) {
         workerLog.info(`[billing-daily] skipped in ${opts.envName}`);
         return { skipped: opts.envName };
       }
-      const gw = gatewayFor(opts.env, opts.envName);
+      const gw = gatewayFor(opts.env, opts.envName, { allowFakeFlag: false });
       // R27: no Stripe key => billing is not configured; timers, reminders and stats still run.
       if (!gw) workerLog.info('[billing-daily] billing not configured: Stripe steps skipped');
       const r = await runBillingDaily(deps.serviceDb(), gw, opts.now?.() ?? new Date());

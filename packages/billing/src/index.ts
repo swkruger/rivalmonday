@@ -4,7 +4,7 @@ export * from './tokens';
 export { fakeGateway, FAKE_WEBHOOK_SIGNATURE, type FakeGateway, type FakeCall, type FakeGatewayOptions } from './fake-gateway';
 export * from './demo-connect';
 export { stripeGateway, PRICE_ROLE_KEY, type StripeGatewayOptions } from './stripe-gateway';
-export { gatewayFor, gatewayMode, usesFakeGateway, type GatewayEnv, type GatewayMode, type DbEnvName } from './gateway';
+export { gatewayFor, gatewayMode, usesFakeGateway, type GatewayEnv, type GatewayMode, type GatewayOptions, type DbEnvName } from './gateway';
 export * from './state';
 export * from './access';
 export * from './apply';

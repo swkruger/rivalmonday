@@ -48,7 +48,10 @@ describe('parseWebEnv', () => {
   it('passes BILLING_FAKE_GATEWAY through for gatewayFor and refuses it in production (R27)', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBeUndefined();
     expect(parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1' } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBe('1');
-    expect(() => parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/BILLING_FAKE_GATEWAY/);
+    for (const VERCEL_ENV of ['production', 'preview', 'development']) {
+      expect(() => parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV } as unknown as NodeJS.ProcessEnv)).toThrow(/BILLING_FAKE_GATEWAY/);
+    }
+    expect(parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV: '' } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBe('1');
   });
 
   it('reads SETUP_FAKE_LOOKUP and refuses it in production', () => {

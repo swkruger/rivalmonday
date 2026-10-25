@@ -33,7 +33,7 @@ export interface WebEnv {
   postmarkWebhookSecret?: string;
   /**
    * Phase 9a: Stripe settings, all optional, shaped for `gatewayFor` (R27: no key in DEV/production => no gateway, billing
-   * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on Vercel production).
+   * not configured). `BILLING_FAKE_GATEWAY=1` selects the fake gateway (E2E only; refused on any Vercel env; ignored by the worker).
    */
   stripe?: { STRIPE_SECRET_KEY?: string; STRIPE_WEBHOOK_SECRET?: string; STRIPE_CONNECT_WEBHOOK_SECRET?: string; STRIPE_TAX_ENABLED?: string; NODE_ENV?: string; VITEST?: string; BILLING_FAKE_GATEWAY?: string };
 }
@@ -65,7 +65,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   const webhookFake = env.WEBHOOK_FAKE_SEND?.trim() ?? '';
   if (webhookFake && env.VERCEL_ENV?.trim() === 'production') problems.push('WEBHOOK_FAKE_SEND must not be set in production');
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
-  if (billingFake && env.VERCEL_ENV?.trim() === 'production') problems.push('BILLING_FAKE_GATEWAY must not be set in production');
+  if (billingFake && env.VERCEL_ENV?.trim()) problems.push('BILLING_FAKE_GATEWAY must not be set on Vercel (any VERCEL_ENV)');
   const parsed: WebEnv = {
     appUrl, authSecret,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),

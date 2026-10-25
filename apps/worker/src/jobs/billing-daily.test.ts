@@ -41,6 +41,16 @@ describe('billing-daily', () => {
     expect(log).toHaveBeenCalledWith('[billing-daily] billing not configured: Stripe steps skipped');
   });
 
+  it('ignores BILLING_FAKE_GATEWAY: no gateway and a warning', async () => {
+    const info = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
+    const warn = vi.spyOn(workerLog, 'warn').mockImplementation(() => {});
+    const { daily } = createBillingJobs(deps, { envName: 'dev', env: { BILLING_FAKE_GATEWAY: '1' }, now: () => new Date('2026-10-14T02:30:00Z') });
+    await daily.handler({});
+    expect(info).toHaveBeenCalledWith('[billing-daily] billing not configured: Stripe steps skipped');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith('[billing-daily] BILLING_FAKE_GATEWAY is ignored by the worker');
+  });
+
   it('runs the daily maintenance in dev (fake gateway under test) and returns the counts', async () => {
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing', trialEndsAt: new Date('2020-01-01T00:00:00Z') });
     const { daily } = createBillingJobs(deps, { envName: 'dev', env: { VITEST: 'true' }, now: () => new Date('2026-10-14T02:30:00Z') });
