@@ -8,7 +8,7 @@ try {
 
 const { createDb } = await import('@cs/db');
 const { parseArchiveArgs } = await import('./archive-args');
-const { archiveTenant } = await import('../purge');
+const { archiveTenant } = await import('@cs/tools');
 
 const args = parseArchiveArgs(process.argv.slice(2));
 if ('error' in args) {

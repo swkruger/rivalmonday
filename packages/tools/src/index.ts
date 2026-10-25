@@ -66,4 +66,5 @@ export { buildSnapshot, LEAD_SUMMARY_SYSTEM, leadSummaryJsonSchema, snapshotFact
 export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/emails';
 export { catalogOf, catalogPacks } from './catalog/access';
 export { platformHealthOutput, type PlatformHealth } from './platform/system-health';
+export { archiveTenant, type ArchiveResult, liveBilling } from './platform/archive';
 export { recordSupportAccess, type SupportAccessSurface } from './platform/audit';
