@@ -31,7 +31,7 @@ export const agencyClientBillingNoticeBody = (p: Pick<AgencyClientBillingNoticeP
     case 'client_spend_paused':
       return `AI work for ${p.clientName} is paused until ${p.until ?? ''} — it went well past this month's credits. Past briefs and evidence stay available. Contact support to raise the limit.`;
     case 'client-duplicate-subscription':
-      return `${p.clientName} completed a new payment while their existing subscription is still running, so they may be charged twice. Check their subscriptions in your Stripe dashboard and cancel the one you don't need.`;
+      return `${p.clientName} completed a new payment while their existing subscription is still running, so they may be charged twice. In your Stripe dashboard, cancel the newer of their two subscriptions; the original one stays linked here.`;
   }
 };
 

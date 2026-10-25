@@ -143,7 +143,7 @@ describe('reconciliation (Stripe wins)', () => {
     expect(await notices()).toHaveLength(0);
   });
 
-  describe('M3: a caught-up payment lifts the auto-pause', () => {
+  describe('M3: a reconcile to active (Stripe active/trialing) lifts the auto-pause', () => {
     const paidSetup = async (gw: ReturnType<typeof fakeGateway>, id: string, clientId: string) => {
       sub(gw, id, { status: 'active', unitAmountCents: 9900 });
       await setBilling(clientId, { state: 'payment_needed', stripeSubscriptionId: id, billedPriceCents: 9900, paymentFailedSince: ago(9) });

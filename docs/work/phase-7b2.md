@@ -29,6 +29,5 @@ Close in BACKLOG Phase 9 › Soon: R27, M3, M8, `BILLING_FAKE_GATEWAY`. Strike t
 - Discount cap counts current holders; an agency that swaps coupon frees its slot (Decision 7) — owner call if lifetime redemptions are wanted.
 
 ## Owner verification steps
-1. Sign off the M8 email copy (agency notice `client-duplicate-subscription`).
+1. Sign off the M8 copy (subject `${clientName} may be paying twice`, body: `${clientName} completed a new payment while their existing subscription is still running, so they may be charged twice. In your Stripe dashboard, cancel the newer of their two subscriptions; the original one stays linked here.`).
 2. On a Vercel preview set `BILLING_FAKE_GATEWAY` and confirm the deploy refuses to serve.
-3. Confirm the M8 copy is the plan's text: subject `${clientName} may be paying twice`, body as in the plan (Task 3).

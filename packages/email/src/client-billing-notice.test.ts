@@ -45,6 +45,6 @@ describe('agency_client_billing_notice email', () => {
 
   it('client-duplicate-subscription body names the client and tells the agency what to do', async () => {
     const out = await renderEmail({ template: 'agency_client_billing_notice', props: { branding: rm, kind: 'client-duplicate-subscription', clientName: 'Smith HVAC', billingUrl: 'https://app.test/agency/settings/billing' } });
-    expect(out.text).toContain("Smith HVAC completed a new payment while their existing subscription is still running, so they may be charged twice. Check their subscriptions in your Stripe dashboard and cancel the one you don't need.");
+    expect(out.text).toContain("Smith HVAC completed a new payment while their existing subscription is still running, so they may be charged twice. In your Stripe dashboard, cancel the newer of their two subscriptions; the original one stays linked here.");
   });
 });

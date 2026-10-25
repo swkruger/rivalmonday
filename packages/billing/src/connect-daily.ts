@@ -14,7 +14,7 @@ const DAY_MS = 86_400_000;
 export interface ConnectDailyResult {
   paused: number;
   reconciled: number;
-  /** 7b2 M3: auto-paused clients whose caught-up payment lifted the pause. */
+  /** 7b2 M3: auto-paused clients whose reconcile to active (Stripe active/trialing) lifted the pause. */
   resumed: number;
 }
 
@@ -90,7 +90,7 @@ async function reconcileClients(db: Db, gw: BillingGateway, agencyId: string, st
       const lift = await db.transaction(async (tx) => {
         const r = await applyClientBillingSignal(tx, clientId, signal, ACTOR, now);
         if (!r.changed) return null;
-        // M3: a caught-up payment lifts the automatic pause in the same transaction (a manual pause stays).
+        // M3: a reconcile to active (Stripe active/trialing) lifts the automatic pause in the same transaction (a manual pause stays).
         return r.state === 'active' && signal.type === 'reconciled' && signal.target === 'active' ? liftAutoPause(tx, clientId, ACTOR) : 'none';
       });
       if (lift === null) continue;

@@ -712,6 +712,7 @@ describe('per-client billing tools (Task 5)', () => {
       await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: true, priceCents: 9900, stripeSubscriptionId: 'sub_9', stripeCustomerId: 'cus_9' });
       gw.seedConnectedSubscription({ id: 'sub_9', stripeAccount: 'acct_1', customerId: 'cus_9' });
       expect(await call(admin, 'disable_client_billing', { clientId: A1, confirm: true })).toMatchObject({ ok: true, state: 'active', cancelAtPeriodEnd: true });
+      expect(gw.callsTo('cancelConnectedSubscriptionAtPeriodEnd')).toHaveLength(1);
       expect(await row(A1)).toMatchObject({ enabled: false, state: 'active', stripeSubscriptionId: 'sub_9' });
     });
     it('R27: disconnected agency never refuses', async () => {

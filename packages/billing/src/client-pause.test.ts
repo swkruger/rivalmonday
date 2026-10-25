@@ -2,9 +2,15 @@ import { ToolError } from '@cs/core';
 import { agency, agencyWebhook, client, notification } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WITHDRAWN_NOTIFICATION_ERROR, liftAutoPause, pauseClient, resumeClient } from './client-pause';
+import { assertCanActivateClient } from './access';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
+
+vi.mock('./access', async (o) => {
+  const m = await o<typeof import('./access')>();
+  return { ...m, assertCanActivateClient: vi.fn(m.assertCanActivateClient) };
+});
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -133,6 +139,13 @@ describe('liftAutoPause (7b2 M3)', () => {
     await pause(IDS.clientA1, 'auto');
     await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
     expect(await lift()).toBe('refused');
+    expect((await row()).pausedAt).not.toBeNull();
+  });
+
+  it('rethrows unexpected errors instead of reporting refused, and the client stays paused', async () => {
+    await pause(IDS.clientA1, 'auto');
+    vi.mocked(assertCanActivateClient).mockRejectedValueOnce(new Error('db exploded'));
+    await expect(lift()).rejects.toThrow('db exploded');
     expect((await row()).pausedAt).not.toBeNull();
   });
 });
