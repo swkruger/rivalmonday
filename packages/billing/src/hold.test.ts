@@ -83,6 +83,17 @@ describe('applyHoldCollection', () => {
     expect((await applyHoldCollection(dbs.service, gw, AGENCY, 'pause', 's')).failed).toEqual([{ kind: 'agency' }]);
   });
 
+  it('Stripe resource_missing (subscription gone) counts as done: no _failed event, no issue', async () => {
+    await seedClients();
+    await hold(true);
+    const gone = Object.assign(new Error('No such subscription'), { type: 'StripeInvalidRequestError', code: 'resource_missing' });
+    gw.failCollectionFor('sub_c2', gone);
+    const r = await applyHoldCollection(dbs.service, gw, AGENCY, 'pause', 'staff-1');
+    expect(r).toEqual({ done: 3, failed: [] });
+    expect((await events())[0]).toMatchObject({ reason: 'admin_hold_billing_ok' });
+    expect(await holdBillingIssue(dbs.service, AGENCY)).toBeNull();
+  });
+
   it('retry after failure clears the issue', async () => {
     await seedClients();
     await hold(true);

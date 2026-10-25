@@ -13,6 +13,8 @@ export interface HoldBillingResult {
 }
 
 const errName = (e: unknown): string => (e as { name?: string } | null)?.name ?? 'Error';
+/** Ruling R15: Stripe's `resource_missing` means the subscription no longer exists, so there is nothing to pause/resume. */
+const isResourceMissing = (e: unknown): boolean => (e as { code?: string } | null)?.code === 'resource_missing';
 
 async function recordEvent(db: BillingDb, agencyId: string, reason: string, actor: string): Promise<void> {
   const [b] = await db.select({ state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
@@ -23,12 +25,20 @@ async function recordEvent(db: BillingDb, agencyId: string, reason: string, acto
 /**
  * Pauses (hold) or resumes (lift) Stripe collection on the agency's platform subscription and on its clients' Connect
  * subscriptions. Stripe calls run outside any transaction; one try/catch per target, failures are logged (ids + error
- * name) and returned. One event records the outcome. A null gateway (billing not configured) calls nothing.
+ * name) and returned. A Stripe `resource_missing` (subscription gone) counts as done, logged by id. One event records
+ * the outcome. A null gateway (billing not configured) calls nothing.
  */
 export async function applyHoldCollection(db: Db, gw: BillingGateway | null, agencyId: string, mode: 'pause' | 'resume', actor: string): Promise<HoldBillingResult> {
   const result: HoldBillingResult = { done: 0, failed: [] };
   if (gw) {
-    const call = (id: string, o?: { stripeAccount?: string }) => (mode === 'pause' ? gw.pauseCollection(id, o) : gw.resumeCollection(id, o));
+    const call = async (id: string, o?: { stripeAccount?: string }): Promise<void> => {
+      try {
+        await (mode === 'pause' ? gw.pauseCollection(id, o) : gw.resumeCollection(id, o));
+      } catch (e) {
+        if (!isResourceMissing(e)) throw e;
+        console.warn('[billing] hold collection target gone', { agencyId, mode, subscriptionId: id }, 'resource_missing');
+      }
+    };
     const [ab] = await db.select({ subscriptionId: agencyBilling.stripeSubscriptionId, state: agencyBilling.state }).from(agencyBilling).where(eq(agencyBilling.agencyId, agencyId));
     if (ab?.subscriptionId && ab.state !== 'cancelled') {
       try {
