@@ -6,7 +6,7 @@ What is built: [ARCHITECTURE.md](ARCHITECTURE.md). All commands run from the rep
 
 | DB | Use |
 |---|---|
-| `cs_dev` | Live dev data (real vendor pulls for Aire Serv). Owner verification runs here. Run `pnpm db:migrate` if it is behind. |
+| `cs_dev` | Live dev data (real vendor pulls for Aire Serv; the Internal QA fixture below). Owner verification runs here. Run `pnpm db:migrate` if it is behind. |
 | `cs_test` | Test suites. Snapshot restore never targets a `_test` database. |
 | `cs_demo` | Fictional HVAC/plumbing demo data, rebuilt by `pnpm demo:reset`. |
 
@@ -18,14 +18,21 @@ After 15b-3b (migrations `generic_topic_id` and `review_checked_at`, next free n
 - Expect a one-off re-ask wave: 0084 bumped `vertical.updated_at`, so about 1,375 reviews on `cs_dev` are re-asked once (`[engine-reask]` log lines, Jev first), capped at 2,000 reviews/day (`REASK_DAILY_MAX`), about 0.7 day.
 - Watch it: `SELECT count(DISTINCT review_id) FROM review_analysis WHERE checked_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`; `llm_call` rows with `task = 'review_decisions'` have `vertical_id` and no `client_id`.
 
-## CS Dev Verification Agency / Client (`cs_dev`)
+## Internal QA Agency / Client (`cs_dev`)
 
-- Agency `CS Dev Verification Agency` — id `aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`.
-- Client `CS Dev Verification Client` — id `25f99947-4559-4150-ab5d-dd432540aca0`, `vertical_id: hvac_plumbing`. Has a place id and a linked self business (set 2026-10-06). Tracks `aireserv.com` (competitor id `e9f9cbd3-8834-43a4-a1af-a31224ca43d3`) plus the competitors accepted during 5b-1 verification.
+Renamed from `CS Dev Verification Agency` / `Client` (7c2 Task 13, owner-run once with the owner URL; the old names persist in the database until it ran):
+```sql
+UPDATE agency SET name = 'Internal QA Agency' WHERE id = 'aaf5e009-974b-4ce8-b7ec-b722c5c66b1c' AND name = 'CS Dev Verification Agency';
+UPDATE client SET name = 'Internal QA Client' WHERE id = '25f99947-4559-4150-ab5d-dd432540aca0' AND name = 'CS Dev Verification Client';
+```
+The ids never change. Prod must never contain them (PILOT § Gate).
+
+- Agency `Internal QA Agency` — id `aaf5e009-974b-4ce8-b7ec-b722c5c66b1c`.
+- Client `Internal QA Client` — id `25f99947-4559-4150-ab5d-dd432540aca0`, `vertical_id: hvac_plumbing`. Has a place id and a linked self business (set 2026-10-06). Tracks `aireserv.com` (competitor id `e9f9cbd3-8834-43a4-a1af-a31224ca43d3`) plus the competitors accepted during 5b-1 verification.
 - Aire Serv sources: place `ChIJ6VlKPHqPT4YR479jLd01gZY`; Meta page Aire Serv of Granbury `1825453601028298`; Google advertisers `AR11447192921745391617` and `AR09867956064303972353`. **Not** `AR16031097081657556993` (Iowa City franchisee, unpinned on 2026-10-11 and its 3 ads retired).
 - Data: vendor collection only, no `web`-source captures, so `price_point` is empty and Pricing shows "website monitoring isn't switched on". 98 gold labels for review decisions. No live stored standard brief yet. Still no real alerts. Real competitor changes are expected from the weekly pull of 2026-10-13. The brief `0612e32a-…` had its `pdf_key` cleared on 2026-10-11, so it re-renders on next open.
 - The owner signs in as `agency_admin` of the agency through a file-outbox magic link. There is no "view as client" switch. To see the client-owner view, invite an address at Agency → Team → Invite (role Client owner) and sign in as that address.
-- This agency and client are verification fixtures with clear names. Review, rename or remove them before real onboarding.
+- This agency and client are verification fixtures with clear names; they exist only in `cs_dev`.
 
 ## Re-pull Aire Serv (on or after 2026-10-08)
 
@@ -49,6 +56,45 @@ pnpm --filter @cs/worker runbook:backfill
 Creates the platform runbook, one per agency, and for every client (all statuses) a client runbook that reproduces what it sees today (pack plays with `playbook_override`s applied, self-rules; a custom thresholds setting becomes a customised `knob:thresholds` item and `client.score_thresholds` keeps its value; clients without one get no thresholds item and follow the agency), with `tailor_status = 'skipped'`. Idempotent; leaves `playbook_override` alone. New agencies get theirs at sign-up and via `admin create-agency`.
 
 After the backfill nothing calls the model: backfilled clients stay `skipped`. A new client's runbook is created (and tailored by the `runbook-tailor` worker job, one OpenRouter call) when the setup wizard advances (`advance_client_setup`) or an agency admin uses "Create a runbook for this client"; `runbook.tailor_status` is `pending` / `done` / `failed` / `skipped` (a failed run leaves the agency runbook copy, editable). Check a client with `select tailor_status from runbook where client_id = '<id>'`. To roll back before dropping `playbook_override`, delete the client/agency runbook rows: clients fall back to the legacy view.
+
+## Queue concurrency (7c2)
+One worker replica runs several pollers per queue (shipped table: `apps/worker/src/concurrency.ts` `QUEUE_CONCURRENCY`: `rival-search`, `vendor-collect`, `brief-client`, `web-capture-page` 4; `starting-point-client`, `engine-tag`, `engine-review` 3; `prospect-snapshot`, `rank-scan`, `setup-suggestions`, `runbook-tailor`, `rival-monthly-client` 2; the rest 1). Override without a code change: env `WORKER_QUEUE_CONCURRENCY=brief-client=6,rival-search=2` (comma list, `<queue>=<1-8>`; entries win over the table). A malformed entry, an unknown queue name or a value outside 1-8 makes the worker print the entry and exit 1 before it starts. Unset = shipped values. Tune from `/platform/health` (heartbeat output carries `rssMb`, `dbConnections`, `dbMaxConnections`) and Railway memory:
+- DB connections near the limit: lower concurrency, and check `SERVICE_DATABASE_POOLED_URL` is set (start-up warns when it is not). App pool size = sum of (c - 1) + 10.
+- Memory high: lower `web-capture-page` (each poller is one Chromium context in the single shared browser).
+- Vendor throttling or timeouts: lower `vendor-collect`/`rival-search`; per-vendor limits are `DEFAULT_VENDOR_LIMITS` in `packages/core/src/server/token-bucket.ts` (code change).
+Lowering the busy queues to 1 is the pilot kill switch (PILOT § Kill switches).
+
+## Ops alerts (`ops_alert`, 7c2)
+Platform-staff alerts live in `ops_alert` (service role only; one kind today, `brief_readiness`). The hourly `brief-readiness` job (`25 * * * *`) checks each workable client in its own time zone and upserts one row per condition. A row **resolves automatically** when its condition clears and is never re-opened. Read them on `/platform/health` -> "Brief readiness" (counts for the coming Monday, open issues with severity, issue, delivery date, clients, first seen, emailed). Platform owner/staff get **one email per row** (client list included) when it first appears.
+| Issue (panel label) | Condition | Usual cause / fix |
+|---|---|---|
+| Not ready after generation closed | Friday 12:00 client time: no `ready`/`approved`/`sent` brief for Monday | generation failed or never queued: check `brief-client` jobs and `brief.error`, fix, `pnpm --filter @cs/worker brief-once --client <id> --force` |
+| Missing or failed before delivery | Sunday 19:00 to Monday 07:00: no brief, or `failed` | same; must be fixed before 07:00 |
+| Ready but not approved | same window, `ready` and auto-send off | ask the agency to approve (warning) |
+| Starting point late | 6 h after the 48 h starting-point clock | check `starting-point-client` and `brief.error` |
+
+Keys: `brief_readiness:<checkpoint>:<deliveryDate>:<time zone>` (weekly, one lifecycle per zone, so a later zone can send another email) and `brief_readiness:starting_point_late:<clientId>`. A client set that grows resets `emailed_at` (one more email). If any recipient fails, `emailed_at` stays null and the next hour retries all recipients (a partial failure can duplicate emails). Inspect: `select kind, dedupe_key, severity, first_seen_at, emailed_at, resolved_at, summary from ops_alert order by first_seen_at desc limit 50;`. Do not hand-resolve; fix the cause. The job returns `{ skipped: 'engine_unconfigured' }` when the worker lacks `APP_URL`/`LINK_SIGNING_SECRET`.
+
+## Rehearsal (7c2, staging only)
+Proves 120 weekly clients + 12 starting-point clients on a prod-sized staging stack; setup is [DEPLOY.md](DEPLOY.md) § Staging. Never run against prod or `cs_dev`. Commands: `pnpm --filter @cs/demo rehearsal <cmd>` (usage prints on a bad call). **Use the same DB URL form (pooled or direct host) for `seed`, `fault` and `approve`:** the guards compare `<host>/<database>` exactly, and a pooler-vs-direct mismatch is refused without a hint.
+1. **Monday:** `latency --out packages/engine/src/rehearsal-latency.json` (owner; reads `cs_dev` `llm_call`; commit if changed).
+2. `seed --agencies 40 --clients 3 --starting-points 12 --live-clients 10 --confirm-db <host>/<db>` (`SERVICE_DATABASE_URL` = staging `app_service`). Guards: `--confirm-db` must equal the URL's `<host>/<db>`, the database may hold only `Rehearsal …` agencies, name must not end `_test`. One transaction, Monday-Thursday before 22:00 Chicago only; a re-seed needs a fresh staging branch. Writes `rehearsal-manifest.json` (gitignored: ids, live slice, seed time, delivery Monday) and prints `REHEARSAL_LIVE_CLIENT_IDS=…`.
+3. `fault --clients 3` before Thursday 22:00 local: agency `Rehearsal Agency Fault` with 3 clients whose Monday briefs are pre-failed; the readiness alarm must email Friday 12:00.
+4. Set `REHEARSAL_LIVE_CLIENT_IDS` on the staging worker and redeploy it **only right after seeding**: fixture DataForSEO tasks posted before a restart are stranded (failed vendor tasks, not briefs).
+5. Watch daily: `/platform/health` (staging), Railway memory, Neon connections, Sentry `staging`.
+6. **Friday ~14:00 local:** `approve` (auto-send-off clients; goes through the registry `approve_brief`, audited; needs `APP_DATABASE_URL` + `SERVICE_DATABASE_URL`). Check the fault alarm email in Postmark test-server activity.
+7. **Next Monday 08:00 local:** `report --fixture-log-url https://fx1.rehearsal.rivalmonday.app/__rehearsal/log --fixture-log-token-env FIXTURE_LOG_TOKEN [--memory-mb <n>]` (`DATABASE_URL` = staging owner URL). Prints PASS/FAIL/SKIP lines and `RESULT: PASS|FAIL|INCOMPLETE` (exit 0 only on PASS):
+   - weekly briefs ready <= 4 h after window open; starting points ready <= 6 h after due; no failed briefs;
+   - briefs sent by 07:15 local; brief emails sent by 07:45 local;
+   - no expired jobs (`job failed by timeout in active state`, `pgboss.job` + `archive`);
+   - worker RSS < 75 % of memory; DB connections < 80 % of limit (from heartbeat outputs);
+   - fixture hosts: min gap per host >= 3 s; fx5 (Crawl-delay 30) >= 30 s; fx5 does not slow the others (p95 re-capture lag busy vs idle, a proxy);
+   - spend guard never tripped (no `spike_paused`); live-slice spend x 6 below the spike threshold; total AI spend <= $5;
+   - fault alarm raised (critical `generation_closed`, emailed, covering all 3).
+   Fault clients are excluded from every other line; the 12 starting-point clients are judged by the starting-point line only. SKIP = a missing input (no live slice, no fixture log): fix and re-run.
+8. Fix wave per FAIL (queue concurrency, `DEFAULT_VENDOR_LIMITS`, pool sizes, or code); a Thursday-burst spike-guard trip goes to 7b as too tight.
+9. `teardown --confirm-db <host>/<db>` writes `rehearsal-archive.sh` (one `archive agency <id>` per rehearsal agency; run it deliberately) and prints the manual cleanup (Railway project, Neon branch, bucket, CNAMEs). Evidence is never deleted.
+Results are recorded in the work file / STATE, not here.
 
 ## Archive and purge (7a2)
 Deleting a tenant is two steps (service role, `SERVICE_DATABASE_URL`; one `platform_audit_log` row per action):

@@ -33,12 +33,15 @@ Run this before the first deploy (`0081` aborts while `cs_worker`/`cs_web` are m
 |---|---|---|
 | `DATABASE_URL` | `cs_worker`, **direct** (non-pooled) URL | `cs_web` |
 | `APP_DATABASE_URL` | — (not read) | `app_user` |
-| `SERVICE_DATABASE_URL` | `app_service` | `app_service` |
+| `SERVICE_DATABASE_URL` | `app_service`, direct | `app_service` |
+| `SERVICE_DATABASE_POOLED_URL` | `app_service`, **pooled** (Neon `-pooler` host; optional but set it in prod) | — |
 
 The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (direct URL), never on a running service.
 
 ## Env
 - **Both:** `APP_URL=https://rivalmonday.app`, `LINK_SIGNING_SECRET` (same value on both), `EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `REVIEWER_HASH_SALT` (generate once, never change), `SENTRY_DSN`, `SENTRY_ENVIRONMENT=production`, `SERVICE_DATABASE_URL` and `DATABASE_URL` per the table above.
+- **Worker pools (7c2):** with several pollers per queue the worker's own app queries (`SERVICE_DATABASE_POOLED_URL`, pooled `app_service`) go through the Neon pooler with prepared statements off; pg-boss and migrations stay on the direct `DATABASE_URL`. Unset = the direct URL is used (start-up warning, small pool). Optional `WORKER_QUEUE_CONCURRENCY` (`<queue>=<1-8>,…`; OPS § Queue concurrency); unset = shipped defaults.
+- **Never set the rehearsal switches in production:** `AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `VENDOR_FAKE_MODE`, `CRAWL_HOST_ALLOWLIST`. The worker refuses to start with any of them unless `SENTRY_ENVIRONMENT=staging` or `NODE_ENV` is set and not `production` (fail closed: an unset `NODE_ENV` counts as refused, also in `createWorkerDeps` for the CLIs).
 - **Worker:** the vendor keys (`DATAFORSEO_*`, `APIFY_TOKEN`, `SCRAPECREATORS_API_KEY`, `STADIA_API_KEY`), `POSTMARK_MESSAGE_STREAM`/`POSTMARK_BROADCAST_STREAM` if not default. It refuses to start in production without `REQUIRED_PROD_ENV` (`apps/worker/src/env.ts`). `NODE_ENV`/`PORT` come from the image.
 - **Web:** `APP_DATABASE_URL`, `BETTER_AUTH_SECRET`, `POSTMARK_WEBHOOK_SECRET`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ISSUES_URL`, `PLATFORM_ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`, `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_CONNECT_WEBHOOK_SECRET`, optional `GOOGLE_CLIENT_ID`/`_SECRET`, `SUPPORT_REPLY_TO`. Never set `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY` (refused in production).
 - **`WEB_MONITORING_ENABLED`:** leave unset until `https://rivalmonday.app/bot` and `/robots.txt` are live and checked signed-out; then set `true` on Railway (and Vercel) — the last step of go-live.
@@ -47,7 +50,7 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 ## Checklist (after each first-of-its-kind deploy)
 - TLS on `rivalmonday.app`; magic-link sign-in arrives from `briefs@mail.rivalmonday.app`; mail-tester ≥ 9/10.
 - Sentry test event from web and worker (worker release = commit SHA, not `dev`).
-- Railway marks the new deployment **Active** (`railway up --ci` may only wait for the build); `/healthz` 200; `/platform/health` all green after one hour.
+- Railway marks the new deployment **Active** (`railway up --ci` may only wait for the build); `/healthz` 200 and its body shows `queueGrants: ok` (the `cs_web` enqueue grants; `failed` makes it 503 and web enqueues are refused); `/platform/health` all green after one hour.
 - `/bot` and `/robots.txt` load signed-out.
 - Latency: `pnpm --filter @cs/web profile:pages --base https://rivalmonday.app --cookie FILE` (a signed-in storage state or Cookie header): agency/workspace pages p75 ≤ 1.5 s, every page ≤ 3 s; misses → backlog. Per-tool timings: `PROFILE_TOOLS=1` is **local-only** — never set it on Vercel. The shell's sequential DB stages are a backlog gate, so this p75 is a measurement only.
 
@@ -58,7 +61,7 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 - **One worker replica only** (in-process per-host crawl limits). Never raise `numReplicas`.
 
 ## Staging
-For the 7c2 rehearsal (120 clients, one week). Nothing here touches production data or real competitor sites; vendor APIs are answered by fixtures, so the only paid calls are the live-AI slice (≤ $5). Use fresh secrets; never reuse production tokens.
+For the 7c2 rehearsal (120 clients, one week; run it with `docs/OPS.md` § Rehearsal). Nothing here touches production data or real competitor sites; vendor APIs are answered by fixtures, so the only paid calls are the live-AI slice (≤ $5). Use fresh secrets; never reuse production tokens.
 1. **Neon:** in the prod project, create a **schema-only** branch `staging` from the production branch; compute = the planned prod size. Roles (`app_user`, `app_service`, `cs_worker`, `cs_web`) are inherited; reset their passwords on the branch. Migrate with the branch's owner URL: `DATABASE_URL=<staging owner URL> pnpm --filter @cs/db migrate`.
 2. **R2:** bucket `rivalmonday-staging` + a token limited to it.
 3. **Postmark:** use a **test-server** token (accepted, never delivered).
@@ -68,7 +71,8 @@ For the 7c2 rehearsal (120 clients, one week). Nothing here touches production d
    - **fixture-hosts:** start command `node --import tsx src/cli/fixture-hosts.ts`; env `SENTRY_ENVIRONMENT=staging` (the image sets `NODE_ENV=production`, so without it the service exits), `FIXTURE_HOSTS` = the five hosts, `FIXTURE_LOG_TOKEN` (random, for the rehearsal report). Add the custom domains `fx1…fx5.rehearsal.rivalmonday.app`.
 6. **Namecheap DNS:** one CNAME per fixture host (`fx1.rehearsal` … `fx5.rehearsal`) to the target Railway shows, plus any verification record it asks for. Check `https://fx5.rehearsal.rivalmonday.app/robots.txt` shows `Crawl-delay: 30`.
 7. **Cost:** about $20 for the rehearsal week (Neon staging compute, the two Railway services; R2 and Postmark test ≈ $0), plus ≤ $5 live AI for the 10-client slice.
-8. **Teardown:** after the report, delete the Railway project, the Neon `staging` branch, the R2 bucket and token, the five CNAMEs and the Vercel Preview staging env values.
+8. **Order matters:** deploy and migrate staging first, then seed (OPS § Rehearsal), then set `REHEARSAL_LIVE_CLIENT_IDS` and redeploy the staging worker once; do not redeploy it again mid-week. Seed, fault and approve must use the same `SERVICE_DATABASE_URL` host form. The worker never crawls hosts outside `CRAWL_HOST_ALLOWLIST` on staging (empty allowlist with `WEB_MONITORING_ENABLED=true` refuses to start).
+9. **Teardown:** after the report, delete the Railway project, the Neon `staging` branch, the R2 bucket and token, the five CNAMEs and the Vercel Preview staging env values.
 
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.

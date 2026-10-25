@@ -1,37 +1,62 @@
 # phase-7c2 — scale & pilot: concurrency, vendor limiter, capture pacing, due scans, readiness, rehearsal, feedback, PILOT.md
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-7c2   **Base:** main f275eee7
-**Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7c2-scale-pilot.md) · [spec](../superpowers/specs/2026-10-22-phase-7c-quality-scale-pilot-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
+**Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7c2-scale-pilot.md) · [spec](../superpowers/specs/2026-10-22-phase-7c-quality-scale-pilot-design.md) — owner-approved 2026-10-23. Runbook: [PILOT.md](../PILOT.md).
 
 ## Status (overwrite)
-Execution started 2026-10-25 (worktree + test DB `cs_phase_7c2_test`). 7b1 + 7c1 merged; 7b2 not yet (no dependency).
+Built and reviewed (SDD, tasks 0-11 + 14): queue concurrency + pooled app URL (T1); per-vendor limiter + `timeoutMs` (T2); host-lock capture deferral + robots slot (T3); set-based due scans (T4); migration 0093 `ops_alert` + hardening (T5); brief readiness job/email (T6); `/platform/health` readiness panel + 7a health follow-ups (T7); security test backfill (T8); rehearsal switches refused in prod + crawl allowlist (T9a); fixture vendors/hosts + DEPLOY § Staging (T9b); rehearsal AI (T10a) and `rehearsal` CLI (T10b); feedback links (T11); docs (T14: PILOT.md, OPS § Queue concurrency / Ops alerts / Rehearsal / Internal QA, DEPLOY, gotchas, package notes).
+**Pending, owner-gated, not run:** Task 12 (staging rehearsal + fix wave) and Task 13 (`cs_dev` rename, `jev.live`, `/link-other-account`). No rehearsal numbers exist yet; after Task 12 record final concurrency/limits and costs here and make them code defaults.
 
 ## Next (overwrite)
-Task 0 pre-flight → SDD. Task 12 (staging rehearsal) waits for the owner's staging setup.
+Controller: final whole-branch review + `test:affected`/`e2e:affected` (`--base main`), one fix wave. Owner: copy sign-off, staging setup (DEPLOY § Staging), then Tasks 12-13 (below). `/rm-merge` only with the owner's go-ahead.
 
 ## Interfaces this branch adds or changes
-See the plan's Interfaces blocks; migrations take the next free number at execution.
+- **Migration `0093_ops_alert`:** `ops_alert` table (service-role only; `kind` in `brief_readiness`, `severity` in `warning|critical`, unique `dedupe_key`), `notification_provider_id_idx`, `REVOKE INSERT ON client FROM app_user`; `TABLE_CLASS` entry.
+- **Env:** `SERVICE_DATABASE_POOLED_URL`, `WORKER_QUEUE_CONCURRENCY` (both in `turbo.json` `globalPassThroughEnv`); rehearsal-only `AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `VENDOR_FAKE_MODE`, `CRAWL_HOST_ALLOWLIST`, `FIXTURE_HOSTS`, `FIXTURE_LOG_TOKEN`.
+- **Worker:** `concurrency.ts`, `job-list.ts` (`createJobList`), job `brief-readiness` (`25 * * * *`), CLI `fixture-hosts`; `runJob` opts `{ resend?, retryCount?, retryLimit?, cron? }`; `/healthz` body `queueGrants`; heartbeat output `{ queueGrants, rssMb, dbConnections, dbMaxConnections }`; `createDb(url, { max, prepare })`.
+- **Libs:** `@cs/core/server` `createVendorLimiter`/`timedFetch`/`DEFAULT_VENDOR_LIMITS`; `@cs/collectors` `HostRateLimiter` (learned Crawl-delay), `renderOrDefer`, `allowlistedAssert`, `createFixtureFetch`; `@cs/engine` `findReadinessIssues`/`summarizeBriefReadiness`/`checkBriefReadiness`, `createRehearsalAi`; set-based `listBriefDueClients`.
+- **Tools/UI:** `get_platform_health` gains `briefReadiness`; new `get_feedback_contact` (`ISOLATION_FIXTURES` entry). `@cs/demo` CLI `rehearsal`; email `platform_ops_alert`, `feedback` props on brief/alert, `AgencyWelcomeProps.supportEmail`.
 
 ## Assumes from other branches
-7b1 AiGuard / usesAi / createAiFromEnv(…, guard?); 7c1 may hand a SQL leak fix to this branch's migration; staging (owner) before Task 12.
+Nothing unmerged. 7b2 and phase-16 do not overlap. Staging (owner) before Task 12.
 
-## Decisions (owner-approved)
-Spec decisions + plan "Decisions"; owner decisions 2026-10-22/23 summarised in `git show phase-7-planning:docs/work/phase-7-planning.md` (folded into STATE/BACKLOG at merge).
+## BACKLOG at merge (fold into `docs/BACKLOG.md`; this branch does not edit it)
+**Close (delete) now:**
+- Scale: "Worker concurrency: let `rival-search` …" · "`listBriefDueClients` scans every client …".
+- Scale: shrink "Multiple worker replicas / autoscaling …" to the cross-replica parts (per-host politeness and vendor limits in Postgres, cron tolerance of a second runner); shrink "Cross-replica rate limiter before scaling the worker; one host's large Crawl-delay …" to "Cross-replica rate limiter before scaling the worker" (capture queue deferral and robots pacing are done).
+- 7a follow-ups: "7c: `withQueueStatsReporting` … `EnvUrls.owner` -> `queue` …" · "7c: `ensureQueueGrants` is a single attempt …" · "7a2/7c: `app_user` INSERT on `client` … WITH CHECK; `notification.provider_id` index" (keep the `contact_bounced:<id>` dedupe, sign-out audit and inbox parts) · "7a2/7c: Ask: pinned-admin test …; plan-off …" · from "7a2/7c minors" the T1 and T3 items · from "7a2/7c: purge dry-run …" the three purge/lead test gaps and the `settings/ai` / evidence `canAsk` plan-off tests.
+- After Task 13 runs: Model ops "Run `jev.live.test.ts` …" · Pilot "Exercise `/link-other-account` live" · Pilot "Review/rename/remove the `CS Dev Verification …`".
+- After Task 12: "Staging setup before 7c2 Task 12 …" and the 7c2 part of "Sign off copy marked in the … plans".
 
-## New backlog (target → item)
-None yet.
+**Add (new items):**
+- Rehearsal AI fidelity: tested against one synthetic schema; real `ai.yaml` caller schemas (recJson, draftJson, tailor, starters `minItems 4`, numeric_facts, starting_point_why, theme discovery) may take fallback paths, so the rehearsal could load-test fallbacks. `minimalValue` ignores `pattern`/`format`; `collectBatch` in rehearsal throws a misleading `ANTHROPIC_API_KEY` error; latency floor at p50. — *7c2 T10a*
+- `guardManifestRun` compares the strict hostname: pooler vs direct host is refused with no hint (documented in OPS); improve the message or compare the endpoint id. Fault-test alarm assertion loosened; rehearsal CLI wiring untested; "fx5 does not slow the others" is a lag proxy (retune after Task 12). — *7c2 T10b*
+- Readiness: partial send failure re-emails all recipients next hour; `windowOpenedAt` is off 30/45 min in half-hour zones (US-only pilot); no Saturday/DST-weekend checkpoint test; `findReadinessIssues` reruns per page load; no `HelpTip` on the readiness section (needs owner copy); the section keeps the `card` wrapper until phase-16 migrates the page. — *7c2 T6/T7*
+- Limiter/worker: a throwing `onSlowWait` leaks a limiter slot (`token-bucket.ts`, wrap in try/catch); "queued 5 s keeps full timeoutMs" test uses real timers; deps wiring test asserts `typeof` only; boss "throws on one poller" test does not attribute the poller; concurrency log lists only raised queues; idle pollers raise pg-boss direct connections (~57 to ~80: watch in Task 12). — *7c2 T1/T2*
+- Captures: limiter cursor/last maps never pruned; captures queued before deploy lack the `capture:` singleton key (one-time duplicate); fixture `task_get` ledger rows carry `fx_` ids ($0); fixture-fetch abort listener not removed. — *7c2 T3/T9b*
+- Tests: readiness equivalence test compares order of rows tied on `created_at` (flake risk: distinct `createdAt`); `tenant.test` "cannot write rows into another agency" now re-proves only the grant; `table-classes.ts` `ops_alert` out of alpha order and `OpsAlertSeverity` duplicates the CHECK list; `settings/ai` test name says "lacks mcp" (gate is `mcp`). — *7c2 T4/T5/T8*
+- Feedback: mailto addresses not `encodeURI`d; brief page feedback test is one big `it`. — *7c2 T11*
 
 ## Owner verification steps
-Listed in the plan's docs task.
+**Copy sign-off (all of it is unsigned; needed before the first invite):**
+1. Ops alert email (`platform_ops_alert`): subjects `Rival Monday ops: {n} brief(s) not ready for {date}` / `… awaiting approval for {date}` / `Rival Monday ops: starting point late for {client}`; the four lead lines; "Open Health: {url}"; footer "Platform ops alert".
+2. `/platform/health` readiness panel: section "Brief readiness"; "Briefs for Monday {date}"; counts Due / Ready / Approved / Sent / Missing / Failed / Awaiting approval / Starting points late; headers Severity / Issue / Delivery date / Clients / First seen / Email; chips Critical / Warning; checkpoint names "Not ready after generation closed", "Missing or failed before delivery", "Ready but not approved", "Starting point late"; "emailed {when}", "not emailed yet", "No readiness issues."
+3. Feedback: client email "Something look off? Reply to this email or write to {name|your agency} at {email}."; in-app "Something look off? Email {name|your agency}." with mailto subject `Feedback: {client} — {page title}` (not in the plan; the implementer chose it); agency menu "Send feedback" (subject `Pilot feedback`); welcome line "Questions or feedback during the pilot? Email {supportEmail}. We read every message."
+4. No help copy or guide exists for the readiness panel; a `HelpTip` and guide wait on this sign-off.
 
-## Pre-flight findings (T0 2026-10-25)
-- **7b1 merged, all five points exist:** `JobDefinition.usesAi` (`jobs.ts:27`); `registerJobs(boss, jobs, { pollingIntervalSeconds?, aiPaused?: () => Promise<boolean> })` with `includeMetadata: true` already set (`boss.ts:27`); `createAiFromEnv(env, config, ledger, samples?, guard?)` (`ai/env.ts:9`, guard = 5th); `runJob(job, jobId, data, handler, log, opts: { resend? })` handles `AiPausedError` (`sentry.ts:70-100`, platform -> resend 600 s, client -> `skipped`); `clientWorkAllowed(t: typeof client | string): SQL` (`db/src/filters.ts:40`, already used by `generate.ts`/`readiness.ts`); worker `deps.aiGuard()` (`deps.ts:257`, `{ aiGuard: false }` for CLIs) wraps `getAi`; `spend_guard_event` (`schema/platform.ts:79`); `spend-guard-panel.tsx` under `/platform/health/_components`; `platformOperatorEmails({ service, platformAdmins }, roles)` (`tools/src/platform/costs/alerts.ts:15`). `@cs/ui` `StatusChip` exists (`health-tables.tsx` uses it).
-- **7c1 merged:** `TABLE_CLASS` in `packages/db/test/table-classes.ts:21` (`table: 'service_only'|...`); `ISOLATION_FIXTURES` in `packages/tools/src/isolation/fixtures.ts` (`{ kind: 'client'|'object'|'agency'|'platform'|'caller', input }`).
-- **Migrations:** main ends `0092`; this branch claims **0093**. Only unmerged branch `phase-16` is docs-only (no overlap, no migrations).
-- **Session state vs pooler:** rg is empty. `createDb` today is `postgres(url, { max: 5, onnotice })`; Task 1 adds `max`/`prepare`.
-- **`client` INSERT:** only `tools/onboarding.ts:70` (service tx). Test inserts as `app_user`: only `db/src/tenant.test.ts:47` (negative; message becomes `permission denied`). Other tests/seeds use owner. `rls-sweep` `REFUSED` already accepts both messages. Keep the plain REVOKE (no policy fallback).
-- **Fetch sites:** `ai/http.ts:49`, `dataforseo.ts:108`, `apify.ts:36`, `scrapecreators.ts:23`, `static-map.ts:38`, plus two the plan missed: `meta-search.ts:43` (60 s) and `:69` (310 s). Task 2 must convert these too.
-- **Cron schemas:** all accept `{ _cron: true }`, but `kb-embed`/`kb-sync` use `z.object` (strips it) and `runJob` gets parsed data; plan Task 7 fixed to read raw data (see plan, Cron schemas).
-- **Queues:** all 12 names exist exactly. Shared state: `deps.ts` lazy singletons are safe (sync `??=`; `ai` is a cached promise, cleared on reject; `createBrowserCache` sets `cached` synchronously). Watch for Task 1/3: (a) `RobotsPolicy.load` has no in-flight dedupe, so N pollers can fetch one origin's robots.txt at once (Task 3's robots slot must cover this); (b) `createBrowserCache` can double-launch when a dead cached browser is found by two callers (minor leak); (c) `warnedNoSalt` is a benign once-flag; (d) `HostRateLimiter.wait` reserves synchronously (safe). One shared Chromium serves up to 4 contexts (memory check in the rehearsal).
-- **Constants exist:** `schedule.ts` (`BRIEF_LOCAL_WEEKDAY=4`, `BRIEF_LOCAL_HOUR=22`, `BRIEF_CATCHUP_UNTIL_HOUR=12`, `safeTimezone`, `localParts`, `briefDue`, `deliveryDateFor`), `deliver.ts:15 DELIVERY_LOCAL_HOUR=7`, `readiness.ts:7 STARTING_POINT_WAIT_HOURS=48`, `generate.ts:17-18 BRIEF_MAX_ATTEMPTS=3, BRIEF_STALE_MINUTES=30`, `setup-clock.ts startingPointClockStart(c, s, now): Date|null`, `replyToFor(db, agencyId, clientId)` (`delivery/contacts.ts:116`), `SsrfBlockedError(url)` (`net/guard.ts:14`), `createGuardedFetchText({ fetch?, assertUrl? })`, `createPlaywrightRenderer({ assertUrl?, ... })`, worker `engineConfigured()` (`deps.ts:308`). `SUPPORT_REPLY_TO` is only an env var; the exported constant is `DEFAULT_SUPPORT_REPLY_TO` (`apps/worker/src/deps.ts:41`), web uses `webEnv().supportReplyTo`.
-- **PILOT metrics:** `brief.approved_at` exists (`schema/briefs.ts:66`); ratings live in `feedback` (`kind='rating'`, `after: { rating }`, `subject_type` brief_item/event/...), there is no brief-level rating column.
+**Before Task 12:** staging per `docs/DEPLOY.md` § Staging (Neon `staging` branch, R2, Postmark test token, Vercel Preview, Railway worker + fixture-hosts, 5 CNAMEs). Approve costs (<= $5 live AI, ~$20 infra).
+**Task 12 (controller with owner):** `docs/OPS.md` § Rehearsal steps 1-9; paste the report's PASS/FAIL lines here; fix wave per FAIL; final numbers become code defaults; `teardown`. Done when one run shows every PASS line including the fault alarm.
+**Task 13 (owner):** (a) run the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `pnpm --filter @cs/ai exec vitest run jev.live` with the real `TYPESAFE_API_KEY`, record whether Jev scores are 0- or 1-based; (c) `/link-other-account` once live (PILOT § 8). Results here; failures to BACKLOG.
+**Before the first invite:** PILOT § 1 gate, including the prod tenant-check SQL.
+
+## Notes for the merger
+- `docs/STATE.md`: 7c2 done, rehearsal numbers once known, "Then, in order" (staging -> Tasks 12/13 -> live deploy -> pilot).
+- `docs/ARCHITECTURE.md`: concurrency/limiter/deferral, readiness + `ops_alert`, rehearsal tooling, feedback tool.
+- Correction to the Task 0 finding: ratings are `feedback.kind = 'rating'` with `after = { useful: boolean }` (not `{ rating }`); PILOT § 7 uses `useful`.
+
+## Pre-flight findings (T0, still useful)
+- 7b1 and 7c1 are merged; schedulers use `clientWorkAllowed` (not `clientServiceable`); `TABLE_CLASS` in `packages/db/test/table-classes.ts`, `ISOLATION_FIXTURES` in `packages/tools/src/isolation/fixtures.ts`.
+- Cron payload `{ _cron: true }` is read from the raw job data (`kb-embed`/`kb-sync` schemas strip it).
+- `SUPPORT_REPLY_TO` is env-only; worker constant `DEFAULT_SUPPORT_REPLY_TO` (`apps/worker/src/deps.ts`); web `webEnv().supportReplyTo`.
+- Schedule constants: `engine/src/briefs/schedule.ts` (`BRIEF_LOCAL_WEEKDAY=4`, `BRIEF_LOCAL_HOUR=22`, `BRIEF_CATCHUP_UNTIL_HOUR=12`), `DELIVERY_LOCAL_HOUR=7`, `STARTING_POINT_WAIT_HOURS=48`.
+- Rulings that changed the plan (full list in the SDD ledger): per-zone readiness keys `brief_readiness:<checkpoint>:<date>:<tz>`; a starting point whose Monday is held by a weekly brief is judged from Tuesday 00:00 local; the panel counts a client as due from Thu 22:00; learned per-host Crawl-delay; allowlist fails closed; `rehearsalEnvErrors` enforced in `createWorkerDeps`; stateless fixture DataForSEO ids; rehearsal weekly report lines cover weekly clients only.
