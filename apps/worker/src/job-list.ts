@@ -13,6 +13,7 @@ import { heartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
 import { createMovesJobs } from './jobs/moves';
 import { createOnboardingJobs } from './jobs/onboarding';
+import { createOpsJobs } from './jobs/ops';
 import { createLeadJobs } from './jobs/leads';
 import { createRunbookJobs } from './jobs/runbooks';
 import { createSetupJobs } from './jobs/setup';
@@ -137,6 +138,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   const modelOps = createModelOpsJobs(deps);
   const platformStats = createPlatformStatsJobs(deps);
   const platformCosts = createPlatformCostsJobs(deps);
+  const ops = createOpsJobs(deps);
   const prospects = createProspectJobs(deps);
   const delivery = createDeliveryJobs(deps, {
     enqueueAlert: async (alertId) => {
@@ -154,7 +156,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
     rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
-    modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
+    modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
     delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
   ];
 }

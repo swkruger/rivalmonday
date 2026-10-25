@@ -20,3 +20,4 @@ export * from './scorecard-model';
 export * from './self-rules';
 export * from './readiness';
 export * from './starting-point';
+export * from './brief-readiness';

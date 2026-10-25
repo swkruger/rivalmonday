@@ -95,6 +95,15 @@ export interface PlatformSpendAlertProps {
   lines: string[];
   url: string;
 }
+/** 7c2: staff alert when a weekly brief or starting point is not ready in time (platform staff only). */
+export interface PlatformOpsAlertProps {
+  branding: Branding;
+  checkpoint: 'generation_closed' | 'pre_delivery' | 'pre_delivery_unapproved' | 'starting_point_late';
+  severity: 'warning' | 'critical';
+  deliveryDate: string;
+  clients: { clientName: string; agencyName: string }[];
+  healthUrl: string;
+}
 export interface PlatformCostLowProps {
   branding: Branding;
   label: string;
@@ -252,6 +261,7 @@ export type EmailPayload =
   | { template: 'agency_hold'; props: AgencyHoldProps }
   | { template: 'platform_cost_low'; props: PlatformCostLowProps }
   | { template: 'platform_spend_alert'; props: PlatformSpendAlertProps }
+  | { template: 'platform_ops_alert'; props: PlatformOpsAlertProps }
   | { template: 'billing_notice'; props: BillingNoticeProps }
   | { template: 'client_invite'; props: ClientInviteProps }
   | { template: 'team_invite'; props: TeamInviteProps }

@@ -7,21 +7,21 @@ import {
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
-import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import {
   type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
-  type PlatformSignupNoticeProps, renderEmail, resolveBranding,
+  type PlatformOpsAlertProps, type PlatformSignupNoticeProps, renderEmail, resolveBranding,
 } from '@cs/email';
-import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
+import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, platformOperatorEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup } from 'node:dns/promises';
@@ -56,6 +56,12 @@ export interface BillingEmailSender {
   sendClient(to: string, agencyId: string, clientId: string, from: { agencyName: string; branding: AgencyBranding | null }, props: Pick<ClientBillingNoticeProps, 'kind' | 'actionUrl'>): Promise<void>;
   /** Phase 9b: Rival Monday-branded email to an agency admin about one of its clients' payments. */
   sendAgencyClient(to: string, agencyId: string, props: Omit<AgencyClientBillingNoticeProps, 'branding'>): Promise<void>;
+}
+
+export interface BriefReadinessDeps {
+  run(now: Date): Promise<{ open: OpsAlert[]; toEmail: OpsAlert[]; resolved: number }>;
+  send(to: string, alert: OpsAlert): Promise<void>;
+  recipients(): Promise<string[]>;
 }
 
 export interface WorkerDeps {
@@ -165,6 +171,8 @@ export interface WorkerDeps {
   serviceDb(): Db;
   /** Phase 8c: everything snapshotAll needs (vendor keys, owners, low-balance email sender). */
   platformCosts(): PlatformCostSnapshotDeps;
+  /** 7c2: the hourly brief readiness check, its platform-branded staff email and the owner/staff recipient list. */
+  briefReadiness(): BriefReadinessDeps;
   /** 7b1: the hourly spend guard's inputs (service db, APP_URL, staff list, platform-branded staff email sender). */
   spendGuard(): SpendGuardDeps;
   /** Phase 9a: platform-branded billing lifecycle email sender (direct transport send, outside the client outbox). */
@@ -505,6 +513,25 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         if (!from) throw new Error('EMAIL_FROM is required');
         const r = await renderEmail({ template: 'platform_cost_low', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
         await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
+      },
+    }),
+    briefReadiness: () => ({
+      run: (now) => checkBriefReadiness(getDb(), now),
+      recipients: () => platformOperatorEmails({ service: getDb(), platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) }, ['owner', 'staff']),
+      send: async (to, alert) => {
+        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
+        if (!from) throw new Error('EMAIL_FROM is required');
+        const appUrl = env.APP_URL?.trim().replace(/\/+$/, '');
+        if (!appUrl) throw new Error('APP_URL is required');
+        const s = alert.summary as Pick<PlatformOpsAlertProps, 'checkpoint' | 'deliveryDate' | 'clients'>;
+        const r = await renderEmail({
+          template: 'platform_ops_alert',
+          props: {
+            branding: resolveBranding('Rival Monday', null), checkpoint: s.checkpoint, severity: alert.severity as PlatformOpsAlertProps['severity'], deliveryDate: s.deliveryDate,
+            clients: s.clients.map((c) => ({ clientName: c.clientName, agencyName: c.agencyName })), healthUrl: `${appUrl}/platform/health`,
+          },
+        });
+        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_ops_alert', metadata: {} }, { agencyId: null, clientId: null });
       },
     }),
     spendGuard: () => ({
