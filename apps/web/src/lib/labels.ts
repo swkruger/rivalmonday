@@ -143,6 +143,12 @@ export const AGENCY_HEALTH: LabelMap<'at_risk' | 'idle' | 'growing' | 'steady'> 
   steady: e('Steady', 'info'),
 };
 
+// Agency hold / archive (agency.suspended_at / archived_at; 15c-3a); platform console only
+export const AGENCY_LIFECYCLE: LabelMap<'on_hold' | 'archived'> = {
+  on_hold: e('On hold', 'danger'),
+  archived: e('Archived', 'neutral'),
+};
+
 // PlatformHealth status (packages/tools/src/platform/system-health.ts: ok / warn / down); platform console only
 export const HEALTH_STATUS: LabelMap<'ok' | 'warn' | 'down'> = {
   ok: e('Working', 'success'),

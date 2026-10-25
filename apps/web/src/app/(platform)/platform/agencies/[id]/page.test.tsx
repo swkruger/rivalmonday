@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ role: 'staff' as string | null, callTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ viewer: { kind: 'user' }, ctx: { userId: 'op' } }) }));
@@ -8,7 +8,19 @@ vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
-vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
+vi.mock('@cs/tools', () => ({ platformRole: async () => m.role, ARCHIVE_BILLING_MESSAGE: 'This agency still has active billing. Cancel it in Stripe first, then archive.' }));
+vi.mock('./actions', () => ({}));
+vi.mock('./manage-menu', () => ({
+  ManageMenu: ({ role, held, archiveRefusal }: { role: string; held: boolean; archiveRefusal: string | null }) => (
+    <div>manage-menu {role} {held ? 'held' : 'not-held'}{role === 'owner' ? ' archive' : ''} {archiveRefusal ?? 'no-refusal'}</div>
+  ),
+  UnarchiveButton: () => <button type="button">Unarchive</button>,
+}));
+vi.mock('./people-section', () => ({ PeopleSection: ({ tab, canManage, people }: { tab: string; canManage: boolean; people: { members: unknown[] } }) => <div>people-section {tab} {canManage ? 'manage' : 'read'} {people.members.length}</div> }));
+vi.mock('./hold-banner', () => ({
+  HoldBanner: ({ issue }: { issue: string }) => <div>hold-banner {issue}</div>,
+  HoldChip: ({ reason, since, byName }: { reason: string; since: string; byName: string }) => <span>On hold ({reason} / {since} / {byName})</span>,
+}));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
 vi.mock('../../_components/range-toggle', () => ({ parseRange: () => '28d', RangeToggle: () => null }));
 vi.mock('./billing-panel', () => ({ BillingPanel: ({ role, billing }: { role: string; billing: { state: string } }) => <div>billing-panel {role} {billing.state}</div> }));
@@ -22,6 +34,10 @@ const detail = {
   agency: { id: AG, name: 'Acme', createdAt: '2026-01-01T00:00:00Z', health: 'steady' },
   tiles: { agencies: tile, clientsActive: tile, seats: tile, wau: tile, spendMonthUsd: tile },
   series: [],
+  hold: null as null | { since: string; reason: string; byName: string },
+  archivedAt: null as string | null,
+  holdBillingIssue: null as null | 'pause' | 'resume',
+  archiveBlockers: { agencyPlan: false, clientSubscriptions: 0 } as { agencyPlan: boolean; clientSubscriptions: number },
   team: { agencyAdmin: 1, accountManager: 0, clientOwner: 0, clientViewer: 0 },
   clients: [],
 };
@@ -34,10 +50,12 @@ beforeEach(() => {
     if (name === 'get_platform_agency') return detail;
     if (name === 'get_agency_billing') return { state: 'trialing' };
     if (name === 'get_client_limits') return { defaultLimitUsd: 15, pausePercent: 130, items: [{}, {}] };
+    if (name === 'list_agency_people') return { members: [{ membershipId: 'm1' }], invitations: [] };
     if (name === 'list_discount_codes') return { codes: [{ id: 'd1', code: 'FRIEND', revokedAt: null }, { id: 'd2', code: 'OLD', revokedAt: '2026-10-01T00:00:00Z' }] };
     return { rows: [session] };
   });
 });
+afterEach(cleanup);
 const page = (sp: Record<string, string> = {}) => Page({ params: Promise.resolve({ id: AG }), searchParams: Promise.resolve(sp) });
 
 describe('platform agency page: support sessions', () => {
@@ -103,5 +121,102 @@ describe('platform agency page: client limits', () => {
     m.role = 'viewer';
     render(await page());
     expect(screen.getByText('client-limits read 2')).toBeTruthy();
+  });
+});
+
+const withDetail = (over: Record<string, unknown>) => {
+  const base = m.callTool.getMockImplementation()!;
+  m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => (name === 'get_platform_agency' ? { ...detail, ...over } : base(ctx, name, input)));
+};
+const called = (name: string) => m.callTool.mock.calls.some((c) => c[1] === name);
+
+describe('platform agency page: manage menu', () => {
+  it('a viewer gets no Manage menu', async () => {
+    m.role = 'viewer';
+    render(await page());
+    expect(screen.queryByText(/manage-menu/)).toBeNull();
+  });
+  it('staff get Manage without Archive; owners with Archive', async () => {
+    render(await page());
+    expect(screen.getByText(/manage-menu staff not-held/).textContent).not.toContain('archive');
+    cleanup();
+    m.role = 'owner';
+    render(await page());
+    expect(screen.getByText(/manage-menu owner/).textContent).toContain('archive');
+  });
+  it('the "coming soon" line and the team-counts tip are gone', async () => {
+    render(await page());
+    expect(document.body.textContent).not.toContain('Agency management is coming soon.');
+    expect(document.body.textContent).not.toContain('About the team counts');
+  });
+  it('live billing becomes the archive refusal, worded for what is live', async () => {
+    m.role = 'owner';
+    const msg = 'This agency still has active billing. Cancel it in Stripe first, then archive.';
+    const base = m.callTool.getMockImplementation()!;
+    for (const [blockers, tail] of [
+      [{ agencyPlan: true, clientSubscriptions: 2 }, 'Its plan and 2 client subscriptions are still active.'],
+      [{ agencyPlan: true, clientSubscriptions: 1 }, 'Its plan and 1 client subscription are still active.'],
+      [{ agencyPlan: true, clientSubscriptions: 0 }, 'Its plan is still active.'],
+      [{ agencyPlan: false, clientSubscriptions: 3 }, '3 client subscriptions are still active.'],
+      [{ agencyPlan: false, clientSubscriptions: 1 }, '1 client subscription is still active.'],
+    ] as const) {
+      m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => (name === 'get_platform_agency' ? { ...detail, archiveBlockers: blockers } : base(ctx, name, input)));
+      render(await page());
+      expect(screen.getByText(/manage-menu owner/).textContent).toContain(`${msg} ${tail}`);
+      cleanup();
+    }
+  });
+});
+
+describe('platform agency page: people', () => {
+  it('loads list_agency_people and passes the ?people= tab; staff manage, viewers read', async () => {
+    render(await page({ people: 'invites' }));
+    expect(m.callTool).toHaveBeenCalledWith({ userId: 'op' }, 'list_agency_people', { agencyId: AG });
+    expect(screen.getByText('people-section invites manage 1')).toBeTruthy();
+    cleanup();
+    m.role = 'viewer';
+    render(await page({ people: 'bogus' }));
+    expect(screen.getByText('people-section team read 1')).toBeTruthy();
+  });
+});
+
+describe('platform agency page: hold', () => {
+  it('a held agency shows the On hold chip with reason, since and by; no banner without an issue', async () => {
+    withDetail({ hold: { since: '2026-10-25T09:00:00Z', reason: 'Card declined', byName: 'Alex' } });
+    render(await page());
+    expect(screen.getByText('On hold (Card declined / Oct 25 / Alex)')).toBeTruthy();
+    expect(screen.getByText(/manage-menu staff held/)).toBeTruthy();
+    expect(screen.queryByText(/hold-banner/)).toBeNull();
+  });
+  it('a billing issue shows the banner', async () => {
+    withDetail({ hold: { since: '2026-10-25T09:00:00Z', reason: 'Card declined', byName: 'Alex' }, holdBillingIssue: 'pause' });
+    render(await page());
+    expect(screen.getByText('hold-banner pause')).toBeTruthy();
+  });
+});
+
+describe('platform agency page: archived', () => {
+  const archived = { archivedAt: '2026-10-20T09:00:00Z', tiles: null, series: null, agency: { ...detail.agency, health: null } };
+  it('renders the archived view only: chip, date, people read-only, clients; skips the other reads', async () => {
+    m.role = 'owner';
+    withDetail({ ...archived, hold: { since: '2026-10-01T09:00:00Z', reason: 'x', byName: 'Alex' }, holdBillingIssue: 'pause' });
+    render(await page());
+    expect(screen.getByText('Archived')).toBeTruthy();
+    expect(document.body.textContent).toContain('Archived Oct 20.');
+    expect(screen.getByRole('button', { name: 'Unarchive' })).toBeTruthy();
+    expect(screen.getByText('people-section team read 1')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Clients' })).toBeTruthy();
+    for (const t of ['get_agency_billing', 'get_client_limits', 'list_agency_support_sessions', 'list_discount_codes']) expect(called(t)).toBe(false);
+    expect(screen.queryByText(/manage-menu/)).toBeNull();
+    expect(screen.queryByText(/On hold/)).toBeNull();
+    expect(screen.queryByText(/hold-banner/)).toBeNull();
+    expect(screen.queryByText('Steady')).toBeNull();
+    expect(screen.queryByText(/billing-panel|client-limits/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /View as agency/ })).toBeNull();
+  });
+  it('staff see no Unarchive', async () => {
+    withDetail(archived);
+    render(await page());
+    expect(screen.queryByRole('button', { name: 'Unarchive' })).toBeNull();
   });
 });

@@ -67,4 +67,6 @@ export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/
 export { catalogOf, catalogPacks } from './catalog/access';
 export { platformHealthOutput, type PlatformHealth } from './platform/system-health';
 export { archiveTenant, type ArchiveResult, liveBilling } from './platform/archive';
+// 15c-3a: the agency page words its archive refusal from `get_platform_agency.archiveBlockers` before the tool would refuse.
+export { ARCHIVE_BILLING_MESSAGE } from './tools/platform-agency';
 export { recordSupportAccess, type SupportAccessSurface } from './platform/audit';

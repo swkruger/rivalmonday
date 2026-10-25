@@ -92,10 +92,22 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },
-      // source: packages/tools/src/tools/platform-console.ts:getPlatformAgency (team = distinct people per role)
-      team: {
-        title: 'Team counts',
-        body: 'The number of different people in this agency in each role: agency admins, account managers, client owners and client viewers.',
+      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts (list_agency_people, people writes; RESEND_TOOLS limits)
+      people: {
+        title: 'People',
+        body: 'Everyone on this agency and its clients, plus invites that haven\'t been accepted. Staff can change agency roles, remove people and resend invites. Invites count toward the agency\'s daily limits.',
+        audience: 'operator',
+      },
+      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts:platformSuspendAgencyTool, platformUnsuspendAgencyTool
+      hold: {
+        title: 'Holds',
+        body: 'A hold makes the agency read-only, stops its scheduled work and pauses its billing. Its admins get an email when a hold starts and ends. Payments don\'t lift a hold; only staff can.',
+        audience: 'operator',
+      },
+      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts:platformArchiveAgencyTool (ARCHIVE_BILLING_MESSAGE)
+      archive: {
+        title: 'Archiving',
+        body: 'Archiving hides the agency and its clients from everyone outside the platform. Nothing is deleted, and an owner can unarchive it from the Archived filter. You can\'t archive while billing is active.',
         audience: 'operator',
       },
       // source: packages/tools/src/tools/usage.ts:getClientLimits, setClientLimits (staff and owners write; blank override = platform default; raising the limit above spend lifts a spend pause)
