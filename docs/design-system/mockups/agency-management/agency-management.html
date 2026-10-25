@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>15c-3a agency management mockups</title>
+<style>
+:root{--primary:#47A8E7;--primary-soft:#E6F3FC;--secondary:#2A6BAC;--accent:#F5A524;--ink:#0B2540;--muted:#5B6B80;--faint:#8796AB;--line:#DDE4EC;--input:#8796AB;--canvas:#F6F9FC;--panel:#EEF2F6;--danger:#B42318;--danger-soft:#FDECEA;--warn-soft:#FDF1DC;--ok:#1F7A45;--ok-soft:#E3F4EA}
+@page{size:1440px 900px;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:Inter,system-ui,sans-serif;color:var(--ink);font-size:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{width:1440px;height:900px;position:relative;overflow:hidden;page-break-after:always;background:var(--canvas)}
+.page:last-child{page-break-after:auto}
+.tag{position:absolute;top:12px;right:16px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--ink);padding:4px 8px;border-radius:4px;z-index:20}
+.note{position:absolute;z-index:15;background:#FFF7E6;border:1px solid #F5C66A;border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.45;color:#5A3A00;max-width:260px}
+.wm{font-weight:600;font-size:18px;letter-spacing:-.02em}.wm .r{color:var(--secondary)}.wm .m{color:var(--accent)}
+/* shell */
+.shell{position:absolute;inset:0;display:grid;grid-template-columns:232px 1fr}
+.side{padding:18px 14px;display:flex;flex-direction:column;gap:4px}
+.ctx{margin:14px 0 12px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:8px 10px;font-size:12px}
+.ctx b{display:block;font-size:13px}
+.nav{font-size:13px;padding:7px 10px;border-radius:6px;color:var(--muted)}
+.nav.on{background:#fff;color:var(--ink);font-weight:500;box-shadow:inset 2px 0 0 var(--primary)}
+.navh{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:12px 10px 2px}
+.sheet{margin:14px 14px 14px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px 32px;overflow:hidden;position:relative}
+.crumb{font-size:12px;color:var(--muted)}
+.ph{display:flex;align-items:flex-start;gap:16px;margin-top:6px}
+.ph h1{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.ph .desc{font-size:13px;color:var(--muted);margin-top:4px}
+.ph .act{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{height:34px;border-radius:6px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink);white-space:nowrap}
+.btn.p{background:var(--primary);border-color:var(--primary)}
+.btn.d{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.dis{opacity:.45}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.lnk{color:var(--secondary);font-weight:500;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--panel);color:var(--ink);white-space:nowrap}
+.chip.info{background:var(--primary-soft);color:#174E7A}.chip.ok{background:var(--ok-soft);color:#14532D}.chip.warn{background:var(--warn-soft);color:#7A4A00}.chip.danger{background:var(--danger-soft);color:#8A1C12}
+.sec{border-top:1px solid var(--line);padding-top:18px;margin-top:22px}
+.sec h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.sec h2 .cnt{font-size:12px;font-weight:400;color:var(--muted)}
+.sec h2 .r{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:20px;border:1px solid var(--line);border-radius:8px}
+.kpi{padding:14px 18px;border-left:1px solid var(--line)}.kpi:first-child{border-left:0}
+.kpi .l{font-size:12px;color:var(--muted)}.kpi .v{font-size:22px;font-weight:600;margin-top:4px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:7px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.m{color:var(--muted)}
+.sub{font-size:12px;color:var(--muted)}
+.dots{color:var(--muted);font-weight:600;letter-spacing:1px;text-align:right}
+/* menus/dialogs */
+.menu{position:absolute;z-index:12;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(11,37,64,.16);padding:6px;min-width:220px;font-size:13px}
+.mi{padding:8px 10px;border-radius:6px;display:flex;justify-content:space-between;gap:16px}
+.mi.h{background:var(--panel)}.mi.dg{color:var(--danger)}.mi.off{color:var(--faint)}
+.mi .k{font-size:11px;color:var(--faint)}
+.msep{height:1px;background:var(--line);margin:4px 2px}
+.scrim{position:absolute;inset:0;background:rgba(11,37,64,.42);z-index:10}
+.dlg{position:absolute;z-index:11;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:#fff;border-radius:12px;box-shadow:0 24px 64px rgba(11,37,64,.3);padding:24px}
+.dlg h3{font-size:18px;font-weight:600}
+.dlg p{font-size:14px;line-height:1.55;color:var(--ink);margin-top:10px}
+.dlg ul{margin:10px 0 0 18px;font-size:14px;line-height:1.6}
+.dlg .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+.f{margin-top:16px}.f label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+.in{min-height:38px;border:1px solid var(--input);border-radius:6px;padding:9px 12px;font-size:14px;background:#fff}
+.in.ta{min-height:76px}.in.ph{color:var(--faint)}.in.focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.err{font-size:13px;color:var(--danger);margin-top:8px}
+.banner{border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.5;display:flex;gap:12px;align-items:center}
+.banner.warn{background:var(--warn-soft);color:#5A3A00}.banner.danger{background:var(--danger-soft);color:#7A1A10}.banner.info{background:var(--primary-soft);color:#123F63}
+.banner .btn{margin-left:auto}
+.tabs{display:flex;gap:4px;margin-top:18px;border-bottom:1px solid var(--line)}
+.tab{padding:8px 12px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--ink);font-weight:500;border-color:var(--primary)}
+.tab .n{font-size:11px;color:var(--faint);margin-left:4px}
+.tip{position:absolute;z-index:12;background:var(--ink);color:#fff;font-size:12px;line-height:1.45;padding:8px 10px;border-radius:6px;max-width:280px}
+/* cover */
+.cover{padding:64px 88px;background:#fff;height:100%}
+.cover h2{font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:26px}
+.cover .lead{font-size:16px;color:var(--muted);margin-top:10px;max-width:900px;line-height:1.55}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:40px}
+.col h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--secondary);margin-bottom:12px}
+.col li{list-style:none;font-size:14px;line-height:1.5;padding-left:16px;position:relative;margin-bottom:9px}
+.col li:before{content:"";position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--primary)}
+.toc{margin-top:36px;padding:16px 20px;background:var(--panel);border-radius:8px;font-size:14px;line-height:1.7}
+/* email */
+.mail{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mail .hd{background:var(--panel);padding:12px 16px;font-size:12px;line-height:1.6;color:var(--muted)}
+.mail .hd b{color:var(--ink);font-weight:500}
+.mail .bd{padding:22px 24px;font-size:14px;line-height:1.6}
+.mail .bd p{margin-bottom:12px}
+</style></head><body>
+
+<!-- 1 cover -->
+<section class="page"><div class="cover">
+<div class="wm"><span class="r">rival</span><span class="m">monday</span></div>
+<h2>15c-3a: agency management, mockups</h2>
+<p class="lead">This covers the platform's agency detail page at <b>/platform/agencies/&lt;id&gt;</b>: rename, people, hold and archive, plus the "On hold" and "Archived" filters on the agency list. Plans (create plan, change plan) come in 15c-3b. Layout follows design system v1: one white sheet, sections before cards. All copy is a draft for your sign-off.</p>
+<div class="cols">
+<div class="col"><h3>Decided</h3><ul>
+<li>Split: 3a = rename, people, hold, archive; 3b = plans</li>
+<li>Archive refuses while billing is live: "cancel in Stripe first"</li>
+<li>"Archived" filter on the list; only owners can unarchive</li>
+<li>A hold freezes all billing work (daily job, Connect, activate/resume)</li>
+</ul></div>
+<div class="col"><h3>Decided (cont.)</h3><ul>
+<li>Staff invites and resends count toward the agency's limits; the email names the agency</li>
+<li>"On hold" chip + filter on the agency list</li>
+<li>Starting or lifting a hold <b>emails the agency admins</b>; the email is generic, and the reason stays internal</li>
+<li>Branding privacy/site URLs wait for 13a</li>
+</ul></div>
+<div class="col"><h3>Roles</h3><ul>
+<li><b>Viewer:</b> sees everything, no Manage menu</li>
+<li><b>Staff:</b> rename, people, hold/lift hold</li>
+<li><b>Owner:</b> also archive/unarchive (and plans in 3b)</li>
+<li>Every change goes through a confirm dialog</li>
+</ul></div>
+</div>
+<div class="toc"><b>Pages:</b> 2 Detail page + Manage menu · 3 People section · 4 People dialogs · 5 Put on hold · 6 On hold (platform view) · 7 On hold (agency view + emails) · 8 Archive · 9 Agency list filters + unarchive</div>
+</div></section>
+
+<!-- shell macro reused by copy -->
+<!-- 2 detail + manage menu -->
+<section class="page"><span class="tag">2 · Detail page · Manage menu open</span>
+<div class="shell">
+<div class="side"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div>
+<div class="ctx"><span class="sub">Context</span><b>Platform</b></div>
+<div class="nav">Overview</div><div class="navh">Customers</div><div class="nav on">Agencies</div><div class="nav">Lead pool</div><div class="navh">Revenue</div><div class="nav">Billing &amp; plans</div><div class="navh">Quality</div><div class="nav">Model reviews</div><div class="nav">Topic proposals</div><div class="nav">Ask reviews</div><div class="navh">Content</div><div class="nav">Knowledge</div><div class="nav">Business types</div><div class="nav">Runbook</div></div>
+<div class="sheet">
+<div class="crumb">Platform / Agencies / Brightline Marketing</div>
+<div class="ph"><div><h1>Brightline Marketing</h1><div class="desc">How this agency is doing, who is on it, and its billing. Created Mar 4.</div></div>
+<div class="act"><span class="chip info">Steady</span><span class="btn">View as agency</span><span class="btn">Manage ▾</span></div></div>
+<div class="kpis"><div class="kpi"><div class="l">Active clients</div><div class="v">3</div></div><div class="kpi"><div class="l">Seats</div><div class="v">5</div></div><div class="kpi"><div class="l">Weekly active users</div><div class="v">4</div></div><div class="kpi"><div class="l">Spend this month</div><div class="v">$14.20</div></div></div>
+<div class="sec"><h2>People <span class="cnt">2 agency admins · 1 account manager · 3 client owners · 1 client viewer · 1 pending invite</span><span class="r btn sm">Invite agency admin</span></h2>
+<div class="tabs"><span class="tab on">Agency team<span class="n">3</span></span><span class="tab">Client people<span class="n">4</span></span><span class="tab">Pending invites<span class="n">1</span></span></div>
+<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Clients</th><th></th></tr>
+<tr><td><b>Dana Ortiz</b></td><td class="m">dana@brightline.co</td><td>Agency admin</td><td class="m">All clients</td><td class="dots">···</td></tr>
+<tr><td><b>Sam Patel</b></td><td class="m">sam@brightline.co</td><td>Agency admin</td><td class="m">All clients</td><td class="dots">···</td></tr>
+<tr><td><b>Jo Kim</b></td><td class="m">jo@brightline.co</td><td>Account manager</td><td class="m">Cool Air HVAC, Smile Dental</td><td class="dots">···</td></tr>
+</table></div>
+<div class="sec"><h2>Clients</h2><table><tr><th>Client</th><th>Status</th><th>Created</th></tr><tr><td><b>Cool Air HVAC</b></td><td><span class="chip ok">Active</span></td><td class="m">Mar 6</td></tr></table></div>
+</div></div>
+<div class="menu" style="right:30px;top:96px">
+<div class="mi h">Rename agency</div>
+<div class="mi">Put on hold</div>
+<div class="mi off">Change plan <span class="k">15c-3b</span></div>
+<div class="msep"></div>
+<div class="mi dg">Archive agency <span class="k">owner</span></div>
+</div>
+<div class="note" style="right:30px;top:300px">Manage replaces the "Agency management is coming soon." line. Items below your role are hidden: viewers get no Manage button; staff don't see Archive.</div>
+<div class="note" style="left:760px;top:600px">People replaces the Team counts card. The counts move into its heading.</div>
+</section>
+
+<!-- 3 people section -->
+<section class="page"><span class="tag">3 · People section (full)</span>
+<div class="shell">
+<div class="side"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><div class="ctx"><span class="sub">Context</span><b>Platform</b></div><div class="nav">Overview</div><div class="navh">Customers</div><div class="nav on">Agencies</div><div class="nav">Lead pool</div></div>
+<div class="sheet">
+<div class="crumb">Platform / Agencies / Brightline Marketing</div>
+<div class="sec" style="border-top:0;margin-top:6px;padding-top:6px"><h2>People <span class="cnt">2 agency admins · 1 account manager · 3 client owners · 1 client viewer</span><span class="r btn sm">Invite agency admin</span></h2>
+<div class="tabs"><span class="tab on">Agency team<span class="n">3</span></span><span class="tab">Client people<span class="n">4</span></span><span class="tab">Pending invites<span class="n">2</span></span></div>
+<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Clients</th><th></th></tr>
+<tr><td><b>Dana Ortiz</b></td><td class="m">dana@brightline.co</td><td>Agency admin</td><td class="m">All clients</td><td class="dots">···</td></tr>
+<tr><td><b>Sam Patel</b></td><td class="m">sam@brightline.co</td><td>Agency admin</td><td class="m">All clients</td><td class="dots" style="position:relative">···</td></tr>
+<tr><td><b>Jo Kim</b></td><td class="m">jo@brightline.co</td><td>Account manager</td><td class="m">Cool Air HVAC, Smile Dental</td><td class="dots">···</td></tr>
+</table>
+<div style="margin-top:40px"><div class="sub" style="font-weight:500;color:var(--ink);margin-bottom:4px">Pending invites tab</div>
+<table><tr><th>Email</th><th>Role</th><th>Client</th><th>Sent</th><th>Expires</th><th></th></tr>
+<tr><td>maria@brightline.co</td><td>Agency admin</td><td class="m">—</td><td class="m">Oct 23</td><td class="m">Oct 30</td><td style="text-align:right"><span class="btn sm">Resend</span> <span class="btn sm">Revoke</span></td></tr>
+<tr><td>owner@coolairhvac.com</td><td>Client owner</td><td class="m">Cool Air HVAC</td><td class="m">Oct 20</td><td class="m">Oct 27</td><td style="text-align:right"><span class="btn sm">Resend</span> <span class="btn sm">Revoke</span></td></tr>
+</table></div>
+<div style="margin-top:40px"><div class="sub" style="font-weight:500;color:var(--ink);margin-bottom:4px">Client people tab</div>
+<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Client</th><th></th></tr>
+<tr><td><b>Lee Grant</b></td><td class="m">lee@coolairhvac.com</td><td>Client owner</td><td class="m">Cool Air HVAC</td><td class="dots">···</td></tr>
+</table></div>
+</div></div></div>
+<div class="menu" style="left:1210px;top:178px;min-width:190px"><div class="mi h">Make account manager</div><div class="msep"></div><div class="mi dg">Remove from agency</div></div>
+<div class="note" style="left:300px;top:760px;max-width:380px">Row menu: agency admin ↔ account manager. Client people only get "Remove". Staff never edit client roles here (C5: no step into a client).</div>
+<div class="note" style="left:720px;top:760px;max-width:380px">Resend counts toward the agency's limit (3 a day per invite). The 4th is refused: "This invite was already resent 3 times today."</div>
+</section>
+
+<!-- 4 people dialogs -->
+<section class="page"><span class="tag">4 · People dialogs</span>
+<div style="position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:24px;padding:40px">
+<div style="position:relative"><div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Invite an agency admin</h3><p>They get an email from Brightline Marketing with a link to join as an agency admin.</p>
+<div class="f"><label>Email</label><div class="in focus">maria@brightline.co</div></div>
+<div class="foot"><span class="btn">Cancel</span><span class="btn p">Send invite</span></div></div></div>
+<div style="position:relative"><div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Make Sam Patel an account manager?</h3><p>Sam will only see the clients assigned to them and can't manage the team, billing or settings.</p>
+<div class="foot"><span class="btn">Cancel</span><span class="btn p">Change role</span></div></div></div>
+<div style="position:relative"><div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Remove Jo Kim from Brightline Marketing?</h3><p>Jo loses access to the agency and its clients right away. Their past activity stays.</p>
+<div class="foot"><span class="btn">Cancel</span><span class="btn d">Remove</span></div></div></div>
+<div style="position:relative"><div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Make Dana Ortiz an account manager?</h3><p>Dana will only see the clients assigned to them and can't manage the team, billing or settings.</p>
+<div class="err">An agency needs at least one admin.</div>
+<div class="foot"><span class="btn">Close</span></div></div>
+<div class="note" style="position:absolute;right:0;bottom:-6px">Last-admin rule: shown after confirming when Dana is the only admin (same for Remove).</div></div>
+</div></section>
+
+<!-- 5 put on hold -->
+<section class="page"><span class="tag">5 · Put on hold</span>
+<div class="shell"><div class="side"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div></div><div class="sheet"><div class="crumb">Platform / Agencies / Brightline Marketing</div><div class="ph"><h1>Brightline Marketing</h1></div></div></div>
+<div class="scrim"></div>
+<div class="dlg" style="width:560px">
+<h3>Put Brightline Marketing on hold?</h3>
+<p>While on hold:</p>
+<ul><li>Its team can sign in and see everything, but can't change anything.</li><li>Scheduled work stops: no collection, briefs or alerts.</li><li>Billing pauses on its plan and on its clients' subscriptions. Invoices during the hold aren't charged later.</li><li>Its agency admins get an email saying the account is on hold.</li></ul>
+<div class="f"><label>Reason (staff only)</label><div class="in ta">Card declined three times; Dana asked for two weeks to sort payment. Agreed on call Oct 25.</div><div class="hint">Never shown to the agency. 3–500 characters.</div></div>
+<div class="foot"><span class="btn">Cancel</span><span class="btn d">Put on hold</span></div>
+</div>
+<div class="note" style="left:1040px;top:300px">Payments by the agency don't lift a hold; only staff can (C6).</div>
+</section>
+
+<!-- 6 on hold platform view -->
+<section class="page"><span class="tag">6 · On hold, platform view</span>
+<div class="shell">
+<div class="side"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><div class="ctx"><span class="sub">Context</span><b>Platform</b></div><div class="nav">Overview</div><div class="navh">Customers</div><div class="nav on">Agencies</div></div>
+<div class="sheet">
+<div class="crumb">Platform / Agencies / Brightline Marketing</div>
+<div class="ph"><div><h1>Brightline Marketing</h1><div class="desc">How this agency is doing, who is on it, and its billing. Created Mar 4.</div></div>
+<div class="act"><span class="chip danger">On hold</span><span class="chip info">Steady</span><span class="btn">View as agency</span><span class="btn">Manage ▾</span></div></div>
+<div class="banner danger" style="margin-top:16px"><div><b>On hold since Oct 25</b> by Alex (staff). Billing pause failed for 1 of 4 subscriptions (Smile Dental). The hold still applies.</div><span class="btn sm">Retry billing pause</span></div>
+<div class="kpis"><div class="kpi"><div class="l">Active clients</div><div class="v">3</div></div><div class="kpi"><div class="l">Seats</div><div class="v">5</div></div><div class="kpi"><div class="l">Weekly active users</div><div class="v">4</div></div><div class="kpi"><div class="l">Spend this month</div><div class="v">$14.20</div></div></div>
+<div class="sec"><h2>Billing</h2><table><tr><th>Plan</th><th>State</th><th>Collection</th></tr><tr><td>Standard v2</td><td><span class="chip warn">Past due</span></td><td class="m">Paused (hold)</td></tr></table></div>
+</div></div>
+<div class="tip" style="left:1010px;top:126px">Reason: Card declined three times; Dana asked for two weeks to sort payment. Agreed on call Oct 25.</div>
+<div class="menu" style="right:30px;top:96px"><div class="mi">Rename agency</div><div class="mi h">Lift hold</div><div class="mi off">Change plan <span class="k">refused on hold</span></div><div class="msep"></div><div class="mi dg">Archive agency</div></div>
+<div class="note" style="left:300px;top:420px;max-width:330px">The banner appears only when a billing pause failed; otherwise just the chip. Hover on the chip shows the reason (staff only). "Lift hold" opens a confirm: <i>"Lift the hold on Brightline Marketing? Changes, scheduled work and billing resume now, and its admins get an email."</i></div>
+</section>
+
+<!-- 7 agency view + emails -->
+<section class="page"><span class="tag">7 · On hold, agency view + emails</span>
+<div style="position:absolute;left:40px;top:40px;width:760px;height:820px;border:1px solid var(--line);border-radius:12px;background:var(--canvas);overflow:hidden">
+<div style="padding:16px 20px;background:#fff;border-bottom:1px solid var(--line);font-weight:600">Brightline Marketing <span class="sub" style="font-weight:400">· agency home</span></div>
+<div style="padding:20px">
+<div class="banner warn"><div>This account is on hold. Contact <b>support@rivalmonday.app</b> to restore it.</div></div>
+<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px">
+<div style="font-weight:600;font-size:16px">Clients</div>
+<table><tr><th>Client</th><th>Status</th><th></th></tr><tr><td>Cool Air HVAC</td><td><span class="chip ok">Active</span></td><td style="text-align:right"><span class="btn sm dis">Pause</span></td></tr><tr><td>Smile Dental</td><td><span class="chip ok">Active</span></td><td style="text-align:right"><span class="btn sm dis">Pause</span></td></tr></table>
+<div style="margin-top:14px"><span class="btn p dis">Add client</span></div>
+</div>
+<div class="note" style="position:static;margin-top:16px;max-width:none">Every agency role sees the same banner. Buttons that change things are disabled, and a write that gets through anyway is refused with the same sentence. Client roles see the existing neutral "account needs attention" line, never the hold.</div>
+</div></div>
+<div style="position:absolute;left:840px;top:40px;width:560px">
+<div class="mail"><div class="hd"><b>Hold started</b><br>To: agency admins (Dana Ortiz, Sam Patel)<br>From: Rival Monday &lt;support@rivalmonday.app&gt;<br>Subject: <b>Your Brightline Marketing account is on hold</b></div>
+<div class="bd"><p>Hi Dana,</p><p>Your Brightline Marketing account is on hold. Your team can still sign in and see everything, but changes and scheduled work are paused, and so is billing.</p><p>To restore it, reply to this email or contact support@rivalmonday.app.</p></div></div>
+<div class="mail" style="margin-top:20px"><div class="hd"><b>Hold lifted</b><br>Subject: <b>Your Brightline Marketing account is active again</b></div>
+<div class="bd"><p>Hi Dana,</p><p>The hold on your Brightline Marketing account has been lifted. Your team can make changes again, and scheduled work and billing resume today.</p></div></div>
+<div class="note" style="position:static;margin-top:16px;max-width:none">Generic: the staff reason is never included. Sent from the platform's support address. Agencies are Rival Monday's customers, so naming it is fine; their clients never get this email.</div>
+</div></section>
+
+<!-- 8 archive -->
+<section class="page"><span class="tag">8 · Archive (owner)</span>
+<div style="position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:60px 48px;background:var(--canvas)">
+<div><div class="sub" style="font-weight:600;color:var(--ink);margin-bottom:10px">A · No live billing</div>
+<div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Archive Brightline Marketing?</h3>
+<p>The agency, its team and its clients disappear for everyone outside the platform. Nothing is deleted: evidence stays, and an owner can unarchive it from the Archived filter. After 30 days it can be purged.</p>
+<div class="f"><label>Type <b>Brightline Marketing</b> to confirm</label><div class="in focus">Brightline Market</div></div>
+<div class="foot"><span class="btn">Cancel</span><span class="btn d dis">Archive agency</span></div></div></div>
+<div><div class="sub" style="font-weight:600;color:var(--ink);margin-bottom:10px">B · Billing still live: refused</div>
+<div class="dlg" style="position:static;transform:none;width:100%">
+<h3>Archive Brightline Marketing?</h3>
+<div class="banner danger" style="margin-top:12px"><div>This agency still has active billing: its Standard plan and 2 client subscriptions. Cancel them in Stripe first, then archive.</div></div>
+<div class="foot"><span class="btn">Close</span></div></div>
+<div class="note" style="position:static;margin-top:16px;max-width:none">The check runs when the dialog opens, and again when you confirm. The same logic serves the command-line archive (moved into a shared package).</div></div>
+</div></section>
+
+<!-- 9 list filters -->
+<section class="page"><span class="tag">9 · Agency list: filters + unarchive</span>
+<div class="shell">
+<div class="side"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><div class="ctx"><span class="sub">Context</span><b>Platform</b></div><div class="nav">Overview</div><div class="navh">Customers</div><div class="nav on">Agencies</div><div class="nav">Lead pool</div></div>
+<div class="sheet">
+<div class="crumb">Platform / Agencies</div>
+<div class="ph"><div><h1>Agencies</h1><div class="desc">Every agency on the platform.</div></div></div>
+<div style="display:flex;gap:12px;align-items:center;margin-top:18px"><div class="in ph" style="width:280px">Search agencies</div>
+<div style="display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:13px"><span style="padding:8px 12px">Active</span><span style="padding:8px 12px;border-left:1px solid var(--line)">On hold <span class="sub">1</span></span><span style="padding:8px 12px;border-left:1px solid var(--line);background:var(--panel);font-weight:500">Archived <span class="sub">2</span></span><span style="padding:8px 12px;border-left:1px solid var(--line)">All</span></div></div>
+<table style="margin-top:16px"><tr><th>Agency</th><th>Status</th><th>Clients</th><th>Archived</th><th></th></tr>
+<tr><td><b>Northwind Local</b></td><td><span class="chip">Archived</span></td><td class="m">2</td><td class="m">Sep 12 · purge possible</td><td style="text-align:right"><span class="btn sm">Unarchive</span></td></tr>
+<tr><td><b>Peak Digital</b></td><td><span class="chip">Archived</span></td><td class="m">0</td><td class="m">Oct 18</td><td style="text-align:right"><span class="btn sm">Unarchive</span></td></tr>
+</table>
+<div style="margin-top:44px"><div class="sub" style="font-weight:500;color:var(--ink);margin-bottom:4px">"Active" view (default) with a held agency</div>
+<table><tr><th>Agency</th><th>Health</th><th>Clients</th><th>Plan</th><th>Created</th></tr>
+<tr><td><b>Brightline Marketing</b> <span class="chip danger">On hold</span></td><td><span class="chip info">Steady</span></td><td class="m">3</td><td class="m">Standard</td><td class="m">Mar 4</td></tr>
+<tr><td><b>Harbor &amp; Co</b></td><td><span class="chip ok">Growing</span></td><td class="m">2</td><td class="m">Pilot</td><td class="m">Jun 2</td></tr>
+</table></div>
+</div></div>
+<div class="note" style="left:1000px;top:250px;max-width:320px">"Active" includes held agencies (with the chip); "On hold" narrows to them. Archived rows open a read-only detail page. Unarchive is owners only; it confirms with <i>"Unarchive Northwind Local? The agency and its clients come back as they were. Paused billing doesn't restart on its own."</i></div>
+</section>
+</body></html>

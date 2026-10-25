@@ -1,13 +1,13 @@
 # phase-15c3 — agency management on `/platform/agencies/<id>`
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3   **Base:** main @ e31e1255
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding); plan to be written.
+**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (awaiting owner review) · mockups `docs/design-system/mockups/agency-management/` (approved); plan to be written.
 
 ## Status (overwrite)
-Kickoff done 2026-10-25 (brief below). Nothing designed or built.
+2026-10-25: kickoff, open questions answered, mockups approved, 15c-3a spec drafted + builder-checked. Nothing built.
 
 ## Next (overwrite)
-Owner answers open questions → brainstorming → C10 mockup → lean plan(s) → approval.
+Owner reviews the 15c-3a spec → writing-plans (lean) → approval → SDD. 15c-3b (plans, §5.5) gets its own spec/plan after 3a merges.
 
 ## Interfaces this branch adds or changes
 Per 15c spec §5: migration (next free) `agency.suspended_at/_reason/_by`, `plan.visibility`; 13 platform tools (§5.1–5.5); `BillingGateway` += `pauseCollection`/`resumeCollection`/`swapSubscriptionPlan`; `billingAccess().onHold`; `agencyServiceable` excludes held agencies.
@@ -18,7 +18,7 @@ Per 15c spec §5: migration (next free) `agency.suspended_at/_reason/_by`, `plan
 - **phase-16** (docs only, code waits for us): restyles our page later; no overlap now.
 
 ## Decisions (owner-approved)
-None yet (15c C1, C5, C6, C10, C11 bind).
+15c-3a spec A1–A9 (2026-10-25): split 3a/3b; archive refuses live billing; Archived filter + owner unarchive; hold freezes all billing work; operator invites count toward agency limits, email names the agency; On hold chip + filter; hold start/lift emails admins (generic); branding URLs → 13a; hold time counts, no deadline shift. 15c C1, C5, C6, C10, C11 bind. Q5 (`create_plan` features) deferred to 3b.
 
 ## New backlog (target → item)
 None yet.
