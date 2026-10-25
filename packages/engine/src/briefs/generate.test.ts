@@ -325,7 +325,7 @@ describe('listBriefDueClients set-based scan (7c2 T4)', () => {
     { name: 'quiet-sent', row: () => ({ status: 'sent', kind: 'quiet' }) },
     { name: 'starting-point', row: () => ({ status: 'sent', kind: 'starting_point' }) },
   ];
-  const other = (o: Partial<typeof client.$inferInsert>) => ({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', timezone: 'America/Chicago', ...o });
+  const other = (o: Partial<typeof client.$inferInsert> & { name: string }) => ({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', timezone: 'America/Chicago', ...o });
 
   let rows: { id: string; tz: string; state: State }[] = [];
   async function seedWorld() {
