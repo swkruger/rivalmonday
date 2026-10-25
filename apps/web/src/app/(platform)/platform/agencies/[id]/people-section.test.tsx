@@ -77,7 +77,7 @@ describe('PeopleSection', () => {
     openMenu('Dana Ortiz');
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Make account manager' }));
     const dialog = await screen.findByRole('dialog', { name: 'Make Dana Ortiz an account manager?' });
-    expect(dialog.textContent).toContain("Dana will only see the clients assigned to them and can't manage the team, billing or settings.");
+    expect(dialog.textContent).toContain("Dana will still see every client but can't manage the team, billing or settings. The agency can limit their clients in Team settings.");
     expect(m.change).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Change role' }));
     await waitFor(() => expect(m.change).toHaveBeenCalledTimes(1));

@@ -187,7 +187,7 @@ export function PeopleSection({ agency, people, tab, hrefs, canManage, tz, nowMs
               fields={{ agencyId: agency.id, membershipId: target.person.membershipId, role: target.role }}
               title={target.role === 'account_manager' ? `Make ${displayName(target.person)} an account manager?` : `Make ${displayName(target.person)} an agency admin?`}
               body={target.role === 'account_manager'
-                ? `${firstName(target.person)} will only see the clients assigned to them and can't manage the team, billing or settings.`
+                ? `${firstName(target.person)} will still see every client but can't manage the team, billing or settings. The agency can limit their clients in Team settings.`
                 : `${firstName(target.person)} will see every client and can manage the team, billing and settings.`}
               confirmLabel="Change role"
               action={changeMemberRoleAction}

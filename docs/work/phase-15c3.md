@@ -1,7 +1,7 @@
 # phase-15c3 — agency management on `/platform/agencies/<id>`
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3   **Base:** main @ e31e1255
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (owner-approved 2026-10-25) · [15c-3a plan](../superpowers/plans/2026-10-25-phase-15c3a-agency-management.md) (awaiting approval) · mockups `docs/design-system/mockups/agency-management/` (approved).
+**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (owner-approved 2026-10-25) · [15c-3a plan](../superpowers/plans/2026-10-25-phase-15c3a-agency-management.md) (owner-approved 2026-10-25) · mockups `docs/design-system/mockups/agency-management/` (approved).
 
 ## Status (overwrite)
 2026-10-25: 15c-3a built (Tasks 0-12); final whole-branch review next, then owner verification and merge. 15c-3b not started.
@@ -21,7 +21,7 @@ Final review + one fix wave -> owner runs the verification steps below and signs
 (a) `runBillingDaily` skips `runConnectDaily` for held agencies. (b) `resumeClient` and `assertCanActivateClient` throw `service_paused` on hold. (c) Allow-list unchanged (`disable_client_billing`, `redeem_discount_code` still present). (d) Billing files touched: `connect-webhook.ts` (tolerate `service_paused` at the R14 lift + `PostCommit.pauseHeldFor`), `webhook.ts` (post-commit pause step), `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts` (pause/resume), `daily.ts`, `seats.ts`, `access.ts`, new `hold.ts`/`index.ts` export. Not touched: `connect-daily.ts`, `client-billing-state.ts`, `client-pause.ts` logic (test only).
 
 ## Assumes from other branches
-- **phase-7c2** (executing) claims **0093** (`ops_alert`); we take the next free (likely 0094); second to merge renumbers + regenerates snapshot/journal. Both edit `isolation/fixtures.ts` and `packages/tools/src/index.ts`. Its readiness uses `agencyServiceable`, so held agencies drop out once we extend it.
+- **phase-7c2** (executing) ships **0093** `ops_alert`; this branch ships **0093** `agency_hold`; whichever merges second renumbers + regenerates journal/snapshot. Both edit `isolation/fixtures.ts` and `packages/tools/src/index.ts`. Its readiness uses `agencyServiceable`, so held agencies drop out once we extend it.
 - **phase-7b2** (starts after we merge) expects `suspended_at`, `onHold`, `service_paused`, unchanged allow-list, gateway pause methods in `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts` (it never edits those); needs Q4's answer.
 - **phase-16** (docs only, code waits for us): restyles our page later; no overlap now.
 
@@ -88,7 +88,7 @@ Root CLAUDE.md: separate plans, hold = read-only + collection paused; refusals 4
 
 ## Pre-flight (Task 0, 2026-10-25)
 - Rebase on main: nothing to do (HEAD 023e6f01 current). TEST_* URLs all point at `cs_phase_15c3_test`.
-- Unmerged: `phase-7c2` (executing, claims migration 0093 `ops_alert`) and `phase-16` (docs-only). main ends at 0092; this branch takes 0093 only if 7c2 not merged first, else 0094; second merger renumbers + regenerates journal/snapshot.
+- Unmerged: `phase-7c2` (executing, claims migration 0093 `ops_alert`) and `phase-16` (docs-only). main ends at 0092; this branch ships 0093 `agency_hold`; whichever merges second renumbers + regenerates journal/snapshot.
 - `agencyServiceable(` non-test call count: 37 (plan expected ~29).
 - `resumeClient`/`assertCanActivateClient`: all pass `role` where a ctx exists (tools client-pause/onboarding/prospects). Exception: `packages/billing/src/connect-webhook.ts:156` calls `resumeClient(sp, clientId, ACTOR)` with no role (system actor, intended).
 - `archiveTenant`: only `apps/worker/src/purge.ts`, `apps/worker/src/cli/archive.ts`, `purge.test.ts` (as expected).

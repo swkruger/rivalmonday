@@ -81,7 +81,7 @@ Every variant starts with the decided sentence "This agency still has active bil
 | Empty tabs | "No one on the agency team." / "No client people yet." / "No pending invites." | draft |
 | Tables | Team: Name, Email, Role, Clients ("All clients" when none assigned); Invites: Email, Role, Client, Sent, Expires | draft |
 | Row menu | "Make account manager" / "Make agency admin"; "Remove from agency" | draft |
-| Role dialog | Title "Make {name} an account manager?" / "Make {name} an agency admin?"; bodies "{first} will only see the clients assigned to them and can't manage the team, billing or settings." / "{first} will see every client and can manage the team, billing and settings."; button "Change role"; result "Role changed." | draft |
+| Role dialog | Title "Make {name} an account manager?" / "Make {name} an agency admin?"; bodies "{first} will still see every client but can't manage the team, billing or settings. The agency can limit their clients in Team settings." / "{first} will see every client and can manage the team, billing and settings."; button "Change role"; result "Role changed." | draft — changed from mockup: spec §4.4 (all clients) wins — owner to confirm |
 | Remove dialog | Title "Remove {name} from {agency}?"; body "{first} loses access to the agency and its clients right away. Their past activity stays."; button "Remove"; result "Removed from the agency." | draft |
 | Last admin refusal (`access/team.ts` `LAST_ADMIN_MESSAGE`) | "An agency needs at least one admin." | decided (existing) |
 | Invite dialog | Button "Invite agency admin"; title "Invite an agency admin"; body "They get an email from {agency} with a link to join as an agency admin."; button "Send invite" | draft |
