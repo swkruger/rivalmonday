@@ -88,10 +88,11 @@ try {
     for (const p of pages) {
       // 7c2: a capture defers instead of sleeping past its host's slot (e.g. Crawl-delay > 10 s); this one-shot CLI waits and retries.
       let r = await deps.capturePage(p.id);
-      while (r.status === 'deferred') {
+      for (let attempt = 1; r.status === 'deferred' && attempt <= 10; attempt++) {
         await new Promise((done) => setTimeout(done, r.retryInMs ?? 3000));
         r = await deps.capturePage(p.id);
       }
+      if (r.status === 'deferred') console.log(`[capture] ${p.url} still deferred after 10 retries; giving up`);
       results.push({ url: p.url, type: p.pageType, status: r.status });
     }
     console.table(results);

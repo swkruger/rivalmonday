@@ -83,4 +83,19 @@ describe('HostRateLimiter', () => {
     await expect(l.withHostLock('https://a.example/3', async () => { throw new Error('boom'); })).rejects.toThrow('boom');
     expect(await l.withHostLock('https://a.example/4', async () => 'free again')).toBe('free again');
   });
+
+  it('wait(page, 30) then wait(robots.txt, null) sleeps 30 s', async () => {
+    const { l, sleeps } = limiter();
+    await l.wait('https://a.example/page', 30);
+    await l.wait('https://a.example/robots.txt', null); // a TTL re-fetch: the delay is not known to the caller
+    expect(sleeps).toEqual([30_000]);
+  });
+
+  it('nextSlotIn(url, null) after a 30 s delay was learned reports the 30 s slot', async () => {
+    const { l } = limiter();
+    await l.wait('https://www.a.example/page', 30);
+    expect(l.nextSlotIn('https://a.example/other', null)).toBe(30_000);
+    expect(l.deferIn('https://a.example/other', null)).toBe(30_000);
+    expect(l.nextSlotIn('https://b.example/', null)).toBe(0);
+  });
 });
