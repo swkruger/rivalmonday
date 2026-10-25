@@ -19,6 +19,7 @@
     "purge-archived": "tsx src/cli/purge-archived.ts",
     "billing:sync-plan": "tsx src/cli/billing-sync-plan.ts",
     "runbook:backfill": "tsx src/cli/runbook-backfill.ts",
+    "fixture-hosts": "tsx src/cli/fixture-hosts.ts",
     "smoke:image": "tsx scripts/image-smoke.ts"
   },
   "dependencies": {

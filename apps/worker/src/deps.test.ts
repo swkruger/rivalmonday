@@ -138,3 +138,36 @@ describe('createWorkerDeps rehearsal guard (7c2)', () => {
     expect(() => createWorkerDeps({ NODE_ENV: 'production', VENDOR_FAKE_MODE: 'fixtures' })).toThrow(/refusing rehearsal settings outside staging: VENDOR_FAKE_MODE/);
   });
 });
+
+describe('VENDOR_FAKE_MODE=fixtures (7c2)', () => {
+  const env = { NODE_ENV: 'development', VENDOR_FAKE_MODE: 'fixtures', SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x', EVIDENCE_FS_DIR: './.evidence-test' } as NodeJS.ProcessEnv;
+  const last = (m: { mock: { calls: unknown[][] } }) => m.mock.calls.at(-1)![0] as Record<string, unknown>;
+
+  it('vendor clients get fixture fetches (through the limiter) and dummy keys pass the presence checks', async () => {
+    vendorMocks.createDataForSeo.mockClear();
+    vendorMocks.createStadiaStaticClient.mockClear();
+    const deps = createWorkerDeps(env);
+    expect(deps.vendorsConfigured()).toBe(true);
+    await deps.runRivalSearch('run1');
+    const rival = last(vendorMocks.runRivalSearch) as { dfs: unknown; meta: { apiKey?: string; apifyToken?: string; fetch: typeof fetch; apifyFetch: typeof fetch } };
+    void rival.dfs;
+    const dfsOpts = last(vendorMocks.createDataForSeo) as { login: string; fetch: typeof fetch };
+    expect(dfsOpts.login).toBeTruthy();
+    expect(rival.meta.apiKey).toBeTruthy();
+    expect(rival.meta.apifyToken).toBeTruthy();
+    // The fixture answers instead of the network: an unknown URL is a 599, a known one a 200 with cost 0.
+    expect((await dfsOpts.fetch('https://example.invalid/x')).status).toBe(599);
+    expect((await rival.meta.fetch('https://example.invalid/x')).status).toBe(599);
+    expect((await rival.meta.apifyFetch('https://example.invalid/x')).status).toBe(599);
+    const ready = await dfsOpts.fetch('https://api.dataforseo.com/v3/serp/google/jobs/tasks_ready');
+    expect(await ready.json()).toMatchObject({ status_code: 20000, cost: 0 });
+    await deps.refreshRankMap('c1').catch(() => undefined);
+    expect(vendorMocks.createStadiaStaticClient).toHaveBeenCalledTimes(1);
+    expect(((await (last(vendorMocks.createStadiaStaticClient).fetch as typeof fetch)('https://example.invalid/x')).status)).toBe(599);
+  });
+
+  it('without the switch nothing is faked and missing keys stay missing', () => {
+    const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
+    expect(deps.vendorsConfigured()).toBe(false);
+  });
+});

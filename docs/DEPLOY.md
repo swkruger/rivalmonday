@@ -57,6 +57,19 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 - **Health checks gate deploys only:** Railway's `/healthz` decides whether a new deployment goes live. A job loop that dies after go-live is caught by the Sentry `system-heartbeat` cron monitor (missed check-in alert), not by a restart.
 - **One worker replica only** (in-process per-host crawl limits). Never raise `numReplicas`.
 
+## Staging
+For the 7c2 rehearsal (120 clients, one week). Nothing here touches production data, real competitor sites or paid vendor APIs. Use fresh secrets; never reuse production tokens.
+1. **Neon:** in the prod project, create a **schema-only** branch `staging` from the production branch; compute = the planned prod size. Roles (`app_user`, `app_service`, `cs_worker`, `cs_web`) are inherited; reset their passwords on the branch. Migrate with the branch's owner URL: `DATABASE_URL=<staging owner URL> pnpm --filter @cs/db migrate`.
+2. **R2:** bucket `rivalmonday-staging` + a token limited to it.
+3. **Postmark:** use a **test-server** token (accepted, never delivered).
+4. **Vercel:** Preview environment env = § Env with staging values: staging DB URLs, `APP_URL` = the preview URL, `R2_BUCKET=rivalmonday-staging`, the Postmark test token, `SENTRY_ENVIRONMENT=staging`.
+5. **Railway:** project `rivalmonday-staging`, two services from the worker image (CLI upload: `railway up --service <name>` from the repo root; config-as-code `/apps/worker/railway.json`):
+   - **worker:** 1 replica, size = planned prod. Env = § Env (staging values) plus `SENTRY_ENVIRONMENT=staging`, `SERVICE_DATABASE_POOLED_URL` (pooled `app_service`), and the rehearsal switches `VENDOR_FAKE_MODE=fixtures`, `AI_PROVIDER_MODE=rehearsal`, `REHEARSAL_LIVE_CLIENT_IDS` (after the seed), `CRAWL_HOST_ALLOWLIST=fx1.rehearsal.rivalmonday.app,…,fx5.rehearsal.rivalmonday.app`, `WEB_MONITORING_ENABLED=true`. Vendor keys may be dummies (`fixture`) or left unset: fixtures answer every vendor call at $0.
+   - **fixture-hosts:** start command `node --import tsx src/cli/fixture-hosts.ts`; env `SENTRY_ENVIRONMENT=staging` (the image sets `NODE_ENV=production`, so without it the service exits), `FIXTURE_HOSTS` = the five hosts, `FIXTURE_LOG_TOKEN` (random, for the rehearsal report). Add the custom domains `fx1…fx5.rehearsal.rivalmonday.app`.
+6. **Namecheap DNS:** one CNAME per fixture host (`fx1.rehearsal` … `fx5.rehearsal`) to the target Railway shows, plus any verification record it asks for. Check `https://fx5.rehearsal.rivalmonday.app/robots.txt` shows `Crawl-delay: 30`.
+7. **Cost:** about $20 for the rehearsal week (Neon staging compute, the two Railway services; R2 and Postmark test ≈ $0), plus ≤ $5 live AI for the 10-client slice.
+8. **Teardown:** after the report, delete the Railway project, the Neon `staging` branch, the R2 bucket and token, the five CNAMEs and the Vercel Preview staging env values.
+
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.
 
