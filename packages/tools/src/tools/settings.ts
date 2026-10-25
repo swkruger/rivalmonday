@@ -39,7 +39,7 @@ export const inviteMemberTool = defineTool({
     }
     const r = await inviteMember(deps.service, ctx, input);
     // 15c-2a D7 / B1: agency staff get `team_invite` directly, after the invitation committed; a failed send keeps it.
-    const emailSent = await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: input.email, role: input.role as 'agency_admin' | 'account_manager', inviterUserId: ctx.userId, expiresAt: r.expiresAt });
+    const emailSent = await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: input.email, role: input.role as 'agency_admin' | 'account_manager', inviter: { userId: ctx.userId }, expiresAt: r.expiresAt });
     return { invitationId: r.id, expiresAt: r.expiresAt.toISOString(), emailSent };
   },
 });

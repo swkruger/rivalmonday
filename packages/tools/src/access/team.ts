@@ -6,7 +6,12 @@ import { and, asc, count, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { type ClientInviteRole, sendClientInvite, upsertContact } from './client-invite';
 import { createInvitation, INVITATION_TTL_DAYS, type NewInvitation, normalizeEmail } from './invitations';
-import { sendTeamInviteEmail, type TeamInviteRole } from './team-invite-email';
+import { type Inviter, sendTeamInviteEmail, type TeamInviteRole } from './team-invite-email';
+
+export type { Inviter };
+
+/** Decided copy for refusing to remove or demote the last agency admin (15c-3a). */
+export const LAST_ADMIN_MESSAGE = 'An agency needs at least one admin.';
 
 export interface TeamMember {
   membershipId: string;
@@ -76,7 +81,8 @@ async function hasMemberAtScope(service: Db | Tx, agencyId: string, email: strin
 }
 
 /** `service` may be the caller's transaction (11b `inviteClientUser`, which holds the client row lock). */
-export async function inviteMember(service: Db | Tx, ctx: AccessContext, input: Omit<NewInvitation, 'agencyId' | 'invitedBy'>, now = new Date()): Promise<{ id: string; expiresAt: Date }> {
+// `o.inviter` is accepted for symmetry with `resendInvitation`: this function sends no email (callers pass the inviter to `sendTeamInviteEmail`).
+export async function inviteMember(service: Db | Tx, ctx: AccessContext, input: Omit<NewInvitation, 'agencyId' | 'invitedBy'>, now = new Date(), _o: { inviter?: Inviter } = {}): Promise<{ id: string; expiresAt: Date }> {
   if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles invite people');
   if (!isAdmin(ctx) && isAgencyRole(input.role)) throw new ToolError('permission_denied', 'Only agency admins invite agency staff');
   if (input.clientId && !canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
@@ -96,12 +102,32 @@ export async function revokeMembership(service: Db, ctx: AccessContext, membersh
     if (!m || !canManage(ctx, m.role as Role, m.clientId)) throw new ToolError('not_found', 'Member not found');
     if (m.role === 'agency_admin') {
       const admins = await tx.select({ id: membership.id }).from(membership).where(and(eq(membership.agencyId, ctx.agencyId), eq(membership.role, 'agency_admin'))).for('update');
-      if (admins.length <= 1) throw new ToolError('invalid_input', 'An agency needs at least one admin');
+      if (admins.length <= 1) throw new ToolError('invalid_input', LAST_ADMIN_MESSAGE, { userFacing: true });
     }
     await tx.delete(membership).where(eq(membership.id, m.id));
     if (m.contactId) {
       await tx.update(contact).set({ userId: null, active: false, linksRevokedBefore: now }).where(eq(contact.id, m.contactId));
     }
+  });
+}
+
+/**
+ * 15c-3a: moves an agency member between `agency_admin` and `account_manager`. Same locks and last-admin rule as
+ * `revokeMembership`. Either way `client_scope` becomes NULL (a promoted admin has no scope; a demoted admin is an account
+ * manager covering all clients). Admin callers only; client-role and other-agency targets are `not_found`.
+ */
+export async function changeMemberRole(service: Db, ctx: AccessContext, membershipId: string, role: 'agency_admin' | 'account_manager'): Promise<{ role: Role }> {
+  if (!isAdmin(ctx)) throw new ToolError('not_found', 'Member not found');
+  return service.transaction(async (tx) => {
+    const [m] = await tx.select().from(membership).where(and(eq(membership.id, membershipId), eq(membership.agencyId, ctx.agencyId))).for('update');
+    if (!m || !isAgencyRole(m.role as Role)) throw new ToolError('not_found', 'Member not found');
+    if (m.role === role) return { role: m.role as Role };
+    if (m.role === 'agency_admin') {
+      const admins = await tx.select({ id: membership.id }).from(membership).where(and(eq(membership.agencyId, ctx.agencyId), eq(membership.role, 'agency_admin'))).for('update');
+      if (admins.length <= 1) throw new ToolError('invalid_input', LAST_ADMIN_MESSAGE, { userFacing: true });
+    }
+    await tx.update(membership).set({ role, clientScope: null }).where(eq(membership.id, m.id));
+    return { role };
   });
 }
 
@@ -113,7 +139,8 @@ export async function revokeInvitation(service: Db, ctx: AccessContext, invitati
 
 /** Spec §6: at most 3 resends per invitation in any 24 hours. */
 export const RESEND_LIMIT = { max: 3, windowHours: 24 };
-const RESEND_TOOL = 'resend_invitation';
+/** The agency's own tool and the platform tool share one limit: both audit the input `{ invitationId }`, so the hashes match. */
+export const RESEND_TOOLS = ['resend_invitation', 'platform_resend_invitation'] as const;
 
 /**
  * 15c-2a B2: prior successful `resend_invitation` calls for this invitation, counted from the registry's audit rows (same agency,
@@ -123,7 +150,7 @@ const RESEND_TOOL = 'resend_invitation';
 async function priorResends(db: Db | Tx, agencyId: string, invitationId: string): Promise<number> {
   const [row] = await db.select({ n: count() }).from(auditLog).where(and(
     eq(auditLog.agencyId, agencyId),
-    eq(auditLog.tool, RESEND_TOOL),
+    inArray(auditLog.tool, [...RESEND_TOOLS]),
     eq(auditLog.inputHash, hashInput({ invitationId })),
     eq(auditLog.outcome, 'ok'),
     gt(auditLog.createdAt, sql`now() - make_interval(hours => ${RESEND_LIMIT.windowHours})`),
@@ -154,7 +181,7 @@ async function teamInviteSends(db: Db | Tx, agencyId: string): Promise<number> {
   ));
   if (touched.length === 0) return Number(created?.n ?? 0);
   const [resent] = await db.select({ n: count() }).from(auditLog).where(and(
-    eq(auditLog.agencyId, agencyId), eq(auditLog.tool, RESEND_TOOL), eq(auditLog.outcome, 'ok'), gt(auditLog.createdAt, window),
+    eq(auditLog.agencyId, agencyId), inArray(auditLog.tool, [...RESEND_TOOLS]), eq(auditLog.outcome, 'ok'), gt(auditLog.createdAt, window),
     inArray(auditLog.inputHash, touched.map((t) => hashInput({ invitationId: t.id }))),
   ));
   return Number(created?.n ?? 0) + Number(resent?.n ?? 0);
@@ -174,7 +201,8 @@ export async function assertTeamInviteBudget(db: Db | Tx, agencyId: string): Pro
  * Callers (15c-3 included) must go through the `resend_invitation` tool: the 3 / 24 h limit counts that tool's audit rows, so
  * calling this function directly bypasses it.
  */
-export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invitationId: string, now = new Date()): Promise<{ sentAt: Date; expiresAt: Date; emailSent: boolean }> {
+export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invitationId: string, now = new Date(), o: { inviter?: Inviter } = {}): Promise<{ sentAt: Date; expiresAt: Date; emailSent: boolean }> {
+  const inviter: Inviter = o.inviter ?? { userId: ctx.userId };
   if (ctx.userId.startsWith('contact:')) throw new ToolError('not_found', 'Invitation not found');
   const pending = and(eq(invitation.id, invitationId), eq(invitation.agencyId, ctx.agencyId), isNull(invitation.acceptedAt), isNull(invitation.revokedAt), gt(invitation.expiresAt, now));
   const expiresAt = new Date(now.getTime() + TTL_MS);
@@ -193,11 +221,11 @@ export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invit
     if (!c) return { i, emailSent: false };
     const role = i.role as ClientInviteRole;
     const contactId = await upsertContact(tx, ctx.agencyId, c.id, i.email, null, role);
-    const emailSent = await sendClientInvite(tx, deps, { ctx, clientId: c.id, clientName: c.name, contactId, email: i.email, role, dedupe: `client-invite:${i.id}:resend:${randomUUID()}`, now });
+    const emailSent = await sendClientInvite(tx, deps, { ctx, clientId: c.id, clientName: c.name, contactId, email: i.email, role, dedupe: `client-invite:${i.id}:resend:${randomUUID()}`, now, inviter });
     return { i, emailSent };
   });
   const emailSent = isAgencyRole(done.i.role as Role)
-    ? await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: done.i.email, role: done.i.role as TeamInviteRole, inviterUserId: ctx.userId, expiresAt })
+    ? await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: done.i.email, role: done.i.role as TeamInviteRole, inviter, expiresAt })
     : done.emailSent;
   return { sentAt: now, expiresAt, emailSent };
 }

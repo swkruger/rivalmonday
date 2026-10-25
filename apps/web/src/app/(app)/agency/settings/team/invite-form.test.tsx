@@ -71,7 +71,7 @@ describe('InvitationTable (15c-2a T11)', () => {
 
 describe('RemoveMemberButton', () => {
   it('asks before removing and shows a refusal', async () => {
-    m.remove.mockResolvedValue({ ok: false, error: 'An agency needs at least one admin' });
+    m.remove.mockResolvedValue({ ok: false, error: 'An agency needs at least one admin.' });
     render(<RemoveMemberButton membershipId="m1" name="John" />);
     fireEvent.click(screen.getByRole('button', { name: 'Remove John' }));
     const dialog = await screen.findByRole('dialog');
@@ -80,7 +80,7 @@ describe('RemoveMemberButton', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
     });
     expect((m.remove.mock.calls[0]![1] as FormData).get('membershipId')).toBe('m1');
-    expect((await screen.findByRole('alert')).textContent).toBe('An agency needs at least one admin');
+    expect((await screen.findByRole('alert')).textContent).toBe('An agency needs at least one admin.');
   });
 });
 

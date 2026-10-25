@@ -9,7 +9,7 @@ import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { clientOwnerEmails } from '../tools/client-billing';
-import { inviteClientUser } from './client-invite';
+import { inviteClientUser, sendClientInvite, upsertContact } from './client-invite';
 import { acceptInvitations } from './invitations';
 
 const dbs = openTestDbs();
@@ -40,6 +40,23 @@ beforeEach(async () => {
     { userId: 'admin', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 'seed' },
     { userId: 'am', agencyId: IDS.agencyA, role: 'account_manager', clientScope: [IDS.clientA2], createdBy: 'seed' },
   ]);
+});
+
+describe('sendClientInvite inviter', () => {
+  const send = (inviter?: { userId: string } | { agency: true }) => dbs.service.transaction(async (tx) => {
+    const contactId = await upsertContact(tx, IDS.agencyA, IDS.clientA1, 'o@x.co', null, 'client_owner');
+    return sendClientInvite(tx, deps(), { ctx: admin, clientId: IDS.clientA1, clientName: 'A1 HVAC', contactId, email: 'o@x.co', role: 'client_owner', dedupe: 'client-invite:t', now: NOW, ...(inviter ? { inviter } : {}) });
+  });
+
+  it('{ agency: true } queues with cc []', async () => {
+    expect(await send({ agency: true })).toBe(true);
+    expect(payloadOf((await rows())[0]!).cc).toEqual([]);
+  });
+
+  it('{ userId } and the default still Cc the inviter', async () => {
+    expect(await send({ userId: 'admin' })).toBe(true);
+    expect(payloadOf((await rows())[0]!).cc).toEqual(['admin@e.co']);
+  });
 });
 
 describe('inviteClientUser', () => {

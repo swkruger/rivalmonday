@@ -6,6 +6,7 @@ import type { ToolDeps } from '../deps';
 import { completeIfDone, getSetupState } from '../setup/state';
 import { normalizeEmail } from './invitations';
 import { inviteMember } from './team';
+import type { Inviter } from './team-invite-email';
 
 export type ClientInviteRole = 'client_owner' | 'client_viewer';
 
@@ -53,7 +54,7 @@ async function revokeReplacedOwnerInvite(tx: Tx, agencyId: string, clientId: str
 export async function sendClientInvite(
   tx: Tx,
   deps: ToolDeps,
-  i: { ctx: AccessContext; clientId: string; clientName: string; contactId: string; email: string; role: ClientInviteRole; dedupe: string; now: Date },
+  i: { ctx: AccessContext; clientId: string; clientName: string; contactId: string; email: string; role: ClientInviteRole; dedupe: string; now: Date; inviter?: Inviter },
 ): Promise<boolean> {
   const { ctx, now } = i;
   if (!deps.delivery) {
@@ -62,7 +63,9 @@ export async function sendClientInvite(
   }
   const cfg = deps.delivery;
   const branding = await loadBranding(tx, ctx.agencyId);
-  const rows = await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${ctx.userId}`);
+  // `{ agency: true }` (platform staff acting for the agency): no inviter lookup, so no Cc.
+  const inviter = i.inviter ?? { userId: ctx.userId };
+  const rows = 'userId' in inviter ? await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${inviter.userId}`) : [];
   const inviterEmail = [...rows][0]?.email;
   // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
   const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(await landingPath(tx, i.clientId, i.role, now))}`;

@@ -10,7 +10,7 @@ import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { inviteClientUser, sendClientInvite } from './client-invite';
-import { inviteMember, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership, TEAM_INVITE_LIMIT } from './team';
+import { changeMemberRole, inviteMember, LAST_ADMIN_MESSAGE, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership, TEAM_INVITE_LIMIT } from './team';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -85,7 +85,7 @@ describe('revokeMembership', () => {
 
   it('refuses to remove the last agency admin, and AMs cannot remove agency roles', async () => {
     const [adminRow] = await dbs.service.select().from(membership).where(eq(membership.userId, 'admin'));
-    await expect(revokeMembership(dbs.service, admin, adminRow!.id, NOW)).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(revokeMembership(dbs.service, admin, adminRow!.id, NOW)).rejects.toMatchObject({ code: 'invalid_input', message: 'An agency needs at least one admin.', userFacing: true });
     await expect(revokeMembership(dbs.service, am, adminRow!.id, NOW)).rejects.toMatchObject({ code: 'not_found' });
   });
 
@@ -93,6 +93,46 @@ describe('revokeMembership', () => {
     await seedUser(dbs.owner, 'b', 'b@e.co');
     const [m] = await dbs.service.insert(membership).values({ userId: 'b', agencyId: IDS.agencyB, role: 'agency_admin', createdBy: 'x' }).returning();
     await expect(revokeMembership(dbs.service, admin, m!.id, NOW)).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('changeMemberRole', () => {
+  const rowOf = async (userId: string) => (await dbs.service.select().from(membership).where(eq(membership.userId, userId)))[0]!;
+
+  it('promotes an account manager to admin and clears the scope', async () => {
+    const m = await rowOf('am');
+    expect(m.clientScope).toEqual([IDS.clientA1]);
+    expect(await changeMemberRole(dbs.service, admin, m.id, 'agency_admin')).toEqual({ role: 'agency_admin' });
+    expect(await rowOf('am')).toMatchObject({ role: 'agency_admin', clientScope: null });
+  });
+
+  it('demotes one of two admins to an account manager with null scope', async () => {
+    await seedUser(dbs.owner, 'a2', 'a2@e.co');
+    const [a2] = await dbs.service.insert(membership).values({ userId: 'a2', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 'x' }).returning();
+    expect(await changeMemberRole(dbs.service, admin, a2!.id, 'account_manager')).toEqual({ role: 'account_manager' });
+    expect(await rowOf('a2')).toMatchObject({ role: 'account_manager', clientScope: null });
+  });
+
+  it('same role returns unchanged', async () => {
+    const m = await rowOf('am');
+    expect(await changeMemberRole(dbs.service, admin, m.id, 'account_manager')).toEqual({ role: 'account_manager' });
+    expect(await rowOf('am')).toMatchObject({ clientScope: [IDS.clientA1] });
+  });
+
+  it('refuses demoting the last admin with the exact copy', async () => {
+    const m = await rowOf('admin');
+    await expect(changeMemberRole(dbs.service, admin, m.id, 'account_manager')).rejects.toMatchObject({ code: 'invalid_input', message: LAST_ADMIN_MESSAGE, userFacing: true });
+    expect(await rowOf('admin')).toMatchObject({ role: 'agency_admin' });
+  });
+
+  it('a client-role target, another agency, or a non-admin caller is not_found', async () => {
+    await seedUser(dbs.owner, 'c1', 'c1@e.co');
+    const [c] = await dbs.service.insert(membership).values({ userId: 'c1', agencyId: IDS.agencyA, role: 'client_owner', clientId: IDS.clientA1, createdBy: 'x' }).returning();
+    await expect(changeMemberRole(dbs.service, admin, c!.id, 'agency_admin')).rejects.toMatchObject({ code: 'not_found' });
+    await seedUser(dbs.owner, 'b', 'b@e.co');
+    const [b] = await dbs.service.insert(membership).values({ userId: 'b', agencyId: IDS.agencyB, role: 'agency_admin', createdBy: 'x' }).returning();
+    await expect(changeMemberRole(dbs.service, admin, b!.id, 'account_manager')).rejects.toMatchObject({ code: 'not_found' });
+    await expect(changeMemberRole(dbs.service, am, (await rowOf('am')).id, 'agency_admin')).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 
@@ -252,6 +292,36 @@ describe('resend + team_invite (15c-2a T11)', () => {
     // Another agency has its own budget.
     const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [] });
     await expect(reg.invoke(adminB, 'invite_member', { email: 'b@e.co', role: 'account_manager' })).resolves.toMatchObject({ emailSent: expect.any(Boolean) });
+  });
+
+  it('operator resend counts toward RESEND_LIMIT', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'account_manager' });
+    await dbs.owner.insert(auditLog).values([
+      auditRow(id, 'ok'), auditRow(id, 'ok'), auditRow(id, 'ok'),
+      { ...auditRow(id, 'ok'), tool: 'platform_resend_invitation', role: 'platform_staff' },
+    ]);
+    await expect(registry().invoke(admin, 'resend_invitation', { invitationId: id })).rejects.toMatchObject({ code: 'rate_limited' });
+    // Two own + one operator row also reach the limit of 3.
+    await dbs.owner.delete(auditLog).where(eq(auditLog.tool, 'resend_invitation'));
+    await dbs.owner.insert(auditLog).values([auditRow(id, 'ok'), auditRow(id, 'ok')]);
+    await expect(registry().invoke(admin, 'resend_invitation', { invitationId: id })).rejects.toMatchObject({ code: 'rate_limited' });
+  });
+
+  it('teamInviteSends counts platform resends', async () => {
+    const reg = registry();
+    const first = (await reg.invoke(admin, 'invite_member', { email: 'm0@e.co', role: 'account_manager' })) as { invitationId: string };
+    for (let i = 1; i < 18; i++) await reg.invoke(admin, 'invite_member', { email: `m${i}@e.co`, role: 'account_manager' });
+    // 18 sends + 2 operator resends (same hash) = 20: the next invite is refused.
+    await dbs.owner.insert(auditLog).values([0, 1].map(() => ({ ...auditRow(first.invitationId, 'ok'), tool: 'platform_resend_invitation', role: 'platform_staff' })));
+    await expect(reg.invoke(admin, 'invite_member', { email: 'm20@e.co', role: 'account_manager' })).rejects.toMatchObject({ code: 'rate_limited' });
+  });
+
+  it('resend with inviter { agency: true } sends team_invite without naming or replying to the caller', async () => {
+    const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'agency_admin' });
+    const r = await resendInvitation(admin, deps(), id, new Date(), { inviter: { agency: true } });
+    expect(r.emailSent).toBe(true);
+    expect(transport.sent[0]!.replyTo ?? null).toBeNull();
+    expect(transport.sent[0]!.subject).not.toContain('Pat Lee');
   });
 
   it('send failure still creates the invitation and returns emailSent false', async () => {

@@ -4,6 +4,9 @@ import { sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { quoteName } from '../intake/emails';
 
+/** Who the invite email speaks for: a person (named, Cc/reply-to) or the agency itself (platform staff acting for it). */
+export type Inviter = { userId: string } | { agency: true };
+
 export type TeamInviteRole = 'agency_admin' | 'account_manager';
 
 /** B14 wording (`MEMBERSHIP_ROLE` in apps/web `lib/labels.ts`). */
@@ -19,7 +22,7 @@ const expiryDate = (d: Date) => new Intl.DateTimeFormat('en-US', { month: 'short
  */
 export async function sendTeamInviteEmail(
   deps: ToolDeps,
-  i: { agencyId: string; to: string; role: TeamInviteRole; inviterUserId: string; expiresAt: Date },
+  i: { agencyId: string; to: string; role: TeamInviteRole; inviter: Inviter; expiresAt: Date },
 ): Promise<boolean> {
   const mail = deps.leadEmail;
   if (!mail) {
@@ -28,7 +31,10 @@ export async function sendTeamInviteEmail(
   }
   try {
     const branding = await loadBranding(deps.service, i.agencyId);
-    const rows = await deps.service.execute<{ name: string | null; email: string }>(sql`select name, email from auth."user" where id = ${i.inviterUserId}`);
+    // `{ agency: true }`: no `auth.user` lookup, the agency's display name speaks and nothing replies to a person (platform staff never appear).
+    const rows = 'userId' in i.inviter
+      ? await deps.service.execute<{ name: string | null; email: string }>(sql`select name, email from auth."user" where id = ${i.inviter.userId}`)
+      : [];
     const inviter = [...rows][0];
     const to = i.to.trim().toLowerCase();
     // Built from the stored address only; the sign-in page re-checks `next` with `safeNext`.
