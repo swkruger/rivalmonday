@@ -4,13 +4,21 @@
 **Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (owner-approved 2026-10-25) · [15c-3a plan](../superpowers/plans/2026-10-25-phase-15c3a-agency-management.md) (awaiting approval) · mockups `docs/design-system/mockups/agency-management/` (approved).
 
 ## Status (overwrite)
-2026-10-25: kickoff, open questions answered, mockups approved, 15c-3a spec drafted + builder-checked. Nothing built.
+2026-10-25: 15c-3a built (Tasks 0-12); final whole-branch review next, then owner verification and merge. 15c-3b not started.
 
 ## Next (overwrite)
-Owner approves the 15c-3a plan → Task 0 pre-flight → SDD. 15c-3b (plans, §5.5) gets its own spec/plan after 3a merges.
+Final review + one fix wave -> owner runs the verification steps below and signs `docs/archive/phase-15c3a-copy-signoff.md` -> `/rm-merge` (renumber migration if 7c2 merged first). Then phase-7b2 (uses the answers below); 15c-3b (plans) gets its own spec/plan.
 
 ## Interfaces this branch adds or changes
-Per 15c spec §5: migration (next free) `agency.suspended_at/_reason/_by`, `plan.visibility`; 13 platform tools (§5.1–5.5); `BillingGateway` += `pauseCollection`/`resumeCollection`/`swapSubscriptionPlan`; `billingAccess().onHold`; `agencyServiceable` excludes held agencies.
+- Migration **0093** `agency_hold`: `agency.suspended_at/_reason/_by` (+ consistency/length CHECKs). `plan.visibility` is 15c-3b.
+- 12 platform tools (`tools/platform-agency.ts`): `platform_rename_agency`, `list_agency_people`, `platform_change_member_role`, `platform_remove_member`, `platform_resend_invitation`, `platform_revoke_invitation`, `platform_invite_agency_admin`, `platform_suspend_agency`, `platform_unsuspend_agency`, `platform_retry_hold_billing`, `platform_archive_agency`, `platform_unarchive_agency`. Rows in the 8b tool-access doc; fixtures (two skipPositive, R9).
+- `BillingGateway.pauseCollection/resumeCollection(subscriptionId, { stripeAccount? })` (types, fake, Stripe).
+- `@cs/billing`: `onHold` on `billingAccess`, `isOnHold`, `holdMessage(role, email?)`, `HOLD_MESSAGE`; `applyHoldCollection`, `holdBillingIssue`, `pauseIfHeld` (`hold.ts`). `@cs/core`: `DEFAULT_SUPPORT_EMAIL`. `agencyServiceable` excludes held agencies.
+- `@cs/tools`: `platform/archive.ts` (`archiveTenant`, `liveBilling`; worker CLI imports it, R7), `platform/hold-email.ts`, `Inviter`, `changeMemberRole`, `RESEND_TOOLS`.
+- `list_platform_agencies`: `status` filter (incl. on hold / archived), counts, `onHold`. `get_platform_agency`: `hold`, `archivedAt`, `holdBillingIssue`, nullable tiles when archived, `archiveBlockers { agencyPlan, clientSubscriptions }` (R1).
+
+## 7b2 Task 0 answers
+(a) `runBillingDaily` skips `runConnectDaily` for held agencies. (b) `resumeClient` and `assertCanActivateClient` throw `service_paused` on hold. (c) Allow-list unchanged (`disable_client_billing`, `redeem_discount_code` still present). (d) Billing files touched: `connect-webhook.ts` (tolerate `service_paused` at the R14 lift + `PostCommit.pauseHeldFor`), `webhook.ts` (post-commit pause step), `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts` (pause/resume), `daily.ts`, `seats.ts`, `access.ts`, new `hold.ts`/`index.ts` export. Not touched: `connect-daily.ts`, `client-billing-state.ts`, `client-pause.ts` logic (test only).
 
 ## Assumes from other branches
 - **phase-7c2** (executing) claims **0093** (`ops_alert`); we take the next free (likely 0094); second to merge renumbers + regenerates snapshot/journal. Both edit `isolation/fixtures.ts` and `packages/tools/src/index.ts`. Its readiness uses `agencyServiceable`, so held agencies drop out once we extend it.
@@ -20,11 +28,24 @@ Per 15c spec §5: migration (next free) `agency.suspended_at/_reason/_by`, `plan
 ## Decisions (owner-approved)
 15c-3a spec A1–A9 (2026-10-25): split 3a/3b; archive refuses live billing; Archived filter + owner unarchive; hold freezes all billing work; operator invites count toward agency limits, email names the agency; On hold chip + filter; hold start/lift emails admins (generic); branding URLs → 13a; hold time counts, no deadline shift. 15c C1, C5, C6, C10, C11 bind. Q5 (`create_plan` features) deferred to 3b.
 
-## New backlog (target → item)
-None yet.
+## New backlog (target -> item)
+- **15c-3b** -> plans (15c spec §5.5, incl. `create_plan` features, Q5).
+- **phase-16** -> extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` into it (R11).
+- **Soon** -> treat Stripe `resource_missing` on hold pause/resume as done (else permanent `_failed`).
+- **15c-3 polish** -> deferred minors not fixed by the final review: billingAccess/syncSeats extra `isOnHold` query; consistency CHECK one-direction test; hold copy in `assertCanActivateClient` always default support email; duplicated hold-setting test update (helper); live-billing predicates duplicated (`liveBillingQuery`/`liveBilling`); `CLI_USER` duplicated; stale `resend_invitation` doc comments in `team.ts`; `inviteMember` unused `_o.inviter`; `assertTeamInviteBudget` runs twice; `get_platform_agency` `.catch(() => null)` swallows DB errors; `list_platform_agencies` description lacks status/counts; unarchive of a non-archived agency is a silent ok; no resume-failure-still-lifts test; success toasts lost on unmount; `tiles as Tiles` cast; action slices 200/600 vs limits 120/500; list not revalidated after rename/hold/archive; "All" view archived rows lack chip; no E2E cleanup nit; `billing-banner.test.tsx:78` formatting.
 
 ## Owner verification steps
-TBD.
+Apply migration 0093 to `cs_dev` first.
+1. Put a test agency on hold: its admin gets the email, the agency UI is read-only with the banner, Stripe test subscriptions show "collection paused".
+2. Lift it: the email arrives and collection resumes.
+3. Try archiving an agency with a live test subscription: refused.
+4. Cancel it, archive, find it under Archived, then unarchive.
+5. Invite an agency admin: the email names the agency, not you.
+6. Change roles and hit the last-admin refusal.
+7. Sign `docs/archive/phase-15c3a-copy-signoff.md` (3 owner questions inside).
+
+## Migration overlap
+phase-7c2 also claims 0093; whichever merges second renumbers (journal + snapshot).
 
 ## Brief
 ### 1. Scope (roadmap row 15: "15c-3 agency management *to be planned*")
