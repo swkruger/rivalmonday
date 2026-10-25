@@ -142,11 +142,12 @@ test.describe.serial('agency management', () => {
     }
   });
 
-  // A failure mid-way must not leave the agency on hold for the later specs.
+  // A failure mid-way must not leave the agency on hold (or archived) for the later specs.
   test.afterAll(async () => {
     const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
     try {
       await db.execute(sql`update agency set suspended_at = null, suspended_reason = null, suspended_by = null where name = ${MANAGE_AGENCY}`);
+      await db.execute(sql`update agency set archived_at = null where name = ${ARCHIVE_AGENCY} and archived_at is not null`);
     } finally {
       await close();
     }
@@ -213,6 +214,17 @@ test.describe.serial('agency management', () => {
   test('invite agency admin, resend limit', { tag: ['@platform'] }, async ({ browser }, testInfo) => {
     const email = 'resend-target@e2e.test';
     const agencyId = await agencyIdOf(MANAGE_AGENCY);
+    // Spec §5 E2E #3: the operator invites an agency admin through the dialog and sees it under Pending invites.
+    const invited = `invited-admin-${Date.now()}@e2e.test`;
+    await as(browser, testInfo, ADMIN_STATE, async (page) => {
+      await page.goto(`/platform/agencies/${agencyId}?people=invites`);
+      await page.getByRole('button', { name: 'Invite agency admin' }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByLabel('Email').fill(invited);
+      await dialog.getByRole('button', { name: 'Send invite' }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.getByRole('cell', { name: invited, exact: true })).toBeVisible();
+    });
     const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
     try {
       const { id: invitationId } = await createInvitation(db, { agencyId, email, role: 'account_manager', invitedBy: 'e2e-platform' });
