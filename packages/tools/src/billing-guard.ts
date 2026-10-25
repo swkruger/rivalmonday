@@ -3,6 +3,7 @@ import { type WriteGuard, ToolError } from '@cs/core';
 import type { ToolDeps } from './deps';
 import { knowledgeAdminTools } from './tools/knowledge-admin';
 import { modelOpsTools } from './tools/model-ops';
+import { platformAgencyTools } from './tools/platform-agency';
 import { platformBillingTools } from './tools/platform-billing';
 import { platformConsoleTools } from './tools/platform-console';
 import { platformCostTools } from './tools/platform-costs';
@@ -31,7 +32,7 @@ export async function postCommitSeatSync(deps: ToolDeps, agencyId: string): Prom
 }
 
 /** Platform-operator tools act on the platform, not on a paying agency, so a paused home agency never blocks them. Derived from the module arrays, not guessed names. */
-const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformSignupsTools, ...platformCostTools, ...usagePlatformTools, ...spendGuardPlatformTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...topicTools].map((t) => t.name);
+const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformAgencyTools, ...platformSignupsTools, ...platformCostTools, ...usagePlatformTools, ...spendGuardPlatformTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...topicTools].map((t) => t.name);
 
 /**
  * Writes that stay open while the agency is `read_only`/`suspended`: paying to resume, managing who has access, and

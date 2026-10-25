@@ -180,6 +180,13 @@ extend_trial (platform-billing.ts) | write | billing state transition; platform 
 attach_agency_discount (platform-billing.ts) | write | creates Stripe customer, attaches coupon; platform staff
 set_seat_cap_exempt (platform-billing.ts) | write | updates agency_billing; platform owner
 set_connect_fee_percent (platform-billing.ts) | write | updates platform_setting or agency_connect fee; platform owner
+list_agency_people (platform-agency.ts) | read | read-only (team via platform target-agency context); platform operator; archived agencies allowed; supportMask emails
+platform_rename_agency (platform-agency.ts) | write | updates agency.name; platform staff
+platform_change_member_role (platform-agency.ts) | write | updates membership role (last-admin lock); platform staff
+platform_remove_member (platform-agency.ts) | write | deletes membership (last-admin lock); platform staff
+platform_invite_agency_admin (platform-agency.ts) | write | inserts invitation; sends team_invite as the agency; platform staff; 20 / agency / 24 h
+platform_resend_invitation (platform-agency.ts) | write | resets invitation expiry; re-sends the invite as the agency; platform staff; shares 3 / 24 h with resend_invitation
+platform_revoke_invitation (platform-agency.ts) | write | revokes invitation; platform staff
 get_signups_paused (platform-signups.ts) | read | read-only; platform operator
 get_signup_funnel (platform-signups.ts) | read | read-only aggregate counts; platform operator
 set_signups_paused (platform-signups.ts) | write | upserts platform_setting; platform owner

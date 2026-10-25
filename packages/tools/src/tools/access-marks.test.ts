@@ -17,6 +17,7 @@ const WRITE_TOOLS = [
   'update_agency_branding', 'update_agency_profile', 'update_spend_guard_settings', 'update_client_delivery', 'update_platform_cost_service', 'update_client_profile', 'update_client_rank_settings', 'update_intake_link', 'update_my_contact',
   'add_runbook_item', 'dismiss_runbook_update', 'pull_runbook_update', 'remove_runbook_item', 'retailor_runbook_item', 'set_runbook_item_enabled', 'update_runbook_item',
   'update_recommendation_status', 'update_vertical', 'draft_vertical', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area', 'upload_agency_logo', 'upsert_kb_article',
+  'platform_rename_agency', 'platform_change_member_role', 'platform_remove_member', 'platform_invite_agency_admin', 'platform_resend_invitation', 'platform_revoke_invitation',
 ].sort();
 
 const ASK_THREAD_TOOLS = ['delete_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];

@@ -26,10 +26,21 @@ const IsoDate = z.string().datetime();
 
 const logDegraded = (what: string, e: unknown) => console.error('[billing] gateway call failed', { what }, (e as { name?: string } | null)?.name);
 
-async function requireAgency(deps: ToolDeps, agencyId: string): Promise<void> {
-  // 7a2 D16: an archived agency is deleted for the console.
-  const [a] = await deps.service.select({ id: agency.id }).from(agency).where(and(eq(agency.id, agencyId), isNull(agency.archivedAt)));
+export interface RequireAgencyOptions {
+  /** 15c-3a A3: only `get_platform_agency`, `list_agency_people` and `platform_unarchive_agency` reach archived agencies. */
+  allowArchived?: boolean;
+}
+
+export async function requireAgency(
+  deps: ToolDeps, agencyId: string, o: RequireAgencyOptions = {},
+): Promise<{ id: string; name: string; archivedAt: Date | null; suspendedAt: Date | null }> {
+  // 7a2 D16: an archived agency is deleted for the console (unless the tool opts in).
+  const [a] = await deps.service
+    .select({ id: agency.id, name: agency.name, archivedAt: agency.archivedAt, suspendedAt: agency.suspendedAt })
+    .from(agency)
+    .where(o.allowArchived ? eq(agency.id, agencyId) : and(eq(agency.id, agencyId), isNull(agency.archivedAt)));
   if (!a) throw new ToolError('not_found', 'Agency not found');
+  return a;
 }
 
 const isUniqueViolation = (e: unknown) => {
@@ -38,12 +49,12 @@ const isUniqueViolation = (e: unknown) => {
 };
 
 /** Role check first (refusals never reach the audit log), then the body under one audit row. */
-async function operate<T>(
+export async function operate<T>(
   deps: ToolDeps, ctx: AccessContext, min: PlatformRole, tool: string, input: unknown, agencyId: string | undefined,
-  fn: (role: PlatformRole) => Promise<T>,
+  fn: (role: PlatformRole) => Promise<T>, o: RequireAgencyOptions = {},
 ): Promise<T> {
   const role = await requirePlatformOperator(deps, ctx, min);
-  if (agencyId) await requireAgency(deps, agencyId);
+  if (agencyId) await requireAgency(deps, agencyId, o);
   return withPlatformAudit(deps, ctx, { tool, input, role, ...(agencyId ? { agencyId } : {}) }, () => fn(role));
 }
 

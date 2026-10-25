@@ -186,6 +186,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   list_pool_leads: platform(),
   list_catalog_review: platform(),
   count_catalog_review: platform(),
+  list_agency_people: platform((w) => ({ agencyId: w.ids.agencyA })),
 
   // ── caller: global catalogue ───────────────────────────────────────────────────────────────────────
   list_verticals: { kind: 'caller', reason: 'the global vertical catalogue: the same rows for every caller' },
@@ -335,6 +336,13 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   merge_vertical: platform((w) => ({ sourceId: w.platformIds.unreviewedVertical, targetId: 'hvac_plumbing', areaMap: { [w.platformIds.unreviewedArea]: null, [w.platformIds.unreviewedArea2]: null } })),
   merge_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, sourceAreaId: w.platformIds.unreviewedArea, targetAreaId: w.platformIds.unreviewedArea2 })),
   update_spend_guard_settings: platform(() => ({ creditsPerUsd: 100 })),
+  // 15c-3a: platform agency tools (membership A #1 = amA, so A keeps two admins; the world's agency-A invitation is pending)
+  platform_rename_agency: platform((w) => ({ agencyId: w.ids.agencyA, name: 'World Agency Renamed' })),
+  platform_change_member_role: platform((w) => ({ agencyId: w.ids.agencyA, membershipId: idOf(w, 'membership', 'A', 1), role: 'agency_admin' })),
+  platform_remove_member: platform((w) => ({ agencyId: w.ids.agencyA, membershipId: idOf(w, 'membership', 'A', 1) })),
+  platform_invite_agency_admin: platform((w) => ({ agencyId: w.ids.agencyA, email: 'new-admin@world.example' })),
+  platform_resend_invitation: platform((w) => ({ agencyId: w.ids.agencyA, invitationId: idOf(w, 'invitation', 'A') })),
+  platform_revoke_invitation: platform((w) => ({ agencyId: w.ids.agencyA, invitationId: idOf(w, 'invitation', 'A') })),
   reset_ai_pause: {
     kind: 'platform', input: () => ({ note: 'Checked the spike' }),
     skipPositive: "needs a paused / warned platform AI guard: the world's guard is ok (a paused one would block every AI path); covered in spend-guard.test.ts",
