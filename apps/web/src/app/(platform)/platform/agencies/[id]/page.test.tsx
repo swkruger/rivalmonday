@@ -18,7 +18,7 @@ vi.mock('./manage-menu', () => ({
 }));
 vi.mock('./people-section', () => ({ PeopleSection: ({ tab, canManage, people }: { tab: string; canManage: boolean; people: { members: unknown[] } }) => <div>people-section {tab} {canManage ? 'manage' : 'read'} {people.members.length}</div> }));
 vi.mock('./hold-banner', () => ({
-  HoldBanner: ({ issue }: { issue: string }) => <div>hold-banner {issue}</div>,
+  HoldBanner: ({ issue, canRetry }: { issue: string; canRetry: boolean }) => <div>hold-banner {issue}{canRetry ? ' retry' : ' no-retry'}</div>,
   HoldChip: ({ reason, since, byName }: { reason: string; since: string; byName: string }) => <span>On hold ({reason} / {since} / {byName})</span>,
 }));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
@@ -191,7 +191,13 @@ describe('platform agency page: hold', () => {
   it('a billing issue shows the banner', async () => {
     withDetail({ hold: { since: '2026-10-25T09:00:00Z', reason: 'Card declined', byName: 'Alex' }, holdBillingIssue: 'pause' });
     render(await page());
-    expect(screen.getByText('hold-banner pause')).toBeTruthy();
+    expect(screen.getByText('hold-banner pause retry')).toBeTruthy();
+  });
+  it('a viewer gets the banner without a retry control', async () => {
+    m.role = 'viewer';
+    withDetail({ hold: { since: '2026-10-25T09:00:00Z', reason: 'Card declined', byName: 'Alex' }, holdBillingIssue: 'pause' });
+    render(await page());
+    expect(screen.getByText('hold-banner pause no-retry')).toBeTruthy();
   });
 });
 

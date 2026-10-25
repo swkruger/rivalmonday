@@ -176,7 +176,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         </>,
       )}
       {holdBillingIssue && (
-        <HoldBanner agencyId={agency.id} issue={holdBillingIssue} hold={hold ? { since: formatDate(hold.since, { tz }), byName: hold.byName } : null} />
+        <HoldBanner agencyId={agency.id} issue={holdBillingIssue} canRetry={canStart} hold={hold ? { since: formatDate(hold.since, { tz }), byName: hold.byName } : null} />
       )}
       <TipRow
         items={[

@@ -11,21 +11,21 @@ afterEach(cleanup);
 
 describe('HoldBanner', () => {
   it('pause issue: who and since, the spec sentence and Retry billing pause', () => {
-    render(<HoldBanner agencyId={AG} issue="pause" hold={{ since: 'Oct 25', byName: 'Alex' }} />);
+    render(<HoldBanner agencyId={AG} issue="pause" hold={{ since: 'Oct 25', byName: 'Alex' }} canRetry />);
     expect(document.body.textContent).toContain('On hold since Oct 25 by Alex.');
     expect(document.body.textContent).toContain('Billing pause failed for some subscriptions. The hold still applies.');
     expect(screen.getByRole('button', { name: 'Retry billing pause' })).toBeTruthy();
   });
 
   it('resume issue: the lift sentence and Retry billing resume', () => {
-    render(<HoldBanner agencyId={AG} issue="resume" hold={null} />);
+    render(<HoldBanner agencyId={AG} issue="resume" hold={null} canRetry />);
     expect(document.body.textContent).toContain('Billing resume failed for some subscriptions.');
     expect(document.body.textContent).not.toContain('On hold since');
     expect(screen.getByRole('button', { name: 'Retry billing resume' })).toBeTruthy();
   });
 
   it('Retry asks first, then shows the result in the banner', async () => {
-    render(<HoldBanner agencyId={AG} issue="pause" hold={{ since: 'Oct 25', byName: 'Alex' }} />);
+    render(<HoldBanner agencyId={AG} issue="pause" hold={{ since: 'Oct 25', byName: 'Alex' }} canRetry />);
     fireEvent.click(screen.getByRole('button', { name: 'Retry billing pause' }));
     expect(retry).not.toHaveBeenCalled();
     const dialog = await screen.findByRole('dialog');
@@ -33,6 +33,15 @@ describe('HoldBanner', () => {
     await waitFor(() => expect(retry).toHaveBeenCalledTimes(1));
     expect(Object.fromEntries(retry.mock.calls[0]![1] as FormData)).toEqual({ agencyId: AG });
     expect((await screen.findByRole('alert')).textContent).toContain('1 could not be paused.');
+  });
+});
+
+describe('HoldBanner for a viewer', () => {
+  it('canRetry={false}: the sentence, no retry button or dialog', () => {
+    render(<HoldBanner agencyId={AG} issue="pause" hold={{ since: 'Oct 25', byName: 'Alex' }} canRetry={false} />);
+    expect(document.body.textContent).toContain('Billing pause failed for some subscriptions. The hold still applies.');
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 

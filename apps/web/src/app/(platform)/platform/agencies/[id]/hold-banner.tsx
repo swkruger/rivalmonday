@@ -27,9 +27,9 @@ export function HoldChip({ reason, since, byName }: { reason: string; since: str
 
 /**
  * Spec §4.2: shown while the newest hold-billing attempt failed (`holdBillingIssue`), with a Retry that runs
- * `platform_retry_hold_billing` behind a confirm. A retry that still fails keeps the banner and shows what is left.
+ * `platform_retry_hold_billing` behind a confirm (staff+ only: `canRetry`; viewers see just the sentence). A retry that still fails keeps the banner and shows what is left.
  */
-export function HoldBanner({ agencyId, issue, hold }: { agencyId: string; issue: 'pause' | 'resume'; hold: { since: string; byName: string } | null }) {
+export function HoldBanner({ agencyId, issue, hold, canRetry }: { agencyId: string; issue: 'pause' | 'resume'; hold: { since: string; byName: string } | null; canRetry: boolean }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -47,10 +47,11 @@ export function HoldBanner({ agencyId, issue, hold }: { agencyId: string; issue:
             'Billing resume failed for some subscriptions.'
           )}
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={() => { setError(null); setMessage(null); setOpen(true); }}>{label}</Button>
+        {canRetry && <Button type="button" variant="outline" size="sm" onClick={() => { setError(null); setMessage(null); setOpen(true); }}>{label}</Button>}
       </div>
       {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}
       <ResultLine message={message} />
+      {canRetry && (
       <ActionDialog
         open={open}
         onOpenChange={setOpen}
@@ -68,6 +69,7 @@ export function HoldBanner({ agencyId, issue, hold }: { agencyId: string; issue:
           return { ok: true };
         }}
       />
+      )}
     </div>
   );
 }
