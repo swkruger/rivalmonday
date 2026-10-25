@@ -340,6 +340,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_agency_billing', input: (ids) => ({ agencyId: ids.agencyId }), path: 'state' },
       { tool: 'list_discount_codes', input: none, path: 'codes' },
       { tool: 'get_client_limits', input: (ids) => ({ agencyId: ids.agencyId }), path: 'defaultLimitUsd' },
+      { tool: 'list_agency_people', input: (ids) => ({ agencyId: ids.agencyId }), path: 'members' },
     ],
   },
   {

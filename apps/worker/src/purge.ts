@@ -5,8 +5,9 @@ import { MIN_PURGE_DAYS } from './cli/purge-args';
 import { workerLog } from './log';
 
 /**
- * Spec D16/D17 (7a2): operator-only archive and purge of agencies/clients. Archived rows read as deleted everywhere
- * (Task 9 filters); purge deletes them for good after the grace period. Ledger/audit rows survive detached (their FKs were
+ * Spec D16/D17 (7a2): operator-only purge of archived agencies/clients (archiving itself lives in `@cs/tools`
+ * `platform/archive.ts`). Archived rows read as deleted everywhere (Task 9 filters); purge deletes them for good after
+ * the grace period. Ledger/audit rows survive detached (their FKs were
  * dropped in 0082) with the people anonymised; Better Auth users are left alone (Decision 7). Evidence, captures and
  * objects belong to competitors, not tenants, and are never touched.
  */
