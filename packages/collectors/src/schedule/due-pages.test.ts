@@ -7,6 +7,16 @@ import { claimDuePages } from './due-pages';
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
+/** Hours `now() + interval '<days> days'` lies ahead, using the same session-tz interval
+ *  arithmetic as claimDuePages — 24/168 normally, 23/25 or 167/169 across a DST change
+ *  in the DB time zone (the local cluster runs America/Chicago; prod is UTC). */
+const cadenceHours = async (days: 1 | 7) => {
+  const [r] = (await dbs.service.execute(
+    sql`SELECT round(extract(epoch FROM ((now() + make_interval(days => ${days}::int)) - now())) / 3600) AS h`,
+  )) as unknown as { h: string }[];
+  return Number(r!.h);
+};
+
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
@@ -28,8 +38,8 @@ describe('claimDuePages', () => {
       SELECT url, round(extract(epoch FROM (next_due_at - now())) / 3600) AS hours FROM tracked_page
        WHERE id = ANY(ARRAY[${sql.join(claimed.map((id) => sql`${id}`), sql`, `)}]::uuid[]) ORDER BY url`)) as unknown as { url: string; hours: string }[];
     expect(rows.map((r) => [r.url, Number(r.hours)])).toEqual([
-      ['https://s.example/due-daily', 24],
-      ['https://s.example/due-weekly', 168],
+      ['https://s.example/due-daily', await cadenceHours(1)],
+      ['https://s.example/due-weekly', await cadenceHours(7)],
     ]);
   });
 
@@ -119,8 +129,8 @@ describe('claimDuePages and the reduced trial allowance (phase 10 f12)', () => {
     const x = await dailyPage(IDS.competitorX, 'https://smithhvac.example/');
     const claimed = await claimDuePages(dbs.service, 10);
     expect(claimed).toEqual(expect.arrayContaining([x, y]));
-    expect(await hoursUntilDue(y)).toBe(168);
-    expect(await hoursUntilDue(x)).toBe(24);
+    expect(await hoursUntilDue(y)).toBe(await cadenceHours(7));
+    expect(await hoursUntilDue(x)).toBe(await cadenceHours(1));
   });
 
   it('a shared page goes weekly once every tracking agency is reduced; leaving trialing restores daily', async () => {
@@ -128,11 +138,11 @@ describe('claimDuePages and the reduced trial allowance (phase 10 f12)', () => {
     await reduce(IDS.agencyB);
     const x = await dailyPage(IDS.competitorX, 'https://smithhvac.example/');
     await claimDuePages(dbs.service, 10);
-    expect(await hoursUntilDue(x)).toBe(168);
+    expect(await hoursUntilDue(x)).toBe(await cadenceHours(7));
     await dbs.owner.update(agencyBilling).set({ state: 'active' }).where(eq(agencyBilling.agencyId, IDS.agencyB));
     await dbs.service.update(trackedPage).set({ nextDueAt: sql`now() - interval '1 minute'` }).where(eq(trackedPage.id, x));
     await claimDuePages(dbs.service, 10);
-    expect(await hoursUntilDue(x)).toBe(24);
+    expect(await hoursUntilDue(x)).toBe(await cadenceHours(1));
   });
 
   it('an invite-link trial keeps daily collection', async () => {
@@ -140,7 +150,7 @@ describe('claimDuePages and the reduced trial allowance (phase 10 f12)', () => {
     await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source: 'invite' });
     const y = await dailyPage(IDS.competitorY, 'https://brightsmiles.example/');
     await claimDuePages(dbs.service, 10);
-    expect(await hoursUntilDue(y)).toBe(24);
+    expect(await hoursUntilDue(y)).toBe(await cadenceHours(1));
   });
 });
 
