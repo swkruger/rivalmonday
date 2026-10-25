@@ -71,12 +71,13 @@ describe('platformHealthOutput', () => {
   it('briefReadiness parses', () => {
     const briefReadiness = {
       checkedAt: NOW.toISOString(), deliveryDate: '2026-10-26', due: 3, ready: 1, approved: 1, sent: 0, missing: 1, failed: 0, awaitingApproval: 1, startingPointsLate: 0,
-      issues: [{ checkpoint: 'generation_closed', severity: 'critical', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: NOW.toISOString(), emailedAt: null }],
+      issues: [{ id: 'a1', checkpoint: 'generation_closed', timezone: 'America/Chicago', severity: 'critical', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: NOW.toISOString(), emailedAt: null }],
     };
     const out = platformHealthOutput.parse({ ...healthStatuses(NOW, raw()), briefReadiness });
     expect(out.briefReadiness).toEqual(briefReadiness);
     const bad = { ...briefReadiness, issues: [{ ...briefReadiness.issues[0], severity: 'info' }] };
     expect(platformHealthOutput.safeParse({ ...healthStatuses(NOW, raw()), briefReadiness: bad }).success).toBe(false);
     expect(platformHealthOutput.safeParse(healthStatuses(NOW, raw())).success).toBe(false);
+    expect(platformHealthOutput.parse({ ...healthStatuses(NOW, raw()), briefReadiness: null }).briefReadiness).toBeNull();
   });
 });

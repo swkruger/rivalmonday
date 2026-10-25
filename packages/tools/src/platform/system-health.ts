@@ -12,7 +12,11 @@ export const briefReadinessOutput = z.object({
   deliveryDate: z.string(),
   due: count, ready: count, approved: count, sent: count, missing: count, failed: count, awaitingApproval: count, startingPointsLate: count,
   issues: z.array(z.object({
+    /** The `ops_alert` row id (stable row key). */
+    id: z.string(),
     checkpoint: z.string(),
+    /** Weekly issues: the clients' IANA time zone (issues are grouped per zone). Absent for `starting_point_late`. */
+    timezone: z.string().optional(),
     severity: z.enum(['warning', 'critical']),
     deliveryDate: z.string(),
     /** How many clients the alert lists. */
@@ -32,7 +36,8 @@ export const platformHealthOutput = z.object({
   sentryUrl: z.string().nullable(),
   /** True when the queue database could not be read (worker then shows down, queues empty). */
   queueError: z.boolean(),
-  briefReadiness: briefReadinessOutput,
+  /** Null when the readiness queries failed: that block degrades, the rest of the page still renders. */
+  briefReadiness: briefReadinessOutput.nullable(),
 });
 export type PlatformHealth = z.infer<typeof platformHealthOutput>;
 

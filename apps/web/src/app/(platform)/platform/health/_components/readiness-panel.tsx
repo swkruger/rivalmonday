@@ -3,7 +3,7 @@ import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableR
 import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
 import { READINESS_CHECKPOINT, READINESS_SEVERITY, labelFor } from '@/lib/labels';
 
-export type ReadinessData = PlatformHealth['briefReadiness'];
+export type ReadinessData = NonNullable<PlatformHealth['briefReadiness']>;
 
 const COUNTS: { key: Exclude<keyof ReadinessData, 'checkedAt' | 'deliveryDate' | 'issues'>; label: string }[] = [
   { key: 'due', label: 'Due' },
@@ -18,9 +18,11 @@ const COUNTS: { key: Exclude<keyof ReadinessData, 'checkedAt' | 'deliveryDate' |
 
 /**
  * 7c2 brief readiness on /platform/health: this cycle's counts (each client against its own zone's Monday) and the open
- * readiness alerts, newest first. `now` is the server clock so relative times hydrate the same.
+ * readiness alerts, newest first. `now` is the server clock so relative times hydrate the same. `data` is null when the
+ * readiness queries failed (the tool degrades that block only, like the queue stats).
  */
-export function ReadinessPanel({ data, now, tz }: { data: ReadinessData; now: Date; tz: string }) {
+export function ReadinessPanel({ data, now, tz }: { data: ReadinessData | null; now: Date; tz: string }) {
+  if (!data) return <p className="text-sm text-muted-foreground">Brief readiness unavailable — the readiness query failed; check the web logs.</p>;
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
@@ -50,9 +52,12 @@ export function ReadinessPanel({ data, now, tz }: { data: ReadinessData; now: Da
             {data.issues.map((i) => {
               const sev = labelFor(READINESS_SEVERITY, i.severity);
               return (
-                <TableRow key={`${i.checkpoint}:${i.deliveryDate}:${i.firstSeenAt}`}>
+                <TableRow key={i.id}>
                   <TableCell><StatusChip tone={sev.tone}>{sev.label}</StatusChip></TableCell>
-                  <TableCell className="font-medium">{labelFor(READINESS_CHECKPOINT, i.checkpoint).label}</TableCell>
+                  <TableCell>
+                    <span className="font-medium">{labelFor(READINESS_CHECKPOINT, i.checkpoint).label}</span>
+                    {i.timezone ? <span className="text-muted-foreground"> · {i.timezone}</span> : null}
+                  </TableCell>
                   <TableCell>{formatDate(i.deliveryDate, { tz, now })}</TableCell>
                   <TableCell>{i.clients}</TableCell>
                   <TableCell>

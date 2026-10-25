@@ -1,11 +1,17 @@
 import { createAccessContext } from '@cs/core';
 import { capture, opsAlert, vendorCall } from '@cs/db';
+import { summarizeBriefReadiness } from '@cs/engine';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { QueueStatsLookup, ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import type { PlatformHealth } from '../platform/system-health';
+
+vi.mock('@cs/engine', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@cs/engine')>();
+  return { ...orig, summarizeBriefReadiness: vi.fn(orig.summarizeBriefReadiness) };
+});
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -92,15 +98,16 @@ describe('get_platform_health', () => {
       summary: { clients: c(1), deliveryDate: '2026-10-26', checkpoint: 'generation_closed' }, ...o,
     });
     await dbs.owner.insert(opsAlert).values([
-      row('old', ago(30 * HOUR), { emailedAt: ago(29 * HOUR), summary: { clients: c(3), deliveryDate: '2026-10-26', checkpoint: 'pre_delivery' } }),
+      row('brief_readiness:pre_delivery:2026-10-26:America/New_York', ago(30 * HOUR), { emailedAt: ago(29 * HOUR), summary: { clients: c(3), deliveryDate: '2026-10-26', checkpoint: 'pre_delivery' } }),
       row('new', ago(1 * HOUR), { severity: 'warning', summary: { clients: c(2), deliveryDate: '2026-10-26', checkpoint: 'pre_delivery_unapproved' } }),
       row('resolved', ago(10 * 60_000), { resolvedAt: ago(5 * 60_000) }),
     ]);
     const out = await health();
-    expect(out.briefReadiness.issues).toEqual([
-      { checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
-      { checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 3, firstSeenAt: ago(30 * HOUR).toISOString(), emailedAt: ago(29 * HOUR).toISOString() },
+    expect(out.briefReadiness!.issues).toEqual([
+      { id: expect.any(String), checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
+      { id: expect.any(String), checkpoint: 'pre_delivery', timezone: 'America/New_York', severity: 'critical', deliveryDate: '2026-10-26', clients: 3, firstSeenAt: ago(30 * HOUR).toISOString(), emailedAt: ago(29 * HOUR).toISOString() },
     ]);
+    expect(new Set(out.briefReadiness!.issues.map((i) => i.id)).size).toBe(2);
     // Tuesday: outside every cycle span, so nothing is due yet.
     expect(out.briefReadiness).toMatchObject({ checkedAt: NOW.toISOString(), deliveryDate: '2026-10-26', due: 0, missing: 0 });
   });
@@ -113,8 +120,18 @@ describe('get_platform_health', () => {
       { ...base, dedupeKey: 'ok', summary: { clients: 'x', deliveryDate: '2026-10-26', checkpoint: 'pre_delivery' } },
     ]);
     const out = await health();
-    expect(out.briefReadiness.issues).toEqual([
-      { checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 0, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
+    expect(out.briefReadiness!.issues).toEqual([
+      { id: expect.any(String), checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 0, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
     ]);
+  });
+
+  it('a failing readiness query degrades only that block (briefReadiness null), not the page', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(summarizeBriefReadiness).mockRejectedValueOnce(new Error('relation does not exist'));
+    const out = await health();
+    expect(out.briefReadiness).toBeNull();
+    expect(out.sources).toHaveLength(2);
+    expect(err).toHaveBeenCalledWith('[health] brief readiness unavailable', 'Error');
+    err.mockRestore();
   });
 });

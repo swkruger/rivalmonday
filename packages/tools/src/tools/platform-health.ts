@@ -19,6 +19,13 @@ const READINESS_SEVERITIES = new Set(['warning', 'critical']);
  * 7c2: open `brief_readiness` ops alerts (service-only table), newest first. A row with an unknown checkpoint or severity, or
  * a malformed summary, is skipped so one odd row cannot fail the output parse (and the whole health page).
  */
+/** Weekly keys are `brief_readiness:<checkpoint>:<deliveryDate>:<timezone>`; `starting_point_late` keys carry a client id instead. */
+function timezoneOf(dedupeKey: string, checkpoint: string): string | undefined {
+  if (checkpoint === 'starting_point_late') return undefined;
+  const parts = dedupeKey.split(':');
+  return parts.length === 4 && parts[3] ? parts[3] : undefined;
+}
+
 async function readinessIssues(deps: ToolDeps): Promise<BriefReadiness['issues']> {
   const rows = await deps.service
     .select()
@@ -29,8 +36,11 @@ async function readinessIssues(deps: ToolDeps): Promise<BriefReadiness['issues']
   return rows.flatMap((r) => {
     const s = (r.summary ?? {}) as { clients?: unknown; deliveryDate?: unknown; checkpoint?: unknown };
     if (typeof s.checkpoint !== 'string' || !READINESS_CHECKPOINTS.has(s.checkpoint) || !READINESS_SEVERITIES.has(r.severity) || typeof s.deliveryDate !== 'string') return [];
+    const timezone = timezoneOf(r.dedupeKey, s.checkpoint);
     return [{
+      id: r.id,
       checkpoint: s.checkpoint,
+      ...(timezone ? { timezone } : {}),
       severity: r.severity as 'warning' | 'critical',
       deliveryDate: s.deliveryDate,
       clients: Array.isArray(s.clients) ? s.clients.length : 0,
@@ -57,7 +67,7 @@ export const getPlatformHealth = defineTool({
     const since24 = new Date(now.getTime() - 24 * HOUR_MS);
 
     let queueError = false;
-    const [queue, vendorRows, [okCall], [okCapture], summary, issues] = await Promise.all([
+    const [queue, vendorRows, [okCall], [okCapture], briefReadiness] = await Promise.all([
       // An unreachable queue database must not fail the page: flag it and show the worker as down. The web wrapper logs and reports the cause.
       deps.queueStats().catch(() => {
         queueError = true;
@@ -76,8 +86,13 @@ export const getPlatformHealth = defineTool({
         .orderBy(vendorCall.vendor),
       deps.service.select({ at: max(vendorCall.createdAt) }).from(vendorCall).where(eq(vendorCall.ok, true)),
       deps.service.select({ at: max(capture.capturedAt) }).from(capture).where(eq(capture.status, 'ok')),
-      summarizeBriefReadiness(deps.service, now),
-      readinessIssues(deps),
+      // Like the queue stats: a failing readiness query degrades its block (null), never the whole health page.
+      Promise.all([summarizeBriefReadiness(deps.service, now), readinessIssues(deps)])
+        .then(([summary, issues]): BriefReadiness => ({ ...summary, issues }))
+        .catch((err: unknown) => {
+          console.error('[health] brief readiness unavailable', (err as { name?: string } | null)?.name);
+          return null;
+        }),
     ]);
 
     const statuses = healthStatuses(now, {
@@ -89,7 +104,7 @@ export const getPlatformHealth = defineTool({
       sentryUrl: deps.sentryIssuesUrl ?? null,
       queueError,
     });
-    return { ...statuses, briefReadiness: { ...summary, issues } };
+    return { ...statuses, briefReadiness };
   },
 });
 

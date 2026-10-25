@@ -55,7 +55,7 @@ export default async function PlatformHealthPage() {
       </section>
       <section className={card}>
         <h2 className="mb-3 font-semibold">Brief readiness</h2>
-        <ReadinessPanel data={data.briefReadiness} now={now} tz={tz} />
+        <ReadinessPanel data={data.briefReadiness ?? null} now={now} tz={tz} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center gap-1.5">

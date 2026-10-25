@@ -118,6 +118,10 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   get_platform_health: {
     generatedAt: '2026-10-01T00:00:00Z', worker: { lastHeartbeatAt: null, status: 'down' }, queues: [], vendors: [],
     sources: [{ kind: 'vendor_call', lastOkAt: null, status: 'down' }, { kind: 'capture', lastOkAt: null, status: 'down' }], sentryUrl: null, queueError: false,
+    briefReadiness: {
+      checkedAt: '2026-10-01T00:00:00Z', deliveryDate: '2026-10-05',
+      due: 0, ready: 0, approved: 0, sent: 0, missing: 0, failed: 0, awaitingApproval: 0, startingPointsLate: 0, issues: [],
+    },
   },
 });
 
