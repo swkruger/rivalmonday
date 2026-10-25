@@ -1,9 +1,10 @@
-import { auditLog, brief, client } from '@cs/db';
-import { openTestDbs } from '@cs/db/test-helpers';
+import { auditLog, brief, client, withDatabase } from '@cs/db';
+import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetDemoTables } from '../test-support';
 import { approveRehearsalBriefs } from './approve';
+import { dbIdentity, guardManifestRun } from './guards';
 import { type RehearsalManifest, windowOpenFor } from './manifest';
 import { seedRehearsal } from './seed';
 
@@ -15,7 +16,7 @@ const readyIds: { id: string; auto: boolean }[] = [];
 
 beforeAll(async () => {
   await resetDemoTables(dbs.owner);
-  m = await seedRehearsal(dbs.service, { agencies: 2, clients: 2, startingPoints: 0, liveClients: 0, now: NOW, database: 'test/test' });
+  m = await seedRehearsal(dbs.service, { agencies: 2, clients: 2, startingPoints: 0, liveClients: 0, now: NOW, database: dbIdentity(testUrls.service) });
   // As if the worker generated this Monday's briefs on Thursday night.
   const open = windowOpenFor(m.deliveryDate, m.timezone);
   const clients = await dbs.owner.select({ id: client.id, agencyId: client.agencyId, auto: client.briefAutoSend }).from(client).where(inArray(client.id, m.weeklyClientIds));
@@ -46,5 +47,11 @@ describe('approveRehearsalBriefs', () => {
 
     // A second run finds nothing left to approve.
     expect(await approveRehearsalBriefs({ app: dbs.app, service: dbs.service }, m)).toEqual({ approved: 0, failed: [] });
+  });
+
+  it('approve refuses a mismatched APP_DATABASE_URL', async () => {
+    const run = (appUrl: string) => guardManifestRun(dbs.service, { serviceUrl: testUrls.service, appUrl, manifest: m, allowTestDatabase: true });
+    await expect(run(testUrls.app)).resolves.toBeUndefined();
+    await expect(run(withDatabase(testUrls.app, 'cs_dev'))).rejects.toThrow(/APP_DATABASE_URL/);
   });
 });

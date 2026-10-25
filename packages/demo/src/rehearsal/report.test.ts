@@ -46,10 +46,10 @@ async function report(memoryMb = 2048, fixtureLog: FixtureLogEntry[] | null = cl
 beforeAll(async () => {
   await resetDemoTables(dbs.owner);
   m = await seedRehearsal(dbs.service, { agencies: 2, clients: 2, startingPoints: 1, liveClients: 1, now: SEED, database: 'test/test' });
-  fault = await seedFault(dbs.service, { clients: 3, now: SEED });
+  fault = await seedFault(dbs.service, { clients: 3, now: SEED, manifest: m });
   const open = windowOpenFor(m.deliveryDate, m.timezone);
   const clients = await dbs.owner.select({ id: client.id, agencyId: client.agencyId }).from(client).where(inArray(client.id, [...m.weeklyClientIds, ...m.startingPointClientIds]));
-  for (const c of clients) {
+  for (const c of clients.filter((x) => m.weeklyClientIds.includes(x.id))) {
     const [b] = await dbs.owner.insert(brief).values({
       agencyId: c.agencyId, clientId: c.id, deliveryDate: m.deliveryDate, periodStart: new Date(open.getTime() - 7 * DAY), periodEnd: open, kind: 'quiet', status: 'sent',
       generatedAt: new Date(open.getTime() + HOUR), sentAt: zonedTime(m.deliveryDate, 7, 5, m.timezone),
@@ -103,6 +103,9 @@ describe('rehearsalReport', () => {
       'spend guard never tripped', 'live-slice spend x 6 below spike threshold', 'total AI spend <= $5', 'fault alarm raised',
     ]);
     expect(formatReport(lines)).toMatch(/^RESULT: PASS/m);
+    // The starting-point client is judged only by its own line, never by the weekly ones.
+    expect(lines.find((l) => l.check.startsWith('weekly briefs ready'))!.detail).toMatch(/^4\/4 on time/);
+    expect(lines.find((l) => l.check.startsWith('briefs sent by'))!.detail).toMatch(/^4\/4 sent/);
   });
 
   it('a late brief, a failed brief, a late email, an expired job and high RSS each turn their line to FAIL; fault clients never count', async () => {
@@ -129,11 +132,25 @@ describe('rehearsalReport', () => {
     expect(statusOf(lines, 'starting points ready')).toBe('PASS');
     expect(formatReport(lines)).toMatch(/^RESULT: FAIL/m);
   });
+
+  it('a late starting point and a missing starting point each FAIL their line', async () => {
+    const sp = m.startingPointClientIds[0]!;
+    await dbs.owner.update(brief).set({ generatedAt: new Date(SEED.getTime() + 55 * HOUR) }).where(and(eq(brief.clientId, sp), eq(brief.kind, 'starting_point')));
+    expect(statusOf(await report(), 'starting points ready')).toBe('FAIL');
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, sp), eq(brief.kind, 'starting_point')));
+    const missing = (await report()).find((l) => l.check.startsWith('starting points ready'))!;
+    expect(missing.status).toBe('FAIL');
+    expect(missing.detail).toMatch(/^0\/1 on time/);
+  });
 });
 
 describe('analyseFixtureLog', () => {
   it('passes a polite log and fails a 2 s gap, a fast Crawl-delay host and others slowed while it is busy', () => {
     expect(analyseFixtureLog(cleanLog()).map((l) => l.status)).toEqual(['PASS', 'PASS', 'PASS']);
+    // Requests from anything but our crawler (a browser, uptime checks) do not count against the gaps.
+    const withOthers = cleanLog();
+    withOthers.push({ host: 'fx5.rehearsal.rivalmonday.app', path: '/g5/s1/', at: '2026-11-10T12:00:01.000Z', ua: 'Mozilla/5.0' });
+    expect(analyseFixtureLog(withOthers).map((l) => l.status)).toEqual(['PASS', 'PASS', 'PASS']);
     const log = cleanLog();
     const t = Date.parse(log.find((e) => e.host.startsWith('fx2.'))!.at);
     log.push({ host: 'fx2.rehearsal.rivalmonday.app', path: '/robots.txt', at: new Date(t + 2_000).toISOString() });

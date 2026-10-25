@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util';
 export const REHEARSAL_USAGE = [
   'Usage: pnpm --filter @cs/demo rehearsal <command> [options]',
   '  seed --agencies 40 --clients 3 --starting-points 12 --live-clients 10 --confirm-db <host>/<db>   (SERVICE_DATABASE_URL)',
-  '  fault --clients 3                                     before Thursday 22:00 local (SERVICE_DATABASE_URL)',
+  '  fault --clients 3 [--manifest f]                      before Thursday 22:00 local, seeded DB only (SERVICE_DATABASE_URL)',
   '  approve [--manifest f]                                Friday ~14:00 local (APP_DATABASE_URL + SERVICE_DATABASE_URL)',
   '  report [--manifest f] [--memory-mb n] [--fixture-log-url u --fixture-log-token-env NAME]   (DATABASE_URL, staging owner)',
   '  teardown --confirm-db <host>/<db> [--out f]           writes rehearsal-archive.sh (SERVICE_DATABASE_URL)',

@@ -67,11 +67,19 @@ export async function seedRehearsal(db: Db, o: RehearsalSeedOptions): Promise<Re
   const now = o.now ?? new Date();
   const random = o.random ?? Math.random;
   const log = o.log ?? (() => {});
+  const deliveryDate = deliveryDateFor(now, REHEARSAL_TIMEZONE);
+  const open = windowOpenFor(deliveryDate, REHEARSAL_TIMEZONE);
+  if (now.getTime() >= open.getTime()) {
+    throw new Error(`Refusing: seed Monday–Thursday before 22:00 Chicago (the brief window for ${deliveryDate} opened at ${open.toISOString()})`);
+  }
   const live = await db.select({ name: agency.name }).from(agency).where(and(like(agency.name, 'Rehearsal Agency %'), isNull(agency.archivedAt))).limit(1);
   if (live.length > 0) throw new Error('Refusing: this database is already seeded (rehearsal agencies exist); run `rehearsal teardown` and archive them first');
+  // One transaction: a failed seed leaves nothing behind (the auth user ids are fixed, so a half seed could not be re-run).
+  return db.transaction((tx) => seedInTx(tx as unknown as Db, o, now, random, log, deliveryDate));
+}
 
+async function seedInTx(db: Db, o: RehearsalSeedOptions, now: Date, random: () => number, log: (line: string) => void, deliveryDate: string): Promise<RehearsalManifest> {
   const generic = await createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).generic();
-  const deliveryDate = deliveryDateFor(now, REHEARSAL_TIMEZONE);
   const activatedAt = new Date(now.getTime() - REHEARSAL_ACTIVATED_DAYS_AGO * DAY_MS);
   const manifest: RehearsalManifest = {
     version: 1, seededAt: now.toISOString(), database: o.database, timezone: REHEARSAL_TIMEZONE, deliveryDate,

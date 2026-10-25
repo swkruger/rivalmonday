@@ -1,11 +1,10 @@
-import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { createDb, redactSecrets } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { approveRehearsalBriefs } from '../rehearsal/approve';
 import { parseRehearsalArgs } from '../rehearsal/args';
 import { seedFault } from '../rehearsal/fault';
-import { dbIdentity, guardRehearsalWrite } from '../rehearsal/guards';
+import { dbIdentity, guardManifestRun, guardRehearsalWrite } from '../rehearsal/guards';
 import { measureRehearsalLatency } from '../rehearsal/latency';
 import { readManifest, REHEARSAL_ARCHIVE_FILE, REHEARSAL_MANIFEST_FILE, writeManifest } from '../rehearsal/manifest';
 import { fetchFixtureLog, formatReport, rehearsalReport } from '../rehearsal/report';
@@ -56,22 +55,24 @@ async function main(): Promise<number> {
     }
     case 'fault': {
       const url = env('SERVICE_DATABASE_URL');
-      const f = await withDb(url, async (db) => {
-        await guardRehearsalWrite(db, url, { requireConfirm: false });
-        return seedFault(db, { clients: args.clients });
-      });
       const file = manifestPath(args.manifest);
-      if (existsSync(file)) await writeManifest(file, { ...(await readManifest(file)), fault: { agencyId: f.agencyId, clientIds: f.clientIds } });
+      const m = await readManifest(file);
+      const f = await withDb(url, async (db) => {
+        await guardManifestRun(db, { serviceUrl: url, manifest: m });
+        return seedFault(db, { clients: args.clients, manifest: m });
+      });
+      await writeManifest(file, { ...m, fault: { agencyId: f.agencyId, clientIds: f.clientIds } });
       console.log(`Fault agency ${f.agencyId}: ${f.clientIds.length} clients pre-failed for ${f.deliveryDate}. Expect a critical generation_closed alert + email Friday 12:00 local.`);
       return 0;
     }
     case 'approve': {
       const m = await readManifest(manifestPath(args.manifest));
       const serviceUrl = env('SERVICE_DATABASE_URL');
-      const app = createDb(env('APP_DATABASE_URL'), { max: 2 });
+      const appUrl = env('APP_DATABASE_URL');
+      const app = createDb(appUrl, { max: 2 });
       try {
         const r = await withDb(serviceUrl, async (service) => {
-          await guardRehearsalWrite(service, serviceUrl, { requireConfirm: false });
+          await guardManifestRun(service, { serviceUrl, appUrl, manifest: m });
           const delivery = deliveryConfigFromEnv(process.env);
           if (!delivery) console.warn('APP_URL / LINK_SIGNING_SECRET not set: approved starting points stay approved (send them with "send now").');
           return approveRehearsalBriefs({ app: app.db, service, delivery }, m);

@@ -7,7 +7,7 @@ import { REHEARSAL_AGENCY_PREFIX } from './guards';
 export const TEARDOWN_MANUAL_STEPS = [
   'Run the archive script from the repo root with SERVICE_DATABASE_URL pointing at the staging branch (purge-archived deletes the tenants after the grace period).',
   'Evidence is never deleted: keep the rivalmonday-staging bucket until you no longer need the rehearsal evidence, then delete the bucket in Cloudflare R2.',
-  'Delete (or keep for the next rehearsal) the Neon staging branch.',
+  'Delete the Neon staging branch, or reset it from its parent before the next rehearsal: archived rehearsal agencies keep their fixed auth user ids (rehearsal-NN-admin/am), so a re-seed needs a fresh staging branch.',
   'Delete the Railway project rivalmonday-staging (worker and fixture-hosts services) and the fx1-fx5.rehearsal CNAMEs in Namecheap.',
   'Unset the rehearsal variables (AI_PROVIDER_MODE, REHEARSAL_LIVE_CLIENT_IDS, VENDOR_FAKE_MODE, CRAWL_HOST_ALLOWLIST) wherever they were set; delete rehearsal-manifest.json and rehearsal-archive.sh.',
 ];

@@ -56,7 +56,9 @@ export async function rehearsalReport(db: Db, o: ReportOptions): Promise<ReportL
   const D = m.deliveryDate;
   const tz = m.timezone;
   const faultIds = await faultClientIds(db, m);
-  const weekly = [...m.weeklyClientIds, ...m.startingPointClientIds].filter((id) => !faultIds.includes(id));
+  // Weekly lines cover the weekly clients only; starting-point clients are judged by the starting-point line.
+  const weekly = m.weeklyClientIds.filter((id) => !faultIds.includes(id));
+  const startingPoints = m.startingPointClientIds.filter((id) => !faultIds.includes(id));
   const out: ReportLine[] = [];
 
   // Weekly briefs for the rehearsal Monday.
@@ -70,9 +72,9 @@ export async function rehearsalReport(db: Db, o: ReportOptions): Promise<ReportL
   out.push(line(pass(weekly.length > 0 && onTime.length === weekly.length), 'weekly briefs ready <= 4 h after window open',
     `${onTime.length}/${weekly.length} on time (window opened ${open.toISOString()}${generated.length ? `, latest ${hours(latest)}` : ''}; ${weekly.length - generated.length} not generated)`));
 
-  out.push(await startingPointLine(db, m.startingPointClientIds.filter((id) => !faultIds.includes(id))));
+  out.push(await startingPointLine(db, startingPoints));
 
-  const tracked = [...weekly];
+  const tracked = [...weekly, ...startingPoints];
   const failed = tracked.length === 0 ? [] : await db.select({ id: brief.id, attempts: brief.attempts, status: brief.status }).from(brief)
     .where(and(inArray(brief.clientId, tracked), gte(brief.deliveryDate, localDate(seededAt, tz))));
   const failedNow = failed.filter((b) => b.status === 'failed').length;
@@ -114,16 +116,17 @@ async function startingPointLine(db: Db, ids: string[]): Promise<ReportLine> {
     .leftJoin(clientSetup, eq(clientSetup.clientId, client.id))
     .leftJoin(brief, and(eq(brief.clientId, client.id), eq(brief.kind, 'starting_point')))
     .where(inArray(client.id, ids));
-  let ok = 0;
+  const ok = new Set<string>();
   let worst = Number.NEGATIVE_INFINITY;
   for (const r of rows) {
     const clock = (r.done ?? r.dismissed ?? r.activatedAt ?? r.createdAt).getTime();
     const due = clock + STARTING_POINT_WAIT_HOURS * HOUR_MS;
     if (!r.generatedAt || !r.status || !['ready', 'approved', 'sent'].includes(r.status)) continue;
     worst = Math.max(worst, r.generatedAt.getTime() - due);
-    if (r.generatedAt.getTime() <= due + PASS_BAR.startingPointLateHours * HOUR_MS) ok++;
+    if (r.generatedAt.getTime() <= due + PASS_BAR.startingPointLateHours * HOUR_MS) ok.add(r.clientId);
   }
-  return line(pass(ok === ids.length), check, `${ok}/${ids.length} on time${worst > Number.NEGATIVE_INFINITY ? ` (latest ${hours(worst)} vs due)` : ''}`);
+  const want = new Set(ids);
+  return line(pass(ok.size === want.size), check, `${ok.size}/${want.size} on time${worst > Number.NEGATIVE_INFINITY ? ` (latest ${hours(worst)} vs due)` : ''}`);
 }
 
 async function queueLines(db: Db, schema: string, seededAt: Date, memoryMb: number | undefined): Promise<ReportLine[]> {
@@ -183,6 +186,8 @@ export function analyseFixtureLog(entries: FixtureLogEntry[]): ReportLine[] {
   const slowPrefix = `fx${FIXTURE_CRAWL_DELAY_HOST_INDEX + 1}.`;
   const byHost = new Map<string, { path: string; at: number }[]>();
   for (const e of entries) {
+    // Only our crawler's requests count (an entry without a UA is kept).
+    if (typeof e.ua === 'string' && !e.ua.includes('RivalMondayBot')) continue;
     const at = Date.parse(e.at);
     if (!Number.isFinite(at)) continue;
     const host = e.host.toLowerCase();

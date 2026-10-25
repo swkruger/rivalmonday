@@ -20,8 +20,8 @@ const NOW = new Date('2026-11-09T15:00:00Z');
 
 beforeAll(async () => {
   await resetDemoTables(dbs.owner);
-  await seedRehearsal(dbs.service, { agencies: 2, clients: 1, startingPoints: 0, liveClients: 0, now: NOW, database: 'test/test' });
-  await seedFault(dbs.service, { clients: 1, now: NOW });
+  const m = await seedRehearsal(dbs.service, { agencies: 2, clients: 1, startingPoints: 0, liveClients: 0, now: NOW, database: 'test/test' });
+  await seedFault(dbs.service, { clients: 1, now: NOW, manifest: m });
 });
 
 describe('teardownRehearsal', () => {

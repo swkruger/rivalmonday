@@ -45,3 +45,22 @@ export async function guardRehearsalWrite(db: Db, url: string, opts: RehearsalGu
   if (opts.requireConfirm !== false) assertConfirmDb(url, opts.confirmDb);
   await assertOnlyRehearsalAgencies(db);
 }
+
+/**
+ * Commands without `--confirm-db` (fault, approve) are bound to the database the seed wrote to: the service URL must be the
+ * manifest's `<host>/<db>`, and an app URL (approve) the same host/database. An empty production database would otherwise
+ * pass the agency check vacuously.
+ */
+export async function guardManifestRun(
+  db: Db,
+  o: { serviceUrl: string; appUrl?: string; manifest: { database: string }; allowTestDatabase?: boolean },
+): Promise<void> {
+  await guardRehearsalWrite(db, o.serviceUrl, { requireConfirm: false, allowTestDatabase: o.allowTestDatabase });
+  const service = dbIdentity(o.serviceUrl);
+  if (service !== o.manifest.database) {
+    throw new Error(`Refusing: SERVICE_DATABASE_URL is ${service} but the rehearsal manifest was seeded on ${o.manifest.database}`);
+  }
+  if (o.appUrl !== undefined && dbIdentity(o.appUrl) !== service) {
+    throw new Error(`Refusing: APP_DATABASE_URL is ${dbIdentity(o.appUrl)} but SERVICE_DATABASE_URL is ${service}; both must point at the rehearsal database`);
+  }
+}

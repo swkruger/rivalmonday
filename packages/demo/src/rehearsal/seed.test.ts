@@ -88,6 +88,11 @@ describe('seedRehearsal (scaled: 2 agencies x 2 clients + 1 starting point)', ()
     expect(await listBriefDueClients(dbs.service, new Date(THURSDAY_2200.getTime() - 3_600_000))).toEqual([]);
   });
 
+  it('refuses to seed once the brief window has opened', async () => {
+    await expect(seedRehearsal(dbs.service, { agencies: 1, clients: 1, startingPoints: 0, liveClients: 0, now: THURSDAY_2200, database: 'test/test' }))
+      .rejects.toThrow(/seed Monday–Thursday before 22:00 Chicago/);
+  });
+
   it('refuses to seed a second time while rehearsal agencies are live', async () => {
     await expect(seedRehearsal(dbs.service, { agencies: 1, clients: 1, startingPoints: 0, liveClients: 0, now: NOW, database: 'test/test' })).rejects.toThrow(/already seeded/);
   });
