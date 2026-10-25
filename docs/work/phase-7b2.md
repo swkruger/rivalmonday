@@ -4,10 +4,10 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7b2-billing-correctness.md) · [spec](../superpowers/specs/2026-10-22-phase-7b-money-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Tasks 1–6 done 2026-10-25; final whole-branch review next. No migration, no new env vars. Task 0: 15c-3 assumptions hold (held agencies skip runConnectDaily; hold => `service_paused`, swallowed by liftAutoPause; guard allow-list unchanged).
+Code complete 2026-10-25 (Tasks 0–6 + final review fix wave 86c7eaa6). `pnpm test:affected --base main` and `e2e:affected` (140/140) green. M8 body changed at final review to "cancel the newer of their two subscriptions; the original one stays linked here" (plan text could cancel the tracked one). No migration, no new env vars. Task 0: 15c-3 assumptions hold (held agencies skip runConnectDaily; hold => `service_paused`, swallowed by liftAutoPause; guard allow-list unchanged).
 
 ## Next (overwrite)
-Final review + fix wave; then `/rm-merge` with owner go-ahead.
+Owner: sign off the M8 copy (verification step 1), then `/rm-merge phase-7b2`.
 
 ## Interfaces this branch adds or changes
 - `liftAutoPause(tx, clientId, actor)` (`client-pause.ts`): shared by webhook R14 and daily reconcile; swallows `billing_seat_limit` + `service_paused` -> 'refused'. `ConnectDailyResult.resumed`.
