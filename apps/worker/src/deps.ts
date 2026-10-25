@@ -230,6 +230,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   // (still through the vendor limiter, never the network), ledgers them at $0, and fills unset vendor keys with a dummy so the
   // presence checks pass. OpenRouter/Jev are not faked here (AI_PROVIDER_MODE).
   const fakeVendors = env.VENDOR_FAKE_MODE === 'fixtures';
+  // The dummies are for the vendor clients only. The platform cost snapshot gets no faked-vendor keys at all in this mode
+  // (a dummy, ours or an operator's `fixture`, would make it call the vendors' real balance APIs; nothing real is spent there).
+  const costEnv = fakeVendors ? Object.fromEntries(Object.entries(env).filter(([k]) => !(FIXTURE_VENDOR_KEYS as readonly string[]).includes(k))) : env;
   if (fakeVendors) env = { ...env, ...Object.fromEntries(FIXTURE_VENDOR_KEYS.filter((k) => !env[k]?.trim()).map((k) => [k, 'fixture'])) };
   const fixtureFetch = fakeVendors ? createFixtureFetch() : undefined;
   let db: { db: Db; close(): Promise<void> } | null = null;
@@ -545,7 +548,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     serviceDb: () => getDb(),
     platformCosts: () => ({
       service: getDb(),
-      env: Object.fromEntries(COST_ENV_KEYS.flatMap((k) => (env[k] ? [[k, env[k]]] : []))),
+      env: Object.fromEntries(COST_ENV_KEYS.flatMap((k) => (costEnv[k] ? [[k, costEnv[k]]] : []))),
       platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
       appUrl: env.APP_URL ?? '',
       sendLowEmail: async (to: string, p: PlatformCostLowPayload) => {

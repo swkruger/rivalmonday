@@ -168,6 +168,13 @@ describe('VENDOR_FAKE_MODE=fixtures (7c2)', () => {
     expect(((await (last(vendorMocks.createStadiaStaticClient).fetch as typeof fetch)('https://example.invalid/x')).status)).toBe(599);
   });
 
+  it('no faked-vendor key (dummy or operator-set) reaches the platform cost snapshot env; other cost keys do', () => {
+    const deps = createWorkerDeps({ ...env, OPENROUTER_API_KEY: 'or-real', APIFY_TOKEN: 'fixture' });
+    expect(deps.platformCosts().env).toEqual({ OPENROUTER_API_KEY: 'or-real' });
+    const live = createWorkerDeps({ SERVICE_DATABASE_URL: env.SERVICE_DATABASE_URL, OPENROUTER_API_KEY: 'or-real', APIFY_TOKEN: 'apify-real' } as NodeJS.ProcessEnv);
+    expect(live.platformCosts().env).toEqual({ OPENROUTER_API_KEY: 'or-real', APIFY_TOKEN: 'apify-real' });
+  });
+
   it('without the switch nothing is faked and missing keys stay missing', () => {
     const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
     expect(deps.vendorsConfigured()).toBe(false);
