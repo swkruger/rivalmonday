@@ -150,7 +150,7 @@ describe('VENDOR_FAKE_MODE=fixtures (7c2)', () => {
     expect(deps.vendorsConfigured()).toBe(true);
     await deps.runRivalSearch('run1');
     const rival = last(vendorMocks.runRivalSearch) as { dfs: unknown; meta: { apiKey?: string; apifyToken?: string; fetch: typeof fetch; apifyFetch: typeof fetch } };
-    void rival.dfs;
+    expect(rival.dfs).toBeDefined(); // the lazy getter builds the DataForSEO client (dummy keys pass)
     const dfsOpts = last(vendorMocks.createDataForSeo) as { login: string; fetch: typeof fetch };
     expect(dfsOpts.login).toBeTruthy();
     expect(rival.meta.apiKey).toBeTruthy();

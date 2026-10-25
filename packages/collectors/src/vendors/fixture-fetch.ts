@@ -152,10 +152,33 @@ function metaAds(pageId: string, pageName: string): Obj[] {
 const metaPageName = (pageId: string) => `Fixture Page ${pageId}`;
 const metaPageIdFor = (name: string) => digits(`${name}:page`, 15);
 
-type Task = { kind: 'reviews' | 'jobs'; data: Obj; ready: boolean };
-const READY_PATHS: Record<string, Task['kind']> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs' };
-const POST_PATHS: Record<string, Task['kind']> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs' };
-const GET_PATH = /^\/(business_data\/google\/reviews\/task_get|serp\/google\/jobs\/task_get\/advanced)\/([0-9a-f-]{36})$/;
+type TaskKind = 'reviews' | 'jobs';
+const READY_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs' };
+const POST_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs' };
+const GET_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_get': 'reviews', '/serp/google/jobs/task_get/advanced': 'jobs' };
+const GET_PATH = /^(\/business_data\/google\/reviews\/task_get|\/serp\/google\/jobs\/task_get\/advanced)\/([A-Za-z0-9_-]+)$/;
+/** The posted inputs a task_get answer needs; everything else in the post is dropped from the id. */
+const TASK_KEYS = ['tag', 'place_id', 'cid', 'keyword'] as const;
+const TASK_ID_PREFIX = 'fx_';
+
+/**
+ * Stateless task ids: the id carries the kind and the posted inputs (base64url JSON) plus a nonce (vendor_task ids are
+ * unique), so task_get answers on any fixture fetch instance — a worker restart or redeploy never strands a posted task.
+ */
+function encodeTaskId(kind: TaskKind, data: Obj): string {
+  const d = Object.fromEntries(TASK_KEYS.filter((k) => data[k] !== undefined).map((k) => [k, data[k]]));
+  return `${TASK_ID_PREFIX}${Buffer.from(JSON.stringify({ k: kind, d, n: randomUUID().slice(0, 8) }), 'utf8').toString('base64url')}`;
+}
+function decodeTaskId(id: string): { kind: TaskKind; data: Obj } | null {
+  if (!id.startsWith(TASK_ID_PREFIX)) return null;
+  try {
+    const v = JSON.parse(Buffer.from(id.slice(TASK_ID_PREFIX.length), 'base64url').toString('utf8')) as { k?: unknown; d?: unknown };
+    if ((v.k !== 'reviews' && v.k !== 'jobs') || !v.d || typeof v.d !== 'object') return null;
+    return { kind: v.k, data: v.d as Obj };
+  } catch {
+    return null;
+  }
+}
 const LIVE: Record<string, (data: Obj) => Obj[]> = {
   '/business_data/google/my_business_info/live': (d) => gbpResult(typeof d.keyword === 'string' ? d.keyword : ''),
   '/serp/google/maps/live/advanced': mapsResult,
@@ -181,12 +204,14 @@ function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
 }
 
 /**
- * The fixture vendor fetch (one per process: posted DataForSEO tasks live in memory until fetched). `latencyMs` is
- * waited before each known answer (default 150–750 ms, roughly a live call); an unknown URL answers 599 at once.
+ * The fixture vendor fetch. `latencyMs` is waited before each known answer (default 150–750 ms, roughly a live call); an
+ * unknown URL answers 599 at once. Task ids are stateless (any instance answers task_get); only the `tasks_ready` list is
+ * per instance — tasks posted before a restart are not listed again (the collector learns ids only from tasks_ready).
  */
 export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typeof fetch {
   const latency = opts.latencyMs ?? (() => 150 + Math.random() * 600);
-  const tasks = new Map<string, Task>();
+  /** Posted, not yet fetched task ids by kind (what tasks_ready lists). */
+  const ready = new Map<string, TaskKind>();
 
   async function route(url: URL, method: string, body: unknown): Promise<Reply | null> {
     if (DFS_HOSTS.has(url.hostname) && url.pathname.startsWith('/v3/')) {
@@ -195,22 +220,22 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
       if (method === 'POST' && POST_PATHS[path]) {
         const kind = POST_PATHS[path]!;
         return json(dfsEnvelope(posted.map((data) => {
-          const id = randomUUID();
-          tasks.set(id, { kind, data, ready: true });
+          const id = encodeTaskId(kind, data);
+          ready.set(id, kind);
           return dfsTask(path, data, null, { id, code: 20100, message: 'Task Created.' });
         })));
       }
       if (method === 'GET' && READY_PATHS[path]) {
         const kind = READY_PATHS[path]!;
-        const ready = [...tasks].filter(([, t]) => t.kind === kind && t.ready).map(([id, t]) => ({ id, se: 'google', date_posted: FIXED_TS[0], tag: t.data.tag ?? '', endpoint: null }));
-        return json(dfsEnvelope([dfsTask(path, {}, ready)]));
+        const ids = [...ready].filter(([, k]) => k === kind).map(([id]) => ({ id, se: 'google', date_posted: FIXED_TS[0], tag: decodeTaskId(id)?.data.tag ?? '', endpoint: null }));
+        return json(dfsEnvelope([dfsTask(path, {}, ids)]));
       }
       const get = method === 'GET' ? GET_PATH.exec(path) : null;
       if (get) {
         const id = get[2]!;
-        const t = tasks.get(id);
-        if (!t) return json(dfsEnvelope([dfsTask(path, {}, null, { id, code: 40400, message: 'Not Found.' })]));
-        t.ready = false;
+        const t = decodeTaskId(id);
+        if (!t || t.kind !== GET_PATHS[get[1]!]) return json(dfsEnvelope([dfsTask(path, {}, null, { id, code: 40400, message: 'Not Found.' })]));
+        ready.delete(id);
         return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : jobsResult(t.data), { id })]));
       }
       const live = method === 'POST' ? LIVE[path] : undefined;

@@ -47,6 +47,25 @@ describe('createFixtureFetch', () => {
     expect(l.records.every((r) => r.ok)).toBe(true);
   });
 
+  it('task_get works on a fresh fixture fetch instance for an id posted by another instance', async () => {
+    const before = createDataForSeo({ login: 'f', password: 'f', ledger: ledger().sink, fetch: timedFetch(instant()) });
+    const [posted] = await before.post('/business_data/google/reviews/task_post', [{ place_id: fixturePlaceId('Acme Heating'), location_code: 2840, language_code: 'en', depth: 100, sort_by: 'newest', tag: 'comp-7' }], scope);
+    const [again] = await before.post('/business_data/google/reviews/task_post', [{ place_id: fixturePlaceId('Acme Heating'), tag: 'comp-7' }], scope);
+    expect(again!.id).not.toBe(posted!.id); // vendor_task.external_task_id is unique
+    // "Restart": a new instance answers task_get by id; its tasks_ready only lists tasks it was posted itself.
+    const after = createDataForSeo({ login: 'f', password: 'f', ledger: ledger().sink, fetch: timedFetch(instant()) });
+    const [got] = await after.get(`/business_data/google/reviews/task_get/${posted!.id}`, scope);
+    expect(got).toMatchObject({ id: posted!.id, statusCode: 20000, tag: 'comp-7' });
+    expect((got!.result[0] as { title: string }).title).toBe('Acme Heating');
+    const [ready] = await after.get('/business_data/google/reviews/tasks_ready', scope);
+    expect(ready!.result).toEqual([]);
+    // An id of the wrong kind or a garbage id is a task-level 40400.
+    const [wrongKind] = await after.get(`/serp/google/jobs/task_get/advanced/${posted!.id}`, scope);
+    expect(wrongKind!.statusCode).toBe(40400);
+    const [garbage] = await after.get('/business_data/google/reviews/task_get/fx_not-json', scope);
+    expect(garbage!.statusCode).toBe(40400);
+  });
+
   it('jobs task_get keeps the posted keyword as the employer name (sandbox host too)', async () => {
     const dfs = createDataForSeo({ login: 'f', password: 'f', baseUrl: DFS_SANDBOX_URL, ledger: ledger().sink, fetch: timedFetch(instant()) });
     const [t] = await dfs.post('/serp/google/jobs/task_post', [{ keyword: 'Acme Heating', location_code: 2840, language_code: 'en', depth: 20, tag: 'c9' }], scope);

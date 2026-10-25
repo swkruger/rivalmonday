@@ -17,6 +17,8 @@ import { rehearsalAllowed } from '../env';
 export const FIXTURE_LOG_RING = 50_000;
 export interface FixtureLogEntry { host: string; path: string; at: string; ua: string }
 const LOG_PATH = '/__rehearsal/log';
+/** Logged `path` / `ua` are cut to this many characters. */
+const MAX_FIELD = 512;
 
 /** Constant-time: both sides are hashed to 32 bytes first, so the lengths always match. */
 function tokenMatches(header: string | undefined, token: string): boolean {
@@ -26,13 +28,16 @@ function tokenMatches(header: string | undefined, token: string): boolean {
 }
 
 /** Throws when the service must not run (production, or no hosts); otherwise listens on `PORT`. */
-export function startFixtureHosts(env: NodeJS.ProcessEnv, now: () => Date = () => new Date()): Server {
+export function startFixtureHosts(env: NodeJS.ProcessEnv, opts: { now?: () => Date; ringSize?: number } = {}): Server {
   if (!rehearsalAllowed(env)) throw new Error('fixture-hosts runs only on staging (SENTRY_ENVIRONMENT=staging) or outside production');
   const hosts = new Set((env.FIXTURE_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean));
   if (hosts.size === 0) throw new Error('FIXTURE_HOSTS is required (comma-separated host names)');
+  const now = opts.now ?? (() => new Date());
+  const ringSize = opts.ringSize ?? FIXTURE_LOG_RING;
   const token = env.FIXTURE_LOG_TOKEN?.trim() || null;
   const ring: FixtureLogEntry[] = [];
   let next = 0; // ring write position once full
+  let unknownHostRequests = 0;
 
   const handler = (req: IncomingMessage, res: ServerResponse) => {
     const path = req.url ?? '/';
@@ -41,16 +46,20 @@ export function startFixtureHosts(env: NodeJS.ProcessEnv, now: () => Date = () =
     if (path.split('?')[0] === LOG_PATH) {
       if (!token || req.method !== 'GET') return void res.writeHead(404).end();
       if (!tokenMatches(req.headers.authorization, token)) return void res.writeHead(401).end();
-      const entries = ring.length < FIXTURE_LOG_RING ? ring : [...ring.slice(next), ...ring.slice(0, next)];
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ entries }));
+      const entries = ring.length < ringSize ? ring : [...ring.slice(next), ...ring.slice(0, next)];
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ entries, unknownHostRequests }));
       return;
     }
     const host = (req.headers.host ?? '').replace(/:\d+$/, '').toLowerCase();
+    if (!hosts.has(host)) {
+      unknownHostRequests++; // counted, not logged: only the fixture hosts' traffic is evidence for the report
+      return void res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found\n');
+    }
     const at = now();
-    const entry = { host, path, at: at.toISOString(), ua: req.headers['user-agent'] ?? '' };
-    if (ring.length < FIXTURE_LOG_RING) ring.push(entry);
-    else { ring[next] = entry; next = (next + 1) % FIXTURE_LOG_RING; }
-    if (!hosts.has(host) || (req.method !== 'GET' && req.method !== 'HEAD')) return void res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found\n');
+    const entry = { host, path: path.slice(0, MAX_FIELD), at: at.toISOString(), ua: (req.headers['user-agent'] ?? '').slice(0, MAX_FIELD) };
+    if (ring.length < ringSize) ring.push(entry);
+    else { ring[next] = entry; next = (next + 1) % ringSize; }
+    if (req.method !== 'GET' && req.method !== 'HEAD') return void res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found\n');
     const r = fixtureResponse(host, path, at);
     res.writeHead(r.status, r.headers).end(req.method === 'HEAD' ? undefined : r.body);
   };

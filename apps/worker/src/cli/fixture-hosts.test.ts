@@ -8,8 +8,8 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => new Promise((r) => s.close(r))));
 });
 
-async function start(env: NodeJS.ProcessEnv): Promise<number> {
-  const server = startFixtureHosts({ PORT: '0', FIXTURE_HOSTS: 'fx1.rehearsal.example, FX5.rehearsal.example', ...env });
+async function start(env: NodeJS.ProcessEnv, opts: { ringSize?: number } = {}): Promise<number> {
+  const server = startFixtureHosts({ PORT: '0', FIXTURE_HOSTS: 'fx1.rehearsal.example, FX5.rehearsal.example', ...env }, opts);
   servers.push(server);
   await new Promise<void>((r) => (server.listening ? r() : server.once('listening', () => r())));
   return (server.address() as AddressInfo).port;
@@ -45,13 +45,15 @@ describe('fixture-hosts server', () => {
   it('log needs the token', async () => {
     const port = await start({ SENTRY_ENVIRONMENT: 'staging', NODE_ENV: 'production', FIXTURE_LOG_TOKEN: 'secret-token' });
     await get(port, 'fx1.rehearsal.example', '/g1/s1/');
+    await get(port, 'evil.example', '/g1/s1/');
     await get(port, 'fx1.rehearsal.example', '/robots.txt');
     expect((await get(port, 'fx1.rehearsal.example', '/__rehearsal/log')).status).toBe(401);
     expect((await get(port, 'fx1.rehearsal.example', '/__rehearsal/log', { authorization: 'Bearer secret-tokeX' })).status).toBe(401);
     expect((await get(port, 'fx1.rehearsal.example', '/__rehearsal/log', { authorization: 'Bearer short' })).status).toBe(401);
     const ok = await get(port, 'anything.example', '/__rehearsal/log', { authorization: 'Bearer secret-token' });
     expect(ok.status).toBe(200);
-    const { entries } = JSON.parse(ok.body) as { entries: { host: string; path: string; at: string; ua: string }[] };
+    const { entries, unknownHostRequests } = JSON.parse(ok.body) as { entries: { host: string; path: string; at: string; ua: string }[]; unknownHostRequests: number };
+    expect(unknownHostRequests).toBe(1);
     expect(entries.map((e) => [e.host, e.path, e.ua])).toEqual([
       ['fx1.rehearsal.example', '/g1/s1/', 'RivalMondayBot/1.0'],
       ['fx1.rehearsal.example', '/robots.txt', 'RivalMondayBot/1.0'],
@@ -62,6 +64,17 @@ describe('fixture-hosts server', () => {
     const noToken = await start({ NODE_ENV: 'development' });
     expect((await get(noToken, 'fx1.rehearsal.example', '/__rehearsal/log', { authorization: 'Bearer ' })).status).toBe(404);
     expect(FIXTURE_LOG_RING).toBe(50_000);
+  });
+
+  it('the log ring keeps the newest entries, oldest first, and truncates long fields', async () => {
+    const port = await start({ NODE_ENV: 'development', FIXTURE_LOG_TOKEN: 't0k' }, { ringSize: 3 });
+    for (const p of ['/a', '/b', '/c', '/d', '/e']) await get(port, 'fx1.rehearsal.example', p);
+    await get(port, 'fx1.rehearsal.example', `/${'x'.repeat(600)}`, { 'user-agent': 'u'.repeat(600) });
+    const res = await get(port, 'fx1.rehearsal.example', '/__rehearsal/log', { authorization: 'Bearer t0k' });
+    const { entries } = JSON.parse(res.body) as { entries: { path: string; ua: string }[] };
+    expect(entries.map((e) => e.path.slice(0, 2))).toEqual(['/d', '/e', '/x']);
+    expect(entries[2]!.path).toHaveLength(512);
+    expect(entries[2]!.ua).toHaveLength(512);
   });
 
   it('refuses to start in production', () => {
