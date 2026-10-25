@@ -4,10 +4,10 @@
 **Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5 (binding) · [15c-3a spec](../superpowers/specs/2026-10-25-phase-15c3a-agency-management-design.md) (owner-approved 2026-10-25) · [15c-3a plan](../superpowers/plans/2026-10-25-phase-15c3a-agency-management.md) (owner-approved 2026-10-25) · mockups `docs/design-system/mockups/agency-management/` (approved).
 
 ## Status (overwrite)
-2026-10-25: 15c-3a built (Tasks 0-12); final whole-branch review next, then owner verification and merge. 15c-3b not started.
+2026-10-25: 15c-3a built (Tasks 0-12) and through the final whole-branch review + one fix wave (re-review PASS). Affected tests: E2E 140/140; unit all green except the known date/DST env failures (due-pages ×3, spend-guard). Ready for owner verification and `/rm-merge`. 15c-3b not started.
 
 ## Next (overwrite)
-Final review + one fix wave -> owner runs the verification steps below and signs `docs/archive/phase-15c3a-copy-signoff.md` -> `/rm-merge` (renumber migration if 7c2 merged first). Then phase-7b2 (uses the answers below); 15c-3b (plans) gets its own spec/plan.
+Owner runs the verification steps below and signs `docs/archive/phase-15c3a-copy-signoff.md` -> `/rm-merge` (renumber migration if 7c2 merged first). Then phase-7b2 (uses the answers below); 15c-3b (plans) gets its own spec/plan.
 
 ## Interfaces this branch adds or changes
 - Migration **0093** `agency_hold`: `agency.suspended_at/_reason/_by` (+ consistency/length CHECKs). `plan.visibility` is 15c-3b.
@@ -31,8 +31,7 @@ Final review + one fix wave -> owner runs the verification steps below and signs
 ## New backlog (target -> item)
 - **15c-3b** -> plans (15c spec §5.5, incl. `create_plan` features, Q5).
 - **phase-16** -> extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` into it (R11).
-- **Soon** -> treat Stripe `resource_missing` on hold pause/resume as done (else permanent `_failed`).
-- **15c-3 polish** -> deferred minors not fixed by the final review: billingAccess/syncSeats extra `isOnHold` query; consistency CHECK one-direction test; hold copy in `assertCanActivateClient` always default support email; duplicated hold-setting test update (helper); live-billing predicates duplicated (`liveBillingQuery`/`liveBilling`); `CLI_USER` duplicated; stale `resend_invitation` doc comments in `team.ts`; `inviteMember` unused `_o.inviter`; `assertTeamInviteBudget` runs twice; `get_platform_agency` `.catch(() => null)` swallows DB errors; `list_platform_agencies` description lacks status/counts; unarchive of a non-archived agency is a silent ok; no resume-failure-still-lifts test; success toasts lost on unmount; `tiles as Tiles` cast; action slices 200/600 vs limits 120/500; list not revalidated after rename/hold/archive; "All" view archived rows lack chip; no E2E cleanup nit; `billing-banner.test.tsx:78` formatting.
+- **15c-3 polish** -> deferred minors not fixed by the final review: billingAccess/syncSeats extra `isOnHold` query; consistency CHECK one-direction test; hold copy in `assertCanActivateClient` always default support email; duplicated hold-setting test update (helper); live-billing predicates duplicated (`liveBillingQuery`/`liveBilling`); `CLI_USER` duplicated; stale `resend_invitation` doc comments in `team.ts`; `inviteMember` unused `_o.inviter`; `assertTeamInviteBudget` runs twice; `list_platform_agencies` description lacks status/counts; unarchive of a non-archived agency is a silent ok; no resume-failure-still-lifts test; success toasts lost on unmount; `tiles as Tiles` cast; action slices 200/600 vs limits 120/500; list not revalidated after rename/hold/archive; "All" view archived rows lack chip; isolation world has no held agency (R9 skipPositive); E2E archive step could wait for Unarchive before navigating (one fresh-build flake).
 
 ## Owner verification steps
 Apply migration 0093 to `cs_dev` first.
