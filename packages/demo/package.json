@@ -15,7 +15,8 @@
     "reset": "tsx src/cli/reset.ts",
     "links": "tsx src/cli/links.ts",
     "snapshot": "tsx src/cli/snapshot.ts",
-    "restore": "tsx src/cli/restore.ts"
+    "restore": "tsx src/cli/restore.ts",
+    "rehearsal": "tsx src/cli/rehearsal.ts"
   },
   "dependencies": {
     "@cs/billing": "workspace:*",
