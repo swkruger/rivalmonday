@@ -84,8 +84,16 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
   }
 }
 
+/** Marks an `<a>` whose plain-text rendering is its text only (no `[href]`). */
+export const TEXT_ONLY_LINK = 'data-text-only-link';
+
 export async function renderEmail(payload: EmailPayload): Promise<RenderedEmail> {
   const { el, subject } = element(payload);
-  const [html, text] = await Promise.all([render(el), render(el, { plainText: true, ...(payload.template === 'competitor_review' ? { htmlToTextOptions: { selectors: [{ selector: 'ul', options: { itemPrefix: '- ' } }] } } : {}) })]);
+  const selectors = [
+    // 7c2: a link whose text already says where it goes (the feedback mailto, whose href carries a subject) reads as its text alone.
+    { selector: `a[${TEXT_ONLY_LINK}=true]`, format: 'anchor', options: { ignoreHref: true } },
+    ...(payload.template === 'competitor_review' ? [{ selector: 'ul', options: { itemPrefix: '- ' } }] : []),
+  ];
+  const [html, text] = await Promise.all([render(el), render(el, { plainText: true, htmlToTextOptions: { selectors } })]);
   return { subject: subject.slice(0, 200), html, text };
 }

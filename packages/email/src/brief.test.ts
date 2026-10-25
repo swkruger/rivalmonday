@@ -89,14 +89,15 @@ describe('brief feedback line (7c2)', () => {
   const sam = { email: 'sam@acme.example', name: 'Sam' };
   it('brief shows the named feedback line', async () => {
     const r = await renderEmail({ template: 'brief', props: { ...brief, feedback: sam } });
-    expect(r.text).toContain('Something look off? Reply to this email or write to Sam at sam@acme.example');
+    expect(r.text).toContain('Something look off? Reply to this email or write to Sam at sam@acme.example.');
+    expect(r.text).not.toContain('mailto:');
     expect(r.html).toContain(`href="mailto:sam@acme.example?subject=${encodeURIComponent('Feedback: Weekly competitor brief for A1 HVAC — 2026-10-05')}"`);
     expect(r.html).not.toMatch(/rival ?monday/i);
   });
 
   it('falls back to "your agency"', async () => {
     const r = await renderEmail({ template: 'brief', props: { ...brief, feedback: { email: 'hello@acme.example', name: null } } });
-    expect(r.text).toContain('Something look off? Reply to this email or write to your agency at hello@acme.example');
+    expect(r.text).toContain('Something look off? Reply to this email or write to your agency at hello@acme.example.');
   });
 
   it('hidden when feedback is null', async () => {

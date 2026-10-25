@@ -8,7 +8,8 @@ export const feedbackMailto = (email: string, subject: string) => `mailto:${emai
 
 /**
  * 7c2 (spec §5, decided copy): the client's way to write to their agency from a brief or alert email. White label: it
- * names the agency contact (or "your agency"), never the platform. Renders nothing without a contact.
+ * names the agency contact (or "your agency"), never the platform. Renders nothing without a contact. The text part shows
+ * the address only (`data-text-only-link`, see `TEXT_ONLY_LINK` in render.ts), so it reads as the decided sentence.
  */
 export function FeedbackLine({ feedback, subject }: { feedback: FeedbackContact | null | undefined; subject: string }) {
   if (!feedback) return null;
@@ -16,7 +17,7 @@ export function FeedbackLine({ feedback, subject }: { feedback: FeedbackContact 
   return (
     <Text style={{ marginTop: 16, fontSize: 13, color: '#5B6B7F' }}>
       {`Something look off? Reply to this email or write to ${who} at `}
-      <Link href={feedbackMailto(feedback.email, subject)}>{feedback.email}</Link>.
+      <Link href={feedbackMailto(feedback.email, subject)} data-text-only-link="true">{feedback.email}</Link>.
     </Text>
   );
 }

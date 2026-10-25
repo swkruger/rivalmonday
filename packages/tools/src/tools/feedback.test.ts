@@ -29,6 +29,6 @@ describe('get_feedback_contact (7c2)', () => {
   it('client_viewer of the client gets it; the tool is web only', async () => {
     await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example', name: 'Sam' });
     expect(await contact(ctx('client_viewer', [IDS.clientA1]))).toEqual({ email: 'am@a.example', name: 'Sam' });
-    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1]), 'get_feedback_contact', { clientId: IDS.clientA1 }, { channel: 'mcp', tokenId: 't', tokenScope: 'read' })).rejects.toThrow();
+    await expect(registry.invoke(ctx('client_viewer', [IDS.clientA1]), 'get_feedback_contact', { clientId: IDS.clientA1 }, { channel: 'mcp', tokenId: 't', tokenScope: 'read' })).rejects.toMatchObject({ code: 'not_found' }); // off-channel tools look unknown
   });
 });
