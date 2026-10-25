@@ -4,10 +4,10 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-23-phase-7b2-billing-correctness.md) · [spec](../superpowers/specs/2026-10-22-phase-7b-money-design.md) — owner-approved 2026-10-23 (planned on `phase-7-planning`).
 
 ## Status (overwrite)
-Execution started 2026-10-25 (base main 015a948c). Task 0 pre-flight next.
+Execution started 2026-10-25 (base main 015a948c). Task 0 done: 15c-3 assumptions hold — (a) held agencies skip runConnectDaily; (b) hold ⇒ `service_paused` from assertCanActivateClient (liftAutoPause swallows it with `billing_seat_limit`); (c) guard allow-list unchanged; (d) no 15c-3 edits to connect-daily/client-pause/gateway logic. No migration.
 
 ## Next (overwrite)
-Task 0 pre-flight → SDD.
+SDD Tasks 1–6.
 
 ## Interfaces this branch adds or changes
 See the plan's Interfaces blocks; migrations take the next free number at execution.
