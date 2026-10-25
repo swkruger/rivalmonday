@@ -2,7 +2,7 @@ import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { agencyBilling, agencyOnboarding, agencyProfile, client, discountCode, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createToolRegistry } from '../registry';
 
@@ -309,6 +309,67 @@ describe('redeem_discount_code', () => {
     expect(gw.callsTo('attachSubscriptionDiscount')[0]!.args[0]).toEqual({ subscriptionId: 'sub_1', couponId: 'coupon_1' });
     expect(gw.subscriptionCoupons.get('sub_1')).toEqual(['coupon_1']);
     expect((await billingRow())!.attachedCouponId).toBe('coupon_1');
+  });
+
+  // 7b2: max_redemptions = distinct agencies holding the coupon, excluding the redeeming agency.
+  const adminB = mk('agency_admin', 'all', IDS.agencyB);
+  const holdB = () => dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyB, state: 'trialing', planId, attachedCouponId: 'coupon_1' });
+
+  it('refuses an exhausted code with the same invalid_code message', async () => {
+    await addCode({ maxRedemptions: 1 });
+    await holdB();
+    await setBilling({ state: 'pilot' });
+    await invalid('SAVE10');
+  });
+
+  it("re-redeeming the agency's own code does not count against it", async () => {
+    await addCode({ maxRedemptions: 1 });
+    expect(await call(admin, 'redeem_discount_code', { code: 'SAVE10' })).toEqual({ applied: true, appliesAtCheckout: true });
+    expect(await call(admin, 'redeem_discount_code', { code: 'SAVE10' })).toEqual({ applied: true, appliesAtCheckout: true });
+    expect((await billingRow())!.attachedCouponId).toBe('coupon_1');
+  });
+
+  it('last slot under concurrency: one of two agencies wins', async () => {
+    await addCode({ maxRedemptions: 1 });
+    // Hold the code's row lock so both calls pass the pre-check and then queue on FOR UPDATE together.
+    let release!: () => void;
+    const gate = new Promise<void>((res) => (release = res));
+    let locked!: () => void;
+    const isLocked = new Promise<void>((res) => (locked = res));
+    const holder = dbs.owner.transaction(async (tx) => {
+      await tx.select().from(discountCode).for('update');
+      locked();
+      await gate;
+    });
+    await isLocked;
+    const both = Promise.allSettled([call(admin, 'redeem_discount_code', { code: 'SAVE10' }), call(adminB, 'redeem_discount_code', { code: 'SAVE10' })]);
+    const waiting = async () =>
+      (await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from pg_stat_activity where wait_event_type = 'Lock' and query ilike '%discount_code%'`))[0]!.n;
+    let queued: number;
+    try {
+      for (let i = 0; i < 60 && (await waiting()) < 2; i++) await new Promise((res) => setTimeout(res, 50));
+      queued = await waiting();
+    } finally {
+      release(); // never leave the lock held (afterwards truncateAll would block forever)
+      await holder;
+    }
+    const results = await both;
+    expect(queued).toBe(2);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]!.reason).toMatchObject({ code: 'invalid_code', message: MSG });
+    expect(await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.attachedCouponId, 'coupon_1'))).toHaveLength(1);
+  });
+
+  it('an attach failure restores the previous coupon', async () => {
+    await addCode({ code: 'NEW', stripeCouponId: 'coupon_new' });
+    const { id } = await gw.createCustomer({ agencyId: IDS.agencyA, name: 'A' });
+    gw.seedSubscription({ id: 'sub_1', customerId: id });
+    await setBilling({ state: 'active', stripeCustomerId: id, stripeSubscriptionId: 'sub_1', attachedCouponId: 'coupon_old' });
+    gw.failNext();
+    await expect(call(admin, 'redeem_discount_code', { code: 'NEW' })).rejects.toThrow();
+    expect((await billingRow())!.attachedCouponId).toBe('coupon_old');
   });
 });
 

@@ -1,4 +1,4 @@
-import { startAgencyTrial } from '@cs/billing';
+import { discountExhausted, discountRedemptions, startAgencyTrial } from '@cs/billing';
 import {
   agency, agencyInviteLink, type AgencyInviteLinkRow, agencyOnboarding, agencyProfile, billingNotice, type Db, discountCode, membership,
   pendingSignup, type PendingSignupRow, type Tx,
@@ -10,14 +10,20 @@ import { normalizeEmail } from './invitations';
 import type { ToolDeps } from '../deps';
 import type { SignupProblem } from './signup';
 
-/** The Stripe coupon of the link's discount code, if the code is still usable (not revoked, not expired). */
+/**
+ * The Stripe coupon of the link's discount code, if the code is still usable (not revoked, not expired, not exhausted).
+ * 7b2: the code row is locked so concurrent sign-ups / redemptions serialise on the last `max_redemptions` slot; an
+ * exhausted code just attaches no coupon (sign-up continues).
+ */
 async function couponFor(tx: Tx, link: AgencyInviteLinkRow, now: Date): Promise<string | undefined> {
   if (!link.discountCodeId) return undefined;
   const [dc] = await tx
-    .select({ coupon: discountCode.stripeCouponId })
+    .select({ coupon: discountCode.stripeCouponId, maxRedemptions: discountCode.maxRedemptions })
     .from(discountCode)
-    .where(and(eq(discountCode.id, link.discountCodeId), isNull(discountCode.revokedAt), or(isNull(discountCode.expiresAt), gt(discountCode.expiresAt, now))));
-  return dc?.coupon;
+    .where(and(eq(discountCode.id, link.discountCodeId), isNull(discountCode.revokedAt), or(isNull(discountCode.expiresAt), gt(discountCode.expiresAt, now))))
+    .for('update');
+  if (!dc || discountExhausted(dc.maxRedemptions, await discountRedemptions(tx, dc.coupon))) return undefined;
+  return dc.coupon;
 }
 
 function linkProblem(link: AgencyInviteLinkRow | undefined, email: string, now: Date): SignupProblem | null {

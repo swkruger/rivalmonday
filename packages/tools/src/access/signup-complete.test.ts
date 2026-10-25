@@ -122,6 +122,28 @@ describe('completePendingSignups', () => {
     }
   });
 
+  it('invite trial: an exhausted discount code attaches no coupon', async () => {
+    // 7b2: max_redemptions counts agencies already holding the coupon; sign-up still completes (Decision 8).
+    const dc = await code({ maxRedemptions: 1 });
+    await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing', attachedCouponId: 'co_pilot' });
+    const l = await link({ offer: 'trial', discountCodeId: dc.id });
+    await pending({ source: 'invite', inviteLinkId: l.id });
+    const r = await completePendingSignups(dbs.service, USER, NOW);
+    expect(r.problems).toEqual([]);
+    expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, r.agencyIds[0]!)))[0]).toMatchObject({ state: 'trialing', attachedCouponId: null });
+  });
+
+  it('invite trial: max_redemptions null is unlimited', async () => {
+    const dc = await code({ maxRedemptions: null });
+    await dbs.owner.insert(agencyBilling).values([
+      { agencyId: IDS.agencyA, state: 'trialing', attachedCouponId: 'co_pilot' }, { agencyId: IDS.agencyB, state: 'trialing', attachedCouponId: 'co_pilot' },
+    ]);
+    const l = await link({ offer: 'trial', discountCodeId: dc.id });
+    await pending({ source: 'invite', inviteLinkId: l.id });
+    const id = (await completePendingSignups(dbs.service, USER, NOW)).agencyIds[0]!;
+    expect((await dbs.owner.select().from(agencyBilling).where(eq(agencyBilling.agencyId, id)))[0]).toMatchObject({ attachedCouponId: 'co_pilot' });
+  });
+
   it('two concurrent completions for the same user create one agency and consume one invite use', async () => {
     const l = await link({ offer: 'pilot', maxUses: 5 });
     await pending({ source: 'invite', inviteLinkId: l.id });

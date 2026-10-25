@@ -23,3 +23,4 @@ export * from './connect-webhook';
 export * from './connect-daily';
 export * from './connect-fee';
 export * from './hold';
+export * from './discount';

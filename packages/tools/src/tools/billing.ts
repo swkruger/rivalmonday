@@ -1,6 +1,9 @@
-import { type BillingGateway, billingAccess, countActiveClients, currentStandardPlan, type CustomerDetails, LIVE_SUBSCRIPTION_STATUSES, planFor, syncPlanToStripe, trialEndUsable } from '@cs/billing';
+import {
+  type BillingGateway, billingAccess, countActiveClients, currentStandardPlan, type CustomerDetails, discountExhausted, discountRedemptions, LIVE_SUBSCRIPTION_STATUSES, planFor,
+  syncPlanToStripe, trialEndUsable,
+} from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, agencyBilling, agencyProfile, client, clientServiceable, discountCode } from '@cs/db';
+import { agency, agencyBilling, agencyProfile, client, clientServiceable, discountCode, type DiscountCodeRow } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -261,19 +264,36 @@ export const redeemDiscountCodeTool = defineTool({
   async handler(ctx, { code }, deps) {
     requireAdmin(ctx);
     const gw = gatewayOf(deps);
-    // One message for every refusal reason, so a code cannot be probed (no oracle).
-    const [dc] = await deps.service.select().from(discountCode).where(and(sql`lower(${discountCode.code}) = lower(${code})`, isNull(discountCode.revokedAt)));
-    const valid = dc
-      && (!dc.expiresAt || dc.expiresAt.getTime() > Date.now())
-      && (!dc.restrictedAgencyIds || dc.restrictedAgencyIds.includes(ctx.agencyId));
-    if (!dc || !valid) throw new ToolError('invalid_code', INVALID_CODE_MESSAGE);
+    // One message for every refusal reason (unknown, revoked, expired, other agency, exhausted), so a code cannot be probed (no oracle).
+    // 7b2: `max_redemptions` counts the other agencies holding the coupon (re-redeeming one's own code is free).
+    const valid = (d: DiscountCodeRow | undefined, used: number) => !!d && (!d.expiresAt || d.expiresAt.getTime() > Date.now())
+      && (!d.restrictedAgencyIds || d.restrictedAgencyIds.includes(ctx.agencyId)) && !discountExhausted(d.maxRedemptions, used);
+    const byCode = and(sql`lower(${discountCode.code}) = lower(${code})`, isNull(discountCode.revokedAt));
+    // Cheap pre-check (no Stripe work for an invalid code).
+    const [pre] = await deps.service.select().from(discountCode).where(byCode);
+    if (!pre || !valid(pre, await discountRedemptions(deps.service, pre.stripeCouponId, ctx.agencyId))) throw new ToolError('invalid_code', INVALID_CODE_MESSAGE);
 
     await ensureCustomer(deps, ctx.agencyId);
-    const subscriptionId = (await billingRowOf(deps, ctx.agencyId))?.stripeSubscriptionId;
-    const hasSubscription = !!subscriptionId;
-    if (subscriptionId) await gw.attachSubscriptionDiscount({ subscriptionId, couponId: dc.stripeCouponId });
-    await deps.service.update(agencyBilling).set({ attachedCouponId: dc.stripeCouponId, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, ctx.agencyId));
-    return { applied: true as const, appliesAtCheckout: !hasSubscription };
+    // Reserve the slot under the code's row lock (serialises the last slot).
+    const { dc, previous, subscriptionId } = await deps.service.transaction(async (tx) => {
+      const [d] = await tx.select().from(discountCode).where(byCode).for('update');
+      if (!d || !valid(d, await discountRedemptions(tx, d.stripeCouponId, ctx.agencyId))) throw new ToolError('invalid_code', INVALID_CODE_MESSAGE);
+      const [b] = await tx.select({ coupon: agencyBilling.attachedCouponId, sub: agencyBilling.stripeSubscriptionId }).from(agencyBilling).where(eq(agencyBilling.agencyId, ctx.agencyId)).for('update');
+      await tx.update(agencyBilling).set({ attachedCouponId: d.stripeCouponId, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, ctx.agencyId));
+      return { dc: d, previous: b?.coupon ?? null, subscriptionId: b?.sub ?? null };
+    });
+    // Stripe after commit.
+    if (subscriptionId) {
+      try {
+        await gw.attachSubscriptionDiscount({ subscriptionId, couponId: dc.stripeCouponId });
+      } catch (e) {
+        // Release the slot only if nobody changed it since (compare-and-set).
+        await deps.service.update(agencyBilling).set({ attachedCouponId: previous, updatedAt: new Date() })
+          .where(and(eq(agencyBilling.agencyId, ctx.agencyId), eq(agencyBilling.attachedCouponId, dc.stripeCouponId)));
+        throw e;
+      }
+    }
+    return { applied: true as const, appliesAtCheckout: !subscriptionId };
   },
 });
 
