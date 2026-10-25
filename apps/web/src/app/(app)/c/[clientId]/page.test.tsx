@@ -13,7 +13,7 @@ vi.mock('@/components/charts/line-chart', () => ({ LineChart: () => null, foldSe
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: ({ text }: { text: string }) => <>{text}</> }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null, HelpEmpty: () => null }));
-vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
+vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <div role="heading" aria-level={1}>{title}</div> }));
 vi.mock('@/components/setup-badge', () => ({ openSetupSteps: () => null, SetupBadge: () => null }));
 vi.mock('./moves/move-card', () => ({ MoveCard: () => null, movesHref: () => '/moves' }));
 

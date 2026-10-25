@@ -39,7 +39,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/slack-teams` | admin | `list_webhooks`, `list_help_guides` | — |
 | `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
-| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `get_client_profile`, `list_help_guides` | `list_ads`: one competitor runs no ads |
+| `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_client_profile`, `list_alerts`, `list_help_guides` | — |
 | `/c/[clientId]/ask` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |
 | `/c/[clientId]/ask/[threadId]` | admin | `get_ask_starters`, `list_my_ask_threads`, `get_my_ask_thread`, `get_client_profile` | — |

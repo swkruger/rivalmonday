@@ -183,6 +183,8 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'active', offset: 0 }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), status: 'all' }), path: 'items' },
       { tool: 'list_ads', input: (ids) => ({ clientId: ls(ids), competitorId: ids.noData.ads, status: 'all' }), path: 'items', expect: 'empty', why: 'one competitor runs no ads' },
+      // The competitor filter lists every tracked rival, including the one with no ads (15c-2b-2 P9).
+      { tool: 'list_client_competitors', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
       lsProfile,
     ],
   },
