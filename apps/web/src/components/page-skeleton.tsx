@@ -26,3 +26,13 @@ export function PageSkeleton({ cards = 3 }: { cards?: number }) {
     </div>
   );
 }
+
+/** Suspense fallback for one streamed section inside an already-rendered card (no page-header placeholder). */
+export function SectionSkeleton() {
+  return (
+    <div role="status">
+      <span className="sr-only">Loading…</span>
+      <Skeleton className="h-[200px] w-full" />
+    </div>
+  );
+}

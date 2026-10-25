@@ -8,7 +8,7 @@ title: Recommendations
 Next steps for {{client}}, each one tied to evidence. A recommendation comes from the recommended action in a weekly brief, or from a pattern in a competitor's changes (a move) that calls for a response.
 
 - **The three columns** are the stages: **To do**, **In progress** and **Done**. Recommendations you set aside are in the **dismissed** list at the bottom.
-- **Each card** has a title, the reason behind it and a few small tags: **Effort** and **Impact** (L, M or H for low, medium or high), **For you** or **Agency** (who can take the step), and where it came from (**From weekly brief**, **From a detected move** or **From Ask**).
+- **Each card** has a title, the reason behind it and a few small tags: **Effort** and **Impact** (Low, Medium or High), **For you** or **Agency** (who can take the step), and where it came from (**From weekly brief**, **From a detected move** or **From Ask**).
 - **The Evidence links** on a card open the stored proof behind it.
 
 ## How to use it
@@ -32,7 +32,7 @@ Each approved weekly brief adds the recommended action of its items. When a comp
 
 ### What are Effort and Impact?
 
-Rough estimates, not measurements. They are shown as L, M or H for low, medium or high.
+Rough estimates, not measurements. They are shown as Low, Medium or High.
 
 ### Why is the board empty?
 

@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
-import { PageSkeleton } from '@/components/page-skeleton';
+import { SectionSkeleton } from '@/components/page-skeleton';
 import { PressureBadge } from '@/components/pressure-badge';
 import { AdMatchChips } from '@/components/rival/ad-match-chips';
 import { ratedLabel } from '@/components/rival/rated-label';
@@ -201,7 +201,7 @@ export default async function CompetitorProfilePage({
             </nav>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<PageSkeleton cards={1} />}>
+            <Suspense fallback={<SectionSkeleton />}>
               <TimelineCard clientId={clientId} competitorId={competitorId} days={days} timezone={tz} />
             </Suspense>
           </CardContent>

@@ -27,8 +27,10 @@ describe('PricingPage', () => {
       params: Promise.resolve({ clientId: 'c' }),
       searchParams: Promise.resolve({ competitor: matrix.rows[0]!.competitorId, service: 'ac' }),
     });
-    render(ui);
+    const { container } = render(ui);
     expect(screen.getByRole('status').textContent).toContain('Loading');
+    // An in-card section skeleton, not a second page header + card grid.
+    expect(container.querySelector('[data-skeleton-card]')).toBeNull();
     expect(screen.getByRole('link', { name: /AC tune-up/ })).toBeTruthy();
   });
 });

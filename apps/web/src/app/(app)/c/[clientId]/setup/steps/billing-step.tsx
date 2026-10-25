@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, Label } from '@cs/ui';
+import { Button, ConfirmDialog, Input, Label } from '@cs/ui';
 import Link from 'next/link';
 import { useState } from 'react';
 import { WriteGuard } from '@/components/read-only';
@@ -13,6 +13,10 @@ export interface BillingPrefill {
 
 const toField = (cents: number | null) => (cents == null ? '' : cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2));
 
+/** Confirm body: "… for $249/month plus $99 setup." (the fee part only when a fee is typed). */
+const confirmBody = (price: string, fee: string) =>
+  `The owner gets an email with a payment link for $${price.trim()}/month${fee.trim() ? ` plus $${fee.trim()} setup` : ''}.`;
+
 /** Step 5 (clients only). Agency admins turn billing on; everyone else is told who can. */
 export function BillingStep({
   isAdmin, prefill, skipped, pending, onEnable, onSkip,
@@ -25,7 +29,7 @@ export function BillingStep({
   else if (!prefill?.ready) body = <p className="text-muted-foreground"><Link href="/agency/settings/billing" className="font-semibold text-primary-soft-text">Connect Stripe in Settings → Billing</Link> to bill this client.</p>;
   else {
     body = (
-      <form onSubmit={(e) => { e.preventDefault(); onEnable(price, fee); }} onReset={(e) => e.preventDefault()} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="flex max-w-xs flex-col gap-2">
           <Label htmlFor="billing-price">Monthly price ($)</Label>
           <Input id="billing-price" inputMode="decimal" required value={price} onChange={(e) => setPrice(e.target.value)} />
@@ -35,9 +39,18 @@ export function BillingStep({
           <Input id="billing-fee" inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value)} />
         </div>
         <WriteGuard>
-          <div><Button type="submit" disabled={pending || !price.trim()}>Turn on billing and email the payment link</Button></div>
+          <div>
+            {/* Sends the client an email, so it asks first. */}
+            <ConfirmDialog
+              trigger={<Button type="button" disabled={pending || !price.trim()}>Turn on billing and email the payment link</Button>}
+              title="Turn on billing?"
+              body={confirmBody(price, fee)}
+              confirmLabel="Turn on billing"
+              action={() => onEnable(price, fee)}
+            />
+          </div>
         </WriteGuard>
-      </form>
+      </div>
     );
   }
   return (

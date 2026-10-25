@@ -10,7 +10,7 @@ Every brief, alert and quarterly report for {{client}}, newest first, in three t
 - **Weekly briefs.** A brief is written on Thursday night (10 p.m. client time) for Monday delivery, so you can review and approve it the next day. A missed Thursday run can still generate until noon the next day. Approved briefs go out from 7 a.m. Monday client time. The first brief, tagged **Starting point**, is sent when you approve it.
 - **Alerts.** Changes that scored high enough to send between briefs.
 - **Quarterly reports.** Written automatically in the first week after a quarter ends, from 8 a.m. client time, for every active client.
-- **Status chips** (agency only): **Drafting**, **Failed — retrying**, **Ready for review**, **Approved**, **Sent** for briefs; alerts read **Being drafted**, **Waiting for review**, **Approved**, **Sent**, **Dismissed**, **Withdrawn** or **Expired**; reports read **Preparing**, **Ready** or **Sent**. A client user only ever sees items that were delivered, and no chips.
+- **Status chips** (agency only): **Drafting**, **Failed — retrying**, **Ready for review**, **Approved**, **Sent** for briefs; alerts read **Being drafted**, **Waiting for review**, **Approved**, **Sent**, **Dismissed**, **Withdrawn** or **Expired**; reports read **Preparing**, **Ready**, **Sent** or **Failed**. A client user only ever sees items that were delivered, and no chips.
 
 ## How to use it
 

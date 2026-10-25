@@ -282,15 +282,15 @@ export const CLIENT_COPY = {
         body: 'To do, In progress and Done are the stages. Use Start, Done or Back to to-do on a card to move it. A dismissed recommendation goes to the list at the bottom with the reason given, and can be reopened. People with view-only access can read the board but not change it.',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/components/recommendation-board.tsx:RecommendationCard (effort and impact shown as L, M or H); packages/engine/src/briefs/writer.ts (LEVELS L, M, H)
+      // source: apps/web/src/components/recommendation-board.tsx:RecommendationCard (Effort/Impact chips via labelFor(LEVEL)); apps/web/src/lib/labels.ts:LEVEL (L, M, H shown as Low, Medium, High)
       effortImpact: {
         title: 'Effort and impact',
-        body: 'Rough estimates, shown as L, M or H for low, medium or high: how much work the step is, and how much it could help. They help you pick where to start. They are estimates, not measurements.',
+        body: 'Rough estimates, shown as Low, Medium or High: how much work the step is (Effort) and how much it could help (Impact). They help you pick where to start. They are estimates, not measurements.',
       },
-      // source: packages/engine/src/briefs/recommendations.ts (owner client | agency); apps/web/src/components/recommendation-board.tsx:RecommendationCard ("For you" / "Agency")
+      // source: packages/engine/src/briefs/recommendations.ts (owner client | agency); apps/web/src/components/recommendation-board.tsx:RecommendationCard ("For you" / "Agency"; agency roles see "Client" / "Agency")
       owner: {
         title: 'For you or Agency',
-        body: '"For you" marks a step the business owner can take, such as asking customers for reviews. "Agency" marks a step {agency} can take.',
+        body: '"For you" marks a step the business owner can take, such as asking customers for reviews. "Agency" marks a step {agency} can take. Agency users see "For you" as "Client".',
       },
       // source: apps/web/src/components/recommendation-board.tsx:SOURCE_LABEL; packages/engine/src/briefs/recommendations.ts:recommendationFromItem (source brief) and the move plays (source move)
       origin: {
@@ -350,7 +350,7 @@ export const CLIENT_COPY = {
       // source: apps/web/src/lib/labels.ts:BRIEF_STATUS, ALERT_STATUS, REPORT_STATUS; apps/web/src/app/(app)/c/[clientId]/briefs/page.tsx (chips for agency roles only; client roles only get delivered items)
       status: {
         title: 'Status chips',
-        body: 'The chip shows where each item stands in your review, such as Ready for review (briefs), Waiting for review (alerts), Approved or Sent. Items waiting for review are in Approvals. Client users only see items that were delivered, and no chips.',
+        body: 'The chip shows where each item stands in your review, such as Ready for review (briefs), Waiting for review (alerts), Approved or Sent; a report that could not be prepared shows Failed. Items waiting for review are in Approvals. Client users only see items that were delivered, and no chips.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },

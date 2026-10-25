@@ -150,6 +150,8 @@ test.describe.serial('client setup: invite and billing', () => {
     await page.getByLabel('Monthly price ($)').fill('249');
     await page.getByLabel('Setup fee ($)').fill('99');
     await page.getByRole('button', { name: 'Turn on billing and email the payment link' }).click();
+    await expect(page.getByRole('dialog')).toContainText('The owner gets an email with a payment link for $249/month plus $99 setup.');
+    await page.getByRole('dialog').getByRole('button', { name: 'Turn on billing', exact: true }).click();
     // Both remaining steps are done, so the setup closes into its summary.
     await expect(page.getByRole('heading', { name: 'Setup finished' })).toBeVisible();
 

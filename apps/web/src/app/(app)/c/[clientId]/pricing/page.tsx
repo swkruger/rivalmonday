@@ -8,7 +8,7 @@ import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
-import { PageSkeleton } from '@/components/page-skeleton';
+import { SectionSkeleton } from '@/components/page-skeleton';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
@@ -97,7 +97,7 @@ export default async function PricingPage({ params, searchParams }: {
                 hrefFor={(serviceId) => pricingHref(clientId, { competitor: row.competitorId, service: serviceId, days })}
               >
                 {selected?.competitorId === row.competitorId && (
-                  <Suspense fallback={<PageSkeleton cards={1} />}>
+                  <Suspense fallback={<SectionSkeleton />}>
                     <PriceHistoryCard clientId={clientId} competitorId={selected.competitorId} serviceId={selected.serviceId} days={days} />
                   </Suspense>
                 )}

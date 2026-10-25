@@ -9,7 +9,9 @@ vi.mock('../actions', () => ({ setPinAction: vi.fn(), addPageAction: vi.fn(), co
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: vi.fn(), registry: vi.fn() }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({}) }));
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: ({ tip, term }: { tip?: string; term?: string }) => <button type="button">{'tip ' + (tip ?? term)}</button> }));
-vi.mock('./timeline', () => ({ TimelineCard: () => null }));
+const timeline = vi.hoisted(() => ({ suspend: false }));
+// A never-settling promise thrown from render = a pending async server component inside Suspense.
+vi.mock('./timeline', () => ({ TimelineCard: () => { if (timeline.suspend) throw new Promise(() => {}); return null; } }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import CompetitorProfilePage from './page';
@@ -78,6 +80,18 @@ describe('CompetitorProfilePage', () => {
     await renderPage();
     expect(screen.getByText('Matched automatically')).toBeTruthy();
     expect(screen.getByText('Possible Meta account: Smith Air')).toBeTruthy();
+  });
+
+  it('timeline streams behind an in-card section skeleton', async () => {
+    timeline.suspend = true;
+    try {
+      callTool.mockImplementation(async (_c: unknown, tool: string) => answer(tool));
+      const { container } = render(await CompetitorProfilePage({ params: Promise.resolve({ clientId: 'c', competitorId: 'x' }), searchParams: Promise.resolve({}) }));
+      expect(screen.getByRole('status').textContent).toContain('Loading');
+      expect(container.querySelector('[data-skeleton-card]')).toBeNull();
+    } finally {
+      timeline.suspend = false;
+    }
   });
 
   it('reads source statuses as words, not codes', async () => {

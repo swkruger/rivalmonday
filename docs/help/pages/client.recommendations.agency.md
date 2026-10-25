@@ -9,7 +9,7 @@ The next steps for {{client}}, each tied to evidence. The client owner works fro
 
 - **Where they come from.** Approving a weekly brief turns the recommended action of each active item into a recommendation (owner: client, source **From weekly brief**). Separately, an active move that has no recommendation yet gets a suggested response written from the client's runbook plays (source **From a detected move**; one per move, and it does not come back once written). Answers saved from Ask arrive as **From Ask**.
 - **The three columns** are **To do**, **In progress** and **Done**. Dismissed ones are in the list at the bottom with the reason given.
-- **Each card** shows Effort and Impact (L, M or H), **For you** or **Agency**, its source, its evidence links and, for you only, the **Upsell** tag.
+- **Each card** shows Effort and Impact (Low, Medium or High), **Client** or **Agency**, its source, its evidence links and, for you only, the **Upsell** tag.
 - **The Upsell tag** names the kind of service the recommendation points to (for example local SEO, paid ads, reputation, content, social or website). Clients never see it.
 
 ## How to use it
@@ -39,6 +39,6 @@ People with the manage permission: agency staff and client owners. Client viewer
 
 Not on this page. Recommendations are created from briefs and moves, or saved from an Ask answer or an evidence page (**Add recommendation**) when the Ask module is on for the client.
 
-### What does "For you" mean on a card for an agency user?
+### What does "Client" mean on a card?
 
-The same as for the client: a step the business owner can take. **Agency** marks a step your agency can take.
+A step the business owner can take; the client sees it as **For you**. **Agency** marks a step your agency can take.

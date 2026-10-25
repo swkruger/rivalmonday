@@ -292,7 +292,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const w of ['Your business', 'Finding competitors', 'Pick competitors', 'Invite the owner', 'Billing']) expect(wizard, w).toContain(w);
     expect(wizard).toContain('business type');
     const appr = await agencyGuide('page:agency.approvals');
-    for (const w of ['Thursday night', 'Monday 07:00', 'Needs review', 'Failed — retrying']) expect(appr, w).toContain(w);
+    for (const w of ['Thursday night', 'Monday 07:00', 'Ready for review', 'Failed — retrying']) expect(appr, w).toContain(w);
     const det = await agencyGuide('page:agency.approvals.detail');
     for (const w of ['85%', 'High confidence', 'Upsell', 'Send now']) expect(det, w).toContain(w);
     expect(det).not.toMatch(/medium confidence|low confidence/i);

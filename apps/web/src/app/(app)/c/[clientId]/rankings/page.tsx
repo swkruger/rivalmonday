@@ -182,7 +182,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   </label>
                 </>
               )}
-              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Show</button>
+              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Show</button>
             </form>
 
             {tab === 'trend' ? (

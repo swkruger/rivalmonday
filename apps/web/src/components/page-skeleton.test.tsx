@@ -3,7 +3,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PageSkeleton } from './page-skeleton';
+import { PageSkeleton, SectionSkeleton } from './page-skeleton';
 
 afterEach(cleanup);
 
@@ -30,6 +30,15 @@ function findLoading(dir: string): string[] {
     e.isDirectory() ? findLoading(join(dir, e.name)) : e.name === 'loading.tsx' ? [join(dir, e.name)] : [],
   );
 }
+
+describe('SectionSkeleton', () => {
+  it('announces Loading… with one block and no page-header placeholder', () => {
+    const { container } = render(<SectionSkeleton />);
+    expect(screen.getByRole('status').textContent).toContain('Loading…');
+    expect(container.querySelectorAll('[data-skeleton-card]').length).toBe(0);
+    expect(container.querySelectorAll('[aria-hidden="true"]').length).toBe(1);
+  });
+});
 
 describe('no route-level loading.tsx', () => {
   // A route loading.tsx makes Next stream the shell (HTTP 200) before the page runs, so a page's notFound() refusal

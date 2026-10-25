@@ -13,8 +13,8 @@ test('an invited admin signs in by magic link and sees the themed client list', 
   expect(primary.toLowerCase()).toBe('#7a3ee8');
   await page.getByRole('link', { name: 'E2E HVAC' }).click();
   // The seed also has a `ready` brief for 2026-10-12 (the Overview's latest); this test is about the sent 2026-10-05 one,
-  // listed under "Past briefs".
-  await page.getByRole('link', { name: /week of 2026-10-05/i }).click();
+  // listed under "Past briefs" as "Week of Oct 5" (plus its status chip for agency users).
+  await page.getByRole('link', { name: /^week of oct 5\b/i }).click();
   await expect(page.getByText('Upsell: ppc_audit')).toBeVisible();
 });
 

@@ -59,6 +59,22 @@ describe('AlertRulesForm bar and SaveBar', () => {
     expect(screen.getByText('20–69')).toBeTruthy();
     expect(screen.getByRole('img').getAttribute('aria-label')).toContain('20 to 69: weekly brief');
   });
+  it('Discard restores the saved bar, also after an invalid pair', () => {
+    render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '90' } });
+    expect(screen.getByText('20–69')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(screen.getByText('40–69')).toBeTruthy();
+    expect((screen.getByLabelText('Weekly brief from score') as HTMLInputElement).value).toBe('40');
+  });
+  it('a successful reset to defaults moves the bar to the default pair', async () => {
+    const action = vi.fn(async (_p: FormResult, _fd: FormData) => ({ ok: true as const, message: 'Alert rules reset.' }));
+    render(<AlertRulesForm clientId="c1" rules={{ alert: 80, brief: 50, custom: true, defaults: { alert: 70, brief: 40 } }} canEdit action={action} />);
+    expect(screen.getByText('50–79')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Use the defaults (70/40)' }));
+    expect(await screen.findByText('40–69')).toBeTruthy();
+  });
   it('keeps the last valid bar while the pair is invalid', () => {
     render(<AlertRulesForm clientId="c1" rules={rules} canEdit action={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Weekly brief from score'), { target: { value: '90' } });

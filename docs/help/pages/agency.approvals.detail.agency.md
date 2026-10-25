@@ -30,7 +30,7 @@ A starting-point brief, the first one for a new client, also shows a **Where you
 
 ### Why can I not edit this brief?
 
-You can edit while it says **Needs review**. Once it is approved or sent, items can no longer be edited, removed or reordered.
+You can edit while it says **Ready for review**. Once it is approved or sent, items can no longer be edited, removed or reordered.
 
 ### Does the client see what I removed?
 
