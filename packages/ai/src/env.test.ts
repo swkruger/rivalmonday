@@ -40,6 +40,27 @@ describe('createAiFromEnv', () => {
     expect(r.answers.m.provider).toBe('jev');
   });
 
+  it('routes Jev and OpenRouter calls through the injected http fetch', async () => {
+    const hit: string[] = [];
+    const via = (name: string, json: unknown) => vi.fn(async (_u: unknown, init?: RequestInit & { timeoutMs?: number }) => {
+      hit.push(`${name}:${init?.timeoutMs}`);
+      return new Response(JSON.stringify(json), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const jev = via('jev', { model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
+    const openrouter = via('or', { model: 'a/small', choices: [{ message: { content: JSON.stringify({ m: { probability: 0.99 } }) } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
+    const global = vi.fn();
+    vi.stubGlobal('fetch', global);
+    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k', TYPESAFE_API_KEY: 't' }, config, ledger, undefined, undefined, { jev, openrouter });
+    await ai.decide('decisions', {}, { m: { type: 'noul', instructions: 'ok?' } }, scope);
+    expect(jev).toHaveBeenCalledTimes(1);
+    expect(hit[0]).toMatch(/^jev:\d+$/);
+    expect(global).not.toHaveBeenCalled();
+    const ai2 = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger, undefined, undefined, { openrouter });
+    await ai2.decide('decisions', {}, { m: { type: 'noul', instructions: 'ok?' } }, scope);
+    expect(openrouter).toHaveBeenCalledTimes(1);
+    expect(global).not.toHaveBeenCalled();
+  });
+
   it('decides with the LLM when TYPESAFE_API_KEY is absent', async () => {
     const calls = stubFetch({ model: 'a/small', choices: [{ message: { content: JSON.stringify({ m: { probability: 0.99 } }) } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
     const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger);

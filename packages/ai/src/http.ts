@@ -1,3 +1,4 @@
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallTiming } from './config';
 
 export class AiProviderError extends Error {
@@ -14,7 +15,7 @@ export class AiProviderError extends Error {
 }
 
 export interface HttpDeps {
-  fetch: typeof fetch;
+  fetch: TimedFetch;
   sleep: (ms: number) => Promise<void>;
   maxRetries: number;
   baseDelayMs: number;
@@ -22,7 +23,7 @@ export interface HttpDeps {
 }
 
 export const defaultHttpDeps: HttpDeps = {
-  fetch: (input, init) => globalThis.fetch(input, init),
+  fetch: timedFetch(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   maxRetries: 2,
   baseDelayMs: 500,
@@ -46,13 +47,13 @@ export async function postJson(
   for (let attempt = 0; ; attempt++) {
     const canRetry = attempt < maxRetries;
     let res: Response;
-    const s = signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]) : AbortSignal.timeout(timeoutMs);
     try {
       res = await deps.fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
-        signal: s,
+        timeoutMs,
+        signal,
       });
     } catch (err) {
       if (signal?.aborted) throw aborted(err);

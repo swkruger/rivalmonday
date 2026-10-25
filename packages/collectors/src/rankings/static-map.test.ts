@@ -13,6 +13,14 @@ const png = () => new Response(PNG, { status: 200, headers: { 'content-type': 'i
 const asFetch = (f: unknown) => f as typeof globalThis.fetch;
 
 describe('createStadiaStaticClient', () => {
+  it('passes timeoutMs 10000, not a signal', async () => {
+    const fetch = vi.fn(async (_u: string | URL | Request, _init?: unknown) => png());
+    await createStadiaStaticClient({ apiKey: 'k', fetch: asFetch(fetch), ledger: ledgerOf().ledger }).fetchStatic(q, scope);
+    const init = fetch.mock.calls[0]![1] as { timeoutMs?: number; signal?: unknown };
+    expect(init.timeoutMs).toBe(10_000);
+    expect(init.signal).toBeUndefined();
+  });
+
   it('URL uses static_cacheable with centre, zoom, size@2x and manual_attribution, never logs the key', async () => {
     const fetch = vi.fn(async (_u: string | URL | Request) => png());
     const { ledger } = ledgerOf();

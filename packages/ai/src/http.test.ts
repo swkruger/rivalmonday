@@ -9,7 +9,7 @@ function deps(responses: Array<Response | Error>): HttpDeps & { calls: number; s
       if (!next) throw new Error('no more responses');
       if (next instanceof Error) throw next;
       return next;
-    }) as unknown as typeof fetch,
+    }) as unknown as HttpDeps['fetch'],
     sleep: async (ms: number) => { state.sleeps.push(ms); },
     maxRetries: 2,
     baseDelayMs: 100,
@@ -21,6 +21,23 @@ const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 }
 const status = (code: number) => new Response('err', { status: code });
 
 describe('postJson', () => {
+  it('passes timeoutMs, not a signal of its own', async () => {
+    const d = deps([ok({ a: 1 })]);
+    await postJson('p', 'https://x.test', {}, {}, d);
+    const [, init] = (d.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit & { timeoutMs?: number }];
+    expect(init.timeoutMs).toBe(1000);
+    expect(init.signal).toBeUndefined();
+  });
+
+  it('forwards the caller signal untouched', async () => {
+    const d = deps([ok({ a: 1 })]);
+    const ac = new AbortController();
+    await postJson('p', 'https://x.test', {}, {}, d, { timeoutMs: 5000, maxAttempts: 1 } as never, ac.signal);
+    const [, init] = (d.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit & { timeoutMs?: number }];
+    expect(init.timeoutMs).toBe(5000);
+    expect(init.signal).toBe(ac.signal);
+  });
+
   it('returns parsed JSON on success and sends headers/body', async () => {
     const d = deps([ok({ a: 1 })]);
     await expect(postJson('p', 'https://x.test', { q: 1 }, { authorization: 'Bearer k' }, d)).resolves.toEqual({ a: 1 });

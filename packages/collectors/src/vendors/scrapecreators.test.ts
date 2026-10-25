@@ -19,6 +19,14 @@ const scope = { agencyId: null, clientId: null };
 const page = (results: unknown[], cursor: string | null) => new Response(JSON.stringify({ success: true, results, cursor }), { status: 200 });
 
 describe('fetchMetaAdsScrapeCreators', () => {
+  it('passes timeoutMs 60000, not a signal', async () => {
+    const { fetch, ledger } = setup([page([{ id: 'a' }], null)]);
+    await fetchMetaAdsScrapeCreators({ apiKey: 'k', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', scope);
+    const init = fetch.mock.calls[0] as unknown as [string, { timeoutMs?: number; signal?: unknown }];
+    expect(init[1].timeoutMs).toBe(60_000);
+    expect(init[1].signal).toBeUndefined();
+  });
+
   it('follows the cursor across pages, concatenating results with one ledger row per page', async () => {
     const { fetch, records, ledger } = setup([page([{ id: 'a' }], 'next-cursor'), page([{ id: 'b' }], null)]);
     const items = await fetchMetaAdsScrapeCreators({ apiKey: 'super-secret-key', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', scope);

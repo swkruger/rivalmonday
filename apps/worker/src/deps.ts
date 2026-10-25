@@ -6,6 +6,7 @@ import {
   runProspectSnapshot, scanRankings, type SourceKind,
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope, type CaptureStatus } from '@cs/core';
+import { createVendorLimiter } from '@cs/core/server';
 import { type AgencyBranding, competitor, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import {
@@ -207,6 +208,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   let renderer: Renderer | null = null;
   let ai: Promise<Ai> | null = null;
   const robots = new RobotsPolicy(defaultFetchText);
+  // 7c2: one limiter per process for every vendor/AI call (Anthropic batches go through the SDK and are not limited). Waits
+  // over 5 s are logged at debug with vendor and ms only.
+  const vendors = createVendorLimiter(undefined, undefined, (vendor, ms) => workerLog.debug({ vendor, waitedMs: ms }, '[vendor-limiter] waited for a slot'));
   // In-process rate limiting: per-host politeness (spec §4.2) only holds with exactly one worker
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
@@ -232,7 +236,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const getDfs = () => {
     if (!dfs) {
       if (!env.DATAFORSEO_LOGIN || !env.DATAFORSEO_PASSWORD) throw new Error('DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are required');
-      dfs = createDataForSeo({ login: env.DATAFORSEO_LOGIN, password: env.DATAFORSEO_PASSWORD, baseUrl: env.DATAFORSEO_BASE_URL || DFS_BASE_URL, ledger: createLedgerSink(getDb()) });
+      dfs = createDataForSeo({ login: env.DATAFORSEO_LOGIN, password: env.DATAFORSEO_PASSWORD, baseUrl: env.DATAFORSEO_BASE_URL || DFS_BASE_URL, ledger: createLedgerSink(getDb()), fetch: vendors.limitedFetch('dataforseo') });
     }
     return dfs;
   };
@@ -262,7 +266,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const aiGuard = (): AiGuard | undefined => (opts.aiGuard === false ? undefined : (guard ??= createAiGuard(getDb())));
   const getAi = () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard()))
+      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard(), { openrouter: vendors.limitedFetch('openrouter'), jev: vendors.limitedFetch('jev') }))
       .catch((err) => {
         ai = null;
         throw err;
@@ -273,7 +277,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const rivalDeps = (): RivalSearchDeps => ({
     db: getDb(),
     get dfs() { return getDfs(); },
-    meta: { apiKey: env.SCRAPECREATORS_API_KEY || undefined, apifyToken: env.APIFY_TOKEN || undefined, ledger: createLedgerSink(getDb()) },
+    meta: { apiKey: env.SCRAPECREATORS_API_KEY || undefined, apifyToken: env.APIFY_TOKEN || undefined, ledger: createLedgerSink(getDb()), fetch: vendors.limitedFetch('scrapecreators'), apifyFetch: vendors.limitedFetch('apify') },
     packs,
     runbookTiers,
   });
@@ -288,7 +292,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       const r =
         source === 'gbp' ? await collectGbpProfile({ ...base, dfs: getDfs() }, c, scope)
         : source === 'ads_google' ? await collectGoogleAds({ ...base, dfs: getDfs() }, c, scope)
-        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined }, c, scope);
+        : await collectMetaAds({ ...base, ledger: createLedgerSink(getDb()), apify: env.APIFY_TOKEN ? { token: env.APIFY_TOKEN } : undefined, scrapeCreators: env.SCRAPECREATORS_API_KEY ? { apiKey: env.SCRAPECREATORS_API_KEY } : undefined, fetch: vendors.limitedFetch('scrapecreators'), apifyFetch: vendors.limitedFetch('apify') }, c, scope);
       await markSourceResult(getDb(), competitorId, source, r.status);
       return r;
     } catch (err) {
@@ -457,7 +461,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     failStaleRankScans: () => failStaleScans(getDb()),
     clientsNeedingRankMap: (ids) => rankClientsNeedingMap(getDb(), ids),
     refreshRankMap: (clientId) =>
-      refreshMap({ db: getDb(), store: getStore(), maps: env.STADIA_API_KEY ? createStadiaStaticClient({ apiKey: env.STADIA_API_KEY, ledger: createLedgerSink(getDb()) }) : null }, clientId),
+      refreshMap({ db: getDb(), store: getStore(), maps: env.STADIA_API_KEY ? createStadiaStaticClient({ apiKey: env.STADIA_API_KEY, ledger: createLedgerSink(getDb()), fetch: vendors.limitedFetch('stadia') }) : null }, clientId),
     async runProspectSnapshot(clientId, reportId) {
       if (!vendorsConfigured()) {
         await failProspectReport(getDb(), reportId, 'Vendor APIs are not configured (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD)');

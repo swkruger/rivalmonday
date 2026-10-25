@@ -16,6 +16,18 @@ function setup(handler: (url: string) => Response) {
 }
 
 describe('searchMetaPages', () => {
+  it('ScrapeCreators search passes timeoutMs 60000; Apify search uses apifyFetch with timeoutMs 310000', async () => {
+    const sc = setup(() => new Response(fx('scrapecreators-adlibrary-search.json'), { status: 200 }));
+    await searchMetaPages({ apiKey: 'k', ledger: sc.ledger, fetch: sc.fetch }, q, scope);
+    expect((sc.mock.mock.calls[0]![1] as { timeoutMs?: number }).timeoutMs).toBe(60_000);
+    const plain = setup(() => new Response('{}', { status: 500 }));
+    const apify = setup(() => new Response('[]', { status: 200 }));
+    await searchMetaPages({ apifyToken: 't', ledger: apify.ledger, fetch: plain.fetch, apifyFetch: apify.fetch }, q, scope).catch(() => {});
+    expect(plain.mock).not.toHaveBeenCalled();
+    expect((apify.mock.mock.calls[0]![1] as { timeoutMs?: number; signal?: unknown }).timeoutMs).toBe(310_000);
+    expect((apify.mock.mock.calls[0]![1] as { signal?: unknown }).signal).toBeUndefined();
+  });
+
   it('ScrapeCreators: groups the fixture by page id and counts active ads', async () => {
     const raw = JSON.parse(fx('scrapecreators-adlibrary-search.json')) as { searchResults: { page_id: string; is_active: boolean }[] };
     const { ledger, fetch, mock } = setup(() => new Response(fx('scrapecreators-adlibrary-search.json'), { status: 200 }));

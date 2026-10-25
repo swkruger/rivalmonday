@@ -1,3 +1,4 @@
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallScope, LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from './errors';
 
@@ -17,11 +18,11 @@ export function metaLibraryUrl(pageId: string, country = 'US'): string {
  * beyond the cap, so absence from this response does not mean an ad ended.
  */
 export async function fetchMetaAdsApify(
-  opts: { token: string; ledger: LedgerSink; fetch?: typeof fetch },
+  opts: { token: string; ledger: LedgerSink; fetch?: TimedFetch },
   pageId: string,
   scope: CallScope,
 ): Promise<{ items: unknown[]; truncated: boolean }> {
-  const doFetch = opts.fetch ?? globalThis.fetch;
+  const doFetch = opts.fetch ?? timedFetch();
   const started = Date.now();
   let items: unknown[] = [];
   let ok = false;
@@ -33,7 +34,7 @@ export async function fetchMetaAdsApify(
         urls: [{ url: metaLibraryUrl(pageId) }], count: APIFY_META_COUNT, limitPerSource: APIFY_META_COUNT, scrapeAdDetails: false,
         'scrapePageAds.activeStatus': 'active', 'scrapePageAds.countryCode': 'US', 'scrapePageAds.sortBy': 'most_recent',
       }),
-      signal: AbortSignal.timeout(310_000), // Apify sync runs time out at 300 s (HTTP 408)
+      timeoutMs: 310_000, // Apify sync runs time out at 300 s (HTTP 408)
     });
     if (!res.ok) throw new VendorError('apify', res.status, `Apify HTTP ${res.status}`, res.status === 408 || res.status >= 500);
     const body = await res.json().catch(() => null);

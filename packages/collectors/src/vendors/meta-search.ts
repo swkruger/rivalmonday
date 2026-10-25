@@ -1,8 +1,9 @@
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallScope, LedgerSink } from '@cs/core';
 import { APIFY_META_ACTOR } from './apify';
 import { safeRecordVendorCall, VendorError } from './errors';
 
-export interface MetaSearchDeps { apiKey?: string; apifyToken?: string; ledger: LedgerSink; fetch?: typeof fetch }
+export interface MetaSearchDeps { apiKey?: string; apifyToken?: string; ledger: LedgerSink; fetch?: TimedFetch; /** Apify's own limited fetch (ScrapeCreators uses `fetch`); falls back to `fetch`. */ apifyFetch?: TimedFetch }
 export interface MetaPageHit { pageId: string; pageName: string; activeAds: number }
 export type MetaSearchVendor = 'scrapecreators' | 'apify';
 /** pages null = no vendor could answer; costUsd = estimate summed over every vendor call made (also ledgered per call). */
@@ -34,13 +35,13 @@ function groupByPage(rows: unknown[]): MetaPageHit[] {
 }
 
 async function viaScrapeCreators(d: MetaSearchDeps & { apiKey: string }, name: string, country: string, count: number, scope: CallScope): Promise<MetaPageHit[]> {
-  const doFetch = d.fetch ?? globalThis.fetch;
+  const doFetch = d.fetch ?? timedFetch();
   const params = new URLSearchParams({ query: name, status: 'ACTIVE', country });
   const started = Date.now();
   let ok = false;
   let credits: number | null = null;
   try {
-    const res = await doFetch(`https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?${params}`, { headers: { 'x-api-key': d.apiKey }, signal: AbortSignal.timeout(60_000) });
+    const res = await doFetch(`https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?${params}`, { headers: { 'x-api-key': d.apiKey }, timeoutMs: 60_000 });
     if (!res.ok) throw new VendorError('scrapecreators', res.status, `ScrapeCreators HTTP ${res.status}`, res.status >= 500 || res.status === 429);
     const body = (await res.json().catch(() => null)) as { success?: boolean; searchResults?: unknown[]; credits_charged?: number } | null;
     if (!body || body.success === false || !Array.isArray(body.searchResults)) throw new VendorError('scrapecreators', null, 'Unexpected ScrapeCreators body', false);
@@ -56,7 +57,7 @@ async function viaScrapeCreators(d: MetaSearchDeps & { apiKey: string }, name: s
 }
 
 async function viaApify(d: MetaSearchDeps & { apifyToken: string }, name: string, country: string, count: number, scope: CallScope): Promise<MetaPageHit[]> {
-  const doFetch = d.fetch ?? globalThis.fetch;
+  const doFetch = d.apifyFetch ?? d.fetch ?? timedFetch();
   const url = new URL('https://www.facebook.com/ads/library/');
   url.search = new URLSearchParams({ active_status: 'active', ad_type: 'all', country, q: name, search_type: 'keyword_unordered', media_type: 'all' }).toString();
   const started = Date.now();
@@ -66,7 +67,7 @@ async function viaApify(d: MetaSearchDeps & { apifyToken: string }, name: string
       method: 'POST',
       headers: { authorization: `Bearer ${d.apifyToken}`, 'content-type': 'application/json' },
       body: JSON.stringify({ urls: [{ url: url.toString() }], count, limitPerSource: count, scrapeAdDetails: false }),
-      signal: AbortSignal.timeout(310_000),
+      timeoutMs: 310_000,
     });
     if (!res.ok) throw new VendorError('apify', res.status, `Apify HTTP ${res.status}`, res.status === 408 || res.status >= 500);
     const body = await res.json().catch(() => null);

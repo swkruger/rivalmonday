@@ -18,6 +18,14 @@ function setup(responses: Response[]) {
 }
 
 describe('fetchMetaAdsApify', () => {
+  it('passes timeoutMs 310000, not a signal', async () => {
+    const { fetch, ledger } = setup([new Response(JSON.stringify([{ adArchiveID: '1' }]), { status: 201 })]);
+    await fetchMetaAdsApify({ token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', { agencyId: null, clientId: null, competitorIds: ['c1'] });
+    const init = fetch.mock.calls[0] as unknown as [string, { timeoutMs?: number; signal?: unknown }];
+    expect(init[1].timeoutMs).toBe(310_000);
+    expect(init[1].signal).toBeUndefined();
+  });
+
   it('ledgers the scope it is given (competitorIds reach the sink)', async () => {
     const { fetch, records, ledger } = setup([new Response(JSON.stringify([{ adArchiveID: '1' }]), { status: 201 })]);
     await fetchMetaAdsApify({ token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', { agencyId: null, clientId: null, competitorIds: ['c1'] });

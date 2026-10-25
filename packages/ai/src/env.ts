@@ -1,3 +1,4 @@
+import type { TimedFetch } from '@cs/core/server';
 import type { AiGuard, DecisionSampleSink, LedgerSink } from '@cs/core';
 import { type Ai, createAi } from './ai';
 import { createAnthropicBatchProvider } from './anthropic-batch';
@@ -6,7 +7,7 @@ import { createJevProvider } from './decisions/jev';
 import { createOpenRouterEmbeddings } from './embeddings';
 import { createOpenRouterProvider, type OpenRouterOptions } from './openrouter';
 
-export function createAiFromEnv(env: NodeJS.ProcessEnv, config: AiConfig, ledger: LedgerSink, samples?: DecisionSampleSink, guard?: AiGuard): Ai {
+export function createAiFromEnv(env: NodeJS.ProcessEnv, config: AiConfig, ledger: LedgerSink, samples?: DecisionSampleSink, guard?: AiGuard, http?: { openrouter?: TimedFetch; jev?: TimedFetch }): Ai {
   const apiKey = env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is required');
   const router: OpenRouterOptions = {
@@ -15,10 +16,11 @@ export function createAiFromEnv(env: NodeJS.ProcessEnv, config: AiConfig, ledger
     appUrl: env.APP_URL ?? 'http://localhost:3000',
     dataCollection: config.openrouter.data_collection,
     zdr: config.openrouter.zdr,
+    http: http?.openrouter ? { fetch: http.openrouter } : undefined,
   };
   const jevKey = env.TYPESAFE_API_KEY;
   const jev = jevKey
-    ? (model: string, timing?: CallTiming) => createJevProvider({ apiKey: jevKey, model, timing, inputUsdPerMTok: config.jev.input_usd_per_mtok })
+    ? (model: string, timing?: CallTiming) => createJevProvider({ apiKey: jevKey, model, timing, inputUsdPerMTok: config.jev.input_usd_per_mtok, http: http?.jev ? { fetch: http.jev } : undefined })
     : null;
   const raw = env.AI_SHADOW_RATE;
   const override = raw === undefined || raw === '' ? undefined : Number(raw);

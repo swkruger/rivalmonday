@@ -1,3 +1,4 @@
+import type { TimedFetch } from '@cs/core/server';
 import type { CallScope, LedgerSink } from '@cs/core';
 import { ad, type Db } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
@@ -62,7 +63,7 @@ export interface MetaPageResult {
   vendor?: string;
 }
 
-type MetaDeps = { db: Db; store: ObjectStore; ledger: LedgerSink; apify?: { token: string }; scrapeCreators?: { apiKey: string }; fetch?: typeof fetch };
+type MetaDeps = { db: Db; store: ObjectStore; ledger: LedgerSink; apify?: { token: string }; scrapeCreators?: { apiKey: string }; fetch?: TimedFetch; /** Apify's own limited fetch; falls back to `fetch`. */ apifyFetch?: TimedFetch };
 
 /**
  * Collects every Meta page of a competitor (franchise brands advertise from franchisee pages, 2b carry-over).
@@ -89,7 +90,7 @@ export async function collectMetaAds(
 async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: string, scope: CallScope): Promise<MetaPageResult> {
   const base = { competitorId, source: 'meta_ads', collectorVersion: META_COLLECTOR_VERSION, url: metaPageUrl(pageId) };
   const attempts: [string, () => Promise<{ items: unknown[]; truncated: boolean }>][] = [];
-  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);
+  if (deps.apify) attempts.push(['apify', () => fetchMetaAdsApify({ token: deps.apify!.token, ledger: deps.ledger, fetch: deps.apifyFetch ?? deps.fetch }, pageId, scope)]);
   if (deps.scrapeCreators) attempts.push(['scrapecreators', () => fetchMetaAdsScrapeCreators({ apiKey: deps.scrapeCreators!.apiKey, ledger: deps.ledger, fetch: deps.fetch }, pageId, scope)]);
   const errors: string[] = [];
   for (const [vendor, run] of attempts) {

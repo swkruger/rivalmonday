@@ -19,6 +19,14 @@ function setup(responses: Response[]) {
 }
 
 describe('DataForSEO client', () => {
+  it('passes timeoutMs 130000, not a signal', async () => {
+    const { client, fetch } = setup([ok([task([])])]);
+    await client.get('/x', scope);
+    const [, init] = fetch.mock.calls[0] as unknown as [string, { timeoutMs?: number; signal?: unknown }];
+    expect(init.timeoutMs).toBe(130_000);
+    expect(init.signal).toBeUndefined();
+  });
+
   it('posts tasks with Basic auth and returns normalised tasks', async () => {
     const { client, fetch, records } = setup([ok([task([{ items: [] }])])]);
     const tasks = await client.post('/serp/google/maps/live/advanced', [{ keyword: 'ac repair' }], scope);

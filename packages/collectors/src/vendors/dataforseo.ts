@@ -1,3 +1,4 @@
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallScope, LedgerSink } from '@cs/core';
 import { z } from 'zod';
 import { safeRecordVendorCall, VendorError } from './errors';
@@ -67,7 +68,7 @@ export interface DataForSeoOptions {
   password: string;
   baseUrl?: string;
   ledger: LedgerSink;
-  fetch?: typeof fetch;
+  fetch?: TimedFetch;
   sleep?: (ms: number) => Promise<void>;
   maxRetries?: number;
   now?: () => number;
@@ -84,7 +85,7 @@ const TASK_ID_SUFFIX = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 
 export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
   const base = opts.baseUrl ?? DFS_BASE_URL;
-  const doFetch = opts.fetch ?? ((i: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(i, init));
+  const doFetch = opts.fetch ?? timedFetch();
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const maxRetries = opts.maxRetries ?? 2;
   const now = opts.now ?? Date.now;
@@ -105,7 +106,7 @@ export function createDataForSeo(opts: DataForSeoOptions): DataForSeoClient {
             method,
             headers: { authorization: auth, 'content-type': 'application/json' },
             body: body === undefined ? undefined : JSON.stringify(body),
-            signal: AbortSignal.timeout(timeoutMs),
+            timeoutMs,
           });
         } catch (err) {
           if (canRetry) { await backoff(); continue; }

@@ -1,3 +1,4 @@
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallScope, LatLng, LedgerSink } from '@cs/core';
 import { safeRecordVendorCall, VendorError } from '../vendors/errors';
 
@@ -18,11 +19,11 @@ const stripQuery = (s: string): string => s.replace(/(https?:\/\/[^\s?#]+)[?#]\S
  * Stadia Maps static images via the `static_cacheable` endpoint, which is the one that licenses storing the image
  * (never `/static/`). `size` is the logical size; `@2x` makes the PNG twice as large for retina.
  */
-export function createStadiaStaticClient(opts: { apiKey: string; style?: string; fetch?: typeof fetch; ledger: LedgerSink }): StaticMapClient {
+export function createStadiaStaticClient(opts: { apiKey: string; style?: string; fetch?: TimedFetch; ledger: LedgerSink }): StaticMapClient {
   const style = opts.style ?? RANK_MAP_STYLE;
   return {
     async fetchStatic(q, scope) {
-      const doFetch = opts.fetch ?? globalThis.fetch;
+      const doFetch = opts.fetch ?? timedFetch();
       const params = new URLSearchParams({
         center: `${q.center.lat},${q.center.lng}`,
         zoom: String(q.zoom),
@@ -35,7 +36,7 @@ export function createStadiaStaticClient(opts: { apiKey: string; style?: string;
       try {
         let res: Response;
         try {
-          res = await doFetch(`https://tiles.stadiamaps.com/static_cacheable/${style}.png?${params}`, { signal: AbortSignal.timeout(10_000) });
+          res = await doFetch(`https://tiles.stadiamaps.com/static_cacheable/${style}.png?${params}`, { timeoutMs: 10_000 });
         } catch (err) {
           const msg = err instanceof Error ? stripQuery(err.message).split(opts.apiKey).join('***') : 'unknown error';
           throw new VendorError('stadia', null, `Network error calling Stadia Maps: ${msg}`, true);
