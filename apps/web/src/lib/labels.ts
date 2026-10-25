@@ -156,6 +156,19 @@ export const HEALTH_STATUS: LabelMap<'ok' | 'warn' | 'down'> = {
   down: e('Down', 'danger'),
 };
 
+// Brief readiness ops alerts (packages/engine/src/briefs/brief-readiness.ts); platform console only. Tones follow
+// HEALTH_STATUS: critical = down, warning = warn.
+export const READINESS_SEVERITY: LabelMap<'critical' | 'warning'> = {
+  critical: e('Critical', HEALTH_STATUS.down.tone),
+  warning: e('Warning', HEALTH_STATUS.warn.tone),
+};
+export const READINESS_CHECKPOINT: LabelMap<'generation_closed' | 'pre_delivery' | 'pre_delivery_unapproved' | 'starting_point_late'> = {
+  generation_closed: e('Not ready after generation closed'),
+  pre_delivery: e('Missing or failed before delivery'),
+  pre_delivery_unapproved: e('Ready but not approved'),
+  starting_point_late: e('Starting point late'),
+};
+
 // Stripe invoice status (packages/tools/src/tools/platform-billing.ts passes it through); platform console only
 export const INVOICE_STATUS: LabelMap<'draft' | 'open' | 'paid' | 'uncollectible' | 'void'> = {
   draft: e('Draft'),

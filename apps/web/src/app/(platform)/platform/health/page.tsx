@@ -11,6 +11,7 @@ import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { type SpendGuardData, SpendGuardPanel } from './_components/spend-guard-panel';
 import { type HealthData, QueuesTable, SourcesTable, VendorsTable, WorkerTable } from './_components/health-tables';
+import { ReadinessPanel } from './_components/readiness-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,10 @@ export default async function PlatformHealthPage() {
           <HelpTip tip="platform.health.spendGuard" />
         </div>
         <SpendGuardPanel data={guard} canReset={role === 'owner' || role === 'staff'} tz={tz} />
+      </section>
+      <section className={card}>
+        <h2 className="mb-3 font-semibold">Brief readiness</h2>
+        <ReadinessPanel data={data.briefReadiness} now={now} tz={tz} />
       </section>
       <section className={card}>
         <div className="mb-3 flex items-center gap-1.5">

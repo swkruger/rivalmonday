@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { capture, vendorCall } from '@cs/db';
+import { capture, opsAlert, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
@@ -83,5 +83,25 @@ describe('get_platform_health', () => {
     expect(by.old).toMatchObject({ calls24h: 0, errors24h: 0, status: 'ok' });
     expect(out.sources.find((s) => s.kind === 'capture')).toMatchObject({ status: 'warn', lastOkAt: ago(27 * HOUR).toISOString() });
     expect(out.sources.find((s) => s.kind === 'vendor_call')).toMatchObject({ status: 'ok', lastOkAt: ago(2 * HOUR).toISOString() });
+  });
+
+  it('returns open issues only, newest first', async () => {
+    const c = (n: number) => Array.from({ length: n }, (_, i) => ({ clientId: `c${i}`, clientName: `C${i}`, agencyName: 'A' }));
+    const row = (key: string, firstSeenAt: Date, o: Partial<typeof opsAlert.$inferInsert> = {}) => ({
+      kind: 'brief_readiness', dedupeKey: key, severity: 'critical', firstSeenAt, lastSeenAt: firstSeenAt,
+      summary: { clients: c(1), deliveryDate: '2026-10-26', checkpoint: 'generation_closed' }, ...o,
+    });
+    await dbs.owner.insert(opsAlert).values([
+      row('old', ago(30 * HOUR), { emailedAt: ago(29 * HOUR), summary: { clients: c(3), deliveryDate: '2026-10-26', checkpoint: 'pre_delivery' } }),
+      row('new', ago(1 * HOUR), { severity: 'warning', summary: { clients: c(2), deliveryDate: '2026-10-26', checkpoint: 'pre_delivery_unapproved' } }),
+      row('resolved', ago(10 * 60_000), { resolvedAt: ago(5 * 60_000) }),
+    ]);
+    const out = await health();
+    expect(out.briefReadiness.issues).toEqual([
+      { checkpoint: 'pre_delivery_unapproved', severity: 'warning', deliveryDate: '2026-10-26', clients: 2, firstSeenAt: ago(HOUR).toISOString(), emailedAt: null },
+      { checkpoint: 'pre_delivery', severity: 'critical', deliveryDate: '2026-10-26', clients: 3, firstSeenAt: ago(30 * HOUR).toISOString(), emailedAt: ago(29 * HOUR).toISOString() },
+    ]);
+    // Tuesday: outside every checkpoint window, so nothing is due yet.
+    expect(out.briefReadiness).toMatchObject({ checkedAt: NOW.toISOString(), deliveryDate: '2026-10-26', due: 0, missing: 0 });
   });
 });

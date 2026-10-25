@@ -65,7 +65,7 @@ export { INTAKE_SIG_TTL_MS, intakeLookupSchema, type SignedIntakePlace, signedIn
 export { buildSnapshot, LEAD_SUMMARY_SYSTEM, leadSummaryJsonSchema, snapshotFacts, validateSummary } from './intake/preview';
 export { type LeadEmailDeps, type LeadEmailKind, sendLeadEmail } from './intake/emails';
 export { catalogOf, catalogPacks } from './catalog/access';
-export { platformHealthOutput, type PlatformHealth } from './platform/system-health';
+export { type BriefReadiness, platformHealthOutput, type PlatformHealth } from './platform/system-health';
 export { archiveTenant, type ArchiveResult, liveBilling } from './platform/archive';
 // 15c-3a: the agency page words its archive refusal from `get_platform_agency.archiveBlockers` before the tool would refuse.
 export { ARCHIVE_BILLING_MESSAGE } from './tools/platform-agency';

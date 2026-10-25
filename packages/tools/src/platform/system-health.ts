@@ -4,6 +4,25 @@ import type { QueueStat } from '../deps';
 const Status = z.enum(['ok', 'warn', 'down']);
 export type HealthStatus = z.infer<typeof Status>;
 
+const count = z.number().int().nonnegative();
+
+/** 7c2: live counts for the current brief cycle plus the open `brief_readiness` ops alerts (newest first, at most 20). */
+export const briefReadinessOutput = z.object({
+  checkedAt: z.string(),
+  deliveryDate: z.string(),
+  due: count, ready: count, approved: count, sent: count, missing: count, failed: count, awaitingApproval: count, startingPointsLate: count,
+  issues: z.array(z.object({
+    checkpoint: z.string(),
+    severity: z.enum(['warning', 'critical']),
+    deliveryDate: z.string(),
+    /** How many clients the alert lists. */
+    clients: count,
+    firstSeenAt: z.string(),
+    emailedAt: z.string().nullable(),
+  })),
+});
+export type BriefReadiness = z.infer<typeof briefReadinessOutput>;
+
 export const platformHealthOutput = z.object({
   generatedAt: z.string(),
   worker: z.object({ lastHeartbeatAt: z.string().nullable(), status: Status }),
@@ -13,6 +32,7 @@ export const platformHealthOutput = z.object({
   sentryUrl: z.string().nullable(),
   /** True when the queue database could not be read (worker then shows down, queues empty). */
   queueError: z.boolean(),
+  briefReadiness: briefReadinessOutput,
 });
 export type PlatformHealth = z.infer<typeof platformHealthOutput>;
 
@@ -31,7 +51,7 @@ const MIN_MS = 60_000;
 const HOUR_MS = 3_600_000;
 
 /** Parked §3.4 thresholds + plan decision 7. Pure: all clock reads come from `now`. */
-export function healthStatuses(now: Date, raw: RawHealth): PlatformHealth {
+export function healthStatuses(now: Date, raw: RawHealth): Omit<PlatformHealth, 'briefReadiness'> {
   const age = (d: Date) => now.getTime() - d.getTime();
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 

@@ -2,7 +2,7 @@ import { brief, client, clientSetup, opsAlert } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { checkBriefReadiness, findReadinessIssues, markOpsAlertEmailed, type ReadinessIssue, weeklyCheckpoint } from './brief-readiness';
+import { checkBriefReadiness, findReadinessIssues, markOpsAlertEmailed, type ReadinessIssue, summarizeBriefReadiness, weeklyCheckpoint } from './brief-readiness';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -257,5 +257,43 @@ describe('checkBriefReadiness', () => {
     const rows = await dbs.service.select().from(opsAlert);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ resolvedAt: t1, lastSeenAt: FRI_NOON });
+  });
+});
+
+describe('summarizeBriefReadiness', () => {
+  const SAT = at('2026-10-24T17:00:00Z'); // Sat 12:00 CDT
+  const zero = { due: 0, ready: 0, approved: 0, sent: 0, missing: 0, failed: 0, awaitingApproval: 0, startingPointsLate: 0 };
+
+  it('summarizeBriefReadiness counts per status on Saturday', async () => {
+    await seedBrief(IDS.clientA1); // ready, auto-send off
+    await seedBrief(IDS.clientA2); // ready, auto-send on
+    await dbs.owner.update(client).set({ briefAutoSend: true }).where(eq(client.id, IDS.clientA2));
+    await seedBrief(IDS.clientB1, { status: 'generating' });
+    expect(await summarizeBriefReadiness(dbs.service, SAT)).toEqual({
+      ...zero, checkedAt: SAT.toISOString(), deliveryDate: MONDAY, due: 3, ready: 2, missing: 1, awaitingApproval: 1,
+    });
+
+    await dbs.owner.update(brief).set({ status: 'approved' }).where(and(eq(brief.clientId, IDS.clientA1), eq(brief.deliveryDate, MONDAY)));
+    await dbs.owner.update(brief).set({ status: 'sent' }).where(and(eq(brief.clientId, IDS.clientA2), eq(brief.deliveryDate, MONDAY)));
+    await dbs.owner.update(brief).set({ status: 'failed' }).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
+    expect(await summarizeBriefReadiness(dbs.service, SAT)).toMatchObject({ due: 3, ready: 0, approved: 1, sent: 1, failed: 1, missing: 0, awaitingApproval: 0 });
+
+    // A client with no row at all is missing; one activated after the window opened is not due.
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientB1), eq(brief.deliveryDate, MONDAY)));
+    await dbs.owner.update(client).set({ activatedAt: at('2026-10-23T14:00:00Z') }).where(eq(client.id, IDS.clientA1));
+    expect(await summarizeBriefReadiness(dbs.service, SAT)).toMatchObject({ due: 2, approved: 0, sent: 1, missing: 1 });
+  });
+
+  it('outside the checkpoint window nothing is due and the date is the next Monday', async () => {
+    await seedAllReady();
+    const TUE = at('2026-10-27T15:00:00Z'); // Tue 10:00 CDT
+    expect(await summarizeBriefReadiness(dbs.service, TUE)).toEqual({ ...zero, checkedAt: TUE.toISOString(), deliveryDate: '2026-11-02' });
+  });
+
+  it('counts late starting points', async () => {
+    await seedAllReady();
+    await dbs.owner.delete(brief).where(and(eq(brief.clientId, IDS.clientA1), eq(brief.kind, 'starting_point')));
+    await dbs.owner.update(client).set({ activatedAt: at('2026-10-20T12:00:00Z') }).where(eq(client.id, IDS.clientA1));
+    expect(await summarizeBriefReadiness(dbs.service, SAT)).toMatchObject({ startingPointsLate: 1 });
   });
 });

@@ -2,7 +2,7 @@ import { agency, agencyServiceable, brief, client, clientSetup, clientWorkAllowe
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { DELIVERY_LOCAL_HOUR } from './deliver';
 import { STARTING_POINT_WAIT_HOURS } from './readiness';
-import { BRIEF_CATCHUP_UNTIL_HOUR, BRIEF_LOCAL_HOUR, BRIEF_LOCAL_WEEKDAY, deliveryDateFor, localParts, safeTimezone } from './schedule';
+import { BRIEF_CATCHUP_UNTIL_HOUR, BRIEF_LOCAL_HOUR, BRIEF_LOCAL_WEEKDAY, DEFAULT_TIMEZONE, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { startingPointClockStart } from './setup-clock';
 
 /** 7c2: when a client's weekly brief (or one-off starting point) is checked for readiness. */
@@ -181,4 +181,57 @@ export async function checkBriefReadiness(db: Db, now: Date): Promise<{ open: Op
 
 export async function markOpsAlertEmailed(db: Db, id: string, at: Date): Promise<void> {
   await db.update(opsAlert).set({ emailedAt: at }).where(eq(opsAlert.id, id));
+}
+
+/** 7c2 Task 7: the counts row of the readiness panel on /platform/health (open issues come from `ops_alert`). */
+export interface BriefReadinessSummary {
+  checkedAt: string;
+  /** The `America/Chicago` cycle's delivery date; each client is counted against its own zone's date. */
+  deliveryDate: string;
+  /** Clients inside a checkpoint window (Fri 12:00 to Mon 06:59 local) that were active when its generation window opened. */
+  due: number;
+  ready: number;
+  approved: number;
+  sent: number;
+  /** Due with no brief for the date, or one still `generating`. */
+  missing: number;
+  failed: number;
+  /** `ready` with auto-send off: goes out only once approved. */
+  awaitingApproval: number;
+  startingPointsLate: number;
+}
+
+/**
+ * Live readiness counts. Per workable client its current cycle: inside a checkpoint window (`weeklyCheckpoint`) the client
+ * is due for that date (same rules as `findReadinessIssues`); outside it the cycle is the next Monday and nothing is due yet.
+ * Status counts cover due clients only, by the brief (any kind) holding the client's own delivery date.
+ */
+export async function summarizeBriefReadiness(db: Db, now: Date): Promise<BriefReadinessSummary> {
+  const rows = await db
+    .select({ id: client.id, timezone: client.timezone, briefAutoSend: client.briefAutoSend, activatedAt: client.activatedAt, createdAt: client.createdAt })
+    .from(client)
+    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId)));
+  const due: { c: (typeof rows)[number]; date: string }[] = [];
+  for (const c of rows) {
+    const cp = weeklyCheckpoint(now, safeTimezone(c.timezone));
+    if (cp && (c.activatedAt ?? c.createdAt).getTime() <= cp.windowOpenedAt.getTime()) due.push({ c, date: cp.deliveryDate });
+  }
+  const status = due.length ? await briefStatuses(db, due.map((d) => ({ clientId: d.c.id, date: d.date })), true) : new Map<string, string | null>();
+  const out: BriefReadinessSummary = {
+    checkedAt: now.toISOString(),
+    deliveryDate: weeklyCheckpoint(now, DEFAULT_TIMEZONE)?.deliveryDate ?? deliveryDateFor(now, DEFAULT_TIMEZONE),
+    due: due.length, ready: 0, approved: 0, sent: 0, missing: 0, failed: 0, awaitingApproval: 0, startingPointsLate: 0,
+  };
+  for (const { c } of due) {
+    const s = status.get(c.id) ?? null;
+    if (s === 'ready') {
+      out.ready++;
+      if (!c.briefAutoSend) out.awaitingApproval++;
+    } else if (s === 'approved') out.approved++;
+    else if (s === 'sent') out.sent++;
+    else if (s === 'failed') out.failed++;
+    else out.missing++; // no row, or still generating
+  }
+  out.startingPointsLate = (await findReadinessIssues(db, now)).filter((i) => i.checkpoint === 'starting_point_late').length;
+  return out;
 }
