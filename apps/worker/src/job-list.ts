@@ -9,7 +9,7 @@ import { createBillingNoticeJobs } from './jobs/billing-notices';
 import { createBriefJobs, createStartingPointJobs } from './jobs/briefs';
 import { createDeliveryJobs } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
-import { heartbeatJob } from './jobs/heartbeat';
+import { createHeartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
 import { createMovesJobs } from './jobs/moves';
 import { createOnboardingJobs } from './jobs/onboarding';
@@ -26,6 +26,7 @@ import { createRivalJobs } from './jobs/rivals';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 import { enqueue } from './boss';
+import { ensureQueueGrantsAt, sampleConnections } from './queue-grants';
 import type { WorkerDeps } from './deps';
 import type { JobDefinition } from './jobs';
 
@@ -115,6 +116,15 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     },
   });
   const ask = createAskJobs(deps);
+  // 7c2: grants on the worker's own queue URL (cs_worker owns schema pgboss); the sample reads the service database.
+  const heartbeat = createHeartbeatJob({
+    ensureGrants: async () => {
+      const url = opts.env.DATABASE_URL;
+      if (!url) throw new Error('DATABASE_URL is required');
+      await ensureQueueGrantsAt(url);
+    },
+    sample: () => sampleConnections(deps.serviceDb()),
+  });
   const rankMap = createRankMapJobs(deps);
   const kb = createKbJobs(deps, {
     enqueueEmbed: async (articleId) => {
@@ -153,7 +163,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   });
 
   return [
-    heartbeatJob, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
+    heartbeat, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
     rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,

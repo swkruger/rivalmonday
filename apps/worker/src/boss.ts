@@ -44,14 +44,19 @@ export async function registerJobs(
       }
       let result: void | Record<string, unknown> = undefined;
       for (const item of batch) {
-        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, { resend: resendItem(item) });
+        // `_cron` from the RAW payload: some cron schemas are plain `z.object`, which strips it.
+        const cron = (item.data as { _cron?: unknown } | null)?._cron === true;
+        result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, {
+          resend: resendItem(item), retryCount: item.retryCount, retryLimit: item.retryLimit, cron,
+        });
       }
       return result ?? undefined;
     };
     for (let i = 0; i < (job.localConcurrency ?? 1); i++) {
       await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2, includeMetadata: true, batchSize: 1 }, handler);
     }
-    if (job.cron) await boss.schedule(job.name, job.cron, {});
+    // 7c2: the `_cron` marker tells `runJob` this run came from the schedule (Sentry cron monitor), not a manual send.
+    if (job.cron) await boss.schedule(job.name, job.cron, { _cron: true });
   }
 }
 

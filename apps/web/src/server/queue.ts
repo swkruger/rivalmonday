@@ -21,7 +21,7 @@ export interface Boss {
 }
 
 /**
- * Enqueue only: the worker owns queue creation, schedules and maintenance (decision 8, owner `DATABASE_URL`).
+ * Enqueue only: the worker owns queue creation, schedules and maintenance (decision 8, the queue URL = the worker's `DATABASE_URL`).
  *
  * Fix round 1 (review finding, Important): a failed first `start()` (bad connection, a Neon hiccup) used to cache
  * the *rejected* promise in `started` forever — every later `/files/*` request on this process replayed the same
@@ -66,7 +66,7 @@ export const refuseJobs: EnqueueJob = async () => {
 const queues = perEnv<{ enqueue: EnqueueJob; stop(): Promise<void> }>(
   (name) =>
     name === 'dev'
-      ? createBossQueue(() => new PgBoss({ connectionString: envUrls('dev').owner, supervise: false, schedule: false, migrate: false, max: 2 }))
+      ? createBossQueue(() => new PgBoss({ connectionString: envUrls('dev').queue, supervise: false, schedule: false, migrate: false, max: 2 }))
       : { enqueue: refuseJobs, stop: async () => {} },
   (q) => q.stop(),
 );
@@ -102,11 +102,11 @@ export function createJobStatusLookup(query: (job: QueueJob, singletonKey: strin
 let queueDb: Db | null = null;
 
 /**
- * Read-only look at the worker's `pgboss.job` table (owner URL, like enqueue). Completed jobs are archived after a
+ * Read-only look at the worker's `pgboss.job` table (queue URL, like enqueue). Completed jobs are archived after a
  * while, which reads as "no job" — fine for the one caller, which only polls a search it just started.
  */
 const devJobStatus: JobStatusLookup = createJobStatusLookup(async (job, singletonKey) => {
-  queueDb ??= createDb(envUrls('dev').owner).db;
+  queueDb ??= createDb(envUrls('dev').queue).db;
   return (await queueDb.execute(sql`
     SELECT state, created_on, completed_on, output FROM pgboss.job
      WHERE name = ${job} AND singleton_key = ${singletonKey}
@@ -163,7 +163,7 @@ export function withQueueStatsReporting(
 const queueLog = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
 
 const devQueueStats: QueueStatsLookup = withQueueStatsReporting(() => {
-  queueDb ??= createDb(envUrls('dev').owner).db;
+  queueDb ??= createDb(envUrls('dev').queue).db;
   return queueStatsOn(queueDb);
 });
 const noQueueStats: QueueStatsLookup = async () => ({ queues: [], lastHeartbeatAt: null });

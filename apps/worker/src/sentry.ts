@@ -64,8 +64,11 @@ export function initWorkerSentry(env: NodeJS.ProcessEnv): boolean {
 export const AI_PAUSE_DEFER_SECONDS = 600;
 
 /**
- * Runs one job item in a Sentry span (and cron monitor), with a child logger; failures are captured, logged and rethrown
- * for pg-boss retry. 7b1: an `AiPausedError` is not a failure and is caught before Sentry: `platform` re-sends the job
+ * Runs one job item in a Sentry span, with a child logger; failures are logged and rethrown for pg-boss retry.
+ * 7c2: a failure is captured in Sentry (and logged as an error) only on its last attempt (`retryCount >= retryLimit`;
+ * missing metadata counts as the last attempt), earlier attempts log a warning. The cron monitor wraps only runs the
+ * schedule started (`opts.cron`, from the raw `_cron` payload), never a manual send of a cron job.
+ * 7b1: an `AiPausedError` is not a failure and is caught before Sentry: `platform` re-sends the job
  * via `opts.resend(600)` and completes `{ deferred: 'ai_paused' }`; `client` completes `{ skipped: 'spend_paused' }`.
  */
 export async function runJob<T>(
@@ -74,7 +77,7 @@ export async function runJob<T>(
   data: T,
   handler: (data: T) => Promise<void | Record<string, unknown>>,
   log: Logger,
-  opts: { resend?: (startAfterSeconds: number) => Promise<void> } = {},
+  opts: { resend?: (startAfterSeconds: number) => Promise<void>; retryCount?: number; retryLimit?: number; cron?: boolean } = {},
 ): Promise<void | Record<string, unknown>> {
   const ctx: LogContext = { job: job.name, jobId };
   if (data && typeof data === 'object') {
@@ -97,11 +100,16 @@ export async function runJob<T>(
           jlog.info({ reason: err.reason }, 'job skipped: client AI spend paused');
           return { skipped: 'spend_paused' };
         }
+        const { retryCount, retryLimit } = opts;
+        if (retryCount !== undefined && retryLimit !== undefined && retryCount < retryLimit) {
+          jlog.warn({ err, retryCount, retryLimit }, 'job failed; will retry');
+          throw err;
+        }
         Sentry.captureException(err, { tags: { ...ctx } as Record<string, string> });
         jlog.error({ err }, 'job failed');
         throw err;
       }
     });
-  if (!job.cron) return run();
+  if (!job.cron || opts.cron !== true) return run();
   return Sentry.withMonitor(job.name, run, { schedule: { type: 'crontab', value: job.cron }, checkinMargin: 5, maxRuntime: 30 });
 }

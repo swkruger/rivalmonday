@@ -1,4 +1,4 @@
-import type { Db } from '@cs/db';
+import { createDb, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -12,4 +12,21 @@ import { sql } from 'drizzle-orm';
 export async function ensureQueueGrants(db: Db): Promise<void> {
   await db.execute(sql`GRANT SELECT ON pgboss.version, pgboss.queue TO cs_web`);
   await db.execute(sql`GRANT SELECT, INSERT ON pgboss.job TO cs_web`);
+}
+
+/** `ensureQueueGrants` on a short-lived connection to the worker's queue database (start-up and every heartbeat). */
+export async function ensureQueueGrantsAt(url: string): Promise<void> {
+  const grants = createDb(url);
+  try {
+    await ensureQueueGrants(grants.db);
+  } finally {
+    await grants.close();
+  }
+}
+
+/** 7c2 heartbeat sample: connections open on this database server vs `max_connections`. */
+export async function sampleConnections(db: Db): Promise<{ dbConnections: number; dbMaxConnections: number }> {
+  const [row] = (await db.execute(sql`
+    SELECT (SELECT count(*) FROM pg_stat_activity)::int AS connections, current_setting('max_connections')::int AS max_connections`)) as unknown as { connections: number; max_connections: number }[];
+  return { dbConnections: Number(row?.connections ?? 0), dbMaxConnections: Number(row?.max_connections ?? 0) };
 }

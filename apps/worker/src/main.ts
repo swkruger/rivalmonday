@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import * as Sentry from '@sentry/node';
-import { createDb, resolveActiveEnvName } from '@cs/db';
+import { resolveActiveEnvName } from '@cs/db';
 
 try {
   process.loadEnvFile(fileURLToPath(new URL('../../../.env', import.meta.url)));
@@ -17,7 +17,7 @@ import { healthState, startHealthServer } from './health';
 import { createJobList } from './job-list';
 import { warnIfDeliveryUnconfigured } from './jobs/delivery';
 import { workerLog } from './log';
-import { ensureQueueGrants } from './queue-grants';
+import { ensureQueueGrantsAt } from './queue-grants';
 import { initWorkerSentry } from './sentry';
 
 initWorkerSentry(process.env);
@@ -62,17 +62,15 @@ const healthServer = startHealthServer(Number(process.env.PORT) || 8080);
 await boss.start();
 healthState.startedAt = new Date();
 // Spec D9: let cs_web enqueue and read job status. Non-fatal: a failure only stops web enqueues (logged + Sentry),
-// while crashing here would stop every background job and restart-loop the container.
-{
-  const grants = createDb(url);
-  try {
-    await ensureQueueGrants(grants.db);
-  } catch (err) {
-    Sentry.captureException(err);
-    workerLog.error({ err }, 'queue grants for cs_web failed; web enqueues will be refused');
-  } finally {
-    await grants.close();
-  }
+// while crashing here would stop every background job and restart-loop the container. 7c2: `/healthz` is 503 while
+// the grants fail, and the heartbeat retries them every 5 minutes.
+try {
+  await ensureQueueGrantsAt(url);
+  healthState.queueGrantsOk = true;
+} catch (err) {
+  healthState.queueGrantsOk = false;
+  Sentry.captureException(err);
+  workerLog.error({ err }, 'queue grants for cs_web failed; web enqueues will be refused');
 }
 
 // 7b1: true while the platform is spend-paused (the guard's platform-level check); `usesAi` batches are then deferred.

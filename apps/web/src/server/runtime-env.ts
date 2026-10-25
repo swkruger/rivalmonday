@@ -5,7 +5,8 @@ import { activeEnvName, processGuardOn, webRepoRoot } from './dev-guard';
 import { webEnv } from './env';
 
 export interface EnvUrls {
-  owner: string;
+  /** The pg-boss queue database: the worker's `DATABASE_URL` (`cs_worker` in production, owner locally); DEMO/TEST never enqueue. */
+  queue: string;
   app: string;
   service: string;
 }
@@ -14,10 +15,10 @@ export interface EnvUrls {
 export function envUrls(name: EnvName): EnvUrls {
   if (name === 'dev') {
     const w = webEnv();
-    return { owner: w.queueDatabaseUrl, app: w.appDatabaseUrl, service: w.serviceDatabaseUrl };
+    return { queue: w.queueDatabaseUrl, app: w.appDatabaseUrl, service: w.serviceDatabaseUrl };
   }
   const r = resolveEnvironment(name, { repoRoot: webRepoRoot(), env: process.env });
-  return { owner: r.ownerUrl, app: r.appUrl, service: r.serviceUrl };
+  return { queue: r.ownerUrl, app: r.appUrl, service: r.serviceUrl };
 }
 
 export const envEvidenceDir = (name: 'demo' | 'test'): string => resolveEnvironment(name, { repoRoot: webRepoRoot(), env: process.env }).evidenceDir;

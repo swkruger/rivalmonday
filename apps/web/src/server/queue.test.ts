@@ -7,6 +7,13 @@ import { BACKGROUND_OFF, type Boss, createBossQueue, createJobStatusLookup, refu
 
 const createDbMock = vi.hoisted(() => vi.fn());
 vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()), createDb: createDbMock }));
+const spies = vi.hoisted(() => ({ capture: vi.fn(), logError: vi.fn() }));
+vi.mock('@sentry/nextjs', () => ({ captureException: spies.capture }));
+vi.mock('@cs/core/server', async (orig) => {
+  const real = await orig<typeof import('@cs/core/server')>();
+  const log = { debug: () => {}, info: () => {}, warn: () => {}, error: spies.logError, child: () => log };
+  return { ...real, createLogger: () => log };
+});
 
 function fakeBoss(opts: { startError?: Error } = {}): Boss {
   return {
@@ -140,5 +147,12 @@ describe('withQueueStatsReporting', () => {
     report.log.mockClear();
     await expect(withQueueStatsReporting(async () => ok, report)()).resolves.toBe(ok);
     expect(report.log).not.toHaveBeenCalled();
+  });
+
+  it('withQueueStatsReporting default logs and captures', async () => {
+    const boom = new Error('connection refused');
+    await expect(withQueueStatsReporting(async () => { throw boom; })()).rejects.toBe(boom);
+    expect(spies.logError).toHaveBeenCalledWith({ err: { name: 'Error', message: 'connection refused' } }, 'queue stats read failed');
+    expect(spies.capture).toHaveBeenCalledWith(boom);
   });
 });

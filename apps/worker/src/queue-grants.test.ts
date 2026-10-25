@@ -4,7 +4,7 @@ import { applySingleMigration, errorText, ownerUrlFor, roleUrl, testUrls } from 
 import { sql } from 'drizzle-orm';
 import PgBoss from 'pg-boss';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ensureQueueGrants } from './queue-grants';
+import { ensureQueueGrants, sampleConnections } from './queue-grants';
 
 /**
  * Spec D9 / migration 0081. Everything runs in one scratch database (always dropped) holding only 0081, so pgboss is
@@ -125,5 +125,13 @@ describe('ensureQueueGrants + cs_web (0081)', () => {
     }
     await expect(grantAsWorker()).resolves.toBeUndefined();
     expect(await (await startedWeb()).send(OWNER_QUEUE, { n: 3 })).toEqual(expect.any(String));
+  });
+
+  it('sampleConnections reads open connections and max_connections as cs_worker', async () => {
+    await asWorker(async (db) => {
+      const out = await sampleConnections(db);
+      expect(out.dbConnections).toBeGreaterThan(0);
+      expect(out.dbMaxConnections).toBeGreaterThanOrEqual(out.dbConnections);
+    });
   });
 });

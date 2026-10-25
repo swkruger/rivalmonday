@@ -15,8 +15,9 @@ import { initWorkerSentry, runJob, workerSentryOptions } from './sentry';
 function fakeLog() {
   const ctxs: LogContext[] = [];
   const error = vi.fn();
-  const log: Logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error, child: (c) => { ctxs.push(c); return log; } };
-  return { log, ctxs, error };
+  const warn = vi.fn();
+  const log: Logger = { debug: vi.fn(), info: vi.fn(), warn, error, child: (c) => { ctxs.push(c); return log; } };
+  return { log, ctxs, error, warn };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -60,14 +61,32 @@ describe('runJob', () => {
     const { log } = fakeLog();
     expect(await runJob(job, 'j1', {}, async () => ({ a: 1 }), log)).toEqual({ a: 1 });
   });
-  it('uses withMonitor only for cron jobs', async () => {
+  it('withMonitor runs only for the cron payload', async () => {
     const { log } = fakeLog();
-    await runJob(job, 'j1', {}, async () => {}, log);
+    const cronJob = { name: 'cron-job', cron: '*/5 * * * *' };
+    await runJob(job, 'j1', {}, async () => {}, log, { cron: true }); // no schedule: nothing to monitor
+    await runJob(cronJob, 'j2', {}, async () => {}, log); // a manual send of a cron job
+    await runJob(cronJob, 'j3', {}, async () => {}, log, { cron: false });
     expect(Sentry.withMonitor).not.toHaveBeenCalled();
-    await runJob({ name: 'cron-job', cron: '*/5 * * * *' }, 'j2', {}, async () => {}, log);
+    await runJob(cronJob, 'j4', {}, async () => {}, log, { cron: true });
+    expect(Sentry.withMonitor).toHaveBeenCalledTimes(1);
     expect(Sentry.withMonitor).toHaveBeenCalledWith('cron-job', expect.any(Function), {
       schedule: { type: 'crontab', value: '*/5 * * * *' }, checkinMargin: 5, maxRuntime: 30,
     });
+  });
+  it('a failing job is captured once, on its last attempt', async () => {
+    const { log, error, warn } = fakeLog();
+    const boom = new Error('boom');
+    const fail = async () => { throw boom; };
+    await expect(runJob(job, 'j1', {}, fail, log, { retryCount: 0, retryLimit: 2 })).rejects.toBe(boom);
+    await expect(runJob(job, 'j1', {}, fail, log, { retryCount: 1, retryLimit: 2 })).rejects.toBe(boom);
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith({ err: boom, retryCount: 0, retryLimit: 2 }, 'job failed; will retry');
+    await expect(runJob(job, 'j1', {}, fail, log, { retryCount: 2, retryLimit: 2 })).rejects.toBe(boom);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledTimes(1);
   });
   it('child logger carries agencyId/clientId but no other payload field', async () => {
     const { log, ctxs } = fakeLog();

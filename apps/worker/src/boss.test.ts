@@ -1,5 +1,14 @@
+import * as Sentry from '@sentry/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+
+// Inert without a DSN anyway; spies let the 7c2 tests see which runs get a cron monitor or a capture.
+vi.mock('@sentry/node', () => ({
+  init: vi.fn(),
+  captureException: vi.fn(),
+  startSpan: vi.fn((_o: unknown, cb: () => unknown) => cb()),
+  withMonitor: vi.fn((_slug: string, cb: () => unknown) => cb()),
+}));
 import { AiPausedError } from '@cs/core';
 import { createBoss, enqueue, registerJobs } from './boss';
 import { defineJob } from './jobs';
@@ -194,6 +203,48 @@ describe('AI pause (Phase 7b1)', () => {
     await boss.send(pausedThrowJob.name, { id: 't1' }, { singletonKey: 'tk' });
     await waitFor(() => send.mock.calls.some((c) => (c[2] as { startAfter?: number } | undefined)?.startAfter === 600));
     expect(send).toHaveBeenCalledWith(pausedThrowJob.name, { id: 't1' }, { startAfter: 600, singletonKey: 'tk' });
+  });
+});
+
+describe('cron payload and retries (Phase 7c2)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const waitForState = async (name: string, id: string, state: string) => {
+    const deadline = Date.now() + 15_000;
+    for (;;) {
+      const job = await boss.getJobById(name, id);
+      if (job?.state === state) return job;
+      if (Date.now() > deadline) throw new Error(`timeout waiting for ${state}`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  };
+
+  it('schedules cron jobs with the _cron payload', async () => {
+    const schedule = vi.spyOn(boss, 'schedule');
+    const job = defineJob({ name: 'test-cron-schedule', schema: z.object({}), cron: '0 0 1 1 *', handler: async () => {}, queue: { retryLimit: 0 } });
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    expect(schedule).toHaveBeenCalledWith('test-cron-schedule', '0 0 1 1 *', { _cron: true });
+  });
+
+  it('a stripping schema still gets a cron monitor for the scheduled payload only', async () => {
+    const job = defineJob({ name: 'test-cron-monitor', schema: z.object({}), cron: '0 0 1 1 *', handler: async () => {}, queue: { retryLimit: 0 } });
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    vi.mocked(Sentry.withMonitor).mockClear();
+    await waitForState(job.name, (await boss.send(job.name, {})) as string, 'completed');
+    expect(Sentry.withMonitor).not.toHaveBeenCalled();
+    await waitForState(job.name, (await boss.send(job.name, { _cron: true })) as string, 'completed');
+    expect(Sentry.withMonitor).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(Sentry.withMonitor).mock.calls[0]![0]).toBe('test-cron-monitor');
+  });
+
+  it('a job failing every attempt is captured once, on its last attempt', async () => {
+    let attempts = 0;
+    const job = defineJob({ name: 'test-retry-capture', schema: z.object({}), handler: async () => { attempts++; throw new Error('again'); }, queue: { retryLimit: 1, retryDelay: 0 } });
+    vi.spyOn(workerLog, 'child').mockReturnValue({ ...workerLog, error: vi.fn(), warn: vi.fn() });
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    vi.mocked(Sentry.captureException).mockClear();
+    await waitForState(job.name, (await boss.send(job.name, {})) as string, 'failed');
+    expect(attempts).toBe(2);
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
   });
 });
 
