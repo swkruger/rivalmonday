@@ -1,13 +1,13 @@
 # phase-15c3b — plan features per version + move agencies to the current version
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3b   **Base:** main @ 015a948c
-**Plan/spec:** spec [2026-10-25-phase-15c3b-plan-versions-design.md](../superpowers/specs/2026-10-25-phase-15c3b-plan-versions-design.md) (draft, replaces 15c §5.5); plan to come.
+**Plan/spec:** spec [2026-10-25-phase-15c3b-plan-versions-design.md](../superpowers/specs/2026-10-25-phase-15c3b-plan-versions-design.md) (owner-approved 2026-10-25, replaces 15c §5.5) · plan [2026-10-25-phase-15c3b-plan-versions.md](../superpowers/plans/2026-10-25-phase-15c3b-plan-versions.md) (Tasks 0-6).
 
 ## Status (overwrite)
-Spec drafted 2026-10-25 (builder-checked), awaiting owner review. Private plans dropped by the owner. No migration.
+Spec owner-approved 2026-10-25. Lean plan written, awaiting owner approval. No migration.
 
 ## Next (overwrite)
-Owner reviews the spec -> `superpowers:writing-plans` (lean) -> owner approval -> SDD.
+Owner approves the plan -> SDD from Task 0 (pre-flight).
 
 ## Interfaces this branch adds or changes
 No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan` (owner write); `create_plan_version.features`; `list_plans` gains `features`; `BillingGateway.swapSubscriptionPlan`; email `agency_plan_change`; `reconcile()` price-id drift check.
