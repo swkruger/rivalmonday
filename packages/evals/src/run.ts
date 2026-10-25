@@ -4,10 +4,12 @@ import { BudgetExceededError, budgetedAi, createSpendMeter, type SpendMeter } fr
 import { BASELINE_DIR, CASSETTE_DIR, DATA_DIR, readCases, SUITES, type Suite } from './case';
 import { askRunner } from './suites/ask/run';
 import { briefsRunner } from './suites/briefs/run';
+import { changesRunner } from './suites/changes/run';
+import { reviewsRunner } from './suites/reviews/run';
 import { baselineDelta, type EvalReport, readBaseline, renderMarkdown, type SuiteRunner, writeBaseline, writeReport } from './report';
 
 /** Suite runners register here (Tasks 10-12). A suite with cases but no runner is an error. */
-export const RUNNERS: Partial<Record<Suite, SuiteRunner>> = { briefs: briefsRunner, ask: askRunner };
+export const RUNNERS: Partial<Record<Suite, SuiteRunner>> = { briefs: briefsRunner, ask: askRunner, changes: changesRunner, reviews: reviewsRunner };
 
 export interface RunOptions {
   suites: Suite[];

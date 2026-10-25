@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { Ai } from '@cs/ai';
 import { DATA_DIR, type EvalCase, readCases, writeCases } from '../case';
 import { carryLabels, contactLeaks, type LabelSuite } from '../build/common';
@@ -55,6 +55,7 @@ export async function runLabel(cmd: Extract<EvalCommand, { cmd: 'label' }>, deps
   const cases = readCases(suite, dataDir);
   if (cmd.export !== undefined) {
     const csv = exportCsv(cases);
+    mkdirSync(dirname(cmd.export), { recursive: true });
     writeFileSync(cmd.export, csv, 'utf8');
     log(`[eval label] ${suite}: wrote ${csv.split('\n').length - 2} row(s) of ${cases.filter((c) => c.confirmedAt === null).length} unconfirmed case(s) to ${cmd.export}`);
     return { failed: false };
@@ -74,7 +75,7 @@ export async function runLabel(cmd: Extract<EvalCommand, { cmd: 'label' }>, deps
   writeFileSync(join(deps.reportDir, `prelabel-${suite}.json`), `${JSON.stringify({ suite, spentUsd: ai.spent?.() ?? null, ...summary }, null, 2)}\n`, 'utf8');
   log(
     `[eval label] ${suite}: asked ${report.asked}, labelled ${report.labelled}, cross-checked ${report.crossChecked} (${report.mismatches.length} disagreement(s)), ` +
-      `failed ${report.failed.length}${ai.spent ? `, spent $${ai.spent().toFixed(4)}` : ''}${report.stopped ? `; stopped: ${report.stopped}` : ''}`,
+      `failed ${report.failed.length}, models ${Object.entries(report.models).map(([m, n]) => `${m} (${n})`).join(', ') || 'none'}${ai.spent ? `, spent $${ai.spent().toFixed(4)}` : ''}${report.stopped ? `; stopped: ${report.stopped}` : ''}`,
   );
   return { failed: report.stopped !== null || report.failed.length > 0 };
 }

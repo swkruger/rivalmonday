@@ -19,6 +19,8 @@ export interface PrelabelReport {
   crossChecked: number;
   failed: { id: string; error: string }[];
   mismatches: { id: string; key: string; label: string; llm: string }[];
+  /** Models that answered, with the number of cases each answered. */
+  models: Record<string, number>;
   /** Set when a budget stop ended the run early (cases not reached are left as they were). */
   stopped: string | null;
 }
@@ -92,7 +94,7 @@ async function ask(ai: Ai, c: EvalCase): Promise<{ label: Record<string, string>
  */
 export async function prelabelDetailed(ai: Ai, cases: EvalCase[], opts: { concurrency?: number } = {}): Promise<PrelabelReport> {
   const out = [...cases];
-  const report: PrelabelReport = { cases: out, asked: 0, labelled: 0, crossChecked: 0, failed: [], mismatches: [], stopped: null };
+  const report: PrelabelReport = { cases: out, asked: 0, labelled: 0, crossChecked: 0, failed: [], mismatches: [], models: {}, stopped: null };
   const todo = out
     .map((c, i) => ({ c, i }))
     .filter(({ c }) => isLabelSuite(c.suite) && c.confirmedAt === null && (c.label === null || TEMPLATE_LABELERS.has(c.labelBy ?? '')));
@@ -103,6 +105,7 @@ export async function prelabelDetailed(ai: Ai, cases: EvalCase[], opts: { concur
       report.asked++;
       try {
         const { label, model } = await ask(ai, c);
+        report.models[model] = (report.models[model] ?? 0) + 1;
         if (c.label === null) {
           out[i] = { ...c, label, labelBy: `llm:${model}`, confirmedAt: null };
           report.labelled++;

@@ -43,12 +43,14 @@ describe('eval build / label', () => {
     const answer = JSON.stringify(Object.fromEntries(keys.map((k) => [k, k === 'meaningful' ? 'true' : k === 'change_type' ? 'new_service' : 'implants'])));
     const ai = { chat: async () => ({ text: answer, model: 'anthropic/claude-sonnet-5' }) } as unknown as Ai;
     const reportDir = join(dir, 'report');
-    const pre = await runLabel({ cmd: 'label', suite: 'changes', prelabel: true }, { dataDir: dir, reportDir, makeAi: () => ai, log: () => {} });
+    const logs: string[] = [];
+    const pre = await runLabel({ cmd: 'label', suite: 'changes', prelabel: true }, { dataDir: dir, reportDir, makeAi: () => ai, log: (s) => logs.push(s) });
     expect(pre.failed).toBe(false);
+    expect(logs.join(' ')).toContain('models anthropic/claude-sonnet-5 (1)');
     expect(readCases('changes', dir)[0]).toMatchObject({ labelBy: 'llm:anthropic/claude-sonnet-5', label: { service_dental: 'implants' } });
     expect(JSON.parse(readFileSync(join(reportDir, 'prelabel-changes.json'), 'utf8'))).toMatchObject({ labelled: 1, failed: [] });
 
-    const csv = join(dir, 'l.csv');
+    const csv = join(dir, 'nested', 'deeper', 'l.csv'); // parent dirs are created
     await runLabel({ cmd: 'label', suite: 'changes', prelabel: false, export: csv }, { dataDir: dir, reportDir, log: () => {} });
     writeFileSync(csv, readFileSync(csv, 'utf8').replace(/,implants\n/, ',none\n'));
     await runLabel({ cmd: 'label', suite: 'changes', prelabel: false, import: csv, by: 'owner' }, { dataDir: dir, reportDir, log: () => {} });
