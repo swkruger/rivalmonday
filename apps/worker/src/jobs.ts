@@ -25,6 +25,11 @@ export interface JobDefinition<T> {
    * (same singleton key) without running; a job whose own client is paused completes as `skipped`. Never failed or retried.
    */
   usesAi?: boolean;
+  /**
+   * 7c2: pg-boss pollers for this queue (1–8, default 1) — `registerJobs` calls `boss.work()` this many times with one
+   * shared handler. Set from `QUEUE_CONCURRENCY` + `WORKER_QUEUE_CONCURRENCY` by `applyConcurrency` in `main.ts`.
+   */
+  localConcurrency?: number;
 }
 
 export function defineJob<T>(def: JobDefinition<T>): JobDefinition<T> {

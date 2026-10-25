@@ -24,7 +24,8 @@ export async function registerJobs(
     // existing queue; updateQueue applies the options to queues created by an earlier deploy.
     await boss.createQueue(job.name, job.queue ? { name: job.name, ...job.queue } : undefined);
     if (job.queue) await boss.updateQueue(job.name, { name: job.name, ...job.queue });
-    await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2, includeMetadata: true }, async (batch) => {
+    // 7c2: one handler (7b1 deferral + runJob) shared by every poller; each poller fetches one job at a time.
+    const handler: PgBoss.WorkWithMetadataHandler<unknown> = async (batch) => {
       // Re-sent with the same singleton key (a short queue keeps one *queued* job per key; this one is active).
       // Cron-scheduled jobs are never re-sent: pg-boss only dedupes singletonKey on short/singleton/stately queues, so
       // on a standard queue every tick would start another 10-minute chain (N paid runs when a long pause lifts);
@@ -46,7 +47,10 @@ export async function registerJobs(
         result = await runJob(job, item.id, job.schema.parse(item.data), job.handler, workerLog, { resend: resendItem(item) });
       }
       return result ?? undefined;
-    });
+    };
+    for (let i = 0; i < (job.localConcurrency ?? 1); i++) {
+      await boss.work(job.name, { pollingIntervalSeconds: opts.pollingIntervalSeconds ?? 2, includeMetadata: true, batchSize: 1 }, handler);
+    }
     if (job.cron) await boss.schedule(job.name, job.cron, {});
   }
 }

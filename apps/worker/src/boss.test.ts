@@ -196,3 +196,102 @@ describe('AI pause (Phase 7b1)', () => {
     expect(send).toHaveBeenCalledWith(pausedThrowJob.name, { id: 't1' }, { startAfter: 600, singletonKey: 'tk' });
   });
 });
+
+describe('local concurrency (Phase 7c2)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const waitFor = async (ok: () => boolean) => {
+    const deadline = Date.now() + 15_000;
+    while (!ok()) {
+      if (Date.now() > deadline) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  };
+  /** Handlers block on a shared latch; tracks how many run at once. */
+  const latched = () => {
+    const s = { active: 0, peak: 0, finished: 0, ran: [] as string[], release: () => {} };
+    let gate = new Promise<void>((r) => { s.release = r; });
+    const handler = async (d: { id: string; fail?: boolean }) => {
+      s.active++;
+      s.peak = Math.max(s.peak, s.active);
+      try {
+        if (d.fail) throw new Error('poller boom');
+        await gate;
+        s.ran.push(d.id);
+      } finally {
+        s.active--;
+        s.finished++;
+      }
+    };
+    const reset = () => { gate = new Promise<void>((r) => { s.release = r; }); };
+    return { s, handler, reset };
+  };
+  const schema = z.object({ id: z.string(), fail: z.boolean().optional() });
+  /** Drops queued jobs an aborted earlier run left behind (they would be picked up here); stale active ones just expire. */
+  const fresh = async (b: typeof boss, name: string) => { await b.purgeQueue(name); };
+
+  it('a job with localConcurrency 3 runs 3 handlers at once', async () => {
+    const { s, handler } = latched();
+    const job = defineJob({ name: 'test-conc-3', schema, handler, localConcurrency: 3, queue: { retryLimit: 0 } });
+    await fresh(boss, job.name);
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    for (const id of ['a', 'b', 'c']) await boss.send(job.name, { id });
+    await waitFor(() => s.active === 3);
+    expect(s.peak).toBe(3);
+    s.release();
+    await waitFor(() => s.ran.length === 3);
+  });
+
+  it('a handler that throws on one poller does not stop the others', async () => {
+    const { s, handler, reset } = latched();
+    const job = defineJob({ name: 'test-conc-throw', schema, handler, localConcurrency: 2, queue: { retryLimit: 0 } });
+    vi.spyOn(workerLog, 'child').mockReturnValue({ ...workerLog, error: vi.fn(), warn: vi.fn() });
+    await fresh(boss, job.name);
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    s.release();
+    const failId = (await boss.send(job.name, { id: 'f', fail: true })) as string;
+    await boss.send(job.name, { id: 'ok1' });
+    await waitFor(() => s.ran.includes('ok1'));
+    await waitFor(() => s.finished === 2);
+    expect((await boss.getJobById(job.name, failId))?.state).toBe('failed');
+    // Both pollers still pick up work: two blocked jobs run at the same time.
+    reset();
+    await boss.send(job.name, { id: 'x' });
+    await boss.send(job.name, { id: 'y' });
+    await waitFor(() => s.active === 2);
+    s.release();
+    await waitFor(() => s.ran.includes('x') && s.ran.includes('y'));
+  });
+
+  it('createQueue is called once per job', async () => {
+    const createQueue = vi.spyOn(boss, 'createQueue');
+    const updateQueue = vi.spyOn(boss, 'updateQueue');
+    const work = vi.spyOn(boss, 'work');
+    const job = defineJob({ name: 'test-conc-once', schema, handler: async () => {}, localConcurrency: 3, queue: { retryLimit: 0, policy: 'short' } });
+    await registerJobs(boss, [job], { pollingIntervalSeconds: 0.5 });
+    expect(createQueue).toHaveBeenCalledTimes(1);
+    expect(updateQueue).toHaveBeenCalledTimes(1);
+    expect(work).toHaveBeenCalledTimes(3);
+    for (const call of work.mock.calls) expect(call[1]).toEqual({ pollingIntervalSeconds: 0.5, includeMetadata: true, batchSize: 1 });
+    // One shared handler: the 7b1 deferral and runJob wrap every poller the same way.
+    expect(new Set(work.mock.calls.map((c) => c[2])).size).toBe(1);
+  });
+
+  it('stop({ graceful, wait }) resolves only after every in-flight handler finished', async () => {
+    const own = createBoss(url);
+    await own.start();
+    const { s, handler } = latched();
+    const job = defineJob({ name: 'test-conc-stop', schema, handler, localConcurrency: 3, queue: { retryLimit: 0 } });
+    await fresh(own, job.name);
+    await registerJobs(own, [job], { pollingIntervalSeconds: 0.5 });
+    for (const id of ['s1', 's2', 's3']) await own.send(job.name, { id });
+    await waitFor(() => s.active === 3);
+    let stopped = false;
+    const stopping = own.stop({ graceful: true, wait: true, timeout: 20_000 }).then(() => { stopped = true; });
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(stopped).toBe(false);
+    s.release();
+    await stopping;
+    expect(s.finished).toBe(3);
+    expect(s.ran.sort()).toEqual(['s1', 's2', 's3']);
+  });
+});

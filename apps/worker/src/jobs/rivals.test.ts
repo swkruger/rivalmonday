@@ -112,7 +112,7 @@ describe('rival-monthly (first Monday of the month)', () => {
     }
   });
 
-  it('queues one light per-client job per eligible client, 45 minutes apart, keyed by client and month; starts no search itself', async () => {
+  it('queues one light per-client job per eligible client, 15 minutes apart, keyed by client and month; starts no search itself', async () => {
     const enqueueMonthlyClient = vi.fn(async (clientId: string, _o: { startAfter: number; singletonKey: string }) => {
       if (clientId === 'm2') throw new Error('queue down');
     });
@@ -120,13 +120,13 @@ describe('rival-monthly (first Monday of the month)', () => {
     vi.spyOn(workerLog, 'error').mockImplementation(() => {});
     await jobs.monthly.handler({});
     expect(deps.listMonthlyRivalClients).toHaveBeenCalledTimes(1);
-    expect(RIVAL_MONTHLY_SPACING_SECONDS).toBe(2700);
+    expect(RIVAL_MONTHLY_SPACING_SECONDS).toBe(900);
     // A failed enqueue takes no slot and does not stop the rest.
     expect(enqueueMonthlyClient.mock.calls).toEqual([
       ['m1', { startAfter: 0, singletonKey: 'rival-monthly:m1:2026-11' }],
-      ['m2', { startAfter: 2700, singletonKey: 'rival-monthly:m2:2026-11' }],
-      ['m3', { startAfter: 2700, singletonKey: 'rival-monthly:m3:2026-11' }],
-      ['m4', { startAfter: 5400, singletonKey: 'rival-monthly:m4:2026-11' }],
+      ['m2', { startAfter: 900, singletonKey: 'rival-monthly:m2:2026-11' }],
+      ['m3', { startAfter: 900, singletonKey: 'rival-monthly:m3:2026-11' }],
+      ['m4', { startAfter: 1800, singletonKey: 'rival-monthly:m4:2026-11' }],
     ]);
     expect(startScheduledSearch).not.toHaveBeenCalled();
   });

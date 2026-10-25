@@ -8,10 +8,14 @@ export interface CreateDbOptions {
    * must behave exactly like the one passed in; `close` always ends the original.
    */
   instrument?: (client: postgres.Sql) => postgres.Sql;
+  /** Pool size (default 5). 7c2: the worker sizes its app pool from its queue concurrency. */
+  max?: number;
+  /** Named prepared statements (default true). Pass `false` behind PgBouncer in transaction mode (Neon's pooled URL). */
+  prepare?: boolean;
 }
 
 export function createDb(url: string, opts: CreateDbOptions = {}) {
-  const sqlClient = postgres(url, { max: 5, onnotice: () => {} });
+  const sqlClient = postgres(url, { max: opts.max ?? 5, prepare: opts.prepare ?? true, onnotice: () => {} });
   const db = drizzle(opts.instrument ? opts.instrument(sqlClient) : sqlClient, { schema });
   return { db, close: () => sqlClient.end({ timeout: 5 }) };
 }

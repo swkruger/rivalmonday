@@ -7,10 +7,10 @@ import { workerLog } from '../log';
 /** Review samples get 30 min to land before finalise is forced (reviews then stay null). */
 export const FORCE_FINALISE_AFTER_SECONDS = 1800;
 /**
- * The monthly refresh spaces its per-client jobs this far apart (pg-boss `startAfter`): longer than a typical search
- * (20–40 min), because `rival-search` runs one at a time and a run still queued after 2 h is swept as stale.
+ * The monthly refresh spaces its per-client jobs this far apart (pg-boss `startAfter`). 7c2: `rival-search` runs 4 at a
+ * time (`QUEUE_CONCURRENCY`), so 15 min keeps the queue short of the 2 h stale sweep for a typical 20–40 min search.
  */
-export const RIVAL_MONTHLY_SPACING_SECONDS = 2700;
+export const RIVAL_MONTHLY_SPACING_SECONDS = 900;
 
 /**
  * Phase 12a competitor discovery: `rival-search` runs one discovery run (paid, so single-shot);

@@ -197,7 +197,11 @@ const COST_ENV_KEYS = [
 ] as const;
 
 /** Everything is created lazily so importing this module has no side effects. */
-export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean } = {}): WorkerDeps {
+/**
+ * `appPoolMax` (7c2): size of the app connection pool (`appPoolMax(jobs)` in the daemon; default 5 for the CLIs). App
+ * queries use `SERVICE_DATABASE_POOLED_URL` (Neon pooler, so no prepared statements) and fall back to `SERVICE_DATABASE_URL`.
+ */
+export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean; appPoolMax?: number } = {}): WorkerDeps {
   let db: { db: Db; close(): Promise<void> } | null = null;
   let store: ObjectStore | null = null;
   let renderer: Renderer | null = null;
@@ -215,9 +219,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
 
   const getDb = () => {
     if (!db) {
-      const url = env.SERVICE_DATABASE_URL;
+      const pooled = env.SERVICE_DATABASE_POOLED_URL?.trim() || undefined;
+      const url = pooled ?? env.SERVICE_DATABASE_URL;
       if (!url) throw new Error('SERVICE_DATABASE_URL is required');
-      db = createDb(url);
+      db = createDb(url, { max: opts.appPoolMax ?? 5, prepare: !pooled });
     }
     return db.db;
   };
