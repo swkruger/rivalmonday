@@ -27,7 +27,7 @@ SELECT id, name FROM agency
 - Expired `vendor-collect` jobs (paid calls retried after a long limiter wait; queue expiry is 1 h): `SELECT count(*) FROM (SELECT name, state, output, created_on FROM pgboss.job UNION ALL SELECT name, state, output, created_on FROM pgboss.archive) j WHERE name = 'vendor-collect' AND state = 'failed' AND output::text LIKE '%timeout in active state%' AND created_on > now() - interval '1 day'` should be 0; if not, lower `vendor-collect`/`rival-search` (OPS § Queue concurrency).
 
 ## 4. Weekly checks
-- **Friday after 12:00 US Central (readiness checkpoint):** panel "Briefs for Monday {date}": `Missing` and `Failed` should be 0. A critical issue also emails platform owners/staff once per time zone (OPS § `ops_alert`). Fix, then re-run generation (OPS) before Sunday 19:00.
+- **Friday after 12:00 client-local time (readiness checkpoint; each time zone crosses it at its own hour):** panel "Briefs for Monday {date}": `Missing` and `Failed` should be 0. A critical issue also emails platform owners/staff once per time zone (OPS § `ops_alert`). Fix, then re-run generation (OPS) before Sunday 19:00.
 - **Sunday 19:00 / Monday 07:00 local:** `Awaiting approval` should be 0 (auto-send off clients must be approved by their AM; nudge the agency).
 - **Monday:** sends done by 07:15, notifications by 07:45 local; Postmark activity clean.
 - **`/platform/costs`:** per-client month-to-date vs limit (default $15), top spenders, vendor spend; raise a limit only on purpose (OPS § Spend guard).
@@ -40,7 +40,7 @@ SELECT id, name FROM agency
 ## 6. Kill switches (fastest first)
 | Problem | Do |
 |---|---|
-| Crawler complaint or ban | Unset `WEB_MONITORING_ENABLED` on Railway and Vercel and redeploy the worker. Vendor collection continues. |
+| Crawler complaint or ban | Unset `WEB_MONITORING_ENABLED` on Railway and Vercel, then redeploy the worker (Railway) and the web app (Vercel: env changes apply only to a new deployment). Vendor collection continues. |
 | Worker overload (memory, DB connections, vendor throttling) | Set `WORKER_QUEUE_CONCURRENCY` to `queue=1,...` for the busy queues (OPS § Queue concurrency) and redeploy. Unset = shipped defaults. |
 | AI spend spike | Health -> Spend guard -> Reset (note required) only after checking `llm_call`/`vendor_call`; a +200 % pause stops all AI until reset (OPS § Spend guard). |
 | One client misbehaving or unpaid | Pause the client (`client.paused_at`: no recurring work, no seat) from the agency page; spend-pause is separate. |
@@ -49,23 +49,23 @@ SELECT id, name FROM agency
 ## 7. Success metrics (core spec §1.4) as SQL
 Service role, read-only, over the pilot weeks (`:from` = pilot start). Targets in brackets.
 
-**Items rated useful by AMs [>= 60 %]** (latest rating per item, by an agency user):
+**Items rated useful by AMs [>= 60 %]** (latest rating per item; any rater, in practice the agency's AMs):
 ```sql
 SELECT round(100.0 * count(*) FILTER (WHERE (after->>'useful')::boolean) / nullif(count(*), 0), 1) AS pct_useful, count(*) AS rated
   FROM (SELECT DISTINCT ON (subject_id) subject_id, after FROM feedback
          WHERE kind = 'rating' AND subject_type = 'brief_item' AND created_at >= :from
          ORDER BY subject_id, created_at DESC) r;
 ```
-**AM review time per brief [<= 5 min]**: first AM `feedback` row on the brief's items to `brief.approved_at`; 0 when the brief was approved untouched (auto-sent briefs without `approved_at` are excluded).
+**AM review time per brief [<= 5 min]**: first `feedback` row on the brief's items made before `brief.approved_at`, to `approved_at`; 0 when the brief was approved untouched (auto-sent briefs without `approved_at` are excluded).
 ```sql
 SELECT round(avg(extract(epoch FROM (b.approved_at - coalesce(f.first_touch, b.approved_at))) / 60)::numeric, 1) AS avg_minutes
   FROM brief b
-  LEFT JOIN (SELECT bi.brief_id, min(fb.created_at) AS first_touch
-               FROM feedback fb JOIN brief_item bi ON bi.id = fb.subject_id AND fb.subject_type = 'brief_item'
-              GROUP BY bi.brief_id) f ON f.brief_id = b.id
+  LEFT JOIN LATERAL (SELECT min(fb.created_at) AS first_touch
+                       FROM feedback fb JOIN brief_item bi ON bi.id = fb.subject_id AND fb.subject_type = 'brief_item'
+                      WHERE bi.brief_id = b.id AND fb.created_at <= b.approved_at) f ON true
  WHERE b.approved_at IS NOT NULL AND b.kind = 'standard' AND b.created_at >= :from;
 ```
-A rating made after approval gives a negative value: ignore negatives (they are late ratings, not review time).
+Ratings made after approval are late ratings, not review time: the `created_at <= approved_at` filter leaves them out (never negative).
 
 **Unsupported claims reaching clients [0]**: eval B2 (`evals-live` nightly + `pnpm eval:replay`, OPS § Evals) must stay clean; plus every `pilot-feedback` item typed "wrong claim" (Friday review). Any confirmed case is a blocker.
 
