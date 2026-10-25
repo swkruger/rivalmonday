@@ -1,16 +1,16 @@
-# phase-15c3b — separate plans + change an agency's plan
+# phase-15c3b — plan features per version + move agencies to the current version
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-15c3b   **Base:** main @ 015a948c
-**Plan/spec:** [15c spec](../superpowers/specs/2026-10-21-phase-15c-page-fixes-design.md) §5.5 (binding); 3b spec/plan to come.
+**Plan/spec:** spec [2026-10-25-phase-15c3b-plan-versions-design.md](../superpowers/specs/2026-10-25-phase-15c3b-plan-versions-design.md) (draft, replaces 15c §5.5); plan to come.
 
 ## Status (overwrite)
-Kickoff brief written 2026-10-25. Nothing designed or built.
+Spec drafted 2026-10-25 (builder-checked), awaiting owner review. Private plans dropped by the owner. No migration.
 
 ## Next (overwrite)
-Owner answers the open questions -> brainstorming -> spec -> lean plan.
+Owner reviews the spec -> `superpowers:writing-plans` (lean) -> owner approval -> SDD.
 
 ## Interfaces this branch adds or changes
-Expected: migration **0095** `plan_visibility`; tools `create_plan`, `platform_change_agency_plan`; `create_plan_version.code`; `list_plans.visibility`; `BillingGateway.swapSubscriptionPlan`.
+No migration. Tools `list_plan_agencies` (read), `move_agencies_to_current_plan` (owner write); `create_plan_version.features`; `list_plans` gains `features`; `BillingGateway.swapSubscriptionPlan`; email `agency_plan_change`; `reconcile()` price-id drift check.
 
 ## Assumes from other branches
 - **phase-7b2** (executing, no migration): edits `packages/tools/src/tools/billing.ts` (`redeem_discount_code`), `access/signup-complete.ts` (`couponFor`), `packages/billing/src/index.ts` (+ `discount.ts`), `connect-*`, `billing-daily.ts`. It does not edit `types.ts`/`fake-gateway.ts`/`stripe-gateway.ts`. Overlaps: `index.ts` exports (append-only), and `billing.ts` only if Q4 b/c. Second to merge rebases.
@@ -18,7 +18,7 @@ Expected: migration **0095** `plan_visibility`; tools `create_plan`, `platform_c
 - Migration: main ends at 0094, so this branch takes **0095**.
 
 ## Decisions (owner-approved)
-None yet. These bind: 15c C1, C5, C10, C11, §5.5, §8; the 15c-3a spec A1 (3b = §5.5, own spec/plan) and §4.5 (Manage menu: 3b adds Change plan).
+2026-10-25: private/separate plans dropped (15c §5.5 replaced). P1 one sub-phase; P2 batch move by selection + single-agency Manage item; P3 new price from next billing date (no proration); P4 admins emailed. Design calls P5-P15 in the spec.
 
 ## New backlog (target -> item)
 None yet.
