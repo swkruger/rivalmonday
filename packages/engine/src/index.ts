@@ -40,3 +40,4 @@ export * from './runbook';
 export * from './delivery';
 export * from './alerts';
 export * from './reports';
+export * from './rehearsal-ai';

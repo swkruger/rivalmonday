@@ -1,4 +1,4 @@
-import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
+import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
   capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
@@ -12,7 +12,7 @@ import { createCatalog } from '@cs/verticals';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  checkBriefReadiness, type EngineWork, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -210,6 +210,11 @@ const COST_ENV_KEYS = [
   'OPENROUTER_API_KEY', 'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'SCRAPECREATORS_API_KEY', 'APIFY_TOKEN', 'ANTHROPIC_ADMIN_KEY', 'NEON_API_KEY', 'NEON_ORG_ID',
 ] as const;
 
+/** `REHEARSAL_LIVE_CLIENT_IDS`: comma-separated client ids that keep the live models under `AI_PROVIDER_MODE=rehearsal`. */
+export function parseLiveClientIds(raw: string | undefined): Set<string> {
+  return new Set((raw ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+}
+
 /** Everything is created lazily so importing this module has no side effects. */
 /**
  * `appPoolMax` (7c2): size of the app connection pool (`appPoolMax(jobs)` in the daemon; default 5 for the CLIs). App
@@ -295,9 +300,21 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   /** Phase 7b1: one guard (shared 30 s cache) for the daemon's AI calls; the `*-once` CLIs build `Ai` without one. */
   let guard: AiGuard | null = null;
   const aiGuard = (): AiGuard | undefined => (opts.aiGuard === false ? undefined : (guard ??= createAiGuard(getDb())));
+  /** Today's (prod) Ai: real OpenRouter/Jev through the limited fetches, behind the daemon's guard. */
+  const liveAi = (cfg: AiConfig) =>
+    createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard(), { openrouter: vendors.limitedFetch('openrouter'), jev: vendors.limitedFetch('jev') });
+  // 7c2 rehearsal (staging only, refused elsewhere above): AI_PROVIDER_MODE=rehearsal answers every client with the $0
+  // rehearsal AI except REHEARSAL_LIVE_CLIENT_IDS, which keep the live Ai. Both sides share the one guard.
+  const buildAi = async (cfg: AiConfig): Promise<Ai> =>
+    env.AI_PROVIDER_MODE === 'rehearsal'
+      ? createRehearsalAi({
+          live: liveAi(cfg), liveClientIds: parseLiveClientIds(env.REHEARSAL_LIVE_CLIENT_IDS), latency: await loadRehearsalLatency(),
+          config: cfg, ledger: createLedgerSink(getDb()), guard: aiGuard(),
+        })
+      : liveAi(cfg);
   const getAi = () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard(), { openrouter: vendors.limitedFetch('openrouter'), jev: vendors.limitedFetch('jev') }))
+      .then(buildAi)
       .catch((err) => {
         ai = null;
         throw err;

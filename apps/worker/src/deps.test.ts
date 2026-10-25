@@ -10,6 +10,8 @@ const vendorMocks = vi.hoisted(() => ({
   collectMetaAds: vi.fn(async () => ({ status: 'ok' })),
   claimDueSources: vi.fn(),
 }));
+const rehearsal = vi.hoisted(() => ({ createRehearsalAi: vi.fn((_o: unknown) => ({ rehearsal: true })), loadRehearsalLatency: vi.fn(async () => ({ brief_writer: { p50: 1, p90: 2, p99: 3 } })) }));
+vi.mock('@cs/engine', async (orig) => ({ ...(await orig<typeof import('@cs/engine')>()), ...rehearsal }));
 const robotsArgs = vi.hoisted(() => [] as unknown[][]);
 vi.mock('@cs/collectors', async (orig) => {
   const real = await orig<typeof import('@cs/collectors')>();
@@ -22,7 +24,7 @@ vi.mock('@cs/collectors', async (orig) => {
   return { ...real, ...vendorMocks, RobotsPolicy };
 });
 import { HostRateLimiter } from '@cs/collectors';
-import { createWorkerDeps, reviewsSkipReason } from './deps';
+import { createWorkerDeps, parseLiveClientIds, reviewsSkipReason } from './deps';
 
 describe('reviewsSkipReason', () => {
   it('flags a missing REVIEWER_HASH_SALT', () => {
@@ -169,5 +171,42 @@ describe('VENDOR_FAKE_MODE=fixtures (7c2)', () => {
   it('without the switch nothing is faked and missing keys stay missing', () => {
     const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
     expect(deps.vendorsConfigured()).toBe(false);
+  });
+});
+
+describe('AI_PROVIDER_MODE=rehearsal (7c2)', () => {
+  const env = { SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x', NODE_ENV: 'test' } as NodeJS.ProcessEnv;
+
+  it('parses REHEARSAL_LIVE_CLIENT_IDS (comma-separated, blanks dropped)', () => {
+    expect([...parseLiveClientIds(' a, b ,,c ')]).toEqual(['a', 'b', 'c']);
+    expect(parseLiveClientIds(undefined).size).toBe(0);
+  });
+
+  it('wraps the guarded live Ai in the rehearsal Ai, sharing the one guard', async () => {
+    createAiFromEnv.mockClear();
+    rehearsal.createRehearsalAi.mockClear();
+    const deps = createWorkerDeps({ ...env, AI_PROVIDER_MODE: 'rehearsal', REHEARSAL_LIVE_CLIENT_IDS: 'c1,c2' });
+    await deps.collectModelBatches().catch(() => undefined);
+    expect(createAiFromEnv).toHaveBeenCalledTimes(1);
+    const args = createAiFromEnv.mock.calls[0] as unknown[];
+    expect(args[4]).toBe(deps.aiGuard());
+    expect(typeof (args[5] as { openrouter: unknown }).openrouter).toBe('function');
+    expect(rehearsal.createRehearsalAi).toHaveBeenCalledTimes(1);
+    const o = rehearsal.createRehearsalAi.mock.calls[0]![0] as { live: unknown; liveClientIds: Set<string>; latency: unknown; guard: unknown; ledger: unknown };
+    expect(o.live).toBe(createAiFromEnv.mock.results[0]!.value);
+    expect([...o.liveClientIds]).toEqual(['c1', 'c2']);
+    expect(o.latency).toEqual({ brief_writer: { p50: 1, p90: 2, p99: 3 } });
+    expect(o.guard).toBe(deps.aiGuard());
+    expect(o.ledger).toBeDefined();
+  });
+
+  it('live mode (or unset) builds only the prod Ai', async () => {
+    rehearsal.createRehearsalAi.mockClear();
+    for (const mode of ['live', undefined]) {
+      createAiFromEnv.mockClear();
+      await createWorkerDeps({ ...env, AI_PROVIDER_MODE: mode }).collectModelBatches().catch(() => undefined);
+      expect(createAiFromEnv).toHaveBeenCalledTimes(1);
+    }
+    expect(rehearsal.createRehearsalAi).not.toHaveBeenCalled();
   });
 });
