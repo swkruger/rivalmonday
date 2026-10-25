@@ -24,6 +24,7 @@ SELECT id, name FROM agency
 - Sentry (web + worker, `production`): new issues, missed `system-heartbeat` check-in.
 - Postmark: bounces and spam complaints (the webhook marks contacts bounced; `contact_bounced` notices reach agencies).
 - Railway worker memory and restarts (one replica); Neon connections.
+- Expired `vendor-collect` jobs (paid calls retried after a long limiter wait; queue expiry is 1 h): `SELECT count(*) FROM (SELECT name, state, output, created_on FROM pgboss.job UNION ALL SELECT name, state, output, created_on FROM pgboss.archive) j WHERE name = 'vendor-collect' AND state = 'failed' AND output::text LIKE '%timeout in active state%' AND created_on > now() - interval '1 day'` should be 0; if not, lower `vendor-collect`/`rival-search` (OPS § Queue concurrency).
 
 ## 4. Weekly checks
 - **Friday after 12:00 US Central (readiness checkpoint):** panel "Briefs for Monday {date}": `Missing` and `Failed` should be 0. A critical issue also emails platform owners/staff once per time zone (OPS § `ops_alert`). Fix, then re-run generation (OPS) before Sunday 19:00.

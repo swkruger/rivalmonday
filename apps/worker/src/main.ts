@@ -62,6 +62,7 @@ try {
 const poolMax = appPoolMax(jobs);
 const deps = (workerDeps = createWorkerDeps(process.env, { appPoolMax: poolMax }));
 workerLog.info({ concurrency: Object.fromEntries(jobs.filter((j) => (j.localConcurrency ?? 1) > 1).map((j) => [j.name, j.localConcurrency])), appPoolMax: poolMax }, 'queue concurrency');
+// Production already exited above (REQUIRED_PROD_ENV); in dev the app pool falls back to the direct URL, still sized as above.
 if (!process.env.SERVICE_DATABASE_POOLED_URL?.trim()) workerLog.warn('SERVICE_DATABASE_POOLED_URL unset; app queries use the direct URL');
 
 // Railway's health check. 503 until boss.start() below; boss.start() counts as the first heartbeat (plan D3).

@@ -34,13 +34,13 @@ Run this before the first deploy (`0081` aborts while `cs_worker`/`cs_web` are m
 | `DATABASE_URL` | `cs_worker`, **direct** (non-pooled) URL | `cs_web` |
 | `APP_DATABASE_URL` | — (not read) | `app_user` |
 | `SERVICE_DATABASE_URL` | `app_service`, direct | `app_service` |
-| `SERVICE_DATABASE_POOLED_URL` | `app_service`, **pooled** (Neon `-pooler` host; optional but set it in prod) | — |
+| `SERVICE_DATABASE_POOLED_URL` | `app_service`, **pooled** (Neon `-pooler` host; **worker: required in production**) | — |
 
 The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (direct URL), never on a running service.
 
 ## Env
 - **Both:** `APP_URL=https://rivalmonday.app`, `LINK_SIGNING_SECRET` (same value on both), `EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `REVIEWER_HASH_SALT` (generate once, never change), `SENTRY_DSN`, `SENTRY_ENVIRONMENT=production`, `SERVICE_DATABASE_URL` and `DATABASE_URL` per the table above.
-- **Worker pools (7c2):** with several pollers per queue the worker's own app queries (`SERVICE_DATABASE_POOLED_URL`, pooled `app_service`) go through the Neon pooler with prepared statements off; pg-boss and migrations stay on the direct `DATABASE_URL`. Unset = the direct URL is used (start-up warning, small pool). Optional `WORKER_QUEUE_CONCURRENCY` (`<queue>=<1-8>,…`; OPS § Queue concurrency); unset = shipped defaults.
+- **Worker pools (7c2):** with several pollers per queue the worker's own app queries (`SERVICE_DATABASE_POOLED_URL`, pooled `app_service`) go through the Neon pooler with prepared statements off; pg-boss and migrations stay on the direct `DATABASE_URL`. Required in production (the worker exits 1 without it, `REQUIRED_PROD_ENV`); unset (dev) = the direct URL is used (start-up warning), the pool still sized from the concurrency table. Optional `WORKER_QUEUE_CONCURRENCY` (`<queue>=<1-8>,…`; OPS § Queue concurrency); unset = shipped defaults.
 - **Never set the rehearsal switches in production:** `AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `VENDOR_FAKE_MODE`, `CRAWL_HOST_ALLOWLIST`. The worker refuses to start with any of them unless `SENTRY_ENVIRONMENT=staging` or `NODE_ENV` is set and not `production` (fail closed: an unset `NODE_ENV` counts as refused, also in `createWorkerDeps` for the CLIs).
 - **Worker:** the vendor keys (`DATAFORSEO_*`, `APIFY_TOKEN`, `SCRAPECREATORS_API_KEY`, `STADIA_API_KEY`), `POSTMARK_MESSAGE_STREAM`/`POSTMARK_BROADCAST_STREAM` if not default. It refuses to start in production without `REQUIRED_PROD_ENV` (`apps/worker/src/env.ts`). `NODE_ENV`/`PORT` come from the image.
 - **Web:** `APP_DATABASE_URL`, `BETTER_AUTH_SECRET`, `POSTMARK_WEBHOOK_SECRET`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ISSUES_URL`, `PLATFORM_ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY`, `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_CONNECT_WEBHOOK_SECRET`, optional `GOOGLE_CLIENT_ID`/`_SECRET`, `SUPPORT_REPLY_TO`. Never set `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY` (refused in production).

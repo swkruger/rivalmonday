@@ -113,6 +113,11 @@ describe('vendor jobs', () => {
     expect(enqueueRankScan).not.toHaveBeenCalled();
   });
 
+  it('vendor-collect queue expires after 1 h, not the 15-min default (limiter waits for apify must not expire paid calls)', () => {
+    const jobs = createVendorJobs({} as WorkerDeps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
+    expect(jobs.collect.queue).toEqual({ expireInSeconds: 3600 });
+  });
+
   it('registers rank-scan as a single-shot queue', () => {
     const jobs = createVendorJobs({} as WorkerDeps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     expect(jobs.rankScan.queue?.retryLimit).toBe(0);

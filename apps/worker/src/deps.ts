@@ -219,7 +219,8 @@ export function parseLiveClientIds(raw: string | undefined): Set<string> {
 /** Everything is created lazily so importing this module has no side effects. */
 /**
  * `appPoolMax` (7c2): size of the app connection pool (`appPoolMax(jobs)` in the daemon; default 5 for the CLIs). App
- * queries use `SERVICE_DATABASE_POOLED_URL` (Neon pooler, so no prepared statements) and fall back to `SERVICE_DATABASE_URL`.
+ * queries use `SERVICE_DATABASE_POOLED_URL` (Neon pooler, so no prepared statements; required in production via
+ * `REQUIRED_PROD_ENV`) and fall back to `SERVICE_DATABASE_URL` in dev with the same pool size.
  */
 export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean; appPoolMax?: number } = {}): WorkerDeps {
   // Every caller (daemon, *-once CLIs) refuses rehearsal switches outside staging; main.ts also checks earlier to exit before connecting.

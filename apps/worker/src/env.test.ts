@@ -14,8 +14,15 @@ describe('missingProdEnv', () => {
     env.APP_URL = '   ';
     expect(missingProdEnv(env)).toEqual(['APP_URL', 'SENTRY_DSN']);
   });
-  it('has the Decision 4 list', () => {
-    expect(REQUIRED_PROD_ENV).toHaveLength(13);
+  it('has the Decision 4 list plus the 7c2 pooled app URL', () => {
+    expect(REQUIRED_PROD_ENV).toHaveLength(14);
+  });
+  it('production refuses to start without SERVICE_DATABASE_POOLED_URL (the app pool is sized for the pooler); dev falls back', () => {
+    const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
+    for (const k of REQUIRED_PROD_ENV) env[k] = 'x';
+    delete env.SERVICE_DATABASE_POOLED_URL;
+    expect(missingProdEnv(env)).toEqual(['SERVICE_DATABASE_POOLED_URL']);
+    expect(missingProdEnv({ ...env, NODE_ENV: 'development' })).toEqual([]);
   });
 });
 

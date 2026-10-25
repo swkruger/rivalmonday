@@ -62,6 +62,9 @@ export function createVendorJobs(
   const collect = defineJob({
     name: 'vendor-collect',
     schema: z.object({ competitorId: z.uuid(), source: z.enum(['gbp', 'ads_google', 'ads_meta']) }),
+    // 7c2: 4 pollers + rival-search share apify's 3 slots and calls run up to ~310 s, so limiter waits can pass pg-boss's
+    // 15-min default expiry, which would retry (and re-pay) the call. Retries otherwise stay at the default.
+    queue: { expireInSeconds: 3600 },
     handler: async ({ competitorId, source }) => {
       workerLog.info(`[vendor-collect] ${competitorId} ${source} → ${JSON.stringify(await deps.runSource(competitorId, source))}`);
     },
