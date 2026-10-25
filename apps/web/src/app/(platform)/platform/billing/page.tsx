@@ -19,6 +19,7 @@ import { viewerTimeZone } from '@/server/viewer-tz';
 import { type CodeRow, Codes } from './codes';
 import { ConnectPanel, type ConnectOverview } from './connect-panel';
 import { InviteLinks, type LinkRow } from './invite-links';
+import { type PlanAgenciesData, PlanAgencies } from './plan-agencies';
 import { PlanEditor, type PlanRow } from './plan-editor';
 import { parseDays, type SignupFunnel, SignupsPanel } from './signups-panel';
 import { billingTab, TAB_LABEL, TABS } from './tabs';
@@ -90,12 +91,21 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
       </>
     );
   } else if (tab === 'plans') {
-    const { plans } = await callTool<{ plans: PlanRow[] }>(ctx, 'list_plans', {});
+    const [{ plans }, behind] = await Promise.all([
+      callTool<{ plans: PlanRow[] }>(ctx, 'list_plans', {}),
+      callTool<PlanAgenciesData>(ctx, 'list_plan_agencies', {}),
+    ]);
     body = (
-      <section className={card}>
-        <SectionHead title="Plans" tips={['plans']} />
-        <PlanEditor plans={plans} canEdit={isOwner} tz={tz} />
-      </section>
+      <>
+        <section className={card}>
+          <SectionHead title="Plans" tips={['plans']} />
+          <PlanEditor plans={plans} canEdit={isOwner} tz={tz} />
+        </section>
+        <section className={card}>
+          <SectionHead title="Agencies not on the current version" tips={[]} />
+          <PlanAgencies data={behind} canMove={isOwner} />
+        </section>
+      </>
     );
   } else if (tab === 'codes') {
     const { codes } = await callTool<{ codes: CodeRow[] }>(ctx, 'list_discount_codes', {});

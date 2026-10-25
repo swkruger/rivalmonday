@@ -22,13 +22,16 @@ export interface AgencyBilling {
   events: { fromState: string | null; toState: string; reason: string; actor: string; createdAt: string }[];
 }
 
+/** Set when the agency is behind the current plan version (`list_plan_agencies` has its row): its own version (null = never set) and the current one. */
+export interface PlanBehind { version: number | null; currentVersion: number }
+
 export type PanelRole = 'owner' | 'staff' | 'viewer';
 
 /** Trial and pilot ends are date-only values (as on the agency's own billing page), so they render in UTC, never the viewer's zone. */
 const dateOr = (iso: string | null) => (iso ? formatDate(iso, { tz: 'UTC' }) : '—');
 
 /** Billing panel on the agency detail page. Controls the role cannot use are not rendered (the tools enforce as well). */
-export function BillingPanel({ billing: b, role, codes, tz }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[]; tz: string }) {
+export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { billing: AgencyBilling; role: PanelRole; codes: { id: string; code: string }[]; tz: string; behind?: PlanBehind | null }) {
   const state = labelFor(BILLING_STATE, b.state);
   const staff = role === 'owner' || role === 'staff';
   const hidden = <input type="hidden" name="agencyId" value={b.agencyId} />;
@@ -36,7 +39,10 @@ export function BillingPanel({ billing: b, role, codes, tz }: { billing: AgencyB
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusChip tone={state.tone}>{state.label}</StatusChip>
-        <span className="font-semibold">{b.plan ? `${b.plan.name} v${b.plan.version}` : 'No plan'}</span>
+        <span className="font-semibold">
+          {behind ? (behind.version === null ? 'Plan version not set' : `Plan v${behind.version}`) : b.plan ? `Plan v${b.plan.version}` : 'No plan'}
+          {behind && <span className="font-normal text-muted-foreground"> (current: v{behind.currentVersion})</span>}
+        </span>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div><dt className="text-muted-foreground">Trial ends</dt><dd>{dateOr(b.trialEndsAt)}</dd></div>

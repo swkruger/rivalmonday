@@ -3,10 +3,13 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { ActionDialog, ResultLine } from './action-dialog';
-import { archiveAgencyAction, renameAgencyAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
+import { MoveLines, moveSummary, type PlanAgencyRow } from '../../billing/plan-move-parts';
+import { archiveAgencyAction, moveAgencyToCurrentPlanAction, renameAgencyAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
 
 type Agency = { id: string; name: string };
-type Open = 'rename' | 'hold' | 'lift' | 'archive' | null;
+type Open = 'rename' | 'hold' | 'lift' | 'archive' | 'move' | null;
+/** Present only when the agency is behind the current plan version and can be moved now (not on hold, archived or cancelled). */
+export type PlanMove = { row: PlanAgencyRow; currentVersion: number };
 
 const REASON_MIN = 3;
 const REASON_MAX = 500;
@@ -14,10 +17,10 @@ const textareaCls = 'w-full rounded-sm border border-input bg-transparent px-3 p
 
 /**
  * Spec §4.5 / mockup pages 2, 5, 6, 8: the header's Manage menu (platform staff and owners; the page renders none for
- * viewers). Rename and hold/lift for staff+, Archive for owners. No Change plan item until 15c-3b. `archiveRefusal` is the
+ * viewers). Rename and hold/lift for staff+; owners also get Move to current plan (when `planMove` is set) and Archive. `archiveRefusal` is the
  * page's live-billing sentence (R1: from `get_platform_agency.archiveBlockers`); the tool re-checks on confirm.
  */
-export function ManageMenu({ agency, role, held, archiveRefusal }: { agency: Agency; role: 'owner' | 'staff'; held: boolean; archiveRefusal: string | null }) {
+export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null }: { agency: Agency; role: 'owner' | 'staff'; held: boolean; archiveRefusal: string | null; planMove?: PlanMove | null }) {
   const [open, setOpen] = useState<Open>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [name, setName] = useState(agency.name);
@@ -42,6 +45,7 @@ export function ManageMenu({ agency, role, held, archiveRefusal }: { agency: Age
           {held
             ? <DropdownMenuItem onSelect={() => show('lift')}>Lift hold</DropdownMenuItem>
             : <DropdownMenuItem onSelect={() => show('hold')}>Put on hold</DropdownMenuItem>}
+          {role === 'owner' && planMove && <DropdownMenuItem onSelect={() => show('move')}>Move to current plan</DropdownMenuItem>}
           {role === 'owner' && (
             <>
               <DropdownMenuSeparator />
@@ -92,6 +96,21 @@ export function ManageMenu({ agency, role, held, archiveRefusal }: { agency: Age
         confirmLabel="Lift hold"
         action={unsuspendAgencyAction}
       />
+
+      {role === 'owner' && planMove && (
+        <ActionDialog
+          {...dialog('move')}
+          title={`Move ${agency.name} to v${planMove.currentVersion}?`}
+          body={<MoveLines rows={[planMove.row]} targetVersion={planMove.currentVersion} />}
+          confirmLabel={`Move to v${planMove.currentVersion}`}
+          action={async () => {
+            const r = await moveAgencyToCurrentPlanAction(agency.id);
+            if (!r.ok) return r;
+            const text = moveSummary(r.data, () => agency.name);
+            return r.data.results.some((x) => x.outcome === 'refused' || x.outcome === 'failed') ? { ok: false, error: text } : { ok: true, message: text };
+          }}
+        />
+      )}
 
       {role === 'owner' && (
         <ActionDialog

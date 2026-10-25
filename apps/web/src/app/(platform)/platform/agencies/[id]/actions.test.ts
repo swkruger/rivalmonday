@@ -76,3 +76,18 @@ describe('result messages', () => {
     expect(await a.inviteAgencyAdminAction(ok, form({ email: 'maria@brightline.co' }))).toEqual({ ok: true, message: "Invite created, but the email couldn't be sent. Resend it from Pending invites." });
   });
 });
+
+describe('moveAgencyToCurrentPlanAction', () => {
+  it('calls move_agencies_to_current_plan with the one id, revalidates and returns the result', async () => {
+    const data = { targetPlanId: 'p2', targetVersion: 2, results: [{ agencyId: AG, outcome: 'moved', emailed: true }] };
+    m.runTool.mockResolvedValue({ ok: true, data });
+    expect(await a.moveAgencyToCurrentPlanAction(AG)).toEqual({ ok: true, data });
+    expect(m.runTool).toHaveBeenCalledWith(CTX, 'move_agencies_to_current_plan', { agencyIds: [AG] });
+    expect(m.revalidate).toHaveBeenCalledWith(`/platform/agencies/${AG}`);
+  });
+  it('passes a refusal back without revalidating', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Not found' });
+    expect(await a.moveAgencyToCurrentPlanAction(AG)).toEqual({ ok: false, error: 'Not found' });
+    expect(m.revalidate).not.toHaveBeenCalled();
+  });
+});

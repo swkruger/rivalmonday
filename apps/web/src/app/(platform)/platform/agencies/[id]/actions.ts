@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
-import { runTool } from '@/server/run-tool';
+import { runTool, type ToolResult } from '@/server/run-tool';
+import type { MoveResultData } from '../../billing/plan-move-parts';
 import { SUPPORT_COOKIE, signSupportCookie } from '@/server/support-cookie';
 import { sendSupportSessionStartedEmail } from '@/server/support-email';
 
@@ -121,4 +122,13 @@ export async function archiveAgencyAction(_p: FormResult, fd: FormData): Promise
 
 export async function unarchiveAgencyAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   return manage(fd, 'platform_unarchive_agency', {}, () => 'Agency unarchived.');
+}
+
+/** Owner only (the tool enforces it): the agency page's "Move to current plan", same tool as the billing list. */
+export async function moveAgencyToCurrentPlanAction(agencyId: string): Promise<ToolResult<MoveResultData>> {
+  const { ctx } = await requireOperatorContext();
+  const id = agencyId.slice(0, 64);
+  const r = await runTool<MoveResultData>(ctx, 'move_agencies_to_current_plan', { agencyIds: [id] });
+  if (r.ok) revalidatePath(`/platform/agencies/${id}`);
+  return r;
 }

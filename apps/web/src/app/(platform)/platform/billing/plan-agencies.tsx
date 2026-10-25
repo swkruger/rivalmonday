@@ -1,0 +1,120 @@
+'use client';
+import { Button, ConfirmDialog, StatusChip } from '@cs/ui';
+import { useState } from 'react';
+import { ErrorNote } from '@/components/form-error';
+import { AGENCY_LIFECYCLE, BILLING_STATE, labelFor } from '@/lib/labels';
+import { moveAgenciesToCurrentPlanAction } from './actions';
+import { monthly, MoveLines, moveSummary, type PlanAgencyRow, versionText } from './plan-move-parts';
+
+export interface PlanAgenciesData {
+  currentVersion: number;
+  agencies: PlanAgencyRow[];
+}
+
+type Outcome = { ok: true; message: string } | { ok: false; error: string };
+
+/**
+ * Agencies not on the current plan version (15c-3b spec §3.6). Owners tick rows and move them; everyone else sees the table
+ * read-only. Held rows are disabled. The result line lives here (always mounted), so it survives the list refreshing.
+ */
+export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMove: boolean }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const rows = data.agencies;
+  const enabled = rows.filter((r) => !r.onHold);
+  const chosen = rows.filter((r) => selected.has(r.agencyId) && !r.onHold);
+  const allChecked = enabled.length > 0 && enabled.every((r) => selected.has(r.agencyId));
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+
+  const move = async () => {
+    const ids = chosen.map((r) => r.agencyId);
+    const names = new Map(rows.map((r) => [r.agencyId, r.name]));
+    const r = await moveAgenciesToCurrentPlanAction(ids);
+    if (!r.ok) {
+      setOutcome({ ok: false, error: r.error });
+      return;
+    }
+    setOutcome({ ok: true, message: moveSummary(r.data, (id) => names.get(id) ?? 'Unknown agency') });
+    setSelected(new Set());
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Every agency is on the current version.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="text-muted-foreground">
+                {canMove && (
+                  <th scope="col" className="w-8 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all agencies"
+                      className="h-4 w-4 rounded border-input"
+                      checked={allChecked}
+                      disabled={enabled.length === 0}
+                      onChange={() => setSelected(allChecked ? new Set() : new Set(enabled.map((r) => r.agencyId)))}
+                    />
+                  </th>
+                )}
+                {['Agency', 'Version', 'State', 'Monthly now → after'].map((h) => (
+                  <th key={h} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const state = labelFor(BILLING_STATE, r.state);
+                return (
+                  <tr key={r.agencyId} className="border-t border-[#EEF2F6]">
+                    {canMove && (
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${r.name}`}
+                          className="h-4 w-4 rounded border-input"
+                          checked={selected.has(r.agencyId) && !r.onHold}
+                          disabled={r.onHold}
+                          onChange={() => toggle(r.agencyId)}
+                        />
+                      </td>
+                    )}
+                    <td className="px-3 py-2 font-semibold">{r.name}</td>
+                    <td className="px-3 py-2">{versionText(r.version)}</td>
+                    <td className="px-3 py-2">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <StatusChip tone={state.tone}>{state.label}</StatusChip>
+                        {r.onHold && <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip>}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">{monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {canMove && rows.length > 0 && (
+        <div>
+          <ConfirmDialog
+            trigger={<Button type="button" disabled={chosen.length === 0}>Move selected to v{data.currentVersion}</Button>}
+            title={`Move ${chosen.length} ${chosen.length === 1 ? 'agency' : 'agencies'} to v${data.currentVersion}?`}
+            body={<MoveLines rows={chosen} targetVersion={data.currentVersion} />}
+            confirmLabel={`Move to v${data.currentVersion}`}
+            action={move}
+          />
+        </div>
+      )}
+      {outcome?.ok === true && <p role="status" className="text-sm text-ink">{outcome.message}</p>}
+      {outcome?.ok === false && <ErrorNote compact focusKey={outcome.error}>{outcome.error}</ErrorNote>}
+    </div>
+  );
+}

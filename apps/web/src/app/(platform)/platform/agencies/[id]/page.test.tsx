@@ -11,8 +11,8 @@ vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role, ARCHIVE_BILLING_MESSAGE: 'This agency still has active billing. Cancel it in Stripe first, then archive.' }));
 vi.mock('./actions', () => ({}));
 vi.mock('./manage-menu', () => ({
-  ManageMenu: ({ role, held, archiveRefusal }: { role: string; held: boolean; archiveRefusal: string | null }) => (
-    <div>manage-menu {role} {held ? 'held' : 'not-held'}{role === 'owner' ? ' archive' : ''} {archiveRefusal ?? 'no-refusal'}</div>
+  ManageMenu: ({ role, held, archiveRefusal, planMove }: { role: string; held: boolean; archiveRefusal: string | null; planMove?: unknown }) => (
+    <div>manage-menu {role} {held ? 'held' : 'not-held'}{role === 'owner' ? ' archive' : ''} {archiveRefusal ?? 'no-refusal'}{planMove ? ' can-move' : ''}</div>
   ),
   UnarchiveButton: () => <button type="button">Unarchive</button>,
 }));
@@ -23,7 +23,7 @@ vi.mock('./hold-banner', () => ({
 }));
 vi.mock('../../_components/overview-charts', () => ({ cardCls: 'card', deltaPill: () => null, PlatformCharts: () => null }));
 vi.mock('../../_components/range-toggle', () => ({ parseRange: () => '28d', RangeToggle: () => null }));
-vi.mock('./billing-panel', () => ({ BillingPanel: ({ role, billing }: { role: string; billing: { state: string } }) => <div>billing-panel {role} {billing.state}</div> }));
+vi.mock('./billing-panel', () => ({ BillingPanel: ({ role, billing, behind }: { role: string; billing: { state: string }; behind?: { version: number | null; currentVersion: number } | null }) => <div>billing-panel {role} {billing.state}{behind ? ` behind ${behind.version ?? 'unset'}/${behind.currentVersion}` : ''}</div> }));
 vi.mock('./client-limits', () => ({ ClientLimitsTable: ({ canEdit, data }: { canEdit: boolean; data: { items: unknown[] } }) => <div>client-limits {canEdit ? 'edit' : 'read'} {data.items.length}</div> }));
 vi.mock('./support-dialog', () => ({ SupportDialog: ({ agencyId }: { agencyId: string }) => <button type="button">View as agency {agencyId}</button> }));
 const { default: Page } = await import('./page');
@@ -50,6 +50,7 @@ beforeEach(() => {
     if (name === 'get_platform_agency') return detail;
     if (name === 'get_agency_billing') return { state: 'trialing' };
     if (name === 'get_client_limits') return { defaultLimitUsd: 15, pausePercent: 130, items: [{}, {}] };
+    if (name === 'list_plan_agencies') return { currentPlanId: 'p3', currentVersion: 3, agencies: [] };
     if (name === 'list_agency_people') return { members: [{ membershipId: 'm1' }], invitations: [] };
     if (name === 'list_discount_codes') return { codes: [{ id: 'd1', code: 'FRIEND', revokedAt: null }, { id: 'd2', code: 'OLD', revokedAt: '2026-10-01T00:00:00Z' }] };
     return { rows: [session] };
@@ -92,6 +93,46 @@ describe('platform agency page: billing panel', () => {
     m.role = 'viewer';
     render(await page());
     expect(screen.getByText('billing-panel viewer trialing')).toBeTruthy();
+  });
+});
+
+describe('platform agency page: plan version', () => {
+  const withRow = (row: Record<string, unknown>) => {
+    const base = m.callTool.getMockImplementation()!;
+    m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => (name === 'list_plan_agencies'
+      ? { currentPlanId: 'p3', currentVersion: 3, agencies: [{ agencyId: AG, state: 'active', onHold: false, version: 1, ...row }] }
+      : base(ctx, name, input)));
+  };
+  it('on the current version the panel gets no behind info and the menu no move', async () => {
+    render(await page());
+    expect(screen.getByText('billing-panel staff trialing')).toBeTruthy();
+    expect(screen.queryByText(/can-move/)).toBeNull();
+  });
+  it('behind: the panel gets its version and the current one; the menu can move it', async () => {
+    withRow({});
+    render(await page());
+    expect(screen.getByText('billing-panel staff trialing behind 1/3')).toBeTruthy();
+    expect(screen.getByText(/can-move/)).toBeTruthy();
+  });
+  it('a never-set plan is behind with an unset version', async () => {
+    withRow({ version: null });
+    render(await page());
+    expect(screen.getByText('billing-panel staff trialing behind unset/3')).toBeTruthy();
+  });
+  it('a cancelled agency is shown behind but cannot be moved', async () => {
+    withRow({ state: 'cancelled' });
+    render(await page());
+    expect(screen.getByText(/behind 1\/3/)).toBeTruthy();
+    expect(screen.queryByText(/can-move/)).toBeNull();
+  });
+  it('a held agency cannot be moved', async () => {
+    withRow({});
+    const withRowImpl = m.callTool.getMockImplementation()!;
+    m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => (name === 'get_platform_agency'
+      ? { ...detail, hold: { since: '2026-10-01T00:00:00Z', reason: 'x', byName: 'Sam' } }
+      : withRowImpl(ctx, name, input)));
+    render(await page());
+    expect(screen.queryByText(/can-move/)).toBeNull();
   });
 });
 

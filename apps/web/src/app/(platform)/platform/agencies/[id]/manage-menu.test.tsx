@@ -2,13 +2,14 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ rename: vi.fn(), hold: vi.fn(), lift: vi.fn(), archive: vi.fn(), unarchive: vi.fn() }));
+const m = vi.hoisted(() => ({ rename: vi.fn(), hold: vi.fn(), lift: vi.fn(), archive: vi.fn(), unarchive: vi.fn(), move: vi.fn() }));
 vi.mock('./actions', () => ({
   renameAgencyAction: (...a: unknown[]) => m.rename(...a),
   suspendAgencyAction: (...a: unknown[]) => m.hold(...a),
   unsuspendAgencyAction: (...a: unknown[]) => m.lift(...a),
   archiveAgencyAction: (...a: unknown[]) => m.archive(...a),
   unarchiveAgencyAction: (...a: unknown[]) => m.unarchive(...a),
+  moveAgencyToCurrentPlanAction: (...a: unknown[]) => m.move(...a),
 }));
 const { ManageMenu, UnarchiveButton } = await import('./manage-menu');
 
@@ -37,6 +38,48 @@ describe('ManageMenu items by role', () => {
     expect(await item('Archive agency')).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: 'Lift hold' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Put on hold' })).toBeNull();
+  });
+});
+
+const planMove = {
+  currentVersion: 3,
+  row: { agencyId: AG, name: 'Brightline Marketing', state: 'active', version: 1, onHold: false, seatWarning: 'extra_seats' as const, extraSeatsAfter: 1, monthlyNowCents: 29900, monthlyAfterCents: 34900 },
+};
+
+describe('ManageMenu: Move to current plan', () => {
+  it.each([
+    ['owner, behind', 'owner', planMove, true],
+    ['owner, current (no move)', 'owner', null, false],
+    ['staff, behind', 'staff', planMove, false],
+  ] as const)('%s -> item shown: %s', async (_n, role, move, shown) => {
+    render(<ManageMenu agency={agency} role={role} held={false} archiveRefusal={null} planMove={move} />);
+    open();
+    await item('Rename agency');
+    expect(screen.queryByRole('menuitem', { name: 'Move to current plan' }) !== null).toBe(shown);
+  });
+
+  it('the dialog shows now to after and the warning, and confirming posts the agency id', async () => {
+    m.move.mockResolvedValue({ ok: true, data: { targetPlanId: 'p3', targetVersion: 3, results: [{ agencyId: AG, outcome: 'moved', emailed: true }] } });
+    render(<ManageMenu agency={agency} role="owner" held={false} archiveRefusal={null} planMove={planMove} />);
+    open();
+    fireEvent.click(await item('Move to current plan'));
+    const dialog = await screen.findByRole('dialog', { name: 'Move Brightline Marketing to v3?' });
+    expect(dialog.textContent).toContain('$299 → $349');
+    expect(dialog.textContent).toContain('Pays for 1 extra seat from the next billing date.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to v3' }));
+    await waitFor(() => expect(m.move).toHaveBeenCalledWith(AG));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('status').textContent).toBe('Moved 1.');
+  });
+
+  it('a refused move stays in the dialog with the reason', async () => {
+    m.move.mockResolvedValue({ ok: true, data: { targetPlanId: 'p3', targetVersion: 3, results: [{ agencyId: AG, outcome: 'refused', reason: 'on_hold', emailed: false }] } });
+    render(<ManageMenu agency={agency} role="owner" held={false} archiveRefusal={null} planMove={planMove} />);
+    open();
+    fireEvent.click(await item('Move to current plan'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to v3' }));
+    expect(await within(dialog).findByText('Moved 0. 1 not moved: Brightline Marketing (On hold)')).toBeTruthy();
   });
 });
 

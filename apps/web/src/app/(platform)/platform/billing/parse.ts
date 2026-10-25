@@ -14,3 +14,6 @@ export const endOfDayIso = (v: string): string | null => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v ? null : iso;
 };
+
+/** The "Includes" checkboxes (`fd.getAll('features')`) → the known feature keys, deduplicated, in a fixed order. */
+export const toFeatures = (values: FormDataEntryValue[]): ('ask' | 'mcp')[] => (['ask', 'mcp'] as const).filter((f) => values.includes(f));

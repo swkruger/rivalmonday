@@ -20,7 +20,7 @@ const { InviteLinks } = await import('./invite-links');
 const { ConnectPanel } = await import('./connect-panel');
 
 const plan = (over: Partial<PlanRow> = {}): PlanRow => ({
-  id: 'p2', version: 2, name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4900, trialDays: 30,
+  id: 'p2', version: 2, name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4900, trialDays: 30, features: ['ask', 'mcp'],
   isCurrent: true, synced: true, createdAt: '2026-10-01T00:00:00Z', ...over,
 });
 const code = (over: Partial<CodeRow> = {}): CodeRow => ({
@@ -73,6 +73,29 @@ describe('PlanEditor confirms and dates', () => {
     const fd = (m.createPlanVersionAction.mock.calls[0] as unknown as [unknown, FormData])[1];
     expect(fd.get('basePrice')).toBe('299');
     expect(fd.get('name')).toBe('Standard');
+  });
+
+  it('versions table lists the features of each version, or None', () => {
+    render(<PlanEditor plans={[plan(), plan({ id: 'p1', version: 1, isCurrent: false, features: [] })]} canEdit={false} tz="UTC" />);
+    expect(screen.getByText('Ask, MCP access')).toBeTruthy();
+    expect(screen.getByText('None')).toBeTruthy();
+  });
+
+  it('the publish form has Ask and MCP access checkboxes, preset from the current version, and posts the ticked ones', async () => {
+    render(<PlanEditor plans={[plan({ features: ['ask'] })]} canEdit tz="UTC" />);
+    const ask = screen.getByLabelText('Ask') as HTMLInputElement;
+    const mcp = screen.getByLabelText('MCP access') as HTMLInputElement;
+    expect([ask.checked, mcp.checked]).toEqual([true, false]);
+    fireEvent.click(mcp);
+    fireEvent.change(screen.getByLabelText('Base price ($/month)'), { target: { value: '299' } });
+    fireEvent.change(screen.getByLabelText('Included seats'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Extra seat ($/month)'), { target: { value: '99' } });
+    fireEvent.change(screen.getByLabelText('Trial days'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Publish version' }));
+    await waitFor(() => expect(m.createPlanVersionAction).toHaveBeenCalledTimes(1));
+    const fd = (m.createPlanVersionAction.mock.calls[0] as unknown as [unknown, FormData])[1];
+    expect(fd.getAll('features')).toEqual(['ask', 'mcp']);
   });
 
   it('plan created date is not ISO', () => {

@@ -5,7 +5,7 @@ vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => 
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/invite-email', () => ({ sendAgencyInviteEmail: (...a: unknown[]) => m.email(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-const { createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction, setConnectFeeAction, setSignupsPausedAction } = await import('./actions');
+const { moveAgenciesToCurrentPlanAction, createPlanVersionAction, createDiscountCodeAction, createInviteLinkAction, setConnectFeeAction, setSignupsPausedAction } = await import('./actions');
 
 const form = (o: Record<string, string>) => {
   const fd = new FormData();
@@ -22,7 +22,14 @@ describe('createPlanVersionAction', () => {
   const fields = { name: 'Standard', basePrice: '299', includedSeats: '3', seatPrice: '49.50', trialDays: '30' };
   it('turns dollars into cents', async () => {
     expect(await createPlanVersionAction(ok, form(fields))).toMatchObject({ ok: true });
-    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'create_plan_version', { name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4950, trialDays: 30 });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'create_plan_version', { name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4950, trialDays: 30, features: [] });
+  });
+  it('sends the ticked Includes checkboxes as features', async () => {
+    const fd = form(fields);
+    fd.append('features', 'mcp');
+    fd.append('features', 'ask');
+    await createPlanVersionAction(ok, fd);
+    expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ features: ['ask', 'mcp'] });
   });
   it('rejects bad money and integers before calling the tool', async () => {
     expect(await createPlanVersionAction(ok, form({ ...fields, basePrice: '1,000' }))).toMatchObject({ ok: false });
@@ -121,5 +128,18 @@ describe('setConnectFeeAction', () => {
   it('passes a tool refusal back', async () => {
     m.runTool.mockResolvedValue({ ok: false, error: 'Nope' });
     expect(await setConnectFeeAction(ok, form({ agencyId: '', percent: '3' }))).toEqual({ ok: false, error: 'Nope' });
+  });
+});
+
+describe('moveAgenciesToCurrentPlanAction', () => {
+  it('calls move_agencies_to_current_plan with the ids and returns the tool result', async () => {
+    const data = { targetPlanId: 'p2', targetVersion: 2, results: [{ agencyId: 'a1', outcome: 'moved', emailed: true }] };
+    m.runTool.mockResolvedValue({ ok: true, data });
+    expect(await moveAgenciesToCurrentPlanAction(['a1', 'a2'])).toEqual({ ok: true, data });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'move_agencies_to_current_plan', { agencyIds: ['a1', 'a2'] });
+  });
+  it('passes a refusal back', async () => {
+    m.runTool.mockResolvedValue({ ok: false, error: 'Not found' });
+    expect(await moveAgenciesToCurrentPlanAction(['a1'])).toEqual({ ok: false, error: 'Not found' });
   });
 });

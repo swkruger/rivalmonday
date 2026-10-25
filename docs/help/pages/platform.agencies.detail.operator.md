@@ -11,7 +11,7 @@ One agency in full: its health flag, four live figures, charts, team, clients, b
 - **The four figures** (active clients, seats, weekly active users, spend this month) are today's live values with a change since 28 days ago. The range toggle switches the charts between 12 weeks and 12 months.
 - **People** lists everyone on the agency and its clients in three tabs: Agency team, Client people and Pending invites. The heading counts each kind. See Managing people below.
 - **Clients** lists every client with its status and the date it was created.
-- **Billing** shows the state, plan and version, trial and pilot end dates, how many seats Stripe has been told about ("sync pending" means an update is queued), the pilot client limit, the attached coupon id, recent invoices and the last five billing events.
+- **Billing** shows the state, plan version (and the current version when the agency is behind, or "Plan version not set"), trial and pilot end dates, how many seats Stripe has been told about ("sync pending" means an update is queued), the pilot client limit, the attached coupon id, recent invoices and the last five billing events.
 - **Client limits** lists each client's spend this month in dollars, its effective monthly limit, its level (OK, Near limit, Reached or Paused), an optional limit override, its competitor limit and its Ask questions per month.
 - **Support sessions** lists the agency's recent sessions.
 
@@ -31,6 +31,7 @@ The People section lists the agency team (name, email, role and the clients each
 3. **Invite an agency admin** with the button above the tabs. They get an email from the agency with a link to join.
 4. **Resend or revoke an invite** on the Pending invites tab. A resend sends a new email and can be done 3 times in 24 hours per invite; the limit is shared with the agency's own Resend. Invites also count toward the agency's daily limit of 20 agency-role sends. Revoking stops the link working.
 5. **Rename the agency** from Manage, Rename agency.
+6. **Move to the current plan** (owners): Manage shows this only when the agency is behind the current plan version and is not on hold, archived or cancelled. It opens the same confirm as the Plans tab, with the agency's price now and after.
 
 ### Putting an agency on hold
 

@@ -24,7 +24,7 @@ describe('BillingPanel', () => {
   it('shows state pill, plan version, seats with the pending flag, exemption, coupon, invoices and events', () => {
     render(<BillingPanel billing={billing() as never} role="viewer" codes={codes} tz="UTC" />);
     expect(screen.getAllByText('Free trial').length).toBeGreaterThan(0);
-    expect(screen.getByText('Standard v2')).toBeTruthy();
+    expect(screen.getByText('Plan v2')).toBeTruthy();
     expect(screen.getByText(/4 synced/)).toBeTruthy();
     expect(screen.getByText(/sync pending/)).toBeTruthy();
     expect(screen.getByText('Exempt')).toBeTruthy();
@@ -33,6 +33,19 @@ describe('BillingPanel', () => {
     expect(inv.getAttribute('href')).toBe('https://invoice.stripe.com/i/1');
     expect(inv.getAttribute('target')).toBe('_blank');
     expect(screen.getByText(/Pilot ended by staff/)).toBeTruthy();
+  });
+
+  it('behind the current version: own version and (current: vN); never-set says so', () => {
+    const { unmount } = render(<BillingPanel billing={billing() as never} role="viewer" codes={codes} tz="UTC" behind={{ version: 1, currentVersion: 3 }} />);
+    expect(screen.getByText(/Plan v1/).textContent).toContain('(current: v3)');
+    unmount();
+    render(<BillingPanel billing={billing() as never} role="viewer" codes={codes} tz="UTC" behind={{ version: null, currentVersion: 3 }} />);
+    expect(screen.getByText(/Plan version not set/).textContent).toContain('(current: v3)');
+  });
+
+  it('on the current version there is no (current: vN) note', () => {
+    render(<BillingPanel billing={billing() as never} role="viewer" codes={codes} tz="UTC" />);
+    expect(screen.queryByText(/current: v/)).toBeNull();
   });
 
   it('viewer sees no action controls', () => {

@@ -21,6 +21,7 @@ import { viewerTimeZone } from '@/server/viewer-tz';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
 import { type AgencyClientRow, ArchivedView, ClientsSection } from './archived-view';
+import type { PlanAgencyRow } from '../../billing/plan-move-parts';
 import { type AgencyBilling, BillingPanel } from './billing-panel';
 import { type ClientLimits, ClientLimitsTable } from './client-limits';
 import { HoldBanner, HoldChip } from './hold-banner';
@@ -149,14 +150,19 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
     );
   }
 
-  const [{ rows: sessions }, limits, billing, codes] = await Promise.all([
+  const [{ rows: sessions }, limits, billing, codes, planList] = await Promise.all([
     callTool<{ rows: SupportSessionRow[] }>(ctx, 'list_agency_support_sessions', { agencyId: agency.id }),
     callTool<ClientLimits>(ctx, 'get_client_limits', { agencyId: agency.id }),
     callTool<AgencyBilling>(ctx, 'get_agency_billing', { agencyId: agency.id }),
     canStart
       ? callTool<{ codes: { id: string; code: string; revokedAt: string | null }[] }>(ctx, 'list_discount_codes', {}).then((r) => r.codes.filter((c) => !c.revokedAt))
       : Promise.resolve([]),
+    callTool<{ currentVersion: number; agencies: PlanAgencyRow[] }>(ctx, 'list_plan_agencies', {}),
   ]);
+  // The agency has a row here only when it is behind the current plan version (a null version = never set).
+  const behindRow = planList.agencies.find((a) => a.agencyId === agency.id) ?? null;
+  const behind = behindRow ? { version: behindRow.version, currentVersion: planList.currentVersion } : null;
+  const planMove = behindRow && !hold && behindRow.state !== 'cancelled' ? { row: behindRow, currentVersion: planList.currentVersion } : null;
   const health = agency.health ? labelFor(AGENCY_HEALTH, agency.health) : null;
   // The tool returns tiles and series for every agency that is not archived.
   const t = tiles as Tiles;
@@ -172,7 +178,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
           {hold && <HoldChip reason={hold.reason} since={formatDate(hold.since, { tz })} byName={hold.byName} />}
           {health && <StatusChip tone={health.tone}>{health.label}</StatusChip>}
           {canStart && <SupportDialog agencyId={agency.id} />}
-          {canStart && <ManageMenu agency={ref} role={role} held={hold !== null} archiveRefusal={archiveRefusal(archiveBlockers)} />}
+          {canStart && <ManageMenu agency={ref} role={role} held={hold !== null} archiveRefusal={archiveRefusal(archiveBlockers)} planMove={planMove} />}
         </>,
       )}
       {holdBillingIssue && (
@@ -210,7 +216,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       </section>
       <section className={cardCls}>
         <h2 className="mb-3 font-semibold">Billing</h2>
-        <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} tz={tz} />
+        <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} tz={tz} behind={behind} />
       </section>
       <section className={cardCls}>
         <h2 className="font-semibold">Support sessions</h2>

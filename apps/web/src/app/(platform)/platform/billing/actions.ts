@@ -4,7 +4,9 @@ import { sendAgencyInviteEmail } from '@/server/invite-email';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
-import { endOfDayIso, toCents, toInt, toPercent } from './parse';
+import type { MoveResultData } from './plan-move-parts';
+import { endOfDayIso, toCents, toFeatures, toInt, toPercent } from './parse';
+import type { ToolResult } from '@/server/run-tool';
 
 const PATH = '/platform/billing';
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
@@ -17,7 +19,7 @@ export async function createPlanVersionAction(_p: FormResult, fd: FormData): Pro
   const trial = toInt(str(fd, 'trialDays'));
   if (base === null || seat === null) return { ok: false, error: 'Enter prices in dollars, e.g. 299 or 49.00' };
   if (seats === null || trial === null) return { ok: false, error: 'Included seats and trial days must be whole numbers' };
-  const r = await runTool<{ version: number }>(ctx, 'create_plan_version', { name: str(fd, 'name'), basePriceCents: base, includedSeats: seats, seatPriceCents: seat, trialDays: trial });
+  const r = await runTool<{ version: number }>(ctx, 'create_plan_version', { name: str(fd, 'name'), basePriceCents: base, includedSeats: seats, seatPriceCents: seat, trialDays: trial, features: toFeatures(fd.getAll('features')) });
   if (!r.ok) return r;
   revalidatePath(PATH);
   return { ok: true, message: `Published version ${r.data.version}. Existing subscriptions keep their prices.` };
@@ -137,4 +139,12 @@ export async function setSignupsPausedAction(_p: FormResult, fd: FormData): Prom
   if (!r.ok) return r;
   revalidatePath(PATH);
   return { ok: true, message: paused ? 'Open sign-up paused. Invite links still work.' : 'Open sign-up resumed.' };
+}
+
+/** Owner only (the tool enforces it). Returns the tool result; the caller builds the summary from the per-agency outcomes. */
+export async function moveAgenciesToCurrentPlanAction(agencyIds: string[]): Promise<ToolResult<MoveResultData>> {
+  const { ctx } = await requireOperatorContext();
+  const r = await runTool<MoveResultData>(ctx, 'move_agencies_to_current_plan', { agencyIds });
+  if (r.ok) revalidatePath(PATH);
+  return r;
 }

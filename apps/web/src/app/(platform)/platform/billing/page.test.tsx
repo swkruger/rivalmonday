@@ -10,6 +10,7 @@ vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
 vi.mock('./plan-editor', () => ({ PlanEditor: ({ canEdit }: { canEdit: boolean }) => <div>plan-editor {String(canEdit)}</div> }));
+vi.mock('./plan-agencies', () => ({ PlanAgencies: ({ canMove, data }: { canMove: boolean; data: { agencies: unknown[] } }) => <div>plan-agencies {String(canMove)} {data.agencies.length}</div> }));
 vi.mock('./codes', () => ({ Codes: ({ canManage }: { canManage: boolean }) => <div>codes {String(canManage)}</div> }));
 vi.mock('./connect-panel', () => ({ ConnectPanel: ({ canEdit }: { canEdit: boolean }) => <div>connect-panel {String(canEdit)}</div> }));
 vi.mock('./signups-panel', () => ({ parseDays: (v: unknown) => (v === '90' ? 90 : 30), SignupsPanel: ({ paused, canEdit, days }: { paused: boolean; canEdit: boolean; days: number }) => <div>signups-panel {String(paused)} {String(canEdit)} {days}</div> }));
@@ -20,6 +21,7 @@ const { billingTab } = await import('./tabs');
 const answers: Record<string, unknown> = {
   get_billing_overview: { mrrCents: 125000, paidSeats: 17, agenciesByState: { pilot: 2, trialing: 1, active: 3, past_due: 0, read_only: 0, suspended: 0, cancelled: 1 } },
   list_plans: { plans: [] },
+  list_plan_agencies: { currentPlanId: 'p2', currentVersion: 2, agencies: [{}, {}] },
   list_discount_codes: { codes: [] },
   list_invite_links: { links: [] },
   get_signups_paused: { paused: false },
@@ -44,6 +46,8 @@ describe('/platform/billing', () => {
   it('owner: editable plans, manageable codes, invite links, Connect', async () => {
     render(await Page({ searchParams: Promise.resolve({ tab: 'plans' }) }));
     expect(screen.getByText('plan-editor true')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Agencies not on the current version' })).toBeTruthy();
+    expect(screen.getByText('plan-agencies true 2')).toBeTruthy();
     cleanup();
     render(await Page({ searchParams: Promise.resolve({ tab: 'codes' }) }));
     expect(screen.getByText('codes true')).toBeTruthy();
@@ -71,6 +75,7 @@ describe('/platform/billing', () => {
     m.role = 'staff';
     render(await Page({ searchParams: Promise.resolve({ tab: 'plans' }) }));
     expect(screen.getByText('plan-editor false')).toBeTruthy();
+    expect(screen.getByText('plan-agencies false 2')).toBeTruthy();
     cleanup();
     render(await Page({ searchParams: Promise.resolve({ tab: 'codes' }) }));
     expect(screen.getByText('codes false')).toBeTruthy();
@@ -94,7 +99,7 @@ describe('/platform/billing', () => {
 
   it.each([
     ['overview', ['get_billing_overview']],
-    ['plans', ['list_plans']],
+    ['plans', ['list_plan_agencies', 'list_plans']],
     ['codes', ['list_discount_codes']],
     ['signups', ['get_signups_paused', 'get_signup_funnel', 'list_invite_links', 'list_discount_codes']],
     ['connect', ['get_connect_overview']],
