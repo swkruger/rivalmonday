@@ -59,7 +59,7 @@ After the backfill nothing calls the model: backfilled clients stay `skipped`. A
 
 ## Queue concurrency (7c2)
 One worker replica runs several pollers per queue (shipped table: `apps/worker/src/concurrency.ts` `QUEUE_CONCURRENCY`: `rival-search`, `vendor-collect`, `brief-client`, `web-capture-page` 4; `starting-point-client`, `engine-tag`, `engine-review` 3; `prospect-snapshot`, `rank-scan`, `setup-suggestions`, `runbook-tailor`, `rival-monthly-client` 2; the rest 1). Override without a code change: env `WORKER_QUEUE_CONCURRENCY=brief-client=6,rival-search=2` (comma list, `<queue>=<1-8>`; entries win over the table). A malformed entry, an unknown queue name or a value outside 1-8 makes the worker print the entry and exit 1 before it starts. Unset = shipped values. Tune from `/platform/health` (heartbeat output carries `rssMb`, `dbConnections`, `dbMaxConnections`) and Railway memory:
-- DB connections near the limit: lower concurrency, and check `SERVICE_DATABASE_POOLED_URL` is set (start-up warns when it is not). App pool size = sum of (c - 1) + 10.
+- DB connections near the limit: lower concurrency, and check `SERVICE_DATABASE_POOLED_URL` is set (required in production: the worker refuses to start without it; dev only warns). App pool size = sum of (c - 1) + 10.
 - Memory high: lower `web-capture-page` (each poller is one Chromium context in the single shared browser).
 - Vendor throttling or timeouts: lower `vendor-collect`/`rival-search`; per-vendor limits are `DEFAULT_VENDOR_LIMITS` in `packages/core/src/server/token-bucket.ts` (code change).
 Lowering the busy queues to 1 is the pilot kill switch (PILOT § Kill switches).

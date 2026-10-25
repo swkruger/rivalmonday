@@ -19,13 +19,15 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### Scale & performance
 - [ ] Re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it — *from 15b-3b*
-- [ ] Worker concurrency: let `rival-search` (vendor-bound) run 3–5 jobs at once inside the single worker (pg-boss local concurrency), then shorten `RIVAL_MONTHLY_SPACING_SECONDS` — cheap first step, keeps one replica — *from owner Q 2026-10-15*
-- [ ] Multiple worker replicas / autoscaling on queue depth: move per-host crawl politeness (`collectors/src/web/rate-limit.ts`) and vendor rate limits into Postgres (advisory locks or a rate table), check every cron job tolerates a second runner (sweeps, vendor-poll), optionally split crawler vs API-only workers; then lift the one-replica rule in root CLAUDE.md — *from owner Q 2026-10-15*
+- [ ] Multiple worker replicas / autoscaling on queue depth: move per-host crawl politeness (`collectors/src/web/rate-limit.ts`) and vendor limits (`createVendorLimiter`) into Postgres, check every cron job tolerates a second runner; then lift the one-replica rule in root CLAUDE.md — *from owner Q 2026-10-15; shrunk by phase-7c2*
 - [ ] Page latency on the remote Neon DB: pages took 28–36 s in E2E (Playwright timeouts raised to 90 s/test, 15 s/expect in `playwright.config.ts`) — look before launch — *from 5c-2*
-- [ ] `listBriefDueClients` scans every client with one lookup each — set-based query — *from 4a cross-phase*
-- [ ] Cross-replica rate limiter before scaling the worker; one host's large Crawl-delay blocks the single sequential capture queue; robots.txt fetch isn't paced by the limiter — *from 2a review*
+- [ ] Cross-replica rate limiter before scaling the worker — *from 2a review; shrunk by phase-7c2*
 - [ ] Flaky Neon connections in tests (`ECONNRESET`/`connect ETIMEDOUT` in `db` RLS tests, `collectors` `suggest.test.ts`, E2E seed); one un-bisected `@cs/collectors` full-suite failure (passed 249/249 on re-run) — add retry/pool settings or bisect — *from 5c-2 / demo runs*
 - [ ] Per-task AI HTTP timeouts (60 s × 3 worst case, `packages/ai/src/http.ts`) — *from Phase 1 review (Vercel)*
+- [ ] PILOT vendor-collect expiry watch counts only final-attempt expiries (retry-expiries need `state IN ('retry','active','completed') AND retry_count > 0` or the vendor_call ledger) — *phase-7c2*
+- [ ] Worker heartbeat re-runs the `cs_web` queue GRANTs every beat; retry only while not ok — *7c2 final review*
+- [ ] Limiter/worker: "queued 5 s keeps full timeoutMs" test uses real timers; deps wiring test asserts `typeof` only; boss "throws on one poller" test does not attribute the poller; concurrency log lists only raised queues; idle pollers raise pg-boss direct connections (~57 to ~80: watch in Task 12) — *7c2 T1/T2*
+- [ ] Captures: limiter cursor/last maps never pruned; captures queued before deploy lack the `capture:` singleton key (one-time duplicate); fixture `task_get` ledger rows carry `fx_` ids ($0); fixture-fetch abort listener not removed — *7c2 T3/T9b*
 
 ### Deployment
 - [ ] Deploy note: migration `0025`'s `client_score_thresholds_check` fails on any existing malformed row — check before applying to a DB with real clients — *from 3d final review*
@@ -43,15 +45,13 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### 7a follow-ups
 - [ ] 7c: embeddings 8 s x2 also bound worker batch embedding; if `llm_call` shows embeddings ok=false at ~8 s, add an `embeddings_batch` task (30000x3, not request_path) — *from 7a*
-- [ ] 7c: `withQueueStatsReporting` default report path (logger + Sentry) untested; `EnvUrls.owner` -> `queue`; `withMonitor` should check in only for the cron payload; job retries re-capture to Sentry — *from 7a*
-- [ ] 7c: `ensureQueueGrants` is a single attempt and its failure is not in health state (web enqueues refused until restart while `/healthz` stays green) — *from 7a*
+- [ ] 7c: `withMonitor` should check in only for the cron payload; job retries re-capture to Sentry — *from 7a*
 - [ ] 7c: structured logging: `JSON.stringify` interpolated in messages; `redactForLog` may strip keys `text/content/body/output`; `tracesSampleRate` hard-coded 0.1; `main.ts` order/shutdown untested — *from 7a*
 - [ ] 7c: tests: predeploy missing/wrong-typed thresholds untested; `ci.yml` edits do not trigger the shape test under `test:affected`; e2e "destination stream closed early" noise — *from 7a*
 - [ ] 7a2/7c: `Sentry.captureException(raw pg error)` skips `redactForLog` (beforeSend still redacts); `scrubUrl` guard skips lowercase/prefixed transaction names, `ws:` URLs, leading whitespace; `tagRequest` only via `callTool` — *from 7a*
-- [ ] 7a2/7c: `app_user` INSERT on `client` can set service-only columns (WITH CHECK hardening); `notification.provider_id` index; `contact_bounced:<id>` dedupe is permanent (key by MessageID); sign-out/`/support/exit` end a session with no audit row; inbox + notification-settings pages read via service fns in support (unmasked?); platform overview sums keep archived agencies' daily-stat rows — *from 7a*
-- [ ] 7a2/7c: Ask: pinned-admin test for `update_recommendation_status`; a multi-agency user with a plan lacking Ask gets 404 for the other agency's client (Decision 4) — *from 7a*
-- [ ] 7a2/7c minors: T1 vacuous agency RLS update test; T3 support viewer gets the default plan, MCP tokens unrevocable in UI after a plan downgrade (revive on upgrade), `ask-support.test` mock re-implements `hasChannel`; T6 no quarterly PDF overwrite test; T7 no `support_view_pdf` subject kind, files audit tested only for evidence, notification settings page in support (consider `notFound()` like `/inbox`); T8 bounced contact looks inactive (`INACTIVE_OK_KINDS`; add `bounced_at`) — *from 7a*
-- [ ] 7a2/7c: purge dry-run counts are not one snapshot; no test for a purged-client + agency-level membership, a retried pending row with future `not_before`, or old accepted/unverified leads surviving; plan-off tests for agency `settings/ai` and evidence `canAsk` — *from 7a*
+- [ ] 7a2/7c: `contact_bounced:<id>` dedupe is permanent (key by MessageID); sign-out/`/support/exit` end a session with no audit row; inbox + notification-settings pages read via service fns in support (unmasked?); platform overview sums keep archived agencies' daily-stat rows — *from 7a*
+- [ ] 7a2/7c minors: T6 no quarterly PDF overwrite test; T7 no `support_view_pdf` subject kind, files audit tested only for evidence, notification settings page in support (consider `notFound()` like `/inbox`); T8 bounced contact looks inactive (`INACTIVE_OK_KINDS`; add `bounced_at`) — *from 7a*
+- [ ] 7a2/7c: purge dry-run counts are not one snapshot — *from 7a*
 - [ ] Later: orphaned Better Auth users after purge; evidence/object pruning via `evidenceReferenced`; guarded forward proxy / undici `connect.lookup` (DNS rebinding, `route.fetch` buffering), POST->GET on sub-resource 30x, script redirects after DOMContentLoaded, WebRTC/preconnect unrouted (SSRF guard) — *from 7a*
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
@@ -60,14 +60,21 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Ask: citation-repair follow-up for thinner answers (guard runs after `supportCheck`; misses spelled-out numbers/relative dates); eval B2 splitter vs guard `splitUnits` divergence; ~2 % invalid-JSON turns (likely per-call `AbortSignal.timeout` firing during `res.json()`, mislabelled) — *phase-7c1*
 - [ ] Isolation suite gaps: shared `global_public` rows and `auth` schema outside the write fingerprint; viewer "other user's row" cases; `reinsertAs` accepts "permission denied" without an INSERT-privilege check; dedupe `requireOwnClient`/`requireVisibleClient` — *phase-7c1*
 - [ ] Briefs evals: bare-year and bare-number bait B2 edge cases; injection H1/H3 target-phrase canaries — *phase-7c1*
+### 7c2 follow-ups (scale, rehearsal, readiness)
+- [ ] Rehearsal AI fidelity: tested against one synthetic schema; real `ai.yaml` caller schemas (recJson, draftJson, tailor, starters `minItems 4`, numeric_facts, starting_point_why, theme discovery) may take fallback paths, so the rehearsal could load-test fallbacks. `minimalValue` ignores `pattern`/`format`; `collectBatch` in rehearsal throws a misleading `ANTHROPIC_API_KEY` error; latency floor at p50 — *7c2 T10a*
+- [ ] `guardManifestRun` compares the strict hostname: pooler vs direct host is refused with no hint (documented in OPS); improve the message or compare the endpoint id. Fault-test alarm assertion loosened; rehearsal CLI wiring untested; "fx5 does not slow the others" is a lag proxy (retune after Task 12) — *7c2 T10b*
+- [ ] Readiness: partial send failure re-emails all recipients next hour; `windowOpenedAt` is off 30/45 min in half-hour zones (US-only pilot); no Saturday/DST-weekend checkpoint test; `findReadinessIssues` reruns per page load; no `HelpTip` on the readiness section (needs owner copy); the section keeps the `card` wrapper until phase-16 migrates the page; a resolved `starting_point_late` / weekly key never reopens, so a client unpaused late (same key) gets no new alert — *7c2 T6/T7/final review*
+- [ ] Tests: `tenant.test` "cannot write rows into another agency" now re-proves only the grant; `table-classes.ts` `ops_alert` out of alpha order and `OpsAlertSeverity` duplicates the CHECK list; `settings/ai` test name says "lacks mcp" (gate is `mcp`) — *7c2 T4/T5/T8*
+- [ ] Feedback: mailto addresses not `encodeURI`d; brief page feedback test is one big `it` — *7c2 T11*
+
 
 ### Model ops
-- [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review*
+- [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review* (7c2 Task 13, owner)
 
 ### Pilot
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
-- [ ] Exercise `/link-other-account` live (never run live) — *from 5a*
-- [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5*
+- [ ] Exercise `/link-other-account` live (never run live) — *from 5a* (7c2 Task 13, owner)
+- [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5* (7c2 Task 13, owner)
 - [ ] Future: buying extra credits (self-serve top-up) — *phase-7b1*
 - [ ] 7b2/later: confirm the Jev price, then lift the d19 exclusion (`SPEND_GUARD_EXCLUDED_PROVIDERS`) — *phase-7b1*
 - [ ] 7b1 engine/worker: handlers that swallow `AiPausedError` internally (generateBrief, alert template fallback, setup-suggestions, lead-preview) lose one in-flight attempt; a prospect snapshot queued before a pause still runs its vendor pulls; archived-agency clients still count as O11 trackers; spend-paused runbook tailoring stays `skipped`; events aging out during a pause are never scored; `app_user` can read `spend_limit_usd`/`spend_paused_at` under RLS; one-time auto competitor search refused as `spend_paused` is not retried (agency runs a manual search); null-scope ledger paths (engine vertical stages, discovery/classify, leads, embeddings, own crawl) stay unattributed — *phase-7b1*
@@ -209,6 +216,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Costs UI/edges: strip read audits every owner `/platform` view; strip sits outside the 1560px wrapper; services-table Actions header in read-only; empty warnDays → 0; run dataviz skill on chart colours; Neon `from==to` before 01:00 UTC on the 1st; Anthropic partial sum after 3 pages; empty `APP_URL` → relative link in email; tools' toFixed silently rounds threshold/rate; read.ts 12 sequential queries; seed rows duplicated in migration 0051 and `@cs/db` test helpers (add cross-reference comments) — *from 8c*
 
 ## Waiting on real data / external events
+- [ ] 7c2 Task 12 (owner + controller, after staging setup): staging rehearsal per `docs/OPS.md` § Rehearsal steps 1-9, fix wave per FAIL, final concurrency/limits and costs become code defaults, `teardown`; done when one run shows every PASS line incl. the fault alarm. Then close "Staging setup" and the 7c2 part of the copy sign-off item — *phase-7c2*
+- [ ] 7c2 Task 13 (owner): (a) the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `pnpm --filter @cs/ai exec vitest run jev.live` with the real `TYPESAFE_API_KEY`, record 0- or 1-based; (c) `/link-other-account` once live (PILOT § 8); then delete the three Model ops/Pilot items tagged Task 13 — *phase-7c2*
 - [ ] After the 15b-3b deploy: watch `[engine-reask]` log lines; daily `review_analysis` checks stay <= 2,000. Copy doc: [archive/phase-15b3b-copy-signoff.md](archive/phase-15b3b-copy-signoff.md) — *moved from STATE at 15c-2b-2 merge*
 - [ ] Re-pull Aire Serv reviews + ads (command in [OPS.md](OPS.md); pass only advertisers `AR11447192921745391617`, `AR09867956064303972353`), diff `review_id`s against the 546 from 2026-10-01 — if unstable, dedupe on the content-hash key — *from 2b live verification*
 - [ ] Owner-verify alerts per outcome (sent now / 17:00 digest / withdrawn) and Recommendations rating — waived until real alerts: the 2026-10-13 pull and a full re-pull on 2026-10-14 (all 8 tracked competitors) gave 1 new event (Aire Serv hiring, score 12 → archive) and 0 alerts; next chance is the 2026-10-20 weekly pull — *from 5b-1 verification*
