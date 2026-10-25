@@ -1,7 +1,7 @@
 # phase-16 — design system v1 across the web app, page by page
 
 **Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 8e89d375 (rebased 2026-10-23, after 15c-2a merged)
-**Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (draft, awaiting owner approval); inputs `docs/design-system/`.
+**Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (awaiting approval); inputs `docs/design-system/`.
 
 ## Status (overwrite)
 **ON HOLD for code (owner, 2026-10-23):** no code changes until Phase 7 (7b/7c) and Phase 15 (15c-2b, 15c-3) are done and merged; planning continues. 2026-10-24: 16-onboarding brainstormed with Mobbin references + PDF mockups; spec drafted and builder-checked (O1–O13). Nothing built.
