@@ -1,7 +1,7 @@
 import {
   type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, generateInviteToken, globalConnectFeePercent, planFor, syncPlanToStripe,
 } from '@cs/billing';
-import { type AccessContext, pilotLinkRefusal, ToolError, toolkit } from '@cs/core';
+import { type AccessContext, PLAN_FEATURES, type PlanFeature, pilotLinkRefusal, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyConnect, agencyDailyStat, agencyInviteLink, BILLING_STATES, client, clientBilling, discountCode, plan, platformSetting } from '@cs/db';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -62,7 +62,7 @@ export async function operate<T>(
 
 const PlanOut = z.object({
   id: z.string(), code: z.string(), version: z.number().int(), name: z.string(), basePriceCents: z.number().int(), includedSeats: z.number().int(),
-  seatPriceCents: z.number().int(), trialDays: z.number().int(), isCurrent: z.boolean(), synced: z.boolean(), createdAt: z.string(), createdBy: z.string(),
+  seatPriceCents: z.number().int(), trialDays: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)), isCurrent: z.boolean(), synced: z.boolean(), createdAt: z.string(), createdBy: z.string(),
 });
 
 export const listPlansTool = defineTool({
@@ -79,7 +79,7 @@ export const listPlansTool = defineTool({
       return {
         plans: rows.map((p) => ({
           id: p.id, code: p.code, version: p.version, name: p.name, basePriceCents: p.basePriceCents, includedSeats: p.includedSeats,
-          seatPriceCents: p.seatPriceCents, trialDays: p.trialDays, isCurrent: p.isCurrent, synced: !!(p.stripeBasePriceId && p.stripeSeatPriceId),
+          seatPriceCents: p.seatPriceCents, trialDays: p.trialDays, features: p.features, isCurrent: p.isCurrent, synced: !!(p.stripeBasePriceId && p.stripeSeatPriceId),
           createdAt: p.createdAt.toISOString(), createdBy: p.createdBy,
         })),
       };
@@ -90,13 +90,14 @@ export const listPlansTool = defineTool({
 export const createPlanVersionTool = defineTool({
   name: 'create_plan_version',
   access: 'write',
-  description: 'Platform owners: publish a new version of the standard plan (creates its Stripe prices, then makes it current). Existing subscriptions keep their prices.',
+  description: 'Platform owners: publish a new version of the standard plan (name, prices, trial days and the Ask/MCP features; creates its Stripe prices, then makes it current). Omitted features copy the current version. Existing subscriptions keep their prices.',
   input: z.object({
     name: z.string().trim().min(1).max(80),
     basePriceCents: z.number().int().min(0).max(10_000_000),
     includedSeats: z.number().int().min(0).max(10_000),
     seatPriceCents: z.number().int().min(0).max(10_000_000),
     trialDays: z.number().int().min(0).max(90),
+    features: z.array(z.enum(PLAN_FEATURES)).max(8).optional(),
   }),
   output: z.object({ id: z.string(), version: z.number().int() }),
   permission: 'agency',
@@ -108,7 +109,14 @@ export const createPlanVersionTool = defineTool({
       return deps.service.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('plan:standard'))`);
         const [{ max } = { max: 0 }] = await tx.select({ max: sql<number>`coalesce(max(${plan.version}), 0)::int` }).from(plan).where(eq(plan.code, 'standard'));
-        const [row] = await tx.insert(plan).values({ ...input, code: 'standard', version: max + 1, isCurrent: false, createdBy: ctx.userId }).returning({ id: plan.id, version: plan.version });
+        const { features: asked, ...rest } = input;
+        let features: PlanFeature[] | undefined;
+        if (asked) features = PLAN_FEATURES.filter((f) => asked.includes(f));
+        else {
+          const [cur] = await tx.select({ features: plan.features }).from(plan).where(and(eq(plan.code, 'standard'), eq(plan.isCurrent, true))).limit(1);
+          features = cur?.features; // no current version ⇒ column default
+        }
+        const [row] = await tx.insert(plan).values({ ...rest, ...(features ? { features } : {}), code: 'standard', version: max + 1, isCurrent: false, createdBy: ctx.userId }).returning({ id: plan.id, version: plan.version });
         await syncPlanToStripe(tx, gw, row!.id);
         await tx.update(plan).set({ isCurrent: false }).where(and(eq(plan.code, 'standard'), eq(plan.isCurrent, true)));
         await tx.update(plan).set({ isCurrent: true }).where(eq(plan.id, row!.id));

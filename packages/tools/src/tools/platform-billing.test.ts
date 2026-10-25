@@ -2,7 +2,7 @@ import { fakeGateway, handleStripeEvent, hashInviteToken, runBillingDaily, type 
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyDailyStat, agencyConnect, agencyInviteLink, auditLog, client, clientBilling, discountCode, plan, platformAdmin, platformAuditLog, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
@@ -316,6 +316,38 @@ describe('create_plan_version / list_plans', () => {
     expect(rows[1]!.stripeSeatPriceId).toBeTruthy();
     const listed = (await call(viewer, 'list_plans', {})) as { plans: { version: number; isCurrent: boolean }[] };
     expect(listed.plans.map((p) => p.version)).toEqual([2, 1]);
+  });
+
+  it('stores explicit features in PLAN_FEATURES order', async () => {
+    await call(owner, 'create_plan_version', { ...PLAN_IN, features: ['mcp', 'ask', 'mcp'] });
+    const [row] = await dbs.owner.select().from(plan).where(and(eq(plan.code, 'standard'), eq(plan.version, 2)));
+    expect(row!.features).toEqual(['ask', 'mcp']);
+  });
+
+  it('omitted features copy the current version', async () => {
+    await dbs.owner.update(plan).set({ features: ['ask'] }).where(and(eq(plan.code, 'standard'), eq(plan.isCurrent, true)));
+    await call(owner, 'create_plan_version', PLAN_IN);
+    const [row] = await dbs.owner.select().from(plan).where(and(eq(plan.code, 'standard'), eq(plan.version, 2)));
+    expect(row!.features).toEqual(['ask']);
+  });
+
+  it('empty features are stored and listed as []', async () => {
+    await call(owner, 'create_plan_version', { ...PLAN_IN, features: [] });
+    const [row] = await dbs.owner.select().from(plan).where(and(eq(plan.code, 'standard'), eq(plan.version, 2)));
+    expect(row!.features).toEqual([]);
+    const listed = (await call(viewer, 'list_plans', {})) as { plans: { version: number; features: string[] }[] };
+    expect(listed.plans.find((p) => p.version === 2)!.features).toEqual([]);
+  });
+
+  it('rejects unknown feature', async () => {
+    await fails(call(owner, 'create_plan_version', { ...PLAN_IN, features: ['sms'] }));
+    expect(await dbs.owner.select().from(plan)).toHaveLength(1);
+  });
+
+  it('list_plans returns features', async () => {
+    await dbs.owner.update(plan).set({ features: ['mcp'] }).where(eq(plan.code, 'standard'));
+    const listed = (await call(viewer, 'list_plans', {})) as { plans: { features: string[] }[] };
+    expect(listed.plans[0]!.features).toEqual(['mcp']);
   });
 
   it('a Stripe failure writes nothing and keeps the old current plan', async () => {
