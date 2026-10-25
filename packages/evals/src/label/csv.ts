@@ -37,7 +37,6 @@ export function importCsv(cases: EvalCase[], csv: string, by: string, now: Date)
   if (!by.trim()) throw new Error('importCsv: --by <name> is required');
   const byId = new Map(cases.map((c) => [c.id, c]));
   const next = new Map<string, Record<string, string>>();
-  let changed = 0;
   for (const row of parseLabelCsv(csv)) {
     const c = byId.get(row.sampleId);
     if (!c) throw new Error(`label CSV: sample id "${row.sampleId}" is not a case of this suite`);
@@ -46,11 +45,13 @@ export function importCsv(cases: EvalCase[], csv: string, by: string, now: Date)
     const q = questionsFor(input.suite, input.verticalIds)[row.questionKey];
     const value = normalizeLabel(q, row.label);
     if (value === null) throw new Error(`label CSV: ${c.id}/${row.questionKey}: "${row.label}" is not one of ${allowedValues(q).join('|')}`);
-    const before = ((c.label ?? {}) as Record<string, string>)[row.questionKey];
-    if (before !== value) changed++;
     next.set(c.id, { ...((c.label ?? {}) as Record<string, string>), ...next.get(c.id), [row.questionKey]: value });
   }
+  // Distinct (case, question) pairs whose final value differs: a duplicated CSV row counts once.
+  let changed = 0;
   for (const [id, label] of next) {
+    const before = (byId.get(id)!.label ?? {}) as Record<string, string>;
+    for (const [k, v] of Object.entries(label)) if (before[k] !== v) changed++;
     const missing = labelInputOf(byId.get(id)!).questionKeys.filter((k) => label[k] === undefined);
     if (missing.length > 0) throw new Error(`label CSV: case ${id} has no label for ${missing.join(', ')}`);
   }

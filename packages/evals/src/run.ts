@@ -34,7 +34,7 @@ export interface RunOutcome { reports: EvalReport[]; failed: boolean; errors: st
 
 export const expandSuites = (s: Suite | 'all'): Suite[] => (s === 'all' ? [...SUITES] : [s]);
 
-/** Exit 1 (failed) on any blocking failure, cassette miss, budget stop or schema error; accuracy deltas never fail. */
+/** Exit 1 (failed) on any blocking failure (incl. replay case errors), cassette miss, budget stop or schema error; accuracy deltas never fail. */
 export async function runEvals(o: RunOptions): Promise<RunOutcome> {
   const log = o.log ?? ((s: string) => console.log(s));
   const runners = o.runners ?? RUNNERS;
@@ -76,11 +76,17 @@ export async function runEvals(o: RunOptions): Promise<RunOutcome> {
       const result = await runner.run(cases, cassette ?? ensureLive(), { mode });
       cassette?.flush();
       const bdir = o.baselineDir ?? BASELINE_DIR;
+      const caseErrors = result.metrics.case_errors ?? 0;
+      // Replay is deterministic: an errored case is a regression, not a flake. Live keeps errors report-only.
+      const blocking = mode === 'replay' && caseErrors > 0
+        ? [...result.blocking, { rule: 'E' as const, caseId: `${suite}:*`, detail: `${caseErrors} case(s) errored in replay` }]
+        : result.blocking;
       const report: EvalReport = {
         suite,
         mode,
         costUsd: Math.round((meter.spent() - before) * 1e6) / 1e6,
         ...result,
+        blocking,
         baselineDelta: baselineDelta(result.metrics, readBaseline(suite, bdir)),
       };
       if (o.updateBaseline && !live) writeBaseline(suite, result.metrics, bdir);

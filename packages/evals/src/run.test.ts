@@ -40,6 +40,19 @@ describe('runEvals', () => {
     expect(ok.reports[0]!.baselineDelta).toEqual({ precision: -0.1 }); // accuracy drops never fail
   });
 
+  it('case errors block in replay but stay report-only in live', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const runner: SuiteRunner = { suite: 'briefs', run: async () => ({ blocking: [], metrics: { cases: 1, case_errors: 1 } }) };
+    const replay = await runEvals({ ...base(), suites: ['briefs'], runners: { briefs: runner } });
+    expect(replay.failed).toBe(true);
+    expect(replay.reports[0]!.blocking).toEqual([expect.objectContaining({ rule: 'E', detail: expect.stringContaining('1 case(s) errored') })]);
+    const live = await runEvals({ ...base(), suites: ['briefs'], mode: 'live', runners: { briefs: runner }, makeLiveAi: () => ({}) as never });
+    expect(live.failed).toBe(false);
+    expect(live.reports[0]!.blocking).toEqual([]);
+    const clean = await runEvals({ ...base(), suites: ['briefs'], runners: { briefs: { suite: 'briefs', run: async () => ({ blocking: [], metrics: { case_errors: 0 } }) } } });
+    expect(clean.failed).toBe(false);
+  });
+
   it('a cassette miss in replay is an error (exit 1)', async () => {
     writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
     const config = { tasks: { t: { provider: 'openrouter', model: 'm' } } } as unknown as AiConfig;

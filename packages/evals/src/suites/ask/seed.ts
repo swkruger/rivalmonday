@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ad, capture, changeEvent, competitor, type Db, detectedChange, eventChange, eventScore, evidence, review, type ScoreFactors } from '@cs/db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { IDS, type IsolationWorld, type TenantKey, worldId } from '@cs/db/test-helpers';
 import { detUuid } from '../briefs/cases';
 import type { AskSeed } from './cases';
@@ -157,4 +157,41 @@ export async function seedAskCase(owner: Db, w: IsolationWorld, caseId: string, 
     }
   }
   return out;
+}
+
+/** Tables whose rows may never be updated (evidence immutability trigger, migration 0013). */
+const IMMUTABLE = new Set(['capture', 'evidence']);
+
+/** The DB clock (ms) right now; pair with `Date.now()` (pinned) to measure the real-vs-pinned offset. */
+export async function dbClockMs(owner: Db): Promise<number> {
+  const [row] = (await owner.execute(sql`SELECT (extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms`)) as unknown as { ms: number }[];
+  return Number(row!.ms);
+}
+
+/**
+ * R14 (revised): the JS clock is pinned, but column defaults (`now()`, e.g. `client_competitor.created_at`,
+ * `ad.first_seen_at`) stamp the DB's real clock, and tools return them (`list_client_competitors` `date`,
+ * `get_competitor_profile` `addedAt`, `list_ads`), so the cassette key would move with the real day. Every public
+ * timestamp column whose value the DB stamped during seeding ([fromMs, toMs] on the DB clock) is moved by `offsetMs`
+ * (DB clock minus pinned clock) onto the pinned clock. Capture/evidence rows are immutable and skipped.
+ */
+export async function shiftDbStamps(owner: Db, fromMs: number, toMs: number, offsetMs: number): Promise<number> {
+  const cols = (await owner.execute(sql`
+    SELECT c.table_name AS t, array_agg(c.column_name::text ORDER BY c.column_name) AS cols
+    FROM information_schema.columns c JOIN information_schema.tables tb ON tb.table_schema = c.table_schema AND tb.table_name = c.table_name
+    WHERE c.table_schema = 'public' AND tb.table_type = 'BASE TABLE' AND c.data_type IN ('timestamp with time zone', 'timestamp without time zone')
+    GROUP BY c.table_name`)) as unknown as { t: string; cols: string[] }[];
+  const q = (id: string) => `"${id.replace(/"/g, '""')}"`;
+  const lo = `to_timestamp(${(fromMs - 1000) / 1000})`;
+  const hi = `to_timestamp(${(toMs + 1000) / 1000})`;
+  const by = `make_interval(secs => ${offsetMs / 1000})`;
+  let n = 0;
+  for (const { t, cols: cs } of cols) {
+    if (IMMUTABLE.has(t)) continue;
+    const hit = (c: string) => `${q(c)}::timestamptz BETWEEN ${lo} AND ${hi}`;
+    const set = cs.map((c) => `${q(c)} = CASE WHEN ${hit(c)} THEN ${q(c)} - ${by} ELSE ${q(c)} END`).join(', ');
+    const res = (await owner.execute(sql.raw(`UPDATE ${q(t)} SET ${set} WHERE ${cs.map(hit).join(' OR ')}`))) as unknown as { count?: number };
+    n += res.count ?? 0;
+  }
+  return n;
 }

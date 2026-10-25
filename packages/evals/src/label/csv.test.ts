@@ -56,6 +56,18 @@ describe('label CSV', () => {
     expect((out.cases[0]!.label as Record<string, string>).meaningful).toBe(before === 'true' ? 'false' : 'true');
   });
 
+  it('a duplicated CSV row counts once in changed', () => {
+    const cs = cases();
+    const csv = edit(exportCsv(cs), (r) => {
+      if (r.question_key === 'meaningful') r.label = r.label === 'true' ? 'no' : 'yes';
+    });
+    const lines = csv.trimEnd().split('\n');
+    const dup = lines.find((l, i) => i > 0 && l.includes(',meaningful,'))!;
+    expect(dup).toBeDefined();
+    const out = importCsv(cs, `${[...lines, dup].join('\n')}\n`, 'owner', now);
+    expect(out).toMatchObject({ changed: 1, confirmed: 1 });
+  });
+
   it('unknown sample id fails', () => {
     const cs = cases();
     const csv = edit(exportCsv(cs), (r) => {

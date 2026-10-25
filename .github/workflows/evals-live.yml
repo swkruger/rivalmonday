@@ -24,14 +24,15 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qE '^(packages/ai/config/ai\.yaml|packages/ai/src/|packages/engine/src/briefs/|packages/ask/src/|packages/evals/)'; then
+          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qE '^(packages/ai/config/ai\.yaml|packages/ai/src/|packages/engine/src/briefs/|packages/ask/src/|packages/evals/|packages/tools/src/|packages/db/test/)'; then
             echo "evals=true" >> "$GITHUB_OUTPUT"
           else
             echo "evals=false" >> "$GITHUB_OUTPUT"
           fi
   evals-live:
     needs: changes
-    if: ${{ !cancelled() && needs.changes.result != 'failure' && (github.event_name != 'pull_request' || needs.changes.outputs.evals == 'true') }}
+    # Fail closed: a PR whose diff could not be computed (changes failed/skipped) runs the live evals.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.result != 'success' || needs.changes.outputs.evals == 'true') }}
     runs-on: ubuntu-latest
     environment: evals
     timeout-minutes: 45

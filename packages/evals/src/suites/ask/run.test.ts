@@ -1,10 +1,14 @@
 import { createScriptedAskAi, type ScriptedStep } from '@cs/ask/testing';
-import { IDS } from '@cs/db/test-helpers';
+import { clientCompetitor } from '@cs/db';
+import { IDS, openTestDbs, seedIsolationWorld, truncateAll } from '@cs/db/test-helpers';
+import { pinClock } from '../../clock';
+import { prepareTestDb } from '../../test-db';
+import { dbClockMs, shiftDbStamps } from './seed';
 import { describe, expect, it } from 'vitest';
 import { type EvalCase, readCases, serializeCases } from '../../case';
 import { contactLeaks } from '../../build/common';
 import { type AskCaseInput, type AskCaseLabel, buildAskCases } from './cases';
-import { type AskCaseResult, createAskRunner, unsupportedSentences } from './run';
+import { ASK_TODAY, type AskCaseResult, createAskRunner, unsupportedSentences } from './run';
 
 const EV = '7c1a5c00-0000-4000-8000-000000000001';
 
@@ -26,6 +30,35 @@ async function run(script: ScriptedStep[], c: EvalCase = askCase()) {
 }
 
 describe('ask suite', () => {
+  it('pins the process clock to ASK_TODAY during the suite (and the cassette via today), then restores it', async () => {
+    const RealDate = Date;
+    const seenDays: string[] = [];
+    const runner = createAskRunner({ onCase: () => seenDays.push(new Date().toISOString().slice(0, 10)) });
+    expect(runner.today).toBe(ASK_TODAY);
+    await runner.run([askCase()], createScriptedAskAi([{ kind: 'chat', reply: { text: 'Nothing new.' } }]), { mode: 'replay' });
+    expect(seenDays).toEqual([ASK_TODAY.slice(0, 10)]);
+    expect(Date).toBe(RealDate);
+  }, 60_000);
+
+  it('shiftDbStamps moves DB-default timestamps stamped during seeding onto the pinned clock', async () => {
+    const unpin = pinClock('2026-01-10T12:00:00.000Z');
+    await prepareTestDb();
+    const dbs = openTestDbs();
+    try {
+      await truncateAll(dbs.owner);
+      const from = await dbClockMs(dbs.owner);
+      const offset = from - Date.now();
+      await seedIsolationWorld(dbs.owner);
+      const day = async () => (await dbs.owner.select({ at: clientCompetitor.createdAt }).from(clientCompetitor)).map((r) => r.at.toISOString().slice(0, 10));
+      expect(new Set(await day())).not.toContain('2026-01-10'); // default now() = the real DB clock
+      expect(await shiftDbStamps(dbs.owner, from, await dbClockMs(dbs.owner), offset)).toBeGreaterThan(0);
+      expect(new Set(await day())).toEqual(new Set(['2026-01-10']));
+    } finally {
+      await dbs.closeAll();
+      unpin();
+    }
+  }, 60_000);
+
   it('a reply quoting a B1 canary fails B1', async () => {
     const { out } = await run([{ kind: 'chat', reply: { text: 'Another business nearby is CANARY-B1-1.' } }]);
     expect(out.blocking).toContainEqual(expect.objectContaining({ rule: 'B1', caseId: 'ask-test-01', detail: expect.stringContaining('CANARY-B1-1') }));

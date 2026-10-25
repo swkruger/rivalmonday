@@ -47,6 +47,25 @@ describe('evals-live workflow', () => {
     expect(s.if).toContain("github.event_name == 'schedule'");
   });
 
+  it('live job fails closed: runs when the changes job did not succeed on a PR', () => {
+    const job = live().jobs['evals-live'];
+    expect(job.needs).toBe('changes');
+    const expr = String(job.if).replace(/^\$\{\{|\}\}$/g, '').trim();
+    const runs = (event: string, result: string, evals: string, cancelled = false): boolean =>
+      new Function(`return (${expr
+        .replace(/cancelled\(\)/g, String(cancelled))
+        .replace(/github\.event_name/g, JSON.stringify(event))
+        .replace(/needs\.changes\.result/g, JSON.stringify(result))
+        .replace(/needs\.changes\.outputs\.evals/g, JSON.stringify(evals))});`)() as boolean;
+    expect(runs('pull_request', 'failure', '')).toBe(true);
+    expect(runs('pull_request', 'skipped', '')).toBe(true);
+    expect(runs('pull_request', 'success', 'true')).toBe(true);
+    expect(runs('pull_request', 'success', 'false')).toBe(false);
+    expect(runs('schedule', 'skipped', '')).toBe(true);
+    expect(runs('workflow_dispatch', 'skipped', '')).toBe(true);
+    expect(runs('pull_request', 'success', 'true', true)).toBe(false);
+  });
+
   it('changes paths equal the spec list', () => {
     const run = steps(live().jobs.changes).find((s) => s.id === 'diff').run as string;
     const m = run.match(/grep -qE '\^\((.+?)\)'/);
@@ -59,6 +78,8 @@ describe('evals-live workflow', () => {
         'packages/engine/src/briefs/',
         'packages/ask/src/',
         'packages/evals/',
+        'packages/tools/src/',
+        'packages/db/test/',
       ].sort(),
     );
   });

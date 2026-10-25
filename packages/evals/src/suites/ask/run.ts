@@ -10,18 +10,25 @@ import { BudgetExceededError } from '../../budget';
 import { captureAi } from '../../capture-ai';
 import type { EvalCase } from '../../case';
 import type { BlockingFailure, SuiteRunner } from '../../report';
+import { pinClock } from '../../clock';
 import { prepareTestDb } from '../../test-db';
 import type { AskCaseInput, AskCaseLabel } from './cases';
-import { A1_FORBIDDEN, seedAskCase } from './seed';
+import { A1_FORBIDDEN, dbClockMs, seedAskCase, shiftDbStamps } from './seed';
 
 /**
  * Ask suite (plan Task 11, blocking B1-B3): each case runs one real Ask turn (`beginTurn` + `runTurn`) on the test DB
  * over a freshly seeded isolation world plus the case's seeds, with the real tool registry (memory evidence store, no
  * `embedQuery` => full-text only). Cases run one at a time: each truncates and reseeds the database.
  *
- * No cassette clock pin: the world is seeded relative to the wall clock, and the cassette already maps every ISO date to
- * a day offset from its clock, so wall-clock-relative data replays on any day (a pinned clock would shift those offsets).
+ * Clock pinned process-wide (R14 revised): `run` installs `pinClock(ASK_TODAY)` before the world is seeded and removes it
+ * when the suite ends, and `today` pins the cassette to the same instant. The world's day0, the seeds, every tool's
+ * `new Date()` (e.g. `get_rating_trend`'s `YYYY-MM` buckets, which the cassette does not normalise), the turn's "Today
+ * is ..." line and the cassette's day offsets all agree, so a replay on any real day sends identical requests.
+ * DB-side `now()` defaults stamp the real clock and some tools return them, so after seeding `shiftDbStamps` moves
+ * every value the DB stamped during seeding onto the pinned clock. No ask-channel read path compares SQL `now()` to them.
  */
+export const ASK_TODAY = '2026-10-15T12:00:00.000Z';
+
 export interface AskCaseResult {
   id: string;
   status: Extract<AskEvent, { type: 'final' }>['status'] | 'none';
@@ -115,8 +122,11 @@ async function runCase(c: EvalCase, inner: Ai, dbs: Dbs): Promise<AskCaseResult>
   const input = c.input as AskCaseInput;
   const label = c.label as AskCaseLabel;
   await truncateAll(dbs.owner);
+  const from = await dbClockMs(dbs.owner);
+  const offset = from - Date.now(); // DB (real) clock minus the pinned clock
   const w: IsolationWorld = await seedIsolationWorld(dbs.owner);
   const seeded = await seedAskCase(dbs.owner, w, c.id, input.seeds);
+  await shiftDbStamps(dbs.owner, from, await dbClockMs(dbs.owner), offset);
   const texts = new Map([...w.evidenceText, ...seeded.evidenceText]);
   const toolDeps: ToolDeps = { app: dbs.app, service: dbs.service, appUrl: 'https://app.example', evidenceStore: memoryStore(texts) };
   const registry = createToolRegistry(toolDeps);
@@ -172,18 +182,24 @@ const ratio = (a: number, b: number) => (b === 0 ? 0 : Math.round((a / b) * 1e4)
 export function createAskRunner(d: AskRunnerDeps = {}): SuiteRunner {
   return {
     suite: 'ask',
+    today: ASK_TODAY,
     async run(cases, ai) {
-      await prepareTestDb();
-      const dbs = openTestDbs();
+      const unpin = pinClock(ASK_TODAY);
       const results: AskCaseResult[] = [];
       try {
-        for (const c of cases) {
-          const r = await runCase(c, ai, dbs);
-          d.onCase?.(r);
-          results.push(r);
+        await prepareTestDb();
+        const dbs = openTestDbs();
+        try {
+          for (const c of cases) {
+            const r = await runCase(c, ai, dbs);
+            d.onCase?.(r);
+            results.push(r);
+          }
+        } finally {
+          await dbs.closeAll();
         }
       } finally {
-        await dbs.closeAll();
+        unpin();
       }
       const answered = results.filter((r) => r.status === 'ok' && !r.action);
       const removed = answered.reduce((n, r) => n + (r.trace?.removedSentences ?? 0), 0);

@@ -72,11 +72,11 @@ const errorOf = (r: TextResult) => {
 const names = async (c: Client) => (await c.listTools()).tools.map((t) => t.name).sort();
 const NOT_FOUND = { code: 'not_found', message: 'Not found' };
 
-const rawPost = (token: string | null, method: string) => handleMcpRequest(new Request(MCP_URL, {
+const rawPost = (token: string | null, method: string, handlerDeps: McpHandlerDeps = d) => handleMcpRequest(new Request(MCP_URL, {
   method: 'POST',
   headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...(token ? { authorization: `Bearer ${token}` } : {}) },
   body: JSON.stringify({ jsonrpc: '2.0', id: 1, method }),
-}), d);
+}), handlerDeps);
 
 const period = { periodStart: new Date('2026-09-28T00:00:00Z'), periodEnd: new Date('2026-10-04T00:00:00Z') };
 
@@ -241,6 +241,7 @@ describe('/mcp end to end with the SDK client', () => {
     // An agency admin's grant cannot be bound to a client: there is no matching client membership, so the token is dead (401).
     await dbs.service.insert(oauthGrantBinding).values({ consentId: 'consent-adm', oauthClientId: 'oc', agencyId: IDS.agencyA, userId: USERS.admin.id, clientId: IDS.clientA1, scope: 'read' });
     const admDeps: McpHandlerDeps = { ...d, verifyOAuth: async () => ({ userId: USERS.admin.id, consentId: 'consent-adm' }) };
+    expect((await rawPost('opaque-oauth', 'tools/list', admDeps)).status).toBe(401);
     await expect(connect('opaque-oauth', admDeps)).rejects.toThrow();
   });
 

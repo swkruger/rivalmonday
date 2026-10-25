@@ -1,5 +1,5 @@
 import { type AuditEvent, createAccessContext } from '@cs/core';
-import { agency, agencyWebhook, auditLog, contact, invitation, membership, notification } from '@cs/db';
+import { agency, agencyWebhook, auditLog, client, contact, invitation, membership, notification } from '@cs/db';
 import { hashInput } from '@cs/core/server';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
@@ -70,7 +70,11 @@ describe('settings writes are audited tools (m4)', () => {
     // agency B's admin has clientScope 'all', so the scope check alone let these through (a failed FK insert / a silent no-op)
     const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'admin-b', role: 'agency_admin', clientScope: 'all', features: [] });
     await expect(registry.invoke(adminB, 'add_client_recipient', { clientId: IDS.clientA1, email: 'x@b.co', name: null, role: 'client_viewer' })).rejects.toMatchObject({ code: 'not_found' });
+    const tzOf = async () => (await dbs.owner.select({ timezone: client.timezone }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.timezone;
+    const tzBefore = await tzOf();
+    expect(tzBefore).not.toBe('America/Denver');
     await expect(registry.invoke(adminB, 'update_client_delivery', { clientId: IDS.clientA1, timezone: 'America/Denver' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await tzOf()).toBe(tzBefore);
     expect(await dbs.owner.select().from(contact)).toEqual([]);
   });
 

@@ -3,7 +3,8 @@ import { dirname, join } from 'node:path';
 import type { Ai } from '@cs/ai';
 import { BASELINE_DIR, type EvalCase, type Suite } from './case';
 
-export interface BlockingFailure { rule: 'B1' | 'B2' | 'B3'; caseId: string; detail: string }
+/** B1-B3: the quality gates; `E`: cases that errored in replay (deterministic there, so a regression into the error copy blocks). */
+export interface BlockingFailure { rule: 'B1' | 'B2' | 'B3' | 'E'; caseId: string; detail: string }
 export interface EvalReport {
   suite: Suite;
   mode: 'replay' | 'live';
