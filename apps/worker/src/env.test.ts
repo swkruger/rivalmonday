@@ -51,6 +51,10 @@ describe('rehearsalEnvErrors', () => {
     expect(rehearsalEnvErrors({ NODE_ENV: 'development', VENDOR_FAKE_MODE: 'x' })).toEqual(['VENDOR_FAKE_MODE must be fixtures']);
     expect(rehearsalEnvErrors({ NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging', REHEARSAL_LIVE_CLIENT_IDS: 'c1' })).toEqual(['REHEARSAL_LIVE_CLIENT_IDS needs AI_PROVIDER_MODE=rehearsal']);
   });
+  it('a non-blank allowlist with no hosts is an error', () => {
+    expect(rehearsalEnvErrors({ NODE_ENV: 'development', CRAWL_HOST_ALLOWLIST: ' , ' })).toEqual(['CRAWL_HOST_ALLOWLIST has no hosts']);
+    expect(rehearsalEnvErrors({ NODE_ENV: 'development', CRAWL_HOST_ALLOWLIST: ',' })).toEqual(['CRAWL_HOST_ALLOWLIST has no hosts']);
+  });
   it('development allows them', () => {
     expect(rehearsalEnvErrors({ NODE_ENV: 'development', ...VALUES })).toEqual([]);
   });

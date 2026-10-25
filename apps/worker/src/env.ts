@@ -21,6 +21,7 @@ export function rehearsalEnvErrors(env: NodeJS.ProcessEnv): string[] {
   if (set.length > 0 && !allowed) errors.push(`refusing rehearsal settings outside staging: ${set.join(', ')}`);
   if (env.AI_PROVIDER_MODE && !['live', 'rehearsal'].includes(env.AI_PROVIDER_MODE)) errors.push('AI_PROVIDER_MODE must be live or rehearsal');
   if (env.VENDOR_FAKE_MODE && env.VENDOR_FAKE_MODE !== 'fixtures') errors.push('VENDOR_FAKE_MODE must be fixtures');
+  if ((env.CRAWL_HOST_ALLOWLIST ?? '').trim() && !(env.CRAWL_HOST_ALLOWLIST ?? '').split(',').some((h) => h.trim())) errors.push('CRAWL_HOST_ALLOWLIST has no hosts');
   if (staging && env.WEB_MONITORING_ENABLED === 'true' && !(env.CRAWL_HOST_ALLOWLIST ?? '').trim()) errors.push('staging crawling requires CRAWL_HOST_ALLOWLIST');
   if (staging && env.AI_PROVIDER_MODE !== 'rehearsal' && (env.REHEARSAL_LIVE_CLIENT_IDS ?? '').trim()) errors.push('REHEARSAL_LIVE_CLIENT_IDS needs AI_PROVIDER_MODE=rehearsal');
   return errors;

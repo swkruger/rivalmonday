@@ -123,11 +123,20 @@ describe('web politeness (Phase 7c2)', () => {
 describe('CRAWL_HOST_ALLOWLIST (7c2)', () => {
   it('narrows the robots fetch to listed hosts; unset keeps the standard guard', async () => {
     robotsArgs.length = 0;
-    createWorkerDeps({ CRAWL_HOST_ALLOWLIST: ' Listed.example, other.example ' });
+    createWorkerDeps({ NODE_ENV: 'development', CRAWL_HOST_ALLOWLIST: ' Listed.example, other.example ' });
     const withList = robotsArgs.at(-1)![0] as (url: string) => Promise<unknown>;
     await expect(withList('https://unlisted.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
     await expect(withList('https://www.listed.example/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
+    createWorkerDeps({ CRAWL_HOST_ALLOWLIST: ',', NODE_ENV: 'development' });
+    const empty = robotsArgs.at(-1)![0] as (url: string) => Promise<unknown>;
+    await expect(empty('https://example.com/robots.txt')).rejects.toMatchObject({ code: 'ssrf_blocked' });
     createWorkerDeps({});
     expect(robotsArgs.at(-1)![0]).toBe((await import('@cs/collectors')).defaultFetchText);
+  });
+});
+
+describe('createWorkerDeps rehearsal guard (7c2)', () => {
+  it('createWorkerDeps throws in production when VENDOR_FAKE_MODE is set', () => {
+    expect(() => createWorkerDeps({ NODE_ENV: 'production', VENDOR_FAKE_MODE: 'fixtures' })).toThrow(/refusing rehearsal settings outside staging: VENDOR_FAKE_MODE/);
   });
 });

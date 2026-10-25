@@ -28,6 +28,7 @@ import { lookup } from 'node:dns/promises';
 import { runLeadPreview } from './jobs/leads';
 import { runRunbookTailor } from './jobs/runbooks';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
+import { rehearsalEnvErrors } from './env';
 import { createPdfRenderer } from './pdf';
 import { workerLog } from './log';
 
@@ -212,6 +213,9 @@ const COST_ENV_KEYS = [
  * queries use `SERVICE_DATABASE_POOLED_URL` (Neon pooler, so no prepared statements) and fall back to `SERVICE_DATABASE_URL`.
  */
 export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boolean; appPoolMax?: number } = {}): WorkerDeps {
+  // Every caller (daemon, *-once CLIs) refuses rehearsal switches outside staging; main.ts also checks earlier to exit before connecting.
+  const rehearsalErrors = rehearsalEnvErrors(env);
+  if (rehearsalErrors.length > 0) throw new Error(`worker env refused: ${rehearsalErrors.join('; ')}`);
   let db: { db: Db; close(): Promise<void> } | null = null;
   let store: ObjectStore | null = null;
   let renderer: PoliteRenderer | null = null;
@@ -226,8 +230,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   // 7c2: robots.txt fetches take a slot from the same limiter as page renders.
   // 7c2 staging: CRAWL_HOST_ALLOWLIST narrows all three crawl paths (robots fetch, renderer incl. redirect hops, discovery
   // fetch) to exact listed hosts (still public-address checked). Unset = the standard guard. main.ts refuses it in production.
-  const crawlAllow = (env.CRAWL_HOST_ALLOWLIST ?? '').split(',').map((h) => h.trim()).filter(Boolean);
-  const crawlAssert = crawlAllow.length > 0 ? allowlistedAssert(crawlAllow) : undefined;
+  // Fail closed: a non-blank value always installs the allowlist, even if it parses to zero hosts (then everything is refused).
+  const crawlRaw = (env.CRAWL_HOST_ALLOWLIST ?? '').trim();
+  const crawlAssert = crawlRaw ? allowlistedAssert(crawlRaw.split(',')) : undefined;
   const crawlFetchText = crawlAssert ? createGuardedFetchText({ assertUrl: crawlAssert }) : defaultFetchText;
   const robots = new RobotsPolicy(crawlFetchText, undefined, undefined, undefined, limiter);
   const catalog = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 });
