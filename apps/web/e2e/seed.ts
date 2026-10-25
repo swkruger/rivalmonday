@@ -148,6 +148,16 @@ export async function seed(): Promise<void> {
       await acceptInvitations(db, { id: `e2e-cb-${key}`, email, name });
     }
 
+    // Phase 15c-3a (`platform.spec.ts`): two dedicated agencies for the manage flows (hold + invite resend; archive). Both are
+    // exempt pilots with no Stripe subscription, so archiving is not refused. The admin signs in to see the hold banner.
+    const [manageAgency] = await db.insert(agency).values({ name: MANAGE_AGENCY }).returning();
+    await ensureExemptPilot(db, manageAgency!.id);
+    await db.insert(client).values({ agencyId: manageAgency!.id, name: 'Manage Plumbing', ...hvac });
+    await createInvitation(db, { agencyId: manageAgency!.id, email: MANAGE_ADMIN, role: 'agency_admin', invitedBy: 'e2e-seed' });
+    const [archiveAgency] = await db.insert(agency).values({ name: ARCHIVE_AGENCY }).returning();
+    await ensureExemptPilot(db, archiveAgency!.id);
+    await db.insert(client).values({ agencyId: archiveAgency!.id, name: 'Archive Plumbing', ...hvac });
+
     // Phase 8c: platform costs. DataForSEO is "configured" (dummy credentials in E2E_SERVER_ENV, presence only) with a
     // balance below its low threshold, so the Low strip shows; one manual monthly item gives the Spent card a figure.
     await db.execute(sql`
@@ -239,6 +249,10 @@ export async function seed(): Promise<void> {
 export const CB_AGENCY = 'Metro Billing Agency E2E';
 export const CB_CLIENT = 'Furnace Billing Co';
 export const CB_USERS = { admin: 'cb-admin@e2e.test', owner: 'cb-owner@e2e.test', viewer: 'cb-viewer@e2e.test' } as const;
+// Both sort after 'E2E Agency' (kb.spec.ts picks the agency select's index 1).
+export const MANAGE_AGENCY = 'Hold Target E2E';
+export const MANAGE_ADMIN = 'manage-admin@e2e.test';
+export const ARCHIVE_AGENCY = 'Retire Target E2E';
 
 const DAY = 86_400_000;
 const WEBP = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64');

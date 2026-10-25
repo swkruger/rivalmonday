@@ -29,6 +29,10 @@ The 28-day comparison is skipped when no figures were stored for that day. "Acti
 
 Past due means a payment failed, or a trial or subscription ended unpaid. An agency that stays 7 days past due becomes Paused (read-only); 30 days after that it becomes Suspended.
 
+### Status filters
+
+Above the table, **Active**, **On hold**, **Archived** and **All** filter the list; On hold and Archived show how many agencies each holds. Active includes agencies on hold, which show an On hold chip. The Archived view lists the date each agency was archived, marks it "purge possible" once it is 30 days old, and gives owners an Unarchive button. Search, sorting and paging keep the filter you picked.
+
 ## How to use it
 
 1. **Sort** by clicking a heading. Agency and Health start A to Z (At risk first); the other columns start with the highest or newest.

@@ -62,6 +62,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           { label: 'About health', tip: 'platform.agencies.health' },
           { label: 'About the columns', tip: 'platform.agencies.columns' },
           { label: 'About billing states', tip: 'platform.agencies.billing' },
+          { label: 'About the status filters', tip: 'platform.agencies.status' },
         ]}
       />
       <nav aria-label="Agency status" className="flex flex-wrap gap-1">

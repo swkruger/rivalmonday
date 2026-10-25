@@ -9,7 +9,7 @@ One agency in full: its health flag, four live figures, charts, team, clients, b
 
 - **Health** (next to the title) uses the same rules as the Agencies list.
 - **The four figures** (active clients, seats, weekly active users, spend this month) are today's live values with a change since 28 days ago. The range toggle switches the charts between 12 weeks and 12 months.
-- **Team** counts the different people in each role: agency admins, account managers, client owners and client viewers.
+- **People** lists everyone on the agency and its clients in three tabs: Agency team, Client people and Pending invites. The heading counts each kind. See Managing people below.
 - **Clients** lists every client with its status and the date it was created.
 - **Billing** shows the state, plan and version, trial and pilot end dates, how many seats Stripe has been told about ("sync pending" means an update is queued), the pilot client limit, the attached coupon id, recent invoices and the last five billing events.
 - **Client limits** lists each client's spend this month in dollars, its effective monthly limit, its level (OK, Near limit, Reached or Paused), an optional limit override, its competitor limit and its Ask questions per month.
@@ -21,6 +21,35 @@ One agency in full: its health flag, four live figures, charts, team, clients, b
 2. **Adjust billing** if you are an owner or staff: grant a pilot (with an optional end date) or end one, extend a trial, attach a discount code. Only owners can lift or restore the pilot client limit. Viewers read only.
 3. **Set client limits** if you are an owner or staff: type a dollar amount in Limit override to replace the platform default, or leave it blank to use the default; change the competitor limit or Ask quota; then Save the row. Saving a higher limit lifts a spend pause when the client is back under the pause level, and the tenant sees "Pause lifted." Viewers read only. Never change a client's paused state in SQL: a spend pause is separate from the agency's own pause.
 4. **Check the audit trail.** Opening this page is itself recorded in the agency's audit log under your platform role.
+
+### Managing people
+
+The People section lists the agency team (name, email, role and the clients each person covers), the people on its clients, and invites that have not been accepted yet. Owners and staff can manage it; viewers read only.
+
+1. **Change a role** from the row menu: Make account manager or Make agency admin. An agency always keeps at least one admin.
+2. **Remove someone** from the row menu. This takes away their access to the agency or to that client. Removing the last agency admin is refused.
+3. **Invite an agency admin** with the button above the tabs. They get an email from the agency with a link to join.
+4. **Resend or revoke an invite** on the Pending invites tab. A resend sends a new email and can be done 3 times in 24 hours per invite; the limit is shared with the agency's own Resend. Invites also count toward the agency's daily limit of 20 agency-role sends. Revoking stops the link working.
+5. **Rename the agency** from Manage, Rename agency.
+
+### Putting an agency on hold
+
+A hold makes the agency read-only. Its team can still sign in and see everything, but changes and scheduled work (collection, briefs, alerts) stop, and billing pauses on its plan and on its clients' subscriptions. Invoices during the hold are not charged later.
+
+1. Open **Manage**, choose **Put on hold** and give a reason of 3 to 500 characters. The reason is for staff only and is never shown to the agency or put in the email.
+2. The agency's admins and account managers see a bar saying the account is on hold and who to contact; client users are told the agency's account needs attention. Admins are emailed when a hold starts and when it ends.
+3. The agency's page shows an On hold chip. Hover or focus it to see the reason, the date and who set it.
+4. If Stripe could not pause or resume some subscriptions, a banner says so and owners and staff get a Retry button. The hold still applies meanwhile.
+5. **Lift hold** from the same menu. Changes, scheduled work and billing resume at once. Payments never lift a hold; only staff do.
+
+### Archiving
+
+Archiving hides the agency, its team and its clients from everyone outside the platform. Nothing is deleted and evidence stays. Only platform owners can archive or unarchive.
+
+1. **Archive agency** (Manage menu) asks you to type the agency's name. It is refused while the agency has active billing: cancel the plan or the client subscriptions in Stripe first, then archive. The message says which subscriptions are still active.
+2. An archived agency shows an Archived chip and a read-only view of its people and clients. Find it under the Archived filter on the Agencies list.
+3. **Unarchive** brings the agency and its clients back as they were. Billing that was paused does not restart by itself.
+4. From 30 days after archiving, the row shows "purge possible". Purging is done by the platform team, not from this page.
 
 ## Common questions
 

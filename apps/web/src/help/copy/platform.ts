@@ -59,6 +59,12 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'what-this-page-tells-you',
       },
+      // source: apps/web/src/app/(platform)/platform/agencies/page.tsx:FILTERS (Active includes on-hold agencies); packages/tools/src/tools/platform-agency.ts (unarchive owner-only; purge CLI after 30 days)
+      status: {
+        title: 'Status filters',
+        body: 'Active includes agencies on hold. Archived agencies can be restored by an owner, and purged after 30 days.',
+        audience: 'operator',
+      },
       // source: apps/web/src/app/(platform)/platform/agencies/agency-table.tsx:COLUMNS, defaultDir; packages/tools/src/tools/platform-console.ts:liveAgencies (clients_active, clients_prospect, agency_seats + client_seats, wau, last_activity_at, spend)
       columns: {
         title: 'Reading the columns',
@@ -92,19 +98,19 @@ export const PLATFORM_COPY = {
         audience: 'operator',
         guideAnchor: 'how-to-use-it',
       },
-      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts (list_agency_people, people writes; RESEND_TOOLS limits)
+      // source: packages/tools/src/tools/platform-agency.ts (list_agency_people, people writes; RESEND_TOOLS limits)
       people: {
         title: 'People',
         body: 'Everyone on this agency and its clients, plus invites that haven\'t been accepted. Staff can change agency roles, remove people and resend invites. Invites count toward the agency\'s daily limits.',
         audience: 'operator',
       },
-      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts:platformSuspendAgencyTool, platformUnsuspendAgencyTool
+      // source: packages/tools/src/tools/platform-agency.ts:platformSuspendAgencyTool, platformUnsuspendAgencyTool
       hold: {
         title: 'Holds',
         body: 'A hold makes the agency read-only, stops its scheduled work and pauses its billing. Its admins get an email when a hold starts and ends. Payments don\'t lift a hold; only staff can.',
         audience: 'operator',
       },
-      // DRAFT (15c-3a Task 11 signs off): source: packages/tools/src/tools/platform-agency.ts:platformArchiveAgencyTool (ARCHIVE_BILLING_MESSAGE)
+      // source: packages/tools/src/tools/platform-agency.ts:platformArchiveAgencyTool (ARCHIVE_BILLING_MESSAGE)
       archive: {
         title: 'Archiving',
         body: 'Archiving hides the agency and its clients from everyone outside the platform. Nothing is deleted, and an owner can unarchive it from the Archived filter. You can\'t archive while billing is active.',
