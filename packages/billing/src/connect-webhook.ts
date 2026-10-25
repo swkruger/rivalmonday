@@ -1,8 +1,7 @@
-import { ToolError } from '@cs/core';
-import { type Db, type Tx, agencyConnect, client, clientBilling, stripeConnectEvent } from '@cs/db';
+import { type Db, type Tx, agencyConnect, clientBilling, stripeConnectEvent } from '@cs/db';
 import { and, eq } from 'drizzle-orm';
 import type { ClientBillingSignal } from './client-billing-state';
-import { resumeClient } from './client-pause';
+import { liftAutoPause } from './client-pause';
 import { applyClientBillingSignal, connectStatusFor, disconnectAgencyConnect, forgetConnectedAccount } from './connect-apply';
 import type { ConnectEventLike } from './connect-gateway-types';
 import { pauseIfHeld } from './hold';
@@ -154,16 +153,10 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: ConnectEventLike, pos
 
   // R14: a payment lifts only the automatic pause; a manual pause stays. A seat-cap refusal leaves the client paused.
   if (signal.type === 'payment_succeeded') {
-    const [c] = await tx.select({ pausedAt: client.pausedAt, pausedBy: client.pausedBy }).from(client).where(eq(client.id, clientId));
-    if (c?.pausedAt && c.pausedBy === 'auto') {
-      try {
-        if (await tx.transaction((sp) => resumeClient(sp, clientId, ACTOR))) post.syncSeatsFor = agencyId;
-      } catch (e) {
-        // Only the seat-cap refusal and an operator hold are expected; anything else fails the event so Stripe retries.
-        if (!(e instanceof ToolError && (e.code === 'billing_seat_limit' || e.code === 'service_paused'))) throw e;
-        console.warn(`connect webhook: auto-pause not lifted on event ${event.id} (${e.code === 'service_paused' ? 'agency on hold' : 'seat limit'})`);
-      }
-    }
+    // Only the seat-cap refusal and an operator hold are expected ('refused'); anything else fails the event so Stripe retries.
+    const lifted = await liftAutoPause(tx, clientId, ACTOR);
+    if (lifted === 'lifted') post.syncSeatsFor = agencyId;
+    else if (lifted === 'refused') console.warn(`connect webhook: auto-pause not lifted on event ${event.id}`);
   }
   return 'processed';
 }

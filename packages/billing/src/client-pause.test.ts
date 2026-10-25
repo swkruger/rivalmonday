@@ -3,7 +3,7 @@ import { agency, agencyWebhook, client, notification } from '@cs/db';
 import { IDS, openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { WITHDRAWN_NOTIFICATION_ERROR, pauseClient, resumeClient } from './client-pause';
+import { WITHDRAWN_NOTIFICATION_ERROR, liftAutoPause, pauseClient, resumeClient } from './client-pause';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
 const dbs = openTestDbs();
@@ -99,5 +99,40 @@ describe('resumeClient', () => {
     expect(by('s1').status).toBe('sending');
     expect(by('s2').status).toBe('sent');
     expect(by('other').status).toBe('pending');
+  });
+});
+
+describe('liftAutoPause (7b2 M3)', () => {
+  const lift = (id: string = IDS.clientA1) => dbs.service.transaction((tx) => liftAutoPause(tx, id, 'job'));
+
+  it('liftAutoPause lifts only paused_by auto', async () => {
+    expect(await lift()).toBe('not_paused'); // not paused at all
+    await pause(IDS.clientA1, 'agency');
+    expect(await lift()).toBe('not_paused');
+    expect((await row()).pausedAt).not.toBeNull();
+    await pause(IDS.clientA2, 'auto');
+    expect(await lift(IDS.clientA2)).toBe('lifted');
+    expect(await row(IDS.clientA2)).toMatchObject({ pausedAt: null, pausedBy: null });
+  });
+
+  it("seat-cap refusal returns 'refused' and keeps the outer transaction usable", async () => {
+    await setBilling(dbs.owner, planId, { state: 'trialing' });
+    await pause(IDS.clientA1, 'auto');
+    await addClients(dbs.owner, 2); // A2 + 2 = cap
+    const out = await dbs.service.transaction(async (tx) => {
+      const r = await liftAutoPause(tx, IDS.clientA1, 'job');
+      const [c] = await tx.select({ id: client.id }).from(client).where(eq(client.id, IDS.clientA1)); // would throw "transaction aborted" without the savepoint
+      return { r, c };
+    });
+    expect(out.r).toBe('refused');
+    expect(out.c?.id).toBe(IDS.clientA1);
+    expect((await row()).pausedAt).not.toBeNull();
+  });
+
+  it("liftAutoPause on a held agency returns 'refused'", async () => {
+    await pause(IDS.clientA1, 'auto');
+    await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, AGENCY));
+    expect(await lift()).toBe('refused');
+    expect((await row()).pausedAt).not.toBeNull();
   });
 });

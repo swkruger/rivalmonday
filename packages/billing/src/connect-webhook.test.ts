@@ -9,9 +9,9 @@ import { addClients, resetBilling, setBilling } from './test-util';
 
 vi.mock('./client-pause', async (orig) => {
   const m = await orig<typeof import('./client-pause')>();
-  return { ...m, resumeClient: vi.fn(m.resumeClient) };
+  return { ...m, liftAutoPause: vi.fn(m.liftAutoPause) };
 });
-const { resumeClient } = await import('./client-pause');
+const { liftAutoPause } = await import('./client-pause');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -370,7 +370,7 @@ describe('handleConnectEvent: auto-pause lift (R14)', () => {
     await active({ state: 'payment_needed', paymentFailedSince: new Date((T0 - 50) * 1000) });
     await setBilling(dbs.owner, planId, { state: 'active' });
     await pauseA1('auto');
-    vi.mocked(resumeClient).mockRejectedValueOnce(new Error('db exploded'));
+    vi.mocked(liftAutoPause).mockRejectedValueOnce(new Error('db exploded'));
     const e = ev('i1', 'invoice.paid', { subscription: 'sub_1' });
     await expect(handle(e)).rejects.toThrow('db exploded');
     expect(await record('i1')).toMatchObject({ processedAt: null, error: 'db exploded' });

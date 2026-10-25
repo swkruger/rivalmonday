@@ -18,8 +18,8 @@ export type ClientBillingSignal = (
   /** `billed`: the live subscription was moved to this price too (next_bill); otherwise only the price of the next Checkout changes. */
   | { type: 'price_changed'; priceCents: number; stripePriceId: string; billed?: boolean }
   | { type: 'disconnected' }
-  /** Daily reconciliation (Stripe wins): drives state and billed price from the live subscription, silently (no notices, no `last_paid_at`). `target` null = leave the state, only the price. */
-  | { type: 'reconciled'; subscriptionId: string; target: 'active' | 'payment_needed' | 'cancelled' | null; billedPriceCents: number | null }
+  /** Daily reconciliation (Stripe wins): drives state and billed price from the live subscription, silently except M3 (a `paid` move to `active` records `last_paid_at` and queues the first-payment `client-paid`). `target` null = leave the state, only the price. */
+  | { type: 'reconciled'; subscriptionId: string; target: 'active' | 'payment_needed' | 'cancelled' | null; billedPriceCents: number | null; /** 7b2 M3: Stripe status is `active` (not `trialing`). */ paid?: boolean }
 ) & { eventAt?: Date };
 
 export type ClientBillingNoticeKind = 'client-payment-link' | 'client-payment-needed' | 'client-payment-failed' | 'client-paid' | 'client-auto-paused';
@@ -110,9 +110,11 @@ export function nextClientBillingState(row: ClientBillingRow, s: ClientBillingSi
       let state: ClientBillingState = st;
       let patch: Partial<ClientBillingRow> = { ...price };
       if (s.target === 'cancelled') { state = 'cancelled'; patch = { ...price, enabled: false, paymentFailedSince: null }; }
-      else if (s.target === 'active' && st !== 'active') { state = 'active'; patch = { ...price, paymentFailedSince: null }; }
+      else if (s.target === 'active' && st !== 'active') { state = 'active'; patch = { ...price, paymentFailedSince: null, ...(s.paid && { lastPaidAt: now }) }; }
       else if (s.target === 'payment_needed' && st !== 'payment_needed') { state = 'payment_needed'; patch = { ...price, paymentFailedSince: now }; }
-      return state === st && !Object.keys(patch).length ? null : out(state, patch);
+      if (state === st && !Object.keys(patch).length) return null;
+      // M3: the first payment the platform learns of by reconciliation tells the agency, exactly like the webhook path.
+      return out(state, patch, s.target === 'active' && st !== 'active' && s.paid && !row.lastPaidAt ? { kind: 'client-paid', params: {} } : undefined);
     }
     case 'disconnected':
       if (st === 'off' || st === 'disconnected') return null;

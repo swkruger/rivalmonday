@@ -1,3 +1,4 @@
+import { ToolError } from '@cs/core';
 import { type Tx, client, notification } from '@cs/db';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { assertCanActivateClient } from './access';
@@ -33,4 +34,20 @@ export async function resumeClient(tx: Tx, clientId: string, _actor: string, opt
     .set({ status: 'failed', error: WITHDRAWN_NOTIFICATION_ERROR })
     .where(and(eq(notification.clientId, clientId), eq(notification.status, 'pending'), lt(notification.createdAt, now)));
   return true;
+}
+
+/**
+ * Lifts only the AUTOMATIC pause (`paused_by = 'auto'`); a manual pause stays. The resume runs in a savepoint so an
+ * expected refusal (seat cap `billing_seat_limit`, operator hold `service_paused`) leaves the caller's transaction usable;
+ * the client then stays paused ('refused'). Anything else rethrows.
+ */
+export async function liftAutoPause(tx: Tx, clientId: string, actor: string): Promise<'lifted' | 'not_paused' | 'refused'> {
+  const [c] = await tx.select({ pausedAt: client.pausedAt, pausedBy: client.pausedBy }).from(client).where(eq(client.id, clientId));
+  if (!c?.pausedAt || c.pausedBy !== 'auto') return 'not_paused';
+  try {
+    return (await tx.transaction((sp) => resumeClient(sp, clientId, actor))) ? 'lifted' : 'not_paused';
+  } catch (e) {
+    if (e instanceof ToolError && (e.code === 'billing_seat_limit' || e.code === 'service_paused')) return 'refused';
+    throw e;
+  }
 }

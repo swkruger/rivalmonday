@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { runConnectDaily } from './connect-daily';
 import { runBillingDaily } from './daily';
 import { fakeGateway } from './fake-gateway';
-import { resetBilling } from './test-util';
+import { addClients, resetBilling, setBilling as setAgencyBilling } from './test-util';
 
 afterEach(() => vi.restoreAllMocks());
 const dbs = openTestDbs();
@@ -17,8 +17,9 @@ const ago = (days: number, extraMs = 0) => new Date(NOW.getTime() - days * DAY +
 const A1 = IDS.clientA1;
 const A2 = IDS.clientA2;
 
+let planId: string;
 beforeEach(async () => {
-  await resetBilling(dbs.owner);
+  planId = await resetBilling(dbs.owner);
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -133,13 +134,71 @@ describe('reconciliation (Stripe wins)', () => {
     return gw.seedConnectedSubscription({ id, stripeAccount: 'acct_1', customerId: `cus_${id}`, ...v });
   };
 
-  it('moves payment_needed to active when Stripe says active, silently, and fixes price drift', async () => {
+  it('moves payment_needed to active when Stripe says active, records the payment, and fixes price drift', async () => {
     const gw = fakeGateway();
     sub(gw, 'sub_1', { status: 'active', unitAmountCents: 12900 });
     await setBilling(A1, { state: 'payment_needed', stripeSubscriptionId: 'sub_1', billedPriceCents: 9900, paymentFailedSince: ago(2), lastPaidAt: ago(30) });
     await runBillingDaily(dbs.service, gw, NOW);
-    expect(await billing(A1)).toMatchObject({ state: 'active', billedPriceCents: 12900, paymentFailedSince: null });
+    expect(await billing(A1)).toMatchObject({ state: 'active', billedPriceCents: 12900, paymentFailedSince: null, lastPaidAt: NOW });
     expect(await notices()).toHaveLength(0);
+  });
+
+  describe('M3: a caught-up payment lifts the auto-pause', () => {
+    const paidSetup = async (gw: ReturnType<typeof fakeGateway>, id: string, clientId: string) => {
+      sub(gw, id, { status: 'active', unitAmountCents: 9900 });
+      await setBilling(clientId, { state: 'payment_needed', stripeSubscriptionId: id, billedPriceCents: 9900, paymentFailedSince: ago(9) });
+    };
+    const autoPaused = (id: string) => dbs.owner.update(client).set({ pausedAt: ago(1), pausedBy: 'auto' }).where(eq(client.id, id));
+
+    it('M3: an auto-paused client is resumed and the agency told once on first payment', async () => {
+      const gw = fakeGateway();
+      await paidSetup(gw, 'sub_1', A1);
+      await autoPaused(A1);
+      const r = await runConnectDaily(dbs.service, gw, IDS.agencyA, NOW);
+      expect(r).toMatchObject({ reconciled: 1, resumed: 1 });
+      expect(await clientRow(A1)).toMatchObject({ pausedAt: null, pausedBy: null });
+      expect(await billing(A1)).toMatchObject({ state: 'active', lastPaidAt: NOW });
+      expect(await notices('client-paid')).toHaveLength(1);
+      await runConnectDaily(dbs.service, gw, IDS.agencyA, NOW);
+      expect(await notices('client-paid')).toHaveLength(1);
+    });
+
+    it('M3: a manual pause stays paused', async () => {
+      const gw = fakeGateway();
+      await paidSetup(gw, 'sub_1', A1);
+      await dbs.owner.update(client).set({ pausedAt: ago(1), pausedBy: 'user-1' }).where(eq(client.id, A1));
+      const r = await runConnectDaily(dbs.service, gw, IDS.agencyA, NOW);
+      expect(r.resumed).toBe(0);
+      expect(await clientRow(A1)).toMatchObject({ pausedBy: 'user-1' });
+      expect((await clientRow(A1)).pausedAt).toBeInstanceOf(Date);
+      expect((await billing(A1)).state).toBe('active');
+    });
+
+    it('M3: a seat-cap refusal keeps the reconciled state and the next row is still processed', async () => {
+      const gw = fakeGateway();
+      await setAgencyBilling(dbs.owner, planId, { state: 'trialing' });
+      await paidSetup(gw, 'sub_1', A1);
+      await paidSetup(gw, 'sub_2', A2);
+      await autoPaused(A1);
+      await addClients(dbs.owner, 2); // serviceable: A2 + 2 = 3 = cap (A1 paused), so lifting A1 would take a 4th seat
+      const r = await runConnectDaily(dbs.service, gw, IDS.agencyA, NOW);
+      expect(r).toMatchObject({ reconciled: 2, resumed: 0 });
+      expect(await billing(A1)).toMatchObject({ state: 'active', lastPaidAt: NOW });
+      expect(await billing(A2)).toMatchObject({ state: 'active', lastPaidAt: NOW });
+      expect((await clientRow(A1)).pausedAt).toBeInstanceOf(Date);
+      expect(vi.mocked(console.warn)).toHaveBeenCalledWith('[billing-daily] connect auto-pause not lifted', { clientId: A1 });
+    });
+
+    it('M3: syncSeats runs after a lift', async () => {
+      const gw = fakeGateway();
+      await paidSetup(gw, 'sub_1', A1);
+      await autoPaused(A1);
+      await setAgencyBilling(dbs.owner, planId, { state: 'active', stripeCustomerId: 'cus_p', stripeSubscriptionId: 'sub_platform', billableSeatsSynced: 0 });
+      gw.seedSubscription({ id: 'sub_platform', customerId: 'cus_p' });
+      await addClients(dbs.owner, 2); // 4 active once A1 is back, 3 included -> 1 extra seat
+      await runConnectDaily(dbs.service, gw, IDS.agencyA, NOW);
+      expect(gw.callsTo('updateSeatQuantity').map((c) => c.args.slice(0, 2))).toEqual([['sub_platform', 1]]);
+    });
   });
 
   it('moves active to payment_needed on past_due and unpaid without a notice', async () => {

@@ -136,4 +136,29 @@ describe('nextClientBillingState transition table', () => {
     expect(next(r, { type: 'payment_failed', subscriptionId: SUB, eventAt: new Date('2026-10-15T10:00:00Z') })).toBeNull();
     expect(next(r, { type: 'payment_failed', subscriptionId: SUB, eventAt: new Date('2026-10-15T11:30:00Z') })!.patch.lastStripeEventAt).toEqual(new Date('2026-10-15T11:30:00Z'));
   });
+
+  describe('7b2 M3: reconciled -> active records the payment', () => {
+    const rec = (paid?: boolean): ClientBillingSignal => ({ type: 'reconciled', subscriptionId: SUB, target: 'active', billedPriceCents: null, ...(paid !== undefined && { paid }) });
+    const pn = (v: Partial<ClientBillingRow> = {}) => row('payment_needed', { stripeSubscriptionId: SUB, paymentFailedSince: new Date('2026-10-10T00:00:00Z'), ...v });
+
+    it('reconciled active from payment_needed with paid sets lastPaidAt; first payment queues client-paid', () => {
+      const r = next(pn(), rec(true))!;
+      expect(r.state).toBe('active');
+      expect(r.patch).toMatchObject({ lastPaidAt: NOW, paymentFailedSince: null });
+      expect(r.notice).toEqual({ kind: 'client-paid', params: {} });
+    });
+
+    it('reconciled active with paid and lastPaidAt already set: sets lastPaidAt, no notice', () => {
+      const r = next(pn({ lastPaidAt: new Date('2026-09-01T00:00:00Z') }), rec(true))!;
+      expect(r.patch.lastPaidAt).toEqual(NOW);
+      expect(r.notice).toBeUndefined();
+    });
+
+    it('reconciled active for trialing (paid false): no lastPaidAt, no notice', () => {
+      const r = next(pn(), rec(false))!;
+      expect(r.state).toBe('active');
+      expect(r.patch).not.toHaveProperty('lastPaidAt');
+      expect(r.notice).toBeUndefined();
+    });
+  });
 });
