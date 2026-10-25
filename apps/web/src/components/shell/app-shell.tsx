@@ -122,7 +122,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
   );
   return (
-    <ReadOnlyProvider readOnly={support !== null}>
+    <ReadOnlyProvider readOnly={support !== null || billing?.onHold === true}>
       <HelpProvider value={help}>
       <ShellTheme vars={style} />
       <TzCookie />
@@ -138,7 +138,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
               <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
             )}
             {spendAudience && <SpendBanner items={spendPaused} audience={spendAudience} agencyName={branding.displayName} />}
-            {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} />}
+            {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} onHold={billing.onHold} supportEmail={billing.supportEmail} />}
             <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
           </div>
         </div>

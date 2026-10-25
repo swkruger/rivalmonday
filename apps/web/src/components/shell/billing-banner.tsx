@@ -1,4 +1,5 @@
 import { formatDate } from '@/lib/format';
+import { HOLD_MESSAGE } from '@cs/billing';
 import type { BillingState } from '@cs/db';
 import Link from 'next/link';
 
@@ -8,7 +9,9 @@ const BILLING_HREF = '/agency/settings/billing';
  * Phase 9a spec § Enforcement. Agency admins see trial and payment banners; account managers a neutral line while
  * payment is overdue (no amounts, dates or button); client roles and guests never see one. Copy is binding.
  */
-export function BillingBanner({ role, state, trialEndsAt, pausesOn }: { role: string; state: BillingState; trialEndsAt: string | null; pausesOn: string | null }) {
+export function BillingBanner({ role, state, trialEndsAt, pausesOn, onHold = false, supportEmail }: { role: string; state: BillingState; trialEndsAt: string | null; pausesOn: string | null; onHold?: boolean; supportEmail: string }) {
+  // Platform hold (15c-3a): every agency role sees the hold sentence; Stripe-state banners are suppressed.
+  if (onHold && (role === 'agency_admin' || role === 'account_manager')) return <Bar tone="warning">{HOLD_MESSAGE(supportEmail)}</Bar>;
   if (role === 'account_manager') {
     return state === 'past_due' || state === 'read_only' ? <Bar tone="danger">Your agency&apos;s account needs attention.</Bar> : null;
   }
@@ -37,8 +40,8 @@ export function BillingBanner({ role, state, trialEndsAt, pausesOn }: { role: st
   return null;
 }
 
-function Bar({ tone, action, children }: { tone: 'info' | 'danger'; action?: string; children: string | string[] }) {
-  const colours = tone === 'danger' ? 'bg-destructive text-white' : 'bg-muted-surface text-ink';
+function Bar({ tone, action, children }: { tone: 'info' | 'warning' | 'danger'; action?: string; children: string | string[] }) {
+  const colours = tone === 'danger' ? 'bg-destructive text-white' : tone === 'warning' ? 'bg-amber/20 text-ink' : 'bg-muted-surface text-ink';
   return (
     <div role="region" aria-label="Billing" data-tone={tone} className={`flex flex-wrap items-center gap-3 px-4 py-2 text-sm font-semibold lg:px-7 ${colours}`}>
       <span>{children}</span>

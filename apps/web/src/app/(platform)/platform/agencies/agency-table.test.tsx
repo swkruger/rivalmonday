@@ -49,6 +49,25 @@ describe('AgencyTable', () => {
     expect(screen.getByRole('link', { name: /^Agency/ }).textContent).toContain('▲');
   });
 
+  it('a held row gets the On hold chip after the name; sort links keep the status', () => {
+    render(<AgencyTable rows={[row({ onHold: true })]} sort="name" dir="asc" now={NOW} status="on_hold" />);
+    expect(screen.getByText('On hold')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /^Spend/ }).getAttribute('href')).toBe('/platform/agencies?status=on_hold&sort=spend&dir=desc');
+  });
+
+  it('archived view: columns, purge hint after 30 days, Unarchive for the owner only', () => {
+    const rows = [row({ id: 'o', name: 'Old', archivedAt: '2026-08-01T00:00:00.000Z' }), row({ id: 'n', name: 'New', archivedAt: '2026-10-10T00:00:00.000Z' })];
+    const { unmount } = render(<AgencyTable rows={rows} sort="name" dir="asc" now={NOW} status="archived" canUnarchive />);
+    expect(screen.getByRole('columnheader', { name: 'Clients' })).toBeTruthy();
+    expect(screen.getAllByText(/purge possible/)).toHaveLength(1);
+    expect(screen.getByText(/Aug 1/).textContent).toContain('purge possible');
+    expect(screen.getAllByRole('button', { name: 'Unarchive' })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Old' }).getAttribute('href')).toBe('/platform/agencies/o');
+    unmount();
+    render(<AgencyTable rows={rows} sort="name" dir="asc" now={NOW} status="archived" canUnarchive={false} />);
+    expect(screen.queryByRole('button', { name: 'Unarchive' })).toBeNull();
+  });
+
   it('renders — for null wau and lastActivityAt', () => {
     render(<AgencyTable rows={[row({ wau: null, lastActivityAt: null })]} sort="name" dir="asc" now={NOW} />);
     expect(screen.getAllByText('—')).toHaveLength(2);

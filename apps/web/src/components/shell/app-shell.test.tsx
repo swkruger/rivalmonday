@@ -116,6 +116,21 @@ describe('AppShell', () => {
   });
 
   const own = (() => { const { support: _s, ...o } = ctx; return o; })();
+  const snap = (onHold: boolean) => ({ state: 'active' as const, trialEndsAt: null, pausesOn: null, onHold, supportEmail: 'support@rivalmonday.app' });
+  it('agency on hold: read-only provider on and the hold banner shows', async () => {
+    const c = { ...own, role: 'agency_admin' };
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: c, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+    render(await AppShell({ viewer: viewer as never, ctx: c as never, billing: snap(true), children: <WriteGuard><button type="button">Save</button></WriteGuard> }));
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(screen.getByText('This account is on hold. Contact support@rivalmonday.app to restore it.')).toBeTruthy();
+  });
+
+  it('agency not on hold: writes visible', async () => {
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+    render(await AppShell({ viewer: viewer as never, ctx: own as never, billing: snap(false), children: <WriteGuard><button type="button">Save</button></WriteGuard> }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy();
+  });
+
   const userViewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
 
   it('(app) layout (platformRole prop omitted): resolves the role once, so an owner still gets owner nav', async () => {

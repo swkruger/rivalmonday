@@ -1,10 +1,11 @@
 import { formatDate, formatMoney, formatRelative } from '@/lib/format';
-import { AGENCY_HEALTH, BILLING_STATE, labelFor } from '@/lib/labels';
+import { AGENCY_HEALTH, AGENCY_LIFECYCLE, BILLING_STATE, labelFor } from '@/lib/labels';
 import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
 import Link from 'next/link';
 import type { BillingState } from '@cs/db';
 import { StatusChip } from '@cs/ui';
+import { UnarchiveRowButton } from './unarchive-row-button';
 
 type Health = 'at_risk' | 'idle' | 'growing' | 'steady';
 
@@ -25,7 +26,14 @@ export interface AgencyRow {
   spendMonthUsd: number;
   health: Health;
   billingState: BillingState;
+  onHold?: boolean;
+  archivedAt?: string | null;
 }
+
+export const STATUSES = ['active', 'on_hold', 'archived', 'all'] as const;
+export type AgencyStatus = (typeof STATUSES)[number];
+/** Archived agencies can be purged from this age (the CLI refuses earlier). */
+const PURGE_AFTER_MS = 30 * 86_400_000;
 
 /** Same default as `list_platform_agencies`: name and health ascending, figures and dates descending. */
 export const defaultDir = (sort: AgencySort): SortDir => (sort === 'name' || sort === 'health' ? 'asc' : 'desc');
@@ -44,16 +52,18 @@ const COLUMNS: { label: string; sort?: AgencySort; right?: boolean }[] = [
 ];
 
 /** The one builder for the page's links (sort headers, search, Previous/Next): keeps `q`, `sort` and `dir`; `cursor` only when given. */
-export function agenciesHref(o: { q?: string; sort: AgencySort; dir: SortDir; cursor?: string | null }): string {
+export function agenciesHref(o: { q?: string; status?: AgencyStatus; sort: AgencySort; dir: SortDir; cursor?: string | null }): string {
   const p = new URLSearchParams();
   if (o.q) p.set('q', o.q);
+  if (o.status && o.status !== 'active') p.set('status', o.status);
   p.set('sort', o.sort);
   p.set('dir', o.dir);
   if (o.cursor) p.set('cursor', o.cursor);
   return `/platform/agencies?${p.toString()}`;
 }
 
-export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date; tz?: string; query?: string }) {
+export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query, status = 'active', canUnarchive = false }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date; tz?: string; query?: string; status?: AgencyStatus; canUnarchive?: boolean }) {
+  if (status === 'archived') return <ArchivedTable rows={rows} now={now} tz={tz} query={query} canUnarchive={canUnarchive} />;
   return (
     <div className="min-w-0 rounded-[14px] bg-surface p-2 shadow-card sm:p-4">
       <div className="overflow-x-auto">
@@ -71,7 +81,7 @@ export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query }: { rows:
                     className={`whitespace-nowrap px-3 py-2 font-semibold ${c.right ? 'text-right' : ''}`}
                   >
                     {c.sort ? (
-                      <Link href={agenciesHref({ q: query, sort: c.sort, dir: next! })} className="hover:text-ink">
+                      <Link href={agenciesHref({ q: query, status, sort: c.sort, dir: next! })} className="hover:text-ink">
                         {c.label}
                         {active && <span aria-hidden="true">{dir === 'asc' ? ' ▲' : ' ▼'}</span>}
                       </Link>
@@ -88,6 +98,7 @@ export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query }: { rows:
               <tr key={r.id} className="border-t border-[#EEF2F6]">
                 <td className="px-3 py-2 font-semibold">
                   <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
+                  {r.onHold && !r.archivedAt && <> <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip></>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2">{formatDate(r.createdAt, { tz, now })}</td>
                 <td className="px-3 py-2 text-right">{r.clientsActive}</td>
@@ -110,3 +121,44 @@ export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query }: { rows:
 }
 
 const Chip = ({ entry }: { entry: { label: string; tone: Parameters<typeof StatusChip>[0]['tone'] } }) => <StatusChip tone={entry.tone}>{entry.label}</StatusChip>;
+
+/** Archived view (spec 4.4): fewer columns, the purge hint and the owner's Unarchive button. */
+function ArchivedTable({ rows, now, tz, query, canUnarchive }: { rows: AgencyRow[]; now: Date; tz: string; query?: string; canUnarchive: boolean }) {
+  const archived = AGENCY_LIFECYCLE.archived;
+  return (
+    <div className="min-w-0 rounded-[14px] bg-surface p-2 shadow-card sm:p-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
+          <thead>
+            <tr className="text-muted-foreground">
+              <th scope="col" className="px-3 py-2 font-semibold">Agency</th>
+              <th scope="col" className="px-3 py-2 font-semibold">Status</th>
+              <th scope="col" className="px-3 py-2 text-right font-semibold">Clients</th>
+              <th scope="col" className="px-3 py-2 font-semibold">Archived</th>
+              {canUnarchive && <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const at = r.archivedAt ?? null;
+              const purgeable = at !== null && now.getTime() - new Date(at).getTime() >= PURGE_AFTER_MS;
+              return (
+                <tr key={r.id} className="border-t border-[#EEF2F6]">
+                  <td className="px-3 py-2 font-semibold">
+                    <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
+                  </td>
+                  <td className="px-3 py-2"><StatusChip tone={archived.tone}>{archived.label}</StatusChip></td>
+                  <td className="px-3 py-2 text-right">{r.clientsActive + r.clientsProspect}</td>
+                  <td className="whitespace-nowrap px-3 py-2">{at ? formatDate(at, { tz, now }) : '—'}{purgeable && ' · purge possible'}</td>
+                  {canUnarchive && <td className="px-3 py-2 text-right"><UnarchiveRowButton agency={{ id: r.id, name: r.name }} /></td>}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rows.length === 0 && query && <p className="px-3 py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
+      {rows.length === 0 && !query && <p className="px-3 py-6 text-sm text-muted-ink">No archived agencies.</p>}
+    </div>
+  );
+}
