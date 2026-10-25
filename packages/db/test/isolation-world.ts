@@ -470,6 +470,10 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
     const second = await b.ins('ask_thread', t, { id: b.id('ask_thread', t), ...base, user_id: s.secondAskUser, title: `Thread ${b.c(t)}` });
     await b.ins('ask_message', t, { id: b.id('ask_message', t), thread_id: second.id, ...base, user_id: s.secondAskUser, role: 'user', content: `Who moved? ${b.c(t)}` });
   }
+  // a soft-deleted thread (15c-2b): tenant reads filter `deleted_at IS NULL`, operators still see it; seeded after the
+  // live threads so `ask_thread` row indexes 0 (and A1's 1) stay the live ones
+  const gone = await b.ins('ask_thread', t, { id: b.id('ask_thread', t), ...base, user_id: s.askUser, title: `Deleted thread ${b.c(t)}`, deleted_at: b.at(2) });
+  await b.ins('ask_message', t, { id: b.id('ask_message', t), thread_id: gone.id, ...base, user_id: s.askUser, role: 'user', content: `Deleted question ${b.c(t)}` });
 }
 
 /** Platform rows for the operator tools (no tenant canaries: they are platform data, invisible to every app_user). */

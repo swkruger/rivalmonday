@@ -88,7 +88,7 @@ describe('isolation suite: fixtures', () => {
     // Decision 3: the `permission: 'read'` + `access: 'write'` tools (a viewer may call them); reviewed list in fixtures.ts.
     const computed = allTools.filter((t) => t.permission === 'read' && t.access === 'write').map((t) => t.name).sort();
     expect([...VIEWER_WRITES].sort()).toEqual(computed);
-    expect(computed).toEqual(['create_api_token', 'delete_my_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact']);
+    expect(computed).toEqual(['create_api_token', 'delete_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact']);
   });
 
   it("every fixture input parses against the tool's schema", () => {

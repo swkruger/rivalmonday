@@ -86,6 +86,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // the after capture's evidence (index 1): the one the target's alert, brief item and recommendation cite
   get_evidence: clientWith((w, t) => ({ evidenceId: idOf(w, 'evidence', competitorTenant(t), 1) })),
   compare_snapshots: clientWith((w, t) => ({ changeId: idOf(w, 'detected_change', t.tenant) })),
+  // the after capture (index 1) of the target's competitor; its predecessor has no blocks, so the control answers no_blocks
+  compare_captures: clientWith((w, t) => ({ captureId: idOf(w, 'capture', competitorTenant(t), 1) })),
   list_moves: client({ status: 'all' }),
   get_move: clientWith((w, t) => ({ moveId: idOf(w, 'move', t.tenant) })),
   get_competitor_profile: clientWith((w, t) => ({ competitorId: competitorOf(w, t) })),
@@ -265,7 +267,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // "my" tools: the target's owner contact; the control runs as that owner (A1)
   set_my_notification_pref: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), kind: 'alert', channel: 'email', enabled: false }), positiveAs: 'ownerA1' },
   update_my_contact: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), timezone: 'America/Chicago' }), positiveAs: 'ownerA1' },
-  delete_my_ask_thread: object((w, t) => ({ threadId: askThreadOf(w, t) })),
+  // A1's control: adminA soft-deletes its own live thread (the hostile callers never own the target's thread)
+  delete_ask_thread: clientWith((w, t) => ({ threadId: askThreadOf(w, t) })),
 
   // ── object writes: † agency-level objects (amA→A2 names agency A's object; refused because admin-only) ─
   set_webhook_active: object((w, t) => ({ webhookId: idOf(w, 'agency_webhook', agencyTenant(t)), active: false })),
@@ -367,5 +370,5 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
  * API tokens and OAuth grants, own Ask threads.
  */
 export const VIEWER_WRITES: readonly string[] = [
-  'create_api_token', 'delete_my_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact',
+  'create_api_token', 'delete_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact',
 ];
