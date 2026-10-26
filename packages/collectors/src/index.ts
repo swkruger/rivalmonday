@@ -25,6 +25,7 @@ export * from './rankings/map-refresh';
 export * from './rankings/scan';
 export * from './rankings/settings';
 export * from './rankings/static-map';
+export * from './geo/stadia-geocode';
 export * from './rehearsal/fixture-sites';
 export * from './reviews/collect';
 export * from './reviews/post';

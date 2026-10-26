@@ -1,0 +1,21 @@
+{
+ "features": [
+  {
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -97.647251,
+     30.501927
+    ]
+   },
+   "properties": {
+    "label": "78664, Round Rock, TX, USA",
+    "layer": "postalcode",
+    "accuracy": "centroid",
+    "postalcode": "78664",
+    "locality": "Round Rock",
+    "region_a": "TX"
+   }
+  }
+ ]
+}

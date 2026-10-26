@@ -27,6 +27,8 @@ export interface WebEnv {
   /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
   turnstile?: { siteKey?: string; secretKey?: string };
   supportReplyTo?: string;
+  /** Phase 16: Stadia Maps key for geocoding the typed address; absent in a real environment => no geocoder (callers skip the centre). */
+  stadiaApiKey?: string;
   /** Phase 7a1: all optional; Sentry is inert without a DSN. */
   sentry?: { dsn?: string; publicDsn?: string; environment?: string; issuesUrl?: string };
   /** Phase 7a2 (D19): Basic-auth password of `POST /api/postmark/webhook`; unset => the route answers 404. */
@@ -81,6 +83,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     webhookFakeSend: webhookFake === '1',
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
+    stadiaApiKey: env.STADIA_API_KEY?.trim() || undefined,
     sentry: {
       dsn: env.SENTRY_DSN?.trim() || undefined,
       publicDsn: env.NEXT_PUBLIC_SENTRY_DSN?.trim() || undefined,

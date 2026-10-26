@@ -1029,3 +1029,9 @@ OpenRouter probe, `provider: {data_collection: deny, zdr: true, require_paramete
 | `cache_control` on system block, 2nd call | 5,122 cached tokens, cost -90 % | 2,745 cached, -83 % |
 
 Moving `brief_writer`/`playbook_writer`/`theme_discovery` back to sonnet-5 is a backlog item, not 6b.
+
+## Stadia geocoding (Phase 16, verified 2026-10-26)
+- **Endpoint:** `GET https://api.stadiamaps.com/geocoding/v1/search?text=<free text>&boundary.country=US&size=1&api_key=<key>` (v1 works, HTTP 200; Pelias-style GeoJSON). Key in the query string, so errors strip it (`createStadiaGeocoder`, `packages/collectors/src/geo/stadia-geocode.ts`).
+- **Response:** `features[0].geometry.coordinates = [lng, lat]`; `features[0].properties` has `label` (e.g. `78664, Round Rock, TX, USA`), `layer`, `accuracy` (`centroid` for a ZIP), `confidence`, `postalcode`, `locality`, `region_a`. No match: `features: []` (answered `null`).
+- **Layer to precision:** `address`/`venue` -> `address`; `postalcode` -> `postalcode`; anything else (`street`, `neighbourhood`, `locality`, `county`, ...) -> `locality`.
+- **Cost:** `STADIA_GEOCODE_USD = 0.001` per request is an assumption (about 20 credits x $0.03/1k = $0.0006, rounded up); confirm against the Stadia invoice. Ledger: vendor `stadia`, operation `geocode`, `clientId` null before the client exists.

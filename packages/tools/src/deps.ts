@@ -1,5 +1,5 @@
 import type { BillingGateway } from '@cs/billing';
-import type { MapsPlace } from '@cs/collectors';
+import type { GeocodeQuery, GeoPoint, MapsPlace } from '@cs/collectors';
 import { type CallScope, ToolError } from '@cs/core';
 import type { Db } from '@cs/db';
 import type { DeliveryConfig, PackLoader } from '@cs/engine';
@@ -58,6 +58,8 @@ export interface ToolDeps {
   runbookTailorer?: (input: { clientId: string; key: string; parentContent: unknown }) => Promise<{ title: string; template: string; businessAreaIds: string[] | null } | null>;
   /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
   setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
+  /** Phase 16 (O13): US geocoder for the typed address (Stadia; web builds it, a fixture under SETUP_FAKE_LOOKUP/demo/test). Pre-client calls ledger with a null clientId. Absent (no STADIA_API_KEY): callers skip the centre. */
+  geocode?: (q: GeocodeQuery, scope: CallScope) => Promise<GeoPoint | null>;
   /** Phase 11c (plan R1): direct lead mail after commit (`decline_lead`, `assign_lead`). Null or absent: the decision still commits and the send is skipped with a log line (the leads-cleanup job retries guarded pool/agency notices). */
   leadEmail?: Omit<LeadEmailDeps, 'service'> | null;
   /** 15c-2a T10: the `fetch` the settings "Send test" (`test_webhook`) posts with; absent: global `fetch`. The web app sets an in-process fake under WEBHOOK_FAKE_SEND=1 (E2E only). */

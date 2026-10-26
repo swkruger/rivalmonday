@@ -18,6 +18,7 @@ import { platformAdmins } from './runtime-env';
 import { runbookTailorerFor } from './runbook-tailor';
 import { tagRequest } from './sentry-tags';
 import { nowMs, profilingOn, recordToolTiming } from './tool-timing';
+import { geocodeFor } from './geocode';
 import { setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 import { verticalDrafterFor } from './vertical-draft';
@@ -78,6 +79,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType, opts) => store.put(key, body, contentType, opts) },
     embedQuery: embedQueryFor(name, service),
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
+    geocode: geocodeFor(name, service, { fake: webEnv().setupFakeLookup, apiKey: webEnv().stadiaApiKey }),
     verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     runbookTailorer: runbookTailorerFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     ...(webEnv().webhookFakeSend ? { webhookFetch: fakeWebhookFetch } : {}),
