@@ -27,6 +27,7 @@ The owner finds today's onboarding unprofessional and out of line with current p
 | O10 | The public intake (`/start`, `/start/<slug>`) gets the **same split layout and step flow**. |
 | O11 | This is its own **sub-phase (16-onboarding)** with its own spec, plan and owner verification; it may change behaviour and data (an exception to Phase 16 D1 "look only"). |
 | O12 | **"Ask the owner to pick":** staff continue through invite, billing and All set; the client shows "Waiting on <owner> to pick competitors"; the owner's Overview card stays until they pick; the starting-point clock starts when the owner picks, else the existing 14-day cap applies. |
+| O14 | **Illustrations, sparingly (owner, 2026-10-25):** right panels with nothing to preview may use images generated with OpenAI gpt-image via OpenRouter (`openai/gpt-image-2.5-sunburst`). Only: sign-up (§5), agency step 4 and client step 7 "All set", intake step 3 "Check your email". Every other step keeps its coded live preview. One consistent style (calm, flat, brand palette #2A6BAC / #47A8E7 / #F5A524 / #0B2540 on #F6F9FC, no text in the image, no people's faces, no real brands); generated once, owner-approved, committed as optimised static assets (`apps/web/public/onboarding/`, WebP ≤ 150 KB, with alt text) — never generated at runtime. White-label pages (agency-branded client flow and intake) use only images free of Rival Monday branding. |
 | O13 | **No Google listing:** the competitor search still runs, centred on the **typed address geocoded** (city/ZIP if no street address); radius map and search work as with a listing. |
 
 ## 3. Design-system change
@@ -102,7 +103,7 @@ Lead data, rate limits, verify token and `/start/v/<leadId>` behaviour unchanged
 
 ## 9. Non-goals
 
-Dark mode; phone-first redesign (the column collapses responsively, no separate mobile flow); changes to discovery cost/limits, billing rules, invite tokens or the agency checklist's data model beyond §5; illustrations commissioned from a designer (v1 uses simple inline SVG in DS colours).
+Dark mode; phone-first redesign (the column collapses responsively, no separate mobile flow); changes to discovery cost/limits, billing rules, invite tokens or the agency checklist's data model beyond §5; illustrations commissioned from a designer (v1 uses the O14 generated images on the four listed screens; anything else stays a coded preview or simple inline SVG in DS colours).
 
 ## 10. Left to the builder
 

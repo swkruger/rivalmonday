@@ -19,6 +19,7 @@
 - Geocoding goes to the fixed vendor host only (`api.stadiamaps.com`), key stripped from errors, ledgered as vendor `'stadia'`. User text is a query parameter, never a URL.
 - `contact` stays service-role only; new email outputs are added to the tool's `supportMask`.
 - No new npm dependencies (no axe this sub-phase; E2E stays role-based).
+- Images (spec O14): only on sign-up, agency step 4, client step 7, intake step 3; static WebP ≤ 150 KB in `apps/web/public/onboarding/` with alt text; never generated at runtime; no Rival Monday branding on white-label screens.
 
 ## Decisions (plan-level, from spec + code check)
 - P1 `(onboarding)` route group with its own `layout.tsx` that repeats `requireContext()` and `billingRedirectFor` from `(app)/layout.tsx`; `(app)/layout.tsx`'s first-session redirect keeps pointing at `/onboarding`.
@@ -58,6 +59,7 @@
 - [ ] `git rebase main` in `../CompetitorSpy-wt/phase-16`; confirm next free migration (expect 0093) and that every "Modify" path below exists (grep each symbol named in the tasks).
 - [ ] Re-check "Dependencies on in-flight work"; record results in `docs/work/phase-16.md` § Pre-flight.
 - [ ] Build `docs/design-system/mockups/onboarding/client.html` (steps 1–7 + owner Overview card + owner competitors page) and `intake.html` (3 steps), styled from `base.css`; render to PDF (`render.cjs` pattern) and send to the owner. **Owner gate:** Tasks 8–10 start only after approval. Fix `agency.html` pages 2/3 (logo moved to step 3).
+- [ ] Images (O14): confirm `openai/gpt-image-2.5-sunburst` on OpenRouter (key from root `.env` via `grep '^OPENROUTER_API_KEY=' .env | cut -d= -f2-`; never print it); write one style brief + four prompts in `docs/design-system/mockups/onboarding/images.md`; generate 2–3 candidates per screen into the scratchpad, show them in the mockup PDFs; owner picks; save the picks (WebP ≤ 150 KB) to `apps/web/public/onboarding/{signup,agency-done,client-done,intake-email}.webp` with alt text recorded in `images.md`. Generation cost goes in the work file. Tasks 4, 8 and 10 render these via `next/image` on the right panel.
 - **Done when:** branch rebased, work file updated, mockups approved.
 
 ### Task 1: OnboardingShell and route group
