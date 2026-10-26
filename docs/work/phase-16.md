@@ -1,10 +1,10 @@
 # phase-16 — design system v1 across the web app, page by page
 
-**Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 8e89d375 (rebased 2026-10-23, after 15c-2a merged)
+**Kind:** planning → implementation   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ f58b4764 (rebased 2026-10-26)
 **Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (owner-approved 2026-10-25); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**ON HOLD for code until the owner's explicit go-ahead** (owner, 2026-10-25; earlier condition: Phase 7 + 15 merged). 16-onboarding spec (O1–O14) and lean plan (Tasks 0–11) approved; nothing built. Branch is docs-only, not rebased (behind main 0089–0092); worktree clean.
+**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 (pre-flight) in progress: rebased onto main (clean); next free migration **0095** (plan said 0093); mockups + image candidates pending owner gate. Nothing built yet.
 
 ## Next (overwrite)
 On the owner's go-ahead: 16-onboarding Task 0 (rebase, dependency re-check, client + intake mockups → owner gate), then SDD Tasks 1–11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
