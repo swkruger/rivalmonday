@@ -24,4 +24,4 @@ _Filled in after the owner picks._
 | `intake-email.webp` | – | – |
 
 ## Cost
-_Filled in after generation._
+2026-10-26: 12 candidates (3 per screen, 1024x1024) via OpenRouter `POST /api/v1/images` (the model is not served on chat/completions): **$0.215** total (+ $0.006 for one endpoint test).
