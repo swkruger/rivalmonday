@@ -12,6 +12,8 @@ export type ModelBatchStatus = 'pending' | 'submitted' | 'ended' | 'failed';
 /** One provider's answers inside a sample (answers keyed by question key, as returned by @cs/ai). */
 export interface SampleAnswers {
   provider: string;
+  /** Model id the provider echoed; absent on samples recorded before it was kept. */
+  model?: string;
   answers: Record<string, unknown>;
 }
 

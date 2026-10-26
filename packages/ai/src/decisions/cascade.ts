@@ -5,6 +5,8 @@ export type ResolvedAnswer = DecisionAnswer & { provider: string };
 
 export interface ProviderAnswers {
   provider: string;
+  /** The model id the provider echoed (Jev: the dated build), so samples from different builds stay distinguishable. */
+  model?: string;
   answers: Record<string, DecisionAnswer>;
 }
 
@@ -49,7 +51,7 @@ export class CascadingDecisionProvider {
     let escalate: K[];
     try {
       const first = await this.primary.decide(state, questions);
-      trace.primary = { provider: this.primary.id, answers: first.answers };
+      trace.primary = { provider: this.primary.id, model: first.model, answers: first.answers };
       for (const k of keys) answers[k] = { ...first.answers[k], provider: this.primary.id } as ResolvedAnswer;
       escalate = keys.filter(isLow);
     } catch (err) {
@@ -59,7 +61,7 @@ export class CascadingDecisionProvider {
 
     if (escalate.length > 0 && this.fallback) {
       const second = await this.fallback.decide(state, pick(questions, escalate));
-      trace.fallback = { provider: this.fallback.id, answers: second.answers };
+      trace.fallback = { provider: this.fallback.id, model: second.model, answers: second.answers };
       for (const k of escalate) answers[k] = { ...second.answers[k], provider: this.fallback.id } as ResolvedAnswer;
     }
 
@@ -75,8 +77,8 @@ export class CascadingDecisionProvider {
     const [p, f] = await Promise.allSettled([this.primary.decide(state, questions), fallback.decide(state, questions)]);
     if (p.status === 'rejected' && f.status === 'rejected') throw p.reason;
     const trace: DecisionTrace = {
-      primary: p.status === 'fulfilled' ? { provider: this.primary.id, answers: p.value.answers } : null,
-      fallback: f.status === 'fulfilled' ? { provider: fallback.id, answers: f.value.answers } : null,
+      primary: p.status === 'fulfilled' ? { provider: this.primary.id, model: p.value.model, answers: p.value.answers } : null,
+      fallback: f.status === 'fulfilled' ? { provider: fallback.id, model: f.value.model, answers: f.value.answers } : null,
     };
     const answers = {} as Record<K, ResolvedAnswer>;
     const low = (a: DecisionAnswer | undefined, k: K) => !a || a.confidence < thresholdFor(this.thresholds, questions[k].type);

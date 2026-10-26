@@ -43,8 +43,8 @@ export interface DecisionSampleRecord extends CallScope {
   /** Already redacted at the call site. */
   state: unknown;
   questions: Record<string, unknown>;
-  primary: { provider: string; answers: Record<string, unknown> } | null;
-  fallback: { provider: string; answers: Record<string, unknown> } | null;
+  primary: { provider: string; model?: string; answers: Record<string, unknown> } | null;
+  fallback: { provider: string; model?: string; answers: Record<string, unknown> } | null;
   final: Record<string, unknown>;
   needsReview: string[];
 }

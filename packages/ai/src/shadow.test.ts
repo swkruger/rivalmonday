@@ -31,7 +31,7 @@ function harness(opts: { jevP?: number; llmFails?: boolean; sinkFails?: boolean;
   const p = opts.jevP ?? 0.99;
   const jev: DecisionProvider = {
     id: 'jev',
-    decide: (async () => ({ answers: { m: { type: 'noul', value: p >= 0.5, probability: p, confidence: Math.abs(p - 0.5) * 2 } }, model: 'jev-1', inputTokens: 1, outputTokens: 1, costUsd: 0 })) as unknown as DecisionProvider['decide'],
+    decide: (async () => ({ answers: { m: { type: 'noul', value: p >= 0.5, probability: p, confidence: Math.abs(p - 0.5) * 2 } }, model: 'typesafe/jev-1.14-20261014', inputTokens: 1, outputTokens: 1, costUsd: 0 })) as unknown as DecisionProvider['decide'],
   };
   const ai = createAi(config, {
     openrouter: { id: 'openrouter', complete } as unknown as ChatProvider, jev: () => jev, ledger, samples: sink,
@@ -56,6 +56,13 @@ describe('Ai.decide shadow sampling (spec §7.3)', () => {
     expect(r.sampleId).toBe('sample-1');
     expect(h.samples[0]).toMatchObject({ task: 'tag_decisions', reason: 'shadow', state: { after: 'x' }, primary: { provider: 'jev' }, fallback: { provider: 'llm' }, needsReview: [] });
     expect(h.ledgerRows.map((x) => x.task).sort()).toEqual(['llm_decisions:shadow', 'tag_decisions']);
+  });
+
+  it('a shadow sample records the Jev model id on the primary answers', async () => {
+    const h = harness({ random: 0.1 });
+    await h.ai.decide('tag_decisions', { after: 'x' }, q, scope);
+    expect(h.samples[0]?.primary?.model).toBe('typesafe/jev-1.14-20261014');
+    expect(h.samples[0]?.fallback?.model).toBe('a/small');
   });
 
   it('records a review sample (no extra call) when the cascade still needs review', async () => {
