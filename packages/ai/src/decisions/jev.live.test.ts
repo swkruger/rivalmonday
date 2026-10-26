@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createJevProvider } from './jev';
 
-const key = process.env.TYPESAFE_API_KEY;
+const key = process.env.OPENROUTER_API_KEY;
 
-// Contract test against the real API. Runs only when TYPESAFE_API_KEY is set.
+// Contract test against the real API. Runs only when OPENROUTER_API_KEY is set.
 describe.skipIf(!key)('Jev live contract', () => {
   it('answers all three primitives; score maps to an integer 0-based level', async () => {
-    const jev = createJevProvider({ apiKey: key as string });
+    const jev = createJevProvider({ apiKey: key as string, fallbackUsdPerMtok: 0.042, appName: 'RivalMonday-live-test', appUrl: 'http://localhost:3000' });
     const r = await jev.decide(
       { before: 'AC tune-up $99', after: 'AC tune-up $79 — this month only' },
       {

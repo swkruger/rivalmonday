@@ -18,10 +18,8 @@ export function createAiFromEnv(env: NodeJS.ProcessEnv, config: AiConfig, ledger
     zdr: config.openrouter.zdr,
     http: http?.openrouter ? { fetch: http.openrouter } : undefined,
   };
-  const jevKey = env.TYPESAFE_API_KEY;
-  const jev = jevKey
-    ? (model: string, timing?: CallTiming) => createJevProvider({ apiKey: jevKey, model, timing, inputUsdPerMTok: config.jev.input_usd_per_mtok, http: http?.jev ? { fetch: http.jev } : undefined })
-    : null;
+  const jev = (model: string, timing?: CallTiming) =>
+    createJevProvider({ apiKey, model, timing, fallbackUsdPerMtok: config.jev.input_usd_per_mtok, appName: router.appName, appUrl: router.appUrl, http: http?.jev ? { fetch: http.jev } : undefined });
   const raw = env.AI_SHADOW_RATE;
   const override = raw === undefined || raw === '' ? undefined : Number(raw);
   if (override !== undefined && !(override >= 0 && override <= 1)) throw new Error(`AI_SHADOW_RATE must be a number from 0 to 1 (got "${raw}")`);

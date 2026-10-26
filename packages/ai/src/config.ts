@@ -39,7 +39,7 @@ const openRouterTask = z.object({
 
 const jevTask = z.object({
   provider: z.literal('jev'),
-  model: z.string().min(1).default('jev-latest'),
+  model: z.string().min(1).default('typesafe/jev-1.14'),
   escalate_to: z.string().min(1).optional(),
   min_confidence: thresholdsSchema.prefault({ default: 0.85 }),
   shadow_rate: z.number().min(0).max(1).default(0),

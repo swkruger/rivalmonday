@@ -67,7 +67,6 @@ jobs:
         run: pnpm --filter @cs/evals eval run --suite all --mode live --max-usd "$EVAL_MAX_USD" --report-dir eval-report
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
       - name: Upload report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

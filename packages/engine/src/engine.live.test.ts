@@ -67,7 +67,7 @@ describe.skipIf(!key)('engine models (live)', () => {
     expect(result.answers[serviceQuestionKey('hvac_plumbing')]?.value).toBe('ac_tune_up');
   }, 60_000);
 
-  it.skipIf(!process.env.TYPESAFE_API_KEY)('shadow sampling: one tag decision answered by Jev and the LLM, recorded as a sample', async () => {
+  it.skipIf(!process.env.OPENROUTER_API_KEY)('shadow sampling: one tag decision answered by Jev and the LLM, recorded as a sample', async () => {
     const samples: DecisionSampleRecord[] = [];
     const sink = { recordDecisionSample: async (r: DecisionSampleRecord) => { samples.push(r); return 'live-sample'; } };
     const ai = createAiFromEnv({ ...process.env, AI_SHADOW_RATE: '1' }, await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH), ledger, sink);

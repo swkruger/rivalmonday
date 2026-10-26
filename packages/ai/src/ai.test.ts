@@ -141,6 +141,16 @@ describe('Ai facade', () => {
     expect(r.answers.m.provider).toBe('llm');
   });
 
+  it('a Jev task with no escalation and no Jev provider names OPENROUTER_API_KEY', async () => {
+    const solo = parseAiConfig(`
+tasks:
+  solo: { provider: jev, min_confidence: { default: 0.85 } }
+`);
+    const ledger: LedgerSink = { recordLlmCall: async () => {}, recordVendorCall: async () => {} };
+    const ai = createAi(solo, { openrouter: { id: 'openrouter', complete: vi.fn() } as unknown as ChatProvider, jev: null, ledger });
+    await expect(ai.decide('solo', 's', q, scope)).rejects.toThrow(/OPENROUTER_API_KEY/);
+  });
+
   it('batch tasks: available only with a provider; collect ledgers one row per result at batch prices', async () => {
     const provider = {
       id: 'anthropic',

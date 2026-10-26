@@ -5,7 +5,7 @@ openrouter:
   app_name: CompetitorSpy
 
 jev:
-  input_usd_per_mtok: 0.042
+  input_usd_per_mtok: 0.042 # fallback estimate when OpenRouter omits usage.cost
 
 tasks:
   # Timing (per task): timeout_ms and max_attempts default to 60000 x 3. A task reachable from a web request is marked
@@ -39,19 +39,19 @@ tasks:
   llm_decisions:   { provider: openrouter, model: anthropic/claude-haiku-4.5, mode: decisions }
   # Per-use decision tasks (Phase 3c/3d): each decision type routes, escalates and is shadow-sampled on its own,
   # so it can move to the LLM by config alone (spec §7.3). There is no shared "decisions" task.
-  tag_decisions:        { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
-  structured_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
-  merge_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
-  page_decisions:       { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
-  review_decisions:     { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.02 }
-  price_decisions:      { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  tag_decisions:        { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  structured_decisions: { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  merge_decisions:      { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  page_decisions:       { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
+  review_decisions:     { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.02 }
+  price_decisions:      { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05 }
   # Phase 4a: brief/recommendation support checks (spec §7.4) — its own task so accuracy, τ and routing are tunable alone.
   # verifier_decisions is shared by Ask grounding (web) and worker briefs, so both get the 10 s x 2 request-path budget.
-  verifier_decisions:   { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
+  verifier_decisions:   { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Phase 6b: Ask answer-guard checks, its own task so routing and tau are tunable alone (same shape as verifier_decisions).
-  ask_guard_decisions:  { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
+  ask_guard_decisions:  { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.85 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Ask interpretation lines (uncited / "Possible reason:"): a clear yes is enough (0.2 = p >= 0.6). Owner decision 2026-10-13.
-  ask_interpretation_decisions: { provider: jev, model: jev-latest, escalate_to: llm_decisions, min_confidence: { default: 0.2 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
+  ask_interpretation_decisions: { provider: jev, model: typesafe/jev-1.14, escalate_to: llm_decisions, min_confidence: { default: 0.2 }, shadow_rate: 0.05, request_path: true, timeout_ms: 10000, max_attempts: 2 }
   # Verified 2026-10-01: ZDR-compatible ($0.02/M tokens). voyageai/voyage-4-lite fails the ZDR policy.
   embeddings:      { provider: openrouter, model: openai/text-embedding-3-small, mode: embeddings, dimensions: 512, request_path: true, timeout_ms: 8000, max_attempts: 2 }
   # Opt-in (Phase 3d decision 9): used only when ANTHROPIC_API_KEY is set; otherwise theme discovery stays on theme_discovery.

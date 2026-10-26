@@ -164,7 +164,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         } else if (escalation) {
           primary = escalation;
         } else {
-          throw new Error(`Task ${name} needs Jev but TYPESAFE_API_KEY is not configured`);
+          throw new Error(`Task ${name} needs Jev but OPENROUTER_API_KEY is not configured`);
         }
         const result = await new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions, { shadow: sampled });
         return keepSample(name, scope, state, questions, result, sampled);

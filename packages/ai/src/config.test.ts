@@ -13,7 +13,7 @@ tasks:
     expect(cfg.openrouter).toEqual({ data_collection: 'deny', zdr: true, app_name: 'CompetitorSpy' });
     expect(cfg.jev).toEqual({ input_usd_per_mtok: 0.042 });
     expect(cfg.tasks.brief_writer).toMatchObject({ provider: 'openrouter', mode: 'chat', fallbacks: [] });
-    expect(cfg.tasks.decisions).toMatchObject({ provider: 'jev', model: 'jev-latest', min_confidence: { default: 0.85 } });
+    expect(cfg.tasks.decisions).toMatchObject({ provider: 'jev', model: 'typesafe/jev-1.14', min_confidence: { default: 0.85 } });
   });
 
   it('rejects escalate_to pointing at a missing or non-decision task', () => {

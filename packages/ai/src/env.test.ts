@@ -31,11 +31,11 @@ describe('createAiFromEnv', () => {
     expect(() => createAiFromEnv({ OPENROUTER_API_KEY: 'k', AI_SHADOW_RATE: '2' }, config, ledger)).toThrow(/AI_SHADOW_RATE/);
   });
 
-  it('calls Jev with the configured model when TYPESAFE_API_KEY is set', async () => {
+  it('Jev is available iff OPENROUTER_API_KEY is set', async () => {
     const calls = stubFetch({ model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
-    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k', TYPESAFE_API_KEY: 't' }, config, ledger);
+    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger);
     const r = await ai.decide('decisions', { x: 1 }, { m: { type: 'noul', instructions: 'ok?' } }, scope);
-    expect(calls[0]?.url).toBe('https://api.typesafe.ai/v1/systemone');
+    expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/systemone');
     expect(calls[0]?.body.model).toBe('jev-9');
     expect(r.answers.m.provider).toBe('jev');
   });
@@ -50,23 +50,16 @@ describe('createAiFromEnv', () => {
     const openrouter = via('or', { model: 'a/small', choices: [{ message: { content: JSON.stringify({ m: { probability: 0.99 } }) } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
     const global = vi.fn();
     vi.stubGlobal('fetch', global);
-    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k', TYPESAFE_API_KEY: 't' }, config, ledger, undefined, undefined, { jev, openrouter });
+    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger, undefined, undefined, { jev, openrouter });
     await ai.decide('decisions', {}, { m: { type: 'noul', instructions: 'ok?' } }, scope);
     expect(jev).toHaveBeenCalledTimes(1);
     expect(hit[0]).toMatch(/^jev:\d+$/);
     expect(global).not.toHaveBeenCalled();
-    const ai2 = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger, undefined, undefined, { openrouter });
-    await ai2.decide('decisions', {}, { m: { type: 'noul', instructions: 'ok?' } }, scope);
-    expect(openrouter).toHaveBeenCalledTimes(1);
-    expect(global).not.toHaveBeenCalled();
+    expect(openrouter).not.toHaveBeenCalled();
   });
 
-  it('decides with the LLM when TYPESAFE_API_KEY is absent', async () => {
-    const calls = stubFetch({ model: 'a/small', choices: [{ message: { content: JSON.stringify({ m: { probability: 0.99 } }) } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
-    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger);
-    const r = await ai.decide('decisions', {}, { m: { type: 'noul', instructions: 'ok?' } }, scope);
-    expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/chat/completions');
-    expect(r.answers.m.provider).toBe('llm');
+  it('TYPESAFE_API_KEY alone no longer enables Jev', () => {
+    expect(() => createAiFromEnv({ TYPESAFE_API_KEY: 't' }, config, ledger)).toThrow(/OPENROUTER_API_KEY/);
   });
 
   it('routes embeddings to OpenRouter with dimensions and privacy routing', async () => {
