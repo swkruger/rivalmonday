@@ -14,14 +14,14 @@ Calm, flat vector illustration with soft geometric shapes and gentle depth, gene
 | `intake-email.webp` | Intake step 3 "Check your email" (white-label) | A friendly envelope opening with a soft card rising out of it, a few small sparkle shapes in amber, resting on a light surface. |
 
 ## Picks and alt text
-_Filled in after the owner picks._
+Owner picked 2026-10-26. Converted to 800×800 WebP (q82) with sharp.
 
-| File | Pick | Alt text |
-|---|---|---|
-| `signup.webp` | – | – |
-| `agency-done.webp` | – | – |
-| `client-done.webp` | – | – |
-| `intake-email.webp` | – | – |
+| File | Pick | Size | Alt text |
+|---|---|---|---|
+| `signup.webp` | candidate 3 | 53 KB | A row of local shops and service vans on a quiet street, with map pins tracing an upward line above the rooftops. |
+| `agency-done.webp` | candidate 3 | 28 KB | A laptop showing a simple dashboard beside a stack of folders and a check mark. |
+| `client-done.webp` | candidate 2 | 15 KB | A local storefront under a map pin, linked to two shops in the distance, with a calendar marking the next brief. |
+| `intake-email.webp` | candidate 3 | 10 KB | An open envelope with a card rising out of it and a few small sparkles. |
 
 ## Cost
 2026-10-26: 12 candidates (3 per screen, 1024x1024) via OpenRouter `POST /api/v1/images` (the model is not served on chat/completions): **$0.215** total (+ $0.006 for one endpoint test).
