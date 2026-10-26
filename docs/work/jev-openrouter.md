@@ -4,7 +4,7 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-25-jev-openrouter.md) · [spec](../superpowers/specs/2026-10-25-jev-openrouter-design.md) — spec owner-approved 2026-10-25; plan awaiting approval.
 
 ## Status (overwrite)
-Kickoff brief only. No roadmap row: owner-requested workstream. OpenRouter model pages `/typesafe/jev-1.13` and `/jev-1.14` return 404 (2026-10-25), so the real price and data policy are unread.
+Task 0 done (2026-10-25). Live probe of `POST https://openrouter.ai/api/v1/systemone` with `typesafe/jev-1.14` (1 call): HTTP 200, SDK path works, no alpha fallback needed. Top-level keys `model, answers, usage, id, provider`; shape matches current `responseSchema` (extra `id`, `provider` ignored). `model` echoed `typesafe/jev-1.14-20261014` (dated). `usage` = `{input_tokens:397, output_tokens:64, cost:0.000016674}` -> derived rate 0.0420 USD/M input (cost / input_tokens x 1e6), equal to the old `jev.input_usd_per_mtok` 0.042, so keep 0.042 as the fallback. Score `probabilities` keys are 0-based ("0","1","2"), answer carries `score` (expected, 1.78) and `legend`; `mostLikelyLevel` stays as is. Choice: `choice` + `probabilities` keyed by option; noul: `{noul:0.98}`. Rest: OpenRouter model pages still unread.
 
 ## Next (overwrite)
 Owner approves the plan → Task 0 (pre-flight + live probe) → SDD.
