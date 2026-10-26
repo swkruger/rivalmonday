@@ -4,9 +4,6 @@ import { resolveBranding } from '@cs/email';
 import { type ClientSummary, type PlatformRole, platformRole as resolvePlatformRole, unreadCount } from '@cs/tools';
 import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
-import { HelpProvider } from '@/components/help/help-provider';
-import { ReadOnlyProvider } from '@/components/read-only';
-import { BillingBanner } from '@/components/shell/billing-banner';
 import type { SwitcherProps } from '@/components/shell/context-switcher';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
 import { GuestBanner } from '@/components/shell/guest-banner';
@@ -14,11 +11,8 @@ import { MobileNav } from '@/components/shell/mobile-nav';
 import { showsClientBilling } from '@/components/shell/nav-items';
 import { Sidebar } from '@/components/shell/sidebar';
 import type { NavFallback } from '@/components/shell/sidebar-nav';
-import { ShellTheme } from '@/components/shell/shell-theme';
-import { SpendBanner } from '@/components/shell/spend-banner';
-import { SupportBanner } from '@/components/shell/support-banner';
+import { ShellNotices, ShellProviders } from '@/components/shell/shell-providers';
 import { TopBar } from '@/components/shell/top-bar';
-import { TzCookie } from '@/components/shell/tz-cookie';
 import type { BillingSnapshot } from '@/server/billing-state';
 import { clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
@@ -122,28 +116,19 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
   );
   return (
-    <ReadOnlyProvider readOnly={support !== null || billing?.onHold === true}>
-      <HelpProvider value={help}>
-      <ShellTheme vars={style} />
-      <TzCookie />
-      <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
-        {/* format-gate: machine value, SupportBanner formats it for display */}
-        {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
-        <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
-          <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
-          <div className="flex min-w-0 flex-1 flex-col">
-            {viewer.kind === 'guest' && <GuestBanner />}
-            <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} supportEmail={viewer.kind === 'user' && isAgencyRole(ctx.role) ? supportEmail() : null} />
-            {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
-              <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
-            )}
-            {spendAudience && <SpendBanner items={spendPaused} audience={spendAudience} agencyName={branding.displayName} />}
-            {viewer.kind === 'user' && billing && <BillingBanner role={ctx.role} state={billing.state} trialEndsAt={billing.trialEndsAt} pausesOn={billing.pausesOn} onHold={billing.onHold} supportEmail={billing.supportEmail} />}
-            <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
-          </div>
+    <ShellProviders readOnly={support !== null || billing?.onHold === true} help={help} style={style as Record<string, string>} support={support}>
+      <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
+        <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          {viewer.kind === 'guest' && <GuestBanner />}
+          <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} supportEmail={viewer.kind === 'user' && isAgencyRole(ctx.role) ? supportEmail() : null} />
+          {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
+            <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
+          )}
+          <ShellNotices spend={spendAudience ? { audience: spendAudience, items: spendPaused } : null} billing={billing} role={ctx.role} userViewer={viewer.kind === 'user'} agencyName={branding.displayName} />
+          <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
         </div>
       </div>
-      </HelpProvider>
-    </ReadOnlyProvider>
+    </ShellProviders>
   );
 }

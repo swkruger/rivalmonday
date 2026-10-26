@@ -193,7 +193,7 @@ Rules: sentence case everywhere (no uppercase labels); 12px is the minimum (11px
 | **L4 Form** | Drill-in settings nav + 640px column of ruled sections + save bar | All settings, profile, billing |
 | **L5 Reading** | 680px column, display title, ruled sections | Weekly brief, starting-point brief, help guides |
 | **L6 Conversation** | Friday full page (680px thread + composer) or docked 400px panel | Ask Friday |
-| **L7 Setup** | Checklist page (560px list + 240px rail) or centred single-step column | Agency onboarding, client setup wizard, logged-out auth |
+| **L7 Onboarding (split)** | Full viewport, no app shell. Left column 640px on `surface` white: wordmark or agency logo top-left, "Save and exit" top-right, step label ("Step 2 of 4 · Your team") + segmented progress bar (one 4px segment per step, done/current = `primary`, rest = `panel`), H1 30/600, one-line subhead, form max 440px, footer pinned bottom: Back (secondary) · spacer · "Skip for now" (text, optional steps only) · primary. Right panel: `canvas` #F6F9FC with a 1px `line` left border, holding one floating preview (12px radius, overlay shadow — the one allowed shadow) and a one-line caption. Below 1024px the right panel is hidden; the left column becomes a centred 560px column. Logged-out auth pages (sign-in, check-email, link pages) keep a centred 400px column, no card; **sign-up** uses L7 split. | Agency onboarding, client setup wizard, public intake, sign-up |
 
 ## 5. Shape, border and elevation
 

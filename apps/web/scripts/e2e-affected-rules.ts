@@ -100,6 +100,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
+  { pattern: re(`${COMP}onboarding/`), tags: ['@onboarding', '@setup', '@clients', '@leads'], why: 'onboarding split shell (agency onboarding, client setup, public intake; 16)' },
+  { pattern: re(`${APP}\\(onboarding\\)/`), tags: ['@onboarding', '@setup', '@clients'], why: 'onboarding route group layout and pages (16)' },
   { pattern: re(`${APP}(?:sign-up/|join/|onboarding/start/)`), tags: ['@auth', '@onboarding'], why: 'agency sign-up, invite-link redemption and the sign-up callback' },
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}\\(platform\\)/platform/leads/`), tags: ['@leads', '@platform'], why: 'platform lead pool and assign form' },

@@ -39,16 +39,19 @@ const DELEGATED_HEADERS: { file: string; route: string }[] = [
   { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
 ];
 
+/** 16 P10: `<OnboardingShell>` is a page's header on the full-page split flows, so it takes the same `helpKey` as `<PageHeader>`. */
+const HEADER_TAGS = new Set(['PageHeader', 'OnboardingShell']);
+
 /**
- * Per `<PageHeader …>` element: keyed when it has a `helpKey` attribute, or a spread (`{...header}`) in a file that sets a
+ * Per `<PageHeader …>` / `<OnboardingShell …>` element: keyed when it has a `helpKey` attribute, or a spread (`{...header}`) in a file that sets a
  * `helpKey:` property (Setup and Business profile build the header props once and spread them).
  */
-function headerStats(src: string): { total: number; unkeyed: number } {
+export function headerStats(src: string): { total: number; unkeyed: number } {
   const sf = ts.createSourceFile('x.tsx', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let total = 0;
   let unkeyed = 0;
   const visit = (n: ts.Node) => {
-    if ((ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) && n.tagName.getText(sf) === 'PageHeader') {
+    if ((ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) && HEADER_TAGS.has(n.tagName.getText(sf))) {
       total++;
       const attrs = n.attributes.properties;
       const direct = attrs.some((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'helpKey');
@@ -87,7 +90,7 @@ function reachable(route: string): Audience[] | null {
 }
 
 /** The help keys a file passes to its PageHeader: the `HELP_KEY` constant, a `helpKey="page:…"` literal, or `helpKeyFor` returns. */
-function keysIn(src: string): string[] {
+export function keysIn(src: string): string[] {
   const keys = new Set<string>();
   for (const m of src.matchAll(/HELP_KEY\s*=\s*'(page:[a-z0-9.-]+)'/g)) keys.add(m[1]!);
   for (const m of src.matchAll(/helpKey="(page:[a-z0-9.-]+)"/g)) keys.add(m[1]!);
@@ -184,6 +187,13 @@ describe('help coverage gate (P3)', () => {
   it('every page header has a help key, every key has the guides its audiences need, every tip resolves', () => {
     const gaps = findGaps();
     expect(gaps, `${gaps.length} help gap(s):\n${gaps.join('\n')}`).toEqual([]);
+  });
+
+  it('counts OnboardingShell helpKey', () => {
+    expect(headerStats('const a = <OnboardingShell brand={b} title="T" helpKey="page:account.onboarding">x</OnboardingShell>;')).toEqual({ total: 1, unkeyed: 0 });
+    expect(headerStats('const a = <OnboardingShell brand={b} title="T">x</OnboardingShell>;')).toEqual({ total: 1, unkeyed: 1 });
+    expect(headerStats('const a = <PageHeader title="T" helpKey="page:x.y" />;')).toEqual({ total: 1, unkeyed: 0 });
+    expect(keysIn('<OnboardingShell helpKey="page:account.onboarding" />')).toEqual(['page:account.onboarding']);
   });
 
   it('the declared page lists point at real routes', () => {
