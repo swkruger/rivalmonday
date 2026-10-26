@@ -6,7 +6,8 @@ export const EVAL_USAGE = [
   '  build   --suite <changes|reviews>                rebuild cases (cs_dev via DATABASE_URL, read-only; golden; synthetic)',
   '  label   --suite <changes|reviews> (--export <file> | --import <file> --by <name> | --prelabel [--max-usd n])',
   '  run     --suite <s> [--mode replay|live] [--max-usd n] [--report-dir d] [--update-baseline]',
-  '  record  --suite <s> [--max-usd n] [--report-dir d]     live run that rewrites cassettes/<suite>.json',
+  '  record  --suite <s> [--fill] [--max-usd n] [--report-dir d]  live run that rewrites cassettes/<suite>.json;',
+  '          --fill replays stored replies and calls live only on misses (cap counts live calls only)',
   '  --max-usd defaults to $EVAL_MAX_USD, else 5; live/record in CI (CI=true) refuse without one of them.',
 ].join('\n');
 
@@ -18,7 +19,7 @@ export type EvalCommand =
   | (Common & { cmd: 'build' })
   | (Common & { cmd: 'label'; export?: string; import?: string; by?: string; prelabel: boolean; maxUsd?: number })
   | (Common & { cmd: 'run'; mode: 'replay' | 'live'; maxUsd?: number; reportDir: string; updateBaseline: boolean })
-  | (Common & { cmd: 'record'; maxUsd?: number; reportDir: string });
+  | (Common & { cmd: 'record'; maxUsd?: number; reportDir: string; fill?: true });
 
 const fail = (msg: string) => ({ error: `${msg}\n${EVAL_USAGE}` });
 
@@ -32,6 +33,7 @@ export function parseEvalArgs(argv: string[]): EvalCommand | { error: string } {
       options: {
         suite: { type: 'string' }, mode: { type: 'string' }, 'max-usd': { type: 'string' }, 'report-dir': { type: 'string' },
         'update-baseline': { type: 'boolean' }, export: { type: 'string' }, import: { type: 'string' }, by: { type: 'string' }, prelabel: { type: 'boolean' },
+        fill: { type: 'boolean' },
       },
     }));
   } catch (err) {
@@ -51,6 +53,7 @@ export function parseEvalArgs(argv: string[]): EvalCommand | { error: string } {
   }
   const reportDir = str('report-dir') ?? DEFAULT_REPORT_DIR;
 
+  if (values.fill === true && cmd !== 'record') return fail('--fill only applies to record');
   if ((cmd === 'build' || cmd === 'label') && s !== 'changes' && s !== 'reviews') return fail(`${cmd} supports --suite changes|reviews only (briefs/ask cases are authored)`);
 
   switch (cmd) {
@@ -76,7 +79,7 @@ export function parseEvalArgs(argv: string[]): EvalCommand | { error: string } {
       return { cmd, suite: s, mode, reportDir, updateBaseline, ...(maxUsd !== undefined ? { maxUsd } : {}) };
     }
     case 'record':
-      return { cmd, suite: s, reportDir, ...(maxUsd !== undefined ? { maxUsd } : {}) };
+      return { cmd, suite: s, reportDir, ...(maxUsd !== undefined ? { maxUsd } : {}), ...(values.fill === true ? { fill: true as const } : {}) };
   }
 }
 

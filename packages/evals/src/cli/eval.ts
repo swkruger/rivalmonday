@@ -58,6 +58,7 @@ try {
         suites: expandSuites(parsed.suite),
         mode: parsed.cmd === 'record' ? 'live' : parsed.mode,
         record: parsed.cmd === 'record',
+        fill: parsed.cmd === 'record' && parsed.fill === true,
         maxUsd,
         reportDir: parsed.reportDir,
         updateBaseline: parsed.cmd === 'run' && parsed.updateBaseline,

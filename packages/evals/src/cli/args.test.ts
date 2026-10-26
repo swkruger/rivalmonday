@@ -18,6 +18,10 @@ describe('parseEvalArgs', () => {
     expect(parseEvalArgs(['record', '--suite', 'ask', '--max-usd', '5'])).toEqual({ cmd: 'record', suite: 'ask', reportDir: 'eval-report', maxUsd: 5 });
     expect(parseEvalArgs(['build', '--suite', 'changes'])).toEqual({ cmd: 'build', suite: 'changes' });
   });
+  it('parses record --fill and refuses --fill elsewhere', () => {
+    expect(parseEvalArgs(['record', '--suite', 'ask', '--fill', '--max-usd', '2'])).toEqual({ cmd: 'record', suite: 'ask', reportDir: 'eval-report', maxUsd: 2, fill: true });
+    expect(parseEvalArgs(['run', '--suite', 'ask', '--fill'])).toHaveProperty('error');
+  });
   it('parses the three label modes and requires exactly one', () => {
     expect(parseEvalArgs(['label', '--suite', 'reviews', '--export', 'f.csv'])).toMatchObject({ cmd: 'label', export: 'f.csv', prelabel: false });
     expect(parseEvalArgs(['label', '--suite', 'reviews', '--import', 'f.csv', '--by', 'Sam'])).toMatchObject({ import: 'f.csv', by: 'Sam' });

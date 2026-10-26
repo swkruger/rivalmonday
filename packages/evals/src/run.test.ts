@@ -109,4 +109,32 @@ describe('runEvals', () => {
       vi.useRealTimers();
     }
   });
+  it('fill replays stored replies, goes live only on misses and logs the counts', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const config = { tasks: { t: { provider: 'openrouter', model: 'm' } } } as unknown as AiConfig;
+    const asks = (qs: string[]): SuiteRunner => ({
+      suite: 'briefs',
+      run: async (_c, ai) => {
+        const texts: string[] = [];
+        for (const q of qs) texts.push((await ai.chat('t', { messages: [{ role: 'user', content: q }] }, {} as never)).text);
+        return { blocking: [], metrics: { stored: texts[0] === 'stored' ? 1 : 0 } };
+      },
+    });
+    await runEvals({
+      ...base(), config, suites: ['briefs'], record: true, mode: 'live', runners: { briefs: asks(['A']) },
+      makeLiveAi: () => ({ chat: async () => ({ text: 'stored' }) }) as never,
+    });
+    let calls = 0;
+    const lines: string[] = [];
+    const out = await runEvals({
+      ...base(), config, suites: ['briefs'], record: true, fill: true, mode: 'live', runners: { briefs: asks(['A', 'B']) }, log: (s) => lines.push(s),
+      makeLiveAi: (meter) => ({ chat: async () => { calls++; await meter.ledger.recordLlmCall({ costUsd: 0.25 } as never); return { text: 'live' }; } }) as never,
+    });
+    expect(out.failed).toBe(false);
+    expect(calls).toBe(1);
+    expect(out.reports[0]).toMatchObject({ mode: 'live', costUsd: 0.25, metrics: { stored: 1 } });
+    expect(lines.join(" ")).toMatch(/fill briefs: hits 1, recorded 1, misses 0, live spend \$0\.25/);
+    const saved = JSON.parse(readFileSync(join(dir, 'cass', 'briefs.json'), 'utf8')) as { entries: Record<string, unknown> };
+    expect(Object.keys(saved.entries)).toHaveLength(2);
+  });
 });

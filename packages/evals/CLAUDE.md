@@ -9,6 +9,6 @@ Record/replay eval harness (phase 7c1): labelled case sets in `data/<suite>.json
 - **`src/cli/load-env.ts` must stay the CLI's first import** (it loads the root `.env` before any module reads env).
 - **The Ask suite truncates the test DB:** never run it alongside another test run on the same DB (`prepareTestDb` refuses any non-`_test` URL).
 - **Budget stop in record mode loses the recording:** the cassette flushes only when the suite completes. Raise `--max-usd` and re-run.
-- **Single-case re-record is ad hoc today** (no `record --case`); re-record the whole suite.
+- **Single-case re-record is ad hoc today** (no `record --case`); re-record the whole suite, or `record --fill` to go live only on cassette misses (stored replies reused, so an old passing answer stays).
 - **Pre-labels are LLM/template guesses:** headline decision metrics count only owner-confirmed labels; unconfirmed ones report as `prelabel_agreement.*`. Changes/reviews cases are report-only (`blocking: false`); B1-B3 (briefs, ask) block. In replay, `case_errors > 0` is a blocking `E` failure (replay is deterministic); live keeps errors report-only.
 - **Eval topics are the repo YAML seed topics**, not production's AM-approved discovered ones.

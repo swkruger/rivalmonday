@@ -16,6 +16,8 @@ export interface RunOptions {
   mode: 'replay' | 'live';
   /** Live + cassette record + flush. */
   record: boolean;
+  /** With `record`: replay stored replies, go live only on misses (cassette `fill` mode). */
+  fill?: boolean;
   maxUsd: number;
   reportDir: string;
   updateBaseline: boolean;
@@ -69,12 +71,16 @@ export async function runEvals(o: RunOptions): Promise<RunOutcome> {
       const today = runner.today;
       const now = today ? () => new Date(today) : undefined;
       const cassette = o.record
-        ? createCassetteAi(ensureLive(), { mode: 'record', file, config: o.config, now })
+        ? createCassetteAi(ensureLive(), { mode: o.fill ? 'fill' : 'record', file, config: o.config, now })
         : o.mode === 'replay'
           ? createCassetteAi(null, { mode: 'replay', file, config: o.config, now })
           : null;
       const result = await runner.run(cases, cassette ?? ensureLive(), { mode });
       cassette?.flush();
+      if (o.record && o.fill && cassette) {
+        const st = cassette.stats();
+        log(`[eval] fill ${suite}: hits ${st.hits}, recorded ${st.recorded}, misses ${st.misses}, live spend $${(meter.spent() - before).toFixed(4)}`);
+      }
       const bdir = o.baselineDir ?? BASELINE_DIR;
       const caseErrors = result.metrics.case_errors ?? 0;
       // Replay is deterministic: an errored case is a regression, not a flake. Live keeps errors report-only.

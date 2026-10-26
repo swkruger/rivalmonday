@@ -103,6 +103,55 @@ describe('cassette', () => {
     expect(Object.keys(parsed.entries)).toHaveLength(1);
   });
 
+  it('fill reuses stored responses and records only misses', async () => {
+    const file = fileOf();
+    const rec = createCassetteAi(fakeInner(() => result('stored A')).ai, { mode: 'record', file, config });
+    await rec.chat('ask_assistant', { messages: msgs('A') }, scope);
+    rec.flush();
+    const { ai, chat } = fakeInner(() => result('live B'));
+    const fill = createCassetteAi(ai, { mode: 'fill', file, config });
+    expect((await fill.chat('ask_assistant', { messages: msgs('A') }, scope)).text).toBe('stored A');
+    expect((await fill.chat('ask_assistant', { messages: msgs('B') }, scope)).text).toBe('live B');
+    expect(chat).toHaveBeenCalledTimes(1);
+    expect(fill.stats()).toEqual({ hits: 1, misses: 0, recorded: 1 });
+    fill.flush();
+    const rep = createCassetteAi(null, { mode: 'replay', file, config });
+    expect((await rep.chat('ask_assistant', { messages: msgs('A') }, scope)).text).toBe('stored A');
+    expect((await rep.chat('ask_assistant', { messages: msgs('B') }, scope)).text).toBe('live B');
+  });
+
+  it('fill drops untouched stored entries', async () => {
+    const file = fileOf();
+    const rec = createCassetteAi(fakeInner(() => result('c')).ai, { mode: 'record', file, config });
+    await rec.chat('ask_assistant', { messages: msgs('C') }, scope);
+    rec.flush();
+    const fill = createCassetteAi(fakeInner(() => result('d')).ai, { mode: 'fill', file, config });
+    await fill.chat('ask_assistant', { messages: msgs('D') }, scope);
+    fill.flush();
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as { entries: Record<string, { responses: { text: string }[] }> };
+    expect(Object.values(parsed.entries).map((e) => e.responses.map((r) => r.text))).toEqual([['d']]);
+  });
+
+  it('fill records an extra response when a key is called more times than stored', async () => {
+    const file = fileOf();
+    const rec = createCassetteAi(fakeInner(() => result('first')).ai, { mode: 'record', file, config });
+    await rec.chat('ask_assistant', { messages: msgs('A') }, scope);
+    rec.flush();
+    const { ai, chat } = fakeInner(() => result('second'));
+    const fill = createCassetteAi(ai, { mode: 'fill', file, config });
+    expect((await fill.chat('ask_assistant', { messages: msgs('A') }, scope)).text).toBe('first');
+    expect((await fill.chat('ask_assistant', { messages: msgs('A') }, scope)).text).toBe('second');
+    expect(chat).toHaveBeenCalledTimes(1);
+    expect(fill.stats()).toEqual({ hits: 1, misses: 0, recorded: 1 });
+    fill.flush();
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as { entries: Record<string, { responses: { text: string }[] }> };
+    expect(Object.values(parsed.entries).map((e) => e.responses.map((r) => r.text))).toEqual([['first', 'second']]);
+  });
+
+  it('fill mode needs a live Ai', () => {
+    expect(() => createCassetteAi(null, { mode: 'fill', file: fileOf(), config })).toThrow(/live Ai/);
+  });
+
   it('canonicalJson ignores key order', () => {
     expect(canonicalJson({ b: 1, a: { d: [1, { y: 1, x: undefined }], c: 2 } })).toBe(canonicalJson({ a: { c: 2, d: [1, { y: 1 }] }, b: 1 }));
   });

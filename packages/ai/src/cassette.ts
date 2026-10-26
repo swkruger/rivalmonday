@@ -4,7 +4,8 @@ import { basename, dirname, extname } from 'node:path';
 import type { Ai } from './ai';
 import type { AiConfig } from './config';
 
-export type CassetteMode = 'record' | 'replay';
+/** `fill`: replay stored replies, call live only on misses (or extra calls of a key), save like `record`. */
+export type CassetteMode = 'record' | 'replay' | 'fill';
 export interface CassetteOptions {
   mode: CassetteMode;
   file: string;
@@ -72,11 +73,12 @@ function load(file: string): Record<string, Entry> {
   return parsed.entries ?? {};
 }
 
-/** Replay (inner may be null) or record (inner required) model replies. Batches are unsupported; `scope` is not part of the key. */
+/** Replay (inner may be null), record or fill (inner required) model replies. Batches are unsupported; `scope` is not part of the key. */
 export function createCassetteAi(inner: Ai | null, opts: CassetteOptions): CassetteAi {
   const now = opts.now ?? (() => new Date());
   const recording = opts.mode === 'record';
-  if (recording && !inner) throw new Error('Cassette record mode needs a live Ai');
+  const filling = opts.mode === 'fill';
+  if ((recording || filling) && !inner) throw new Error(`Cassette ${opts.mode} mode needs a live Ai`);
   const stored = recording ? {} : load(opts.file);
   const touched = new Map<string, Entry>(); // entries hit this run
   const used = new Map<string, number>(); // key -> replies consumed this run
@@ -86,7 +88,20 @@ export function createCassetteAi(inner: Ai | null, opts: CassetteOptions): Casse
     const today = now();
     const ids = new Map<string, string>();
     const key = cassetteKey(opts.config, task, kind, normalize(canonicalJson(request), ids, today));
-    if (recording) {
+    if (filling) {
+      // Fill keeps exactly the replies consumed this run, in call order: unused stored replies and entries are pruned.
+      const n = used.get(key) ?? 0;
+      used.set(key, n + 1);
+      const prior = stored[key]?.responses;
+      if (prior && n < prior.length) {
+        let entry = touched.get(key);
+        if (!entry) { entry = { task, kind, responses: [] }; touched.set(key, entry); }
+        entry.responses.push(prior[n]);
+        counts.hits++;
+        return JSON.parse(denormalize(JSON.stringify(prior[n]), ids, today)) as T;
+      }
+    }
+    if (recording || filling) {
       const response = clean(await call());
       let entry = touched.get(key);
       if (!entry) { entry = { task, kind, responses: [] }; touched.set(key, entry); }
@@ -123,7 +138,7 @@ export function createCassetteAi(inner: Ai | null, opts: CassetteOptions): Casse
     submitBatch: async () => { throw new Error('Cassette AI does not support batches'); },
     collectBatch: async () => { throw new Error('Cassette AI does not support batches'); },
     flush() {
-      if (!recording) return;
+      if (!recording && !filling) return;
       const entries: Record<string, Entry> = {};
       for (const k of [...touched.keys()].sort()) entries[k] = touched.get(k)!;
       mkdirSync(dirname(opts.file), { recursive: true });
