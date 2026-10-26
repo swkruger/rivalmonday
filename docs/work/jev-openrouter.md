@@ -4,14 +4,14 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-25-jev-openrouter.md) · [spec](../superpowers/specs/2026-10-25-jev-openrouter-design.md) — spec owner-approved 2026-10-25; plan awaiting approval.
 
 ## Status (overwrite)
-Tasks 0-5 + 4b done; ask cassette filled ($0.07); final fix wave done. Built: Jev adapter on OpenRouter (`typesafe/jev-1.14`, `costUsd = usage.cost` when finite and >0, else fallback estimate 0.042 $/M with one warning per `createAiFromEnv`), echoed model id on samples (jsonb, no migration), `SPEND_GUARD_EXCLUDED_PROVIDERS = []` + `llmProviderCounted()`, spike scope `openrouter` = openrouter + llm + jev, `TYPESAFE_API_KEY` removed, docs updated. Cassettes re-recorded for changes, reviews, briefs; ask filled via `eval record --fill`; ask baseline refreshed in replay; `eval run --suite all --mode replay` green.
+Tasks 0-5 + 4b done; ask cassette filled ($0.07); final fix wave done; test:affected green (worker env-count + spend-guard flake fixed, 72ce9ad3), e2e:affected 140/140. Built: Jev adapter on OpenRouter (`typesafe/jev-1.14`, `costUsd = usage.cost` when finite and >0, else fallback estimate 0.042 $/M with one warning per `createAiFromEnv`), echoed model id on samples (jsonb, no migration), `SPEND_GUARD_EXCLUDED_PROVIDERS = []` + `llmProviderCounted()`, spike scope `openrouter` = openrouter + llm + jev, `TYPESAFE_API_KEY` removed, docs updated. Cassettes re-recorded for changes, reviews, briefs; ask filled via `eval record --fill`; ask baseline refreshed in replay; `eval run --suite all --mode replay` green.
 
 Detail: Task 0 live probe of `POST https://openrouter.ai/api/v1/systemone` (`typesafe/jev-1.14`): HTTP 200, shape matches `responseSchema`, `model` echoed dated (`typesafe/jev-1.14-20261014`), `usage.cost` present (derived 0.042 $/M input = old placeholder, kept as fallback), score probability keys 0-based.
 
 Ask spend total: ~$16.8 failed takes + $0.07 fill. Other suites: briefs $0.55, changes $0.07, reviews $0.17.
 
 ## Next (overwrite)
-`pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` (`--base main`) -> `/rm-merge`. The ask-inject-09 BACKLOG item (~L231) stays open: known flake, not a 1.14 regression (`.superpowers/sdd/2026-10-25-jev-openrouter/ask-inject-09-investigation.md`).
+Owner go-ahead -> `/rm-merge jev-openrouter`. The ask-inject-09 BACKLOG item (~L231) stays open: known flake, not a 1.14 regression (Jev guard answer identical to the old cassette, in_scope 0.98; B3 fails when the Ask model quotes "closing down for good" while refusing).
 
 ## Interfaces this branch adds or changes
 Expected: Jev URL/key/model id in `packages/ai`; `ai.yaml jev.input_usd_per_mtok` removed; `SPEND_GUARD_EXCLUDED_PROVIDERS` emptied. No migration expected (next free **0095**; neither phase-15c3b nor phase-16 adds one).
