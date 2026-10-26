@@ -1,4 +1,4 @@
-import { client, llmCall } from '@cs/db';
+import { client, llmCall, platformSetting, SPEND_GUARD_SETTINGS_KEY } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +30,9 @@ describe('spend-guard job', () => {
   });
 
   it('runs the guard in dev and returns the summary', async () => {
+    // The $99 row is inside the rolling 24 h window (it only escaped it when the DB clock ran ahead of node's `new Date()`, a flake):
+    // raise the spike floor so the spike stays 'ok' deterministically; this test is about the client part.
+    await dbs.owner.insert(platformSetting).values({ key: SPEND_GUARD_SETTINGS_KEY, value: { spikeFloorUsdPerDay: 10_000 }, updatedBy: 't' });
     await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 99, latencyMs: 1, ok: true });
     expect(await createSpendGuardJobs(deps, { envName: 'dev' }).guard.handler({})).toMatchObject({ reached: 1, paused: 1, lifted: 0, rolledOver: 0, spike: 'ok' });
   });

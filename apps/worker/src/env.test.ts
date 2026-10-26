@@ -14,8 +14,10 @@ describe('missingProdEnv', () => {
     env.APP_URL = '   ';
     expect(missingProdEnv(env)).toEqual(['APP_URL', 'SENTRY_DSN']);
   });
-  it('has the Decision 4 list plus the 7c2 pooled app URL', () => {
-    expect(REQUIRED_PROD_ENV).toHaveLength(14);
+  it('has the Decision 4 list plus the 7c2 pooled app URL (Jev rides OPENROUTER_API_KEY, no TYPESAFE_API_KEY)', () => {
+    expect(REQUIRED_PROD_ENV).toHaveLength(13);
+    expect(REQUIRED_PROD_ENV).toContain('OPENROUTER_API_KEY');
+    expect(REQUIRED_PROD_ENV).not.toContain('TYPESAFE_API_KEY');
   });
   it('production refuses to start without SERVICE_DATABASE_POOLED_URL (the app pool is sized for the pooler); dev falls back', () => {
     const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
