@@ -158,6 +158,29 @@ describe('move_agencies_to_current_plan', () => {
     expect(ev).toMatchObject({ fromState: 'active', toState: 'active', reason: 'admin_plan_version_move', actor: 'op' });
   });
 
+  it('read_only and suspended with a live sub swap prices and get the next-billing email (P12)', async () => {
+    const ro = await mk('Read only', { billing: { state: 'read_only' }, sub: 'sub_ro', clients: 4 }); // adm1
+    const su = await mk('Suspended', { billing: { state: 'suspended' }, sub: 'sub_su', clients: 5 }); // adm2
+    const out = await move([ro, su]);
+    expect(out.results).toEqual([
+      { agencyId: ro, outcome: 'moved', emailed: true },
+      { agencyId: su, outcome: 'moved', emailed: true },
+    ]);
+    expect(gw.swaps).toEqual([
+      { subscriptionId: 'sub_ro', basePriceId: 'price_b2', seatPriceId: 'price_s2', seatQuantity: 1 },
+      { subscriptionId: 'sub_su', basePriceId: 'price_b2', seatPriceId: 'price_s2', seatQuantity: 2 },
+    ]);
+    expect(await row(ro)).toMatchObject({ planId: v2, billableSeatsSynced: 1, seatSyncPending: false, state: 'read_only' });
+    expect(await row(su)).toMatchObject({ planId: v2, billableSeatsSynced: 2, seatSyncPending: false, state: 'suspended' });
+    for (const to of ['adm1@example.com', 'adm2@example.com']) {
+      const mail = transport.sent.find((m) => m.to === to)!;
+      expect(mail.text).toContain('From November 3, 2026, your plan is $199/month');
+      expect(mail.text).not.toContain('These prices apply when you subscribe.');
+    }
+    const listed = Object.fromEntries((await list()).agencies.map((a) => [a.agencyId, a.swapsStripe]));
+    expect(listed).toEqual({}); // both moved off the list
+  });
+
   it('pilot and no-card trial: no gateway call, plan_id set', async () => {
     const p = await mk('Pilot', { billing: { state: 'pilot', billableSeatsSynced: 4, seatSyncPending: true }, clients: 5 });
     const t = await mk('Trial', { billing: { state: 'trialing' }, clients: 1 });
@@ -253,6 +276,15 @@ describe('list_plan_agencies', () => {
     expect(byId[held]).toMatchObject({ planId: v1, version: 1, onHold: true, swapsStripe: false, features: ['ask', 'mcp'] });
     expect(byId[old]).toMatchObject({ state: 'active', swapsStripe: true, onHold: false });
     expect(gw.calls).toEqual([]);
+  });
+
+  it('swapsStripe: any held subscription id unless cancelled', async () => {
+    const ro = await mk('Read only', { billing: { state: 'read_only' }, sub: 'sub_ro' });
+    const su = await mk('Suspended', { billing: { state: 'suspended' }, sub: 'sub_su' });
+    const cancelled = await mk('Cancelled', { billing: { state: 'cancelled' }, sub: 'sub_c' });
+    const noSub = await mk('Read only no sub', { billing: { state: 'read_only' } });
+    const s = Object.fromEntries((await list()).agencies.map((a) => [a.agencyId, a.swapsStripe]));
+    expect(s).toEqual({ [ro]: true, [su]: true, [cancelled]: false, [noSub]: false });
   });
 
   it('monthly math', async () => {

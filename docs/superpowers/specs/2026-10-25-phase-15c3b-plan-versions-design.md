@@ -42,7 +42,7 @@ Stripe prices and `plan_id` disagree without the operator seeing it.
 - **P11** Agencies with a billing row and `plan_id IS NULL` are listed (version shown as "Not set") and movable; the move
   sets `plan_id`. `planFeaturesFor` keeps 7a2's "no plan ⇒ every feature" until they are moved. Agencies with no
   `agency_billing` row are out of scope.
-- **P12** Who gets a Stripe swap: state `active`, `past_due`, or `trialing` with a stored subscription id. `cancelled`
+- **P12** Who gets a Stripe swap: state `active`, `past_due`, `trialing`, `read_only` or `suspended` with a stored subscription id (dunning keeps it). `cancelled`
   agencies are refused (`cancelled`): their subscription is ending, there is nothing to move. Everyone else (pilot,
   trialing without a card) gets `plan_id` only and the `on_subscribe` email.
 - **P13** Archived agencies never appear (D16) and are refused as `not_found`; held agencies appear disabled with the
@@ -107,10 +107,10 @@ Dates date-only UTC (15c-2a). Feature names: "Ask" (assistant name from branding
 ### 3.6 Web
 - `/platform/billing` plans tab (`plan-editor.tsx`): the publish form gains "Includes" checkboxes **Ask** / **MCP
   access** (P9); the versions table shows each version's features. Below it, new section **"Agencies not on the current
-  version"** (`list_plan_agencies`): checkbox, agency, version, state, monthly now → after; held rows disabled with the
-  hold chip; header checkbox selects all enabled rows. **"Move selected to v{N}"** (owner only; viewers/staff see the
+  version"** (`list_plan_agencies`): checkbox, agency, version, state, monthly now → after; held rows disabled with the hold chip and cancelled rows disabled with their
+  state label; header checkbox selects all enabled rows. **"Move selected to v{N}"** (owner only; viewers/staff see the
   table read-only) → `ConfirmDialog` listing each agency's now → after and its P7 warning, plus "New prices start at
-  each agency's next billing date. Feature changes apply now. Admins are emailed." Result: inline "Moved {n}." and, if
+  each agency's next billing date. Feature changes apply now. Admins are emailed when their price or features change." Result: inline "Moved {n}." and, if
   any, "{m} not moved: {name} ({reason label})". Empty state: "Every agency is on the current version."
 - `/platform/agencies/[id]`: billing panel shows "Plan v{n}" (or "Plan version not set") plus "(current: v{N})" when
   behind; Manage ▾ gets **"Move to current plan"** (owner, only when behind, hidden on hold/archived/cancelled) → the

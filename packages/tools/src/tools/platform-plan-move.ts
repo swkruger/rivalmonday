@@ -16,9 +16,11 @@ import { operate } from './platform-billing';
 const { defineTool } = toolkit<ToolDeps>();
 
 const ALL: readonly PlanFeature[] = PLAN_FEATURES;
-/** P12: who gets a Stripe price swap (with a stored subscription id). */
-const SWAP_STATES: readonly BillingState[] = ['active', 'past_due', 'trialing'];
-const swapsStripe = (row: Pick<AgencyBillingRow, 'state' | 'stripeSubscriptionId'>) => !!row.stripeSubscriptionId && SWAP_STATES.includes(row.state);
+/**
+ * P12: who gets a Stripe price swap — any agency holding a subscription id that is not cancelled (dunning keeps the
+ * subscription through `read_only` / `suspended`, so those swap too). Shared by the list's `swapsStripe` and the move.
+ */
+const swapsStripe = (row: Pick<AgencyBillingRow, 'state' | 'stripeSubscriptionId'>) => !!row.stripeSubscriptionId && row.state !== 'cancelled';
 const errName = (e: unknown): string => (e instanceof Error ? e.name : 'unknown');
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
 const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatPriceCents });

@@ -15,14 +15,15 @@ type Outcome = { ok: true; message: string } | { ok: false; error: string };
 
 /**
  * Agencies not on the current plan version (15c-3b spec §3.6). Owners tick rows and move them; everyone else sees the table
- * read-only. Held rows are disabled. The result line lives here (always mounted), so it survives the list refreshing.
+ * read-only. Held and cancelled rows are disabled (the tool refuses both). The result line lives here (always mounted), so it survives the list refreshing.
  */
 export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMove: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const rows = data.agencies;
-  const enabled = rows.filter((r) => !r.onHold);
-  const chosen = rows.filter((r) => selected.has(r.agencyId) && !r.onHold);
+  const locked = (r: PlanAgencyRow) => r.onHold || r.state === 'cancelled';
+  const enabled = rows.filter((r) => !locked(r));
+  const chosen = rows.filter((r) => selected.has(r.agencyId) && !locked(r));
   const allChecked = enabled.length > 0 && enabled.every((r) => selected.has(r.agencyId));
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -80,8 +81,8 @@ export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMov
                           type="checkbox"
                           aria-label={`Select ${r.name}`}
                           className="h-4 w-4 rounded border-input"
-                          checked={selected.has(r.agencyId) && !r.onHold}
-                          disabled={r.onHold}
+                          checked={selected.has(r.agencyId) && !locked(r)}
+                          disabled={locked(r)}
                           onChange={() => toggle(r.agencyId)}
                         />
                       </td>

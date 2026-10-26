@@ -20,7 +20,7 @@ export interface MoveResultData {
   results: { agencyId: string; outcome: 'moved' | 'already_current' | 'refused' | 'failed'; reason?: keyof typeof PLAN_MOVE_REASON_LABEL; emailed: boolean }[];
 }
 
-export const MOVE_NOTE = "New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed.";
+export const MOVE_NOTE = "New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed when their price or features change.";
 
 /** P7 warning texts (spec §2). */
 export function seatWarningText(row: Pick<PlanAgencyRow, 'seatWarning' | 'extraSeatsAfter'>): string | null {

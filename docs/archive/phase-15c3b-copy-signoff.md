@@ -41,11 +41,13 @@ Known gap: with 1 included seat the email reads "1 client seats" (no singular ha
 | Checkbox labels | "Select all agencies"; "Select {agency}" | draft |
 | Version cell | "v{n}", or "Not set" when the agency has no version | draft |
 | Held row | State chip plus a danger chip "On hold" (checkbox disabled) | decided |
+| Cancelled row | State chip "Cancelled" (checkbox disabled; select-all skips it) | draft |
 | Price cell | "${now} → ${after}" | draft |
 | Button | "Move selected to v{N}" (disabled until one is ticked) | decided |
 | Dialog title | "Move {n} agency to v{N}?" / "Move {n} agencies to v{N}?" | draft |
 | Dialog line per agency | "{agency} (v{from} → v{N}): ${now} → ${after} a month" | draft |
-| Dialog note | "New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed." | decided |
+| Dialog line, no version | "{agency} (Not set → v{N}): ${now} → ${after} a month" | draft |
+| Dialog note | "New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed when their price or features change." | decided (changed in the final fix wave: was "Admins are emailed.") |
 | Seat warning, paid | "Pays for {n} extra seat(s) from the next billing date." | decided |
 | Seat warning, over cap | "Over the client limit: new clients can't be activated until they're under it." | decided |
 | Confirm button | "Move to v{N}" | draft |
@@ -60,6 +62,7 @@ Known gap: with 1 included seat the email reads "1 client seats" (no singular ha
 | Billing panel, behind, no version | "Plan version not set" followed by " (current: v{N})" | draft |
 | Billing panel, up to date | "Plan v{n}"; "No plan" when none | draft |
 | Manage menu item (owner; only when behind and not held, archived or cancelled) | "Move to current plan" | decided |
+| Billing panel event list (`lib/labels.ts` `BILLING_EVENT_REASON`) | `admin_plan_version_move` → "Moved to current plan version"; `admin_plan_version_move_reverted` → "Plan version move reverted" | draft |
 | Move dialog | Title "Move {agency} to v{N}?"; body = the same price line, warning and note as section 2; button "Move to v{N}"; result line as in section 2 | draft |
 
 ## 4. Guides (`docs/help/pages/`)

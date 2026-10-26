@@ -157,12 +157,13 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
     canStart
       ? callTool<{ codes: { id: string; code: string; revokedAt: string | null }[] }>(ctx, 'list_discount_codes', {}).then((r) => r.codes.filter((c) => !c.revokedAt))
       : Promise.resolve([]),
-    callTool<{ currentVersion: number; agencies: PlanAgencyRow[] }>(ctx, 'list_plan_agencies', {}),
+    // Optional: a failed read (e.g. `conflict`, no current plan) drops only the "(current: v{N})" note and the Move item.
+    callTool<{ currentVersion: number; agencies: PlanAgencyRow[] }>(ctx, 'list_plan_agencies', {}).catch(() => null),
   ]);
   // The agency has a row here only when it is behind the current plan version (a null version = never set).
-  const behindRow = planList.agencies.find((a) => a.agencyId === agency.id) ?? null;
-  const behind = behindRow ? { version: behindRow.version, currentVersion: planList.currentVersion } : null;
-  const planMove = behindRow && !hold && behindRow.state !== 'cancelled' ? { row: behindRow, currentVersion: planList.currentVersion } : null;
+  const behindRow = planList?.agencies.find((a) => a.agencyId === agency.id) ?? null;
+  const behind = planList && behindRow ? { version: behindRow.version, currentVersion: planList.currentVersion } : null;
+  const planMove = planList && behindRow && !hold && behindRow.state !== 'cancelled' ? { row: behindRow, currentVersion: planList.currentVersion } : null;
   const health = agency.health ? labelFor(AGENCY_HEALTH, agency.health) : null;
   // The tool returns tiles and series for every agency that is not archived.
   const t = tiles as Tiles;

@@ -41,6 +41,8 @@ describe('every enum value has a label', () => {
   it('billing event reasons are plain words, with a prefix-free fallback', () => {
     for (const [k, v] of Object.entries(BILLING_EVENT_REASON)) { expect(v, k).not.toMatch(/[_:]/); }
     expect(billingReasonLabel('admin:end_pilot')).toBe('Pilot ended by staff');
+    expect(billingReasonLabel('admin_plan_version_move')).toBe('Moved to current plan version');
+    expect(billingReasonLabel('admin_plan_version_move_reverted')).toBe('Plan version move reverted');
     expect(billingReasonLabel('timer:something_new')).toBe('Something new');
   });
   it('the union-typed maps (checked by the compiler) still have entries', () => {

@@ -48,6 +48,15 @@ describe('PlanAgencies', () => {
     expect(box('Select Alpha').checked).toBe(false);
   });
 
+  it('a cancelled row is disabled with its state label; select-all skips it', () => {
+    render(<PlanAgencies data={data([...rows, row({ agencyId: 'a5', name: 'Echo', state: 'cancelled' })])} canMove />);
+    expect(box('Select Echo').disabled).toBe(true);
+    expect(within(screen.getByText('Echo').closest('tr')!).getByText('Cancelled')).toBeTruthy();
+    fireEvent.click(box('Select all agencies'));
+    expect(box('Select Echo').checked).toBe(false);
+    expect(box('Select Alpha').checked).toBe(true);
+  });
+
   it('a viewer sees the table read-only: no checkboxes, no move button', () => {
     render(<PlanAgencies data={data(rows)} canMove={false} />);
     expect(screen.getByText('Alpha')).toBeTruthy();
@@ -71,7 +80,7 @@ describe('PlanAgencies', () => {
     expect(within(dialog).getByText('Alpha').closest('li')!.textContent).toContain('(v1 → v3): $299 → $349');
     expect(within(dialog).getByText('Pays for 2 extra seats from the next billing date.')).toBeTruthy();
     expect(within(dialog).getByText("Over the client limit: new clients can't be activated until they're under it.")).toBeTruthy();
-    expect(within(dialog).getByText("New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed.")).toBeTruthy();
+    expect(within(dialog).getByText("New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed when their price or features change.")).toBeTruthy();
   });
 
   it('confirming moves the chosen ids and summarises, naming those not moved with a reason label', async () => {

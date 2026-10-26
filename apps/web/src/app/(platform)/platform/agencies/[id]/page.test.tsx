@@ -125,6 +125,17 @@ describe('platform agency page: plan version', () => {
     expect(screen.getByText(/behind 1\/3/)).toBeTruthy();
     expect(screen.queryByText(/can-move/)).toBeNull();
   });
+  it('a failed list_plan_agencies read still renders the page: panel without behind info, no move', async () => {
+    const base = m.callTool.getMockImplementation()!;
+    m.callTool.mockImplementation(async (ctx: unknown, name: string, input: unknown) => {
+      if (name === 'list_plan_agencies') throw Object.assign(new Error('No billing plan is configured.'), { code: 'conflict' });
+      return base(ctx, name, input);
+    });
+    m.role = 'owner';
+    render(await page());
+    expect(screen.getByText('billing-panel owner trialing')).toBeTruthy();
+    expect(screen.getByText(/manage-menu owner/).textContent).not.toContain('can-move');
+  });
   it('a held agency cannot be moved', async () => {
     withRow({});
     const withRowImpl = m.callTool.getMockImplementation()!;

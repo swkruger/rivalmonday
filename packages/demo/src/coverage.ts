@@ -341,6 +341,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_discount_codes', input: none, path: 'codes' },
       { tool: 'get_client_limits', input: (ids) => ({ agencyId: ids.agencyId }), path: 'defaultLimitUsd' },
       { tool: 'list_agency_people', input: (ids) => ({ agencyId: ids.agencyId }), path: 'members' },
+      { tool: 'list_plan_agencies', input: none, path: 'agencies', expect: 'empty', why: 'every demo agency is on the current plan version' },
     ],
   },
   {

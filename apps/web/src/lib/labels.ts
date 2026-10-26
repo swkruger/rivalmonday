@@ -193,6 +193,9 @@ export const BILLING_EVENT_REASON: Record<string, string> = {
   'admin:grant_pilot': 'Pilot granted by staff',
   'admin:end_pilot': 'Pilot ended by staff',
   'admin:extend_trial': 'Trial extended by staff',
+  // Phase 15c-3b move_agencies_to_current_plan (packages/tools/src/tools/platform-plan-move.ts)
+  admin_plan_version_move: 'Moved to current plan version',
+  admin_plan_version_move_reverted: 'Plan version move reverted',
 };
 
 /** Plain-words reason for a billing event; an unknown one drops its "signal:" / "timer:" / "admin:" prefix and falls back to sentence case. */
