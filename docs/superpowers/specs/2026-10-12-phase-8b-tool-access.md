@@ -119,6 +119,8 @@ get_agency_branding (agency-settings-reads.ts) | read | read-only; agency_admin;
 list_webhooks (agency-settings-reads.ts) | read | read-only; agency_admin; host only (7a2)
 list_client_recipients (agency-settings-reads.ts) | read | read-only; agency roles; masks items[].email/name (7a2)
 get_onboarding_status (agency-onboarding.ts) | read | read
+save_agency_basics (agency-onboarding.ts) | write | updates agency, agency_profile, auth.user name
+finish_onboarding (agency-onboarding.ts) | write | updates agency_onboarding
 mark_onboarding_step (agency-onboarding.ts) | write | updates agency_onboarding
 dismiss_onboarding_checklist (agency-onboarding.ts) | write | updates agency_onboarding
 mark_onboarding_redirected (agency-onboarding.ts) | write | updates agency_onboarding

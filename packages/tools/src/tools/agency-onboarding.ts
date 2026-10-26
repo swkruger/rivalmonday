@@ -71,6 +71,8 @@ export const OnboardingStatus = z.object({
   completed: z.boolean(),
   /** The first-session redirect to the wizard has already happened (a missing row reads as completed legacy: never redirect). */
   redirected: z.boolean(),
+  /** The 4-step wizard was finished (`finish_onboarding`); the first-session redirect stops and the checklist takes over. */
+  wizardFinished: z.boolean(),
   source: z.enum(['open', 'invite', 'legacy']),
 });
 export type OnboardingStatus = z.infer<typeof OnboardingStatus>;
@@ -86,7 +88,7 @@ export const getOnboardingStatus = defineTool({
     requireReader(ctx);
     const [r] = await deps.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId));
     // R25: a missing row (admin CLI, seeds) reads as a completed legacy agency — no checklist, no redirect.
-    if (!r) return { steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, source: 'legacy' as const };
+    if (!r) return { steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, wizardFinished: true, source: 'legacy' as const };
     return {
       steps: {
         profile: stepState(r.profileDoneAt, r.profileSkippedAt), team: stepState(r.teamDoneAt, r.teamSkippedAt),
@@ -96,6 +98,7 @@ export const getOnboardingStatus = defineTool({
       dismissed: !!r.dismissedAt,
       completed: !!r.completedAt,
       redirected: !!r.redirectedAt,
+      wizardFinished: !!r.wizardFinishedAt,
       source: r.source,
     };
   },
@@ -261,6 +264,78 @@ export const updateAgencyProfile = defineTool({
   },
 });
 
+// ---- wizard (Phase 16: about -> team -> brand -> done) ----
+
+export const SaveAgencyBasicsInput = z.object({
+  name: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().min(1).max(120),
+  contactEmail: z.string().trim().max(254).email('Enter a valid email address'),
+  phone: z.string().trim().regex(PHONE, 'Enter a US phone number, like (404) 555-0100'),
+  address: z.object({
+    line1: z.string().trim().min(1).max(200), line2: opt(200), city: z.string().trim().min(1).max(120),
+    region: z.string().trim().min(1).max(120), postalCode: z.string().trim().regex(ZIP, 'Enter a 5-digit ZIP code'),
+  }).nullish(),
+  billingSameAsPostal: z.boolean(),
+  browserTimezone: z.string().refine(validTimezone, 'Unknown time zone').optional(),
+});
+
+export const saveAgencyBasics = defineTool({
+  name: 'save_agency_basics',
+  access: 'write',
+  description: 'Save the sign-up wizard�s about step: agency name, contact, phone and optional address. Never touches settings-only fields (agency admins).',
+  input: SaveAgencyBasicsInput,
+  output: OK,
+  permission: 'agency',
+  async handler(ctx, v, deps) {
+    requireAdmin(ctx);
+    const now = new Date();
+    await deps.service.transaction(async (tx) => {
+      const [existing] = await tx.select().from(agencyProfile).where(eq(agencyProfile.agencyId, ctx.agencyId)).for('update');
+      const postal = v.address === undefined
+        ? { line1: existing?.line1 ?? null, line2: existing?.line2 ?? null, city: existing?.city ?? null, region: existing?.region ?? null, postalCode: existing?.postalCode ?? null }
+        : { line1: v.address?.line1 ?? null, line2: v.address?.line2 ?? null, city: v.address?.city ?? null, region: v.address?.region ?? null, postalCode: v.address?.postalCode ?? null };
+      const same = v.billingSameAsPostal;
+      const values = {
+        contactName: v.contactName, contactEmail: v.contactEmail, phone: v.phone, ...postal, billingSameAsPostal: same,
+        ...(same ? { billingLine1: postal.line1, billingLine2: postal.line2, billingCity: postal.city, billingRegion: postal.region, billingPostalCode: postal.postalCode, billingCountry: existing?.country ?? 'US' } : {}),
+        updatedAt: now,
+      };
+      await tx.update(agency).set({ name: v.name }).where(eq(agency.id, ctx.agencyId));
+      if (!existing) await tx.insert(agencyProfile).values({ agencyId: ctx.agencyId, ...values, timezone: v.browserTimezone ?? 'America/Chicago' });
+      else await tx.update(agencyProfile).set({ ...values, ...(!existing.timezone && v.browserTimezone ? { timezone: v.browserTimezone } : {}) }).where(eq(agencyProfile.agencyId, ctx.agencyId));
+      // The caller's display name follows the contact name when the contact is them (auth schema: raw SQL on the service connection).
+      if (!ctx.userId.startsWith('contact:')) {
+        await tx.execute(sql`update auth."user" set name = ${v.contactName}, "updatedAt" = now() where id = ${ctx.userId} and lower(email) = ${v.contactEmail.trim().toLowerCase()}`);
+      }
+      await markStep(tx, ctx.agencyId, 'profile', 'done', now);
+    });
+    return ok;
+  },
+});
+
+export const finishOnboarding = defineTool({
+  name: 'finish_onboarding',
+  access: 'write',
+  description: 'Finish the sign-up wizard: stamps wizard_finished_at and settles the plan step (agency admins).',
+  input: z.object({}),
+  output: OK,
+  permission: 'agency',
+  async handler(ctx, _input, deps) {
+    requireAdmin(ctx);
+    await deps.service.transaction(async (tx) => {
+      const now = new Date();
+      await ensureRow(tx, ctx.agencyId);
+      const [r] = await tx.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId)).for('update');
+      await tx.update(agencyOnboarding).set({
+        wizardFinishedAt: r!.wizardFinishedAt ?? now,
+        ...(!r!.planDoneAt && !r!.planSkippedAt ? { planSkippedAt: now } : {}),
+      }).where(eq(agencyOnboarding.agencyId, ctx.agencyId));
+      await reevaluateOnboardingCompletion(tx, ctx.agencyId, now);
+    });
+    return ok;
+  },
+});
+
 // ---- logo (spec § Logo pipeline; the web route normalises with sharp, this tool stores + points branding at it) ----
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -302,4 +377,4 @@ export const uploadAgencyLogo = defineTool({
   },
 });
 
-export const agencyOnboardingTools = [getOnboardingStatus, markOnboardingStep, dismissOnboardingChecklist, markOnboardingRedirected, getAgencyProfile, updateAgencyProfile, uploadAgencyLogo];
+export const agencyOnboardingTools = [getOnboardingStatus, markOnboardingStep, dismissOnboardingChecklist, markOnboardingRedirected, saveAgencyBasics, finishOnboarding, getAgencyProfile, updateAgencyProfile, uploadAgencyLogo];

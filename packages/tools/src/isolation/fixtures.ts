@@ -297,6 +297,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   mark_onboarding_step: agency({ step: 'branding', action: 'done' }),
   dismiss_onboarding_checklist: agency(),
   mark_onboarding_redirected: agency(),
+  save_agency_basics: agency({ name: 'Basics Renamed', contactName: 'Pat Doe', contactEmail: 'pat@agency.example', phone: '(404) 555-0100', billingSameAsPostal: true }),
+  finish_onboarding: agency(),
   update_agency_profile: agency({
     name: 'Agency Renamed', contactName: 'Pat Doe', contactEmail: 'pat@agency.example', phone: '(404) 555-0100', timezone: 'America/Chicago',
   }),

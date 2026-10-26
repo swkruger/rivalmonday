@@ -27,14 +27,13 @@ type StepFields = Pick<
 >;
 
 /**
- * First open wizard step in f6 order (a step is open only when neither done nor skipped, like `get_onboarding_status`),
+ * First open wizard step in order profile, team, branding (never `plan`: finish_onboarding settles it) (a step is open only when neither done nor skipped, like `get_onboarding_status`),
  * else `first_client` while the agency has no client, else null (nothing left to nudge about).
  */
 export function nextOnboardingStep(row: StepFields): OnboardingStep | 'first_client' | null {
   const steps: Array<[OnboardingStep, Date | null, Date | null]> = [
     ['profile', row.profileDoneAt, row.profileSkippedAt],
     ['team', row.teamDoneAt, row.teamSkippedAt],
-    ['plan', row.planDoneAt, row.planSkippedAt],
     ['branding', row.brandingDoneAt, row.brandingSkippedAt],
   ];
   for (const [step, done, skipped] of steps) if (!done && !skipped) return step;

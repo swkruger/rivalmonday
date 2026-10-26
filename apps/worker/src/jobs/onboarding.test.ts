@@ -43,14 +43,22 @@ describe('dueTipSlot', () => {
 describe('nextOnboardingStep', () => {
   const base = { profileDoneAt: null, profileSkippedAt: null, teamDoneAt: null, teamSkippedAt: null, planDoneAt: null, planSkippedAt: null, brandingDoneAt: null, brandingSkippedAt: null, firstClientAt: null };
   const d = new Date();
-  it('walks profile, team, plan, branding, then first_client, then null', () => {
+  it('walks profile, team, branding, then first_client, then null', () => {
     expect(nextOnboardingStep(base)).toBe('profile');
     expect(nextOnboardingStep({ ...base, profileDoneAt: d })).toBe('team');
-    expect(nextOnboardingStep({ ...base, profileDoneAt: d, teamSkippedAt: d })).toBe('plan');
+    expect(nextOnboardingStep({ ...base, profileDoneAt: d, teamSkippedAt: d })).toBe('branding');
     expect(nextOnboardingStep({ ...base, profileDoneAt: d, teamDoneAt: d, planDoneAt: d })).toBe('branding');
     const all = { ...base, profileDoneAt: d, teamDoneAt: d, planDoneAt: d, brandingSkippedAt: d };
     expect(nextOnboardingStep(all)).toBe('first_client');
     expect(nextOnboardingStep({ ...all, firstClientAt: d })).toBeNull();
+  });
+});
+
+describe('nudge never suggests plan', () => {
+  it('skips an open plan step', () => {
+    const d = new Date();
+    const row = { profileDoneAt: d, profileSkippedAt: null, teamDoneAt: d, teamSkippedAt: null, planDoneAt: null, planSkippedAt: null, brandingDoneAt: d, brandingSkippedAt: null, firstClientAt: null };
+    expect(nextOnboardingStep(row)).toBe('first_client');
   });
 });
 

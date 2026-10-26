@@ -23,7 +23,7 @@ const PROFILE = {
   billingEmail: 'bill@acme.co', taxId: '12-3456789',
 };
 const onboarding = async () => (await dbs.owner.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyA)))[0]!;
-const status = () => registry.invoke(admin, 'get_onboarding_status', {}) as Promise<{ steps: Record<string, string>; dismissed: boolean; completed: boolean; redirected: boolean; source: string }>;
+const status = () => registry.invoke(admin, 'get_onboarding_status', {}) as Promise<{ steps: Record<string, string>; dismissed: boolean; completed: boolean; redirected: boolean; wizardFinished: boolean; source: string }>;
 const mark = (step: string, action: string, c = admin) => registry.invoke(c, 'mark_onboarding_step', { step, action });
 
 beforeEach(async () => {
@@ -35,7 +35,7 @@ beforeEach(async () => {
 
 describe('get_onboarding_status', () => {
   it('shows every step open at the start, for admin and account manager', async () => {
-    const expected = { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: false, source: 'open' };
+    const expected = { steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' }, dismissed: false, completed: false, redirected: false, wizardFinished: false, source: 'open' };
     expect(await status()).toEqual(expected);
     expect(await registry.invoke(am, 'get_onboarding_status', {})).toEqual(expected);
   });
@@ -45,7 +45,7 @@ describe('get_onboarding_status', () => {
   });
   it('an agency with no onboarding row (admin CLI, seeds) reads as completed legacy, all done, redirected (R25)', async () => {
     const r = await registry.invoke(ctx('agency_admin', IDS.agencyB), 'get_onboarding_status', {});
-    expect(r).toEqual({ steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, source: 'legacy' });
+    expect(r).toEqual({ steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'done' }, dismissed: false, completed: true, redirected: true, wizardFinished: true, source: 'legacy' });
   });
 });
 
@@ -267,5 +267,61 @@ describe('upload_agency_logo', () => {
     const noUrl = createToolRegistry({ app: dbs.app, service: dbs.service, evidenceStore }, { audit: { record: async () => undefined } });
     await expect(noUrl.invoke(admin, 'upload_agency_logo', input())).rejects.toMatchObject({ code: 'internal' });
     expect(objects.size).toBe(0);
+  });
+});
+
+describe('save_agency_basics / finish_onboarding', () => {
+  const BASICS = { name: 'Basics Co', contactName: 'Sam Basic', contactEmail: 'sam@basics.co', phone: '(404) 555-0100', billingSameAsPostal: true };
+  const profile = async () => (await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA)))[0]!;
+  const save = (patch: Record<string, unknown> = {}, c = admin) => registry.invoke(c, 'save_agency_basics', { ...BASICS, ...patch });
+
+  it('save_agency_basics keeps settings-only fields', async () => {
+    await dbs.owner.update(agencyProfile).set({ legalName: 'Acme LLC', taxId: '12-3456789', timezone: 'America/Denver', website: 'https://acme.co', verticals: ['dental'], billingEmail: 'b@acme.co' }).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    await save({ browserTimezone: 'America/New_York' });
+    const p = await profile();
+    expect(p).toMatchObject({ legalName: 'Acme LLC', taxId: '12-3456789', timezone: 'America/Denver', website: 'https://acme.co', verticals: ['dental'], billingEmail: 'b@acme.co', contactName: 'Sam Basic', contactEmail: 'sam@basics.co' });
+    expect((await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.name).toBe('Basics Co');
+    expect((await status()).steps.profile).toBe('done');
+  });
+  it('save_agency_basics sets timezone when blank', async () => {
+    await dbs.owner.update(agencyProfile).set({ timezone: '' }).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    await save({ browserTimezone: 'America/New_York' });
+    expect((await profile()).timezone).toBe('America/New_York');
+    await dbs.owner.delete(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    await save();
+    expect((await profile()).timezone).toBe('America/Chicago');
+  });
+  it('billingSameAsPostal copies postal into billing', async () => {
+    await save({ address: { line1: '1 Main St', line2: 'Ste 2', city: 'Atlanta', region: 'GA', postalCode: '30338' } });
+    expect(await profile()).toMatchObject({ line1: '1 Main St', city: 'Atlanta', postalCode: '30338', billingSameAsPostal: true, billingLine1: '1 Main St', billingLine2: 'Ste 2', billingCity: 'Atlanta', billingRegion: 'GA', billingPostalCode: '30338' });
+    await save({ address: null });
+    expect(await profile()).toMatchObject({ line1: null, postalCode: null, billingLine1: null });
+  });
+  it('sets auth user name for the caller', async () => {
+    const id = `u-${admin.userId}-onb`;
+    const c = createAccessContext({ agencyId: IDS.agencyA, userId: id, role: 'agency_admin', clientScope: 'all', features: [] });
+    await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified", "createdAt", "updatedAt") values (${id}, 'Old', 'Sam@Basics.co', true, now(), now())`);
+    await save({}, c);
+    const rows = [...(await dbs.owner.execute<{ name: string }>(sql`select name from auth."user" where id = ${id}`))];
+    expect(rows[0]!.name).toBe('Sam Basic');
+    await dbs.owner.execute(sql`delete from auth."user" where id = ${id}`);
+  });
+  it('non-admin gets permission_denied', async () => {
+    await expect(save({}, am)).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(am, 'finish_onboarding', {})).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(save({}, owner)).rejects.toMatchObject({ code: 'not_found' });
+  });
+  it('finish_onboarding sets wizardFinished and skips plan', async () => {
+    expect(((await status()) as unknown as { wizardFinished: boolean }).wizardFinished).toBe(false);
+    await registry.invoke(admin, 'finish_onboarding', {});
+    const s = (await status()) as unknown as { wizardFinished: boolean; steps: Record<string, string> };
+    expect(s.wizardFinished).toBe(true);
+    expect(s.steps.plan).toBe('skipped');
+  });
+  it('finish_onboarding is idempotent', async () => {
+    await registry.invoke(admin, 'finish_onboarding', {});
+    const first = (await onboarding()).wizardFinishedAt;
+    await registry.invoke(admin, 'finish_onboarding', {});
+    expect((await onboarding()).wizardFinishedAt).toEqual(first);
   });
 });
