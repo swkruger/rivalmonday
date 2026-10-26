@@ -1,13 +1,13 @@
 # jev-openrouter — route Jev (System One) through OpenRouter; Jev spend joins the spend guard
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/jev-openrouter   **Base:** main @ e80605e2
-**Plan/spec:** none yet (brainstorm after owner answers the open questions below)
+**Plan/spec:** [plan](../superpowers/plans/2026-10-25-jev-openrouter.md) · [spec](../superpowers/specs/2026-10-25-jev-openrouter-design.md) — spec owner-approved 2026-10-25; plan awaiting approval.
 
 ## Status (overwrite)
 Kickoff brief only. No roadmap row: owner-requested workstream. OpenRouter model pages `/typesafe/jev-1.13` and `/jev-1.14` return 404 (2026-10-25), so the real price and data policy are unread.
 
 ## Next (overwrite)
-Owner answers the open questions (Brief 6); then `superpowers:brainstorming`.
+Owner approves the plan → Task 0 (pre-flight + live probe) → SDD.
 
 ## Interfaces this branch adds or changes
 Expected: Jev URL/key/model id in `packages/ai`; `ai.yaml jev.input_usd_per_mtok` removed; `SPEND_GUARD_EXCLUDED_PROVIDERS` emptied. No migration expected (next free **0095**; neither phase-15c3b nor phase-16 adds one).
