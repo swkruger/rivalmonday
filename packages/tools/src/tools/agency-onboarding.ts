@@ -282,7 +282,7 @@ export const SaveAgencyBasicsInput = z.object({
 export const saveAgencyBasics = defineTool({
   name: 'save_agency_basics',
   access: 'write',
-  description: 'Save the sign-up wizard’s about step: agency name, contact, phone and optional address. Never touches settings-only fields (agency admins).',
+  description: 'Save the about step of the sign-up wizard: agency name, contact, phone and optional address. Never touches settings-only fields (agency admins).',
   input: SaveAgencyBasicsInput,
   output: OK,
   permission: 'agency',
