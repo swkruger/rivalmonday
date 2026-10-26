@@ -44,8 +44,7 @@ describe('/onboarding page', () => {
   });
 
   it('redirects to /agency once completed or dismissed', async () => {
-    m.status = { ...m.status, steps: { ...OPEN, profile: 'done' } };
-    m.status = { ...m.status, completed: true };
+    m.status = { ...m.status, steps: { ...OPEN, profile: 'done' }, completed: true };
     await expect(run()).rejects.toThrow('NEXT_REDIRECT:/agency');
     m.status = { ...m.status, completed: false, dismissed: true };
     await expect(run()).rejects.toThrow('NEXT_REDIRECT:/agency');
@@ -78,6 +77,11 @@ describe('/onboarding page', () => {
     m.status = { ...m.status, completed: true, steps: OPEN };
     render(await run({ step: 'done' }));
     expect(screen.getByTestId('profile')).toBeTruthy();
+  });
+
+  it('legacy agency with open profile is sent to /agency', async () => {
+    m.status = { ...m.status, completed: true, source: 'legacy', steps: OPEN };
+    await expect(run({ step: 'done' })).rejects.toThrow('NEXT_REDIRECT:/agency');
   });
 
   it('the plan step is not a wizard step any more', async () => {

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as { role: string }, run: vi.fn(), profile: 'done' }));
+const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as { role: string }, run: vi.fn(), profile: 'done', source: 'open' }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: m.ctx }) }));
-vi.mock('@/server/tools', () => ({ callTool: async () => ({ steps: { profile: m.profile } }) }));
+vi.mock('@/server/tools', () => ({ callTool: async () => ({ steps: { profile: m.profile }, source: m.source }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.run(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -19,7 +19,7 @@ const fd = (o: Record<string, string | string[]>) => {
 const initial = { ok: true } as const;
 const names = () => m.run.mock.calls.map((c) => c[1]);
 
-beforeEach(() => { m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } }); m.ctx = { role: 'agency_admin' }; m.profile = 'done'; });
+beforeEach(() => { m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } }); m.ctx = { role: 'agency_admin' }; m.profile = 'done'; m.source = 'open'; });
 
 describe('onboarding actions', () => {
   it('every action is a 404 for non-admins', async () => {
@@ -123,6 +123,12 @@ describe('onboarding actions', () => {
     await expect(a.skipStepAction(fd({ step: 'team' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
     await expect(a.saveBrandingStepAction(initial, fd({ primary: '#112233' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
     expect(m.run).not.toHaveBeenCalled();
+  });
+
+  it('legacy agencies are not gated on the profile step', async () => {
+    m.profile = 'open'; m.source = 'legacy';
+    await expect(a.finishAction(fd({ to: 'dashboard' }))).rejects.toThrow('NEXT_REDIRECT:/agency');
+    expect(names()).toEqual(['finish_onboarding']);
   });
 
   it('finishAction is a 404 when the tool refuses', async () => {

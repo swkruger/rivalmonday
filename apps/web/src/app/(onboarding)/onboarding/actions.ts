@@ -17,8 +17,8 @@ async function adminCtx() {
 
 /** Step 1 is required: until the about step is saved no other wizard write runs (redirect back to it, no tool call). */
 async function requireProfileDone(ctx: Awaited<ReturnType<typeof adminCtx>>) {
-  const status = await callTool<{ steps: { profile: string } }>(ctx, 'get_onboarding_status', {});
-  if (status.steps.profile !== 'done') redirect(stepPath('profile'));
+  const status = await callTool<{ steps: { profile: string }; source?: string }>(ctx, 'get_onboarding_status', {});
+  if (status.steps.profile !== 'done' && status.source !== 'legacy') redirect(stepPath('profile'));
 }
 
 export async function saveBasicsAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
