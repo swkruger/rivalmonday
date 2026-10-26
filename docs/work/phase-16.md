@@ -4,7 +4,7 @@
 **Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (owner-approved 2026-10-25); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 done except the owner gate: rebased (clean), plan re-checked and corrected (§ Pre-flight), mockups `client.html`/`intake.html` built + `agency.html` fixed (PDFs sent). Waiting on: owner mockup approval (gates Tasks 8–10) and OK for image generation (~$1.50–2.50). Nothing built yet.
+**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 done except the owner gate: rebased (clean), plan re-checked and corrected (§ Pre-flight), mockups `client.html`/`intake.html` built + `agency.html` fixed (PDFs sent). Owner approved mockups, image generation and P10–P13 (D8). Image candidates generating; SDD Task 1 next.
 
 ## Next (overwrite)
 SDD Tasks 1–7 (not gated by mockups); generate image candidates once the cost is OK'd; Tasks 8–10 after mockup approval; Task 11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
@@ -27,6 +27,7 @@ Plan corrected in place. Main changes: migration 0095; `(onboarding)` layout re-
 - Open: OD-5 bottom tabs on phones vs 15a D8 (drawer only) — not yet decided.
 - D5 (2026-10-24) **16-onboarding** sub-phase: agency (4 steps) + client (7 steps) + intake as full-page split flows with live previews; owner lands on Overview; replaces DS D-22/L7. Spec: [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (O1–O14). Mockups `docs/design-system/mockups/onboarding/`.
 - D6 (2026-10-25) Plan approved; code waits for the owner's explicit go-ahead.
+- D8 (2026-10-26) Owner: mockups (client, intake, agency fix) approved; image generation approved; plan decisions P10–P13 (incl. P12: ask_owner sends no email, invite step unskippable while `waiting_owner`) confirmed.
 - D7 (2026-10-25) Generated images (gpt-image via OpenRouter, `openai/gpt-image-2.5-sunburst`) used sparingly: onboarding only on sign-up, both "All set" screens, intake "Check your email" (O14); static, owner-picked.
 
 ## New backlog (target → item)
