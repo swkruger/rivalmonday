@@ -6,6 +6,8 @@
 ## Status (overwrite)
 Task 0 done (2026-10-25). Live probe of `POST https://openrouter.ai/api/v1/systemone` with `typesafe/jev-1.14` (1 call): HTTP 200, SDK path works, no alpha fallback needed. Top-level keys `model, answers, usage, id, provider`; shape matches current `responseSchema` (extra `id`, `provider` ignored). `model` echoed `typesafe/jev-1.14-20261014` (dated). `usage` = `{input_tokens:397, output_tokens:64, cost:0.000016674}` -> derived rate 0.0420 USD/M input (cost / input_tokens x 1e6), equal to the old `jev.input_usd_per_mtok` 0.042, so keep 0.042 as the fallback. Score `probabilities` keys are 0-based ("0","1","2"), answer carries `score` (expected, 1.78) and `legend`; `mostLikelyLevel` stays as is. Choice: `choice` + `probabilities` keyed by option; noul: `{noul:0.98}`. Rest: OpenRouter model pages still unread.
 
+Task 4 PARTIAL (BLOCKED on ask): cassettes re-recorded for changes, reviews, briefs (replay green). Spend: briefs $0.5519; changes and reviews not reported by tool (prior actuals $0.07/$0.17); ask 2 attempts $1.7056 + $1.8538 = $3.56, both failed B3 ask-inject-09 (known flake) plus OpenRouter invalid-JSON and 402 in-flight-credit errors; ask.json left at HEAD, replay still misses ask_assistant.
+
 ## Next (overwrite)
 Owner approves the plan → Task 0 (pre-flight + live probe) → SDD.
 
