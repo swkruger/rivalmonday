@@ -16,6 +16,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Retention keeps `brief_item.evidence_ids`, `recommendation.evidence_ids` and `alert.evidence_ids` evidence for the brief's/alert's lifetime — *from 4a/4b cross-phase*
 
 ### Budget & cost
+- [ ] Billed-but-unparseable 200 (Jev and LLM) is ledgered with `costUsd` null, counted as 0: carry the parsed `usage.cost`/estimate on the thrown `AiProviderError` and ledger it (`ai.ts` `recording()`) — *jev-openrouter*
 
 ### Scale & performance
 - [ ] Re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it — *from 15b-3b*
@@ -55,7 +56,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
 ### 7c1 follow-ups (quality gates, evals)
-- [ ] Evals: `record --case <id>` single-case merge; flush cassette on budget stop; omit `topic.*`/`sentiment.mae` when n=0; validate baseline JSON; cassette `version` guard; rebuild `changes` once real web changes exist (R15) and re-baseline after the owner confirms labels — *phase-7c1*
+- [ ] Ask evals: run cases with bounded concurrency (~1 h sequential) and prompt-cache the system prompt + tool definitions (~12k prompt tokens per Sonnet 5 call) — *jev-openrouter*
+- [ ] Evals: `record --case <id>` single-case merge or `--keep-only-green` (`record --fill` covers most of it; `eval record` saves a take with blocking failures); flush cassette on budget stop; omit `topic.*`/`sentiment.mae` when n=0; validate baseline JSON; cassette `version` guard; rebuild `changes` once real web changes exist (R15) and re-baseline after the owner confirms labels — *phase-7c1*
 - [ ] Ask: citation-repair follow-up for thinner answers (guard runs after `supportCheck`; misses spelled-out numbers/relative dates); eval B2 splitter vs guard `splitUnits` divergence; ~2 % invalid-JSON turns (likely per-call `AbortSignal.timeout` firing during `res.json()`, mislabelled) — *phase-7c1*
 - [ ] Isolation suite gaps: shared `global_public` rows and `auth` schema outside the write fingerprint; viewer "other user's row" cases; `reinsertAs` accepts "permission denied" without an INSERT-privilege check; dedupe `requireOwnClient`/`requireVisibleClient` — *phase-7c1*
 - [ ] Briefs evals: bare-year and bare-number bait B2 edge cases; injection H1/H3 target-phrase canaries — *phase-7c1*
@@ -68,14 +70,12 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 
 ### Model ops
-- [ ] Run `jev.live.test.ts` once with a real `TYPESAFE_API_KEY` (make `@cs/ai` tests load `.env`) to confirm 0- vs 1-based scores — *from Phase 1 review* (7c2 Task 13, owner)
 
 ### Pilot
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a* (7c2 Task 13, owner)
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5* (7c2 Task 13, owner)
 - [ ] Future: buying extra credits (self-serve top-up) — *phase-7b1*
-- [ ] 7b2/later: confirm the Jev price, then lift the d19 exclusion (`SPEND_GUARD_EXCLUDED_PROVIDERS`) — *phase-7b1*
 - [ ] 7b1 engine/worker: handlers that swallow `AiPausedError` internally (generateBrief, alert template fallback, setup-suggestions, lead-preview) lose one in-flight attempt; a prospect snapshot queued before a pause still runs its vendor pulls; archived-agency clients still count as O11 trackers; spend-paused runbook tailoring stays `skipped`; events aging out during a pause are never scored; `app_user` can read `spend_limit_usd`/`spend_paused_at` under RLS; one-time auto competitor search refused as `spend_paused` is not retried (agency runs a manual search); null-scope ledger paths (engine vertical stages, discovery/classify, leads, embeddings, own crawl) stay unattributed — *phase-7b1*
 - [ ] 7b1 polish (db/tools/worker): `spend-guard.ts` bare `console.warn`; extra `platform_setting` read per budget/usage/portfolio call; no negative cache on guard read failure; `sendStaffEmail` ~ `sendLowEmail`; `rowsOf` duplicated; `spendByClient` CTE scans all competitors; swept orphan batches counted as `expired`; PDF tick jitter; dead `if (!providerId)` branch; non-limit `set_client_limits` edits can lift a pause when under threshold; failed pending-row update can duplicate a provider batch after the 1 h sweep (cost only); missing tests (jobs/post batch ids, ads/google scope, mid-embed refusal, web guard wiring, body-read abort, exact-24 h edge); `timeoutSpy.mockRestore` not in `finally`; E2E "destination stream closed early" noise — *phase-7b1*
 - [ ] 7b1 polish (web): events table shows raw kind enum and actor UUID; costs action error punctuation; client-limits input width classes; blank competitor/Ask field shows raw zod message; layout guard read runs after the costs read; prospect detail guide "Run snapshot again" lacks a 24 h pointer — *phase-7b1*
@@ -215,7 +215,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Waiting on real data / external events
 - [ ] 7c2 Task 12 (owner + controller, after staging setup): staging rehearsal per `docs/OPS.md` § Rehearsal steps 1-9, fix wave per FAIL, final concurrency/limits and costs become code defaults, `teardown`; done when one run shows every PASS line incl. the fault alarm. Then close "Staging setup" and the 7c2 part of the copy sign-off item — *phase-7c2*
-- [ ] 7c2 Task 13 (owner): (a) the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `pnpm --filter @cs/ai exec vitest run jev.live` with the real `TYPESAFE_API_KEY`, record 0- or 1-based; (c) `/link-other-account` once live (PILOT § 8); then delete the three Model ops/Pilot items tagged Task 13 — *phase-7c2*
+- [ ] 7c2 Task 13 (owner): (a) the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `/link-other-account` once live (PILOT § 8); then delete the three Model ops/Pilot items tagged Task 13 — *phase-7c2*
 - [ ] After the 15b-3b deploy: watch `[engine-reask]` log lines; daily `review_analysis` checks stay <= 2,000. Copy doc: [archive/phase-15b3b-copy-signoff.md](archive/phase-15b3b-copy-signoff.md) — *moved from STATE at 15c-2b-2 merge*
 - [ ] Re-pull Aire Serv reviews + ads (command in [OPS.md](OPS.md); pass only advertisers `AR11447192921745391617`, `AR09867956064303972353`), diff `review_id`s against the 546 from 2026-10-01 — if unstable, dedupe on the content-hash key — *from 2b live verification*
 - [ ] Owner-verify alerts per outcome (sent now / 17:00 digest / withdrawn) and Recommendations rating — waived until real alerts: the 2026-10-13 pull and a full re-pull on 2026-10-14 (all 8 tracked competitors) gave 1 new event (Aire Serv hiring, score 12 → archive) and 0 alerts; next chance is the 2026-10-20 weekly pull — *from 5b-1 verification*
@@ -229,8 +229,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
 - [ ] Sign off copy marked in the 7b1/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, feedback links) — *phase-7-planning*
-- [ ] `ask-inject-09`: make the Ask prompt paraphrase injected text (it quotes the phrase while refusing in most live runs; B3 failed 7 of 10 live), re-record ask; until then keep `evals-live` advisory (not a required check) — *phase-7c1*
-- [ ] Confirm Jev's real price (`ai.yaml` placeholder); until then Jev is excluded from credit limits and the spike guard — *phase-7-planning*
+- [ ] `ask-inject-09`: make the Ask prompt paraphrase injected text (it quotes the phrase while refusing in most live runs; B3 failed 7 of 10 live), re-record ask; until then keep `evals-live` advisory (not a required check) (not a Jev 1.14 regression; `eval record --fill` avoids paying for full retakes) — *phase-7c1*
 - [ ] Staging setup before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon staging branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
 - [ ] Postmark webhook: answer 500 or 200 on handler errors (500 makes Postmark retry)? — *7a2 T8*
 - [ ] Purge anonymises `platform_support` rows: confirm — *7a2 T10*
@@ -240,7 +239,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
 - [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
 - [ ] Create an **R2** bucket + token before production (dev stores evidence on local disk) — *from HANDOVER §7*
-- [ ] Confirm Jev pricing (0.042 $/M input is a placeholder) before costs feed budget caps — *from Phase 1, HANDOVER §7*
 - [ ] Postmark before the pilot: request account approval (to deliver outside `@nofingers.ai`), add SPF/DMARC if not done, put the **live** server token back in `.env` — *from HANDOVER §7*
 - [ ] On deploy at `rm.nofingers.ai`, set `APP_URL=https://rm.nofingers.ai` (deep links; still `http://localhost:3000`) — *from HANDOVER §7*
 - [ ] Review a few rendered template alerts before real clients (fallback reads the raw event summary, unedited for tone) — *from HANDOVER §7, 4b*
