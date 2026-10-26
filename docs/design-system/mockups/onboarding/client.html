@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Client onboarding mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="base.css" rel="stylesheet">
+<style>
+/* agency brand tokens (white-label): Brightside Marketing #163A5F */
+.brand{--primary:#163A5F;--primary-soft:#E4ECF4}
+.brand .btn.p{color:#fff}.brand .cb.on{color:#fff}
+.brand .opt-row.sel{background:#fff;box-shadow:inset 0 0 0 1px var(--primary)}
+.ab{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.ab .mk{width:28px;height:28px;border-radius:6px;background:#163A5F;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.clogo{border-radius:8px;background:#E6F3FC;display:flex;align-items:center;justify-content:center;flex:none}
+.link{font-size:14px;color:var(--secondary);font-weight:500}
+.btn.dis{opacity:.45}
+.sum{border-top:1px solid var(--line);max-width:460px;margin-top:22px}
+.sum .r{display:grid;grid-template-columns:120px 1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;align-items:center}
+.sum .k{color:var(--muted)}.sum .e{color:var(--secondary);font-size:13px;font-weight:500}
+.next{display:flex;flex-direction:column;gap:14px;margin-top:14px;max-width:460px}
+.next .n{display:grid;grid-template-columns:28px 1fr;gap:12px;font-size:14px;line-height:1.45}
+.next .c{width:28px;height:28px;border-radius:9999px;background:var(--primary-soft);color:var(--primary);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center}
+.h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:26px}
+.chips{min-height:40px;border:1px solid var(--input);border-radius:6px;padding:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#fff}
+.chips .chip{background:var(--panel);height:26px}.chips .chip i{font-style:normal;color:var(--faint);font-size:11px;margin-left:2px}
+.seg{display:inline-flex;border:1px solid var(--input);border-radius:6px;overflow:hidden;height:40px}
+.seg span{display:flex;align-items:center;padding:0 18px;font-size:14px;border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}.seg span.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.lst{display:flex;flex-direction:column;gap:8px}
+.lst .opt-row{padding:10px 14px}
+.lst .nm{font-weight:500}
+.tierr{margin-left:auto}
+.menu{position:absolute;top:26px;right:0;width:220px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 32px rgba(11,37,64,.16);padding:6px;z-index:5}
+.menu div{padding:9px 10px;font-size:14px;border-radius:4px}
+.menu div.on{background:var(--panel)}
+.menu .dz{color:var(--danger)}
+.pbar{height:6px;border-radius:9999px;background:var(--panel);overflow:hidden}.pbar b{display:block;height:100%;background:var(--primary);border-radius:9999px}
+.imgph{width:560px;height:420px;border:2px dashed var(--faint);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);background:rgba(255,255,255,.6)}
+.imgph b{font-size:16px;color:var(--ink);font-weight:600}
+.imgph span{font-size:13px}
+/* scorecard */
+.sc{padding:24px 28px}
+.sc .t{font-size:16px;font-weight:600}.sc .st{font-size:12px;color:var(--muted);margin-top:4px}
+.lg{display:flex;gap:16px;margin-top:14px;font-size:12px;color:var(--muted)}.lg span{display:inline-flex;align-items:center;gap:6px}
+.mt{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:22px;margin-bottom:10px}
+.br{display:grid;grid-template-columns:170px 1fr 70px;align-items:center;gap:12px;font-size:13px;margin-bottom:9px}
+.br .bar{height:14px;border-radius:0 4px 4px 0}
+.br .v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.br .ph{height:14px;border:1px dashed #C9D3DE;border-radius:4px}
+/* owner app frame */
+.app2{position:absolute;inset:0;background:var(--canvas);display:grid;grid-template-columns:240px 1fr}
+.nav{padding:20px 14px;display:flex;flex-direction:column}
+.nav .it{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:6px;font-size:14px;color:var(--ink)}
+.nav .it.on{background:var(--primary-soft);font-weight:600}
+.nav .ic{width:16px;height:16px;border-radius:4px;background:#DDE4EC}
+.friday{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:9999px;background:#F5A524;color:#3B2300;font-size:13px;font-weight:600}
+.sheet{margin:12px 12px 12px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:28px 40px;overflow:hidden}
+.crumb{font-size:13px;color:var(--muted)}
+.ptitle{font-size:24px;font-weight:600;letter-spacing:-.01em;margin-top:6px}
+.sec{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.sec h3{font-size:16px;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- 1. CLIENT DETAILS -->
+<section class="page brand"><span class="tag">1 · Client details</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Exit</span></div>
+    <div class="prog"><div class="lbl">Step 1 of 7 · Client details</div><div class="bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <h1>Add a client</h1>
+    <p class="sub">Who you're setting this up for. Only the starred fields are needed now.</p>
+    <div class="form" style="gap:16px">
+      <div class="f"><label>Business name <span class="req">*</span></label><div class="in">Cool Breeze Heating &amp; Air</div></div>
+      <div class="f"><label>Contact full name <span class="req">*</span></label><div class="in focus">Maria Alvarez</div><div class="hint">We'll suggest them as the owner to invite.</div></div>
+      <div class="row2">
+        <div class="f"><label>Phone <span class="req">*</span></label><div class="in">(512) 555-0187</div></div>
+        <div class="f"><label>Email <span class="req">*</span></label><div class="in">maria@coolbreezeac.com</div></div>
+      </div>
+      <div class="f"><label>Address <span class="opt">(optional)</span></label>
+        <div style="display:flex;flex-direction:column;gap:10px"><div class="in">1801 Sam Bass Rd</div>
+        <div style="display:grid;grid-template-columns:1fr 80px 110px;gap:10px"><div class="in">Round Rock</div><div class="in">TX</div><div class="in">78681</div></div></div></div>
+      <div class="f"><label>Logo <span class="opt">(optional)</span></label>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="clogo" style="width:40px;height:40px"><svg viewBox="0 0 24 24" width="22" height="22"><g stroke="#2A6BAC" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="4.2" y1="7.5" x2="19.8" y2="16.5"/><line x1="4.2" y1="16.5" x2="19.8" y2="7.5"/></g></svg></div>
+          <span class="btn g" style="height:36px">Replace</span><span style="font-size:13px;color:var(--muted)">PNG, JPG or SVG, square</span>
+        </div></div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div style="padding:28px 32px">
+        <div class="hl" style="display:inline-flex;align-items:center;gap:14px;padding:4px 8px 4px 4px">
+          <div class="clogo" style="width:48px;height:48px"><svg viewBox="0 0 24 24" width="26" height="26"><g stroke="#2A6BAC" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="4.2" y1="7.5" x2="19.8" y2="16.5"/><line x1="4.2" y1="16.5" x2="19.8" y2="7.5"/></g></svg></div>
+          <div><div style="font-size:20px;font-weight:600">Cool Breeze Heating &amp; Air</div><div style="font-size:13px;color:var(--muted);margin-top:2px">Weekly brief · Mon Nov 2</div></div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-top:18px">Prepared for <b style="color:var(--ink);font-weight:600">Maria Alvarez</b> by Brightside Marketing</div>
+        <div style="margin-top:22px;display:flex;flex-direction:column;gap:12px"><div class="sk" style="width:92%"></div><div class="sk" style="width:78%"></div><div class="sk" style="width:85%"></div><div class="sk" style="width:60%"></div></div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> The top of every brief Cool Breeze receives.</div>
+  </div>
+</div>
+</section>
+
+<!-- 2. FIND THE BUSINESS -->
+<section class="page brand"><span class="tag">2 · Find the business</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Exit</span></div>
+    <div class="prog"><div class="lbl">Step 2 of 7 · Find the business</div><div class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <h1>Find the business on Google</h1>
+    <p class="sub">We use the listing for their rating, reviews and location.</p>
+    <div class="form" style="gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 170px;gap:12px">
+        <div class="f"><label>Business name <span class="req">*</span></label><div class="in focus">Cool Breeze Heating &amp; Air</div></div>
+        <div class="f"><label>City or ZIP <span class="req">*</span></label><div class="in">Round Rock, TX</div></div>
+      </div>
+      <div class="lst">
+        <div class="opt-row sel"><span class="radio on"></span><div><div class="nm">Cool Breeze Heating &amp; Air</div><div class="meta">1801 Sam Bass Rd, Round Rock, TX · ★ 4.7 (212)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Cool Breeze Pool &amp; Spa</div><div class="meta">Georgetown, TX · ★ 4.2 (38)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Breeze Air Conditioning</div><div class="meta">Pflugerville, TX · ★ 4.4 (96)</div></div></div>
+      </div>
+      <div class="f"><label>Business type <span class="req">*</span></label><div class="in" style="justify-content:space-between">HVAC &amp; plumbing<span style="color:var(--faint)">▾</span></div><div class="hint">Chosen from the Google category "HVAC contractor".</div></div>
+      <span class="link">Can't find it? Continue without a listing</span>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:620px">
+      <svg width="620" height="330" viewBox="0 0 620 330" font-family="Inter" style="display:block">
+        <rect width="620" height="330" fill="#E9EEF3"/>
+        <path d="M0 250 C120 230 200 280 320 262 S520 220 620 238 L620 330 L0 330 Z" fill="#D6E6F5"/>
+        <g stroke="#fff" stroke-linecap="round" fill="none">
+          <path d="M0 120 L620 150" stroke-width="10"/><path d="M300 0 L330 330" stroke-width="10"/>
+          <path d="M0 40 L240 70 L420 30 L620 60" stroke-width="5"/><path d="M120 0 L150 330" stroke-width="5"/><path d="M480 0 L460 330" stroke-width="5"/>
+          <path d="M0 200 L620 210" stroke-width="5"/>
+        </g>
+        <text x="346" y="182" font-size="12" font-weight="600" fill="#0B2540">Round Rock</text><text x="500" y="110" font-size="12" fill="#5B6B80">Hutto</text><text x="360" y="300" font-size="12" fill="#5B6B80">Brushy Creek</text>
+        <path d="M318 132 c-14 0-24 10-24 23 c0 17 24 39 24 39 s24-22 24-39 c0-13-10-23-24-23z" fill="#2A6BAC"/><circle cx="318" cy="155" r="8" fill="#fff"/>
+      </svg>
+      <div style="padding:18px 24px;display:flex;gap:16px;align-items:center;border-top:1px solid var(--line)">
+        <div style="flex:1"><div style="font-size:15px;font-weight:600">Cool Breeze Heating &amp; Air</div><div style="font-size:13px;color:var(--muted);margin-top:3px">HVAC contractor · 1801 Sam Bass Rd, Round Rock, TX 78681</div><div style="font-size:13px;color:var(--muted);margin-top:2px">(512) 555-0187 · coolbreezeac.com</div></div>
+        <div style="text-align:right"><div style="font-size:20px;font-weight:600">4.7 ★</div><div style="font-size:12px;color:var(--muted)">212 reviews</div></div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> The listing you picked. Blank details from step 1 are filled from it.</div>
+  </div>
+</div>
+</section>
+
+<!-- 3. WHAT THEY DO AND WHERE (exit menu open) -->
+<section class="page brand"><span class="tag">3 · What they do and where (exit menu open)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div>
+      <span class="exit" style="position:relative">Save and exit ▾
+        <span class="menu"><div class="on">Save and exit</div><div class="dz">Dismiss setup…</div></span>
+      </span></div>
+    <div class="prog"><div class="lbl">Step 3 of 7 · What they do and where</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div></div>
+    <h1>What they do and where</h1>
+    <p class="sub">We search these words around the business to find its rivals.</p>
+    <div class="form">
+      <div class="f"><label>Search keywords <span class="req">*</span></label>
+        <div class="chips"><span class="chip">ac repair <i>✕</i></span><span class="chip">furnace repair <i>✕</i></span><span class="chip">hvac contractor <i>✕</i></span><span class="chip">heat pump installation <i>✕</i></span><span style="font-size:14px;color:var(--faint);padding-left:4px">Add a keyword</span></div>
+        <div class="hint">4 of 5. Suggested from their Google listing.</div></div>
+      <div class="f"><label>Search radius <span class="req">*</span></label>
+        <div class="seg"><span>5 mi</span><span class="on">10 mi</span><span>15 mi</span><span>25 mi</span></div>
+        <div class="hint">Around 1801 Sam Bass Rd, Round Rock.</div></div>
+      <div class="f"><label>Services <span class="opt">(optional)</span></label>
+        <div class="in" style="justify-content:space-between">12 services from Google<span class="link" style="font-size:13px">Review ▾</span></div>
+        <div class="hint">Used to compare what each rival offers. Towns and ZIPs live in Settings.</div></div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:620px">
+      <svg width="620" height="400" viewBox="0 0 620 400" font-family="Inter" style="display:block">
+        <rect width="620" height="400" fill="#E9EEF3"/>
+        <path d="M0 320 C120 300 200 350 320 332 S520 290 620 308 L620 400 L0 400 Z" fill="#D6E6F5"/>
+        <g stroke="#fff" stroke-linecap="round" fill="none">
+          <path d="M0 160 L620 190" stroke-width="10"/><path d="M300 0 L330 400" stroke-width="10"/>
+          <path d="M0 60 L240 90 L420 50 L620 80" stroke-width="5"/><path d="M110 0 L140 400" stroke-width="5"/><path d="M500 0 L480 400" stroke-width="5"/>
+          <path d="M0 260 L620 270" stroke-width="5"/>
+        </g>
+        <text x="340" y="226" font-size="12" font-weight="600" fill="#0B2540">Round Rock</text><text x="520" y="150" font-size="12" fill="#5B6B80">Hutto</text><text x="380" y="380" font-size="12" fill="#5B6B80">Pflugerville</text><text x="200" y="40" font-size="12" fill="#5B6B80">Georgetown</text>
+        <circle cx="316" cy="190" r="150" fill="#2A6BAC" fill-opacity=".08" stroke="#2A6BAC" stroke-width="2"/>
+        <line x1="316" y1="190" x2="466" y2="190" stroke="#2A6BAC" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <rect x="372" y="168" width="44" height="20" rx="4" fill="#fff"/><text x="394" y="182" text-anchor="middle" font-size="12" font-weight="600" fill="#2A6BAC">10 mi</text>
+        <path d="M316 166 c-12 0-21 9-21 20 c0 15 21 34 21 34 s21-19 21-34 c0-11-9-20-21-20z" fill="#2A6BAC"/><circle cx="316" cy="186" r="7" fill="#fff"/>
+      </svg>
+      <div style="padding:14px 24px;font-size:13px;color:var(--muted);border-top:1px solid var(--line)">Searching <b style="color:var(--ink);font-weight:600">4 keywords</b> within <b style="color:var(--ink);font-weight:600">10 miles</b> of Cool Breeze Heating &amp; Air</div>
+    </div>
+    <div class="caption"><b>Live preview.</b> The area we search for rivals. Redraws when you change the radius.</div>
+  </div>
+</div>
+</section>
+
+<!-- 4a. COMPETITORS, SEARCHING -->
+<section class="page brand"><span class="tag">4a · Competitors (searching)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Save and exit ▾</span></div>
+    <div class="prog"><div class="lbl">Step 4 of 7 · Competitors</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div></div>
+    <h1>Pick who to watch</h1>
+    <p class="sub">We're looking for businesses competing for the same customers.</p>
+    <div class="form">
+      <div>
+        <div style="font-size:14px;font-weight:500">Searching 4 keywords across your area…</div>
+        <div class="pbar" style="margin-top:12px"><b style="width:42%"></b></div>
+        <div class="hint">5 of 12 searches. Usually under a minute. You can leave this page; it keeps going.</div>
+      </div>
+      <div class="lst">
+        <div class="opt-row"><span class="cb"></span><div style="flex:1"><div class="sk" style="width:55%"></div><div class="sk" style="width:35%;margin-top:8px;height:6px"></div></div></div>
+        <div class="opt-row"><span class="cb"></span><div style="flex:1"><div class="sk" style="width:62%"></div><div class="sk" style="width:30%;margin-top:8px;height:6px"></div></div></div>
+        <div class="opt-row"><span class="cb"></span><div style="flex:1"><div class="sk" style="width:48%"></div><div class="sk" style="width:38%;margin-top:8px;height:6px"></div></div></div>
+      </div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Ask the owner to pick</span><span class="btn p dis">Continue</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div class="sc">
+        <div class="t">Where you stand</div><div class="st">Google rating and reviews · Oct 26</div>
+        <div class="lg"><span><i class="dot" style="background:#2A6BAC"></i>You</span><span><i class="dot" style="background:#C9D3DE"></i>Rivals you tick</span></div>
+        <div class="mt">Rating</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:94%;background:#2A6BAC"></div></div><span class="v">4.7</span></div>
+        <div class="br"><span style="color:var(--faint)">Rival</span><div class="ph"></div><span class="v" style="color:var(--faint)">–</span></div>
+        <div class="br"><span style="color:var(--faint)">Rival</span><div class="ph"></div><span class="v" style="color:var(--faint)">–</span></div>
+        <div class="mt">Reviews</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:44%;background:#2A6BAC"></div></div><span class="v">212</span></div>
+        <div class="br"><span style="color:var(--faint)">Rival</span><div class="ph"></div><span class="v" style="color:var(--faint)">–</span></div>
+        <div class="br"><span style="color:var(--faint)">Rival</span><div class="ph"></div><span class="v" style="color:var(--faint)">–</span></div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> Tick rivals to compare them with Cool Breeze.</div>
+  </div>
+</div>
+</section>
+
+<!-- 4b. COMPETITORS, SUGGESTIONS -->
+<section class="page brand"><span class="tag">4b · Competitors (suggestions)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Save and exit ▾</span></div>
+    <div class="prog"><div class="lbl">Step 4 of 7 · Competitors</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div></div>
+    <h1>Pick who to watch</h1>
+    <p class="sub">We found 9 businesses within 10 miles. Tick up to 5.</p>
+    <div class="form" style="gap:14px">
+      <div class="lst">
+        <div class="opt-row sel"><span class="cb on">✓</span><div><div class="nm">Arctic Air Comfort</div><div class="meta">2.1 mi · ★ 4.5 (486)</div></div><span class="chip top tierr">Top rival</span></div>
+        <div class="opt-row sel"><span class="cb on">✓</span><div><div class="nm">Lone Star Climate Pros</div><div class="meta">3.4 mi · ★ 4.8 (133)</div></div><span class="chip top tierr">Top rival</span></div>
+        <div class="opt-row sel"><span class="cb on">✓</span><div><div class="nm">Hill Country Heating &amp; Cooling</div><div class="meta">6.8 mi · ★ 4.6 (301)</div></div><span class="chip worth tierr">Worth watching</span></div>
+        <div class="opt-row"><span class="cb"></span><div><div class="nm">Texan Comfort Systems</div><div class="meta">8.2 mi · ★ 4.3 (77)</div></div><span class="chip worth tierr">Worth watching</span></div>
+        <div class="opt-row"><span class="cb"></span><div><div class="nm">Round Rock Plumbing &amp; Air</div><div class="meta">1.5 mi · ★ 4.1 (54)</div></div><span class="chip minor tierr">Minor</span></div>
+      </div>
+      <div style="display:flex;gap:24px"><span class="link">Show 4 more</span><span class="link">+ Add one we missed</span></div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Ask the owner to pick</span><span class="btn p">Continue with 3</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div class="sc">
+        <div class="t">Where you stand</div><div class="st">Google rating and reviews · Oct 26</div>
+        <div class="lg"><span><i class="dot" style="background:#2A6BAC"></i>Cool Breeze (you)</span><span><i class="dot" style="background:#E05A2B"></i>Arctic Air Comfort</span><span><i class="dot" style="background:#14936A"></i>Lone Star Climate Pros</span></div>
+        <div class="mt">Rating</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:94%;background:#2A6BAC"></div></div><span class="v">4.7</span></div>
+        <div class="br hl"><span>Arctic Air Comfort</span><div><div class="bar" style="width:90%;background:#E05A2B"></div></div><span class="v">4.5</span></div>
+        <div class="br"><span>Lone Star Climate Pros</span><div><div class="bar" style="width:96%;background:#14936A"></div></div><span class="v">4.8</span></div>
+        <div class="mt">Reviews</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:44%;background:#2A6BAC"></div></div><span class="v">212</span></div>
+        <div class="br hl"><span>Arctic Air Comfort</span><div><div class="bar" style="width:100%;background:#E05A2B"></div></div><span class="v">486</span></div>
+        <div class="br"><span>Lone Star Climate Pros</span><div><div class="bar" style="width:27%;background:#14936A"></div></div><span class="v">133</span></div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> You and the first two rivals you tick. The brief covers all 3.</div>
+  </div>
+</div>
+</section>
+
+<!-- 5. INVITE THE OWNER -->
+<section class="page brand"><span class="tag">5 · Invite the owner</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Save and exit ▾</span></div>
+    <div class="prog"><div class="lbl">Step 5 of 7 · Invite the owner</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+    <h1>Invite the owner</h1>
+    <p class="sub">They get their own sign-in to see the dashboard and every Monday brief.</p>
+    <div class="form">
+      <div class="f"><label>Send Maria an invite</label>
+        <div class="opt-row" style="gap:14px">
+          <div style="width:40px;height:40px;border-radius:9999px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none">MA</div>
+          <div><div class="nm" style="font-weight:500">Maria Alvarez</div><div class="meta">maria@coolbreezeac.com · from client details</div></div>
+        </div></div>
+      <span class="link">Invite someone else instead</span>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Skip for now</span><span class="btn p">Send invite</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:540px">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)">From: Brightside Marketing &nbsp;·&nbsp; To: maria@coolbreezeac.com</div>
+      <div style="padding:28px 32px">
+        <div style="display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:15px"><span style="width:32px;height:32px;border-radius:6px;background:#163A5F;color:#fff;display:inline-flex;align-items:center;justify-content:center">B</span>Brightside Marketing</div>
+        <div style="font-size:19px;font-weight:600;margin-top:20px"><span class="hl" style="padding:0 4px">Hi Maria</span>, your competitor dashboard is ready</div>
+        <div style="font-size:14px;color:var(--muted);margin-top:10px;line-height:1.55">Brightside Marketing is watching Arctic Air Comfort, Lone Star Climate Pros and Hill Country Heating &amp; Cooling for Cool Breeze Heating &amp; Air. Your first brief arrives on a Monday.</div>
+        <div style="margin-top:20px;display:inline-flex;height:36px;padding:0 16px;border-radius:6px;background:#163A5F;color:#fff;font-size:13px;font-weight:500;align-items:center">Open your dashboard</div>
+      </div>
+    </div>
+    <div class="caption"><b>Preview.</b> The invite email Maria receives, in your brand.</div>
+  </div>
+</div>
+</section>
+
+<!-- 6. BILLING -->
+<section class="page brand"><span class="tag">6 · Billing (admins, active clients)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Save and exit ▾</span></div>
+    <div class="prog"><div class="lbl">Step 6 of 7 · Billing</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+    <h1>Set up billing</h1>
+    <p class="sub">Cool Breeze pays Brightside Marketing directly through your Stripe account.</p>
+    <div class="form">
+      <div class="row2">
+        <div class="f"><label>Monthly price <span class="req">*</span></label><div class="in focus">$ 349</div></div>
+        <div class="f"><label>Setup fee <span class="opt">(optional)</span></label><div class="in ph">$ 0</div></div>
+      </div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.5">Maria gets an email with a payment link for $349/month. You can change the price later in the client's Settings.</div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="skip">Skip for now</span><span class="btn p">Turn on billing</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:480px">
+      <div class="chrome"><i></i><i></i><i></i></div>
+      <div style="padding:28px 32px">
+        <div style="display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:15px"><span style="width:28px;height:28px;border-radius:6px;background:#163A5F;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px">B</span>Brightside Marketing</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:22px">Cool Breeze Heating &amp; Air</div>
+        <div style="font-size:15px;font-weight:600;margin-top:4px">Competitor monitoring</div>
+        <div class="hl" style="display:inline-block;margin-top:12px;padding:0 4px"><span style="font-size:30px;font-weight:600">$349.00</span><span style="font-size:14px;color:var(--muted)"> / month</span></div>
+        <div style="margin-top:18px;border-top:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Setup fee</span><span>None</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:600"><span>Due today</span><span>$349.00</span></div>
+        </div>
+        <div style="margin-top:14px;height:40px;border-radius:6px;background:#163A5F;color:#fff;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center">Pay with card</div>
+        <div style="font-size:12px;color:var(--faint);margin-top:10px;text-align:center">Secure payment by Stripe</div>
+      </div>
+    </div>
+    <div class="caption"><b>Preview.</b> The payment page Maria opens from the email.</div>
+  </div>
+</div>
+</section>
+
+<!-- 7. ALL SET -->
+<section class="page brand"><span class="tag">7 · All set</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Close</span></div>
+    <div class="prog"><div class="lbl">Step 7 of 7 · All set</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+    <h1 style="margin-top:28px">Cool Breeze is all set</h1>
+    <p class="sub">Check the details. You can change any of them later in Settings.</p>
+    <div class="sum">
+      <div class="r"><span class="k">Business</span><span>Cool Breeze Heating &amp; Air</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Contact</span><span>Maria Alvarez · (512) 555-0187</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Area</span><span>4 keywords · 10 mi around Round Rock</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Competitors</span><span>3 picked</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Owner</span><span>Invite sent to Maria</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Billing</span><span>$349/month · payment link sent</span><span class="e">Edit</span></div>
+    </div>
+    <div class="h2">What happens next</div>
+    <div class="next">
+      <div class="n"><span class="c">1</span><div><b style="font-weight:600">We start watching</b><div style="color:var(--muted)">The starting-point brief is ready within 48 hours.</div></div></div>
+      <div class="n"><span class="c">2</span><div><b style="font-weight:600">A brief every Monday</b><div style="color:var(--muted)">You approve it before Maria sees it.</div></div></div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="skip">Add another client</span><span class="btn p">Go to Cool Breeze</span></div>
+  </div>
+  <div class="right">
+    <div class="imgph"><b>Image: client-done</b><span>Generated illustration (O14) · no text, no faces, no Rival Monday branding</span><span>560 × 420 · WebP ≤ 150 KB</span></div>
+    <div class="caption"><b>What's next:</b> starting point within 48 hours, then a brief every Monday.</div>
+  </div>
+</div>
+</section>
+
+<!-- 7b. ALL SET, OWNER PICKS -->
+<section class="page brand"><span class="tag">7b · All set (asked the owner to pick)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Close</span></div>
+    <div class="prog"><div class="lbl">Step 7 of 7 · All set</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+    <h1 style="margin-top:28px">Cool Breeze is all set</h1>
+    <p class="sub">Maria picks the competitors. Everything else is ready.</p>
+    <div class="sum">
+      <div class="r"><span class="k">Business</span><span>Cool Breeze Heating &amp; Air</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Contact</span><span>Maria Alvarez · (512) 555-0187</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Area</span><span>4 keywords · 10 mi around Round Rock</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Competitors</span><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:#F5A524"></span>Waiting on Maria to pick competitors</span><span class="e">Pick now</span></div>
+      <div class="r"><span class="k">Owner</span><span>Invite sent to Maria</span><span class="e">Edit</span></div>
+      <div class="r"><span class="k">Billing</span><span>$349/month · payment link sent</span><span class="e">Edit</span></div>
+    </div>
+    <div class="h2">What happens next</div>
+    <div class="next">
+      <div class="n"><span class="c">1</span><div><b style="font-weight:600">Maria picks competitors</b><div style="color:var(--muted)">They appear on Maria's Overview. If Maria hasn't picked in 14 days, we start anyway.</div></div></div>
+      <div class="n"><span class="c">2</span><div><b style="font-weight:600">We start watching</b><div style="color:var(--muted)">The starting-point brief is ready within 48 hours of Maria's picks.</div></div></div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="skip">Add another client</span><span class="btn p">Go to Cool Breeze</span></div>
+  </div>
+  <div class="right">
+    <div class="imgph"><b>Image: client-done</b><span>Same image as step 7</span><span>560 × 420 · WebP ≤ 150 KB</span></div>
+    <div class="caption"><b>What's next:</b> Maria picks, then the starting point within 48 hours.</div>
+  </div>
+</div>
+</section>
+
+<!-- O1. OWNER FIRST VISIT: OVERVIEW CARD -->
+<section class="page brand"><span class="tag">Owner · First visit, Overview</span>
+<div class="app2">
+  <div class="nav">
+    <div class="ab" style="padding:0 6px"><span class="mk">B</span>Brightside Marketing</div>
+    <div style="margin:22px 0 14px;padding:0 12px;height:40px;border:1px solid var(--line);border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:500">Cool Breeze Heating… <span style="color:var(--faint)">▾</span></div>
+    <div class="it"><span class="friday">Ask Friday</span></div>
+    <div class="it on"><span class="ic"></span>Overview</div>
+    <div class="it"><span class="ic"></span>Competitors</div>
+    <div class="it"><span class="ic"></span>Changes</div>
+    <div class="it"><span class="ic"></span>Rankings</div>
+    <div class="it"><span class="ic"></span>Briefs</div>
+    <div class="it" style="margin-top:auto"><span class="ic"></span>Settings</div>
+  </div>
+  <div class="sheet">
+    <div class="crumb">Cool Breeze Heating &amp; Air / Overview</div>
+    <div class="ptitle">Overview</div>
+    <div style="margin-top:20px;background:var(--panel);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:16px;font-size:14px">
+      <span style="flex:1">Welcome, Maria. Brightside Marketing set this up for you. Your starting point is on its way.</span><span style="color:var(--muted);font-weight:500;font-size:13px">Dismiss</span>
+    </div>
+    <div style="margin-top:20px;border:1px solid var(--line);border-radius:12px;padding:22px 24px;display:flex;align-items:center;gap:20px;max-width:1000px">
+      <div style="width:44px;height:44px;border-radius:8px;background:var(--primary-soft);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#163A5F" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.5 0 4 1.6 4.5 4.5"/></svg>
+      </div>
+      <div style="flex:1"><div style="font-size:16px;font-weight:600">Brightside Marketing asked you to choose who to watch</div><div style="font-size:14px;color:var(--muted);margin-top:4px">We found 9 businesses near Round Rock. Pick up to 5 to compare with you every week.</div></div>
+      <span class="btn p">Choose competitors</span>
+    </div>
+    <div class="sec">
+      <h3>Your starting point</h3>
+      <div style="font-size:14px;color:var(--muted);margin-top:6px">Ready within 48 hours of picking competitors: where you stand on rating, reviews and map rank.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:18px;max-width:880px">
+        <div><div style="font-size:12px;color:var(--muted)">Your rating</div><div style="font-size:24px;font-weight:600;margin-top:4px">4.7</div><div class="sk" style="width:70%;margin-top:10px"></div></div>
+        <div><div style="font-size:12px;color:var(--muted)">Your reviews</div><div style="font-size:24px;font-weight:600;margin-top:4px">212</div><div class="sk" style="width:60%;margin-top:10px"></div></div>
+        <div><div style="font-size:12px;color:var(--muted)">Map rank</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--faint)">–</div><div class="sk" style="width:65%;margin-top:10px"></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>This week</h3>
+      <div style="font-size:14px;color:var(--muted);margin-top:6px">Your first Monday brief appears here.</div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;max-width:620px"><div class="sk" style="width:90%"></div><div class="sk" style="width:74%"></div><div class="sk" style="width:82%"></div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- O2. OWNER COMPETITORS PAGE -->
+<section class="page brand"><span class="tag">Owner · Choose competitors (/c/&lt;id&gt;/setup/competitors)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">Back to Overview</span></div>
+    <div class="prog"><div class="lbl">Choose competitors</div></div>
+    <h1 style="margin-top:20px">Choose who to watch</h1>
+    <p class="sub">Brightside Marketing found these businesses near Round Rock. Tick up to 5. You can change them later.</p>
+    <div class="form" style="gap:14px">
+      <div class="lst">
+        <div class="opt-row sel"><span class="cb on">✓</span><div><div class="nm">Arctic Air Comfort</div><div class="meta">2.1 mi · ★ 4.5 (486)</div></div><span class="chip top tierr">Top rival</span></div>
+        <div class="opt-row sel"><span class="cb on">✓</span><div><div class="nm">Lone Star Climate Pros</div><div class="meta">3.4 mi · ★ 4.8 (133)</div></div><span class="chip top tierr">Top rival</span></div>
+        <div class="opt-row"><span class="cb"></span><div><div class="nm">Hill Country Heating &amp; Cooling</div><div class="meta">6.8 mi · ★ 4.6 (301)</div></div><span class="chip worth tierr">Worth watching</span></div>
+        <div class="opt-row"><span class="cb"></span><div><div class="nm">Texan Comfort Systems</div><div class="meta">8.2 mi · ★ 4.3 (77)</div></div><span class="chip worth tierr">Worth watching</span></div>
+        <div class="opt-row"><span class="cb"></span><div><div class="nm">Round Rock Plumbing &amp; Air</div><div class="meta">1.5 mi · ★ 4.1 (54)</div></div><span class="chip minor tierr">Minor</span></div>
+      </div>
+      <div style="display:flex;gap:24px"><span class="link">Show 4 more</span><span class="link">+ Add one we missed</span></div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Confirm 2 competitors</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:600px">
+      <div class="sc">
+        <div class="t">Where you stand</div><div class="st">Google rating and reviews · Oct 26</div>
+        <div class="lg"><span><i class="dot" style="background:#2A6BAC"></i>Cool Breeze (you)</span><span><i class="dot" style="background:#E05A2B"></i>Arctic Air Comfort</span><span><i class="dot" style="background:#14936A"></i>Lone Star Climate Pros</span></div>
+        <div class="mt">Rating</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:94%;background:#2A6BAC"></div></div><span class="v">4.7</span></div>
+        <div class="br"><span>Arctic Air Comfort</span><div><div class="bar" style="width:90%;background:#E05A2B"></div></div><span class="v">4.5</span></div>
+        <div class="br"><span>Lone Star Climate Pros</span><div><div class="bar" style="width:96%;background:#14936A"></div></div><span class="v">4.8</span></div>
+        <div class="mt">Reviews</div>
+        <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:44%;background:#2A6BAC"></div></div><span class="v">212</span></div>
+        <div class="br"><span>Arctic Air Comfort</span><div><div class="bar" style="width:100%;background:#E05A2B"></div></div><span class="v">486</span></div>
+        <div class="br"><span>Lone Star Climate Pros</span><div><div class="bar" style="width:27%;background:#14936A"></div></div><span class="v">133</span></div>
+      </div>
+    </div>
+    <div class="caption"><b>Live preview.</b> You and the first two rivals you tick.</div>
+  </div>
+</div>
+</section>
+
+</body>
+</html>

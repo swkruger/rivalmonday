@@ -4,19 +4,20 @@
 **Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (owner-approved 2026-10-25); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 (pre-flight) in progress: rebased onto main (clean); next free migration **0095** (plan said 0093); mockups + image candidates pending owner gate. Nothing built yet.
+**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 done except the owner gate: rebased (clean), plan re-checked and corrected (§ Pre-flight), mockups `client.html`/`intake.html` built + `agency.html` fixed (PDFs sent). Waiting on: owner mockup approval (gates Tasks 8–10) and OK for image generation (~$1.50–2.50). Nothing built yet.
 
 ## Next (overwrite)
-On the owner's go-ahead: 16-onboarding Task 0 (rebase, dependency re-check, client + intake mockups → owner gate), then SDD Tasks 1–11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
+SDD Tasks 1–7 (not gated by mockups); generate image candidates once the cost is OK'd; Tasks 8–10 after mockup approval; Task 11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
 
 ## Interfaces this branch adds or changes
 Per 09 §9: tokens, new `@cs/ui` primitives, `Card` = frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`.
-16-onboarding (planned, plan "Interfaces"): migration **0093** `onboarding_split` (`client.phone/address/logo_url` + app_user UPDATE grant, `agency_onboarding.wizard_finished_at`, `client_setup.owner_pick_requested_at/location_source`); tools `save_agency_basics`, `finish_onboarding`, `update_client_details`, `upload_client_logo`, `get_client_details`, `advance_client_setup` action `ask_owner`; `create_client` `details`; setup steps `details/lookup/profile/competitors/invite/billing` (`totalSteps` 5|6, `waiting_owner`); search rule = keywords + centre (no place id); `ToolDeps.geocode` (Stadia) + web env `STADIA_API_KEY`; route group `(onboarding)` (moves `/onboarding`, `/agency/clients/new`, `/c/<id>/setup`); owners never enter `/setup` (only `/setup/competitors` while waiting).
+16-onboarding (planned, plan "Interfaces"): migration **0095** `onboarding_split` (`client.phone/address/logo_url` + app_user UPDATE grant, `agency_onboarding.wizard_finished_at`, `client_setup.owner_pick_requested_at/location_source`); tools `save_agency_basics`, `finish_onboarding`, `update_client_details`, `upload_client_logo`, `get_client_details`, `advance_client_setup` action `ask_owner`; `create_client` `details`; setup steps `details/lookup/profile/competitors/invite/billing` (`totalSteps` 5|6, `waiting_owner`); search rule = keywords + centre (no place id); `ToolDeps.geocode` (Stadia) + web env `STADIA_API_KEY`; route group `(onboarding)` (moves `/onboarding`, `/agency/clients/new`, `/c/<id>/setup`); owners never enter `/setup` (only `/setup/competitors` while waiting).
 
 ## Assumes from other branches
-Both restart after phase-16 and rebase onto it.
-- **phase-15c2** (2a done, unmerged; 0087/0088 `email_resend`): ~110 overlapping UI files — `packages/ui/{styles.css,theme.ts}` (`readableTextOn`, `--primary-foreground` = 09 §3.4), `stat-card`, `shell/app-shell`, `branding-editor`, `runbook/*-card`, agency pages + settings, all `/platform/**`, sign-in/up, `start/*`, onboarding. 2b (unbuilt): client pages, `ListDetail`, `compare_captures`, Ask delete.
-- **phase-7b1** (0085/0086, collide with main): `agency/page.tsx`, `settings/usage/{page,limits-form}`, `rankings/scan-now-button`, `spend-badge`, `help/copy/agency.ts`.
+None in flight (2026-10-26); 15c2*, 7b1, 7c1 etc. are merged and this branch is rebased onto them.
+
+## Pre-flight (16-onboarding Task 0, 2026-10-26)
+Plan corrected in place. Main changes: migration 0095; `(onboarding)` layout re-provides AppShell's providers/banners via a shared `ShellProviders` (P1); `OnboardingShell` `helpKey`/`guide` + coverage gate (P10); client logo route public + content-addressed (P11); `ask_owner` sends no email, invite step can't be skipped while `waiting_owner` and queues the review email (P12); role vs scope errors (P13); P5 has 8 call sites incl. an SQL twin; geocoder signature `TimedFetch`/`LedgerSink`/`CallScope`, geocode before the `create_client` tx; `ISOLATION_FIXTURES` for all 5 new tools; extra files in Tasks 4/7/8/9 (page-gates, e2e-affected-rules, labels, links, worker setup job, readiness selects, demo coverage, help reach); line refs refreshed.
 
 ## Decisions (owner-approved)
 - D1 Look only: every page keeps its content and behaviour; adopt the new design (storyboard look: one sheet, sections over cards, fewer cards, cleaner). Priority pages: Overview, Brief detail.

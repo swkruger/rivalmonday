@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Public intake mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="base.css" rel="stylesheet">
+<style>
+/* agency brand tokens (white-label, /start/<slug>): Brightside Marketing #163A5F */
+.brand{--primary:#163A5F;--primary-soft:#E4ECF4}
+.brand .btn.p{color:#fff}.brand .cb.on{color:#fff}
+.brand .opt-row.sel{background:#fff;box-shadow:inset 0 0 0 1px var(--primary)}
+.ab{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.ab .mk{width:28px;height:28px;border-radius:6px;background:#163A5F;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.link{font-size:14px;color:var(--secondary);font-weight:500}
+.lst{display:flex;flex-direction:column;gap:8px}.lst .opt-row{padding:10px 14px}.lst .nm{font-weight:500}
+.ta{height:64px;border:1px solid var(--input);border-radius:6px;padding:10px 12px;font-size:14px;background:#fff}
+.ts{width:300px;height:65px;border:1px solid var(--line);border-radius:4px;background:#FAFAFA;display:flex;align-items:center;gap:12px;padding:0 14px;font-size:13px;color:var(--muted)}
+.imgph{width:560px;height:420px;border:2px dashed var(--faint);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);background:rgba(255,255,255,.6)}
+.imgph b{font-size:16px;color:var(--ink);font-weight:600}.imgph span{font-size:13px}
+.sc{padding:24px 28px}
+.sc .t{font-size:16px;font-weight:600}.sc .st{font-size:12px;color:var(--muted);margin-top:4px}
+.mt{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:22px;margin-bottom:10px}
+.br{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:12px;font-size:13px;margin-bottom:9px}
+.br .bar{height:14px;border-radius:0 4px 4px 0}.br .v{font-weight:600;text-align:right}
+.blur{filter:blur(5px)}
+.lock{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--line);border-radius:9999px;padding:8px 16px;font-size:13px;font-weight:500;white-space:nowrap;box-shadow:0 4px 16px rgba(11,37,64,.10)}
+.steps{display:flex;flex-direction:column;gap:18px;margin-top:18px}
+.steps .n{display:grid;grid-template-columns:28px 1fr;gap:12px;font-size:14px;line-height:1.5}
+.steps .c{width:28px;height:28px;border-radius:9999px;background:var(--primary-soft);color:var(--primary);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+
+<!-- 1. FIND YOUR BUSINESS (agency) -->
+<section class="page brand"><span class="tag">1 · Find your business (/start/&lt;slug&gt;)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">brightside-marketing.com ↗</span></div>
+    <div class="prog"><div class="lbl">Step 1 of 3 · Find your business</div><div class="bars"><i class="on"></i><i></i><i></i></div></div>
+    <h1>See how you compare with nearby rivals</h1>
+    <p class="sub">A free snapshot from public information. No card, no sign-up.</p>
+    <div class="form" style="gap:16px">
+      <div class="f"><label>Business name <span class="req">*</span></label><div class="in">Cool Breeze Heating &amp; Air</div></div>
+      <div class="f"><label>City or ZIP <span class="req">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px"><div class="in focus">Round Rock, TX</div><span class="btn g">Search</span></div></div>
+      <div class="lst">
+        <div class="opt-row sel"><span class="radio on"></span><div><div class="nm">Cool Breeze Heating &amp; Air</div><div class="meta">1801 Sam Bass Rd, Round Rock, TX · ★ 4.7 (212)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Cool Breeze Pool &amp; Spa</div><div class="meta">Georgetown, TX · ★ 4.2 (38)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Breeze Air Conditioning</div><div class="meta">Pflugerville, TX · ★ 4.4 (96)</div></div></div>
+      </div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div style="position:relative">
+      <div class="win" style="width:600px">
+        <div class="sc">
+          <div class="t">Cool Breeze vs 3 nearby rivals</div><div class="st">Google rating, reviews and map rank</div>
+          <div class="blur">
+            <div class="mt">Rating</div>
+            <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:94%;background:#2A6BAC"></div></div><span class="v">4.7</span></div>
+            <div class="br"><span>Rival 1</span><div><div class="bar" style="width:90%;background:#E05A2B"></div></div><span class="v">4.5</span></div>
+            <div class="br"><span>Rival 2</span><div><div class="bar" style="width:96%;background:#14936A"></div></div><span class="v">4.8</span></div>
+            <div class="br"><span>Rival 3</span><div><div class="bar" style="width:86%;background:#A3B1C2"></div></div><span class="v">4.3</span></div>
+            <div class="mt">Reviews</div>
+            <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:44%;background:#2A6BAC"></div></div><span class="v">212</span></div>
+            <div class="br"><span>Rival 1</span><div><div class="bar" style="width:100%;background:#E05A2B"></div></div><span class="v">486</span></div>
+            <div class="br"><span>Rival 2</span><div><div class="bar" style="width:27%;background:#14936A"></div></div><span class="v">133</span></div>
+            <div class="br"><span>Rival 3</span><div><div class="bar" style="width:62%;background:#A3B1C2"></div></div><span class="v">301</span></div>
+          </div>
+        </div>
+      </div>
+      <span class="lock">Your snapshot unlocks after you confirm your email</span>
+    </div>
+    <div class="caption"><b>Preview.</b> Your free snapshot: you against the three closest rivals.</div>
+  </div>
+</div>
+</section>
+
+<!-- 2. YOUR DETAILS -->
+<section class="page brand"><span class="tag">2 · Your details</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">brightside-marketing.com ↗</span></div>
+    <div class="prog"><div class="lbl">Step 2 of 3 · Your details</div><div class="bars"><i class="on"></i><i class="on"></i><i></i></div></div>
+    <h1>Where should we send it?</h1>
+    <p class="sub">We email you a link to your snapshot for Cool Breeze Heating &amp; Air.</p>
+    <div class="form" style="gap:14px">
+      <div class="f"><label>Your name <span class="req">*</span></label><div class="in">Maria Alvarez</div></div>
+      <div class="row2">
+        <div class="f"><label>Email <span class="req">*</span></label><div class="in focus">maria@coolbreezeac.com</div></div>
+        <div class="f"><label>Phone <span class="opt">(optional)</span></label><div class="in ph">(512) 555-0000</div></div>
+      </div>
+      <div class="f"><label>What would you like help with? <span class="opt">(optional)</span></label><div class="ta">More calls in the slow season.</div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.45"><span class="cb on" style="margin-top:1px">✓</span><span>I agree to be contacted about my request. <span class="link">Privacy policy</span> <span class="req" style="color:var(--danger)">*</span></span></div>
+      <div class="ts"><span class="cb on" style="background:#1F8A4C;border-color:#1F8A4C;color:#fff">✓</span>Success!<span style="margin-left:auto;font-size:11px;color:var(--faint)">Cloudflare Turnstile</span></div>
+    </div>
+    <div class="foot"><span class="btn g">Back</span><span class="sp"></span><span class="btn p">Get my free snapshot</span></div>
+  </div>
+  <div class="right">
+    <div class="win" style="width:520px">
+      <div style="padding:28px 32px">
+        <div style="font-size:16px;font-weight:600">What Brightside Marketing does next</div>
+        <div class="steps">
+          <div class="n"><span class="c">1</span><div><b style="font-weight:600">Emails your snapshot link</b><div style="color:var(--muted)">Open it to confirm your email and see the snapshot.</div></div></div>
+          <div class="n"><span class="c">2</span><div><b style="font-weight:600">Compares you with nearby rivals</b><div style="color:var(--muted)">Rating, reviews and map rank, from public information only.</div></div></div>
+          <div class="n"><span class="c">3</span><div><b style="font-weight:600">Gets in touch if you asked</b><div style="color:var(--muted)">Only about your request. No mailing lists.</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="caption"><b>Your request</b> goes to Brightside Marketing only.</div>
+  </div>
+</div>
+</section>
+
+<!-- 3. CHECK YOUR EMAIL -->
+<section class="page brand"><span class="tag">3 · Check your email</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="ab"><span class="mk">B</span>Brightside Marketing</div><span class="exit">brightside-marketing.com ↗</span></div>
+    <div class="prog"><div class="lbl">Step 3 of 3 · Check your email</div><div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+    <h1>Your snapshot link is on its way</h1>
+    <p class="sub">We sent it to <b style="color:var(--ink);font-weight:600">maria@coolbreezeac.com</b>. Open the email to confirm it's you and see your snapshot.</p>
+    <div class="form">
+      <div style="font-size:14px;color:var(--muted);line-height:1.5">Didn't get it? Check your spam folder, or send it again.</div>
+      <div style="display:flex;align-items:center;gap:14px"><span class="btn g" style="opacity:.5">Resend</span><span style="font-size:13px;color:var(--muted)">You can resend in 42 s</span></div>
+      <span class="link">Wrong email? Go back</span>
+    </div>
+  </div>
+  <div class="right">
+    <div class="imgph"><b>Image: intake-email</b><span>Generated illustration (O14) · no text, no faces, no Rival Monday branding</span><span>560 × 420 · WebP ≤ 150 KB</span></div>
+    <div class="caption"><b>Almost there.</b> The link works for 48 hours.</div>
+  </div>
+</div>
+</section>
+
+<!-- 1'. FIND YOUR BUSINESS (platform pool) -->
+<section class="page"><span class="tag">1 · Find your business (/start, platform pool)</span>
+<div class="split">
+  <div class="left">
+    <div class="top"><div class="wm"><span class="r">rival</span><span class="m">monday</span></div><span></span></div>
+    <div class="prog"><div class="lbl">Step 1 of 3 · Find your business</div><div class="bars"><i class="on"></i><i></i><i></i></div></div>
+    <h1>See how you compare with nearby rivals</h1>
+    <p class="sub">A free snapshot from public information. No card, no sign-up.</p>
+    <div class="form" style="gap:16px">
+      <div class="f"><label>Business name <span class="req">*</span></label><div class="in">Cool Breeze Heating &amp; Air</div></div>
+      <div class="f"><label>City or ZIP <span class="req">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px"><div class="in focus">Round Rock, TX</div><span class="btn g">Search</span></div></div>
+      <div class="lst">
+        <div class="opt-row sel"><span class="radio on"></span><div><div class="nm">Cool Breeze Heating &amp; Air</div><div class="meta">1801 Sam Bass Rd, Round Rock, TX · ★ 4.7 (212)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Cool Breeze Pool &amp; Spa</div><div class="meta">Georgetown, TX · ★ 4.2 (38)</div></div></div>
+        <div class="opt-row"><span class="radio"></span><div><div class="nm">Breeze Air Conditioning</div><div class="meta">Pflugerville, TX · ★ 4.4 (96)</div></div></div>
+      </div>
+    </div>
+    <div class="foot"><span class="sp"></span><span class="btn p">Continue</span></div>
+  </div>
+  <div class="right">
+    <div style="position:relative">
+      <div class="win" style="width:600px">
+        <div class="sc">
+          <div class="t">Cool Breeze vs 3 nearby rivals</div><div class="st">Google rating, reviews and map rank</div>
+          <div class="blur">
+            <div class="mt">Rating</div>
+            <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:94%;background:#2A6BAC"></div></div><span class="v">4.7</span></div>
+            <div class="br"><span>Rival 1</span><div><div class="bar" style="width:90%;background:#E05A2B"></div></div><span class="v">4.5</span></div>
+            <div class="br"><span>Rival 2</span><div><div class="bar" style="width:96%;background:#14936A"></div></div><span class="v">4.8</span></div>
+            <div class="br"><span>Rival 3</span><div><div class="bar" style="width:86%;background:#A3B1C2"></div></div><span class="v">4.3</span></div>
+            <div class="mt">Reviews</div>
+            <div class="br"><span>Cool Breeze (you)</span><div><div class="bar" style="width:44%;background:#2A6BAC"></div></div><span class="v">212</span></div>
+            <div class="br"><span>Rival 1</span><div><div class="bar" style="width:100%;background:#E05A2B"></div></div><span class="v">486</span></div>
+            <div class="br"><span>Rival 2</span><div><div class="bar" style="width:27%;background:#14936A"></div></div><span class="v">133</span></div>
+            <div class="br"><span>Rival 3</span><div><div class="bar" style="width:62%;background:#A3B1C2"></div></div><span class="v">301</span></div>
+          </div>
+        </div>
+      </div>
+      <span class="lock">Your snapshot unlocks after you confirm your email</span>
+    </div>
+    <div class="caption"><b>Platform pool.</b> Same flow in Rival Monday's brand until an agency is assigned.</div>
+  </div>
+</div>
+</section>
+
+</body>
+</html>
