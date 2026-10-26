@@ -129,7 +129,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout and index redirect (wrap every agency settings page)' },
   { pattern: re(`${C}settings/(?:layout|page)\\.tsx$|${SERVER}client-settings-nav\\.ts$`), tags: CLIENT_SETTINGS_PAGES, why: 'client settings layout, index redirect and tab list (wrap every client settings page)' },
   { pattern: re(`${COMP}settings-nav\\.tsx$`), tags: [...new Set([...SETTINGS_PAGES, ...CLIENT_SETTINGS_PAGES])], why: 'settings sub-nav (every agency and client settings page)' },
-  { pattern: re(`${APP}\\(app\\)/onboarding/(?!start/)|${COMP}agency/`), tags: ['@onboarding'], why: 'onboarding wizard, checklist and shared branding editor' },
+  { pattern: re(`${COMP}agency/`), tags: ['@onboarding'], why: 'getting-started checklist and shared branding editor (the wizard pages are the (onboarding) rule above)' },
   { pattern: re(`${AGENCY}settings/platform-access/`), tags: ['@support'], why: 'agency support-session history and notify switch' },
   { pattern: re(`${C}settings/billing/`), tags: ['@billing', '@client-billing'], why: 'client owner billing page and portal action' },
   { pattern: re(`${AGENCY}leads/`), tags: ['@leads', '@prospects'], why: 'agency leads page, accept/decline actions' },

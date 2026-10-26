@@ -17,7 +17,7 @@ const tryCallTool = vi.fn(async (c: unknown, name: string): Promise<unknown> => 
 vi.mock('@/server/tools', () => ({ callTool, tryCallTool }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & plumbing', services: [] }] }));
-vi.mock('../onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
+vi.mock('@/app/(onboarding)/onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: createAccessContext({ agencyId: A, userId: 'u', role: state.role, clientScope: 'all', features: ['dashboard'] as never }) }) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 vi.mock('@/components/spend-badge', () => ({ SpendBadge: () => <span /> }));

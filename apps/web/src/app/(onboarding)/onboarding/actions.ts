@@ -4,8 +4,8 @@ import { notFound, redirect } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import { type FormResult, parseBrandingForm } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
-import { isStep, nextPath } from './flow';
-import { parseProfileForm } from './parse';
+import { isSkippable, nextPath } from './flow';
+import { parseBasicsForm } from './parse';
 
 /** Every wizard write is admin-only; anyone else gets a 404 (no existence leak). */
 async function adminCtx() {
@@ -14,19 +14,18 @@ async function adminCtx() {
   return ctx;
 }
 
-export async function saveProfileAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
+export async function saveBasicsAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const ctx = await adminCtx();
-  const r = await runTool(ctx, 'update_agency_profile', parseProfileForm(formData));
+  const r = await runTool(ctx, 'save_agency_basics', parseBasicsForm(formData));
   if (!r.ok) return r;
-  redirect(nextPath('profile')); // update_agency_profile marks the step done itself
+  redirect(nextPath('profile')); // save_agency_basics marks the step done itself
 }
 
 export async function inviteTeamAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const ctx = await adminCtx();
   const emails = formData.getAll('email').map((v) => String(v).trim());
   const roles = formData.getAll('role').map(String);
-  const rows = emails.map((email, i) => ({ email, role: roles[i] ?? 'agency_admin' })).filter((r) => r.email);
-  if (!rows.length && formData.get('confirmEmpty') !== '1') return { ok: false, error: 'Continue without inviting anyone?' };
+  const rows = emails.map((email, i) => ({ email, role: roles[i] ?? 'account_manager' })).filter((r) => r.email);
   const invited: string[] = [];
   for (const row of rows) {
     const r = await runTool(ctx, 'invite_member', { email: row.email, role: row.role, clientId: null, clientScope: null });
@@ -44,27 +43,13 @@ export async function inviteTeamAction(_prev: FormResult, formData: FormData): P
 export async function skipStepAction(formData: FormData): Promise<void> {
   const ctx = await adminCtx();
   const step = String(formData.get('step') ?? '');
-  if (!isStep(step)) notFound();
+  if (!isSkippable(step)) notFound();
   const r = await runTool(ctx, 'mark_onboarding_step', { step, action: 'skip' });
   if (!r.ok) notFound();
   redirect(nextPath(step));
 }
 
-export async function continuePlanAction(): Promise<void> {
-  const ctx = await adminCtx();
-  const r = await runTool(ctx, 'mark_onboarding_step', { step: 'plan', action: 'done' });
-  if (!r.ok) notFound();
-  redirect(nextPath('plan'));
-}
-
-/** "Add payment method": Stripe Checkout returns to `/onboarding?step=plan`; the step is marked when they continue. */
-export async function startCheckoutAction(_prev: FormResult, _formData: FormData): Promise<FormResult> {
-  const ctx = await adminCtx();
-  const r = await runTool<{ url: string }>(ctx, 'create_checkout_session', { returnTo: 'onboarding' });
-  if (!r.ok) return r;
-  redirect(r.data.url);
-}
-
+/** Saves the colour, name and logo address, then marks the step done. The logo file itself is uploaded by the logo route. */
 export async function saveBrandingStepAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const ctx = await adminCtx();
   const saved = await runTool(ctx, 'update_agency_branding', parseBrandingForm(formData));
@@ -72,6 +57,14 @@ export async function saveBrandingStepAction(_prev: FormResult, formData: FormDa
   const done = await runTool(ctx, 'mark_onboarding_step', { step: 'branding', action: 'done' });
   if (!done.ok) return done;
   redirect(nextPath('branding'));
+}
+
+/** The confirmation screen: `to=client` goes on to the first client, anything else to the dashboard. */
+export async function finishAction(formData: FormData): Promise<void> {
+  const ctx = await adminCtx();
+  const r = await runTool(ctx, 'finish_onboarding', {});
+  if (!r.ok) notFound();
+  redirect(formData.get('to') === 'client' ? '/agency/clients/new' : '/agency');
 }
 
 /** Hides the `/agency` getting-started checklist. */

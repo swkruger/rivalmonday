@@ -19,7 +19,7 @@ export const AREAS_2A: readonly string[] = [
   'app/(app)/agency',
   'app/(app)/inbox',
   'app/(app)/settings',
-  'app/(app)/onboarding',
+  'app/(onboarding)',
   'app/(app)/kb',
   'app/(app)/paused',
   'app/sign-up',

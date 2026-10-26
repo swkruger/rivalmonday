@@ -9,27 +9,34 @@ export interface ChecklistStatus {
   completed: boolean;
 }
 
-const ITEMS = [
-  { key: 'profile', label: 'Complete your agency profile', href: '/onboarding?step=profile' },
-  { key: 'team', label: 'Invite your team', href: '/onboarding?step=team' },
-  { key: 'plan', label: 'Review your plan', href: '/onboarding?step=plan' },
-  { key: 'branding', label: 'Add your logo and colours', href: '/onboarding?step=branding' },
-  { key: 'first_client', label: 'Add your first client', href: '/agency/clients/new' },
-] as const;
+interface Item { key: 'first_client' | 'payment' | 'team' | 'branding'; label: string; href: string; skipped?: boolean }
 
 /**
- * Phase 10 f6: the getting-started card on `/agency`. The page renders it for agency admins only; it hides itself once
- * the onboarding is completed or dismissed. `trialing` adds the "Add a payment method" sub-line under the plan item.
+ * 16 P3: only what is still open. The first client until one exists; a payment method while on the trial; the team and
+ * brand steps only when the wizard skipped them (the about step is required and the plan step left the wizard).
+ */
+function openItems(status: ChecklistStatus, trialing: boolean): Item[] {
+  const items: Item[] = [];
+  if (status.steps.first_client !== 'done') items.push({ key: 'first_client', label: 'Add your first client', href: '/agency/clients/new' });
+  if (trialing) items.push({ key: 'payment', label: 'Add a payment method', href: '/agency/settings/billing' });
+  if (status.steps.team === 'skipped') items.push({ key: 'team', label: 'Invite your team', href: '/onboarding?step=team', skipped: true });
+  if (status.steps.branding === 'skipped') items.push({ key: 'branding', label: 'Add your logo and colours', href: '/onboarding?step=branding', skipped: true });
+  return items;
+}
+
+/**
+ * The getting-started card on `/agency` (the page renders it for agency admins only). It lists only what is open and
+ * hides itself when the admin dismissed it or nothing is left. `trialing` adds the payment method item.
  */
 export function OnboardingChecklist({ status, trialing, dismissAction }: { status: ChecklistStatus; trialing: boolean; dismissAction: () => Promise<void> }) {
-  if (status.completed || status.dismissed) return null;
-  const done = ITEMS.filter((i) => status.steps[i.key] === 'done').length;
+  const items = openItems(status, trialing);
+  if (status.dismissed || items.length === 0) return null;
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3">
         <div>
           <CardTitle>Getting started</CardTitle>
-          <p className="mt-1 text-sm text-muted-ink">{done} of {ITEMS.length} done</p>
+          <p className="mt-1 text-sm text-muted-ink">{items.length} left to do</p>
         </div>
         <WriteGuard>
           <form action={dismissAction}>
@@ -39,27 +46,15 @@ export function OnboardingChecklist({ status, trialing, dismissAction }: { statu
       </CardHeader>
       <CardContent>
         <ul className="flex flex-col divide-y divide-line">
-          {ITEMS.map((item) => {
-            const state = status.steps[item.key];
-            return (
-              <li key={item.key} data-testid={`step-${item.key}`} data-state={state} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                <span aria-hidden className={state === 'done' ? 'mt-0.5 text-secondary' : 'mt-0.5 text-muted-ink'}>{state === 'done' ? '✓' : '○'}</span>
-                <div className="min-w-0">
-                  {state === 'done' ? (
-                    <span className="text-muted-ink line-through">{item.label}</span>
-                  ) : (
-                    <Link href={item.href} className="font-semibold text-primary-soft-text">{item.label}</Link>
-                  )}
-                  {state === 'skipped' && <span className="ml-2 text-sm text-muted-ink">skipped</span>}
-                  {item.key === 'plan' && trialing && (
-                    <div className="text-sm">
-                      <Link href="/onboarding?step=plan" className="text-primary-soft-text">Add a payment method</Link>
-                    </div>
-                  )}
-                </div>
-              </li>
-            );
-          })}
+          {items.map((item) => (
+            <li key={item.key} data-testid={`step-${item.key}`} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+              <span aria-hidden className="mt-0.5 text-muted-ink">○</span>
+              <div className="min-w-0">
+                <Link href={item.href} className="font-semibold text-primary-soft-text">{item.label}</Link>
+                {item.skipped && <span className="ml-2 text-sm text-muted-ink">skipped</span>}
+              </div>
+            </li>
+          ))}
         </ul>
       </CardContent>
     </Card>

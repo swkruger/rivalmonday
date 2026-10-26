@@ -36,10 +36,10 @@ export const AGENCY_COPY = {
         title: 'The setup chip',
         body: "Shows while a client's setup is still open: how many setup steps are done or skipped out of the total. Click it to continue the setup.",
       },
-      // source: apps/web/src/components/agency/onboarding-checklist.tsx:OnboardingChecklist (ITEMS: five steps); apps/web/src/app/(app)/agency/page.tsx (agency admins only)
+      // source: apps/web/src/components/agency/onboarding-checklist.tsx:OnboardingChecklist (openItems: what is still open); apps/web/src/app/(app)/agency/page.tsx (agency admins only)
       checklist: {
         title: 'The checklist',
-        body: 'Agency admins see a getting-started card with five steps: complete your agency profile, invite your team, review your plan, add your logo and colours, and add your first client. It goes away when all five are done or when you dismiss it.',
+        body: 'Agency admins see a getting-started card with what is still open: add your first client, add a payment method while you are on the trial, and invite your team or add your logo and colours if you skipped those. It goes away when nothing is left or when you dismiss it.',
       },
     },
     empty: {

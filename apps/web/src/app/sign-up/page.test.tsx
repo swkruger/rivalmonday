@@ -23,7 +23,7 @@ describe('/sign-up', () => {
 
   it('sign-up links to sign in and to the privacy policy', async () => {
     render(await Page({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/sign-in');
+    expect(screen.getByRole('link', { name: /Sign in/ }).getAttribute('href')).toBe('/sign-in');
     expect(screen.getByRole('link', { name: 'privacy policy' }).getAttribute('href')).toBe('https://rivalmonday.app/privacy');
   });
 

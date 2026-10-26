@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
 
 const m = vi.hoisted(() => ({
-  ctx: { role: 'agency_admin', agencyId: 'a1' } as { role: string; agencyId: string },
+  ctx: { role: 'agency_admin', agencyId: 'a1', clientScope: 'all' } as { role: string; agencyId: string; clientScope: string },
   kind: 'user',
   billing: { state: 'active', onHold: false, trialEndsAt: null, pausesOn: null, supportEmail: 's@x.io' } as Record<string, unknown>,
   redirectTo: null as string | null,
@@ -26,7 +26,7 @@ vi.mock('@/components/shell/billing-banner', () => ({ BillingBanner: ({ onHold }
 vi.mock('@/components/shell/spend-banner', () => ({ SpendBanner: () => null }));
 const { default: OnboardingLayout } = await import('./layout');
 
-beforeEach(() => { m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.billing = { state: 'active', onHold: false, trialEndsAt: null, pausesOn: null, supportEmail: 's@x.io' }; m.redirectTo = null; });
+beforeEach(() => { m.ctx = { role: 'agency_admin', agencyId: 'a1', clientScope: 'all' }; m.kind = 'user'; m.billing = { state: 'active', onHold: false, trialEndsAt: null, pausesOn: null, supportEmail: 's@x.io' }; m.redirectTo = null; });
 afterEach(cleanup);
 
 describe('(onboarding) layout', () => {
@@ -39,7 +39,7 @@ describe('(onboarding) layout', () => {
 
   it('renders bare children for a suspended non-admin', async () => {
     m.billing = { ...m.billing, state: 'suspended' };
-    m.ctx = { role: 'account_manager', agencyId: 'a1' };
+    m.ctx = { role: 'account_manager', agencyId: 'a1', clientScope: 'all' };
     render(await OnboardingLayout({ children: <p>kid</p> }));
     expect(screen.getByText('kid')).toBeTruthy();
     expect(screen.queryByTestId('billing')).toBeNull();

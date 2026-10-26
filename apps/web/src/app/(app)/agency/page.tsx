@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { OnboardingChecklist, type ChecklistStatus } from '@/components/agency/onboarding-checklist';
 import { WriteGuard } from '@/components/read-only';
-import { dismissChecklistAction } from '../onboarding/actions';
+import { dismissChecklistAction } from '@/app/(onboarding)/onboarding/actions';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { PressureBadge } from '@/components/pressure-badge';
 import { SetupBadge } from '@/components/setup-badge';
@@ -51,11 +51,12 @@ export default async function AgencyPortfolioPage() {
   const [{ items }, billingRows, onboarding, guides] = await Promise.all([
     callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {}),
     callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}),
-    ctx.role === 'agency_admin' ? callTool<ChecklistStatus>(ctx, 'get_onboarding_status', {}) : null,
+    ctx.role === 'agency_admin' ? callTool<ChecklistStatus & { source?: string }>(ctx, 'get_onboarding_status', {}) : null,
     helpGuides(ctx, 'agency'),
   ]);
   const billingBy = new Map((billingRows?.clients ?? []).map((b) => [b.clientId, b]));
-  const showChecklist = !!onboarding && !onboarding.completed && !onboarding.dismissed;
+  // 16 P3: no longer hidden by `completed` (nudges continue until a client exists); the card itself hides when nothing is open. Legacy agencies never had one.
+  const showChecklist = !!onboarding && !onboarding.dismissed && onboarding.source !== 'legacy';
   // Fails soft: a refused or failing billing read only hides the "Add a payment method" sub-line.
   const billingSummary = showChecklist ? await tryCallTool<{ state: string }>(ctx, 'get_billing_summary', {}).catch(() => null) : null;
   const trialing = billingSummary?.state === 'trialing';

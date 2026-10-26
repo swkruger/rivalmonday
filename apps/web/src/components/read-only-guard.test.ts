@@ -18,7 +18,6 @@ const EXEMPT: Record<string, string> = {
   'app/(app)/c/[clientId]/settings/runbook/page.tsx': 'RunbookEditor guards every write control via useReadOnly',
   'app/(app)/agency/clients/new/page.tsx': 'ClientProfileForm guards its submit',
   'app/(app)/agency/settings/branding/branding-form.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
-  'app/(app)/onboarding/steps/branding.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
   'app/(app)/agency/prospects/new/page.tsx': 'ClientProfileForm guards its submit',
   'app/(app)/c/[clientId]/recommendations/page.tsx': 'RecommendationBoard guards itself',
   'app/(app)/c/[clientId]/changes/viewer.tsx': 'FeedbackButtons guards itself',
@@ -60,7 +59,6 @@ function walk(dir: string, out: string[] = []): string[] {
  */
 const CLIENT_EXEMPT: Record<string, string> = {
   'app/(app)/agency/settings/branding/branding-form.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
-  'app/(app)/onboarding/steps/branding.tsx': 'passes the action to BrandingEditor, which guards its submit with WriteGuard',
   'app/(app)/settings/notifications/contact-form.tsx': 'page is a 404 in a support session',
   'app/(app)/settings/notifications/pref-switch.tsx': 'page is a 404 in a support session',
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',

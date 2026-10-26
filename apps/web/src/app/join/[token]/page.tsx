@@ -1,5 +1,7 @@
 import { checkInviteLink } from '@cs/tools';
 import { AuthCard } from '@/components/auth-card';
+import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
+import { SignupAside } from '@/components/onboarding/signup-aside';
 import { defaultBranding } from '@/server/branding';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
@@ -14,25 +16,29 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const { token } = await params;
   const env = webEnv();
   const service = dbs().service;
-  const branding = await defaultBranding(service, env);
   const check = await checkInviteLink(service, token, null, new Date());
   if (!check.ok) {
     return (
-      <AuthCard branding={branding} title="Invite link">
+      <AuthCard branding={await defaultBranding(service, env)} title="Invite link">
         <p className="text-ink">This invite link is no longer valid. Ask the person who sent it for a new one.</p>
       </AuthCard>
     );
   }
   const { link } = check;
   return (
-    <AuthCard branding={branding} title={link.offer === 'pilot' ? 'Join the Rival Monday pilot' : 'Start your Rival Monday trial'}>
-      <p className="mb-4 rounded-lg bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
+    <OnboardingShell
+      brand={{ kind: 'platform' }}
+      exit={{ href: '/sign-in', label: 'Have an account? Sign in' }}
+      title={link.offer === 'pilot' ? 'Join the Rival Monday pilot' : 'Start your Rival Monday trial'}
+      preview={<SignupAside />}
+    >
+      <p className="rounded-lg bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
       <SignUpForm
         googleEnabled={env.google !== null}
         siteKey={activeEnvName() === 'dev' ? (env.turnstile?.siteKey ?? null) : null}
         inviteToken={token}
         lockedEmail={link.emailLock ?? null}
       />
-    </AuthCard>
+    </OnboardingShell>
   );
 }

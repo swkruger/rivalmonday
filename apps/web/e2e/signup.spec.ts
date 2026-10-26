@@ -56,20 +56,49 @@ async function fresh<T>(browser: Browser, testInfo: TestInfo, fn: (page: Page) =
   }
 }
 
-test('an open sign-up confirms by email, skips the whole wizard and dismisses the checklist', { tag: ['@auth', '@onboarding', '@clients'] }, async ({ browser }, testInfo) => {
+/** Step 1 of the agency wizard: name and email are pre-filled from sign-up; the contact and phone are typed. */
+async function fillAbout(page: Page, contact = 'Sam Lee'): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Welcome to Rival Monday', level: 1 })).toBeVisible();
+  await expect(page.getByLabel(/^Agency name/)).not.toHaveValue('');
+  await expect(page.getByLabel(/^Email address/)).not.toHaveValue('');
+  await page.getByLabel(/^Contact full name/).fill(contact);
+  await page.getByLabel(/^Phone/).fill('(512) 555-0142');
+  await page.getByRole('button', { name: 'Continue' }).click();
+}
+
+/** Skips the team and brand steps; ends on the confirmation screen. */
+async function skipToDone(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Invite your team', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+  await expect(page.getByRole('heading', { name: 'Put your brand on it', level: 1 })).toBeVisible();
+  await page.getByRole('button', { name: 'Skip for now' }).click();
+  await expect(page.getByRole('heading', { name: /^You're all set/, level: 1 })).toBeVisible();
+}
+
+test('an open sign-up confirms by email, fills step 1, skips team and brand, and "Add your first client" lands on the new-client page', { tag: ['@auth', '@onboarding', '@clients'] }, async ({ browser }, testInfo) => {
   await fresh(browser, testInfo, async (page) => {
     await signUpAndConfirm(page, `owner@${domain('open')}`, 'Open Sign-up Agency');
-    for (const title of ['Your agency', 'Invite your team', 'Your plan', 'Make it yours']) {
-      await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible();
-      await page.getByRole('button', { name: 'Skip for now' }).click();
-    }
+    await fillAbout(page);
+    await skipToDone(page);
+    await page.getByRole('button', { name: 'Add your first client' }).click();
+    await expect(page).toHaveURL(/\/agency\/clients\/new$/);
+  });
+});
+
+test('"Go to dashboard" leaves the skipped steps on the getting-started card until it is dismissed', { tag: ['@auth', '@onboarding', '@clients'] }, async ({ browser }, testInfo) => {
+  await fresh(browser, testInfo, async (page) => {
+    await signUpAndConfirm(page, `owner@${domain('dash')}`, 'Dashboard Sign-up Agency');
+    await fillAbout(page);
+    await skipToDone(page);
+    await page.getByRole('button', { name: 'Go to dashboard' }).click();
     await expect(page).toHaveURL(/\/agency$/);
-    // A later full load (the next visit) still shows the portfolio with the checklist.
+    // A later full load (the next visit) still shows the portfolio with the card: no redirect back into the wizard.
     await page.reload();
     await expect(page).toHaveURL(/\/agency$/);
     await expect(page.getByText('Getting started')).toBeVisible();
-    await expect(page.getByText('0 of 5 done')).toBeVisible();
-    await expect(page.getByText('skipped', { exact: true })).toHaveCount(4);
+    await expect(page.getByRole('link', { name: 'Add your first client' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Add a payment method' })).toBeVisible();
+    await expect(page.getByText('skipped', { exact: true })).toHaveCount(2);
     await page.getByRole('button', { name: 'Dismiss' }).click();
     await expect(page.getByText('Getting started')).toHaveCount(0);
     await page.reload();
@@ -98,8 +127,7 @@ test('a pilot invite link shows its offer, and the new agency is on the pilot', 
     await page.goto(path);
     await expect(page.getByText(/^You're invited to the Rival Monday pilot until /)).toBeVisible();
     await signUpAndConfirm(page, `owner@${domain('pilot')}`, 'Pilot Invite Agency', path);
-    await page.goto('/onboarding?step=plan');
-    await expect(page.getByRole('heading', { name: 'Your plan', level: 1 })).toBeVisible();
+    await page.goto('/agency/settings/billing');
     await expect(page.getByText('Pilot', { exact: true })).toBeVisible();
     await expect(page.getByText(/^Pilot ends /)).toBeVisible();
   });
@@ -139,19 +167,17 @@ test('a second trial for a company domain gets the same check-email page and no 
   });
 });
 
-test('uploading a logo in the branding step shows it in the live preview', { tag: ['@onboarding'] }, async ({ browser }, testInfo) => {
+test('uploading a logo in the brand step shows it in the live preview', { tag: ['@onboarding'] }, async ({ browser }, testInfo) => {
   await fresh(browser, testInfo, async (page) => {
     await signUpAndConfirm(page, `owner@${domain('logo')}`, 'Logo Upload Agency');
     await page.goto('/onboarding?step=branding');
-    await expect(page.getByRole('heading', { name: 'Make it yours', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Put your brand on it', level: 1 })).toBeVisible();
     const upload = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/agency/settings/branding/logo'));
     const png = await sharp({ create: { width: 64, height: 32, channels: 3, background: '#2A6BAC' } }).png().toBuffer();
-    await page.getByLabel('Upload logo').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
+    await page.getByLabel(/^Agency logo/).setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
     expect((await upload).status()).toBe(200);
-    for (const id of ['preview-dashboard-header', 'preview-email-header']) {
-      const img = page.getByTestId(id).locator('img');
-      await expect(img).toHaveAttribute('src', /\/files\/logo\/[0-9a-f-]+\/[0-9a-f]{64}\.png$/);
-      await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
-    }
+    const img = page.getByTestId('preview-dashboard-header').locator('img');
+    await expect(img).toHaveAttribute('src', /\/files\/logo\/[0-9a-f-]+\/[0-9a-f]{64}\.png$/);
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
   });
 });

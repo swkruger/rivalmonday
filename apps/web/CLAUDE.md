@@ -40,7 +40,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### UI patterns
 - **Action-result state must survive `revalidatePath`:** a `useActionState` message inside the triggering button/dialog vanishes when revalidation unmounts it. Hoist it to an always-mounted component (`ReviewFooter`, `AlertList`). Server-action switches use `useOptimistic` + `startTransition` (`AutoSendSwitch`), not `PinPageSwitch`'s ref/RAF hack.
-- **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard forms control every field, add `onReset={e => e.preventDefault()}` (`(app)/onboarding/steps/*`), else a failed submit silently reverts choices.
+- **React 19 resets a `<form action>` after every action, error results included** — even controlled selects. Wizard forms control every field, add `onReset={e => e.preventDefault()}` (`(onboarding)/onboarding/steps/*`), else a failed submit silently reverts choices.
 - **`LineChart` callers must pass series name-sorted:** colours follow position in the kept set.
 - **Formatting:** use `@/lib/format` (dates, money, distance) and `@/lib/labels` (enum labels, chip tones), never local formatters or raw enums. Distances: km stored, miles shown/typed via `lib/format/distance`.
 - **Confirms with a result line:** `ConfirmForm` (`components/confirm-form.tsx`) for forms with visible fields; `ConfirmDialog` + `fields` + row-keyed result lines for row actions (`AlertList`, `TopicQueue`). Never a bare `ConfirmDialog` plus state inside the row.

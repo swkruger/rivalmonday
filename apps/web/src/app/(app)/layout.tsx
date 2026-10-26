@@ -46,8 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Phase 10 first-session redirect: one status read, admins in a normal session only (never support, never `/onboarding`).
   // Legacy agencies are backfilled `completed`, so they are never sent. `redirected_at` makes it happen once.
   if (firstSession && billing?.state !== 'suspended' && !pathname.startsWith('/onboarding')) {
-    const status = await callTool<{ completed: boolean; dismissed: boolean; redirected: boolean }>(ctx, 'get_onboarding_status', {});
-    if (!status.completed && !status.dismissed && !status.redirected) {
+    const status = await callTool<{ completed: boolean; dismissed: boolean; redirected: boolean; wizardFinished: boolean }>(ctx, 'get_onboarding_status', {});
+    if (!status.completed && !status.dismissed && !status.redirected && !status.wizardFinished) {
       // Only when the mark stuck: otherwise every full load would redirect again. A failed mark falls through to the shell.
       const marked = await runTool(ctx, 'mark_onboarding_redirected', {});
       if (marked.ok) redirect('/onboarding');

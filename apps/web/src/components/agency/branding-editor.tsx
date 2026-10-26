@@ -222,7 +222,7 @@ function Mark({ logoUrl, name, className, textClass }: { logoUrl: string | null;
 }
 
 /** Dev only: an uploaded logo is served over plain http by this deployment; preview it by path (the stored value is validated server-side). */
-function previewLogo(resolvedLogo: string | null, draftLogo: string | undefined): string | null {
+export function previewLogo(resolvedLogo: string | null, draftLogo: string | undefined): string | null {
   if (resolvedLogo) return resolvedLogo;
   try {
     const u = new URL(draftLogo ?? '');

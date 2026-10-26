@@ -1,9 +1,10 @@
 'use client';
-import { Button, Input, Label } from '@cs/ui';
+import { Button, Input } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect } from 'react';
 import { type SignupState, startSignup } from './actions';
 import { ErrorNote } from '@/components/form-error';
+import { Field, INPUT_CLASS } from '@/components/onboarding/field';
 
 const REASONS: Record<string, string> = {
   link: 'That link expired or was already used. Fill in the form to get a new one.',
@@ -31,31 +32,28 @@ export function SignUpForm({
         </ErrorNote>
       )}
       {inviteToken && <input type="hidden" name="inviteToken" value={inviteToken} />}
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Work email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={lockedEmail ?? ''} readOnly={lockedEmail !== null} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="agencyName">Agency name</Label>
-        <Input id="agencyName" name="agencyName" autoComplete="organization" required maxLength={120} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="contactName">Your name (optional)</Label>
-        <Input id="contactName" name="contactName" autoComplete="name" maxLength={120} />
-      </div>
+      <Field id="email" label="Work email" required>
+        <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={lockedEmail ?? ''} readOnly={lockedEmail !== null} className={INPUT_CLASS} />
+      </Field>
+      <Field id="agencyName" label="Agency name" required>
+        <Input id="agencyName" name="agencyName" autoComplete="organization" required maxLength={120} className={INPUT_CLASS} />
+      </Field>
       {siteKey && (
         <>
           <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" />
           <div className="cf-turnstile" data-sitekey={siteKey} />
         </>
       )}
-      <Button type="submit" name="intent" value="email" disabled={pending}>
+      <Button type="submit" name="intent" value="email" size="lg" disabled={pending} className="w-full">
         Create my agency
       </Button>
       {googleEnabled && (
-        <Button type="submit" name="intent" value="google" variant="outline" disabled={pending}>
-          Continue with Google
-        </Button>
+        <>
+          <div aria-hidden="true" className="flex items-center gap-3 text-xs text-muted-ink"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>
+          <Button type="submit" name="intent" value="google" variant="outline" size="lg" disabled={pending} className="w-full">
+            Continue with Google
+          </Button>
+        </>
       )}
     </form>
   );

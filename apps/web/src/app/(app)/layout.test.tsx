@@ -41,6 +41,13 @@ describe('(app) layout first-session redirect', () => {
     expect(m.calls).toEqual(['get_onboarding_status', 'mark_onboarding_redirected']);
   });
 
+  it('no redirect after wizard finished', async () => {
+    m.status = { dismissed: false, completed: false, redirected: false, wizardFinished: true };
+    await expect(AppLayout({ children: null })).resolves.toBeDefined();
+    expect(m.calls).toEqual(['get_onboarding_status']);
+    expect(m.run).not.toHaveBeenCalled();
+  });
+
   it('does not check or redirect a suspended agency', async () => {
     m.billingState = 'suspended';
     await expect(AppLayout({ children: null })).resolves.toBeDefined();

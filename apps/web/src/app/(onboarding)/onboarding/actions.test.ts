@@ -23,38 +23,46 @@ beforeEach(() => { m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: t
 describe('onboarding actions', () => {
   it('every action is a 404 for non-admins', async () => {
     m.ctx = { role: 'account_manager' };
-    await expect(a.saveProfileAction(initial, fd({ name: 'A' }))).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(a.saveBasicsAction(initial, fd({ name: 'A' }))).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(a.inviteTeamAction(initial, fd({}))).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(a.skipStepAction(fd({ step: 'team' }))).rejects.toThrow('NEXT_NOT_FOUND');
-    await expect(a.continuePlanAction()).rejects.toThrow('NEXT_NOT_FOUND');
-    await expect(a.startCheckoutAction(initial, fd({}))).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(a.saveBrandingStepAction(initial, fd({}))).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(a.finishAction(fd({ to: 'client' }))).rejects.toThrow('NEXT_NOT_FOUND');
     expect(m.run).not.toHaveBeenCalled();
   });
 
-  it('saveProfileAction calls update_agency_profile with parsed fields and moves to the team step', async () => {
-    await expect(a.saveProfileAction(initial, fd({
-      name: ' Acme ', contactName: 'Ann', contactEmail: 'a@acme.co', phone: '(404) 555-0100', timezone: 'America/Chicago',
-      verticals: ['dental'], billingSameAsPostal: 'on', country: 'US',
+  it('the removed plan actions are gone', () => {
+    expect(a).not.toHaveProperty('saveProfileAction');
+    expect(a).not.toHaveProperty('continuePlanAction');
+    expect(a).not.toHaveProperty('startCheckoutAction');
+  });
+
+  it('saveBasicsAction calls save_agency_basics with the parsed form and moves to the team step', async () => {
+    await expect(a.saveBasicsAction(initial, fd({
+      name: ' Acme ', contactName: 'Ann Lee', contactEmail: 'a@acme.co', phone: '(404) 555-0100', line1: '1 Main St', line2: '', city: 'Austin', region: 'TX', postalCode: '78701',
+      billingSameAsPostal: 'on', browserTimezone: 'America/Chicago',
     }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=team');
-    expect(m.run).toHaveBeenCalledWith(m.ctx, 'update_agency_profile', expect.objectContaining({
-      name: 'Acme', contactName: 'Ann', contactEmail: 'a@acme.co', verticals: ['dental'], billingSameAsPostal: true,
-    }));
+    expect(m.run).toHaveBeenCalledWith(m.ctx, 'save_agency_basics', {
+      name: 'Acme', contactName: 'Ann Lee', contactEmail: 'a@acme.co', phone: '(404) 555-0100',
+      address: { line1: '1 Main St', line2: '', city: 'Austin', region: 'TX', postalCode: '78701' }, billingSameAsPostal: true, browserTimezone: 'America/Chicago',
+    });
   });
 
-  it('saveProfileAction returns the tool error and does not redirect', async () => {
+  it('a blank address is sent as null, and the timezone is left out when the browser gave none', async () => {
+    await expect(a.saveBasicsAction(initial, fd({ name: 'A' }))).rejects.toThrow('NEXT_REDIRECT');
+    const input = m.run.mock.calls[0]![2] as Record<string, unknown>;
+    expect(input).toMatchObject({ address: null, billingSameAsPostal: false });
+    expect(input).not.toHaveProperty('browserTimezone');
+  });
+
+  it('saveBasicsAction returns the tool error and does not redirect', async () => {
     m.run.mockResolvedValue({ ok: false, error: 'Phone is wrong' });
-    expect(await a.saveProfileAction(initial, fd({ name: 'A' }))).toEqual({ ok: false, error: 'Phone is wrong' });
+    expect(await a.saveBasicsAction(initial, fd({ name: 'A' }))).toEqual({ ok: false, error: 'Phone is wrong' });
   });
 
-  it('billingSameAsPostal is false when the checkbox is absent', async () => {
-    await expect(a.saveProfileAction(initial, fd({ name: 'A' }))).rejects.toThrow('NEXT_REDIRECT');
-    expect(m.run.mock.calls[0]![2]).toMatchObject({ billingSameAsPostal: false });
-  });
-
-  it('inviteTeamAction invites each filled row, marks the step done and moves to plan', async () => {
+  it('inviteTeamAction invites each filled row, marks the step done and moves to branding', async () => {
     await expect(a.inviteTeamAction(initial, fd({ email: ['x@a.co', '', 'y@a.co'], role: ['agency_admin', 'agency_admin', 'account_manager'] })))
-      .rejects.toThrow('NEXT_REDIRECT:/onboarding?step=plan');
+      .rejects.toThrow('NEXT_REDIRECT:/onboarding?step=branding');
     expect(m.run.mock.calls.map((c) => [c[1], c[2]])).toEqual([
       ['invite_member', { email: 'x@a.co', role: 'agency_admin', clientId: null, clientScope: null }],
       ['invite_member', { email: 'y@a.co', role: 'account_manager', clientId: null, clientScope: null }],
@@ -62,11 +70,8 @@ describe('onboarding actions', () => {
     ]);
   });
 
-  it('inviteTeamAction with no rows asks to confirm unless confirmed', async () => {
-    const r = await a.inviteTeamAction(initial, fd({ email: [''], role: ['agency_admin'] }));
-    expect(r).toMatchObject({ ok: false });
-    expect(m.run).not.toHaveBeenCalled();
-    await expect(a.inviteTeamAction(initial, fd({ email: [''], role: ['agency_admin'], confirmEmpty: '1' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=plan');
+  it('inviteTeamAction with no rows just marks the step done (the primary button then reads "Continue")', async () => {
+    await expect(a.inviteTeamAction(initial, fd({ email: [''], role: ['agency_admin'] }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=branding');
     expect(names()).toEqual(['mark_onboarding_step']);
   });
 
@@ -82,23 +87,15 @@ describe('onboarding actions', () => {
     expect(await a.inviteTeamAction(initial, fd({ email: ['y@a.co'], role: ['agency_admin'] }))).toEqual({ ok: false, error: 'y@a.co: Seat limit.' });
   });
 
-  it('skipStepAction marks the step skipped and goes to the next step; branding goes to /agency', async () => {
-    await expect(a.skipStepAction(fd({ step: 'team' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=plan');
+  it('skipStepAction skips team and branding only; team goes to branding, branding to the confirmation', async () => {
+    await expect(a.skipStepAction(fd({ step: 'team' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=branding');
     expect(m.run).toHaveBeenLastCalledWith(m.ctx, 'mark_onboarding_step', { step: 'team', action: 'skip' });
-    await expect(a.skipStepAction(fd({ step: 'branding' }))).rejects.toThrow('NEXT_REDIRECT:/agency');
-    await expect(a.skipStepAction(fd({ step: 'bogus' }))).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(a.skipStepAction(fd({ step: 'branding' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=done');
+    for (const bad of ['profile', 'done', 'plan', 'bogus']) await expect(a.skipStepAction(fd({ step: bad }))).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('continuePlanAction marks plan done; startCheckoutAction sends the admin to Stripe returning to the wizard', async () => {
-    await expect(a.continuePlanAction()).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=branding');
-    expect(m.run).toHaveBeenLastCalledWith(m.ctx, 'mark_onboarding_step', { step: 'plan', action: 'done' });
-    m.run.mockResolvedValue({ ok: true, data: { url: 'https://checkout.stripe.test/s' } });
-    await expect(a.startCheckoutAction(initial, fd({}))).rejects.toThrow('NEXT_REDIRECT:https://checkout.stripe.test/s');
-    expect(m.run).toHaveBeenLastCalledWith(m.ctx, 'create_checkout_session', { returnTo: 'onboarding' });
-  });
-
-  it('saveBrandingStepAction saves branding, marks the step done and goes to /agency', async () => {
-    await expect(a.saveBrandingStepAction(initial, fd({ displayName: 'Acme', primary: '#112233' }))).rejects.toThrow('NEXT_REDIRECT:/agency');
+  it('saveBrandingStepAction saves branding, marks the step done and goes to the confirmation', async () => {
+    await expect(a.saveBrandingStepAction(initial, fd({ displayName: 'Acme', primary: '#112233' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=done');
     expect(m.run.mock.calls.map((c) => [c[1], c[2]])).toEqual([
       ['update_agency_branding', { displayName: 'Acme', primary: '#112233' }],
       ['mark_onboarding_step', { step: 'branding', action: 'done' }],
@@ -109,6 +106,18 @@ describe('onboarding actions', () => {
     m.run.mockResolvedValue({ ok: false, error: 'primary must be a colour' });
     expect(await a.saveBrandingStepAction(initial, fd({ primary: 'red' }))).toEqual({ ok: false, error: 'primary must be a colour' });
     expect(names()).toEqual(['update_agency_branding']);
+  });
+
+  it('finishAction finishes onboarding then goes to the first client, or to the dashboard', async () => {
+    await expect(a.finishAction(fd({ to: 'client' }))).rejects.toThrow('NEXT_REDIRECT:/agency/clients/new');
+    expect(m.run).toHaveBeenLastCalledWith(m.ctx, 'finish_onboarding', {});
+    await expect(a.finishAction(fd({ to: 'dashboard' }))).rejects.toThrow('NEXT_REDIRECT:/agency');
+    expect(names()).toEqual(['finish_onboarding', 'finish_onboarding']);
+  });
+
+  it('finishAction is a 404 when the tool refuses', async () => {
+    m.run.mockResolvedValue({ ok: false, error: 'Not found' });
+    await expect(a.finishAction(fd({ to: 'client' }))).rejects.toThrow('NEXT_NOT_FOUND');
   });
 });
 

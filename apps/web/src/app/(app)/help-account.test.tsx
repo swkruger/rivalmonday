@@ -40,7 +40,7 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
   switch (name) {
     case 'list_help_guides': return { guides: m.guides.map((helpKey) => ({ helpKey, title: 't', articleId: 'g' })) };
     case 'get_onboarding_status': return m.status;
-    case 'get_agency_profile': return { name: 'Acme' };
+    case 'get_agency_profile': return { name: 'Acme', contactName: '', contactEmail: '', phone: '' };
     case 'get_billing_summary': return { state: 'trialing' };
     case 'get_agency_branding': return { stored: { displayName: 'Acme' }, resolved: { displayName: 'Acme' } };
     default: throw new Error(`unmocked tool ${name}`);
@@ -50,15 +50,10 @@ vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./inbox/actions', () => ({ markAllReadAction: vi.fn(), openNotification: vi.fn() }));
 vi.mock('./settings/notifications/actions', () => ({ setPrefAction: vi.fn(), updateContactAction: vi.fn() }));
-vi.mock('./onboarding/actions', () => ({
-  saveProfileAction: vi.fn(), inviteTeamAction: vi.fn(), skipStepAction: vi.fn(), continuePlanAction: vi.fn(), startCheckoutAction: vi.fn(), saveBrandingStepAction: vi.fn(),
+vi.mock('@/app/(onboarding)/onboarding/actions', () => ({
+  saveBasicsAction: vi.fn(), inviteTeamAction: vi.fn(), skipStepAction: vi.fn(), saveBrandingStepAction: vi.fn(), finishAction: vi.fn(),
 }));
 const step = (name: string) => () => <div data-testid={name} />;
-vi.mock('./onboarding/steps/profile', () => ({ ProfileStep: step('profile') }));
-vi.mock('./onboarding/steps/team', () => ({ TeamStep: step('team') }));
-vi.mock('./onboarding/steps/plan', () => ({ PlanStep: step('plan') }));
-vi.mock('./onboarding/steps/branding', () => ({ BrandingStep: step('branding') }));
-vi.mock('./onboarding/stepper', () => ({ Stepper: () => <div data-testid="stepper" /> }));
 vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, redirect: (to: string) => { throw new Error(`NEXT_REDIRECT:${to}`); },
   usePathname: () => '/inbox', useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -66,7 +61,7 @@ vi.mock('next/navigation', () => ({
 
 const { default: Inbox } = await import('./inbox/page');
 const { default: Notifications } = await import('./settings/notifications/page');
-const { default: Onboarding } = await import('./onboarding/page');
+const { default: Onboarding } = await import('@/app/(onboarding)/onboarding/page');
 
 const ITEM = { id: 'n1', kind: 'alert', title: 'Competitor cut a price', body: 'Details', link: null, clientId: C, createdAt: new Date('2026-10-20T15:00:00Z'), readAt: null };
 const SETTING = {
@@ -241,21 +236,10 @@ describe('Notification settings', () => {
 });
 
 describe('Set up your agency (wizard)', () => {
-  it('description says four steps, all skippable; the skip tip is on every step', async () => {
+  // 16: the wizard is a full-page `OnboardingShell` (no PageHeader description or tip row); its help is the Guide button above.
+  it('renders the first open step in the onboarding shell', async () => {
     await show('account.onboarding');
-    expect(screen.getByText(/Four short steps/)).toBeTruthy();
-    expect(open('Skipping a step')).toMatch(/Skipped/);
-  });
-
-  it('each step carries its own "About this step" tip', async () => {
-    const want: Record<string, RegExp> = { profile: /contact name/, team: /Agency admin/, plan: /payment/, branding: /logo/ };
-    for (const [s, re] of Object.entries(want)) {
-      m.status = { ...m.status, steps: { profile: 'open', team: 'open', plan: 'open', branding: 'open', first_client: 'open' } };
-      m.role = 'agency_admin';
-      render(<HelpProvider value={{ audience: 'agency', names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>{await Onboarding({ searchParams: Promise.resolve({ step: s }) })}</HelpProvider>);
-      expect(open('About this step'), s).toMatch(re);
-      cleanup();
-    }
+    expect(screen.getByRole('heading', { level: 1, name: 'Welcome to Rival Monday' })).toBeTruthy();
   });
 
   it('a finished or dismissed wizard still redirects to /agency before any help is read', async () => {

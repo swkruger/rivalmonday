@@ -148,14 +148,15 @@ describe('page titles = menu labels (15a §2.7)', () => {
   });
 
   it('onboarding shows its step; Add a client (the lookup preamble before the setup wizard) shows none', () => {
-    expect(read('(app)/onboarding/page.tsx')).toMatch(/<PageHeader[^>]*\bstep=\{/);
+    // 16: the wizard is a full-page OnboardingShell; each step screen sets its own `step={{ n, of, label }}`.
+    for (const step of ['about', 'team', 'brand', 'done']) expect(read(`(onboarding)/onboarding/steps/${step}.tsx`)).toMatch(/<OnboardingShell[^>]*\bstep=\{\{/);
     expect(read('(app)/agency/clients/new/page.tsx')).toMatch(/<PageHeader/);
     expect(read('(app)/agency/clients/new/page.tsx')).not.toMatch(/\bstep=/);
   });
 
   it('no file under the touched trees renders its own h1 (PageHeader owns it)', () => {
     const files = [
-      ...['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(app)/onboarding', '(app)/c', '../components/views'].flatMap(tsxUnder),
+      ...['(app)/agency', '(platform)/platform', '(app)/inbox', '(app)/settings', '(app)/kb', '(onboarding)', '(app)/c', '../components/views'].flatMap(tsxUnder),
       '../components/client-home-basic.tsx',
     ];
     expect(files.length).toBeGreaterThan(200);

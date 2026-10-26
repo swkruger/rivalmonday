@@ -32,7 +32,7 @@ vi.mock('@/components/billing/client-billing-controls', () => ({ ClientBillingCo
 vi.mock('@/components/prospect-landscape', () => ({ ProspectLandscape: () => null }));
 vi.mock('@/components/evidence-chips', () => ({ EvidenceChips: () => null }));
 vi.mock('@/components/views/scorecard', () => ({ Scorecard: () => null }));
-vi.mock('@/app/(app)/onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
+vi.mock('@/app/(onboarding)/onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./clients/new/actions', () => ({ createClientAction: vi.fn(), createClientFromLookupAction: vi.fn(), findBusinessAction: vi.fn() }));
 vi.mock('./clients/new/vertical-actions', () => ({ createVerticalAction: vi.fn(), draftVerticalAction: vi.fn() }));

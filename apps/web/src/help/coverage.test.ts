@@ -21,8 +21,8 @@ const GUIDES = join(ROOT, 'docs', 'help', 'pages');
 
 type Audience = 'agency' | 'client' | 'operator';
 
-/** Help/KB hubs that list guides rather than being one. */
-const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]'];
+/** Help/KB hubs that list guides rather than being one, and the public sign-up pages (logged out: no guide drawer to open). */
+const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]', '/sign-up', '/join/[token]'];
 /** `/c/[clientId]` pages that 404 client roles (agency guide only) or agency staff (client guide only); one source, `./reach`. */
 const AGENCY_ONLY_CLIENT_PAGES: readonly string[] = AGENCY_ONLY_CLIENT_ROUTES;
 const CLIENT_ONLY_CLIENT_PAGES: readonly string[] = CLIENT_ONLY_CLIENT_ROUTES;
@@ -37,6 +37,8 @@ const DELEGATED_HEADERS: { file: string; route: string }[] = [
   { file: join(APP, '(app)', 'c', '[clientId]', 'ask', 'ask-screen.tsx'), route: '/c/[clientId]/ask' },
   // The briefs-only home (no `dashboard` feature), rendered by /c/[clientId]/page.tsx.
   { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
+  // 16: the agency wizard's four screens each draw their own OnboardingShell (preview and footer depend on the form's state); /onboarding/page.tsx only picks the screen.
+  ...['about', 'team', 'brand', 'done'].map((step) => ({ file: join(APP, '(onboarding)', 'onboarding', 'steps', `${step}.tsx`), route: '/onboarding' })),
 ];
 
 /** 16 P10: `<OnboardingShell>` is a page's header on the full-page split flows, so it takes the same `helpKey` as `<PageHeader>`. */

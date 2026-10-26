@@ -71,10 +71,10 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `list_help_guides` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile`, `list_help_guides` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue`, `list_help_guides` | — |
-| `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile`, `list_help_guides` | — |
-| `/onboarding (step=team)` | admin | `get_onboarding_status` | — |
-| `/onboarding (step=plan)` | admin | `get_onboarding_status`, `get_billing_summary` | — |
-| `/onboarding (step=branding)` | admin | `get_onboarding_status`, `get_agency_branding` | — |
+| `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile`, `get_agency_branding`, `list_help_guides` | — |
+| `/onboarding (step=team)` | admin | `get_onboarding_status`, `get_agency_profile`, `get_agency_branding` | — |
+| `/onboarding (step=branding)` | admin | `get_onboarding_status`, `get_agency_profile`, `get_agency_branding` | — |
+| `/onboarding (step=done)` | admin | `get_onboarding_status`, `get_agency_profile`, `get_agency_branding`, `get_team` | — |
 | `/agency/clients/new` | admin | `list_help_guides` | — |
 | `/agency/prospects/new` | admin | `list_help_guides` | — |
 | `/paused` | admin | — | — |

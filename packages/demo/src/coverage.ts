@@ -319,11 +319,11 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_client_revenue', input: none, path: 'currency' },
     ],
   },
-  // Phase 10: the sign-up wizard, one entry per step (`?step=profile|team|plan|branding`); the demo agency is mid-wizard.
-  { route: '/onboarding (step=profile)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }] },
-  { route: '/onboarding (step=team)', as: 'admin', calls: [onboardingStatus] },
-  { route: '/onboarding (step=plan)', as: 'admin', calls: [onboardingStatus, { tool: 'get_billing_summary', input: none, path: 'maxActiveClients' }] },
-  { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_branding', input: none, path: 'stored' }] },
+  // Phase 10 / 16: the sign-up wizard, one entry per step (`?step=profile|team|branding|done`); the demo agency is mid-wizard. Every step reads the profile and branding; the last also the team.
+  { route: '/onboarding (step=profile)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }, { tool: 'get_agency_branding', input: none, path: 'stored' }] },
+  { route: '/onboarding (step=team)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }, { tool: 'get_agency_branding', input: none, path: 'stored' }] },
+  { route: '/onboarding (step=branding)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }, { tool: 'get_agency_branding', input: none, path: 'stored' }] },
+  { route: '/onboarding (step=done)', as: 'admin', calls: [onboardingStatus, { tool: 'get_agency_profile', input: none, path: 'contactName' }, { tool: 'get_agency_branding', input: none, path: 'stored' }, { tool: 'get_team', input: none, path: 'members' }] },
   { route: '/agency/clients/new', as: 'admin', calls: [] },
   { route: '/agency/prospects/new', as: 'admin', calls: [] },
   { route: '/paused', as: 'admin', calls: [] },
