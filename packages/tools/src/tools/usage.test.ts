@@ -218,11 +218,11 @@ describe('get_client_limits', () => {
   it('platform viewer reads USD spend, limits and levels; archived excluded; others refused', async () => {
     await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
-    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 8.5)]);
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 8.5), spendRow(IDS.clientA1, 3, 'jev')]); // platform USD view includes Jev
     const r = (await registry.invoke(pviewer, 'get_client_limits', { agencyId: IDS.agencyA })) as Limits;
     expect(r).toMatchObject({ defaultLimitUsd: 15, pausePercent: 130 });
     expect(r.items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
-    expect(r.items[0]).toMatchObject({ spendUsd: 8.5, effectiveLimitUsd: 10, spendLimitUsd: 10, competitorLimit: 5, askMonthlyQuota: 100, level: 'near', spendPausedAt: null });
+    expect(r.items[0]).toMatchObject({ spendUsd: 11.5, effectiveLimitUsd: 10, spendLimitUsd: 10, competitorLimit: 5, askMonthlyQuota: 100, level: 'reached', spendPausedAt: null });
     for (const c of [admin, am, owner]) await expect(registry.invoke(c, 'get_client_limits', { agencyId: IDS.agencyA })).rejects.toMatchObject({ code: 'not_found' });
   });
 });

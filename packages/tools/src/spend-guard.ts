@@ -151,7 +151,7 @@ export async function runSpendGuard(deps: SpendGuardDeps, now: Date): Promise<Sp
 // ---- Platform spike guard (7b1 d9-d12) ----
 
 export type SpikeScope = 'total' | 'openrouter' | 'anthropic';
-export const SPIKE_PROVIDERS: Record<Exclude<SpikeScope, 'total'>, readonly string[]> = { openrouter: ['openrouter', 'llm'], anthropic: ['anthropic'] };
+export const SPIKE_PROVIDERS: Record<Exclude<SpikeScope, 'total'>, readonly string[]> = { openrouter: ['openrouter', 'llm', 'jev'], anthropic: ['anthropic'] };
 export interface SpikeReading { scope: SpikeScope; observedUsd: number; baselineUsd: number; ratioPercent: number; floorOnly: boolean }
 
 const SCOPES: readonly SpikeScope[] = ['total', 'openrouter', 'anthropic'];

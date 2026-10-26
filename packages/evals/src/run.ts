@@ -79,7 +79,7 @@ export async function runEvals(o: RunOptions): Promise<RunOutcome> {
       cassette?.flush();
       if (o.record && o.fill && cassette) {
         const st = cassette.stats();
-        log(`[eval] fill ${suite}: hits ${st.hits}, recorded ${st.recorded}, misses ${st.misses}, live spend $${(meter.spent() - before).toFixed(4)}`);
+        log(`[eval] fill ${suite}: hits ${st.hits}, live ${st.recorded}, live spend $${(meter.spent() - before).toFixed(4)}`);
       }
       const bdir = o.baselineDir ?? BASELINE_DIR;
       const caseErrors = result.metrics.case_errors ?? 0;

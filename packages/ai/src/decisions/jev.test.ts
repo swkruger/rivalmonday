@@ -54,7 +54,7 @@ describe('Jev provider', () => {
 
   it('null / negative usage.cost uses the fallback', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    for (const cost of [null, -1]) {
+    for (const cost of [null, -1, 0]) {
       const r = await setup({ ...jevResponse, usage: { input_tokens: 1_000_000, cost } }).provider.decide('s', questions);
       expect(r.costUsd).toBeCloseTo(0.042, 9);
       expect(r.outputTokens).toBe(0);

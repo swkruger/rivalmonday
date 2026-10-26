@@ -23,6 +23,16 @@ function stubFetch(json: unknown) {
 }
 
 describe('createAiFromEnv', () => {
+  it('warns once per process-level ai instance when Jev omits usage.cost', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stubFetch({ model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
+    const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger);
+    await ai.decide('decisions', { x: 1 }, { m: { type: 'noul', instructions: 'ok?' } }, scope);
+    await ai.decide('decisions', { x: 1 }, { m: { type: 'noul', instructions: 'ok?' } }, scope);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it('requires OPENROUTER_API_KEY', () => {
     expect(() => createAiFromEnv({}, config, ledger)).toThrow(/OPENROUTER_API_KEY/);
   });
@@ -32,7 +42,7 @@ describe('createAiFromEnv', () => {
   });
 
   it('Jev is available iff OPENROUTER_API_KEY is set', async () => {
-    const calls = stubFetch({ model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
+    const calls = stubFetch({ model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1, cost: 0.001 } });
     const ai = createAiFromEnv({ OPENROUTER_API_KEY: 'k' }, config, ledger);
     const r = await ai.decide('decisions', { x: 1 }, { m: { type: 'noul', instructions: 'ok?' } }, scope);
     expect(calls[0]?.url).toBe('https://openrouter.ai/api/v1/systemone');
@@ -46,7 +56,7 @@ describe('createAiFromEnv', () => {
       hit.push(`${name}:${init?.timeoutMs}`);
       return new Response(JSON.stringify(json), { status: 200, headers: { 'content-type': 'application/json' } });
     });
-    const jev = via('jev', { model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1 } });
+    const jev = via('jev', { model: 'jev-9.0', answers: { m: { type: 'noul', noul: 0.97 } }, usage: { input_tokens: 5, output_tokens: 1, cost: 0.001 } });
     const openrouter = via('or', { model: 'a/small', choices: [{ message: { content: JSON.stringify({ m: { probability: 0.99 } }) } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
     const global = vi.fn();
     vi.stubGlobal('fetch', global);

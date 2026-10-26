@@ -133,7 +133,7 @@ describe('runEvals', () => {
     expect(out.failed).toBe(false);
     expect(calls).toBe(1);
     expect(out.reports[0]).toMatchObject({ mode: 'live', costUsd: 0.25, metrics: { stored: 1 } });
-    expect(lines.join(" ")).toMatch(/fill briefs: hits 1, recorded 1, misses 0, live spend \$0\.25/);
+    expect(lines.join(' ')).toMatch(/fill briefs: hits 1, live 1, live spend \$0\.25/);
     const saved = JSON.parse(readFileSync(join(dir, 'cass', 'briefs.json'), 'utf8')) as { entries: Record<string, unknown> };
     expect(Object.keys(saved.entries)).toHaveLength(2);
   });

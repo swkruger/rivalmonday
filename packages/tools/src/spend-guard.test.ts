@@ -226,13 +226,14 @@ describe('readSpikes', () => {
     expect((await scope('total')).observedUsd).toBe(53);
   });
 
-  it('openrouter scope sums openrouter + llm', async () => {
+  it('openrouter scope sums openrouter + llm + jev (Jev is on the OpenRouter bill)', async () => {
     await plat('openrouter', 2, recent);
     await plat('llm', 3, recent);
+    await plat('jev', 4, recent);
     await plat('anthropic', 7, recent);
-    expect((await scope('openrouter')).observedUsd).toBe(5);
+    expect((await scope('openrouter')).observedUsd).toBe(9);
     expect((await scope('anthropic')).observedUsd).toBe(7);
-    expect((await scope('total')).observedUsd).toBe(12);
+    expect((await scope('total')).observedUsd).toBe(16);
   });
 });
 

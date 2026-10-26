@@ -73,13 +73,15 @@ export interface JevOptions {
   http?: Partial<HttpDeps>;
   /** Per-call timeout/attempts from the task; absent = `http` / defaults. */
   timing?: CallTiming;
+  /** Warn-once state shared across providers (createAiFromEnv builds one provider per call); default: per instance. */
+  warnState?: { noCost: boolean };
 }
 
 export function createJevProvider(opts: JevOptions): DecisionProvider {
   const http: HttpDeps = { ...defaultHttpDeps, ...opts.http };
   const model = opts.model ?? JEV_DEFAULT_MODEL;
   const headers = { authorization: `Bearer ${opts.apiKey}`, 'http-referer': opts.appUrl, 'x-title': opts.appName };
-  let warnedNoCost = false;
+  const warnState = opts.warnState ?? { noCost: false };
 
   return {
     id: 'jev',
@@ -113,11 +115,12 @@ export function createJevProvider(opts: JevOptions): DecisionProvider {
       }
       const { input_tokens, output_tokens, cost } = parsed.data.usage;
       let costUsd: number;
-      if (typeof cost === 'number' && Number.isFinite(cost) && cost >= 0) {
+      // A billed call (input tokens > 0) never costs 0: treat cost 0 as missing.
+      if (typeof cost === 'number' && Number.isFinite(cost) && (cost > 0 || (cost === 0 && input_tokens === 0))) {
         costUsd = cost;
       } else {
-        if (!warnedNoCost) {
-          warnedNoCost = true;
+        if (!warnState.noCost) {
+          warnState.noCost = true;
           console.warn('[ai] jev response had no usage.cost; using the fallback estimate', { model });
         }
         costUsd = (input_tokens * opts.fallbackUsdPerMtok) / 1_000_000;
