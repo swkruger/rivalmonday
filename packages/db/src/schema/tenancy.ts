@@ -8,6 +8,15 @@ export const CLIENT_STATUSES = ['active', 'prospect'] as const;
 /** 5b-2 decision 8: a prospect is a client being pitched — it gets one snapshot and no recurring work until converted. */
 export type ClientStatus = (typeof CLIENT_STATUSES)[number];
 
+export interface ClientAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  country: 'US';
+}
+
 export interface ServiceArea {
   center: { lat: number; lng: number };
   radiusKm: number;
@@ -54,6 +63,12 @@ export const client = pgTable(
     keywords: jsonb('keywords').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     serviceArea: jsonb('service_area').$type<ServiceArea | null>(),
     placeId: text('place_id'),
+    /** Phase 16: business phone as entered (used for self matching when there is no place id). Agency/client editable. */
+    phone: text('phone'),
+    /** Phase 16: street address captured by the client wizard. Agency/client editable. */
+    address: jsonb('address').$type<ClientAddress | null>(),
+    /** Phase 16: content-addressed logo path (`/files/logo/<sha256>`). Agency/client editable. */
+    logoUrl: text('logo_url'),
     scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
     /** The client's own business as a global competitor row (GBP, reviews and Google ads), for the spec §6.5 benchmark. Never in client_competitor. */
     selfCompetitorId: uuid('self_competitor_id').references((): AnyPgColumn => competitor.id, { onDelete: 'set null' }),

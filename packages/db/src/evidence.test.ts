@@ -144,6 +144,6 @@ describe('privilege guard', () => {
       SELECT column_name FROM information_schema.column_privileges
       WHERE grantee = 'app_user' AND table_schema = 'public' AND table_name = 'client' AND privilege_type = 'UPDATE'
       ORDER BY column_name`)) as unknown as { column_name: string }[];
-    expect(rows.map((r) => r.column_name)).toEqual(['features', 'keywords', 'name', 'place_id', 'rank_grid_size', 'rank_keywords', 'score_thresholds', 'service_area', 'services', 'timezone', 'vertical_id']);
+    expect(rows.map((r) => r.column_name)).toEqual(['address', 'features', 'keywords', 'logo_url', 'name', 'phone', 'place_id', 'rank_grid_size', 'rank_keywords', 'score_thresholds', 'service_area', 'services', 'timezone', 'vertical_id']);
   });
 });

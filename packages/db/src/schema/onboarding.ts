@@ -80,6 +80,8 @@ export const agencyOnboarding = pgTable(
     planSkippedAt: ts('plan_skipped_at'),
     brandingDoneAt: ts('branding_done_at'),
     brandingSkippedAt: ts('branding_skipped_at'),
+    /** Phase 16: set by finish_onboarding when the agency wizard is done (nudges continue until completedAt). */
+    wizardFinishedAt: ts('wizard_finished_at'),
     firstClientAt: ts('first_client_at'),
     dismissedAt: ts('dismissed_at'),
     completedAt: ts('completed_at'),

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, errorText, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { agencyInviteLink, agencyOnboarding, agencyProfile, pendingSignup } from './schema';
+import { agencyInviteLink, agencyOnboarding, agencyProfile, client, clientSetup, pendingSignup } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -111,6 +111,34 @@ describe('agency_onboarding RLS', () => {
   it('CHECKs: source and nudges_sent range', async () => {
     expect(await errorText(dbs.service.update(agencyOnboarding).set({ nudgesSent: 4 }))).toMatch(/check/);
     expect(await errorText(dbs.service.update(agencyOnboarding).set({ source: 'x' as never }))).toMatch(/check/);
+  });
+});
+
+describe('phase 16 columns (0095)', () => {
+  it('round-trips agency wizard_finished_at', async () => {
+    const at = new Date('2026-10-26T12:00:00.000Z');
+    await dbs.service.update(agencyOnboarding).set({ wizardFinishedAt: at }).where(eq(agencyOnboarding.agencyId, IDS.agencyA));
+    const [row] = await dbs.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyA));
+    expect(row?.wizardFinishedAt?.toISOString()).toBe(at.toISOString());
+    const [b] = await dbs.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, IDS.agencyB));
+    expect(b?.wizardFinishedAt).toBeNull();
+  });
+
+  it('round-trips client phone/address/logo_url', async () => {
+    const address = { line1: '1 Main St', city: 'Austin', region: 'TX', postalCode: '78701', country: 'US' as const };
+    await dbs.service.update(client).set({ phone: '+15125550100', address, logoUrl: '/files/logo/abc' }).where(eq(client.id, IDS.clientA1));
+    const [row] = await dbs.service.select().from(client).where(eq(client.id, IDS.clientA1));
+    expect(row).toMatchObject({ phone: '+15125550100', address, logoUrl: '/files/logo/abc' });
+  });
+
+  it('client_setup owner_pick_requested_at and location_source; CHECK rejects others', async () => {
+    await dbs.service.delete(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1));
+    const at = new Date('2026-10-26T12:00:00.000Z');
+    await dbs.service.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ownerPickRequestedAt: at, locationSource: 'geocoded' });
+    const [row] = await dbs.service.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1));
+    expect(row?.ownerPickRequestedAt?.toISOString()).toBe(at.toISOString());
+    expect(row?.locationSource).toBe('geocoded');
+    expect(await errorText(dbs.service.update(clientSetup).set({ locationSource: 'x' as never }).where(eq(clientSetup.clientId, IDS.clientA1)))).toMatch(/check/);
   });
 });
 

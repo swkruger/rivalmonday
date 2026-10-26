@@ -44,6 +44,7 @@ export const setupSuggestionsSchema = z.discriminatedUnion('status', [
 export type SetupSuggestions = z.infer<typeof setupSuggestionsSchema>;
 
 export type SetupSource = 'staff' | 'agency_link' | 'platform_lead';
+export type SetupLocationSource = 'listing' | 'geocoded';
 export type SetupSkippedStep = 'search' | 'competitors' | 'invite' | 'billing';
 
 /**
@@ -60,6 +61,10 @@ export const clientSetup = pgTable(
     suggestions: jsonb('suggestions').$type<SetupSuggestions>().notNull().default(sql`'{"status":"none"}'::jsonb`),
     skipped: text('skipped').array().$type<SetupSkippedStep[]>().notNull().default(sql`'{}'::text[]`),
     competitorsDoneAt: ts('competitors_done_at'),
+    /** Phase 16 (O12): set when the agency asks the client owner to pick competitors (step state `waiting_owner`). */
+    ownerPickRequestedAt: ts('owner_pick_requested_at'),
+    /** Phase 16: where the service-area centre came from. */
+    locationSource: text('location_source').$type<SetupLocationSource>(),
     /** Phase 11b: the contact invited as client owner from the wizard, and the staff auth user who invited them (Cc). */
     invitedContactId: uuid('invited_contact_id').references(() => contact.id, { onDelete: 'set null' }),
     invitedBy: text('invited_by'), // auth user id (Better Auth ids are text, not uuids)
@@ -72,6 +77,7 @@ export const clientSetup = pgTable(
   },
   (t) => [
     check('client_setup_source_check', sql`${t.source} IN ('staff','agency_link','platform_lead')`),
+    check('client_setup_location_source_chk', sql`${t.locationSource} IS NULL OR ${t.locationSource} IN ('listing','geocoded')`),
     check('client_setup_skipped_check', sql`${t.skipped} <@ ARRAY['search','competitors','invite','billing']::text[]`),
     index('client_setup_open_idx').on(t.agencyId).where(sql`${t.completedAt} IS NULL AND ${t.dismissedAt} IS NULL`),
   ],
