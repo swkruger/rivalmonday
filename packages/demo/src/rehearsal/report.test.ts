@@ -108,6 +108,12 @@ describe('rehearsalReport', () => {
     expect(lines.find((l) => l.check.startsWith('briefs sent by'))!.detail).toMatch(/^4\/4 sent/);
   });
 
+  it('the total AI spend line includes Jev rows', async () => {
+    await dbs.owner.insert(llmCall).values({ clientId: m.liveClientIds[0]!, task: 'decide', provider: 'jev', model: 'jev-1.14', inputTokens: 1, outputTokens: 1, costUsd: 6, latencyMs: 900, ok: true, createdAt: new Date(SEED.getTime() + DAY) });
+    const lines = await report();
+    expect(statusOf(lines, 'total AI spend')).toBe('FAIL'); // 0.7 + 6 > $5
+  });
+
   it('a late brief, a failed brief, a late email, an expired job and high RSS each turn their line to FAIL; fault clients never count', async () => {
     const open = windowOpenFor(m.deliveryDate, m.timezone);
     await dbs.owner.update(brief).set({ generatedAt: new Date(open.getTime() + 5 * HOUR) }).where(eq(brief.id, weeklyBriefIds[0]!));

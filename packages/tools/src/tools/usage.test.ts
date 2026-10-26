@@ -65,11 +65,11 @@ describe('get_usage', () => {
     expect(r.items.find((i) => i.clientId === IDS.clientA2)!.credits.limit).toBe(1500);
   });
 
-  it('excludes Jev spend from credits', async () => {
+  it('counts Jev spend in credits', async () => {
     await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 5, 'jev'), spendRow(null, 5, 'jev'), spendRow(IDS.clientA1, 1)]);
     const r = (await registry.invoke(admin, 'get_usage', {})) as Usage;
-    expect(r.items.find((i) => i.clientId === IDS.clientA1)!.credits.used).toBe(100);
-    expect(r.agencyLevelCredits).toBe(0);
+    expect(r.items.find((i) => i.clientId === IDS.clientA1)!.credits.used).toBe(600);
+    expect(r.agencyLevelCredits).toBe(500);
   });
 
   it('no usd keys or dollar text', async () => {
@@ -218,7 +218,7 @@ describe('get_client_limits', () => {
   it('platform viewer reads USD spend, limits and levels; archived excluded; others refused', async () => {
     await dbs.owner.update(client).set({ spendLimitUsd: 10 }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ archivedAt: new Date() }).where(eq(client.id, IDS.clientA2));
-    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 8.5), spendRow(IDS.clientA1, 3, 'jev')]);
+    await dbs.owner.insert(llmCall).values([spendRow(IDS.clientA1, 8.5)]);
     const r = (await registry.invoke(pviewer, 'get_client_limits', { agencyId: IDS.agencyA })) as Limits;
     expect(r).toMatchObject({ defaultLimitUsd: 15, pausePercent: 130 });
     expect(r.items.map((i) => i.clientId)).toEqual([IDS.clientA1]);

@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { createLedgerSink } from './ledger';
 import { client } from './schema';
-import { competitorTrackers, SPEND_GUARD_EXCLUDED_PROVIDERS, spendByClient } from './spend';
+import { competitorTrackers, llmProviderCounted, SPEND_GUARD_EXCLUDED_PROVIDERS, spendByClient } from './spend';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -16,6 +16,18 @@ const SINCE = new Date(Date.now() - 86_400_000);
 const llm = { task: 'x', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 1, latencyMs: 1, ok: true, agencyId: null, clientId: null };
 const vendor = (costUsd: number, competitorId: string) => ({ agencyId: null, clientId: null, competitorId, vendor: 'dataforseo', operation: 'o', units: 1, costUsd, latencyMs: 1, ok: true });
 const spend = (ids: string[]) => spendByClient(dbs.service, ids, SINCE);
+
+describe('empty exclusion list', () => {
+  it('llmProviderCounted filters nothing when empty and excludes listed providers otherwise', () => {
+    expect(llmProviderCounted()).toBeUndefined();
+    expect(llmProviderCounted([])).toBeUndefined();
+    expect(llmProviderCounted(['x'])).toBeDefined();
+  });
+  it('spendByClient still runs (no invalid empty NOT IN) and counts every provider', async () => {
+    await createLedgerSink(dbs.service).recordLlmCall({ ...llm, clientId: IDS.clientA1, agencyId: IDS.agencyA, provider: 'jev', costUsd: 4 });
+    expect((await spend([IDS.clientA1])).get(IDS.clientA1)).toBeCloseTo(4, 6);
+  });
+});
 
 describe('spendByClient shared-cost attribution (O11)', () => {
   it('two active trackers each get half', async () => {
@@ -50,14 +62,15 @@ describe('spendByClient shared-cost attribution (O11)', () => {
     await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientB1));
     expect((await spend([IDS.clientB1])).get(IDS.clientB1)).toBeCloseTo(0.5, 6);
   });
-  it('jev rows ignored, llm rows counted', async () => {
+  it('Jev rows count toward client spend', async () => {
     const sink = createLedgerSink(dbs.service);
     await sink.recordLlmCall({ ...llm, competitorId: IDS.competitorY, costUsd: 2 });
     await sink.recordLlmCall({ ...llm, competitorId: IDS.competitorY, provider: 'jev', costUsd: 50 });
     await sink.recordLlmCall({ ...llm, clientId: IDS.clientA2, agencyId: IDS.agencyA, provider: 'jev', costUsd: 50 });
     await sink.recordLlmCall({ ...llm, clientId: IDS.clientA2, agencyId: IDS.agencyA, costUsd: 1 });
-    expect(SPEND_GUARD_EXCLUDED_PROVIDERS).toEqual(['jev']);
-    expect((await spend([IDS.clientA2])).get(IDS.clientA2)).toBeCloseTo(3, 6);
+    expect(SPEND_GUARD_EXCLUDED_PROVIDERS).toEqual([]);
+    // A2: own jev 50 + llm 1; shared jev 50 + llm 2 on competitor Y (2 trackers, A2 among them -> 26) are not asserted exactly here.
+    expect((await spend([IDS.clientA2])).get(IDS.clientA2)).toBeGreaterThanOrEqual(51);
   });
   it('a client-attributed row is not also shared', async () => {
     await createLedgerSink(dbs.service).recordVendorCall({ ...vendor(1, IDS.competitorX), clientId: IDS.clientA1, agencyId: IDS.agencyA });

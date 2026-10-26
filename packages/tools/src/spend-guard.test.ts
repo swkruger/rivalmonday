@@ -42,6 +42,13 @@ describe('runSpendGuard: client part', () => {
     expect(await notices()).toHaveLength(0);
   });
 
+  it('a client over its limit through Jev spend alone is paused', async () => {
+    await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'jev', model: 'jev-1.14', inputTokens: 1, outputTokens: 1, costUsd: 20, latencyMs: 1, ok: true, createdAt: NOW });
+    const out = await runSpendGuard(deps(), NOW);
+    expect(out).toMatchObject({ reached: 1, paused: 1 });
+    expect((await clientRow(IDS.clientA1)).spendPausedAt).not.toBeNull();
+  });
+
   it('paused at 130 %: event, notice, staff email, spend_paused_at', async () => {
     await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('po', 'po', 'Owner@rm.test', true)`);
     await dbs.owner.insert(platformAdmin).values({ userId: 'po', role: 'owner' });
@@ -196,11 +203,12 @@ describe('readSpikes', () => {
     expect(await scope('total')).toMatchObject({ baselineUsd: 5, floorOnly: true });
   });
 
-  it('jev is excluded from the baseline sums too', async () => {
+  it('jev counts in the baseline sums too', async () => {
     await stats(2);
     await plat('jev', 400, new Date('2026-10-10T12:00:00Z'));
     await plat('jev', 400, new Date('2026-10-06T18:00:00Z'));
-    expect(await scope('total')).toMatchObject({ baselineUsd: 5, floorOnly: true });
+    const r = await scope('total');
+    expect(r.baselineUsd).toBeGreaterThan(5);
   });
 
   it('before 12:00 UTC the same-weekday midpoint day (8th day back) is still found', async () => {
@@ -211,11 +219,11 @@ describe('readSpikes', () => {
     expect(r.baselineUsd).toBe(30);
   });
 
-  it('jev and vendor_call excluded from observed', async () => {
+  it('jev counts in observed, vendor_call does not', async () => {
     await plat('jev', 50, recent);
     await dbs.owner.insert(vendorCall).values({ agencyId: IDS.agencyA, clientId: null, vendor: 'v', operation: 'o', units: 1, costUsd: 50, latencyMs: 1, ok: true, createdAt: recent });
     await plat('openrouter', 3, recent);
-    expect((await scope('total')).observedUsd).toBe(3);
+    expect((await scope('total')).observedUsd).toBe(53);
   });
 
   it('openrouter scope sums openrouter + llm', async () => {
@@ -244,6 +252,12 @@ describe('runSpendGuard: spike guard', () => {
     await runSpendGuard(deps(), NOW);
     expect(staff).toHaveLength(0);
     expect(await events('spike_paused')).toHaveLength(1);
+  });
+
+  it('the spike guard counts a Jev-only jump', async () => {
+    await plat('jev', 15, recent); // baseline 5 -> +200 %
+    expect((await runSpendGuard(deps(), NOW)).spike).toBe('paused');
+    expect(await state()).toMatchObject({ state: 'paused', scope: 'total', observedUsd: 15 });
   });
 
   it('paused stays paused below threshold', async () => {

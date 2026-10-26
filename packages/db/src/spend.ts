@@ -7,8 +7,16 @@ export function monthStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-/** Providers whose llm_call rows stay in the ledger but never count towards client spend or the spike guard (7b1). The one place. */
-export const SPEND_GUARD_EXCLUDED_PROVIDERS = ['jev'] as const;
+/**
+ * Providers whose llm_call rows stay in the ledger but never count towards client spend or the spike guard (7b1). The one place.
+ * Empty since jev-openrouter: Jev cost is real OpenRouter cost, so it counts like any provider.
+ */
+export const SPEND_GUARD_EXCLUDED_PROVIDERS: readonly string[] = [];
+
+/** `llm_call.provider NOT IN (excluded)`; undefined (filters nothing) when the list is empty, so `and()` skips it. */
+export function llmProviderCounted(excluded: readonly string[] = SPEND_GUARD_EXCLUDED_PROVIDERS) {
+  return excluded.length === 0 ? undefined : notInArray(llmCall.provider, [...excluded]);
+}
 
 const sqlArray = (items: readonly string[], type: 'uuid' | 'text') =>
   sql`ARRAY[${sql.join(items.map((x) => sql`${x}`), sql`, `)}]::${sql.raw(type)}[]`;
@@ -41,14 +49,15 @@ export async function competitorTrackers(db: Db | Tx, competitorIds: string[]): 
 
 /**
  * Sum of this period's llm_call + vendor_call cost per client (null cost counts as 0): the client-attributed rows
- * (excluded providers skipped on llm_call) plus an equal share of every shared competitor row per current tracker (O11).
+ * (any excluded provider skipped on llm_call; none today) plus an equal share of every shared competitor row per current tracker (O11).
  */
 export async function spendByClient(db: Db | Tx, clientIds: string[], since: Date): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (clientIds.length === 0) return out;
   for (const table of [llmCall, vendorCall]) {
     const where = [inArray(table.clientId, clientIds), gte(table.createdAt, since)];
-    if (table === llmCall) where.push(notInArray(llmCall.provider, [...SPEND_GUARD_EXCLUDED_PROVIDERS]));
+    const counted = table === llmCall ? llmProviderCounted() : undefined;
+    if (counted) where.push(counted);
     const rows = await db
       .select({ id: table.clientId, usd: sql<number>`coalesce(sum(${table.costUsd}), 0)::float8` })
       .from(table)

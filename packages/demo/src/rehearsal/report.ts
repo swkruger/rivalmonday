@@ -262,6 +262,7 @@ async function spendLines(db: Db, m: RehearsalManifest, seededAt: Date, now: Dat
   out.push(line(pass(spikes.length === 0), 'spend guard never tripped', spikes.length === 0 ? 'no spike_paused event since the seed' : `spike_paused at ${spikes.map((s) => s.at.toISOString()).join(', ')}`));
 
   const window = sql`created_at >= ${seededAt.toISOString()}::timestamptz AND created_at < ${now.toISOString()}::timestamptz`;
+  // Only the rehearsal provider is left out; Jev counts like any provider (SPEND_GUARD_EXCLUDED_PROVIDERS is empty since jev-openrouter).
   const notCounted = sql`ARRAY[${sql.join([REHEARSAL_PROVIDER, ...SPEND_GUARD_EXCLUDED_PROVIDERS].map((p) => sql`${p}`), sql`, `)}]::text[]`;
   if (m.liveClientIds.length === 0) out.push(line('SKIP', 'live-slice spend x 6 below spike threshold', 'no live slice in the manifest'));
   else {

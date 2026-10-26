@@ -287,6 +287,14 @@ describe('Ai guard (7b1)', () => {
     expect(h.records).toHaveLength(1);
   });
 
+  it("a Jev decision for a paused client is refused before the provider is called", async () => {
+    const h = guarded({ assertAllowed: async (s) => { if (s.clientId === clientScope.clientId) throw new AiPausedError('client'); } });
+    await expect(h.ai.decide('decisions', {}, q, clientScope)).rejects.toMatchObject({ reason: 'client' });
+    expect(h.jevDecide).not.toHaveBeenCalled();
+    expect(h.records).toEqual([]);
+    await expect(h.ai.decide('decisions', {}, q, otherScope)).resolves.toBeDefined();
+  });
+
   it('warn (a guard that allows) lets every call through', async () => {
     const h = guarded({ assertAllowed: async () => {} });
     await expect(h.ai.chat('brief_writer', { messages: [] }, scope)).resolves.toBeDefined();

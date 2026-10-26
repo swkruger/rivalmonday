@@ -1,8 +1,8 @@
 import {
   type AiGuardState, agency, agencyDailyStat, billingNotice, client, clientServiceable, type Db, effectiveLimitUsd, llmCall, monthStart, pauseThresholdUsd, lockAiGuardState, readAiGuardState,
-  readSpendGuardSettings, SPEND_GUARD_EXCLUDED_PROVIDERS, type SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
+  llmProviderCounted, readSpendGuardSettings, type SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
 } from '@cs/db';
-import { and, eq, gte, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from './platform/costs/alerts';
 
 /** 7b1 (C9): what platform staff are emailed about a pause (USD allowed: staff only). */
@@ -160,9 +160,9 @@ const H = 3_600_000;
 const D = 24 * H;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-/** llm_call cost in [from, to): `total` = every provider except the excluded ones; vendor scopes = their providers. `vendor_call` never. */
+/** llm_call cost in [from, to): `total` = every provider (Jev included since jev-openrouter) except any excluded ones (none today); vendor scopes = their providers. `vendor_call` never. */
 async function sumLlm(db: Db, scope: SpikeScope, from: number, to: number): Promise<number> {
-  const providers = scope === 'total' ? notInArray(llmCall.provider, [...SPEND_GUARD_EXCLUDED_PROVIDERS]) : inArray(llmCall.provider, [...SPIKE_PROVIDERS[scope]]);
+  const providers = scope === 'total' ? llmProviderCounted() : inArray(llmCall.provider, [...SPIKE_PROVIDERS[scope]]);
   const [row] = await db
     .select({ usd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
     .from(llmCall)
