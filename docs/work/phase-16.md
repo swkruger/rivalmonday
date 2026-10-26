@@ -4,13 +4,14 @@
 **Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (owner-approved 2026-10-25); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**ON HOLD for code until the owner's explicit go-ahead** (owner, 2026-10-25; earlier condition: Phase 7 + 15 merged). 16-onboarding spec (O1–O13) and lean plan (Tasks 0–11) approved; nothing built.
+**ON HOLD for code until the owner's explicit go-ahead** (owner, 2026-10-25; earlier condition: Phase 7 + 15 merged). 16-onboarding spec (O1–O14) and lean plan (Tasks 0–11) approved; nothing built. Branch is docs-only, not rebased (behind main 0089–0092); worktree clean.
 
 ## Next (overwrite)
 On the owner's go-ahead: 16-onboarding Task 0 (rebase, dependency re-check, client + intake mockups → owner gate), then SDD Tasks 1–11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
 
 ## Interfaces this branch adds or changes
-Per 09 §9: tokens, new `@cs/ui` primitives, `Card` = frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`. No migrations expected (next free: 0087).
+Per 09 §9: tokens, new `@cs/ui` primitives, `Card` = frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`.
+16-onboarding (planned, plan "Interfaces"): migration **0093** `onboarding_split` (`client.phone/address/logo_url` + app_user UPDATE grant, `agency_onboarding.wizard_finished_at`, `client_setup.owner_pick_requested_at/location_source`); tools `save_agency_basics`, `finish_onboarding`, `update_client_details`, `upload_client_logo`, `get_client_details`, `advance_client_setup` action `ask_owner`; `create_client` `details`; setup steps `details/lookup/profile/competitors/invite/billing` (`totalSteps` 5|6, `waiting_owner`); search rule = keywords + centre (no place id); `ToolDeps.geocode` (Stadia) + web env `STADIA_API_KEY`; route group `(onboarding)` (moves `/onboarding`, `/agency/clients/new`, `/c/<id>/setup`); owners never enter `/setup` (only `/setup/competitors` while waiting).
 
 ## Assumes from other branches
 Both restart after phase-16 and rebase onto it.
@@ -23,13 +24,16 @@ Both restart after phase-16 and rebase onto it.
 - D3 Context switcher stays in the left sidebar (15a D4 kept; overrides storyboard Frame 2's top-bar switcher).
 - D4 Runs after Phase 7 and Phase 15 are merged (reverses the earlier "design system first").
 - Open: OD-5 bottom tabs on phones vs 15a D8 (drawer only) — not yet decided.
-- D5 (2026-10-24) **16-onboarding** sub-phase: agency (4 steps) + client (7 steps) + intake as full-page split flows with live previews; owner lands on Overview; replaces DS D-22/L7. Spec: [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (O1–O13). Mockups `docs/design-system/mockups/onboarding/`.
+- D5 (2026-10-24) **16-onboarding** sub-phase: agency (4 steps) + client (7 steps) + intake as full-page split flows with live previews; owner lands on Overview; replaces DS D-22/L7. Spec: [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (O1–O14). Mockups `docs/design-system/mockups/onboarding/`.
+- D6 (2026-10-25) Plan approved; code waits for the owner's explicit go-ahead.
+- D7 (2026-10-25) Generated images (gpt-image via OpenRouter, `openai/gpt-image-2.5-sunburst`) used sparingly: onboarding only on sign-up, both "All set" screens, intake "Check your email" (O14); static, owner-picked.
 
 ## New backlog (target → item)
-None yet.
+- Owner → at 16-onboarding deploy add `STADIA_API_KEY` to the Vercel web env (geocoding).
+- Unscheduled → no-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider "Link Google listing" prompt.
 
 ## Owner verification steps
-TBD per sub-phase.
+16-onboarding: plan Task 11 list (written into this file when built). Other sub-phases TBD.
 
 ## Brief
 ### 1. Scope (no roadmap row)
