@@ -30,12 +30,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const { ctx, viewer } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
   const status = await callTool<Status>(ctx, 'get_onboarding_status', {});
-  if (status.completed || status.dismissed) redirect('/agency');
+  // Step 1 is required: until it is saved the page shows it, whatever else is finished or requested.
+  const profileOpen = status.steps.profile !== 'done';
+  if (!profileOpen && (status.completed || status.dismissed)) redirect('/agency');
 
   // /onboarding is outside /agency, /c and /platform, so the guide drawer reads the agency scope (helpScopeOf); read the same one here.
   const guide = (await helpGuides(ctx, 'agency')).has(HELP_KEY);
   const { step: requested } = await searchParams;
-  const step = isStep(requested) ? requested : firstOpenStep(status.steps);
+  const step = profileOpen ? 'profile' : isStep(requested) ? requested : firstOpenStep(status.steps);
   const [profile, { stored, resolved }] = await Promise.all([
     callTool<Profile>(ctx, 'get_agency_profile', {}),
     callTool<{ stored: AgencyBranding; resolved: Branding }>(ctx, 'get_agency_branding', {}),

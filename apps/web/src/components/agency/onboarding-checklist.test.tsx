@@ -18,9 +18,20 @@ describe('OnboardingChecklist', () => {
     expect(labels()).toEqual(['○Add your first client', '○Invite your teamskipped', '○Add your logo and coloursskipped']);
     expect(screen.getByText('3 left to do')).toBeTruthy();
     expect(hrefOf('Add your first client')).toBe('/agency/clients/new');
-    expect(hrefOf('Invite your team')).toBe('/onboarding?step=team');
-    expect(hrefOf('Add your logo and colours')).toBe('/onboarding?step=branding');
+    expect(hrefOf('Invite your team')).toBe('/agency/settings/team');
+    expect(hrefOf('Add your logo and colours')).toBe('/agency/settings/branding');
     expect(screen.queryByText('Review your plan')).toBeNull();
+  });
+
+  it('skipped team item links to settings', () => {
+    render(<OnboardingChecklist status={base} trialing={false} dismissAction={dismiss} />);
+    expect(hrefOf('Invite your team')).toBe('/agency/settings/team');
+  });
+
+  it('checklist shows profile item while open', () => {
+    render(<OnboardingChecklist status={{ ...base, steps: { ...base.steps, profile: 'open' } }} trialing={false} dismissAction={dismiss} />);
+    expect(labels()[0]).toContain('Finish your agency details');
+    expect(hrefOf('Finish your agency details')).toBe('/onboarding');
   });
 
   it('team and branding appear only when skipped; done steps and a finished first client drop out', () => {

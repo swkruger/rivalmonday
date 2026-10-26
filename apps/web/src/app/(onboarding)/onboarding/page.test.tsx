@@ -44,6 +44,7 @@ describe('/onboarding page', () => {
   });
 
   it('redirects to /agency once completed or dismissed', async () => {
+    m.status = { ...m.status, steps: { ...OPEN, profile: 'done' } };
     m.status = { ...m.status, completed: true };
     await expect(run()).rejects.toThrow('NEXT_REDIRECT:/agency');
     m.status = { ...m.status, completed: false, dismissed: true };
@@ -55,6 +56,7 @@ describe('/onboarding page', () => {
     expect(props('profile').initial.contactEmail).toBe('sam@acme.co');
     expect(props('profile').guide).toBe(true);
     cleanup();
+    m.status = { ...m.status, steps: { ...OPEN, profile: 'done' } };
     render(await run({ step: 'team' }));
     expect(props('team')).toMatchObject({ agencyName: 'Acme Brand', inviterName: 'Sam Lee' });
   });
@@ -70,6 +72,12 @@ describe('/onboarding page', () => {
       firstName: 'Sam',
       summary: { agency: 'Acme', contact: 'Sam Lee · (512) 555-0142', team: '2 invites sent', brand: 'Colour set', brandColor: '#163A5F' },
     });
+  });
+
+  it('step param ignored while profile open', async () => {
+    m.status = { ...m.status, completed: true, steps: OPEN };
+    render(await run({ step: 'done' }));
+    expect(screen.getByTestId('profile')).toBeTruthy();
   });
 
   it('the plan step is not a wizard step any more', async () => {

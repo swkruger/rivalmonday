@@ -2,9 +2,10 @@
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
+import { callTool } from '@/server/tools';
 import { type FormResult, parseBrandingForm } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
-import { isSkippable, nextPath } from './flow';
+import { isSkippable, nextPath, stepPath } from './flow';
 import { parseBasicsForm } from './parse';
 
 /** Every wizard write is admin-only; anyone else gets a 404 (no existence leak). */
@@ -12,6 +13,12 @@ async function adminCtx() {
   const { ctx } = await requireContext();
   if (ctx.role !== 'agency_admin') notFound();
   return ctx;
+}
+
+/** Step 1 is required: until the about step is saved no other wizard write runs (redirect back to it, no tool call). */
+async function requireProfileDone(ctx: Awaited<ReturnType<typeof adminCtx>>) {
+  const status = await callTool<{ steps: { profile: string } }>(ctx, 'get_onboarding_status', {});
+  if (status.steps.profile !== 'done') redirect(stepPath('profile'));
 }
 
 export async function saveBasicsAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
@@ -23,6 +30,7 @@ export async function saveBasicsAction(_prev: FormResult, formData: FormData): P
 
 export async function inviteTeamAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const ctx = await adminCtx();
+  await requireProfileDone(ctx);
   const emails = formData.getAll('email').map((v) => String(v).trim());
   const roles = formData.getAll('role').map(String);
   const rows = emails.map((email, i) => ({ email, role: roles[i] ?? 'account_manager' })).filter((r) => r.email);
@@ -42,6 +50,7 @@ export async function inviteTeamAction(_prev: FormResult, formData: FormData): P
 
 export async function skipStepAction(formData: FormData): Promise<void> {
   const ctx = await adminCtx();
+  await requireProfileDone(ctx);
   const step = String(formData.get('step') ?? '');
   if (!isSkippable(step)) notFound();
   const r = await runTool(ctx, 'mark_onboarding_step', { step, action: 'skip' });
@@ -52,6 +61,7 @@ export async function skipStepAction(formData: FormData): Promise<void> {
 /** Saves the colour, name and logo address, then marks the step done. The logo file itself is uploaded by the logo route. */
 export async function saveBrandingStepAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
   const ctx = await adminCtx();
+  await requireProfileDone(ctx);
   const saved = await runTool(ctx, 'update_agency_branding', parseBrandingForm(formData));
   if (!saved.ok) return saved;
   const done = await runTool(ctx, 'mark_onboarding_step', { step: 'branding', action: 'done' });
@@ -62,6 +72,7 @@ export async function saveBrandingStepAction(_prev: FormResult, formData: FormDa
 /** The confirmation screen: `to=client` goes on to the first client, anything else to the dashboard. */
 export async function finishAction(formData: FormData): Promise<void> {
   const ctx = await adminCtx();
+  await requireProfileDone(ctx);
   const r = await runTool(ctx, 'finish_onboarding', {});
   if (!r.ok) notFound();
   redirect(formData.get('to') === 'client' ? '/agency/clients/new' : '/agency');

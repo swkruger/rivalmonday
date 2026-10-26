@@ -63,7 +63,7 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
       footer={
         <StepFooter
           back={prevPath('branding')!}
-          skip={{ label: 'Skip for now', onSkip: () => { if (!readOnly && !skipping) skip(); } }}
+          skip={{ label: 'Skip for now', onSkip: () => { if (!readOnly && !skipping) skip(); }, disabled: readOnly || skipping }}
           primary={{ label: 'Continue', pending, disabled: readOnly || uploading, form: 'brand-form' }}
         />
       }

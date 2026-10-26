@@ -49,7 +49,7 @@ export function TeamStep({ agencyName, inviterName, guide }: { agencyName: strin
       footer={
         <StepFooter
           back={prevPath('team')!}
-          skip={{ label: 'Skip for now', onSkip: () => { if (!readOnly && !skipping) skip(); } }}
+          skip={{ label: 'Skip for now', onSkip: () => { if (!readOnly && !skipping) skip(); }, disabled: readOnly || skipping }}
           primary={{ label: n >= 1 ? `Send ${n} invite${n === 1 ? '' : 's'}` : 'Continue', pending, disabled: readOnly, form: 'team-form' }}
         />
       }

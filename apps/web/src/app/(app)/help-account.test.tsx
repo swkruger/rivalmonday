@@ -243,7 +243,7 @@ describe('Set up your agency (wizard)', () => {
   });
 
   it('a finished or dismissed wizard still redirects to /agency before any help is read', async () => {
-    m.status = { ...m.status, completed: true };
+    m.status = { ...m.status, completed: true, steps: { profile: 'done', team: 'done', plan: 'done', branding: 'done', first_client: 'open' } };
     await expect(Onboarding({ searchParams: Promise.resolve({}) })).rejects.toThrow('NEXT_REDIRECT:/agency');
   });
 });

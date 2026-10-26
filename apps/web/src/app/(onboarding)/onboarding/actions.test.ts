@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as { role: string }, run: vi.fn() }));
+const m = vi.hoisted(() => ({ ctx: { role: 'agency_admin' } as { role: string }, run: vi.fn(), profile: 'done' }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: m.ctx }) }));
+vi.mock('@/server/tools', () => ({ callTool: async () => ({ steps: { profile: m.profile } }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.run(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -18,7 +19,7 @@ const fd = (o: Record<string, string | string[]>) => {
 const initial = { ok: true } as const;
 const names = () => m.run.mock.calls.map((c) => c[1]);
 
-beforeEach(() => { m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } }); m.ctx = { role: 'agency_admin' }; });
+beforeEach(() => { m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } }); m.ctx = { role: 'agency_admin' }; m.profile = 'done'; });
 
 describe('onboarding actions', () => {
   it('every action is a 404 for non-admins', async () => {
@@ -113,6 +114,15 @@ describe('onboarding actions', () => {
     expect(m.run).toHaveBeenLastCalledWith(m.ctx, 'finish_onboarding', {});
     await expect(a.finishAction(fd({ to: 'dashboard' }))).rejects.toThrow('NEXT_REDIRECT:/agency');
     expect(names()).toEqual(['finish_onboarding', 'finish_onboarding']);
+  });
+
+  it('finish refused while profile open: step 2, 3 and finish redirect to step 1 without a tool call', async () => {
+    m.profile = 'open';
+    await expect(a.finishAction(fd({ to: 'client' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
+    await expect(a.inviteTeamAction(initial, fd({ email: ['x@a.co'], role: ['agency_admin'] }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
+    await expect(a.skipStepAction(fd({ step: 'team' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
+    await expect(a.saveBrandingStepAction(initial, fd({ primary: '#112233' }))).rejects.toThrow('NEXT_REDIRECT:/onboarding?step=profile');
+    expect(m.run).not.toHaveBeenCalled();
   });
 
   it('finishAction is a 404 when the tool refuses', async () => {

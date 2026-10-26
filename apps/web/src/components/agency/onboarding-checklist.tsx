@@ -9,18 +9,19 @@ export interface ChecklistStatus {
   completed: boolean;
 }
 
-interface Item { key: 'first_client' | 'payment' | 'team' | 'branding'; label: string; href: string; skipped?: boolean }
+interface Item { key: 'profile' | 'first_client' | 'payment' | 'team' | 'branding'; label: string; href: string; skipped?: boolean }
 
 /**
  * 16 P3: only what is still open. The first client until one exists; a payment method while on the trial; the team and
- * brand steps only when the wizard skipped them (the about step is required and the plan step left the wizard).
+ * brand steps only when the wizard skipped them (they link to Settings: the wizard bounces finished agencies); the about step while unsaved.
  */
 function openItems(status: ChecklistStatus, trialing: boolean): Item[] {
   const items: Item[] = [];
+  if (status.steps.profile !== 'done') items.push({ key: 'profile', label: 'Finish your agency details', href: '/onboarding' });
   if (status.steps.first_client !== 'done') items.push({ key: 'first_client', label: 'Add your first client', href: '/agency/clients/new' });
   if (trialing) items.push({ key: 'payment', label: 'Add a payment method', href: '/agency/settings/billing' });
-  if (status.steps.team === 'skipped') items.push({ key: 'team', label: 'Invite your team', href: '/onboarding?step=team', skipped: true });
-  if (status.steps.branding === 'skipped') items.push({ key: 'branding', label: 'Add your logo and colours', href: '/onboarding?step=branding', skipped: true });
+  if (status.steps.team === 'skipped') items.push({ key: 'team', label: 'Invite your team', href: '/agency/settings/team', skipped: true });
+  if (status.steps.branding === 'skipped') items.push({ key: 'branding', label: 'Add your logo and colours', href: '/agency/settings/branding', skipped: true });
   return items;
 }
 

@@ -53,7 +53,7 @@ export function DoneStep({ firstName, summary, guide }: { firstName: string; sum
       footer={
         <StepFooter
           back={prevPath('done')!}
-          skip={{ label: 'Go to dashboard', onSkip: () => { if (!readOnly && !going) start(async () => { const fd = new FormData(); fd.set('to', 'dashboard'); await finishAction(fd); }); } }}
+          skip={{ label: 'Go to dashboard', onSkip: () => { if (!readOnly && !going) start(async () => { const fd = new FormData(); fd.set('to', 'dashboard'); await finishAction(fd); }); }, disabled: readOnly || going }}
           primary={{ label: 'Add your first client', pending: going, disabled: readOnly, form: 'finish-form' }}
         />
       }
