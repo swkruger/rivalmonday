@@ -6,7 +6,7 @@ Rules: new items go under their target; done items are deleted (git history keep
 Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text: [archive/2026-10-11-roadmap-full.md](archive/2026-10-11-roadmap-full.md)) and HANDOVER §5, §7, §8.
 
 ## Phase 7 — Hardening & pilot
-> 7b/7c planned 2026-10-23: items below are owned by the plans `2026-10-23-phase-7b1|7b2|7c1|7c2` (each plan's docs task lists the lines it closes). Not folded: Launch gate (standalone before the live deploy), ANN index (when pilot volume shows slow search).
+> 7b/7c planned 2026-10-23: items below are owned by the plans `2026-10-23-phase-7b1|7c1|7c2` (7b2 merged) (each plan's docs task lists the lines it closes). Not folded: Launch gate (standalone before the live deploy), ANN index (when pilot volume shows slow search).
 
 ### Launch gate (before 7a1 Task 12, the live deploy)
 - [ ] **HIGH - gates 7a1 Task 12:** shell DB stages: (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id] — *from 7a*
@@ -83,14 +83,13 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Phase 9 follow-ups (billing)
 - [ ] Client billing page: add an agency contact link ("contact {agency}"); `get_my_billing` returns no contact — *phase-15c2b2*
 **Soon**
-- [ ] `disable_client_billing`: re-check the row inside the tx (race with an ACH Checkout completing → subscription never cancelled) — *9b R27*
-- [ ] Daily reconcile `payment_needed → active` doesn't lift a `paused_by='auto'` pause or set `last_paid_at` (paid client stays auto-paused; "is now paying" mail a month late) — *9b final M3*
 - [ ] Client billing page after "turn off" (cancel at period end): shows "Not set up" next to "Your plan ends on …", Billing nav disappears while still paying; same for disconnected rows; amounts ignore `agency_connect.currency` — *9b M4*
-- [ ] `checkout_completed` for a second live subscription is only logged (R11) → queue an agency notice for a live `untracked_subscription` (real double charge) — *9b M8*
 - [ ] Billing pages auto-refresh after **every** Stripe round trip, not only Checkout/Portal returns: Connect onboarding return (`?connect=done`/`retry`), client billing actions (enable/disable, price change, resend, pause/resume) whose webhooks land later — reuse `RefreshUntilChanged` — *owner, 2026-10-16*
-- [ ] `BILLING_FAKE_GATEWAY` accepted on Vercel preview and by the worker (refuse when `VERCEL_ENV` is set; worker ignores it) — *9a final re-review*
 
 **Later**
+- [ ] `attach_agency_discount` ignores `max_redemptions` (staff override, Decision 9) — owner call — *phase-7b2*
+- [ ] Discount cap locks per `discount_code` row but counts per `stripe_coupon_id`; two codes sharing a coupon aren't serialised (make `stripe_coupon_id` unique per code or lock on the coupon) — *phase-7b2*
+- [ ] Discount cap counts current holders; an agency that swaps coupon frees its slot (Decision 7) — owner call if lifetime redemptions are wanted — *phase-7b2*
 - [ ] `refunded_at`/`disputed_at` write-once and not shown; exempt refund/dispute signals from the R3 ordering guard — *9b M6*
 - [ ] `stripe_connect_event` stores unhandled event types (insert before the `HANDLED` check) — *9b M7*
 - [ ] Connect product name uses `agency.name`, not `branding.displayName` (shows on Checkout/receipts) — *9b M9*
@@ -98,7 +97,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Missed `account.application.deauthorized` → reconnect reuses a dead account id; admin only sees the generic Stripe-failure copy — *9b R24*
 - [ ] Per-agency browser-tab titles on client pages (root title "Rival Monday" leaks; only `/c/[id]/settings/billing` fixed) — *9b R18*
 - [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *9b brainstorm*
-- [ ] 9a: `redeem_discount_code` doesn't check `discount_code.max_redemptions` on direct coupon attach; `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (Phase 10 sign-up sidesteps it, R3); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
+- [ ] 9a: `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (Phase 10 sign-up sidesteps it, R3); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
 - [ ] 9a: grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU); daily seat-retry step lacks its own try; percentOff > 2 decimals rounded vs raw to Stripe; promo code left active in Stripe if the DB insert fails — *9a ledger*
 - [ ] Test hygiene (fold in when touching): hand-set `pausedAt` in tests, unasserted seat sync after auto-pause, `sendClient`/`sendAgencyClient` untested, `get_connect_overview` N+1, `get_client_revenue` duplicates `clientMrrCents`, reconcile doesn't stamp `lastStripeEventAt`, invited `set_client_price` with unchanged amount re-mails, `next_bill` can create a duplicate-amount price, Stripe reads inside the webhook tx, `new Stripe()` without explicit `apiVersion` — *9a/9b ledgers*
 
@@ -119,7 +118,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Welcome-email link may open the wrong wizard for a user with two open agencies; sign-up email subject echoes the typed agency name (strip URL-like text?) — *phase-10*
 - [ ] Checkout return doesn't mark the plan step; wizard skip/continue tool failures show 404; team step has no post-invite hint — *phase-10*
 - [ ] `/sign-up` pause read fails closed on DB error; invite email `expiresAt` recomputed (ms drift); `get_billing_summary` reads billing twice; `billing-notices.ts` repeats the admins+deliver pattern 5× — *phase-10*
-- [ ] `couponFor` ignores `max_redemptions` (Stripe enforces; exhausted coupon → Checkout error) — *phase-10*
 - [ ] Test hygiene: >120-char CHECK tests, `parseWebEnv` new-var test, funnel non-active `cardAdded` case, sequential double-run nudge test, refused-duplicate E2E fixed 3 s wait, mock-based console spies — *phase-10*
 
 ## Phase 13b follow-ups (local rankings)
@@ -229,7 +227,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
 - [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
-- [ ] Sign off copy marked in the 7b1/7b2/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, duplicate-subscription notice, feedback links) — *phase-7-planning*
+- [ ] Sign off copy marked in the 7b1/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, feedback links) — *phase-7-planning*
 - [ ] `ask-inject-09`: make the Ask prompt paraphrase injected text (it quotes the phrase while refusing in most live runs; B3 failed 7 of 10 live), re-record ask; until then keep `evals-live` advisory (not a required check) — *phase-7c1*
 - [ ] Confirm Jev's real price (`ai.yaml` placeholder); until then Jev is excluded from credit limits and the spike guard — *phase-7-planning*
 - [ ] Staging setup before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon staging branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
