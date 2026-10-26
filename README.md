@@ -118,7 +118,7 @@ Local only (spec: `docs/superpowers/specs/2026-10-09-demo-data-and-snapshots-des
 | `@cs/worker` | pg-boss job runner |
 | `@cs/demo` | Fictional demo data seed, screen-coverage list, and the demo reset and snapshot/restore CLIs |
 
-The Jev live contract test (`packages/ai/src/decisions/jev.live.test.ts`) only runs when `TYPESAFE_API_KEY` is set; otherwise it's skipped.
+The Jev live contract test (`packages/ai/src/decisions/jev.live.test.ts`) only runs when `OPENROUTER_API_KEY` is set (Jev runs through OpenRouter); otherwise it's skipped.
 
 ## Collection (Phase 2a)
 

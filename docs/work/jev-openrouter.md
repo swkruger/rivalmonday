@@ -4,12 +4,15 @@
 **Plan/spec:** [plan](../superpowers/plans/2026-10-25-jev-openrouter.md) · [spec](../superpowers/specs/2026-10-25-jev-openrouter-design.md) — spec owner-approved 2026-10-25; plan awaiting approval.
 
 ## Status (overwrite)
+Tasks 0-3 + 5 done; Task 4 partial (ask cassette blocked on OpenRouter 402 `in_flight_budget_exhausted`). Built: Jev adapter on OpenRouter (`typesafe/jev-1.14`, `costUsd = usage.cost`, fallback estimate 0.042 $/M), echoed model id on samples (jsonb, no migration), `SPEND_GUARD_EXCLUDED_PROVIDERS = []` + `llmProviderCounted()`, `TYPESAFE_API_KEY` removed, docs updated.
+
+Detail:
 Task 0 done (2026-10-25). Live probe of `POST https://openrouter.ai/api/v1/systemone` with `typesafe/jev-1.14` (1 call): HTTP 200, SDK path works, no alpha fallback needed. Top-level keys `model, answers, usage, id, provider`; shape matches current `responseSchema` (extra `id`, `provider` ignored). `model` echoed `typesafe/jev-1.14-20261014` (dated). `usage` = `{input_tokens:397, output_tokens:64, cost:0.000016674}` -> derived rate 0.0420 USD/M input (cost / input_tokens x 1e6), equal to the old `jev.input_usd_per_mtok` 0.042, so keep 0.042 as the fallback. Score `probabilities` keys are 0-based ("0","1","2"), answer carries `score` (expected, 1.78) and `legend`; `mostLikelyLevel` stays as is. Choice: `choice` + `probabilities` keyed by option; noul: `{noul:0.98}`. Rest: OpenRouter model pages still unread.
 
 Task 4 PARTIAL (BLOCKED on ask): cassettes re-recorded for changes, reviews, briefs (replay green). Spend: briefs $0.5519; changes and reviews not reported by tool (prior actuals $0.07/$0.17); ask 2 attempts $1.7056 + $1.8538 = $3.56, both failed B3 ask-inject-09 (known flake) plus OpenRouter invalid-JSON and 402 in-flight-credit errors; ask.json left at HEAD, replay still misses ask_assistant.
 
 ## Next (overwrite)
-Owner approves the plan → Task 0 (pre-flight + live probe) → SDD.
+Owner raises the OpenRouter key/account limit -> re-record `ask` (`eval record --suite ask`) until 0 blocking failures -> final review -> `/rm-merge`. CI `eval:replay` stays red on `ask` until then. The ask-inject-09 BACKLOG item (~L231) stays open: the B3 failure is the known flake, not a 1.14 regression (see `.superpowers/sdd/2026-10-25-jev-openrouter/ask-inject-09-investigation.md`).
 
 ## Interfaces this branch adds or changes
 Expected: Jev URL/key/model id in `packages/ai`; `ai.yaml jev.input_usd_per_mtok` removed; `SPEND_GUARD_EXCLUDED_PROVIDERS` emptied. No migration expected (next free **0095**; neither phase-15c3b nor phase-16 adds one).
@@ -21,11 +24,18 @@ Expected: Jev URL/key/model id in `packages/ai`; `ai.yaml jev.input_usd_per_mtok
 ## Decisions (owner-approved)
 None yet.
 
-## New backlog (target -> item)
-(none)
+## New backlog (target -> item) - for /rm-merge
+- Close in BACKLOG: L71, L78, L217 (b), L232, L242. Keep open: ask-inject-09 (~L231) and L224.
+- Phase 7c follow-up: `eval record` saves a take with blocking failures, so a flaky B3 case forces full paid retakes - add `--keep-only-green` or per-case record.
+- Root `CLAUDE.md` Decisions edits at merge: stack line "Jev decisions" -> "Jev decisions via OpenRouter (`typesafe/jev-1.14`)"; Cost guards "Jev excluded via `SPEND_GUARD_EXCLUDED_PROVIDERS`" -> "Jev counts like any provider (exclusion list empty)".
+- Also at merge: STATE/ARCHITECTURE 7b1 line and 7b spec d10/d19 mention the Jev exclusion (historic; note lifted).
 
 ## Owner verification steps
-TBD (live contract run: `pnpm --filter @cs/ai exec vitest run jev.live`).
+1. Compare one day of OpenRouter activity for `typesafe/jev-1.14` with the `ai_usage` Jev rows.
+2. Close the TypeSafe account.
+3. Delete `TYPESAFE_API_KEY` from `.env`, Vercel, Railway and the GitHub secret.
+4. Raise the OpenRouter key limit so `ask` can be re-recorded; expect a spike warning/pause in the first week of real Jev cost (reset: Platform -> Health -> Reset).
+(Live contract run: `pnpm --filter @cs/ai exec vitest run jev.live`, needs `OPENROUTER_API_KEY`.)
 
 ## Brief
 

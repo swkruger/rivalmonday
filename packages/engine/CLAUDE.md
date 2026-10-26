@@ -4,7 +4,7 @@ Change-detection pipeline (diff, tag, events, scoring, moves, prices, reviews) p
 ## Gotchas
 
 ### Pipeline & stages
-- **Engine needs `OPENROUTER_API_KEY`** (embeddings + LLM fallback); without it `engine-sweep` skips and captures don't enqueue diffs. `TYPESAFE_API_KEY` is optional (decisions fall back to the LLM).
+- **Engine needs `OPENROUTER_API_KEY`** (embeddings + LLM fallback); without it `engine-sweep` skips and captures don't enqueue diffs. Jev runs through the same key (OpenRouter `typesafe/jev-1.14`); when Jev is down decisions fall back to the LLM.
 - **Retries:** a failed stage is re-offered by the 5-minute `engine-sweep` only after 30 × 2^(attempts−1) minutes; after 5 attempts (~7.5 h) it is exhausted and logs `[engine] stage … exhausted`. To re-run an exhausted subject, delete its `stage_run` row (service role) or bump the stage version.
 - **Engine queues use the `short` pg-boss policy with a per-subject `singletonKey`:** at most one *queued* job per subject (capture/change/event/client); a subject still queued from the previous sweep is not enqueued again.
 - **Money changes are never masked (spec §6.1):** any detected price/percent change always forces a web diff to be flagged and a tag result to be `meaningful`, regardless of volatile-block masking, model confidence or what the LLM/Jev decision answered — see `gateChange` in `src/web/diff-stage.ts` and the `forced`/`money` logic in `resolveTag` (`src/tag/questions.ts`). Date- or duration-only changes are still detected but can be dismissed as cosmetic; a low-confidence dismissal also writes a `decision_review` row.

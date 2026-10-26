@@ -795,7 +795,9 @@ Sandbox pass (free; mock data, real shapes): maps live, my_business_info live, r
 
 ## Verified 2026-10-01 — engine models
 
-Live contract test: `packages/engine/src/engine.live.test.ts` (`pnpm --filter @cs/engine test src/engine.live.test.ts`), run against real OpenRouter (and Jev via `TYPESAFE_API_KEY`) using the repo-root `.env` keys. Cost ≈ $0.001. Both tests passed.
+Live contract test: `packages/engine/src/engine.live.test.ts` (`pnpm --filter @cs/engine test src/engine.live.test.ts`), run against real OpenRouter (Jev too, since 2026-10-25) using the repo-root `.env` keys. Cost ≈ $0.001. Both tests passed.
+
+> **Note 2026-10-25 (jev-openrouter):** Jev is now called through OpenRouter (`POST https://openrouter.ai/api/v1/systemone`, model `typesafe/jev-1.14`, `OPENROUTER_API_KEY`); `TYPESAFE_API_KEY` is gone. Response `usage` = `{input_tokens, output_tokens, cost}` (USD); score probabilities are 0-based; the echoed model id is dated (`typesafe/jev-1.14-20261014`).
 
 **OpenRouter embeddings endpoint — confirmed shape:**
 ```
@@ -819,7 +821,7 @@ These match the calibration already recorded in `constraints.md` (0.996 / 0.969 
 - `change_type`: provider `jev`, confidence `1.00` → `price_change`
 - `service_hvac_plumbing`: provider `jev`, confidence `1.00` → `ac_tune_up`
 
-Result: `meaningful = true`, `type = price_change`, `services.hvac_plumbing = ac_tune_up`, `needsReview = []`. (Jev — the `TYPESAFE_API_KEY` deterministic/low-cost decision path — handled `change_type` and the service mapping with full confidence; the `meaningful` noul question fell through the cascade to the LLM at confidence 0.84. Since the change carries a money fact, `resolveTag`'s money-forces-meaningful rule would have made the result `meaningful = true` regardless of what either provider answered.)
+Result: `meaningful = true`, `type = price_change`, `services.hvac_plumbing = ac_tune_up`, `needsReview = []`. (Jev — the deterministic/low-cost decision path — handled `change_type` and the service mapping with full confidence; the `meaningful` noul question fell through the cascade to the LLM at confidence 0.84. Since the change carries a money fact, `resolveTag`'s money-forces-meaningful rule would have made the result `meaningful = true` regardless of what either provider answered.)
 
 **pgvector:** version **0.8.6** on Neon (the `vector(512)` columns used for `capture_block.embedding`).
 
