@@ -117,7 +117,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
 
           <fieldset className="flex flex-col gap-1.5">
             <legend id="radius-legend" className="mb-1.5 text-sm font-medium">Search radius<span aria-hidden="true" className="ml-0.5 text-destructive">*</span><span className="sr-only"> (required)</span></legend>
-            <div role="radiogroup" aria-labelledby="radius-legend" className="inline-flex w-fit overflow-hidden rounded-md border border-[#8796AB]">
+            <div role="radiogroup" aria-labelledby="radius-legend" className="inline-flex w-fit overflow-hidden rounded-md border border-input">
               {(custom ? [custom, ...choices] : choices).map((c) => (
                 <label key={c.stored} className="flex h-10 cursor-pointer items-center border-r border-line px-[18px] text-sm last:border-r-0 has-[:checked]:bg-primary-soft has-[:checked]:font-semibold has-[:checked]:text-primary-soft-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
                   <input type="radio" name="radius" value={c.stored} checked={radiusKm === c.stored} onChange={() => setRadiusKm(c.stored)} className="sr-only" />

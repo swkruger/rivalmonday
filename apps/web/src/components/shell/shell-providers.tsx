@@ -21,15 +21,15 @@ export function ShellProviders({ readOnly, help, style, support, reserveBanner, 
     <ReadOnlyProvider readOnly={readOnly}>
       <HelpProvider value={help}>
         <ToastProvider>
-        <ShellTheme vars={style} />
-        <TzCookie />
-        <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
-          {/* format-gate: machine value, SupportBanner formats it for display */}
-          {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
-          {/* The banner is fixed; split layouts (onboarding) that fill the viewport reserve its height so it does not cover their top row. */}
-          {support && reserveBanner && <div data-banner-spacer="" aria-hidden="true" className="h-14 shrink-0 sm:h-9" />}
-          {children}
-        </div>
+          <ShellTheme vars={style} />
+          <TzCookie />
+          <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
+            {/* format-gate: machine value, SupportBanner formats it for display */}
+            {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
+            {/* The banner is fixed; split layouts (onboarding) that fill the viewport reserve its height so it does not cover their top row. */}
+            {support && reserveBanner && <div data-banner-spacer="" aria-hidden="true" className="h-14 shrink-0 sm:h-9" />}
+            {children}
+          </div>
         </ToastProvider>
       </HelpProvider>
     </ReadOnlyProvider>

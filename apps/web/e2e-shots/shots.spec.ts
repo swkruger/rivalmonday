@@ -18,7 +18,6 @@ import { SHOT_ROUTES, SHOT_VIEWPORTS, type ShotAs, type ShotFixtures } from './r
 const LABEL = process.env.SHOTS_LABEL ?? 'local';
 const ROOT = fileURLToPath(new URL('../test-results/shots', import.meta.url));
 const DIR = join(ROOT, LABEL);
-const STATE = fileURLToPath(new URL('../test-results/shots-state', import.meta.url));
 const AXE_FILE = join(DIR, 'axe.json');
 
 type AxeRow = { label: string; width: number; serious: number; critical: number; ids: string[] };
@@ -74,8 +73,8 @@ async function signedInContext(browser: Browser, baseURL: string, email: string)
 test.beforeAll(async ({ browser }, testInfo) => {
   testInfo.setTimeout(300_000);
   const baseURL = testInfo.project.use.baseURL!;
-  rmSync(STATE, { recursive: true, force: true });
-  mkdirSync(STATE, { recursive: true });
+  // Each run owns its label folder: start clean so stale PNGs from removed routes don't linger.
+  rmSync(DIR, { recursive: true, force: true });
   mkdirSync(DIR, { recursive: true });
   writeFileSync(AXE_FILE, '[]');
   fx = await fixtures();
