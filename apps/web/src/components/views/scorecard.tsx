@@ -27,7 +27,7 @@ export function Scorecard({ model }: { model: ScorecardModel }) {
           </TableHeader>
           <TableBody>
             {model.table.rows.map((r, ri) => (
-              <TableRow key={ri} className={r.self ? 'bg-primary-soft font-semibold' : ''}>
+              <TableRow key={ri} className={r.self ? 'bg-primary-soft font-semibold hover:bg-primary-soft' : ''}>
                 {r.cells.map((c, i) => (
                   <TableCell key={i} numeric={i !== 0}>
                     {i === 0 ? (

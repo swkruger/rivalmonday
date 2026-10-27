@@ -17,7 +17,7 @@ export function ClientBillingBanner({ role, clientId, agencyName, paused, paymen
 
 function Bar({ href, children }: { href?: string; children: string }) {
   return (
-    <div role="region" aria-label="Billing" data-tone="danger" className="flex flex-wrap items-center gap-3 bg-destructive px-4 py-2 text-sm font-semibold text-white lg:px-7">
+    <div role="region" aria-label="Billing" data-tone="danger" className="flex flex-wrap items-center gap-3 bg-destructive px-4 py-2 text-sm font-semibold text-white lg:px-8">
       <span>{children}</span>
       {href && (
         <Link href={href} className="rounded-sm bg-white px-3 py-1 text-xs font-semibold text-ink hover:opacity-90">

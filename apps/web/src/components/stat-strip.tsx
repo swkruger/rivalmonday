@@ -7,8 +7,8 @@ export interface StatItem { title: string; value: string; pill?: StatPill | null
 const TONE: Record<StatPill['tone'], string> = {
   up: 'bg-chip-success-bg text-chip-success-text',
   down: 'bg-chip-danger-bg text-chip-danger-text',
-  warn: 'bg-chip-warning-bg text-accent-text',
-  info: 'bg-muted-surface text-muted-ink',
+  warn: 'bg-chip-warning-bg text-chip-warning-text',
+  info: 'bg-chip-neutral-bg text-chip-neutral-text',
 };
 
 /** Text pill for a KPI (design system v1 badge); same spoken text as `StatCard`'s pill. */
