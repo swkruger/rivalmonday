@@ -44,6 +44,11 @@ async function firstId(db: Db, query: ReturnType<typeof sql>): Promise<string> {
   return rows[0].id;
 }
 
+async function maybeId(db: Db, query: ReturnType<typeof sql>): Promise<string | null> {
+  const rows = [...(await db.execute<{ id: string }>(query))];
+  return rows[0]?.id ?? null;
+}
+
 async function fixtures(): Promise<ShotFixtures> {
   const setup = JSON.parse(readFileSync(SETUP_FIXTURE_FILE, 'utf8')) as { finish: { id: string }; owner: { id: string } };
   return withDb(async (db) => {
@@ -60,6 +65,8 @@ async function fixtures(): Promise<ShotFixtures> {
       askClientId: await firstId(db, sql`select id from client where name = 'Ask Demo Heating'`),
       eventId: await firstId(db, sql`select ce.id from event ce join event_score es on es.event_id = ce.id where es.client_id = ${clientId} and ce.retracted_at is null order by ce.occurred_at desc limit 1`),
       prospectClientId: await firstId(db, sql`select id from client where name = 'E2E Prospect Dental'`),
+      alertId: await firstId(db, sql`select id from alert where client_id = ${clientId} and status = 'delivered' order by created_at desc limit 1`),
+      reportId: await maybeId(db, sql`select id from trend_report where client_id = ${clientId} limit 1`),
     };
   });
 }
@@ -120,6 +127,7 @@ test.afterAll(async () => {
 for (const route of SHOT_ROUTES) {
   for (const viewport of SHOT_VIEWPORTS) {
     test(`${route.label} @ ${viewport.width}`, async () => {
+      test.skip(route.label === 'client-report' && !fx.reportId, 'no trend report seeded for the E2E client');
       const page: Page = await contexts[route.as]!.newPage();
       try {
         await page.setViewportSize(viewport);

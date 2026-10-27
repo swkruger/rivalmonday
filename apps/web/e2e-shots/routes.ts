@@ -1,5 +1,5 @@
 export type ShotAs = 'admin' | 'agency' | 'owner' | 'support' | 'signed-out';
-export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string; eventId: string; prospectClientId: string };
+export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string; eventId: string; prospectClientId: string; alertId: string; reportId: string | null };
 export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean; heading?: RegExp };
 
 /**
@@ -32,8 +32,11 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'client-reviews', path: c('/reviews'), as: 'agency', gate: true },
   { label: 'client-ads', path: c('/ads'), as: 'agency', gate: true },
   { label: 'client-pricing', path: c('/pricing'), as: 'agency', gate: true },
-  { label: 'client-ask', path: c('/ask'), as: 'agency' },
-  { label: 'client-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'agency' },
+  { label: 'client-ask', path: c('/ask'), as: 'agency', gate: true },
+  { label: 'client-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'agency', gate: true },
+  { label: 'client-alert', path: (fx) => `/c/${fx.clientId}/alerts/${fx.alertId}`, as: 'agency', gate: true },
+  // reportId is null when the seed has no trend report: the generated test skips itself.
+  { label: 'client-report', path: (fx) => `/c/${fx.clientId}/reports/${fx.reportId ?? ''}`, as: 'agency', gate: true },
   { label: 'client-settings-profile', path: c('/settings/profile'), as: 'agency', gate: true },
   { label: 'client-settings-delivery', path: c('/settings/delivery'), as: 'agency', gate: true },
   { label: 'client-settings-alerts', path: c('/settings/alerts'), as: 'agency', gate: true },
@@ -41,7 +44,8 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'client-settings-ai', path: c('/settings/ai'), as: 'agency', gate: true },
   { label: 'client-settings-runbook', path: c('/settings/runbook'), as: 'agency' },
   // Client owner (guest link)
-  { label: 'owner-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'owner' },
+  { label: 'owner-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'owner', gate: true },
+  { label: 'owner-alert', path: (fx) => `/c/${fx.clientId}/alerts/${fx.alertId}`, as: 'owner', gate: true },
   { label: 'owner-evidence', path: (fx) => `/c/${fx.clientId}/evidence/${fx.evidenceId}`, as: 'owner', gate: true },
   // Platform
   { label: 'platform-overview', path: '/platform', as: 'admin' },
