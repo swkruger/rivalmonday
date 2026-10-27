@@ -23,7 +23,7 @@ const suggestion: SuggestionView = {
 describe('SuggestionsPanel', () => {
   it('explains what is missing before suggestions can be requested', () => {
     render(<SuggestionsPanel clientId="c1" ready={false} suggestions={[]} atLimit={false} canSearch />);
-    expect(screen.getByText(/add keywords, a service area and a google place id to search/i)).toBeTruthy();
+    expect(screen.getByText(/add keywords and a service area to search/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: /find competitors/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 

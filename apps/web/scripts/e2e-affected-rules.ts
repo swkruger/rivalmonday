@@ -195,6 +195,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}whole-page-diff\\.tsx$`), tags: ['@changes', '@evidence'], why: 'whole-page text diff in the change detail (15c-2b)' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
   { pattern: re(`${COMP}setup-badge\\.tsx$`), tags: ['@setup', '@clients', '@overview'], why: 'Finish setup badge (client overview and portfolio)' },
+  { pattern: re(`${COMP}client/owner-(?:first-visit|welcome|welcome-actions|welcome-cookie|welcome-copy)\.tsx?$`), tags: ['@overview', '@setup', '@starting-point', '@help'], why: 'client owner welcome line + choose-competitors card on every owner Overview' },
   { pattern: re(`${COMP}pressure-badge\\.tsx$`), tags: ['@clients', '@competitors'], why: 'pressure badge' },
   { pattern: re(`${COMP}rival/`), tags: ['@competitors', '@rivals'], why: 'rival tier chips and signal pills' },
   { pattern: re(`${COMP}prospect-landscape\\.tsx$`), tags: ['@prospects'], why: 'prospect landscape' },

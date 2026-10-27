@@ -87,9 +87,10 @@ describe('mutating manage tools', () => {
 });
 
 describe('request_competitor_suggestions', () => {
-  it('needs keywords, a service area and a place id, then starts one manual run', async () => {
-    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/place id/) });
-    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+  it('needs keywords and a service area with a centre (no place id), then starts one manual run', async () => {
+    await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/keywords and a service area/) });
+    // P5: a place id is no longer needed; keywords + a centred service area are enough.
+    await dbs.owner.update(client).set({ keywords: PROFILE.keywords, serviceArea: PROFILE.serviceArea, placeId: null }).where(eq(client.id, IDS.clientA1));
     const r = (await registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })) as { queued: true; runId: string };
     expect(enqueue).toHaveBeenCalledWith('rival-search', { runId: r.runId }, `rival:${IDS.clientA1}`);
     await expect(registry.invoke(admin, 'request_competitor_suggestions', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/already running/) });

@@ -1,11 +1,13 @@
 import 'server-only';
 import { type AccessContext } from '@cs/core';
+import { createLogger } from '@cs/core/server';
 import { setupLookupSchema } from '@cs/db';
 import { redirect } from 'next/navigation';
 import type { FormResult } from './forms';
 import { LOGO_ERROR_COPY, normalizeLogo } from './logo';
 import { runTool } from './run-tool';
 
+const log = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
 const text = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 
 /**
@@ -49,7 +51,7 @@ export async function createClientFromForm(ctx: AccessContext, fd: FormData, sta
   if (!r.ok) return r;
   if (logo) {
     const up = await runTool(ctx, 'upload_client_logo', { clientId: r.data.clientId, png: Buffer.from(logo.png).toString('base64'), sha256: logo.sha256 });
-    if (!up.ok) console.warn(`[new-client] logo for ${r.data.clientId} was not stored: ${up.error}`);
+    if (!up.ok) log.warn({ clientId: r.data.clientId, error: up.error }, 'new-client: logo was not stored');
   }
   redirect(`/c/${r.data.clientId}/setup`);
 }
