@@ -45,7 +45,7 @@ interface Props {
   action: Action;
 }
 
-const card = 'flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card';
+const card = 'flex flex-col gap-3 rounded-md border border-line bg-surface p-6';
 const selectClass = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 const chip = 'inline-flex items-center rounded-full bg-muted-surface px-3 py-1 text-sm font-semibold text-ink';
 

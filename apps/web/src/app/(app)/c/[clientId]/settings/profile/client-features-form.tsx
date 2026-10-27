@@ -34,7 +34,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
   const readOnly = useReadOnly();
   const kept = features.filter((f) => !SWITCHES.some((s) => s.value === f));
   return (
-    <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+    <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
       <input type="hidden" name="clientId" value={clientId} />
       {kept.map((f) => (
         <input key={f} type="hidden" name="feature" value={f} />

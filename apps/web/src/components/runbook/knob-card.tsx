@@ -53,7 +53,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   // A setting that is only on offer from above (not yet added) shows just its Add / Not now prompt.
   if (item?.state === 'new_upstream') {
     return (
-      <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={key}>
+      <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={key}>
         <div className="flex flex-wrap items-center gap-2">
           {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
           <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
@@ -78,7 +78,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={key}>
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={key}>
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>

@@ -285,7 +285,7 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
   const rule = item.kind === 'self_rule' ? (item.content as { weight?: number }) : null;
   const areaNames = (item.businessAreaIds ?? []).map((id) => businessAreas.find((a) => a.id === id)?.name ?? id);
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card" data-item={item.key}>
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={item.key}>
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         {play && <StatusChip tone="neutral">{changeTypeLabel(play.trigger)}</StatusChip>}

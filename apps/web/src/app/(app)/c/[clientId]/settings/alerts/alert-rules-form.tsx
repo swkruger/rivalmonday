@@ -61,7 +61,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
 
   if (!canEdit) {
     return (
-      <div className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
         <BandBar brief={rules.brief} alert={rules.alert} />
         <p>
           {/* "Ask {agency}…" speaks to the client; agency staff without edit rights (and support sessions) get the facts only. */}
@@ -77,7 +77,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
         // React 19 resets a form after every action, errors included; both fields are controlled, so keep what was typed.
         onReset={(e) => e.preventDefault()}
         onChange={() => setDirty(true)}
-        className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card"
+        className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6"
       >
         <input type="hidden" name="clientId" value={clientId} />
         <BandBar {...shown} />

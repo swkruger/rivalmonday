@@ -19,7 +19,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
   const byId = new Map(services.map((s) => [s.id, s]));
   const headingId = `price-card-${row.competitorId}`;
   return (
-    <section aria-labelledby={headingId} className="rounded-[14px] bg-surface p-6 shadow-card">
+    <section aria-labelledby={headingId} className="rounded-md border border-line bg-surface p-6">
       <h2 id={headingId} className="text-lg font-bold text-ink">{row.name}</h2>
       {row.cells.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">No prices seen on its website yet.</p>

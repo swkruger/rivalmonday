@@ -8,7 +8,7 @@ const LINK = 'mt-3 inline-block text-sm font-semibold text-primary-soft-text';
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="rounded-[14px] bg-surface p-6 shadow-card">
+    <section aria-labelledby={id} className="rounded-md border border-line bg-surface p-6">
       <h2 id={id} className="mb-3 text-lg font-bold text-ink">{title}</h2>
       {children}
     </section>

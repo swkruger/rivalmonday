@@ -48,7 +48,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
     return (
       <div className="flex flex-col gap-4">
         <p className="rounded-lg bg-muted-surface p-3 text-ink">Managed in repo</p>
-        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="rounded-md border border-line bg-surface p-6">
           <KbArticleView article={{ kbId: article.id, title: article.title, kind: article.kind, level: article.level, bodyMd: article.bodyMd, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
         </div>
       </div>
@@ -63,7 +63,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
         <Notice result={removed} />
         <Notice result={synced} />
       </div>
-      <form action={save} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+      <form action={save} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
         {article && <input type="hidden" name="id" value={article.id} />}
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Title
@@ -100,7 +100,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
       </form>
 
       {isUrl && article && (
-        <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
           <a href={article.sourceUrl ?? '#'} target="_blank" rel="noopener noreferrer" className="text-sm text-secondary underline [overflow-wrap:anywhere]">{article.sourceUrl}</a>
           <form action={sync} className="flex items-center gap-3">
             <input type="hidden" name="id" value={article.id} />

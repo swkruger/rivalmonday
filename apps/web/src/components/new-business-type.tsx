@@ -114,7 +114,7 @@ export function NewBusinessType({ place, actions, onSelect, onCreated }: {
 
   return (
     <WriteGuard>
-      <section aria-label="New business type" className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+      <section aria-label="New business type" className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
         <div>
           <h2 className="text-base font-bold">We don’t track this business type yet</h2>
           {phase === 'idle' && <p className="mt-1 text-sm text-muted-ink">We can draft it from the Google profile. You review it before anything is saved.</p>}

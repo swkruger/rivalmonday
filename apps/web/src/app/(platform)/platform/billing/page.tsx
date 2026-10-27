@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Billing & plans' };
 
-const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
+const card = 'min-w-0 rounded-md border border-line bg-surface p-6';
 const HELP_KEY = 'page:platform.billing';
 const COPY = PAGE_COPY['platform.billing'];
 
@@ -73,7 +73,7 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           <StatCard title="MRR" value={formatMoney(overview.mrrCents, { unit: 'cents' })} hint="From the latest daily stats" />
           <StatCard title="Paid seats" value={String(overview.paidSeats)} hint="From the latest daily stats" />
-          <div className="col-span-2 rounded-[14px] bg-surface p-6 shadow-card">
+          <div className="col-span-2 rounded-md border border-line bg-surface p-6">
             <h3 className="text-sm font-semibold text-muted-foreground">Agencies by state</h3>
             <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-3 text-sm">
               {BILLING_STATES.map((s: BillingState) => {

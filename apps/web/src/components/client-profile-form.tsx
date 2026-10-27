@@ -76,7 +76,7 @@ export function ClientProfileForm(props: Props) {
       action={formAction}
       onReset={(e) => e.preventDefault()}
       onChange={() => setDirty(true)}
-      className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card"
+      className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6"
     >
       {props.mode === 'edit' && <input type="hidden" name="clientId" value={props.clientId} />}
       {props.mode === 'edit' && <input type="hidden" name="verticalId" value={verticalId} />}

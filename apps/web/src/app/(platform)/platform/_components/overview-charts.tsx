@@ -6,7 +6,7 @@ import type { StatPill } from '@/components/stat-card';
 export interface Tile { value: number; delta28d: number | null }
 export interface Point { start: string; agencies: number | null; clientsActive: number | null; seats: number | null; wau: number | null; spendUsd: number | null }
 
-export const cardCls = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
+export const cardCls = 'min-w-0 rounded-md border border-line bg-surface p-6';
 export const EMPTY_CHART = 'No history yet — figures appear after the first nightly run.';
 
 export function deltaPill(t: Tile, fmt: (n: number) => string = String): StatPill | null {

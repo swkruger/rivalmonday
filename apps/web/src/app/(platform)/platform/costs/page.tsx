@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Costs' };
 
-const card = 'min-w-0 rounded-[14px] bg-surface p-6 shadow-card';
+const card = 'min-w-0 rounded-md border border-line bg-surface p-6';
 const HELP_KEY = 'page:platform.costs';
 const COPY = PAGE_COPY['platform.costs'];
 

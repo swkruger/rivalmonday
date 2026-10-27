@@ -54,7 +54,7 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
           <HelpTip tip="client.pitch-snapshot.mapVisibility" />
         </span>
       </div>
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="rounded-md border border-line bg-surface p-6">
         <ProspectLandscape data={report.data} timezone={profile.timezone} />
       </div>
     </>

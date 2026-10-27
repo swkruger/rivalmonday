@@ -143,7 +143,7 @@ export default async function RankingsPage({ params, searchParams }: {
           {(!picked || compare?.stale) && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
           <RankTabs tab={tab} query={query} />
           <div role="tabpanel" id="rank-tabpanel" aria-labelledby={`rank-tab-${tab}`} className="flex flex-col gap-6">
-            <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-surface p-4 shadow-card">
+            <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-4">
               {tab === 'compare' && <input type="hidden" name="tab" value="compare" />}
               {tab === 'trend' && scanId && <input type="hidden" name="scan" value={scanId} />}
               <label className="flex flex-col gap-1 text-sm">
@@ -187,7 +187,7 @@ export default async function RankingsPage({ params, searchParams }: {
 
             {tab === 'trend' ? (
               <>
-                <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                <section className="rounded-md border border-line bg-surface p-6">
                   <div className="mb-1 flex items-center gap-1.5">
                     <h2 className="text-lg font-bold text-ink">Average map rank · “{geo.keyword}”</h2>
                     <HelpTip tip="client.rankings.avgRank" />
@@ -202,7 +202,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   </div>
                 </section>
 
-                <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                <section className="rounded-md border border-line bg-surface p-6">
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
                     <HelpTip tip="client.rankings.grid" />
@@ -215,7 +215,7 @@ export default async function RankingsPage({ params, searchParams }: {
                 </section>
 
                 {sov && (
-                  <section className="rounded-[14px] bg-surface p-6 shadow-card">
+                  <section className="rounded-md border border-line bg-surface p-6">
                     <div className="mb-1 flex items-center gap-1.5">
                       <h2 className="text-lg font-bold text-ink">Share of voice</h2>
                       <HelpTip tip="client.rankings.sov" />
@@ -246,7 +246,7 @@ export default async function RankingsPage({ params, searchParams }: {
             ) : !compare ? (
               <EmptyState {...COPY.empty.compareNeedsTwo} />
             ) : (
-              <section className="rounded-[14px] bg-surface p-6 shadow-card">
+              <section className="rounded-md border border-line bg-surface p-6">
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
                   <HelpTip tip="client.rankings.compare" />

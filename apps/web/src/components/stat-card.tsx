@@ -46,5 +46,5 @@ export function StatCard({ title, value, pill, hint, help, href }: { title: stri
       </Link>
     );
   }
-  return <div className="rounded-[14px] bg-surface p-4 shadow-card sm:p-6">{body}</div>;
+  return <div className="rounded-md border border-line bg-surface p-4 sm:p-6">{body}</div>;
 }

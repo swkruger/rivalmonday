@@ -298,7 +298,7 @@ export function ReviewFooter({ briefId, clientId, status, autoSend, sendTime, st
   const canSend = status === 'ready' || status === 'approved';
   return (
     <WriteGuard>
-      <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
         <div className="flex flex-wrap items-center gap-4">
           {!startingPoint && <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} sendTime={sendTime} />}
           <div className="ml-auto flex items-center gap-3">

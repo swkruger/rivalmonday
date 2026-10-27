@@ -71,7 +71,7 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         ]}
       />
 
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="rounded-md border border-line bg-surface p-6">
         <h2 className="font-semibold">1. Profile</h2>
         <p className="mt-1 text-muted-foreground">
           {profile.keywords.length > 0 ? `${profile.keywords.length} keyword${profile.keywords.length === 1 ? '' : 's'}` : 'No keywords yet'}
@@ -81,7 +81,7 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         <Link href={`/c/${clientId}/settings/profile`} className="mt-2 inline-block font-semibold text-primary-soft-text">Edit business profile</Link>
       </div>
 
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="rounded-md border border-line bg-surface p-6">
         <h2 className="font-semibold">2. Competitors</h2>
         <p className="mt-1 text-muted-foreground">
           {competitors.items.length} of {competitors.limit}
@@ -90,21 +90,21 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         <Link href={`/c/${clientId}/competitors`} className="mt-2 inline-block font-semibold text-primary-soft-text">Find and pick competitors</Link>
       </div>
 
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="rounded-md border border-line bg-surface p-6">
         <h2 className="font-semibold">3. Snapshot</h2>
         <p className="mt-1 text-muted-foreground">≈ $0.10–0.15 per snapshot</p>
         <SnapshotControls clientId={clientId} report={report} canRun={canRun} blockers={blockers} action={runSnapshotAction} />
       </div>
 
       {report?.status === 'ready' && report.data && (
-        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="rounded-md border border-line bg-surface p-6">
           <h2 className="font-semibold">Landscape</h2>
           <ProspectLandscape data={report.data} timezone={await viewerTimeZone()} />
         </div>
       )}
 
       <WriteGuard>
-        <div className="rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="rounded-md border border-line bg-surface p-6">
           <h2 className="font-semibold">4. Convert</h2>
           <p className="mt-1 text-muted-foreground">Converting starts weekly monitoring, alerts and briefs for this business.</p>
           <ConvertButton clientId={clientId} action={convertAction} canUpgrade={ctx.role === 'agency_admin'} />

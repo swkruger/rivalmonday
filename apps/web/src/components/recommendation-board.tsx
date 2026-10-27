@@ -116,7 +116,7 @@ function targetsFor(status: Status, title: string): Target[] {
 
 function RecommendationCard({ item, clientId, canEdit, agency, action }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction }) {
   return (
-    <article className="rounded-[14px] bg-surface p-4 shadow-card">
+    <article className="rounded-md border border-line bg-surface p-4">
       <p className="font-bold">{item.title}</p>
       <p className="mt-1 text-muted-foreground">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -193,7 +193,7 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
           ))}
         </section>
       </div>
-      <details className="mt-5 rounded-[14px] bg-surface p-4 shadow-card">
+      <details className="mt-5 rounded-md border border-line bg-surface p-4">
         <summary className="cursor-pointer font-semibold">{dismissed.length} dismissed</summary>
         <ul className="mt-3 flex flex-col gap-3">
           {dismissed.map((item) => (

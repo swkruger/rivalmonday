@@ -41,7 +41,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
   );
 
   return (
-    <form id="details" action={formAction} onReset={(e) => e.preventDefault()} aria-labelledby="details-heading" className="flex flex-col gap-5 rounded-[14px] bg-surface p-6 shadow-card">
+    <form id="details" action={formAction} onReset={(e) => e.preventDefault()} aria-labelledby="details-heading" className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6">
       <div>
         <h2 id="details-heading" className="font-semibold">Business details</h2>
         <p className="text-muted-foreground">The phone, address and owner contact from setup. The phone also keeps the business out of its own competitor suggestions.</p>

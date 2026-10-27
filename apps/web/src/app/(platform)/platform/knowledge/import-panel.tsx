@@ -65,7 +65,7 @@ export function ImportPanel({
   }
 
   return (
-    <section aria-labelledby="kb-import-h" className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+    <section aria-labelledby="kb-import-h" className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
       <h2 id="kb-import-h" className="text-lg font-bold">Import from a URL</h2>
       <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-semibold md:col-span-2">

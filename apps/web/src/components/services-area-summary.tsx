@@ -10,7 +10,7 @@ export function ServicesAreaSummary({ profile, serviceNames }: { profile: Pick<C
     ['Google Business Profile', profile.placeId ? 'Linked' : 'Not linked'],
   ];
   return (
-    <dl className="grid gap-4 rounded-[14px] bg-surface p-6 shadow-card sm:grid-cols-[200px_1fr]">
+    <dl className="grid gap-4 rounded-md border border-line bg-surface p-6 sm:grid-cols-[200px_1fr]">
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="font-semibold">{k}</dt>

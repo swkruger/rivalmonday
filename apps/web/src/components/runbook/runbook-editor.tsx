@@ -87,7 +87,7 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
   return (
     <div className="flex flex-col gap-6">
       {level === 'client' && !hasRunbook && (
-        <div className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+        <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
           <p className="font-semibold">This client uses the agency runbook.</p>
           {mayWrite && (
             <div>

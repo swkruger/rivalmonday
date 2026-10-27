@@ -88,7 +88,7 @@ export default async function ReviewsPage({ params, searchParams }: {
         <SelfNotice clientId={clientId} selfPending={trend.selfPending} isAgency={isAgencyRole(ctx.role)} />
       )}
 
-      <section className="rounded-[14px] bg-surface p-6 shadow-card">
+      <section className="rounded-md border border-line bg-surface p-6">
         <div className="mb-1 flex items-center gap-1.5">
           <h2 className="text-lg font-bold text-ink">What customers talk about</h2>
           <HelpTip tip="client.reviews.heatmap" />
@@ -98,14 +98,14 @@ export default async function ReviewsPage({ params, searchParams }: {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-        <section className="rounded-[14px] bg-surface p-6 shadow-card">
+        <section className="rounded-md border border-line bg-surface p-6">
           <div className="mb-3 flex items-center gap-1.5">
             <h2 className="text-lg font-bold text-ink">Your rating mix</h2>
             <HelpTip tip="client.reviews.ratingMix" />
           </div>
           {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-foreground">Not available until your business is set up.</p>}
         </section>
-        <section className="rounded-[14px] bg-surface p-6 shadow-card">
+        <section className="rounded-md border border-line bg-surface p-6">
           <div className="mb-3 flex items-center gap-1.5">
             <h2 className="text-lg font-bold text-ink">Rating trend</h2>
             <HelpTip tip="client.reviews.ratingTrend" />
@@ -114,7 +114,7 @@ export default async function ReviewsPage({ params, searchParams }: {
         </section>
       </div>
 
-      <section className="flex flex-col gap-3 rounded-[14px] bg-surface p-6 shadow-card">
+      <section className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
         <h2 className="text-lg font-bold text-ink">Reviews</h2>
         <form method="get" className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">

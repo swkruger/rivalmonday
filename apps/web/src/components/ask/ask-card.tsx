@@ -23,7 +23,7 @@ export async function AskCard({ clientId, ctx }: { clientId: string; ctx: Access
     assistantNameFor(dbs().service, ctx.agencyId),
   ]);
   return (
-    <section aria-label={`Ask ${assistantName}`} className="min-w-0 rounded-[14px] bg-surface p-6 shadow-card">
+    <section aria-label={`Ask ${assistantName}`} className="min-w-0 rounded-md border border-line bg-surface p-6">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-semibold">{`Ask ${assistantName}`}</h2>
         <Link href={`/c/${clientId}/ask`} className="font-semibold text-primary-soft-text">

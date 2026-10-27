@@ -71,7 +71,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
           { label: 'URL articles', tip: 'platform.knowledge.sync' },
         ]}
       />
-      <form method="get" className="grid gap-2 rounded-[14px] bg-surface p-4 shadow-card md:grid-cols-6">
+      <form method="get" className="grid gap-2 rounded-md border border-line bg-surface p-4 md:grid-cols-6">
         <select name="level" aria-label="Level" defaultValue={sp.level ?? ''} className={selectClass}><option value="">All levels</option>{KB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_OPTION[l]}</option>)}</select>
         <select name="agencyId" aria-label="Agency" defaultValue={sp.agencyId ?? ''} className={selectClass}><option value="">All agencies</option>{targets.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
         <select name="clientId" aria-label="Client" defaultValue={sp.clientId ?? ''} className={selectClass}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>

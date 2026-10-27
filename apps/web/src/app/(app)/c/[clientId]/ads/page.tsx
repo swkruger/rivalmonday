@@ -60,7 +60,7 @@ export default async function AdsPage({ params, searchParams }: {
         guide={guides.has(HELP_KEY)}
       />
 
-      <div className="rounded-[14px] bg-surface p-6 shadow-card">
+      <div className="rounded-md border border-line bg-surface p-6">
         <div className="mb-2 flex items-center gap-1.5">
           <h2 className="text-lg font-bold text-ink">Active ads per week</h2>
           <HelpTip tip="client.ads.adsPerWeek" />
@@ -73,7 +73,7 @@ export default async function AdsPage({ params, searchParams }: {
         />
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-[14px] bg-surface p-4 shadow-card">
+      <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-semibold text-ink">Competitor</span>
           <select name="competitor" defaultValue={competitorId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">

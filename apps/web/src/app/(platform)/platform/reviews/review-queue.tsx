@@ -26,7 +26,7 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
       {total > 0 && <h2 className="text-lg font-semibold">Waiting for review ({total})</h2>}
       {items.length === 0 && (offPage ? <OffPageNotice firstHref="/platform/reviews" /> : <HelpEmpty id="platform.reviews.queue" guideAnchor="what-this-page-tells-you" />)}
       {items.map((item) => (
-        <form key={item.id} action={formAction} className="flex flex-col gap-4 rounded-[14px] bg-surface p-6 shadow-card">
+        <form key={item.id} action={formAction} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
           <input type="hidden" name="reviewId" value={item.id} />
           <div className="text-sm text-muted-ink">{item.competitorName} · {item.sourceText} · {item.kindText} · {item.age}</div>
           <div className="grid gap-3 md:grid-cols-2">
