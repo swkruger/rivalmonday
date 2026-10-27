@@ -21,8 +21,8 @@ const GUIDES = join(ROOT, 'docs', 'help', 'pages');
 
 type Audience = 'agency' | 'client' | 'operator';
 
-/** Help/KB hubs that list guides rather than being one, and the public sign-up pages (logged out: no guide drawer to open). */
-const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]', '/sign-up', '/join/[token]'];
+/** Help/KB hubs that list guides rather than being one, and the public sign-up and intake pages (logged out: no guide drawer to open). */
+const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]', '/sign-up', '/join/[token]', '/start', '/start/verify', '/start/v/[leadId]'];
 /** `/c/[clientId]` pages that 404 client roles (agency guide only) or agency staff (client guide only); one source, `./reach`. */
 const AGENCY_ONLY_CLIENT_PAGES: readonly string[] = AGENCY_ONLY_CLIENT_ROUTES;
 const CLIENT_ONLY_CLIENT_PAGES: readonly string[] = CLIENT_ONLY_CLIENT_ROUTES;
@@ -42,6 +42,8 @@ const DELEGATED_HEADERS: { file: string; route: string; keys?: string[] }[] = [
   // 16: Add a client / Add a prospect are steps 1-2 of the client flow (the prospect page guide key is read from the same files); the setup's screens 3-7 each draw their own shell.
   ...['details-step', 'find-step'].map((f) => ({ file: join(APP, '(onboarding)', 'agency', 'clients', 'new', `${f}.tsx`), route: '/agency/clients/new' })),
   ...['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step'].map((f) => ({ file: join(APP, '(onboarding)', 'c', '[clientId]', 'setup', 'steps', `${f}.tsx`), route: '/c/[clientId]/setup' })),
+  // 16 §8: the public intake (`/start`, `/start/[slug]`) draws its three screens in one client component; intake has no help key.
+  { file: join(APP, 'start', 'intake-form.tsx'), route: '/start' },
   // 16 §7: the owner's pick reuses the staff competitors step with its own help key (the step names it in `OWNER_KEY`, which `keysIn` does not read).
   { file: join(APP, '(onboarding)', 'c', '[clientId]', 'setup', 'steps', 'competitors-step.tsx'), route: '/c/[clientId]/setup/competitors', keys: ['page:client.setup.competitors'] },
 ];

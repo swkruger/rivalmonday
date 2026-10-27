@@ -69,20 +69,23 @@ test.describe.serial('client intake and leads', () => {
       const page = await context.newPage();
       const visitor = 'visitor-one@e2e.test';
       await page.goto(`/start/${IN_SLUG}`);
-      await expect(page.getByRole('heading', { name: 'Get your free competitor snapshot' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'See how you compare with nearby rivals' })).toBeVisible();
       await expect(page.locator('body')).not.toContainText(/rival\s*monday/i);
       await page.getByLabel('Business name').fill('Granbury dentist');
-      await page.getByLabel('City and state, or ZIP').fill('Granbury, TX');
-      await page.getByRole('button', { name: 'Find my business' }).click();
+      await page.getByLabel('City or ZIP').fill('Granbury, TX');
+      await page.getByRole('button', { name: 'Search' }).click();
       const card = page.getByRole('button', { name: /Granbury Park Dental/ });
       await expect(card).toContainText('Owner-verified');
       await card.click();
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await expect(page.getByRole('heading', { name: 'Where should we send it?' })).toBeVisible();
       await page.getByLabel('Your name').fill('Vera Visitor');
-      await page.getByLabel('Email', { exact: true }).fill(visitor);
+      await page.getByLabel(/^Email/).fill(visitor);
       await page.getByLabel('I agree to be contacted about my request.').check();
       const before = await outboxSnapshot();
       await page.getByRole('button', { name: 'Get my free snapshot' }).click();
-      await expect(page.getByRole('status').filter({ hasText: 'Check your email' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Your snapshot link is on its way' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /^Resend/ })).toBeDisabled();
 
       const mail = await waitForMail(before, visitor);
       expect(mail.from).toContain(SI_AGENCY);
@@ -121,7 +124,7 @@ test.describe.serial('client intake and leads', () => {
       await expect(page).toHaveURL(/\/start\/verify$/);
       await expect(page.getByRole('heading', { name: 'This link has expired.' })).toBeVisible();
       await page.goto('/start');
-      await expect(page.getByRole('heading', { name: 'Get your free competitor snapshot' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'See how you compare with nearby rivals' })).toBeVisible();
     } finally {
       await context.close();
     }
@@ -137,7 +140,7 @@ test.describe.serial('client intake and leads', () => {
       await expect(page).toHaveURL(/\/agency\/settings\/intake\/preview$/);
       await expect(page.getByRole('heading', { level: 1, name: 'Intake preview' })).toBeVisible();
       await expect(page.getByText('Preview — this is what visitors see')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Find my business' })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Search' })).toBeDisabled();
       await expect(page.getByRole('button', { name: 'Get my free snapshot' })).toBeDisabled();
     } finally {
       await context.close();

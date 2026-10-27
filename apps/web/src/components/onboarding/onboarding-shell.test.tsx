@@ -35,6 +35,13 @@ describe('OnboardingShell (16 L7)', () => {
     expect(screen.getByRole('main')).toBeTruthy();
   });
 
+  it('wide drops the preview panel and the 440px form cap', () => {
+    render(<OnboardingShell brand={{ kind: 'neutral' }} title="T" wide preview={<p>nope</p>}>body</OnboardingShell>);
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.queryByText('nope')).toBeNull();
+    expect(screen.getByText('body').className).not.toContain('max-w-[440px]');
+  });
+
   it('renders agency logo when brand.kind=agency (and name, wordmark, nothing for the others)', () => {
     const { container, rerender } = render(<OnboardingShell brand={{ kind: 'agency', name: 'Acme', logoUrl: 'https://cdn.example.com/a.png', style: { '--primary': '#aa0000' } as React.CSSProperties }} title="T">x</OnboardingShell>);
     expect(screen.getByRole('img', { name: 'Acme' }).getAttribute('src')).toBe('https://cdn.example.com/a.png');

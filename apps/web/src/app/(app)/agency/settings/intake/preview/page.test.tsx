@@ -38,9 +38,9 @@ describe('/agency/settings/intake/preview', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Intake preview' })).toBeTruthy();
     // The embedded landing heading steps down so the page keeps one h1 (PageHeader's).
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole('heading', { level: 2, name: 'Get your free competitor snapshot' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'See how you compare with nearby rivals' })).toBeTruthy();
     expect(screen.getByText('Preview — this is what visitors see')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Find my business' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Search' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Get my free snapshot' }) as HTMLButtonElement).disabled).toBe(true);
     expect(container.querySelector('.cf-turnstile')).toBeNull();
     expect(screen.queryByText(/Link is off/)).toBeNull();

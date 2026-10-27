@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { dbs } from '@/server/db';
 import { agencyBrand, type IntakeBrand, NOINDEX, platformBrand } from '../../brand';
-import { IntakeShell, Panel } from '../../shell';
+import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
 import { PreviewPoller } from './poller';
 import { formatMiles } from '@/lib/format';
 
@@ -29,6 +29,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   return { title: name ? `Your competitor snapshot · ${name}` : 'Not found', robots: NOINDEX, referrer: 'no-referrer' };
 }
 
+const shellBrand = (b: IntakeBrand): OnboardingBrand =>
+  b.kind === 'agency' ? { kind: 'agency', name: b.displayName, logoUrl: b.logoUrl, style: b.style as React.CSSProperties } : { kind: b.kind };
+
+/** A flat section for the wide snapshot page: a hairline frame, no shadow (design system: shadows only on floating layers). */
+const Panel = ({ children }: { children: React.ReactNode }) => <section className="flex flex-col gap-3 rounded-xl border border-line p-5">{children}</section>;
+
 const rating = (r: number | null) => (r === null ? '—' : `${r} ★`);
 const count = (n: number | null) => (n === null ? '—' : new Intl.NumberFormat('en-US').format(n));
 
@@ -39,10 +45,9 @@ export default async function PreviewPage({ params, searchParams }: Props) {
   const brand = brandOf(r);
   const agencyName = brand.kind === 'agency' ? brand.displayName : null;
   return (
-    <IntakeShell brand={brand} wide>
-      <h1 className="text-2xl font-bold">{r.businessName ? `Your competitor snapshot for ${r.businessName}` : 'Your competitor snapshot'}</h1>
+    <OnboardingShell brand={shellBrand(brand)} title={r.businessName ? `Your competitor snapshot for ${r.businessName}` : 'Your competitor snapshot'} wide>
       <Body preview={r.preview} agencyName={agencyName} />
-    </IntakeShell>
+    </OnboardingShell>
   );
 }
 

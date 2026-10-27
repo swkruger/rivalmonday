@@ -20,10 +20,12 @@ export interface OnboardingShellProps {
   /** Replaces the `exit` link with a control of its own (the client setup's "Save and exit" menu). */
   exitSlot?: React.ReactNode;
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   helpKey?: string;
   /** As `PageHeader`'s `guide`: a guide exists for this viewer (`helpGuides(...).has(helpKey)`). Without it no button shows. */
   guide?: boolean;
+  /** One centred column, no preview panel: for wide content (the intake snapshot) and message pages. */
+  wide?: boolean;
   preview?: React.ReactNode;
   caption?: React.ReactNode;
   footer?: React.ReactNode;
@@ -35,11 +37,11 @@ export interface OnboardingShellProps {
  * footer); right canvas panel with one floating preview and a caption, hidden below 1024px (the left column then centres
  * at 560px). `logoUrl` is only ever `https` or `null` (`resolveBranding`). Agency brand: `style` carries the theme vars.
  */
-export function OnboardingShell({ brand, step, label, exit, exitSlot, title, subtitle, helpKey, guide, preview, caption, footer, children }: OnboardingShellProps) {
+export function OnboardingShell({ brand, step, label, exit, exitSlot, title, subtitle, helpKey, guide, wide, preview, caption, footer, children }: OnboardingShellProps) {
   const showGuide = Boolean(helpKey && guide);
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[640px_1fr]" style={brand.kind === 'agency' ? brand.style : undefined}>
-      <main className="mx-auto flex w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16">
+    <div className={`grid min-h-screen bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
+      <main className={wide ? 'mx-auto flex w-full max-w-[760px] flex-col px-6 pb-12 pt-9' : 'mx-auto flex w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16'}>
         <div className="flex items-center justify-between gap-4">
           {brand.kind === 'platform' ? (
             <Wordmark className="text-xl font-semibold" />
@@ -59,13 +61,13 @@ export function OnboardingShell({ brand, step, label, exit, exitSlot, title, sub
         {step ? <div className="mt-14"><StepProgress {...step} /></div> : label && <p className="mt-14 text-[13px] font-medium text-muted-ink">{label}</p>}
         <h1 className={`text-[30px] font-semibold leading-[1.2] tracking-[-0.015em] ${step ? 'mt-9' : label ? 'mt-5' : 'mt-14'}`}>{title}</h1>
         {subtitle && <p className="mt-2.5 max-w-[460px] text-[15px] leading-normal text-muted-ink">{subtitle}</p>}
-        <div className="mt-8 flex max-w-[440px] flex-col gap-5">{children}</div>
+        <div className={`mt-8 flex flex-col gap-5 ${wide ? '' : 'max-w-[440px]'}`}>{children}</div>
         {footer}
       </main>
-      <aside aria-label="Preview" className="relative hidden items-center justify-center border-l border-line bg-canvas lg:flex">
+      {!wide && <aside aria-label="Preview" className="relative hidden items-center justify-center border-l border-line bg-canvas lg:flex">
         {preview}
         {caption && <p className="absolute inset-x-14 bottom-10 text-center text-[13px] text-muted-ink">{caption}</p>}
-      </aside>
+      </aside>}
     </div>
   );
 }

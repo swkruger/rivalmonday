@@ -43,10 +43,11 @@ beforeEach(() => {
 describe('/start (platform)', () => {
   it('shows Rival Monday, the L4 line and the form; noindex', async () => {
     const { container } = render(await PlatformPage({ searchParams: sp({ ref: 'spring' }) }));
-    expect(screen.getByRole('heading', { name: 'Get your free competitor snapshot' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'See how you compare with nearby rivals' })).toBeTruthy();
     expect(screen.getByText("We'll match you with a local marketing partner.")).toBeTruthy();
     expect(container.querySelector('[data-part="rival"]')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Find my business' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
+    expect(screen.getByText('Step 1 of 3 · Find your business')).toBeTruthy();
     expect(platformMeta.robots).toEqual({ index: false, follow: false });
   });
 });
@@ -60,9 +61,10 @@ describe('/start/<slug>', () => {
     expect(m.intake).not.toHaveBeenCalled();
   });
 
-  it('agency branding only: never names Rival Monday, no L4 line; title names the agency', async () => {
+  it('slug page shows agency brand: never names Rival Monday, no L4 line; title names the agency', async () => {
     const { container } = render(await AgencyPage({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() }));
     expect(screen.getByText('Smith Marketing')).toBeTruthy();
+    expect((container.firstElementChild as HTMLElement).style.getPropertyValue('--primary')).toBe('#123456');
     expect(container.textContent).not.toMatch(/rival\s*monday|rivalmonday/i);
     expect(container.querySelector('[data-part="rival"]')).toBeNull();
     expect(screen.queryByText("We'll match you with a local marketing partner.")).toBeNull();
@@ -75,7 +77,7 @@ describe('/start/<slug>', () => {
 describe('/start/verify (expired)', () => {
   it('links back to the platform page, the agency page, or nowhere', async () => {
     let r = render(await ExpiredPage({ searchParams: sp() }));
-    expect(screen.getByText('This link has expired.')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'This link has expired.' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Start again.' }).getAttribute('href')).toBe('/start');
     r.unmount();
     r = render(await ExpiredPage({ searchParams: sp({ from: 'smith-co' }) }));
@@ -157,20 +159,21 @@ describe('intake form lookup field', () => {
     const place = { placeId: 'p1', cid: null, title: 'Smith Dental', address: null, city: null, category: 'Dentist', phone: '555', domain: 'x.com', rating: 4.5, votes: 10, lat: 1, lng: 2 };
     vi.mocked(lookupBusinessAction).mockResolvedValue({ ok: true, places: [{ place, exp: 123, sig: 'abc', isClaimed: true, possibleDuplicate: true }] } as never);
     const { container } = render(await PlatformPage({ searchParams: sp() }));
-    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Smith' } });
-    fireEvent.change(screen.getByLabelText('City and state, or ZIP'), { target: { value: 'Austin' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Find my business' }));
+    fireEvent.change(screen.getByLabelText(/^Business name/), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByLabelText(/^City or ZIP/), { target: { value: 'Austin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     fireEvent.click(await screen.findByRole('button', { name: /Smith Dental/ }));
+    expect(screen.getByText('Owner-verified')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     const hidden = container.querySelector('input[name="lookup"]') as HTMLInputElement;
     expect(Object.keys(JSON.parse(hidden.value)).sort()).toEqual(['exp', 'place', 'sig']);
-    expect(screen.getByText('Owner-verified')).toBeTruthy();
   });
 });
 
 describe('IntakeLanding preview', () => {
   it('preview disables submit and renders no Turnstile', () => {
     const { container } = render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey="site" preview />);
-    for (const name of ['Find my business', 'Get my free snapshot']) {
+    for (const name of ['Search', 'Get my free snapshot']) {
       const b = screen.getByRole('button', { name });
       expect((b as HTMLButtonElement).disabled).toBe(true);
       expect(b.getAttribute('aria-disabled')).toBe('true');
@@ -185,11 +188,13 @@ describe('IntakeLanding preview', () => {
     const place = { placeId: 'p2', cid: null, title: 'Smith Dental', address: null, city: null, category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 1, lng: 2 };
     vi.mocked(lookupBusinessAction).mockResolvedValue({ ok: true, places: [{ place, exp: 1, sig: 's', isClaimed: false, possibleDuplicate: false }] } as never);
     render(<IntakeLanding brand={{ kind: 'platform', displayName: 'Rival Monday', logoUrl: null, style: {} }} slug={null} refCode={null} siteKey={null} />);
-    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Smith' } });
-    fireEvent.change(screen.getByLabelText('City and state, or ZIP'), { target: { value: 'Austin' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Find my business' }));
+    fireEvent.change(screen.getByLabelText(/^Business name/), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByLabelText(/^City or ZIP/), { target: { value: 'Austin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     fireEvent.click(await screen.findByRole('button', { name: /Smith Dental/ }));
-    const h = screen.getByRole('heading', { name: 'Your details' });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const h = screen.getByRole('heading', { level: 1, name: 'Where should we send it?' });
+    expect(screen.getByText('Step 2 of 3 · Your details')).toBeTruthy();
     expect(document.activeElement).toBe(h);
     expect(screen.getByRole('link', { name: 'Privacy policy' }).getAttribute('href')).toBe('https://rivalmonday.app/privacy');
   });
@@ -199,9 +204,52 @@ describe('IntakeLanding preview', () => {
     expect(screen.queryByRole('link', { name: 'Privacy policy' })).toBeNull();
   });
 
+  const pickAndContinue = async (placeId: string) => {
+    const { lookupBusinessAction } = await import('./actions');
+    const place = { placeId, cid: null, title: 'Smith Dental', address: null, city: null, category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 1, lng: 2 };
+    vi.mocked(lookupBusinessAction).mockResolvedValue({ ok: true, places: [{ place, exp: 1, sig: 's', isClaimed: false, possibleDuplicate: false }] } as never);
+    fireEvent.change(screen.getByLabelText(/^Business name/), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByLabelText(/^City or ZIP/), { target: { value: 'Austin' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Smith Dental/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.change(screen.getByLabelText(/^Your name/), { target: { value: 'Vera' } });
+    fireEvent.change(screen.getByLabelText(/^Email/), { target: { value: 'vera@example.com' } });
+  };
+
+  it('step 2 requires consent: the checkbox is required and an unticked submit never reaches the action', async () => {
+    const { submitIntakeAction } = await import('./actions');
+    vi.mocked(submitIntakeAction).mockClear();
+    render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey={null} />);
+    expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(true);
+    await pickAndContinue('p3');
+    const consent = screen.getByRole('checkbox', { name: /I agree to be contacted about my request/ }) as HTMLInputElement;
+    expect(consent.required).toBe(true);
+    expect(consent.checked).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Get my free snapshot' }));
+    expect(submitIntakeAction).not.toHaveBeenCalled();
+    expect(screen.queryByText('Your snapshot link is on its way')).toBeNull();
+  });
+
+  it('step 3 shows the email, the image and a 60 s resend cooldown; Wrong email goes back to step 2', async () => {
+    const { submitIntakeAction } = await import('./actions');
+    vi.mocked(submitIntakeAction).mockResolvedValue({ error: null, done: true });
+    render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey={null} />);
+    await pickAndContinue('p4');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I agree to be contacted about my request/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get my free snapshot' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Your snapshot link is on its way' })).toBeTruthy();
+    expect(screen.getByText('vera@example.com')).toBeTruthy();
+    expect(screen.getByText('Step 3 of 3 · Check your email')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'An open envelope with a card rising out of it and a few small sparkles.' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: /^Resend in \d+ s$/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Wrong email? Go back' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Where should we send it?' })).toBeTruthy();
+  });
+
   it('without preview the contact stage waits for a picked business and Turnstile is untouched', () => {
     render(<IntakeLanding brand={agencyBrand(agencyB)} slug="smith-co" refCode={null} siteKey="site" />);
     expect(screen.queryByRole('button', { name: 'Get my free snapshot' })).toBeNull();
-    expect((screen.getByRole('button', { name: 'Find my business' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Search' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
