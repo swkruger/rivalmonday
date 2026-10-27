@@ -13,6 +13,7 @@ export * from './components/field';
 export * from './components/friday-badge';
 export * from './components/input';
 export * from './components/kpi-strip';
+export * from './components/hairline-grid';
 export * from './components/label';
 export * from './components/popover';
 export * from './components/save-bar';

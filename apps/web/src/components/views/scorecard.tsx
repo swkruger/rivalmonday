@@ -1,5 +1,6 @@
 import type { ScorecardModel } from '@cs/email';
-import { StatCard } from '@/components/stat-card';
+import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatStrip } from '@/components/stat-strip';
 import { TierChip } from '@/components/rival/tier-chip';
 
 /** "▲ 4 since your starting point" → glyph + spoken label + plain text, so colour never carries the meaning alone. */
@@ -13,26 +14,22 @@ function pillOf(t: ScorecardModel['tiles'][number]) {
 export function Scorecard({ model }: { model: ScorecardModel }) {
   return (
     <section className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {model.tiles.map((t) => (
-          <StatCard key={t.label} title={t.label} value={t.value} hint={t.sub} pill={pillOf(t)} />
-        ))}
-      </div>
-      <div className="overflow-x-auto rounded-[10px] bg-muted-surface">
-        <table className="w-full min-w-[34rem] text-sm">
+      <StatStrip items={model.tiles.map((t) => ({ title: t.label, value: t.value, hint: t.sub, pill: pillOf(t) }))} />
+      <TableFrame>
+        <Table density="compact">
           <caption className="sr-only">Scorecard: you against the rivals we watch</caption>
-          <thead>
-            <tr className="text-left text-xs font-semibold text-muted-foreground">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
               {model.table.headers.map((h, i) => (
-                <th key={h} scope="col" className={`px-3 py-2 ${i === 0 ? '' : 'text-right'}`}>{h}</th>
+                <TableHead key={h} scope="col" numeric={i !== 0}>{h}</TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {model.table.rows.map((r, ri) => (
-              <tr key={ri} className={r.self ? 'bg-primary-soft font-bold' : ''}>
+              <TableRow key={ri} className={r.self ? 'bg-primary-soft font-semibold' : ''}>
                 {r.cells.map((c, i) => (
-                  <td key={i} className={`px-3 py-2 ${i === 0 ? '' : 'text-right tabular-nums'}`}>
+                  <TableCell key={i} numeric={i !== 0}>
                     {i === 0 ? (
                       <span className="flex flex-wrap items-center gap-2">
                         {c}
@@ -41,13 +38,13 @@ export function Scorecard({ model }: { model: ScorecardModel }) {
                     ) : (
                       c
                     )}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableFrame>
     </section>
   );
 }

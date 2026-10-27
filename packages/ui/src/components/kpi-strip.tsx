@@ -71,16 +71,22 @@ export interface KpiProps {
   value: React.ReactNode
   delta?: KpiDelta
   href?: string
+  badge?: React.ReactNode
+  caption?: React.ReactNode
 }
 
-function Kpi({ label, value, delta, href, linkAs: LinkAs = "a" }: KpiProps) {
+function Kpi({ label, value, delta, href, badge, caption, linkAs: LinkAs = "a" }: KpiProps) {
   const body = (
     <>
       <div className="text-13 text-muted-ink">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tracking-[-0.01em] text-ink tabular-nums">
-        {value}
+      <div className="mt-1 flex flex-wrap items-baseline gap-2">
+        <span className="text-2xl font-semibold tracking-[-0.01em] text-ink tabular-nums">
+          {value}
+        </span>
+        {badge}
       </div>
       {delta ? <KpiDeltaPill delta={delta} /> : null}
+      {caption ? <div className="mt-1 text-xs text-muted-ink">{caption}</div> : null}
     </>
   )
   const cell =
