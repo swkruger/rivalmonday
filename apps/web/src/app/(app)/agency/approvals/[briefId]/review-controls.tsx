@@ -171,7 +171,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last, ref
     <Card
       id={`item-${item.id}`}
       role="article"
-      className={`gap-1.5 border-l-4 p-4 ${confidenceLabel(item.confidence).high ? 'border-l-amber' : 'border-l-primary'} ${dropped ? 'opacity-60' : ''}`}
+      className={`gap-1.5 p-4 ${dropped ? 'opacity-60' : ''}`}
     >
       <h3 className="text-base font-semibold text-ink">{item.headline}</h3>
       <p>

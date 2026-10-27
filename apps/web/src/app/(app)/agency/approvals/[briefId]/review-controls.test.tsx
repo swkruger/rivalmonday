@@ -40,7 +40,7 @@ describe('approval review controls', () => {
     expect(screen.getByRole('link', { name: 'Evidence 2' })).toBeTruthy();
   });
 
-  it('words the confidence next to the amber border', () => {
+  it('words the confidence as text', () => {
     const { rerender } = render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last />);
     expect(screen.getByText('High confidence 90%')).toBeTruthy();
     rerender(<ReviewItem briefId="b1" clientId="c1" item={{ ...item, confidence: 0.6 }} editable first last />);
