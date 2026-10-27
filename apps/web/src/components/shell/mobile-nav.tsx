@@ -46,7 +46,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
       </SheetTrigger>
       <SheetContent side="left" aria-describedby={undefined} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false); }}>
         <SheetTitle className="sr-only">Menu</SheetTitle>
-        <div className="px-2.5 pb-[18px]">
+        <div className="flex h-12 items-center px-2">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt={displayName} className="h-8 w-auto" />

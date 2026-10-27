@@ -31,7 +31,7 @@ const clearCookie = () => { document.cookie = 'rm_nav_ctx=; path=/; max-age=0'; 
 const navCookie = () => document.cookie.split('; ').find((c) => c.startsWith('rm_nav_ctx='))?.slice('rm_nav_ctx='.length) ?? null;
 
 function activeHrefOf(): string | null {
-  const active = screen.queryAllByRole('link').find((link) => link.className.includes('bg-primary-soft'));
+  const active = screen.queryAllByRole('link').find((link) => link.getAttribute('aria-current') === 'page');
   return active?.getAttribute('href') ?? null;
 }
 const linkNames = (el?: HTMLElement) => (el ? within(el).getAllByRole('link') : screen.getAllByRole('link')).map((l) => l.textContent);
@@ -145,7 +145,13 @@ describe('SidebarNav badges', () => {
   it('shows the New-leads count on Leads (from counts) and nothing when there are none', () => {
     pathname = '/agency';
     const { unmount } = render(<Nav flags={{ ...agencyAdmin, leads: true }} counts={{ leads: 3 }} />);
-    expect(screen.getByRole('link', { name: /Leads/ }).textContent).toBe('Leads3');
+    const leads = screen.getByRole('link', { name: /Leads/ });
+    expect(leads.textContent).toBe('Leads3');
+    const count = leads.querySelector('[data-slot="nav-count"]')!;
+    expect(count.getAttribute('aria-label')).toBe('3 new');
+    expect(screen.getByLabelText('3 new')).toBe(count);
+    expect(count.className).not.toContain('bg-amber');
+    expect(leads.getAttribute('data-slot')).toBe('nav-item');
     unmount();
     render(<Nav flags={{ ...agencyAdmin, leads: true }} />);
     expect(screen.getByRole('link', { name: 'Leads' }).textContent).toBe('Leads');
@@ -160,7 +166,11 @@ describe('SidebarNav sections (Task 4)', () => {
     render(<Nav flags={operator} zone="platform" />);
     expect(linkNames()).toEqual(['Overview', 'Agencies', 'Lead pool', 'Billing & plans', 'Model reviews', 'Topic proposals', 'Ask reviews', 'Knowledge', 'Business types', 'Runbook']);
     expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Customers', 'Revenue', 'Quality', 'Content']);
-    expect(screen.getByText('Customers').className).toContain('uppercase');
+    const label = screen.getByText('Customers');
+    const group = screen.getByRole('group', { name: 'Customers' });
+    expect(label.closest('a')).toBeNull();
+    expect(group.firstElementChild).toBe(label);
+    expect(label.className).not.toContain('uppercase');
     expect(activeHrefOf()).toBe('/platform/agencies');
   });
 

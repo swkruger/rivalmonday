@@ -14,29 +14,30 @@ const ICONS = {
   platform: Globe, agencies: Network, health: HeartPulse, costs: Coins, platformAccess: ShieldCheck, billing: CreditCard, leads: UserPlus, intake: Link2, briefs: FileText, settings: Settings, catalogue: Layers,
 } as const satisfies Record<IconKey, unknown>;
 
-function NavLink({ item, current }: { item: NavItem; current: boolean }) {
+/** D-04 item grammar (09 § 5.1). Exported so the drill-in settings nav reuses the same classes. */
+export const NAV_ITEM_CLASS = 'flex h-8 items-center gap-2.5 rounded-sm px-2 text-13 font-medium text-ink-secondary hover:bg-muted-surface';
+export const NAV_ITEM_CURRENT_CLASS = 'bg-primary-soft font-semibold text-primary-soft-text hover:bg-primary-soft';
+
+export function NavLink({ item, current }: { item: NavItem; current: boolean }) {
   const Icon = ICONS[item.icon];
   return (
     <Link
       href={item.href}
+      data-slot="nav-item"
       aria-current={current ? 'page' : undefined}
-      className={
-        current
-          ? 'relative flex items-center gap-2.5 rounded-lg bg-primary-soft px-3 py-2 text-sm font-semibold text-primary-soft-text before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-primary'
-          : 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink/70 transition-colors hover:bg-muted-surface hover:text-ink'
-      }
+      className={current ? `${NAV_ITEM_CLASS} ${NAV_ITEM_CURRENT_CLASS}` : NAV_ITEM_CLASS}
     >
-      <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={1.9} />
+      <Icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
       {item.pill ? (
         <span className="flex min-w-0 items-center gap-1.5">
           <span>{item.label.slice(0, item.label.length - item.pill.length).trimEnd()}</span>{' '}
-          <span className="truncate rounded-full bg-amber px-2 py-px text-xs font-bold text-amber-text">{item.pill}</span>
+          <span className="truncate rounded-full bg-amber px-2 py-px text-xs font-semibold text-amber-text">{item.pill}</span>
         </span>
       ) : (
         <span className="truncate">{item.label}</span>
       )}
       {item.count ? (
-        <span aria-label={`${item.count} new`} className="ml-auto rounded-full bg-amber px-2 py-px text-xs font-bold text-amber-text">
+        <span data-slot="nav-count" aria-label={`${item.count} new`} className="ml-auto text-xs font-medium text-muted-ink">
           {item.count}
         </span>
       ) : null}
@@ -44,8 +45,8 @@ function NavLink({ item, current }: { item: NavItem; current: boolean }) {
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-ink">{children}</div>;
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="px-2 pb-1 text-xs font-medium text-muted-ink">{children}</div>;
 }
 
 /** 30 days, path `/`, SameSite=Lax (spec §2.1); the value is `platform`, `agency` or `client:<uuid>` — no secrets. */
@@ -70,7 +71,7 @@ export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: 
   return (
     <nav className="flex flex-1 flex-col gap-5">
       {sections.map((s) => {
-        const className = `flex flex-col gap-0.5${s.placement === 'foot' ? ' mt-auto border-t border-border pt-4' : ''}`;
+        const className = `flex flex-col gap-0.5${s.placement === 'foot' ? ' mt-auto border-t border-line pt-4' : ''}`;
         const links = s.items.map((item) => <NavLink key={item.href} item={item} current={item.href === current} />);
         // Only a labelled section is a named group; an unnamed `role="group"` is noise for screen readers.
         return s.label ? (
