@@ -62,7 +62,7 @@ test.describe('as a client user', () => {
     // `?q=` is sent once; the page then follows the new thread.
     await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/ask/[0-9a-f-]{36}$`));
     await expect(page.getByText(starters[0]!, { exact: true }).last()).toBeVisible();
-    const chip = page.getByRole('link', { name: 'Evidence 1', exact: true });
+    const chip = page.getByRole('link', { name: /^Evidence 1\b/ });
     await expect(chip).toBeVisible();
     await expect(page.getByText(DISCLOSURE, { exact: true })).toBeVisible();
 
@@ -167,7 +167,7 @@ test.describe('as a client user', () => {
     await page.goto(`/c/${askCo.id}/ask`);
     const url = `https://smithhvac.example/pricing/${'a1b2c3d4'.repeat(30)}`;
     await ask(page, `What changed on ${url}`);
-    await expect(page.getByRole('link', { name: 'Evidence 1', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Evidence 1\b/ })).toBeVisible();
     await expect(page.getByText(url, { exact: false }).first()).toBeVisible();
     const fits = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
     expect(fits).toBe(true);

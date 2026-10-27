@@ -19,7 +19,7 @@ vi.mock('next/navigation', () => ({
     throw new Error('NEXT_NOT_FOUND');
   },
 }));
-vi.mock('./actions', () => ({ confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn() }));
+vi.mock('./actions', () => ({ askEvidenceRefs: vi.fn(), confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn() }));
 vi.mock('@/components/ask/ask-chat', () => ({ AskChat: () => null }));
 vi.mock('@/components/ask/thread-list', () => ({ ThreadDrawer: () => null, ThreadList: () => null }));
 const { default: AskPagePage } = await import('./page');

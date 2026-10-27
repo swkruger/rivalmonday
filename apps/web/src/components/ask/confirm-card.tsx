@@ -39,7 +39,7 @@ export function ConfirmCard({ messageId, action, confirmAction }: { messageId: s
     });
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-3">
+    <div data-slot="ask-confirm" className="rounded-md border border-line bg-surface p-3">
       <p className="font-semibold">{action.summary}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" disabled={pending} onClick={() => decide('confirm')}>

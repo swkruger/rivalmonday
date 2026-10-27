@@ -167,7 +167,7 @@ describe('white-label leak guard (15a §2.10)', () => {
   });
 
   it('the Ask review disclosure: the white-label service name, else "our support team" (fix round 1)', () => {
-    const chat = { clientId: C, threadId: null, assistantName: 'Sunny', starters: [], reviewAllowed: true, messages: [], confirmAction: vi.fn(), saveAction: vi.fn() };
+    const chat = { clientId: C, threadId: null, assistantName: 'Sunny', starters: [], reviewAllowed: true, messages: [], confirmAction: vi.fn(), saveAction: vi.fn(), refs: {}, scopeLabel: 'Acme', refsAction: vi.fn() };
     expect(grab(<AskChat {...chat} productName={WHITE_LABEL.displayName} />)).toContain('Conversations may be reviewed by Cool Comfort to improve answers.');
     const neutral = grab(<AskChat {...chat} productName={null} />);
     expect(neutral).toContain('Conversations may be reviewed by our support team to improve answers.');

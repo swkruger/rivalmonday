@@ -1,6 +1,7 @@
 import { type AccessContext, hasChannel } from '@cs/core';
 import { displayNameFor } from '@cs/mcp';
 import type { AskThreadSummary, AskThreadView, ClientProfile } from '@cs/tools';
+import { Band, Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AskChat } from '@/components/ask/ask-chat';
@@ -13,9 +14,10 @@ import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { assistantNameForRequest } from '@/server/ask';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
+import { evidenceRefsFor } from '@/server/evidence-refs';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
-import { confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from './actions';
+import { askEvidenceRefs, confirmAskAction, deleteAskThreadAction, saveAskRecommendation } from './actions';
 
 /** Both Ask pages share one help key per page (the PageHeader renders here, not in the route files). */
 const helpKeyFor = (threadId: string | null) => (threadId ? 'client.ask.thread' : 'client.ask');
@@ -56,6 +58,8 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   ]);
   if (thread && thread.clientId !== clientId) notFound();
   const [assistantName, productName] = await Promise.all([assistantNameForRequest(ctx.agencyId), displayNameFor(dbs().service, ctx.agencyId)]);
+  const evIds = (thread?.messages ?? []).filter((m) => m.role === 'assistant').flatMap((m) => m.citations.filter((c) => c.startsWith('ev:')).map((c) => c.slice(3)));
+  const refs = await evidenceRefsFor(ctx, clientId, evIds, profile.timezone);
   const list = { clientId, threads: threads.items, activeId: thread?.id ?? null, deleteAction: deleteAskThreadAction };
   const askTitle = `Ask ${assistantName}`;
   const client = { id: clientId, name: profile.name };
@@ -72,9 +76,11 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
       />
       <TipRow items={[...tipsFor(threadId)]} />
       <div className="flex items-start gap-5">
-        <aside className="hidden w-64 flex-shrink-0 rounded-md border border-line bg-surface p-3 lg:sticky lg:top-6 lg:block">
-          <ThreadList {...list} />
-        </aside>
+        <div className="hidden w-64 flex-shrink-0 lg:sticky lg:top-6 lg:block">
+          <Section className="border-r border-line pr-5">
+            <ThreadList {...list} />
+          </Section>
+        </div>
         <AskChat
           key={thread?.id ?? 'new'}
           clientId={clientId}
@@ -86,6 +92,9 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
           starters={starters.questions}
           confirmAction={confirmAskAction}
           saveAction={saveAskRecommendation}
+          refs={refs}
+          scopeLabel={profile.name}
+          refsAction={askEvidenceRefs}
           {...(initialQuestion ? { initialQuestion } : {})}
           {...(autoSend ? { autoSend } : {})}
           {...(seedEvidenceId ? { seedEvidenceId } : {})}
@@ -118,7 +127,9 @@ async function supportAskView(clientId: string, threadId: string | null, ctx: Ac
         helpKey={`page:${helpKeyFor(threadId)}`}
         guide={guides.has(`page:${helpKeyFor(threadId)}`)}
       />
-      <p className="rounded-md border border-line bg-surface p-6 text-muted-ink">{ASK_PRIVATE_COPY}</p>
+      <Band tone="muted">
+        <p className="text-muted-ink">{ASK_PRIVATE_COPY}</p>
+      </Band>
     </>
   );
 }

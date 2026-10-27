@@ -1,11 +1,12 @@
 'use client';
 import type { AskEvent } from '@cs/ask';
 import type { AskActionView, AskMessageView } from '@cs/tools';
-import { Button, FridayBadge } from '@cs/ui';
-import { Loader2 } from 'lucide-react';
+import { Button, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
+import { ArrowUp, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { AskAnswer, evidenceIdsOf } from './answer';
+import type { EvidenceRefs } from '@/server/evidence-refs';
+import { AskAnswer, answerMarkdown, answerSources, citedEvidenceIds, evidenceIdsOf } from './answer';
 import { type ConfirmAskAction, ConfirmCard } from './confirm-card';
 import { type SaveRecommendationAction, SaveRecommendationDialog, savePrefill } from './save-recommendation-dialog';
 import { StarterChips } from './starter-chips';
@@ -81,11 +82,23 @@ export interface AskChatProps {
   autoSend?: boolean;
   /** Task 10: grounds the first question on this evidence. */
   seedEvidenceId?: string;
+  /** Display refs for the evidence ids cited in `messages`, resolved on the server. */
+  refs: EvidenceRefs;
+  /** The client's name, shown as the composer's scope chip. */
+  scopeLabel: string;
+  /** `page` (the full Ask page, default); the docked `panel` arrives with the panel task. */
+  mode?: 'page' | 'panel';
+  /** Resolves refs for evidence cited by an answer streamed in this session (a failure keeps the fallback pills). */
+  refsAction: (clientId: string, ids: string[]) => Promise<EvidenceRefs>;
 }
 
-function MessageItem({ m, clientId, assistantName, confirmAction, saveAction }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction }) {
+function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, refs, size }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction; refs: EvidenceRefs; size: 'page' | 'panel' }) {
   if (m.role === 'user') {
-    return <div className="ml-auto max-w-[85%] whitespace-pre-line rounded-2xl [overflow-wrap:anywhere] rounded-br-md bg-secondary px-4 py-2.5 text-secondary-foreground">{m.content}</div>;
+    return (
+      <div data-slot="ask-user-message" className="max-w-[85%] self-end whitespace-pre-line rounded-lg bg-muted-surface px-3 py-2 text-sm text-ink [overflow-wrap:anywhere]">
+        {m.content}
+      </div>
+    );
   }
   // A proposed write (e8) is stored as an `action` message whose content is the summary: the confirm card shows it
   // while proposed (and the error once failed); afterwards it is a muted history line like "Saved." / "Cancelled.".
@@ -97,16 +110,20 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction }: 
     );
   }
   if (m.role === 'action' || m.action) {
-    return <p className="text-center text-xs text-muted-foreground">{m.content}</p>;
+    return <p className="text-center text-xs text-muted-ink">{m.content}</p>;
   }
   const evidenceIds = m.status === 'ok' ? evidenceIdsOf(m.citations) : [];
   const prefill = evidenceIds.length > 0 ? savePrefill(m.content) : null;
+  const sources = m.status === 'ok' ? answerSources(answerMarkdown(m.content, m.citations).cites, refs, clientId) : [];
   return (
-    <article className="flex max-w-[92%] flex-col gap-2.5 rounded-2xl rounded-bl-md border border-line bg-surface px-4 py-3">
-      <FridayBadge name={assistantName} />
-      <div className={m.status === 'ok' ? '' : 'text-muted-foreground'}>
-        <AskAnswer clientId={clientId} content={m.content} citations={m.citations} />
+    <article data-slot="ask-answer" className="flex flex-col gap-2.5">
+      <div>
+        <FridayBadge name={assistantName} size="label" />
       </div>
+      <div className={m.status === 'ok' ? 'text-ink' : 'text-muted-ink'}>
+        <AskAnswer clientId={clientId} content={m.content} citations={m.citations} refs={refs} size={size} />
+      </div>
+      {sources.length > 0 && <SourcesList items={sources} />}
       {prefill && <SaveRecommendationDialog clientId={clientId} evidenceIds={evidenceIds} defaultTitle={prefill.title} defaultRationale={prefill.rationale} saveAction={saveAction} />}
     </article>
   );
@@ -118,12 +135,17 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction }: 
  * `/c/<id>/ask/<threadId>` from `x-ask-thread-id`), and the local copy drops out when the server list has it.
  */
 export function AskChat(props: AskChatProps) {
-  const { clientId, threadId, assistantName, productName, reviewAllowed, messages, starters, confirmAction, saveAction } = props;
+  const { clientId, threadId, assistantName, productName, reviewAllowed, messages, starters, confirmAction, saveAction, scopeLabel, refsAction } = props;
+  const size = props.mode === 'panel' ? 'panel' : 'page';
   const router = useRouter();
   const [input, setInput] = useState(props.initialQuestion ?? '');
   const [turns, setTurns] = useState<LocalTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(WORKING);
+  const [localRefs, setLocalRefs] = useState<EvidenceRefs>({});
+  const refs = { ...props.refs, ...localRefs };
+  const refsRef = useRef(refs);
+  refsRef.current = refs;
   const seedRef = useRef(props.seedEvidenceId);
   const keyRef = useRef(0);
   const autoSent = useRef(false);
@@ -180,6 +202,14 @@ export function AskChat(props: AskChatProps) {
       : { id: null, role: 'assistant', content: errorCopy(assistantName), citations: [], status: 'error', action: null };
     setTurns((ts) => ts.map((t) => (t.key === key ? { ...t, final } : t)));
     setBusy(false);
+    // Pills for evidence this answer cites that the server has not resolved: one lookup; a failure keeps "Evidence n".
+    const missing = final.status === 'ok' ? citedEvidenceIds(final.citations).filter((id) => !refsRef.current[id]) : [];
+    if (missing.length > 0) {
+      void refsAction(clientId, missing).then(
+        (r) => setLocalRefs((prev) => ({ ...prev, ...r })),
+        () => {},
+      );
+    }
     // A pre-persistence error has no message id: nothing to reload, the local copy stays.
     if (final.id === null) return;
     if (!threadId && got.threadId) router.replace(`/c/${clientId}/ask/${got.threadId}`);
@@ -202,35 +232,35 @@ export function AskChat(props: AskChatProps) {
   };
 
   return (
-    <section aria-label={`Ask ${assistantName}`} className="flex min-h-[60vh] min-w-0 flex-1 flex-col rounded-md border border-line bg-surface">
-      <div className="flex flex-1 flex-col gap-4 p-4 lg:p-5">
+    <section aria-label={`Ask ${assistantName}`} className="flex min-h-[60vh] min-w-0 flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-[680px] flex-1 flex-col gap-6 pb-4">
         {empty && (
           <div className="flex flex-col gap-3">
-            <p className="text-muted-foreground">
-              Ask <FridayBadge name={assistantName} /> about your competitors and market. Every answer links to its evidence.
+            <p className="text-muted-ink">
+              Ask <FridayBadge name={assistantName} size="label" /> about your competitors and market. Every answer links to its evidence.
             </p>
             <StarterChips questions={starters} onPick={(q) => void send(q)} disabled={busy} />
           </div>
         )}
         {messages.map((m) => (
-          <MessageItem key={m.id} m={m} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />
+          <MessageItem key={m.id} m={m} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />
         ))}
         {pendingTurns.map((t) => (
-          <div key={`local-${t.key}`} className="flex flex-col gap-4">
-            <MessageItem m={{ id: null, role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />
-            {t.final && <MessageItem m={t.final} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} />}
+          <div key={`local-${t.key}`} className="flex flex-col gap-6">
+            <MessageItem m={{ id: null, role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />
+            {t.final && <MessageItem m={t.final} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />}
           </div>
         ))}
         {busy && (
-          <p role="status" aria-live="polite" className="flex items-center gap-2 text-muted-foreground">
+          <p role="status" aria-live="polite" className="flex items-center gap-2 text-muted-ink">
             <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
             {progress}
           </p>
         )}
         <div ref={endRef} />
       </div>
-      <form onSubmit={submit} className="sticky bottom-0 flex flex-col gap-2 rounded-b-[14px] border-t border-line bg-surface p-3 lg:p-4">
-        <div className="flex items-end gap-2">
+      <form onSubmit={submit} className="sticky bottom-0 mx-auto w-full max-w-[680px] bg-surface pb-1 pt-3">
+        <div className="rounded-md border border-input p-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
           <textarea
             aria-label={`Ask ${assistantName} a question`}
             placeholder={`Ask ${assistantName} a question…`}
@@ -244,13 +274,16 @@ export function AskChat(props: AskChatProps) {
                 void send(input);
               }
             }}
-            className="min-h-11 w-full flex-1 resize-none rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink"
+            className={`${textareaClass} min-h-11 resize-none rounded-none border-0 bg-transparent p-0 focus-visible:outline-0`}
           />
-          <Button type="submit" disabled={busy || !input.trim()}>
-            Ask
-          </Button>
+          <div className="mt-2 flex items-center gap-2">
+            <Tag className="max-w-40 shrink-0 truncate">{scopeLabel}</Tag>
+            <p className="min-w-0 flex-1 text-xs text-muted-ink">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
+            <Button type="submit" size="icon-sm" aria-label="Ask" disabled={busy || !input.trim()}>
+              <ArrowUp aria-hidden />
+            </Button>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
       </form>
     </section>
   );

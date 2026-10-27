@@ -1,5 +1,5 @@
 'use client';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
+import { citationPillClass, Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { BookOpen } from 'lucide-react';
 import { useState } from 'react';
 import { loadKbArticle } from '@/app/(app)/kb/actions';
@@ -23,7 +23,7 @@ export function ArticleSheet({ kbId, load = loadKbArticle }: { kbId: string; loa
       <SheetTrigger asChild>
         <button
           type="button"
-          className="mx-0.5 inline-flex items-center gap-1 rounded-md bg-primary-soft px-1.5 align-baseline text-xs font-semibold text-primary-soft-text hover:underline"
+          className={`mx-0.5 ${citationPillClass}`}
         >
           <BookOpen aria-hidden className="h-3 w-3" />
           Article

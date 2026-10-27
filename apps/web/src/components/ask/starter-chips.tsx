@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
-const chipClass = 'rounded-full border border-line bg-surface px-3 py-1.5 text-left text-[13px] font-medium text-ink transition-colors hover:bg-muted-surface disabled:opacity-50';
+const rowClass = 'flex w-full items-baseline gap-2 text-left hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const arrow = <span aria-hidden>↳</span>;
 
 /**
  * Starter questions (`get_ask_starters`). In the chat a chip sends its question (`onPick`); elsewhere (Overview card,
@@ -14,15 +15,17 @@ export function StarterChips({ questions, onPick, hrefFor, disabled = false }: {
 }) {
   if (questions.length === 0) return null;
   return (
-    <ul aria-label="Starter questions" className="flex flex-wrap gap-2">
+    <ul aria-label="Starter questions" className="m-0 flex list-none flex-col p-0">
       {questions.map((q) => (
-        <li key={q}>
+        <li key={q} className="border-t border-line py-2.5 text-13 text-ink-secondary">
           {hrefFor ? (
-            <Link href={hrefFor(q)} className={`inline-block ${chipClass}`}>
+            <Link href={hrefFor(q)} className={rowClass}>
+              {arrow}
               {q}
             </Link>
           ) : (
-            <button type="button" className={chipClass} disabled={disabled} onClick={() => onPick?.(q)}>
+            <button type="button" className={rowClass} disabled={disabled} onClick={() => onPick?.(q)}>
+              {arrow}
               {q}
             </button>
           )}

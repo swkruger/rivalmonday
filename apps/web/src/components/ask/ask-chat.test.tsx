@@ -21,10 +21,13 @@ const msg = (over: Partial<AskMessageView> = {}): AskMessageView => ({
   createdAt: '2026-10-12T10:00:00.000Z', ...over,
 });
 
-const base = { clientId: C, threadId: T, assistantName: 'Friday', productName: null as string | null, starters: [], confirmAction, saveAction };
+const refsAction = vi.fn();
+const REF = { source: 'Smith HVAC', channel: 'Pricing page', date: 'Oct 20, 2026' };
+const base = { clientId: C, threadId: T, assistantName: 'Friday', productName: null as string | null, starters: [], confirmAction, saveAction, refs: {} as Record<string, typeof REF>, scopeLabel: 'Acme HVAC', refsAction };
 
 beforeEach(() => {
   confirmAction.mockReset();
+  refsAction.mockReset();
   saveAction.mockReset();
   router.replace.mockReset();
   router.refresh.mockReset();
@@ -88,7 +91,7 @@ describe('AskChat', () => {
     expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
     // The proposed summary appears once (in the card); settled actions are plain history lines.
     expect(screen.getAllByText('Save recommendation: "proposed"')).toHaveLength(1);
-    expect(screen.getByText('Save recommendation: "confirmed"').closest('div.rounded-xl')).toBeNull();
+    expect(screen.getByText('Save recommendation: "confirmed"').closest('[data-slot="ask-confirm"]')).toBeNull();
     expect(screen.getByText('Cancelled.')).toBeTruthy();
   });
 
@@ -168,6 +171,56 @@ describe('AskChat', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
     expect(await screen.findByText("Friday couldn't answer just now — please try again.")).toBeTruthy();
     vi.unstubAllGlobals();
+  });
+});
+
+describe('AskChat page restyle', () => {
+  const ev = (id: string, n = '1') => msg({ id: `33333333-3333-4333-8333-00000000000${n}`, content: `Acme cut prices [ev:${id}].`, citations: [`ev:${id}`] });
+  it('user and assistant messages carry data-slots; the badge is the label size', () => {
+    const { container } = render(
+      <AskChat {...base} reviewAllowed={false} messages={[msg({ id: '33333333-3333-4333-8333-000000000009', role: 'user', content: 'Hi' }), msg()]} />,
+    );
+    expect(container.querySelector('[data-slot="ask-user-message"]')!.textContent).toBe('Hi');
+    const answer = container.querySelector('[data-slot="ask-answer"]')!;
+    expect(answer.querySelector('[data-slot="friday-badge"]')!.getAttribute('data-size')).toBe('label');
+  });
+  it('shows a SourcesList only for resolved refs', () => {
+    const { container, rerender } = render(<AskChat {...base} reviewAllowed={false} messages={[ev(E1)]} />);
+    expect(container.querySelector('[data-slot="sources-list"]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Evidence 1' })).toBeTruthy();
+    rerender(<AskChat {...base} reviewAllowed={false} messages={[ev(E1)]} refs={{ [E1]: REF }} />);
+    expect(container.querySelector('[data-slot="sources-list"]')!.textContent).toContain('Smith HVAC · Pricing page');
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' })).toBeTruthy();
+  });
+  it('resolves refs once for a streamed final with a new ev id and the pill gains its source', async () => {
+    const frame = `data: ${JSON.stringify({ type: 'final', messageId: '44444444-4444-4444-8444-444444444444', content: `Acme cut prices [ev:${E1}].`, citations: [`ev:${E1}`], action: null, status: 'ok' })}\n\n`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(frame, { status: 200, headers: { 'x-ask-thread-id': T } })));
+    refsAction.mockResolvedValue({ [E1]: REF });
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'What changed?' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(refsAction).toHaveBeenCalledTimes(1);
+    expect(refsAction).toHaveBeenCalledWith(C, [E1]);
+    expect(await screen.findByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+  it('a rejecting refsAction keeps the fallback pill', async () => {
+    const frame = `data: ${JSON.stringify({ type: 'final', messageId: '44444444-4444-4444-8444-444444444444', content: `Acme cut prices [ev:${E1}].`, citations: [`ev:${E1}`], action: null, status: 'ok' })}\n\n`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(frame, { status: 200, headers: { 'x-ask-thread-id': T } })));
+    refsAction.mockRejectedValue(new Error('down'));
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'What changed?' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(refsAction).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('link', { name: 'Evidence 1' })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+  it('composer: send button named Ask is disabled while empty; scope chip shows the client name', () => {
+    render(<AskChat {...base} reviewAllowed={false} messages={[]} />);
+    expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'x' } });
+    expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(document.querySelector('[data-slot="tag"]')!.textContent).toBe('Acme HVAC');
   });
 });
 

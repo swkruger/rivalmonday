@@ -1,7 +1,9 @@
+import { CitationPill, citationPillClass, type SourceItem } from '@cs/ui';
 import Link from 'next/link';
 import Markdown from 'react-markdown';
 import { evidenceHref } from '@/components/evidence-chips';
 import { ArticleSheet } from '@/components/kb/article-sheet';
+import type { EvidenceRefs } from '@/server/evidence-refs';
 
 /** Spec "Ask": only exact lowercase `[ev:<uuid-ish>]` / `[kb:<uuid>]` / `[app:<uuid>]` markers become chips; anything else stays plain text. */
 const MARKER = /\[(ev|kb|app):([0-9a-f-]{36})\]/g;
@@ -63,45 +65,70 @@ export function plainAnswer(content: string): string {
   return content.replace(MARKER, '').replace(/\*\*/g, '').replace(/ {2,}/g, ' ').replace(/\s+([.,;:!?])/g, '$1').trim();
 }
 
-const chipClass = 'mx-0.5 inline-grid min-w-5 place-items-center rounded-md bg-primary-soft px-1.5 align-baseline text-xs font-semibold text-primary-soft-text hover:underline';
+/** The sources under an answer: `ev` cites that have a resolved ref, first-appearance order, one row per evidence id. */
+export function answerSources(cites: AnswerCite[], refs: EvidenceRefs, clientId: string): SourceItem[] {
+  const seen = new Set<string>();
+  const items: SourceItem[] = [];
+  for (const c of cites) {
+    if (c.kind !== 'ev' || seen.has(c.id)) continue;
+    const ref = refs[c.id];
+    if (!ref) continue;
+    seen.add(c.id);
+    items.push({ href: evidenceHref(clientId, c.id), title: `${ref.source} · ${ref.channel}`, date: ref.date });
+  }
+  return items;
+}
 
-function Cite({ cite, clientId }: { cite: AnswerCite; clientId: string }) {
+function Cite({ cite, clientId, refs }: { cite: AnswerCite; clientId: string; refs: EvidenceRefs | undefined }) {
   switch (cite.kind) {
     case 'reason':
-      return <span className="font-semibold text-muted-foreground">{REASON}</span>;
+      return <span className="font-medium text-ink-secondary">{REASON}</span>;
     case 'kb':
       return <ArticleSheet kbId={cite.id} />;
     case 'app':
       return (
-        <Link href={cite.path} aria-label="Open in the app" className={chipClass}>
+        <Link href={cite.path} aria-label="Open in the app" className={`mx-0.5 ${citationPillClass}`}>
           Data
         </Link>
       );
-    case 'ev':
-      return (
-        <Link href={evidenceHref(clientId, cite.id)} aria-label={`Evidence ${cite.n}`} className={chipClass}>
-          {cite.n}
-        </Link>
+    case 'ev': {
+      const ref = refs?.[cite.id];
+      const link = <Link href={evidenceHref(clientId, cite.id)} />;
+      return ref ? (
+        <CitationPill asChild n={cite.n} source={ref.source} date={ref.date} className="mx-0.5">
+          {link}
+        </CitationPill>
+      ) : (
+        <CitationPill asChild n={cite.n} className="mx-0.5">
+          {link}
+        </CitationPill>
       );
+    }
   }
 }
 
+/** Evidence ids of an answer's `ev:` citations that a client should resolve (all, unique, in order; uncapped unlike the save dialog's list). */
+export function citedEvidenceIds(citations: readonly string[]): string[] {
+  return [...new Set(citations.filter((c) => c.startsWith('ev:')).map((c) => c.slice(3)))];
+}
+
 /**
- * An assistant answer rendered as Markdown (bold, lists, paragraphs; raw HTML and images never rendered) with numbered
- * evidence chips, Article and Data chips, and a muted "Possible reason:" label. Links the model wrote stay plain text.
- * No `'use client'` — safe in both hosts.
+ * An assistant answer rendered as Markdown (bold, lists, paragraphs; raw HTML and images never rendered) with citation
+ * pills (named by `refs` when resolved), Article and Data chips, and a muted "Possible reason:" label. Links the model
+ * wrote stay plain text. No `'use client'` — safe in both hosts.
  */
-export function AskAnswer({ clientId, content, citations }: { clientId: string; content: string; citations: readonly string[] }) {
+export function AskAnswer({ clientId, content, citations, refs, size = 'page' }: { clientId: string; content: string; citations: readonly string[]; refs?: EvidenceRefs; size?: 'page' | 'panel' }) {
   const { markdown, cites } = answerMarkdown(content, citations);
+  const text = size === 'panel' ? 'text-sm leading-normal' : 'text-base leading-relaxed';
   return (
-    <div className="flex flex-col gap-2 leading-relaxed [overflow-wrap:anywhere] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+    <div className={`flex flex-col gap-2 ${text} [overflow-wrap:anywhere] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5`}>
       <Markdown
         disallowedElements={['img']}
         components={{
           a: ({ href, children }) => {
             const m = CITE_HREF.exec(href ?? '');
             const cite = m ? cites[Number(m[1])] : undefined;
-            return cite ? <Cite cite={cite} clientId={clientId} /> : <>{children}</>;
+            return cite ? <Cite cite={cite} clientId={clientId} refs={refs} /> : <>{children}</>;
           },
         }}
       >

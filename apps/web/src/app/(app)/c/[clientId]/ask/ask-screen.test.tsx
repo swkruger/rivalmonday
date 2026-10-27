@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const C = '44444444-4444-4444-8444-444444444444';
-const m = vi.hoisted(() => ({ selects: 0, themeCalls: 0 }));
+const EV1 = '00000000-0000-4000-8000-0000000000e1';
+const EV2 = '00000000-0000-4000-8000-0000000000e2';
+const m = vi.hoisted(() => ({ selects: 0, themeCalls: 0, refsCalls: [] as unknown[][] }));
 // React's `cache` is a pass-through outside a server request; memoize by first argument like a request scope would.
 vi.mock('react', async (orig) => ({
   ...(await orig<typeof import('react')>()),
@@ -26,14 +29,15 @@ vi.mock('@/server/db', () => ({
 }));
 vi.mock('@/server/tools', () => ({
   callTool: async (_c: unknown, tool: string) =>
-    tool === 'get_client_profile' ? { name: 'Acme' } : tool === 'get_ask_starters' ? { questions: [], reviewAllowed: false } : tool === 'list_my_ask_threads' ? { items: [] } : {},
+    tool === 'get_client_profile' ? { name: 'Acme', timezone: 'America/Chicago' } : tool === 'get_my_ask_thread' ? { id: 'th', clientId: C, title: 'T', messages: [{ id: 'a', role: 'assistant', content: 'x', citations: [`ev:${EV1}`, `ev:${EV2}`, 'kb:z'], status: 'ok', action: null }, { id: 'b', role: 'assistant', content: 'y', citations: [`ev:${EV1}`], status: 'ok', action: null }] } : tool === 'get_ask_starters' ? { questions: [], reviewAllowed: false } : tool === 'list_my_ask_threads' ? { items: [] } : {},
 }));
+vi.mock('@/server/evidence-refs', () => ({ evidenceRefsFor: async (...a: unknown[]) => { m.refsCalls.push(a); return {}; } }));
 vi.mock('@/server/help', () => ({ helpGuides: async () => new Set() }));
 vi.mock('@cs/mcp', () => ({ displayNameFor: async () => 'Acme Agency' }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
-vi.mock('./actions', () => ({ confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn() }));
+vi.mock('./actions', () => ({ askEvidenceRefs: vi.fn(), confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn() }));
 vi.mock('@/components/ask/ask-chat', () => ({ AskChat: () => null }));
-vi.mock('@/components/ask/thread-list', () => ({ ThreadDrawer: () => null, ThreadList: () => null }));
+vi.mock('@/components/ask/thread-list', () => ({ ThreadDrawer: () => null, ThreadList: () => <nav aria-label="Your questions" /> }));
 const { askMetadata, AskScreen } = await import('./ask-screen');
 
 describe('Ask screen', () => {
@@ -43,5 +47,15 @@ describe('Ask screen', () => {
     await AskScreen({ clientId: C, threadId: null });
     expect(m.selects).toBe(1);
     expect(m.themeCalls).toBe(0);
+  });
+
+  it('resolves refs for every assistant message in one call and has no second complementary landmark', async () => {
+    m.refsCalls.length = 0;
+    const ui = await AskScreen({ clientId: C, threadId: 'th' });
+    expect(m.refsCalls).toHaveLength(1);
+    expect(m.refsCalls[0]!.slice(1)).toEqual([C, [EV1, EV2, EV1], 'America/Chicago']);
+    render(ui);
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Your questions' })).toBeTruthy();
   });
 });

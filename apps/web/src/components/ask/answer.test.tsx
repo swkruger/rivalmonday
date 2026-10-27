@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/app/(app)/kb/actions', () => ({ loadKbArticle: vi.fn() }));
-import { answerMarkdown, AskAnswer, evidenceIdsOf, plainAnswer } from './answer';
+import { answerMarkdown, answerSources, AskAnswer, evidenceIdsOf, plainAnswer } from './answer';
 
 const C = '11111111-1111-4111-8111-111111111111';
 const E1 = '00000000-0000-4000-8000-0000000000e1';
@@ -16,7 +16,7 @@ describe('AskAnswer', () => {
     expect(chips.map((a) => a.getAttribute('aria-label'))).toEqual(['Evidence 1', 'Evidence 2', 'Evidence 1']);
     expect(chips[0]!.getAttribute('href')).toBe(`/c/${C}/evidence/${E2}`);
     expect(chips[1]!.getAttribute('href')).toBe(`/c/${C}/evidence/${E1}`);
-    expect(chips[0]!.textContent).toBe('1');
+    expect(chips[0]!.textContent).toBe('Evidence 1');
     expect(screen.queryByText(/\[ev:/)).toBeNull();
   });
 
@@ -31,13 +31,44 @@ describe('AskAnswer', () => {
   it('possible reason styled', () => {
     render(<AskAnswer clientId={C} content={`Acme cut prices [ev:${E1}]. Possible reason: a slow season.`} citations={[`ev:${E1}`]} />);
     const label = screen.getByText('Possible reason:');
-    expect(label.className).toContain('text-muted-foreground');
+    expect(label.className).toContain('text-ink-secondary');
     expect(screen.getByText(/a slow season\./)).toBeTruthy();
   });
 
   it('keeps paragraphs', () => {
     const { container } = render(<AskAnswer clientId={C} content={'First paragraph.\n\nSecond paragraph.'} citations={[]} />);
     expect(container.querySelectorAll('p')).toHaveLength(2);
+  });
+});
+
+describe('citation pills and sources', () => {
+  const refs = { [E1]: { source: 'Smith HVAC', channel: 'Pricing page', date: 'Oct 20, 2026' } };
+  it('an ev cite with a ref is a pill named with source and date; without a ref it keeps "Evidence n"', () => {
+    render(<AskAnswer clientId={C} content={`A [ev:${E1}] B [ev:${E2}].`} citations={[`ev:${E1}`, `ev:${E2}`]} refs={refs} />);
+    const links = screen.getAllByRole('link');
+    expect(links.map((a) => a.getAttribute('aria-label'))).toEqual(['Evidence 1: Smith HVAC, Oct 20, 2026', 'Evidence 2']);
+    expect(links[0]!.getAttribute('data-slot')).toBe('citation-pill');
+    expect(links[0]!.getAttribute('href')).toBe(`/c/${C}/evidence/${E1}`);
+  });
+  it('the Data chip keeps its name and shares the pill look', () => {
+    const P = '44444444-4444-4444-8444-444444444444';
+    render(<AskAnswer clientId={C} content={`x [app:${P}]`} citations={[`app:${P}@/c/${C}/competitors/${P}`]} />);
+    expect(screen.getByRole('link', { name: 'Open in the app' }).className).toContain('rounded-xs');
+  });
+  it('size panel uses text-sm; page uses text-base', () => {
+    const { container, rerender } = render(<AskAnswer clientId={C} content="Hi" citations={[]} />);
+    expect((container.firstChild as HTMLElement).className).toContain('text-base');
+    rerender(<AskAnswer clientId={C} content="Hi" citations={[]} size="panel" />);
+    expect((container.firstChild as HTMLElement).className).toContain('text-sm');
+  });
+  it('answerSources lists resolved ev cites once each in first-appearance order', () => {
+    const refs2 = { ...refs, [E2]: { source: 'Jones Air', channel: 'Reviews', date: 'Oct 21, 2026' } };
+    const { cites } = answerMarkdown(`[ev:${E2}] [ev:${E1}] [ev:${E2}] [ev:33333333-3333-4333-8333-333333333333]`, [`ev:${E1}`, `ev:${E2}`, 'ev:33333333-3333-4333-8333-333333333333']);
+    expect(answerSources(cites, refs2, C)).toEqual([
+      { href: `/c/${C}/evidence/${E2}`, title: 'Jones Air · Reviews', date: 'Oct 21, 2026' },
+      { href: `/c/${C}/evidence/${E1}`, title: 'Smith HVAC · Pricing page', date: 'Oct 20, 2026' },
+    ]);
+    expect(answerSources(cites, {}, C)).toEqual([]);
   });
 });
 
