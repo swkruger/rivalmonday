@@ -50,6 +50,39 @@ test('at 390 px the change detail opens in a sheet that back closes and refresh 
   await expect(page).not.toHaveURL(/event=/);
 });
 
+test('at 1440 px the change peek panel steps to the next change, back restores it and Escape closes to the row', { tag: ['@changes'] }, async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/agency');
+  await page.getByRole('link', { name: 'E2E HVAC' }).first().click();
+  await page.waitForURL(/\/c\/[0-9a-f-]{36}/);
+  const clientId = /\/c\/([0-9a-f-]{36})/.exec(page.url())![1];
+  await page.goto(`/c/${clientId}/changes?route=all&days=365`);
+  const rows = page.getByRole('region', { name: 'Changes', exact: true }).getByRole('listitem').getByRole('link');
+  await expect(rows.nth(1)).toBeVisible();
+  const firstId = (await rows.nth(0).getAttribute('data-row-id'))!;
+  const secondId = (await rows.nth(1).getAttribute('data-row-id'))!;
+  const secondText = (await rows.nth(1).getByRole('heading').textContent())!;
+
+  await rows.nth(0).click();
+  await expect(page).toHaveURL(new RegExp(`event=${firstId}`));
+  const panel = page.getByRole('region', { name: 'Change details' });
+  await expect(panel.getByRole('link', { name: 'Close details' })).toBeVisible();
+
+  await panel.getByRole('link', { name: 'Next change' }).click();
+  await expect(page).toHaveURL(new RegExp(`event=${secondId}`));
+  const summary = panel.getByRole('heading', { level: 2 });
+  await expect(summary).toBeVisible();
+  expect(secondText).toContain((await summary.textContent())!.trim());
+
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`event=${firstId}`));
+
+  await panel.getByRole('link', { name: 'Next change' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(page).not.toHaveURL(/event=/);
+  await expect(rows.nth(0)).toBeFocused();
+});
+
 test('a move shows its evidence chain and the competitor profile its timeline', { tag: ['@moves', '@evidence', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency');
   await page.getByRole('link', { name: 'E2E HVAC' }).first().click();

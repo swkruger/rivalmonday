@@ -194,6 +194,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}client-details-form\\.tsx$`), tags: ['@profile', '@setup'], why: 'Business details section on the client profile (phone, address, owner, logo)' },
   { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
   { pattern: re(`${COMP}list-detail[^/]*\\.tsx$`), tags: ['@changes', '@moves', '@responsive'], why: 'ListDetail and its sheet: the Changes and Moves list + detail layout (15c-2b)' },
+  { pattern: re(`${COMP}peek-panel\\.tsx$`), tags: ['@changes'], why: 'peek panel: the lg Changes detail column with previous / next / close (16c P3)' },
   { pattern: re(`${COMP}whole-page-diff\\.tsx$`), tags: ['@changes', '@evidence'], why: 'whole-page text diff in the change detail (15c-2b)' },
   { pattern: re(`${COMP}evidence-image\\.tsx$`), tags: ['@changes', '@evidence'], why: 'evidence snapshots' },
   { pattern: re(`${COMP}setup-badge\\.tsx$`), tags: ['@setup', '@clients', '@overview'], why: 'Finish setup badge (client overview and portfolio)' },

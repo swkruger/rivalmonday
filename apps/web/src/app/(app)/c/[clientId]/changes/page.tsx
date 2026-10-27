@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { ListDetail } from '@/components/list-detail';
 import { PageHeader } from '@/components/page-header';
+import type { PeekNav } from '@/components/peek-panel';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
@@ -90,6 +91,21 @@ export default async function ChangesPage({
     wholePage = await callTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId: compare.after.captureId });
   }
 
+  // Peek panel (16c P3): previous / next within this page of results (feed order), filters kept; Close only when the
+  // URL names the event.
+  const closeHref = changesHref(clientId, { ...p, event: undefined, change: undefined, tab: 'side' });
+  const ordered = groups.flatMap((g) => g.items.map((r) => r.eventId));
+  const at = selectedId ? ordered.indexOf(selectedId) : -1;
+  const peekHref = (id: string | undefined) =>
+    id ? changesHref(clientId, { ...p, event: id, change: undefined, tab: 'side' }) : null;
+  const peek: PeekNav = {
+    prevHref: at > 0 ? peekHref(ordered[at - 1]) : null,
+    nextHref: at >= 0 ? peekHref(ordered[at + 1]) : null,
+    closeHref: p.event ? closeHref : null,
+    rowId: selectedId,
+    labels: { prev: 'Previous change', next: 'Next change', close: 'Close details' },
+  };
+
   return (
     <>
       <PageHeader
@@ -111,7 +127,8 @@ export default async function ChangesPage({
       <ListDetail
         selectedId={selectedId}
         sheetOpen={!!p.event}
-        closeHref={changesHref(clientId, { ...p, event: undefined, change: undefined, tab: 'side' })}
+        closeHref={closeHref}
+        peek={peek}
         listLabel="Changes"
         detailTitle="Change details"
         list={

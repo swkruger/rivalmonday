@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ListDetail } from './list-detail';
+import type { PeekNav } from './peek-panel';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -16,9 +17,18 @@ function stubMatchMedia(matches: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function ui(open: boolean) {
+const peek: PeekNav = {
+  prevHref: null,
+  nextHref: '/c/1/changes?event=b',
+  closeHref: '/c/1/changes',
+  rowId: 'a',
+  labels: { prev: 'Previous change', next: 'Next change', close: 'Close details' },
+};
+
+function ui(open: boolean, withPeek?: PeekNav) {
   return (
     <ListDetail
+      peek={withPeek}
       list={<ul><li>row</li></ul>}
       detail={<p>detail body</p>}
       selectedId="a"
@@ -70,5 +80,31 @@ describe('ListDetail', () => {
     stubMatchMedia(true);
     render(ui(false));
     expect(screen.getByRole('region', { name: 'Changes list' })).toBeTruthy();
+  });
+
+  it('with peek the lg column holds the peek panel labelled detailTitle', () => {
+    stubMatchMedia(true);
+    const { container } = render(ui(false, peek));
+    const panel = container.querySelector('[data-slot=peek-panel]');
+    expect(panel).not.toBeNull();
+    expect(panel!.getAttribute('aria-label')).toBe('Change detail');
+    expect(screen.getByRole('region', { name: 'Change detail' })).toBe(panel);
+    expect(screen.getByRole('link', { name: 'Next change' })).toBeTruthy();
+    expect(screen.getByText('detail body')).toBeTruthy();
+  });
+
+  it('below lg with sheetOpen the dialog has no peek chrome', () => {
+    stubMatchMedia(false);
+    render(ui(true, peek));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('link', { name: 'Next change' })).toBeNull();
+    expect(within(dialog).getByText('detail body')).toBeTruthy();
+  });
+
+  it('without peek there is no panel', () => {
+    stubMatchMedia(true);
+    const { container } = render(ui(false));
+    expect(container.querySelector('[data-slot=peek-panel]')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Next change' })).toBeNull();
   });
 });

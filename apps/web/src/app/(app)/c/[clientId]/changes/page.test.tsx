@@ -60,6 +60,35 @@ describe('ChangesPage ListDetail', () => {
   });
 });
 
+const COMP = '00000000-0000-4000-8000-0000000000c1';
+
+describe('ChangesPage peek nav', () => {
+  beforeEach(() => { callTool.mockReset(); listDetail.mockReset(); mount(); });
+
+  it('first row selected: prev null, next = second row with filters kept, labels from P3', async () => {
+    const p = await go({ competitor: COMP, days: '90' });
+    const peek = p.peek as { prevHref: string | null; nextHref: string | null; closeHref: string | null; rowId: string | null; labels: Record<string, string> };
+    expect(peek.prevHref).toBeNull();
+    expect(peek.nextHref).toBe(`/c/c1/changes?competitor=${COMP}&days=90&event=${E2}`);
+    expect(peek.rowId).toBe(E1);
+    expect(peek.labels).toEqual({ prev: 'Previous change', next: 'Next change', close: 'Close details' });
+  });
+
+  it('bare visit: closeHref null', async () => {
+    const p = await go();
+    expect((p.peek as { closeHref: string | null }).closeHref).toBeNull();
+  });
+
+  it('?event= on the last row: next null, prev = first row, closeHref = the list href', async () => {
+    const p = await go({ event: E2, change: E1, tab: 'text', days: '90' });
+    const peek = p.peek as { prevHref: string | null; nextHref: string | null; closeHref: string | null; rowId: string | null };
+    expect(peek.nextHref).toBeNull();
+    expect(peek.prevHref).toBe(`/c/c1/changes?days=90&event=${E1}`);
+    expect(peek.closeHref).toBe(p.closeHref);
+    expect(peek.rowId).toBe(E2);
+  });
+});
+
 describe('ChangesPage list container', () => {
   beforeEach(() => { callTool.mockReset(); listDetail.mockReset(); mount(); });
   it('the list is not wrapped in a card', async () => {
