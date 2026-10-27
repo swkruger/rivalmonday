@@ -152,7 +152,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
       </Section>
 
       {evidence.channel === 'web' && (
-        <Section title="Compare with previous">
+        <Section title="Compare with previous" labelled>
           <Suspense fallback={<PageSkeleton />}>
             <ComparePrevious clientId={clientId} captureId={evidence.captureId} timezone={profile.timezone} />
           </Suspense>

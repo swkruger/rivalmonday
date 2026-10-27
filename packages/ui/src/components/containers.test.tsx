@@ -27,6 +27,16 @@ describe('Section', () => {
   });
 });
 
+describe('Section labelled', () => {
+  it('labelled titled Section is a named region; default is not', () => {
+    const { unmount } = render(<Section labelled title="Compare" titleAside={<button type="button">tip</button>}>x</Section>);
+    expect(screen.getByRole('region', { name: 'Compare' })).toBeTruthy();
+    unmount();
+    render(<Section title="Plain">x</Section>);
+    expect(screen.queryByRole('region')).toBeNull();
+  });
+});
+
 describe('Section titleAside', () => {
   it('renders the aside after the heading, outside its accessible name', () => {
     render(<Section title="Moves detected" titleAside={<button type="button">What is a move?</button>}>x</Section>);

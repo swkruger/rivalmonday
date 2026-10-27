@@ -38,6 +38,15 @@ function hasId(node: unknown, id: string): boolean {
   return !!props && (props.title === id || hasId(props.children, id));
 }
 
+/** The `labelled` prop of the Section with this title (-> a named region in the DOM; `@cs/ui` containers.test asserts the region). */
+function labelledOf(node: unknown, title: string): boolean | undefined {
+  if (Array.isArray(node)) return node.map((n) => labelledOf(n, title)).find((v) => v !== undefined);
+  if (!node || typeof node !== 'object') return undefined;
+  const props = (node as { props?: { title?: unknown; labelled?: boolean; children?: unknown } }).props;
+  if (props?.title === title) return !!props.labelled;
+  return labelledOf(props?.children, title);
+}
+
 /** Elements of `type` (by function name) in the tree. */
 function countByName(node: unknown, name: string): number {
   if (Array.isArray(node)) return node.reduce((n: number, c) => n + countByName(c, name), 0);
@@ -103,6 +112,10 @@ describe('Evidence page on the sheet', () => {
     expect(hasId(t, 'Capture details')).toBe(true);
     expect(hasId(t, 'Compare with previous')).toBe(true);
     expect(textOf(t)).toContain('SHA-256');
+  });
+  it('"Compare with previous" stays a named region (labelled Section)', async () => {
+    mount('web');
+    expect(labelledOf(await tree(), 'Compare with previous')).toBe(true);
   });
   it('part of these changes is a Section for dashboard viewers', async () => {
     mount('web', { citedBy: [{ eventId: 'ev1', typeLabel: 'Price', summary: 's', occurredAt: '2026-10-20T00:00:00Z' }] });
