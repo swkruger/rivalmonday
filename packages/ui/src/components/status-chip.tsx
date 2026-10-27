@@ -8,7 +8,7 @@ export const CHIP_COLOURS: Record<ChipTone, { bg: string; text: string }> = {
   neutral: { bg: "#EEF2F6", text: "#334155" },
   info: { bg: "#E3F2FC", text: "#1F5F8F" },
   success: { bg: "#E7F6EC", text: "#166534" },
-  warning: { bg: "#FEF3C7", text: "#92400E" },
+  warning: { bg: "#FFF7E6", text: "#92400E" },
   danger: { bg: "#FDECEC", text: "#B91C1C" },
 }
 

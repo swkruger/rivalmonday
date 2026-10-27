@@ -10,7 +10,7 @@
   --amber-text: #3B2300;
   --accent-text: #B45309;
   --ink: #0B2540;
-  --muted-ink: #64748B;
+  --muted-ink: #5B6B80;
   --line: #E2E8F0;
   /* P4: the viewer's own business in charts, legends and tables. */
   --you: var(--secondary);
@@ -23,7 +23,31 @@
   --primary-foreground: #0B2540;
   --primary-soft: #E3F2FC;
   --primary-soft-text: #1F6FA8;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  --secondary-foreground: #FFFFFF;
+  --ink-secondary: #334155;
+  --line-subtle: #EDF1F5;
+  --line-control: #CBD5E1;
+  --line-strong: #8796AB;
+  /* Fixed: never derived from the agency colour, so focus always passes 3:1. */
+  --focus: #2A6BAC;
+  --primary-hover: #2F93D6;
+  --primary-active: #2581C2;
+  --link: var(--primary-soft-text);
+  --danger-hover: #B91C1C;
+  --danger-text: #B91C1C;
+  --success-text: #166534;
+  --warning: #D97706;
+  --warning-surface: #FFF7E6;
+  --warning-text: #92400E;
+  --chart-rival-1: #E05A2B;
+  --chart-rival-2: #14936A;
+  --chart-context: #A3B1C2;
+  --chart-peer-band: #EEF2F6;
+  --chart-grid: #EDF1F5;
+  --chart-axis: #5B6B80;
+  --shadow-overlay-value: 0 1px 2px rgba(11,37,64,.06), 0 6px 20px rgba(11,37,64,.12);
+  --shadow-dialog-value: 0 2px 6px rgba(11,37,64,.08), 0 16px 40px rgba(11,37,64,.18);
   /* Status chip tones (P2); keep in sync with CHIP_COLOURS in status-chip.tsx. */
   --chip-neutral-bg: #EEF2F6;
   --chip-neutral-text: #334155;
@@ -31,7 +55,7 @@
   --chip-info-text: #1F5F8F;
   --chip-success-bg: #E7F6EC;
   --chip-success-text: #166534;
-  --chip-warning-bg: #FEF3C7;
+  --chip-warning-bg: #FFF7E6;
   --chip-warning-text: #92400E;
   --chip-danger-bg: #FDECEC;
   --chip-danger-text: #B91C1C;
@@ -42,7 +66,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-foreground: #FFFFFF;
+  --color-secondary-foreground: var(--secondary-foreground);
   /* Brand amber (fixed, never agency-overridable) — "monday" in the wordmark,
      the Friday badge, high-priority markers. NOT the same as shadcn's
      semantic `accent` below, which is a neutral hover/focus surface. */
@@ -85,13 +109,39 @@
   --color-line: var(--line);
   --color-you: var(--you);
   --color-border: var(--line);
-  --color-input: var(--line);
-  --color-ring: var(--primary);
+  --color-input: var(--line-strong);
+  --color-ring: var(--focus);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-line-subtle: var(--line-subtle);
+  --color-line-control: var(--line-control);
+  --color-line-strong: var(--line-strong);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-link: var(--link);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-text: var(--danger-text);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-text: var(--warning-text);
+  --color-chart-rival-1: var(--chart-rival-1);
+  --color-chart-rival-2: var(--chart-rival-2);
+  --color-chart-context: var(--chart-context);
+  --color-chart-peer-band: var(--chart-peer-band);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
   --color-destructive: var(--danger);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 2px);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+  --shadow-overlay: var(--shadow-overlay-value);
+  --shadow-dialog: var(--shadow-dialog-value);
+  --text-13: 0.8125rem;
+  --text-13--line-height: 1.125rem;
+  --text-11: 0.6875rem;
+  --text-11--line-height: 0.875rem;
   --shadow-card: 0 1px 3px rgba(11, 37, 64, .06), 0 1px 2px rgba(11, 37, 64, .04);
 }
 
