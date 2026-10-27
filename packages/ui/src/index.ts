@@ -1,5 +1,6 @@
 export * from './theme';
 export * from './lib/cn';
+export * from './components/alert';
 export * from './components/band';
 export * from './components/breadcrumb';
 export * from './components/button';
