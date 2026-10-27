@@ -1,6 +1,6 @@
 import { type ClientBillingState, client, clientBilling, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, type Tx } from '@cs/db';
 import { and, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
-import { latestDoneRun } from '../rival-search';
+import { latestDoneRun, searchInputsReady } from '../rival-search';
 import { clientBillingEligibility } from '../tools/client-billing';
 
 /** Phase 11a §4. The service Db or a service tx (the invite/billing reads touch service-only tables). */
@@ -32,7 +32,7 @@ export type SetupState = {
 };
 
 export type SetupStateInput = {
-  client: { keywords: string[]; serviceArea: unknown | null; placeId: string | null; status: string };
+  client: { keywords: string[]; serviceArea: { center?: unknown } | null; placeId: string | null; status: string };
   setup: { skipped: string[]; competitorsDoneAt: Date | null; completedAt: Date | null; dismissedAt: Date | null } | null;
   latestRun: { status: string; error?: string | null } | null;
   hasPendingSuggestions: boolean;
@@ -55,7 +55,7 @@ export function deriveSetupState({ client: c, setup, latestRun, hasPendingSugges
     };
   }
   // The `startFirstAutoSearch` rule.
-  const profile: StepStatus = c.keywords.length > 0 && c.serviceArea != null && !!c.placeId ? 'done' : 'todo';
+  const profile: StepStatus = searchInputsReady(c) ? 'done' : 'todo';
 
   let search: StepStatus;
   let searchRefusal: string | null = null;

@@ -12,8 +12,8 @@ const { defineTool } = toolkit<ToolDeps>();
 const STEPS = ['profile', 'team', 'plan', 'branding'] as const;
 type Step = (typeof STEPS)[number];
 const StepState = z.enum(['done', 'skipped', 'open']);
-const PHONE = /^\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
-const ZIP = /^\d{5}(-\d{4})?$/;
+export const PHONE = /^\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
+export const ZIP = /^\d{5}(-\d{4})?$/;
 
 type OnboardingRow = typeof agencyOnboarding.$inferSelect;
 

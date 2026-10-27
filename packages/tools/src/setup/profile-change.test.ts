@@ -40,6 +40,12 @@ describe('applyClientProfileChange', () => {
     expect(out.client.keywords).toEqual(['ac repair']);
   });
 
+  it('keywords plus a centre start the first search without a place id (P5)', async () => {
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    const out = await applyClientProfileChange(ctx('agency_admin', 'all'), deps, IDS.clientA1, { keywords: ['ac repair'], serviceArea: AREA });
+    expect(out.search).toEqual({ refused: 'service_paused' }); // reached the start (a missing-profile refusal would read 'missing_profile')
+  });
+
   it('returns search null when the change did not complete the search inputs, and runs recheck inside the tx', async () => {
     const recheck = vi.fn(async () => {});
     const out = await applyClientProfileChange(ctx('agency_admin', 'all'), deps, IDS.clientA1, { name: 'x' }, undefined, recheck);

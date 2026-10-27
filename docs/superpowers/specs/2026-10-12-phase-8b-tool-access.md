@@ -65,6 +65,9 @@ list_moves (moves.ts) | read | read-only
 get_move (moves.ts) | read | read-only
 create_client (onboarding.ts) | write | inserts client; may start a competitor search (discovery_run + rival-search job)
 update_client_profile (onboarding.ts) | write | updates client; may start a competitor search
+update_client_details (client-details.ts) | write | edits name, phone, address, owner contact; email masked in support sessions
+upload_client_logo (client-details.ts) | write | stores a content-addressed PNG logo, sets client.logo_url
+get_client_details (client-details.ts) | read | phone, address, logo, owner contact; contactEmail masked in support sessions
 get_ad_activity (overview.ts) | read | read-only
 get_workspace_overview (overview.ts) | read | read-only
 list_tracked_pages (pages.ts) | read | read-only

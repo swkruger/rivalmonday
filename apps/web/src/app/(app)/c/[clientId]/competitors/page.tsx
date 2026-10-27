@@ -85,7 +85,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
       {agency && (
         <SuggestionsPanel
           clientId={clientId}
-          ready={profile.keywords.length > 0 && profile.serviceArea !== null && !!profile.placeId}
+          ready={profile.keywords.length > 0 && profile.serviceArea !== null}
           suggestions={suggestions.suggestions}
           initialSearch={RUN_STATE[search.status] ?? 'idle'}
           atLimit={atLimit}

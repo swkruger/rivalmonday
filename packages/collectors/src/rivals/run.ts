@@ -78,7 +78,8 @@ export async function finishFailed(db: Db, runId: string, error: string, extra: 
 /** The client's own business, for the `self` filter: client place id plus the self competitor's cid/domain/phone. */
 async function selfContext(db: Db, c: typeof client.$inferSelect) {
   const self = { placeId: c.placeId, cid: null as string | null, domain: null as string | null, phone: null as string | null };
-  if (!c.selfCompetitorId) return self;
+  // Phase 16 P6: a client without a Google listing has no self competitor; its own phone still drives the `self` filter (filters normalise with digitsOnly).
+  if (!c.selfCompetitorId) return { ...self, phone: c.phone };
   const [comp] = await db.select().from(competitor).where(eq(competitor.id, c.selfCompetitorId)).limit(1);
   if (!comp) return self;
   const [obs] = await db.select({ data: observation.data }).from(observation)
@@ -105,7 +106,7 @@ async function execute(deps: RivalSearchDeps, run: DiscoveryRunRow): Promise<{ s
   const now = deps.now?.() ?? new Date();
   const [c] = await db.select().from(client).where(eq(client.id, run.clientId)).limit(1);
   const area = c?.serviceArea;
-  if (!c || !area) {
+  if (!c || !area?.center) {
     await finishFailed(db, run.id, 'missing_profile');
     return { status: 'failed' };
   }

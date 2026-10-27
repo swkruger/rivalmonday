@@ -1,14 +1,15 @@
 import { assertCanActivateClient } from '@cs/billing';
 import { type AccessContext, canAccessClient, FEATURES, toolkit, ToolError } from '@cs/core';
-import { agencyOnboarding, client, clientSetup, CLIENT_STATUSES, type SetupSource, setupLookupSchema, type Tx } from '@cs/db';
+import { agencyOnboarding, client, type ClientAddress, clientSetup, CLIENT_STATUSES, type SetupLocationSource, type SetupSource, setupLookupSchema, type Tx } from '@cs/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { postCommitSeatSync } from '../billing-guard';
 import type { ToolDeps } from '../deps';
 import { enqueueOf } from '../deps';
-import { startFirstAutoSearch } from '../rival-search';
+import { upsertContact } from '../access/client-invite';
+import { searchInputsReady, startFirstAutoSearch } from '../rival-search';
 import { validTimezone } from '../timezone';
-import { reevaluateOnboardingCompletion } from './agency-onboarding';
+import { PHONE, reevaluateOnboardingCompletion, ZIP } from './agency-onboarding';
 import { applyClientProfileChange, packFor, validated } from '../setup/profile-change';
 import { ServiceAreaWrite } from './schemas';
 
@@ -33,10 +34,26 @@ async function enqueueSetupSuggestions(deps: ToolDeps, clientId: string): Promis
   }
 }
 
+/** Phase 16 O13: the wizard's step-2 details. Optional so legacy callers (prospects, `accept_lead`) are unchanged. */
+export const ClientAddressIn = z.object({
+  line1: z.string().trim().min(1).max(200), line2: z.string().trim().max(200).optional(), city: z.string().trim().min(1).max(120),
+  region: z.string().trim().min(1).max(120), postalCode: z.string().trim().regex(ZIP, 'Enter a 5-digit ZIP code'), country: z.literal('US').default('US'),
+}) satisfies z.ZodType<ClientAddress, unknown>;
+export const ClientPhoneIn = z.string().trim().regex(PHONE, 'Enter a US phone number, like (404) 555-0100');
+const ClientDetailsIn = z.object({
+  phone: ClientPhoneIn,
+  address: ClientAddressIn.nullish(),
+  /** Step 2 "City or ZIP", geocoded when there is no Google listing and no street address. */
+  locality: z.string().trim().min(1).max(120).optional(),
+  contact: z.object({ name: z.string().trim().min(1).max(120), email: z.string().trim().max(254).email('Enter a valid email address') }),
+});
+/** The service-area radius for a geocoded client: 10 miles (16.1 km). */
+export const GEOCODED_RADIUS_KM = 16.1;
+
 const CreateClientIn = z.object({
   name: z.string().max(200), verticalId: z.string().max(40), services: z.array(z.string().max(80)).max(255), keywords: z.array(z.string().max(120)).max(20),
   serviceArea: ServiceAreaWrite.nullable(), placeId: z.string().max(300).nullable(), timezone: z.string().max(64).optional(), features: Features.default([]),
-  status: z.enum(CLIENT_STATUSES).default('active'), lookup: setupLookupSchema.optional(),
+  status: z.enum(CLIENT_STATUSES).default('active'), lookup: setupLookupSchema.optional(), details: ClientDetailsIn.optional(),
 });
 /** `create_client`'s parsed input (defaults applied). */
 export type CreateClientInput = z.infer<typeof CreateClientIn>;
@@ -51,26 +68,30 @@ export async function createClientCore(
   tx: Tx,
   deps: ToolDeps,
   ctx: AccessContext,
-  rawInput: CreateClientInput & { source?: SetupSource },
+  rawInput: CreateClientInput & { source?: SetupSource; /** The handler's pre-transaction geocode of the typed address (null = miss or no geocoder). */ geo?: { lat: number; lng: number } | null },
 ): Promise<{ clientId: string; afterCommit: () => Promise<void> }> {
   // Decision 3: a restricted AM could not see the client they create.
   if (ctx.clientScope !== 'all') throw new ToolError('permission_denied', 'Only users who cover all clients can add a client');
-  const { lookup, source = 'staff', ...base } = rawInput;
+  const { lookup, source = 'staff', details, geo, ...base } = rawInput;
   // 11a: a picked Google place prefills the profile. Keywords stay empty (the wizard's suggestions fill them), so the
   // first auto search does not fire until the profile is complete.
   const input = lookup
     ? { ...base, name: base.name.trim() ? base.name : lookup.title.slice(0, 120), placeId: lookup.placeId, keywords: [] as string[], serviceArea: { center: { lat: lookup.lat, lng: lookup.lng }, radiusKm: 15, zips: [] } }
-    : base;
+    : geo ? { ...base, serviceArea: { center: { lat: geo.lat, lng: geo.lng }, radiusKm: GEOCODED_RADIUS_KM, zips: [] } } : base;
+  // O13: where the service area came from — the listing lookup, or a geocode attempt (a miss leaves the area null for the wizard to resolve).
+  const locationSource: SetupLocationSource | null = lookup ? 'listing' : details && (details.address || details.locality) && !base.serviceArea ? 'geocoded' : null;
   const pack = await packFor(deps, input.verticalId);
   const c = validated(input, pack);
   if (input.timezone !== undefined && !validTimezone(input.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');
-  const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}) };
+  const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}), ...(details ? { phone: details.phone, address: details.address ?? null } : {}) };
   // P5/R5: an active client takes a seat, so the cap check and the insert share one transaction (the check locks the agency's billing row).
   if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId, { role: ctx.role });
   const [row] = await tx.insert(client).values(values).returning({ id: client.id });
   const clientId = row!.id;
   // 11a: the setup row (service-only table) joins this service-role transaction.
-  await tx.insert(clientSetup).values({ clientId, agencyId: ctx.agencyId, source, lookup: lookup ?? null, suggestions: { status: lookup ? 'pending' : 'none' } });
+  await tx.insert(clientSetup).values({ clientId, agencyId: ctx.agencyId, source, lookup: lookup ?? null, suggestions: { status: lookup ? 'pending' : 'none' }, locationSource });
+  // O13: the owner contact joins the client as an inactive `client_owner` contact — the row `inviteClientUser` later finds by email.
+  if (details) await upsertContact(tx, ctx.agencyId, clientId, details.contact.email.trim().toLowerCase(), details.contact.name, 'client_owner');
   // Phase 10 R8: the agency's first client (prospects included) starts the guarded stamp; app_user cannot write
   // agency_onboarding, so this runs on the service connection in the same transaction as the insert.
   const stamped = await tx.update(agencyOnboarding).set({ firstClientAt: new Date() })
@@ -80,10 +101,27 @@ export async function createClientCore(
   const afterCommit = async () => {
     if (input.status === 'active' && deps.billing) await postCommitSeatSync(deps, ctx.agencyId);
     if (lookup) await enqueueSetupSuggestions(deps, clientId);
-    // 12a D4: a client (active or prospect) with keywords, a service area and a place id gets its first search.
-    if (c.keywords.length > 0 && c.serviceArea && c.placeId) await startFirstAutoSearch(deps, clientId);
+    // 12a D4 + 16 P5: a client (active or prospect) with keywords and a service-area centre gets its first search.
+    if (searchInputsReady(c)) await startFirstAutoSearch(deps, clientId);
   };
   return { clientId, afterCommit };
+}
+
+/** Geocodes the typed address (else "City or ZIP") for a client with no listing and no service area. No geocoder, no text or a miss = null. */
+async function geocodeDetails(deps: ToolDeps, ctx: AccessContext, input: CreateClientInput): Promise<{ lat: number; lng: number } | null> {
+  const { details } = input;
+  if (input.lookup || input.serviceArea || !details || !deps.geocode) return null;
+  const scope = { agencyId: ctx.agencyId, clientId: null };
+  if (details.address) {
+    const a = details.address;
+    const hit = await deps.geocode({ line1: a.line1, city: a.city, region: a.region, postalCode: a.postalCode }, scope);
+    if (hit) return { lat: hit.lat, lng: hit.lng };
+  }
+  if (details.locality?.trim()) {
+    const hit = await deps.geocode({ text: details.locality.trim() }, scope);
+    if (hit) return { lat: hit.lat, lng: hit.lng };
+  }
+  return null;
 }
 
 export const createClient = defineTool({
@@ -94,7 +132,9 @@ export const createClient = defineTool({
   output: z.object({ clientId: uuid }),
   permission: 'agency',
   async handler(ctx, input, deps) {
-    const { clientId, afterCommit } = await deps.service.transaction((tx) => createClientCore(tx, deps, ctx, input));
+    // O13: geocode BEFORE the transaction (a vendor call must not hold the seat-cap lock); a throw leaves no client row.
+    const geo = await geocodeDetails(deps, ctx, input);
+    const { clientId, afterCommit } = await deps.service.transaction((tx) => createClientCore(tx, deps, ctx, { ...input, geo }));
     await afterCommit();
     return { clientId };
   },

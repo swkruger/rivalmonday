@@ -21,7 +21,7 @@ type Steps = string[];
 const rows: { name: string; input: In; steps: Steps; open: boolean; clientOpen?: boolean; exists?: boolean; waitingOn: SetupState['waitingOn']; refusal?: string | null; total?: 4 | 5 }[] = [
   { name: 'no row: closed, all five done', input: base({ setup: null }), steps: ['done', 'done', 'done', 'done', 'done'], open: false, exists: false, waitingOn: null },
   { name: 'profile incomplete (no keywords)', input: base({ client: { ...CLIENT, keywords: [] } }), steps: ['todo', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'profile incomplete after place-id removal', input: base({ client: { ...CLIENT, placeId: null }, latestRun: done }), steps: ['todo', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'profile stays done without a place id (P5: keywords + a centre)', input: base({ client: { ...CLIENT, placeId: null }, latestRun: done }), steps: ['done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
   { name: 'profile incomplete (no service area)', input: base({ client: { ...CLIENT, serviceArea: null } }), steps: ['todo', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
   { name: 'profile done, no run -> search todo, agency', input: base(), steps: ['done', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
   { name: 'search queued -> running, system', input: base({ latestRun: { status: 'queued' } }), steps: ['done', 'running', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'system' },

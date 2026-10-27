@@ -138,7 +138,7 @@ export const listCompetitorSuggestions = defineTool({
 
 /** Refusal copy for the manual search (daily cap copy decided in the 12a plan; weekly copy is `weeklyLimitMessage`). */
 export const REFUSAL: Record<Exclude<SearchRefusal, 'weekly_limit'>, string> = {
-  missing_profile: 'Add keywords, a service area and the Google place id to the client profile first',
+  missing_profile: 'Add keywords and a service area (a location) to the client profile first',
   running: 'A competitor search is already running for this client',
   cooldown: 'A search just finished — its suggestions are below. You can search again in a few minutes.',
   daily_cap: 'Daily search limit reached. Try again tomorrow.',

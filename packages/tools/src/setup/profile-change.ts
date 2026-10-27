@@ -6,7 +6,7 @@ import { type ClientInput, cleanClientInput, clientInputProblems } from '../clie
 import { catalogOf, packsOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
 import { enqueueMapRefresh } from '../rank-scan';
-import { startFirstAutoSearch, type SearchStart } from '../rival-search';
+import { searchInputsReady, startFirstAutoSearch, type SearchStart } from '../rival-search';
 import type { ServiceAreaInput } from '../tools/schemas';
 
 /**
@@ -49,7 +49,7 @@ export async function applyClientProfileChange(
   ctx: AccessContext, deps: ToolDeps, clientId: string, patch: ClientProfilePatch,
   actor?: { userId: string; role: Role }, recheck?: (tx: Tx) => Promise<void>,
 ): Promise<{ client: ClientRow; search: SearchStart | null }> {
-  const { updated, placeChanged, searchInputsReady, mapChanged } = await withTenant(deps.app, ctx, async (tx) => {
+  const { updated, placeChanged, searchInputsReady: readyToSearch, mapChanged } = await withTenant(deps.app, ctx, async (tx) => {
     const [current] = await tx.select().from(client).where(eq(client.id, clientId)).for('update');
     if (!current) throw new ToolError('not_found', 'Client not found');
     if (recheck) await recheck(tx);
@@ -70,7 +70,7 @@ export async function applyClientProfileChange(
     // 13b: the rank map background depends on the service area's centre and radius only.
     const mapChanged = !!merged.serviceArea && (merged.serviceArea.radiusKm !== current.serviceArea?.radiusKm
       || merged.serviceArea.center.lat !== current.serviceArea?.center.lat || merged.serviceArea.center.lng !== current.serviceArea?.center.lng);
-    return { updated: updated!, mapChanged, placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && merged.keywords.length > 0 && !!merged.serviceArea && !!merged.placeId };
+    return { updated: updated!, mapChanged, placeChanged: merged.placeId !== current.placeId, searchInputsReady: searchInputsChanged && searchInputsReady(merged) };
   });
   // Final review: the self business was found by the old place id. Unlink it so benchmarks stop using the wrong
   // business and its paid gbp/reviews sources stop being claimed (unless something else still needs them); the next
@@ -84,6 +84,6 @@ export async function applyClientProfileChange(
   if (mapChanged) await enqueueMapRefresh(deps, clientId);
   // 12a D4 + owner decision 2026-10-15: after commit, the profile's first completion starts discovery once; a client
   // with any earlier run is never auto re-run by later edits.
-  const search = searchInputsReady ? await startFirstAutoSearch(deps, clientId) : null;
+  const search = readyToSearch ? await startFirstAutoSearch(deps, clientId) : null;
   return { client: updated, search };
 }

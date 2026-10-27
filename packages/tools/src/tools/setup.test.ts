@@ -698,7 +698,7 @@ describe('wizard tools', () => {
     it('start_search with an incomplete profile returns the missing-profile copy', async () => {
       await setupRow();
       const out = await advance(admin, 'start_search');
-      expect(out.searchRefusal).toBe('Add keywords, a service area and the Google place id to the client profile first');
+      expect(out.searchRefusal).toBe('Add keywords and a service area (a location) to the client profile first');
       expect(await runs()).toHaveLength(0);
     });
 

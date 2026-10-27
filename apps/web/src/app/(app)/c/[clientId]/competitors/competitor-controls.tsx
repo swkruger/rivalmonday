@@ -283,7 +283,7 @@ export function SuggestionsPanel({
       <CardContent className="flex flex-col gap-5">
         {canSearch && !readOnly && !ready && (
           <p className="text-muted-foreground">
-            Add keywords, a service area and a Google Place ID to search.{' '}
+            Add keywords and a service area to search.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
               Go to Business profile
             </Link>

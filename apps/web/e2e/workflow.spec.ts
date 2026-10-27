@@ -25,11 +25,11 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
   await page.goto(page.url().replace(/\/setup$/, '/competitors'));
   await expect(page.getByRole('heading', { name: 'Competitors', exact: true, level: 1 })).toBeVisible();
-  // Searching needs keywords, a service area and a Google Place ID: the created client has no Place ID yet.
-  const find = page.getByRole('button', { name: /find competitors/i });
-  await expect(find).toBeDisabled();
-  await expect(page.getByText('Add keywords, a service area and a Google Place ID to search.')).toBeVisible();
-  // Add the Place ID through the real profile form; website monitoring is off in E2E, so nothing is crawled.
+  // Phase 16 P5: searching needs keywords and a service-area centre only; this by-hand client has both, so the first
+  // automatic search (12a D4) has already started and the missing-inputs copy never shows.
+  await expect(page.getByText('Add keywords and a service area to search.')).toBeHidden();
+  await expect(page.getByRole('button', { name: /find competitors|searching/i })).toBeVisible();
+  // Link the Google listing through the real profile form; website monitoring is off in E2E, so nothing is crawled.
   await page.getByRole('link', { name: 'Go to Business profile' }).click();
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await page.getByLabel('Google Place ID').fill('ChIJe2eDentalPlace');
@@ -39,7 +39,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await page.reload();
   // Complete inputs: the missing-inputs copy is gone. Saving them also starts the automatic first search (12a D4),
   // so the button is either "Find competitors" or, while that search is queued, "Searching…".
-  await expect(page.getByText('Add keywords, a service area and a Google Place ID to search.')).toBeHidden();
+  await expect(page.getByText('Add keywords and a service area to search.')).toBeHidden();
   await expect(page.getByRole('button', { name: /find competitors|searching/i })).toBeVisible();
 });
 

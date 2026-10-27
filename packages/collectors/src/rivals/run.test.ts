@@ -26,12 +26,12 @@ const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOStr
 const { lat, lng } = area.center;
 
 type Item = Record<string, unknown>;
-const place = (o: { placeId: string; title: string; rank: number; category?: string; votes?: number | null; domain?: string | null; dLat?: number; status?: string; claimed?: boolean }): Item => ({
+const place = (o: { placeId: string; title: string; rank: number; category?: string; votes?: number | null; domain?: string | null; dLat?: number; status?: string; claimed?: boolean; phone?: string }): Item => ({
   type: 'maps_search', title: o.title, rank_absolute: o.rank, place_id: o.placeId, cid: `cid-${o.placeId}`,
   category: o.category ?? 'Dentist', domain: o.domain === undefined ? `${o.placeId}.example` : o.domain,
   rating: o.votes === null ? null : { value: 4.5, votes_count: o.votes ?? 50 },
   latitude: lat + (o.dLat ?? 0), longitude: lng, address_info: { city: 'Granbury' }, is_claimed: o.claimed ?? true,
-  work_hours: { current_status: o.status ?? 'open' },
+  work_hours: { current_status: o.status ?? 'open' }, ...(o.phone ? { phone: o.phone } : {}),
 });
 const MAPS: Item[] = [
   place({ placeId: 'p-park', title: 'Granbury Park Dental', rank: 1, domain: 'granburypark.com' }),
@@ -410,6 +410,19 @@ describe('runRivalSearch', () => {
     const after = (await suggestions()).get('p-park')!;
     expect(after.signals).toEqual(before.signals);
     expect(after.activity).toBe(before.activity);
+  });
+});
+
+describe('selfContext (Phase 16 P6)', () => {
+  it('selfContext uses client phone', async () => {
+    // No place id and no self competitor: the client's own phone still hides its listing from the suggestions.
+    await dbs.owner.update(client).set({ placeId: null, phone: '(817) 555-0100' }).where(eq(client.id, IDS.clientA2));
+    const v = vendors({ extraPlaces: [place({ placeId: 'p-mine', title: 'Our Own Dental LLC', rank: 9, phone: '+1 817-555-0100' })] });
+    const runId = await newRun();
+    await runRivalSearch(deps(v), runId);
+    const hidden = (await runRow(runId)).hidden as Record<string, number>;
+    expect(hidden.self).toBe(1);
+    expect((await suggestions()).has('p-mine')).toBe(false);
   });
 });
 

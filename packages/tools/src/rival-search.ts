@@ -85,6 +85,11 @@ export async function latestDoneRun(db: Pick<Tx, 'select'>, clientId: string): P
   return run ?? null;
 }
 
+/** Phase 16 P5: a competitor search needs keywords and a centre; a Google place id is no longer required (geocoded clients have none). SQL twin: `listMonthlyRivalClients`. */
+export function searchInputsReady(c: { keywords: readonly string[]; serviceArea: { center?: unknown } | null | undefined }): boolean {
+  return c.keywords.length > 0 && c.serviceArea?.center != null;
+}
+
 /**
  * Phase 12a D4/D7: the one entry point that starts a paid competitor search for a client. The caller has already
  * proved access. Refusals are returned, never thrown, so `auto` callers stay silent; a missing queue (`deps.enqueue`)
@@ -94,7 +99,7 @@ export async function startCompetitorSearch(deps: ToolDeps, clientId: string, tr
   const enqueue = enqueueOf(deps);
   const [c] = await deps.service.select({ agencyId: client.agencyId, keywords: client.keywords, serviceArea: client.serviceArea, placeId: client.placeId, timezone: client.timezone, archivedAt: client.archivedAt }).from(client).where(eq(client.id, clientId));
   if (!c || c.archivedAt !== null) throw new ToolError('not_found', 'Client not found'); // 7a2 D16: archived = deleted
-  if (c.keywords.length === 0 || !c.serviceArea || !c.placeId) return { refused: 'missing_profile' };
+  if (!searchInputsReady(c)) return { refused: 'missing_profile' };
 
   let started: SearchStart;
   try {
@@ -163,11 +168,11 @@ export async function startFirstAutoSearch(deps: ToolDeps, clientId: string): Pr
 /**
  * The monthly refresh's clients (worker `rival-monthly`): serviceable clients — active (prospects get no recurring
  * work), not paused, agency not read_only/suspended (9a/9b) — whose search profile is complete (keywords, a service
- * area and a Google place id), in id order. Service Db.
+ * area with a centre; place id optional, P5), in id order. Service Db.
  */
 export async function listMonthlyRivalClients(db: Pick<Tx, 'select'>): Promise<string[]> {
   const rows = await db.select({ id: client.id }).from(client)
-    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, isNotNull(client.placeId), sql`${client.placeId} <> ''`))
+    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, sql`${client.serviceArea}->'center' IS NOT NULL`))
     .orderBy(client.id);
   return rows.map((r) => r.id);
 }

@@ -61,6 +61,7 @@ const PNG_1X1_SHA = createHash('sha256').update(Buffer.from(PNG_1X1, 'base64')).
 export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // ── client: profile, setup, briefs, alerts, reports ────────────────────────────────────────────────
   get_client_profile: client(),
+  get_client_details: client(),
   get_client_setup: client(),
   get_starting_point_status: client(),
   get_feedback_contact: client(),
@@ -197,6 +198,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
 
   // ── client writes: profile, delivery, settings ─────────────────────────────────────────────────────
   update_client_profile: client({ keywords: ['ac repair', 'furnace repair'] }),
+  update_client_details: client({ phone: '(404) 555-0100', contactName: 'Pat Doe' }),
+  upload_client_logo: client({ png: PNG_1X1, sha256: PNG_1X1_SHA }),
   set_brief_auto_send: client({ enabled: true }),
   // timezone only: the path that writes without the RLS-checked delivery update
   update_client_delivery: client({ timezone: 'America/Denver' }),

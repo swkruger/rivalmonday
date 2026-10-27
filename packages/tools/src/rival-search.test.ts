@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob, ToolDeps } from './deps';
 import { createToolRegistry } from './registry';
-import { listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, searchDayLabel, startCompetitorSearch } from './rival-search';
+import { listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, searchDayLabel, searchInputsReady, startCompetitorSearch } from './rival-search';
 
 const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
@@ -49,8 +49,8 @@ const agencyState = async (state: 'read_only' | 'suspended') => {
 const pause = (clientId: string, pausedAt: Date | null = new Date()) => dbs.owner.update(client).set({ pausedAt }).where(eq(client.id, clientId));
 
 describe('startCompetitorSearch', () => {
-  it('missing place id → missing_profile', async () => {
-    await dbs.owner.update(client).set({ keywords: PROFILE.keywords, serviceArea: AREA }).where(eq(client.id, IDS.clientA1));
+  it('missing centre → missing_profile (a place id is no longer required, P5)', async () => {
+    await dbs.owner.update(client).set({ keywords: PROFILE.keywords, serviceArea: null }).where(eq(client.id, IDS.clientA1));
     await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ refused: 'missing_profile' });
     expect(await runs(IDS.clientA1)).toEqual([]);
     expect(enqueue).not.toHaveBeenCalled();
@@ -198,7 +198,23 @@ describe('weekly manual search limit (owner decision 2026-10-15)', () => {
   });
 });
 
+describe('search inputs rule (Phase 16 P5)', () => {
+  it('searchInputsReady accepts geocoded centre without placeId', async () => {
+    expect(searchInputsReady({ keywords: ['ac repair'], serviceArea: AREA })).toBe(true);
+    expect(searchInputsReady({ keywords: [], serviceArea: AREA })).toBe(false);
+    expect(searchInputsReady({ keywords: ['x'], serviceArea: null })).toBe(false);
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA, placeId: null }).where(eq(client.id, IDS.clientA1));
+    await expect(startCompetitorSearch(deps, IDS.clientA1, 'manual')).resolves.toEqual({ runId: expect.any(String) });
+  });
+});
+
 describe('monthly refresh (scheduled trigger)', () => {
+  it('monthly refresh includes geocoded clients', async () => {
+    await dbs.owner.update(client).set({ ...PROFILE, placeId: null }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.update(client).set({ keywords: ['x'], serviceArea: null, placeId: null }).where(eq(client.id, IDS.clientA2));
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA1]);
+  });
+
   it('listMonthlyRivalClients: active clients with keywords, a service area and a place id only', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2', status: 'prospect' }).where(eq(client.id, IDS.clientA2));
@@ -299,9 +315,11 @@ describe('auto-run hooks (D4)', () => {
   const create = (placeId: string | null, status: 'active' | 'prospect' = 'active') =>
     registry.invoke(admin, 'create_client', { name: 'New HVAC', verticalId: 'hvac_plumbing', services: [], keywords: ['ac repair'], serviceArea: AREA, placeId, status }) as Promise<{ clientId: string }>;
 
-  it('create_client starts an auto run only when keywords, area and place id are all present (active or prospect)', async () => {
+  it('create_client starts an auto run only when keywords and a service area centre are present (active or prospect; place id optional, P5)', async () => {
     const { clientId: noPlace } = await create(null);
-    expect(await runs(noPlace)).toEqual([]);
+    expect(await runs(noPlace)).toEqual([expect.objectContaining({ trigger: 'auto' })]);
+    const noArea = (await registry.invoke(admin, 'create_client', { name: 'No Area', verticalId: 'hvac_plumbing', services: [], keywords: ['ac repair'], serviceArea: null, placeId: null })) as { clientId: string };
+    expect(await runs(noArea.clientId)).toEqual([]);
     const { clientId: active } = await create('ChIJnewactive01');
     expect(await runs(active)).toEqual([expect.objectContaining({ trigger: 'auto', status: 'queued' })]);
     const { clientId: prospect } = await create('ChIJnewprospect1', 'prospect');
@@ -318,9 +336,9 @@ describe('auto-run hooks (D4)', () => {
   });
 
   it('update_client_profile auto-runs only the first time the profile becomes complete (owner decision 2026-10-15)', async () => {
-    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, keywords: ['ac repair'], serviceArea: AREA });
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, keywords: ['ac repair'] });
     expect(await runs(IDS.clientA1)).toEqual([]);
-    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, placeId: 'ChIJa1hvacplace1' });
+    await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, serviceArea: AREA }); // P5: the centre completes the inputs, no place id needed
     expect(await runs(IDS.clientA1)).toEqual([expect.objectContaining({ trigger: 'auto' })]);
     await dbs.owner.update(discoveryRun).set({ status: 'done', finishedAt: new Date(Date.now() - 20 * MIN) }).where(eq(discoveryRun.clientId, IDS.clientA1));
     await registry.invoke(admin, 'update_client_profile', { clientId: IDS.clientA1, name: 'A1 HVAC Renamed' });

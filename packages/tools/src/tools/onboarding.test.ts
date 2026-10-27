@@ -1,11 +1,12 @@
 import { type AccessContext, type AuditEvent, createAccessContext } from '@cs/core';
 import { claimDueSources, ensureSelfCompetitor } from '@cs/collectors';
-import { agencyOnboarding, client, clientSetup, competitorSource, plan } from '@cs/db';
+import { agencyOnboarding, client, clientSetup, competitorSource, contact, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EnqueueJob } from '../deps';
+import type { EnqueueJob, ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
+import { getSetupState } from '../setup/state';
 
 const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
@@ -216,5 +217,75 @@ describe('create_client with lookup (11a)', () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe('create_client details and geocoding (Phase 16 O13)', () => {
+  const ADDRESS = { line1: '12 Peachtree St', city: 'Atlanta', region: 'GA', postalCode: '30303', country: 'US' as const };
+  const details = { phone: '(404) 555-0100', address: ADDRESS, contact: { name: 'Pat Owner', email: 'Pat.Owner@Example.com' } };
+  const noArea = { name: 'Comfort Air', verticalId: 'hvac_plumbing', services: [], keywords: [], placeId: null, serviceArea: null };
+  const geocode = vi.fn<NonNullable<ToolDeps['geocode']>>(async () => ({ lat: 33.75, lng: -84.39, label: '12 Peachtree St', precision: 'address' as const }));
+  const geoRegistry = createToolRegistry({ app: dbs.app, service: dbs.service, enqueue, geocode }, { audit: { record: async () => {} } });
+  beforeEach(() => { geocode.mockReset(); geocode.mockResolvedValue({ lat: 33.75, lng: -84.39, label: '12 Peachtree St', precision: 'address' }); });
+
+  it('create_client stores phone, address and owner contact', async () => {
+    const { clientId } = (await geoRegistry.invoke(admin, 'create_client', { ...noArea, details })) as { clientId: string };
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+    expect(row).toMatchObject({ phone: '(404) 555-0100', address: ADDRESS });
+    const contacts = await dbs.owner.select().from(contact).where(eq(contact.clientId, clientId));
+    expect(contacts).toEqual([expect.objectContaining({ email: 'pat.owner@example.com', name: 'Pat Owner', role: 'client_owner', active: false, agencyId: IDS.agencyA })]);
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.invitedContactId).toBeNull();
+  });
+
+  it('create_client without lookup geocodes the address', async () => {
+    const { clientId } = (await geoRegistry.invoke(admin, 'create_client', { ...noArea, details })) as { clientId: string };
+    expect(geocode).toHaveBeenCalledTimes(1);
+    expect(geocode.mock.calls[0]![0]).toEqual({ line1: '12 Peachtree St', city: 'Atlanta', region: 'GA', postalCode: '30303' });
+    expect(geocode.mock.calls[0]![1]).toEqual({ agencyId: IDS.agencyA, clientId: null });
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+    expect(row!.serviceArea).toEqual({ center: { lat: 33.75, lng: -84.39 }, radiusKm: 16.1, zips: [] });
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.locationSource).toBe('geocoded');
+  });
+
+  it('create_client geocodes "City or ZIP" when there is no street address', async () => {
+    await geoRegistry.invoke(admin, 'create_client', { ...noArea, details: { phone: details.phone, locality: ' 30303 ', contact: details.contact } });
+    expect(geocode.mock.calls[0]![0]).toEqual({ text: '30303' });
+  });
+
+  it('geocode miss returns needs_location (state)', async () => {
+    geocode.mockResolvedValue(null);
+    const { clientId } = (await geoRegistry.invoke(admin, 'create_client', { ...noArea, keywords: ['ac repair'], details })) as { clientId: string };
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+    expect(row!.serviceArea).toBeNull();
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.locationSource).toBe('geocoded');
+    expect((await getSetupState(dbs.service, clientId)).steps.profile).toBe('todo'); // no centre: Task 7 shows needs_location
+    // No geocoder at all (no STADIA_API_KEY) reads the same as a miss.
+    const { clientId: c2 } = (await registry.invoke(admin, 'create_client', { ...noArea, name: 'No Key', details })) as { clientId: string };
+    expect((await dbs.owner.select().from(client).where(eq(client.id, c2)))[0]!.serviceArea).toBeNull();
+  });
+
+  it('legacy create_client without details unchanged', async () => {
+    const { clientId } = (await geoRegistry.invoke(admin, 'create_client', input)) as { clientId: string };
+    expect(geocode).not.toHaveBeenCalled();
+    const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+    expect(row).toMatchObject({ phone: null, address: null, serviceArea: input.serviceArea });
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.locationSource).toBeNull();
+    expect(await dbs.owner.select().from(contact).where(eq(contact.clientId, clientId))).toEqual([]);
+  });
+
+  it('create_client geocodes outside the transaction', async () => {
+    geocode.mockRejectedValueOnce(new Error('stadia down'));
+    await expect(geoRegistry.invoke(admin, 'create_client', { ...noArea, name: 'Half Written', details })).rejects.toThrow();
+    expect(await dbs.owner.select().from(client).where(eq(client.name, 'Half Written'))).toEqual([]);
+    expect(await dbs.owner.select().from(contact)).toEqual([]);
+  });
+
+  it('create_client rejects a bad phone or ZIP', async () => {
+    await expect(geoRegistry.invoke(admin, 'create_client', { ...noArea, details: { ...details, phone: '12' } })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(geoRegistry.invoke(admin, 'create_client', { ...noArea, details: { ...details, address: { ...ADDRESS, postalCode: 'abc' } } })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 });
