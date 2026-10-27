@@ -33,7 +33,7 @@ vi.mock('@/components/runbook/runbook-editor', () => ({ RunbookEditor: () => <di
 vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <div>profile form</div> }));
 vi.mock('@/app/(app)/agency/settings/billing/payment-button', () => ({ PaymentButton: () => null }));
 vi.mock('./settings/profile/client-features-form', () => ({ ClientFeaturesForm: () => <div>features form</div> }));
-vi.mock('./settings/profile/actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn() }));
+vi.mock('./settings/profile/actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn(), updateDetailsAction: vi.fn() }));
 vi.mock('./settings/alerts/actions', () => ({ saveAlertRulesAction: vi.fn() }));
 vi.mock('./settings/delivery/actions', () => ({ addRecipientAction: vi.fn(), deactivateRecipientAction: vi.fn(), saveDeliveryAction: vi.fn() }));
 vi.mock('./settings/ai/actions', () => ({ createClientTokenAction: vi.fn(), revokeClientGrantAction: vi.fn(), revokeClientTokenAction: vi.fn() }));

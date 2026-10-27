@@ -68,7 +68,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules`, `list_help_guides` | — |
 | `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook`, `list_help_guides` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_client_recipients`, `list_help_guides` | — |
-| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `list_help_guides` | — |
+| `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `get_client_details`, `list_help_guides` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile`, `list_help_guides` | — |
 | `/agency/settings/billing` | admin | `get_billing_summary`, `get_connect_status`, `get_client_revenue`, `list_help_guides` | — |
 | `/onboarding (step=profile)` | admin | `get_onboarding_status`, `get_agency_profile`, `get_agency_branding`, `list_help_guides` | — |
