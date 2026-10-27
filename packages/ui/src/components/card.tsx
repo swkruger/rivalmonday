@@ -22,7 +22,7 @@ function Card({
         variant === "interactive" &&
           !selected &&
           "hover:border-line-control hover:bg-canvas",
-        selected && "border-2 border-secondary bg-primary-soft",
+        selected && "border-secondary bg-primary-soft ring-1 ring-inset ring-secondary",
         className
       )}
       {...props}

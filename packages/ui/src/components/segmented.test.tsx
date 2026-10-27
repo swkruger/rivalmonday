@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Segmented } from './segmented';
+import { Segmented, segmentedItemClass, segmentedTrackClass } from './segmented';
 
 afterEach(cleanup);
 
@@ -30,5 +30,26 @@ describe('Segmented', () => {
     render(<Segmented value="7d" onValueChange={fn} items={items} aria-label="Range" />);
     fireEvent.click(screen.getByRole('radio', { name: '7 days' }));
     expect(fn).not.toHaveBeenCalledWith('');
+  });
+});
+
+describe('segmented classes for links and tabs', () => {
+  it('the item class carries the active look for aria-current and aria-selected items (guard)', () => {
+    expect(segmentedItemClass).toContain('aria-[current=page]:');
+    expect(segmentedItemClass).toContain('aria-[current=true]:');
+    expect(segmentedItemClass).toContain('aria-selected:');
+    expect(segmentedItemClass).toContain('data-[state=on]:');
+  });
+
+  it('applies to a link and a tab', () => {
+    render(
+      <div className={segmentedTrackClass}>
+        <a href="/x" aria-current="page" className={segmentedItemClass}>All</a>
+        <button role="tab" aria-selected="true" className={segmentedItemClass}>Trend</button>
+      </div>,
+    );
+    expect(screen.getByRole('link', { name: 'All' }).className).toContain('aria-[current=page]:bg-surface');
+    expect(screen.getByRole('tab', { name: 'Trend' }).className).toContain('aria-selected:bg-surface');
+    expect(segmentedTrackClass).toContain('bg-muted-surface');
   });
 });

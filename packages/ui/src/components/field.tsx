@@ -36,7 +36,7 @@ function Field({
 
   return (
     <div data-slot="field" className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={id}>
+      <Label htmlFor={id} className="gap-1">
         {label}
         {required && (
           <>
