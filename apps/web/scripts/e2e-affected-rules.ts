@@ -49,7 +49,7 @@ export const RULES: Rule[] = [
   { pattern: /^\.claude\//, tags: 'none', why: 'agent tooling' },
   { pattern: /\.test\.tsx?$/, tags: 'none', why: 'unit test' },
   { pattern: /^apps\/worker\//, tags: 'none', why: 'the web app does not depend on the worker' },
-  { pattern: /^apps\/web\/(?:e2e-panel\/|playwright\.panel\.config\.ts$)/, tags: 'none', why: 'dev-panel E2E (separate config)' },
+  { pattern: /^apps\/web\/(?:e2e-panel\/|e2e-shots\/|playwright\.(?:panel|shots)\.config\.ts$)/, tags: 'none', why: 'dev-panel E2E and the screenshot harness (separate configs)' },
   { pattern: re(`${WEB}scripts/(?:check-)?no-dev-panel\\.ts$`), tags: ['@dev-panel'], why: 'production-build dev-panel check' },
   { pattern: re(`${WEB}scripts/`), tags: 'none', why: 'web CLI scripts are not part of the build' },
   { pattern: re(`${WEB}(?:test/|vitest\\.config\\.ts$)`), tags: 'none', why: 'unit-test setup' },

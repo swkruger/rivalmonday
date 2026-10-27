@@ -15,6 +15,7 @@
     "db:snapshot": "pnpm --filter @cs/demo snapshot",
     "db:restore": "pnpm --filter @cs/demo restore",
     "dev": "pnpm --filter @cs/web dev",
+    "design:lint": "bash scripts/design-lint.sh",
     "dev:web": "pnpm --filter @cs/web dev",
     "build": "turbo run build",
     "demo:reset": "pnpm --filter @cs/demo reset",
