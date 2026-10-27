@@ -130,7 +130,7 @@ export function FeedList({
     <div className="flex flex-col">
       {groups.map((group) => (
         <div key={group.label}>
-          <div className="px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-ink first:pt-3">{group.label}</div>
+          <div className="px-4 pb-1.5 pt-4 text-xs font-medium text-muted-ink first:pt-3">{group.label}</div>
           <ul className="flex flex-col">
             {group.items.map((row) => {
               const selected = row.eventId === selectedId;

@@ -48,7 +48,7 @@ function Preview({ preview }: { preview: LeadPreview }) {
   if (preview.status !== 'ready') return null;
   return (
     <div className="rounded-md bg-muted-surface p-3 text-sm text-ink">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-ink">Snapshot</p>
+      <p className="text-xs font-medium text-muted-ink">Snapshot</p>
       {preview.facts.length > 0 && (
         <ul className="mt-1 list-disc pl-5">
           {preview.facts.map((f) => (
