@@ -55,7 +55,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md`, aim ≤ 15 KB). Reference the core spec by §; don't restate it.
 4. `superpowers:writing-plans` in the **lean plan format** below. 
 5. **Owner approval** of the plan.
-6. `superpowers:subagent-driven-development`: pre-flight (rebase, re-check dependencies, conflict-scan), fresh implementer + reviewer per task, final whole-branch review on the most capable model, one fix wave. **Test scope:** implementers run focused tests; task reviewers run none; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` run once, at the final review (`--base main`). Full unit + E2E only in `/rm-merge`, after asking the owner (CI runs both on push).
+6. `superpowers:subagent-driven-development`: pre-flight (rebase, re-check dependencies, conflict-scan), fresh implementer + reviewer per task, final whole-branch review (most capable model), one fix wave. **Test scope:** implementers run focused tests; task reviewers run none; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` run once, at the final review (`--base main`). Full unit + E2E only in `/rm-merge`, after asking the owner (CI runs both on push).
 7. `/rm-wrap-up` at the end of every session; `/rm-merge` only with the owner's go-ahead.
 
 **Parallel workstreams:** one worktree per branch (`../CompetitorSpy-wt/<branch>`), one session each. Planning ahead: `/rm-kickoff`. Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their own work file.
