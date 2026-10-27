@@ -1,6 +1,6 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, RatingTrendView, ReviewList, TopicBenchmarkView } from '@cs/tools';
-import { Button, cn, HairlineCell, HairlineGrid, nativeSelectClass, Section } from '@cs/ui';
+import { Button, HairlineCell, HairlineGrid, Section, toolbarControlClass } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: 'Reviews' };
 const PAGE = 20;
 const HELP_KEY = 'page:client.reviews';
 const COPY = PAGE_COPY['client.reviews'];
-const SELECT = cn(nativeSelectClass, 'h-8 text-13');
+const SELECT = toolbarControlClass;
 const LABEL = 'text-xs font-medium text-muted-ink';
 const TOPIC = /^[a-z0-9_]{1,64}$/;
 
@@ -147,7 +147,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           </label>
           <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className={LABEL}>Contains</span>
-            <input name="q" defaultValue={text ?? ''} maxLength={100} className={cn(nativeSelectClass, 'h-8 text-13')} />
+            <input name="q" defaultValue={text ?? ''} maxLength={100} className={SELECT} />
           </label>
           <Button type="submit" variant="outline" size="sm">Search</Button>
         </form>

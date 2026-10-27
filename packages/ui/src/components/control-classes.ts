@@ -1,6 +1,9 @@
 /** Native <select>/<textarea> classes for GET forms and server forms (no JS): input.tsx's recipe. */
-const controlRecipe =
-  "min-w-0 rounded-sm border border-input bg-surface text-sm text-ink transition-colors outline-none placeholder:text-muted-ink disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger aria-invalid:ring-inset"
+const controlBase =
+  "min-w-0 rounded-sm border border-input bg-surface text-ink transition-colors outline-none placeholder:text-muted-ink disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-danger aria-invalid:ring-inset"
+const controlRecipe = `text-sm ${controlBase}`
 
 export const nativeSelectClass = `h-9 px-3 ${controlRecipe}`
 export const textareaClass = `min-h-20 w-full px-3 py-2 ${controlRecipe}`
+/** Filter-toolbar <select>/<input> (Changes, Ads, Reviews, Rankings): the same recipe at Button size="sm" height (h-7), 13 px text. */
+export const toolbarControlClass = `h-7 px-2.5 text-13 ${controlBase}`

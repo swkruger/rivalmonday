@@ -1,6 +1,6 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
-import { Button, nativeSelectClass, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, toolbarControlClass } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -145,37 +145,37 @@ export default async function RankingsPage({ params, searchParams }: {
             <form method="get" className="flex flex-wrap items-end gap-3">
               {tab === 'compare' && <input type="hidden" name="tab" value="compare" />}
               {tab === 'trend' && scanId && <input type="hidden" name="scan" value={scanId} />}
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-13 font-medium text-ink">Keyword</span>
-                <select name="keyword" defaultValue={geo.keyword ?? ''} className={nativeSelectClass}>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-ink">Keyword</span>
+                <select name="keyword" defaultValue={geo.keyword ?? ''} className={toolbarControlClass}>
                   {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-13 font-medium text-ink">Business</span>
-                <select name="business" defaultValue={geo.business ?? ''} className={nativeSelectClass}>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-ink">Business</span>
+                <select name="business" defaultValue={geo.business ?? ''} className={toolbarControlClass}>
                   {geo.businesses.map((b) => <option key={b.key} value={b.key}>{b.self ? 'You' : b.name}</option>)}
                 </select>
               </label>
               {tab === 'trend' ? (
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-13 font-medium text-ink">Share of voice for</span>
-                  <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className={nativeSelectClass}>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-muted-ink">Share of voice for</span>
+                  <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className={toolbarControlClass}>
                     <option value="">All keywords</option>
                     {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
                   </select>
                 </label>
               ) : compare && (
                 <>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-13 font-medium text-ink">From scan</span>
-                    <select name="a" defaultValue={compare.a.scanId} className={nativeSelectClass}>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-muted-ink">From scan</span>
+                    <select name="a" defaultValue={compare.a.scanId} className={toolbarControlClass}>
                       {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-13 font-medium text-ink">To scan</span>
-                    <select name="b" defaultValue={compare.b.scanId} className={nativeSelectClass}>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-muted-ink">To scan</span>
+                    <select name="b" defaultValue={compare.b.scanId} className={toolbarControlClass}>
                       {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>

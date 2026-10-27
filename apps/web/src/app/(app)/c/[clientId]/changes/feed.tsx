@@ -4,7 +4,7 @@
  * components, HANDOVER §6). Reused by later tasks: `RoutePill` (9, 13), `changesHref`/`ChangesParams` (9, 11, 13).
  */
 import { channelLabel, type EventRow } from '@cs/tools';
-import { Button, cn, Input, nativeSelectClass, segmentedItemClass, segmentedTrackClass, StatusChip } from '@cs/ui';
+import { Button, cn, segmentedItemClass, segmentedTrackClass, StatusChip, toolbarControlClass } from '@cs/ui';
 import Link from 'next/link';
 import { HelpTip } from '@/components/help/help-tip';
 import { formatDate } from '@/lib/format';
@@ -24,7 +24,7 @@ export function RoutePill({ route, score }: { route: EventRow['route']; score: n
   );
 }
 
-const SELECT_CLASS = cn(nativeSelectClass, 'h-8 text-13');
+const SELECT_CLASS = toolbarControlClass;
 
 function SegmentLink({ clientId, params, route, label }: { clientId: string; params: ChangesParams; route: ChangesParams['route']; label: string }) {
   const active = params.route === route;
@@ -57,7 +57,7 @@ export function FilterBar({
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <form action={`/c/${clientId}/changes`} className="flex flex-1 flex-wrap items-center gap-2">
         <input type="hidden" name="route" value={params.route} />
-        <Input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className="h-8 max-w-[220px]" />
+        <input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className={cn(toolbarControlClass, 'w-full max-w-[220px]')} />
         <select name="competitor" defaultValue={params.competitor ?? ''} aria-label="Competitor" className={SELECT_CLASS}>
           <option value="">All competitors</option>
           {competitors.map((c) => (

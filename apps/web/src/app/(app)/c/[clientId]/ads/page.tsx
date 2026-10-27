@@ -1,6 +1,6 @@
 import { hasFeature } from '@cs/core';
 import type { AdActivityView, AdList, ClientProfile, TrackedCompetitor } from '@cs/tools';
-import { Button, cn, nativeSelectClass, Section } from '@cs/ui';
+import { Button, Section, toolbarControlClass } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -73,14 +73,14 @@ export default async function AdsPage({ params, searchParams }: {
       <form method="get" className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-ink">Competitor</span>
-          <select name="competitor" defaultValue={competitorId ?? ''} className={cn(nativeSelectClass, 'h-8 text-13')}>
+          <select name="competitor" defaultValue={competitorId ?? ''} className={toolbarControlClass}>
             <option value="">All competitors</option>
             {tracked.items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-ink">Platform</span>
-          <select name="platform" defaultValue={platform} className={cn(nativeSelectClass, 'h-8 text-13')}>
+          <select name="platform" defaultValue={platform} className={toolbarControlClass}>
             <option value="all">All</option>
             <option value="meta">Meta</option>
             <option value="google">Google</option>
@@ -88,7 +88,7 @@ export default async function AdsPage({ params, searchParams }: {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-ink">Status</span>
-          <select name="status" defaultValue={status} className={cn(nativeSelectClass, 'h-8 text-13')}>
+          <select name="status" defaultValue={status} className={toolbarControlClass}>
             <option value="active">Active</option>
             <option value="ended">Ended</option>
             <option value="all">All</option>
