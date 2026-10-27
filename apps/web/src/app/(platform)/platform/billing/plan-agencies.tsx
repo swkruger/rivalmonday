@@ -1,5 +1,5 @@
 'use client';
-import { Button, ConfirmDialog, StatusChip } from '@cs/ui';
+import { Button, ConfirmDialog, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { AGENCY_LIFECYCLE, BILLING_STATE, labelFor } from '@/lib/labels';
@@ -47,61 +47,61 @@ export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMov
   return (
     <div className="flex flex-col gap-3">
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Every agency is on the current version.</p>
+        <p className="text-sm text-muted-ink">Every agency is on the current version.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="text-muted-foreground">
+        <TableFrame>
+          <Table>
+            <TableHeader>
+              <TableRow>
                 {canMove && (
-                  <th scope="col" className="w-8 px-3 py-2">
+                  <TableHead className="w-8">
                     <input
                       type="checkbox"
                       aria-label="Select all agencies"
-                      className="h-4 w-4 rounded border-input"
+                      className="h-4 w-4 rounded-sm border-input"
                       checked={allChecked}
                       disabled={enabled.length === 0}
                       onChange={() => setSelected(allChecked ? new Set() : new Set(enabled.map((r) => r.agencyId)))}
                     />
-                  </th>
+                  </TableHead>
                 )}
                 {['Agency', 'Version', 'State', 'Monthly now → after'].map((h) => (
-                  <th key={h} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{h}</th>
+                  <TableHead key={h}>{h}</TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r) => {
                 const state = labelFor(BILLING_STATE, r.state);
                 return (
-                  <tr key={r.agencyId} className="border-t border-[#EEF2F6]">
+                  <TableRow key={r.agencyId}>
                     {canMove && (
-                      <td className="px-3 py-2">
+                      <TableCell>
                         <input
                           type="checkbox"
                           aria-label={`Select ${r.name}`}
-                          className="h-4 w-4 rounded border-input"
+                          className="h-4 w-4 rounded-sm border-input"
                           checked={selected.has(r.agencyId) && !locked(r)}
                           disabled={locked(r)}
                           onChange={() => toggle(r.agencyId)}
                         />
-                      </td>
+                      </TableCell>
                     )}
-                    <td className="px-3 py-2 font-semibold">{r.name}</td>
-                    <td className="px-3 py-2">{versionText(r.version)}</td>
-                    <td className="px-3 py-2">
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell>{versionText(r.version)}</TableCell>
+                    <TableCell>
                       <span className="flex flex-wrap items-center gap-1.5">
                         <StatusChip tone={state.tone}>{state.label}</StatusChip>
                         {r.onHold && <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip>}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2">{monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>{monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)}</TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableFrame>
       )}
       {canMove && rows.length > 0 && (
         <div>

@@ -1,4 +1,5 @@
 import { PLAN_FEATURES } from '@cs/core';
+import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDate, formatMoney } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
@@ -24,33 +25,36 @@ export function PlanEditor({ plans, canEdit, tz }: { plans: PlanRow[]; canEdit: 
   const currentFeatures = plans.find((p) => p.isCurrent)?.features ?? PLAN_FEATURES;
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
-            <tr className="text-muted-foreground">
-              {['Version', 'Name', 'Base price', 'Included seats', 'Extra seat', 'Trial days', 'Includes', 'Created', 'Status'].map((h) => (
-                <th key={h} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{h}</th>
+      {plans.length === 0 ? (
+        <p className="text-sm text-muted-ink">No plans yet.</p>
+      ) : (
+        <TableFrame>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {['Version', 'Name', 'Base price', 'Included seats', 'Extra seat', 'Trial days', 'Includes', 'Created', 'Status'].map((h) => (
+                  <TableHead key={h}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {plans.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">v{p.version}</TableCell>
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell>{formatMoney(p.basePriceCents, { unit: 'cents' })}</TableCell>
+                  <TableCell>{p.includedSeats}</TableCell>
+                  <TableCell>{formatMoney(p.seatPriceCents, { unit: 'cents' })}</TableCell>
+                  <TableCell>{p.trialDays}</TableCell>
+                  <TableCell>{p.features.length ? p.features.map((f) => PLAN_FEATURE_LABEL[f]).join(', ') : 'None'}</TableCell>
+                  <TableCell>{formatDate(p.createdAt, { tz })}</TableCell>
+                  <TableCell>{p.isCurrent ? 'Current' : p.synced ? 'Superseded' : 'Not synced'}</TableCell>
+                </TableRow>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {plans.map((p) => (
-              <tr key={p.id} className="border-t border-[#EEF2F6]">
-                <td className="px-3 py-2 font-semibold">v{p.version}</td>
-                <td className="px-3 py-2">{p.name}</td>
-                <td className="px-3 py-2">{formatMoney(p.basePriceCents, { unit: 'cents' })}</td>
-                <td className="px-3 py-2">{p.includedSeats}</td>
-                <td className="px-3 py-2">{formatMoney(p.seatPriceCents, { unit: 'cents' })}</td>
-                <td className="px-3 py-2">{p.trialDays}</td>
-                <td className="px-3 py-2">{p.features.length ? p.features.map((f) => PLAN_FEATURE_LABEL[f]).join(', ') : 'None'}</td>
-                <td className="whitespace-nowrap px-3 py-2">{formatDate(p.createdAt, { tz })}</td>
-                <td className="px-3 py-2">{p.isCurrent ? 'Current' : p.synced ? 'Superseded' : 'Not synced'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {plans.length === 0 && <p className="px-3 py-4 text-sm text-muted-foreground">No plans yet.</p>}
-      </div>
+            </TableBody>
+          </Table>
+        </TableFrame>
+      )}
       {canEdit && (
         <ConfirmForm
           action={createPlanVersionAction}
@@ -58,7 +62,7 @@ export function PlanEditor({ plans, canEdit, tz }: { plans: PlanRow[]; canEdit: 
           title="Publish a new plan version?"
           body="It becomes the current plan for new subscriptions. Existing subscriptions keep their prices."
           confirmLabel="Publish version"
-          className="flex flex-wrap items-end gap-3 border-t border-[#EEF2F6] pt-4"
+          className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
         >
           <Field label="Name" htmlFor="plan-name"><input id="plan-name" name="name" required maxLength={80} defaultValue="Standard" className={fieldCls} /></Field>
           <Field label="Base price ($/month)" htmlFor="plan-base"><input id="plan-base" name="basePrice" required inputMode="decimal" className={`${fieldCls} w-32`} /></Field>
@@ -75,7 +79,7 @@ export function PlanEditor({ plans, canEdit, tz }: { plans: PlanRow[]; canEdit: 
               ))}
             </div>
           </fieldset>
-          <p className="basis-full text-xs text-muted-foreground">A new version becomes current for new subscriptions. Existing subscriptions keep their prices.</p>
+          <p className="basis-full text-xs text-muted-ink">A new version becomes current for new subscriptions. Existing subscriptions keep their prices.</p>
         </ConfirmForm>
       )}
     </div>

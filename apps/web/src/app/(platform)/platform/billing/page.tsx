@@ -1,6 +1,6 @@
 import { BILLING_STATES, type BillingState } from '@cs/db';
 import { platformRole } from '@cs/tools';
-import { StatusChip, TabsLink, TabsLinkList } from '@cs/ui';
+import { Section, TabsLink, TabsLinkList } from '@cs/ui';
 import Link from 'next/link';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
@@ -28,19 +28,19 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Billing & plans' };
 
-const card = 'min-w-0 rounded-md border border-line bg-surface p-6';
 const HELP_KEY = 'page:platform.billing';
 const COPY = PAGE_COPY['platform.billing'];
 
-/** A section heading with its `?` tip beside it (a sibling of the h2, so the heading's own name stays the title). */
-function SectionHead({ title, tips }: { title: string; tips: ('plans' | 'codes' | 'restrict' | 'connect' | 'links' | 'signup')[] }) {
+/** A billing section: its `?` tips sit beside the h2 (a sibling, so the heading's own name stays the title). */
+function BillingSection({ title, tips, ruled, children }: { title: string; tips: ('plans' | 'codes' | 'restrict' | 'connect' | 'links' | 'signup')[]; ruled?: boolean; children: React.ReactNode }) {
   return (
-    <div className="mb-3 flex items-center gap-1.5">
-      <h2 className="font-semibold">{title}</h2>
-      {tips.map((t) => (
-        <HelpTip key={t} tip={`platform.billing.${t}`} />
-      ))}
-    </div>
+    <Section
+      title={title}
+      ruled={ruled}
+      titleAside={tips.length > 0 ? <>{tips.map((t) => <HelpTip key={t} tip={`platform.billing.${t}`} />)}</> : undefined}
+    >
+      {children}
+    </Section>
   );
 }
 
@@ -70,30 +70,20 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
             { label: 'About billing states', tip: 'platform.agencies.billing' },
           ]}
         />
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-          <div className="col-span-2">
-            <StatStrip
-              items={[
-                { title: 'MRR', value: formatMoney(overview.mrrCents, { unit: 'cents' }), hint: 'From the latest daily stats' },
-                { title: 'Paid seats', value: String(overview.paidSeats), hint: 'From the latest daily stats' },
-              ]}
-            />
-          </div>
-          <div className="col-span-2 rounded-md border border-line bg-surface p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground">Agencies by state</h3>
-            <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-3 text-sm">
-              {BILLING_STATES.map((s: BillingState) => {
-                const entry = labelFor(BILLING_STATE, s);
-                return (
-                  <li key={s} className="flex flex-col items-start gap-1">
-                    <StatusChip tone={entry.tone}>{entry.label}</StatusChip>
-                    <span className="text-xl font-semibold text-secondary">{overview.agenciesByState[s] ?? 0}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
+        <StatStrip
+          items={[
+            { title: 'MRR', value: formatMoney(overview.mrrCents, { unit: 'cents' }), hint: 'From the latest daily stats' },
+            { title: 'Paid seats', value: String(overview.paidSeats), hint: 'From the latest daily stats' },
+          ]}
+        />
+        <Section title="Agencies by state">
+          <StatStrip
+            items={BILLING_STATES.map((s: BillingState) => ({
+              title: labelFor(BILLING_STATE, s).label,
+              value: String(overview.agenciesByState[s] ?? 0),
+            }))}
+          />
+        </Section>
       </>
     );
   } else if (tab === 'plans') {
@@ -103,23 +93,20 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
     ]);
     body = (
       <>
-        <section className={card}>
-          <SectionHead title="Plans" tips={['plans']} />
+        <BillingSection title="Plans" tips={['plans']}>
           <PlanEditor plans={plans} canEdit={isOwner} tz={tz} />
-        </section>
-        <section className={card}>
-          <SectionHead title="Agencies not on the current version" tips={[]} />
+        </BillingSection>
+        <BillingSection title="Agencies not on the current version" tips={[]} ruled>
           <PlanAgencies data={behind} canMove={isOwner} />
-        </section>
+        </BillingSection>
       </>
     );
   } else if (tab === 'codes') {
     const { codes } = await callTool<{ codes: CodeRow[] }>(ctx, 'list_discount_codes', {});
     body = (
-      <section className={card}>
-        <SectionHead title="Discount codes" tips={['codes', 'restrict']} />
+      <BillingSection title="Discount codes" tips={['codes', 'restrict']}>
         <Codes codes={codes} canManage={isOwner} tz={tz} />
-      </section>
+      </BillingSection>
     );
   } else if (tab === 'signups') {
     const [signups, funnel, links, codes] = await Promise.all([
@@ -130,45 +117,44 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
     ]);
     body = (
       <>
-        <section className={card}>
-          <SectionHead title="Agency sign-up" tips={['signup']} />
+        <BillingSection title="Agency sign-up" tips={['signup']}>
           <SignupsPanel paused={signups.paused} canEdit={isOwner} days={days} funnel={funnel} />
-        </section>
+        </BillingSection>
         {links && (
-          <section className={card}>
-            <SectionHead title="Agency invite links" tips={['links']} />
+          <BillingSection title="Agency invite links" tips={['links']} ruled>
             <InviteLinks links={links} codes={codes.filter((c) => !c.revokedAt).map((c) => ({ id: c.id, code: c.code }))} tz={tz} />
-          </section>
+          </BillingSection>
         )}
       </>
     );
   } else {
     const connect = await callTool<ConnectOverview>(ctx, 'get_connect_overview', {});
     body = (
-      <section className={card}>
-        <SectionHead title="Stripe Connect" tips={['connect']} />
+      <BillingSection title="Stripe Connect" tips={['connect']}>
         <ConnectPanel overview={connect} canEdit={isOwner} />
-      </section>
+      </BillingSection>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
+    <>
       <PageHeader
         title="Billing & plans"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Billing & plans' }]}
         description={<HelpText text={COPY.description} />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
+        tabs={
+          <TabsLinkList aria-label="Billing sections" className="max-w-full overflow-x-auto">
+            {TABS.map((t) => (
+              <TabsLink key={t} asChild active={t === tab} className="flex-none px-3">
+                <Link href={`/platform/billing?tab=${t}&days=${days}`}>{TAB_LABEL[t]}</Link>
+              </TabsLink>
+            ))}
+          </TabsLinkList>
+        }
       />
-      <TabsLinkList aria-label="Billing sections" className="max-w-full self-start overflow-x-auto">
-        {TABS.map((t) => (
-          <TabsLink key={t} asChild active={t === tab} className="flex-none px-3">
-            <Link href={`/platform/billing?tab=${t}&days=${days}`}>{TAB_LABEL[t]}</Link>
-          </TabsLink>
-        ))}
-      </TabsLinkList>
       {body}
-    </div>
+    </>
   );
 }

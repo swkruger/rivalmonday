@@ -1,6 +1,6 @@
 'use client';
 import { pilotLinkRefusal } from '@cs/core/invite-offer';
-import { Button } from '@cs/ui';
+import { Button, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { formatDate } from '@/lib/format';
@@ -27,7 +27,7 @@ const status = (l: LinkRow) =>
 function CopyBox({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex flex-col gap-2 rounded-md bg-muted-surface p-3">
+    <div className="flex flex-col gap-2 rounded-md bg-muted-surface p-4">
       <label htmlFor="new-invite-url" className="sr-only">New invite link</label>
       <div className="flex gap-2">
         <input id="new-invite-url" readOnly value={url} onFocus={(e) => e.currentTarget.select()} className={`${fieldCls} min-w-0 flex-1 font-mono`} />
@@ -40,7 +40,7 @@ function CopyBox({ url }: { url: string }) {
         </Button>
       </div>
       <p role="status" className="text-sm font-semibold text-ink">Copy link — it won&apos;t be shown again.</p>
-      {copied && <p className="text-xs text-muted-foreground">Copied to clipboard.</p>}
+      {copied && <p className="text-xs text-muted-ink">Copied to clipboard.</p>}
     </div>
   );
 }
@@ -60,46 +60,49 @@ export function InviteLinks({ links, codes, tz }: { links: LinkRow[]; codes: { i
     : null;
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
-            <tr className="text-muted-foreground">
-              {['Link', 'Offer', 'Uses', 'Expires', 'Note', 'Status', ''].map((h, i) => (
-                <th key={h || `x${i}`} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{h}</th>
+      {links.length === 0 ? (
+        <p className="text-sm text-muted-ink">No invite links yet.</p>
+      ) : (
+        <TableFrame>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {['Link', 'Offer', 'Uses', 'Expires', 'Note', 'Status', ''].map((h, i) => (
+                  <TableHead key={h || `x${i}`}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {links.map((l) => (
+                <TableRow key={l.id}>
+                  <TableCell className="font-mono">{l.tokenPrefix}…</TableCell>
+                  <TableCell>{l.offer === 'pilot' ? 'Pilot' : 'Trial'}</TableCell>
+                  <TableCell>{l.uses} / {l.maxUses}</TableCell>
+                  <TableCell>{formatDate(l.expiresAt, { tz })}</TableCell>
+                  <TableCell>{l.note ?? ''}</TableCell>
+                  <TableCell>{status(l)}</TableCell>
+                  <TableCell>
+                    {!l.revokedAt && (
+                      <ConfirmForm
+                        action={revokeInviteLinkAction}
+                        submit="Revoke"
+                        variant="outline"
+                        title="Revoke this invite link?"
+                        body="Nobody can join through it afterwards. Agencies that already joined stay."
+                        confirmLabel="Revoke link"
+                        tone="danger"
+                        fields={{ id: l.id }}
+                        className="flex flex-wrap items-center gap-2"
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {links.map((l) => (
-              <tr key={l.id} className="border-t border-[#EEF2F6]">
-                <td className="px-3 py-2 font-mono">{l.tokenPrefix}…</td>
-                <td className="px-3 py-2">{l.offer === 'pilot' ? 'Pilot' : 'Trial'}</td>
-                <td className="px-3 py-2">{l.uses} / {l.maxUses}</td>
-                <td className="whitespace-nowrap px-3 py-2">{formatDate(l.expiresAt, { tz })}</td>
-                <td className="px-3 py-2">{l.note ?? ''}</td>
-                <td className="px-3 py-2">{status(l)}</td>
-                <td className="px-3 py-2">
-                  {!l.revokedAt && (
-                    <ConfirmForm
-                      action={revokeInviteLinkAction}
-                      submit="Revoke"
-                      variant="outline"
-                      title="Revoke this invite link?"
-                      body="Nobody can join through it afterwards. Agencies that already joined stay."
-                      confirmLabel="Revoke link"
-                      tone="danger"
-                      fields={{ id: l.id }}
-                      className="flex flex-wrap items-center gap-2"
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {links.length === 0 && <p className="px-3 py-4 text-sm text-muted-foreground">No invite links yet.</p>}
-      </div>
-      <form action={formAction} className="flex flex-wrap items-end gap-3 border-t border-[#EEF2F6] pt-4">
+            </TableBody>
+          </Table>
+        </TableFrame>
+      )}
+      <form action={formAction} className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
         <Field label="Offer" htmlFor="il-offer">
           <select id="il-offer" name="offer" value={offer} onChange={(e) => setOffer(e.target.value as 'pilot' | 'trial')} className={fieldCls}>
             <option value="pilot">Pilot</option>

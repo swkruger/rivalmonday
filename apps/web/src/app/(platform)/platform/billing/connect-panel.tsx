@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatMoney } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
@@ -27,40 +28,40 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
   return (
     <div className="flex flex-col gap-4">
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-muted-foreground">Connected agencies</dt><dd className="text-xl font-semibold text-secondary">{o.totals.connectedAgencies}</dd></div>
-        <div><dt className="text-muted-foreground">Paying clients</dt><dd className="text-xl font-semibold text-secondary">{o.totals.payingClients}</dd></div>
-        <div><dt className="text-muted-foreground">Client MRR via Connect</dt><dd className="text-xl font-semibold text-secondary">{formatMoney(o.totals.clientMrrCents, { unit: 'cents' })}</dd></div>
-        <div><dt className="text-muted-foreground">Default fee</dt><dd className="text-xl font-semibold text-secondary">{pct(o.globalFeePercent)}</dd></div>
+        <div><dt className="text-muted-ink">Connected agencies</dt><dd className="text-xl font-semibold text-ink">{o.totals.connectedAgencies}</dd></div>
+        <div><dt className="text-muted-ink">Paying clients</dt><dd className="text-xl font-semibold text-ink">{o.totals.payingClients}</dd></div>
+        <div><dt className="text-muted-ink">Client MRR via Connect</dt><dd className="text-xl font-semibold text-ink">{formatMoney(o.totals.clientMrrCents, { unit: 'cents' })}</dd></div>
+        <div><dt className="text-muted-ink">Default fee</dt><dd className="text-xl font-semibold text-ink">{pct(o.globalFeePercent)}</dd></div>
       </dl>
       {o.agencies.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No agency has connected Stripe yet.</p>
+        <p className="text-sm text-muted-ink">No agency has connected Stripe yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead>
-              <tr className="text-muted-foreground">
-                {['Agency', 'Status', 'Charges', 'Fee override', 'Paying', 'Payment needed', 'Client MRR'].map((h) => <th key={h} className="py-2 pr-3 font-medium">{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
+        <TableFrame>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {['Agency', 'Status', 'Charges', 'Fee override', 'Paying', 'Payment needed', 'Client MRR'].map((h) => <TableHead key={h}>{h}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {o.agencies.map((a) => (
-                <tr key={a.agencyId} className="border-t border-[#EEF2F6]">
-                  <td className="py-2 pr-3 font-semibold">{a.name}</td>
-                  <td className="py-2 pr-3">{STATUS[a.status]}</td>
-                  <td className="py-2 pr-3">{a.chargesEnabled ? 'Enabled' : 'Off'}</td>
-                  <td className="py-2 pr-3">{a.feeOverridePercent === null ? 'Default' : pct(a.feeOverridePercent)}</td>
-                  <td className="py-2 pr-3">{a.payingClients}</td>
-                  <td className="py-2 pr-3">{a.paymentNeededClients}</td>
-                  <td className="py-2 pr-3">{formatMoney(a.clientMrrCents, { unit: 'cents' })}</td>
-                </tr>
+                <TableRow key={a.agencyId}>
+                  <TableCell className="font-medium">{a.name}</TableCell>
+                  <TableCell>{STATUS[a.status]}</TableCell>
+                  <TableCell>{a.chargesEnabled ? 'Enabled' : 'Off'}</TableCell>
+                  <TableCell>{a.feeOverridePercent === null ? 'Default' : pct(a.feeOverridePercent)}</TableCell>
+                  <TableCell>{a.payingClients}</TableCell>
+                  <TableCell>{a.paymentNeededClients}</TableCell>
+                  <TableCell>{formatMoney(a.clientMrrCents, { unit: 'cents' })}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableFrame>
       )}
       {canEdit && (
-        <div className="flex flex-col gap-3 border-t border-[#EEF2F6] pt-4">
-          <p className="text-sm text-muted-foreground">Fees apply to Checkout links created after the change; existing subscriptions keep their fee. 0 sends no fee.</p>
+        <div className="flex flex-col gap-3 border-t border-line pt-4">
+          <p className="text-sm text-muted-ink">Fees apply to Checkout links created after the change; existing subscriptions keep their fee. 0 sends no fee.</p>
           <ConfirmForm
             action={setConnectFeeAction}
             submit="Save default fee"

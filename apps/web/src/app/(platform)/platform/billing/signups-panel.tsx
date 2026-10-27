@@ -1,3 +1,4 @@
+import { segmentedItemClass, segmentedTrackClass, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { ConfirmForm } from '@/components/confirm-form';
 import { setSignupsPausedAction } from './actions';
@@ -37,38 +38,38 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-muted-foreground">Sign-up funnel, last {days} days</h3>
-        <nav aria-label="Funnel range" className="inline-flex gap-1 rounded-full bg-[#EEF2F6] p-1 text-sm">
+        <h3 className="text-sm font-semibold text-ink">Sign-up funnel, last {days} days</h3>
+        <nav aria-label="Funnel range" className={segmentedTrackClass}>
           {([30, 90] as const).map((d) => (
             <Link
               key={d}
               href={`/platform/billing?tab=signups&days=${d}`}
               aria-current={d === days ? 'true' : undefined}
-              className={`rounded-full px-3 py-1 font-semibold ${d === days ? 'border border-line bg-surface text-secondary' : 'border border-transparent text-ink'}`}
+              className={segmentedItemClass}
             >
               {d} days
             </Link>
           ))}
         </nav>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px] text-left text-sm">
-          <thead>
-            <tr className="text-muted-foreground">
-              <th scope="col" className="px-3 py-2 font-semibold">Source</th>
-              {COLUMNS.map((c) => <th key={c.key} scope="col" className="whitespace-nowrap px-3 py-2 font-semibold">{c.label}</th>)}
-            </tr>
-          </thead>
-          <tbody>
+      <TableFrame>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Source</TableHead>
+              {COLUMNS.map((c) => <TableHead key={c.key} numeric>{c.label}</TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {([['Open sign-up', funnel.open], ['Invite link', funnel.invite]] as const).map(([label, counts]) => (
-              <tr key={label} className="border-t border-[#EEF2F6]">
-                <th scope="row" className="px-3 py-2 font-medium">{label}</th>
-                {COLUMNS.map((c) => <td key={c.key} className="px-3 py-2 text-lg font-semibold text-secondary">{counts[c.key]}</td>)}
-              </tr>
+              <TableRow key={label}>
+                <TableCell className="font-medium">{label}</TableCell>
+                {COLUMNS.map((c) => <TableCell key={c.key} numeric>{counts[c.key]}</TableCell>)}
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableFrame>
     </div>
   );
 }
