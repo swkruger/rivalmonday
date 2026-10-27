@@ -49,14 +49,15 @@ test.describe.serial('billing', () => {
   test('a trial agency at its 3-client cap cannot add a 4th active client and is offered an Upgrade link', { tag: ['@billing', '@clients'] }, async ({ browser }, testInfo) => {
     await as(browser, testInfo, 'trialAdmin', async (page) => {
       await page.goto('/agency/clients/new');
-      // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
-      await page.getByRole('button', { name: /enter details by hand/i }).click();
+      // Phase 16: the client is made when step 2 completes, so that is where the seat cap speaks.
       await page.getByLabel('Business name').fill('Fourth Client');
-      await page.getByLabel('Business type', { exact: true }).selectOption('dental');
-      await page.getByLabel(/search keywords/i).fill('dentist');
-      await page.getByLabel(/map centre/i).fill('33.95, -84.33');
-      await page.getByLabel(/radius/i).selectOption({ label: '10 mi' });
-      await page.getByRole('button', { name: 'Create client' }).click();
+      await page.getByLabel('Contact full name').fill('Fay Fourth');
+      await page.getByLabel('Phone').fill('(404) 555-0100');
+      await page.getByLabel('Email').fill('fay@fourth.example');
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByLabel('City or ZIP').fill('Atlanta, GA');
+      await page.locator('#verticalId').selectOption('dental');
+      await page.getByRole('button', { name: /Continue without a listing/ }).click();
       const alert = page.getByRole('alert').filter({ hasText: "You've used your 3 included clients. Upgrade to add more." });
       await expect(alert).toBeVisible();
       await expect(alert.getByRole('link', { name: 'Upgrade' })).toHaveAttribute('href', '/agency/settings/billing');

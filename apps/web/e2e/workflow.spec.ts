@@ -13,17 +13,22 @@ test.use({ storageState: ADMIN_STATE });
 
 test('an admin adds a client by hand, lands on its setup wizard, then uses its competitors page', { tag: ['@clients', '@competitors'] }, async ({ page }) => {
   await page.goto('/agency/clients/new');
-  // Phase 11a: the page opens on the business lookup; the by-hand form is the fallback below it.
-  await page.getByRole('button', { name: /enter details by hand/i }).click();
+  // Phase 16: details, then "Continue without a listing" (the typed City or ZIP is geocoded), then the area step.
   await page.getByLabel('Business name').fill('E2E Dental');
-  await page.getByLabel('Business type', { exact: true }).selectOption('dental');
-  await page.getByLabel(/search keywords/i).fill('dentist\nteeth cleaning');
-  await page.getByLabel(/map centre/i).fill('33.95, -84.33');
-  await page.getByLabel(/radius/i).selectOption({ label: '10 mi' });
-  await page.getByRole('button', { name: 'Create client' }).click();
+  await page.getByLabel('Contact full name').fill('Dee Dentist');
+  await page.getByLabel('Phone').fill('(404) 555-0100');
+  await page.getByLabel('Email').fill('dee@e2e-dental.example');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('City or ZIP').fill('Atlanta, GA');
+  await page.locator('#verticalId').selectOption('dental');
+  await page.getByRole('button', { name: /Continue without a listing/ }).click();
   // Phase 11a: every new client goes through the setup wizard, by-hand creates included.
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
-  await page.goto(page.url().replace(/\/setup$/, '/competitors'));
+  const competitorsUrl = page.url().replace(/\/setup$/, '/competitors');
+  // Saving the area step (the business type's seed keywords + the geocoded centre) is what makes the profile complete.
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(/step=competitors/);
+  await page.goto(competitorsUrl);
   await expect(page.getByRole('heading', { name: 'Competitors', exact: true, level: 1 })).toBeVisible();
   // Phase 16 P5: searching needs keywords and a service-area centre only; this by-hand client has both, so the first
   // automatic search (12a D4) has already started and the missing-inputs copy never shows.

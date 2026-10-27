@@ -57,7 +57,9 @@ async function dispatchAndRead(before: Set<string>, to: string): Promise<Mail> {
   throw new Error(`no email to ${to} in the outbox after dispatch`);
 }
 
+/** Step 5 is pre-filled from the details contact; "Invite someone else instead" asks for a name and an email of our own. */
 async function fillInvite(page: Page, name: string, email: string): Promise<void> {
+  await page.getByRole('button', { name: 'Invite someone else instead' }).click();
   await page.getByLabel("Owner's name").fill(name);
   await page.getByLabel("Owner's email").fill(email);
   await page.getByRole('button', { name: 'Send invite' }).click();
@@ -82,11 +84,13 @@ test.describe.serial('client setup: invite and billing', () => {
     const id = await clientId(SI_STEP4);
     const owner = 'si-owner-four@e2e.test';
     await page.goto(`/c/${id}/setup`);
-    await expect(page.getByRole('list', { name: 'Setup steps' }).getByText('Billing')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Invite the owner' })).toBeVisible();
+    await expect(page.getByText('Step 5 of 7 · Invite the owner')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Invite the owner', level: 1 })).toBeVisible();
+    // The details contact is offered first.
+    await expect(page.getByText('Send Dana an invite')).toBeVisible();
     const before = await outboxSnapshot();
     await fillInvite(page, 'Olive Four', owner);
-    await expect(page.getByRole('status').filter({ hasText: 'Invite sent.' })).toBeVisible();
+    await expect(page).toHaveURL(/step=billing/);
 
     const mail = await dispatchAndRead(before, owner);
     expect(mail.cc).toEqual([SI_ADMIN]);
@@ -97,17 +101,20 @@ test.describe.serial('client setup: invite and billing', () => {
     expect(mail.text).toContain(`/sign-in?email=${encodeURIComponent(owner)}&next=${encodeURIComponent(`/c/${id}`)}`);
     // Invited: the invite step is done and billing is now the current step.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Set up billing', level: 1 })).toBeVisible();
   });
 
   test('the invited owner follows the link, signs in with the email prefilled and lands on the overview', { tag: ['@setup', '@clients'] }, async ({ page, browser }, testInfo) => {
     const id = await clientId(SI_STEP3);
     const owner = 'si-owner-three@e2e.test';
     await page.goto(`/c/${id}/setup`);
+    // Nothing was found to pick from, so Continue confirms the competitors step and opens the invite step.
+    await expect(page.getByRole('heading', { name: 'Pick who to watch', level: 1 })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Invite the owner', level: 1 })).toBeVisible();
     const before = await outboxSnapshot();
-    await page.getByRole('button', { name: 'Invite the owner' }).click();
     await fillInvite(page, 'Olive Three', owner);
-    await expect(page.getByRole('status').filter({ hasText: 'Invite sent.' })).toBeVisible();
+    await expect(page).toHaveURL(/step=billing/);
     const mail = await dispatchAndRead(before, owner);
     const startUrl = /https?:\/\/\S+\/sign-in\?email=\S+/.exec(mail.text)?.[0];
     expect(startUrl).toBeTruthy();
@@ -125,13 +132,15 @@ test.describe.serial('client setup: invite and billing', () => {
     }
   });
 
-  test('a client owner who was not asked to pick gets 404 on setup', { tag: ['@setup', '@client-billing'] }, async ({ browser }, testInfo) => {
+  test('a client owner opening setup lands on their Overview; another client of the agency is a 404', { tag: ['@setup', '@client-billing'] }, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: OWNER_STATE });
     try {
       const page = await context.newPage();
-      // Phase 16 O12/P8: an owner reaches setup only while asked to pick competitors.
-      expect((await page.goto(`/c/${await clientId(SI_STEP3)}/setup`))?.status()).toBe(404);
-      // Another client of the same agency is a 404 for this owner.
+      // Phase 16 P8: owners never open /setup; they are sent to the Overview.
+      const mine = await clientId(SI_STEP3);
+      expect((await page.goto(`/c/${mine}/setup`))?.status()).toBe(200);
+      await expect(page).toHaveURL(new RegExp(`/c/${mine}$`));
+      // Another client of the same agency: the redirect lands on an Overview this owner cannot open.
       expect((await page.goto(`/c/${await clientId(SI_BILLING)}/setup`))?.status()).toBe(404);
     } finally {
       await context.close();
@@ -141,14 +150,15 @@ test.describe.serial('client setup: invite and billing', () => {
   test('an agency admin turns on billing at $249 + $99 setup; a payment-link notice is queued for the pending owner', { tag: ['@setup', '@client-billing'] }, async ({ page }) => {
     const id = await clientId(SI_BILLING);
     await page.goto(`/c/${id}/setup`);
-    await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
-    await page.getByLabel('Monthly price ($)').fill('249');
-    await page.getByLabel('Setup fee ($)').fill('99');
-    await page.getByRole('button', { name: 'Turn on billing and email the payment link' }).click();
+    await expect(page.getByRole('heading', { name: 'Set up billing', level: 1 })).toBeVisible();
+    await expect(page.getByText('Step 6 of 7 · Billing')).toBeVisible();
+    await page.getByLabel('Monthly price').fill('249');
+    await page.getByLabel('Setup fee').fill('99');
+    await page.getByRole('button', { name: 'Turn on billing' }).click();
     await expect(page.getByRole('dialog')).toContainText('The owner gets an email with a payment link for $249/month plus $99 setup.');
     await page.getByRole('dialog').getByRole('button', { name: 'Turn on billing', exact: true }).click();
-    // Both remaining steps are done, so the setup closes into its summary.
-    await expect(page.getByRole('heading', { name: 'Setup finished' })).toBeVisible();
+    // Both remaining steps are done, so the setup closes into its "all set" screen.
+    await expect(page.getByRole('heading', { name: `${SI_BILLING} is all set`, level: 1 })).toBeVisible();
 
     await withDb(async (db) => {
       const [bill] = await db.select().from(clientBilling).where(eq(clientBilling.clientId, id));

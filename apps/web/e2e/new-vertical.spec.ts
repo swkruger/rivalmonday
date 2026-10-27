@@ -1,8 +1,19 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { type Browser, expect, test, type TestInfo } from '@playwright/test';
+import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
 import { signIn } from './helpers';
+
+/** Phase 16: steps 1-2 of the client flow. Opens Add a client, fills the four required details and lands on "Find the business". */
+async function detailsThenFind(page: Page, business: string): Promise<void> {
+  await page.goto('/agency/clients/new');
+  await page.getByLabel('Business name').fill(business);
+  await page.getByLabel('Contact full name').fill('Dee Distiller');
+  await page.getByLabel('Phone').fill('(830) 555-0142');
+  await page.getByLabel('Email').fill('dee@distillery.example');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByText('Step 2 of 7 · Find the business')).toBeVisible();
+}
 
 /**
  * Phase 14a acceptance path with the fake lookup and the fake drafter (fixtures `setup-lookup-distillery.json`,
@@ -33,13 +44,12 @@ test.describe.serial('new business type', () => {
     test.use({ storageState: ADMIN_STATE });
 
     test('drafts a business type from the Google profile and sets up a client with its services', { tag: ['@setup', '@catalogue', '@clients'] }, async ({ page }) => {
-      await page.goto('/agency/clients/new');
-      await page.getByLabel('Business name').fill('Hill Country Distillery');
-      await page.getByLabel('City and state, or ZIP').fill('Fredericksburg, TX');
+      await detailsThenFind(page, 'Hill Country Distillery');
+      await page.getByLabel('City or ZIP').fill('Fredericksburg, TX');
       await page.getByRole('button', { name: 'Find business' }).click();
       const results = page.getByRole('list', { name: 'Matching businesses' });
       await expect(results.getByRole('listitem')).toHaveCount(2);
-      await results.getByRole('button', { name: /Hill Country Distillery/ }).click();
+      await results.getByRole('listitem').filter({ hasText: 'Hill Country Distillery' }).getByRole('radio').check();
 
       await expect(page.getByText('We don’t track this business type yet')).toBeVisible();
       await page.getByRole('button', { name: 'Draft it' }).click();
@@ -47,21 +57,23 @@ test.describe.serial('new business type', () => {
       await page.getByRole('button', { name: 'Remove Private events' }).click();
       await page.getByRole('button', { name: 'Create business type' }).click();
       await expect(page.getByRole('status').filter({ hasText: `Created ${TYPE_NAME}` })).toBeVisible();
-      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
+      await expect(page.locator('#verticalId option:checked')).toHaveText(TYPE_NAME);
 
       // A fresh search now preselects the new type for every distillery; the created option must exist for a second place too.
-      await page.locator('#businessName').fill('Lone Star Spirits Distillery');
-      await page.getByLabel('City and state, or ZIP').fill('Dripping Springs, TX');
-      await page.getByRole('button', { name: 'Find business' }).click();
+      await page.getByLabel('Business name').fill('Lone Star Spirits Distillery');
+      await page.getByLabel('City or ZIP').fill('Dripping Springs, TX');
+      await page.getByRole('button', { name: 'Search again' }).click();
       const again = page.getByRole('list', { name: 'Matching businesses' });
       await expect(again.getByRole('listitem')).toHaveCount(2);
-      await again.getByRole('button', { name: /Lone Star Spirits Distillery/ }).click();
-      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
+      await again.getByRole('listitem').filter({ hasText: 'Lone Star Spirits Distillery' }).getByRole('radio').check();
+      await expect(page.locator('#verticalId option:checked')).toHaveText(TYPE_NAME);
       await expect(page.getByText('We don’t track this business type yet')).toHaveCount(0);
 
-      await again.getByRole('button', { name: /Hill Country Distillery/ }).click();
-      await page.getByRole('button', { name: 'Create client' }).click();
+      await again.getByRole('listitem').filter({ hasText: 'Hill Country Distillery' }).getByRole('radio').check();
+      await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
+      // Step 3 keeps the services to one line; Review opens the list.
+      await page.getByRole('button', { name: /Review/ }).click();
       const services = page.getByRole('group', { name: 'Services the business offers' });
       for (const s of ['Tasting room', 'Distillery tours', 'Bottle sales', 'Cocktail bar']) await expect(services.getByText(s)).toBeVisible();
       await expect(services.getByText('Private events')).toHaveCount(0);
@@ -99,12 +111,11 @@ test.describe.serial('new business type', () => {
     test.use({ storageState: OTHER_STATE });
 
     test('looking up a second distillery preselects the approved type', { tag: ['@setup', '@catalogue', '@clients'] }, async ({ page }) => {
-      await page.goto('/agency/clients/new');
-      await page.getByLabel('Business name').fill('Lone Star Spirits Distillery');
-      await page.getByLabel('City and state, or ZIP').fill('Dripping Springs, TX');
+      await detailsThenFind(page, 'Lone Star Spirits Distillery');
+      await page.getByLabel('City or ZIP').fill('Dripping Springs, TX');
       await page.getByRole('button', { name: 'Find business' }).click();
-      await page.getByRole('list', { name: 'Matching businesses' }).getByRole('button', { name: /Lone Star Spirits Distillery/ }).click();
-      await expect(page.getByLabel('Business type', { exact: true }).locator('option:checked')).toHaveText(TYPE_NAME);
+      await page.getByRole('list', { name: 'Matching businesses' }).getByRole('listitem').filter({ hasText: 'Lone Star Spirits Distillery' }).getByRole('radio').check();
+      await expect(page.locator('#verticalId option:checked')).toHaveText(TYPE_NAME);
       await expect(page.getByText('We don’t track this business type yet')).toHaveCount(0);
     });
   });
