@@ -92,6 +92,12 @@ export async function seed(): Promise<void> {
       .insert(changeEvent)
       .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: new Date() })
       .returning();
+    // Scored too (16c peek panel): the Changes feed then has two rows — this promo (today) above the $79 price cut
+    // (yesterday, seedWorkspace) — so Previous / Next have somewhere to go.
+    await db.insert(eventScore).values({
+      agencyId, clientId, eventId: event!.id, score: 81, route: 'alert', packVersion: 1, scoredAt: new Date(),
+      factors: { typeWeight: 1, size: 0.8, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 0.9, maxSimilarity: 0.1, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 },
+    });
 
     const workspace = await seedWorkspace(db, { agencyId, clientId, competitorId: comp!.id, sentItemId: sentItem!.id });
 

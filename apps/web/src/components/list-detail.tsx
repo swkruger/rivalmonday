@@ -32,7 +32,7 @@ export function ListDetail({ list, detail, selectedId, sheetOpen, closeHref, lis
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(440px,58%)] lg:gap-0">
         <section aria-label={listLabel} className="min-w-0 lg:pr-6">{list}</section>
         <div className="hidden lg:block">
-          <PeekPanel label={detailTitle} nav={peek}>{selectedId ? detail : empty}</PeekPanel>
+          {selectedId ? <PeekPanel label={detailTitle} nav={peek}>{detail}</PeekPanel> : <div className="lg:border-l lg:border-line lg:pl-6">{empty}</div>}
         </div>
         {sheet}
       </div>

@@ -70,9 +70,8 @@ test('at 1440 px the change peek panel steps to the next change, back restores i
 
   await panel.getByRole('link', { name: 'Next change' }).click();
   await expect(page).toHaveURL(new RegExp(`event=${secondId}`));
-  const summary = panel.getByRole('heading', { level: 2 });
-  await expect(summary).toBeVisible();
-  expect(secondText).toContain((await summary.textContent())!.trim());
+  // The row heading is "<competitor> · <summary>"; the panel's h2 is the summary.
+  await expect(panel.getByRole('heading', { level: 2 })).toHaveText(secondText.slice(secondText.indexOf(' · ') + 3).trim());
 
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`event=${firstId}`));

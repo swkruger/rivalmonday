@@ -107,4 +107,14 @@ describe('ListDetail', () => {
     expect(container.querySelector('[data-slot=peek-panel]')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Next change' })).toBeNull();
   });
+
+  it('with peek but no selected row (empty feed) there is no peek chrome', () => {
+    stubMatchMedia(true);
+    const { container } = render(
+      <ListDetail peek={peek} list={<ul />} detail={<p>detail body</p>} selectedId={null} sheetOpen={false} closeHref="/c/1/changes" listLabel="Changes list" detailTitle="Change detail" empty={<p>nothing selected</p>} />,
+    );
+    expect(container.querySelector('[data-slot=peek-panel]')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Next change' })).toBeNull();
+    expect(screen.getByText('nothing selected')).toBeTruthy();
+  });
 });

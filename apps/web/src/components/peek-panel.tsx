@@ -21,7 +21,7 @@ const DISABLED = `${BUTTON} text-muted-ink opacity-40`;
 function NavLink({ href, label, children }: { href: string | null; label: string; children: React.ReactNode }) {
   if (!href) {
     return (
-      <span aria-disabled="true" aria-label={label} className={DISABLED}>
+      <span role="img" aria-disabled="true" aria-label={label} className={DISABLED}>
         {children}
       </span>
     );
@@ -41,7 +41,10 @@ function NavLink({ href, label, children }: { href: string | null; label: string
 export function PeekPanel({ label, nav, children }: { label: string; nav: PeekNav; children: React.ReactNode }) {
   const router = useRouter();
   const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
-    if (e.key !== 'Escape' || !nav.closeHref) return;
+    // A popover inside the panel (HelpTip, portalled) handles its own Esc: skip handled events and events whose
+    // target sits outside the panel's DOM (React bubbles portal events through the component tree).
+    if (e.key !== 'Escape' || e.defaultPrevented || !nav.closeHref) return;
+    if (!(e.target instanceof Node) || !e.currentTarget.contains(e.target)) return;
     e.preventDefault();
     if (nav.rowId) {
       const row = document.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(nav.rowId)}"]`);

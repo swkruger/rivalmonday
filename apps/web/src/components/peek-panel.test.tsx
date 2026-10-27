@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type PeekNav, PeekPanel } from './peek-panel';
 
@@ -50,8 +51,8 @@ describe('PeekPanel', () => {
     expect(screen.queryByRole('link', { name: 'Previous change' })).toBeNull();
     const span = container.querySelector('span[aria-disabled="true"]');
     expect(span).not.toBeNull();
-    expect(span!.getAttribute('aria-label')).toBe('Previous change');
     expect(span!.hasAttribute('tabindex')).toBe(false);
+    expect(screen.getByRole('img', { name: 'Previous change' })).toBe(span);
   });
 
   it('a null next renders a disabled span, not a link', () => {
@@ -84,6 +85,28 @@ describe('PeekPanel', () => {
   it('other keys do nothing', () => {
     render(ui(nav()));
     fireEvent.keyDown(screen.getByRole('link', { name: 'inside link' }), { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('an Escape already handled (defaultPrevented) does nothing', () => {
+    render(ui(nav()));
+    const inside = screen.getByRole('link', { name: 'inside link' });
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    ev.preventDefault();
+    inside.dispatchEvent(ev);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('an Escape from outside the panel DOM (portalled popover) does nothing', () => {
+    function Portalled() {
+      return createPortal(<button type="button">tip</button>, document.body);
+    }
+    render(
+      <PeekPanel label="Change details" nav={nav()}>
+        <Portalled />
+      </PeekPanel>,
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'tip' }), { key: 'Escape' });
     expect(push).not.toHaveBeenCalled();
   });
 });
