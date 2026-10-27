@@ -16,6 +16,7 @@ export * from './components/popover';
 export * from './components/save-bar';
 export * from './components/select';
 export * from './components/separator';
+export * from './components/segmented';
 export * from './components/sheet';
 export * from './components/skeleton';
 export * from './components/status-chip';
