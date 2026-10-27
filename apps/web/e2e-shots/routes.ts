@@ -1,6 +1,6 @@
 export type ShotAs = 'admin' | 'agency' | 'owner' | 'support' | 'signed-out';
 export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string; eventId: string; prospectClientId: string; alertId: string; reportId: string | null };
-export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean; heading?: RegExp };
+export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean; heading?: RegExp; /** True when the fixture the route needs is missing: the generated test skips itself. */ skipIf?: (fx: ShotFixtures) => boolean };
 
 /**
  * One page per archetype per context (spec 4.6, D19). `admin` is the seeded `admin@e2e.test` (agency admin of "E2E Agency"
@@ -35,8 +35,7 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'client-ask', path: c('/ask'), as: 'agency', gate: true },
   { label: 'client-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'agency', gate: true },
   { label: 'client-alert', path: (fx) => `/c/${fx.clientId}/alerts/${fx.alertId}`, as: 'agency', gate: true },
-  // reportId is null when the seed has no trend report: the generated test skips itself.
-  { label: 'client-report', path: (fx) => `/c/${fx.clientId}/reports/${fx.reportId ?? ''}`, as: 'agency', gate: true },
+  { label: 'client-report', path: (fx) => `/c/${fx.clientId}/reports/${fx.reportId ?? ''}`, as: 'agency', gate: true, skipIf: (fx) => fx.reportId === null },
   { label: 'client-settings-profile', path: c('/settings/profile'), as: 'agency', gate: true },
   { label: 'client-settings-delivery', path: c('/settings/delivery'), as: 'agency', gate: true },
   { label: 'client-settings-alerts', path: c('/settings/alerts'), as: 'agency', gate: true },
