@@ -22,7 +22,7 @@ function SaveBar({
       data-slot="save-bar"
       className="sticky bottom-4 z-30 mx-auto flex w-full max-w-[640px] items-center gap-2 rounded-md border border-line bg-surface px-4 py-3 text-13 font-medium text-ink shadow-overlay"
     >
-      <span className="mr-auto">Unsaved changes</span>
+      <span aria-hidden="true" className="mr-auto">Unsaved changes</span>
       {onReset ? (
         <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={pending}>
           Discard

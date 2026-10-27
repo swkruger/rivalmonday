@@ -1,5 +1,5 @@
 'use client';
-import { ConfirmDialog } from '@cs/ui';
+import { CONFIRM_ALERT_CLASS, ConfirmDialog } from '@cs/ui';
 import { type ReactNode, useEffect, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import type { FormResult } from '@/server/forms';
@@ -49,7 +49,7 @@ export function ActionDialog({ open, onOpenChange, title, body, confirmLabel, to
       disabled={!canSubmit}
       confirmHidden={closeOnly}
       initialFocus={hasInputs && !refusal ? 'first' : 'cancel'}
-      error={refusal ? <div role="alert" className="rounded-md border border-danger/30 bg-danger/[0.06] p-3 text-sm text-ink">{refusal}</div> : error !== null ? <ErrorNote compact focusKey={error}>{error}</ErrorNote> : undefined}
+      error={refusal ? <div role="alert" className={CONFIRM_ALERT_CLASS}>{refusal}</div> : error !== null ? <ErrorNote compact focusKey={error}>{error}</ErrorNote> : undefined}
       action={async (fd) => {
         if (closeOnly) return;
         fd.delete('confirm-text');

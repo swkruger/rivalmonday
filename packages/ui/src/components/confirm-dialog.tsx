@@ -53,6 +53,9 @@ export type ConfirmDialogProps = ConfirmDialogBaseProps &
     | { open: boolean; onOpenChange: (open: boolean) => void; trigger?: React.ReactNode }
   )
 
+/** The danger block `error` strings render in; exported so wrappers that pass their own alert node match it. */
+export const CONFIRM_ALERT_CLASS = "rounded-md border border-danger/30 bg-danger/[0.06] p-3 text-sm text-ink"
+
 function ConfirmButton({
   label,
   tone,
@@ -166,9 +169,9 @@ function ConfirmDialog({
                 <input key={name} type="hidden" name={name} value={value} />
               ))
             : null}
-          {children ? <div className="grid gap-4 px-6">{children}</div> : null}
+          {children ? <div className="grid gap-4">{children}</div> : null}
           {requireText !== undefined ? (
-            <div className="grid gap-1.5 px-6">
+            <div className="grid gap-1.5">
               <Label htmlFor="confirm-dialog-text">{`Type ${requireText} to confirm`}</Label>
               <Input
                 id="confirm-dialog-text"
@@ -183,11 +186,11 @@ function ConfirmDialog({
           ) : null}
           {error ? (
             typeof error === "string" ? (
-              <div role="alert" className="mx-6 rounded-md border border-danger/30 bg-danger/[0.06] p-3 text-sm text-ink">
+              <div role="alert" className={CONFIRM_ALERT_CLASS}>
                 {error}
               </div>
             ) : (
-              <div className="px-6">{error}</div>
+              error
             )
           ) : null}
           <DialogFooter>
