@@ -51,8 +51,7 @@ async function dockConfig(ctx: AccessContext, clientId: string): Promise<FridayD
       saveAction: saveAskRecommendation,
       refsAction: askEvidenceRefs,
     };
-  } catch (e) {
-    console.error('[ask] dock config failed', e instanceof Error ? e.message : e);
+  } catch {
     return null;
   }
 }

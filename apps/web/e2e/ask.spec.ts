@@ -189,6 +189,14 @@ test.describe('as a client user', () => {
     // On the Ask pages the panel closes and no trigger shows.
     await expect(panel).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Ask Friday', exact: true })).toHaveCount(0);
+
+    // Another client's pages start closed: open the panel on this client, then open a second client the same user can reach.
+    await page.goto(`/c/${askCo.id}`);
+    await page.getByRole('button', { name: 'Ask Friday', exact: true }).click();
+    await expect(panel).toBeVisible();
+    await page.goto(`/c/${fx().privateCo.id}`);
+    await expect(page.getByRole('complementary', { name: 'Ask Friday', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ask Friday', exact: true })).toBeVisible();
   });
 
   test('the Ask page has no horizontal page scroll at 390 px with a long URL', { tag: ['@ask', '@responsive'] }, async ({ page }) => {

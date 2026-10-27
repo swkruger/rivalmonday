@@ -57,9 +57,12 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
     helpGuides(ctx, 'client', clientId),
   ]);
   if (thread && thread.clientId !== clientId) notFound();
-  const [assistantName, productName] = await Promise.all([assistantNameForRequest(ctx.agencyId), displayNameFor(dbs().service, ctx.agencyId)]);
   const evIds = (thread?.messages ?? []).filter((m) => m.role === 'assistant').flatMap((m) => m.citations.filter((c) => c.startsWith('ev:')).map((c) => c.slice(3)));
-  const refs = await evidenceRefsFor(ctx, clientId, evIds, profile.timezone);
+  const [assistantName, productName, refs] = await Promise.all([
+    assistantNameForRequest(ctx.agencyId),
+    displayNameFor(dbs().service, ctx.agencyId),
+    evidenceRefsFor(ctx, clientId, evIds, profile.timezone),
+  ]);
   const list = { clientId, threads: threads.items, activeId: thread?.id ?? null, deleteAction: deleteAskThreadAction };
   const askTitle = `Ask ${assistantName}`;
   const client = { id: clientId, name: profile.name };

@@ -18,10 +18,22 @@ const config = {
 const frame = (o: Record<string, unknown>) => `data: ${JSON.stringify({ type: 'final', citations: [], action: null, status: 'ok', ...o })}\n\n`;
 const turn = (body: string) => new Response(body, { status: 200, headers: { 'x-ask-thread-id': T } });
 
-/** jsdom has no matchMedia: every query answers `wide`. */
+/** jsdom has no matchMedia: every query answers `wide`; listeners are kept so `fire` can cross 1280 px. */
+let mq: { matches: boolean; listeners: Set<(e: { matches: boolean }) => void> };
 function viewport(wide: boolean) {
-  window.matchMedia = ((q: string) => ({ matches: wide, media: q, addEventListener: () => {}, removeEventListener: () => {}, onchange: null, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false })) as unknown as typeof window.matchMedia;
+  mq = { matches: wide, listeners: new Set() };
+  window.matchMedia = ((q: string) => ({
+    get matches() { return mq.matches; },
+    media: q,
+    addEventListener: (_: string, l: (e: { matches: boolean }) => void) => mq.listeners.add(l),
+    removeEventListener: (_: string, l: (e: { matches: boolean }) => void) => mq.listeners.delete(l),
+    onchange: null, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
 }
+const fire = (matches: boolean) => {
+  mq.matches = matches;
+  act(() => { for (const l of [...mq.listeners]) l({ matches }); });
+};
 function Probe() {
   const d = useFridayDock();
   return <p data-testid="probe">{d === null ? 'none' : `${d.available}|${d.open}`}</p>;
@@ -93,6 +105,22 @@ describe('FridayDock (16d D-14)', () => {
     nav.pathname = `/c/${C}/competitors`;
     rerender(<FridayDock config={config}>{page('Competitors page')}</FridayDock>);
     expect(screen.getByText('Competitors page')).toBeTruthy();
+    const panel = screen.getByRole('complementary', { name: 'Ask Friday' });
+    expect(within(panel).getByText('What changed?')).toBeTruthy();
+    expect(within(panel).getByText('Acme cut prices.')).toBeTruthy();
+  });
+
+  it('resizing across 1280 px while open keeps the conversation (column <-> sheet)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => turn(frame({ messageId: M1, content: 'Acme cut prices.' }))));
+    render(<FridayDock config={config}>{page()}</FridayDock>);
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Friday' }));
+    await send('What changed?');
+    expect(within(screen.getByRole('complementary', { name: 'Ask Friday' })).getByText('Acme cut prices.')).toBeTruthy();
+    fire(false);
+    expect(screen.queryByRole('complementary', { name: 'Ask Friday' })).toBeNull();
+    expect(within(screen.getByRole('dialog', { name: 'Ask Friday' })).getByText('Acme cut prices.')).toBeTruthy();
+    fire(true);
+    expect(screen.queryByRole('dialog')).toBeNull();
     const panel = screen.getByRole('complementary', { name: 'Ask Friday' });
     expect(within(panel).getByText('What changed?')).toBeTruthy();
     expect(within(panel).getByText('Acme cut prices.')).toBeTruthy();

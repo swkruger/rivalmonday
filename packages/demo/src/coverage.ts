@@ -43,6 +43,8 @@ const askCalls: CoverageCall[] = [
   { tool: 'get_my_ask_thread', input: (ids) => ({ threadId: ids.ask.admin }), path: 'messages.*.citations' },
   lsProfile,
 ];
+/** The pill labels of cited evidence (16d): alerts and briefs resolve their evidence ids through `get_evidence_refs`. */
+const lsRefs: CoverageCall = { tool: 'get_evidence_refs', input: (ids) => ({ clientId: ls(ids), evidenceIds: lsEvent(ids).evidenceIds }), path: 'items' };
 /** Phase 15a: client pages read the client profile for their breadcrumb; the detail pages read their list for Previous/Next. */
 const lsBriefs: CoverageCall = { tool: 'list_briefs', input: (ids) => ({ clientId: ls(ids) }), path: 'items' };
 const lsAlerts: CoverageCall = { tool: 'list_alerts', input: (ids) => ({ clientId: ls(ids) }), path: 'items' };
@@ -190,7 +192,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       lsProfile,
     ],
   },
-  { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }, lsProfile, lsAlerts] },
+  { route: '/c/[clientId]/alerts/[alertId]', as: 'admin', calls: [{ tool: 'get_alert', input: (ids) => ({ alertId: ids.alerts.delivered }), path: 'body' }, lsRefs, lsProfile, lsAlerts] },
   { route: '/c/[clientId]/ask', as: 'admin', calls: askCalls },
   { route: '/c/[clientId]/ask/[threadId]', as: 'admin', calls: askCalls },
   {
@@ -203,7 +205,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   },
   // Phase 15a: Briefs & reports, one tab per list (`?tab=briefs|alerts|reports`).
   { route: '/c/[clientId]/briefs', as: 'admin', calls: [lsProfile, lsBriefs, lsAlerts, lsReports] },
-  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }, lsProfile, lsBriefs, { tool: 'get_feedback_contact', input: (ids) => ({ clientId: ls(ids) }), path: 'email' }] },
+  { route: '/c/[clientId]/briefs/[briefId]', as: 'ownerLoneStar', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.sentLoneStar[0] }), path: 'items' }, lsRefs, lsProfile, lsBriefs, { tool: 'get_feedback_contact', input: (ids) => ({ clientId: ls(ids) }), path: 'email' }] },
   // 12b: the starting point (tiles, scorecard rows, self findings) and a quiet week whose scorecard carries deltas and open first moves.
   { route: '/c/[clientId]/briefs/[briefId] (starting point)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'scorecard.rows' }] },
   { route: '/c/[clientId]/briefs/[briefId] (starting point findings)', as: 'ownerBrazos', calls: [{ tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.startingPointBrazos }), path: 'items' }] },

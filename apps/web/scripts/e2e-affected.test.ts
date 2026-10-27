@@ -71,10 +71,11 @@ describe('resolveAffected', () => {
   });
 
   it('maps the docked Friday panel to @ask and the client layout that mounts it to everything (16d)', () => {
-    for (const f of ['apps/web/src/components/ask/friday-dock.tsx', 'apps/web/src/components/ask/friday-dock-trigger.tsx', 'apps/web/src/components/ask/friday-dock-context.tsx']) {
-      expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ask', '@smoke'] });
-      expect(matchRule(f).why, f).toMatch(/docked Friday panel/);
-    }
+    const f = 'apps/web/src/components/ask/friday-dock.tsx';
+    expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ask', '@smoke'] });
+    expect(matchRule(f).why, f).toMatch(/docked Friday panel/);
+    // The trigger and context render in every client PageHeader.
+    for (const g of ['apps/web/src/components/ask/friday-dock-trigger.tsx', 'apps/web/src/components/ask/friday-dock-context.tsx']) expect(resolve(g).mode, g).toBe('all');
     expect(resolve('apps/web/src/app/(app)/c/[clientId]/layout.tsx').mode).toBe('all');
     expect(matchRule('apps/web/src/app/(app)/c/[clientId]/layout.tsx').why).toMatch(/Friday dock/);
   });

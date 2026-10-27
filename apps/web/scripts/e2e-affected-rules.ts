@@ -102,7 +102,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/knowledge/`), tags: ['@kb', '@platform'], why: 'operator knowledge base UI' },
   { pattern: re(`${APP}\\(app\\)/kb/|${COMP}kb/`), tags: ['@ask', '@kb'], why: 'knowledge article page and sheet (opened from Ask citations)' },
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
-  { pattern: re(`${COMP}ask/friday-dock[^/]*\\.tsx$`), tags: ['@ask'], why: 'docked Friday panel and its PageHeader trigger beside client pages (16d D-14)' },
+  { pattern: re(`${COMP}ask/friday-dock-(?:trigger|context)\\.tsx$`), tags: 'all', why: 'Friday dock trigger and context render in every client PageHeader (16d D-14)' },
+  { pattern: re(`${COMP}ask/friday-dock\\.tsx$`), tags: ['@ask'], why: 'docked Friday panel beside client pages (16d D-14)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${COMP}onboarding/`), tags: ['@onboarding', '@setup', '@clients', '@leads'], why: 'onboarding split shell (agency onboarding, client setup, public intake; 16)' },
@@ -193,7 +194,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}starting-point-card\\.tsx$`), tags: ['@starting-point', '@overview'], why: 'client-home starting-point progress card' },
   { pattern: re(`${COMP}client-profile-form\\.tsx$`), tags: ['@clients', '@profile', '@prospects'], why: 'client/prospect forms' },
   { pattern: re(`${COMP}client-details-form\\.tsx$`), tags: ['@profile', '@setup'], why: 'Business details section on the client profile (phone, address, owner, logo)' },
-  { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest'], why: 'evidence chips' },
+  { pattern: re(`${COMP}evidence-chips\\.tsx$`), tags: ['@briefs', '@recommendations', '@overview', '@alerts', '@guest', '@ask'], why: 'evidence chips (also imported by the Ask answer)' },
   { pattern: re(`${COMP}list-detail[^/]*\\.tsx$`), tags: ['@changes', '@moves', '@responsive'], why: 'ListDetail and its sheet: the Changes and Moves list + detail layout (15c-2b)' },
   { pattern: re(`${COMP}business-avatar\\.tsx$`), tags: ['@competitors'], why: 'BusinessAvatar: the 40 px initials in the competitor detail PageHeader (16c P7)' },
   { pattern: re(`${COMP}peek-panel\\.tsx$`), tags: ['@changes'], why: 'peek panel: the lg Changes detail column with previous / next / close (16c P3)' },
