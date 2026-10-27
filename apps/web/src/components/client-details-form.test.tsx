@@ -17,6 +17,7 @@ describe('ClientDetailsForm (final fix I3)', () => {
     const action = vi.fn(async () => ({ ok: true as const, message: 'Details saved.' }));
     render(<ClientDetailsForm clientId={C} initial={INITIAL} action={action} />);
     expect(screen.getByRole('heading', { name: 'Business details' })).toBeTruthy();
+    expect(screen.getByRole('form', { name: 'Business details' })).toBeTruthy();
     expect((screen.getByLabelText(/^Phone/) as HTMLInputElement).value).toBe('(817) 555-0142');
     expect((screen.getByLabelText('Street address') as HTMLInputElement).value).toBe('500 W Pearl St');
     expect((screen.getByLabelText(/^Owner name/) as HTMLInputElement).value).toBe('Gina Owner');

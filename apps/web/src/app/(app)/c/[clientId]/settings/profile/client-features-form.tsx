@@ -36,11 +36,11 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
   return (
     <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />
-      {role === 'agency_admin' && <input type="hidden" name="askReviewPresent" value="1" />}
       {kept.map((f) => (
         <input key={f} type="hidden" name="feature" value={f} />
       ))}
       <fieldset disabled={readOnly} className="contents">
+      {role === 'agency_admin' && <input type="hidden" name="askReviewPresent" value="1" />}
       <Card>
         <fieldset className="flex flex-col">
           <legend className="w-full border-b border-line px-4 py-3 text-sm font-semibold text-ink">Client features</legend>

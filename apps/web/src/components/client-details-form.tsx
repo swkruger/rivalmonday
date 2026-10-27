@@ -52,7 +52,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
   );
 
   return (
-    <form id="details" action={formAction} onReset={(e) => e.preventDefault()} aria-labelledby="details-heading" className="flex flex-col gap-5">
+    <form id="details" action={formAction} onReset={(e) => e.preventDefault()} aria-label="Business details" className="flex flex-col gap-5">
       <Section title="Business details" description="The phone, address and owner contact from setup. The phone also keeps the business out of its own competitor suggestions.">
         <input type="hidden" name="clientId" value={clientId} />
         <fieldset disabled={readOnly} className="contents">
