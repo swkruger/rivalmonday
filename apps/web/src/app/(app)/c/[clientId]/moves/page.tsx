@@ -172,21 +172,21 @@ export default async function MovesPage({
           <div>
           {detail ? (
             <div className="flex flex-col gap-4">
-                <h2 className="text-base font-semibold text-ink">
-                  {detail.label} · {detail.competitorName}
-                </h2>
-                <MoveStatusRow move={detail} timezone={profile.timezone} />
-                {detail.facts.length > 0 && (
-                  <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                    {detail.facts.map((f) => (
-                      <div key={f.label}>
-                        <dt className="text-xs font-medium text-muted-foreground">{f.label}</dt>
-                        <dd>{f.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-                <EvidenceChain clientId={clientId} move={detail} timezone={profile.timezone} />
+              <h2 className="text-base font-semibold text-ink">
+                {detail.label} · {detail.competitorName}
+              </h2>
+              <MoveStatusRow move={detail} timezone={profile.timezone} />
+              {detail.facts.length > 0 && (
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                  {detail.facts.map((f) => (
+                    <div key={f.label}>
+                      <dt className="text-xs font-medium text-muted-foreground">{f.label}</dt>
+                      <dd>{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <EvidenceChain clientId={clientId} move={detail} timezone={profile.timezone} />
             </div>
           ) : (
             <div className="py-10 text-center text-muted-foreground">

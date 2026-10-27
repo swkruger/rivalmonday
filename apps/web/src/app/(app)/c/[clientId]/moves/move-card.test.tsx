@@ -37,4 +37,11 @@ describe('MoveCard', () => {
     rerender(<MoveCard move={move} selected current href="/x" />);
     expect(screen.getByRole('link').getAttribute('aria-current')).toBe('true');
   });
+
+  it('selected row carries data-selected, others do not', () => {
+    const { rerender } = render(<MoveCard move={move} selected current={false} href="/x" />);
+    expect(screen.getByRole('link').getAttribute('data-selected')).toBe('true');
+    rerender(<MoveCard move={move} selected={false} current={false} href="/x" />);
+    expect(screen.getByRole('link').getAttribute('data-selected')).toBeNull();
+  });
 });

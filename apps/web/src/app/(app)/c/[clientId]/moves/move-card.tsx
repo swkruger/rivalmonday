@@ -8,6 +8,8 @@ import { TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { labelFor, MOVE_STATUS } from '@/lib/labels';
 
+const ROW = 'flex items-start gap-3 p-3 hover:bg-muted-surface first:rounded-t-[5px] last:rounded-b-[5px]';
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Pre-flight F12: colour by status — active → accent (amber), emerging → primary, fading/closed → muted. */
@@ -49,17 +51,18 @@ export function MoveCard({ move, selected, current, href }: { move: MoveRow; sel
     <Link
       href={href}
       aria-current={current ? 'true' : undefined}
+      data-selected={selected ? 'true' : undefined}
       className={
         selected
-          ? 'flex items-start gap-3 p-3 hover:bg-muted-surface lg:bg-primary-soft'
-          : 'flex items-start gap-3 p-3 hover:bg-muted-surface'
+          ? `${ROW} lg:bg-primary-soft`
+          : ROW
       }
     >
       <span aria-hidden="true" className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg ${TILE[move.status]}`}>
         <TrendingUp className="h-4 w-4" strokeWidth={2} />
       </span>
       <div className="min-w-0">
-        <h4 className="truncate font-semibold text-ink">
+        <h4 className={`truncate text-ink ${selected ? 'font-semibold' : 'font-medium'}`}>
           {move.label} · {move.competitorName}
         </h4>
         <p className="mt-0.5 text-xs text-muted-foreground">
