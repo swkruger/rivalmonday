@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { nativeSelectClass, textareaClass, toolbarControlClass } from './control-classes';
+import { nativeInputClass, nativeSelectClass, textareaClass, toolbarControlClass } from './control-classes';
 
 describe('native control classes', () => {
   it.each([
     ['nativeSelectClass', nativeSelectClass],
+    ['nativeInputClass', nativeInputClass],
     ['textareaClass', textareaClass],
     ['toolbarControlClass', toolbarControlClass],
   ])('%s keeps the fixed focus and error look (guard)', (_n, cls) => {

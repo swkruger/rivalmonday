@@ -43,6 +43,14 @@ describe('HelpTip', () => {
     expect(screen.getByText('Longer text.')).toBeTruthy();
   });
 
+  it('trigger focus outline is the fixed ring, never the agency colour (guard)', () => {
+    render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
+    const cls = screen.getByRole('button').className;
+    expect(cls).not.toContain('ring-primary');
+    expect(cls).not.toContain('outline-primary');
+    expect(cls).toContain('outline-ring');
+  });
+
   it('opens by touch (click without a mouse pointer) and does not open on touch hover', () => {
     render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />));
     const btn = screen.getByRole('button');

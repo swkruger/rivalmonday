@@ -117,7 +117,7 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
   return (
     <Card role="article" className="p-4">
       <p className="font-semibold">{item.title}</p>
-      <p className="mt-1 text-muted-foreground">{item.rationale}</p>
+      <p className="mt-1 text-ink-secondary">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <StatusChip tone="neutral">Effort: {labelFor(LEVEL, item.effort).label}</StatusChip>
         <StatusChip tone="neutral">Impact: {labelFor(LEVEL, item.impact).label}</StatusChip>

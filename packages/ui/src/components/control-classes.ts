@@ -4,6 +4,8 @@ const controlBase =
 const controlRecipe = `text-sm ${controlBase}`
 
 export const nativeSelectClass = `h-9 px-3 ${controlRecipe}`
+/** Native text <input> in server forms: the select recipe has no chevron/appearance rule, so the same height and look apply. */
+export const nativeInputClass = nativeSelectClass
 export const textareaClass = `min-h-20 w-full px-3 py-2 ${controlRecipe}`
 /** Filter-toolbar <select>/<input> (Changes, Ads, Reviews, Rankings): the same recipe at Button size="sm" height (h-7), 13 px text. */
 export const toolbarControlClass = `h-7 px-2.5 text-13 ${controlBase}`
