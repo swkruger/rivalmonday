@@ -39,6 +39,9 @@ const DELEGATED_HEADERS: { file: string; route: string }[] = [
   { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
   // 16: the agency wizard's four screens each draw their own OnboardingShell (preview and footer depend on the form's state); /onboarding/page.tsx only picks the screen.
   ...['about', 'team', 'brand', 'done'].map((step) => ({ file: join(APP, '(onboarding)', 'onboarding', 'steps', `${step}.tsx`), route: '/onboarding' })),
+  // 16: Add a client / Add a prospect are steps 1-2 of the client flow (the prospect page guide key is read from the same files); the setup's screens 3-7 each draw their own shell.
+  ...['details-step', 'find-step'].map((f) => ({ file: join(APP, '(onboarding)', 'agency', 'clients', 'new', `${f}.tsx`), route: '/agency/clients/new' })),
+  ...['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step'].map((f) => ({ file: join(APP, '(onboarding)', 'c', '[clientId]', 'setup', 'steps', `${f}.tsx`), route: '/c/[clientId]/setup' })),
 ];
 
 /** 16 P10: `<OnboardingShell>` is a page's header on the full-page split flows, so it takes the same `helpKey` as `<PageHeader>`. */

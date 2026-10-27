@@ -11,7 +11,7 @@ import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { verticalOptions } from '@/server/verticals';
-import { createVerticalAction, draftVerticalAction } from '../clients/new/vertical-actions';
+import { createVerticalAction, draftVerticalAction } from '@/app/(onboarding)/agency/clients/new/vertical-actions';
 import { LeadCard, type LeadPreview, type LeadView } from './lead-card';
 
 export const dynamic = 'force-dynamic';

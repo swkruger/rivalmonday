@@ -43,8 +43,6 @@ const clientSettingsPages: [file: string, label: string][] = [
 
 /** Pages outside the menus with a fixed title. */
 const otherPages: [file: string, label: string][] = [
-  ['(app)/agency/clients/new/page.tsx', 'Add a client'],
-  ['(app)/agency/prospects/new/page.tsx', 'Add a prospect'],
   ['(platform)/platform/knowledge/new/page.tsx', 'New article'],
   ['(platform)/platform/health/page.tsx', 'Health'],
   ['(app)/inbox/page.tsx', 'Inbox'],
@@ -139,19 +137,23 @@ describe('page titles = menu labels (15a §2.7)', () => {
     }
   });
 
-  it('the client setup wizard shows its own step; its tab title matches the h1 ("Set up {client}")', () => {
-    const source = read('(app)/c/[clientId]/setup/page.tsx');
-    expect(source).toMatch(/<PageHeader[^>]*\bstep=\{wizardStep\(/);
+  it('the client setup wizard shows its own step; its tab title matches the page ("Set up {client}")', () => {
+    // 16: the setup is a full-page OnboardingShell; each of its screens sets `step={stepOf(frame, <screen>)}` (the screen's place in the viewer's list).
+    for (const f of ['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step']) expect(read(`(onboarding)/c/[clientId]/setup/steps/${f}.tsx`), f).toMatch(/<OnboardingShell[^>]*step=\{stepOf\(frame, '/);
+    const source = read('(onboarding)/c/[clientId]/setup/page.tsx');
     expect(source).toContain('export async function generateMetadata');
     expect(source).toContain('const titleOf = (profile: ClientProfile) => `Set up ${profile.name}`');
     expect(source).not.toMatch(/export const metadata/);
   });
 
-  it('onboarding shows its step; Add a client (the lookup preamble before the setup wizard) shows none', () => {
+  it('onboarding shows its step; Add a client / Add a prospect are steps 1 and 2 of the client flow', () => {
     // 16: the wizard is a full-page OnboardingShell; each step screen sets its own `step={{ n, of, label }}`.
-    for (const step of ['about', 'team', 'brand', 'done']) expect(read(`(onboarding)/onboarding/steps/${step}.tsx`)).toMatch(/<OnboardingShell[^>]*\bstep=\{\{/);
-    expect(read('(app)/agency/clients/new/page.tsx')).toMatch(/<PageHeader/);
-    expect(read('(app)/agency/clients/new/page.tsx')).not.toMatch(/\bstep=/);
+    for (const step of ['about', 'team', 'brand', 'done']) expect(read(`(onboarding)/onboarding/steps/${step}.tsx`)).toMatch(/<OnboardingShell[^>]*step=\{\{/);
+    expect(read('(onboarding)/agency/clients/new/details-step.tsx')).toMatch(/<OnboardingShell[^>]*step=\{\{ n: 1,/);
+    expect(read('(onboarding)/agency/clients/new/find-step.tsx')).toMatch(/<OnboardingShell[^>]*step=\{\{ n: 2,/);
+    expect(read('(onboarding)/agency/clients/new/details-step.tsx')).toContain("title={kind === 'prospect' ? 'Add a prospect' : 'Add a client'}");
+    expect(read('(onboarding)/agency/clients/new/page.tsx')).toMatch(metadataTitle('Add a client'));
+    expect(read('(onboarding)/agency/prospects/new/page.tsx')).toMatch(metadataTitle('Add a prospect'));
   });
 
   it('no file under the touched trees renders its own h1 (PageHeader owns it)', () => {

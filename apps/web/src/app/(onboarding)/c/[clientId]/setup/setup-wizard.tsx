@@ -1,201 +1,99 @@
 'use client';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@cs/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
-import { useReadOnly } from '@/components/read-only';
-import { advanceSetupAction, enableBillingAction, inviteOwnerAction, pickSetupCompetitorsAction, saveSetupProfileAction, sendReviewAction, type SetupAdvance, setupStatusAction } from './actions';
+import { useState, useTransition } from 'react';
+import { kmToMiles } from '@/lib/format';
+import { advanceSetupAction, enableBillingAction, inviteOwnerAction, pickSetupCompetitorsAction, saveAreaAction, type AreaInput, type SetupAdvance } from './actions';
 import { refusalCopy } from './refusal-copy';
+import { AreaStep } from './steps/area-step';
 import { BillingStep, type BillingPrefill } from './steps/billing-step';
-import { BusinessStep, type ProfileInitial } from './steps/business-step';
-import { InviteForm, InviteStatus, InviteStep } from './steps/invite-step';
-import { PickStep } from './steps/pick-step';
-import { SearchStep } from './steps/search-step';
-import type { ClientSetupView, SetupActionResult } from './types';
-import { currentStep, type LegacySteps, legacySteps, legacyTotal, type StepKey, STEPS, stepsFor } from './wizard-steps';
-import { ErrorNote } from '@/components/form-error';
+import { CompetitorsStep } from './steps/competitors-step';
+import { DoneStep, type DoneSummary } from './steps/done-step';
+import type { StepFrame } from './steps/frame';
+import { InviteStep } from './steps/invite-step';
+import { SetupExit } from './setup-exit';
+import type { ClientSetupView, ProfileInitial, SetupActionResult } from './types';
+import { useSetupPoll } from './use-setup-poll';
+import { type SetupScreen, stepHref, type WizardStep } from './wizard-steps';
 
-
-const FAST_POLL_MS = 5_000;
-const SLOW_POLL_MS = 10_000;
-const FAST_FOR_MS = 60_000;
-const GIVE_UP_MS = 60 * 60_000;
-
-const signature = (v: ClientSetupView) => `${v.state.steps.details}|${v.state.steps.profile}|${v.state.competitors}|${v.state.steps.invite}|${v.state.steps.billing ?? ''}|${v.invite.status}|${v.suggestions.status}|${v.search?.status ?? ''}|${v.state.open}`;
+const firstNameOf = (full: string | null | undefined) => full?.trim().split(/\s+/)[0] || null;
 
 /**
- * Same shape as `useSearchProgress` (competitors/competitor-controls.tsx): every 5 s for the first minute, then every
- * 10 s, up to 60 minutes, and it stops as soon as nothing is pending or running. A change in what the server reports
- * (a step finished, suggestions arrived) re-fetches the page; the counters in between come from the polled data.
+ * Steps 3-7 of the client flow (16 §6) on `/c/<id>/setup`. The page picks the screen (`current`); this keeps what must
+ * survive a step change: the live view (polled while suggestions or the search are pending), a refusal or error message,
+ * and the "Save and exit" menu. Each screen draws its own `OnboardingShell` (its preview and footer follow its form).
  */
-function useSetupPoll(clientId: string, view: ClientSetupView): ClientSetupView {
-  const { refresh } = useRouter();
-  const [polled, setPolled] = useState<ClientSetupView | null>(null);
-  const [seen, setSeen] = useState(view);
-  if (seen !== view) {
-    setSeen(view);
-    setPolled(null);
-  }
-  const waiting = view.suggestions.status === 'pending' || view.state.competitors === 'searching';
-  const baseline = signature(view);
-  useEffect(() => {
-    if (!waiting) return;
-    const started = Date.now();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let stopped = false;
-    const schedule = () => {
-      const elapsed = Date.now() - started;
-      if (elapsed >= GIVE_UP_MS) return;
-      timer = setTimeout(check, elapsed < FAST_FOR_MS ? FAST_POLL_MS : SLOW_POLL_MS);
-    };
-    const check = async () => {
-      const r = await setupStatusAction(clientId).catch(() => null);
-      if (stopped) return;
-      if (r?.ok) {
-        setPolled(r.data);
-        if (signature(r.data) !== baseline) {
-          refresh();
-          return;
-        }
-      }
-      schedule();
-    };
-    schedule();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, [waiting, baseline, clientId, refresh]);
-  return polled ?? view;
-}
-
-function Stepper({ current, steps, list }: { current: StepKey; steps: LegacySteps; list: typeof STEPS }) {
-  return (
-    <ol aria-label="Setup steps" className="flex flex-wrap gap-2">
-      {list.map((s, i) => {
-        const done = steps[s.key] === 'done' || steps[s.key] === 'skipped';
-        const active = s.key === current;
-        return (
-          <li
-            key={s.key} aria-current={active ? 'step' : undefined}
-            className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${active ? 'bg-primary-soft text-primary-soft-text' : done ? 'bg-muted-surface text-ink' : 'bg-muted-surface text-muted-foreground'}`}
-          >
-            <span aria-hidden>{done ? '✓' : i + 1}</span>
-            {s.label}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-export function SetupWizard({
-  clientId, agency, isAdmin, view: initial, profile, billing, maxKeywords,
-}: { clientId: string; agency: boolean; isAdmin: boolean; view: ClientSetupView; profile: ProfileInitial; billing: BillingPrefill | null; maxKeywords: number }) {
-  const readOnly = useReadOnly();
+export function SetupWizard({ clientId, clientName, agency, prospect, steps, current, view: initial, profile, contact, around, billing, summary, guide, maxKeywords, exitHref }: {
+  clientId: string; clientName: string; agency: { name: string; logoUrl: string | null }; prospect: boolean;
+  steps: WizardStep[]; current: SetupScreen; view: ClientSetupView; profile: ProfileInitial;
+  contact: { name: string | null; email: string | null } | null; around: string | null; billing: BillingPrefill | null; summary: DoneSummary;
+  guide: boolean; maxKeywords: number; exitHref: string;
+}) {
+  const router = useRouter();
   const view = useSetupPoll(clientId, initial);
   const [pending, start] = useTransition();
   // Hoisted here (always mounted): a refusal or error must survive the revalidation that swaps the step.
-  const [notice, setNotice] = useState<{ kind: 'error' | 'info' | 'ok'; text: string } | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const steps = legacySteps(view.state, agency);
-  const list = stepsFor(agency, legacyTotal(view.state));
-  const current = currentStep(steps, list);
+  const [error, setError] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
-  const run = (job: () => Promise<SetupActionResult>) =>
+  const go = (step: WizardStep) => { setError(null); router.push(stepHref(clientId, step)); };
+  const after = (step: WizardStep): WizardStep => steps[steps.indexOf(step) + 1] ?? 'done';
+  const run = (job: () => Promise<SetupActionResult>, then?: () => void) =>
     start(async () => {
+      setError(null);
       const r = await job();
-      if (!r.ok) setNotice({ kind: 'error', text: r.error });
-      else setNotice(r.searchRefusal ? { kind: 'info', text: r.searchRefusal } : null);
+      if (!r.ok) { setError(r.error); return; }
+      setRefusal(r.searchRefusal);
+      then?.();
     });
-  const advance = (action: SetupAdvance) => run(() => advanceSetupAction(clientId, action));
-  const invite = (name: string, email: string) =>
-    start(async () => {
-      const r = await inviteOwnerAction(clientId, name, email);
-      if (!r.ok) setNotice({ kind: 'error', text: r.error });
-      else {
-        setInviteOpen(false);
-        setNotice({ kind: 'ok', text: 'Invite sent.' });
-      }
-    });
-  const review = () =>
-    start(async () => {
-      const r = await sendReviewAction(clientId);
-      if (!r.ok) setNotice({ kind: 'error', text: r.error });
-      else setNotice({ kind: 'ok', text: r.data.queued ? 'Review email sent.' : 'Nothing new to send right now.' });
-    });
+  const advance = (action: SetupAdvance, then?: () => void) => run(() => advanceSetupAction(clientId, action), then);
 
-  // A start/save refusal is already plain words; a failed run arrives as a code and is mapped.
-  const refusal = notice?.kind === 'info' ? notice.text : refusalCopy(view.state.searchRefusal);
+  const frame: StepFrame = {
+    brand: { kind: 'agency', name: agency.name, logoUrl: agency.logoUrl, style: {} }, // the theme variables are already on <html>
+    exitSlot: <SetupExit exitHref={exitHref} pending={pending} onDismiss={() => advance('dismiss', () => router.push(exitHref))} />,
+    guide, steps,
+  };
+  const ownerFirst = firstNameOf(view.invite.name) ?? firstNameOf(contact?.name);
+  const back = (step: WizardStep) => stepHref(clientId, step);
+  const radiusMiles = profile.serviceArea ? Math.round(kmToMiles(profile.serviceArea.radiusKm)) : 10;
 
-  return (
-    <div className="flex max-w-3xl flex-col gap-5">
-      <Stepper current={current} steps={steps} list={list} />
-      {notice?.kind === 'error' && (
-        <ErrorNote>{notice.text}</ErrorNote>
-      )}
-      {notice?.kind === 'ok' && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{notice.text}</p>}
-      {current === 'profile' && (
-        <BusinessStep view={view} profile={profile} maxKeywords={maxKeywords} pending={pending} error={notice?.kind === 'error' ? notice.text : null} onSave={(fd) => run(() => saveSetupProfileAction(clientId, fd))} />
-      )}
-      {current === 'search' && (
-        <SearchStep
-          view={view} agency={agency} pending={pending} refusal={steps.search === 'running' ? null : refusal}
-          onStart={() => advance('start_search')} onSkip={() => advance('skip_search')}
-        />
-      )}
-      {current === 'competitors' && (
-        <PickStep
-          suggestions={view.competitorSuggestions} pending={pending}
-          onDone={(accept) => run(async () => {
+  switch (current) {
+    case 'profile':
+      return <AreaStep frame={frame} view={view} profile={profile} clientName={clientName} around={around} maxKeywords={maxKeywords} pending={pending} error={error} onSave={(input: AreaInput) => run(() => saveAreaAction(clientId, input), () => go('competitors'))} />;
+    case 'competitors':
+      return (
+        <CompetitorsStep
+          frame={frame} view={view} clientId={clientId} clientName={clientName} ownerName={ownerFirst} keywordCount={profile.keywords.length} radiusMiles={radiusMiles}
+          backHref={back('profile')} pending={pending} error={error} refusal={refusal ?? refusalCopy(view.state.searchRefusal)}
+          onStart={() => advance('start_search')}
+          onSkip={() => advance('skip_competitors', () => go(after('competitors')))}
+          onContinue={(accept) => run(async () => {
             const picked = await pickSetupCompetitorsAction(clientId, accept, []);
             return picked.ok ? advanceSetupAction(clientId, 'confirm_competitors') : picked;
-          })}
-          onSkip={() => advance('skip_competitors')}
-          reviewer={agency && view.invite.status !== 'none' ? view.invite.name ?? view.invite.email : null} onReview={review}
+          }, () => go(after('competitors')))}
+          onAskOwner={() => advance('ask_owner', () => go(after('competitors')))}
+          onNext={() => go(after('competitors'))}
         />
-      )}
-      {current === 'invite' && <InviteStep invite={view.invite} pending={pending} onInvite={invite} onSkip={() => advance('skip_invite')} />}
-      {current === 'billing' && (
+      );
+    case 'invite':
+      return (
+        <InviteStep
+          frame={frame} clientName={clientName} agencyName={agency.name} contact={contact} invite={view.invite}
+          rivals={view.competitorSuggestions.filter((s) => s.status === 'accepted').map((s) => s.name)}
+          waitingOwner={view.state.competitors === 'waiting_owner'} backHref={back('competitors')} pending={pending} error={error}
+          onSend={(name, email) => run(() => inviteOwnerAction(clientId, name, email), () => go(after('invite')))}
+          onSkip={() => advance('skip_invite', () => go(after('invite')))}
+        />
+      );
+    case 'billing':
+      return (
         <BillingStep
-          isAdmin={isAdmin} prefill={billing} skipped={steps.billing === 'skipped'} pending={pending}
-          onEnable={(price, fee) => run(() => enableBillingAction(clientId, price, fee))} onSkip={() => advance('skip_billing')}
+          frame={frame} agencyName={agency.name} clientName={clientName} ownerFirstName={ownerFirst} prefill={billing} skipped={view.state.steps.billing === 'skipped'}
+          backHref={back('invite')} pending={pending} error={error}
+          onEnable={(price, fee) => run(() => enableBillingAction(clientId, price, fee), () => go('done'))}
+          onSkip={() => advance('skip_billing', () => go('done'))}
         />
-      )}
-      {agency && !readOnly && (current === 'profile' || current === 'search' || current === 'competitors') && (
-        <div className="border-t border-line pt-4">
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-            <DialogTrigger asChild>
-              <Button type="button" variant="outline" size="sm">Invite the owner</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite the owner</DialogTitle>
-                <DialogDescription>They get an email with a sign-in link. You can keep going while you wait.</DialogDescription>
-              </DialogHeader>
-              <InviteStatus invite={view.invite} />
-              <InviteForm invite={view.invite} pending={pending} onInvite={invite} />
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
-      {agency && !readOnly && (
-        <div className="border-t border-line pt-4">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button type="button" variant="ghost" size="sm">Dismiss setup</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Dismiss setup?</DialogTitle>
-                <DialogDescription>Hide setup for this client? You can still edit everything in settings.</DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button type="button" variant="destructive" disabled={pending} onClick={() => advance('dismiss')}>Dismiss setup</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
-    </div>
-  );
+      );
+    case 'done':
+      return <DoneStep frame={frame} clientId={clientId} clientName={clientName} ownerFirstName={ownerFirst} summary={summary} prospect={prospect} />;
+  }
 }

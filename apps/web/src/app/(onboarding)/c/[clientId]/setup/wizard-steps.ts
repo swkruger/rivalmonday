@@ -1,48 +1,60 @@
 import type { SetupState } from '@cs/tools';
-import type { ClientSetupView } from './types';
 
 /**
- * The interim (11a) wizard's own five steps — a plain module so the server page's "Step n of N" and the client wizard
- * agree. Phase 16 Task 8 rebuilds setup on the new step model; until then `legacySteps` maps the new state onto these.
+ * 16 §6: the client wizard's screens. `details` and `lookup` live on `/agency/clients/new` (no client row yet); the
+ * rest on `/c/<id>/setup`. A plain module so the server page and the client wizard agree.
  */
-export type StepKey = 'profile' | 'search' | 'competitors' | 'invite' | 'billing';
-export type LegacyStepStatus = 'todo' | 'running' | 'done' | 'skipped' | 'blocked';
-export type LegacySteps = { profile: LegacyStepStatus; search: LegacyStepStatus; competitors: LegacyStepStatus; invite?: LegacyStepStatus; billing?: LegacyStepStatus };
-export const STEPS: { key: StepKey; label: string }[] = [
-  { key: 'profile', label: 'Your business' },
-  { key: 'search', label: 'Finding competitors' },
-  { key: 'competitors', label: 'Pick competitors' },
-  { key: 'invite', label: 'Invite the owner' },
-  { key: 'billing', label: 'Billing' },
-];
+export const STEPS = ['details', 'lookup', 'profile', 'competitors', 'invite', 'billing', 'done'] as const;
+export type WizardStep = (typeof STEPS)[number];
+/** The screens `/c/<id>/setup` can show. */
+export type SetupScreen = Exclude<WizardStep, 'details' | 'lookup'>;
+
+export const STEP_LABELS: Record<WizardStep, string> = {
+  details: 'Client details',
+  lookup: 'Find the business',
+  profile: 'What they do and where',
+  competitors: 'Competitors',
+  invite: 'Invite the owner',
+  billing: 'Billing',
+  done: 'All set',
+};
 
 /**
- * The new state (merged search + pick step) as the interim wizard's five steps. `waiting_owner` is settled for staff
- * (they move on to the invite step) and the pick screen for the owner who was asked to pick.
+ * The screens this viewer walks through: billing only for agency admins on an active client (`totalSteps` 6; a prospect's
+ * setup has 5), and the confirmation screen last.
  */
-export function legacySteps(state: Pick<SetupState, 'steps' | 'competitors'>, agency: boolean): LegacySteps {
-  const c = state.competitors;
-  const search: LegacyStepStatus = c === 'searching' ? 'running' : c === 'blocked' ? 'blocked' : c === 'todo' ? 'todo' : 'done';
-  const competitors: LegacyStepStatus = c === 'done' || c === 'skipped' ? c : c === 'waiting_owner' && agency ? 'done' : 'todo';
-  const { profile, invite, billing } = state.steps;
-  return { profile, search, competitors, invite, ...(billing ? { billing } : {}) };
+export function wizardSteps(admin: boolean, totalSteps: SetupState['totalSteps']): WizardStep[] {
+  return STEPS.filter((s) => s !== 'billing' || (admin && totalSteps === 6));
 }
 
-/** The interim wizard's step count: the new list (6, 5 for prospects) less details + lookup, plus the separate search step. */
-export const legacyTotal = (state: Pick<SetupState, 'totalSteps'>) => state.totalSteps - 1;
+export const stepNumber = (step: WizardStep, steps: readonly WizardStep[]): number => steps.indexOf(step) + 1;
 
-/** Client roles see only their own three steps; staff see 5 (clients) or 4 (prospects) — `legacyTotal`. */
-export const stepsFor = (agency: boolean, totalSteps: number) => STEPS.slice(0, agency ? totalSteps : 3);
+export const stepHref = (clientId: string, step: WizardStep): string => `/c/${clientId}/setup?step=${step}`;
 
-/** The first step still open (to do, running, blocked), else the last. */
-export function currentStep(steps: LegacySteps, list: typeof STEPS): StepKey {
-  const open = (k: StepKey) => ['todo', 'running', 'blocked'].includes(steps[k] ?? 'done');
-  return list.find((s) => open(s.key))?.key ?? list[list.length - 1]!.key;
+type StateForSteps = Pick<SetupState, 'steps' | 'competitors'>;
+
+/** A step is settled once done or skipped; "asked the owner to pick" is settled for staff (the invite step is next). */
+const SETTLED = new Set(['done', 'skipped', 'waiting_owner']);
+
+/** The first screen still open, else the confirmation screen. */
+export function firstOpenStep(state: StateForSteps, steps: readonly WizardStep[]): SetupScreen {
+  const open: Record<Exclude<SetupScreen, 'done'>, boolean> = {
+    profile: state.steps.profile === 'todo',
+    competitors: !SETTLED.has(state.competitors),
+    invite: state.steps.invite === 'todo',
+    billing: state.steps.billing === 'todo',
+  };
+  return (['profile', 'competitors', 'invite', 'billing'] as const).find((s) => steps.includes(s) && open[s]) ?? 'done';
 }
 
-/** 15a §2.7: the setup page's `PageHeader` step — the wizard's own numbering (its stepper pills). */
-export function wizardStep(view: ClientSetupView, agency: boolean): { n: number; of: number } {
-  const list = stepsFor(agency, legacyTotal(view.state));
-  const current = currentStep(legacySteps(view.state, agency), list);
-  return { n: list.findIndex((s) => s.key === current) + 1, of: list.length };
+/**
+ * The screen to show: the requested one when it is a setup screen at or before the first open one (Back, and returning
+ * to a step already done), else the first open one. A setup that is no longer open (finished or dismissed) refuses writes,
+ * so it shows the confirmation screen.
+ */
+export function resolveStep(requested: string | undefined, state: StateForSteps & Pick<SetupState, 'open'>, steps: readonly WizardStep[]): SetupScreen {
+  const first = firstOpenStep(state, steps);
+  if (!state.open) return 'done';
+  const want = steps.find((s): s is SetupScreen => s === requested && s !== 'details' && s !== 'lookup');
+  return want && steps.indexOf(want) <= steps.indexOf(first) ? want : first;
 }

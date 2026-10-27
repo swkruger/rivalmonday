@@ -26,9 +26,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/branding` | admin | `get_agency_branding`, `list_help_guides` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions`, `list_help_guides` | — |
 | `/agency/settings/runbook` | admin | `get_runbook`, `list_help_guides` | — |
-| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_connect_status`, `list_client_billing_status`, `list_help_guides` | — |
-| `/c/[clientId]/setup (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
-| `/c/[clientId]/setup (closed, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 once setup is closed |
+| `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_client_details`, `get_connect_status`, `list_client_billing_status`, `list_help_guides` | — |
 | `/agency/leads` | admin | `list_leads`, `list_help_guides` | — |
 | `/agency/settings/intake` | admin | `get_intake_link`, `list_help_guides` | — |
 | `/agency/settings/intake/preview` | admin | `get_intake_link`, `list_help_guides` | — |

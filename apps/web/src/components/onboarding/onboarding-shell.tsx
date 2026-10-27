@@ -15,6 +15,8 @@ export interface OnboardingShellProps {
   step?: { n: number; of: number; label: string };
   /** "Save and exit" top-right; `null` or absent hides it. */
   exit?: { href: string; label: string } | null;
+  /** Replaces the `exit` link with a control of its own (the client setup's "Save and exit" menu). */
+  exitSlot?: React.ReactNode;
   title: string;
   subtitle?: string;
   helpKey?: string;
@@ -31,7 +33,7 @@ export interface OnboardingShellProps {
  * footer); right canvas panel with one floating preview and a caption, hidden below 1024px (the left column then centres
  * at 560px). `logoUrl` is only ever `https` or `null` (`resolveBranding`). Agency brand: `style` carries the theme vars.
  */
-export function OnboardingShell({ brand, step, exit, title, subtitle, helpKey, guide, preview, caption, footer, children }: OnboardingShellProps) {
+export function OnboardingShell({ brand, step, exit, exitSlot, title, subtitle, helpKey, guide, preview, caption, footer, children }: OnboardingShellProps) {
   const showGuide = Boolean(helpKey && guide);
   return (
     <div className="grid min-h-screen bg-white lg:grid-cols-[640px_1fr]" style={brand.kind === 'agency' ? brand.style : undefined}>
@@ -49,7 +51,7 @@ export function OnboardingShell({ brand, step, exit, title, subtitle, helpKey, g
           ) : <span />}
           <div className="flex items-center gap-4">
             {showGuide && <PageGuide helpKey={helpKey!} pageTitle={title} />}
-            {exit && <Link href={exit.href} className="text-[13px] font-medium text-muted-ink hover:text-ink">{exit.label}</Link>}
+            {exitSlot ?? (exit && <Link href={exit.href} className="text-[13px] font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
           </div>
         </div>
         {step && <div className="mt-14"><StepProgress {...step} /></div>}

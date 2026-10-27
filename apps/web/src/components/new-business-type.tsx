@@ -1,7 +1,7 @@
 'use client';
 import { Button, Input, Label } from '@cs/ui';
 import { useState, useTransition } from 'react';
-import type { createVerticalAction, draftVerticalAction } from '@/app/(app)/agency/clients/new/vertical-actions';
+import type { createVerticalAction, draftVerticalAction } from '@/app/(onboarding)/agency/clients/new/vertical-actions';
 import { ErrorNote } from '@/components/form-error';
 import { MAX_KEYWORDS, type NewTypeForm, canCreate, formFromDraft, manualForm, toCreateInput } from '@/components/new-business-type-model';
 import { WriteGuard } from '@/components/read-only';

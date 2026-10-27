@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 
 /**
- * 15b-2 Task 6, client batch C (Setup, Business profile, Delivery, Alert rules, AI connection, Billing, Runbook): the
+ * 15b-2 Task 6, client batch C (Business profile, Delivery, Alert rules, AI connection, Billing, Runbook): the
  * Guide button follows `list_help_guides` for the client scope, tips and empty states follow the viewer's audience, and
  * copy is rendered with the viewer's names. Delivery and Runbook are agency-only (a client role gets a 404), Billing is
  * client-owner-only (an agency role gets a 404), and a client never reads agency wording or a platform name.
@@ -39,9 +39,6 @@ vi.mock('./settings/delivery/actions', () => ({ addRecipientAction: vi.fn(), dea
 vi.mock('./settings/ai/actions', () => ({ createClientTokenAction: vi.fn(), revokeClientGrantAction: vi.fn(), revokeClientTokenAction: vi.fn() }));
 vi.mock('./settings/billing/actions', () => ({ managePaymentAction: Object.assign(async () => ({ ok: true }), { bind: () => async () => ({ ok: true }) }) }));
 vi.mock('./settings/runbook/actions', () => ({ clientRunbookAction: Object.assign(vi.fn(), { bind: () => vi.fn() }), clientRunbookStatusAction: Object.assign(vi.fn(), { bind: () => vi.fn() }) }));
-vi.mock('./setup/actions', () => ({
-  advanceSetupAction: vi.fn(), enableBillingAction: vi.fn(), inviteOwnerAction: vi.fn(), pickSetupCompetitorsAction: vi.fn(), saveSetupProfileAction: vi.fn(), sendReviewAction: vi.fn(), setupStatusAction: vi.fn(),
-}));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('next/navigation', () => ({
   usePathname: () => `/c/${C}`, notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -56,14 +53,6 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
   switch (name) {
     case 'list_help_guides': return { guides: m.guides.map((helpKey) => ({ helpKey, title: 't', articleId: 'g' })) };
     case 'get_client_profile': return PROFILE;
-    case 'get_client_setup':
-      return {
-        // The owner sees setup only while asked to pick (O12): `waiting_owner`.
-        state: { open: m.setupOpen, exists: true, totalSteps: 6, competitors: 'waiting_owner', needsLocation: false, steps: { details: 'done', lookup: 'done', profile: 'todo', competitors: 'waiting_owner', invite: 'todo', billing: 'todo' }, dismissedAt: null },
-        lookup: null, suggestions: { status: 'none' }, search: null, competitorSuggestions: [],
-        invite: { status: 'none', name: null, email: null },
-        vertical: { name: 'HVAC & Plumbing', services: [{ id: 'ac_repair', name: 'AC repair' }], seedKeywords: ['ac repair'] },
-      };
     case 'get_connect_status': return { status: 'off', chargesEnabled: false, defaultPriceCents: null, defaultSetupFeeCents: null };
     case 'list_client_billing_status': return { clients: [] };
     case 'list_client_recipients': return { items: m.recipients ? [{ contactId: 'k1', email: 'owner@client.com', name: 'Owner', role: 'client_owner', active: true, hasAccount: true }] : [] };
@@ -79,7 +68,6 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
 };
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 
-const { default: Setup } = await import('./setup/page');
 const { default: Profile } = await import('./settings/profile/page');
 const { default: Delivery } = await import('./settings/delivery/page');
 const { default: Alerts } = await import('./settings/alerts/page');
@@ -91,7 +79,6 @@ const params = Promise.resolve({ clientId: C });
 const bill = { params, searchParams: Promise.resolve({}) };
 /** Pages a client owner can reach. */
 const CLIENT_PAGES = [
-  ['client.setup', () => Setup({ params })],
   ['client.settings.profile', () => Profile({ params })],
   ['client.settings.alerts', () => Alerts({ params })],
   ['client.settings.ai', () => Ai({ params })],
@@ -99,7 +86,6 @@ const CLIENT_PAGES = [
 ] as const;
 /** Pages an agency role can reach. */
 const AGENCY_PAGES = [
-  ['client.setup', () => Setup({ params })],
   ['client.settings.profile', () => Profile({ params })],
   ['client.settings.delivery', () => Delivery({ params })],
   ['client.settings.alerts', () => Alerts({ params })],
@@ -151,44 +137,6 @@ describe('client batch C: guide button', () => {
     await expect(Billing(bill)).rejects.toThrow('NEXT_NOT_FOUND');
     m.role = 'agency_admin';
     await expect(Billing(bill)).rejects.toThrow('NEXT_NOT_FOUND');
-  });
-});
-
-describe('client batch C: Setup', () => {
-  it('description and the first-brief and service-area tips for both audiences; each audience gets its own steps tip', async () => {
-    for (const audience of ['client', 'agency'] as const) {
-      await show(page('client.setup'), audience);
-      expect(screen.getByText(/Get Lone Star Cooling ready for monitoring/)).toBeTruthy();
-      tipNames(['About the setup steps', 'Your first brief', 'Service area']);
-      cleanup();
-    }
-  });
-
-  it('the first-brief tip states the 48-hour wait and the 14-day cap from the code', async () => {
-    await show(page('client.setup'), 'client');
-    const text = open('Your first brief');
-    expect(text).toMatch(/competitors step is done/);
-    expect(text).toMatch(/48 hours/);
-    expect(text).toMatch(/14 days/);
-  });
-
-  it('the steps tip: agency names the invite and billing steps; a client reads three steps and none of that', async () => {
-    await show(page('client.setup'), 'agency');
-    const a = open('About the setup steps');
-    expect(a).toMatch(/Invite the owner/);
-    expect(a).toMatch(/Billing/);
-    cleanup();
-    await show(page('client.setup'), 'client');
-    const c = open('About the setup steps');
-    expect(c).toMatch(/Your business/);
-    expect(c).not.toMatch(/Invite the owner|Billing|dismiss/i);
-  });
-
-  it('the service-area tip points at Advanced without repeating the field hints', async () => {
-    await show(page('client.setup'), 'client');
-    const text = open('Service area');
-    expect(text).toMatch(/Advanced/);
-    expect(text).not.toMatch(/Identifies the business/);
   });
 });
 

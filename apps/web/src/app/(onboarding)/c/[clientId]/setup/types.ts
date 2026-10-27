@@ -22,3 +22,22 @@ export type { ClientSafeSuggestion };
 
 /** What a wizard write action hands back to the always-mounted wizard (which keeps the message across revalidation). */
 export type SetupActionResult = { ok: true; searchRefusal: string | null } | { ok: false; error: string };
+
+/** `get_client_details` (agency staff): the step 1 facts the later screens and the confirmation read back. */
+export interface ClientDetailsView {
+  name: string;
+  phone: string | null;
+  address: { line1: string; line2?: string; city: string; region: string; postalCode: string; country: 'US' } | null;
+  logoUrl: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  locationSource: 'listing' | 'geocoded' | null;
+}
+
+/** What the area step starts from: the client's saved profile (services as business-area ids). */
+export interface ProfileInitial {
+  services: string[];
+  keywords: string[];
+  placeId: string | null;
+  serviceArea: { center: { lat: number; lng: number }; radiusKm: number; zips: string[]; towns?: string[] } | null;
+}

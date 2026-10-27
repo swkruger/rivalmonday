@@ -20,6 +20,9 @@ const WEB = 'apps/web/';
 const APP = `${WEB}src/app/`;
 const C = `${APP}\\(app\\)/c/\\[clientId\\]/`;
 const AGENCY = `${APP}\\(app\\)/agency/`;
+/** 16: the client setup flow lives in the `(onboarding)` group (`/c/<id>/setup`, `/agency/clients/new`, `/agency/prospects/new`). */
+const OC = `${APP}\\(onboarding\\)/c/\\[clientId\\]/`;
+const OA = `${APP}\\(onboarding\\)/agency/`;
 const COMP = `${WEB}src/components/`;
 const SERVER = `${WEB}src/server/`;
 const re = (s: string) => new RegExp(`^${s}`);
@@ -155,7 +158,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${C}briefs/`), tags: ['@briefs', '@guest', '@starting-point', '@navigation'], why: 'Briefs & reports list and brief page (tabs, paging, Previous / Next)' },
   { pattern: re(`${C}changes/`), tags: ['@changes', '@evidence', '@help'], why: 'changes feed and evidence viewer (page guide and tips)' },
   { pattern: re(`${C}competitors/`), tags: ['@competitors', '@rivals'], why: 'competitors and profiles' },
-  { pattern: re(`${C}setup/`), tags: ['@setup'], why: 'client setup wizard' },
+  { pattern: re(`${OC}`), tags: ['@setup', '@clients', '@client-billing'], why: 'client setup wizard (steps 3-7: area, competitors, invite, billing, all set; 16)' },
+  { pattern: re(`${OA}(?:clients|prospects)/`), tags: ['@setup', '@clients', '@prospects', '@catalogue'], why: 'Add a client / Add a prospect (steps 1-2 of the client flow: details, find the business, business type; 16)' },
   { pattern: re(`${C}evidence/`), tags: ['@evidence', '@guest'], why: 'evidence page' },
   { pattern: re(`${C}moves/`), tags: ['@moves'], why: 'moves' },
   { pattern: re(`${C}pitch-snapshot/`), tags: ['@prospects', '@guest'], why: 'pitch snapshot' },

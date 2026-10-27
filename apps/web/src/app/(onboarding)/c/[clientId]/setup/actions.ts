@@ -1,27 +1,16 @@
 'use server';
-import { isAgencyRole } from '@cs/core';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { parseDollars } from '../../../agency/settings/billing/client-billing/money';
+import type { ClientProfile } from '@cs/tools';
+import { parseDollars } from '@/app/(app)/agency/settings/billing/client-billing/money';
 import { requireContext } from '@/server/current-viewer';
-import { parseClientProfileForm } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
 import type { ClientSetupView, SetupActionResult } from './types';
 
-/** Re-derives the viewer on every call; the tools re-check access (agency staff, or the client's owner asked to pick) themselves. */
+/** Re-derives the viewer on every call; the tools re-check access (agency staff only: owners never enter setup, P8) themselves. */
 const ctxOf = async () => (await requireContext()).ctx;
 
 function refresh(clientId: string): void {
   revalidatePath(`/c/${clientId}`, 'layout');
-}
-
-/**
- * A client owner may be in setup only to pick competitors while asked to (O12: competitors `waiting_owner`); the write
- * that ends that (their confirm) sends them to the overview instead of refreshing this page into the 404. Staff stay
- * (the invite/billing steps or the "Setup finished" summary).
- */
-async function leaveIfClosed(clientId: string, state: { competitors: string }): Promise<void> {
-  if (state.competitors !== 'waiting_owner' && !isAgencyRole((await ctxOf()).role)) redirect(`/c/${clientId}`);
 }
 
 /** Polled by the wizard while suggestions are pending or the search runs. */
@@ -29,18 +18,36 @@ export async function setupStatusAction(clientId: string): Promise<ToolResult<Cl
   return runTool<ClientSetupView>(await ctxOf(), 'get_client_setup', { clientId });
 }
 
-/** "Save and find competitors": ticked services, ticked + typed keywords, service area, place id. */
-export async function saveSetupProfileAction(clientId: string, fd: FormData): Promise<SetupActionResult> {
-  const parsed = parseClientProfileForm(fd); // only its service-area parsing is used here; name/vertical aren't part of this step
-  if ('error' in parsed) return { ok: false, error: parsed.error };
-  const typed = String(fd.get('extraKeywords') ?? '').split(/\r?\n/).map((k) => k.trim()).filter(Boolean);
-  const keywords = [...new Set([...fd.getAll('keywords').map((k) => String(k).trim()).filter(Boolean), ...typed])];
-  const r = await runTool<{ state: { open: boolean; competitors: string }; searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
-    clientId, services: parsed.services, keywords, newAreas: fd.getAll('newAreas').map((n) => ({ name: String(n).trim() })).filter((n) => n.name), serviceArea: parsed.serviceArea, placeId: parsed.placeId,
+/** What the area step (step 3) saves: the chips, the radius, the ticked services, and a typed City or ZIP when the client has no location yet. */
+export interface AreaInput {
+  keywords: string[];
+  radiusKm: number;
+  services: string[];
+  /** Google services that match none of our areas, ticked in the services list (14a). */
+  newAreas: string[];
+  locality?: string;
+}
+
+/**
+ * Step 3 "Continue": a typed City or ZIP is geocoded first (`update_client_details`); the service area then keeps its centre,
+ * ZIPs and towns and takes the chosen radius. Saving starts the competitor search by itself (the first automatic run).
+ */
+export async function saveAreaAction(clientId: string, input: AreaInput): Promise<SetupActionResult> {
+  const ctx = await ctxOf();
+  if (input.locality?.trim()) {
+    const placed = await runTool(ctx, 'update_client_details', { clientId, locality: input.locality.trim() });
+    if (!placed.ok) return placed;
+  }
+  const profile = await runTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+  if (!profile.ok) return profile;
+  const area = profile.data.serviceArea;
+  if (!area?.center) return { ok: false, error: 'Add a City or ZIP so we know where to search.' };
+  const r = await runTool<{ searchRefusal: string | null }>(ctx, 'save_setup_profile', {
+    clientId, services: input.services, keywords: input.keywords, newAreas: input.newAreas.map((name) => ({ name })),
+    serviceArea: { center: area.center, radiusKm: input.radiusKm, zips: area.zips, ...(area.towns?.length ? { towns: area.towns } : {}) },
   });
   if (!r.ok) return r;
   refresh(clientId);
-  await leaveIfClosed(clientId, r.data.state);
   return { ok: true, searchRefusal: r.data.searchRefusal };
 }
 
@@ -51,29 +58,21 @@ export async function pickSetupCompetitorsAction(clientId: string, accept: strin
   return { ok: true, searchRefusal: null };
 }
 
-export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss' | 'ask_owner';
+export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss' | 'ask_owner';
 
 export async function advanceSetupAction(clientId: string, action: SetupAdvance): Promise<SetupActionResult> {
-  const r = await runTool<{ state: { open: boolean; competitors: string }; searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
+  const r = await runTool<{ searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
   if (!r.ok) return r;
   refresh(clientId);
-  await leaveIfClosed(clientId, r.data.state);
   return { ok: true, searchRefusal: r.data.searchRefusal };
 }
 
-/** Invite step (and the side-panel form on steps 1-3). Re-sending is the same call. */
+/** Invite step. Re-sending is the same call; while the owner was asked to pick, the invitation also sends their competitor review email. */
 export async function inviteOwnerAction(clientId: string, name: string, email: string): Promise<SetupActionResult> {
   const r = await runTool(await ctxOf(), 'invite_client_owner', { clientId, name, email: email.trim() });
   if (!r.ok) return r;
   refresh(clientId);
   return { ok: true, searchRefusal: null };
-}
-
-/** Pick step: "Ask {ownerName} to review". `queued: false` covers every non-send reason (no invite, expired, already sent today). */
-export async function sendReviewAction(clientId: string): Promise<ToolResult<{ queued: boolean }>> {
-  const r = await runTool<{ queued: boolean }>(await ctxOf(), 'send_competitor_review', { clientId });
-  if (r.ok) refresh(clientId);
-  return r;
 }
 
 /** Billing step: dollars text -> cents; the '0 if paid before' setup-fee rule stays in `enable_client_billing`. */

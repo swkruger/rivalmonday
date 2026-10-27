@@ -34,9 +34,7 @@ vi.mock('@/components/evidence-chips', () => ({ EvidenceChips: () => null }));
 vi.mock('@/components/views/scorecard', () => ({ Scorecard: () => null }));
 vi.mock('@/app/(onboarding)/onboarding/actions', () => ({ dismissChecklistAction: async () => {} }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
-vi.mock('./clients/new/actions', () => ({ createClientAction: vi.fn(), createClientFromLookupAction: vi.fn(), findBusinessAction: vi.fn() }));
-vi.mock('./clients/new/vertical-actions', () => ({ createVerticalAction: vi.fn(), draftVerticalAction: vi.fn() }));
-vi.mock('./prospects/new/actions', () => ({ createProspectAction: vi.fn(), createProspectFromLookupAction: vi.fn() }));
+vi.mock('@/app/(onboarding)/agency/clients/new/vertical-actions', () => ({ createVerticalAction: vi.fn(), draftVerticalAction: vi.fn() }));
 vi.mock('./prospects/[clientId]/actions', () => ({ convertAction: vi.fn(), runSnapshotAction: vi.fn() }));
 vi.mock('./approvals/[briefId]/actions', () => ({ approveAction: vi.fn(), autoSendAction: vi.fn(), dropItemAction: vi.fn(), editItemAction: vi.fn(), moveItemAction: vi.fn(), rateItemAction: vi.fn(), sendNowAction: vi.fn() }));
 vi.mock('./alerts/actions', () => ({ approveAlertAction: vi.fn(), dismissAlertAction: vi.fn() }));
@@ -73,12 +71,10 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 
 const { default: Portfolio } = await import('./page');
-const { default: NewClient } = await import('./clients/new/page');
 const { default: Approvals } = await import('./approvals/page');
 const { default: ApprovalReview } = await import('./approvals/[briefId]/page');
 const { default: Alerts } = await import('./alerts/page');
 const { default: Prospects } = await import('./prospects/page');
-const { default: NewProspect } = await import('./prospects/new/page');
 const { default: Prospect } = await import('./prospects/[clientId]/page');
 const { default: Leads } = await import('./leads/page');
 
@@ -88,12 +84,10 @@ const ROW = {
 };
 const PAGES = [
   ['agency.portfolio', () => Portfolio()],
-  ['agency.clients.new', () => NewClient()],
   ['agency.approvals', () => Approvals()],
   ['agency.approvals.detail', () => ApprovalReview({ params: Promise.resolve({ briefId: 'b1' }) })],
   ['agency.alerts', () => Alerts({ searchParams: Promise.resolve({}) })],
   ['agency.prospects', () => Prospects()],
-  ['agency.prospects.new', () => NewProspect()],
   ['agency.prospects.detail', () => Prospect({ params: Promise.resolve({ clientId: C }) })],
   ['agency.leads', () => Leads({ searchParams: Promise.resolve({}) })],
 ] as const;
@@ -136,9 +130,9 @@ describe('agency batch A: guide button and reach', () => {
     for (const [key, render_] of PAGES) await expect(render_(), key).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('an account manager scoped to some clients gets a 404 on Add a client, Add a prospect and Leads, and still reads the rest', async () => {
+  it('an account manager scoped to some clients gets a 404 on Leads, and still reads the rest', async () => {
     m.role = 'account_manager'; m.scope = [C];
-    for (const key of ['agency.clients.new', 'agency.prospects.new', 'agency.leads']) await expect(page(key)(), key).rejects.toThrow('NEXT_NOT_FOUND');
+    for (const key of ['agency.leads']) await expect(page(key)(), key).rejects.toThrow('NEXT_NOT_FOUND');
     for (const key of ['agency.portfolio', 'agency.approvals', 'agency.alerts', 'agency.prospects']) await expect(page(key)(), key).resolves.toBeTruthy();
   });
 });
@@ -176,26 +170,6 @@ describe('agency batch A: Portfolio', () => {
     m.role = 'account_manager'; m.scope = [C];
     await show('agency.portfolio');
     expect(screen.getByText(/Ask an agency admin to add a client/)).toBeTruthy();
-  });
-});
-
-describe('agency batch A: Add a client and Add a prospect', () => {
-  it('Add a client: steps in the order the setup uses, and the user-facing name business type', async () => {
-    await show('agency.clients.new');
-    expect(screen.getByText(/Search for the business on Google Maps/)).toBeTruthy();
-    const s = open('What happens next');
-    const order = ['Your business', 'Finding competitors', 'Pick competitors', 'Invite the owner', 'Billing'].map((w) => s.indexOf(w));
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(PAGE_COPY['agency.clients.new'].tips.businessType.body).not.toMatch(/vertical/i);
-  });
-
-  it('Add a prospect: no billing step, and what a prospect is', async () => {
-    await show('agency.prospects.new');
-    expect(open('What happens next')).toMatch(/no billing step/);
-    cleanup();
-    await show('agency.prospects.new');
-    expect(open('What a prospect is')).toMatch(/no weekly monitoring, alerts or briefs/);
   });
 });
 

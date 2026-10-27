@@ -1,23 +1,13 @@
 'use server';
 import { isAgencyRole } from '@cs/core';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
-import { type FormResult, parseClientProfileForm } from '@/server/forms';
-import { createFromLookup } from '@/server/lookup-create';
-import { runTool } from '@/server/run-tool';
+import type { FormResult } from '@/server/forms';
+import { createClientFromForm } from '@/server/new-client';
 
-export async function createProspectAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
+/** Same flow as a client (16 §6: prospects follow it without the billing step); the row is made as a prospect. */
+export async function createProspectAction(formData: FormData): Promise<FormResult> {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const parsed = parseClientProfileForm(formData);
-  if ('error' in parsed) return { ok: false, error: parsed.error };
-  const r = await runTool<{ clientId: string }>(ctx, 'create_client', { ...parsed, status: 'prospect' });
-  if (!r.ok) return r;
-  redirect(`/c/${r.data.clientId}/setup`); // Phase 11a: every new client goes through the wizard
-}
-
-export async function createProspectFromLookupAction(_prev: FormResult, formData: FormData): Promise<FormResult> {
-  const { ctx } = await requireContext();
-  if (!isAgencyRole(ctx.role)) notFound();
-  return createFromLookup(ctx, formData, 'prospect');
+  return createClientFromForm(ctx, formData, 'prospect');
 }

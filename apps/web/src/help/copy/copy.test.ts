@@ -44,7 +44,7 @@ describe('PAGE_COPY content', () => {
       'apps/web/src/help/copy/client.ts',
       'apps/web/src/components/client-profile-form.tsx',
       'apps/web/src/app/(app)/c/[clientId]/competitors/competitor-controls.tsx',
-      'apps/web/src/app/(app)/c/[clientId]/setup/steps/business-step.tsx',
+      'apps/web/src/app/(onboarding)/c/[clientId]/setup/steps/area-step.tsx',
       'apps/web/src/app/(app)/c/[clientId]/reviews/self-notice.tsx',
       'apps/web/src/app/(app)/c/[clientId]/overview-kpis.ts',
       ...['competitors', 'overview', 'rankings', 'reviews', 'settings.profile', 'setup'].map((n) => `docs/help/pages/client.${n}.agency.md`),
