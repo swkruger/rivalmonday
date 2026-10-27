@@ -25,7 +25,7 @@ export function rankSeries(scans: RankTrendView['scans']): ChartSeries[] {
     series.push({ key: id, name, points: scans.map((s) => { const c = s.competitors.find((x) => x.competitorId === id); return c ? clamp(c.avgRank) : null; }) });
   }
   const neg = (s: ChartSeries): ChartSeries => ({ ...s, points: s.points.map((v) => (v === null ? null : -v)) });
-  // Name-sorted in, because colours follow position and foldSeries returns ≤ 5 series unchanged.
+  // Name-sorted in so ties and the folded list are stable; colours come from `seriesColor` (best-ranked two rivals highlighted).
   series.sort((a, b) => a.name.localeCompare(b.name, 'en'));
   return foldSeries(series.map(neg), 5, { pin: ['self'], aggregate: 'mean' }).map(neg);
 }
@@ -33,7 +33,7 @@ export function rankSeries(scans: RankTrendView['scans']): ChartSeries[] {
 /**
  * Trend tab (Phase 13b D8): average map rank per scan for one keyword, y inverted (1 at the top, 21 = "20+").
  * A dashed vertical marker sits at every scan whose settings changed, so a jump there is read with care.
- * Takes `get_rank_trend` scans oldest → newest. Colours follow `LineChart` (fixed slots, name-sorted series).
+ * Takes `get_rank_trend` scans oldest → newest. Colours follow `seriesColor` with `lowerIsBetter`: you, the two best-ranked rivals highlighted (up to 2 rivals keep their order), the rest grey.
  */
 export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendView['scans']; keyword: string; height?: number }) {
   const series = rankSeries(scans);
@@ -48,7 +48,7 @@ export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendVi
   const n = scans.length;
   const x = (i: number) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
   const y = (v: number) => T + ((v - 1) / (NOT_IN_TOP - 1)) * (H - T - B);
-  const colorOf = (s: ChartSeries) => seriesColor(s, series);
+  const colorOf = (s: ChartSeries) => seriesColor(s, series, { lowerIsBetter: true });
   const latest = (s: ChartSeries) => { const v = [...s.points].reverse().find((p) => p !== null); return v == null ? 'no data' : fmt(v); };
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
   const changed = scans.map((s, i) => (s.settingsChanged ? i : -1)).filter((i) => i >= 0);

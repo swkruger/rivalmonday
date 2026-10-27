@@ -1,10 +1,9 @@
 import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
-import { cellPaint, Compass, gridLabelFont, gridLayout, labelHalo } from './geo-grid';
+import { cellPaint, Compass, gridLabelFont, gridLayout, labelHalo, WHITE } from './geo-grid';
 import { MapZoom } from './map-zoom';
 
 const INK = 'var(--ink)';
-const WHITE = 'var(--surface)';
 const MUTED = 'var(--chart-axis)';
 const LINE = 'var(--chart-grid)';
 const HATCH_ID = 'changegrid-hatch';

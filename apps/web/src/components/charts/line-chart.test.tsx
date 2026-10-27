@@ -192,6 +192,18 @@ describe('You + <= 2 highlighted rivals (P8)', () => {
     expect(seriesColor(you, all)).toBe(YOU_COLOR);
   });
 
+  it('lowerIsBetter highlights the two lowest latest values, ties by name', () => {
+    const rs = [rival('a', 'Alpha', 5), rival('b', 'Bravo', 9), rival('c', 'Charlie', 2), rival('d', 'Delta', 2)];
+    const all = [you, ...rs];
+    const o = { lowerIsBetter: true };
+    expect(seriesColor(rs[2]!, all, o)).toBe(RIVAL_COLORS[0]); // 2/2 tie -> Charlie before Delta
+    expect(seriesColor(rs[3]!, all, o)).toBe(RIVAL_COLORS[1]);
+    expect(seriesColor(rs[0]!, all, o)).toBe(CONTEXT_COLOR);
+    expect(seriesColor(rs[1]!, all, o)).toBe(CONTEXT_COLOR);
+    const two = rs.slice(0, 2);
+    expect(seriesColor(two[1]!, two, o)).toBe(RIVAL_COLORS[1]); // <= 2 rivals keep given order
+  });
+
   it('draws context series beneath highlighted ones at 1.5, highlighted at 2, and the legend + table keep every series', () => {
     const rs = [rival('a', 'Alpha', 9), rival('b', 'Bravo', 8), rival('c', 'Charlie', 1), { ...rival('other', 'Other', 1) }];
     render(<LineChart title="T" valueLabel="v" labels={['2026-09-01', '2026-09-08']} series={[you, ...rs.map((r) => ({ ...r, points: [r.points[0]!, r.points[0]!] }))]} />);

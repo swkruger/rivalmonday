@@ -12,12 +12,12 @@ export interface ChartSeries {
   you?: boolean;
 }
 
-/** P8: <= 2 rivals keep their order (stable colours); more -> the two highest latest values are highlighted. */
-export function seriesColor(s: ChartSeries, all: ChartSeries[]): string {
+/** P8: <= 2 rivals keep their order (stable colours); more -> the two highest latest values are highlighted (lowest when `lowerIsBetter`, e.g. ranks). */
+export function seriesColor(s: ChartSeries, all: ChartSeries[], opts: { lowerIsBetter?: boolean } = {}): string {
   if (s.you) return YOU_COLOR;
   if (s.key === 'other') return CONTEXT_COLOR;
   const rivals = all.filter((x) => !x.you && x.key !== 'other');
-  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
+  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => (opts.lowerIsBetter ? last(a.points) - last(b.points) : last(b.points) - last(a.points)) || a.name.localeCompare(b.name, 'en'));
   const i = ranked.slice(0, 2).findIndex((x) => x.key === s.key);
   return i >= 0 ? RIVAL_COLORS[i]! : CONTEXT_COLOR;
 }

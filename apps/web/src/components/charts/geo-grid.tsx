@@ -4,7 +4,7 @@ import { useId } from 'react';
 import { MapZoom } from './map-zoom';
 
 const INK = 'var(--ink)';
-const WHITE = 'var(--surface)';
+export const WHITE = 'var(--surface)';
 const LINE = 'var(--chart-grid)';
 const HATCH_ID = 'geogrid-hatch';
 

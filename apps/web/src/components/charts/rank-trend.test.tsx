@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { RIVAL_COLORS } from './line-chart';
+import { CONTEXT_COLOR, RIVAL_COLORS } from './line-chart';
 import { RankTrend, rankSeries } from './rank-trend';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -42,6 +42,16 @@ describe('RankTrend', () => {
     const { container } = render(<RankTrend keyword="ac repair" scans={[scan(1, false, 4, 8), scan(2, false, 3, 6)]} />);
     expect(container.querySelector('polyline[data-series="self"]')!.getAttribute('stroke')).toBe('var(--you)');
     expect(container.querySelector(`polyline[data-series="${id(9)}"]`)!.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
+  });
+
+  it('highlights the two best-ranked rivals (lowest average rank) and greys the rest', () => {
+    const rivals = [12, 3, 20, 5].map((r, i) => ({ competitorId: id(i), name: `R${i}`, tier: null, avgRank: r, top3Share: 0 }));
+    const { container } = render(<RankTrend keyword="ac repair" scans={[{ ...scan(1, false, 4, 8), competitors: rivals }]} />);
+    const stroke = (i: number) => container.querySelector(`[data-marker="${id(i)}"], polyline[data-series="${id(i)}"]`)?.getAttribute('stroke') ?? container.querySelector(`[data-marker="${id(i)}"]`)?.getAttribute('fill');
+    expect(stroke(1)).toBe(RIVAL_COLORS[0]); // rank 3
+    expect(stroke(3)).toBe(RIVAL_COLORS[1]); // rank 5
+    expect(stroke(0)).toBe(CONTEXT_COLOR);
+    expect(stroke(2)).toBe(CONTEXT_COLOR);
   });
 
   it('says so when there is no history', () => {
