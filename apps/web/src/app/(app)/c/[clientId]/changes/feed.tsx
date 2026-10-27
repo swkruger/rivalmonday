@@ -32,7 +32,7 @@ function SegmentLink({ clientId, params, route, label }: { clientId: string; par
     <Link
       href={changesHref(clientId, { ...params, route, offset: 0, event: undefined, change: undefined })}
       aria-current={active ? 'page' : undefined}
-      className={active ? 'rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink' : 'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'}
+      className={active ? 'rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink' : 'rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'}
     >
       {label}
     </Link>
