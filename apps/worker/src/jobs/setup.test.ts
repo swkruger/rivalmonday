@@ -331,7 +331,7 @@ describe('runSetupReminders (Task 9)', () => {
     }
 
     it('sends once across two runs, to the invited owner only, before staff notices', async () => {
-      await seedOpen();
+      await seedOpen({ ownerPickRequestedAt: ago(1000) });
       await withDoneRun(2);
       await invite();
       await run();
@@ -343,20 +343,20 @@ describe('runSetupReminders (Task 9)', () => {
     });
 
     it('sends in the same run as the staff notices', async () => {
-      await seedOpen({ lastChangedAt: ago(1000), lastChangedRole: 'account_manager' });
+      await seedOpen({ ownerPickRequestedAt: ago(1000), lastChangedAt: ago(1000), lastChangedRole: 'client_owner' });
       await withDoneRun(1);
       await invite();
-      expect((await run()).queued).toBe(4); // suggestions_ready (3) + the owner's review
+      expect((await run()).queued).toBe(4); // client_changed (3) + the owner's review
       expect(await reviews()).toHaveLength(1);
     });
 
     it('a throwing review does not block the staff notices or the next client', async () => {
-      await seedOpen({ lastChangedRole: 'client_owner', lastChangedAt: ago(3_600_000) });
+      await seedOpen({ ownerPickRequestedAt: ago(1000), lastChangedRole: 'client_owner', lastChangedAt: ago(3_600_000) });
       await withDoneRun(1);
       await invite();
       review.failFor = ID;
       vi.spyOn(workerLog, 'error').mockImplementation(() => {});
-      expect((await run()).queued).toBe(6); // suggestions_ready + client_changed, 3 rows each; no review
+      expect((await run()).queued).toBe(3); // client_changed, 3 rows; no review
       expect(await reviews()).toHaveLength(0);
       expect(await rows('setup_client_changed')).toHaveLength(1);
     });
@@ -382,6 +382,15 @@ describe('runSetupReminders (Task 9)', () => {
       await withDoneRun(2);
       await run();
       expect(await rows('setup_suggestions_ready')).toHaveLength(0);
+    });
+
+    it('auto send skipped when owner was not asked', async () => {
+      await seedOpen();
+      await withDoneRun(2);
+      await invite();
+      await run();
+      expect(await reviews()).toHaveLength(0);
+      expect(await rows('setup_suggestions_ready')).toHaveLength(1); // staff pick instead
     });
 
     it('does not send without an invite or once competitors are done', async () => {

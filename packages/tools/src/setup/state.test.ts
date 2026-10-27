@@ -224,16 +224,23 @@ describe('getSetupState / completeIfDone', () => {
     expect((await dbs.owner.select().from(clientSetup))[0]!.completedAt).toBeNull();
   });
 
-  it('completeIfDone needs the details step: no phone or no owner contact keeps it open', async () => {
+  it('details reports done only with a phone and an owner contact (a viewer is not the owner)', async () => {
+    await insertSetup();
+    const details = async () => (await getSetupState(dbs.service, IDS.clientA1)).steps.details;
+    expect(await details()).toBe('todo');
+    await dbs.owner.update(client).set({ phone: '817-555-0100' }).where(eq(client.id, IDS.clientA1));
+    expect(await details()).toBe('todo');
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_viewer', email: 'v@x.co', active: false });
+    expect(await details()).toBe('todo');
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o2@x.co', active: false });
+    expect(await details()).toBe('done');
+  });
+
+  it('details todo does not block completion', async () => {
+    // Pre-16 setups, prospects and accept_lead clients have no phone / owner contact: details is informational.
     await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA }).where(eq(client.id, IDS.clientA1));
     await insertSetup({ skipped: ['competitors', 'invite'], competitorsDoneAt: NOW });
     expect((await getSetupState(dbs.service, IDS.clientA1)).steps.details).toBe('todo');
-    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false);
-    await dbs.owner.update(client).set({ phone: '817-555-0100' }).where(eq(client.id, IDS.clientA1));
-    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false); // still no owner contact
-    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_viewer', email: 'v@x.co', active: false });
-    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false); // a viewer is not the owner
-    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o2@x.co', active: false });
     expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(true);
   });
 

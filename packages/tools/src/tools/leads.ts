@@ -157,7 +157,7 @@ export const acceptLead = defineTool({
       const now = new Date();
       const created = await createClientCore(tx, deps, ctx, {
         name: row.lookup.title.slice(0, 120), verticalId, services: [], keywords: [], serviceArea: null, placeId: null, features: [], status: 'prospect',
-        lookup: row.lookup, source: row.source === 'platform' ? 'platform_lead' : 'agency_link',
+        lookup: row.lookup, source: row.source === 'platform' ? 'platform_lead' : 'agency_link', phone: row.phone,
       });
       await tx.update(lead).set({ status: 'accepted', clientId: created.clientId, decidedBy: ctx.userId, decidedAt: now, updatedAt: now }).where(eq(lead.id, row.id));
       // inviteClientUser opens its own transaction: on `tx` it becomes a savepoint, so a refused invite rolls back the whole accept.

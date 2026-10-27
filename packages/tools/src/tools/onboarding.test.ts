@@ -260,7 +260,7 @@ describe('create_client details and geocoding (Phase 16 O13)', () => {
     const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
     expect(row!.serviceArea).toBeNull();
     const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
-    expect(setup!.locationSource).toBe('geocoded');
+    expect(setup!.locationSource).toBeNull(); // no point found: no location source
     expect(await getSetupState(dbs.service, clientId)).toMatchObject({ needsLocation: true, steps: { details: 'done', lookup: 'done', profile: 'todo' } }); // no centre
     // No geocoder at all (no STADIA_API_KEY) reads the same as a miss.
     const { clientId: c2 } = (await registry.invoke(admin, 'create_client', { ...noArea, name: 'No Key', details })) as { clientId: string };

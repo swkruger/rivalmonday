@@ -68,22 +68,26 @@ export async function createClientCore(
   tx: Tx,
   deps: ToolDeps,
   ctx: AccessContext,
-  rawInput: CreateClientInput & { source?: SetupSource; /** The handler's pre-transaction geocode of the typed address (null = miss or no geocoder). */ geo?: { lat: number; lng: number } | null; /** The geocoder threw: no location was obtained, so `location_source` stays null. */ geocodeFailed?: boolean },
+  rawInput: CreateClientInput & {
+    source?: SetupSource; /** The handler's pre-transaction geocode of the typed address (null = miss or no geocoder). */ geo?: { lat: number; lng: number } | null;
+    /** `accept_lead`: the lead's phone, stored when there are no `details` (which carry their own). */ phone?: string | null;
+  },
 ): Promise<{ clientId: string; afterCommit: () => Promise<void> }> {
   // Decision 3: a restricted AM could not see the client they create.
   if (ctx.clientScope !== 'all') throw new ToolError('permission_denied', 'Only users who cover all clients can add a client');
-  const { lookup, source = 'staff', details, geo, geocodeFailed, ...base } = rawInput;
+  const { lookup, source = 'staff', details, geo, phone, ...base } = rawInput;
   // 11a: a picked Google place prefills the profile. Keywords stay empty (the wizard's suggestions fill them), so the
   // first auto search does not fire until the profile is complete.
   const input = lookup
     ? { ...base, name: base.name.trim() ? base.name : lookup.title.slice(0, 120), placeId: lookup.placeId, keywords: [] as string[], serviceArea: { center: { lat: lookup.lat, lng: lookup.lng }, radiusKm: 15, zips: [] } }
     : geo ? { ...base, serviceArea: { center: { lat: geo.lat, lng: geo.lng }, radiusKm: GEOCODED_RADIUS_KM, zips: [] } } : base;
-  // O13: where the service area came from — the listing lookup, or a geocode attempt (a miss leaves the area null for the wizard to resolve).
-  const locationSource: SetupLocationSource | null = lookup ? 'listing' : details && (details.address || details.locality) && !base.serviceArea && !geocodeFailed ? 'geocoded' : null;
+  // O13: where the service area came from — the listing lookup, or a geocoded point. A miss or a geocoder error obtained
+  // no location: both leave the area and `location_source` null for the wizard to resolve.
+  const locationSource: SetupLocationSource | null = lookup ? 'listing' : geo ? 'geocoded' : null;
   const pack = await packFor(deps, input.verticalId);
   const c = validated(input, pack);
   if (input.timezone !== undefined && !validTimezone(input.timezone)) throw new ToolError('invalid_input', 'Unknown time zone');
-  const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}), ...(details ? { phone: details.phone, address: details.address ?? null } : {}) };
+  const values = { agencyId: ctx.agencyId, status: input.status, name: c.name, verticalId: pack.id, services: c.services, keywords: c.keywords, serviceArea: c.serviceArea, placeId: c.placeId, features: c.features, ...(input.status === 'active' ? { activatedAt: new Date() } : {}), ...(input.timezone ? { timezone: input.timezone } : {}), ...(details ? { phone: details.phone, address: details.address ?? null } : phone ? { phone } : {}) };
   // P5/R5: an active client takes a seat, so the cap check and the insert share one transaction (the check locks the agency's billing row).
   if (input.status === 'active') await assertCanActivateClient(tx, ctx.agencyId, { role: ctx.role });
   const [row] = await tx.insert(client).values(values).returning({ id: client.id });
@@ -135,15 +139,13 @@ export const createClient = defineTool({
     // O13: geocode BEFORE the transaction (a vendor call must not hold the seat-cap lock); a geocode error never blocks creation.
     // A geocoder error is a miss: the client is created without a location and Task 7's needs_location asks for City or ZIP.
     let geo: { lat: number; lng: number } | null = null;
-    let geocodeFailed = false;
     try {
       geo = await geocodeDetails(deps, ctx, input);
     } catch (err) {
-      geocodeFailed = true;
       // Class and HTTP status only: never the message (it can carry the query) or the key.
       console.warn(`[create_client] geocode failed (${err instanceof Error ? err.name : 'error'}${(err as { status?: number })?.status ? ` ${(err as { status?: number }).status}` : ''}); creating the client without a location`);
     }
-    const { clientId, afterCommit } = await deps.service.transaction((tx) => createClientCore(tx, deps, ctx, { ...input, geo, geocodeFailed }));
+    const { clientId, afterCommit } = await deps.service.transaction((tx) => createClientCore(tx, deps, ctx, { ...input, geo }));
     await afterCommit();
     return { clientId };
   },

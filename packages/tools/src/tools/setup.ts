@@ -371,8 +371,9 @@ export const advanceClientSetup = defineTool({
             : action === 'skip_search' ? { skipped: skip('search') }
               : action === 'skip_invite' ? { skipped: skip('invite') }
                 : action === 'skip_billing' ? { skipped: skip('billing') }
-                  // O12: no email here (P12); the invite step sends the review email.
-                  : action === 'ask_owner' ? { ownerPickRequestedAt: row.ownerPickRequestedAt ?? now }
+                  // O12: no email here (P12); the invite step sends the review email, so an earlier invite skip is
+                  // cleared (the invite step is todo again and completion waits for an invitation).
+                  : action === 'ask_owner' ? { ownerPickRequestedAt: row.ownerPickRequestedAt ?? now, skipped: row.skipped.filter((s) => s !== 'invite') }
                     : { dismissedAt: row.dismissedAt ?? now };
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
@@ -385,8 +386,8 @@ export const advanceClientSetup = defineTool({
 
 /**
  * Phase 11b §4: the wizard's "Invite the owner" step. Off the paused-agency allow-list (no new outward client work while
- * paused). P12: once the invitation exists, the competitor-review email is queued for the invited owner (gated on
- * competitors still open, `waiting_owner` included; same dedupe as the daily reminder, so it goes out once).
+ * paused). P12: once the invitation exists, the competitor-review email is queued for the invited owner (only while
+ * competitors are `waiting_owner`; same dedupe as the daily reminder, so it goes out once).
  */
 export const inviteClientOwner = defineTool({
   name: 'invite_client_owner',

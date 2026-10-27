@@ -85,6 +85,15 @@ describe('accept_lead', () => {
     expect(s!.source).toBe('platform_lead');
   });
 
+  it('accept_lead stores lead phone', async () => {
+    const id = await mkLead();
+    const { clientId } = await call<{ clientId: string }>(admin, 'accept_lead', { leadId: id, verticalId: 'dental' });
+    expect((await dbs.service.select({ phone: client.phone }).from(client).where(eq(client.id, clientId)))[0]!.phone).toBe('512-555-0100');
+    const noPhone = await mkLead({ phone: null, email: 'nophone@smith.co', lookup: { ...lookup, placeId: 'ChIJnophone' } });
+    const { clientId: c2 } = await call<{ clientId: string }>(admin, 'accept_lead', { leadId: noPhone, verticalId: 'dental' });
+    expect((await dbs.service.select({ phone: client.phone }).from(client).where(eq(client.id, c2)))[0]!.phone).toBeNull();
+  });
+
   it('accept twice → second not_found', async () => {
     const id = await mkLead();
     await call(admin, 'accept_lead', { leadId: id, verticalId: 'dental' });

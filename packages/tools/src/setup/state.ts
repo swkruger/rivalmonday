@@ -196,14 +196,16 @@ export async function loadSetupInvite(db: Pick<Tx, 'select'>, clientId: string, 
 
 /**
  * Sets `completed_at` once every step of the client's list (6 for clients, 5 for prospects) is settled: done, skipped or
- * `waiting_owner` (O12: staff finish while the owner picks; `competitors_done_at` stays unset until they confirm). Guarded
+ * `waiting_owner` (O12: staff finish while the owner picks; `competitors_done_at` stays unset until they confirm).
+ * `details` is informational (controller ruling): it never blocks completion, so pre-16 setups, prospects and
+ * `accept_lead` clients without a phone or owner contact complete as before. Guarded
  * UPDATE: never overwrites or clears an existing `completed_at`, and never completes a dismissed row (its starting-point
  * clock must not move to activation, spec §9). Pass a service-role tx (`app_user` can't write). Returns true if it just closed.
  */
 export async function completeIfDone(tx: Db, clientId: string, now: Date): Promise<boolean> {
   const s = await getSetupState(tx, clientId, now);
   if (!s.exists || s.completedAt) return false;
-  if (!Object.values(s.steps).every(isSettledStep)) return false;
+  if (!Object.entries(s.steps).every(([k, v]) => k === 'details' || isSettledStep(v))) return false;
   const done = await tx.update(clientSetup).set({ completedAt: now }).where(and(eq(clientSetup.clientId, clientId), isNull(clientSetup.completedAt), isNull(clientSetup.dismissedAt))).returning({ id: clientSetup.clientId });
   return done.length > 0;
 }

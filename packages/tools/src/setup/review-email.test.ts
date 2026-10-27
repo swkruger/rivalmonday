@@ -48,7 +48,7 @@ beforeEach(async () => {
 
 describe('queueCompetitorReview', () => {
   it('auto sends once across two runs', async () => {
-    await seed();
+    await seed({ askedOwner: true });
     expect(await go()).toBe(true);
     expect(await go()).toBe(false);
     const rows = await mails();
@@ -59,6 +59,15 @@ describe('queueCompetitorReview', () => {
     expect(props.competitorNames).toEqual(['Rival 3', 'Rival 2', 'Rival 1', 'Rival 6', 'Rival 7']); // top then watch, score desc, max 5, no minor/dismissed
     expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
     expect(payloadOf(rows[0]!).cc).toEqual(['inviter@agency.co']);
+  });
+
+  it('auto send skipped when owner was not asked', async () => {
+    // Competitors ready to pick, owner invited, but staff never asked them to pick (P8: they could not): no automatic email.
+    await seed();
+    expect(await go()).toBe(false);
+    expect(await mails()).toHaveLength(0);
+    // The manual staff send keeps its rule (ignores the step).
+    expect(await go(`competitor-review:${ID}:2026-10-20`, true)).toBe(true);
   });
 
   it('no auto send when competitors done', async () => {
@@ -75,28 +84,28 @@ describe('queueCompetitorReview', () => {
   });
 
   it('no send without invited contact', async () => {
-    await seed();
+    await seed({ askedOwner: true });
     await dbs.owner.update(clientSetup).set({ invitedContactId: null });
     expect(await go()).toBe(false);
     expect(await mails()).toHaveLength(0);
   });
 
   it('no send for an expired or missing invitation, an accepted-but-deactivated contact, or no rivals', async () => {
-    await seed({ invite: 'expired' });
+    await seed({ invite: 'expired', askedOwner: true });
     expect(await go()).toBe(false);
     await truncateAll(dbs.owner);
     await seedTenancy(dbs.owner);
-    await seed({ invite: 'accepted', contactActive: false });
+    await seed({ invite: 'accepted', contactActive: false, askedOwner: true });
     expect(await go()).toBe(false);
     await dbs.owner.update(contact).set({ active: true });
     expect(await go()).toBe(true);
     await truncateAll(dbs.owner);
     await seedTenancy(dbs.owner);
-    await seed({ rivals: false });
+    await seed({ rivals: false, askedOwner: true });
     expect(await go()).toBe(false);
     await truncateAll(dbs.owner);
     await seedTenancy(dbs.owner);
-    await seed({ invite: 'none' });
+    await seed({ invite: 'none', askedOwner: true });
     expect(await go()).toBe(false);
   });
 
@@ -132,7 +141,7 @@ describe('queueCompetitorReview', () => {
   });
 
   it('props carry names only', async () => {
-    await seed();
+    await seed({ askedOwner: true });
     await go();
     const props = payloadOf((await mails())[0]!).props as unknown as Record<string, unknown>;
     expect(Object.keys(props).sort()).toEqual(['branding', 'businessName', 'competitorNames', 'reviewUrl']);
@@ -140,7 +149,7 @@ describe('queueCompetitorReview', () => {
   });
 
   it('cc falls back to the account manager', async () => {
-    await seed({ invitedBy: null });
+    await seed({ invitedBy: null, askedOwner: true });
     await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'AM@a.example' });
     expect(await go()).toBe(true);
     expect(payloadOf((await mails())[0]!).cc).toEqual(['am@a.example']);

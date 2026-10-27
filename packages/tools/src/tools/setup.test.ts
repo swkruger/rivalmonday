@@ -751,12 +751,19 @@ describe('wizard tools', () => {
     it('ask_owner sets waiting_owner and completes setup for staff', async () => {
       await fillProfile();
       await fillDetails();
-      await setupRow({ skipped: ['invite'] });
+      await setupRow();
       await sug(await run('done'), 'Rival One');
       wizEnqueue.mockClear();
-      const out = await advance(admin, 'ask_owner');
-      // Every staff step is settled (invite skipped, billing skipped without Connect): the setup completes, the pick waits.
-      expect(out.state).toMatchObject({ open: false, competitors: 'waiting_owner', steps: { competitors: 'waiting_owner' } });
+      const asked = await advance(admin, 'ask_owner');
+      // The invite step is still to do: the setup stays open until the owner is invited.
+      expect(asked.state).toMatchObject({ open: true, competitors: 'waiting_owner', steps: { competitors: 'waiting_owner', invite: 'todo' }, waitingOn: 'agency' });
+      expect((await setupOf()).completedAt).toBeNull();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {}); // no delivery configured in this registry
+      await wiz().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Pat Owner', email: 'pat@x.co' });
+      warn.mockRestore();
+      // Every staff step is settled (invited, billing skipped without Connect): the setup completes, the pick waits.
+      const out = await get(admin);
+      expect(out.state).toMatchObject({ open: false, competitors: 'waiting_owner', steps: { competitors: 'waiting_owner', invite: 'done' } });
       const row = await setupOf();
       expect(row.ownerPickRequestedAt).toBeInstanceOf(Date);
       expect(row.competitorsDoneAt).toBeNull();
@@ -771,6 +778,18 @@ describe('wizard tools', () => {
       expect(after.competitorsDoneAt).toBeInstanceOf(Date);
       expect(after.completedAt).toEqual(row.completedAt);
       expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'runbook-tailor')).toHaveLength(1);
+    });
+
+    it('ask_owner reopens a skipped invite step', async () => {
+      await fillProfile();
+      await setupRow({ skipped: ['search', 'invite', 'billing'] });
+      const out = await advance(admin, 'ask_owner');
+      expect(out.state).toMatchObject({ open: true, competitors: 'waiting_owner', steps: { invite: 'todo' } });
+      const row = await setupOf();
+      expect([...row.skipped].sort()).toEqual(['billing', 'search']);
+      expect(row.completedAt).toBeNull();
+      // And it cannot be skipped again while the owner is asked to pick.
+      expect((await fails(advance(admin, 'skip_invite'))).code).toBe('invalid_input');
     });
 
     it('ask_owner is refused once competitors are done or skipped, and before the profile is complete', async () => {

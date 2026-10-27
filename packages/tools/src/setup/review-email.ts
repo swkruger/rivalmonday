@@ -9,7 +9,7 @@ const MAX_NAMES = 5;
 /**
  * Phase 11b Task 20 (spec E3/§5): emails the invited owner the competitors to review, Cc the inviter (else the account
  * manager). Shared by the daily `setup-reminders` and `invite_client_owner` (dedupe `competitor-review:<clientId>`, only
- * while competitors are open: not done/skipped, `waiting_owner` included) and the manual `send_competitor_review`
+ * while competitors are `waiting_owner`) and the manual `send_competitor_review`
  * (dedupe adds the UTC day, ignores the competitors step). Returns false when a condition fails or the dedupe key
  * already exists. Props carry names only, never suggestion internals.
  */
@@ -46,9 +46,9 @@ export async function queueCompetitorReview(
   if (!pending && !accepted) return false;
 
   const state = await getSetupState(conn, clientId, now);
-  // Automatic: only while competitors are still open — not yet picked, or the owner was asked to pick (O12/P12). A staff
-  // skip means "don't ask the owner". Manual ignores the step.
-  if (!input.manual && (state.competitors === 'done' || state.competitors === 'skipped')) return false;
+  // Automatic: only while the agency asked the owner to pick and they haven't (`waiting_owner`, O12/P12): otherwise the
+  // owner can't pick at all (P8). Manual (staff) ignores the step.
+  if (!input.manual && state.competitors !== 'waiting_owner') return false;
 
   const run = await latestDoneRun(conn, clientId);
   if (!run) return false;
