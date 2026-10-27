@@ -1,4 +1,5 @@
 import type { PriceMatrixView } from '@cs/tools';
+import { StatusChip, Tag } from '@cs/ui';
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { formatChange, formatPrice } from './format';
@@ -19,12 +20,15 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
   const byId = new Map(services.map((s) => [s.id, s]));
   const headingId = `price-card-${row.competitorId}`;
   return (
-    <section aria-labelledby={headingId} className="rounded-md border border-line bg-surface p-6">
-      <h2 id={headingId} className="text-lg font-bold text-ink">{row.name}</h2>
+    <section aria-labelledby={headingId} className="rounded-md border border-line bg-surface">
+      <div className="border-b border-line px-4 py-3">
+        <h2 id={headingId} className="text-sm font-semibold text-ink">{row.name}</h2>
+      </div>
+      <div className="p-4">
       {row.cells.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">No prices seen on its website yet.</p>
+        <p className="text-sm text-muted-foreground">No prices seen on its website yet.</p>
       ) : (
-        <ul className="mt-3 flex flex-col divide-y divide-line">
+        <ul className="flex flex-col divide-y divide-line">
           {row.cells.map((cell) => {
             const s = byId.get(cell.serviceId);
             const change = formatChange(cell.change);
@@ -38,11 +42,11 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                 >
                   <span className="min-w-0 flex-1 font-semibold text-ink">
                     {s?.name ?? cell.serviceId}
-                    {s?.offered && <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">Your service</span>}
+                    {s?.offered && <Tag className="ml-2">Your service</Tag>}
                   </span>
-                  <span className="font-bold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
-                  {cell.prices.some((p) => p.promo) && <span className="rounded-full bg-chip-warning-bg px-2 py-0.5 text-xs font-bold text-accent-text">Promo</span>}
-                  {change && <span title="Change against 90 days ago" className={`rounded-full px-2 py-0.5 text-xs font-bold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
+                  <span className="font-semibold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
+                  {cell.prices.some((p) => p.promo) && <StatusChip tone="warning">Promo</StatusChip>}
+                  {change && <span title="Change against 90 days ago" className={`inline-flex h-5 items-center rounded-xs px-1.5 text-xs font-semibold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
                   <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
@@ -51,6 +55,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
         </ul>
       )}
       {children}
+      </div>
     </section>
   );
 }

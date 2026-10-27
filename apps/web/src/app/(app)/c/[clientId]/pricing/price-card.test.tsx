@@ -34,7 +34,13 @@ describe('PriceCard', () => {
     const chip = screen.getByText('▼ $20').parentElement!;
     expect(chip.className).toContain('bg-chip-danger-bg');
     expect(chip.className).not.toContain('[#');
-    expect(screen.getByText('Promo').className).toContain('bg-chip-warning-bg');
+    expect(screen.getByText('Promo').closest('[data-slot=status-chip]')?.getAttribute('data-tone')).toBe('warning');
+  });
+
+  it('keeps pill grammar: no rounded-full anywhere in the card', () => {
+    const { container } = render(<PriceCard row={row} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    expect(container.innerHTML).not.toContain('rounded-full');
+    expect(screen.getByText('Your service').getAttribute('data-slot')).toBe('tag');
   });
 
   it('gives the change pill screen-reader wording', () => {

@@ -90,6 +90,15 @@ describe('RankingsPage', () => {
       });
     };
 
+    it('trend filter form keeps its fields and the SoV table sits in a table frame', async () => {
+      mount();
+      await render5();
+      const form = screen.getByRole('button', { name: 'Show' }).closest('form')!;
+      for (const n of ['keyword', 'business', 'sov']) expect(form.querySelector(`[name=${n}]`)).toBeTruthy();
+      const table = screen.getByRole('table', { name: 'Share of voice in the latest scan' });
+      expect(table.closest('[data-slot=table-frame]')).toBeTruthy();
+    });
+
     it('page defaults to Trend', async () => {
       mount();
       await render5();

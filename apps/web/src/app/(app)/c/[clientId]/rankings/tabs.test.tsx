@@ -8,6 +8,13 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
 import { RankTabs } from './tabs';
 
 describe('RankTabs', () => {
+  it('renders two tabs, the selected one carries aria-selected', () => {
+    render(<RankTabs tab="trend" query={{}} />);
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(screen.getByRole('tab', { name: 'Trend' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Compare' }).getAttribute('aria-selected')).toBe('false');
+  });
+
   beforeEach(() => { replace.mockReset(); });
 
   it('ArrowRight on Trend moves focus to Compare and activates it', () => {

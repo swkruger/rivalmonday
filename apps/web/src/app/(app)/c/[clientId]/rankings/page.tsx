@@ -1,6 +1,6 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, nativeSelectClass, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -32,7 +32,6 @@ export const metadata: Metadata = { title: 'Local rankings' };
 const HELP_KEY = 'page:client.rankings';
 const COPY = PAGE_COPY['client.rankings'];
 
-const selectCls = 'rounded-md border border-line bg-surface px-2 py-1.5';
 type TrendScan = RankTrendView['scans'][number];
 /** Two scans' grid coordinates match: same length, every value within 1e-6. */
 const samePoints = (x: number[], y: number[]) => x.length === y.length && x.every((v, i) => Math.abs(v - y[i]!) <= 1e-6);
@@ -142,26 +141,26 @@ export default async function RankingsPage({ params, searchParams }: {
         <>
           {(!picked || compare?.stale) && <p role="alert" className="rounded-md bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
           <RankTabs tab={tab} query={query} />
-          <div role="tabpanel" id="rank-tabpanel" aria-labelledby={`rank-tab-${tab}`} className="flex flex-col gap-6">
-            <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-4">
+          <div role="tabpanel" id="rank-tabpanel" aria-labelledby={`rank-tab-${tab}`} className="flex flex-col gap-8">
+            <form method="get" className="flex flex-wrap items-end gap-3">
               {tab === 'compare' && <input type="hidden" name="tab" value="compare" />}
               {tab === 'trend' && scanId && <input type="hidden" name="scan" value={scanId} />}
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-semibold text-ink">Keyword</span>
-                <select name="keyword" defaultValue={geo.keyword ?? ''} className={selectCls}>
+                <span className="text-13 font-medium text-ink">Keyword</span>
+                <select name="keyword" defaultValue={geo.keyword ?? ''} className={nativeSelectClass}>
                   {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-semibold text-ink">Business</span>
-                <select name="business" defaultValue={geo.business ?? ''} className={selectCls}>
+                <span className="text-13 font-medium text-ink">Business</span>
+                <select name="business" defaultValue={geo.business ?? ''} className={nativeSelectClass}>
                   {geo.businesses.map((b) => <option key={b.key} value={b.key}>{b.self ? 'You' : b.name}</option>)}
                 </select>
               </label>
               {tab === 'trend' ? (
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-semibold text-ink">Share of voice for</span>
-                  <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className={selectCls}>
+                  <span className="text-13 font-medium text-ink">Share of voice for</span>
+                  <select name="sov" defaultValue={sovKeyword && geo.keywords.includes(sovKeyword) ? sovKeyword : ''} className={nativeSelectClass}>
                     <option value="">All keywords</option>
                     {geo.keywords.map((k) => <option key={k} value={k}>{k}</option>)}
                   </select>
@@ -169,58 +168,48 @@ export default async function RankingsPage({ params, searchParams }: {
               ) : compare && (
                 <>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-semibold text-ink">From scan</span>
-                    <select name="a" defaultValue={compare.a.scanId} className={selectCls}>
+                    <span className="text-13 font-medium text-ink">From scan</span>
+                    <select name="a" defaultValue={compare.a.scanId} className={nativeSelectClass}>
                       {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-semibold text-ink">To scan</span>
-                    <select name="b" defaultValue={compare.b.scanId} className={selectCls}>
+                    <span className="text-13 font-medium text-ink">To scan</span>
+                    <select name="b" defaultValue={compare.b.scanId} className={nativeSelectClass}>
                       {trend!.scans.map((s) => <option key={s.scanId} value={s.scanId}>{formatDate(s.finishedAt, { tz })}</option>)}
                     </select>
                   </label>
                 </>
               )}
-              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Show</button>
+              <Button type="submit" variant="outline" size="sm">Show</Button>
             </form>
 
             {tab === 'trend' ? (
               <>
-                <section className="rounded-md border border-line bg-surface p-6">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <h2 className="text-lg font-bold text-ink">Average map rank · “{geo.keyword}”</h2>
-                    <HelpTip tip="client.rankings.avgRank" />
-                  </div>
-                  <p className="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-                    Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).
-                    <HelpTip tip="client.rankings.schedule" />
-                  </p>
+                <Section
+                  title={`Average map rank · “${geo.keyword}”`}
+                  titleAside={<HelpTip tip="client.rankings.avgRank" />}
+                  description={<span className="inline-flex flex-wrap items-center gap-1.5">Average position across the grid, scan by scan (1 is best; 20+ is not in the top 20).<HelpTip tip="client.rankings.schedule" /></span>}
+                >
                   <RankTrend scans={history} keyword={geo.keyword ?? ''} />
-                  <div className="mt-4">
-                    <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: formatDate(s.finishedAt, { tz }) }))} value={geo.scan?.id ?? null} query={query} />
-                  </div>
-                </section>
+                  <ScanSlider scans={history.map((s) => ({ id: s.scanId, label: formatDate(s.finishedAt, { tz }) }))} value={geo.scan?.id ?? null} query={query} />
+                </Section>
 
-                <section className="rounded-md border border-line bg-surface p-6">
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
-                    <HelpTip tip="client.rankings.grid" />
-                  </div>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    {geo.scan && `Scan of ${formatDate(geo.scan.finishedAt, { tz })} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${formatMiles(geo.radiusKm)} radius`}
-                  </p>
-                  <p className="mb-3 font-semibold text-ink">{summary}</p>
+                <Section
+                  title={`${chosenName} · “${geo.keyword}”`}
+                  titleAside={<HelpTip tip="client.rankings.grid" />}
+                  description={<>{geo.scan && `Scan of ${formatDate(geo.scan.finishedAt, { tz })} · `}Grid {geo.size}×{geo.size}{geo.radiusKm !== null && ` · ${formatMiles(geo.radiusKm)} radius`}</>}
+                >
+                  <p className="font-semibold text-ink">{summary}</p>
                   <GeoGrid title={`Local rankings for ${geo.keyword}`} summary={summary} cells={geo.cells} businessName={chosenName} keyword={geo.keyword ?? ''} map={geo.map} lats={geo.lats} lngs={geo.lngs} />
-                </section>
+                </Section>
 
                 {sov && (
-                  <section className="rounded-md border border-line bg-surface p-6">
-                    <div className="mb-1 flex items-center gap-1.5">
-                      <h2 className="text-lg font-bold text-ink">Share of voice</h2>
-                      <HelpTip tip="client.rankings.sov" />
-                    </div>
-                    <p className="mb-3 text-sm text-muted-foreground">Share of the top-3 local-pack places, scan by scan ({sov.keyword ?? 'all keywords'}).</p>
+                  <Section
+                    title="Share of voice"
+                    titleAside={<HelpTip tip="client.rankings.sov" />}
+                    description={`Share of the top-3 local-pack places, scan by scan (${sov.keyword ?? 'all keywords'}).`}
+                  >
                     <LineChart
                       title="Share of top-3 local-pack slots"
                       labels={sov.scans.map((s) => localDay(s.finishedAt, tz))}
@@ -230,28 +219,29 @@ export default async function RankingsPage({ params, searchParams }: {
                       yMax={100}
                       formatValue={(v) => `${Math.round(v)}%`}
                     />
-                    <Table className="mt-4">
+                    <TableFrame>
+                    <Table density="compact">
                       <caption className="sr-only">Share of voice in the latest scan</caption>
-                      <TableHeader><TableRow><TableHead scope="col">Business</TableHead><TableHead scope="col">Latest scan</TableHead></TableRow></TableHeader>
+                      <TableHeader><TableRow><TableHead scope="col">Business</TableHead><TableHead scope="col" numeric>Latest scan</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {sov.series.map((s) => {
                           const v = s.points.at(-1) ?? null;
-                          return <TableRow key={s.key}><TableHead scope="row" className="font-normal">{s.self ? 'You' : s.name}</TableHead><TableCell>{v === null ? '—' : `${Math.round(v * 100)}%`}</TableCell></TableRow>;
+                          return <TableRow key={s.key}><TableHead scope="row" className="font-normal">{s.self ? 'You' : s.name}</TableHead><TableCell numeric>{v === null ? '—' : `${Math.round(v * 100)}%`}</TableCell></TableRow>;
                         })}
                       </TableBody>
                     </Table>
-                  </section>
+                    </TableFrame>
+                  </Section>
                 )}
               </>
             ) : !compare ? (
               <EmptyState {...COPY.empty.compareNeedsTwo} />
             ) : (
-              <section className="rounded-md border border-line bg-surface p-6">
-                <div className="flex items-center gap-1.5">
-                  <h2 className="text-lg font-bold text-ink">{chosenName} · “{geo.keyword}”</h2>
-                  <HelpTip tip="client.rankings.compare" />
-                </div>
-                <p className="mb-3 text-sm text-muted-foreground">Change from the scan of {formatDate(compare.a.finishedAt, { tz })} to the scan of {formatDate(compare.b.finishedAt, { tz })}.</p>
+              <Section
+                title={`${chosenName} · “${geo.keyword}”`}
+                titleAside={<HelpTip tip="client.rankings.compare" />}
+                description={`Change from the scan of ${formatDate(compare.a.finishedAt, { tz })} to the scan of ${formatDate(compare.b.finishedAt, { tz })}.`}
+              >
                 {compare.grids ? (
                   <ChangeGrid
                     title={`Change in local rank for ${geo.keyword}`}
@@ -264,7 +254,7 @@ export default async function RankingsPage({ params, searchParams }: {
                 ) : (
                   <p role="alert" className="rounded-md bg-muted-surface p-3 text-ink">Settings changed between these scans.</p>
                 )}
-              </section>
+              </Section>
             )}
           </div>
         </>

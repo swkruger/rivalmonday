@@ -1,5 +1,6 @@
 'use client';
 
+import { segmentedItemClass, segmentedTrackClass } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useRef } from 'react';
 
@@ -34,7 +35,7 @@ export function RankTabs({ tab, query }: { tab: RankTab; query: RankQuery }) {
     activate(TABS[to]!.key);
   };
   return (
-    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className="flex gap-1 border-b border-line">
+    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className={segmentedTrackClass}>
       {TABS.map((t, n) => {
         const on = t.key === tab;
         return (
@@ -48,7 +49,7 @@ export function RankTabs({ tab, query }: { tab: RankTab; query: RankQuery }) {
             aria-controls="rank-tabpanel"
             tabIndex={on ? 0 : -1}
             onClick={() => activate(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${on ? 'border-primary text-ink' : 'border-transparent text-muted-foreground hover:text-ink'}`}
+            className={segmentedItemClass}
           >
             {t.label}
           </button>

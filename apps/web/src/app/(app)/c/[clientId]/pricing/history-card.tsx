@@ -1,4 +1,5 @@
 import type { PriceHistoryView } from '@cs/tools';
+import { segmentedItemClass, segmentedTrackClass } from '@cs/ui';
 import Link from 'next/link';
 import { LineChart } from '@/components/charts/line-chart';
 import { formatMoney } from '@/lib/format';
@@ -18,13 +19,13 @@ export async function PriceHistoryCard({ clientId, competitorId, serviceId, days
     <div className="mt-4 border-t border-line pt-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink">{history ? `${history.serviceName} — price history` : 'Price history'}</h3>
-        <nav aria-label="Period" className="flex gap-3 text-sm">
+        <nav aria-label="Period" className={segmentedTrackClass}>
           {PERIODS.map((d) => (
             <Link
               key={d}
               href={pricingHref(clientId, { competitor: competitorId, service: serviceId, days: d })}
               aria-current={d === days ? 'page' : undefined}
-              className={d === days ? 'font-semibold text-ink' : 'text-muted-foreground hover:text-ink'}
+              className={segmentedItemClass}
             >
               {d} days
             </Link>
