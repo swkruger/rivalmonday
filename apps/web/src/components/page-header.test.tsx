@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PageHeader } from './page-header';
+import { countPrimaryActions } from './page-header-guard';
 
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/agency' }));
@@ -14,8 +15,7 @@ describe('PageHeader (15a §2.7)', () => {
     const h1s = screen.getAllByRole('heading', { level: 1 });
     expect(h1s).toHaveLength(1);
     expect(h1s[0]!.textContent).toBe('Approvals');
-    expect(h1s[0]!.className).toContain('text-[26px]');
-    expect(h1s[0]!.className).toContain('font-extrabold');
+    expect(h1s[0]!.getAttribute('data-slot')).toBe('page-title');
     const description = screen.getByText('Briefs waiting for you.');
     expect(description.className).toContain('text-muted-ink');
   });
@@ -81,6 +81,57 @@ describe('PageHeader (15a §2.7)', () => {
     const { container } = render(<PageHeader title="Prospects" helpKey="prospects" actions={<button type="button">New prospect</button>} />);
     expect(screen.getByRole('button', { name: 'New prospect' })).toBeTruthy();
     expect(container.textContent).not.toContain('prospects');
+  });
+});
+
+describe('PageHeader v1 (16b)', () => {
+  it('renders meta under the description', () => {
+    render(<PageHeader title="Overview" description="Where you stand." meta={<span>Updated 2 hours ago</span>} />);
+    const d = screen.getByText('Where you stand.');
+    const m = screen.getByText('Updated 2 hours ago');
+    expect(d.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('standard: tabs render after the title row; compact: inside it', () => {
+    const { container, rerender } = render(<PageHeader title="Acme" actions={<button type="button">Act</button>} tabs={<nav aria-label="Tabs">t</nav>} />);
+    const tabs = screen.getByRole('navigation', { name: 'Tabs' });
+    const act = screen.getByRole('button', { name: 'Act' });
+    expect(act.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-slot="page-header-row"]')!.contains(tabs)).toBe(false);
+    rerender(<PageHeader title="Acme" variant="compact" actions={<button type="button">Act</button>} tabs={<nav aria-label="Tabs">t</nav>} />);
+    const tabs2 = screen.getByRole('navigation', { name: 'Tabs' });
+    expect(container.querySelector('[data-slot="page-header-row"]')!.contains(tabs2)).toBe(true);
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1.compareDocumentPosition(tabs2) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('data-variant reflects the prop (default standard)', () => {
+    const { container, rerender } = render(<PageHeader title="A" />);
+    expect(container.querySelector('[data-slot="page-header"]')!.getAttribute('data-variant')).toBe('standard');
+    rerender(<PageHeader title="A" variant="compact" />);
+    expect(container.querySelector('[data-slot="page-header"]')!.getAttribute('data-variant')).toBe('compact');
+  });
+
+  it('390 guard: a 120-char unbroken title stays one h1 that can wrap (break-words); four crumbs keep separators', () => {
+    const long = 'x'.repeat(120);
+    render(<PageHeader title={long} breadcrumb={[{ label: 'A', href: '/a' }, { label: 'B', href: '/b' }, { label: 'C', href: '/c' }, { label: 'D' }]} />);
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]!.className).toContain('break-words');
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    const seps = [...nav.querySelectorAll('[aria-hidden="true"]')];
+    expect(seps).toHaveLength(3);
+    for (const sep of seps) expect(sep.textContent).toBe('›');
+    expect(within(nav).getByText('D').getAttribute('aria-current')).toBe('page');
+  });
+});
+
+describe('countPrimaryActions', () => {
+  it('counts default-variant buttons and links inside the page header', () => {
+    const { container } = render(
+      <PageHeader title="A" actions={<><button type="button" data-variant="default">Go</button><a href="/x" data-variant="default">Link</a><button type="button" data-variant="outline">No</button></>} />,
+    );
+    expect(countPrimaryActions(container)).toBe(2);
   });
 });
 

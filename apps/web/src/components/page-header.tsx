@@ -1,4 +1,4 @@
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@cs/ui';
+import { cn, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@cs/ui';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Fragment } from 'react';
@@ -23,6 +23,11 @@ export interface PageHeaderProps {
   guide?: boolean;
   /** Wizards: "Step n of N" above the title. */
   step?: { n: number; of: number };
+  /** Freshness line under the description ("Updated 2 hours ago"). */
+  meta?: React.ReactNode;
+  /** Underline tabs: under the title row (standard) or inline right of the title (compact). */
+  tabs?: React.ReactNode;
+  variant?: 'standard' | 'compact';
 }
 
 /**
@@ -30,13 +35,14 @@ export interface PageHeaderProps {
  * an optional breadcrumb (`›` separators, last crumb `aria-current="page"`), description, and actions right-aligned
  * from `sm` up (stacked below it).
  */
-export function PageHeader({ title, description, breadcrumb, actions, step, helpKey, guide }: PageHeaderProps) {
+export function PageHeader({ title, description, breadcrumb, actions, step, helpKey, guide, meta, tabs, variant = 'standard' }: PageHeaderProps) {
   const showGuide = Boolean(helpKey && guide);
+  const compact = variant === 'compact';
   return (
-    <header className="flex flex-col gap-2">
+    <header data-slot="page-header" data-variant={variant} className="flex flex-col gap-2">
       {breadcrumb && breadcrumb.length > 0 && (
         <Breadcrumb>
-          <BreadcrumbList>
+          <BreadcrumbList className="text-13">
             {breadcrumb.map((crumb, i) => {
               const last = i === breadcrumb.length - 1;
               return (
@@ -60,15 +66,23 @@ export function PageHeader({ title, description, breadcrumb, actions, step, help
           </BreadcrumbList>
         </Breadcrumb>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          {step && (
-            <p className="text-sm font-semibold text-muted-ink">
-              Step {step.n} of {step.of}
-            </p>
-          )}
-          <h1 className="text-[26px] font-extrabold tracking-tight">{title}</h1>
-          {description && <p className="mt-1 text-muted-ink">{description}</p>}
+      <div
+        data-slot="page-header-row"
+        className={cn('flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-4', compact ? 'sm:items-center' : 'sm:items-start')}
+      >
+        <div className={cn('min-w-0', compact && tabs && 'sm:flex sm:items-center sm:gap-6')}>
+          <div className="min-w-0">
+            {step && <p className="text-xs font-medium text-muted-ink">Step {step.n} of {step.of}</p>}
+            <h1
+              data-slot="page-title"
+              className={cn('break-words font-semibold tracking-[-0.01em]', compact ? 'text-lg leading-7' : 'text-2xl leading-8')}
+            >
+              {title}
+            </h1>
+            {description && <p className="mt-1 max-w-[70ch] text-sm text-muted-ink">{description}</p>}
+            {meta && <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-ink">{meta}</div>}
+          </div>
+          {compact && tabs}
         </div>
         {(actions || showGuide) && (
           <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
@@ -77,6 +91,7 @@ export function PageHeader({ title, description, breadcrumb, actions, step, help
           </div>
         )}
       </div>
+      {!compact && tabs}
     </header>
   );
 }
