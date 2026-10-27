@@ -48,7 +48,7 @@ export function ResendButton({ startAgainHref }: { startAgainHref: string }) {
           </Button>
         </form>
       )}
-      <p role="status" className="text-sm text-muted-foreground">
+      <p role="status" className="text-sm text-muted-ink">
         {state.message}
       </p>
     </div>

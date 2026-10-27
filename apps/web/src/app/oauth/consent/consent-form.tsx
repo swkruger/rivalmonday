@@ -1,6 +1,6 @@
 'use client';
 import type { TokenScope } from '@cs/core';
-import { Button, Label } from '@cs/ui';
+import { Button, Label, nativeSelectClass } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { decideConsent } from './actions';
@@ -13,7 +13,6 @@ const ACCESS: Record<TokenScope, string> = {
   feedback: 'Read and feedback: also rate changes, update and add recommendations',
   manage: 'Read, feedback and manage: also change alert rules, client profiles and pinned pages, and run prospect snapshots',
 };
-const selectClass = 'h-9 w-full rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 export function ConsentForm({ appName, productName, oauthQuery, options, redirectHost = null }: {
   appName: string;
@@ -65,7 +64,7 @@ export function ConsentForm({ appName, productName, oauthQuery, options, redirec
                 <select
                   id="consent-workspace"
                   name="membershipId"
-                  className={selectClass}
+                  className={`${nativeSelectClass} w-full`}
                   value={membershipId}
                   onChange={(e) => {
                     setMembershipId(e.target.value);
@@ -102,7 +101,7 @@ export function ConsentForm({ appName, productName, oauthQuery, options, redirec
           Cancel
         </Button>
       </div>
-      {options.length > 0 && <p className="text-sm text-muted-foreground">You can disconnect it at any time under AI connections.</p>}
+      {options.length > 0 && <p className="text-sm text-muted-ink">You can disconnect it at any time under AI connections.</p>}
     </form>
   );
 }

@@ -1,4 +1,5 @@
 import { checkInviteLink } from '@cs/tools';
+import { Band } from '@cs/ui';
 import { AuthCard } from '@/components/auth-card';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { SignupAside } from '@/components/onboarding/signup-aside';
@@ -32,7 +33,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       title={link.offer === 'pilot' ? 'Join the Rival Monday pilot' : 'Start your Rival Monday trial'}
       preview={<SignupAside />}
     >
-      <p className="rounded-md bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
+      <Band tone="muted"><p className="text-ink">{offerBanner(link, await discountText(service, link))}</p></Band>
       <SignUpForm
         googleEnabled={env.google !== null}
         siteKey={activeEnvName() === 'dev' ? (env.turnstile?.siteKey ?? null) : null}

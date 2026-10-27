@@ -14,16 +14,16 @@ const COPY = {
 export function ErrorPanel({ kind, digest, onRetry }: Props) {
   const { title, body } = COPY[kind];
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
-      <h1 className="text-[22px] font-bold leading-tight text-foreground">{title}</h1>
-      <p className="text-sm text-muted-foreground">{body}</p>
+    <div className="mx-auto flex max-w-[400px] flex-col items-center gap-3 py-16 text-center">
+      <h1 className="text-2xl font-semibold text-ink">{title}</h1>
+      <p className="text-sm text-muted-ink">{body}</p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         {kind === 'error' && onRetry ? <Button onClick={onRetry}>Try again</Button> : null}
         <Button asChild variant={kind === 'error' ? 'outline' : 'default'}>
           <a href="/">Go to your home page</a>
         </Button>
       </div>
-      {kind === 'error' && digest ? <p className="text-xs text-muted-foreground">Reference: {digest}</p> : null}
+      {kind === 'error' && digest ? <p className="text-xs text-muted-ink">Reference: {digest}</p> : null}
     </div>
   );
 }

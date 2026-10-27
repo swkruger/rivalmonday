@@ -33,4 +33,11 @@ describe('AuthCard', () => {
     const { container } = render(<AuthCard branding={resolveBranding('Rival Monday', null)} title="Start your trial"><p>body</p></AuthCard>);
     expect(container.textContent).toContain('rivalmonday');
   });
+
+  it('D-22: a plain 400 px column, not a card; exactly one h1 with the title', () => {
+    const { container } = render(<AuthCard branding={null} title="Sign in"><p>body</p></AuthCard>);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
+    expect(container.querySelector('main[data-slot="auth-column"]')).not.toBeNull();
+  });
 });

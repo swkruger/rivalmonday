@@ -15,10 +15,10 @@ export const metadata: Metadata = {
 
 export default function BotPage() {
   return (
-    <main style={themeVars(RIVAL_MONDAY_TOKENS) as React.CSSProperties} className="min-h-screen bg-canvas px-4 py-12 text-ink">
-      <div className="mx-auto max-w-[720px] space-y-5 leading-relaxed">
+    <main style={themeVars(RIVAL_MONDAY_TOKENS) as React.CSSProperties} className="min-h-screen bg-surface px-4 py-12 text-ink">
+      <div className="mx-auto max-w-[680px] space-y-5 leading-relaxed">
         <Wordmark />
-        <h1 className="text-3xl font-bold">RivalMondayBot</h1>
+        <h1 className="text-2xl font-semibold">RivalMondayBot</h1>
         <p>
           RivalMondayBot is the web crawler for Rival Monday, a service that helps local businesses keep track of what&apos;s publicly
           visible about their market — prices, offers and services posted on public websites.
@@ -39,7 +39,7 @@ export default function BotPage() {
         <p>
           <strong>How to opt out.</strong> Add this to your robots.txt and we&apos;ll stop visiting:
         </p>
-        <pre className="overflow-x-auto rounded-md bg-[#EEF2F6] p-4 text-sm">{`User-agent: ${BOT_TOKEN}\nDisallow: /`}</pre>
+        <pre className="overflow-x-auto rounded-md bg-muted-surface p-4 text-sm">{`User-agent: ${BOT_TOKEN}\nDisallow: /`}</pre>
         <p>
           <strong>Contact.</strong> Questions or problems: <a className="text-secondary underline" href="mailto:bot@rivalmonday.app">bot@rivalmonday.app</a>.
         </p>
