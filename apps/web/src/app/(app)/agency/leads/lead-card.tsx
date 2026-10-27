@@ -132,7 +132,7 @@ export function LeadCard({ lead, verticals, verticalActions, tz = 'UTC', nowMs }
           {lead.phone ? ` · ${lead.phone}` : ''}
           {lead.ref ? <span className="text-muted-foreground"> · Ref {lead.ref}</span> : null}
         </p>
-        {lead.message && <p className="whitespace-pre-wrap rounded-lg border border-line p-3 text-sm">{lead.message}</p>}
+        {lead.message && <p className="whitespace-pre-wrap rounded-md border border-line p-3 text-sm">{lead.message}</p>}
         <Preview preview={lead.preview} />
         {lead.status === 'verified' && (
           <WriteGuard>

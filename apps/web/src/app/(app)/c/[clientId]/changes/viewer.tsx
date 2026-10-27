@@ -48,7 +48,7 @@ function Snapshot({ clientId, label, side, pageUrl, timezone }: { clientId: stri
         {label}
         {side ? ` · ${formatDate(side.capturedAt, { tz: timezone })}` : ''}
       </h3>
-      <div className="max-h-[560px] overflow-auto rounded-lg border border-line">
+      <div className="max-h-[560px] overflow-auto rounded-md border border-line">
         {!side ? (
           <p className="p-4 text-sm text-muted-foreground">No capture recorded for this side.</p>
         ) : side.screenshot === null ? (

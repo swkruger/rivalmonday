@@ -121,7 +121,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               <EvidenceImage
                 src={fileHref}
                 alt={`Snapshot of ${evidence.url ?? evidence.competitorName} captured ${captured}`}
-                className="w-full rounded-lg border border-line"
+                className="w-full rounded-md border border-line"
               />
             </div>
           ) : evidence.kind === 'text' ? (

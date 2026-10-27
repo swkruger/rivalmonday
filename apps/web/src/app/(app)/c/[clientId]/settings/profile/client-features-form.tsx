@@ -43,7 +43,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-lg font-bold">Client features</legend>
         {SWITCHES.map((s) => (
-          <label key={s.value} className="flex items-start gap-3 rounded-lg border border-line p-3">
+          <label key={s.value} className="flex items-start gap-3 rounded-md border border-line p-3">
             <input type="checkbox" name="feature" value={s.value} checked={on.includes(s.value)} onChange={(e) => setOn((cur) => (e.target.checked ? [...cur, s.value] : cur.filter((x) => x !== s.value)))} className="mt-1 h-4 w-4" />
             <span>
               <span className="block font-medium">{s.label}</span>
@@ -55,7 +55,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
       {role === 'agency_admin' && (
         <>
           <input type="hidden" name="askReviewPresent" value="1" />
-          <label className="flex items-start gap-3 rounded-lg border border-line p-3">
+          <label className="flex items-start gap-3 rounded-md border border-line p-3">
             <input type="checkbox" name="askReviewAllowed" checked={review} onChange={(e) => setReview(e.target.checked)} className="mt-1 h-4 w-4" />
             <span>
               <span className="block font-medium">Allow review to improve answers</span>

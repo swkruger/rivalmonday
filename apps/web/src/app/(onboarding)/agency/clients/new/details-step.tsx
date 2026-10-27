@@ -104,7 +104,7 @@ export function DetailsStep({ kind, brand, agencyName, steps, draft, onChange, o
             <div className="flex items-center gap-3.5">
               {logoSrc && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSrc} alt="The chosen logo" className="size-14 rounded-lg border border-line object-contain" />
+                <img src={logoSrc} alt="The chosen logo" className="size-14 rounded-md border border-line object-contain" />
               )}
               <input
                 id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"

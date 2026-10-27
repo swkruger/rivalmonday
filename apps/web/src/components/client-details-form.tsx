@@ -68,7 +68,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
           <div className="flex items-center gap-3.5">
             {initial.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={initial.logoUrl} alt="The current logo" className="size-14 rounded-lg border border-line object-contain" />
+              <img src={initial.logoUrl} alt="The current logo" className="size-14 rounded-md border border-line object-contain" />
             )}
             <input
               id="details-logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={() => setDirty(true)}

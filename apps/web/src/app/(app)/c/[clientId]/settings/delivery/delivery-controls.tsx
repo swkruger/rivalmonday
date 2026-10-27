@@ -65,7 +65,7 @@ export function DeliveryForm({
           <HelpTip tip="client.settings.delivery.alertMode" />
         </legend>
         {MODES.map((m) => (
-          <label key={m.value} className="flex items-start gap-3 rounded-lg border border-line p-3">
+          <label key={m.value} className="flex items-start gap-3 rounded-md border border-line p-3">
             <input
               type="radio" name="alertMode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)}
               aria-describedby={`alert-mode-${m.value}-help`} className="mt-1 h-4 w-4"

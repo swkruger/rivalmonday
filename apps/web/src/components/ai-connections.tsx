@@ -125,7 +125,7 @@ export function ConnectorUrlCard({ url, displayName, help }: { url: string; disp
 
 function ShownOncePanel({ token, onDone }: { token: string; onDone: () => void }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line bg-muted-surface p-4 text-ink" data-testid="new-token">
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-muted-surface p-4 text-ink" data-testid="new-token">
       <p className="font-semibold">Copy your token now. You won&apos;t be able to see it again.</p>
       <div className="flex flex-wrap items-center gap-3">
         <code className="break-all rounded-md bg-surface px-3 py-2 font-mono text-sm" data-testid="new-token-value">
