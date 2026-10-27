@@ -190,7 +190,7 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
 }) {
   const meta = [s.category, s.distanceKm !== null ? `${kmToMiles(s.distanceKm).toFixed(1)} mi` : null, s.domain].filter(Boolean).join(' · ');
   return (
-    <li className="flex items-start gap-3 rounded-md border border-line p-3">
+    <li className="flex items-start gap-3 p-3">
       {selectable && <input type="checkbox" className="mt-1.5 h-4 w-4 accent-primary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="font-semibold">{s.name}</p>
@@ -358,7 +358,7 @@ export function SuggestionsPanel({
           </div>
         )}
         {hiddenList.length > 0 && (
-          <details className="rounded-md border border-line p-3">
+          <details className="p-3">
             <summary className="cursor-pointer text-sm font-semibold text-ink">Show {hiddenList.length} hidden</summary>
             <ul className="m-0 mt-3 flex list-none flex-col gap-1.5 p-0 text-sm">
               {hiddenList.map((h, i) => (
