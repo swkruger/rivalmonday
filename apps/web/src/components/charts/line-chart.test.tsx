@@ -177,6 +177,12 @@ describe('You + <= 2 highlighted rivals (P8)', () => {
     expect(document.querySelector('polyline[data-series="b"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[1]);
   });
 
+  it('lowerIsBetter: an all-null series is worst, never highlighted', () => {
+    const none: ChartSeries = { key: 'n', name: 'Aaa', points: [null, null] };
+    const rs = [none, rival('b', 'B', 3), rival('c', 'C', 2), rival('d', 'D', 1)];
+    expect(seriesColor(none, rs, { lowerIsBetter: true })).toBe(CONTEXT_COLOR);
+  });
+
   it('one rival takes the first rival token', () => {
     const r = rival('a', 'A', 1);
     expect(seriesColor(r, [r])).toBe(RIVAL_COLORS[0]);

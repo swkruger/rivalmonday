@@ -72,8 +72,8 @@ export function BriefView({
       {agency && <StatusChip tone={labelFor(BRIEF_STATUS, brief.status).tone}>{labelFor(BRIEF_STATUS, brief.status).label}</StatusChip>}
     </>
   );
-  const links = (deliverable || archiveHref) && (
-    <span className="ml-auto flex items-center gap-4">
+  const links = (extra: string) => (deliverable || archiveHref) && (
+    <span className={`${extra}flex flex-wrap items-center gap-4`}>
       {deliverable && (
         <a href={`/files/brief/${brief.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
           Download PDF
@@ -131,7 +131,7 @@ export function BriefView({
         actions={
           <span className="flex flex-wrap items-center justify-end gap-3">
             {chips}
-            {links}
+            {links('')}
           </span>
         }
       >
@@ -147,7 +147,7 @@ export function BriefView({
       <CardHeader className="flex flex-row flex-wrap items-center gap-3">
         {titled && <CardTitle className="text-[17px]">{title}</CardTitle>}
         {chips}
-        {links}
+        {links('ml-auto ')}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="leading-relaxed">{brief.summary}</p>

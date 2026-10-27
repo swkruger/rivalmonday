@@ -5,6 +5,16 @@ import { Kpi, KpiStrip } from './kpi-strip';
 
 afterEach(cleanup);
 
+describe('KpiStrip naming', () => {
+  it('is a named group only when labelled', () => {
+    render(<KpiStrip aria-label="This week"><Kpi label="A" value="1" /></KpiStrip>);
+    expect(screen.getByRole('group', { name: 'This week' })).toBeTruthy();
+    cleanup();
+    render(<KpiStrip><Kpi label="A" value="1" /></KpiStrip>);
+    expect(screen.queryByRole('group')).toBeNull();
+  });
+});
+
 describe('Kpi badge and caption', () => {
   it('renders the badge after the value and the caption last', () => {
     const { container } = render(

@@ -5,7 +5,7 @@ import type { NavCounts, NavRoleFlags } from './nav-items';
 import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
 
 /**
- * 240px canvas column (no border; part of the canvas frame) (docs/brand/mockups/01-client-overview.html `.side`). `branding.logoUrl` is only ever `https`
+ * 240px canvas column (no border; part of the canvas frame) (playbook 09 § 5.1 / Frame 2). `branding.logoUrl` is only ever `https`
  * or `null` (Review Focus 5 — resolveBranding strips anything else before this prop exists).
  *
  * Stays a server component for the logo/wordmark/footer, which only depend on `branding`. The nav list itself is

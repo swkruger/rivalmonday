@@ -33,7 +33,7 @@ function Section({
       )}
     >
       {title || description || actions ? (
-        <div data-slot="section-head" className="flex items-end gap-3">
+        <div data-slot="section-head" className="flex flex-wrap items-end gap-3">
           <div>
             {title && titleAside ? (
               <div className="flex items-center gap-1.5">

@@ -17,7 +17,9 @@ export function seriesColor(s: ChartSeries, all: ChartSeries[], opts: { lowerIsB
   if (s.you) return YOU_COLOR;
   if (s.key === 'other') return CONTEXT_COLOR;
   const rivals = all.filter((x) => !x.you && x.key !== 'other');
-  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => (opts.lowerIsBetter ? last(a.points) - last(b.points) : last(b.points) - last(a.points)) || a.name.localeCompare(b.name, 'en'));
+  // A series with no data is the worst, whichever way "better" points.
+  const rank = (x: ChartSeries) => { const v = last(x.points); return v === -Infinity && opts.lowerIsBetter ? Infinity : v; };
+  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => (opts.lowerIsBetter ? rank(a) - rank(b) : rank(b) - rank(a)) || a.name.localeCompare(b.name, 'en'));
   const i = ranked.slice(0, 2).findIndex((x) => x.key === s.key);
   return i >= 0 ? RIVAL_COLORS[i]! : CONTEXT_COLOR;
 }

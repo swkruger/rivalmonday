@@ -28,7 +28,7 @@ function ChipLink({ item, current }: { item: NavItem; current: boolean }) {
 export function SettingsNav({ sections }: { sections: NavSection[] }) {
   const current = currentSettingsHref(sections, usePathname() ?? '');
   return (
-    <nav aria-label="Settings" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden">
+    <nav aria-label="Settings" className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 lg:hidden">
       {sections.flatMap((s) => s.items).map((item) => <ChipLink key={item.href} item={item} current={item.href === current} />)}
     </nav>
   );

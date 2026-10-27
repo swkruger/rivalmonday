@@ -10,9 +10,11 @@ export type KpiDelta = {
 }
 
 function KpiStrip({ className, ...props }: React.ComponentProps<"div">) {
+  const named = props["aria-label"] !== undefined || props["aria-labelledby"] !== undefined
   return (
     <div
       data-slot="kpi-strip"
+      role={named ? "group" : undefined}
       className={cn(
         "grid grid-cols-2 overflow-clip rounded-md border border-line md:auto-cols-fr md:grid-flow-col md:grid-cols-none",
         className
