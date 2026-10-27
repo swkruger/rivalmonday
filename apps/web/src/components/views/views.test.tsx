@@ -138,6 +138,31 @@ describe('BriefView', () => {
   });
 });
 
+describe('BriefView surfaces (16b)', () => {
+  it('overview surface: a Section with the week as h2, actions in the head and the summary in a Band', () => {
+    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" archiveHref={`/c/${C}/briefs`} surface="overview" />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.matches('section[data-slot="section"]')).toBe(true);
+    expect(screen.getByRole('heading', { level: 2, name: 'Week of Oct 12' })).toBeTruthy();
+    const head = root.querySelector('[data-slot="section-head"]') as HTMLElement;
+    expect(within(head).getByRole('link', { name: 'Download PDF' })).toBeTruthy();
+    expect(within(head).getByRole('link', { name: 'Brief archive →' })).toBeTruthy();
+    expect(screen.getByText('Two moves this week.').closest('[data-slot="band"]')?.getAttribute('data-tone')).toBe('canvas');
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
+    expect(screen.getByText('Headline 1')).toBeTruthy();
+  });
+  it('overview surface keeps the starting-point title and chip', () => {
+    render(<BriefView brief={{ ...brief, kind: 'starting_point' }} agency={false} timezone="UTC" surface="overview" />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Your starting point' })).toBeTruthy();
+    expect(screen.getByText(/Starting point · /)).toBeTruthy();
+  });
+  it('card surface (default) keeps the Card', () => {
+    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" />);
+    expect(container.querySelector('[data-slot="card"]')).toBeTruthy();
+    expect(container.querySelector('[data-slot="band"]')).toBeNull();
+  });
+});
+
 describe('BriefView status and dates (15c-2b-2)', () => {
   it('week of a date-only deliveryDate is the same in Pacific/Kiritimati', () => {
     const { unmount } = render(<BriefView brief={brief} agency={false} timezone="Pacific/Kiritimati" />);

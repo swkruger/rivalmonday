@@ -18,7 +18,8 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'agency-settings-branding', path: '/agency/settings/branding', as: 'agency' },
   { label: 'agency-new-client', path: '/agency/clients/new', as: 'agency' },
   // Client workspace
-  { label: 'client-overview', path: c(''), as: 'agency' },
+  { label: 'client-overview', path: c(''), as: 'agency', gate: true },
+  { label: 'client-overview-ask', path: (fx) => `/c/${fx.askClientId}`, as: 'agency', gate: true },
   { label: 'client-competitors', path: c('/competitors'), as: 'agency' },
   { label: 'client-changes', path: c('/changes'), as: 'agency' },
   { label: 'client-competitor-detail', path: (fx) => `/c/${fx.clientId}/competitors/${fx.competitorId}`, as: 'agency' },

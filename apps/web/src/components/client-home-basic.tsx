@@ -1,6 +1,6 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
 import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary, SetupState, StartingPointStatus } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Section } from '@cs/ui';
 import Link from 'next/link';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
@@ -46,42 +46,29 @@ export async function ClientHomeBasic({ clientId, ctx, viewer }: { clientId: str
           <SetupBadge clientId={clientId} {...setupSteps} />
         </div>
       )}
-      <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly briefs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {preparing ? (
-              <StartingPointCard status={preparing} agency={false} />
-            ) : (
-              <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." agency={isAgencyRole(ctx.role)} />
-            )}
-          </CardContent>
-        </Card>
-        <div className="flex flex-col gap-5">
+      <div className="grid gap-10 lg:grid-cols-[2fr_1fr]">
+        <Section title="Weekly briefs" className="min-w-0">
+          {preparing ? (
+            <StartingPointCard status={preparing} agency={false} />
+          ) : (
+            <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." agency={isAgencyRole(ctx.role)} />
+          )}
+        </Section>
+        <div className="flex min-w-0 flex-col gap-10">
           <AskCard clientId={clientId} ctx={ctx} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Alerts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AlertLinkList clientId={clientId} items={alerts.items} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Quarterly reports</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {reports.items.length === 0 && <p className="text-muted-foreground">A report arrives in the first week after each quarter ends.</p>}
+          <Section title="Alerts">
+            <AlertLinkList clientId={clientId} items={alerts.items} />
+          </Section>
+          <Section title="Quarterly reports">
+            <div className="flex flex-col gap-2">
+              {reports.items.length === 0 && <p className="text-muted-ink">A report arrives in the first week after each quarter ends.</p>}
               {reports.items.map((r) => (
-                <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-lg px-2 py-1 hover:bg-muted-surface">
+                <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-sm px-2 py-1 hover:bg-muted-surface">
                   {r.quarter}
                 </Link>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </Section>
         </div>
       </div>
     </>

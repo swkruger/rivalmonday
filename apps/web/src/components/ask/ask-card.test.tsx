@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createAccessContext } from '@cs/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn(async () => ({ questions: ['What changed this week?', 'Who cut prices?'], reviewAllowed: true }));
@@ -45,5 +45,14 @@ describe('AskCard', () => {
     expect(form.getAttribute('action')).toBe(`/c/${C}/ask`);
     expect(form.getAttribute('method')).toBe('get');
     expect(screen.getByRole('button', { name: 'Ask' }).getAttribute('type')).toBe('submit');
+  });
+  it('keeps its labelled section; the body sits in a canvas Band and the box is the shared Input (16b)', async () => {
+    render(<>{await AskCard({ clientId: C, ctx: ctx(['ask']) })}</>);
+    const region = screen.getByRole('region', { name: 'Ask Robin' });
+    const box = within(region).getByRole('textbox', { name: 'Ask Robin a question' });
+    expect(box.getAttribute('data-slot')).toBe('input');
+    expect(box.getAttribute('placeholder')).toBe('Ask Robin a question…');
+    expect(box.closest('[data-slot="band"]')?.getAttribute('data-tone')).toBe('canvas');
+    expect(within(region).getByRole('link', { name: 'Open →' }).getAttribute('href')).toBe(`/c/${C}/ask`);
   });
 });

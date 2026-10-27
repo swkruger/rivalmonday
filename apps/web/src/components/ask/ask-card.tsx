@@ -1,6 +1,6 @@
 import type { AccessContext } from '@cs/core';
 import { hasChannel } from '@cs/core';
-import { Button } from '@cs/ui';
+import { Band, Button, Input } from '@cs/ui';
 import Link from 'next/link';
 import { assistantNameFor } from '@/server/ask';
 import { dbs } from '@/server/db';
@@ -22,31 +22,34 @@ export async function AskCard({ clientId, ctx }: { clientId: string; ctx: Access
     callTool<{ questions: string[] }>(ctx, 'get_ask_starters', { clientId }),
     assistantNameFor(dbs().service, ctx.agencyId),
   ]);
+  // 16b (D-26): the Friday band on the Overview; the labelled `<section>` keeps its region name.
   return (
-    <section aria-label={`Ask ${assistantName}`} className="min-w-0 rounded-md border border-line bg-surface p-6">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">{`Ask ${assistantName}`}</h2>
-        <Link href={`/c/${clientId}/ask`} className="font-semibold text-primary-soft-text">
-          Open →
-        </Link>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">Questions about your competitors, answered from the monitored evidence.</p>
-      {/* A plain GET form: the Ask page sends `?q=` once on arrival, like a starter chip. */}
-      <form action={`/c/${clientId}/ask`} method="get" className="mt-3 flex items-center gap-2">
-        <input
-          name="q"
-          required
-          maxLength={QUESTION_MAX}
-          autoComplete="off"
-          aria-label={`Ask ${assistantName} a question`}
-          placeholder={`Ask ${assistantName} a question…`}
-          className="h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-        />
-        <Button type="submit">Ask</Button>
-      </form>
-      <div className="mt-3">
-        <StarterChips questions={starters.questions} hrefFor={(q) => `/c/${clientId}/ask?q=${encodeURIComponent(q)}`} />
-      </div>
+    <section aria-label={`Ask ${assistantName}`} className="min-w-0">
+      <Band tone="canvas">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-ink">{`Ask ${assistantName}`}</h2>
+          <Link href={`/c/${clientId}/ask`} className="font-semibold text-primary-soft-text">
+            Open →
+          </Link>
+        </div>
+        <p className="mt-1 text-sm text-muted-ink">Questions about your competitors, answered from the monitored evidence.</p>
+        {/* A plain GET form: the Ask page sends `?q=` once on arrival, like a starter chip. */}
+        <form action={`/c/${clientId}/ask`} method="get" className="mt-3 flex items-center gap-2">
+          <Input
+            name="q"
+            required
+            maxLength={QUESTION_MAX}
+            autoComplete="off"
+            aria-label={`Ask ${assistantName} a question`}
+            placeholder={`Ask ${assistantName} a question…`}
+            className="flex-1"
+          />
+          <Button type="submit">Ask</Button>
+        </form>
+        <div className="mt-3">
+          <StarterChips questions={starters.questions} hrefFor={(q) => `/c/${clientId}/ask?q=${encodeURIComponent(q)}`} />
+        </div>
+      </Band>
     </section>
   );
 }

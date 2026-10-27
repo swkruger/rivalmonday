@@ -82,6 +82,11 @@ describe('Overview without the dashboard feature (briefs-only home)', () => {
     const home = await (el.type as (p: typeof el.props) => Promise<React.ReactNode>)(el.props);
     render(<HelpProvider value={{ audience: 'client', names: { agency: 'Cool Comfort', assistant: 'Sunny', client: 'Lone Star Cooling' } }}>{home}</HelpProvider>);
     expect(screen.getByText('Weekly briefs')).toBeTruthy();
+    // 16b: the basic home's widgets are Sections with h2 titles, not Cards.
+    for (const name of ['Weekly briefs', 'Alerts', 'Quarterly reports']) {
+      expect(screen.getByRole('heading', { level: 2, name }).closest('section[data-slot="section"]'), name).toBeTruthy();
+    }
+    expect(document.querySelector('[data-slot="card"]')).toBeNull();
     expect(await screen.findByRole('button', { name: /guide/i }, { timeout: 15_000 })).toBeTruthy();
     expect(m.calls.filter(([n]) => n === 'list_help_guides').map(([, i]) => i)).toEqual([{ context: 'client', clientId: C }]);
   });
