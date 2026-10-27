@@ -4,10 +4,26 @@
 **Plan/spec:** 16-onboarding spec [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (owner-approved 2026-10-24) · plan [2026-10-24-phase-16-onboarding.md](../superpowers/plans/2026-10-24-phase-16-onboarding.md) (owner-approved 2026-10-25); inputs `docs/design-system/`.
 
 ## Status (overwrite)
-**Execution started 2026-10-26** (owner go-ahead). 16-onboarding Task 0 done except the owner gate: rebased (clean), plan re-checked and corrected (§ Pre-flight), mockups `client.html`/`intake.html` built + `agency.html` fixed (PDFs sent). Owner approved mockups, image generation and P10–P13 (D8). Image candidates generating; SDD Task 1 next.
+**16-onboarding code complete 2026-10-27** (head 63f136cb): Tasks 0–11 built, each task-reviewed; final whole-branch review (opus) + one fix wave + scoped re-review clean. `pnpm test:affected --base main` green; `e2e:affected --base main` 140 passed + 2 spec fixes re-run green, no flakes. Migration **0095** `onboarding_split`. Not merged.
 
 ## Next (overwrite)
-SDD Tasks 1–7 (not gated by mockups); generate image candidates once the cost is OK'd; Tasks 8–10 after mockup approval; Task 11. Rest of Phase 16: rebase on main, refresh Brief §2/§5 + Assumes (stale), resume brainstorming at Q: build new pieces (docked Friday panel, bulk bar, peek panel, settings drill-in nav) or restyle with existing components only → spec → lean plan(s) → approval → SDD.
+Owner: (1) decide the prospects-flow changes and sign [archive/phase-16-onboarding-copy-signoff.md](../archive/phase-16-onboarding-copy-signoff.md) (incl. "Decisions for the owner" + "Final fixes"); (2) go-ahead for `/rm-merge phase-16` (full unit + E2E at merge). Then: rest of Phase 16 (brainstorm new pieces vs restyle → spec → plan).
+
+## 16-onboarding controller rulings (made during SDD; owner may overturn)
+- Tests: implementers ran focused tests only; affected unit + E2E once at the final review (CLAUDE.md scope over plan text).
+- Onboarding layout has no ClientBillingBanner (staff-only pages; owner pick page returns to Overview).
+- Agency step 1 is required before steps 2–4 (not for legacy agencies); skipped team/brand checklist items link to Settings; "Use this for billing too" off points to Settings billing.
+- Sign-up right panel = picked image + 3 proof points (sample-brief card dropped).
+- Owner contact = most recently set `client_owner` row (marked by bumping `contact.created_at`; old rows kept).
+- Geocode miss or vendor error = no location (`location_source` null); staff are asked for City/ZIP; `update_client_details` gained `locality` geocoding.
+- Auto competitor-review email only while `waiting_owner`; `ask_owner` only when competitors `ready` with ≥ 1 suggestion, re-opens a skipped invite, second ask refused; staff "Cancel request" (`cancel_ask_owner`) also clears `completed_at`.
+- `details` setup step is informational (never blocks completion); `accept_lead` stores the lead phone.
+- Prospects use the new flow (shared the removed lookup step).
+- Owner pick page: no "+ Add one we missed", ≥ 1 tick; no help tips on `client.setup.competitors`.
+- Intake: agency-site exit link omitted (no website field).
+- Browser time zone applied on the first step-1 save only (not legacy agencies).
+- Staff-only "Business details" section (phone, address, owner, logo) on client Settings → profile; step-7 Edit links point there.
+- Owner welcome line hides once the starting point is no longer pending.
 
 ## Interfaces this branch adds or changes
 Per 09 §9: tokens, new `@cs/ui` primitives, `Card` = frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`.
@@ -31,7 +47,11 @@ Plan corrected in place. Main changes: migration 0095; `(onboarding)` layout re-
 - D7 (2026-10-25) Generated images (gpt-image via OpenRouter, `openai/gpt-image-2.5-sunburst`) used sparingly: onboarding only on sign-up, both "All set" screens, intake "Check your email" (O14); static, owner-picked.
 
 ## New backlog (target → item)
-- Owner → at 16-onboarding deploy add `STADIA_API_KEY` to the Vercel web env (geocoding).
+- Owner → at 16-onboarding deploy add `STADIA_API_KEY` to the Vercel web env (without it, no-listing clients stall at step 3); confirm Stadia geocode price (assumed $0.001/request, `STADIA_GEOCODE_USD`).
+- Soon → `contact.updated_at` instead of bumping `created_at` for owner recency; invite target (`invited_contact_id`) can differ from the Business-details owner after an email change.
+- Soon → onboarding polish: "Save and exit" saves nothing; support banner overlaps the onboarding top row; `update_client_details` geocodes before checking an existing centre; area step duplicates `lib/format/distance.ts`; find step clears a hand-picked type on re-search; "Sent again." shown when a resend was rate-limited; owner pick+confirm are two calls; Business-details save is details-then-logo (partial save on logo failure).
+- Soon → owner-pick clock: cancel + re-ask restarts the 14-day wait; after a cancel the activation-based hold may already be due.
+- Soon → `client-boundary` gate ignores default imports/barrels; pages import constants from `'use client'` modules (`knowledge/page.tsx` `selectClass`).
 - Unscheduled → no-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider "Link Google listing" prompt.
 
 ## Owner verification steps
