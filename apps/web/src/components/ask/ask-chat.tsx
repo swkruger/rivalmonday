@@ -1,7 +1,7 @@
 'use client';
 import type { AskEvent } from '@cs/ask';
 import type { AskActionView, AskMessageView } from '@cs/tools';
-import { Button, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
+import { Button, cn, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
 import { ArrowUp, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -274,7 +274,7 @@ export function AskChat(props: AskChatProps) {
                 void send(input);
               }
             }}
-            className={`${textareaClass} min-h-11 resize-none rounded-none border-0 bg-transparent p-0 focus-visible:outline-0`}
+            className={cn(textareaClass, 'min-h-11 resize-none rounded-none border-0 bg-transparent p-0 focus-visible:outline-0')}
           />
           <div className="mt-2 flex items-center gap-2">
             <Tag className="max-w-40 shrink-0 truncate">{scopeLabel}</Tag>

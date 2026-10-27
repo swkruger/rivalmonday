@@ -212,6 +212,7 @@ describe('AskChat page restyle', () => {
     fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'What changed?' } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
     expect(refsAction).toHaveBeenCalledTimes(1);
+    await act(async () => { await refsAction.mock.results[0]!.value.catch(() => {}); });
     expect(await screen.findByRole('link', { name: 'Evidence 1' })).toBeTruthy();
     vi.unstubAllGlobals();
   });
@@ -221,6 +222,11 @@ describe('AskChat page restyle', () => {
     fireEvent.change(screen.getByLabelText('Ask Friday a question'), { target: { value: 'x' } });
     expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(false);
     expect(document.querySelector('[data-slot="tag"]')!.textContent).toBe('Acme HVAC');
+    // Pins the class merge: the borderless composer textarea must not keep the control recipe's border and padding.
+    const cls = ` ${screen.getByLabelText('Ask Friday a question').className} `;
+    expect(cls).toContain(' border-0 ');
+    expect(cls).not.toContain(' border ');
+    expect(cls).not.toContain(' px-3 ');
   });
 });
 

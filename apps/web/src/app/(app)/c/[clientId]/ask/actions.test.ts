@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   kind: 'user' as string,
   runTool: null as unknown as Mock,
   refsFor: vi.fn(),
+  profile: vi.fn(),
   revalidated: [] as string[],
   redirected: null as string | null,
 }));
@@ -21,7 +22,7 @@ const m = vi.hoisted(() => ({
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: m.kind }, ctx: m.ctx }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
-vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chicago' }));
+vi.mock('@/server/tools', () => ({ tryCallTool: (...a: unknown[]) => m.profile(...a) }));
 vi.mock('@/server/evidence-refs', () => ({ evidenceRefsFor: (...a: unknown[]) => m.refsFor(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: (p: string) => void m.revalidated.push(p) }));
 vi.mock('next/navigation', () => ({
@@ -243,7 +244,8 @@ describe('deleteAskThreadAction', () => {
 
 describe('askEvidenceRefs', () => {
   const REF = { source: 'Smith HVAC', channel: 'Pricing page', date: 'Oct 20, 2026' };
-  it('resolves refs in the viewer timezone for a user', async () => {
+  beforeEach(() => m.profile.mockReset().mockResolvedValue({ name: 'Acme', timezone: 'America/Chicago' }));
+  it('resolves refs in the client profile timezone for a user', async () => {
     m.refsFor.mockReset().mockResolvedValue({ [EV1]: REF });
     expect(await askEvidenceRefs(IDS.clientA1, [EV1])).toEqual({ [EV1]: REF });
     expect(m.refsFor).toHaveBeenCalledWith(m.ctx, IDS.clientA1, [EV1], 'America/Chicago');
@@ -255,6 +257,17 @@ describe('askEvidenceRefs', () => {
     m.kind = 'user';
     expect(await askEvidenceRefs(IDS.clientA1, ['nope'])).toEqual({});
     expect(await askEvidenceRefs('nope', [EV1])).toEqual({});
+    expect(m.refsFor).not.toHaveBeenCalled();
+  });
+  it('returns {} for a contact, a context without the ask channel, and a missing profile', async () => {
+    m.refsFor.mockReset().mockResolvedValue({ [EV1]: REF });
+    m.ctx = ctxFor('contact:c1');
+    expect(await askEvidenceRefs(IDS.clientA1, [EV1])).toEqual({});
+    m.ctx = createAccessContext({ agencyId: IDS.agencyA, userId: 'u1', role: 'client_owner', clientScope: [IDS.clientA1], features: ['dashboard'] });
+    expect(await askEvidenceRefs(IDS.clientA1, [EV1])).toEqual({});
+    m.ctx = ctxFor('u1');
+    m.profile.mockResolvedValue(null);
+    expect(await askEvidenceRefs(IDS.clientA1, [EV1])).toEqual({});
     expect(m.refsFor).not.toHaveBeenCalled();
   });
   it('returns {} when resolving throws', async () => {

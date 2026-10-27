@@ -1,6 +1,7 @@
 'use server';
 import { ASK_COPY, type AskAction, actionAllowed } from '@cs/ask';
-import { canAccessClient, isUuid, scopeToClient } from '@cs/core';
+import { canAccessClient, hasChannel, isUuid, scopeToClient } from '@cs/core';
+import type { ClientProfile } from '@cs/tools';
 import { askMessage, askThread, withTenant } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -11,7 +12,7 @@ import { dbs } from '@/server/db';
 import type { FormResult } from '@/server/forms';
 import { type EvidenceRefs, evidenceRefsFor } from '@/server/evidence-refs';
 import { runTool, type ToolResult } from '@/server/run-tool';
-import { viewerTimeZone } from '@/server/viewer-tz';
+import { tryCallTool } from '@/server/tools';
 
 const NOT_FOUND = { ok: false as const, error: 'Not found' };
 const SAVED = 'Saved.';
@@ -144,13 +145,15 @@ const MAX_REF_IDS = 60;
 
 /**
  * Display refs for evidence ids cited in a just-streamed answer (the Ask page resolves stored messages on the server).
- * Users only; a malformed client or id, or any failure, resolves to no refs so the chat keeps its fallback pills.
+ * Users with Ask only; dates use the client's timezone like the Ask page; a malformed client or id, or any failure, resolves to no refs so the chat keeps its fallback pills.
  */
 export async function askEvidenceRefs(clientId: string, ids: string[]): Promise<EvidenceRefs> {
   const { viewer, ctx } = await requireContext();
-  if (viewer.kind !== 'user' || !isUuid(clientId) || !Array.isArray(ids) || ids.length > MAX_REF_IDS || !ids.every((i) => typeof i === 'string' && isUuid(i))) return {};
+  if (viewer.kind !== 'user' || ctx.userId.startsWith('contact:') || !hasChannel(ctx, 'ask') || !isUuid(clientId) || !Array.isArray(ids) || ids.length > MAX_REF_IDS || !ids.every((i) => typeof i === 'string' && isUuid(i))) return {};
   try {
-    return await evidenceRefsFor(ctx, clientId, ids, await viewerTimeZone());
+    const profile = await tryCallTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+    if (!profile) return {};
+    return await evidenceRefsFor(ctx, clientId, ids, profile.timezone);
   } catch {
     return {};
   }
