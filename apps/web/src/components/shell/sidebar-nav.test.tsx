@@ -52,6 +52,14 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(activeHrefOf()).toBe(`${B}/ask`);
   });
 
+  it('guard: every nav item carries the design-system focus outline', () => {
+    pathname = '/agency';
+    render(<Nav flags={agencyAdmin} />);
+    const items = document.querySelectorAll('[data-slot="nav-item"]');
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) expect(item.className).toContain('focus-visible:outline-ring');
+  });
+
   it('shows the agency menu on /agency with Portfolio highlighted and no client items', () => {
     pathname = '/agency';
     render(<Nav flags={agencyAdmin} />);

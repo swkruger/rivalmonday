@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { currentSettingsHref, type NavItem, type NavSection } from './shell/nav-items';
 
-const CHIP_CLASS = 'inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-line px-3 text-13 font-medium text-ink-secondary';
+const CHIP_CLASS = 'inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-line px-3 text-13 font-medium text-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 function ChipLink({ item, current }: { item: NavItem; current: boolean }) {
   return (
