@@ -207,4 +207,22 @@ describe('RunbookEditor', () => {
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Use the update' }));
     await waitFor(() => expect(action).toHaveBeenCalledWith({ op: 'pull', key: 'play:c' }));
   });
+
+  it('keeps data-item on a card root that holds its actions and a muted band for prompts', () => {
+    const item = play('d', 'Brand new play', withState('new_upstream', { enabled: false, version: 0, upstreamVersion: null, parent: { content: {}, version: 1 } }));
+    render(<RunbookEditor data={data([item])} canEdit action={ok} />);
+    const root = document.querySelector('[data-item="play:d"]') as HTMLElement;
+    expect(root.getAttribute('data-slot')).toBe('card');
+    expect(within(root).getByRole('button', { name: 'Add' })).toBeTruthy();
+    expect(root.querySelector('[data-slot="band"][data-tone="muted"]')).toBeTruthy();
+  });
+
+  it('lists the settings as rows of one frame and keeps each switch name', () => {
+    const knob = (n: string): RunbookItemData => ({ ...play('x', 't'), key: `knob:${n}`, kind: 'knob', content: n === 'thresholds' ? { alert: 80, brief: 40 } : {} } as RunbookItemData);
+    render(<RunbookEditor data={data([knob('thresholds')])} canEdit action={ok} />);
+    const row = document.querySelector('[data-item="knob:thresholds"]') as HTMLElement;
+    expect(row.getAttribute('data-slot')).toBeNull();
+    expect(row.parentElement?.className).toContain('divide-y');
+    expect(within(row).getByRole('switch', { name: 'Alert and brief thresholds on or off' })).toBeTruthy();
+  });
 });

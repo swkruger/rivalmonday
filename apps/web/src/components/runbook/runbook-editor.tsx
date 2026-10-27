@@ -1,5 +1,5 @@
 'use client';
-import { Button } from '@cs/ui';
+import { Band, Button } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
@@ -44,7 +44,7 @@ function useTailorPoll(pending: boolean, statusAction: (() => Promise<string | n
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-bold">{title}</h2>
+      <h2 className="text-lg font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -87,28 +87,28 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
   return (
     <div className="flex flex-col gap-6">
       {level === 'client' && !hasRunbook && (
-        <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
+        <Band tone="muted" className="flex flex-col gap-3">
           <p className="font-semibold">This client uses the agency runbook.</p>
           {mayWrite && (
             <div>
               <Button disabled={creating} onClick={() => startCreate(async () => void (await run({ op: 'create' })))}>Create a runbook for this client</Button>
             </div>
           )}
-        </div>
+        </Band>
       )}
-      {tailoring && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">Tailoring plays for {verticalName ?? 'this business'}…</p>}
+      {tailoring && <Band tone="muted" role="status" className="text-ink">Tailoring plays for {verticalName ?? 'this business'}…</Band>}
       {data.tailorStatus === 'failed' && (
-        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">We couldn’t tailor these plays. They match the agency runbook; edit them as needed.</p>
+        <Band tone="muted" role="status" className="text-ink">We couldn’t tailor these plays. They match the agency runbook; edit them as needed.</Band>
       )}
       {notice && <ErrorNote focusKey={notice}>{notice}</ErrorNote>}
       <Section title="Plays">
-        {plays.length === 0 ? <p className="text-muted-foreground">No plays yet.</p> : <div className="grid gap-5 xl:grid-cols-2">{plays.map(card)}</div>}
+        {plays.length === 0 ? <p className="text-muted-ink">No plays yet.</p> : <div className="grid gap-5 xl:grid-cols-2">{plays.map(card)}</div>}
       </Section>
       <Section title="Starting-point rules">
-        {rules.length === 0 ? <p className="text-muted-foreground">No rules yet.</p> : <div className="grid gap-5 xl:grid-cols-2">{rules.map(card)}</div>}
+        {rules.length === 0 ? <p className="text-muted-ink">No rules yet.</p> : <div className="grid gap-5 xl:grid-cols-2">{rules.map(card)}</div>}
       </Section>
       <Section title="Settings">
-        <div className="grid gap-5 xl:grid-cols-2">
+        <div className="divide-y divide-line rounded-md border border-line">
           {KNOBS.map((n) => {
             const item = knob(n);
             return <KnobCard key={`${n}:${item?.version ?? 0}:${item?.state ?? ''}:${JSON.stringify(item?.content ?? null)}`} name={n} item={item} level={level} businessAreas={data.businessAreas} canEdit={canEdit} run={run} />;

@@ -1,7 +1,7 @@
 'use client';
 import type { ChipTone } from '@cs/ui';
 import { changeTypeLabel } from '@cs/email/labels';
-import { Button, ConfirmDialog, Input, Label, StatusChip, Switch } from '@cs/ui';
+import { Band, Button, Card, ConfirmDialog, Input, Label, StatusChip, Switch, textareaClass } from '@cs/ui';
 import { useOptimistic, useState, useTransition } from 'react';
 import { LEVEL, labelFor } from '@/lib/labels';
 import { DiffView } from './diff';
@@ -17,7 +17,6 @@ export interface PlayContent {
   impact?: 'L' | 'M' | 'H';
 }
 
-const area = 'w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 /** The same fallbacks `renderPlaybook` (engine) uses when a brief has no value for a placeholder. */
 const FALLBACK: Record<string, string> = { competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic' };
 
@@ -64,12 +63,12 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
   const parent = item.parent;
   const name = parentName(level);
   const key = item.key;
-  const box = 'flex flex-col gap-2 rounded-md bg-muted-surface p-3 text-sm';
+  const box = 'flex flex-col gap-2 text-sm';
 
   if (item.state === 'new_upstream') {
     if (hidden) return null;
     return (
-      <div className={box}>
+      <Band tone="muted" className={box}>
         <p className="font-semibold">New {noun(item.kind)} available</p>
         {canEdit && (
           <div className="flex gap-2">
@@ -77,13 +76,13 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
             <Button size="sm" variant="outline" disabled={pending} onClick={() => setHidden(true)}>Not now</Button>
           </div>
         )}
-      </div>
+      </Band>
     );
   }
   if (item.state === 'removed_upstream') {
     if (hidden) return null;
     return (
-      <div className={box}>
+      <Band tone="muted" className={box}>
         <p className="font-semibold">No longer in the {name}</p>
         {canEdit && (
           <div className="flex gap-2">
@@ -98,17 +97,17 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
             />
           </div>
         )}
-      </div>
+      </Band>
     );
   }
   if (item.state !== 'update_available' || !parent) return null;
 
   if (stage === 'idle') {
     return (
-      <div className={box}>
+      <Band tone="muted" className={box}>
         <p>A newer version is available from the {name}.</p>
         <div><Button size="sm" variant="outline" onClick={() => setStage('diff')}>Review update</Button></div>
-      </div>
+      </Band>
     );
   }
   const mine = item.content as Partial<PlayContent>;
@@ -119,7 +118,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
   if (stage === 'tailored') {
     const p = proposed;
     return (
-      <div className={box}>
+      <Band tone="muted" className={box}>
         <p className="font-semibold">Tailored for this client</p>
         {p ? (
           <>
@@ -133,7 +132,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
             <Button size="sm" variant="outline" disabled={pending} onClick={() => go({ op: 'pull', key })}>Use as is</Button>
           </div>
         )}
-      </div>
+      </Band>
     );
   }
   const play = item.kind === 'play';
@@ -146,7 +145,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
     } else go({ op: 'pull', key });
   };
   return (
-    <div className={box}>
+    <Band tone="muted" className={box}>
       <p className="font-semibold">What changed in the {name}</p>
       {play ? (
         <>
@@ -177,7 +176,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
           <Button size="sm" variant="outline" disabled={pending} onClick={() => go({ op: 'dismiss', key })}>Keep mine</Button>
         </div>
       )}
-    </div>
+    </Band>
   );
 }
 
@@ -243,7 +242,7 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`template-${id}`}>Template</Label>
-        <textarea id={`template-${id}`} value={template} rows={4} maxLength={2000} className={area} onChange={(e) => setTemplate(e.target.value)} />
+        <textarea id={`template-${id}`} value={template} rows={4} maxLength={2000} className={textareaClass} onChange={(e) => setTemplate(e.target.value)} />
         <p className="text-xs text-muted-ink">Placeholders: {vars.map((v) => `{{${v}}}`).join(' ')}</p>
       </div>
       {withAreas && (
@@ -260,7 +259,7 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
           <p className="text-xs text-muted-ink">Leave all unticked to use this play for every service.</p>
         </fieldset>
       )}
-      {error && <p role="alert" className="rounded-md bg-muted-surface p-3 text-sm text-ink">{error}</p>}
+      {error && <Band tone="muted" role="alert" className="text-sm text-ink">{error}</Band>}
       <div className="flex gap-2">
         <Button size="sm" disabled={pending} onClick={save}>Save</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>
@@ -285,7 +284,7 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
   const rule = item.kind === 'self_rule' ? (item.content as { weight?: number }) : null;
   const areaNames = (item.businessAreaIds ?? []).map((id) => businessAreas.find((a) => a.id === id)?.name ?? id);
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={item.key}>
+    <Card className="gap-3 p-6" data-item={item.key}>
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         {play && <StatusChip tone="neutral">{changeTypeLabel(play.trigger)}</StatusChip>}
@@ -310,6 +309,6 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
       {play && editing && <PlayEditor item={item} level={level} vars={vars} businessAreas={businessAreas} run={run} onDone={() => setEditing(false)} />}
       {rule && <p className="text-sm text-muted-ink">{rule.weight !== undefined ? `Weight ${rule.weight}. ` : ''}Switch it off to leave it out of the starting-point brief.</p>}
       <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />
-    </div>
+    </Card>
   );
 }

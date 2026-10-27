@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, Label, StatusChip } from '@cs/ui';
+import { Band, Button, Input, Label, StatusChip } from '@cs/ui';
 import { useState } from 'react';
 import { badgeFor, EnabledSwitch, type RunFn, UpdatePrompts, useCardRun } from './item-card';
 import type { RunbookItemData, RunbookLevel } from './types';
@@ -53,7 +53,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   // A setting that is only on offer from above (not yet added) shows just its Add / Not now prompt.
   if (item?.state === 'new_upstream') {
     return (
-      <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={key}>
+      <div className="flex flex-col gap-3 p-6" data-item={key}>
         <div className="flex flex-wrap items-center gap-2">
           {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
           <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
@@ -78,7 +78,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6" data-item={key}>
+    <div className="flex flex-col gap-3 p-6" data-item={key}>
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         <h3 className="font-semibold">{KNOB_TITLE[name]}</h3>
@@ -124,7 +124,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
           {canEdit && <div><Button size="sm" disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
         </>
       )}
-      {error && <p role="alert" className="rounded-md bg-muted-surface p-3 text-sm text-ink">{error}</p>}
+      {error && <Band tone="muted" role="alert" className="text-sm text-ink">{error}</Band>}
       {item && <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />}
     </div>
   );
