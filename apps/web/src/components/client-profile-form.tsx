@@ -155,7 +155,7 @@ export function ClientProfileForm(props: Props) {
 
       {/* The result sits at the end of the form, beside the Save control, not at the top. */}
       <FormError state={state} canUpgrade={props.mode === 'create' && props.canUpgrade === true} />
-      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
 
       <WriteGuard>
         {props.mode === 'edit' ? (

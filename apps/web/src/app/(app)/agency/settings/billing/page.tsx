@@ -88,7 +88,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       />
       {done && <RefreshUntilChanged watch={`${s.state}:${s.hasSubscription}`} />}
       {done && (
-        <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
           Thanks — your billing details are being updated. This page refreshes as soon as Stripe confirms.
         </p>
       )}

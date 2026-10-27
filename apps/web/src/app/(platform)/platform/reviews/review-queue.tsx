@@ -22,7 +22,7 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
   return (
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
-      {result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
+      {result.ok && result.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{result.message}</p>}
       {total > 0 && <h2 className="text-lg font-semibold">Waiting for review ({total})</h2>}
       {items.length === 0 && (offPage ? <OffPageNotice firstHref="/platform/reviews" /> : <HelpEmpty id="platform.reviews.queue" guideAnchor="what-this-page-tells-you" />)}
       {items.map((item) => (
@@ -30,8 +30,8 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
           <input type="hidden" name="reviewId" value={item.id} />
           <div className="text-sm text-muted-ink">{item.competitorName} · {item.sourceText} · {item.kindText} · {item.age}</div>
           <div className="grid gap-3 md:grid-cols-2">
-            <div><div className="text-xs font-semibold uppercase text-muted-ink">Before</div><pre className="whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm">{item.beforeText ?? '—'}</pre></div>
-            <div><div className="text-xs font-semibold uppercase text-muted-ink">After</div><pre className="whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm">{item.afterText ?? '—'}</pre></div>
+            <div><div className="text-xs font-semibold uppercase text-muted-ink">Before</div><pre className="whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{item.beforeText ?? '—'}</pre></div>
+            <div><div className="text-xs font-semibold uppercase text-muted-ink">After</div><pre className="whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{item.afterText ?? '—'}</pre></div>
           </div>
           {item.questions.map((q) => {
             const id = `${item.id}-${q.key}`;

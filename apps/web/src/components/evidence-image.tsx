@@ -9,7 +9,7 @@ import { useState } from 'react';
 export function EvidenceImage({ src, alt, className, loading }: { src: string; alt: string; className?: string; loading?: 'lazy' | 'eager' }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
-    return <p className="rounded-lg bg-muted-surface p-4 text-sm text-muted-foreground">Snapshot not available</p>;
+    return <p className="rounded-md bg-muted-surface p-4 text-sm text-muted-foreground">Snapshot not available</p>;
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt={alt} loading={loading} className={className} onError={() => setFailed(true)} />;

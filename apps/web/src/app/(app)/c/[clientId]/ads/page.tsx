@@ -112,7 +112,7 @@ export default async function AdsPage({ params, searchParams }: {
       </div>
 
       {!list ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">This competitor is no longer tracked.</p>
+        <p className="rounded-md bg-muted-surface p-3 text-ink">This competitor is no longer tracked.</p>
       ) : list.items.length === 0 ? (
         <EmptyState {...COPY.empty.noMatch} />
       ) : (

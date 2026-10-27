@@ -7,7 +7,7 @@ export const selectClass = 'h-9 w-full rounded-md border border-input bg-transpa
 
 export function FormMessage({ state }: { state: FormResult }) {
   if (!state.ok) return <ErrorNote focusKey={state}>{state.error}</ErrorNote>;
-  return state.message ? <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p> : null;
+  return state.message ? <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p> : null;
 }
 
 /**

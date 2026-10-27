@@ -51,7 +51,7 @@ export function FeedbackButtons({
           {state.error}
         </ErrorNote>
       ) : state.ok && state.message ? (
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>
+        <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>
       ) : null}
     </form>
   );

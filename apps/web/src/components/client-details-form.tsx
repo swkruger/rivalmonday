@@ -79,7 +79,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
         </div>
       </fieldset>
       <FormError state={state} />
-      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <WriteGuard>
         <Button type="submit" disabled={pending} className="self-start">Save details</Button>
       </WriteGuard>

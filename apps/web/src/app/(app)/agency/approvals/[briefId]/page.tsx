@@ -77,7 +77,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         ]}
       />
 
-      <div className="rounded-lg bg-muted-surface p-3 text-ink">
+      <div className="rounded-md bg-muted-surface p-3 text-ink">
         <p>✔ Every remaining sentence was checked against saved evidence.</p>
         {fixed && (
           <p>

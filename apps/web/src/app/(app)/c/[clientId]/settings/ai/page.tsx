@@ -75,7 +75,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
         hidden={hidden}
         note={
           agency ? (
-            <p className="rounded-lg bg-muted-surface p-3 text-ink">
+            <p className="rounded-md bg-muted-surface p-3 text-ink">
               Agency-wide tokens live under{' '}
               <Link href="/agency/settings/ai" className="font-semibold text-primary-soft-text underline">
                 Agency settings › AI connections

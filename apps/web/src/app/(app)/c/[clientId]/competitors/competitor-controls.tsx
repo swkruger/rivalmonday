@@ -26,7 +26,7 @@ function Message({ state }: { state: FormResult }) {
     );
   }
   if (state.ok && state.message) {
-    return <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>;
+    return <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>;
   }
   return null;
 }
@@ -133,7 +133,7 @@ function SearchProgress({ progress, status, found, failedOnLoad = false }: { pro
   if (progress === 'searching') {
     const checking = status?.stage === 'checking' || status?.stage === 'finalising';
     return (
-      <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
         {checking
           ? `Checking ads and reviews for ${status.checksTotal} businesses…`
           : status && status.searchesTotal > 0
@@ -144,7 +144,7 @@ function SearchProgress({ progress, status, found, failedOnLoad = false }: { pro
   }
   if (progress === 'done') {
     return (
-      <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+      <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
         {found > 0 ? `Search finished — ${found} suggestion${found === 1 ? '' : 's'} below.` : 'Search finished — no new businesses found.'}
       </p>
     );
@@ -157,7 +157,7 @@ function SearchProgress({ progress, status, found, failedOnLoad = false }: { pro
     );
   }
   if (progress === 'gave_up') {
-    return <p className="rounded-lg bg-muted-surface p-3 text-ink">Still searching — check back in a few minutes.</p>;
+    return <p className="rounded-md bg-muted-surface p-3 text-ink">Still searching — check back in a few minutes.</p>;
   }
   return null;
 }

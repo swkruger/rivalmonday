@@ -96,9 +96,9 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
           )}
         </div>
       )}
-      {tailoring && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">Tailoring plays for {verticalName ?? 'this business'}…</p>}
+      {tailoring && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">Tailoring plays for {verticalName ?? 'this business'}…</p>}
       {data.tailorStatus === 'failed' && (
-        <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">We couldn’t tailor these plays. They match the agency runbook; edit them as needed.</p>
+        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">We couldn’t tailor these plays. They match the agency runbook; edit them as needed.</p>
       )}
       {notice && <ErrorNote focusKey={notice}>{notice}</ErrorNote>}
       <Section title="Plays">

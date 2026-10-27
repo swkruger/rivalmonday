@@ -153,7 +153,7 @@ export default async function ReviewsPage({ params, searchParams }: {
           <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Search</button>
         </form>
         {!reviews ? (
-          <p className="rounded-lg bg-muted-surface p-3 text-ink">
+          <p className="rounded-md bg-muted-surface p-3 text-ink">
             {business ? 'That business is no longer available.' : 'These reviews could not be loaded.'}
           </p>
         ) : reviews.items.length === 0 ? (

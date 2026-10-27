@@ -71,7 +71,7 @@ export function AdMatchChips({ clientId, competitorId, matched, pending }: { cli
         ))}
       </ul>
       {result && !result.ok && <ErrorNote focusKey={result} className="text-sm">{result.error}</ErrorNote>}
-      {result && result.ok && result.message && <p className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{result.message}</p>}
+      {result && result.ok && result.message && <p className="rounded-md bg-muted-surface p-3 text-sm text-ink">{result.message}</p>}
     </div>
   );
 }

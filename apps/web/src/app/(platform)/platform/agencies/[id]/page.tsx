@@ -170,7 +170,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   return (
     <>
       {sp.ended === '1' && (
-        <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
           Support session ended.
         </p>
       )}

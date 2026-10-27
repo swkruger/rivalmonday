@@ -31,7 +31,7 @@ export function AssignScope({ children }: { children: React.ReactNode }) {
     <AssignContext.Provider value={{ action, pending }}>
       <div className="flex flex-col gap-3">
         {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
-        {state.ok && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+        {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
         {children}
       </div>
     </AssignContext.Provider>

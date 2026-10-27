@@ -141,7 +141,7 @@ export default async function MovesPage({
       />
 
       <div className="flex items-center gap-2">
-        <div className="flex w-fit items-center gap-1 rounded-lg bg-muted-surface p-1">
+        <div className="flex w-fit items-center gap-1 rounded-md bg-muted-surface p-1">
           <StatusLink clientId={clientId} status="open" current={status} label="Open" />
           <StatusLink clientId={clientId} status="closed" current={status} label="Closed" />
           <StatusLink clientId={clientId} status="all" current={status} label="All" />

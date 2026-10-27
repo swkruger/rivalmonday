@@ -105,7 +105,7 @@ export function NewBusinessType({ place, actions, onSelect, onCreated }: {
 
   if (phase === 'created' && done) {
     return (
-      <div role="status" className="flex flex-col gap-1 rounded-lg bg-muted-surface p-3 text-sm text-ink">
+      <div role="status" className="flex flex-col gap-1 rounded-md bg-muted-surface p-3 text-sm text-ink">
         <p>Created {done.name}. Our team reviews new business types; you can use it now.</p>
         {done.dropped.length > 0 && <p className="text-muted-ink">Left out {done.dropped.join(', ')}: already used by another business type.</p>}
       </div>

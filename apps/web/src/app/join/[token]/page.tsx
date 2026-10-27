@@ -32,7 +32,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       title={link.offer === 'pilot' ? 'Join the Rival Monday pilot' : 'Start your Rival Monday trial'}
       preview={<SignupAside />}
     >
-      <p className="rounded-lg bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
+      <p className="rounded-md bg-muted-surface p-3 text-ink">{offerBanner(link, await discountText(service, link))}</p>
       <SignUpForm
         googleEnabled={env.google !== null}
         siteKey={activeEnvName() === 'dev' ? (env.turnstile?.siteKey ?? null) : null}

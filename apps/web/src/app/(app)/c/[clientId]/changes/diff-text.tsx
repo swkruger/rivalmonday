@@ -7,7 +7,7 @@ import type { CompareView } from '@cs/tools';
 export function DiffText({ segments }: { segments: CompareView['diff'] }) {
   if (segments.length === 0) return <p className="text-muted-foreground">No text changes stored for this evidence.</p>;
   return (
-    <p className="whitespace-pre-wrap rounded-lg bg-muted-surface p-4 font-mono text-sm leading-relaxed">
+    <p className="whitespace-pre-wrap rounded-md bg-muted-surface p-4 font-mono text-sm leading-relaxed">
       {segments.map((s, i) =>
         s.op === 'delete' ? (
           <del key={i} aria-label={`removed: ${s.text}`} className="bg-chip-danger-bg text-chip-danger-text">

@@ -39,10 +39,10 @@ export function SnapshotControls({ clientId, report, canRun, blockers, action }:
       <WriteGuard>
         <Button type="submit" disabled={!canRun || running || pending} className="self-start">{report ? 'Run snapshot again' : 'Run snapshot'}</Button>
       </WriteGuard>
-      {running && <p className="rounded-lg bg-muted-surface p-3 text-ink">Snapshot running — this page updates by itself.</p>}
+      {running && <p className="rounded-md bg-muted-surface p-3 text-ink">Snapshot running — this page updates by itself.</p>}
       {report?.status === 'failed' && <ErrorNote passive={failedOnLoad && !sawRunning}>{report.error ?? 'The snapshot failed.'}</ErrorNote>}
       {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
-      {state.ok && state.message && !running && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && !running && <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
     </form>
   );
 }

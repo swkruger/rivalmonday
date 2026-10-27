@@ -92,7 +92,7 @@ export function FilterBar({
         <Button type="submit">Apply</Button>
       </form>
       <div className="flex items-center gap-1.5">
-        <div className="flex items-center gap-1 rounded-lg bg-muted-surface p-1">
+        <div className="flex items-center gap-1 rounded-md bg-muted-surface p-1">
           <SegmentLink clientId={clientId} params={params} route="flagged" label="Alerts + brief" />
           <SegmentLink clientId={clientId} params={params} route="all" label="All" />
           <SegmentLink clientId={clientId} params={params} route="archive" label="Archived" />

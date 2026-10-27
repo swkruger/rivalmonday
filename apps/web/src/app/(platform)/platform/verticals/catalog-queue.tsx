@@ -77,7 +77,7 @@ function Evidence({ evidence }: { evidence: unknown }) {
     <details className="text-sm">
       <summary className="cursor-pointer font-semibold text-ink">Evidence ({quotes.length})</summary>
       <ul className="mt-2 flex flex-col gap-1">
-        {quotes.map((q) => <li key={q} className="rounded-lg bg-muted-surface p-2">“{q}”</li>)}
+        {quotes.map((q) => <li key={q} className="rounded-md bg-muted-surface p-2">“{q}”</li>)}
       </ul>
     </details>
   );
@@ -99,7 +99,7 @@ export function CatalogQueue({ verticals, areas, targets, catalogue, defaultMaps
   return (
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
-      {result.ok && result.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p>}
+      {result.ok && result.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{result.message}</p>}
 
       <h2 className="text-lg font-bold">New business types</h2>
       {verticals.length === 0 && <HelpEmpty id="platform.verticals.types" guideAnchor="what-this-page-tells-you" />}
@@ -219,7 +219,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
   };
   const p = payload();
   return (
-    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Edit ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
+    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Edit ${v.name}`} className="flex flex-col gap-3 rounded-md bg-muted-surface p-4">
       <Post fields={{ intent: 'edit-vertical', id: v.id, label: v.name, payload: JSON.stringify(p) }}>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-1"><Label htmlFor={`e-name-${v.id}`}>Business type name</Label><Input id={`e-name-${v.id}`} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} className="w-64" /></div>
@@ -258,7 +258,7 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
     setMap(maps[id] ?? {});
   };
   return (
-    <div role="group" aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-lg bg-muted-surface p-4">
+    <div role="group" aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-md bg-muted-surface p-4">
         <div className="flex flex-col gap-1">
           <Label htmlFor={`m-target-${v.id}`}>Merge into</Label>
           <select id={`m-target-${v.id}`} value={targetId} onChange={(e) => choose(e.target.value)} className={`${selectClass} max-w-sm`}>
@@ -331,7 +331,7 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
             />
             {mode === 'rename' && <RenameForm intent="rename-area" id={a.id} verticalId={a.verticalId} current={a.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {mode === 'merge' && (
-              <div role="group" aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-lg bg-muted-surface p-4">
+              <div role="group" aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-md bg-muted-surface p-4">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`am-${a.verticalId}-${a.id}`}>Merge into</Label>
                   <select id={`am-${a.verticalId}-${a.id}`} value={targetId} onChange={(e) => setTargetId(e.target.value)} className={selectClass}>

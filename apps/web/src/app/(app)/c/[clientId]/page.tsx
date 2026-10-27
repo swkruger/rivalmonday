@@ -203,7 +203,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           <div className="mt-3 flex flex-col gap-2">
             {openRecs.length === 0 && <EmptyState {...(canSaveFromAsk ? COPY.empty.noRecommendationsAsk : COPY.empty.noRecommendations)} />}
             {openRecs.slice(0, 4).map((r) => (
-              <div key={r.id} className="rounded-lg bg-muted-surface px-3 py-2">
+              <div key={r.id} className="rounded-md bg-muted-surface px-3 py-2">
                 <div className="font-semibold">{r.title}</div>
                 <div className="mt-1">
                   <RecStatus status={r.status} />

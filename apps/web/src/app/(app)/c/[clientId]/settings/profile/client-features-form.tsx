@@ -70,7 +70,7 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <WriteGuard>
         <SaveBar
           dirty={dirty}

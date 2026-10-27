@@ -41,7 +41,7 @@ function Message({ state }: { state: FormResult }) {
       </ErrorNote>
     );
   }
-  if (state.ok && state.message) return <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>;
+  if (state.ok && state.message) return <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>;
   return null;
 }
 

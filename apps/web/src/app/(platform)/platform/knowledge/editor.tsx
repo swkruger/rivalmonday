@@ -30,7 +30,7 @@ const inputClass = 'h-9 w-full rounded-md border border-input bg-transparent px-
 
 function Notice({ result }: { result: FormResult }) {
   if (!result.ok) return <ErrorNote focusKey={result}>{result.error}</ErrorNote>;
-  return result.message ? <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{result.message}</p> : null;
+  return result.message ? <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{result.message}</p> : null;
 }
 
 /** New and edit form. Results of all three actions render in one always-mounted place so they survive revalidation. */
@@ -47,7 +47,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
   if (article?.source === 'seed') {
     return (
       <div className="flex flex-col gap-4">
-        <p className="rounded-lg bg-muted-surface p-3 text-ink">Managed in repo</p>
+        <p className="rounded-md bg-muted-surface p-3 text-ink">Managed in repo</p>
         <div className="rounded-md border border-line bg-surface p-6">
           <KbArticleView article={{ kbId: article.id, title: article.title, kind: article.kind, level: article.level, bodyMd: article.bodyMd, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
         </div>
@@ -112,7 +112,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
           {article.previousBodyMd !== null && (
             <details>
               <summary className="cursor-pointer text-sm font-semibold">Previous version</summary>
-              <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm">{article.previousBodyMd}</pre>
+              <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{article.previousBodyMd}</pre>
             </details>
           )}
         </div>

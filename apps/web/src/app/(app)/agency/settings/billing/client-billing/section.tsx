@@ -34,7 +34,7 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
         ) : (
           <>
             {notice && (
-              <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">
+              <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
                 {notice}
               </p>
             )}

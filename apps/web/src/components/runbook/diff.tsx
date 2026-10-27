@@ -42,7 +42,7 @@ export function diffWords(before: string, after: string): Seg[] {
 export function DiffView({ before, after, label }: { before: string; after: string; label: string }) {
   const segs = diffWords(before, after);
   return (
-    <p aria-label={`Changes to ${label}`} data-testid="runbook-diff" className="whitespace-pre-wrap rounded-lg bg-muted-surface p-3 text-sm text-ink">
+    <p aria-label={`Changes to ${label}`} data-testid="runbook-diff" className="whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm text-ink">
       {segs.map((s, i) =>
         s.op === 'equal' ? <span key={i}>{s.text}</span>
           : s.op === 'insert' ? <ins key={i} className="rounded-sm bg-primary-soft px-0.5 text-primary-soft-text no-underline">{s.text}</ins>

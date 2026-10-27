@@ -39,5 +39,5 @@ export function PlaceSummary({ place, isClaimed, possibleDuplicate }: { place: S
 }
 
 export function DuplicateHint() {
-  return <p role="note" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">Google shows more than one listing with the same phone number or website. Pick the owner-verified one if it&apos;s there.</p>;
+  return <p role="note" className="rounded-md bg-muted-surface p-3 text-sm text-ink">Google shows more than one listing with the same phone number or website. Pick the owner-verified one if it&apos;s there.</p>;
 }

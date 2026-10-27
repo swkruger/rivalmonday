@@ -89,7 +89,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
             {state.error}
           </ErrorNote>
         )}
-        {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+        {state.ok && state.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
         <fieldset disabled={readOnly} className="contents">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">

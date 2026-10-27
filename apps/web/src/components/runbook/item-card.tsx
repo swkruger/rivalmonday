@@ -64,7 +64,7 @@ export function UpdatePrompts({ item, level, canEdit, run }: { item: RunbookItem
   const parent = item.parent;
   const name = parentName(level);
   const key = item.key;
-  const box = 'flex flex-col gap-2 rounded-lg bg-muted-surface p-3 text-sm';
+  const box = 'flex flex-col gap-2 rounded-md bg-muted-surface p-3 text-sm';
 
   if (item.state === 'new_upstream') {
     if (hidden) return null;
@@ -260,7 +260,7 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
           <p className="text-xs text-muted-ink">Leave all unticked to use this play for every service.</p>
         </fieldset>
       )}
-      {error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{error}</p>}
+      {error && <p role="alert" className="rounded-md bg-muted-surface p-3 text-sm text-ink">{error}</p>}
       <div className="flex gap-2">
         <Button size="sm" disabled={pending} onClick={save}>Save</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>

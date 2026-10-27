@@ -140,7 +140,7 @@ export default async function RankingsPage({ params, searchParams }: {
         </>
       ) : (
         <>
-          {(!picked || compare?.stale) && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
+          {(!picked || compare?.stale) && <p role="alert" className="rounded-md bg-muted-surface p-3 text-ink">That selection is no longer available, so the defaults are shown.</p>}
           <RankTabs tab={tab} query={query} />
           <div role="tabpanel" id="rank-tabpanel" aria-labelledby={`rank-tab-${tab}`} className="flex flex-col gap-6">
             <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-4">
@@ -262,7 +262,7 @@ export default async function RankingsPage({ params, searchParams }: {
                     map={compare.grids[1].map}
                   />
                 ) : (
-                  <p role="alert" className="rounded-lg bg-muted-surface p-3 text-ink">Settings changed between these scans.</p>
+                  <p role="alert" className="rounded-md bg-muted-surface p-3 text-ink">Settings changed between these scans.</p>
                 )}
               </section>
             )}

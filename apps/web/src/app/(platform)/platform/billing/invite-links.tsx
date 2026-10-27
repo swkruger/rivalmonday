@@ -27,7 +27,7 @@ const status = (l: LinkRow) =>
 function CopyBox({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-muted-surface p-3">
+    <div className="flex flex-col gap-2 rounded-md bg-muted-surface p-3">
       <label htmlFor="new-invite-url" className="sr-only">New invite link</label>
       <div className="flex gap-2">
         <input id="new-invite-url" readOnly value={url} onFocus={(e) => e.currentTarget.select()} className={`${fieldCls} min-w-0 flex-1 font-mono`} />

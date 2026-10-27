@@ -56,7 +56,7 @@ export function DeliveryForm({
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && !dirty && state.message && <p role="status" className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && !dirty && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
 
       <fieldset disabled={readOnly} className="contents">
       <fieldset className="flex flex-col gap-3">
@@ -132,7 +132,7 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p className="rounded-lg bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="recipient-email">Email</Label>

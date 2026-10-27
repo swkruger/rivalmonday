@@ -124,7 +124,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
           {canEdit && <div><Button size="sm" disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
         </>
       )}
-      {error && <p role="alert" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">{error}</p>}
+      {error && <p role="alert" className="rounded-md bg-muted-surface p-3 text-sm text-ink">{error}</p>}
       {item && <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />}
     </div>
   );
