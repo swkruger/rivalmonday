@@ -115,7 +115,7 @@ function targetsFor(status: Status, title: string): Target[] {
 
 function RecommendationCard({ item, clientId, canEdit, agency, action }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction }) {
   return (
-    <Card className="p-4">
+    <Card role="article" className="p-4">
       <p className="font-semibold">{item.title}</p>
       <p className="mt-1 text-muted-foreground">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">

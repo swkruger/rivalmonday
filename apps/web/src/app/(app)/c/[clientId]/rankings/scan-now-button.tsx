@@ -29,7 +29,7 @@ export function ScanNowButton({ clientId, scan }: { clientId: string; scan: Rank
         <form action={action}>
           <Button type="submit" variant="outline" disabled={pending || running || scan.state !== 'available'} aria-describedby={note ? noteId : undefined}>{label}</Button>
         </form>
-        {note && <p id={noteId} className="text-right text-sm text-muted-foreground">{note}</p>}
+        {note && <p id={noteId} className="text-right text-sm text-muted-ink">{note}</p>}
         {!state.ok && <ErrorNote compact focusKey={state} className="justify-end text-right">{state.error}</ErrorNote>}
         {state.ok && state.message && <p role="status" className="text-right text-sm text-ink">{state.message}</p>}
       </div>

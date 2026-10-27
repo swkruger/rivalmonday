@@ -12,7 +12,7 @@ export type PillState = 'active' | 'hot' | 'none' | 'unchecked';
 const STATE_CLASS: Record<PillState, string> = {
   active: 'h-5 rounded-xs bg-primary-soft px-1.5 font-medium text-primary-soft-text',
   hot: 'h-5 rounded-xs bg-chip-warning-bg px-1.5 font-medium text-chip-warning-text',
-  none: 'px-1 font-medium text-muted-ink',
+  none: 'h-5 px-1 font-medium text-muted-ink',
   unchecked: 'h-5 rounded-xs border border-dashed border-line-control px-1.5 text-muted-ink',
 };
 const NOT_CHECKED = 'Not checked';

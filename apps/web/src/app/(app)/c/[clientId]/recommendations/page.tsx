@@ -46,7 +46,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
         guide={guides.has(HELP_KEY)}
       />
       {recs.items.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
           {TIPS.map((t) => (
             <span key={t.tip} className="inline-flex items-center gap-1.5">
               {t.label}

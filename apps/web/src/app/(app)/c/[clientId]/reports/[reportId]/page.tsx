@@ -61,7 +61,7 @@ export default async function ReportPage({ params }: { params: Promise<{ clientI
         guide={guides.has(HELP_KEY)}
       />
       {report.data != null && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
           {TIPS.map((t) => (
             <span key={t.tip} className="inline-flex items-center gap-1.5">
               {t.label}

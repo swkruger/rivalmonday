@@ -2,7 +2,7 @@ import { formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
 import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Card, CardContent, CardHeader, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -242,7 +242,7 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Pages</CardTitle>
+        <h2 data-slot="card-title" className="text-base font-semibold text-ink">Pages</h2>
       </CardHeader>
       {pages.length === 0 ? (
         <CardContent>

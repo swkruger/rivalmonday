@@ -118,7 +118,7 @@ async function supportAskView(clientId: string, threadId: string | null, ctx: Ac
         helpKey={`page:${helpKeyFor(threadId)}`}
         guide={guides.has(`page:${helpKeyFor(threadId)}`)}
       />
-      <p className="rounded-md border border-line bg-surface p-6 text-muted-foreground">{ASK_PRIVATE_COPY}</p>
+      <p className="rounded-md border border-line bg-surface p-6 text-muted-ink">{ASK_PRIVATE_COPY}</p>
     </>
   );
 }

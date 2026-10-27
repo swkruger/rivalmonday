@@ -70,7 +70,7 @@ export function RankSettingsSheet({ clientId, settings }: { clientId: string; se
                     </label>
                   );
                 })}
-                {full && <p id={keywordHintId} className="text-sm text-muted-foreground">That is the most keywords one scan can cover. Untick one to pick another.</p>}
+                {full && <p id={keywordHintId} className="text-sm text-muted-ink">That is the most keywords one scan can cover. Untick one to pick another.</p>}
               </fieldset>
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-1 text-sm font-semibold text-ink">Grid</legend>

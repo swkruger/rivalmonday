@@ -83,7 +83,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
         }
       />
       {tips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
           {tips.map((t) => (
             <span key={t.tip} className="inline-flex items-center gap-1.5">
               {t.label}
@@ -94,7 +94,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
       )}
       <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} />
       {feedback?.email && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-ink">
           {'Something look off? '}
           <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-primary-soft-text">
             Email {feedback.name?.trim() || 'your agency'}

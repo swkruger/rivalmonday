@@ -45,7 +45,7 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
         <span className="inline-flex items-center gap-1.5">
           Figures
           <HelpTip tip="client.pitch-snapshot.figures" />

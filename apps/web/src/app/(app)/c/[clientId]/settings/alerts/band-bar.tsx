@@ -27,7 +27,7 @@ export function BandBar({ brief, alert }: { brief: number; alert: number }) {
           <li key={b.key} className="flex items-center gap-2">
             <span aria-hidden="true" className={`${b.swatch} size-3 rounded-xs`} />
             <span className="font-medium text-ink">{b.label}</span>
-            <span className="text-muted-foreground">{`${b.from}–${b.to}`}</span>
+            <span className="text-muted-ink">{`${b.from}–${b.to}`}</span>
           </li>
         ))}
       </ul>

@@ -104,7 +104,7 @@ export default async function ReviewsPage({ params, searchParams }: {
       <HairlineGrid cols={2}>
         <HairlineCell>
           <Section title="Your rating mix" titleAside={<HelpTip tip="client.reviews.ratingMix" />}>
-            {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-foreground">Not available until your business is set up.</p>}
+            {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-ink">Not available until your business is set up.</p>}
           </Section>
         </HairlineCell>
         <HairlineCell>

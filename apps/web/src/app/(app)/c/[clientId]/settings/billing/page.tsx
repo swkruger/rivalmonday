@@ -94,17 +94,17 @@ export default async function ClientBillingPage({ params, searchParams }: { para
       <Section title={`Your plan with ${b.agencyName}`} className="max-w-[640px]">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Status</span>
+            <span className="text-sm text-muted-ink">Status</span>
             <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
           </div>
           {status.detail && <p className="text-sm">{status.detail}</p>}
           {!b.paused && b.nextChargeDate && (
             <p className="text-sm">
-              <span className="text-muted-foreground">Next charge </span>
+              <span className="text-muted-ink">Next charge </span>
               <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents' })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</span>
             </p>
           )}
-          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</span></p>}
+          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-ink">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</span></p>}
           {b.endsOn && <p className="text-sm">Your plan ends on {formatDate(b.endsOn, { tz: 'UTC' })}. There will be no further charges.</p>}
           {b.canManagePayment && <PaymentButton action={managePaymentAction.bind(null, clientId)} label="Manage payment" />}
         </div>

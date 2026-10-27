@@ -72,7 +72,7 @@ export function DeliveryForm({
             />
             <span>
               <span className="block font-medium">{m.label}</span>
-              <span id={`alert-mode-${m.value}-help`} className="block text-sm text-muted-foreground">{m.help}</span>
+              <span id={`alert-mode-${m.value}-help`} className="block text-sm text-muted-ink">{m.help}</span>
             </span>
           </label>
         ))}

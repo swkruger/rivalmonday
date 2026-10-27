@@ -54,7 +54,7 @@ export default async function AiConnectionsPage({ params }: { params: Promise<{ 
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      {admin && <p className="text-muted-foreground">As an admin you see everyone&apos;s tokens and connected apps in this agency.</p>}
+      {admin && <p className="text-muted-ink">As an admin you see everyone&apos;s tokens and connected apps in this agency.</p>}
       <ConnectorUrlCard url={`${webEnv().appUrl}/mcp`} displayName={displayName} help={<HelpTip tip="client.settings.ai.connector" />} />
       <AccessTokensCard
         canCreate={!agency}

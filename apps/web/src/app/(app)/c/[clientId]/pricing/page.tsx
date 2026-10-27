@@ -77,7 +77,7 @@ export default async function PricingPage({ params, searchParams }: {
               action={!webEnv().webMonitoring ? <p className="text-sm text-ink">Website monitoring isn’t switched on yet, so there’s nothing to show.</p> : undefined}
             />
           )}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
             <span className="inline-flex items-center gap-1.5">
               Price change
               <HelpTip tip="client.pricing.priceChange" />

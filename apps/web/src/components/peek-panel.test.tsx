@@ -60,6 +60,29 @@ describe('PeekPanel', () => {
     expect(screen.queryByRole('link', { name: 'Next change' })).toBeNull();
   });
 
+  it('stepping to the last item moves focus from Next (now disabled) to Previous', () => {
+    const { rerender } = render(ui(nav()));
+    screen.getByRole('link', { name: 'Next change' }).focus();
+    rerender(ui(nav({ prevHref: '/c/1/changes?event=b', nextHref: null, rowId: 'c' })));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Previous change' }));
+  });
+
+  it('stepping to the first item moves focus from Previous (now disabled) to Next', () => {
+    const { rerender } = render(ui(nav()));
+    screen.getByRole('link', { name: 'Previous change' }).focus();
+    rerender(ui(nav({ prevHref: null, nextHref: '/c/1/changes?event=b', rowId: 'a' })));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Next change' }));
+  });
+
+  it('does not take focus when the user is elsewhere', () => {
+    const { rerender } = render(ui(nav()));
+    screen.getByRole('link', { name: 'Next change' }).focus();
+    const inside = screen.getByRole('link', { name: 'inside link' });
+    inside.focus();
+    rerender(ui(nav({ nextHref: null })));
+    expect(document.activeElement).toBe(inside);
+  });
+
   it('no Close without closeHref', () => {
     render(ui(nav({ closeHref: null })));
     expect(screen.queryByRole('link', { name: 'Close details' })).toBeNull();

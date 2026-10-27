@@ -46,7 +46,7 @@ export function ScanSlider({ scans, value, query }: { scans: { id: string; label
         onChange={(e) => pick(Number(e.currentTarget.value))}
         className="w-64 accent-primary"
       />
-      <output aria-live="polite" className="text-muted-foreground">{shown.label}</output>
+      <output aria-live="polite" className="text-muted-ink">{shown.label}</output>
     </div>
   );
 }

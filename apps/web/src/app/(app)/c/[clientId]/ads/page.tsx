@@ -97,7 +97,7 @@ export default async function AdsPage({ params, searchParams }: {
         <Button type="submit" variant="outline" size="sm">Apply</Button>
       </form>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
         <span className="inline-flex items-center gap-1.5">
           Active and ended
           <HelpTip tip="client.ads.status" />

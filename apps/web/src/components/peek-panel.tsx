@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 
 export interface PeekNav {
   prevHref: string | null;
@@ -18,7 +19,13 @@ const BUTTON = 'inline-flex size-8 items-center justify-center rounded-sm';
 const ACTIVE = `${BUTTON} text-muted-ink hover:bg-muted-surface hover:text-ink focus-visible:outline-2 outline-offset-2 outline-ring`;
 const DISABLED = `${BUTTON} text-muted-ink opacity-40`;
 
-function NavLink({ href, label, children }: { href: string | null; label: string; children: React.ReactNode }) {
+function NavLink({ href, label, linkRef, onFocus, children }: {
+  href: string | null;
+  label: string;
+  linkRef: React.Ref<HTMLAnchorElement>;
+  onFocus: () => void;
+  children: React.ReactNode;
+}) {
   if (!href) {
     return (
       <span role="img" aria-disabled="true" aria-label={label} className={DISABLED}>
@@ -27,7 +34,7 @@ function NavLink({ href, label, children }: { href: string | null; label: string
     );
   }
   return (
-    <Link href={href} scroll={false} aria-label={label} className={ACTIVE}>
+    <Link ref={linkRef} href={href} scroll={false} aria-label={label} className={ACTIVE} onFocus={onFocus}>
       {children}
     </Link>
   );
@@ -40,6 +47,21 @@ function NavLink({ href, label, children }: { href: string | null; label: string
  */
 export function PeekPanel({ label, nav, children }: { label: string; nav: PeekNav; children: React.ReactNode }) {
   const router = useRouter();
+  const prevRef = useRef<HTMLAnchorElement>(null);
+  const nextRef = useRef<HTMLAnchorElement>(null);
+  const closeRef = useRef<HTMLAnchorElement>(null);
+  /** The step control that last had focus: when a step turns it into the disabled span, focus moves to the other. */
+  const lastStep = useRef<'prev' | 'next' | null>(null);
+  useEffect(() => {
+    const step = lastStep.current;
+    if (!step || (step === 'next' ? nav.nextHref : nav.prevHref)) return;
+    // Only when the focused link was just removed (focus fell to <body>); never pull focus from elsewhere.
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    lastStep.current = null;
+    const target = (step === 'next' ? prevRef.current : nextRef.current) ?? closeRef.current;
+    target?.focus();
+  }, [nav.prevHref, nav.nextHref]);
   const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     // A popover inside the panel (HelpTip, portalled) handles its own Esc: skip handled events and events whose
     // target sits outside the panel's DOM (React bubbles portal events through the component tree).
@@ -56,14 +78,14 @@ export function PeekPanel({ label, nav, children }: { label: string; nav: PeekNa
     <section aria-label={label} data-slot="peek-panel" className="min-w-0 lg:border-l lg:border-line lg:pl-6" onKeyDown={onKeyDown}>
       <div className="mb-4 flex h-8 items-center gap-1 text-13 font-medium text-muted-ink">
         <span className="mr-auto">{label}</span>
-        <NavLink href={nav.prevHref} label={nav.labels.prev}>
+        <NavLink href={nav.prevHref} label={nav.labels.prev} linkRef={prevRef} onFocus={() => (lastStep.current = 'prev')}>
           <ChevronUp className="size-4" aria-hidden="true" />
         </NavLink>
-        <NavLink href={nav.nextHref} label={nav.labels.next}>
+        <NavLink href={nav.nextHref} label={nav.labels.next} linkRef={nextRef} onFocus={() => (lastStep.current = 'next')}>
           <ChevronDown className="size-4" aria-hidden="true" />
         </NavLink>
         {nav.closeHref ? (
-          <Link href={nav.closeHref} scroll={false} aria-label={nav.labels.close} className={ACTIVE}>
+          <Link ref={closeRef} href={nav.closeHref} scroll={false} aria-label={nav.labels.close} className={ACTIVE}>
             <X className="size-4" aria-hidden="true" />
           </Link>
         ) : null}

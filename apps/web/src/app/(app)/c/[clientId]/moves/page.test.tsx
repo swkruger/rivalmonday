@@ -72,6 +72,17 @@ describe('MovesPage ListDetail', () => {
     expect(d.container.querySelector('[data-slot=card]')).toBeNull();
   });
 
+  it('no moves: the empty state is not framed by the list Card (no double border)', async () => {
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', timezone: 'UTC' };
+      if (name === 'list_moves') return { items: [] };
+      throw new Error(`unexpected ${name}`);
+    });
+    const p = await go();
+    const { container } = render(p.list as React.ReactElement);
+    expect(container.querySelector('[data-slot=card]')).toBeNull();
+  });
+
   it('stale ?move= still shows the no-longer-available text', async () => {
     callTool.mockImplementation(async (_c: unknown, name: string) => {
       if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', timezone: 'UTC' };

@@ -14,9 +14,9 @@ export function ReviewItem({ review, timezone }: { review: ReviewView; timezone:
             <span className="text-muted-surface-2">{'★'.repeat(5 - review.rating)}</span>
           </span>
         )}
-        <span className="text-xs text-muted-foreground">{meta}</span>
+        <span className="text-xs text-muted-ink">{meta}</span>
       </div>
-      {review.text ? <p className="whitespace-pre-line text-sm text-ink">{review.text}</p> : <p className="text-sm text-muted-foreground">No written review.</p>}
+      {review.text ? <p className="whitespace-pre-line text-sm text-ink">{review.text}</p> : <p className="text-sm text-muted-ink">No written review.</p>}
       {review.topics.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
           {review.topics.map((t) => <li key={t.id} className="rounded-xs bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">{t.name}</li>)}

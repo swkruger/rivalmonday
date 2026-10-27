@@ -16,8 +16,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const TILE: Record<MoveRow['status'], string> = {
   active: 'bg-amber/20 text-amber-text',
   emerging: 'bg-primary/15 text-primary',
-  fading: 'bg-muted-surface-2 text-muted-foreground',
-  closed: 'bg-muted-surface-2 text-muted-foreground',
+  fading: 'bg-muted-surface-2 text-muted-ink',
+  closed: 'bg-muted-surface-2 text-muted-ink',
 };
 
 /**
@@ -65,7 +65,7 @@ export function MoveCard({ move, selected, current, href }: { move: MoveRow; sel
         <h4 className={`truncate text-ink ${selected ? 'font-semibold' : 'font-medium'}`}>
           {move.label} · {move.competitorName}
         </h4>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-ink">
           {labelFor(MOVE_STATUS, move.status).label} · {changes} over {days} days · confidence {pct}%
         </p>
       </div>

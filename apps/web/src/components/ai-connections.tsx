@@ -229,7 +229,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
         {fresh && fresh.token && <ShownOncePanel token={fresh.token} onDone={() => setDoneId(fresh.id ?? null)} />}
         {revoked.ok && <Message state={revoked} />}
         {tokens.length === 0 ? (
-          (empty ?? <p className="text-muted-foreground">No access tokens yet.</p>)
+          (empty ?? <p className="text-muted-ink">No access tokens yet.</p>)
         ) : (
           <TableFrame>
           <Table>
@@ -252,7 +252,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
                 <TableRow key={t.id} data-testid="token-row">
                   <TableCell>
                     <span className="font-medium">{t.name}</span>
-                    <span className="ml-2 font-mono text-xs text-muted-foreground">{t.prefix}…</span>
+                    <span className="ml-2 font-mono text-xs text-muted-ink">{t.prefix}…</span>
                   </TableCell>
                   <TableCell>{ACCESS_LABEL[t.scope]}</TableCell>
                   <TableCell>{formatDate(t.createdAt, { tz })}</TableCell>
@@ -316,7 +316,7 @@ export function ConnectedAppsCard({ grants, showOwner, tz, revokeAction, hidden,
         <p className="text-ink">Apps you&apos;ve connected by signing in.</p>
         {result.ok && <Message state={result} />}
         {grants.length === 0 ? (
-          (empty ?? <p className="text-muted-foreground">No connected apps yet.</p>)
+          (empty ?? <p className="text-muted-ink">No connected apps yet.</p>)
         ) : (
           <TableFrame>
           <Table>

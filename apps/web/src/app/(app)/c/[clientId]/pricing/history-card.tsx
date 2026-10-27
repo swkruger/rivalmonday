@@ -41,7 +41,7 @@ export async function PriceHistoryCard({ clientId, competitorId, serviceId, days
           formatValue={(v) => formatMoney(Math.round(v))}
         />
       ) : (
-        <p className="text-sm text-muted-foreground">This price history is no longer available.</p>
+        <p className="text-sm text-muted-ink">This price history is no longer available.</p>
       )}
     </div>
   );

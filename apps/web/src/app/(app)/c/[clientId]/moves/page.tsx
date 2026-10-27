@@ -55,13 +55,13 @@ function StatusLink({ clientId, status, current, label }: { clientId: string; st
 function MoveStatusRow({ move, timezone }: { move: MoveDetail; timezone: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-ink">
         <span>First detected {formatDate(move.firstDetectedAt, { tz: timezone })}</span>
         {move.lastEvidenceAt && <span>Latest evidence {formatDate(move.lastEvidenceAt, { tz: timezone })}</span>}
         {move.closedAt && <span>Closed {formatDate(move.closedAt, { tz: timezone })}</span>}
         <span>Confidence {Math.round(move.confidence * 100)}%</span>
       </div>
-      <p className="text-xs text-muted-foreground">Confidence grows with each extra supporting change and each extra channel.</p>
+      <p className="text-xs text-muted-ink">Confidence grows with each extra supporting change and each extra channel.</p>
     </div>
   );
 }
@@ -84,10 +84,10 @@ function EvidenceChain({ clientId, move, timezone }: { clientId: string; move: M
                 <p className="truncate text-sm font-semibold text-ink">
                   {e.typeLabel} · {e.summary}
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(e.occurredAt, { tz: timezone })}</p>
+                <p className="mt-0.5 text-xs text-muted-ink">{formatDate(e.occurredAt, { tz: timezone })}</p>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`font-semibold ${e.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{e.score}</span>
+                <span className={`font-semibold ${e.route === 'archive' ? 'text-muted-ink' : 'text-secondary'}`}>{e.score}</span>
                 <RoutePill route={e.route} score={e.score} />
               </div>
             </Link>
@@ -156,17 +156,17 @@ export default async function MovesPage({
         listLabel="Moves"
         detailTitle="Move details"
         list={
-        <Card>
-          {items.length === 0 ? (
+          items.length === 0 ? (
             <EmptyState {...(status === 'open' ? COPY.empty.noOpen : COPY.empty.noMatch)} />
           ) : (
-            <div className="flex flex-col divide-y divide-line">
-              {items.map((m) => (
-                <MoveCard key={m.id} move={m} selected={m.id === selectedId} current={m.id === moveParam} href={movesHref(clientId, { status, move: m.id })} />
-              ))}
-            </div>
-          )}
-        </Card>
+            <Card>
+              <div className="flex flex-col divide-y divide-line">
+                {items.map((m) => (
+                  <MoveCard key={m.id} move={m} selected={m.id === selectedId} current={m.id === moveParam} href={movesHref(clientId, { status, move: m.id })} />
+                ))}
+              </div>
+            </Card>
+          )
         }
         detail={
           <div>
@@ -180,7 +180,7 @@ export default async function MovesPage({
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                   {detail.facts.map((f) => (
                     <div key={f.label}>
-                      <dt className="text-xs font-medium text-muted-foreground">{f.label}</dt>
+                      <dt className="text-xs font-medium text-muted-ink">{f.label}</dt>
                       <dd>{f.value}</dd>
                     </div>
                   ))}
@@ -189,7 +189,7 @@ export default async function MovesPage({
               <EvidenceChain clientId={clientId} move={detail} timezone={profile.timezone} />
             </div>
           ) : (
-            <div className="py-10 text-center text-muted-foreground">
+            <div className="py-10 text-center text-muted-ink">
               {selectedId ? 'This move is no longer available.' : <EmptyState {...COPY.empty.noSelection} />}
             </div>
           )}

@@ -150,7 +150,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
                     </Link>
                     <span className="text-sm font-bold tabular-nums">{p.pressure.score}</span>
                   </div>
-                  {p.pressure.reasons[0] && <p className="text-xs text-muted-foreground">{p.pressure.reasons[0]}</p>}
+                  {p.pressure.reasons[0] && <p className="text-xs text-muted-ink">{p.pressure.reasons[0]}</p>}
                   <div role="img" aria-label={`Competitive pressure ${p.pressure.score} of 100, ${p.pressure.level}`} className="mt-1 h-2 rounded-full bg-muted-surface-2">
                     <div className={`h-2 rounded-full ${BAR[p.pressure.level]}`} style={{ width: `${Math.min(100, Math.max(0, p.pressure.score))}%` }} />
                   </div>

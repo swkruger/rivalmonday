@@ -1,7 +1,7 @@
 /** Decision 7: your star mix, 5★ first. `mix[0]` is 1★. */
 export function RatingMix({ mix }: { mix: number[] }) {
   const total = mix.reduce((a, b) => a + b, 0);
-  if (total === 0) return <p className="text-sm text-muted-foreground">No reviews yet.</p>;
+  if (total === 0) return <p className="text-sm text-muted-ink">No reviews yet.</p>;
   return (
     <ul className="flex flex-col gap-2">
       {[5, 4, 3, 2, 1].map((stars) => {
@@ -12,7 +12,7 @@ export function RatingMix({ mix }: { mix: number[] }) {
             <span className="h-2.5 rounded-full bg-muted-surface">
               <span data-testid="bar" className="block h-2.5 rounded-full bg-secondary" style={{ width: `${Math.round((n / total) * 100)}%` }} />
             </span>
-            <span className="text-right text-muted-foreground">{n}</span>
+            <span className="text-right text-muted-ink">{n}</span>
           </li>
         );
       })}

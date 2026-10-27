@@ -48,7 +48,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         <TipRow items={[...TIPS]} />
         <div data-testid="profile-column" className="flex max-w-[640px] flex-col gap-6">
           <ServicesAreaSummary profile={p} serviceNames={names} />
-          <p className="text-muted-foreground"><HelpText text="To change these, contact {agency}." /></p>
+          <p className="text-muted-ink"><HelpText text="To change these, contact {agency}." /></p>
         </div>
       </>
     );
@@ -78,7 +78,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             />
           </section>
         )}
-        <p className="text-muted-foreground">
+        <p className="text-muted-ink">
           Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.
         </p>
         <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details.phone, address: details.address, logoUrl: details.logoUrl, contactName: details.contactName, contactEmail: details.contactEmail }} />

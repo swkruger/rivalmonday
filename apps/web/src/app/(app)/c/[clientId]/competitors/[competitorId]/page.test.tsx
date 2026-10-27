@@ -156,9 +156,9 @@ describe('CompetitorProfilePage', () => {
     expect(screen.getByRole('link', { name: '0' }).getAttribute('href')).toBe('/c/c/moves');
   });
 
-  it('Pages comes before Collection status, and the side column is not a landmark', async () => {
+  it('Pages (an h2 like its siblings) comes before Collection status, and the side column is not a landmark', async () => {
     await renderPage();
-    const pages = screen.getByText('Pages', { selector: '[data-slot=card-title]' });
+    const pages = screen.getByRole('heading', { level: 2, name: 'Pages' });
     const status = screen.getByRole('heading', { name: 'Collection status' });
     expect(pages.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryAllByRole('complementary')).toHaveLength(0);

@@ -26,7 +26,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
       </div>
       <div className="p-4">
       {row.cells.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No prices seen on its website yet.</p>
+        <p className="text-sm text-muted-ink">No prices seen on its website yet.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-line">
           {row.cells.map((cell) => {
@@ -47,7 +47,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                   <span className="font-semibold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
                   {cell.prices.some((p) => p.promo) && <StatusChip tone="warning">Promo</StatusChip>}
                   {change && <span title="Change against 90 days ago" className={`inline-flex h-5 items-center rounded-xs px-1.5 text-xs font-semibold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
-                  <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                  <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-ink" />
                 </Link>
               </li>
             );
