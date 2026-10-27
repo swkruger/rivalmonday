@@ -87,6 +87,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_event: clientWith((w, t) => ({ eventId: idOf(w, 'event', t.tenant) })),
   // the after capture's evidence (index 1): the one the target's alert, brief item and recommendation cite
   get_evidence: clientWith((w, t) => ({ evidenceId: idOf(w, 'evidence', competitorTenant(t), 1) })),
+  get_evidence_refs: clientWith((w, t) => ({ evidenceIds: [idOf(w, 'evidence', competitorTenant(t), 1)] })),
   compare_snapshots: clientWith((w, t) => ({ changeId: idOf(w, 'detected_change', t.tenant) })),
   // the after capture (index 1) of the target's competitor; its predecessor has no blocks, so the control answers no_blocks
   compare_captures: clientWith((w, t) => ({ captureId: idOf(w, 'capture', competitorTenant(t), 1) })),

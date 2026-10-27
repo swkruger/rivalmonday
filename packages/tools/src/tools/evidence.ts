@@ -2,7 +2,7 @@ import { hasFeature, toolkit, ToolError } from '@cs/core';
 import { capture, captureBlock, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, eventScore, evidence, trackedPage, withTenant } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { alignBlocks, maskedBlockKeys } from '@cs/engine';
-import { and, asc, desc, eq, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
@@ -10,7 +10,7 @@ import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel } from '../workspace/model-text';
 import { clientEvents, eventJoin, firstVisibleEvent, workspaceClient } from '../workspace/scope';
 import { type DiffSegment, diffCells, MAX_DIFF_CELLS, wordDiff } from '../workspace/word-diff';
-import { CaptureCompareView, CompareView, EvidenceView } from './schemas';
+import { CaptureCompareView, CompareView, EvidenceRefsView, EvidenceView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -47,6 +47,32 @@ export const getEvidence = defineTool({
       servable: SERVABLE_EVIDENCE.has(row.kind),
       citedBy: cited.map((e) => ({ eventId: e.eventId, summary: forChannel(meta, e.summary, [row.competitorName]), typeLabel: changeTypeLabel(e.changeType), occurredAt: e.occurredAt.toISOString() })),
     };
+  },
+});
+
+export const getEvidenceRefs = defineTool({
+  name: 'get_evidence_refs',
+  access: 'read',
+  description: 'Display labels (competitor, channel, capture time) for evidence the viewer can open; unknown ids are left out.',
+  input: z.object({ clientId: uuid, evidenceIds: z.array(uuid).min(1).max(60) }),
+  output: EvidenceRefsView,
+  permission: 'read', // same scope as get_evidence; web-only (no channels)
+  async handler(ctx, { clientId, evidenceIds }, deps) {
+    const c = await workspaceClient(deps, ctx, clientId);
+    const ids = [...new Set(evidenceIds)];
+    const rows = await deps.service
+      .select({ id: evidence.id, source: capture.source, capturedAt: capture.capturedAt, competitorId: capture.competitorId, competitorName: competitor.name })
+      .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
+      .where(inArray(evidence.id, ids));
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const linked = new Map<string, boolean>();
+    for (const competitorId of new Set(rows.map((r) => r.competitorId))) linked.set(competitorId, await competitorLinked(deps, ctx, c.id, competitorId));
+    const items = ids.flatMap((id) => {
+      const r = byId.get(id);
+      return r && linked.get(r.competitorId) ? [{ evidenceId: r.id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString() }] : [];
+    });
+    if (items.length === 0) throw new ToolError('not_found', 'Evidence not found');
+    return { items };
   },
 });
 
@@ -145,4 +171,4 @@ export const compareCaptures = defineTool({
   },
 });
 
-export const evidenceTools = [getEvidence, compareSnapshots, compareCaptures];
+export const evidenceTools = [getEvidence, getEvidenceRefs, compareSnapshots, compareCaptures];

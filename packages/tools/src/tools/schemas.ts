@@ -280,6 +280,9 @@ export const EvidenceView = z.object({
   citedBy: z.array(z.object({ eventId: uuid, summary: z.string(), typeLabel: z.string(), occurredAt: iso })),
 });
 export type EvidenceView = z.infer<typeof EvidenceView>;
+/** Display labels for citation pills (16d). `capturedAt` is ISO. */
+export const EvidenceRefsView = z.object({ items: z.array(z.object({ evidenceId: uuid, competitorName: z.string(), channelLabel: z.string(), capturedAt: iso })) });
+export type EvidenceRef = z.infer<typeof EvidenceRefsView>['items'][number];
 
 // 5c-1 moves (Task 10): currently tracked competitors with at least one live event (decision 10).
 export const MoveRow = z.object({
