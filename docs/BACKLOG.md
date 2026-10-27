@@ -148,6 +148,15 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Unscheduled: product tour (Overview, Portfolio); agency help override editor; cross-device pinned/recent clients; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge — *phase-15 decisions*
 - [ ] Unscheduled (15b): console editor for platform guides; help-usage analytics; first-visit "new" hints — *phase-15b*
 
+## Phase 16 follow-ups (design system v1, onboarding)
+- [ ] Rest of Phase 16 (design system v1 on all other pages): `/rm-kickoff` a new sub-phase; brief, D1–D4, open OD-5 and the 9 open questions are in `git show 1c2d0f0e:docs/work/phase-16.md`; 16-onboarding done — *phase-16*
+
+**Soon**
+- [ ] `contact.updated_at` instead of bumping `created_at` for owner recency; invite target (`invited_contact_id`) can differ from the Business-details owner after an email change — *phase-16*
+- [ ] Onboarding polish: "Save and exit" saves nothing; support banner overlaps the onboarding top row; `update_client_details` geocodes before checking an existing centre; area step duplicates `lib/format/distance.ts`; find step clears a hand-picked type on re-search; "Sent again." shown when a resend was rate-limited; owner pick+confirm are two calls; Business-details save is details-then-logo (partial save on logo failure) — *phase-16*
+- [ ] Owner-pick clock: cancel + re-ask restarts the 14-day wait; after a cancel the activation-based hold may already be due — *phase-16*
+- [ ] `client-boundary` gate ignores default imports/barrels; pages import constants from `'use client'` modules (`knowledge/page.tsx` `selectClass`) — *phase-16*
+
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] Extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` (platform agency page) into it — *phase-15c3 (R11)*
 - [ ] 15c-3b: plans-tab "Agencies not on the current version" uses the shadow `card`; move `billing/plan-move-parts.tsx` to `platform/_components/`; web hard-codes `['ask','mcp']` instead of `PLAN_FEATURES` — *phase-15c3b*
@@ -228,6 +237,15 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
 - [ ] Verify 15c-2a: slack-teams settings; Team Resend (4th/24 h refused); intake Preview with link off; check-email Resend countdown; `/platform/billing` tabs; Alert review client filter; Branding buttons — *moved from STATE at jev-openrouter merge*
 - [ ] Verify 15c-1: unknown URL shows "Page not found"; radius in miles; rankings charts "You" dark blue; sign off [archive/phase-15c1-copy-signoff.md](archive/phase-15c1-copy-signoff.md); decide the `reportError` digest-skip — *moved from STATE at jev-openrouter merge*
+- [ ] Sign [archive/phase-16-onboarding-copy-signoff.md](archive/phase-16-onboarding-copy-signoff.md) (incl. "Decisions for the owner" + "Final fixes") — *phase-16*
+- [ ] At the 16-onboarding deploy add `STADIA_API_KEY` to the Vercel web env (without it, no-listing clients stall at step 3); confirm the Stadia geocode price (assumed $0.001/request, `STADIA_GEOCODE_USD`) — *phase-16*
+- [ ] Verify Phase 15b-3a verification: `pnpm --filter @cs/db topic-leftovers` (expect no output); deploy web + worker together; `/platform/topics` queue works. — *moved from STATE at phase-16 merge*
+- [ ] Verify Phase 15b verification (`kb:seed` done 2026-10-21): sign off the four `docs/archive/phase-15b2-copy-signoff-{client,agency,platform-account,terminology}.md` incl. decisions; check client vs agency guides/tips, white-label "your agency", help search/glossary, "Ask {assistant} about this page". — *moved from STATE at phase-16 merge*
+- [ ] Verify Phase 14 verification (after 0077-0079 on `cs_dev`): `pnpm --filter @cs/worker runbook:backfill --dry-run`, then for real, **before the next brief run**; then create/approve a real vertical, check tailored client runbook, "Update available". Copy: [archive/phase-14-copy-signoff.md](archive/phase-14-copy-signoff.md). — *moved from STATE at phase-16 merge*
+- [ ] Verify Phase 15a verification (no migrations): context switcher, agency/client menus and badges, client view (Ask Friday first), old bookmarks redirect, white-label sign-in branding, phone drawer, copy sign-off. — *moved from STATE at phase-16 merge*
+- [ ] Verify phase-11-fixes re-test: pilot-link refusal on `/platform/billing`; duplicate-listing cards on `/agency/clients/new` and `/start`; copy in [archive/phase-11-fixes-copy-signoff.md](archive/phase-11-fixes-copy-signoff.md). — *moved from STATE at phase-16 merge*
+- [ ] Verify Phase 11 verification: 11a lookup -> suggestions -> search (<= $3) -> starting point in 48 h; 11b Postmark Cc, invite -> accept -> first brief, Stripe test billing; 11c real Turnstile, dental preview, `/start` branding. Clean up CS Dev Verification Agency/Client first. Copy: [archive/phase-11-copy-signoff.md](archive/phase-11-copy-signoff.md). — *moved from STATE at phase-16 merge*
+- [ ] Verify Phase 10 verification: `.env` `TURNSTILE_*`, `SUPPORT_REPLY_TO`, `POSTMARK_BROADCAST_STREAM`; incognito sign-up -> wizard; pilot invite; second open-trial client refused until Checkout. — *moved from STATE at phase-16 merge*
 - [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
 - [ ] Sign off copy marked in the 7b1/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, feedback links) — *phase-7-planning*
@@ -249,6 +267,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] No-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider a "Link Google listing" prompt — *phase-16*
 - [ ] Drop `playbook_override` (table, tools, tests) after the runbook backfill is verified in prod; new migration — *phase-14b*
 - [ ] "Sync platform runbook" step: the platform runbook is seeded once from `generic.yaml`; later generic/pack additions don't reach existing runbooks — *phase-14b*
 - [ ] **UI/UX review against Mobbin** (Mobbin MCP): optional cross-check of 15b/15c against real-world app patterns (the Phase 15 designer audit replaced the main review) — *owner, 2026-10-17*
