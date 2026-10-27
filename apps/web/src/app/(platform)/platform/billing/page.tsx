@@ -6,7 +6,7 @@ import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
-import { StatCard } from '@/components/stat-card';
+import { StatStrip } from '@/components/stat-strip';
 import { PAGE_COPY } from '@/help/copy';
 import { formatMoney } from '@/lib/format';
 import { BILLING_STATE, labelFor } from '@/lib/labels';
@@ -71,8 +71,14 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
           ]}
         />
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-          <StatCard title="MRR" value={formatMoney(overview.mrrCents, { unit: 'cents' })} hint="From the latest daily stats" />
-          <StatCard title="Paid seats" value={String(overview.paidSeats)} hint="From the latest daily stats" />
+          <div className="col-span-2">
+            <StatStrip
+              items={[
+                { title: 'MRR', value: formatMoney(overview.mrrCents, { unit: 'cents' }), hint: 'From the latest daily stats' },
+                { title: 'Paid seats', value: String(overview.paidSeats), hint: 'From the latest daily stats' },
+              ]}
+            />
+          </div>
           <div className="col-span-2 rounded-md border border-line bg-surface p-6">
             <h3 className="text-sm font-semibold text-muted-foreground">Agencies by state</h3>
             <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-3 text-sm">

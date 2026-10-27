@@ -8,12 +8,12 @@ type Signals = SuggestionView['signals'];
 /** active: checked, something there; hot: worth attention; none: checked, nothing; unchecked: null, never read as 0. */
 export type PillState = 'active' | 'hot' | 'none' | 'unchecked';
 
-/** The overview StatCard palette: info = soft primary, hot = soft amber; "none" is plain text, "not checked" a dashed outline. */
+/** Rect badges (design system v1 status grammar): active = soft primary, hot = soft warning (not orange); "none" is plain text, "not checked" a dashed outline. */
 const STATE_CLASS: Record<PillState, string> = {
-  active: 'rounded-full bg-primary-soft px-2 font-semibold text-primary-soft-text',
-  hot: 'rounded-full bg-chip-warning-bg px-2 font-semibold text-accent-text',
+  active: 'h-5 rounded-xs bg-primary-soft px-1.5 font-medium text-primary-soft-text',
+  hot: 'h-5 rounded-xs bg-chip-warning-bg px-1.5 font-medium text-chip-warning-text',
   none: 'px-1 font-medium text-muted-ink',
-  unchecked: 'rounded-full border border-dashed border-line-control px-2 font-medium text-muted-ink',
+  unchecked: 'h-5 rounded-xs border border-dashed border-line-control px-1.5 text-muted-ink',
 };
 const NOT_CHECKED = 'Not checked';
 
@@ -86,7 +86,7 @@ export function SignalPills({ signals, mode }: { signals: Signals; mode: 'sugges
               role="img"
               aria-label={`${p.text}. ${p.tip}`}
               data-state={p.state}
-              className={`inline-flex items-center gap-1 py-0.5 text-xs whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary ${STATE_CLASS[p.state]}`}
+              className={`inline-flex items-center gap-1 text-xs whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${STATE_CLASS[p.state]}`}
             >
               {p.state === 'hot' && <span aria-hidden="true">↑</span>}
               {p.icon}

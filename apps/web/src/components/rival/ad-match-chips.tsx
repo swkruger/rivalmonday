@@ -9,7 +9,8 @@ import { ErrorNote } from '@/components/form-error';
 type Matched = { platform: 'google' | 'meta'; accountId: string; name: string | null };
 const PLATFORM = { google: 'Google', meta: 'Meta' } as const;
 
-const chip = 'inline-flex items-center gap-2 rounded-full border border-line bg-muted-surface px-3 py-1 text-xs text-ink';
+/** Tag shape (design system v1): rect, muted surface, no border. */
+const chip = 'inline-flex items-center gap-2 rounded-xs bg-muted-surface px-1.5 py-0.5 text-xs text-ink';
 const link = 'font-semibold text-primary-soft-text underline-offset-2 hover:underline disabled:opacity-50';
 
 /**

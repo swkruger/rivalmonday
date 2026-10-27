@@ -10,7 +10,7 @@ import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
 import { TopicHeatmap } from '@/components/charts/topic-heatmap';
-import { StatCard } from '@/components/stat-card';
+import { StatStrip } from '@/components/stat-strip';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
@@ -78,12 +78,14 @@ export default async function ReviewsPage({ params, searchParams }: {
       />
 
       {self ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Your rating" value={self.gbpRating === null ? '—' : `${self.gbpRating.toFixed(1)} ★`} hint="Google rating" />
-          <StatCard title="New reviews (90 days)" value={String(self.reviews90d)} hint="Reviews posted in the last 90 days" help={<HelpTip tip="client.reviews.newReviews" />} />
-          <StatCard title="Reviews per month" value={self.perMonth.toFixed(1)} hint="Average over the last 6 months" help={<HelpTip term="review-velocity" />} />
-          <StatCard title="Replies to reviews" value={self.replyRate === null ? '—' : `${Math.round(self.replyRate * 100)}%`} hint="Share of the last 90 days’ reviews you answered" help={<HelpTip term="reply-rate" />} />
-        </div>
+        <StatStrip
+          items={[
+            { title: 'Your rating', value: self.gbpRating === null ? '—' : `${self.gbpRating.toFixed(1)} ★`, hint: 'Google rating' },
+            { title: 'New reviews (90 days)', value: String(self.reviews90d), hint: 'Reviews posted in the last 90 days', help: <HelpTip tip="client.reviews.newReviews" /> },
+            { title: 'Reviews per month', value: self.perMonth.toFixed(1), hint: 'Average over the last 6 months', help: <HelpTip term="review-velocity" /> },
+            { title: 'Replies to reviews', value: self.replyRate === null ? '—' : `${Math.round(self.replyRate * 100)}%`, hint: 'Share of the last 90 days’ reviews you answered', help: <HelpTip term="reply-rate" /> },
+          ]}
+        />
       ) : (
         <SelfNotice clientId={clientId} selfPending={trend.selfPending} isAgency={isAgencyRole(ctx.role)} />
       )}

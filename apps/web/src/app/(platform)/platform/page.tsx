@@ -1,7 +1,7 @@
 import { formatMoney } from '@/lib/format';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
-import { StatCard } from '@/components/stat-card';
+import { StatStrip } from '@/components/stat-strip';
 import { PageHeader } from '@/components/page-header';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
@@ -52,13 +52,15 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
           { label: 'About the activity', tip: 'platform.overview.activity' },
         ]}
       />
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-5">
-        <StatCard title="Agencies" value={String(tiles.agencies.value)} pill={deltaPill(tiles.agencies)} hint="Last 28 days" />
-        <StatCard title="Active clients" value={String(tiles.clientsActive.value)} pill={deltaPill(tiles.clientsActive)} hint="Last 28 days" />
-        <StatCard title="Seats" value={String(tiles.seats.value)} pill={deltaPill(tiles.seats)} hint="Last 28 days" />
-        <StatCard title="Weekly active users" value={String(tiles.wau.value)} pill={deltaPill(tiles.wau)} hint="Last 28 days" />
-        <StatCard title="Spend this month" value={formatMoney(tiles.spendMonthUsd.value, { cents: true })} pill={deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
-      </div>
+      <StatStrip
+        items={[
+          { title: 'Agencies', value: String(tiles.agencies.value), pill: deltaPill(tiles.agencies), hint: 'Last 28 days' },
+          { title: 'Active clients', value: String(tiles.clientsActive.value), pill: deltaPill(tiles.clientsActive), hint: 'Last 28 days' },
+          { title: 'Seats', value: String(tiles.seats.value), pill: deltaPill(tiles.seats), hint: 'Last 28 days' },
+          { title: 'Weekly active users', value: String(tiles.wau.value), pill: deltaPill(tiles.wau), hint: 'Last 28 days' },
+          { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
+        ]}
+      />
       <div className="grid gap-5 lg:grid-cols-2">
         <PlatformCharts series={series} range={range} includeAgencies rangeToggle={<RangeToggle current={range} basePath="/platform" />} />
         <section className={cardCls}>

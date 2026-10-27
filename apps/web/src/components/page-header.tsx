@@ -27,7 +27,9 @@ export interface PageHeaderProps {
   meta?: React.ReactNode;
   /** Underline tabs: under the title row (standard) or inline right of the title (compact). */
   tabs?: React.ReactNode;
-  variant?: 'standard' | 'compact';
+  variant?: 'standard' | 'compact' | 'detail';
+  /** `detail` only: rendered left of the title block (40px business avatar). Ignored otherwise. */
+  avatar?: React.ReactNode;
 }
 
 /**
@@ -35,9 +37,10 @@ export interface PageHeaderProps {
  * an optional breadcrumb (`›` separators, last crumb `aria-current="page"`), description, and actions right-aligned
  * from `sm` up (stacked below it).
  */
-export function PageHeader({ title, description, breadcrumb, actions, step, helpKey, guide, meta, tabs, variant = 'standard' }: PageHeaderProps) {
+export function PageHeader({ title, description, breadcrumb, actions, step, helpKey, guide, meta, tabs, avatar, variant = 'standard' }: PageHeaderProps) {
   const showGuide = Boolean(helpKey && guide);
   const compact = variant === 'compact';
+  const withAvatar = variant === 'detail' && Boolean(avatar);
   return (
     <header data-slot="page-header" data-variant={variant} className="flex flex-col gap-2">
       {breadcrumb && breadcrumb.length > 0 && (
@@ -71,16 +74,19 @@ export function PageHeader({ title, description, breadcrumb, actions, step, help
         className={cn('flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-4', compact ? 'sm:items-center' : 'sm:items-start')}
       >
         <div className={cn('min-w-0', compact && tabs && 'sm:flex sm:items-center sm:gap-6')}>
-          <div className="min-w-0">
-            {step && <p className="text-xs font-medium text-muted-ink">Step {step.n} of {step.of}</p>}
-            <h1
-              data-slot="page-title"
-              className={cn('break-words font-semibold tracking-[-0.01em]', compact ? 'text-lg leading-7' : 'text-2xl leading-8')}
-            >
-              {title}
-            </h1>
-            {description && <p className="mt-1 max-w-[70ch] text-sm text-muted-ink">{description}</p>}
-            {meta && <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-ink">{meta}</div>}
+          <div className={cn('min-w-0', withAvatar && 'flex items-center gap-3')}>
+            {withAvatar && avatar}
+            <div className="min-w-0">
+              {step && <p className="text-xs font-medium text-muted-ink">Step {step.n} of {step.of}</p>}
+              <h1
+                data-slot="page-title"
+                className={cn('break-words font-semibold tracking-[-0.01em]', compact ? 'text-lg leading-7' : 'text-2xl leading-8')}
+              >
+                {title}
+              </h1>
+              {description && <p className="mt-1 max-w-[70ch] text-sm text-muted-ink">{description}</p>}
+              {meta && <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-ink">{meta}</div>}
+            </div>
           </div>
           {compact && tabs}
         </div>

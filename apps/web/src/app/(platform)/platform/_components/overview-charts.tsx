@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { formatMoney } from '@/lib/format';
 import { LineChart } from '@/components/charts/line-chart';
-import type { StatPill } from '@/components/stat-card';
+import type { StatPill } from '@/components/stat-strip';
 
 export interface Tile { value: number; delta28d: number | null }
 export interface Point { start: string; agencies: number | null; clientsActive: number | null; seats: number | null; wau: number | null; spendUsd: number | null }

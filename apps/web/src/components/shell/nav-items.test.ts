@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeHref, currentSettingsHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsAreaOf, settingsNavFor, showsClientBilling } from './nav-items';
+import { activeHref, canSeeClientSettings, clientSettingsNavFor, currentSettingsHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsAreaOf, settingsNavFor, showsClientBilling } from './nav-items';
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const B = `/c/${C}`;
@@ -303,5 +303,18 @@ describe('currentSettingsHref', () => {
     expect(currentSettingsHref(s, '/agency/settings/billing/client-billing')).toBe('/agency/settings/billing');
     expect(currentSettingsHref(s, '/agency/settings')).toBe('/agency/settings/branding');
     expect(currentSettingsHref([], '/agency/settings')).toBeNull();
+  });
+});
+
+describe('canSeeClientSettings / clientSettingsNavFor (16c: one rule)', () => {
+  it('guests never see client settings', () => {
+    expect(canSeeClientSettings(guest)).toBe(false);
+    expect(clientSettingsNavFor(guest, C)).toEqual([]);
+  });
+  it('staff (incl. support) and signed-in client roles get settingsNavFor(client)', () => {
+    for (const f of [agencyAdmin, accountManager, support, clientOwner, { ...clientOwner, clientBilling: true }, clientViewer]) {
+      expect(canSeeClientSettings(f)).toBe(true);
+      expect(clientSettingsNavFor(f, C)).toEqual(settingsNavFor('client', f, C));
+    }
   });
 });

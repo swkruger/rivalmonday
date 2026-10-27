@@ -155,7 +155,7 @@ function agencyNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
 function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
   const name = flags.assistantName?.trim() || 'Friday';
   // Client settings: agency roles; client roles when any tab is visible to them; never guests (§2.3).
-  const settings = flags.isUser || flags.isAgency ? firstHref([clientSettings(flags, base)]) : null;
+  const settings = canSeeClientSettings(flags) ? firstHref([clientSettings(flags, base)]) : null;
   return compact([
     section('top', null, (add) => {
       if (flags.ask) add(`${base}/ask`, `Ask ${name}`, 'ask', { pill: name });
@@ -187,6 +187,16 @@ export function settingsNavFor(area: 'agency' | 'client', flags: NavRoleFlags, c
   const base = clientBase(flags, clientId);
   const main = base ? clientSettings(flags, base) : null;
   return main ? [main] : [];
+}
+
+/** 16c: the one Client settings rule (sidebar entry, settings drill-in, settings layouts): signed-in users and agency roles, never guests (§2.3). */
+export function canSeeClientSettings(flags: NavRoleFlags): boolean {
+  return flags.isUser || flags.isAgency;
+}
+
+/** 16c: the viewer's Client settings tabs — `settingsNavFor('client', …)` behind `canSeeClientSettings`. */
+export function clientSettingsNavFor(flags: NavRoleFlags, clientId: string): NavSection[] {
+  return canSeeClientSettings(flags) ? settingsNavFor('client', flags, clientId) : [];
 }
 
 function agencySettings(flags: NavRoleFlags): NavSection[] {

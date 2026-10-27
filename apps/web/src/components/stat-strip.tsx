@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { Kpi, KpiStrip } from '@cs/ui';
-import type { StatPill } from '@/components/stat-card';
+
+export interface StatPill {
+  text: string;
+  tone: 'up' | 'down' | 'warn' | 'info';
+  /** Decorative arrow (hidden from assistive tech); `srLabel` is its spoken equivalent. */
+  glyph?: string;
+  srLabel?: string;
+}
 
 export interface StatItem { title: string; value: string; pill?: StatPill | null; hint?: string; help?: React.ReactNode; href?: string }
 
@@ -11,7 +18,7 @@ const TONE: Record<StatPill['tone'], string> = {
   info: 'bg-chip-neutral-bg text-chip-neutral-text',
 };
 
-/** Text pill for a KPI (design system v1 badge); same spoken text as `StatCard`'s pill. */
+/** Text pill for a KPI (design system v1 badge); the glyph is decorative, `srLabel` its spoken equivalent. */
 export function StatBadge({ pill }: { pill: StatPill }) {
   return (
     <span data-tone={pill.tone} className={`inline-flex h-5 items-center gap-0.5 rounded-xs px-1.5 text-xs font-semibold tabular-nums ${TONE[pill.tone]}`}>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { activeHref, currentSettingsHref, NAV_CTX_COOKIE, type NavCounts, type NavRoleFlags, type NavSection, navFor, type SettingsArea, settingsAreaOf, settingsNavFor } from './nav-items';
+import { activeHref, clientSettingsNavFor, currentSettingsHref, NAV_CTX_COOKIE, type NavCounts, type NavRoleFlags, type NavSection, navFor, type SettingsArea, settingsAreaOf, settingsNavFor } from './nav-items';
 import { NavLink, SectionLabel } from './nav-link';
 import { SettingsDrillIn } from './settings-drill-in';
 import { type NavClient, type NavFallback, useNavContext } from './use-nav-context';
@@ -59,7 +59,7 @@ export function SidebarNav({ flags, counts, zone, fallback, clients, backNames }
 /** Mirrors the settings layouts: agency tabs for agency roles; client tabs for signed-in users and agency roles (never guests). */
 function settingsSectionsFor(area: SettingsArea, flags: NavRoleFlags): NavSection[] {
   if (area.area === 'agency') return settingsNavFor('agency', flags);
-  return flags.isUser || flags.isAgency ? settingsNavFor('client', flags, area.clientId) : [];
+  return clientSettingsNavFor(flags, area.clientId);
 }
 
 /** P4 (decided copy): "Back to {client name}" → `/c/<id>`, "Back to {agency name}" → `/agency`; the menus' root labels when the name is unknown. */

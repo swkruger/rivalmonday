@@ -7,7 +7,7 @@ import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
-import { StatCard } from '@/components/stat-card';
+import { StatStrip } from '@/components/stat-strip';
 import { type SupportSessionRow, SupportSessionsTable } from '@/components/support-sessions-table';
 import { formatDate, formatMoney } from '@/lib/format';
 import { AGENCY_HEALTH, AGENCY_LIFECYCLE, labelFor } from '@/lib/labels';
@@ -195,12 +195,14 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
           { label: 'About the billing panel', tip: 'platform.agencies.detail.billingPanel' },
         ]}
       />
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        <StatCard title="Active clients" value={String(t.clientsActive.value)} pill={deltaPill(t.clientsActive)} hint="Last 28 days" />
-        <StatCard title="Seats" value={String(t.seats.value)} pill={deltaPill(t.seats)} hint="Last 28 days" />
-        <StatCard title="Weekly active users" value={String(t.wau.value)} pill={deltaPill(t.wau)} hint="Last 28 days" />
-        <StatCard title="Spend this month" value={formatMoney(t.spendMonthUsd.value, { cents: true })} pill={deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true }))} hint="Last 28 days" />
-      </div>
+      <StatStrip
+        items={[
+          { title: 'Active clients', value: String(t.clientsActive.value), pill: deltaPill(t.clientsActive), hint: 'Last 28 days' },
+          { title: 'Seats', value: String(t.seats.value), pill: deltaPill(t.seats), hint: 'Last 28 days' },
+          { title: 'Weekly active users', value: String(t.wau.value), pill: deltaPill(t.wau), hint: 'Last 28 days' },
+          { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
+        ]}
+      />
       <div className="grid gap-5 lg:grid-cols-2">
         <PlatformCharts series={series ?? []} range={range} includeAgencies={false} rangeToggle={<RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />} />
       </div>

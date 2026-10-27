@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { StatBadge, StatStrip } from './stat-strip';
+import { StatBadge, type StatPill, StatStrip } from './stat-strip';
 
 afterEach(cleanup);
 
@@ -42,5 +42,14 @@ describe('StatBadge', () => {
     expect(container.querySelector('[aria-hidden=true]')?.textContent).toContain('▲');
     expect(container.querySelector('.sr-only')?.textContent).toContain('Up');
     expect(container.textContent).toContain('4 since your starting point');
+  });
+});
+
+describe('StatPill (16c: lives in stat-strip)', () => {
+  it('is exported from stat-strip and renders through StatStrip', () => {
+    const pill: StatPill = { text: '+2', tone: 'up', glyph: '▲', srLabel: 'Up' };
+    const { container } = render(<StatStrip items={[{ title: 'Seats', value: '5', pill, hint: 'Last 28 days' }]} />);
+    expect(container.querySelector('[data-tone]')?.getAttribute('data-tone')).toBe('up');
+    expect(container.textContent).toContain('+2');
   });
 });

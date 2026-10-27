@@ -45,6 +45,12 @@ describe('AdMatchChips', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/Contact support/);
   });
 
+  it('guard: chips are rect Tags, never pills (status grammar)', () => {
+    const { container } = render(<AdMatchChips {...props} />);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(container.innerHTML).not.toContain('rounded-full');
+  });
+
   it('renders nothing when there are no matches', () => {
     const { container } = render(<AdMatchChips {...props} matched={[]} pending={[]} />);
     expect(container.textContent).toBe('');

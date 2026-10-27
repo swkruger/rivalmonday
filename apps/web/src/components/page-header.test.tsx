@@ -152,3 +152,18 @@ describe('PageHeader Guide button (15b-1)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 });
+
+describe('PageHeader detail (16c P7)', () => {
+  it('detail: renders the avatar before the h1 and data-variant="detail"', () => {
+    const { container } = render(<PageHeader title="Smith HVAC" variant="detail" avatar={<span data-testid="av">SH</span>} />);
+    expect(container.querySelector('[data-slot="page-header"]')!.getAttribute('data-variant')).toBe('detail');
+    const av = screen.getByTestId('av');
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Smith HVAC' });
+    expect(av.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('ignores avatar for standard', () => {
+    render(<PageHeader title="Smith HVAC" avatar={<span data-testid="av">SH</span>} />);
+    expect(screen.queryByTestId('av')).toBeNull();
+  });
+});

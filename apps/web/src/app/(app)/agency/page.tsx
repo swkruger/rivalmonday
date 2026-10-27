@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
-import { StatCard } from '@/components/stat-card';
+import { StatStrip } from '@/components/stat-strip';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
@@ -90,12 +90,14 @@ export default async function AgencyPortfolioPage() {
 
       {showChecklist && <OnboardingChecklist status={onboarding} trialing={trialing} dismissAction={dismissChecklistAction} />}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
-        <StatCard title="Clients" value={String(items.length)} />
-        <StatCard title="Alerts waiting" value={String(alertsWaiting)} href="/agency/alerts" />
-        <StatCard title="Briefs to approve" value={String(briefsToApprove)} href="/agency/approvals" />
-        <StatCard title="High pressure" value={String(highPressure)} />
-      </div>
+      <StatStrip
+        items={[
+          { title: 'Clients', value: String(items.length) },
+          { title: 'Alerts waiting', value: String(alertsWaiting), href: '/agency/alerts' },
+          { title: 'Briefs to approve', value: String(briefsToApprove), href: '/agency/approvals' },
+          { title: 'High pressure', value: String(highPressure) },
+        ]}
+      />
 
       {items.length === 0 ? (
         <>
