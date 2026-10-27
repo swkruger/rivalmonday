@@ -17,7 +17,12 @@ const ToastContext = React.createContext<{ show(opts: ToastOptions): void } | nu
 const DURATION_MS = 4000;
 const DURATION_WITH_ACTION_MS = 6000;
 
-/** Bottom-right toasts on radix Toast (09 § 4.6): ink pill, `role="status"`, 4 s (6 s with an action such as Undo). */
+/**
+ * Bottom-right toasts on radix Toast (09 § 4.6): ink pill, 4 s (6 s with an action such as Undo). Radix announces
+ * each toast through its own visually hidden live region; `type="background"` makes that `role="status"` +
+ * `aria-live="polite"` (09's `role=status`), so the root carries no role. The viewport keeps radix's default
+ * accessible name "Notifications (F8)" (owner sign-off list).
+ */
 function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<ToastItem[]>([]);
   const nextId = React.useRef(0);
@@ -40,7 +45,7 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
           <ToastPrimitive.Root
             key={t.id}
             data-slot="toast"
-            role="status"
+            type="background"
             duration={t.action ? DURATION_WITH_ACTION_MS : DURATION_MS}
             onOpenChange={(open) => {
               if (!open) remove(t.id);

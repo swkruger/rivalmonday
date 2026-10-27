@@ -14,11 +14,12 @@ function Trigger({ action }: { action?: { label: string; onClick: () => void } }
 }
 
 describe('Toast', () => {
-  it('shows a status message', async () => {
+  it('shows the message in a toast (radix announces it; the root has no role of its own)', async () => {
     render(<ToastProvider><Trigger /></ToastProvider>);
     fireEvent.click(screen.getByText('go'));
-    const toast = await screen.findByText('Saved');
-    expect(toast.closest('[role="status"]')).not.toBeNull();
+    const toast = (await screen.findAllByText('Saved')).map((el) => el.closest('[data-slot="toast"]')).find(Boolean);
+    expect(toast).toBeTruthy();
+    expect(toast!.getAttribute('role')).toBeNull();
   });
 
   it('renders an action button that calls onClick', async () => {
@@ -33,8 +34,18 @@ describe('Toast', () => {
     vi.useFakeTimers();
     render(<ToastProvider><Trigger /></ToastProvider>);
     fireEvent.click(screen.getByText('go'));
-    expect(screen.getByText('Saved').closest('[role="status"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="toast"]')).not.toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(4100); });
-    expect(screen.queryByText('Saved')).toBeNull();
+    expect(document.querySelector('[data-slot="toast"]')).toBeNull();
+  });
+
+  it('stays for 6000 ms when it has an action', async () => {
+    vi.useFakeTimers();
+    render(<ToastProvider><Trigger action={{ label: 'Undo', onClick: () => {} }} /></ToastProvider>);
+    fireEvent.click(screen.getByText('go'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5999); });
+    expect(document.querySelector('[data-slot="toast"]')).not.toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    expect(document.querySelector('[data-slot="toast"]')).toBeNull();
   });
 });
