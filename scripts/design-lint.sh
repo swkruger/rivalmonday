@@ -26,7 +26,7 @@ count off-scale-text-25-39 'text-\[(2[5-9]|3\d)px\]' $WEB
 count font-extrabold 'font-extrabold' $WEB $UI ':(exclude,glob)**/wordmark.tsx'
 count uppercase-tracking 'uppercase tracking' $WEB
 count focus-ring-legacy 'ring-ring/50|ring-\[3px\]' $WEB $UI
-count hex-literals-tsx '#[0-9A-Fa-f]{6}\b' ":(glob)$WEB/**/*.tsx" ':(exclude,glob)**/charts/change-grid.tsx' ':(exclude,glob)**/charts/geo-grid.tsx' ':(exclude,glob)**/charts/theme-heatmap.tsx'
+count hex-literals-tsx '#[0-9A-Fa-f]{6}\b' ":(glob)$WEB/**/*.tsx" ':(exclude,glob)**/charts/change-grid.tsx' ':(exclude,glob)**/charts/geo-grid.tsx' ':(exclude,glob)**/charts/topic-heatmap.tsx'
 count bg-amber 'bg-amber' $WEB
 count shadow-sm-md-lg-xl 'shadow-(sm|md|lg|xl)\b' $WEB $UI
 count badge-usage '<Badge\b' $WEB ':(exclude)apps/web/src/lib/page-gates.ts'

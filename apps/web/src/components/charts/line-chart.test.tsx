@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { type ChartSeries, foldSeries, LineChart, OTHER_COLOR, SERIES_COLORS, seriesColor } from './line-chart';
+import { type ChartSeries, CONTEXT_COLOR, foldSeries, LineChart, RIVAL_COLORS, seriesColor, YOU_COLOR } from './line-chart';
 
 const labels = ['2026-09-17', '2026-09-24', '2026-10-01', '2026-10-08'];
 
@@ -47,9 +47,9 @@ describe('LineChart', () => {
     const svg = screen.getByRole('img', { name: /Active competitor ads/ });
     expect(svg.querySelectorAll('polyline[data-series="a"]')).toHaveLength(1);
     const marker = svg.querySelector('circle[data-marker="a"]');
-    expect(marker?.getAttribute('fill')).toBe(SERIES_COLORS[0]);
+    expect(marker?.getAttribute('fill')).toBe(RIVAL_COLORS[0]);
     expect(marker?.getAttribute('r')).toBe('3');
-    expect(svg.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
+    expect(svg.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
     expect(screen.getByText('Smith HVAC', { selector: 'li *' })).toBeTruthy();
     expect(screen.getAllByRole('row')).toHaveLength(5); // header + 4 weeks
     expect(svg.querySelector('title')?.textContent).toMatch(/Smith HVAC: 7 active ads/);
@@ -70,8 +70,8 @@ describe('LineChart', () => {
 
   it('paints Other grey', () => {
     render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'other', name: 'Other', points: [1, 1, 1, 1] }, { key: 'a', name: 'A', points: [1, 1, 1, 1] }]} />);
-    expect(document.querySelector('polyline[data-series="other"]')?.getAttribute('stroke')).toBe(OTHER_COLOR);
-    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[0]);
+    expect(document.querySelector('polyline[data-series="other"]')?.getAttribute('stroke')).toBe(CONTEXT_COLOR);
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
   });
 
   it('labels the y axis with exact integers for small maxima', () => {
@@ -161,25 +161,48 @@ describe('LineChart robustness', () => {
   });
 });
 
-describe('You colour (P4)', () => {
-  it('draws the you series in var(--you) and starts competitors at slot 1 (slot 0 is too close to You)', () => {
+describe('You + <= 2 highlighted rivals (P8)', () => {
+  const rival = (key: string, name: string, v: number): ChartSeries => ({ key, name, points: [v] });
+  const you: ChartSeries = { key: 'me', name: 'You', you: true, points: [4, 5] };
+
+  it('draws the you series in var(--you) and two rivals in given order', () => {
     render(<LineChart title="Stars" valueLabel="stars" labels={['2026-09-01', '2026-09-08']} series={[
-      { key: 'me', name: 'You', you: true, points: [4, 5] },
+      you,
       { key: 'a', name: 'Acme', points: [3, 4] },
       { key: 'b', name: 'Bolt', points: [2, 3] },
     ]} />);
-    expect(document.querySelector('polyline[data-series="me"]')?.getAttribute('stroke')).toBe('var(--you)');
-    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[1]);
-    expect(document.querySelector('polyline[data-series="b"]')?.getAttribute('stroke')).toBe(SERIES_COLORS[2]);
-    const strokes = [...document.querySelectorAll('polyline')].map((p) => p.getAttribute('stroke'));
-    expect(strokes).not.toContain(SERIES_COLORS[0]);
+    expect(document.querySelector('polyline[data-series="me"]')?.getAttribute('stroke')).toBe(YOU_COLOR);
+    expect(YOU_COLOR).toBe('var(--you)');
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
+    expect(document.querySelector('polyline[data-series="b"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[1]);
   });
 
-  it('seriesColor wraps over slots 1-4 when You is present', () => {
-    const you: ChartSeries = { key: 'me', name: 'You', you: true, points: [] };
-    const comps: ChartSeries[] = Array.from({ length: 5 }, (_, i) => ({ key: `c${i}`, name: `C${i}`, points: [] }));
-    const all = [you, ...comps];
-    expect(comps.map((c) => seriesColor(c, all))).toEqual([...SERIES_COLORS.slice(1), SERIES_COLORS[1]]);
+  it('one rival takes the first rival token', () => {
+    const r = rival('a', 'A', 1);
+    expect(seriesColor(r, [r])).toBe(RIVAL_COLORS[0]);
+  });
+
+  it('with more than two rivals the two highest latest values are highlighted, the rest are context, ties by name', () => {
+    const rs = [rival('a', 'Alpha', 5), rival('b', 'Bravo', 9), rival('c', 'Charlie', 5), rival('d', 'Delta', 1)];
+    const all = [you, ...rs];
+    expect(seriesColor(rs[1]!, all)).toBe(RIVAL_COLORS[0]);
+    expect(seriesColor(rs[0]!, all)).toBe(RIVAL_COLORS[1]); // tie 5/5 -> Alpha before Charlie
+    expect(seriesColor(rs[2]!, all)).toBe(CONTEXT_COLOR);
+    expect(seriesColor(rs[3]!, all)).toBe(CONTEXT_COLOR);
+    expect(seriesColor(you, all)).toBe(YOU_COLOR);
+  });
+
+  it('draws context series beneath highlighted ones at 1.5, highlighted at 2, and the legend + table keep every series', () => {
+    const rs = [rival('a', 'Alpha', 9), rival('b', 'Bravo', 8), rival('c', 'Charlie', 1), { ...rival('other', 'Other', 1) }];
+    render(<LineChart title="T" valueLabel="v" labels={['2026-09-01', '2026-09-08']} series={[you, ...rs.map((r) => ({ ...r, points: [r.points[0]!, r.points[0]!] }))]} />);
+    const lines = [...document.querySelectorAll('polyline')];
+    const order = lines.map((l) => l.getAttribute('data-series'));
+    expect(order.indexOf('c')).toBeLessThan(order.indexOf('a'));
+    expect(order.indexOf('other')).toBeLessThan(order.indexOf('me'));
+    expect(document.querySelector('polyline[data-series="c"]')?.getAttribute('stroke-width')).toBe('1.5');
+    expect(document.querySelector('polyline[data-series="a"]')?.getAttribute('stroke-width')).toBe('2');
+    expect(screen.getAllByRole('listitem')).toHaveLength(5);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
   });
 
   it('no component uses a hex for the You marker', () => {

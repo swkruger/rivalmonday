@@ -83,7 +83,7 @@ describe('GeoGrid fixes and map (Task 12)', () => {
     expect(rects[0]!.getAttribute('fill')).toBe('#0d366b');
     expect(rects[0]!.getAttribute('fill-opacity')).toBe('0.8');
     expect(rects[1]!.getAttribute('fill-opacity')).toBe('0.8');
-    expect(rects[2]!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(rects[2]!.getAttribute('fill')).toBe('var(--surface)');
     expect(rects[2]!.getAttribute('fill-opacity')).toBe('0.35');
     expect(rects[2]!.getAttribute('stroke')).toBe('rgba(11,37,64,0.25)');
     expect(rects[3]!.getAttribute('fill')).toMatch(/^url\(#/);
@@ -97,7 +97,7 @@ describe('GeoGrid fixes and map (Task 12)', () => {
     const { container } = render(<GeoGrid title="T" summary="S" cells={cells} businessName="You" keyword="k" map={map} lats={lats} lngs={lngs} />);
     expect(screen.getByRole('button', { name: 'Zoom in' })).toBeTruthy();
     const swatch = screen.getByText('Not in top 20').closest('li')!.querySelector('rect')!;
-    expect(swatch!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(swatch!.getAttribute('fill')).toBe('var(--surface)');
     expect(container.querySelector('[data-map-zoom] svg[role="img"]')).toBeTruthy();
   });
 
@@ -117,12 +117,12 @@ describe('GeoGrid fixes and map (Task 12)', () => {
 
 describe('rankFill (decision 12)', () => {
   it('uses the validated single-hue ramp, darker for better ranks', () => {
-    expect(rankFill(1)).toEqual({ fill: '#0d366b', text: '#FFFFFF', label: '1', stroke: null });
+    expect(rankFill(1)).toEqual({ fill: '#0d366b', text: 'var(--surface)', label: '1', stroke: null });
     expect(rankFill(3)).toMatchObject({ fill: '#0d366b' });
-    expect(rankFill(4)).toEqual({ fill: '#256abf', text: '#FFFFFF', label: '4', stroke: null });
-    expect(rankFill(11)).toEqual({ fill: '#86b6ef', text: '#0B2540', label: '11', stroke: null });
-    expect(rankFill(21)).toEqual({ fill: '#f0efec', text: '#0B2540', label: '20+', stroke: '#E2E8F0' });
-    expect(rankFill(null)).toEqual({ fill: 'url(#geogrid-hatch)', text: '#64748B', label: '–', stroke: '#E2E8F0' });
+    expect(rankFill(4)).toEqual({ fill: '#256abf', text: 'var(--surface)', label: '4', stroke: null });
+    expect(rankFill(11)).toEqual({ fill: '#86b6ef', text: 'var(--ink)', label: '11', stroke: null });
+    expect(rankFill(21)).toEqual({ fill: '#f0efec', text: 'var(--ink)', label: '20+', stroke: 'var(--chart-grid)' });
+    expect(rankFill(null)).toEqual({ fill: 'url(#geogrid-hatch)', text: 'var(--chart-axis)', label: '–', stroke: 'var(--chart-grid)' });
   });
 
   it('switches band exactly at 3/4, 10/11 and 20/21', () => {

@@ -1,13 +1,13 @@
 import type { TopicBenchmarkView } from '@cs/tools';
 
-const INK = '#0B2540';
-const WHITE = '#FFFFFF';
-const LINE = '#E2E8F0';
+const INK = 'var(--ink)';
+const WHITE = 'var(--surface)';
+const LINE = 'var(--chart-grid)';
 const NEUTRAL = '#f0efec';
 
 /** Decision 12: diverging sentiment steps (validated 2026-10-08); share null → blank cell. */
 export function sentimentFill(sentiment: number | null, share: number | null): { fill: string; text: string; stroke: string | null } {
-  if (share === null) return { fill: WHITE, text: '#64748B', stroke: LINE };
+  if (share === null) return { fill: WHITE, text: 'var(--chart-axis)', stroke: LINE };
   if (sentiment === null) return { fill: NEUTRAL, text: INK, stroke: LINE };
   if (sentiment <= -0.5) return { fill: '#d03b3b', text: WHITE, stroke: null };
   if (sentiment < -0.15) return { fill: '#f19c99', text: INK, stroke: null };

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SERIES_COLORS } from './line-chart';
+import { RIVAL_COLORS } from './line-chart';
 import { RankTrend, rankSeries } from './rank-trend';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -38,10 +38,10 @@ describe('RankTrend', () => {
     expect(out.at(-1)!.points).toEqual([15]); // mean of 9, 15, 21
   });
 
-  it('draws You in var(--you) and the competitor in slot 1, never slot 0', () => {
+  it('draws You in var(--you) and the competitor in the first rival token', () => {
     const { container } = render(<RankTrend keyword="ac repair" scans={[scan(1, false, 4, 8), scan(2, false, 3, 6)]} />);
     expect(container.querySelector('polyline[data-series="self"]')!.getAttribute('stroke')).toBe('var(--you)');
-    expect(container.querySelector(`polyline[data-series="${id(9)}"]`)!.getAttribute('stroke')).toBe(SERIES_COLORS[1]);
+    expect(container.querySelector(`polyline[data-series="${id(9)}"]`)!.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
   });
 
   it('says so when there is no history', () => {

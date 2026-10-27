@@ -5,9 +5,9 @@ import { ChangeGrid, changeFill } from './change-grid';
 
 describe('changeFill', () => {
   it('changeFill maps +4 to mid blue, −7 to dark orange, 0 to neutral, null to hatch', () => {
-    expect(changeFill(4)).toEqual({ fill: '#47a8e7', text: '#0B2540', label: '+4' });
-    expect(changeFill(-7)).toEqual({ fill: '#9a4f00', text: '#FFFFFF', label: '−7' });
-    expect(changeFill(0)).toEqual({ fill: '#f0efec', text: '#0B2540', label: '=' });
+    expect(changeFill(4)).toEqual({ fill: '#47a8e7', text: 'var(--ink)', label: '+4' });
+    expect(changeFill(-7)).toEqual({ fill: '#9a4f00', text: 'var(--surface)', label: '−7' });
+    expect(changeFill(0)).toEqual({ fill: '#f0efec', text: 'var(--ink)', label: '=' });
     expect(changeFill(null).fill).toMatch(/^url\(#[A-Za-z0-9_-]+\)$/);
     expect(changeFill(null).label).toBe('–');
   });
@@ -47,7 +47,7 @@ describe('ChangeGrid', () => {
     render(<ChangeGrid before={[[7, 2], [5, null]]} after={[[3, 9], [5, 4]]} lats={[30.3, 30.2]} lngs={[-97.8, -97.7]} map={map} />);
     const rects = [...screen.getByRole('img').querySelectorAll('g rect')];
     expect(rects[0]!.getAttribute('fill-opacity')).toBe('0.8');
-    expect(rects[2]!.getAttribute('fill')).toBe('#FFFFFF');
+    expect(rects[2]!.getAttribute('fill')).toBe('var(--surface)');
     expect(rects[2]!.getAttribute('fill-opacity')).toBe('0.35');
     expect(screen.getByRole('img').querySelector('text[data-change]')!.getAttribute('paint-order')).toBe('stroke');
     expect(screen.getByRole('button', { name: 'Zoom in' })).toBeTruthy();

@@ -16,13 +16,13 @@ const benchmark = {
 
 describe('sentimentFill (decision 12)', () => {
   it('maps sentiment to the validated diverging steps with readable text', () => {
-    expect(sentimentFill(-1, 0.5)).toEqual({ fill: '#d03b3b', text: '#FFFFFF', stroke: null });
-    expect(sentimentFill(-0.3, 0.5)).toEqual({ fill: '#f19c99', text: '#0B2540', stroke: null });
-    expect(sentimentFill(0, 0.5)).toEqual({ fill: '#f0efec', text: '#0B2540', stroke: '#E2E8F0' });
-    expect(sentimentFill(0.3, 0.5)).toEqual({ fill: '#86b6ef', text: '#0B2540', stroke: null });
-    expect(sentimentFill(0.5, 0.5)).toEqual({ fill: '#256abf', text: '#FFFFFF', stroke: null });
-    expect(sentimentFill(null, 0.2)).toEqual({ fill: '#f0efec', text: '#0B2540', stroke: '#E2E8F0' });
-    expect(sentimentFill(null, null)).toEqual({ fill: '#FFFFFF', text: '#64748B', stroke: '#E2E8F0' });
+    expect(sentimentFill(-1, 0.5)).toEqual({ fill: '#d03b3b', text: 'var(--surface)', stroke: null });
+    expect(sentimentFill(-0.3, 0.5)).toEqual({ fill: '#f19c99', text: 'var(--ink)', stroke: null });
+    expect(sentimentFill(0, 0.5)).toEqual({ fill: '#f0efec', text: 'var(--ink)', stroke: 'var(--chart-grid)' });
+    expect(sentimentFill(0.3, 0.5)).toEqual({ fill: '#86b6ef', text: 'var(--ink)', stroke: null });
+    expect(sentimentFill(0.5, 0.5)).toEqual({ fill: '#256abf', text: 'var(--surface)', stroke: null });
+    expect(sentimentFill(null, 0.2)).toEqual({ fill: '#f0efec', text: 'var(--ink)', stroke: 'var(--chart-grid)' });
+    expect(sentimentFill(null, null)).toEqual({ fill: 'var(--surface)', text: 'var(--chart-axis)', stroke: 'var(--chart-grid)' });
   });
 });
 

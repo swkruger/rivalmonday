@@ -3,10 +3,10 @@ import { useId } from 'react';
 import { cellPaint, Compass, gridLabelFont, gridLayout, labelHalo } from './geo-grid';
 import { MapZoom } from './map-zoom';
 
-const INK = '#0B2540';
-const WHITE = '#FFFFFF';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
+const INK = 'var(--ink)';
+const WHITE = 'var(--surface)';
+const MUTED = 'var(--chart-axis)';
+const LINE = 'var(--chart-grid)';
 const HATCH_ID = 'changegrid-hatch';
 const MINUS = '−'; // U+2212, the typographic minus
 
@@ -79,7 +79,7 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
           <defs>
             <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={WHITE} />
-              <line x1="0" y1="0" x2="0" y2="6" stroke="#CBD5E1" strokeWidth="2" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--line-control)" strokeWidth="2" />
             </pattern>
           </defs>
           {bg ? <image aria-hidden="true" href={bg.url} x={0} y={0} width={bg.width} height={bg.height} preserveAspectRatio="none" /> : <Compass W={W} H={H} />}
@@ -106,7 +106,7 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
         <defs>
           <pattern id={legendId} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="4" height="4" fill={WHITE} />
-            <line x1="0" y1="0" x2="0" y2="4" stroke="#CBD5E1" strokeWidth="1.5" />
+            <line x1="0" y1="0" x2="0" y2="4" stroke="var(--line-control)" strokeWidth="1.5" />
           </pattern>
         </defs>
       </svg>

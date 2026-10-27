@@ -280,7 +280,7 @@ Cell `px-5 py-4 [&+&]:border-l border-line`; label `text-[13px] text-muted-ink`;
 |---|---|
 | `line-chart.tsx` | `SERIES_COLORS` → `['var(--you)', 'var(--chart-rival-1)', 'var(--chart-rival-2)']`; `OTHER_COLOR` → `'var(--chart-context)'`; gridline `#E2E8F0` → `var(--chart-grid)`; axis text `#64748B` → `var(--chart-axis)`, `fontSize={12}`. Cap highlighted series at you + 2 rivals; fold the rest into context grey and keep the legend and table view. |
 | `rank-trend.tsx` | `MUTED` → `var(--chart-axis)`, `GRID` → `var(--chart-grid)`, `MARKER` → `var(--chart-context)` |
-| `change-grid.tsx`, `geo-grid.tsx`, `theme-heatmap.tsx` | **Keep their validated ramps** (diverging/sequential, validated 2026-10-17). Only replace `#64748B` → `var(--chart-axis)` and `#E2E8F0` → `var(--chart-grid)`. Do not touch the ramp hexes without re-running the dataviz validator. |
+| `change-grid.tsx`, `geo-grid.tsx`, `topic-heatmap.tsx` | **Keep their validated ramps** (diverging/sequential, validated 2026-10-17). Only replace `#64748B` → `var(--chart-axis)` and `#E2E8F0` → `var(--chart-grid)`. Do not touch the ramp hexes without re-running the dataviz validator. |
 | containers around charts | remove card wrappers; on dashboards use the hairline grid (§ 6.1 B) |
 | SVG `fill`/`stroke` with CSS vars | works in inline SVG. If a chart is ever rasterised (email), resolve the vars server-side first. |
 
@@ -492,7 +492,7 @@ rg -c 'text-\[(2[5-9]|3\d)px\]'             apps/web/src --glob '!*.test.*'     
 rg -c 'font-extrabold'                      apps/web/src packages/ui/src --glob '!*.test.*' --glob '!**/wordmark.tsx'
 rg -c 'uppercase tracking'                  apps/web/src --glob '!*.test.*'
 rg -c 'ring-ring/50|ring-\[3px\]'           apps/web/src packages/ui/src --glob '!*.test.*'
-rg -n '#[0-9A-Fa-f]{6}\b' apps/web/src --glob '*.tsx' --glob '!*.test.*' --glob '!**/charts/{change-grid,geo-grid,theme-heatmap}.tsx'
+rg -n '#[0-9A-Fa-f]{6}\b' apps/web/src --glob '*.tsx' --glob '!*.test.*' --glob '!**/charts/{change-grid,geo-grid,topic-heatmap}.tsx'
 rg -n 'bg-amber' apps/web/src --glob '!*.test.*'      # only Friday/assistant, priority and stars may remain
 rg -n 'shadow-(sm|md|lg|xl)\b' apps/web/src packages/ui/src --glob '!*.test.*'   # → shadow-overlay/dialog or none
 rg -n '<Badge' apps/web/src --glob '!*.test.*'        # → StatusChip/DotStatus/Tag

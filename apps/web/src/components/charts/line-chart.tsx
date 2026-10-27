@@ -1,27 +1,25 @@
 import { formatDate, formatMonth } from '@/lib/format';
-/** Decision 18 + the dataviz method: fixed-order categorical slots (validated 2026-10-08), legend for >= 2 series, table view, native tooltips. */
-export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'] as const;
-export const OTHER_COLOR = '#94a3b8';
-/** P4: the viewer's own business, in every chart — the `--you` token, never a series slot. */
+/** Design system v1 chart roles (09 § 5.4): you + at most two highlighted rivals + context grey. */
 export const YOU_COLOR = 'var(--you)';
+export const RIVAL_COLORS = ['var(--chart-rival-1)', 'var(--chart-rival-2)'] as const;
+export const CONTEXT_COLOR = 'var(--chart-context)';
 
 export interface ChartSeries {
   key: string;
   name: string;
   points: (number | null)[];
-  /** The client's own business: drawn in `YOU_COLOR`, outside the categorical slots. */
+  /** The client's own business: drawn in `YOU_COLOR`, outside the rival slots. */
   you?: boolean;
 }
 
-/**
- * Colour of one series: "You" and "Other" are fixed, the rest take the slots in order. When a "You" series is drawn,
- * competitors start at slot 1: slot 0 is a blue too close to the `--you` token to tell apart (dataviz check, 15c-1).
- */
+/** P8: <= 2 rivals keep their order (stable colours); more -> the two highest latest values are highlighted. */
 export function seriesColor(s: ChartSeries, all: ChartSeries[]): string {
   if (s.you) return YOU_COLOR;
-  if (s.key === 'other') return OTHER_COLOR;
-  const slots = all.some((x) => x.you) ? SERIES_COLORS.slice(1) : SERIES_COLORS;
-  return slots[all.filter((x) => x.key !== 'other' && !x.you).indexOf(s) % slots.length]!;
+  if (s.key === 'other') return CONTEXT_COLOR;
+  const rivals = all.filter((x) => !x.you && x.key !== 'other');
+  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
+  const i = ranked.slice(0, 2).findIndex((x) => x.key === s.key);
+  return i >= 0 ? RIVAL_COLORS[i]! : CONTEXT_COLOR;
 }
 
 const last = (p: (number | null)[]): number => {
@@ -131,19 +129,20 @@ export function LineChart({
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. Latest: ${summary}.`} className="w-full">
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
-            <line x1={L} x2={W - R} y1={y(yMax * f)} y2={y(yMax * f)} stroke="#E2E8F0" strokeWidth={1} />
-            <text x={L - 6} y={y(yMax * f) + 4} textAnchor="end" fontSize={11} fill="#64748B">
+            <line x1={L} x2={W - R} y1={y(yMax * f)} y2={y(yMax * f)} stroke="var(--chart-grid)" strokeWidth={1} />
+            <text x={L - 6} y={y(yMax * f) + 4} textAnchor="end" fontSize={12} fill="var(--chart-axis)">
               {tick(yMax * f)}
             </text>
           </g>
         ))}
         {[...new Set([0, Math.floor((labels.length - 1) / 2), labels.length - 1])].map((i) => (
-          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={11} fill="#64748B">
+          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--chart-axis)">
             {labelOf(labels[i]!)}
           </text>
         ))}
-        {series.map((s) => {
+        {[...series].sort((p, q) => Number(colorOf(q) === CONTEXT_COLOR) - Number(colorOf(p) === CONTEXT_COLOR)).map((s) => {
           const color = colorOf(s);
+          const width = color === CONTEXT_COLOR ? 1.5 : 2;
           const li = lastIndex(s.points);
           return (
             <g key={s.key}>
@@ -157,13 +156,13 @@ export function LineChart({
                   points={r.map(([a, b]) => `${a},${b}`).join(' ')}
                   fill="none"
                   stroke={color}
-                  strokeWidth={2}
+                  strokeWidth={width}
                   strokeLinejoin="round"
                   strokeLinecap="round"
                 />
                 ),
               )}
-              {li >= 0 && <circle cx={x(li)} cy={y(s.points[li]!)} r={4} fill={color} stroke="#FFFFFF" strokeWidth={2} />}
+              {li >= 0 && <circle cx={x(li)} cy={y(s.points[li]!)} r={4} fill={color} stroke="var(--surface)" strokeWidth={2} />}
               {s.points.map((v, i) =>
                 v === null ? null : (
                   <circle key={i} cx={x(i)} cy={y(v)} r={8} fill="transparent">

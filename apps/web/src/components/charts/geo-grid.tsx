@@ -3,9 +3,9 @@ import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
 import { MapZoom } from './map-zoom';
 
-const INK = '#0B2540';
-const WHITE = '#FFFFFF';
-const LINE = '#E2E8F0';
+const INK = 'var(--ink)';
+const WHITE = 'var(--surface)';
+const LINE = 'var(--chart-grid)';
 const HATCH_ID = 'geogrid-hatch';
 
 /**
@@ -33,7 +33,7 @@ export function labelHalo(text: string, fontSize: number, onMap: boolean): { str
 
 /** Decision 12: single-hue ordinal ramp (validated 2026-10-08), darker = better; 21 = not in the top 20; null = no data. */
 export function rankFill(rank: number | null, hatchId: string = HATCH_ID): { fill: string; text: string; label: string; stroke: string | null } {
-  if (rank === null) return { fill: `url(#${hatchId})`, text: '#64748B', label: '–', stroke: LINE };
+  if (rank === null) return { fill: `url(#${hatchId})`, text: 'var(--chart-axis)', label: '–', stroke: LINE };
   if (rank <= 3) return { fill: '#0d366b', text: WHITE, label: String(rank), stroke: null };
   if (rank <= 10) return { fill: '#256abf', text: WHITE, label: String(rank), stroke: null };
   if (rank <= 20) return { fill: '#86b6ef', text: INK, label: String(rank), stroke: null };
@@ -50,7 +50,7 @@ function Swatch({ rank, legendId, onMap }: { rank: number | null; legendId: stri
   const quiet = onMap && rank !== null && rank > 20;
   return (
     <svg aria-hidden width={16} height={12} viewBox="0 0 16 12">
-      <rect x={0.5} y={0.5} width={15} height={11} rx={2} fill={quiet ? WHITE : f.fill} stroke={quiet ? '#94A3B8' : f.stroke ?? 'none'} />
+      <rect x={0.5} y={0.5} width={15} height={11} rx={2} fill={quiet ? WHITE : f.fill} stroke={quiet ? 'var(--chart-context)' : f.stroke ?? 'none'} />
     </svg>
   );
 }
@@ -95,10 +95,10 @@ export function gridLabelFont(size: number, onMap: boolean): { fontSize: number;
 export function Compass({ W, H }: { W: number; H: number }) {
   return (
     <>
-      <text data-compass x={W / 2} y={15} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">N</text>
-      <text data-compass x={W / 2} y={H - 6} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">S</text>
-      <text data-compass x={9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">W</text>
-      <text data-compass x={W - 9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#64748B">E</text>
+      <text data-compass x={W / 2} y={15} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--chart-axis)">N</text>
+      <text data-compass x={W / 2} y={H - 6} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--chart-axis)">S</text>
+      <text data-compass x={9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--chart-axis)">W</text>
+      <text data-compass x={W - 9} y={H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--chart-axis)">E</text>
     </>
   );
 }
@@ -123,7 +123,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
           <defs>
             <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={WHITE} />
-              <line x1="0" y1="0" x2="0" y2="6" stroke="#CBD5E1" strokeWidth="2" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--line-control)" strokeWidth="2" />
             </pattern>
           </defs>
           {bg ? (
@@ -158,7 +158,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
         <defs>
           <pattern id={legendId} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="4" height="4" fill={WHITE} />
-            <line x1="0" y1="0" x2="0" y2="4" stroke="#CBD5E1" strokeWidth="1.5" />
+            <line x1="0" y1="0" x2="0" y2="4" stroke="var(--line-control)" strokeWidth="1.5" />
           </pattern>
         </defs>
       </svg>

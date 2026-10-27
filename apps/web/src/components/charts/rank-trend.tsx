@@ -3,9 +3,9 @@ import type { RankTrendView } from '@cs/tools';
 import { type ChartSeries, foldSeries, seriesColor } from './line-chart';
 
 const NOT_IN_TOP = 21;
-const MUTED = '#64748B';
-const GRID = '#E2E8F0';
-const MARKER = '#94A3B8';
+const MUTED = 'var(--chart-axis)';
+const GRID = 'var(--chart-grid)';
+const MARKER = 'var(--chart-context)';
 
 const shortDate = (iso: string) => formatDate(iso, { tz: 'UTC', withYear: 'never' });
 const fmt = (v: number) => (v >= NOT_IN_TOP ? '20+' : String(Math.round(v * 10) / 10));
