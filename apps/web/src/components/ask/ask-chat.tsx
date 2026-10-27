@@ -3,8 +3,9 @@ import type { AskEvent } from '@cs/ask';
 import type { AskActionView, AskMessageView } from '@cs/tools';
 import { Button, cn, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
 import { ArrowUp, Loader2 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect, useRef, useState } from 'react';
 import type { EvidenceRefs } from '@/server/evidence-refs';
 import { AskAnswer, answerMarkdown, answerSources, citedEvidenceIds, evidenceIdsOf } from './answer';
 import { type ConfirmAskAction, ConfirmCard } from './confirm-card';
@@ -26,6 +27,37 @@ type FinalEvent = Extract<AskEvent, { type: 'final' }>;
 /** `id` is null for a turn that never persisted (the local error line, the local user echo). */
 type ChatMessage = Omit<Pick<AskMessageView, 'id' | 'role' | 'content' | 'citations' | 'status' | 'action'>, 'id'> & { id: string | null };
 type LocalTurn = { key: number; question: string; final: ChatMessage | null };
+/** P8: a proposed write in the docked panel links to its thread (Confirm/Cancel only on the full page). */
+const PANEL_CONFIRM_COPY = 'Open the full conversation to confirm this change.';
+
+export type AskChatState = {
+  threadId: string | null;
+  setThreadId: Dispatch<SetStateAction<string | null>>;
+  turns: LocalTurn[];
+  setTurns: Dispatch<SetStateAction<LocalTurn[]>>;
+  busy: boolean;
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  progress: string;
+  setProgress: Dispatch<SetStateAction<string>>;
+  localRefs: EvidenceRefs;
+  setLocalRefs: Dispatch<SetStateAction<EvidenceRefs>>;
+  keyRef: MutableRefObject<number>;
+};
+
+/**
+ * The conversation state for turns streamed in this browser session. The page owns its own (`AskChat` calls this); the
+ * docked panel's lives in `FridayDock` (P7), so the transcript and thread id survive the panel closing, page navigation
+ * and the column/sheet switch, and a turn still streaming when the panel closes lands when it reopens.
+ */
+export function useAskChatState(initialThreadId: string | null = null): AskChatState {
+  const [threadId, setThreadId] = useState<string | null>(initialThreadId);
+  const [turns, setTurns] = useState<LocalTurn[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(WORKING);
+  const [localRefs, setLocalRefs] = useState<EvidenceRefs>({});
+  const keyRef = useRef(0);
+  return { threadId, setThreadId, turns, setTurns, busy, setBusy, progress, setProgress, localRefs, setLocalRefs, keyRef };
+}
 
 /** Q3: reads `data: <json>\n\n` frames from the turn response; tolerant of frames split across chunks. */
 export async function readAskStream(body: ReadableStream<Uint8Array>, onEvent: (e: AskEvent) => void): Promise<void> {
@@ -86,13 +118,18 @@ export interface AskChatProps {
   refs: EvidenceRefs;
   /** The client's name, shown as the composer's scope chip. */
   scopeLabel: string;
-  /** `page` (the full Ask page, default); the docked `panel` arrives with the panel task. */
+  /**
+   * `page` (the full Ask page, default) or the docked `panel` (P7): local turns only, the thread id from
+   * `x-ask-thread-id` sent on later turns, no router navigation/refresh, and a proposed write links to the full thread.
+   */
   mode?: 'page' | 'panel';
+  /** Panel only: the dock-owned conversation state (`useAskChatState`). */
+  state?: AskChatState;
   /** Resolves refs for evidence cited by an answer streamed in this session (a failure keeps the fallback pills). */
   refsAction: (clientId: string, ids: string[]) => Promise<EvidenceRefs>;
 }
 
-function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, refs, size }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction; refs: EvidenceRefs; size: 'page' | 'panel' }) {
+function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, refs, size, threadHref }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction; refs: EvidenceRefs; size: 'page' | 'panel'; threadHref: string }) {
   if (m.role === 'user') {
     return (
       <div data-slot="ask-user-message" className="max-w-[85%] self-end whitespace-pre-line rounded-lg bg-muted-surface px-3 py-2 text-sm text-ink [overflow-wrap:anywhere]">
@@ -103,6 +140,18 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, re
   // A proposed write (e8) is stored as an `action` message whose content is the summary: the confirm card shows it
   // while proposed (and the error once failed); afterwards it is a muted history line like "Saved." / "Cancelled.".
   if (m.action && m.id && (m.action.state === 'proposed' || m.action.state === 'failed')) {
+    if (size === 'panel') {
+      return (
+        <div data-slot="ask-panel-action" className="flex flex-col gap-1 text-sm">
+          <p className="text-ink">{m.content}</p>
+          <p>
+            <Link href={threadHref} className="text-link underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              {PANEL_CONFIRM_COPY}
+            </Link>
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="max-w-[92%]">
         <ConfirmCard messageId={m.id} action={m.action} confirmAction={confirmAction} />
@@ -135,19 +184,21 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, re
  * `/c/<id>/ask/<threadId>` from `x-ask-thread-id`), and the local copy drops out when the server list has it.
  */
 export function AskChat(props: AskChatProps) {
-  const { clientId, threadId, assistantName, productName, reviewAllowed, messages, starters, confirmAction, saveAction, scopeLabel, refsAction } = props;
-  const size = props.mode === 'panel' ? 'panel' : 'page';
+  const { clientId, assistantName, productName, reviewAllowed, messages, starters, confirmAction, saveAction, scopeLabel, refsAction } = props;
+  const panel = props.mode === 'panel';
+  const size = panel ? 'panel' : 'page';
   const router = useRouter();
   const [input, setInput] = useState(props.initialQuestion ?? '');
-  const [turns, setTurns] = useState<LocalTurn[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(WORKING);
-  const [localRefs, setLocalRefs] = useState<EvidenceRefs>({});
+  const own = useAskChatState(props.threadId);
+  const st = panel && props.state ? props.state : own;
+  const { turns, setTurns, busy, setBusy, progress, setProgress, localRefs, setLocalRefs, keyRef } = st;
+  // The page's thread comes from the URL (`AskScreen` keys the chat by it); the panel's from the turn response.
+  const threadId = panel ? st.threadId : props.threadId;
+  const threadHref = threadId ? `/c/${clientId}/ask/${threadId}` : `/c/${clientId}/ask`;
   const refs = { ...props.refs, ...localRefs };
   const refsRef = useRef(refs);
   refsRef.current = refs;
   const seedRef = useRef(props.seedEvidenceId);
-  const keyRef = useRef(0);
   const autoSent = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -156,8 +207,8 @@ export function AskChat(props: AskChatProps) {
   const empty = messages.length === 0 && pendingTurns.length === 0;
 
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [messages.length, turns, busy]);
+    endRef.current?.scrollIntoView?.({ block: panel ? 'nearest' : 'end' });
+  }, [messages.length, turns, busy, panel]);
 
   async function send(raw: string): Promise<void> {
     const question = raw.trim().slice(0, QUESTION_MAX);
@@ -182,6 +233,7 @@ export function AskChat(props: AskChatProps) {
       gone = threadId !== null && res.status === 404;
       if (res.ok && res.body) {
         got.threadId = res.headers.get('x-ask-thread-id');
+        if (panel && got.threadId) st.setThreadId(got.threadId);
         await readAskStream(res.body, (e) => {
           if (e.type === 'progress') setProgress(e.label);
           else got.final ??= e;
@@ -191,8 +243,15 @@ export function AskChat(props: AskChatProps) {
       // network failure: the error copy below
     }
     if (gone) {
-      setTurns((ts) => ts.filter((t) => t.key !== key));
       setBusy(false);
+      if (panel) {
+        // The panel's thread was deleted elsewhere: start over here, keeping the question to send again.
+        st.setThreadId(null);
+        setTurns([]);
+        setInput(question);
+        return;
+      }
+      setTurns((ts) => ts.filter((t) => t.key !== key));
       router.replace(`/c/${clientId}/ask`);
       return;
     }
@@ -210,8 +269,8 @@ export function AskChat(props: AskChatProps) {
         () => {},
       );
     }
-    // A pre-persistence error has no message id: nothing to reload, the local copy stays.
-    if (final.id === null) return;
+    // A pre-persistence error has no message id: nothing to reload, the local copy stays. The panel never navigates.
+    if (final.id === null || panel) return;
     if (!threadId && got.threadId) router.replace(`/c/${clientId}/ask/${got.threadId}`);
     else router.refresh();
   }
@@ -232,8 +291,13 @@ export function AskChat(props: AskChatProps) {
   };
 
   return (
-    <section aria-label={`Ask ${assistantName}`} className="flex min-h-[60vh] min-w-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-[680px] flex-1 flex-col gap-6 pb-4">
+    <section
+      // The panel's aside/dialog already carries the "Ask {assistant}" name.
+      aria-label={panel ? undefined : `Ask ${assistantName}`}
+      data-mode={size}
+      className={cn('flex min-w-0 flex-1 flex-col', panel ? 'min-h-0' : 'min-h-[60vh]')}
+    >
+      <div className={cn('flex w-full flex-1 flex-col pb-4', panel ? 'min-h-0 gap-5 overflow-y-auto' : 'mx-auto max-w-[680px] gap-6')}>
         {empty && (
           <div className="flex flex-col gap-3">
             <p className="text-muted-ink">
@@ -243,12 +307,12 @@ export function AskChat(props: AskChatProps) {
           </div>
         )}
         {messages.map((m) => (
-          <MessageItem key={m.id} m={m} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />
+          <MessageItem key={m.id} m={m} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} threadHref={threadHref} />
         ))}
         {pendingTurns.map((t) => (
           <div key={`local-${t.key}`} className="flex flex-col gap-6">
-            <MessageItem m={{ id: null, role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />
-            {t.final && <MessageItem m={t.final} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} />}
+            <MessageItem m={{ id: null, role: 'user', content: t.question, citations: [], status: 'ok', action: null }} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} threadHref={threadHref} />
+            {t.final && <MessageItem m={t.final} clientId={clientId} assistantName={assistantName} confirmAction={confirmAction} saveAction={saveAction} refs={refs} size={size} threadHref={threadHref} />}
           </div>
         ))}
         {busy && (
@@ -259,7 +323,7 @@ export function AskChat(props: AskChatProps) {
         )}
         <div ref={endRef} />
       </div>
-      <form onSubmit={submit} className="sticky bottom-0 mx-auto w-full max-w-[680px] bg-surface pb-1 pt-3">
+      <form onSubmit={submit} className={cn('w-full bg-surface pb-1 pt-3', !panel && 'sticky bottom-0 mx-auto max-w-[680px]')}>
         <div className="rounded-md border border-input p-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
           <textarea
             aria-label={`Ask ${assistantName} a question`}

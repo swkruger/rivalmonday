@@ -102,6 +102,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/knowledge/`), tags: ['@kb', '@platform'], why: 'operator knowledge base UI' },
   { pattern: re(`${APP}\\(app\\)/kb/|${COMP}kb/`), tags: ['@ask', '@kb'], why: 'knowledge article page and sheet (opened from Ask citations)' },
   { pattern: re(`${SERVER}ask\\.ts$`), tags: ['@ask', '@kb'], why: 'Ask server wiring incl. the E2E fake AI (knowledge lookup)' },
+  { pattern: re(`${COMP}ask/friday-dock[^/]*\\.tsx$`), tags: ['@ask'], why: 'docked Friday panel and its PageHeader trigger beside client pages (16d D-14)' },
   { pattern: re(`${WEB}src/(?:.*/)?ask(?:/|\\.ts$)`), tags: ['@ask'], why: 'Ask route, pages, components and server wiring' },
 
   { pattern: re(`${COMP}onboarding/`), tags: ['@onboarding', '@setup', '@clients', '@leads'], why: 'onboarding split shell (agency onboarding, client setup, public intake; 16)' },
@@ -146,7 +147,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}confirm-form\\.tsx$`), tags: ['@billing', '@platform', '@support'], why: 'ConfirmForm: confirm-first MiniForm on the platform billing console and the platform agency billing panel' },
   { pattern: re(`${COMP}form-error\\.tsx$`), tags: 'all', why: 'ErrorNote/FormError: the one error primitive, rendered by form and action errors on almost every surface (incl. the seat-cap Upgrade link)' },
   { pattern: re(`${COMP}page-header\\.tsx$`), tags: 'all', why: 'PageHeader: the h1, breadcrumb and actions of almost every signed-in page (15a §2.7)' },
-  { pattern: re(`${APP}\\(app\\)/c/\\[clientId\\]/layout\\.tsx$|${COMP}help/client-help-name\\.tsx$`), tags: 'all', why: 'pass-through layout wrapping every client page in the help-name provider (15b-1 R8)' },
+  { pattern: re(`${APP}\\(app\\)/c/\\[clientId\\]/layout\\.tsx$|${COMP}help/client-help-name\\.tsx$`), tags: 'all', why: 'pass-through layout wrapping every client page in the help-name provider (15b-1 R8) and the Friday dock (16d)' },
   { pattern: re(`${COMP}help/help-(?:context|provider)\\.tsx$`), tags: 'all', why: 'HelpProvider: mounted by the app shell on every signed-in page (15b)' },
   { pattern: re(`${WEB}src/help/`), tags: 'all', why: 'short help copy, its audience payload and renderer: every signed-in page header, tip and empty state (15b)' },
   { pattern: re(`${APP}\\(app\\)/(?:agency/help|c/\\[clientId\\]/help)/`), tags: ['@help'], why: 'agency and client Help pages (15b-1)' },

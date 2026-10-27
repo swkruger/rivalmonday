@@ -92,7 +92,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./recommendations/actions', () => ({ setStatusAction: vi.fn() }));
-vi.mock('./ask/actions', () => ({ confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn() }));
+vi.mock('./ask/actions', () => ({ confirmAskAction: vi.fn(), deleteAskThreadAction: vi.fn(), saveAskRecommendation: vi.fn(), askEvidenceRefs: vi.fn(async () => ({})) }));
 vi.mock('next/navigation', () => ({
   usePathname: () => `/c/${C}`, notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));

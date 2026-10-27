@@ -2,6 +2,7 @@ import { cn, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, Breadcr
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Fragment } from 'react';
+import { FridayDockTrigger } from '@/components/ask/friday-dock-trigger';
 // Lazy: the guide sheet (and the action behind it) loads only on pages that have a guide.
 const PageGuide = dynamic(() => import('@/components/help/page-guide').then((m) => m.PageGuide));
 
@@ -90,11 +91,15 @@ export function PageHeader({ title, description, breadcrumb, actions, step, help
           </div>
           {compact && tabs}
         </div>
-        {(actions || showGuide) && (
+        {/* 16d P6: "Ask {assistant}" (renders nothing outside a client page with the Friday dock) before the page's actions. */}
+        {actions || showGuide ? (
           <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:justify-end">
             {showGuide && <PageGuide helpKey={helpKey!} pageTitle={title} />}
+            <FridayDockTrigger />
             {actions}
           </div>
+        ) : (
+          <FridayDockTrigger />
         )}
       </div>
       {!compact && tabs}

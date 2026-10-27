@@ -70,6 +70,15 @@ describe('resolveAffected', () => {
     expect(resolve('packages/engine/src/tasks/run.ts').mode).toBe('all');
   });
 
+  it('maps the docked Friday panel to @ask and the client layout that mounts it to everything (16d)', () => {
+    for (const f of ['apps/web/src/components/ask/friday-dock.tsx', 'apps/web/src/components/ask/friday-dock-trigger.tsx', 'apps/web/src/components/ask/friday-dock-context.tsx']) {
+      expect(resolve(f), f).toMatchObject({ mode: 'some', tags: ['@ask', '@smoke'] });
+      expect(matchRule(f).why, f).toMatch(/docked Friday panel/);
+    }
+    expect(resolve('apps/web/src/app/(app)/c/[clientId]/layout.tsx').mode).toBe('all');
+    expect(matchRule('apps/web/src/app/(app)/c/[clientId]/layout.tsx').why).toMatch(/Friday dock/);
+  });
+
   it('maps the platform console files to @platform', () => {
     for (const f of ['packages/tools/src/tools/platform-console.ts', 'packages/tools/src/platform/stats.ts', 'packages/demo/src/platform-stats.ts', 'apps/web/src/app/(platform)/platform/agencies/page.tsx']) {
       expect(resolve(f).tags, f).toContain('@platform');

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FridayDock } from './ask/friday-dock';
 import { PageHeader } from './page-header';
 import { countPrimaryActions } from './page-header-guard';
 
@@ -165,5 +166,31 @@ describe('PageHeader detail (16c P7)', () => {
   it('ignores avatar for standard', () => {
     render(<PageHeader title="Smith HVAC" avatar={<span data-testid="av">SH</span>} />);
     expect(screen.queryByTestId('av')).toBeNull();
+  });
+});
+
+describe('PageHeader Friday trigger (16d P6)', () => {
+  const config = { clientId: 'c1', assistantName: 'Friday', productName: null, reviewAllowed: false, starters: [], scopeLabel: 'Acme', saveAction: vi.fn(), refsAction: vi.fn() };
+
+  it('renders the trigger inside the header, before the page actions, without counting as a primary action', () => {
+    const { container } = render(
+      <FridayDock config={config}>
+        <PageHeader title="Overview" actions={<button type="button" data-variant="default">Share</button>} />
+      </FridayDock>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Ask Friday' });
+    expect(container.querySelector('[data-slot="page-header"]')!.contains(trigger)).toBe(true);
+    expect(trigger.getAttribute('data-slot')).toBe('friday-trigger');
+    const share = screen.getByRole('button', { name: 'Share' });
+    expect(trigger.compareDocumentPosition(share) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(countPrimaryActions(container)).toBe(1);
+  });
+
+  it('renders the trigger even on a page with no actions, and nothing outside a dock', () => {
+    const { container, rerender } = render(<FridayDock config={config}><PageHeader title="Overview" /></FridayDock>);
+    expect(screen.getByRole('button', { name: 'Ask Friday' })).toBeTruthy();
+    rerender(<PageHeader title="Overview" />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.querySelector('[data-slot="page-header-row"]')!.children).toHaveLength(1);
   });
 });

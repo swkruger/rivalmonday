@@ -38,6 +38,7 @@ const EXEMPT: Record<string, string> = {
   'components/shell/avatar-menu.tsx': 'switchMembership sets a cookie, no write tool; a support viewer gets no Switch account items',
   'components/shell/context-switcher.tsx': 'switchMembership sets a cookie, no write tool; a support session lists no memberships',
   'components/kb/article-sheet.tsx': 'loadKbArticle is a read',
+  'app/(app)/c/[clientId]/layout.tsx': 'the Friday dock is wired only for viewer.kind === user (never a support session); SaveRecommendationDialog guards itself',
 };
 
 const ACTION_IMPORT = /from\s+'(?:\.{1,2}\/)+(?:[\w[\]-]+\/)*actions'|from\s+'@\/app\/[^']*actions'|from\s+'@\/server\/[^']*action[^']*'/;
@@ -63,6 +64,7 @@ const CLIENT_EXEMPT: Record<string, string> = {
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',
   'components/ask/ask-chat.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
   'components/ask/confirm-card.tsx': 'Ask UI is never rendered in a support session (supportAskView)',
+  'components/ask/friday-dock.tsx': 'the client layout mounts the dock only for viewer.kind === user, never in a support session',
   'components/sign-out-button.tsx': 'sign-out only; no write tool',
   'components/shell/guest-sign-out-button.tsx': 'guest sign-out only; no write tool',
   'components/shell/context-switcher.tsx': 'switchMembership sets a cookie, no write tool; a support session lists no memberships',

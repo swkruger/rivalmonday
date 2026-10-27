@@ -161,6 +161,36 @@ test.describe('as a client user', () => {
     }
   });
 
+  test('docked Friday panel: ask from Overview, keep the answer across navigation, open the full conversation', { tag: ['@ask', '@overview', '@competitors'] }, async ({ page }) => {
+    const { askCo, starters } = fx();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/c/${askCo.id}`);
+    await page.getByRole('button', { name: 'Ask Friday', exact: true }).click();
+    const panel = page.getByRole('complementary', { name: 'Ask Friday', exact: true });
+    await expect(panel.getByRole('heading', { level: 2, name: 'Ask Friday', exact: true })).toBeVisible();
+    // The trigger hides while the column is open.
+    await expect(page.getByRole('button', { name: 'Ask Friday', exact: true })).toHaveCount(0);
+
+    await panel.getByRole('button', { name: starters[1], exact: true }).click();
+    await expect(panel.getByText(starters[1]!, { exact: true })).toBeVisible();
+    await expect(panel.getByRole('link', { name: /^Evidence 1\b/ }).first()).toBeVisible();
+    // The panel never navigates on its own.
+    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}$`));
+
+    await page.getByRole('link', { name: 'Competitors', exact: true }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/competitors$`));
+    await expect(page.getByRole('heading', { name: 'Competitors', exact: true, level: 1 })).toBeVisible();
+    await expect(panel.getByText(starters[1]!, { exact: true })).toBeVisible();
+    await expect(panel.getByRole('link', { name: /^Evidence 1\b/ }).first()).toBeVisible();
+
+    await panel.getByRole('link', { name: 'Open full conversation', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/c/${askCo.id}/ask/[0-9a-f-]{36}$`));
+    await expect(page.getByText(starters[1]!, { exact: true }).first()).toBeVisible();
+    // On the Ask pages the panel closes and no trigger shows.
+    await expect(panel).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ask Friday', exact: true })).toHaveCount(0);
+  });
+
   test('the Ask page has no horizontal page scroll at 390 px with a long URL', { tag: ['@ask', '@responsive'] }, async ({ page }) => {
     const { askCo } = fx();
     await page.setViewportSize({ width: 390, height: 844 });
