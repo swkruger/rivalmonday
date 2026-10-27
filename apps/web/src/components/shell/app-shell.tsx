@@ -126,7 +126,10 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
             <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
           )}
           <ShellNotices spend={spendAudience ? { audience: spendAudience, items: spendPaused } : null} billing={billing} role={ctx.role} userViewer={viewer.kind === 'user'} agencyName={branding.displayName} />
-          <main className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 pb-10 pt-6 lg:px-7">{children}</main>
+          {/* 16b (D-02, P2): one white sheet in the canvas frame. No overflow utility: sticky SaveBar / page headers need the viewport as scroll root. */}
+          <main data-slot="sheet" className="min-w-0 flex-1 bg-surface lg:mr-2 lg:mb-2 lg:rounded-md lg:border lg:border-line">
+            <div data-slot="sheet-inner" className="mx-auto flex w-full max-w-[1560px] flex-col gap-10 px-4 pt-6 pb-10 lg:px-8">{children}</div>
+          </main>
         </div>
       </div>
     </ShellProviders>

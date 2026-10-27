@@ -32,7 +32,7 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
       {/* Below `sm` two lines (agency and reason; then minutes and Exit) so the reason stays readable at 390 px. */}
       <div className="mx-auto flex w-full min-w-0 max-w-[1560px] flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
         {ended ? (
-          <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-bold underline">
+          <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-semibold underline">
             Session ended — reload
           </a>
         ) : (
@@ -55,7 +55,7 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
               )}
               <span>·</span>
               <form method="post" action={SUPPORT_EXIT_PATH}>
-                <button type="submit" className="font-bold underline">
+                <button type="submit" className="font-semibold underline">
                   Exit
                 </button>
               </form>

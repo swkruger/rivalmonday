@@ -23,7 +23,7 @@ export function SpendBanner({ items, audience, agencyName }: { items: { clientId
             ))}
             {more > 0 && <p>{`and ${more} more`}</p>}
           </div>
-          <Link href="/agency/settings/usage" className="rounded-md bg-white px-3 py-1 text-xs font-bold text-ink hover:opacity-90">
+          <Link href="/agency/settings/usage" className="rounded-sm bg-white px-3 py-1 text-xs font-semibold text-ink hover:opacity-90">
             View usage
           </Link>
         </>

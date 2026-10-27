@@ -41,7 +41,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
   }, []);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger aria-label="Open menu" className="grid h-[38px] w-[38px] flex-shrink-0 place-items-center rounded-lg text-ink hover:bg-muted-surface lg:hidden">
+      <SheetTrigger aria-label="Open menu" className="grid size-8 flex-shrink-0 place-items-center rounded-sm text-ink hover:bg-muted-surface lg:hidden">
         <Menu aria-hidden className="h-5 w-5" />
       </SheetTrigger>
       <SheetContent side="left" aria-describedby={undefined} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false); }}>

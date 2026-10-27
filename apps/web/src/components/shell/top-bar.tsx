@@ -5,7 +5,7 @@ import { GuestSignOutButton } from './guest-sign-out-button';
 import { InboxBell } from './inbox-bell';
 
 /**
- * 68px white bar (docs/brand/mockups/01-client-overview.html `.top`). Spec §2.9: the context switcher lives in the
+ * 48px canvas bar above the white sheet (design system v1, Frame 2; no border). Spec §2.9: the context switcher lives in the
  * sidebar now; below `lg` (no sidebar) the bar names the current context next to the drawer button.
  */
 export function TopBar({
@@ -23,8 +23,8 @@ export function TopBar({
   supportEmail?: string | null;
 }) {
   return (
-    <header className="flex h-[68px] flex-shrink-0 items-center border-b border-border bg-surface">
-      <div className="mx-auto flex w-full max-w-[1560px] items-center gap-3.5 px-4 lg:px-7">
+    <header className="flex h-12 flex-shrink-0 items-center bg-canvas">
+      <div className="mx-auto flex w-full max-w-[1560px] items-center gap-3.5 px-4 lg:px-8">
         {menu}
         <div className="min-w-0 lg:hidden">
           <ContextName {...switcher} />

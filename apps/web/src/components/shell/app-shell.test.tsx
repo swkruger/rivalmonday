@@ -24,6 +24,8 @@ vi.mock('@/server/tools', () => ({
   },
 }));
 vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
+// A guest's client name is read through `withTenant` (RLS); the shell test has no database.
+vi.mock('@cs/db', async (importOriginal) => ({ ...(await importOriginal<typeof import('@cs/db')>()), withTenant: async () => [{ name: 'A1 HVAC' }] }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [], supportEmail: () => 'support@rivalmonday.app' }));
 // Phase 14a: vertical names come from the DB catalogue (`verticalOptions`), not the YAML packs.
@@ -301,5 +303,53 @@ describe('AppShell spend banners (7b1)', () => {
     const { viewer, ctx: c } = as('agency_admin');
     render(await AppShell({ viewer: viewer as never, ctx: c as never, platformRole: 'owner', zone: 'platform', children: <p>page</p> }));
     expect(m.spendCalls).toEqual([]);
+  });
+});
+
+describe('AppShell frame (16b)', () => {
+  const own = (() => { const { support: _s, ...o } = ctx; return o; })();
+  const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('renders the children inside one white sheet (main[data-slot=sheet]) with a sheet-inner wrapper', async () => {
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+    const { container } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    const sheets = container.querySelectorAll('main[data-slot="sheet"]');
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0].querySelector('[data-slot="sheet-inner"]')?.textContent).toBe('page');
+  });
+
+  it('guard (P2): the sheet has no overflow-hidden (sticky SaveBar and page headers need the viewport as scroll root)', async () => {
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm' }, memberships: [{ id: 'm' }] };
+    const { container } = render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    const sheet = container.querySelector('main[data-slot="sheet"]') as HTMLElement;
+    expect(sheet.className).not.toContain('overflow-hidden');
+    expect((sheet.firstElementChild as HTMLElement).className).not.toContain('overflow-hidden');
+  });
+
+  it('keeps exactly one complementary landmark (the sidebar)', async () => {
+    m.realSidebar = true;
+    const viewer = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }, memberships: [{ id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }] };
+    render(await AppShell({ viewer: viewer as never, ctx: own as never, children: <p>page</p> }));
+    expect(screen.getAllByRole('complementary')).toHaveLength(1);
+  });
+
+  it('guard: in a support session the sidebar is offset below the fixed banner (top-9)', async () => {
+    m.realSidebar = true;
+    render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
+    expect(screen.getByRole('region', { name: 'Support session' })).toBeTruthy();
+    expect(screen.getByRole('complementary').className).toContain('top-9');
+  });
+
+  it('hold, guest and client-billing banners render before the sheet', async () => {
+    m.notice = { paused: true, paymentNeeded: false, enabled: true };
+    const c = { agencyId: AG, userId: 'u', role: 'client_viewer', clientScope: ['00000000-0000-4000-8000-0000000000a1'], features: new Set(), planFeatures: new Set(['ask', 'mcp']) };
+    const guest = { kind: 'guest', contactId: 'c1', ctx: c };
+    const { container } = render(await AppShell({ viewer: guest as never, ctx: c as never, billing: { state: 'active', trialEndsAt: null, pausesOn: null, onHold: true, supportEmail: 'support@rivalmonday.app' } as never, children: <p>page</p> }));
+    const sheet = container.querySelector('main[data-slot="sheet"]') as Element;
+    const guestBanner = screen.getByText('You are viewing this through an email link.');
+    const billing = screen.getAllByRole('region', { name: 'Billing' });
+    expect(billing.length).toBeGreaterThan(0);
+    expect(before(guestBanner, sheet)).toBe(true);
+    for (const b of billing) expect(before(b, sheet)).toBe(true);
   });
 });
