@@ -50,7 +50,7 @@ export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: P
   const cell = (b: (typeof businesses)[number], topicId: string) => b.topics.find((x) => x.topicId === topicId) ?? null;
   return (
     <figure className="flex flex-col gap-2">
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label={title} className="overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring">
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${topics.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ minWidth: W }} className="w-full">
           {businesses.map((b, j) => (
             <g key={b.competitorId}>

@@ -3,15 +3,42 @@
 import * as React from "react"
 import { cn } from "../lib/cn"
 
+// A horizontally scrolling table must be keyboard-reachable (axe scrollable-region-focusable).
+// Returns null while it fits, else the table's own name (aria-label, then caption; "" if none).
+function useOverflowName(ref: React.RefObject<HTMLDivElement | null>) {
+  const [name, setName] = React.useState<string | null>(null)
+  React.useLayoutEffect(() => {
+    const box = ref.current
+    if (!box) return
+    const check = () => {
+      if (box.scrollWidth <= box.clientWidth) return setName(null)
+      const table = box.querySelector("table")
+      setName(table?.getAttribute("aria-label") ?? table?.querySelector("caption")?.textContent?.trim() ?? "")
+    }
+    check()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(check)
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [ref])
+  return name
+}
+
 function Table({
   className,
   density,
   ...props
 }: React.ComponentProps<"table"> & { density?: "compact" }) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const scrollName = useOverflowName(ref)
   return (
     <div
+      ref={ref}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring"
+      {...(scrollName !== null
+        ? { tabIndex: 0, role: "region", "aria-label": scrollName || undefined }
+        : {})}
     >
       <table
         data-slot="table"

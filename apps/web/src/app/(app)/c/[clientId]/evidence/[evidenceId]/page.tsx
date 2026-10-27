@@ -117,7 +117,12 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
         </CardHeader>
         <CardContent>
           {evidence.kind === 'screenshot' ? (
-            <div className="max-h-[720px] overflow-auto">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Snapshot"
+              className="max-h-[720px] overflow-auto focus-visible:outline-2 outline-offset-2 outline-ring"
+            >
               <EvidenceImage
                 src={fileHref}
                 alt={`Snapshot of ${evidence.url ?? evidence.competitorName} captured ${captured}`}
