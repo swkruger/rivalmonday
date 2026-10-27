@@ -1,3 +1,4 @@
+import { ToastProvider } from '@cs/ui';
 import { HelpProvider } from '@/components/help/help-provider';
 import type { HelpViewer } from '@/components/help/help-context';
 import { ReadOnlyProvider } from '@/components/read-only';
@@ -19,6 +20,7 @@ export function ShellProviders({ readOnly, help, style, support, children }: { r
   return (
     <ReadOnlyProvider readOnly={readOnly}>
       <HelpProvider value={help}>
+        <ToastProvider>
         <ShellTheme vars={style} />
         <TzCookie />
         <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
@@ -26,6 +28,7 @@ export function ShellProviders({ readOnly, help, style, support, children }: { r
           {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
           {children}
         </div>
+        </ToastProvider>
       </HelpProvider>
     </ReadOnlyProvider>
   );

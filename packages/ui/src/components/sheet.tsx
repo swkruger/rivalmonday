@@ -21,15 +21,18 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
 }
 
 /** A side drawer on radix Dialog: focus is trapped while open and returns to the trigger on close; Escape and the backdrop close it. */
-function SheetContent({ className, children, side = 'left', ...props }: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: 'left' | 'right' }) {
+function SheetContent({ className, children, side = 'left', ...props }: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: 'top' | 'right' | 'bottom' | 'left' }) {
   return (
     <SheetPrimitive.Portal>
-      <SheetPrimitive.Overlay data-slot="sheet-overlay" className="fixed inset-0 z-50 bg-black/40" />
+      <SheetPrimitive.Overlay data-slot="sheet-overlay" className="fixed inset-0 z-50 bg-[rgb(11_37_64/0.32)]" />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed inset-y-0 z-50 flex w-[280px] max-w-[85vw] flex-col gap-1 overflow-y-auto bg-surface px-3.5 py-[22px] shadow-lg outline-none',
-          side === 'left' ? 'left-0 border-r border-line' : 'right-0 border-l border-line',
+          'fixed z-50 flex flex-col gap-1 overflow-y-auto bg-surface px-3.5 py-[22px] shadow-dialog outline-none',
+          side === 'left' && 'inset-y-0 left-0 w-[280px] max-w-[85vw] border-r border-line',
+          side === 'right' && 'inset-y-0 right-0 w-[280px] max-w-[85vw] border-l border-line',
+          side === 'top' && 'inset-x-0 top-0 max-h-[85vh] border-b border-line',
+          side === 'bottom' && 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-lg border-t border-line',
           className,
         )}
         {...props}

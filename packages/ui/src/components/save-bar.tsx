@@ -20,14 +20,15 @@ function SaveBar({
       role="region"
       aria-label="Unsaved changes"
       data-slot="save-bar"
-      className="sticky bottom-0 z-30 flex items-center justify-end gap-2 border-t bg-surface px-4 py-3 shadow-lg"
+      className="sticky bottom-4 z-30 mx-auto flex w-full max-w-[640px] items-center gap-2 rounded-md border border-line bg-surface px-4 py-3 text-13 font-medium text-ink shadow-overlay"
     >
+      <span className="mr-auto">Unsaved changes</span>
       {onReset ? (
-        <Button type="button" variant="outline" onClick={onReset} disabled={pending}>
+        <Button type="button" variant="ghost" size="sm" onClick={onReset} disabled={pending}>
           Discard
         </Button>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Saving…" : (saveLabel ?? "Save changes")}
       </Button>
     </div>

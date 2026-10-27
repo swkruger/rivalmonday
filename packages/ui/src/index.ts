@@ -25,5 +25,6 @@ export * from './components/table';
 export * from './components/tabs';
 export * from './components/tabs-classes';
 export * from './components/tabs-link';
+export * from './components/toast';
 export * from './components/tooltip';
 export * from './components/wordmark';

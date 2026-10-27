@@ -17,10 +17,9 @@ function Tooltip({ content, children, side = "top" }: { content: React.ReactNode
             data-slot="tooltip-content"
             side={side}
             sideOffset={6}
-            className={cn("z-50 max-w-64 rounded-md bg-ink px-2.5 py-1.5 text-xs text-white shadow-md")}
+            className={cn("z-50 max-w-64 rounded-xs bg-ink px-2 py-1 text-xs text-white shadow-overlay")}
           >
             {content}
-            <TooltipPrimitive.Arrow className="fill-ink" />
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>

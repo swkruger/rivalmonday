@@ -47,10 +47,10 @@ describe('Command', () => {
 });
 
 describe('Command input height', () => {
-  it('matches the h-9 wrapper', () => {
+  it('matches the h-11 wrapper', () => {
     render(<Command><CommandInput placeholder="Find" /></Command>);
     const cls = screen.getByPlaceholderText('Find').className;
-    expect(cls).toContain('h-9');
+    expect(cls).toContain('h-11');
     expect(cls).not.toContain('h-10');
   });
 });
