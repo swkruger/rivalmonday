@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { AGENCY_LIFECYCLE, BILLING_STATE, labelFor } from '@/lib/labels';
 import { moveAgenciesToCurrentPlanAction } from './actions';
-import { monthly, MoveLines, moveSummary, type PlanAgencyRow, versionText } from './plan-move-parts';
+import { monthly, MoveLines, moveSummary, type PlanAgencyRow, versionText } from '../_components/plan-move-parts';
 
 export interface PlanAgenciesData {
   currentVersion: number;

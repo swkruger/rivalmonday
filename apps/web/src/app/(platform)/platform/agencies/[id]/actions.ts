@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
-import type { MoveResultData } from '../../billing/plan-move-parts';
+import type { MoveResultData } from '../../_components/plan-move-parts';
 import { SUPPORT_COOKIE, signSupportCookie } from '@/server/support-cookie';
 import { sendSupportSessionStartedEmail } from '@/server/support-email';
 

@@ -4,7 +4,7 @@ import { sendAgencyInviteEmail } from '@/server/invite-email';
 import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
-import type { MoveResultData } from './plan-move-parts';
+import type { MoveResultData } from '../_components/plan-move-parts';
 import { endOfDayIso, toCents, toFeatures, toInt, toPercent } from './parse';
 import type { ToolResult } from '@/server/run-tool';
 

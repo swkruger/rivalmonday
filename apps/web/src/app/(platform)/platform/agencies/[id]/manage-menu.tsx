@@ -3,7 +3,7 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { ActionDialog, ResultLine } from './action-dialog';
-import { MoveLines, moveSummary, type PlanAgencyRow } from '../../billing/plan-move-parts';
+import { MoveLines, moveSummary, type PlanAgencyRow } from '../../_components/plan-move-parts';
 import { archiveAgencyAction, moveAgencyToCurrentPlanAction, renameAgencyAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
 
 type Agency = { id: string; name: string };

@@ -21,7 +21,7 @@ import { viewerTimeZone } from '@/server/viewer-tz';
 import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
 import { type AgencyClientRow, ArchivedView, ClientsSection } from './archived-view';
-import type { PlanAgencyRow } from '../../billing/plan-move-parts';
+import type { PlanAgencyRow } from '../../_components/plan-move-parts';
 import { type AgencyBilling, BillingPanel } from './billing-panel';
 import { type ClientLimits, ClientLimitsTable } from './client-limits';
 import { HoldBanner, HoldChip } from './hold-banner';
