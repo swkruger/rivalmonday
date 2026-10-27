@@ -32,7 +32,7 @@ describe('StatusChip / Skeleton', () => {
     render(<StatusChip tone="info" title="Why">Tracking</StatusChip>);
     const chip = screen.getByText('Tracking');
     expect(chip.getAttribute('title')).toBe('Why');
-    expect(chip.className).toContain('rounded-full');
+    expect(chip.getAttribute('data-tone')).toBe('info');
   });
 
   it('skeleton is aria-hidden', () => {

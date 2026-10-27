@@ -95,7 +95,7 @@ describe('SignalPills', () => {
 });
 
 describe('TierChip', () => {
-  it('uses the decided labels as small soft pills', () => {
+  it('renders the decided labels as TierMarks', () => {
     render(
       <>
         <TierChip tier="top" />
@@ -103,9 +103,9 @@ describe('TierChip', () => {
         <TierChip tier="minor" />
       </>,
     );
-    expect(screen.getByText('Top rival').className).toContain('bg-[#E2E8F0]');
-    expect(screen.getByText('Top rival').className).toContain('text-ink');
-    expect(screen.getByText('Worth watching').className).toContain('bg-primary-soft');
-    expect(screen.getByText('Minor').className).toContain('text-[#4A5D73]');
+    for (const [tier, label] of [['top', 'Top rival'], ['watch', 'Worth watching'], ['minor', 'Minor']]) {
+      expect(screen.getByText(label).closest('[data-slot="tier-mark"]')?.getAttribute('data-tier')).toBe(tier);
+    }
   });
+
 });

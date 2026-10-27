@@ -1,4 +1,5 @@
 import * as React from "react"
+import { CircleAlert, CircleCheck, Info, TriangleAlert, type LucideIcon } from "lucide-react"
 import { cn } from "../lib/cn"
 
 export type ChipTone = "neutral" | "info" | "success" | "warning" | "danger"
@@ -21,28 +22,43 @@ const toneClass: Record<ChipTone, string> = {
   danger: "bg-chip-danger-bg text-chip-danger-text",
 }
 
+/** Default glyph per tone (colour is never the only signal); neutral has none. `icon={null}` suppresses. */
+const defaultIcon: Record<ChipTone, LucideIcon | null> = {
+  neutral: null,
+  info: Info,
+  success: CircleCheck,
+  warning: TriangleAlert,
+  danger: CircleAlert,
+}
+
 function StatusChip({
   tone,
   children,
   title,
+  icon,
   className,
 }: {
   tone: ChipTone
   children: React.ReactNode
   title?: string
+  /** Lucide glyph; defaults per tone, `null` = none. */
+  icon?: LucideIcon | null
   className?: string
 }) {
+  const Icon = icon === undefined ? defaultIcon[tone] : icon
   return (
     <span
       data-slot="status-chip"
       data-tone={tone}
       title={title}
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
+        "inline-flex h-5 items-center gap-1 rounded-xs px-1.5 text-xs font-medium whitespace-nowrap",
         toneClass[tone],
+        tone === "warning" && "shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]",
         className,
       )}
     >
+      {Icon ? <Icon aria-hidden="true" className="size-3 shrink-0" /> : null}
       {children}
     </span>
   )

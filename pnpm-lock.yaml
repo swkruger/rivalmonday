@@ -712,6 +712,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@cs/core':
+        specifier: workspace:*
+        version: link:../core
       '@cs/email':
         specifier: workspace:*
         version: link:../email

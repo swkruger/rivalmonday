@@ -343,13 +343,13 @@ export function SuggestionsPanel({
         ))}
         {suggestions.length > 0 && !readOnly && (
           <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-ink p-3 text-muted-surface-2 shadow-md">
-            {/* Disabled keeps full opacity on a pale slate fill so the label stays readable (ink on #CBD5E1 ≈ 10:1). */}
+            {/* Disabled keeps full opacity on a pale slate fill so the label stays readable (ink on line-control ≈ 10:1). */}
             <Button
               type="button"
               onClick={track}
               disabled={selected.size === 0 || selected.size > room || tracking}
               title={room === 0 ? `This client already tracks ${limit} competitors` : undefined}
-              className="bg-white font-bold text-ink hover:bg-white/90 disabled:bg-[#CBD5E1] disabled:opacity-100"
+              className="bg-white font-bold text-ink hover:bg-white/90 disabled:bg-line-control disabled:opacity-100"
             >
               Track selected ({selected.size})
             </Button>

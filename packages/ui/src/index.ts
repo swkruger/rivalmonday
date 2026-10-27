@@ -1,6 +1,5 @@
 export * from './theme';
 export * from './lib/cn';
-export * from './components/badge';
 export * from './components/band';
 export * from './components/breadcrumb';
 export * from './components/button';
@@ -31,3 +30,9 @@ export * from './components/tabs-link';
 export * from './components/toast';
 export * from './components/tooltip';
 export * from './components/wordmark';
+export * from './components/citation-pill';
+export * from './components/dot-status';
+export * from './components/filter-chip';
+export * from './components/sources-list';
+export * from './components/tag';
+export * from './components/tier-mark';

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cs/core": "workspace:*",
     "@cs/email": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

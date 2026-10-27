@@ -13,7 +13,7 @@ const STATE_CLASS: Record<PillState, string> = {
   active: 'rounded-full bg-primary-soft px-2 font-semibold text-primary-soft-text',
   hot: 'rounded-full bg-chip-warning-bg px-2 font-semibold text-accent-text',
   none: 'px-1 font-medium text-muted-ink',
-  unchecked: 'rounded-full border border-dashed border-[#CBD5E1] px-2 font-medium text-muted-ink',
+  unchecked: 'rounded-full border border-dashed border-line-control px-2 font-medium text-muted-ink',
 };
 const NOT_CHECKED = 'Not checked';
 
