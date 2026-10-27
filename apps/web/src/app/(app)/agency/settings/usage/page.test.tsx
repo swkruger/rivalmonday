@@ -60,7 +60,7 @@ describe('agency usage page (7b1)', () => {
       ],
     };
     await show();
-    const tile = (label: string) => screen.getByRole('heading', { name: label }).parentElement!.textContent;
+    const tile = (label: string) => screen.getByRole('heading', { level: 2, name: label }).closest('[data-slot="kpi"]')!.textContent;
     expect(tile('Near limit')).toContain('1');
     expect(tile('Limit reached')).toContain('1');
     expect(tile('Paused')).toContain('2');

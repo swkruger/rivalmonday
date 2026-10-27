@@ -65,6 +65,13 @@ describe('/agency/settings/billing', () => {
     expect(screen.getByRole('link', { name: 'Download client report (CSV)' }).getAttribute('href')).toBe('/agency/settings/billing/seats.csv');
   });
 
+  it('client billing is a named region, and invoices are a table', async () => {
+    render(await page());
+    expect(screen.getByRole('region', { name: 'Client billing' })).toBeTruthy();
+    const row = screen.getByRole('cell', { name: /Oct 13/ }).closest('tr')!;
+    expect(within(row).getByRole('link', { name: /A-0001/ })).toBeTruthy();
+  });
+
   it('billing shows Read-only, not Paused, for read_only', async () => {
     m.summary = summary({ state: 'read_only', hasSubscription: true });
     render(await page());

@@ -45,13 +45,15 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <DeliveryForm
-        clientId={clientId}
-        alertMode={profile.alertMode ?? 'after_am_check'}
-        briefAutoSend={profile.briefAutoSend ?? false}
-        timezone={profile.timezone}
-        timezoneOptions={timezoneOptions(profile.timezone)}
-      />
+      <Section>
+        <DeliveryForm
+          clientId={clientId}
+          alertMode={profile.alertMode ?? 'after_am_check'}
+          briefAutoSend={profile.briefAutoSend ?? false}
+          timezone={profile.timezone}
+          timezoneOptions={timezoneOptions(profile.timezone)}
+        />
+      </Section>
       <Section title="Recipients" titleAside={<HelpTip tip="client.settings.delivery.recipients" />}>
           {recipients.length === 0 ? (
             <EmptyState {...COPY.empty.noRecipients} guideAnchor="how-to-use-it" />

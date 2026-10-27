@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientSummary, PendingInvite, TeamMember } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -58,14 +58,11 @@ export default async function TeamPage() {
           { label: 'Removing', tip: 'agency.settings.team.removing' },
         ]}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {members.length === 0 ? (
-            <EmptyState {...COPY.empty.noMembers} guideAnchor="what-this-page-tells-you" />
-          ) : (
+      <Section title="Members">
+        {members.length === 0 ? (
+          <EmptyState {...COPY.empty.noMembers} guideAnchor="what-this-page-tells-you" />
+        ) : (
+          <TableFrame>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -94,22 +91,19 @@ export default async function TeamPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-          <WriteGuard>
-            <div className="border-t border-line pt-5">
-              <InviteForm clients={clients} canInviteAgencyRoles={ctx.role === 'agency_admin'} />
-            </div>
-          </WriteGuard>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending invitations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {invitations.length === 0 ? (
-            <EmptyState {...COPY.empty.noInvites} guideAnchor="common-questions" />
-          ) : (
+          </TableFrame>
+        )}
+        <WriteGuard>
+          <div className="border-t border-line pt-5">
+            <InviteForm clients={clients} canInviteAgencyRoles={ctx.role === 'agency_admin'} />
+          </div>
+        </WriteGuard>
+      </Section>
+      <Section ruled title="Pending invitations">
+        {invitations.length === 0 ? (
+          <EmptyState {...COPY.empty.noInvites} guideAnchor="common-questions" />
+        ) : (
+          <TableFrame>
             <InvitationTable
               invitations={invitations.map((i) => ({
                 id: i.id,
@@ -119,9 +113,9 @@ export default async function TeamPage() {
                 dates: `${formatDate(i.sentAt, { tz })} · expires ${formatDate(i.expiresAt, { tz })}`,
               }))}
             />
-          )}
-        </CardContent>
-      </Card>
+          </TableFrame>
+        )}
+      </Section>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Band, Section } from '@cs/ui';
 import type { ReactNode } from 'react';
 import { PaymentButton } from '../payment-button';
 import { connectAction } from './actions';
@@ -21,22 +21,16 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
   // Returning from Stripe (done) before the account is chargeable reads the same as a refresh (retry).
   const notice = connect === 'done' || connect === 'retry' ? (connected ? (connect === 'done' ? 'Stripe connected.' : null) : "Stripe setup isn't finished yet.") : null;
   return (
-    <Card>
-      <CardHeader>
-        <div className="inline-flex items-center gap-1.5">
-          <CardTitle>Client billing</CardTitle>
-          {help}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <Section ruled labelled title="Client billing" titleAside={help}>
+      <div className="flex flex-col gap-4">
         {!status.billingConfigured ? (
-          <p className="text-muted-foreground">Client billing isn&apos;t available on this installation yet.</p>
+          <p className="text-muted-ink">Client billing isn&apos;t available on this installation yet.</p>
         ) : (
           <>
             {notice && (
-              <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
+              <Band tone="muted" role="status" className="text-ink">
                 {notice}
-              </p>
+              </Band>
             )}
             {connected ? (
               <>
@@ -58,7 +52,7 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

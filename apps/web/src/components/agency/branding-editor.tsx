@@ -1,7 +1,7 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Button, Input, Label, SaveBar, readableTextOn, themeVars } from '@cs/ui';
+import { Band, Button, Input, Label, SaveBar, Section, readableTextOn, themeVars } from '@cs/ui';
 import { useActionState, useId, useRef, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -26,7 +26,7 @@ function ColorField({ label, value, onChange, note }: { label: string; value: st
         />
         <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="#47A8E7" className="w-32" aria-describedby={note ? noteId : undefined} />
       </div>
-      {note && <p id={noteId} className="text-sm text-muted-foreground">{note}</p>}
+      {note && <p id={noteId} className="text-sm text-muted-ink">{note}</p>}
     </div>
   );
 }
@@ -83,13 +83,14 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_360px]">
       <div className="flex flex-col gap-4">
-      <form action={formAction} className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6">
+      <Section>
+      <form action={formAction} className="flex flex-col gap-5">
         {!state.ok && state.error && (
           <ErrorNote focusKey={state}>
             {state.error}
           </ErrorNote>
         )}
-        {state.ok && state.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
+        {state.ok && state.message && <Band tone="muted" className="text-ink">{state.message}</Band>}
         <fieldset disabled={readOnly} className="contents">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -115,7 +116,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
               }}
               className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
             />
-            <p className="text-sm text-muted-foreground">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
+            <p className="text-sm text-muted-ink">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
             {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
           </div>
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
@@ -131,13 +132,13 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
           <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="assistantName">Assistant name</Label>
             <Input id="assistantName" name="assistantName" maxLength={30} value={draft.assistantName ?? ''} onChange={(e) => set('assistantName')(e.target.value)} placeholder="Friday" />
-            <p className="text-sm text-muted-foreground">What your clients call the Ask assistant. Leave blank for Friday.</p>
+            <p className="text-sm text-muted-ink">What your clients call the Ask assistant. Leave blank for Friday.</p>
           </div>
         </div>
         </fieldset>
         <input type="hidden" name="primary" value={draft.primary ?? ''} />
         <input type="hidden" name="secondary" value={draft.secondary ?? ''} />
-        <p className="text-sm text-muted-foreground">The amber accent is part of the product and can&apos;t be changed.</p>
+        <p className="text-sm text-muted-ink">The amber accent is part of the product and can&apos;t be changed.</p>
         {wizard ? (
           <WriteGuard>
             <Button type="submit" disabled={pending} className="self-start">
@@ -155,26 +156,27 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
           )
         )}
       </form>
+      </Section>
       {footer}
       </div>
 
-      <div style={vars} className="sticky top-4 flex flex-col gap-3 rounded-md border border-line bg-surface p-4">
+      <div style={vars} className="sticky top-4 flex flex-col gap-3 rounded-md border border-line bg-surface p-4" data-slot="frame">
         <h2 className="text-base font-semibold">Live preview</h2>
-        <p className="text-xs font-semibold text-muted-foreground">Dashboard</p>
-        <div className="overflow-hidden rounded-xl border border-line">
+        <p className="text-xs font-semibold text-muted-ink">Dashboard</p>
+        <div className="overflow-hidden rounded-md border border-line">
           <div className="flex h-[200px]">
-            <div className="flex w-24 flex-col gap-1.5 border-r border-line bg-surface p-2 text-[11px]">
+            <div className="flex w-24 flex-col gap-1.5 border-r border-line bg-surface p-2 text-11">
               <div data-testid="preview-dashboard-header">
-                <Mark logoUrl={logoSrc} name={resolved.displayName} className="h-5 w-auto" textClass="truncate text-xs font-bold" />
+                <Mark logoUrl={logoSrc} name={resolved.displayName} className="h-5 w-auto" textClass="truncate text-xs font-semibold" />
               </div>
-              <div className="mt-1 rounded px-1.5 py-1 font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary-soft-text)' }}>
+              <div className="mt-1 rounded-sm px-1.5 py-1 font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary-soft-text)' }}>
                 Overview
               </div>
               <div className="px-1.5 py-1">Clients</div>
             </div>
             <div className="flex-1 bg-canvas p-2.5">
               <div
-                className="rounded-md border-l-[3px] bg-white p-2 text-[11px]"
+                className="rounded-md border-l-[3px] bg-surface p-2 text-11"
                 style={{ borderLeftColor: 'var(--primary)' }}
               >
                 <span className="font-semibold">A competitor move worth your attention</span>
@@ -182,25 +184,25 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
               <button type="button" className="mt-2 rounded-sm px-3 py-1.5 text-xs font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
                 Primary button
               </button>
-              <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary-soft-text)' }}>
+              <span className="ml-2 rounded-full px-2 py-0.5 text-11 font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary-soft-text)' }}>
                 Chip
               </span>
             </div>
           </div>
         </div>
-        <p className="mt-1 text-xs font-semibold text-muted-foreground">Email</p>
-        <div className="overflow-hidden rounded-xl border border-line" style={{ background: resolved.canvas }}>
+        <p className="mt-1 text-xs font-semibold text-muted-ink">Email</p>
+        <div className="overflow-hidden rounded-md border border-line" style={{ background: resolved.canvas }}>
           <div className="p-3">
             <div data-testid="preview-email-header" className="pb-2">
-              <Mark logoUrl={logoSrc} name={resolved.displayName} className="h-6 w-auto" textClass="text-base font-bold" />
+              <Mark logoUrl={logoSrc} name={resolved.displayName} className="h-6 w-auto" textClass="text-base font-semibold" />
             </div>
-            <div className="rounded-lg bg-white p-3 text-[11px]">
+            <div className="rounded-md bg-surface p-3 text-11">
               <p>Hi Sam,</p>
               <p className="mt-1">Your weekly competitor brief is ready.</p>
               <span className="mt-2 inline-block rounded-sm px-3 py-1.5 text-xs font-semibold" style={{ background: resolved.primary, color: readableTextOn(resolved.primary) }}>
                 View the brief
               </span>
-              {resolved.signOff && <p className="mt-2 text-muted-foreground">{resolved.signOff}</p>}
+              {resolved.signOff && <p className="mt-2 text-muted-ink">{resolved.signOff}</p>}
             </div>
           </div>
         </div>

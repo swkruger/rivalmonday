@@ -1,5 +1,5 @@
 'use client';
-import { Button, ConfirmDialog, Input, Label, StatusChip, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Band, Button, ConfirmDialog, Input, Label, nativeSelectClass, StatusChip, Switch, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { type ReactNode, useActionState, useOptimistic, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { useReadOnly } from '@/components/read-only';
@@ -7,7 +7,7 @@ import { AGENCY_NOTICE_KIND, labelFor, WEBHOOK_KIND } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { addWebhookAction, deleteWebhookAction, testWebhookAction, toggleWebhookAction, type WebhookTestOutcome } from './actions';
 
-const selectClass = 'h-9 w-full max-w-40 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const selectClass = `${nativeSelectClass} w-full max-w-40`;
 
 /** The agency notices a webhook can carry, in `AGENCY_KINDS` order, worded by the label map (no raw slugs). */
 const AGENCY_KIND_OPTIONS = Object.entries(AGENCY_NOTICE_KIND).map(([value, { label }]) => ({ value, label }));
@@ -42,7 +42,7 @@ export function AddWebhookForm() {
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && <Band tone="muted" role="status" className="text-ink">{state.message}</Band>}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="webhook-kind">Kind</Label>

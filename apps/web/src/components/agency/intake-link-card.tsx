@@ -1,5 +1,5 @@
 'use client';
-import { Button, Card, CardContent, CardHeader, CardTitle, readableTextOn, Switch } from '@cs/ui';
+import { Button, nativeInputClass, readableTextOn, Section, Switch } from '@cs/ui';
 import Link from 'next/link';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
@@ -16,7 +16,7 @@ export interface IntakeLinkState {
 type SaveAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 type ToggleAction = (enabled: boolean) => Promise<FormResult>;
 
-const fieldCls = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const fieldCls = nativeInputClass;
 export const BUTTON_TEXT = 'Get your free competitor snapshot';
 
 /** The snippet an agency pastes into its website (inline styles only: it must work in any page builder). */
@@ -58,16 +58,13 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
   const [toggled, setToggled] = useState<FormResult>({ ok: true });
   const [pending, startTransition] = useTransition();
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Intake link</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <p className="text-sm text-muted-foreground">Share this link, or add the button to your website. Visitors search for their business and get a free competitor snapshot; you decide who to accept.</p>
+    <Section title="Intake link">
+      <div className="flex flex-col gap-4">
+        <p className="text-13 text-muted-ink">Share this link, or add the button to your website. Visitors search for their business and get a free competitor snapshot; you decide who to accept.</p>
         {link.url ? (
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <code className="rounded-md bg-muted-surface px-2 py-1 text-sm text-ink">{link.url}</code>
+              <code className="rounded-sm bg-muted-surface px-2 py-1 text-13 text-ink">{link.url}</code>
               <CopyButton text={link.url} label="Copy link" />
               <CopyButton text={buttonHtml(link.url, primary)} label="Copy button HTML" />
               <Button asChild variant="outline"><Link href="/agency/settings/intake/preview">Preview your page</Link></Button>
@@ -107,10 +104,10 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
           </form>
         )}
         <dl className="grid grid-cols-2 gap-3 border-t border-line pt-3 text-sm">
-          <div><dt className="text-muted-foreground">New this month</dt><dd className="text-lg font-bold">{link.counts.newThisMonth}</dd></div>
-          <div><dt className="text-muted-foreground">Accepted</dt><dd className="text-lg font-bold">{link.counts.accepted}</dd></div>
+          <div><dt className="text-muted-ink">New this month</dt><dd className="text-lg font-semibold text-ink">{link.counts.newThisMonth}</dd></div>
+          <div><dt className="text-muted-ink">Accepted</dt><dd className="text-lg font-semibold text-ink">{link.counts.accepted}</dd></div>
         </dl>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

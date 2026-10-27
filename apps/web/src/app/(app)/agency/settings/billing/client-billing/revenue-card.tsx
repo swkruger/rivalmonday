@@ -1,3 +1,4 @@
+import { Band } from '@cs/ui';
 import { formatMoney } from '@/lib/format';
 
 export interface Revenue {
@@ -10,11 +11,11 @@ export interface Revenue {
 /** Admin-only: what the agency bills versus what Rival Monday costs it. */
 export function RevenueCard({ revenue }: { revenue: Revenue }) {
   return (
-    <div className="rounded-md bg-muted-surface p-4 text-ink">
+    <Band tone="muted" className="text-ink">
       <p className="font-semibold">{`You bill ${formatMoney(revenue.mrrCents, { unit: 'cents' })}/mo · Rival Monday costs you ${formatMoney(revenue.ourCostCents, { unit: 'cents' })}/mo`}</p>
-      <p className="mt-1 text-sm">
+      <p className="mt-1 text-13">
         {revenue.payingCount} paying · {revenue.paymentNeededCount} payment needed
       </p>
-    </div>
+    </Band>
   );
 }

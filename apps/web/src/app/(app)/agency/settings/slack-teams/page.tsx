@@ -1,5 +1,5 @@
 import type { WebhookView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Section, TableFrame } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -33,19 +33,20 @@ export default async function WebhooksPage() {
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <Card>
-        <CardHeader>
-          <div className="inline-flex items-center gap-1.5">
-            <CardTitle>Webhooks</CardTitle>
+      <Section
+        title="Webhooks"
+        titleAside={
+          <>
             <HelpTip tip="agency.settings.slack-teams.how" />
             <HelpTip tip="agency.settings.slack-teams.kinds" />
             <HelpTip tip="agency.settings.slack-teams.secret" />
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {webhooks.length === 0 ? (
-            <EmptyState {...COPY.empty.noWebhooks} guideAnchor="how-to-use-it" />
-          ) : (
+          </>
+        }
+      >
+        {webhooks.length === 0 ? (
+          <EmptyState {...COPY.empty.noWebhooks} guideAnchor="how-to-use-it" />
+        ) : (
+          <TableFrame>
             <WebhookTable
               webhooks={webhooks.map(({ id, kind, host, kinds, active }) => ({ id, kind, host, kinds, active }))}
               activeHeader={
@@ -55,14 +56,14 @@ export default async function WebhooksPage() {
                 </span>
               }
             />
-          )}
-          <WriteGuard>
-            <div className="border-t border-line pt-5">
-              <AddWebhookForm />
-            </div>
-          </WriteGuard>
-        </CardContent>
-      </Card>
+          </TableFrame>
+        )}
+        <WriteGuard>
+          <div className="border-t border-line pt-5">
+            <AddWebhookForm />
+          </div>
+        </WriteGuard>
+      </Section>
     </>
   );
 }

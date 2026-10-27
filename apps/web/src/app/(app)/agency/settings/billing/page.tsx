@@ -1,6 +1,6 @@
 import { formatMoney, formatDate } from '@/lib/format';
 import type { BillingState } from '@cs/db';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
+import { Band, Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { RefreshUntilChanged } from '@/components/billing/refresh-until-changed';
 import { EmptyState } from '@/components/help/empty-state';
@@ -88,24 +88,23 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       />
       {done && <RefreshUntilChanged watch={`${s.state}:${s.hasSubscription}`} />}
       {done && (
-        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
+        <Band tone="muted" role="status" className="text-ink">
           Thanks — your billing details are being updated. This page refreshes as soon as Stripe confirms.
-        </p>
+        </Band>
       )}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5">
-              <CardTitle>{s.plan?.name ?? 'No plan'}</CardTitle>
-              <HelpTip tip="agency.settings.billing.plan" />
-            </span>
-            <span className="inline-flex items-center gap-1.5">
+      <Section
+        title={s.plan?.name ?? 'No plan'}
+        titleAside={
+          <>
+            <HelpTip tip="agency.settings.billing.plan" />
+            <span className="ml-1.5 inline-flex items-center gap-1.5">
               <StatusChip tone={state.tone}>{state.label}</StatusChip>
               <HelpTip tip="agency.settings.billing.status" />
             </span>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2">
           {s.plan && (
             <p>
               {formatMoney(s.plan.basePriceCents, { unit: 'cents' })} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatMoney(s.plan.seatPriceCents, { unit: 'cents' })} per month.
@@ -128,48 +127,48 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <div className="mt-2">
             <PaymentButton action={pay.action} label={pay.label} />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
       <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} help={<HelpTip tip="agency.settings.billing.clientBilling" />} />
-      <Card>
-        <CardHeader>
-          <div className="inline-flex items-center gap-1.5">
-            <CardTitle>Discount code</CardTitle>
-            <HelpTip tip="agency.settings.billing.discount" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <RedeemForm />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="inline-flex items-center gap-1.5">
-            <CardTitle>Recent invoices</CardTitle>
-            <HelpTip tip="agency.settings.billing.invoice" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {s.recentInvoices.length === 0 ? (
-            <EmptyState {...COPY.empty.noInvoices} guideAnchor="what-this-page-tells-you" />
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {s.recentInvoices.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-center gap-3">
-                  <span>{formatDate(i.created, { tz: 'UTC' })}</span>
-                  <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
-                  <StatusChip tone={labelFor(INVOICE_STATUS, i.status).tone}>{labelFor(INVOICE_STATUS, i.status).label}</StatusChip>
-                  {i.hostedInvoiceUrl && (
-                    <a href={i.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text underline">
-                      Invoice {i.number ?? i.id}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <Section ruled title="Discount code" titleAside={<HelpTip tip="agency.settings.billing.discount" />}>
+        <RedeemForm />
+      </Section>
+      <Section ruled title="Recent invoices" titleAside={<HelpTip tip="agency.settings.billing.invoice" />}>
+        {s.recentInvoices.length === 0 ? (
+          <EmptyState {...COPY.empty.noInvoices} guideAnchor="what-this-page-tells-you" />
+        ) : (
+          <TableFrame>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Invoice</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {s.recentInvoices.map((i) => (
+                  <TableRow key={i.id}>
+                    <TableCell>{formatDate(i.created, { tz: 'UTC' })}</TableCell>
+                    <TableCell>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</TableCell>
+                    <TableCell>
+                      <StatusChip tone={labelFor(INVOICE_STATUS, i.status).tone}>{labelFor(INVOICE_STATUS, i.status).label}</StatusChip>
+                    </TableCell>
+                    <TableCell>
+                      {i.hostedInvoiceUrl && (
+                        <a href={i.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text underline">
+                          Invoice {i.number ?? i.id}
+                        </a>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableFrame>
+        )}
+      </Section>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { UsageRow } from '@cs/tools';
-import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -10,6 +10,7 @@ import { formatCredits, formatCreditsOf } from '@/lib/format';
 import { reachedCopy } from '@/lib/spend-copy';
 import { SpendBadge } from '@/components/spend-badge';
 import { PageHeader } from '@/components/page-header';
+import { StatStrip } from '@/components/stat-strip';
 import { PAGE_COPY } from '@/help/copy';
 import { CLIENT_STATUS, labelFor } from '@/lib/labels';
 import { requireContext } from '@/server/current-viewer';
@@ -44,18 +45,19 @@ export default async function UsagePage() {
         guide={guides.has(HELP_KEY)}
       />
 
-      <div className="grid gap-5 sm:grid-cols-3">
-        {([['Near limit', count('near')], ['Limit reached', count('reached')], ['Paused', count('paused')]] as const).map(([label, n]) => (
-          <div key={label} className="rounded-md border border-line bg-surface p-6">
-            <h3 className="text-sm font-semibold">{label}</h3>
-            <div className="mt-2 text-[34px] font-bold tracking-tight text-secondary">{n}</div>
-          </div>
-        ))}
-      </div>
+      <StatStrip
+        items={[
+          { title: 'Near limit', value: String(count('near')) },
+          { title: 'Limit reached', value: String(count('reached')) },
+          { title: 'Paused', value: String(count('paused')) },
+        ]}
+      />
 
+      <Section>
       {items.length === 0 ? (
         <EmptyState {...COPY.empty.noClients} guideAnchor="what-this-page-tells-you" />
       ) : (
+      <TableFrame>
       <Table>
         <TableHeader>
           <TableRow>
@@ -117,9 +119,11 @@ export default async function UsagePage() {
           ))}
         </TableBody>
       </Table>
+      </TableFrame>
       )}
+      </Section>
 
-      <p className="text-muted-ink">
+      <p className="text-13 text-muted-ink">
         Shared monitoring of a competitor (Google profile, reviews, ads, job posts) is split equally between the clients that track it. The intelligence engine’s own shared work is not split across clients, so it is not in these figures.
         {agencyLevelCredits !== null && <> Credits not tied to a client: {formatCredits(agencyLevelCredits)}.</>} Total this month: {formatCredits(totalCredits)}.
       </p>

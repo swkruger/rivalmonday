@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Section, TableFrame } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -44,34 +44,32 @@ export default async function PlatformAccessPage({ searchParams }: { searchParam
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <Card>
-        <CardHeader>
-          <div className="inline-flex items-center gap-1.5">
-            <CardTitle>Notifications</CardTitle>
-            <HelpTip tip="agency.settings.platform-access.notify" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <NotifySwitch enabled={notifyEnabled} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="inline-flex items-center gap-1.5">
-            <CardTitle>Support sessions</CardTitle>
+      <Section title="Notifications" titleAside={<HelpTip tip="agency.settings.platform-access.notify" />}>
+        <NotifySwitch enabled={notifyEnabled} />
+      </Section>
+      <Section
+        ruled
+        title="Support sessions"
+        titleAside={
+          <>
             <HelpTip tip="agency.settings.platform-access.sessions" />
             <HelpTip tip="agency.settings.platform-access.endReasons" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {rows.length === 0 ? <EmptyState {...COPY.empty.noSessions} guideAnchor="what-this-page-tells-you" /> : <SupportSessionsTable rows={rows} empty="" tz={tz} />}
-          {nextCursor && (
-            <Link href={`/agency/settings/platform-access?cursor=${encodeURIComponent(nextCursor)}`} className="mt-3 inline-block text-sm font-semibold text-primary-soft-text underline">
-              Older sessions
-            </Link>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        }
+      >
+        {rows.length === 0 ? (
+          <EmptyState {...COPY.empty.noSessions} guideAnchor="what-this-page-tells-you" />
+        ) : (
+          <TableFrame>
+            <SupportSessionsTable rows={rows} empty="" tz={tz} />
+          </TableFrame>
+        )}
+        {nextCursor && (
+          <Link href={`/agency/settings/platform-access?cursor=${encodeURIComponent(nextCursor)}`} className="inline-block text-sm font-semibold text-primary-soft-text underline">
+            Older sessions
+          </Link>
+        )}
+      </Section>
     </>
   );
 }

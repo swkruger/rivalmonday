@@ -1,6 +1,6 @@
 'use client';
 import type { Role } from '@cs/core';
-import { Button, ConfirmDialog, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Band, Button, ConfirmDialog, Input, Label, nativeSelectClass, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { useReadOnly } from '@/components/read-only';
@@ -8,7 +8,7 @@ import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { inviteAction, resendInvitationAction, revokeInvitationAction, revokeMembershipAction } from './actions';
 
-const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const selectClass = `${nativeSelectClass} w-full max-w-sm`;
 
 const AGENCY_ROLE_OPTIONS: Role[] = ['agency_admin', 'account_manager', 'client_owner', 'client_viewer'];
 const CLIENT_ROLE_OPTIONS: Role[] = ['client_owner', 'client_viewer'];
@@ -29,7 +29,7 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
           {state.error}
         </ErrorNote>
       )}
-      {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
+      {state.ok && state.message && <Band tone="muted" role="status" className="text-ink">{state.message}</Band>}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="invite-email">Email</Label>
