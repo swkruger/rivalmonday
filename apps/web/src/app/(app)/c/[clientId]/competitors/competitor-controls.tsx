@@ -1,6 +1,6 @@
 'use client';
 import type { CompetitorSignalView, HiddenReason, SuggestionView, Tier, TrackedCompetitor } from '@cs/tools';
-import { Button, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { BulkBar, bulkBarActionClass, Button, Card, ConfirmDialog, Field, Input, Section, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TierMark } from '@cs/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,7 @@ import { HelpTip } from '@/components/help/help-tip';
 import { useReadOnly } from '@/components/read-only';
 import { SignalPills } from '@/components/rival/signal-pills';
 import { ratedLabel } from '@/components/rival/rated-label';
-import { TIER_LABEL, TierChip } from '@/components/rival/tier-chip';
+import { TierChip } from '@/components/rival/tier-chip';
 import type { FormResult } from '@/server/forms';
 import { acceptSuggestionsAction, addCompetitorAction, dismissSuggestionAction, removeCompetitorAction, requestSuggestionsAction, type SearchState, type SearchStatus, searchStatusAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
@@ -170,8 +170,7 @@ const HIDDEN_LABEL: Record<HiddenReason, string> = {
   thin: 'Too little information',
 };
 const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
-/** Suggestion group headings: a small coloured bar per tier; only Top rival carries a hint. */
-const TIER_BAR: Record<Tier, string> = { top: 'bg-ink', watch: 'bg-primary', minor: 'bg-muted-ink' };
+/** Suggestion group headings carry a TierMark; only Top rival carries a hint. */
 const TIER_HINT: Partial<Record<Tier, string>> = { top: 'close by, same services, active' };
 const TIER_RANK: Record<Tier, number> = { top: 0, watch: 1, minor: 2 };
 
@@ -190,15 +189,17 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
 }) {
   const meta = [s.category, s.distanceKm !== null ? `${kmToMiles(s.distanceKm).toFixed(1)} mi` : null, s.domain].filter(Boolean).join(' · ');
   return (
-    <li className="flex items-start gap-3 py-3">
-      {selectable && <input type="checkbox" className="mt-1.5 h-4 w-4 accent-primary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
+    <li>
+    <Card variant="interactive" selected={checked} className="flex items-start gap-3 p-4">
+      {selectable && <input type="checkbox" className="mt-1.5 size-4 accent-secondary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="font-semibold">{s.name}</p>
-        {meta && <p className="text-sm text-muted-foreground">{meta}</p>}
+        {meta && <p className="text-13 text-muted-ink">{meta}</p>}
         <SignalPills signals={s.signals} mode="suggestion" />
-        {hasUnchecked(s.signals) && <p className="text-xs text-muted-foreground">Some signals unavailable</p>}
+        {hasUnchecked(s.signals) && <p className="text-xs text-muted-ink">Some signals unavailable</p>}
       </div>
       {dismiss}
+    </Card>
     </li>
   );
 }
@@ -273,16 +274,9 @@ export function SuggestionsPanel({
 
   const groups = TIER_ORDER.map((t) => ({ tier: t, items: suggestions.filter((s) => (s.tier ?? 'minor') === t) })).filter((g) => g.items.length > 0);
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-1.5">
-          <CardTitle>Suggested competitors</CardTitle>
-          <HelpTip tip="client.competitors.suggestions" />
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+    <Section title="Suggested competitors" titleAside={<HelpTip tip="client.competitors.suggestions" />} className="gap-5">
         {canSearch && !readOnly && !ready && (
-          <p className="text-muted-foreground">
+          <p className="text-muted-ink">
             Add keywords and a service area to search.{' '}
             <Link href={`/c/${clientId}/settings/profile`} className="font-semibold text-primary-soft-text">
               Go to Business profile
@@ -304,26 +298,25 @@ export function SuggestionsPanel({
                 'Find competitors'
               )}
             </Button>
-            <p className="text-sm text-muted-foreground">A full search runs hundreds of map lookups and usually takes 20–40 minutes. You can leave this page.</p>
+            <p className="text-sm text-muted-ink">A full search runs hundreds of map lookups and usually takes 20–40 minutes. You can leave this page.</p>
             {!state.ok && <Message state={state} />}
             <SearchProgress progress={progress} status={status} found={suggestions.length} failedOnLoad={failedOnLoad} />
           </form>
         ) : (
-          <p className="text-sm text-muted-foreground"><HelpText text="{agency} can look for more competitors for you." /></p>
+          <p className="text-sm text-muted-ink"><HelpText text="{agency} can look for more competitors for you." /></p>
         )}
         <Message state={rowState} />
         <Message state={bulkState} />
-        {suggestions.length === 0 && !searching && <p className="text-muted-foreground">No competitors found yet. Add keywords and a service area, then search.</p>}
+        {suggestions.length === 0 && !searching && <p className="text-muted-ink">No competitors found yet. Add keywords and a service area, then search.</p>}
         {groups.map((g) => (
           <section key={g.tier} className="flex flex-col gap-3" aria-labelledby={`tier-${g.tier}`}>
             <div className="flex flex-wrap items-center gap-2">
-              <span aria-hidden="true" className={`h-4 w-1 rounded-sm ${TIER_BAR[g.tier]}`} />
-              <h3 id={`tier-${g.tier}`} className="text-sm font-bold text-ink">
-                {TIER_LABEL[g.tier]} <span className="text-xs font-medium text-muted-ink">· {g.items.length}</span>
+              <h3 id={`tier-${g.tier}`} className="text-sm font-semibold text-ink">
+                <TierMark tier={g.tier} /> <span className="text-xs font-medium text-muted-ink">· {g.items.length}</span>
               </h3>
               {TIER_HINT[g.tier] && <span className="text-xs text-muted-ink">{TIER_HINT[g.tier]}</span>}
             </div>
-            <ul className="m-0 flex list-none flex-col divide-y divide-line p-0">
+            <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2">
               {g.items.map((s) => {
                 const checked = selected.has(s.id);
                 return (
@@ -342,20 +335,19 @@ export function SuggestionsPanel({
           </section>
         ))}
         {suggestions.length > 0 && !readOnly && (
-          <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-ink p-3 text-muted-surface-2 shadow-md">
-            {/* Disabled keeps full opacity on a pale slate fill so the label stays readable (ink on line-control ≈ 10:1). */}
+          <BulkBar label="Selected suggestions">
             <Button
               type="button"
               onClick={track}
               disabled={selected.size === 0 || selected.size > room || tracking}
               title={room === 0 ? `This client already tracks ${limit} competitors` : undefined}
-              className="bg-white font-bold text-ink hover:bg-white/90 disabled:bg-line-control disabled:opacity-100"
+              className={bulkBarActionClass}
             >
               Track selected ({selected.size})
             </Button>
-            {room === 0 && <span className="text-sm text-muted-surface-2">This client already tracks {limit} competitors</span>}
-            {room > 0 && selected.size >= room && <span className="text-sm text-muted-surface-2">You can track {room} more.</span>}
-          </div>
+            {room === 0 && <span role="status" className="text-13 text-white/80">This client already tracks {limit} competitors</span>}
+            {room > 0 && selected.size >= room && <span role="status" className="text-13 text-white/80">You can track {room} more.</span>}
+          </BulkBar>
         )}
         {hiddenList.length > 0 && (
           <details className="pt-3">
@@ -364,14 +356,13 @@ export function SuggestionsPanel({
               {hiddenList.map((h, i) => (
                 <li key={`${h.name}-${i}`} className="flex flex-wrap justify-between gap-2">
                   <span>{h.name}</span>
-                  <span className="text-muted-foreground">{HIDDEN_LABEL[h.reason]}</span>
+                  <span className="text-muted-ink">{HIDDEN_LABEL[h.reason]}</span>
                 </li>
               ))}
             </ul>
           </details>
         )}
-      </CardContent>
-    </Card>
+    </Section>
   );
 }
 
@@ -383,18 +374,15 @@ export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: stri
       <input type="hidden" name="clientId" value={clientId} />
       <Message state={state} />
       <div className="flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="competitor-name">Name</Label>
+        <Field label="Name">
           <Input id="competitor-name" name="name" required className="w-48" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="competitor-domain">Website</Label>
+        </Field>
+        <Field label="Website">
           <Input id="competitor-domain" name="domain" placeholder="smithhvac.com" className="w-56" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="competitor-place-id">Google Place ID (optional)</Label>
+        </Field>
+        <Field label="Google Place ID (optional)">
           <Input id="competitor-place-id" name="placeId" className="w-56" />
-        </div>
+        </Field>
         <Button type="submit" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined}>
           Add competitor
         </Button>
@@ -469,7 +457,7 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                 </span>
               </TableHead>
               <TableHead>Website</TableHead>
-              <TableHead>Pages monitored</TableHead>
+              <TableHead numeric>Pages monitored</TableHead>
               <TableHead>Since</TableHead>
               {canRemove && <TableHead />}
             </TableRow>
@@ -487,11 +475,11 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                     </Link>
                     {rated && <TierChip tier={rated.tier} />}
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-ink">{rated ? ratedLabel(rated.computedAt, timezone) : 'Not rated yet'}</p>
+                  <p className="mt-0.5 text-11 text-muted-ink">{rated ? ratedLabel(rated.computedAt, timezone) : 'Not rated yet'}</p>
                 </TableCell>
                 <TableCell>{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
                 <TableCell>{c.domain ?? '—'}</TableCell>
-                <TableCell>{c.activePages}</TableCell>
+                <TableCell numeric>{c.activePages}</TableCell>
                 <TableCell>{formatDate(c.addedAt, { tz: timezone })}</TableCell>
                 {canRemove && (
                   <TableCell>

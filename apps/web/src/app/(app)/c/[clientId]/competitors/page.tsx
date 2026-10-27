@@ -1,7 +1,7 @@
 import { canManageCompetitors, hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, CompetitorSignalView, HiddenReason, SuggestionView, TrackedCompetitor } from '@cs/tools';
 import { searchDayLabelAt } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -64,24 +64,16 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-1.5">
-            <CardTitle>Tracked competitors</CardTitle>
-            <HelpTip tip="client.competitors.tiers" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} timezone={profile.timezone} />
-          {canManage && (
-            <WriteGuard>
-              <div className="mt-5 border-t border-line pt-5">
-                <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={tracked.limit} />
-              </div>
-            </WriteGuard>
-          )}
-        </CardContent>
-      </Card>
+      <Section title="Tracked competitors" titleAside={<HelpTip tip="client.competitors.tiers" />}>
+        <TrackedCompetitorsTable clientId={clientId} items={tracked.items} canRemove={canManage} signals={rated.competitors} timezone={profile.timezone} />
+        {canManage && (
+          <WriteGuard>
+            <div className="border-t border-line pt-5">
+              <AddCompetitorForm clientId={clientId} atLimit={atLimit} limit={tracked.limit} />
+            </div>
+          </WriteGuard>
+        )}
+      </Section>
       {agency && (
         <SuggestionsPanel
           clientId={clientId}

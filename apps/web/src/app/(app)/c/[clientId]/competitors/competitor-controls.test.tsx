@@ -260,24 +260,48 @@ describe('SuggestionsPanel tiers and selection', () => {
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Minor · 1']);
   });
 
-  it('group headings carry the count and a coloured bar; only Top rival has the hint; cards have no tier chip', () => {
+  it('group headings carry a TierMark and the count; only Top rival has the hint; cards have no tier chip', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
     const top = screen.getByRole('heading', { name: 'Top rival · 2' });
-    expect(top.parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-ink');
-    expect(screen.getByRole('heading', { name: 'Worth watching · 1' }).parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-primary');
-    expect(screen.getByRole('heading', { name: 'Minor · 1' }).parentElement?.querySelector('[aria-hidden="true"]')?.className).toContain('bg-muted-ink');
+    expect(top.querySelector('[data-slot=tier-mark]')?.getAttribute('data-tier')).toBe('top');
+    expect(screen.getByRole('heading', { name: 'Worth watching · 1' }).querySelector('[data-slot=tier-mark]')?.getAttribute('data-tier')).toBe('watch');
+    expect(screen.getByRole('heading', { name: 'Minor · 1' }).querySelector('[data-slot=tier-mark]')?.getAttribute('data-tier')).toBe('minor');
     expect(screen.getAllByText('close by, same services, active')).toHaveLength(1);
-    const card = screen.getByRole('checkbox', { name: /track alpha/i }).closest('li')!;
+    const card = screen.getByRole('checkbox', { name: /track alpha/i }).closest('[data-slot=card]')!;
     expect(within(card as HTMLElement).queryByText('Top rival')).toBeNull();
   });
 
-  it('the Track selected bar is dark with a white button', () => {
+  it('the Track selected button sits in the "Selected suggestions" toolbar; the limit note is a status', () => {
     render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={3} canSearch />);
-    const button = screen.getByRole('button', { name: 'Track selected (2)' });
-    expect(button.className).toContain('bg-white');
-    expect(button.className).toContain('text-ink');
-    expect(button.parentElement?.className).toContain('bg-ink');
-    expect(screen.getByText('You can track 2 more.').className).toContain('text-muted-surface-2');
+    const toolbar = screen.getByRole('toolbar', { name: 'Selected suggestions' });
+    expect(within(toolbar).getByRole('button', { name: 'Track selected (2)' })).toBeTruthy();
+    expect(within(toolbar).getByRole('status').textContent).toBe('You can track 2 more.');
+  });
+
+  it('with room 1 and 2 ticked the Track button is disabled and says "You can track 1 more."', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={4} canSearch />);
+    expect((screen.getByRole('button', { name: 'Track selected (2)' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('status').textContent).toBe('You can track 1 more.');
+  });
+
+  it('ticking toggles the card data-selected together with the checkbox', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
+    const box = screen.getByRole('checkbox', { name: /track charlie/i }) as HTMLInputElement;
+    const card = box.closest('[data-slot=card]')!;
+    expect(card.getAttribute('data-variant')).toBe('interactive');
+    expect(card.getAttribute('data-selected')).toBeNull();
+    fireEvent.click(box);
+    expect(box.checked).toBe(true);
+    expect(card.getAttribute('data-selected')).toBe('true');
+    fireEvent.click(box);
+    expect(box.checked).toBe(false);
+    expect(card.getAttribute('data-selected')).toBeNull();
+  });
+
+  it('a read-only render has no toolbar', async () => {
+    const { ReadOnlyProvider } = await import('@/components/read-only');
+    render(<ReadOnlyProvider readOnly><SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch /></ReadOnlyProvider>);
+    expect(screen.queryByRole('toolbar')).toBeNull();
   });
 
   it('pre-ticks preselected and counts them in Track selected', () => {

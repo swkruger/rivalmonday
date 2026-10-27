@@ -20,11 +20,14 @@ vi.mock('./competitor-controls', () => ({ AddCompetitorForm: () => null, Suggest
 import CompetitorsPage from './page';
 
 describe('CompetitorsPage', () => {
-  it('tracked competitors title has no tip inside CardTitle', async () => {
+  it('Tracked competitors is a Section with its tip beside the heading, and no card wraps the table', async () => {
     const { container } = render(await CompetitorsPage({ params: Promise.resolve({ clientId: 'c1' }) }));
-    const title = container.querySelector('[data-slot=card-title]');
-    expect(title?.textContent).toBe('Tracked competitors');
-    expect(title?.querySelector('button')).toBeNull();
-    expect(container.querySelector('[data-slot=card-header] button')).not.toBeNull();
+    const sections = container.querySelectorAll('section[data-slot=section]');
+    expect(sections).toHaveLength(1);
+    const heading = sections[0]!.querySelector('h2');
+    expect(heading?.textContent).toBe('Tracked competitors');
+    expect(heading?.querySelector('button')).toBeNull();
+    expect(sections[0]!.querySelector('[data-slot=section-head] button')).not.toBeNull();
+    expect(container.querySelector('[data-slot=card]')).toBeNull();
   });
 });
