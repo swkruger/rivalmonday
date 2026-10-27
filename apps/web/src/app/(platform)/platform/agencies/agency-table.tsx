@@ -65,7 +65,7 @@ export function agenciesHref(o: { q?: string; status?: AgencyStatus; sort: Agenc
 export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query, status = 'active', canUnarchive = false }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date; tz?: string; query?: string; status?: AgencyStatus; canUnarchive?: boolean }) {
   if (status === 'archived') return <ArchivedTable rows={rows} now={now} tz={tz} query={query} canUnarchive={canUnarchive} />;
   return (
-    <div className="min-w-0 rounded-md bg-surface p-2 shadow-card sm:p-4">
+    <div className="min-w-0 rounded-md border border-line bg-surface p-2 sm:p-4">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[940px] text-left text-sm">
           <thead>
@@ -126,7 +126,7 @@ const Chip = ({ entry }: { entry: { label: string; tone: Parameters<typeof Statu
 function ArchivedTable({ rows, now, tz, query, canUnarchive }: { rows: AgencyRow[]; now: Date; tz: string; query?: string; canUnarchive: boolean }) {
   const archived = AGENCY_LIFECYCLE.archived;
   return (
-    <div className="min-w-0 rounded-md bg-surface p-2 shadow-card sm:p-4">
+    <div className="min-w-0 rounded-md border border-line bg-surface p-2 sm:p-4">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>

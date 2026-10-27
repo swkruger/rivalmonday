@@ -44,7 +44,7 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
               key={d}
               href={`/platform/billing?tab=signups&days=${d}`}
               aria-current={d === days ? 'true' : undefined}
-              className={`rounded-full px-3 py-1 font-semibold ${d === days ? 'bg-surface text-secondary shadow-card' : 'text-ink'}`}
+              className={`rounded-full px-3 py-1 font-semibold ${d === days ? 'border border-line bg-surface text-secondary' : 'text-ink'}`}
             >
               {d} days
             </Link>

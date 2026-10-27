@@ -45,7 +45,7 @@ function StatusLink({ clientId, status, current, label }: { clientId: string; st
     <Link
       href={movesHref(clientId, { status })}
       aria-current={active ? 'page' : undefined}
-      className={active ? 'rounded-md bg-surface px-3 py-1.5 text-sm font-semibold text-ink shadow-card' : 'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'}
+      className={active ? 'rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink' : 'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'}
     >
       {label}
     </Link>
