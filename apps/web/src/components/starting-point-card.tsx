@@ -26,7 +26,7 @@ export function StartingPointCard({ status, agency, reviewHref = '/agency/approv
         {LABELS.map(([key, label]) => {
           const v = checks[key];
           return (
-            <li key={key} className="flex items-center justify-between gap-3 rounded-md bg-muted-surface px-3 py-2">
+            <li key={key} className="flex items-center justify-between gap-3 rounded-md bg-surface px-3 py-2">
               <span>{label}</span>
               <span className="text-sm font-semibold">{v === true ? '✓' : v === false ? 'In progress' : 'Not needed'}</span>
             </li>

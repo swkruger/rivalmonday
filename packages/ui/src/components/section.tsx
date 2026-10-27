@@ -3,6 +3,8 @@ import { cn } from "../lib/cn"
 
 export interface SectionProps {
   title?: React.ReactNode
+  /** Rendered beside the heading, outside it (e.g. a help tip), so the heading's accessible name stays the title. */
+  titleAside?: React.ReactNode
   description?: React.ReactNode
   actions?: React.ReactNode
   as?: "h2" | "h3"
@@ -13,6 +15,7 @@ export interface SectionProps {
 
 function Section({
   title,
+  titleAside,
   description,
   actions,
   as: Heading = "h2",
@@ -32,7 +35,12 @@ function Section({
       {title || description || actions ? (
         <div data-slot="section-head" className="flex items-end gap-3">
           <div>
-            {title ? (
+            {title && titleAside ? (
+              <div className="flex items-center gap-1.5">
+                <Heading className="text-base font-semibold text-ink">{title}</Heading>
+                {titleAside}
+              </div>
+            ) : title ? (
               <Heading className="text-base font-semibold text-ink">{title}</Heading>
             ) : null}
             {description ? (

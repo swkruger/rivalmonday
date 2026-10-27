@@ -1,6 +1,6 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
 import type { AlertSummary, BriefSummary, ClientProfile, ReportSummary, SetupState, StartingPointStatus } from '@cs/tools';
-import { Section } from '@cs/ui';
+import { Band, Section } from '@cs/ui';
 import Link from 'next/link';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
@@ -49,7 +49,9 @@ export async function ClientHomeBasic({ clientId, ctx, viewer }: { clientId: str
       <div className="grid gap-10 lg:grid-cols-[2fr_1fr]">
         <Section title="Weekly briefs" className="min-w-0">
           {preparing ? (
-            <StartingPointCard status={preparing} agency={false} />
+            <Band tone="muted">
+              <StartingPointCard status={preparing} agency={false} />
+            </Band>
           ) : (
             <BriefLinkList clientId={clientId} items={briefs.items} empty="No briefs yet. The first one arrives on a Monday morning." agency={isAgencyRole(ctx.role)} />
           )}

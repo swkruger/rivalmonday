@@ -27,6 +27,16 @@ describe('Section', () => {
   });
 });
 
+describe('Section titleAside', () => {
+  it('renders the aside after the heading, outside its accessible name', () => {
+    render(<Section title="Moves detected" titleAside={<button type="button">What is a move?</button>}>x</Section>);
+    const h = screen.getByRole('heading', { level: 2, name: 'Moves detected' });
+    const aside = screen.getByRole('button', { name: 'What is a move?' });
+    expect(h.contains(aside)).toBe(false);
+    expect(h.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('Band', () => {
   it('exposes its tone', () => {
     render(<Band tone="muted">x</Band>);

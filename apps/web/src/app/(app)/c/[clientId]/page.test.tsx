@@ -11,7 +11,7 @@ vi.mock('@/components/ask/ask-card', () => ({ AskCard: () => null }));
 const briefView = vi.fn();
 vi.mock('@/components/views/brief-view', () => ({ BriefView: (p: unknown) => { briefView(p); return null; } }));
 vi.mock('@/components/charts/line-chart', () => ({ LineChart: () => null, foldSeries: () => [] }));
-vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
+vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => <button type="button" aria-label="tip" /> }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: ({ text }: { text: string }) => <>{text}</> }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: ({ title }: { title: string }) => <p data-testid="empty">{title}</p>, HelpEmpty: () => null }));
 vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <div role="heading" aria-level={1}>{title}</div> }));
@@ -121,7 +121,10 @@ describe('Client Overview (15c-2b-2)', () => {
     for (const name of ['Competitive pressure', 'Recent alerts', 'Moves detected', 'Recommendations', 'Competitor ad activity', 'Past briefs', 'Quarterly reports']) {
       const h = screen.getByRole('heading', { level: 2, name });
       expect(h.closest('section[data-slot="section"]'), name).toBeTruthy();
+      expect(h.querySelector('button'), `${name}: help tip outside the heading`).toBeNull();
     }
+    // Help tips sit beside the headings, not inside them (D1: heading names unchanged).
+    expect(screen.getByRole('heading', { level: 2, name: 'Moves detected' })).toBeTruthy();
     const grids = container.querySelectorAll('[data-slot="hairline-grid"]');
     expect(grids).toHaveLength(2);
     for (const g of grids) expect(g.querySelectorAll(':scope > [data-slot="hairline-cell"]')).toHaveLength(2);

@@ -43,15 +43,6 @@ const BAR: Record<'low' | 'elevated' | 'high', string> = { high: 'bg-danger', el
 const linkCls = 'font-semibold text-primary-soft-text';
 const HELP_KEY = 'page:client.overview';
 const COPY = PAGE_COPY['client.overview'];
-/** A Section title with its help tip beside it (the text sits in its own span, 15b gotcha). */
-function Titled({ text, help }: { text: string; help: React.ReactNode }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span>{text}</span>
-      {help}
-    </span>
-  );
-}
 /** One tip per KPI card, keyed by the card's title (`kpiCards`), so reordering the cards can't attach the wrong tip. */
 const KPI_TIPS: Readonly<Record<string, TipKey>> = {
   'Changes this week': 'client.overview.changesWeek',
@@ -148,7 +139,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
 
         <div className="flex min-w-0 flex-col gap-10">
           <AskCard clientId={clientId} ctx={ctx} />
-          <Section title={<Titled text="Competitive pressure" help={<HelpTip tip="client.overview.pressure" />} />}>
+          <Section title="Competitive pressure" titleAside={<HelpTip tip="client.overview.pressure" />}>
             <div className="flex flex-col gap-3">
               {overview.pressure.length === 0 && <HelpEmpty id={agency ? 'client.overview.noCompetitorsAgency' : 'client.overview.noCompetitorsClient'} />}
               {overview.pressure.map((p) => (
@@ -167,7 +158,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
               ))}
             </div>
           </Section>
-          <Section title={<Titled text="Recent alerts" help={<HelpTip term="alert" />} />}>
+          <Section title="Recent alerts" titleAside={<HelpTip term="alert" />}>
             <AlertLinkList clientId={clientId} items={alerts.items} />
           </Section>
         </div>
@@ -176,7 +167,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       <HairlineGrid cols={2}>
         <HairlineCell>
           <Section
-            title={<Titled text="Moves detected" help={<HelpTip term="move" />} />}
+            title="Moves detected" titleAside={<HelpTip term="move" />}
             actions={
               <Link href={movesHref(clientId)} className={linkCls}>
                 All →
@@ -193,7 +184,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         </HairlineCell>
         <HairlineCell>
           <Section
-            title={<Titled text="Recommendations" help={<HelpTip term="recommendation" />} />}
+            title="Recommendations" titleAside={<HelpTip term="recommendation" />}
             actions={<span className="text-xs font-medium text-muted-ink">{openRecs.length} open</span>}
           >
             {openRecs.length === 0 && <EmptyState {...(canSaveFromAsk ? COPY.empty.noRecommendationsAsk : COPY.empty.noRecommendations)} />}
@@ -232,7 +223,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           </Section>
         </HairlineCell>
         <HairlineCell>
-          <Section title={<Titled text="Quarterly reports" help={<HelpTip term="report" />} />}>
+          <Section title="Quarterly reports" titleAside={<HelpTip term="report" />}>
             <div className="flex flex-col gap-2">
               {reports.items.length === 0 && <EmptyState {...COPY.empty.noReports} />}
               {reports.items.map((r) => (
