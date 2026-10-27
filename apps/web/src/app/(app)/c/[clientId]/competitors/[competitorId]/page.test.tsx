@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
@@ -130,5 +130,38 @@ describe('CompetitorProfilePage', () => {
     const title = screen.getByText('Collection status');
     expect(title.querySelector('button')).toBeNull();
     expect(title.parentElement?.querySelector('button')).toBeTruthy();
+  });
+
+  it('is a detail header with an avatar, one KPI strip of four, and no uppercase labels', async () => {
+    await renderPage();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    const header = document.querySelector('[data-slot=page-header]');
+    expect(header?.getAttribute('data-variant')).toBe('detail');
+    expect(header?.querySelector('[data-slot=business-avatar]')).toBeTruthy();
+    const strips = document.querySelectorAll('[data-slot=kpi-strip]');
+    expect(strips).toHaveLength(1);
+    expect(strips[0]!.querySelectorAll('[data-slot=kpi]')).toHaveLength(4);
+    expect(document.body.innerHTML).not.toContain('uppercase');
+  });
+
+  it('shows an em dash and the sentence when there is no Google profile', async () => {
+    await renderPage();
+    const kpi = within(document.querySelector('[data-slot=kpi-strip]') as HTMLElement).getByText('Google rating').closest('[data-slot=kpi]') as HTMLElement;
+    expect(kpi.textContent).toContain('—');
+    expect(within(kpi).getByText('No Google profile yet')).toBeTruthy();
+  });
+
+  it('open moves is a link named by the count', async () => {
+    await renderPage();
+    expect(screen.getByRole('link', { name: '0' }).getAttribute('href')).toBe('/c/c/moves');
+  });
+
+  it('Pages comes before Collection status, and the side column is not a landmark', async () => {
+    await renderPage();
+    const pages = screen.getByText('Pages', { selector: '[data-slot=card-title]' });
+    const status = screen.getByRole('heading', { name: 'Collection status' });
+    expect(pages.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryAllByRole('complementary')).toHaveLength(0);
+    expect(document.querySelector('aside')).toBeNull();
   });
 });

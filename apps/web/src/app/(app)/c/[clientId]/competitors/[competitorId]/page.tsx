@@ -2,11 +2,12 @@ import { formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
 import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
-import { Card, StatusChip, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
+import { BusinessAvatar } from '@/components/business-avatar';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -35,19 +36,13 @@ const PERIODS = [30, 90, 365] as const;
 const HELP_KEY = 'page:client.competitors.detail';
 const COPY = PAGE_COPY['client.competitors.detail'];
 
-function Kpi({ label, help, children }: { label: string; help?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-1 pt-5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
-          {help}
-        </div>
-        {children}
-      </CardContent>
-    </Card>
-  );
-}
+/** KPI label with its help tip beside the text (tip stays outside the label text). */
+const kpiLabel = (text: string, help?: React.ReactNode) => (
+  <span className="flex items-center gap-1.5">
+    {text}
+    {help}
+  </span>
+);
 
 type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
 /** One `get_competitor_profile` per request (keyed by the request's cached ctx), shared by the tab title and the page. */
@@ -108,6 +103,8 @@ export default async function CompetitorProfilePage({
         }
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
+        variant="detail"
+        avatar={<BusinessAvatar name={profile.name} />}
         actions={
           <>
             {profile.domain && (
@@ -127,11 +124,11 @@ export default async function CompetitorProfilePage({
             <TierChip tier={rated.tier} />
             <HelpTip tip="client.competitors.tiers" />
             <SignalPills signals={rated.signals} mode="tracked" />
-            <span className="text-xs text-muted-foreground">{ratedLabel(rated.computedAt, client.timezone)}</span>
+            <span className="text-xs text-muted-ink">{ratedLabel(rated.computedAt, client.timezone)}</span>
             <HelpTip tip="client.competitors.rated" />
           </div>
         ) : (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm text-muted-ink">
             Not rated yet
             <HelpTip tip="client.competitors.rated" />
           </p>
@@ -139,101 +136,102 @@ export default async function CompetitorProfilePage({
         {adMatches && <AdMatchChips clientId={clientId} competitorId={competitorId} matched={adMatches.matched} pending={adMatches.pending} />}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Google rating">
-          {profile.gbp ? (
-            <>
-              {profile.gbp.rating === null ? (
-                <span className="text-sm text-muted-foreground">No rating yet</span>
-              ) : (
-                <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.gbp.rating} ★</span>
-              )}
-              <span className="text-sm text-muted-foreground">{profile.gbp.reviews ?? 0} reviews</span>
-              {profile.gbpAsOf && <span className="text-xs text-muted-foreground">as of {formatDate(profile.gbpAsOf, { tz })}</span>}
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">No Google profile yet</span>
-          )}
-        </Kpi>
-        <Kpi label="Active ads">
-          <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.activeAds.google + profile.activeAds.meta}</span>
-          <span className="text-sm text-muted-foreground">
-            Google {profile.activeAds.google} · Meta {profile.activeAds.meta}
-          </span>
-        </Kpi>
-        <Kpi label="Open moves" help={<HelpTip tip="client.competitors.detail.openMoves" />}>
-          <Link href={`/c/${clientId}/moves`} className="text-[34px] font-semibold leading-tight text-primary-soft-text">
-            {profile.openMoves}
-          </Link>
-        </Kpi>
-        <Kpi label="Pages monitored" help={<HelpTip tip="client.competitors.detail.pagesMonitored" />}>
-          <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.pages.active}</span>
-          {profile.pages.blocked > 0 && (
-            <StatusChip tone="danger" className="w-fit">
-              Site blocks monitoring
-            </StatusChip>
-          )}
-        </Kpi>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <PricesSection clientId={clientId} competitorId={competitorId} matrix={matrix} />
-        <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} timezone={tz} />
-        <ReviewsSection clientId={clientId} competitorId={competitorId} benchmark={benchmark} />
-        <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Timeline</CardTitle>
-            <nav aria-label="Period" className="flex gap-3 text-sm">
-              {PERIODS.map((p) => (
-                <Link
-                  key={p}
-                  href={`/c/${clientId}/competitors/${competitorId}?days=${p}`}
-                  aria-current={p === days ? 'page' : undefined}
-                  className={p === days ? 'font-semibold text-ink' : 'text-muted-foreground hover:text-ink'}
-                >
-                  {p} days
+      <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-10">
+          <KpiStrip>
+            {profile.gbp ? (
+              <Kpi
+                label={kpiLabel('Google rating')}
+                value={profile.gbp.rating === null ? '—' : `${profile.gbp.rating} ★`}
+                caption={
+                  <>
+                    {profile.gbp.rating === null && <span className="block">No rating yet</span>}
+                    <span className="block">{profile.gbp.reviews ?? 0} reviews</span>
+                    {profile.gbpAsOf && <span className="block">as of {formatDate(profile.gbpAsOf, { tz })}</span>}
+                  </>
+                }
+              />
+            ) : (
+              <Kpi label={kpiLabel('Google rating')} value="—" caption="No Google profile yet" />
+            )}
+            <Kpi
+              label={kpiLabel('Active ads')}
+              value={profile.activeAds.google + profile.activeAds.meta}
+              caption={`Google ${profile.activeAds.google} · Meta ${profile.activeAds.meta}`}
+            />
+            <Kpi
+              label={kpiLabel('Open moves', <HelpTip tip="client.competitors.detail.openMoves" />)}
+              value={
+                <Link href={`/c/${clientId}/moves`} className="text-primary-soft-text">
+                  {profile.openMoves}
                 </Link>
-              ))}
-            </nav>
-          </CardHeader>
-          <CardContent>
+              }
+            />
+            <Kpi
+              label={kpiLabel('Pages monitored', <HelpTip tip="client.competitors.detail.pagesMonitored" />)}
+              value={profile.pages.active}
+              badge={profile.pages.blocked > 0 ? <StatusChip tone="danger">Site blocks monitoring</StatusChip> : undefined}
+            />
+          </KpiStrip>
+
+          <HairlineGrid cols={2}>
+            <HairlineCell>
+              <PricesSection clientId={clientId} competitorId={competitorId} matrix={matrix} />
+            </HairlineCell>
+            <HairlineCell>
+              <AdsSection clientId={clientId} competitorId={competitorId} ads={ads} timezone={tz} />
+            </HairlineCell>
+            <HairlineCell>
+              <ReviewsSection clientId={clientId} competitorId={competitorId} benchmark={benchmark} />
+            </HairlineCell>
+            <HairlineCell>
+              <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
+            </HairlineCell>
+          </HairlineGrid>
+
+          <Section
+            title="Timeline"
+            actions={
+              <nav aria-label="Period" className={segmentedTrackClass}>
+                {PERIODS.map((p) => (
+                  <Link
+                    key={p}
+                    href={`/c/${clientId}/competitors/${competitorId}?days=${p}`}
+                    aria-current={p === days ? 'page' : undefined}
+                    className={segmentedItemClass}
+                  >
+                    {p} days
+                  </Link>
+                ))}
+              </nav>
+            }
+          >
             <Suspense fallback={<SectionSkeleton />}>
               <TimelineCard clientId={clientId} competitorId={competitorId} days={days} timezone={tz} />
             </Suspense>
-          </CardContent>
-        </Card>
+          </Section>
 
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-1.5">
-                <CardTitle>Collection status</CardTitle>
-                <HelpTip tip="client.competitors.detail.collection" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {profile.sources.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No data sources yet.</p>
-              ) : (
-              <ul className="flex flex-col gap-2 text-sm">
+          <PagesCard clientId={clientId} competitorId={competitorId} pages={pages.items} agency={agency} tz={tz} />
+        </div>
+
+        <div className="xl:border-l xl:border-line xl:pl-6">
+          <Section title="Collection status" titleAside={<HelpTip tip="client.competitors.detail.collection" />}>
+            {profile.sources.length === 0 ? (
+              <p className="text-sm text-muted-ink">No data sources yet.</p>
+            ) : (
+              <dl className="flex flex-col divide-y divide-line border-y border-line">
                 {profile.sources.map((s) => (
-                  <li key={s.source} className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold text-ink">{s.label}</span>
-                    <span className="text-muted-foreground">
+                  <div key={s.source} className="flex flex-col gap-0.5 py-3">
+                    <dt className="text-13 text-muted-ink">{s.label}</dt>
+                    <dd className="text-sm text-ink">
                       {s.lastRunAt ? `${formatRelative(s.lastRunAt, now, { tz })}${sourceStatusLabel(s.lastStatus) ? ` · ${sourceStatusLabel(s.lastStatus)}` : ''}` : 'Not run yet'}
                       {s.active ? '' : ' · Paused'}
-                    </span>
-                  </li>
+                    </dd>
+                  </div>
                 ))}
-              </ul>
-              )}
-            </CardContent>
-          </Card>
-          <PagesCard clientId={clientId} competitorId={competitorId} pages={pages.items} agency={agency} tz={tz} />
+              </dl>
+            )}
+          </Section>
         </div>
       </div>
     </>
@@ -250,6 +248,7 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
         {pages.length === 0 ? (
           <EmptyState {...COPY.empty.noPages} />
         ) : (
+          <TableFrame>
           <Table>
             <TableHeader>
               <TableRow>
@@ -279,6 +278,7 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
               ))}
             </TableBody>
           </Table>
+          </TableFrame>
         )}
         {agency && (
           <WriteGuard>
@@ -286,7 +286,7 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
               {webEnv().webMonitoring ? (
                 <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={PAGE_TYPES.map((t) => ({ value: t, label: labelFor(PAGE_TYPE, t).label }))} />
               ) : (
-                <p className="text-muted-foreground">Website monitoring is switched off for now, so pages can’t be added.</p>
+                <p className="text-muted-ink">Website monitoring is switched off for now, so pages can’t be added.</p>
               )}
             </div>
           </WriteGuard>

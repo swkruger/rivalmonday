@@ -15,7 +15,7 @@ import { changesHref } from '../../changes/params';
 import { movesHref } from '../../moves/move-card';
 
 export function Timeline({ clientId, items, timezone }: { clientId: string; items: TimelineItem[]; timezone: string }) {
-  if (items.length === 0) return <p className="text-muted-foreground">No changes from this competitor in this period.</p>;
+  if (items.length === 0) return <p className="text-muted-ink">No changes from this competitor in this period.</p>;
   const groups = new Map<string, TimelineItem[]>();
   for (const it of items) {
     const key = localDay(it.at, timezone).slice(0, 7);
@@ -25,7 +25,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
     <div className="flex flex-col gap-5">
       {[...groups.values()].map((rows) => (
         <section key={localDay(rows[0]!.at, timezone).slice(0, 7)}>
-          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{formatMonth(rows[0]!.at, { tz: timezone, style: 'long' })}</h3>
+          <h3 className="mb-2 text-sm font-semibold text-muted-ink">{formatMonth(rows[0]!.at, { tz: timezone, style: 'long' })}</h3>
           <ul className="flex flex-col gap-1">
             {rows.map((it) =>
               it.kind === 'move' ? (
@@ -37,7 +37,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
                     <span className="min-w-0 flex-1 truncate font-semibold text-ink">
                       {it.label} · {it.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">{formatDate(it.at, { tz: timezone })}</span>
+                    <span className="text-xs text-muted-ink">{formatDate(it.at, { tz: timezone })}</span>
                     {it.status && <StatusChip tone={labelFor(MOVE_STATUS, it.status).tone}>{labelFor(MOVE_STATUS, it.status).label}</StatusChip>}
                   </Link>
                 </li>
@@ -47,7 +47,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
                     <span className="min-w-0 flex-1 truncate text-ink">
                       {it.label} · {it.title}
                     </span>
-                    <span className="text-xs text-muted-foreground">{formatDate(it.at, { tz: timezone })}</span>
+                    <span className="text-xs text-muted-ink">{formatDate(it.at, { tz: timezone })}</span>
                     {it.route && it.score !== null && (
                       <>
                         <span className="text-xs font-semibold tabular-nums text-ink">{it.score}</span>
