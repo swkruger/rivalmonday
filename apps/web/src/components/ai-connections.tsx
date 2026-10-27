@@ -2,8 +2,8 @@
 import type { TokenScope } from '@cs/core';
 import type { ApiTokenView, OAuthGrantView } from '@cs/tools';
 import {
-  Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-  Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Button, Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Field, Input, nativeSelectClass, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow,
 } from '@cs/ui';
 import { type ReactNode, useActionState, useEffect, useRef, useState } from 'react';
 import { formatDate } from '@/lib/format';
@@ -25,7 +25,7 @@ export type RowResult = FormResult & { rowId?: string };
 type FormAction<S> = (prev: S, fd: FormData) => Promise<S>;
 
 export const ACCESS_LABEL: Record<TokenScope, string> = { read: 'Read only', feedback: 'Read and feedback', manage: 'Read, feedback and manage' };
-const selectClass = 'h-9 w-full max-w-[240px] rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const selectClass = `${nativeSelectClass} w-full max-w-[240px]`;
 
 /** Extra hidden inputs every form on the card carries (the client page sends its `clientId` for revalidation). */
 type Hidden = Record<string, string>;
@@ -92,14 +92,8 @@ export function mcpServerName(displayName: string | null): string {
 /** `displayName` is the viewer's agency (white-label) name, used only for the Claude Code command's server name. */
 export function ConnectorUrlCard({ url, displayName, help }: { url: string; displayName: string | null; help?: ReactNode }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="inline-flex items-center gap-1.5">
-          <CardTitle>Connector URL</CardTitle>
-          {help}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <Section title="Connector URL" titleAside={help}>
+      <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <code className="rounded-md bg-muted-surface px-3 py-2 font-mono text-sm text-ink" data-testid="connector-url">
             {url}
@@ -118,8 +112,8 @@ export function ConnectorUrlCard({ url, displayName, help }: { url: string; disp
             <code className="break-all rounded bg-muted-surface px-1.5 py-0.5 font-mono text-sm">{`claude mcp add --transport http ${mcpServerName(displayName)} ${url} --header "Authorization: Bearer YOUR_TOKEN"`}</code>.
           </li>
         </ul>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -202,14 +196,8 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
   }, [created]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="inline-flex items-center gap-1.5">
-          <CardTitle>Access tokens</CardTitle>
-          {help}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+    <Section title="Access tokens" titleAside={help}>
+      <div className="flex flex-col gap-5">
         <p className="text-ink">For Claude Code, scripts and tools that can&apos;t sign in. A token acts as you, with the access level you choose.</p>
         {canCreate ? (
           readOnly ? null : (
@@ -217,12 +205,10 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
             <HiddenFields fields={hidden} />
             {!created.ok && <Message state={created} />}
             <div className="flex flex-wrap items-end gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="token-name">Name</Label>
-                <Input id="token-name" name="name" required maxLength={80} autoComplete="off" className="w-72" placeholder="e.g. Claude Code on my laptop" />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="token-scope">Access</Label>
+              <Field label="Name" className="w-72">
+                <Input id="token-name" name="name" required maxLength={80} autoComplete="off" placeholder="e.g. Claude Code on my laptop" />
+              </Field>
+              <Field label="Access">
                 <select id="token-scope" name="scope" className={selectClass} defaultValue={scopes[0]}>
                   {scopes.map((s) => (
                     <option key={s} value={s}>
@@ -230,7 +216,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
               <Button type="submit" disabled={creating}>
                 Create token
               </Button>
@@ -245,6 +231,7 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
         {tokens.length === 0 ? (
           (empty ?? <p className="text-muted-foreground">No access tokens yet.</p>)
         ) : (
+          <TableFrame>
           <Table>
             <TableHeader>
               <TableRow>
@@ -280,9 +267,10 @@ export function AccessTokensCard({ canCreate, scopes, tokens, showOwner, tz, cre
               ))}
             </TableBody>
           </Table>
+          </TableFrame>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -323,19 +311,14 @@ export function ConnectedAppsCard({ grants, showOwner, tz, revokeAction, hidden,
   const readOnly = useReadOnly();
   const [result, revoke, pending] = useActionState(revokeAction, { ok: true } as RowResult);
   return (
-    <Card>
-      <CardHeader>
-        <div className="inline-flex items-center gap-1.5">
-          <CardTitle>Connected apps</CardTitle>
-          {help}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+    <Section title="Connected apps" titleAside={help}>
+      <div className="flex flex-col gap-5">
         <p className="text-ink">Apps you&apos;ve connected by signing in.</p>
         {result.ok && <Message state={result} />}
         {grants.length === 0 ? (
           (empty ?? <p className="text-muted-foreground">No connected apps yet.</p>)
         ) : (
+          <TableFrame>
           <Table>
             <TableHeader>
               <TableRow>
@@ -368,8 +351,9 @@ export function ConnectedAppsCard({ grants, showOwner, tz, revokeAction, hidden,
               ))}
             </TableBody>
           </Table>
+          </TableFrame>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

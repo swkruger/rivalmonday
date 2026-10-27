@@ -1,5 +1,5 @@
 'use client';
-import { Button, ConfirmDialog, Input, Label, SaveBar, Switch } from '@cs/ui';
+import { Button, ConfirmDialog, Field, Input, Label, nativeSelectClass, SaveBar, Switch } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { HelpTip } from '@/components/help/help-tip';
 import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
@@ -8,7 +8,6 @@ import type { FormResult } from '@/server/forms';
 import { addRecipientAction, deactivateRecipientAction, saveDeliveryAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
 
-const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 const MODES: { value: 'direct' | 'after_am_check' | 'digest_only'; label: string; help: string }[] = [
   { value: 'direct', label: 'Direct', help: 'Alerts go to the client at once.' },
@@ -48,7 +47,7 @@ export function DeliveryForm({
       action={formAction}
       onReset={(e) => e.preventDefault()}
       onChange={() => setDirty(true)}
-      className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6"
+      className="flex max-w-[640px] flex-col gap-5"
     >
       <input type="hidden" name="clientId" value={clientId} />
       {!state.ok && state.error && (
@@ -64,8 +63,9 @@ export function DeliveryForm({
           Alert mode
           <HelpTip tip="client.settings.delivery.alertMode" />
         </legend>
+        <div className="divide-y divide-line overflow-clip rounded-md border border-line">
         {MODES.map((m) => (
-          <label key={m.value} className="flex items-start gap-3 rounded-md border border-line p-3">
+          <label key={m.value} className="flex items-start gap-3 px-4 py-3">
             <input
               type="radio" name="alertMode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)}
               aria-describedby={`alert-mode-${m.value}-help`} className="mt-1 h-4 w-4"
@@ -76,6 +76,7 @@ export function DeliveryForm({
             </span>
           </label>
         ))}
+        </div>
       </fieldset>
 
       <div className="flex items-center gap-3">
@@ -93,7 +94,7 @@ export function DeliveryForm({
           <Label htmlFor="timezone">Business time zone</Label>
           <HelpTip tip="client.settings.delivery.timezone" />
         </div>
-        <select id="timezone" name="timezone" value={zone} onChange={(e) => setZone(e.target.value)} className={selectClass}>
+        <select id="timezone" name="timezone" value={zone} onChange={(e) => setZone(e.target.value)} className={`${nativeSelectClass} w-full max-w-sm`}>
           {timezoneOptions.map((tz) => (
             <option key={tz} value={tz}>
               {tz}
@@ -134,21 +135,18 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
       )}
       {state.ok && state.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
       <div className="flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="recipient-email">Email</Label>
-          <Input id="recipient-email" name="email" type="email" required className="w-64" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="recipient-name">Name</Label>
-          <Input id="recipient-name" name="name" className="w-48" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="recipient-role">Role</Label>
-          <select id="recipient-role" name="role" className={selectClass} defaultValue="client_viewer">
+        <Field label="Email" className="w-64">
+          <Input id="recipient-email" name="email" type="email" required />
+        </Field>
+        <Field label="Name" className="w-48">
+          <Input id="recipient-name" name="name" />
+        </Field>
+        <Field label="Role">
+          <select id="recipient-role" name="role" className={`${nativeSelectClass} w-full max-w-sm`} defaultValue="client_viewer">
             <option value="client_owner">{labelFor(MEMBERSHIP_ROLE, 'client_owner').label}</option>
             <option value="client_viewer">{labelFor(MEMBERSHIP_ROLE, 'client_viewer').label}</option>
           </select>
-        </div>
+        </Field>
         <Button type="submit" disabled={pending}>
           Add recipient
         </Button>

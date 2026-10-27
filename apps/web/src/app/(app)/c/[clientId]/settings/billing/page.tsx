@@ -1,5 +1,5 @@
 import { formatMoney, formatDate } from '@/lib/format';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
+import { Section, StatusChip } from '@cs/ui';
 import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -90,12 +90,9 @@ export default async function ClientBillingPage({ params, searchParams }: { para
         ]}
       />
       {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
-      {flash && <p role="status" className="rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your plan with {b.agencyName}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+      {flash && <p role="status" className="max-w-[640px] rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
+      <Section title={`Your plan with ${b.agencyName}`} className="max-w-[640px]">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Status</span>
             <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
@@ -110,8 +107,8 @@ export default async function ClientBillingPage({ params, searchParams }: { para
           {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-foreground">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</span></p>}
           {b.endsOn && <p className="text-sm">Your plan ends on {formatDate(b.endsOn, { tz: 'UTC' })}. There will be no further charges.</p>}
           {b.canManagePayment && <PaymentButton action={managePaymentAction.bind(null, clientId)} label="Manage payment" />}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
     </>
   );
 }

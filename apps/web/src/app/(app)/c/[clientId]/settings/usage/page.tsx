@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { SpendCredits } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
@@ -58,11 +58,8 @@ export default async function ClientUsagePage({ params }: { params: Promise<{ cl
         guide={guides.has(HELP_KEY)}
       />
       <TipRow items={[{ label: 'Credits', tip: 'client.settings.usage.credits' }, { label: 'Status', tip: 'client.settings.usage.status' }]} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Credits this month</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+      <Section title="Credits this month" className="max-w-[640px]">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-lg font-semibold">{formatCreditsOf(credits.used, credits.limit)}</span>
             <SpendBadge credits={credits} />
@@ -72,17 +69,12 @@ export default async function ClientUsagePage({ params }: { params: Promise<{ cl
           </div>
           {credits.level === 'reached' && <p className="text-sm">{reachedCopy(profile.name)}</p>}
           {credits.level === 'paused' && ctx.role === 'client_owner' && <p className="text-sm">{pausedForClient(branding.displayName)}</p>}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
       {questions && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ask questions this month</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-lg font-semibold">{askQuotaText(questions)}</span>
-          </CardContent>
-        </Card>
+        <Section title="Ask questions this month" className="max-w-[640px]">
+          <span className="text-lg font-semibold">{askQuotaText(questions)}</span>
+        </Section>
       )}
     </>
   );

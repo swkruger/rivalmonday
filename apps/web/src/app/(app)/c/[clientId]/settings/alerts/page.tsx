@@ -1,7 +1,7 @@
 import { hasFeature, hasPermission, isAgencyRole } from '@cs/core';
 import { ALERTS_PER_DAY } from '@cs/engine';
 import type { AlertRulesView } from '@cs/tools';
-import { Card, CardContent } from '@cs/ui';
+import { Band } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -48,8 +48,7 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
           { label: 'Instant alerts per day', tip: 'client.settings.alerts.dailyLimit' },
         ]}
       />
-      <Card>
-        <CardContent className="flex flex-col gap-2">
+      <Band className="flex max-w-[640px] flex-col gap-2">
           <p>Every competitor change gets a score from 0 to 100 for how much it matters to {profile.name}.</p>
           <p>New thresholds apply to changes detected from now on; changes already scored keep their place.</p>
           {isAgencyRole(ctx.role) && <p>Instant alerts are still limited to {ALERTS_PER_DAY} a day; extra ones go into the daily digest.</p>}
@@ -60,8 +59,7 @@ export default async function AlertRulesPage({ params }: { params: Promise<{ cli
               </Link>
             </p>
           )}
-        </CardContent>
-      </Card>
+      </Band>
       <AlertRulesForm
         clientId={clientId} rules={rules} action={saveAlertRulesAction}
         canEdit={hasPermission(ctx, 'manage') && !ctx.userId.startsWith('contact:')}

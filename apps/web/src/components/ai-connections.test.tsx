@@ -113,6 +113,14 @@ describe('AccessTokensCard', () => {
   });
 });
 
+describe('Section headings and table frames', () => {
+  it('each card is a section with its title as a heading; the token table sits in a table frame', () => {
+    const { container } = render(<AccessTokensCard tz="UTC" canCreate scopes={['read']} tokens={[token()]} showOwner={false} createAction={createAction} revokeAction={revokeTokenAction} />);
+    expect(screen.getByRole('heading', { name: 'Access tokens' })).toBeTruthy();
+    expect(container.querySelector('[data-slot="table-frame"] table')).toBeTruthy();
+  });
+});
+
 describe('ConnectedAppsCard', () => {
   it('shows the empty state', () => {
     render(<ConnectedAppsCard tz="UTC" grants={[]} showOwner={false} revokeAction={revokeGrantAction} />);

@@ -25,4 +25,9 @@ describe('AlertRulesPage', () => {
     expect(container.textContent).toContain('limited to 5 a day');
     expect(container.textContent).not.toContain('3 a day');
   });
+
+  it('the scoring copy sits in a band', async () => {
+    const { container } = render(await AlertRulesPage({ params: Promise.resolve({ clientId: 'c1' }) }));
+    expect(container.querySelector('[data-slot="band"]')?.textContent).toContain('score from 0 to 100');
+  });
 });

@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, Label, SaveBar } from '@cs/ui';
+import { Button, Field, Input, SaveBar } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { HelpText, useHelp } from '@/components/help/help-context';
@@ -61,7 +61,7 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
 
   if (!canEdit) {
     return (
-      <div className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
+      <div className="flex max-w-[640px] flex-col gap-4">
         <BandBar brief={rules.brief} alert={rules.alert} />
         <p>
           {/* "Ask {agency}…" speaks to the client; agency staff without edit rights (and support sessions) get the facts only. */}
@@ -77,19 +77,17 @@ export function AlertRulesForm({ clientId, rules, canEdit: canEditProp, action }
         // React 19 resets a form after every action, errors included; both fields are controlled, so keep what was typed.
         onReset={(e) => e.preventDefault()}
         onChange={() => setDirty(true)}
-        className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6"
+        className="flex max-w-[640px] flex-col gap-4"
       >
         <input type="hidden" name="clientId" value={clientId} />
         <BandBar {...shown} />
         <div className="flex flex-wrap gap-6">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="brief">Weekly brief from score</Label>
+          <Field label="Weekly brief from score">
             <Input id="brief" name="brief" type="number" min={1} max={99} step={1} value={brief} onChange={(e) => typeBrief(e.target.value)} className="w-32" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="alert">Instant alert from score</Label>
+          </Field>
+          <Field label="Instant alert from score">
             <Input id="alert" name="alert" type="number" min={2} max={100} step={1} value={alert} onChange={(e) => typeAlert(e.target.value)} className="w-32" />
-          </div>
+          </Field>
         </div>
         {!state.ok && state.error && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
         {state.ok && !dirty && state.message && <p role="status" className="text-ink">{state.message}</p>}

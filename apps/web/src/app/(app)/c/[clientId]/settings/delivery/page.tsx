@@ -1,6 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, RecipientView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { DotStatus, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
@@ -52,17 +52,11 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
         timezone={profile.timezone}
         timezoneOptions={timezoneOptions(profile.timezone)}
       />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-1.5">
-            <CardTitle>Recipients</CardTitle>
-            <HelpTip tip="client.settings.delivery.recipients" />
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+      <Section title="Recipients" titleAside={<HelpTip tip="client.settings.delivery.recipients" />}>
           {recipients.length === 0 ? (
             <EmptyState {...COPY.empty.noRecipients} guideAnchor="how-to-use-it" />
           ) : (
+            <TableFrame>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -82,8 +76,8 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
                     <TableCell className="font-medium">{r.email}</TableCell>
                     <TableCell>{r.name ?? '—'}</TableCell>
                     <TableCell>{labelFor(MEMBERSHIP_ROLE, r.role).label}</TableCell>
-                    <TableCell>{r.hasAccount && <StatusChip tone="neutral">Has account</StatusChip>}</TableCell>
-                    <TableCell><StatusChip tone={r.active ? 'success' : 'neutral'}>{r.active ? 'Active' : 'Inactive'}</StatusChip></TableCell>
+                    <TableCell>{r.hasAccount && <Tag>Has account</Tag>}</TableCell>
+                    <TableCell><DotStatus tone={r.active ? 'success' : 'off'}>{r.active ? 'Active' : 'Inactive'}</DotStatus></TableCell>
                     <WriteGuard>
                       <TableCell>{r.active && <DeactivateRecipientButton clientId={clientId} contactId={r.contactId} email={r.email} />}</TableCell>
                     </WriteGuard>
@@ -91,14 +85,14 @@ export default async function ClientDeliveryPage({ params }: { params: Promise<{
                 ))}
               </TableBody>
             </Table>
+            </TableFrame>
           )}
           <WriteGuard>
-            <div className="border-t border-line pt-5">
+            <div className="max-w-[640px]">
               <AddRecipientForm clientId={clientId} />
             </div>
           </WriteGuard>
-        </CardContent>
-      </Card>
+      </Section>
     </>
   );
 }

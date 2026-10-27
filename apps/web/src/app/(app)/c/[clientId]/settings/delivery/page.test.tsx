@@ -51,6 +51,15 @@ describe('ClientDeliveryPage recipient labels', () => {
     m.viewer = { viewer: { kind: 'user' }, ctx: { role: 'agency_admin' } };
     const { container } = render(await open());
     expect(container.textContent).toContain('Client owner');
-    expect(container.querySelector('[data-slot="status-chip"]')?.textContent).toBe('Has account');
+    expect(container.querySelector('[data-slot="tag"]')?.textContent).toBe('Has account');
+  });
+
+  it('recipients sit in a table frame; Active is a dot status', async () => {
+    m.viewer = { viewer: { kind: 'user' }, ctx: { role: 'agency_admin' } };
+    const { container } = render(await open());
+    expect(container.querySelector('[data-slot="table-frame"] table')).toBeTruthy();
+    const dot = container.querySelector('[data-slot="dot-status"]');
+    expect(dot?.textContent).toBe('Active');
+    expect(dot?.getAttribute('data-tone')).toBe('success');
   });
 });
