@@ -169,7 +169,7 @@ export function EventViewer({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className={`text-lg font-extrabold ${detail.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{detail.score}</span>
+              <span className={`text-lg font-semibold ${detail.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{detail.score}</span>
               <RoutePill route={detail.route} score={detail.score} />
             </div>
           </div>

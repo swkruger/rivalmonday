@@ -146,7 +146,7 @@ export default async function CompetitorProfilePage({
               {profile.gbp.rating === null ? (
                 <span className="text-sm text-muted-foreground">No rating yet</span>
               ) : (
-                <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.gbp.rating} ★</span>
+                <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.gbp.rating} ★</span>
               )}
               <span className="text-sm text-muted-foreground">{profile.gbp.reviews ?? 0} reviews</span>
               {profile.gbpAsOf && <span className="text-xs text-muted-foreground">as of {formatDate(profile.gbpAsOf, { tz })}</span>}
@@ -156,18 +156,18 @@ export default async function CompetitorProfilePage({
           )}
         </Kpi>
         <Kpi label="Active ads">
-          <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.activeAds.google + profile.activeAds.meta}</span>
+          <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.activeAds.google + profile.activeAds.meta}</span>
           <span className="text-sm text-muted-foreground">
             Google {profile.activeAds.google} · Meta {profile.activeAds.meta}
           </span>
         </Kpi>
         <Kpi label="Open moves" help={<HelpTip tip="client.competitors.detail.openMoves" />}>
-          <Link href={`/c/${clientId}/moves`} className="text-[34px] font-extrabold leading-tight text-primary-soft-text">
+          <Link href={`/c/${clientId}/moves`} className="text-[34px] font-semibold leading-tight text-primary-soft-text">
             {profile.openMoves}
           </Link>
         </Kpi>
         <Kpi label="Pages monitored" help={<HelpTip tip="client.competitors.detail.pagesMonitored" />}>
-          <span className="text-[34px] font-extrabold leading-tight text-secondary">{profile.pages.active}</span>
+          <span className="text-[34px] font-semibold leading-tight text-secondary">{profile.pages.active}</span>
           {profile.pages.blocked > 0 && (
             <StatusChip tone="danger" className="w-fit">
               Site blocks monitoring

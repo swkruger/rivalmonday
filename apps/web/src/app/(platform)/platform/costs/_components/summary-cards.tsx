@@ -6,7 +6,7 @@ export function SummaryCards({ summary }: { summary: CostsData['summary'] }) {
   const cell = (title: string, value: string, warn = false) => (
     <div className="rounded-md border border-line bg-surface p-6">
       <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
-      <div className={`mt-2 text-[34px] font-extrabold ${warn ? 'text-[#B45309]' : 'text-secondary'}`}>{value}</div>
+      <div className={`mt-2 text-[34px] font-semibold ${warn ? 'text-[#B45309]' : 'text-secondary'}`}>{value}</div>
     </div>
   );
   return (

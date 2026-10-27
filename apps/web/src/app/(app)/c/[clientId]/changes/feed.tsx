@@ -155,7 +155,7 @@ export function FeedList({
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`font-extrabold ${row.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{row.score}</span>
+                      <span className={`font-semibold ${row.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{row.score}</span>
                       <RoutePill route={row.route} score={row.score} />
                     </div>
                   </Link>

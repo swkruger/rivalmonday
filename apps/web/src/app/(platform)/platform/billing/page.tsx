@@ -81,7 +81,7 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
                 return (
                   <li key={s} className="flex flex-col items-start gap-1">
                     <StatusChip tone={entry.tone}>{entry.label}</StatusChip>
-                    <span className="text-xl font-extrabold text-secondary">{overview.agenciesByState[s] ?? 0}</span>
+                    <span className="text-xl font-semibold text-secondary">{overview.agenciesByState[s] ?? 0}</span>
                   </li>
                 );
               })}

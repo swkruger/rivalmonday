@@ -32,7 +32,7 @@ export function StatCard({ title, value, pill, hint, help, href }: { title: stri
         <h2 className="text-sm font-semibold text-muted-foreground">{title}</h2>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-[34px] font-extrabold text-secondary">{value}</span>
+        <span className="text-[34px] font-semibold text-secondary">{value}</span>
         {pill && <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${TONE[pill.tone]}`}>{pill.glyph && <span aria-hidden="true">{pill.glyph} </span>}{pill.srLabel && <span className="sr-only">{pill.srLabel} </span>}{pill.text}</span>}
       </div>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}

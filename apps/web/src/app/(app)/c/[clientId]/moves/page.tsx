@@ -87,7 +87,7 @@ function EvidenceChain({ clientId, move, timezone }: { clientId: string; move: M
                 <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(e.occurredAt, { tz: timezone })}</p>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`font-extrabold ${e.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{e.score}</span>
+                <span className={`font-semibold ${e.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{e.score}</span>
                 <RoutePill route={e.route} score={e.score} />
               </div>
             </Link>

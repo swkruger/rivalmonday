@@ -27,10 +27,10 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
   return (
     <div className="flex flex-col gap-4">
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-muted-foreground">Connected agencies</dt><dd className="text-xl font-extrabold text-secondary">{o.totals.connectedAgencies}</dd></div>
-        <div><dt className="text-muted-foreground">Paying clients</dt><dd className="text-xl font-extrabold text-secondary">{o.totals.payingClients}</dd></div>
-        <div><dt className="text-muted-foreground">Client MRR via Connect</dt><dd className="text-xl font-extrabold text-secondary">{formatMoney(o.totals.clientMrrCents, { unit: 'cents' })}</dd></div>
-        <div><dt className="text-muted-foreground">Default fee</dt><dd className="text-xl font-extrabold text-secondary">{pct(o.globalFeePercent)}</dd></div>
+        <div><dt className="text-muted-foreground">Connected agencies</dt><dd className="text-xl font-semibold text-secondary">{o.totals.connectedAgencies}</dd></div>
+        <div><dt className="text-muted-foreground">Paying clients</dt><dd className="text-xl font-semibold text-secondary">{o.totals.payingClients}</dd></div>
+        <div><dt className="text-muted-foreground">Client MRR via Connect</dt><dd className="text-xl font-semibold text-secondary">{formatMoney(o.totals.clientMrrCents, { unit: 'cents' })}</dd></div>
+        <div><dt className="text-muted-foreground">Default fee</dt><dd className="text-xl font-semibold text-secondary">{pct(o.globalFeePercent)}</dd></div>
       </dl>
       {o.agencies.length === 0 ? (
         <p className="text-sm text-muted-foreground">No agency has connected Stripe yet.</p>
