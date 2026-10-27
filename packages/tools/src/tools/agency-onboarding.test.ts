@@ -276,6 +276,8 @@ describe('save_agency_basics / finish_onboarding', () => {
   const save = (patch: Record<string, unknown> = {}, c = admin) => registry.invoke(c, 'save_agency_basics', { ...BASICS, ...patch });
 
   it('save_agency_basics keeps settings-only fields', async () => {
+    // Step 1 already saved once, so a later save keeps the manual time zone (I2: browser tz only before that).
+    await dbs.owner.update(agencyOnboarding).set({ profileDoneAt: new Date() }).where(eq(agencyOnboarding.agencyId, IDS.agencyA));
     await dbs.owner.update(agencyProfile).set({ legalName: 'Acme LLC', taxId: '12-3456789', timezone: 'America/Denver', website: 'https://acme.co', verticals: ['dental'], billingEmail: 'b@acme.co' }).where(eq(agencyProfile.agencyId, IDS.agencyA));
     await save({ browserTimezone: 'America/New_York' });
     const p = await profile();
@@ -283,13 +285,28 @@ describe('save_agency_basics / finish_onboarding', () => {
     expect((await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.name).toBe('Basics Co');
     expect((await status()).steps.profile).toBe('done');
   });
-  it('save_agency_basics sets timezone when blank', async () => {
-    await dbs.owner.update(agencyProfile).set({ timezone: '' }).where(eq(agencyProfile.agencyId, IDS.agencyA));
-    await save({ browserTimezone: 'America/New_York' });
+  it('save_agency_basics applies browser tz on first save after sign-up', async () => {
+    // Sign-up inserts the profile with the column default (never blank), as signup-complete does.
     expect((await profile()).timezone).toBe('America/New_York');
+    await save({ browserTimezone: 'America/Phoenix' });
+    expect((await profile()).timezone).toBe('America/Phoenix');
+    // Without a browser zone the default stays.
     await dbs.owner.delete(agencyProfile).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    await dbs.owner.update(agencyOnboarding).set({ profileDoneAt: null }).where(eq(agencyOnboarding.agencyId, IDS.agencyA));
     await save();
     expect((await profile()).timezone).toBe('America/Chicago');
+  });
+  it('save_agency_basics does not override tz after profile done', async () => {
+    await save({ browserTimezone: 'America/New_York' });
+    await dbs.owner.update(agencyProfile).set({ timezone: 'America/Denver' }).where(eq(agencyProfile.agencyId, IDS.agencyA)); // changed in Settings
+    await save({ browserTimezone: 'America/Los_Angeles' });
+    expect((await profile()).timezone).toBe('America/Denver');
+  });
+  it('save_agency_basics never applies browser tz for a legacy agency', async () => {
+    await dbs.owner.update(agencyOnboarding).set({ source: 'legacy' }).where(eq(agencyOnboarding.agencyId, IDS.agencyA));
+    await dbs.owner.update(agencyProfile).set({ timezone: 'America/Denver' }).where(eq(agencyProfile.agencyId, IDS.agencyA));
+    await save({ browserTimezone: 'America/New_York' });
+    expect((await profile()).timezone).toBe('America/Denver');
   });
   it('billingSameAsPostal copies postal into billing', async () => {
     await save({ address: { line1: '1 Main St', line2: 'Ste 2', city: 'Atlanta', region: 'GA', postalCode: '30338' } });

@@ -291,6 +291,12 @@ export const saveAgencyBasics = defineTool({
     const now = new Date();
     await deps.service.transaction(async (tx) => {
       const [existing] = await tx.select().from(agencyProfile).where(eq(agencyProfile.agencyId, ctx.agencyId)).for('update');
+      // I2 (spec §5, "taken from the browser"): sign-up always inserts the profile with the column default, so the browser
+      // zone applies until step 1 was first saved (`profile_done_at`), never after (a Settings choice is kept). Legacy
+      // agencies (no sign-up wizard) and blank zones keep the old rule: only fill a blank one.
+      const [ob] = await tx.select({ profileDoneAt: agencyOnboarding.profileDoneAt, source: agencyOnboarding.source }).from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId));
+      const firstSave = !!ob && ob.source !== 'legacy' && ob.profileDoneAt === null;
+      const applyBrowserTz = !!v.browserTimezone && (firstSave || !existing?.timezone);
       const postal = v.address === undefined
         ? { line1: existing?.line1 ?? null, line2: existing?.line2 ?? null, city: existing?.city ?? null, region: existing?.region ?? null, postalCode: existing?.postalCode ?? null }
         : { line1: v.address?.line1 ?? null, line2: v.address?.line2 ?? null, city: v.address?.city ?? null, region: v.address?.region ?? null, postalCode: v.address?.postalCode ?? null };
@@ -302,7 +308,7 @@ export const saveAgencyBasics = defineTool({
       };
       await tx.update(agency).set({ name: v.name }).where(eq(agency.id, ctx.agencyId));
       if (!existing) await tx.insert(agencyProfile).values({ agencyId: ctx.agencyId, ...values, timezone: v.browserTimezone ?? 'America/Chicago' });
-      else await tx.update(agencyProfile).set({ ...values, ...(!existing.timezone && v.browserTimezone ? { timezone: v.browserTimezone } : {}) }).where(eq(agencyProfile.agencyId, ctx.agencyId));
+      else await tx.update(agencyProfile).set({ ...values, ...(applyBrowserTz ? { timezone: v.browserTimezone } : {}) }).where(eq(agencyProfile.agencyId, ctx.agencyId));
       // The caller's display name follows the contact name when the contact is them (auth schema: raw SQL on the service connection).
       if (!ctx.userId.startsWith('contact:')) {
         await tx.execute(sql`update auth."user" set name = ${v.contactName}, "updatedAt" = now() where id = ${ctx.userId} and lower(email) = ${v.contactEmail.trim().toLowerCase()}`);
