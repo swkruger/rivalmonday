@@ -18,6 +18,12 @@ describe('RecommendationBoard', () => {
     expect(screen.getByText(/1 dismissed/i)).toBeTruthy();
   });
 
+  it('each item is a card; dismissed summary unchanged', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo'), rec('b', 'done'), rec('d', 'dismissed')]} />);
+    expect(container.querySelectorAll('[data-slot=card]')).toHaveLength(2);
+    expect(container.querySelector('details summary')!.textContent).toBe('1 dismissed');
+  });
+
   it('hides status controls for read-only viewers and the upsell tag for clients', () => {
     render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit={false} items={[rec('a', 'todo', { upsellTag: 'ppc' })]} />);
     expect(screen.queryByRole('button', { name: /start/i })).toBeNull();

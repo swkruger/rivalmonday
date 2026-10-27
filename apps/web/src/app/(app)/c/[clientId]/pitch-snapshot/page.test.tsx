@@ -20,6 +20,12 @@ describe('Pitch snapshot page', () => {
     });
   });
 
+  it('chart sits in a titleless Section, not a bordered wrapper', async () => {
+    const { container } = render(await PitchSnapshotPage({ params: Promise.resolve({ clientId: C }) }));
+    expect(container.querySelector('[data-slot=section]')).toBeTruthy();
+    expect(container.querySelector('.rounded-md.border')).toBeNull();
+  });
+
   it('pitch snapshot generated date in the client zone', async () => {
     render(await PitchSnapshotPage({ params: Promise.resolve({ clientId: C }) }));
     expect(screen.getAllByText(/Generated Oct 7\b/).length).toBeGreaterThan(0);

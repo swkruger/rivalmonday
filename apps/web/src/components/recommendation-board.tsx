@@ -1,6 +1,6 @@
 'use client';
 import type { RecommendationView } from '@cs/tools';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip } from '@cs/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, textareaClass } from '@cs/ui';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
 import { LEVEL, labelFor } from '@/lib/labels';
@@ -12,7 +12,6 @@ type SetStatusAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 type Status = RecommendationView['status'];
 
 const SOURCE_LABEL: Record<string, string> = { brief: 'From weekly brief', move: 'From a detected move', ask: 'From Ask' };
-const textareaClass = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 interface Target {
   status: Status;
@@ -116,8 +115,8 @@ function targetsFor(status: Status, title: string): Target[] {
 
 function RecommendationCard({ item, clientId, canEdit, agency, action }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction }) {
   return (
-    <article className="rounded-md border border-line bg-surface p-4">
-      <p className="font-bold">{item.title}</p>
+    <Card className="p-4">
+      <p className="font-semibold">{item.title}</p>
       <p className="mt-1 text-muted-foreground">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <StatusChip tone="neutral">Effort: {labelFor(LEVEL, item.effort).label}</StatusChip>
@@ -138,7 +137,7 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
             <DismissDialog action={action} clientId={clientId} item={item} />
           </div>
         ))}
-    </article>
+    </Card>
   );
 }
 
@@ -172,28 +171,28 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
     <>
       <div className="grid gap-5 lg:grid-cols-3">
         <section aria-label="To do" className="flex flex-col gap-3">
-          <h2 className="font-semibold">To do ({todo.length})</h2>
+          <h2 className="text-base font-semibold">To do ({todo.length})</h2>
           {todo.length === 0 && <EmptyColumn />}
           {todo.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
         </section>
         <section aria-label="In progress" className="flex flex-col gap-3">
-          <h2 className="font-semibold">In progress ({inProgress.length})</h2>
+          <h2 className="text-base font-semibold">In progress ({inProgress.length})</h2>
           {inProgress.length === 0 && <EmptyColumn />}
           {inProgress.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
         </section>
         <section aria-label="Done" className="flex flex-col gap-3">
-          <h2 className="font-semibold">Done ({done.length})</h2>
+          <h2 className="text-base font-semibold">Done ({done.length})</h2>
           {done.length === 0 && <EmptyColumn />}
           {done.map((item) => (
             <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
           ))}
         </section>
       </div>
-      <details className="mt-5 rounded-md border border-line bg-surface p-4">
+      <details className="mt-5 border-t border-line pt-4">
         <summary className="cursor-pointer font-semibold">{dismissed.length} dismissed</summary>
         <ul className="mt-3 flex flex-col gap-3">
           {dismissed.map((item) => (

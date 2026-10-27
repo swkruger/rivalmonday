@@ -1,6 +1,6 @@
 import { hasFeature } from '@cs/core';
 import type { ClientProfile, MoveDetail, MoveRow } from '@cs/tools';
-import { Card, CardContent } from '@cs/ui';
+import { Card, segmentedItemClass, segmentedTrackClass } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -45,7 +45,7 @@ function StatusLink({ clientId, status, current, label }: { clientId: string; st
     <Link
       href={movesHref(clientId, { status })}
       aria-current={active ? 'page' : undefined}
-      className={active ? 'rounded-md border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink' : 'rounded-md border border-transparent px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'}
+      className={segmentedItemClass}
     >
       {label}
     </Link>
@@ -141,7 +141,7 @@ export default async function MovesPage({
       />
 
       <div className="flex items-center gap-2">
-        <div className="flex w-fit items-center gap-1 rounded-md bg-muted-surface p-1">
+        <div className={segmentedTrackClass}>
           <StatusLink clientId={clientId} status="open" current={status} label="Open" />
           <StatusLink clientId={clientId} status="closed" current={status} label="Closed" />
           <StatusLink clientId={clientId} status="all" current={status} label="All" />
@@ -157,29 +157,24 @@ export default async function MovesPage({
         detailTitle="Move details"
         list={
         <Card>
-          <CardContent className="p-2">
-            {items.length === 0 ? (
-              <EmptyState {...(status === 'open' ? COPY.empty.noOpen : COPY.empty.noMatch)} />
-            ) : (
-              <div className="flex flex-col gap-1">
-                {items.map((m) => (
-                  <MoveCard key={m.id} move={m} selected={m.id === selectedId} current={m.id === moveParam} href={movesHref(clientId, { status, move: m.id })} />
-                ))}
-              </div>
-            )}
-          </CardContent>
+          {items.length === 0 ? (
+            <EmptyState {...(status === 'open' ? COPY.empty.noOpen : COPY.empty.noMatch)} />
+          ) : (
+            <div className="flex flex-col divide-y divide-line">
+              {items.map((m) => (
+                <MoveCard key={m.id} move={m} selected={m.id === selectedId} current={m.id === moveParam} href={movesHref(clientId, { status, move: m.id })} />
+              ))}
+            </div>
+          )}
         </Card>
         }
         detail={
           <div>
           {detail ? (
-            <Card>
-              <CardContent className="flex flex-col gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-ink">
-                    {detail.label} · {detail.competitorName}
-                  </h2>
-                </div>
+            <div className="flex flex-col gap-4">
+                <h2 className="text-base font-semibold text-ink">
+                  {detail.label} · {detail.competitorName}
+                </h2>
                 <MoveStatusRow move={detail} timezone={profile.timezone} />
                 {detail.facts.length > 0 && (
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -192,14 +187,11 @@ export default async function MovesPage({
                   </dl>
                 )}
                 <EvidenceChain clientId={clientId} move={detail} timezone={profile.timezone} />
-              </CardContent>
-            </Card>
+            </div>
           ) : (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground">
-                {selectedId ? 'This move is no longer available.' : <EmptyState {...COPY.empty.noSelection} />}
-              </CardContent>
-            </Card>
+            <div className="py-10 text-center text-muted-foreground">
+              {selectedId ? 'This move is no longer available.' : <EmptyState {...COPY.empty.noSelection} />}
+            </div>
           )}
           </div>
         }

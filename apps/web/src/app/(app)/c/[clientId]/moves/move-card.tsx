@@ -51,8 +51,8 @@ export function MoveCard({ move, selected, current, href }: { move: MoveRow; sel
       aria-current={current ? 'true' : undefined}
       className={
         selected
-          ? 'flex items-start gap-3 rounded-md p-3 hover:bg-muted-surface lg:bg-primary-soft lg:shadow-[inset_3px_0_0_var(--color-primary)]'
-          : 'flex items-start gap-3 rounded-md p-3 hover:bg-muted-surface'
+          ? 'flex items-start gap-3 p-3 hover:bg-muted-surface lg:bg-primary-soft'
+          : 'flex items-start gap-3 p-3 hover:bg-muted-surface'
       }
     >
       <span aria-hidden="true" className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg ${TILE[move.status]}`}>

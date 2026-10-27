@@ -56,6 +56,33 @@ describe('MovesPage ListDetail', () => {
     expect(cards).toEqual([{ id: M1, current: false, selected: false }, { id: M2, current: true, selected: true }]);
   });
 
+  it('status links: exactly one aria-current="page"', async () => {
+    const { container } = render(await MovesPage({ params: Promise.resolve({ clientId: 'c1' }), searchParams: Promise.resolve({ status: 'closed' }) }));
+    const cur = container.querySelectorAll('a[aria-current="page"]');
+    expect(cur).toHaveLength(1);
+    expect(cur[0]!.textContent).toBe('Closed');
+  });
+
+  it('list is one card with no nested card; detail has no card wrapper', async () => {
+    const p = await go();
+    const { container } = render(p.list as React.ReactElement);
+    expect(container.querySelectorAll('[data-slot=card]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-slot=card] [data-slot=card]')).toHaveLength(0);
+    const d = render(p.detail as React.ReactElement);
+    expect(d.container.querySelector('[data-slot=card]')).toBeNull();
+  });
+
+  it('stale ?move= still shows the no-longer-available text', async () => {
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', timezone: 'UTC' };
+      if (name === 'list_moves') return { items: [{ id: M1 }] };
+      return null;
+    });
+    const p = await go({ move: M2 });
+    const { container } = render(p.detail as React.ReactElement);
+    expect(container.textContent).toContain('This move is no longer available.');
+  });
+
   it('?move= passes sheetOpen true', async () => {
     const p = await go({ move: M2 });
     expect(p.sheetOpen).toBe(true);

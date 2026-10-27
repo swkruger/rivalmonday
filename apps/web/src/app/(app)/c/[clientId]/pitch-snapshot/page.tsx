@@ -1,5 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, ProspectReportView } from '@cs/tools';
+import { Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { clientCrumbs } from '@/components/client-crumbs';
@@ -54,9 +55,9 @@ export default async function PitchSnapshotPage({ params }: { params: Promise<{ 
           <HelpTip tip="client.pitch-snapshot.mapVisibility" />
         </span>
       </div>
-      <div className="rounded-md border border-line bg-surface p-6">
+      <Section>
         <ProspectLandscape data={report.data} timezone={profile.timezone} />
-      </div>
+      </Section>
     </>
   );
 }
