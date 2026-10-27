@@ -71,6 +71,7 @@ export function SetupWizard({ clientId, clientName, agency, prospect, steps, cur
             return picked.ok ? advanceSetupAction(clientId, 'confirm_competitors') : picked;
           }, () => go(after('competitors')))}
           onAskOwner={() => advance('ask_owner', () => go(after('competitors')))}
+          onCancelAsk={() => advance('cancel_ask_owner')}
           onNext={() => go(after('competitors'))}
         />
       );
@@ -94,6 +95,11 @@ export function SetupWizard({ clientId, clientName, agency, prospect, steps, cur
         />
       );
     case 'done':
-      return <DoneStep frame={frame} clientId={clientId} clientName={clientName} ownerFirstName={ownerFirst} summary={summary} prospect={prospect} />;
+      return (
+        <DoneStep
+          frame={frame} clientId={clientId} clientName={clientName} ownerFirstName={ownerFirst} summary={summary} prospect={prospect} pending={pending} error={error}
+          onCancelAsk={() => advance('cancel_ask_owner', () => go('competitors'))}
+        />
+      );
   }
 }

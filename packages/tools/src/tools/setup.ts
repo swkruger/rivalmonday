@@ -310,16 +310,22 @@ async function enqueueRunbookTailor(deps: ToolDeps, clientId: string): Promise<v
   }
 }
 
-/** `skip_search` is the legacy 11a skip (competitors read `ready`); `ask_owner` is O12. Owners may run `confirm_competitors` only (`OWNER_OPS`). */
-const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner'] as const;
-const OPEN_COMPETITORS = new Set<SetupState['competitors']>(['todo', 'searching', 'blocked', 'ready', 'waiting_owner']);
+/**
+ * `skip_search` is the legacy 11a skip (competitors read `ready`); `ask_owner` is O12, allowed only from `ready` with at
+ * least one open suggestion (final fix I1: never a request the owner cannot answer); `cancel_ask_owner` is the staff way
+ * back (clears the request, competitors read `ready` again). Owners may run `confirm_competitors` only (`OWNER_OPS`).
+ */
+const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner', 'cancel_ask_owner'] as const;
 const INVITE_NEEDED = 'Invite the owner so they can pick the competitors.';
 const ALREADY_CHOSEN = 'Competitors are already chosen for this client.';
+const ALREADY_ASKED = 'The owner has already been asked to pick.';
+const ASK_AFTER_SEARCH = 'You can ask the owner to pick after the search finds businesses to choose from.';
+const NOT_ASKED = 'The owner has not been asked to pick.';
 
 export const advanceClientSetup = defineTool({
   name: 'advance_client_setup',
   access: 'write',
-  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, ask the business owner to pick them, skip the search, or skip the invite or billing step or dismiss the setup.',
+  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, ask the business owner to pick them (or cancel that request), skip the search, or skip the invite or billing step or dismiss the setup.',
   input: z.object({ clientId: uuid, action: z.enum(ACTIONS) }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',
@@ -331,8 +337,11 @@ export const advanceClientSetup = defineTool({
     if (action === 'skip_billing' && !state.steps.billing) throw new ToolError('invalid_input', 'A prospect has no billing step');
     if (action === 'ask_owner') {
       if (state.steps.profile !== 'done') throw new ToolError('invalid_input', 'Add keywords and a location before asking the owner to pick.', { userFacing: true });
-      if (!OPEN_COMPETITORS.has(state.competitors)) throw new ToolError('invalid_input', ALREADY_CHOSEN, { userFacing: true });
+      if (state.competitors === 'done' || state.competitors === 'skipped') throw new ToolError('invalid_input', ALREADY_CHOSEN, { userFacing: true });
+      if (state.competitors === 'waiting_owner') throw new ToolError('invalid_input', ALREADY_ASKED, { userFacing: true });
+      if (state.competitors !== 'ready' || !state.pendingSuggestions) throw new ToolError('invalid_input', ASK_AFTER_SEARCH, { userFacing: true });
     }
+    if (action === 'cancel_ask_owner' && state.competitors !== 'waiting_owner') throw new ToolError('invalid_input', NOT_ASKED, { userFacing: true });
     const recheck = closedSetupRecheck(ctx, clientId);
     const now = new Date();
 
@@ -361,6 +370,8 @@ export const advanceClientSetup = defineTool({
       const competitorsClosed = row.competitorsDoneAt !== null || row.skipped.includes('competitors');
       if (action === 'skip_invite' && row.ownerPickRequestedAt !== null && !competitorsClosed) throw new ToolError('invalid_input', INVITE_NEEDED, { userFacing: true });
       if (action === 'ask_owner' && competitorsClosed) throw new ToolError('invalid_input', ALREADY_CHOSEN, { userFacing: true });
+      if (action === 'ask_owner' && row.ownerPickRequestedAt !== null) throw new ToolError('invalid_input', ALREADY_ASKED, { userFacing: true });
+      if (action === 'cancel_ask_owner' && (row.ownerPickRequestedAt === null || competitorsClosed)) throw new ToolError('invalid_input', NOT_ASKED, { userFacing: true });
       // Under the row lock: first timestamps win, skipped stays a set.
       const skip = (step: SetupSkippedStep): SetupSkippedStep[] => (row.skipped.includes(step) ? row.skipped : [...row.skipped, step]);
       const competitorsDoneAt = row.competitorsDoneAt ?? now;
@@ -373,8 +384,12 @@ export const advanceClientSetup = defineTool({
                 : action === 'skip_billing' ? { skipped: skip('billing') }
                   // O12: no email here (P12); the invite step sends the review email, so an earlier invite skip is
                   // cleared (the invite step is todo again and completion waits for an invitation).
-                  : action === 'ask_owner' ? { ownerPickRequestedAt: row.ownerPickRequestedAt ?? now, skipped: row.skipped.filter((s) => s !== 'invite') }
-                    : { dismissedAt: row.dismissedAt ?? now };
+                  : action === 'ask_owner' ? { ownerPickRequestedAt: now, skipped: row.skipped.filter((s) => s !== 'invite') }
+                    // I1: staff take the pick back; competitors derive to `ready` again (the run and suggestions are kept).
+                    // `waiting_owner` counted as settled, so a completed setup reopens: staff now pick or skip, and the
+                    // starting-point clock waits for that instead of starting from activation (setup-clock.ts).
+                    : action === 'cancel_ask_owner' ? { ownerPickRequestedAt: null, completedAt: null }
+                      : { dismissedAt: row.dismissedAt ?? now };
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
     });

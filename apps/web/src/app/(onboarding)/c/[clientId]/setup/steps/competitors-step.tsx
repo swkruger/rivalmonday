@@ -39,7 +39,7 @@ const ratedLine = (s: ClientSafeSuggestion) =>
  * suggestions to tick (up to 5, in the order ticked; Top rivals arrive ticked), with the "Where you stand" scorecard for
  * the business and the first two ticked rivals. "Ask the owner to pick" hands the choice to the owner instead.
  */
-export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, keywordCount, radiusMiles, backHref, pending, error, refusal, owner, onStart, onSkip, onContinue, onAskOwner, onNext }: {
+export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, keywordCount, radiusMiles, backHref, pending, error, refusal, owner, onStart, onSkip, onContinue, onAskOwner, onCancelAsk, onNext }: {
   frame: StepFrame; view: ClientSetupView; clientId: string; clientName: string;
   /** The owner's own pick screen (16 §7): they pick while `waiting_owner`, with no progress, Back, Skip or "Ask the owner". */
   owner?: { agencyName: string; place: string | null };
@@ -48,6 +48,8 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
   /** A failed or refused search, already in plain words. */
   refusal: string | null;
   onStart: () => void; onSkip: () => void; onContinue: (accept: string[]) => void; onAskOwner: () => void;
+  /** Staff take back an "Ask the owner" request (`cancel_ask_owner`); the step reads `ready` again. */
+  onCancelAsk: () => void;
   /** Leave without a pick (the owner is choosing, or the step is already closed). */
   onNext: () => void;
 }) {
@@ -74,7 +76,8 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
   const closed = state === 'done' || state === 'skipped';
   const idle = state === 'todo' || state === 'blocked';
   const total = tracked.length + open.length;
-  const canAsk = !owner && (state === 'todo' || state === 'searching' || state === 'blocked' || state === 'ready');
+  // I1: only once the search found businesses to choose from (`advance_client_setup` refuses otherwise).
+  const canAsk = !owner && state === 'ready' && open.length > 0;
   const n = ticked.length;
   const progress = view.search?.progress;
   const pct = progress && progress.searchesTotal > 0 ? Math.round((progress.searchesDone / progress.searchesTotal) * 100) : 5;
@@ -137,7 +140,10 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
         )}
 
         {state === 'waiting_owner' && !owner && (
-          <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{ownerName ?? 'The owner'} is choosing the competitors. They show up on their Overview, and we start watching once they have picked.</p>
+          <div className="flex flex-col gap-2">
+            <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{ownerName ?? 'The owner'} is choosing the competitors. They show up on their Overview, and we start watching once they have picked.</p>
+            {!readOnly && <Button type="button" variant="outline" className="self-start" disabled={pending} onClick={onCancelAsk}>Cancel request</Button>}
+          </div>
         )}
         {closed && (
           <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{tracked.length > 0 ? `Competitors are chosen: ${tracked.length} tracked.` : 'This step was skipped. You can add competitors any time on the Competitors page.'}</p>

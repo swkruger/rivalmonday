@@ -1,9 +1,12 @@
 'use client';
+import { Button } from '@cs/ui';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ErrorNote } from '@/components/form-error';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { StepFooter } from '@/components/onboarding/step-footer';
+import { useReadOnly } from '@/components/read-only';
 import { type StepFrame, stepOf } from './frame';
 
 /** The confirmation rows, already worded by the page; `competitorsWaiting` swaps in the "waiting on the owner" row. */
@@ -23,10 +26,14 @@ export interface DoneSummary {
  * pick, the competitors row says so ("Pick now") and the next steps start with their pick. Edit goes to the page where the
  * setting lives afterwards: a finished setup is read-only, so the wizard steps are not offered again.
  */
-export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary, prospect }: {
+export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary, prospect, pending = false, error = null, onCancelAsk }: {
   frame: StepFrame; clientId: string; clientName: string; ownerFirstName: string | null; summary: DoneSummary; prospect: boolean;
+  pending?: boolean; error?: string | null;
+  /** While the owner is asked to pick (I1): staff take the pick back and return to step 4. */
+  onCancelAsk?: () => void;
 }) {
   const router = useRouter();
+  const readOnly = useReadOnly();
   const first = ownerFirstName ?? 'the owner';
   const First = ownerFirstName ?? 'The owner';
   const edit = `/c/${clientId}/settings/profile`;
@@ -63,6 +70,7 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
       caption={<><b className="font-semibold">What&apos;s next:</b> {summary.competitorsWaiting ? `${First} picks, then the starting point within 48 hours.` : 'starting point within 48 hours, then a brief every Monday.'}</>}
       footer={<StepFooter skip={{ label: prospect ? 'Add another prospect' : 'Add another client', onSkip: () => router.push(another) }} primary={{ label: `Go to ${clientName}`, form: 'done-form' }} />}
     >
+      {error && <ErrorNote focusKey={error}>{error}</ErrorNote>}
       <form id="done-form" onSubmit={(e) => { e.preventDefault(); router.push(open); }} className="contents" />
       <ul className="-mt-2 border-t border-line">
         {rows.map((r) => (
@@ -73,6 +81,9 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
           </li>
         ))}
       </ul>
+      {summary.competitorsWaiting && onCancelAsk && !readOnly && (
+        <Button type="button" variant="outline" className="self-start" disabled={pending} onClick={onCancelAsk}>Cancel request</Button>
+      )}
       <section aria-labelledby="next-heading">
         <h2 id="next-heading" className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-ink">What happens next</h2>
         <ol className="mt-3.5 flex flex-col gap-3.5">

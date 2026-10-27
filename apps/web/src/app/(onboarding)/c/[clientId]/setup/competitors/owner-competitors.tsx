@@ -39,7 +39,7 @@ export function OwnerCompetitors({ clientId, clientName, agency, place, radiusMi
     <CompetitorsStep
       frame={frame} view={view} clientId={clientId} clientName={clientName} ownerName={null} keywordCount={keywordCount} radiusMiles={radiusMiles}
       pending={pending} error={error} refusal={null} owner={{ agencyName: agency.name, place }}
-      onStart={() => {}} onSkip={() => {}} onAskOwner={() => {}} onNext={() => router.push(overview)} onContinue={confirm}
+      onStart={() => {}} onSkip={() => {}} onAskOwner={() => {}} onCancelAsk={() => {}} onNext={() => router.push(overview)} onContinue={confirm}
     />
   );
 }

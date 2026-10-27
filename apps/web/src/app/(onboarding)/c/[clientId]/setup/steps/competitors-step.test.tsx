@@ -31,7 +31,7 @@ const view = (competitors: ClientSetupView['state']['competitors'], list: Client
 function show(v: ClientSetupView, o: Partial<React.ComponentProps<typeof CompetitorsStep>> = {}) {
   const props: React.ComponentProps<typeof CompetitorsStep> = {
     frame: FRAME, view: v, clientId: 'c1', clientName: 'Cool Breeze', ownerName: 'Maria', keywordCount: 4, radiusMiles: 10, backHref: '/c/c1/setup?step=profile', pending: false, error: null, refusal: null,
-    onStart: vi.fn(), onSkip: vi.fn(), onContinue: vi.fn(), onAskOwner: vi.fn(), onNext: vi.fn(), ...o,
+    onStart: vi.fn(), onSkip: vi.fn(), onContinue: vi.fn(), onAskOwner: vi.fn(), onCancelAsk: vi.fn(), onNext: vi.fn(), ...o,
   };
   render(<CompetitorsStep {...props} />);
   return props;
@@ -95,7 +95,8 @@ describe('CompetitorsStep (client step 4)', () => {
     expect(screen.getByText('Searching 4 keywords across your area…')).toBeTruthy();
     expect(screen.getByText(/5 of 12 searches/)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Ask the owner to pick' })).toBeTruthy();
+    // I1: the owner is only asked once there is something to pick from.
+    expect(screen.queryByRole('button', { name: 'Ask the owner to pick' })).toBeNull();
     expect(preview().querySelectorAll('[data-role="empty"]').length).toBe(4);
   });
 
@@ -108,10 +109,12 @@ describe('CompetitorsStep (client step 4)', () => {
     expect(p.onSkip).toHaveBeenCalled();
   });
 
-  it('after asking the owner it says who is picking and just moves on', () => {
+  it('after asking the owner it says who is picking, offers Cancel request, and just moves on', () => {
     const p = show(view('waiting_owner'));
     expect(screen.getByText(/Maria is choosing the competitors/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Ask the owner to pick' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel request' }));
+    expect(p.onCancelAsk).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(p.onNext).toHaveBeenCalled();
     expect(p.onContinue).not.toHaveBeenCalled();
@@ -120,6 +123,7 @@ describe('CompetitorsStep (client step 4)', () => {
   it('zero results says so, and Continue confirms with none', () => {
     const p = show(view('ready', []));
     expect(screen.getByText(/No new businesses were found/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ask the owner to pick' })).toBeNull(); // nothing for the owner to pick
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(p.onContinue).toHaveBeenCalledWith([]);
   });

@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { client, competitorSuggestion, createDb, discoveryRun } from '@cs/db';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
+import { desc, eq } from 'drizzle-orm';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
 import { signIn } from './helpers';
 import { SETUP_FIXTURE_FILE } from '../playwright.config';
@@ -29,6 +31,23 @@ test.beforeAll(async ({ browser }, testInfo) => {
   await ensureAdminState(browser, testInfo);
   await ensureOwnerState(browser, testInfo);
 });
+
+/**
+ * No worker runs in E2E, so a search started by the UI never finishes: finish it here (every run of the client `done`)
+ * with one open suggestion, as the worker would. "Ask the owner to pick" only shows once there is something to pick (I1).
+ */
+async function finishSearch(clientId: string, name: string): Promise<void> {
+  const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
+  try {
+    const [c] = await db.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, clientId));
+    await db.update(discoveryRun).set({ status: 'done', finishedAt: new Date() }).where(eq(discoveryRun.clientId, clientId));
+    let [run] = await db.select({ id: discoveryRun.id }).from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
+    if (!run) [run] = await db.insert(discoveryRun).values({ agencyId: c!.agencyId, clientId, trigger: 'auto', status: 'done', finishedAt: new Date() }).returning({ id: discoveryRun.id });
+    await db.insert(competitorSuggestion).values({ agencyId: c!.agencyId, clientId, name, placeId: `e2e-finish-${clientId}`, appearances: 1, overlapScore: 0.9, status: 'suggested', runId: run!.id, tier: 'top' });
+  } finally {
+    await close();
+  }
+}
 
 /** Step 1 of the flow: the four required details. */
 async function fillDetails(page: Page, o: { business: string; contact: string; phone?: string; email: string }): Promise<void> {
@@ -77,10 +96,15 @@ test.describe('agency staff', () => {
     await expect(page.getByRole('complementary', { name: 'Preview' }).getByText('15 mi', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-    // Step 4: no worker, so the search never finishes here; the owner can be asked to pick at any point.
+    // Step 4: no worker, so the search is still running; the owner can only be asked once it found something (I1).
     await expect(page).toHaveURL(/step=competitors/);
     await expect(page.getByRole('heading', { name: 'Pick who to watch', level: 1 })).toBeVisible();
     await expect(page.getByText('Step 4 of 7 · Competitors')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ask the owner to pick' })).toHaveCount(0);
+    const id = /\/c\/([0-9a-f-]{36})\/setup/.exec(page.url())![1]!;
+    await finishSearch(id, 'Granbury Smile Studio');
+    await page.reload();
+    await expect(page.getByLabel('Granbury Smile Studio')).toBeVisible();
     await page.getByRole('button', { name: 'Ask the owner to pick' }).click();
 
     // Step 5: pre-filled from step 1; no Skip while the owner is asked to pick (P12).
@@ -94,6 +118,8 @@ test.describe('agency staff', () => {
     await expect(page.getByRole('heading', { name: 'Granbury Park Dental is all set', level: 1 })).toBeVisible();
     await expect(page.getByText('Gina picks the competitors. Everything else is ready.')).toBeVisible();
     await expect(page.getByText('Waiting on Gina to pick competitors')).toBeVisible();
+    // Staff can take the pick back (I1 cancel_ask_owner) from here; not exercised in this flow.
+    await expect(page.getByRole('button', { name: 'Cancel request' })).toBeVisible();
     await expect(page.getByRole('img', { name: /local storefront under a map pin/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Go to Granbury Park Dental' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add another client' })).toBeVisible();

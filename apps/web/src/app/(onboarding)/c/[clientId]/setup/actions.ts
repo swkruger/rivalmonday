@@ -58,7 +58,7 @@ export async function pickSetupCompetitorsAction(clientId: string, accept: strin
   return { ok: true, searchRefusal: null };
 }
 
-export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss' | 'ask_owner';
+export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss' | 'ask_owner' | 'cancel_ask_owner';
 
 export async function advanceSetupAction(clientId: string, action: SetupAdvance): Promise<SetupActionResult> {
   const r = await runTool<{ searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });

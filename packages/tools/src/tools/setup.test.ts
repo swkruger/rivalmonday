@@ -215,7 +215,7 @@ describe('wizard tools', () => {
     it('owner gets not_found for every other advance action, even while waiting_owner', async () => {
       await fillProfile();
       await setupRow(ASKED);
-      for (const action of ['start_search', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner']) {
+      for (const action of ['start_search', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner', 'cancel_ask_owner']) {
         expect((await fails(advance(ownerA1, action))).code, action).toBe('not_found');
       }
       const row = await setupOf();
@@ -769,9 +769,10 @@ describe('wizard tools', () => {
       expect(row.competitorsDoneAt).toBeNull();
       expect(row.completedAt).toBeInstanceOf(Date);
       expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'runbook-tailor')).toHaveLength(0); // competitors are not closed yet
-      // A second ask keeps the first request time; the owner's confirm then closes the step (and tailors the runbook once).
+      // A second ask is refused (only from ready) and keeps the first request time; the owner's confirm then closes the
+      // step (and tailors the runbook once).
       const first = row.ownerPickRequestedAt;
-      await advance(admin, 'ask_owner');
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
       expect((await setupOf()).ownerPickRequestedAt).toEqual(first);
       await advance(ownerA1, 'confirm_competitors');
       const after = await setupOf();
@@ -783,6 +784,7 @@ describe('wizard tools', () => {
     it('ask_owner reopens a skipped invite step', async () => {
       await fillProfile();
       await setupRow({ skipped: ['search', 'invite', 'billing'] });
+      await sug(await run('done'), 'Rival One');
       const out = await advance(admin, 'ask_owner');
       expect(out.state).toMatchObject({ open: true, competitors: 'waiting_owner', steps: { invite: 'todo' } });
       const row = await setupOf();
@@ -801,6 +803,74 @@ describe('wizard tools', () => {
       await dbs.owner.update(clientSetup).set({ competitorsDoneAt: null, skipped: ['competitors'] });
       expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
       expect((await setupOf()).ownerPickRequestedAt).toBeNull();
+    });
+
+    it('ask_owner refused while searching', async () => {
+      await fillProfile();
+      await setupRow();
+      await run('searching');
+      const e = await fails(advance(admin, 'ask_owner'));
+      expect(e).toMatchObject({ code: 'invalid_input', userFacing: true });
+      expect(e.message).toMatch(/after the search finds/i);
+      expect((await setupOf()).ownerPickRequestedAt).toBeNull();
+    });
+
+    it('ask_owner refused with zero suggestions', async () => {
+      await fillProfile();
+      await setupRow();
+      const r = await run('done');
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
+      // Every suggestion already decided counts as none left to pick from.
+      await sug(r, 'Dismissed One', { status: 'dismissed' });
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
+      // A failed run (blocked) is refused too.
+      await dbs.owner.update(discoveryRun).set({ status: 'failed' });
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
+      expect((await setupOf()).ownerPickRequestedAt).toBeNull();
+    });
+
+    it('cancel_ask_owner restores ready', async () => {
+      await fillProfile();
+      await fillDetails();
+      await setupRow();
+      await sug(await run('done'), 'Rival One');
+      await advance(admin, 'ask_owner');
+      await expect(get(ownerA1)).resolves.toMatchObject({ state: { competitors: 'waiting_owner' } });
+      const out = await advance(admin, 'cancel_ask_owner');
+      expect(out.state).toMatchObject({ competitors: 'ready', steps: { competitors: 'ready' } });
+      expect(await setupOf()).toMatchObject({ ownerPickRequestedAt: null, competitorsDoneAt: null, lastChangedRole: 'agency_admin' });
+      // The owner window is closed again, and staff can pick (or ask again) as usual.
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+      await advance(admin, 'ask_owner');
+      expect((await setupOf()).ownerPickRequestedAt).toBeInstanceOf(Date);
+    });
+
+    it('cancel_ask_owner reopens a setup that completed while waiting on the owner', async () => {
+      await fillProfile();
+      await setupRow({ ownerPickRequestedAt: new Date(), completedAt: new Date() });
+      await sug(await run('done'), 'Rival One');
+      const out = await advance(admin, 'cancel_ask_owner');
+      // Staff must pick or skip now; a kept completed_at would start the starting-point clock without competitors.
+      expect(out.state).toMatchObject({ open: true, competitors: 'ready', waitingOn: 'agency' });
+      expect(await setupOf()).toMatchObject({ ownerPickRequestedAt: null, completedAt: null });
+    });
+
+    it('cancel_ask_owner is refused when the owner was not asked', async () => {
+      await fillProfile();
+      await setupRow();
+      await sug(await run('done'), 'Rival One');
+      expect((await fails(advance(admin, 'cancel_ask_owner'))).code).toBe('invalid_input');
+      await dbs.owner.update(clientSetup).set({ ownerPickRequestedAt: new Date(), competitorsDoneAt: new Date() });
+      expect((await fails(advance(admin, 'cancel_ask_owner'))).code).toBe('invalid_input');
+    });
+
+    it('owner cannot cancel_ask_owner', async () => {
+      await fillProfile();
+      await setupRow({ ownerPickRequestedAt: new Date() });
+      await sug(await run('done'), 'Rival One');
+      const before = await setupOf();
+      expect((await fails(advance(ownerA1, 'cancel_ask_owner'))).code).toBe('not_found');
+      expect(await setupOf()).toMatchObject({ ownerPickRequestedAt: before.ownerPickRequestedAt, lastChangedBy: null });
     });
 
     it('invite cannot be skipped while waiting_owner', async () => {
