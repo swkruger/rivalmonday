@@ -127,6 +127,11 @@ test('a pilot invite link shows its offer, and the new agency is on the pilot', 
     await page.goto(path);
     await expect(page.getByText(/^You're invited to the Rival Monday pilot until /)).toBeVisible();
     await signUpAndConfirm(page, `owner@${domain('pilot')}`, 'Pilot Invite Agency', path);
+    // Phase 16: step 1 is required, and an unfinished wizard catches the first /agency visit; finish it first.
+    await fillAbout(page);
+    await skipToDone(page);
+    await page.getByRole('button', { name: 'Go to dashboard' }).click();
+    await expect(page).toHaveURL(/\/agency$/);
     await page.goto('/agency/settings/billing');
     await expect(page.getByText('Pilot', { exact: true })).toBeVisible();
     await expect(page.getByText(/^Pilot ends /)).toBeVisible();
@@ -170,6 +175,8 @@ test('a second trial for a company domain gets the same check-email page and no 
 test('uploading a logo in the brand step shows it in the live preview', { tag: ['@onboarding'] }, async ({ browser }, testInfo) => {
   await fresh(browser, testInfo, async (page) => {
     await signUpAndConfirm(page, `owner@${domain('logo')}`, 'Logo Upload Agency');
+    await fillAbout(page); // Phase 16: step 1 is required before any other step opens
+    await expect(page.getByRole('heading', { name: 'Invite your team', level: 1 })).toBeVisible();
     await page.goto('/onboarding?step=branding');
     await expect(page.getByRole('heading', { name: 'Put your brand on it', level: 1 })).toBeVisible();
     const upload = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/agency/settings/branding/logo'));

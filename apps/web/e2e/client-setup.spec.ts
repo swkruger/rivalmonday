@@ -36,7 +36,7 @@ async function fillDetails(page: Page, o: { business: string; contact: string; p
   await page.getByLabel('Contact full name').fill(o.contact);
   await page.getByLabel('Phone').fill(o.phone ?? '(817) 555-0142');
   await page.getByLabel('Email').fill(o.email);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
 test.describe('agency staff', () => {
@@ -47,7 +47,7 @@ test.describe('agency staff', () => {
     await expect(page.getByRole('heading', { name: 'Add a client', level: 1 })).toBeVisible();
     await expect(page.getByText('Step 1 of 7 · Client details')).toBeVisible();
     // The star fields are enforced before moving on.
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page.getByText('Enter the business name.')).toBeVisible();
     await fillDetails(page, { business: 'Granbury Park Dental', contact: 'Gina Park', phone: '(817) 286-3655', email: 'gina@granburypark.example' });
 
@@ -65,7 +65,7 @@ test.describe('agency staff', () => {
     // The Google category picks the business type; the preview shows the listing.
     await expect(page.locator('#verticalId')).toHaveValue('dental');
     await expect(page.getByRole('complementary', { name: 'Preview' }).getByText('Granbury Park Dental')).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 3: seed keywords (no worker, so no Google suggestions), 10 mi by default, services collapsed.
     await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
@@ -75,7 +75,7 @@ test.describe('agency staff', () => {
     await expect(page.getByLabel('City or ZIP')).toHaveCount(0);
     await page.getByText('15 mi', { exact: true }).click();
     await expect(page.getByRole('complementary', { name: 'Preview' }).getByText('15 mi', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 4: no worker, so the search never finishes here; the owner can be asked to pick at any point.
     await expect(page).toHaveURL(/step=competitors/);
@@ -110,7 +110,7 @@ test.describe('agency staff', () => {
     await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
     await expect(page.getByRole('heading', { name: 'What they do and where', level: 1 })).toBeVisible();
     await expect(page.getByLabel('City or ZIP')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page).toHaveURL(/step=competitors/);
     await expect(page.getByRole('heading', { name: 'Pick who to watch', level: 1 })).toBeVisible();
   });
@@ -125,9 +125,9 @@ test.describe('agency staff', () => {
     await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
     const city = page.getByLabel('City or ZIP');
     await expect(city).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
     await city.fill('Round Rock, TX');
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await expect(page).toHaveURL(/step=competitors/);
     await expect(page.getByRole('heading', { name: 'Pick who to watch', level: 1 })).toBeVisible();
   });

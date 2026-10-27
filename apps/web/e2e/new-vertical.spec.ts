@@ -11,7 +11,7 @@ async function detailsThenFind(page: Page, business: string): Promise<void> {
   await page.getByLabel('Contact full name').fill('Dee Distiller');
   await page.getByLabel('Phone').fill('(830) 555-0142');
   await page.getByLabel('Email').fill('dee@distillery.example');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByText('Step 2 of 7 · Find the business')).toBeVisible();
 }
 
@@ -70,7 +70,7 @@ test.describe.serial('new business type', () => {
       await expect(page.getByText('We don’t track this business type yet')).toHaveCount(0);
 
       await again.getByRole('listitem').filter({ hasText: 'Hill Country Distillery' }).getByRole('radio').check();
-      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
       // Step 3 keeps the services to one line; Review opens the list.
       await page.getByRole('button', { name: /Review/ }).click();

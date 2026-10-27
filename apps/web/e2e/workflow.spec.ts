@@ -18,7 +18,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await page.getByLabel('Contact full name').fill('Dee Dentist');
   await page.getByLabel('Phone').fill('(404) 555-0100');
   await page.getByLabel('Email').fill('dee@e2e-dental.example');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('City or ZIP').fill('Atlanta, GA');
   await page.locator('#verticalId').selectOption('dental');
   await page.getByRole('button', { name: /Continue without a listing/ }).click();
@@ -26,7 +26,7 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await expect(page).toHaveURL(/\/c\/[0-9a-f-]{36}\/setup$/);
   const competitorsUrl = page.url().replace(/\/setup$/, '/competitors');
   // Saving the area step (the business type's seed keywords + the geocoded centre) is what makes the profile complete.
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page).toHaveURL(/step=competitors/);
   await page.goto(competitorsUrl);
   await expect(page.getByRole('heading', { name: 'Competitors', exact: true, level: 1 })).toBeVisible();
@@ -35,7 +35,8 @@ test('an admin adds a client by hand, lands on its setup wizard, then uses its c
   await expect(page.getByText('Add keywords and a service area to search.')).toBeHidden();
   await expect(page.getByRole('button', { name: /find competitors|searching/i })).toBeVisible();
   // Link the Google listing through the real profile form; website monitoring is off in E2E, so nothing is crawled.
-  await page.getByRole('link', { name: 'Go to Business profile' }).click();
+  // (P5: with keywords and a centre there is no missing-inputs "Go to Business profile" link, so open Settings directly.)
+  await page.goto(competitorsUrl.replace(/\/competitors$/, '/settings/profile'));
   await expect(page).toHaveURL(/\/settings\/profile$/);
   await page.getByLabel('Google Place ID').fill('ChIJe2eDentalPlace');
   await page.getByRole('button', { name: 'Save profile' }).click();
