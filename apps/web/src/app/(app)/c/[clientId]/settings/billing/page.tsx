@@ -1,5 +1,5 @@
 import { formatMoney, formatDate } from '@/lib/format';
-import { Section, StatusChip } from '@cs/ui';
+import { Band, Section, StatusChip } from '@cs/ui';
 import type { ClientProfile } from '@cs/tools';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -90,21 +90,28 @@ export default async function ClientBillingPage({ params, searchParams }: { para
         ]}
       />
       {one(checkout) === 'done' && <RefreshUntilChanged watch={b.state} />}
-      {flash && <p role="status" className="max-w-[640px] rounded-md bg-muted-surface px-4 py-2 text-sm font-semibold text-ink">{flash}</p>}
+      {flash && <Band tone="muted" role="status" className="max-w-[640px] text-13 font-semibold text-ink">{flash}</Band>}
       <Section title={`Your plan with ${b.agencyName}`} className="max-w-[640px]">
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-ink">Status</span>
-            <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
-          </div>
+          <dl className="flex flex-col divide-y divide-line text-13">
+            <div className="flex items-center gap-3 py-2 first:pt-0">
+              <dt className="w-32 shrink-0 text-muted-ink">Status</dt>
+              <dd><StatusChip tone={chip.tone}>{chip.label}</StatusChip></dd>
+            </div>
+            {!b.paused && b.nextChargeDate && (
+              <div className="flex items-center gap-3 py-2">
+                <dt className="w-32 shrink-0 text-muted-ink">Next charge</dt>
+                <dd className="font-semibold text-ink">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents' })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</dd>
+              </div>
+            )}
+            {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && (
+              <div className="flex items-center gap-3 py-2">
+                <dt className="w-32 shrink-0 text-muted-ink">Monthly amount</dt>
+                <dd className="font-semibold text-ink">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</dd>
+              </div>
+            )}
+          </dl>
           {status.detail && <p className="text-sm">{status.detail}</p>}
-          {!b.paused && b.nextChargeDate && (
-            <p className="text-sm">
-              <span className="text-muted-ink">Next charge </span>
-              <span className="font-semibold">{b.nextChargeAmountCents !== null ? `${formatMoney(b.nextChargeAmountCents, { unit: 'cents' })} on ` : 'on '}{formatDate(b.nextChargeDate, { tz: 'UTC' })}</span>
-            </p>
-          )}
-          {!b.nextChargeDate && b.nextChargeAmountCents !== null && !b.endsOn && <p className="text-sm"><span className="text-muted-ink">Monthly amount </span><span className="font-semibold">{formatMoney(b.nextChargeAmountCents, { unit: 'cents' })}</span></p>}
           {b.endsOn && <p className="text-sm">Your plan ends on {formatDate(b.endsOn, { tz: 'UTC' })}. There will be no further charges.</p>}
           {b.canManagePayment && <PaymentButton action={managePaymentAction.bind(null, clientId)} label="Manage payment" />}
         </div>

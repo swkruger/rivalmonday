@@ -41,6 +41,15 @@ describe('client billing page (9b)', () => {
     expect(m.calls[0]).toEqual([m.ctx, 'get_my_billing', { clientId: C }]);
   });
 
+  it('shows status and next charge as definition rows', async () => {
+    m.data = base;
+    const { container } = render(await open());
+    const terms = [...container.querySelectorAll('dt')].map((t) => t.textContent);
+    expect(terms).toEqual(['Status', 'Next charge']);
+    const dds = [...container.querySelectorAll('dd')].map((d) => d.textContent);
+    expect(dds).toEqual(['Active', '$129 on Dec 1']);
+  });
+
   it.each(['client_viewer', 'agency_admin', 'account_manager'])('%s gets a 404 before any tool call', async (role) => {
     m.ctx = { role };
     m.data = base;

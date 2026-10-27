@@ -67,7 +67,7 @@ test.describe.serial('billing', () => {
   test('the billing page renders for the agency admin and is a 404 for an account manager', { tag: ['@billing'] }, async ({ browser }, testInfo) => {
     await as(browser, testInfo, 'trialAdmin', async (page) => {
       await page.goto('/agency/settings/billing');
-      await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Billing', exact: true, level: 1 })).toBeVisible();
       await expect(page.getByText('Free trial', { exact: true })).toBeVisible();
       await expect(page.getByText(/Clients: 3 of 3 included/)).toBeVisible();
       await expect(page.getByText('No invoices yet', { exact: true })).toBeVisible();
