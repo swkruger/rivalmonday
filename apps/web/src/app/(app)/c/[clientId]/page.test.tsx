@@ -14,6 +14,8 @@ vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: ({ text }: { text: string }) => <>{text}</> }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null, HelpEmpty: () => null }));
 vi.mock('@/components/page-header', () => ({ PageHeader: ({ title }: { title: string }) => <div role="heading" aria-level={1}>{title}</div> }));
+const firstVisit = vi.fn();
+vi.mock('@/components/client/owner-first-visit', () => ({ OwnerFirstVisit: (p: unknown) => { firstVisit(p); return <p>first visit</p>; } }));
 vi.mock('@/components/setup-badge', () => ({ openSetupSteps: () => null, SetupBadge: () => null }));
 vi.mock('./moves/move-card', () => ({ MoveCard: () => null, movesHref: () => '/moves' }));
 
@@ -37,6 +39,13 @@ describe('Client Overview (15c-2b-2)', () => {
       get_ad_activity: { weeks: [], series: [] },
     });
     callTool.mockImplementation(async (_c: unknown, name: string) => tools[name] ?? { items: [] });
+  });
+
+  it('hands the owner first-visit panel the setup read, viewer and context', async () => {
+    tools.get_client_setup = { state: { competitors: 'waiting_owner' }, invite: { name: null } };
+    await show();
+    expect(screen.getByText('first visit')).toBeTruthy();
+    expect(firstVisit).toHaveBeenCalledWith(expect.objectContaining({ clientId: C, setup: tools.get_client_setup, viewer: { kind: 'user' } }));
   });
 
   it('pressure bar uses bg-danger for high', async () => {

@@ -4,10 +4,10 @@
  */
 
 /** `/c/[clientId]` pages that 404 client roles (`isAgencyRole` guard): their help is agency-only. */
-export const AGENCY_ONLY_CLIENT_ROUTES = ['/c/[clientId]/pitch-snapshot', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/runbook'] as const;
+export const AGENCY_ONLY_CLIENT_ROUTES = ['/c/[clientId]/pitch-snapshot', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/runbook', '/c/[clientId]/setup'] as const;
 
-/** `/c/[clientId]` pages only the client owner reaches (agency staff 404): their help is client-only. */
-export const CLIENT_ONLY_CLIENT_ROUTES = ['/c/[clientId]/settings/billing'] as const;
+/** `/c/[clientId]` pages only the client owner reaches (agency staff 404 or are sent on): their help is client-only. `/setup` is the staff wizard (owners never enter it, 16 P8); `/setup/competitors` is the owner's pick. */
+export const CLIENT_ONLY_CLIENT_ROUTES = ['/c/[clientId]/settings/billing', '/c/[clientId]/setup/competitors'] as const;
 
 /** A `/c/[clientId]/…` route's help page key: `/c/[clientId]/settings/delivery` → `client.settings.delivery`. */
 export function clientPageKeyOf(route: string): string {

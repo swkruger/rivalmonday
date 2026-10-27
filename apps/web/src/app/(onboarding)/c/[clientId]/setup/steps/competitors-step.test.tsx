@@ -123,4 +123,27 @@ describe('CompetitorsStep (client step 4)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(p.onContinue).toHaveBeenCalledWith([]);
   });
+  describe('owner variant (16 §7)', () => {
+    const OWNER = { agencyName: 'Brightside Marketing', place: 'Round Rock' };
+    const ownerFrame = { ...FRAME, steps: [] };
+
+    it('lists the picks while the agency waits, with no progress, Back, Skip or "Ask the owner"', () => {
+      const props = show(view('waiting_owner'), { frame: ownerFrame, owner: OWNER, backHref: undefined });
+      expect(screen.getByRole('heading', { name: 'Choose who to watch', level: 1 })).toBeTruthy();
+      expect(screen.getByText('Choose competitors')).toBeTruthy();
+      expect(screen.getByText('Brightside Marketing found these businesses near Round Rock. Tick up to 5. You can change them later.')).toBeTruthy();
+      expect(screen.queryByRole('progressbar')).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Back' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Ask the owner to pick' })).toBeNull();
+      expect(screen.queryByRole('link', { name: '+ Add one we missed' })).toBeNull();
+      expect(screen.queryByText(/is choosing the competitors/)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm 3 competitors' }));
+      expect(props.onContinue).toHaveBeenCalledWith(['a', 'b', 'c']);
+    });
+
+    it('needs at least one tick to confirm', () => {
+      show(view('waiting_owner', SUGGESTIONS.map((s) => ({ ...s, preTicked: false }))), { frame: ownerFrame, owner: OWNER });
+      expect((screen.getByRole('button', { name: 'Confirm competitors' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
 });

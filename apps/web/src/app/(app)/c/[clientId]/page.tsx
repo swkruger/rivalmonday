@@ -18,6 +18,7 @@ import { AskCard } from '@/components/ask/ask-card';
 import { foldSeries, LineChart } from '@/components/charts/line-chart';
 import { ClientHomeBasic } from '@/components/client-home-basic';
 import { AlertLinkList, BriefLinkList } from '@/components/client-lists';
+import { OwnerFirstVisit, type OwnerSetupRead } from '@/components/client/owner-first-visit';
 import { EmptyState, HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
@@ -59,7 +60,7 @@ function RecStatus({ status }: { status: string }) {
 export default async function ClientHome({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { viewer, ctx } = await requireContext();
-  if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} />;
+  if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} viewer={viewer} />;
   const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
@@ -71,7 +72,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
     // Agency staff (and an owner asked to pick, for whom the badge stays hidden); anyone else reads null.
-    tryCallTool<{ state: SetupState; invite: { name: string | null } }>(ctx, 'get_client_setup', { clientId }),
+    tryCallTool<{ state: SetupState; invite: { name: string | null } } & NonNullable<OwnerSetupRead>>(ctx, 'get_client_setup', { clientId }),
     // Same scope `PageGuide` derives from `/c/<id>`: client context for this client.
     helpGuides(ctx, 'client', clientId),
   ]);
@@ -107,6 +108,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
           ) : undefined
         }
       />
+      <OwnerFirstVisit clientId={clientId} ctx={ctx} viewer={viewer} setup={setup} />
       {setupSteps !== null && (
         <div>
           <SetupBadge clientId={clientId} {...setupSteps} />

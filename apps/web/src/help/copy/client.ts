@@ -520,6 +520,11 @@ export const CLIENT_COPY = {
       },
     },
   },
+  // 16 §7 (Task 9): the owner's own pick screen; the staff wizard keeps `client.setup`. Tips and the guide text are Task 11.
+  'client.setup.competitors': {
+    description: 'Choose which nearby businesses {agency} should compare {client} with each week.',
+    tips: {},
+  },
   'client.settings.profile': {
     description: "The services, search keywords and service area used to find and compare {client}'s competitors.",
     tips: {

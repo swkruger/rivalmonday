@@ -139,7 +139,7 @@ describe('page titles = menu labels (15a §2.7)', () => {
 
   it('the client setup wizard shows its own step; its tab title matches the page ("Set up {client}")', () => {
     // 16: the setup is a full-page OnboardingShell; each of its screens sets `step={stepOf(frame, <screen>)}` (the screen's place in the viewer's list).
-    for (const f of ['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step']) expect(read(`(onboarding)/c/[clientId]/setup/steps/${f}.tsx`), f).toMatch(/<OnboardingShell[^>]*step=\{stepOf\(frame, '/);
+    for (const f of ['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step']) expect(read(`(onboarding)/c/[clientId]/setup/steps/${f}.tsx`), f).toMatch(/<OnboardingShell[^>]*step=\{(?:owner \? undefined : )?stepOf\(frame, '/);
     const source = read('(onboarding)/c/[clientId]/setup/page.tsx');
     expect(source).toContain('export async function generateMetadata');
     expect(source).toContain('const titleOf = (profile: ClientProfile) => `Set up ${profile.name}`');

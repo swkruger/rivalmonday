@@ -13,6 +13,8 @@ export type OnboardingBrand =
 export interface OnboardingShellProps {
   brand: OnboardingBrand;
   step?: { n: number; of: number; label: string };
+  /** A plain label in the progress slot for a single-screen flow (the owner's "Choose competitors"); `step` wins when both are set. */
+  label?: string;
   /** "Save and exit" top-right; `null` or absent hides it. */
   exit?: { href: string; label: string } | null;
   /** Replaces the `exit` link with a control of its own (the client setup's "Save and exit" menu). */
@@ -33,7 +35,7 @@ export interface OnboardingShellProps {
  * footer); right canvas panel with one floating preview and a caption, hidden below 1024px (the left column then centres
  * at 560px). `logoUrl` is only ever `https` or `null` (`resolveBranding`). Agency brand: `style` carries the theme vars.
  */
-export function OnboardingShell({ brand, step, exit, exitSlot, title, subtitle, helpKey, guide, preview, caption, footer, children }: OnboardingShellProps) {
+export function OnboardingShell({ brand, step, label, exit, exitSlot, title, subtitle, helpKey, guide, preview, caption, footer, children }: OnboardingShellProps) {
   const showGuide = Boolean(helpKey && guide);
   return (
     <div className="grid min-h-screen bg-white lg:grid-cols-[640px_1fr]" style={brand.kind === 'agency' ? brand.style : undefined}>
@@ -54,8 +56,8 @@ export function OnboardingShell({ brand, step, exit, exitSlot, title, subtitle, 
             {exitSlot ?? (exit && <Link href={exit.href} className="text-[13px] font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
           </div>
         </div>
-        {step && <div className="mt-14"><StepProgress {...step} /></div>}
-        <h1 className={`text-[30px] font-semibold leading-[1.2] tracking-[-0.015em] ${step ? 'mt-9' : 'mt-14'}`}>{title}</h1>
+        {step ? <div className="mt-14"><StepProgress {...step} /></div> : label && <p className="mt-14 text-[13px] font-medium text-muted-ink">{label}</p>}
+        <h1 className={`text-[30px] font-semibold leading-[1.2] tracking-[-0.015em] ${step ? 'mt-9' : label ? 'mt-5' : 'mt-14'}`}>{title}</h1>
         {subtitle && <p className="mt-2.5 max-w-[460px] text-[15px] leading-normal text-muted-ink">{subtitle}</p>}
         <div className="mt-8 flex max-w-[440px] flex-col gap-5">{children}</div>
         {footer}

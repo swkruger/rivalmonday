@@ -718,8 +718,13 @@ async function seedInviteSetup(db: ReturnType<typeof createDb>['db']): Promise<v
     { clientId: billing!.id, agencyId, competitorsDoneAt: new Date(), skipped: ['invite'] },
   ]);
   // A done search each, so saving or reading the setup never starts a paid auto search.
-  await db.insert(discoveryRun).values([step4!, step3!, billing!].map((c) => ({
-    agencyId, clientId: c.id, trigger: 'auto' as const, status: 'done' as const, kept: 0, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {},
+  const runs = await db.insert(discoveryRun).values([step4!, step3!, billing!].map((c) => ({
+    agencyId, clientId: c.id, trigger: 'auto' as const, status: 'done' as const, kept: c === step3 ? 2 : 0, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {},
+  }))).returning({ id: discoveryRun.id, clientId: discoveryRun.clientId });
+  // Phase 16 §7: step 3's client has two businesses to pick from, so the owner (asked to pick in the spec) has something to choose.
+  await db.insert(competitorSuggestion).values([{ name: 'Invite Rival Plumbing', tier: 'top' as const, overlap: 0.9 }, { name: 'Invite Watch Plumbing', tier: 'watch' as const, overlap: 0.6 }].map((r, i) => ({
+    agencyId, clientId: step3!.id, name: r.name, domain: null, placeId: `e2e-si-step3-sugg-${i}`, cid: null, rating: 4.5, votes: 100, appearances: 1, bestRank: 1,
+    overlapScore: r.overlap, status: 'suggested', runId: runs.find((x) => x.clientId === step3!.id)!.id, category: 'Plumber', distanceKm: 3 + i, overlap: r.overlap, activity: 0.5, tier: r.tier, signals: NO_SIGNALS, adMatches: [],
   })));
   // Phase 16 details step (phone above + an owner contact); the billing client's contact is its pending owner.
   await db.insert(contact).values([

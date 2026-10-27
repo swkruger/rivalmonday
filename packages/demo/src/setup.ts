@@ -23,7 +23,7 @@ const LOOKUP: SetupLookup = {
 
 /**
  * Phase 11a: the setup wizard's demo state. Cedar Creek Plumbing is mid-setup (place picked, AI suggestions ready, a finished
- * competitor search waiting for picks); every other client counts as set up, so `/c/<id>/setup` shows "Setup finished" for them.
+ * competitor search waiting for the owner's picks); every other client counts as set up, so `/c/<id>/setup` shows "Setup finished" for them.
  */
 export async function seedSetup(ctx: SeedContext): Promise<void> {
   const { db, ids, clock } = ctx;
@@ -51,6 +51,8 @@ export async function seedSetup(ctx: SeedContext): Promise<void> {
   await db.insert(clientSetup).values({
     clientId: pending, agencyId: ids.agencyId, source: 'staff', lookup: LOOKUP, suggestions, lastChangedBy: ids.users.admin.userId, lastChangedRole: 'agency_admin',
     lastChangedAt: clock.daysAgo(1), createdAt: clock.daysAgo(1),
+    // 16 O12/§7: the agency asked the owner to pick the competitors, so the owner's Overview shows the "Choose competitors" card.
+    ownerPickRequestedAt: clock.daysAgo(1),
   });
 
   // 11b: the owner was already invited from the wizard — a pending invitation plus the inactive contact the invite step reads ("Invited … waiting for them to accept").

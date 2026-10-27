@@ -104,13 +104,13 @@ test.describe.serial('client setup: invite and billing', () => {
     await expect(page.getByRole('heading', { name: 'Set up billing', level: 1 })).toBeVisible();
   });
 
-  test('the invited owner follows the link, signs in with the email prefilled and lands on the overview', { tag: ['@setup', '@clients'] }, async ({ page, browser }, testInfo) => {
+  test('the invited owner follows the link, signs in, and picks competitors from the Overview card', { tag: ['@setup', '@clients'] }, async ({ page, browser }, testInfo) => {
     const id = await clientId(SI_STEP3);
     const owner = 'si-owner-three@e2e.test';
     await page.goto(`/c/${id}/setup`);
-    // Nothing was found to pick from, so Continue confirms the competitors step and opens the invite step.
+    // Two businesses were found. Staff hand the choice to the owner (P12: the owner must then be invited, so there is no Skip).
     await expect(page.getByRole('heading', { name: 'Pick who to watch', level: 1 })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('button', { name: 'Ask the owner to pick' }).click();
     await expect(page.getByRole('heading', { name: 'Invite the owner', level: 1 })).toBeVisible();
     const before = await outboxSnapshot();
     await fillInvite(page, 'Olive Three', owner);
@@ -125,7 +125,25 @@ test.describe.serial('client setup: invite and billing', () => {
       await ownerPage.goto(startUrl!);
       await expect(ownerPage.getByLabel(/email/i)).toHaveValue(owner);
       await openMagicLink(ownerPage, await requestMagicLink(ownerPage, owner));
+      // The Overview: a welcome line in the agency's name, and the card because the agency asked them to pick.
       await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}$`));
+      await expect(ownerPage.getByText(`${SI_AGENCY} set this up for you. Your starting point is on its way.`)).toBeVisible();
+      await expect(ownerPage.getByText(`${SI_AGENCY} asked you to choose who to watch`)).toBeVisible();
+      await ownerPage.getByRole('link', { name: 'Choose competitors' }).click();
+      await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}/setup/competitors$`));
+      await expect(ownerPage.getByRole('heading', { name: 'Choose who to watch', level: 1 })).toBeVisible();
+      await expect(ownerPage.getByRole('link', { name: 'Back to Overview' })).toBeVisible();
+      await expect(ownerPage.getByRole('button', { name: 'Ask the owner to pick' })).toHaveCount(0);
+      await ownerPage.getByLabel('Invite Watch Plumbing').check();
+      await ownerPage.getByRole('button', { name: 'Confirm 2 competitors' }).click();
+      // Back on the Overview, the card is gone; the welcome line goes when dismissed.
+      await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}$`));
+      await expect(ownerPage.getByText(`${SI_AGENCY} asked you to choose who to watch`)).toHaveCount(0);
+      await ownerPage.getByRole('button', { name: 'Dismiss' }).click();
+      await ownerPage.reload();
+      await expect(ownerPage.getByText('set this up for you.')).toHaveCount(0);
+      // The pick window is closed: the competitors page is a 404 now.
+      expect((await ownerPage.goto(`/c/${id}/setup/competitors`))?.status()).toBe(404);
       await context.storageState({ path: OWNER_STATE });
     } finally {
       await context.close();

@@ -1,5 +1,5 @@
 ---
-help_key: page:client.setup
+help_key: page:client.setup.competitors
 audience: client
 title: Setting up your business
 ---

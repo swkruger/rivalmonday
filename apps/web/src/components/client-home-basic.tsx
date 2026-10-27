@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
 import Link from 'next/link';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
+import type { Viewer } from '@/server/viewer';
 import { AskCard } from './ask/ask-card';
 import { AlertLinkList, BriefLinkList } from './client-lists';
+import { OwnerFirstVisit, type OwnerSetupRead } from './client/owner-first-visit';
 import { PageHeader } from './page-header';
 import { openSetupSteps, SetupBadge } from './setup-badge';
 import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
@@ -13,14 +15,14 @@ import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
 const HELP_KEY = 'page:client.overview';
 
 /** The 5a client home, kept for client users without the `dashboard` feature (briefs-only plans). */
-export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx: AccessContext }) {
+export async function ClientHomeBasic({ clientId, ctx, viewer }: { clientId: string; ctx: AccessContext; viewer: Viewer }) {
   const profile = await callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
   const [briefs, alerts, reports, starting, setup, guides] = await Promise.all([
     callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
-    tryCallTool<{ state: SetupState; invite: { name: string | null } }>(ctx, 'get_client_setup', { clientId }),
+    tryCallTool<{ state: SetupState; invite: { name: string | null } } & NonNullable<OwnerSetupRead>>(ctx, 'get_client_setup', { clientId }),
     helpGuides(ctx, 'client', clientId),
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
@@ -38,6 +40,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
           </Link>
         }
       />
+      <OwnerFirstVisit clientId={clientId} ctx={ctx} viewer={viewer} setup={setup} />
       {setupSteps !== null && (
         <div>
           <SetupBadge clientId={clientId} {...setupSteps} />

@@ -77,7 +77,7 @@ export const PUBLIC_SCREENS: readonly { route: string; note: string }[] = [
 
 /** Phase 11a: the setup wizard reads the setup state and the client profile (header name, prefilled fields). */
 const setupCalls = (clientId: (ids: DemoIds) => string, expectSetup: CoverageCall['expect'] = 'data'): CoverageCall[] => [
-  { tool: 'get_client_setup', input: (ids) => ({ clientId: clientId(ids) }), path: 'competitorSuggestions', expect: expectSetup, ...(expectSetup === 'not_found' ? { why: 'a client owner gets a 404 once setup is closed' } : {}) },
+  { tool: 'get_client_setup', input: (ids) => ({ clientId: clientId(ids) }), path: 'competitorSuggestions', expect: expectSetup, ...(expectSetup === 'not_found' ? { why: 'a client owner gets a 404 unless the agency asked them to pick' } : {}) },
   { tool: 'get_client_profile', input: (ids) => ({ clientId: clientId(ids) }), path: 'keywords' },
 ];
 /** 11b: the Invite step reads the invited owner (Cedar Creek's is pending) and the Billing step reads Connect + the per-client billing row (agency admins only). 16: every screen reads the step 1 details (invite pre-fill, the All set rows). */
@@ -127,7 +127,9 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/agency/settings/runbook', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'items' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` (steps 1-2 of the client flow) reads only the guide list; the lookup runs on user action.
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
-  // 16 P8: owners never open `/setup` (they are sent to their Overview); the owner's competitor pick is a screen of its own.
+  // 16 P8/§7: owners never open `/setup` (they are sent to their Overview); their competitor pick is a screen of its own. Cedar Creek's owner was asked to pick (seedSetup); a closed client's owner gets a 404.
+  { route: '/c/[clientId]/setup/competitors (client owner)', as: 'ownerSetup', calls: setupCalls(setupPending) },
+  { route: '/c/[clientId]/setup/competitors (not asked, client owner)', as: 'ownerLoneStar', calls: setupCalls(ls, 'not_found') },
   // Phase 11c: the demo agency has a new lead with a ready preview, an accepted one, a declined one; the intake card reads the link and counts.
   { route: '/agency/leads', as: 'admin', calls: [{ tool: 'list_leads', input: none, path: 'leads' }, { tool: 'list_leads', input: () => ({ status: 'verified' }), path: 'leads.*.preview.facts' }] },
   { route: '/agency/settings/intake', as: 'admin', calls: [{ tool: 'get_intake_link', input: none, path: 'url' }] },

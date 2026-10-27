@@ -33,7 +33,7 @@ const ACCOUNT_ROUTES: Record<string, Audience[]> = {
   '/onboarding': ['agency'],
 };
 /** Components that render a page's PageHeader on its behalf (the route file only renders them), scanned explicitly. */
-const DELEGATED_HEADERS: { file: string; route: string }[] = [
+const DELEGATED_HEADERS: { file: string; route: string; keys?: string[] }[] = [
   { file: join(APP, '(app)', 'c', '[clientId]', 'ask', 'ask-screen.tsx'), route: '/c/[clientId]/ask' },
   // The briefs-only home (no `dashboard` feature), rendered by /c/[clientId]/page.tsx.
   { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
@@ -42,6 +42,8 @@ const DELEGATED_HEADERS: { file: string; route: string }[] = [
   // 16: Add a client / Add a prospect are steps 1-2 of the client flow (the prospect page guide key is read from the same files); the setup's screens 3-7 each draw their own shell.
   ...['details-step', 'find-step'].map((f) => ({ file: join(APP, '(onboarding)', 'agency', 'clients', 'new', `${f}.tsx`), route: '/agency/clients/new' })),
   ...['area-step', 'competitors-step', 'invite-step', 'billing-step', 'done-step'].map((f) => ({ file: join(APP, '(onboarding)', 'c', '[clientId]', 'setup', 'steps', `${f}.tsx`), route: '/c/[clientId]/setup' })),
+  // 16 §7: the owner's pick reuses the staff competitors step with its own help key (the step names it in `OWNER_KEY`, which `keysIn` does not read).
+  { file: join(APP, '(onboarding)', 'c', '[clientId]', 'setup', 'steps', 'competitors-step.tsx'), route: '/c/[clientId]/setup/competitors', keys: ['page:client.setup.competitors'] },
 ];
 
 /** 16 P10: `<OnboardingShell>` is a page's header on the full-page split flows, so it takes the same `helpKey` as `<PageHeader>`. */
@@ -148,12 +150,12 @@ export function findGaps(): string[] {
   for (const file of walk(SRC, (n) => n.endsWith('.tsx') && !/\.test\.tsx$/.test(n))) {
     if (!known.has(file) && headerStats(readFileSync(file, 'utf8')).total > 0) gaps.push(`${rel(file)}: renders <PageHeader> but is neither a page nor listed in DELEGATED_HEADERS`);
   }
-  for (const { file, route } of pages) {
+  for (const { file, route, keys: declared } of pages as { file: string; route: string; keys?: string[] }[]) {
     const src = readFileSync(file, 'utf8');
     const stats = headerStats(src);
     if (stats.total === 0) continue;
     if (EXEMPT.includes(route)) continue;
-    const keys = keysIn(src);
+    const keys = declared ?? keysIn(src);
     if (stats.unkeyed > 0 || keys.length === 0) { gaps.push(`${rel(file)}: ${stats.unkeyed || stats.total} <PageHeader> without a recognisable helpKey (route ${route})`); continue; }
     const audiences = reachable(route);
     if (!audiences) { gaps.push(`${rel(file)}: route ${route} has no audience rule (add it to ACCOUNT_ROUTES)`); continue; }

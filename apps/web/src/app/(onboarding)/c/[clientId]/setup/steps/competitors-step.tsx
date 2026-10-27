@@ -19,6 +19,9 @@ import { type StepFrame, stepOf } from './frame';
 export const MAX_PICKS = 5;
 const TIER_ORDER: Tier[] = ['top', 'watch', 'minor'];
 const FIRST_SHOWN = 5;
+const HELP_KEY = 'page:client.setup';
+/** The owner's screen has its own help page (`client.setup.competitors`), not the staff wizard's. */
+const OWNER_KEY = 'page:client.setup.competitors';
 
 function progressLine(search: ClientSetupView['search']): string | null {
   if (!search) return null;
@@ -36,10 +39,12 @@ const ratedLine = (s: ClientSafeSuggestion) =>
  * suggestions to tick (up to 5, in the order ticked; Top rivals arrive ticked), with the "Where you stand" scorecard for
  * the business and the first two ticked rivals. "Ask the owner to pick" hands the choice to the owner instead.
  */
-export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, keywordCount, radiusMiles, backHref, pending, error, refusal, onStart, onSkip, onContinue, onAskOwner, onNext }: {
+export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, keywordCount, radiusMiles, backHref, pending, error, refusal, owner, onStart, onSkip, onContinue, onAskOwner, onNext }: {
   frame: StepFrame; view: ClientSetupView; clientId: string; clientName: string;
+  /** The owner's own pick screen (16 §7): they pick while `waiting_owner`, with no progress, Back, Skip or "Ask the owner". */
+  owner?: { agencyName: string; place: string | null };
   /** First name for the owner-picking note; null when no owner is known. */
-  ownerName: string | null; keywordCount: number; radiusMiles: number; backHref: string; pending: boolean; error: string | null;
+  ownerName: string | null; keywordCount: number; radiusMiles: number; backHref?: string; pending: boolean; error: string | null;
   /** A failed or refused search, already in plain words. */
   refusal: string | null;
   onStart: () => void; onSkip: () => void; onContinue: (accept: string[]) => void; onAskOwner: () => void;
@@ -65,19 +70,21 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
   const you = { name: clientName, rating: view.lookup?.rating ?? null, reviews: view.lookup?.votes ?? null };
 
   const searching = state === 'searching';
-  const picking = state === 'ready';
+  const picking = state === 'ready' || (owner !== undefined && state === 'waiting_owner');
   const closed = state === 'done' || state === 'skipped';
   const idle = state === 'todo' || state === 'blocked';
   const total = tracked.length + open.length;
-  const canAsk = state === 'todo' || state === 'searching' || state === 'blocked' || state === 'ready';
+  const canAsk = !owner && (state === 'todo' || state === 'searching' || state === 'blocked' || state === 'ready');
   const n = ticked.length;
   const progress = view.search?.progress;
   const pct = progress && progress.searchesTotal > 0 ? Math.round((progress.searchesDone / progress.searchesTotal) * 100) : 5;
-  const subtitle = picking && total > 0 ? `We found ${total} ${total === 1 ? 'business' : 'businesses'} within ${radiusMiles} miles. Tick up to ${MAX_PICKS}.` : "We're looking for businesses competing for the same customers.";
+  const subtitle = owner
+    ? `${owner.agencyName} found these businesses${owner.place ? ` near ${owner.place}` : ''}. Tick up to ${MAX_PICKS}. You can change them later.`
+    : picking && total > 0 ? `We found ${total} ${total === 1 ? 'business' : 'businesses'} within ${radiusMiles} miles. Tick up to ${MAX_PICKS}.` : "We're looking for businesses competing for the same customers.";
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (state === 'ready') onContinue(ticked);
+    if (picking) onContinue(ticked);
     else onNext();
   };
 
@@ -85,18 +92,21 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
     <OnboardingShell
       brand={frame.brand}
       exitSlot={frame.exitSlot}
-      step={stepOf(frame, 'competitors')}
-      title="Pick who to watch"
+      step={owner ? undefined : stepOf(frame, 'competitors')}
+      label={owner ? 'Choose competitors' : undefined}
+      title={owner ? 'Choose who to watch' : 'Pick who to watch'}
       subtitle={subtitle}
-      helpKey="page:client.setup"
+      helpKey={owner ? OWNER_KEY : HELP_KEY}
       guide={frame.guide}
       preview={<PreviewWindow chrome={false} width={520}><Scorecard you={you} rivals={scored} /></PreviewWindow>}
       caption={<><b className="font-semibold">Live preview.</b> {scored.length > 0 ? `You and the first two rivals you tick. The brief covers all ${Math.max(scored.length, 1)}.` : `Tick rivals to compare them with ${clientName}.`}</>}
       footer={
         <StepFooter
-          back={backHref}
+          back={owner ? undefined : backHref}
           skip={canAsk ? { label: 'Ask the owner to pick', onSkip: onAskOwner, disabled: readOnly || pending } : undefined}
-          primary={{ label: state === 'ready' && n > 0 ? `Continue with ${n}` : 'Continue', pending, disabled: readOnly || searching || idle, form: 'competitors-form' }}
+          primary={owner
+            ? { label: n > 0 ? `Confirm ${n} ${n === 1 ? 'competitor' : 'competitors'}` : 'Confirm competitors', pending, disabled: readOnly || n === 0, form: 'competitors-form' }
+            : { label: state === 'ready' && n > 0 ? `Continue with ${n}` : 'Continue', pending, disabled: readOnly || searching || idle, form: 'competitors-form' }}
         />
       }
     >
@@ -126,7 +136,7 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
           </div>
         )}
 
-        {state === 'waiting_owner' && (
+        {state === 'waiting_owner' && !owner && (
           <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{ownerName ?? 'The owner'} is choosing the competitors. They show up on their Overview, and we start watching once they have picked.</p>
         )}
         {closed && (
@@ -159,7 +169,7 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
             </ul>
             <div className="flex flex-wrap gap-4 text-sm font-medium text-secondary">
               {!showAll && open.length > FIRST_SHOWN && <button type="button" onClick={() => setShowAll(true)}>Show {open.length - FIRST_SHOWN} more</button>}
-              {picking && <Link href={`/c/${clientId}/competitors`}>+ Add one we missed</Link>}
+              {picking && !owner && <Link href={`/c/${clientId}/competitors`}>+ Add one we missed</Link>}
             </div>
           </>
         )}

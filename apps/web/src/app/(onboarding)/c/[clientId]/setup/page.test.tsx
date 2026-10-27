@@ -110,7 +110,7 @@ describe('Setup page (steps 3-7 of the client flow)', () => {
     expect(screen.queryByTestId('wizard')).toBeNull();
   });
 
-  it('owners never see it: they go to their Overview (Phase 16 P8)', async () => {
+  it('owner hitting /setup is redirected to overview (Phase 16 P8)', async () => {
     m.role = 'client_owner';
     await expect(run()).rejects.toThrow(`NEXT_REDIRECT:/c/${C}`);
     expect(m.calls).toEqual([]);
