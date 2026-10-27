@@ -15,3 +15,10 @@ New or changed UI follows it now; existing screens migrate via docs/design-syste
 - Containers: Section > Band > Frame (`Card`) > interactive Card; never nest; cards only for independent objects.
 - Status: DotStatus (lifecycle), StatusChip + icon (attention), FilterChip (pill), Tag, TierMark — never colour alone.
 - Focus: `focus-visible:outline-2 outline-offset-2 outline-ring` (#2A6BAC). Weights 400/500/600 (800 wordmark only). Primary-button label ink.
+
+## Phase 16 gotchas
+- `cn()` uses `extendTailwindMerge` so custom `text-13`/`text-11` and `shadow-overlay`/`shadow-dialog`/`shadow-card` aren't misread as colours; any new custom theme key used through `cn` needs adding there (`lib/cn.ts`) or it gets silently dropped.
+- `Section`: help tips go in `titleAside` (outside the heading — inside changes the heading's accessible name); `labelled` (opt-in) makes it a named region — use it only where a named `<section>` existed (D1), never by default.
+- `HairlineGrid` owns the divider rules per `cols` (nth-child); don't put `[&+&]` rules on cells — they break on multi-row grids.
+- `segmentedTrackClass`/`segmentedItemClass` give links (`aria-current`) and tabs (`aria-selected`) the Segmented look without changing roles; don't put the track in an `overflow-x-auto` box (clips the outline — use `flex-wrap`).
+- Theme: `--primary-hover/-active` are derived per agency in `themeVars` (mix away from the label colour); `--focus` is fixed and never emitted by `themeVars`.
