@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 16e - Agency</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .sb-body.full { margin-bottom: var(--space-8); }
+  .rm-page { padding-top: var(--space-5); }
+  .rm-app { min-height: 560px; }
+  .cell-biz { display: flex; align-items: center; gap: var(--space-2_5); }
+  .queue { display: grid; gap: var(--space-3); }
+  .queue .rm-card { gap: var(--space-2); }
+  .row { display: flex; gap: var(--space-2); align-items: center; }
+  .drill { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-8); }
+  .drill nav { display: flex; flex-direction: column; gap: 2px; }
+  .plain-sheet { background: var(--color-background-surface); }
+  .col400 { width: 400px; margin: 0 auto; padding: 64px 0; display: flex; flex-direction: column; gap: var(--space-4); }
+  .col400 h1 { font-size: 22px; line-height: 28px; font-weight: 600; color: var(--color-text-primary); }
+  .col400 p { color: var(--color-text-secondary); }
+  .col400 .rm-btn { width: 100%; justify-content: center; }
+  .centre { text-align: center; align-items: center; }
+  .chartbox { height: 150px; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">16e</span><h1>Phase 16e - Agency</h1><span class="q">L2 home, L1 alerts queue, L4 team settings (D13, P1, P2, P9)</span><span class="tag">Static record, Northpoint Digital fiction</span></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Agency home</b> / Archetype L2, P1 (today order kept), P3 StatStrip, 16b P7</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-building"></span>Northpoint Digital<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item is-active"><span class="i i-home"></span><span>Dashboard</span></a>
+        <a class="rm-nav-item"><span class="i i-users"></span><span>Clients</span></a>
+        <a class="rm-nav-item"><span class="i i-inbox"></span><span>Alerts</span><span class="count">4</span></a>
+        <a class="rm-nav-item"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Northpoint Digital<span class="sep">/</span><span>Dashboard</span></div>
+      <div class="rm-pagehead"><div><h1>Dashboard</h1></div><div class="actions"><button class="rm-btn primary sm"><span class="i i-plus"></span>Add client</button></div></div>
+      <section class="rm-section">
+        <div class="rm-kpis">
+          <div class="rm-kpi"><div class="label">Active clients</div><div class="value">9 <small>of 12</small></div><div class="cap">3 seats used of 3</div></div>
+          <div class="rm-kpi"><div class="label">Open alerts</div><div class="value">4</div><div class="cap">2 need attention</div></div>
+          <div class="rm-kpi"><div class="label">Briefs this week</div><div class="value">7</div><div class="cap">2 awaiting approval</div></div>
+          <div class="rm-kpi"><div class="label">Credits used</div><div class="value">62%</div><div class="cap">Notice at 100%</div></div>
+        </div>
+      </section>
+      <section class="rm-section">
+        <div class="rm-frame">
+          <div class="rm-frame-head"><h2>Clients</h2><span class="rm-count">9</span><span class="spacer"></span><span class="rm-input-search" style="width:200px"><span class="i i-search"></span>Search clients</span></div>
+          <table class="rm-table is-compact">
+            <thead><tr><th>Client</th><th>Status</th><th class="num">Competitors</th><th>Last brief</th></tr></thead>
+            <tbody>
+<tr><td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">SP</span><div>Summit Plumbing &amp; Air<span class="sub">Denver, CO</span></div></div></td><td><span class="rm-dot success">Active</span></td><td class="num">6</td><td>Oct 25</td></tr>
+<tr><td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">PD</span><div>Peak Dental Studio<span class="sub">Boulder, CO</span></div></div></td><td><span class="rm-dot success">Active</span></td><td class="num">5</td><td>Oct 25</td></tr>
+<tr><td class="primary-cell"><div class="cell-biz"><span class="rm-avatar biz">FH</span><div>Front Range Heating<span class="sub">Aurora, CO</span></div></div></td><td><span class="rm-dot warning">Setting up</span></td><td class="num">2</td><td>Not yet</td></tr>
+            </tbody>
+          </table>
+          <div class="rm-frame-foot">Showing 3 of 9<span class="spacer"></span><a class="rm-btn ghost sm">All clients<span class="i i-arrow-right"></span></a></div>
+        </div>
+      </section>
+      <section class="rm-section">
+        <div class="rm-band"><div class="top"><span class="caption">Get set up</span></div><p>2 of 4 steps done: add your logo and colours, invite a teammate, then add your first client's billing.</p><div><a class="rm-btn link">Continue setup<span class="i i-arrow-right"></span></a></div></div>
+      </section>
+    </div></div></main>
+  </div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Alerts queue</b> / Archetype L1, P2 queue items stay Cards, inner panels are Bands, no nested borders</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-building"></span>Northpoint Digital<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Dashboard</span></a>
+        <a class="rm-nav-item"><span class="i i-users"></span><span>Clients</span></a>
+        <a class="rm-nav-item is-active"><span class="i i-inbox"></span><span>Alerts</span><span class="count">4</span></a>
+        <a class="rm-nav-item"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Northpoint Digital<span class="sep">/</span><span>Alerts</span></div>
+      <div class="rm-pagehead"><div><h1>Alerts</h1></div></div>
+      <div class="queue">
+        <div class="rm-card"><div class="row"><h3>BlueRidge started a Google ad</h3><span class="rm-tier top">Top rival</span></div><span class="caption">Summit Plumbing &amp; Air, 2 hours ago</span>
+          <div class="rm-band"><p>New $49 furnace tune-up ad, first seen Oct 26. <span class="rm-cite"><span class="i i-megaphone"></span>Ads, Oct 26</span></p></div>
+          <div class="row"><button class="rm-btn secondary sm">Acknowledge</button><button class="rm-btn ghost sm">Snooze</button></div></div>
+        <div class="rm-card"><div class="row"><h3>Apex Comfort Pros cut a price</h3><span class="rm-tier top">Top rival</span></div><span class="caption">Summit Plumbing &amp; Air, yesterday</span>
+          <div class="rm-band"><p>Drain clearing now $99, was $129. <span class="rm-cite"><span class="i i-globe"></span>Website, Oct 25</span></p></div>
+          <div class="row"><button class="rm-btn secondary sm">Acknowledge</button><button class="rm-btn ghost sm">Snooze</button></div></div>
+      </div>
+    </div></div></main>
+  </div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Team settings</b> / Archetype L4, drill-in nav, Frame tables, invite Section, P9 no danger zone</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-building"></span>Northpoint Digital<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Dashboard</span></a>
+        <a class="rm-nav-item"><span class="i i-users"></span><span>Clients</span></a>
+        <a class="rm-nav-item"><span class="i i-inbox"></span><span>Alerts</span><span class="count">4</span></a>
+        <a class="rm-nav-item is-active"><span class="i i-settings"></span><span>Settings</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Northpoint Digital<span class="sep">/</span>Settings<span class="sep">/</span><span>Team</span></div>
+      <div class="rm-pagehead"><div><h1>Team</h1></div></div>
+      <div class="drill">
+        <nav aria-label="Settings">
+          <a class="rm-nav-item">Branding &amp; voice</a><a class="rm-nav-item is-active">Team</a><a class="rm-nav-item">Billing</a><a class="rm-nav-item">Notifications</a>
+        </nav>
+        <div>
+          <section class="rm-section">
+            <div class="rm-frame">
+              <div class="rm-frame-head"><h2>Members</h2><span class="rm-count">3</span></div>
+              <table class="rm-table is-compact">
+                <thead><tr><th>Person</th><th>Role</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td class="primary-cell">Jordan Reyes<span class="sub">jordan@northpointdigital.example</span></td><td>Owner</td><td><span class="rm-dot success">Active</span></td></tr>
+                  <tr><td class="primary-cell">Priya Nair<span class="sub">priya@northpointdigital.example</span></td><td>Analyst</td><td><span class="rm-dot success">Active</span></td></tr>
+                  <tr><td class="primary-cell">Sam Ortiz<span class="sub">sam@northpointdigital.example</span></td><td>Analyst</td><td><span class="rm-dot success">Active</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="rm-section ruled">
+            <div class="rm-section-head"><div><h2>Pending invitations</h2><p class="desc">Invitations expire after 7 days.</p></div></div>
+            <div class="rm-frame"><table class="rm-table is-compact"><thead><tr><th>Email</th><th>Role</th><th>Sent</th></tr></thead><tbody><tr><td class="primary-cell">alex@northpointdigital.example</td><td>Analyst</td><td>Oct 24</td></tr></tbody></table></div>
+          </section>
+          <section class="rm-section ruled">
+            <div class="rm-section-head"><div><h2>Invite a teammate</h2><p class="desc">Seats beyond 3 are $99 each.</p></div></div>
+            <div class="rm-fieldrow"><div class="rm-field"><label class="rm-label">Email</label><div class="rm-input">name@company.com</div></div><div class="rm-field"><label class="rm-label">Role</label><div class="rm-input">Analyst</div></div></div>
+            <div style="margin-top:var(--space-4)"><button class="rm-btn primary sm">Send invitation</button></div>
+          </section>
+        </div>
+      </div>
+    </div></div></main>
+  </div>
+</div></div></div>
+</body></html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 16e - Auth and errors</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .sb-body.full { margin-bottom: var(--space-8); }
+  .rm-page { padding-top: var(--space-5); }
+  .rm-app { min-height: 560px; }
+  .cell-biz { display: flex; align-items: center; gap: var(--space-2_5); }
+  .queue { display: grid; gap: var(--space-3); }
+  .queue .rm-card { gap: var(--space-2); }
+  .row { display: flex; gap: var(--space-2); align-items: center; }
+  .drill { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-8); }
+  .drill nav { display: flex; flex-direction: column; gap: 2px; }
+  .plain-sheet { background: var(--color-background-surface); }
+  .col400 { width: 400px; margin: 0 auto; padding: 64px 0; display: flex; flex-direction: column; gap: var(--space-4); }
+  .col400 h1 { font-size: 22px; line-height: 28px; font-weight: 600; color: var(--color-text-primary); }
+  .col400 p { color: var(--color-text-secondary); }
+  .col400 .rm-btn { width: 100%; justify-content: center; }
+  .centre { text-align: center; align-items: center; }
+  .chartbox { height: 150px; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">16e</span><h1>Phase 16e - Auth and errors</h1><span class="q">P4 centred 400 px column on white, P6 error panel (D13)</span><span class="tag">Static record, Northpoint Digital fiction</span></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Sign-in</b> / P4, AuthCard: logo top, real h1, no Card, no canvas</span></div>
+<div class="sb-canvas">
+<div class="plain-sheet"><div class="col400">
+  <span class="rm-wordmark"><span class="r">rival</span><span class="m">monday</span></span>
+  <h1>Sign in</h1>
+  <div class="rm-field"><label class="rm-label">Email</label><div class="rm-input">jordan@northpointdigital.example</div></div>
+  <div class="rm-field"><label class="rm-label">Password</label><div class="rm-input">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</div></div>
+  <button class="rm-btn primary">Sign in</button>
+  <p><a class="rm-btn link">Forgot your password?</a></p>
+</div></div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Check your email</b> / P4, same column; body text in secondary ink</span></div>
+<div class="sb-canvas">
+<div class="plain-sheet"><div class="col400">
+  <span class="rm-wordmark"><span class="r">rival</span><span class="m">monday</span></span>
+  <h1>Check your email</h1>
+  <p>We sent a sign-in link to jordan@northpointdigital.example. It expires in 15 minutes.</p>
+  <button class="rm-btn secondary">Resend link</button>
+</div></div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Page not found</b> / P6, ErrorPanel keeps the centred column; heading text-2xl 600</span></div>
+<div class="sb-canvas">
+<div class="plain-sheet"><div class="col400 centre">
+  <h1>Page not found</h1>
+  <p>This page does not exist, or you do not have access to it.</p>
+  <a class="rm-btn secondary">Back to dashboard</a>
+</div></div>
+</div></div></div>
+</body></html>

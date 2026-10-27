@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 16e - Platform</title>
+<link rel="stylesheet" href="../../component-examples/rm-components.css">
+<style>
+  /* layout only */
+  .sb-body.full { margin-bottom: var(--space-8); }
+  .rm-page { padding-top: var(--space-5); }
+  .rm-app { min-height: 560px; }
+  .cell-biz { display: flex; align-items: center; gap: var(--space-2_5); }
+  .queue { display: grid; gap: var(--space-3); }
+  .queue .rm-card { gap: var(--space-2); }
+  .row { display: flex; gap: var(--space-2); align-items: center; }
+  .drill { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-8); }
+  .drill nav { display: flex; flex-direction: column; gap: 2px; }
+  .plain-sheet { background: var(--color-background-surface); }
+  .col400 { width: 400px; margin: 0 auto; padding: 64px 0; display: flex; flex-direction: column; gap: var(--space-4); }
+  .col400 h1 { font-size: 22px; line-height: 28px; font-weight: 600; color: var(--color-text-primary); }
+  .col400 p { color: var(--color-text-secondary); }
+  .col400 .rm-btn { width: 100%; justify-content: center; }
+  .centre { text-align: center; align-items: center; }
+  .chartbox { height: 150px; }
+</style>
+</head>
+<body class="sb">
+<div class="sb-head"><span class="no">16e</span><h1>Phase 16e - Platform</h1><span class="q">L2 overview, L3 agency detail without aside, L2 health (D13, P1, P3)</span><span class="tag">Static record, Northpoint Digital fiction</span></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Platform overview</b> / Archetype L2, KPI strip + two charts in a HairlineGrid, activity Section, P1</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-shield"></span>Platform<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item is-active"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item"><span class="i i-building"></span><span>Agencies</span></a>
+        <a class="rm-nav-item"><span class="i i-globe"></span><span>Health</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Platform<span class="sep">/</span><span>Overview</span></div>
+      <div class="rm-pagehead"><div><h1>Overview</h1></div></div>
+      <section class="rm-section"><div class="rm-kpis">
+        <div class="rm-kpi"><div class="label">Agencies</div><div class="value">14</div><div class="cap">2 on trial</div></div>
+        <div class="rm-kpi"><div class="label">Active clients</div><div class="value">31</div><div class="cap">Cap 60</div></div>
+        <div class="rm-kpi"><div class="label">MRR</div><div class="value">$3,206</div><div class="cap">Standard plan</div></div>
+        <div class="rm-kpi"><div class="label">AI spend</div><div class="value">$412</div><div class="cap">This month</div></div>
+      </div></section>
+      <section class="rm-section"><div class="rm-hairgrid c2">
+        <div><div class="rm-section-head"><div><h2>Signups</h2><p class="desc">New agencies per week, 8 weeks</p></div></div>
+          <svg class="chartbox" viewBox="0 0 300 150" width="100%" role="img" aria-label="Signups per week"><polyline points="0,120 40,110 80,100 120,105 160,80 200,70 240,60 300,40" fill="none" style="stroke:var(--color-chart-you);stroke-width:2"/></svg></div>
+        <div><div class="rm-section-head"><div><h2>AI spend</h2><p class="desc">USD per week, 8 weeks</p></div></div>
+          <svg class="chartbox" viewBox="0 0 300 150" width="100%" role="img" aria-label="AI spend per week"><polyline points="0,100 40,95 80,90 120,92 160,85 200,80 240,70 300,66" fill="none" style="stroke:var(--color-chart-you);stroke-width:2"/><line x1="0" y1="110" x2="300" y2="110" style="stroke:var(--color-chart-context);stroke-width:1"/></svg></div>
+      </div></section>
+      <section class="rm-section ruled">
+        <div class="rm-section-head"><div><h2>Recent activity</h2></div></div>
+        <div class="rm-feed-day">Today</div>
+        <div class="rm-feed-item"><span class="rm-dot info">Northpoint Digital added a client</span></div>
+        <div class="rm-feed-item"><span class="rm-dot success">Harbor Marketing started a trial</span></div>
+      </section>
+    </div></div></main>
+  </div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Agency detail</b> / Archetype L3 without aside (P1), ruled Sections in today's order, people Frame table</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-shield"></span>Platform<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item is-active"><span class="i i-building"></span><span>Agencies</span></a>
+        <a class="rm-nav-item"><span class="i i-globe"></span><span>Health</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Platform<span class="sep">/</span>Agencies<span class="sep">/</span><span>Northpoint Digital</span></div>
+      <div class="rm-pagehead"><div><h1>Northpoint Digital</h1></div></div>
+      <section class="rm-section ruled"><div class="rm-section-head"><div><h2>Plan</h2></div></div>
+        <p>Standard, 3 seats. 9 of 12 clients active. State: <span class="rm-dot success">Active</span></p></section>
+      <section class="rm-section ruled"><div class="rm-section-head"><div><h2>Usage</h2></div></div><p class="desc">Credits used 62% this month.</p></section>
+      <section class="rm-section ruled">
+        <div class="rm-frame"><div class="rm-frame-head"><h2>People</h2><span class="rm-count">3</span></div>
+          <table class="rm-table is-compact"><thead><tr><th>Person</th><th>Role</th><th>Last seen</th></tr></thead><tbody>
+            <tr><td class="primary-cell">Jordan Reyes</td><td>Owner</td><td>Today</td></tr>
+            <tr><td class="primary-cell">Priya Nair</td><td>Analyst</td><td>Yesterday</td></tr>
+            <tr><td class="primary-cell">Sam Ortiz</td><td>Analyst</td><td>Oct 22</td></tr></tbody></table></div>
+      </section>
+    </div></div></main>
+  </div>
+</div></div></div>
+<div class="sb-body full"><div>
+<div style="margin-bottom:var(--space-2)"><span class="caption"><b>Health</b> / Archetype L2, four Frame tables, each with an h2</span></div>
+<div class="sb-canvas">
+  <div class="rm-app">
+    <header class="rm-topbar">
+      <span class="rm-agencylogo"><span class="mark">N</span>Northpoint Digital</span>
+      <nav class="rm-ctx" aria-label="Context"><span class="sep">/</span><button class="rm-ctx-btn"><span class="i i-shield"></span>Platform<span class="i i-updown"></span></button></nav>
+      <div class="rm-topbar-actions"><button class="rm-btn ghost icon sm" aria-label="Help"><span class="i i-help"></span></button><span class="rm-avatar">JR</span></div>
+    </header>
+    <aside class="rm-sidebar">
+      <div class="rm-nav-group">
+        <a class="rm-nav-item"><span class="i i-home"></span><span>Overview</span></a>
+        <a class="rm-nav-item"><span class="i i-building"></span><span>Agencies</span></a>
+        <a class="rm-nav-item is-active"><span class="i i-globe"></span><span>Health</span></a>
+      </div>
+    </aside>
+    <main class="rm-sheet"><div class="rm-page"><div class="rm-page-inner">
+<div class="rm-breadcrumb">Platform<span class="sep">/</span><span>Health</span></div>
+      <div class="rm-pagehead"><div><h1>Health</h1></div></div>
+      <section class="rm-section"><div class="rm-frame"><div class="rm-frame-head"><h2>Worker</h2></div><table class="rm-table is-compact"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td class="primary-cell">Heartbeat</td><td><span class="rm-dot success">Running, 4s ago</span></td></tr></tbody></table></div></section>
+      <section class="rm-section"><div class="rm-frame"><div class="rm-frame-head"><h2>Queues</h2></div><table class="rm-table is-compact"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td class="primary-cell">collect</td><td><span class="rm-dot success">0 waiting</span></td></tr></tbody></table></div></section>
+      <section class="rm-section"><div class="rm-frame"><div class="rm-frame-head"><h2>Vendors</h2></div><table class="rm-table is-compact"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td class="primary-cell">Google Places</td><td><span class="rm-dot success">OK, p95 420 ms</span></td></tr></tbody></table></div></section>
+      <section class="rm-section"><div class="rm-frame"><div class="rm-frame-head"><h2>Sources</h2></div><table class="rm-table is-compact"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td class="primary-cell">Website crawl</td><td><span class="rm-dot success">Last run 06:00</span></td></tr></tbody></table></div></section>
+    </div></div></main>
+  </div>
+</div></div></div>
+</body></html>
