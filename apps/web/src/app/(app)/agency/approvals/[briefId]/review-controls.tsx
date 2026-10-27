@@ -1,15 +1,14 @@
 'use client';
 import type { BriefItemView } from '@cs/tools';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, Switch } from '@cs/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Band, Label, StatusChip, Switch, textareaClass } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
+import type { EvidenceRefs } from '@/server/evidence-refs';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { approveAction, autoSendAction, dropItemAction, editItemAction, moveItemAction, rateItemAction, sendNowAction } from './actions';
 import { ErrorNote } from '@/components/form-error';
-
-const textareaClass = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
@@ -166,24 +165,25 @@ function RateButtons({ item }: { item: BriefItemView }) {
  * Active items can be edited/removed/reordered while the brief is `ready`; rating is always available for an
  * active item so the agency can tell the engine which recommendations landed, even after the brief is sent.
  */
-export function ReviewItem({ briefId, clientId, item, editable, first, last }: { briefId: string; clientId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean }) {
+export function ReviewItem({ briefId, clientId, item, editable, first, last, refs }: { briefId: string; clientId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean; refs?: EvidenceRefs }) {
   const dropped = item.status !== 'active';
   return (
-    <article
+    <Card
       id={`item-${item.id}`}
-      className={`rounded-r-[10px] border-l-[3px] bg-muted-surface px-3.5 py-3 ${confidenceLabel(item.confidence).high ? 'border-amber' : 'border-primary'} ${dropped ? 'opacity-60' : ''}`}
+      role="article"
+      className={`gap-1.5 border-l-4 p-4 ${confidenceLabel(item.confidence).high ? 'border-l-amber' : 'border-l-primary'} ${dropped ? 'opacity-60' : ''}`}
     >
-      <h3 className="mb-1.5 text-[15px] font-bold">{item.headline}</h3>
-      <p className="my-1">
+      <h3 className="text-base font-semibold text-ink">{item.headline}</h3>
+      <p>
         <b>{item.competitorName}:</b> {item.whatChanged}
       </p>
-      <p className="my-1">{item.whyItMatters}</p>
-      <p className="my-1">
+      <p>{item.whyItMatters}</p>
+      <p>
         <b className="text-secondary">Suggested:</b> {item.recommendedAction}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
-        {item.upsellTag && <span className="rounded-md bg-[#FFF3DC] px-2 py-0.5 text-xs font-semibold text-accent-text">Upsell: {item.upsellTag}</span>}
+        <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />
+        {item.upsellTag && <StatusChip tone="warning">Upsell: {item.upsellTag}</StatusChip>}
         {dropped && <StatusChip tone="neutral">Dropped</StatusChip>}
         <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{confidenceLabel(item.confidence).text}</span>
       </div>
@@ -199,7 +199,7 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last }: {
           {!dropped && <RateButtons item={item} />}
         </div>
       </WriteGuard>
-    </article>
+    </Card>
   );
 }
 
@@ -298,7 +298,7 @@ export function ReviewFooter({ briefId, clientId, status, autoSend, sendTime, st
   const canSend = status === 'ready' || status === 'approved';
   return (
     <WriteGuard>
-      <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
+      <Band className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
           {!startingPoint && <AutoSendSwitch briefId={briefId} clientId={clientId} autoSend={autoSend} sendTime={sendTime} />}
           <div className="ml-auto flex items-center gap-3">
@@ -308,7 +308,7 @@ export function ReviewFooter({ briefId, clientId, status, autoSend, sendTime, st
         </div>
         {/* A starting point flips straight to sent on approval: keep the approve message unless "send now" said something. */}
         {canSend || (startingPoint && !(sendState.ok ? sendState.message : sendState.error)) ? <Message state={approveState} /> : <Message state={sendState} />}
-      </div>
+      </Band>
     </WriteGuard>
   );
 }

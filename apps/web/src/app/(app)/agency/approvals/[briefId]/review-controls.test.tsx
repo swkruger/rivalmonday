@@ -33,6 +33,13 @@ describe('approval review controls', () => {
     expect(screen.getByRole('link', { name: 'Evidence 1' }).getAttribute('href')).toBe('/c/c1/evidence/e1');
   });
 
+  it('names an evidence pill after its source and date when refs are given', () => {
+    const refs = { e1: { source: 'Smith HVAC', channel: 'Website', date: 'Oct 3' } };
+    render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last refs={refs} />);
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 3' }).getAttribute('href')).toBe('/c/c1/evidence/e1');
+    expect(screen.getByRole('link', { name: 'Evidence 2' })).toBeTruthy();
+  });
+
   it('words the confidence next to the amber border', () => {
     const { rerender } = render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last />);
     expect(screen.getByText('High confidence 90%')).toBeTruthy();

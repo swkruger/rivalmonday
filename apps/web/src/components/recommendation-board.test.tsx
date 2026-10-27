@@ -25,6 +25,11 @@ describe('RecommendationBoard', () => {
     expect(container.querySelector('details summary')!.textContent).toBe('1 dismissed');
   });
 
+  it('names an evidence pill after its source and date when refs are given', () => {
+    render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} refs={{ e1: { source: 'Smith HVAC', channel: 'Website', date: 'Oct 3' } }} />);
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 3' })).toBeTruthy();
+  });
+
   it('hides status controls for read-only viewers and the upsell tag for clients', () => {
     render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit={false} items={[rec('a', 'todo', { upsellTag: 'ppc' })]} />);
     expect(screen.queryByRole('button', { name: /start/i })).toBeNull();

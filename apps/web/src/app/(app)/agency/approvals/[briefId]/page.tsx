@@ -1,7 +1,7 @@
 import { isAgencyRole } from '@cs/core';
 import { scorecardModel } from '@cs/engine';
 import type { BriefReview } from '@cs/tools';
-import { StatusChip } from '@cs/ui';
+import { Band, Section, StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -13,6 +13,7 @@ import { formatWeekOf } from '@/lib/format';
 import { BRIEF_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { evidenceRefsFor } from '@/server/evidence-refs';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { Scorecard } from '@/components/views/scorecard';
@@ -48,6 +49,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
   const editable = brief.status === 'ready';
   const fixed = brief.factCheck.sentences > 0 || brief.factCheck.items > 0;
   const startingPoint = brief.kind === 'starting_point';
+  const refs = await evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone);
 
   return (
     <>
@@ -77,22 +79,22 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         ]}
       />
 
-      <div className="rounded-md bg-muted-surface p-3 text-ink">
+      <Band tone="muted" className="p-3 text-ink">
         <p>✔ Every remaining sentence was checked against saved evidence.</p>
         {fixed && (
           <p>
             The fact-check removed {brief.factCheck.sentences} sentence(s) and {brief.factCheck.items} item(s) it couldn’t prove.
           </p>
         )}
-      </div>
+      </Band>
 
       <p className="leading-relaxed">{brief.summary}</p>
 
-      {brief.kind === 'quiet' && <p className="text-muted-foreground">No significant competitor moves this week.</p>}
+      {brief.kind === 'quiet' && <p className="text-muted-ink">No significant competitor moves this week.</p>}
 
       {startingPoint && brief.scorecard && <Scorecard model={scorecardModel(brief.scorecard, { clientName: brief.clientName })} />}
 
-      <div className="flex flex-col gap-3">
+      <Section>
         {sorted.map((item) => (
           <ReviewItem
             key={item.id}
@@ -102,9 +104,10 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
             editable={editable}
             first={item.status === 'active' && active[0]?.id === item.id}
             last={item.status === 'active' && active[active.length - 1]?.id === item.id}
+            refs={refs}
           />
         ))}
-      </div>
+      </Section>
 
       <ReviewFooter briefId={brief.id} clientId={brief.clientId} status={brief.status} autoSend={brief.autoSend} startingPoint={startingPoint} sendTime={mondaySendTime(brief.clientTimezone)} />
     </>

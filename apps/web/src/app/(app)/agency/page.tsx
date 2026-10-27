@@ -1,7 +1,7 @@
 import { formatRelative, formatWeekOf } from '@/lib/format';
 import { isAgencyRole } from '@cs/core';
 import type { PortfolioRow } from '@cs/tools';
-import { Button, Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -118,11 +118,7 @@ export default async function AgencyPortfolioPage() {
           )}
         </>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Clients</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Section title="Clients">
             {/* Below xl (sidebar plus card padding) the seven columns don't fit: one block per client instead of a table that hides most columns. */}
             <ul className="flex flex-col divide-y divide-line xl:hidden">
               {rows.map((row) => (
@@ -140,7 +136,7 @@ export default async function AgencyPortfolioPage() {
                 </li>
               ))}
             </ul>
-            <div className="hidden xl:block">
+            <TableFrame className="hidden xl:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -169,9 +165,8 @@ export default async function AgencyPortfolioPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          </CardContent>
-        </Card>
+            </TableFrame>
+        </Section>
       )}
 
       <TipRow

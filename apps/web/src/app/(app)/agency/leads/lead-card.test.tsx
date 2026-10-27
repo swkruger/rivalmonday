@@ -23,6 +23,13 @@ describe('LeadCard', () => {
     expect(sourceLabel('platform')).toBe('From the platform');
   });
 
+  it('keeps the business heading and the Accept button inside one card', () => {
+    render(<LeadCard lead={lead()} verticals={verticals} />);
+    const card = screen.getByRole('heading', { name: 'Smith Dental' }).closest('[data-slot="card"]')!;
+    expect(card.contains(screen.getByRole('button', { name: 'Accept' }))).toBe(true);
+    expect(card.tagName).toBe('DIV');
+  });
+
   it('accept preselects the suggested vertical and confirms with the contact name', () => {
     render(<LeadCard lead={lead()} verticals={verticals} />);
     fireEvent.click(screen.getByRole('button', { name: 'Accept' }));

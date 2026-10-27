@@ -3,6 +3,7 @@ import type { RecommendationView } from '@cs/tools';
 import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, textareaClass } from '@cs/ui';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
+import type { EvidenceRefs } from '@/server/evidence-refs';
 import { LEVEL, labelFor } from '@/lib/labels';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -113,7 +114,7 @@ function targetsFor(status: Status, title: string): Target[] {
   return [];
 }
 
-function RecommendationCard({ item, clientId, canEdit, agency, action }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction }) {
+function RecommendationCard({ item, clientId, canEdit, agency, action, refs }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction; refs?: EvidenceRefs }) {
   return (
     <Card role="article" className="p-4">
       <p className="font-semibold">{item.title}</p>
@@ -124,7 +125,7 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
         <StatusChip tone="neutral">{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</StatusChip>
         <StatusChip tone="neutral">{SOURCE_LABEL[item.source] ?? item.source}</StatusChip>
         {agency && item.upsellTag && <StatusChip tone="warning">Upsell: {item.upsellTag}</StatusChip>}
-        <EvidenceChips clientId={clientId} ids={item.evidenceIds} />
+        <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />
       </div>
       {canEdit &&
         (item.status === 'done' ? (
@@ -142,7 +143,7 @@ function RecommendationCard({ item, clientId, canEdit, agency, action }: { item:
 }
 
 function EmptyColumn() {
-  return <p className="text-sm text-muted-foreground">Nothing here yet.</p>;
+  return <p className="text-sm text-muted-ink">Nothing here yet.</p>;
 }
 
 interface RecommendationBoardProps {
@@ -153,14 +154,16 @@ interface RecommendationBoardProps {
   action: SetStatusAction;
   /** What to show when there are no recommendations (the page passes the teaching empty state). */
   empty?: React.ReactNode;
+  /** Display refs for the evidence chips (the page loads them server-side); chips fall back to "Evidence n" without. */
+  refs?: EvidenceRefs;
 }
 
 /** Agency and client roles (including guests) land here from the nav — `canEdit` is false for viewers and guests. */
-export function RecommendationBoard({ clientId, items, canEdit: canEditProp, agency, action, empty }: RecommendationBoardProps) {
+export function RecommendationBoard({ clientId, items, canEdit: canEditProp, agency, action, empty, refs }: RecommendationBoardProps) {
   // Phase 8b: status changes are writes, hidden in a support session.
   const canEdit = canEditProp && !useReadOnly();
   if (items.length === 0) {
-    return <>{empty ?? <p className="text-muted-foreground">No recommendations yet — they arrive with each approved weekly brief.</p>}</>;
+    return <>{empty ?? <p className="text-muted-ink">No recommendations yet — they arrive with each approved weekly brief.</p>}</>;
   }
   const todo = items.filter((i) => i.status === 'todo');
   const inProgress = items.filter((i) => i.status === 'in_progress');
@@ -174,21 +177,21 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
           <h2 className="text-base font-semibold">To do ({todo.length})</h2>
           {todo.length === 0 && <EmptyColumn />}
           {todo.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
+            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
           ))}
         </section>
         <section aria-label="In progress" className="flex flex-col gap-3">
           <h2 className="text-base font-semibold">In progress ({inProgress.length})</h2>
           {inProgress.length === 0 && <EmptyColumn />}
           {inProgress.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
+            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
           ))}
         </section>
         <section aria-label="Done" className="flex flex-col gap-3">
           <h2 className="text-base font-semibold">Done ({done.length})</h2>
           {done.length === 0 && <EmptyColumn />}
           {done.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} />
+            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
           ))}
         </section>
       </div>
@@ -198,7 +201,7 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
           {dismissed.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{item.title}</span>
-              <span className="text-muted-foreground">{item.dismissReason}</span>
+              <span className="text-muted-ink">{item.dismissReason}</span>
               {canEdit && <ReopenForm action={action} clientId={clientId} item={item} target="todo" />}
             </li>
           ))}

@@ -10,6 +10,7 @@ import { RecommendationBoard } from '@/components/recommendation-board';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { setStatusAction } from './actions';
 import { requireContext } from '@/server/current-viewer';
+import { evidenceRefsFor } from '@/server/evidence-refs';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 
@@ -33,6 +34,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     helpGuides(ctx, 'client', clientId),
   ]);
+  const refs = await evidenceRefsFor(ctx, clientId, recs.items.flatMap((r) => r.evidenceIds), profile.timezone);
   // "Save from an assistant answer" is offered only when the viewer can: the Ask module on for a signed-in user (never a
   // guest) and the permission to give feedback, as on the evidence page. Otherwise the copy does not mention the assistant.
   const canSaveFromAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasFeature(ctx, 'ask') && hasPermission(ctx, 'feedback') && hasFeature(ctx, 'dashboard');
@@ -59,6 +61,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
         action={setStatusAction}
         clientId={clientId}
         items={recs.items}
+        refs={refs}
         agency={isAgencyRole(ctx.role)}
         canEdit={viewer.kind === 'user' && hasPermission(ctx, 'manage')}
         empty={<EmptyState {...(canSaveFromAsk ? COPY.empty.noRecsAsk : COPY.empty.noRecs)} />}

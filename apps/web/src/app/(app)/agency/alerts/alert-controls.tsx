@@ -1,6 +1,6 @@
 'use client';
 import type { AlertQueueClient, AlertQueueRow } from '@cs/tools';
-import { Button, Card, CardContent, ConfirmDialog, Label, StatusChip } from '@cs/ui';
+import { Band, Button, Card, CardContent, ConfirmDialog, Label, StatusChip, nativeSelectClass, textareaClass } from '@cs/ui';
 import { useState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { ErrorNote } from '@/components/form-error';
@@ -8,9 +8,6 @@ import { WriteGuard } from '@/components/read-only';
 import { ALERT_STATUS, labelFor } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { approveAlertAction, dismissAlertAction } from './actions';
-
-const textareaClass = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
-const selectClass = 'h-9 w-full max-w-xs rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** Unreviewed alerts expire after this many days (packages/engine/src/alerts/create.ts:ALERT_REVIEW_EXPIRY_DAYS). */
 const EXPIRY_DAYS = 7;
@@ -26,7 +23,7 @@ export function AlertFilter({ clients, selected, selectedName }: { clients: Aler
     <form method="get" className="flex flex-wrap items-end gap-2">
       <div className="flex flex-col gap-2">
         <Label htmlFor="alert-client">Client</Label>
-        <select id="alert-client" name="client" defaultValue={selected ?? ''} className={selectClass}>
+        <select id="alert-client" name="client" defaultValue={selected ?? ''} className={`${nativeSelectClass} w-full max-w-xs`}>
           <option value="">All clients</option>
           {missing && <option value={selected}>{selectedName || 'This client'}</option>}
           {clients.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.count})</option>)}
@@ -102,20 +99,22 @@ function AlertCard({ alert, run, pending, assistantName, now, onOpenDismiss }: {
       <CardContent>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-semibold">{alert.clientName}</span>
-          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-ink">·</span>
           <span>{alert.competitorName}</span>
           <span className="ml-auto rounded-sm bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">Score {Math.round(alert.score)}</span>
           <StatusChip tone={status.tone}>{status.label}</StatusChip>
           {alert.heldForDigest && <StatusChip tone="info">Held for the 17:00 digest</StatusChip>}
         </div>
-        <h3 className="mt-2 mb-1 text-[15px] font-semibold">{alert.headline}</h3>
-        <p className="my-1">{alert.body}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="rounded-sm bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
-          {pendingReview && <span className="text-xs text-muted-foreground">{waiting(alert.createdAt, now)}</span>}
-          {pendingReview && <span className="text-xs text-muted-foreground">Expires if not reviewed within {EXPIRY_DAYS} days</span>}
-        </div>
-        {alert.written === 'template' && <p className="mt-2 text-muted-foreground">{assistantName} couldn’t verify its own wording, so this uses the evidence summary.</p>}
+        <Band className="mt-3 flex flex-col gap-1.5">
+          <h3 className="text-base font-semibold text-ink">{alert.headline}</h3>
+          <p>{alert.body}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-sm bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
+            {pendingReview && <span className="text-xs text-muted-ink">{waiting(alert.createdAt, now)}</span>}
+            {pendingReview && <span className="text-xs text-muted-ink">Expires if not reviewed within {EXPIRY_DAYS} days</span>}
+          </div>
+          {alert.written === 'template' && <p className="mt-1 text-muted-ink">{assistantName} couldn’t verify its own wording, so this uses the evidence summary.</p>}
+        </Band>
         <WriteGuard>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {pendingReview && <ApproveButton alertId={alert.id} run={run} pending={pending} />}

@@ -103,7 +103,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             aria-current={t.key === tab.key ? 'page' : undefined}
             className={t.key === tab.key ? 'border-b-2 border-primary px-3 py-2 text-sm font-semibold text-primary-soft-text' : 'px-3 py-2 text-sm font-medium text-ink/70 hover:text-ink'}
           >
-            {t.label} <span className="text-muted-foreground">({counts[t.status]})</span>
+            {t.label} <span className="text-muted-ink">({counts[t.status]})</span>
           </Link>
         ))}
       </nav>

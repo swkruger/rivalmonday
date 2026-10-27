@@ -1,5 +1,5 @@
 'use client';
-import { Button, Card, CardContent, StatusChip } from '@cs/ui';
+import { Band, Button, Card, CardContent, StatusChip, nativeSelectClass } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { NewBusinessType, type VerticalActions, useVerticalChoice } from '@/components/new-business-type';
 import { WriteGuard } from '@/components/read-only';
@@ -36,7 +36,6 @@ export interface LeadView {
 
 /** Shown instead of the "Let them know" checkbox: a declined platform lead returns to the pool and the visitor is not emailed. */
 export const PLATFORM_NOTE = 'This lead goes back to the pool.';
-const fieldCls = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** "From your website" for the agency's own intake link; a lead the platform assigned is "From the platform" (agency pages never name Rival Monday). */
 export function sourceLabel(source: LeadView['source']): string {
@@ -44,10 +43,10 @@ export function sourceLabel(source: LeadView['source']): string {
 }
 
 function Preview({ preview }: { preview: LeadPreview }) {
-  if (preview.status === 'pending') return <p className="text-sm text-muted-foreground">Snapshot is being built…</p>;
+  if (preview.status === 'pending') return <p className="text-sm text-muted-ink">Snapshot is being built…</p>;
   if (preview.status !== 'ready') return null;
   return (
-    <div className="rounded-md bg-muted-surface p-3 text-sm text-ink">
+    <Band tone="muted" className="p-3 text-sm text-ink">
       <p className="text-xs font-medium text-muted-ink">Snapshot</p>
       {preview.facts.length > 0 && (
         <ul className="mt-1 list-disc pl-5">
@@ -57,7 +56,7 @@ function Preview({ preview }: { preview: LeadPreview }) {
         </ul>
       )}
       {preview.summary && <p className="mt-1">{preview.summary}</p>}
-    </div>
+    </Band>
   );
 }
 
@@ -74,7 +73,7 @@ function AcceptForm({ lead, verticals, verticalActions, onCancel }: { lead: Lead
       <input type="hidden" name="leadId" value={lead.id} />
       <div className="flex flex-col gap-1 text-sm">
         <label htmlFor={`v-${lead.id}`} className="font-medium">Business type</label>
-        <select id={`v-${lead.id}`} name="verticalId" value={verticalId} onChange={(e) => choice.choose(e.target.value)} className={fieldCls}>
+        <select id={`v-${lead.id}`} name="verticalId" value={verticalId} onChange={(e) => choice.choose(e.target.value)} className={nativeSelectClass}>
           {options.map((v) => (
             <option key={v.id} value={v.id}>{v.name}</option>
           ))}
@@ -95,7 +94,7 @@ function DeclineForm({ lead, onCancel }: { lead: LeadView; onCancel: () => void 
     <form action={action} className="flex flex-wrap items-center gap-3">
       <input type="hidden" name="leadId" value={lead.id} />
       {platform ? (
-        <p className="text-sm text-muted-foreground">{PLATFORM_NOTE}</p>
+        <p className="text-sm text-muted-ink">{PLATFORM_NOTE}</p>
       ) : (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="notify" defaultChecked /> Let them know
@@ -118,19 +117,19 @@ export function LeadCard({ lead, verticals, verticalActions, tz = 'UTC', nowMs }
       <CardContent className="flex flex-col gap-3 pt-6">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold">{lead.businessName}</h2>
-            {lead.address && <p className="text-sm text-muted-foreground">{lead.address}</p>}
+            <h2 className="text-base font-semibold text-ink">{lead.businessName}</h2>
+            {lead.address && <p className="text-sm text-muted-ink">{lead.address}</p>}
           </div>
           <div className="flex items-center gap-2">
             <StatusChip tone={status.tone}>{status.label}</StatusChip>
-            <span className="text-xs text-muted-foreground">{sourceLabel(lead.source)}</span>
-            <span className="text-xs text-muted-foreground">{date}</span>
+            <span className="text-xs text-muted-ink">{sourceLabel(lead.source)}</span>
+            <span className="text-xs text-muted-ink">{date}</span>
           </div>
         </div>
         <p className="text-sm">
           <span className="font-semibold">{lead.contactName}</span> · <a href={`mailto:${lead.email}`} className="text-primary-soft-text">{lead.email}</a>
           {lead.phone ? ` · ${lead.phone}` : ''}
-          {lead.ref ? <span className="text-muted-foreground"> · Ref {lead.ref}</span> : null}
+          {lead.ref ? <span className="text-muted-ink"> · Ref {lead.ref}</span> : null}
         </p>
         {lead.message && <p className="whitespace-pre-wrap border-l-2 border-line pl-3 text-sm">{lead.message}</p>}
         <Preview preview={lead.preview} />

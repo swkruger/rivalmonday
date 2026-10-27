@@ -1,5 +1,6 @@
 import { isAgencyRole } from '@cs/core';
 import type { ClientProfile, ProspectReportView, TrackedCompetitor } from '@cs/tools';
+import { Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -71,44 +72,44 @@ export default async function ProspectHubPage({ params }: { params: Promise<{ cl
         ]}
       />
 
-      <div className="rounded-md border border-line bg-surface p-6">
-        <h2 className="font-semibold">1. Profile</h2>
-        <p className="mt-1 text-muted-foreground">
-          {profile.keywords.length > 0 ? `${profile.keywords.length} keyword${profile.keywords.length === 1 ? '' : 's'}` : 'No keywords yet'}
-          {' · '}
-          {profile.serviceArea ? 'Service area set' : 'No service area yet'}
-        </p>
-        <Link href={`/c/${clientId}/settings/profile`} className="mt-2 inline-block font-semibold text-primary-soft-text">Edit business profile</Link>
-      </div>
+      <Section title="1. Profile" as="h2">
+        <div>
+          <p className="text-muted-ink">
+            {profile.keywords.length > 0 ? `${profile.keywords.length} keyword${profile.keywords.length === 1 ? '' : 's'}` : 'No keywords yet'}
+            {' · '}
+            {profile.serviceArea ? 'Service area set' : 'No service area yet'}
+          </p>
+          <Link href={`/c/${clientId}/settings/profile`} className="mt-2 inline-block font-semibold text-primary-soft-text">Edit business profile</Link>
+        </div>
+      </Section>
 
-      <div className="rounded-md border border-line bg-surface p-6">
-        <h2 className="font-semibold">2. Competitors</h2>
-        <p className="mt-1 text-muted-foreground">
-          {competitors.items.length} of {competitors.limit}
-          {competitors.items.length > 0 ? ` — ${competitors.items.map((c) => c.name).join(', ')}` : ''}
-        </p>
-        <Link href={`/c/${clientId}/competitors`} className="mt-2 inline-block font-semibold text-primary-soft-text">Find and pick competitors</Link>
-      </div>
+      <Section title="2. Competitors" as="h2" ruled>
+        <div>
+          <p className="text-muted-ink">
+            {competitors.items.length} of {competitors.limit}
+            {competitors.items.length > 0 ? ` — ${competitors.items.map((c) => c.name).join(', ')}` : ''}
+          </p>
+          <Link href={`/c/${clientId}/competitors`} className="mt-2 inline-block font-semibold text-primary-soft-text">Find and pick competitors</Link>
+        </div>
+      </Section>
 
-      <div className="rounded-md border border-line bg-surface p-6">
-        <h2 className="font-semibold">3. Snapshot</h2>
-        <p className="mt-1 text-muted-foreground">≈ $0.10–0.15 per snapshot</p>
-        <SnapshotControls clientId={clientId} report={report} canRun={canRun} blockers={blockers} action={runSnapshotAction} />
-      </div>
+      <Section title="3. Snapshot" as="h2" ruled>
+        <div>
+          <p className="mb-3 text-muted-ink">≈ $0.10–0.15 per snapshot</p>
+          <SnapshotControls clientId={clientId} report={report} canRun={canRun} blockers={blockers} action={runSnapshotAction} />
+        </div>
+      </Section>
 
       {report?.status === 'ready' && report.data && (
-        <div className="rounded-md border border-line bg-surface p-6">
-          <h2 className="font-semibold">Landscape</h2>
+        <Section title="Landscape" as="h2" ruled>
           <ProspectLandscape data={report.data} timezone={await viewerTimeZone()} />
-        </div>
+        </Section>
       )}
 
       <WriteGuard>
-        <div className="rounded-md border border-line bg-surface p-6">
-          <h2 className="font-semibold">4. Convert</h2>
-          <p className="mt-1 text-muted-foreground">Converting starts weekly monitoring, alerts and briefs for this business.</p>
+        <Section title="4. Convert" as="h2" ruled description="Converting starts weekly monitoring, alerts and briefs for this business.">
           <ConvertButton clientId={clientId} action={convertAction} canUpgrade={ctx.role === 'agency_admin'} />
-        </div>
+        </Section>
       </WriteGuard>
     </>
   );
