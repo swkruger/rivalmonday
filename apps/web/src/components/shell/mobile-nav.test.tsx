@@ -20,6 +20,7 @@ const switcherFor = (f: NavRoleFlags, zone?: 'platform'): SwitcherProps => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  pathname = '/c/11111111-1111-1111-1111-111111111111';
 });
 
 const flags: NavRoleFlags = {
@@ -49,6 +50,22 @@ describe('MobileNav (decision 14)', () => {
     expect(within(dialog).getByText('monday')).toBeTruthy();
     expect(within(dialog).getByRole('group', { name: 'Customers' })).toBeTruthy();
     expect(within(dialog).getByRole('link', { name: 'Agencies' }).getAttribute('aria-current')).toBe('page');
+    pathname = '/c/11111111-1111-1111-1111-111111111111';
+  });
+
+  it('on a settings path the drawer shows the drill-in; tapping Back closes it', () => {
+    pathname = '/agency/settings/team';
+    const agency: NavRoleFlags = { ...flags, isAgency: true, isAgencyAdmin: true, homePath: '/agency' };
+    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    const dialog = screen.getByRole('dialog', { name: 'Menu' });
+    const nav = within(dialog).getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).getByRole('link', { name: 'Team' }).getAttribute('aria-current')).toBe('page');
+    expect(within(dialog).queryByRole('link', { name: 'Portfolio' })).toBeNull();
+    const back = within(nav).getByRole('link', { name: 'Back to Acme Agency' });
+    expect(back.getAttribute('href')).toBe('/agency');
+    fireEvent.click(back);
+    expect(screen.queryByRole('dialog')).toBeNull();
     pathname = '/c/11111111-1111-1111-1111-111111111111';
   });
 

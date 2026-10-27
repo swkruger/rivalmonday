@@ -3,7 +3,8 @@
 import { Activity, BadgeDollarSign, Bell, BookMarked, BookOpen, Building2, ClipboardCheck, Coins, CreditCard, FileText, Gauge, Globe, HeartPulse, Inbox, LayoutDashboard, Layers, Link2, ListChecks, UserPlus, MapPin, Megaphone, MessageCircle, Network, Palette, Plug, Scale, Send, Settings, ShieldCheck, Siren, SlidersHorizontal, Star, Swords, Tags, Telescope, TrendingUp, UserCog, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { activeHref, type IconKey, NAV_CTX_COOKIE, type NavCounts, type NavItem, type NavRoleFlags, navFor } from './nav-items';
+import { activeHref, currentSettingsHref, type IconKey, NAV_CTX_COOKIE, type NavCounts, type NavItem, type NavRoleFlags, type NavSection, navFor, type SettingsArea, settingsAreaOf, settingsNavFor } from './nav-items';
+import { SettingsDrillIn } from './settings-drill-in';
 import { type NavClient, type NavFallback, useNavContext } from './use-nav-context';
 
 export type { NavClient, NavFallback };
@@ -60,12 +61,22 @@ const COOKIE_ATTRS = 'path=/; max-age=2592000; samesite=lax';
  *
  * Phase 15a §2.1: one context's grouped menu (`navFor`); the context comes from `useNavContext` (shared with the
  * context switcher). This component writes the `rm_nav_ctx` cookie on every contextual page.
+ *
+ * 16b (P3): on `/agency/settings[/…]` and `/c/<id>/settings[/…]` the menu is replaced by the drill-in settings nav —
+ * the same tabs as the settings layouts (same flags ⇒ same tabs; `flags.clientBilling` is the shell's owner-Billing
+ * rule) plus "Back to {name}" (P4; names from `backNames`, the switcher's agency name and clients). A viewer with no
+ * tab there (a guest) keeps the normal menu.
  */
-export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[] }) {
+export function SidebarNav({ flags, counts, zone, fallback, clients, backNames }: { flags: NavRoleFlags; counts: NavCounts; zone?: 'platform'; fallback: NavFallback | null; clients: NavClient[]; backNames?: { agency: string; clients: NavClient[] } }) {
   const { active, context, clientId, remember: value } = useNavContext({ flags, zone, fallback, clients });
   useEffect(() => {
     if (value) document.cookie = `${NAV_CTX_COOKIE}=${value}; ${COOKIE_ATTRS}`;
   }, [value]);
+  const area = zone === 'platform' ? null : settingsAreaOf(active);
+  const settings = area ? settingsSectionsFor(area, flags) : [];
+  if (area && settings.length) {
+    return <SettingsDrillIn sections={settings} current={currentSettingsHref(settings, active)} back={backLinkFor(area, backNames)} />;
+  }
   const sections = navFor(context, flags, clientId, counts);
   const current = activeHref(sections, active);
   return (
@@ -85,4 +96,17 @@ export function SidebarNav({ flags, counts, zone, fallback, clients }: { flags: 
       })}
     </nav>
   );
+}
+
+/** Mirrors the settings layouts: agency tabs for agency roles; client tabs for signed-in users and agency roles (never guests). */
+function settingsSectionsFor(area: SettingsArea, flags: NavRoleFlags): NavSection[] {
+  if (area.area === 'agency') return settingsNavFor('agency', flags);
+  return flags.isUser || flags.isAgency ? settingsNavFor('client', flags, area.clientId) : [];
+}
+
+/** P4 (decided copy): "Back to {client name}" → `/c/<id>`, "Back to {agency name}" → `/agency`; the menus' root labels when the name is unknown. */
+function backLinkFor(area: SettingsArea, names: { agency: string; clients: NavClient[] } | undefined): { href: string; label: string } {
+  if (area.area === 'agency') return { href: '/agency', label: `Back to ${names?.agency.trim() || 'Portfolio'}` };
+  const name = names?.clients.find((c) => c.id === area.clientId)?.name.trim();
+  return { href: `/c/${area.clientId}`, label: `Back to ${name || 'Overview'}` };
 }

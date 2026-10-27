@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsNavFor, showsClientBilling } from './nav-items';
+import { activeHref, currentSettingsHref, type NavRoleFlags, type NavSection, navFor, pageIdOf, settingsAreaOf, settingsNavFor, showsClientBilling } from './nav-items';
 
 const C = '00000000-0000-4000-8000-0000000000a1';
 const B = `/c/${C}`;
@@ -277,5 +277,31 @@ describe('showsClientBilling', () => {
     expect(showsClientBilling('client_owner', null)).toBe(false);
     expect(showsClientBilling('client_owner', undefined)).toBe(false);
     for (const r of ['agency_admin', 'account_manager', 'client_viewer'] as const) expect(showsClientBilling(r, { enabled: true })).toBe(false);
+  });
+});
+
+describe('settingsAreaOf (16b drill-in)', () => {
+  it('finds the agency and client settings areas, query and hash ignored', () => {
+    expect(settingsAreaOf('/agency/settings')).toEqual({ area: 'agency' });
+    expect(settingsAreaOf('/agency/settings/team?x=1')).toEqual({ area: 'agency' });
+    expect(settingsAreaOf(`${B}/settings`)).toEqual({ area: 'client', clientId: C });
+    expect(settingsAreaOf(`${B}/settings/billing#a`)).toEqual({ area: 'client', clientId: C });
+  });
+
+  it('is null outside a settings area (partial segments, the personal settings)', () => {
+    expect(settingsAreaOf('/agency/settingsx')).toBeNull();
+    expect(settingsAreaOf(`${B}/settingsx`)).toBeNull();
+    expect(settingsAreaOf('/settings/notifications')).toBeNull();
+    expect(settingsAreaOf('/agency')).toBeNull();
+    expect(settingsAreaOf(B)).toBeNull();
+  });
+});
+
+describe('currentSettingsHref', () => {
+  const s = settingsNavFor('agency', agencyAdmin);
+  it('is the active tab, else the first tab (the bare index only redirects)', () => {
+    expect(currentSettingsHref(s, '/agency/settings/billing/client-billing')).toBe('/agency/settings/billing');
+    expect(currentSettingsHref(s, '/agency/settings')).toBe('/agency/settings/branding');
+    expect(currentSettingsHref([], '/agency/settings')).toBeNull();
   });
 });

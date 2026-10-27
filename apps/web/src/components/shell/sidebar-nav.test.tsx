@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { NavContext, NavCounts, NavRoleFlags } from './nav-items';
+import { type NavContext, type NavCounts, type NavRoleFlags, settingsNavFor } from './nav-items';
 
 let pathname = '/';
 vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
@@ -23,8 +23,8 @@ const clientOwnerWithDashboard: NavRoleFlags = { ...clientViewer, dashboard: tru
 
 type Fallback = { context: NavContext; clientId: string | null } | null;
 /** The required props with defaults: no counts, no zone, no server fallback; the viewer's clients hold CLIENT_ID. */
-function Nav({ flags, counts = {}, zone, fallback = null, clients = [{ id: CLIENT_ID, name: 'A1 HVAC' }] }: { flags: NavRoleFlags; counts?: NavCounts; zone?: 'platform'; fallback?: Fallback; clients?: { id: string; name: string }[] }) {
-  return <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />;
+function Nav({ flags, counts = {}, zone, fallback = null, clients = [{ id: CLIENT_ID, name: 'A1 HVAC' }], backNames }: { flags: NavRoleFlags; counts?: NavCounts; zone?: 'platform'; fallback?: Fallback; clients?: { id: string; name: string }[]; backNames?: { agency: string; clients: { id: string; name: string }[] } }) {
+  return <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} backNames={backNames} />;
 }
 
 const clearCookie = () => { document.cookie = 'rm_nav_ctx=; path=/; max-age=0'; };
@@ -71,10 +71,10 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(screen.getByRole('link', { name: 'Client settings' }).getAttribute('href')).toBe(`${B}/settings/profile`);
   });
 
-  it('highlights Client settings (deepest match) on /c/<uuid>/settings/delivery, not Overview', () => {
+  it('highlights Delivery in the drill-in on /c/<uuid>/settings/delivery, not Overview', () => {
     pathname = `${B}/settings/delivery`;
     render(<Nav flags={agencyAdmin} />);
-    expect(activeHrefOf()).toBe(`${B}/settings/profile`);
+    expect(activeHrefOf()).toBe(`${B}/settings/delivery`);
   });
 
   it('highlights Briefs & reports on a brief detail page', () => {
@@ -90,14 +90,10 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(screen.getByRole('link', { name: 'Portfolio' })).toBeTruthy();
   });
 
-  it('highlights Approvals on /agency/approvals/<uuid> and Agency settings on /agency/settings/team', () => {
+  it('highlights Approvals on /agency/approvals/<uuid>', () => {
     pathname = `/agency/approvals/${CLIENT_ID}`;
-    const { unmount } = render(<Nav flags={agencyAdmin} />);
-    expect(activeHrefOf()).toBe('/agency/approvals');
-    unmount();
-    pathname = '/agency/settings/team';
     render(<Nav flags={agencyAdmin} />);
-    expect(activeHrefOf()).toBe('/agency/settings/branding');
+    expect(activeHrefOf()).toBe('/agency/approvals');
   });
 
   it('highlights Competitors on /c/<uuid>/competitors/<other uuid>', () => {
@@ -133,11 +129,13 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(activeHrefOf()).toBe('/platform/agencies');
   });
 
-  it('marks exactly one link as the current page', () => {
+  it('marks exactly one link as the current page (staff on /c/<id>/settings/delivery, in the drill-in)', () => {
     pathname = `${B}/settings/delivery`;
     render(<Nav flags={agencyAdmin} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
     const current = screen.getAllByRole('link').filter((l) => l.getAttribute('aria-current') === 'page');
-    expect(current.map((l) => l.getAttribute('href'))).toEqual([`${B}/settings/profile`]);
+    expect(current.map((l) => l.getAttribute('href'))).toEqual([`${B}/settings/delivery`]);
+    expect(nav.contains(current[0]!)).toBe(true);
   });
 });
 
@@ -304,5 +302,81 @@ describe('SidebarNav sections (Task 4)', () => {
     render(<Nav flags={agencyAdmin} />);
     spy.mockRestore();
     expect(writes).toEqual(['rm_nav_ctx=agency; path=/; max-age=2592000; samesite=lax']);
+  });
+});
+
+describe('SidebarNav drill-in settings nav (16b P3/P4)', () => {
+  const backNames = { agency: 'Acme Agency', clients: [{ id: CLIENT_ID, name: 'A1 HVAC' }] };
+  const currentLinks = () => screen.getAllByRole('link').filter((l) => l.getAttribute('aria-current') === 'page');
+  const tabNames = (nav: HTMLElement) => within(nav).getAllByRole('link').filter((l) => !l.textContent!.startsWith('Back to')).map((l) => l.textContent);
+
+  it('agency settings: the Settings nav with Team current and a back link to the portfolio, no main menu', () => {
+    pathname = '/agency/settings/team';
+    render(<Nav flags={agencyAdmin} backNames={backNames} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).getByRole('link', { name: 'Team' }).getAttribute('aria-current')).toBe('page');
+    const back = within(nav).getByRole('link', { name: 'Back to Acme Agency' });
+    expect(back.getAttribute('href')).toBe('/agency');
+    expect(within(nav).getAllByRole('link')[0]).toBe(back);
+    expect(screen.queryByRole('link', { name: 'Portfolio' })).toBeNull();
+    expect(tabNames(nav)).toEqual(settingsNavFor('agency', agencyAdmin).flatMap((s) => s.items.map((i) => i.label)));
+    expect(within(nav).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Agency', 'Plan', 'Growth', 'Integrations', 'Security']);
+    expect(within(nav).getByRole('link', { name: 'Team' }).getAttribute('data-slot')).toBe('nav-item');
+    expect(currentLinks()).toHaveLength(1);
+  });
+
+  it('client settings (staff): the client tabs and a back link to the client overview', () => {
+    pathname = `${B}/settings/profile`;
+    render(<Nav flags={agencyAdmin} backNames={backNames} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(tabNames(nav)).toEqual(settingsNavFor('client', agencyAdmin, CLIENT_ID).flatMap((s) => s.items.map((i) => i.label)));
+    expect(within(nav).getByRole('link', { name: 'Back to A1 HVAC' }).getAttribute('href')).toBe(B);
+    expect(within(nav).queryAllByRole('group')).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: 'Competitors' })).toBeNull();
+    expect(currentLinks().map((l) => l.getAttribute('href'))).toEqual([`${B}/settings/profile`]);
+  });
+
+  it('client owner with billing on: Billing current on …/settings/billing', () => {
+    pathname = `${B}/settings/billing`;
+    render(<Nav flags={{ ...clientOwnerWithDashboard, clientBilling: true }} backNames={backNames} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).getByRole('link', { name: 'Billing' }).getAttribute('aria-current')).toBe('page');
+    expect(within(nav).getByRole('link', { name: 'Back to A1 HVAC' }).getAttribute('href')).toBe(B);
+    expect(currentLinks()).toHaveLength(1);
+  });
+
+  it('guest: the normal menu, no Settings nav', () => {
+    pathname = `${B}/settings/profile`;
+    render(<Nav flags={{ ...clientOwnerWithDashboard, isUser: false }} backNames={backNames} />);
+    expect(screen.queryByRole('navigation', { name: 'Settings' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Overview' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /^Back to/ })).toBeNull();
+  });
+
+  it('support session: the drill-in, back to the supported agency', () => {
+    pathname = '/agency/settings/usage';
+    render(<Nav flags={{ ...agencyAdmin, isUser: false }} backNames={{ agency: 'Supported Co', clients: [] }} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).getByRole('link', { name: 'Back to Supported Co' }).getAttribute('href')).toBe('/agency');
+    expect(within(nav).queryByRole('link', { name: 'Billing' })).toBeNull();
+    expect(currentLinks().map((l) => l.getAttribute('href'))).toEqual(['/agency/settings/usage']);
+  });
+
+  it('falls back to "Back to Overview" / "Back to Portfolio" when the name is unknown', () => {
+    pathname = `${B}/settings/profile`;
+    const { unmount } = render(<Nav flags={agencyAdmin} backNames={{ agency: 'Acme Agency', clients: [] }} />);
+    expect(screen.getByRole('link', { name: 'Back to Overview' }).getAttribute('href')).toBe(B);
+    expect(currentLinks()).toHaveLength(1);
+    unmount();
+    pathname = '/agency/settings';
+    render(<Nav flags={agencyAdmin} />);
+    expect(screen.getByRole('link', { name: 'Back to Portfolio' }).getAttribute('href')).toBe('/agency');
+    expect(currentLinks().map((l) => l.getAttribute('href'))).toEqual(['/agency/settings/branding']);
+  });
+
+  it('still writes the context cookie on a settings route', () => {
+    pathname = `${B}/settings/profile`;
+    render(<Nav flags={agencyAdmin} backNames={backNames} />);
+    expect(navCookie()).toBe(`client:${CLIENT_ID}`);
   });
 });

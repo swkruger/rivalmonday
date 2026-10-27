@@ -7,7 +7,7 @@
  * Sidebar visibility is cosmetic: the tools behind each page decide access (refusals 404).
  */
 import type { Role } from '@cs/core';
-import type { NavContext } from './nav-context';
+import { clientIdFromPath, type NavContext } from './nav-context';
 
 export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavCookie } from './nav-context';
 
@@ -253,6 +253,22 @@ export function activeHref(sections: NavSection[], pathname: string): string | n
     }
   }
   return best;
+}
+
+/** 16b: the active settings tab; on the bare index (which only redirects) the first tab. Shared by `SettingsNav` and the drill-in. */
+export function currentSettingsHref(sections: NavSection[], pathname: string): string | null {
+  return activeHref(sections, pathname) ?? sections[0]?.items[0]?.href ?? null;
+}
+
+export type SettingsArea = { area: 'agency' } | { area: 'client'; clientId: string };
+
+/** 16b (P3): `/agency/settings` or below → agency; `/c/<uuid>/settings` or below → client; anything else null. Query/hash ignored. */
+export function settingsAreaOf(pathname: string): SettingsArea | null {
+  const path = pathname.split(/[?#]/)[0]!;
+  const under = (root: string) => path === root || path.startsWith(`${root}/`);
+  if (under('/agency/settings')) return { area: 'agency' };
+  const clientId = clientIdFromPath(path);
+  return clientId && under(`/c/${clientId}/settings`) ? { area: 'client', clientId } : null;
 }
 
 /**

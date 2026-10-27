@@ -34,7 +34,7 @@ export function Sidebar({ branding, flags, counts, zone, fallback, clients, swit
       <div className="pb-4">
         <ContextSwitcher {...switcher} hotkey />
       </div>
-      <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />
+      <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} backNames={{ agency: switcher.agencyName, clients: switcher.clients }} />
       <div className="px-2 pt-4 text-11 text-muted-ink">{zone === 'platform' ? 'Platform' : branding.displayName}</div>
     </aside>
   );

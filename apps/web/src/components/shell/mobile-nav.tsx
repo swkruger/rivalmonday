@@ -57,7 +57,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
         <div className="pb-4">
           <ContextSwitcher {...switcher} modal />
         </div>
-        <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} />
+        <SidebarNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={clients} backNames={{ agency: switcher.agencyName, clients: switcher.clients }} />
       </SheetContent>
     </Sheet>
   );

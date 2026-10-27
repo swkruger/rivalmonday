@@ -16,13 +16,20 @@ const current = () => screen.getAllByRole('link').filter((l) => l.getAttribute('
 beforeEach(() => { pathname = '/agency/settings/team'; });
 afterEach(cleanup);
 
-describe('SettingsNav', () => {
-  it('renders one "Settings" nav with the labelled groups in order', () => {
+describe('SettingsNav (16b: the in-page chip row below lg)', () => {
+  it('renders one "Settings" nav, hidden from lg up (guard: two visible "Settings" navs break E2E strict mode)', () => {
     render(<SettingsNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Settings' });
-    expect(within(nav).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Agency', 'Plan', 'Growth', 'Integrations', 'Security']);
-    expect(within(within(nav).getByRole('group', { name: 'Agency' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Branding & voice', 'Team', 'Runbook']);
-    expect(within(within(nav).getByRole('group', { name: 'Integrations' })).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/agency/settings/slack-teams', '/agency/settings/ai']);
+    expect(nav.className.split(/\s+/)).toContain('lg:hidden');
+  });
+
+  it('is one row of every tab in order, with no group headings', () => {
+    render(<SettingsNav sections={sections} />);
+    const nav = screen.getByRole('navigation', { name: 'Settings' });
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(sections.flatMap((s) => s.items.map((i) => i.label)));
+    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(sections.flatMap((s) => s.items.map((i) => i.href)));
+    expect(within(nav).queryAllByRole('group')).toHaveLength(0);
+    expect(within(nav).queryByText('Integrations')).toBeNull();
   });
 
   it('marks exactly the current tab, including on a sub-path', () => {
@@ -47,7 +54,7 @@ describe('SettingsNav', () => {
     expect(current()).toEqual(['/agency/settings/branding']);
   });
 
-  it('renders an unlabelled section without a group', () => {
+  it('renders an unlabelled section', () => {
     render(<SettingsNav sections={[{ id: 'main', label: null, items: [{ href: '/c/x/settings/profile', label: 'Business profile', icon: 'profile' }] }]} />);
     expect(screen.queryAllByRole('group')).toHaveLength(0);
     expect(screen.getByRole('link', { name: 'Business profile' })).toBeTruthy();
