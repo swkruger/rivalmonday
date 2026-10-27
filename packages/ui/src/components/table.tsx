@@ -3,7 +3,11 @@
 import * as React from "react"
 import { cn } from "../lib/cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  density,
+  ...props
+}: React.ComponentProps<"table"> & { density?: "compact" }) {
   return (
     <div
       data-slot="table-container"
@@ -11,7 +15,11 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        data-density={density}
+        className={cn(
+          "w-full caption-bottom text-13 leading-[18px] data-[density=compact]:[&_td]:h-8",
+          className
+        )}
         {...props}
       />
     </div>
@@ -22,7 +30,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("[&_tr]:border-b [&_tr]:border-line", className)}
       {...props}
     />
   )
@@ -56,7 +64,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-line-subtle transition-colors hover:bg-canvas has-aria-expanded:bg-canvas data-[state=selected]:bg-primary-soft",
         className
       )}
       {...props}
@@ -64,12 +72,17 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+  className,
+  numeric,
+  ...props
+}: React.ComponentProps<"th"> & { numeric?: boolean }) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-9 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-ink first:pl-0 last:pr-0 aria-[sort]:text-ink [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        numeric && "text-right tabular-nums",
         className
       )}
       {...props}
@@ -77,12 +90,30 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  numeric,
+  ...props
+}: React.ComponentProps<"td"> & { numeric?: boolean }) {
   return (
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-10 px-3 align-middle whitespace-nowrap text-ink-secondary first:pl-0 last:pr-0 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        numeric && "text-right tabular-nums",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function TableFrame({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="table-frame"
+      className={cn(
+        "overflow-clip rounded-md border border-line [&_thead_tr]:bg-canvas [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4",
         className
       )}
       {...props}
@@ -112,4 +143,5 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  TableFrame,
 }
