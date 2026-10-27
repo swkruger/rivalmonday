@@ -143,14 +143,14 @@ function RateButtons({ item }: { item: BriefItemView }) {
         <form action={usefulAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <input type="hidden" name="useful" value="true" />
-          <Button type="submit" variant={rated === 'useful' ? 'secondary' : 'outline'} size="sm" aria-label="Useful" aria-pressed={rated === 'useful'} disabled={usefulPending}>
+          <Button type="submit" variant={rated === 'useful' ? 'default' : 'outline'} size="sm" aria-label="Useful" aria-pressed={rated === 'useful'} disabled={usefulPending}>
             Useful
           </Button>
         </form>
         <form action={notUsefulAction}>
           <input type="hidden" name="itemId" value={item.id} />
           <input type="hidden" name="useful" value="false" />
-          <Button type="submit" variant={rated === 'not_useful' ? 'secondary' : 'outline'} size="sm" aria-label="Not useful" aria-pressed={rated === 'not_useful'} disabled={notUsefulPending}>
+          <Button type="submit" variant={rated === 'not_useful' ? 'default' : 'outline'} size="sm" aria-label="Not useful" aria-pressed={rated === 'not_useful'} disabled={notUsefulPending}>
             Not useful
           </Button>
         </form>

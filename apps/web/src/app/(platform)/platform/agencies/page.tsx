@@ -90,7 +90,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           <Label htmlFor="agency-q">Search agencies</Label>
           <Input id="agency-q" name="q" type="search" defaultValue={q} maxLength={100} className="w-72" />
         </div>
-        <Button type="submit" variant="secondary">Search</Button>
+        <Button type="submit" variant="outline">Search</Button>
         {q && <Link href={agenciesHref({ status, sort, dir })} className="py-2 text-sm font-semibold text-primary-soft-text hover:underline">Clear</Link>}
       </form>
       <AgencyTable rows={rows} sort={sort} dir={dir} now={new Date()} tz={tz} query={q} status={status} canUnarchive={role === 'owner'} />
