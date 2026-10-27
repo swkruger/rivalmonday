@@ -123,13 +123,13 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
         page === 1 ? (
           <EmptyState {...EMPTY_STATE[tab]} />
         ) : (
-          <p className="rounded-md border border-line bg-surface p-6 text-muted-ink">Nothing more to show.</p>
+          <p className="text-muted-ink">Nothing more to show.</p>
         )
       ) : (
-        <ul className="flex flex-col gap-1 rounded-md border border-line bg-surface p-3">
+        <ul className="divide-y divide-line border-y border-line">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={r.href} className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted-surface">
+              <Link href={r.href} className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-muted-surface">
                 <span className="w-28 shrink-0 font-semibold tabular-nums">{formatDate(r.date, { tz: profile.timezone })}</span>
                 {r.tag && <StatusChip tone="info" className="shrink-0">{r.tag}</StatusChip>}
                 <span className="min-w-0 flex-1 truncate text-muted-ink">{r.summary}</span>

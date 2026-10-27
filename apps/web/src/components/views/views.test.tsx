@@ -66,7 +66,7 @@ describe('BriefView starting point and quiet week', () => {
   });
   it('self item renders without competitor', () => {
     render(<BriefView brief={sp} agency={false} timezone="UTC" />);
-    const article = screen.getByRole('heading', { name: 'Reply to reviews' }).closest('article')!;
+    const article = screen.getByRole('heading', { name: 'Reply to reviews' }).closest('[data-slot="brief-item"]')!;
     expect(article.textContent).not.toContain('A1 HVAC');
   });
   it('quiet week shows Where you stand, open first moves and the trend table', () => {
@@ -83,11 +83,11 @@ describe('BriefView starting point and quiet week', () => {
   it('the baseline item renders without an empty why-it-matters or "Recommended:" line', () => {
     const baseline = item(1, { competitorId: null, subject: 'self', competitorName: 'A1 HVAC', headline: 'Your baseline is set', whatChanged: 'We now track your profile.', whyItMatters: '', recommendedAction: '' });
     render(<BriefView brief={{ ...sp, items: [baseline] }} agency={false} timezone="UTC" />);
-    const article = screen.getByRole('heading', { name: 'Your baseline is set' }).closest('article')!;
+    const article = screen.getByRole('heading', { name: 'Your baseline is set' }).closest('[data-slot="brief-item"]')!;
     expect(article.textContent).not.toContain('Recommended:');
     expect(article.querySelectorAll('p')).toHaveLength(1);
     render(<BriefView brief={sp} agency={false} timezone="UTC" />);
-    expect(screen.getByRole('heading', { name: 'Reply to reviews' }).closest('article')!.textContent).toContain('Recommended: Do R');
+    expect(screen.getByRole('heading', { name: 'Reply to reviews' }).closest('[data-slot="brief-item"]')!.textContent).toContain('Recommended: Do R');
   });
 });
 
@@ -106,8 +106,8 @@ describe('BriefView', () => {
   });
 
   it('renders active items in ord order with anchors and evidence counts', () => {
-    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" />);
-    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
+    const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" titled={false} />);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
     expect(container.querySelector('#item-00000000-0000-4000-8000-000000000001')).not.toBeNull();
     expect(screen.getAllByRole('link', { name: 'Evidence 1' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: 'Evidence 1' })[0]!.getAttribute('href')).toBe(`/c/${C}/evidence/e1`);
@@ -156,10 +156,39 @@ describe('BriefView surfaces (16b)', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Your starting point' })).toBeTruthy();
     expect(screen.getByText(/Starting point · /)).toBeTruthy();
   });
-  it('card surface (default) keeps the Card', () => {
+  it('overview surface keeps h3 item headlines', () => {
+    render(<BriefView brief={brief} agency={false} timezone="UTC" surface="overview" />);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Headline 1', 'Headline 2']);
+  });
+  it('reading surface (default): no Card, one brief-item section per visible item, why-it-matters in a muted Band', () => {
     const { container } = render(<BriefView brief={brief} agency={false} timezone="UTC" />);
-    expect(container.querySelector('[data-slot="card"]')).toBeTruthy();
-    expect(container.querySelector('[data-slot="band"]')).toBeNull();
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
+    const items = container.querySelectorAll('[data-slot="brief-item"]');
+    expect(items).toHaveLength(2);
+    expect(items[0]!.id).toBe('item-00000000-0000-4000-8000-000000000001');
+    expect(items[0]!.tagName).toBe('SECTION');
+    const band = within(items[0] as HTMLElement).getByText('Y').closest('[data-slot="band"]');
+    expect(band?.getAttribute('data-tone')).toBe('muted');
+  });
+  it('reading surface: agency sees upsell as a warning chip and non-active items stay', () => {
+    const { container } = render(<BriefView brief={brief} agency timezone="UTC" />);
+    expect(container.querySelectorAll('[data-slot="brief-item"]')).toHaveLength(3);
+    expect(screen.getByText('Upsell: ppc_audit').closest('[data-slot="status-chip"]')?.getAttribute('data-tone')).toBe('warning');
+  });
+  it('reading surface: confidence is a Tag; Where you stand is an h2', () => {
+    const { container } = render(<BriefView brief={{ ...brief, kind: 'quiet', items: [item(1)], scorecard }} agency={false} timezone="UTC" />);
+    expect(container.querySelector('[data-slot="tag"]')?.textContent).toBe('High confidence 90%');
+    expect(screen.getByRole('heading', { level: 2, name: 'Where you stand' })).toBeTruthy();
+  });
+  it('pills carry the ref name when refs are given', () => {
+    render(<BriefView brief={brief} agency={false} timezone="UTC" refs={{ e1: { source: 'Smith HVAC', channel: 'Google reviews', date: 'Oct 9' } }} />);
+    expect(screen.getAllByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 9' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Evidence 2' })).toHaveLength(2);
+  });
+  it('the quiet-week TrendTable is a Table named by its caption', () => {
+    const { container } = render(<BriefView brief={{ ...brief, kind: 'quiet', items: [], trend: { windowDays: 28, events: 0, businesses: [{ competitorId: C, name: 'A1 HVAC', self: true, reviews: 3, avgRating: 4.6, prevAvgRating: 4.5, activeAds: null }] } }} agency={false} timezone="UTC" />);
+    expect(container.querySelector('[data-slot="table"]')).not.toBeNull();
+    expect(screen.getByRole('table', { name: 'Last 28 days' })).toBeTruthy();
   });
 });
 
@@ -210,6 +239,12 @@ describe('AlertView', () => {
     expect(screen.queryByText(/template text/i)).toBeNull();
   });
 
+  it('renders no Card and shows ref names on pills', () => {
+    const { container } = render(<AlertView alert={alertFixture} agency={false} timezone="UTC" refs={{ e1: { source: 'Smith HVAC', channel: 'Google reviews', date: 'Oct 9' } }} />);
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 9' })).toBeTruthy();
+  });
+
   it('renders the competitor name, headline, body and evidence count for every role', () => {
     render(<AlertView alert={alertFixture} agency={false} timezone="UTC" />);
     expect(screen.getByRole('heading', { level: 2, name: alertFixture.headline })).toBeTruthy();
@@ -237,6 +272,14 @@ describe('ReportView', () => {
     id: '00000000-0000-4000-8000-0000000000c3', clientId: C, quarter: '2026-Q3', status: 'sent', sentAt: null, hasPdf: false, periodStart: '2026-07-01T00:00:00Z', periodEnd: '2026-09-30T00:00:00Z',
     data: { quarter: '2026-Q3', windowDays: 90, businesses: [], eventsByType: {}, moves: [{ moveType: 'price_war', competitorName: 'Smith HVAC', status: 'active', firstDetectedAt: '2026-08-14T09:00:00Z' }], briefsSent: 1, alertsDelivered: 0, recommendations: { created: 0, done: 0, inProgress: 0, dismissed: 0 } },
   } as unknown as ReportDetail;
+
+  it('renders no Card and the six counts as a definition list', () => {
+    const { container } = render(<ReportView report={{ ...withMoves, data: { ...(withMoves.data as object), briefsSent: 12, alertsDelivered: 2, recommendations: { created: 5, done: 2, inProgress: 1, dismissed: 7 } } as never }} />);
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
+    const dl = container.querySelector('dl') as HTMLElement;
+    const pairs = [...dl.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(pairs).toEqual([['Briefs sent', '12'], ['Alerts delivered', '2'], ['Recommendations created', '5'], ['Done', '2'], ['In progress', '1'], ['Dismissed', '7']]);
+  });
 
   it('report period reads "Jul 1 to Sep 30"', () => {
     render(<ReportView report={withMoves} />);

@@ -12,6 +12,7 @@ import { PrevNext } from '@/components/prev-next';
 import { BriefView } from '@/components/views/brief-view';
 import { PAGE_COPY, type TipKey } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { evidenceRefsFor } from '@/server/evidence-refs';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { formatDate, formatWeekOf } from '@/lib/format';
@@ -60,7 +61,8 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
   const { clientId, briefId } = await params;
   const { ctx, brief, profile, list } = await loadBrief(clientId, briefId);
   const agency = isAgencyRole(ctx.role);
-  const guides = await helpGuides(ctx, 'client', clientId);
+  const evidenceIds = brief.items.filter((i) => agency || i.status === 'active').flatMap((i) => i.evidenceIds);
+  const [guides, refs] = await Promise.all([helpGuides(ctx, 'client', clientId), evidenceRefsFor(ctx, clientId, evidenceIds, profile.timezone)]);
   // Client roles only see active items (BriefView filters the same way).
   const tips = briefTips(brief, brief.items.some((i) => agency || i.status === 'active'));
   const { previous, next } = neighbours(list?.items ?? null, brief.id, (id) => `/c/${clientId}/briefs/${id}`);
@@ -92,7 +94,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
           ))}
         </div>
       )}
-      <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} />
+      <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} refs={refs} />
       {feedback?.email && (
         <p className="text-sm text-muted-ink">
           {'Something look off? '}

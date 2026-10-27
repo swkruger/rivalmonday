@@ -6,6 +6,8 @@ const callTool = vi.fn();
 const viewer = vi.hoisted(() => ({ role: 'client_owner' }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: viewer.role } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
+const evidenceRefsFor = vi.fn(async () => ({}));
+vi.mock('@/server/evidence-refs', () => ({ evidenceRefsFor: (...a: unknown[]) => (evidenceRefsFor as (...x: unknown[]) => unknown)(...a) }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import BriefPage, { generateMetadata } from './page';
@@ -33,7 +35,7 @@ const mount = (brief = detail('b2', '2026-10-12'), feedback: { email: string; na
 const show = async (briefId: string) => render(await BriefPage({ params: Promise.resolve({ clientId: C, briefId }) }));
 
 describe('Brief page (15a §2.8)', () => {
-  beforeEach(() => { callTool.mockReset(); viewer.role = 'client_owner'; });
+  beforeEach(() => { callTool.mockReset(); evidenceRefsFor.mockClear(); viewer.role = 'client_owner'; });
 
   it('one h1 naming the week, breadcrumb client › Briefs & reports › date, both neighbours from list_briefs at its max', async () => {
     mount();
@@ -47,6 +49,14 @@ describe('Brief page (15a §2.8)', () => {
     expect(screen.getByRole('link', { name: '‹ Previous' }).getAttribute('href')).toBe(`/c/${C}/briefs/b1`);
     expect(screen.getByRole('link', { name: 'Next ›' }).getAttribute('href')).toBe(`/c/${C}/briefs/b3`);
     expect(screen.queryByRole('link', { name: 'Open in approvals' })).toBeNull();
+  });
+
+  it('resolves evidence refs once for the ids of the visible items in the client timezone', async () => {
+    const it = (id: string, status: string, ev: string[]) => ({ id, ord: 1, competitorId: C, subject: 'competitor', competitorName: 'X', headline: id, whatChanged: 'w', whyItMatters: 'y', recommendedAction: null, confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ev, status, upsellTag: null });
+    mount({ ...detail('b2', '2026-10-12'), items: [it('i1', 'active', ['e1', 'e2']), it('i2', 'dropped', ['e3'])] } as never);
+    await show('b2');
+    expect(evidenceRefsFor).toHaveBeenCalledTimes(1);
+    expect(evidenceRefsFor).toHaveBeenCalledWith(expect.anything(), C, ['e1', 'e2'], 'UTC');
   });
 
   it('the newest brief has no Next, the oldest no Previous', async () => {

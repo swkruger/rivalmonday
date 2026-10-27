@@ -53,7 +53,7 @@ export function OpenFirstMoves({ moves }: { moves: string[] }) {
   if (moves.length === 0) return null;
   return (
     <section>
-      <h3 className="mb-1.5 text-[15px] font-bold">First moves still open</h3>
+      <h3 className="mb-1.5 text-base font-semibold">First moves still open</h3>
       <ul className="list-disc pl-5">
         {moves.map((m, i) => (
           <li key={i}>{m}</li>

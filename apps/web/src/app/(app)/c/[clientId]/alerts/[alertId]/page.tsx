@@ -11,6 +11,7 @@ import { PrevNext } from '@/components/prev-next';
 import { AlertView } from '@/components/views/alert-view';
 import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
+import { evidenceRefsFor } from '@/server/evidence-refs';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { formatDate } from '@/lib/format';
@@ -45,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ clientId:
 export default async function AlertPage({ params }: { params: Promise<{ clientId: string; alertId: string }> }) {
   const { clientId, alertId } = await params;
   const { ctx, alert, profile, list } = await loadAlert(clientId, alertId);
-  const guides = await helpGuides(ctx, 'client', clientId);
+  const [guides, refs] = await Promise.all([helpGuides(ctx, 'client', clientId), evidenceRefsFor(ctx, clientId, alert.evidenceIds, profile.timezone)]);
   const agency = isAgencyRole(ctx.role);
   const { previous, next } = neighbours(list?.items ?? null, alert.id, (id) => `/c/${clientId}/alerts/${id}`);
   const date = formatDate(alert.deliveredAt ?? alert.createdAt, { tz: profile.timezone });
@@ -76,7 +77,7 @@ export default async function AlertPage({ params }: { params: Promise<{ clientId
           </span>
         )}
       </div>
-      <AlertView alert={alert} agency={agency} timezone={profile.timezone} titled={false} />
+      <AlertView alert={alert} agency={agency} timezone={profile.timezone} titled={false} refs={refs} />
       <PrevNext previous={previous} next={next} />
     </>
   );
