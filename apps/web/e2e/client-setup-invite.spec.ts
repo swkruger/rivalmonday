@@ -139,7 +139,10 @@ test.describe.serial('client setup: invite and billing', () => {
       // Back on the Overview, the card is gone; the welcome line goes when dismissed.
       await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}$`));
       await expect(ownerPage.getByText(`${SI_AGENCY} asked you to choose who to watch`)).toHaveCount(0);
+      // Dismiss hides the line at once and sets the cookie in a server action; wait for it, or the reload aborts the POST.
+      const dismissed = ownerPage.waitForResponse((r) => r.request().method() === 'POST' && r.request().headers()['next-action'] !== undefined);
       await ownerPage.getByRole('button', { name: 'Dismiss' }).click();
+      await dismissed;
       await ownerPage.reload();
       await expect(ownerPage.getByText('set this up for you.')).toHaveCount(0);
       // The pick window is closed: the competitors page is a 404 now.

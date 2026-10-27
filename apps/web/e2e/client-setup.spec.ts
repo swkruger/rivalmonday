@@ -110,7 +110,8 @@ test.describe('agency staff', () => {
     // Step 5: pre-filled from step 1; no Skip while the owner is asked to pick (P12).
     await expect(page.getByRole('heading', { name: 'Invite the owner', level: 1 })).toBeVisible();
     await expect(page.getByText('Send Gina an invite')).toBeVisible();
-    await expect(page.getByText('gina@granburypark.example')).toBeVisible();
+    // The address shows twice (the prefilled contact and the invite preview's "To:" line); check the contact row.
+    await expect(page.getByText('gina@granburypark.example · from client details')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Skip for now' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Send invite' }).click();
 
