@@ -199,7 +199,7 @@ export function EventViewer({
         </>
       ) : (
         <>
-          <nav aria-label="Evidence views" className={cn(segmentedTrackClass, 'max-w-full self-start overflow-x-auto')}>
+          <nav aria-label="Evidence views" className={cn(segmentedTrackClass, 'max-w-full flex-wrap self-start')}>
             {tabs.map((t) => (
               <Link key={t.id} href={changesHref(clientId, { ...params, tab: t.id })} aria-current={t.id === tab ? 'page' : undefined} className={segmentedItemClass}>
                 {t.label}
