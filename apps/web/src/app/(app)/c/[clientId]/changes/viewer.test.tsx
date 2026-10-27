@@ -59,3 +59,19 @@ describe('EventViewer tabs', () => {
     expect(screen.getByRole('link', { name: 'Side by side' }).getAttribute('aria-current')).toBe('page');
   });
 });
+
+describe('EventViewer containers', () => {
+  it('Evidence views is a navigation of links, current one marked', () => {
+    view(mk('web', side), 'details');
+    const nav = screen.getByRole('navigation', { name: 'Evidence views' });
+    expect(nav.querySelectorAll('a').length).toBe(4);
+    expect(screen.getByRole('link', { name: 'Capture details' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('score breakdown sits in a band and the viewer has no card', () => {
+    const { container } = view(mk('web', side), 'text');
+    const band = container.querySelector('[data-slot=band]')!;
+    expect(band.textContent).toContain('Why this scored 50');
+    expect(container.querySelector('[data-slot=card]')).toBeNull();
+  });
+});

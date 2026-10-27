@@ -5,7 +5,7 @@
  */
 import type { CaptureCompareView, CompareView, EventDetail, SnapshotSide } from '@cs/tools';
 import { humanise } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip, TabsLink, TabsLinkList } from '@cs/ui';
+import { Band, cn, segmentedItemClass, segmentedTrackClass, StatusChip, Tag } from '@cs/ui';
 import Link from 'next/link';
 import { EvidenceImage } from '@/components/evidence-image';
 import { WholePageDiff } from '@/components/whole-page-diff';
@@ -31,12 +31,12 @@ function FactorBar({ label, value, sub }: { label: string; value: number; sub?: 
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-ink">{label}</span>
-        <span className="tabular-nums text-muted-foreground">{value.toFixed(2)}</span>
+        <span className="tabular-nums text-muted-ink">{value.toFixed(2)}</span>
       </div>
       <div className="h-[6px] w-full overflow-hidden rounded-full bg-muted-surface-2">
         <div role="img" aria-label={`${label} ${value.toFixed(2)}`} className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
       </div>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+      {sub && <p className="text-xs text-muted-ink">{sub}</p>}
     </div>
   );
 }
@@ -50,14 +50,14 @@ function Snapshot({ clientId, label, side, pageUrl, timezone }: { clientId: stri
       </h3>
       <div className="max-h-[560px] overflow-auto rounded-md border border-line">
         {!side ? (
-          <p className="p-4 text-sm text-muted-foreground">No capture recorded for this side.</p>
+          <p className="p-4 text-sm text-muted-ink">No capture recorded for this side.</p>
         ) : side.screenshot === null ? (
-          <p className="p-4 text-sm text-muted-foreground">No snapshot was stored for this capture.</p>
+          <p className="p-4 text-sm text-muted-ink">No snapshot was stored for this capture.</p>
         ) : (
           <>
             <EvidenceImage src={`/files/evidence/${clientId}/${side.screenshot.evidenceId}`} alt={`${label} snapshot of ${pageUrl ?? ''}`} loading="lazy" className="w-full" />
             {side.screenshot.fallback && (
-              <p className="border-t border-line p-2 text-xs text-muted-foreground">
+              <p className="border-t border-line p-2 text-xs text-muted-ink">
                 Page unchanged at this capture — showing the snapshot from {formatDate(side.screenshot.capturedAt, { tz: timezone })}
               </p>
             )}
@@ -75,11 +75,11 @@ function CaptureDetails({ clientId, label, side, timezone }: { clientId: string;
       <h3 className="text-sm font-semibold text-ink">{label}</h3>
       <dl className="flex flex-col gap-3">
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">Captured</dt>
+          <dt className="text-xs font-medium text-muted-ink">Captured</dt>
           <dd>{side ? formatDateTime(side.capturedAt, { tz: timezone, zoneLabel: true }) : '—'}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">Status</dt>
+          <dt className="text-xs font-medium text-muted-ink">Status</dt>
           <dd>
             {side ? (
               <StatusChip tone={labelFor(CAPTURE_STATUS, side.status).tone}>{labelFor(CAPTURE_STATUS, side.status).label}</StatusChip>
@@ -89,7 +89,7 @@ function CaptureDetails({ clientId, label, side, timezone }: { clientId: string;
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-muted-foreground">SHA-256</dt>
+          <dt className="text-xs font-medium text-muted-ink">SHA-256</dt>
           <dd className="font-mono break-all">{side?.hash ?? '—'}</dd>
         </div>
       </dl>
@@ -105,21 +105,21 @@ function CaptureDetails({ clientId, label, side, timezone }: { clientId: string;
 function ScorePanel({ detail }: { detail: EventDetail }) {
   const f = detail.factors;
   return (
-    <Card>
-      <CardHeader className="flex items-center gap-1.5">
-        <CardTitle>Why this scored {detail.score}</CardTitle>
+    <Band className="flex flex-col gap-4">
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-ink">Why this scored {detail.score}</h3>
         <HelpTip tip="client.changes.score" />
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      </div>
+      <div className="flex flex-col gap-4">
         <FactorBar label="Type" value={f.typeWeight} />
         <FactorBar label="Size" value={f.size} />
         <FactorBar label="Relevance" value={f.relevance} sub={`service ${f.serviceOverlap.toFixed(2)} × area ${f.territoryOverlap.toFixed(2)}`} />
         <FactorBar label="Novelty" value={f.novelty} />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-ink">
           Alerts from {f.thresholds.alert}, weekly brief from {f.thresholds.brief}.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </Band>
   );
 }
 
@@ -153,13 +153,13 @@ export function EventViewer({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold text-ink">{detail.summary}</h2>
+              <h2 className="text-base font-semibold text-ink">{detail.summary}</h2>
               {activeChange && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-ink">
                   {activeChange.pageUrl ?? activeChange.channelLabel}
                   {hasCaptures
                     ? ` · changed between ${formatDate(compare!.before!.capturedAt, { tz: timezone })} and ${formatDate(compare!.after!.capturedAt, { tz: timezone })}`
@@ -169,13 +169,13 @@ export function EventViewer({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className={`text-lg font-semibold ${detail.route === 'archive' ? 'text-muted-foreground' : 'text-secondary'}`}>{detail.score}</span>
+              <span className={`text-lg font-semibold ${detail.route === 'archive' ? 'text-muted-ink' : 'text-secondary'}`}>{detail.score}</span>
               <RoutePill route={detail.route} score={detail.score} />
             </div>
           </div>
 
           {detail.changes.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+            <div className={cn(segmentedTrackClass, 'flex-wrap self-start')}>
               {detail.changes.map((c, i) => {
                 const active = c.changeId === activeChange?.changeId;
                 return (
@@ -183,11 +183,7 @@ export function EventViewer({
                     key={c.changeId}
                     href={changesHref(clientId, { ...params, change: c.changeId })}
                     aria-current={active ? 'true' : undefined}
-                    className={
-                      active
-                        ? 'rounded-md bg-primary-soft px-3 py-1.5 text-sm font-semibold text-primary-soft-text'
-                        : 'rounded-md bg-muted-surface px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-ink'
-                    }
+                    className={segmentedItemClass}
                   >
                     Evidence {i + 1} · {c.channelLabel}
                   </Link>
@@ -195,35 +191,35 @@ export function EventViewer({
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {!compare ? (
         <>
           <ScorePanel detail={detail} />
-          <p className="text-muted-foreground">The evidence for this change was withdrawn.</p>
+          <p className="text-muted-ink">The evidence for this change was withdrawn.</p>
         </>
       ) : (
         <>
-          <TabsLinkList aria-label="Evidence views" className="max-w-full self-start overflow-x-auto">
+          <nav aria-label="Evidence views" className={cn(segmentedTrackClass, 'max-w-full self-start overflow-x-auto')}>
             {tabs.map((t) => (
-              <TabsLink key={t.id} asChild active={t.id === tab} className="flex-none px-3">
-                <Link href={changesHref(clientId, { ...params, tab: t.id })}>{t.label}</Link>
-              </TabsLink>
+              <Link key={t.id} href={changesHref(clientId, { ...params, tab: t.id })} aria-current={t.id === tab ? 'page' : undefined} className={segmentedItemClass}>
+                {t.label}
+              </Link>
             ))}
-          </TabsLinkList>
+          </nav>
 
-          <Card>
-            <CardContent>
+          <div>
+            <div>
               {tab === 'side' &&
                 (compare.before === null && compare.after === null ? (
                   <div className="flex flex-col gap-3">
-                    <p className="text-sm text-muted-foreground">This change comes from {compare.channelLabel}; there is no page snapshot.</p>
+                    <p className="text-sm text-muted-ink">This change comes from {compare.channelLabel}; there is no page snapshot.</p>
                     {compare.details.length > 0 && (
                       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                         {compare.details.map((d) => (
                           <div key={d.label}>
-                            <dt className="text-xs font-medium text-muted-foreground">{d.label}</dt>
+                            <dt className="text-xs font-medium text-muted-ink">{d.label}</dt>
                             <dd>{d.value}</dd>
                           </div>
                         ))}
@@ -266,8 +262,8 @@ export function EventViewer({
                   <CaptureDetails clientId={clientId} label="After" side={compare.after} timezone={timezone} />
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <ScorePanel detail={detail} />
 
@@ -279,7 +275,7 @@ export function EventViewer({
                   <Link
                     key={m.id}
                     href={`/c/${clientId}/moves?status=all&move=${m.id}`}
-                    className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-ink"
+                    className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-ink hover:text-ink"
                   >
                     {m.label} · {labelFor(MOVE_STATUS, m.status).label}
                   </Link>

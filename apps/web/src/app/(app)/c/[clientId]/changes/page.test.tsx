@@ -59,3 +59,12 @@ describe('ChangesPage ListDetail', () => {
     expect(href).not.toMatch(/event=|change=|tab=/);
   });
 });
+
+describe('ChangesPage list container', () => {
+  beforeEach(() => { callTool.mockReset(); listDetail.mockReset(); mount(); });
+  it('the list is not wrapped in a card', async () => {
+    const p = await go();
+    const { container } = render(<>{p.list as React.ReactNode}</>);
+    expect(container.querySelector('[data-slot=card]')).toBeNull();
+  });
+});

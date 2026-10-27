@@ -1,6 +1,5 @@
 import { hasFeature, hasPermission } from '@cs/core';
 import { type CaptureCompareView, changeTypeOptions, type ClientProfile, type CompareView, type EventDetail, type EventRow, type TrackedCompetitor } from '@cs/tools';
-import { Card, CardContent } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -26,9 +25,7 @@ const COPY = PAGE_COPY['client.changes'];
 
 function EmptyViewer({ message }: { message: string }) {
   return (
-    <Card>
-      <CardContent className="py-10 text-center text-muted-foreground">{message}</CardContent>
-    </Card>
+    <p className="py-10 text-center text-muted-ink">{message}</p>
   );
 }
 
@@ -118,8 +115,7 @@ export default async function ChangesPage({
         listLabel="Changes"
         detailTitle="Change details"
         list={
-        <Card>
-          <CardContent className="p-0">
+        <div>
             {rows.length === 0 ? (
               <div className="p-4">
                 <EmptyState
@@ -145,8 +141,7 @@ export default async function ChangesPage({
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+        </div>
         }
         detail={
           <div>
