@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, contact } from '@cs/db';
+import { client, clientSetup, contact } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -86,5 +86,58 @@ describe('client details tools', () => {
     await expect(registry.invoke(admin, 'upload_client_logo', { ...logoIn, png: Buffer.from(junk).toString('base64'), sha256: createHash('sha256').update(junk).digest('hex') })).rejects.toMatchObject({ code: 'invalid_input' });
     await expect(registry.invoke(admin, 'upload_client_logo', { ...logoIn, sha256: 'ab'.repeat(32) })).rejects.toMatchObject({ code: 'invalid_input' });
     expect(objects.size).toBe(0);
+  });
+
+  describe('locality (the setup asks for City or ZIP when the client has no location)', () => {
+    const calls: unknown[] = [];
+    let hit: { lat: number; lng: number } | null = { lat: 33.75, lng: -84.39 };
+    let fail = false;
+    const geocoding = createToolRegistry({
+      app: dbs.app, service: dbs.service, evidenceStore, appUrl: APP,
+      geocode: async (q, scope) => { calls.push({ q, scope }); if (fail) throw new Error('boom'); return hit && { ...hit, label: 'Atlanta', precision: 'locality' as const }; },
+    }, { audit: { record: async () => {} } });
+    const noCentre = async () => {
+      await dbs.owner.update(client).set({ serviceArea: null }).where(eq(client.id, IDS.clientA1));
+      await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, suggestions: { status: 'none' } }).onConflictDoNothing();
+    };
+    beforeEach(() => { calls.length = 0; hit = { lat: 33.75, lng: -84.39 }; fail = false; });
+
+    it('update_client_details geocodes the locality into the service area of a client with no location', async () => {
+      await noCentre();
+      await geocoding.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, locality: 'Atlanta, GA' });
+      expect(calls).toEqual([{ q: { text: 'Atlanta, GA' }, scope: { agencyId: IDS.agencyA, clientId: IDS.clientA1 } }]);
+      const [row] = await dbs.owner.select({ serviceArea: client.serviceArea }).from(client).where(eq(client.id, IDS.clientA1));
+      expect(row!.serviceArea).toEqual({ center: { lat: 33.75, lng: -84.39 }, radiusKm: 16.1, zips: [] });
+      const [setup] = await dbs.owner.select({ source: clientSetup.locationSource }).from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1));
+      expect(setup!.source).toBe('geocoded');
+    });
+
+    it('keeps an existing centre and its radius', async () => {
+      const area = { center: { lat: 1, lng: 2 }, radiusKm: 25, zips: ['30303'] };
+      await dbs.owner.update(client).set({ serviceArea: area }).where(eq(client.id, IDS.clientA1));
+      await geocoding.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, locality: 'Atlanta, GA' });
+      const [row] = await dbs.owner.select({ serviceArea: client.serviceArea }).from(client).where(eq(client.id, IDS.clientA1));
+      expect(row!.serviceArea).toEqual(area);
+    });
+
+    it('a miss and an outage are messages for the person typing, and change nothing', async () => {
+      await noCentre();
+      hit = null;
+      await expect(geocoding.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, locality: 'Nowhere' })).rejects.toMatchObject({ code: 'invalid_input', message: 'We couldn’t find that place. Check the City or ZIP.' });
+      fail = true;
+      await expect(geocoding.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, locality: 'Atlanta' })).rejects.toMatchObject({ code: 'invalid_input' });
+      const [row] = await dbs.owner.select({ serviceArea: client.serviceArea }).from(client).where(eq(client.id, IDS.clientA1));
+      expect(row!.serviceArea).toBeNull();
+      // No geocoder configured at all.
+      await expect(registry.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, locality: 'Atlanta' })).rejects.toMatchObject({ code: 'invalid_input' });
+    });
+
+    it('another agency or a client role cannot use it', async () => {
+      await noCentre();
+      for (const who of [owner, viewer, ctx('agency_admin', 'all', IDS.agencyB)]) {
+        await expect(geocoding.invoke(who, 'update_client_details', { clientId: IDS.clientA1, locality: 'Atlanta' })).rejects.toMatchObject({ code: 'not_found' });
+      }
+      expect(calls).toEqual([]);
+    });
   });
 });

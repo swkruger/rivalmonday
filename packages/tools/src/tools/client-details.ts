@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { upsertContact } from '../access/client-invite';
 import { ownerContact } from '../setup/owner-contact';
 import type { ToolDeps } from '../deps';
-import { ClientAddressIn, ClientPhoneIn } from './onboarding';
+import { ClientAddressIn, ClientPhoneIn, GEOCODED_RADIUS_KM } from './onboarding';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -47,17 +47,39 @@ export const updateClientDetails = defineTool({
   input: z.object({
     clientId: uuid, name: z.string().trim().min(1).max(200).optional(), phone: ClientPhoneIn.optional(), address: ClientAddressIn.nullable().optional(),
     contactName: z.string().trim().min(1).max(120).optional(), contactEmail: z.string().trim().max(254).email('Enter a valid email address').optional(),
+    /** The setup's "City or ZIP" for a client that has no location yet (`needsLocation`): geocoded and stored as the service-area centre. A client that already has a centre keeps it. */
+    locality: z.string().trim().min(1).max(120).optional(),
   }),
   output: OK,
   permission: 'agency',
-  async handler(ctx, { clientId, contactName, contactEmail, ...patch }, deps) {
+  async handler(ctx, { clientId, contactName, contactEmail, locality, ...patch }, deps) {
     await requireClientFor(deps.service, ctx, clientId);
+    // The vendor call happens before the transaction; a miss or an outage is a message to the person typing, not a stored change.
+    let geo: { lat: number; lng: number } | null = null;
+    if (locality !== undefined) {
+      if (!deps.geocode) throw new ToolError('invalid_input', 'Looking up a place isn’t available right now.', { userFacing: true });
+      try {
+        geo = await deps.geocode({ text: locality }, { agencyId: ctx.agencyId, clientId });
+      } catch (err) {
+        console.warn(`[update_client_details] geocode failed (${err instanceof Error ? err.name : 'error'})`);
+        throw new ToolError('invalid_input', 'We couldn’t look up that place right now. Try again in a moment.', { userFacing: true });
+      }
+      if (!geo) throw new ToolError('invalid_input', 'We couldn’t find that place. Check the City or ZIP.', { userFacing: true });
+    }
     const set = {
       ...(patch.name !== undefined ? { name: patch.name } : {}), ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.address !== undefined ? { address: patch.address } : {}),
     };
     await deps.service.transaction(async (tx) => {
       if (Object.keys(set).length > 0) await tx.update(client).set(set).where(eq(client.id, clientId));
+      if (geo) {
+        const [c] = await tx.select({ serviceArea: client.serviceArea }).from(client).where(eq(client.id, clientId)).for('update');
+        if (c && !c.serviceArea?.center) {
+          const area = c.serviceArea;
+          await tx.update(client).set({ serviceArea: { center: { lat: geo.lat, lng: geo.lng }, radiusKm: area?.radiusKm ?? GEOCODED_RADIUS_KM, zips: area?.zips ?? [], ...(area?.towns ? { towns: area.towns } : {}) } }).where(eq(client.id, clientId));
+          await tx.update(clientSetup).set({ locationSource: 'geocoded' }).where(eq(clientSetup.clientId, clientId));
+        }
+      }
       if (contactName === undefined && contactEmail === undefined) return;
       const owner = await ownerContact(tx, ctx.agencyId, clientId);
       const email = contactEmail?.toLowerCase();
