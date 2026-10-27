@@ -142,6 +142,7 @@ export function FeedList({
                   <Link
                     href={changesHref(clientId, { ...params, event: row.eventId, change: undefined, tab: 'side' })}
                     data-row-id={row.eventId}
+                    data-selected={selected ? 'true' : undefined}
                     aria-current={current ? 'true' : undefined}
                     className={
                       selected
@@ -150,7 +151,7 @@ export function FeedList({
                     }
                   >
                     <div className="min-w-0">
-                      <h4 className="truncate font-semibold text-ink">
+                      <h4 className={cn('truncate text-ink', selected ? 'font-semibold' : 'font-medium')}>
                         {row.competitorName} · {row.summary}
                       </h4>
                       <p className="mt-0.5 truncate text-xs text-muted-ink">

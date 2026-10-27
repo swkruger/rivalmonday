@@ -5,7 +5,7 @@
  */
 import type { CaptureCompareView, CompareView, EventDetail, SnapshotSide } from '@cs/tools';
 import { humanise } from '@cs/tools';
-import { Band, cn, segmentedItemClass, segmentedTrackClass, StatusChip, Tag } from '@cs/ui';
+import { Band, cn, segmentedItemClass, segmentedTrackClass, StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { EvidenceImage } from '@/components/evidence-image';
 import { WholePageDiff } from '@/components/whole-page-diff';
@@ -154,7 +154,6 @@ export function EventViewer({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-base font-semibold text-ink">{detail.summary}</h2>
@@ -191,7 +190,6 @@ export function EventViewer({
               })}
             </div>
           )}
-        </div>
       </div>
 
       {!compare ? (
@@ -210,7 +208,6 @@ export function EventViewer({
           </nav>
 
           <div>
-            <div>
               {tab === 'side' &&
                 (compare.before === null && compare.after === null ? (
                   <div className="flex flex-col gap-3">
@@ -262,7 +259,6 @@ export function EventViewer({
                   <CaptureDetails clientId={clientId} label="After" side={compare.after} timezone={timezone} />
                 </div>
               )}
-            </div>
           </div>
 
           <ScorePanel detail={detail} />
@@ -275,7 +271,8 @@ export function EventViewer({
                   <Link
                     key={m.id}
                     href={`/c/${clientId}/moves?status=all&move=${m.id}`}
-                    className="rounded-md bg-muted-surface-2 px-2 py-1 text-xs font-medium text-muted-ink hover:text-ink"
+                    data-slot="tag"
+                    className="inline-flex h-5 items-center rounded-xs bg-muted-surface px-1.5 text-xs text-ink-secondary outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     {m.label} · {labelFor(MOVE_STATUS, m.status).label}
                   </Link>

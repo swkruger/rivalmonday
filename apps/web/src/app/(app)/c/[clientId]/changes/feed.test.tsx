@@ -75,6 +75,12 @@ describe('FilterBar', () => {
 });
 
 describe('FeedList rows', () => {
+  it('selected row carries data-selected', () => {
+    list(null);
+    expect(document.querySelector('a[data-row-id=e1]')!.getAttribute('data-selected')).toBe('true');
+    expect(document.querySelector('a[data-row-id=e2]')!.getAttribute('data-selected')).toBeNull();
+  });
+
   it('rows carry data-row-id', () => {
     list(null);
     expect(Array.from(document.querySelectorAll('a[data-row-id]')).map((a) => a.getAttribute('data-row-id'))).toEqual(['e1', 'e2']);
