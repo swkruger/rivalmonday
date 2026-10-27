@@ -106,40 +106,40 @@ export const ACCOUNT_COPY = {
     },
   },
   'account.onboarding': {
-    // source: apps/web/src/app/(app)/onboarding/flow.ts:STEPS (profile, team, plan, branding), nextPath, step-nav.tsx (Skip for now); page.tsx (redirect to /agency once completed or dismissed)
-    description: 'Four short steps to get your agency ready: profile, team, plan and branding. You can skip any step and finish it later.',
+    // source: apps/web/src/app/(onboarding)/onboarding/flow.ts:STEPS (profile, team, branding, done), steps/*.tsx; page.tsx (redirect to /agency once completed or dismissed)
+    description: 'Four short steps to get your agency ready: about your agency, your team, your brand, and a final check before you add your first client.',
     tips: {
-      // source: apps/web/src/app/(app)/onboarding/step-nav.tsx; stepper.tsx (Done / Skipped labels); apps/web/src/components/agency/onboarding-checklist.tsx (open and skipped steps stay as links on the Getting started card; Dismiss hides it)
+      // source: apps/web/src/app/(onboarding)/onboarding/steps/team.tsx, brand.tsx (Skip for now); actions.ts:skipStepAction; apps/web/src/components/agency/onboarding-checklist.tsx (a skipped step stays on the Getting started card; Dismiss hides it)
       skip: {
         title: 'Skipping a step',
-        body: 'Skip for now moves you on and marks the step Skipped. Back returns to the previous step. A step you skip stays on the Getting started card on your Portfolio, where it links back here, until you finish it or dismiss the card.',
+        body: 'You can skip the team and brand steps with Skip for now. Back returns to the previous step. A step you skip stays on the Getting started card on your Portfolio, where it links to its Settings page, until you finish it or dismiss the card.',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/app/(app)/onboarding/steps/profile.tsx (copy: agency name, a contact name, contact email and phone are needed to save; the rest is optional)
-      profile: {
+      // source: apps/web/src/app/(onboarding)/onboarding/steps/about.tsx (required: agency name, contact name, phone, email; address optional; Use this for billing too)
+      about: {
         title: 'About this step',
-        body: 'To save this step we need your agency name, a contact name, a contact email and a phone number. Everything else is optional. We use it to set up your account and invoices.',
+        body: 'We need your agency name, a contact name, a phone number and an email address. The address is optional. The preview shows how you appear at the bottom of every client brief.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/app/(app)/onboarding/steps/team.tsx (roles Agency admin and Account manager; Continue without inviting anyone? confirmation); actions.ts:inviteTeamAction
+      // source: apps/web/src/app/(onboarding)/onboarding/steps/team.tsx (roles Agency admin and Account manager); actions.ts:inviteTeamAction
       team: {
         title: 'About this step',
-        body: 'Add an email and a role for each person: Agency admin or Account manager. Each person gets an invitation by email. Leave the list empty and you are asked to confirm before moving on. You can invite more people later from Team.',
+        body: 'Add an email and a role for each person: Agency admin or Account manager. Each person gets an invitation by email. You can skip this step and invite people later from Team.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/app/(app)/onboarding/steps/plan.tsx (plan state, end date, clients included, Add payment method, trial note); actions.ts:startCheckoutAction, continuePlanAction
-      plan: {
+      // source: apps/web/src/app/(onboarding)/onboarding/steps/brand.tsx (logo, brand colour, display name; live preview)
+      brand: {
         title: 'About this step',
-        body: 'Shows your plan, when a pilot or trial ends and how many clients it includes. Add payment method opens a secure payment page and brings you back here; if your trial has limits, the note on this step says what they are. Save and continue marks the step done and moves you on.',
+        body: 'Set the logo, colour and name your clients see, with a live preview. All three are optional, and you can change them later in Agency settings.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },
-      // source: apps/web/src/app/(app)/onboarding/steps/branding.tsx (BrandingEditor, Save and continue)
-      branding: {
+      // source: apps/web/src/app/(onboarding)/onboarding/steps/done.tsx (summary rows with Edit; Add your first client, Go to dashboard); actions.ts:finishAction
+      done: {
         title: 'About this step',
-        body: 'Set the name, logo and colours your clients see, with a live preview. You can change all of it later in Agency settings.',
+        body: 'Check your details, and use Edit to change any of them. Add your first client takes you to the client setup. Go to dashboard leaves that for later; the Getting started card on your Portfolio reminds you.',
         audience: 'agency',
         guideAnchor: 'how-to-use-it',
       },

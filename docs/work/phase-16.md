@@ -35,7 +35,18 @@ Plan corrected in place. Main changes: migration 0095; `(onboarding)` layout re-
 - Unscheduled → no-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider "Link Google listing" prompt.
 
 ## Owner verification steps
-16-onboarding: plan Task 11 list (written into this file when built). Other sub-phases TBD.
+16-onboarding:
+1. Incognito sign-up, then the 4 steps, then "Add your first client". Re-open step 1 via Edit: the Settings fields are intact.
+2. Add a client with a listing: 7 screens, previews update live.
+3. Add a client without a listing (real address): the search runs; the client's own business is not suggested.
+4. "Ask the owner to pick": staff see All set + "Waiting on ..."; the owner signs in and lands on Overview with the card; they pick; the starting point follows.
+5. `/start/<slug>`: 3 steps in agency branding.
+6. Phone width 390 px: no preview panel, the column is readable.
+7. Sign the copy doc: `docs/archive/phase-16-onboarding-copy-signoff.md`.
+8. Confirm the Stadia geocoding price (assumed $0.001 per request).
+9. Add `STADIA_API_KEY` to the Vercel web env at deploy (geocoding for clients without a listing).
+
+Other sub-phases TBD.
 
 ## Brief
 ### 1. Scope (no roadmap row)

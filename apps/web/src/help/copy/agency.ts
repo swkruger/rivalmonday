@@ -48,20 +48,27 @@ export const AGENCY_COPY = {
     },
   },
   'agency.clients.new': {
-    description: 'Search for the business on Google Maps and create the client from its listing. A short setup follows, where you pick the competitors to monitor.',
+    // source: apps/web/src/app/(onboarding)/agency/clients/new/new-client-flow.tsx, details-step.tsx, find-step.tsx; (onboarding)/c/[clientId]/setup/setup-wizard.tsx (screens 3-7)
+    description: 'Seven short screens to add a client: who they are, their Google listing, what they do and where, their competitors, the owner invite, billing and a final check.',
     tips: {
-      // source: apps/web/src/app/(app)/c/[clientId]/setup/page.tsx:STEP_LABEL (profile, search, competitors, invite, billing); packages/tools/src/tools/setup.ts (a prospect has no billing step)
+      // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/wizard-steps.ts:STEPS, wizardSteps (billing only for agency admins and clients); setup-exit.tsx (Save and exit)
       steps: {
         title: 'What happens next',
-        body: 'Creating the client opens its setup. The steps are Your business, Finding competitors, Pick competitors, Invite the owner and Billing. The invite and billing steps can be skipped and finished later.',
+        body: 'The screens are: Client details, Find the business, What they do and where, Pick who to watch, Invite the owner, Set up billing and All set. The client is created at the end of the second screen. Save and exit keeps your progress, and the setup reopens where you left off.',
+      },
+      // source: apps/web/src/app/(onboarding)/agency/clients/new/details-step.tsx (required: business name, contact name, phone, email; address optional)
+      details: {
+        title: 'About the first screen',
+        body: 'We need the business name and the owner contact: their name, phone and email. The address is optional. The preview shows the top of the brief they will receive. The contact is suggested later as the person to invite.',
       },
       businessType: {
         title: 'About business types',
         body: "The kind of business, such as HVAC and plumbing or dental. It sets the topics, plays and alert levels the client starts with, and the services you can pick. If none fits, create a new business type from the listing; it is reviewed later and may be merged into an existing one.",
       },
+      // source: apps/web/src/app/(onboarding)/agency/clients/new/find-step.tsx (Can't find it? Continue without a listing); packages/tools/src/tools/onboarding.ts (geocoded location)
       byHand: {
         title: "If the business isn't listed",
-        body: 'Choose "Can\'t find it? Enter details by hand" under the search to fill in the name, business type, time zone and service area yourself. Search first when you can: it fills in the details from the listing.',
+        body: "Choose \"Can't find it? Continue without a listing\". We place the business from the address you entered, or ask for a City or ZIP on the next screen. You can link a Google listing later in Settings.",
       },
     },
   },
@@ -159,21 +166,27 @@ export const AGENCY_COPY = {
     },
   },
   'agency.prospects.new': {
-    description: 'Search for the business, then add its keywords and service area so we can find its competitors.',
+    // source: apps/web/src/app/(onboarding)/agency/prospects/new/page.tsx (same flow as a client, kind=prospect, no billing screen)
+    description: 'Six short screens to add a business you are pitching: who they are, their Google listing, what they do and where, their competitors, the owner invite and a final check.',
     tips: {
       // source: packages/tools/src/tools/prospects.ts:convertProspect (status active starts monitoring); docs/gotchas-cross-cutting.md (prospects get no recurring work)
       prospect: {
         title: 'What a prospect is',
         body: 'A business you are pitching. A prospect has no weekly monitoring, alerts or briefs: you pick its competitors and run a one-off snapshot, then convert it to a client when it signs.',
       },
+      // source: apps/web/src/app/(onboarding)/agency/clients/new/details-step.tsx (contact name, phone and email are required for a prospect too)
+      details: {
+        title: 'About the first screen',
+        body: 'A prospect uses the same screens as a client. We need the business name and a contact: their name, phone and email. The contact is suggested later as the person to invite.',
+      },
       businessType: {
         title: 'About business types',
         body: 'The kind of business, such as HVAC and plumbing or dental. It sets which services you can pick and what the competitor search looks for.',
       },
-      // source: apps/web/src/app/(app)/agency/prospects/new/actions.ts (redirects to the setup); packages/tools/src/tools/setup.ts (a prospect has no billing step)
+      // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/steps/done-step.tsx (Close goes to /agency); packages/tools/src/tools/setup.ts (a prospect has no billing step)
       next: {
         title: 'What happens next',
-        body: "After you create the prospect, its setup opens: Your business, Finding competitors, Pick competitors and Invite the owner. A prospect has no billing step. Then run a snapshot from the prospect's page.",
+        body: 'The screens are the same as for a client, without billing: Client details, Find the business, What they do and where, Pick who to watch, Invite the owner and All set. Then open the prospect and run a snapshot.',
       },
     },
   },

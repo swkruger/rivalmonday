@@ -490,21 +490,22 @@ export const CLIENT_COPY = {
     },
   },
   'client.setup': {
-    description: 'Get {client} ready for monitoring: confirm the business, then choose the competitors to watch.',
+    // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/setup-wizard.tsx, wizard-steps.ts:STEPS (staff only; owners use the Overview card and the competitors page)
+    description: 'Get {client} ready for monitoring: confirm what they do and where, choose the competitors to watch, invite the owner and set up billing.',
     tips: {
-      // source: apps/web/src/app/(app)/c/[clientId]/setup/wizard-steps.ts:STEPS, stepsFor (staff see 5 steps for a client, 4 for a prospect); setup-wizard.tsx (Dismiss setup; the stepper opens the first step not done); setup/page.tsx (closed setup stays editable in settings)
+      // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/wizard-steps.ts:STEPS, wizardSteps (billing for agency admins and clients only); setup-exit.tsx (Save and exit, Dismiss setup); setup/page.tsx (closed setup stays editable in settings)
       stepsAgency: {
-        title: 'About the setup steps',
-        body: 'A client has five steps: Your business, Finding competitors, Pick competitors, Invite the owner and Billing. A prospect has the first four. You can skip a step and come back, and setup reopens at the first step that is not done. Dismiss setup hides it; everything stays editable under Client settings and on the Competitors page.',
+        title: 'About the setup screens',
+        body: 'The first two screens, client details and finding the business, are on the Add a client page. Then: What they do and where, Pick who to watch, Invite the owner, Set up billing (clients only) and All set. Prospects skip billing. Save and exit keeps your progress and the setup reopens where you left off. Dismiss setup hides it; everything stays editable under Client settings and on the Competitors page.',
         audience: 'agency',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: apps/web/src/app/(app)/c/[clientId]/setup/wizard-steps.ts:stepsFor (client roles see the first 3 steps; currentStep = first step not done)
-      stepsClient: {
-        title: 'About the setup steps',
-        body: 'Setup has three steps: Your business, Finding competitors and Pick competitors. Confirm the details, wait while we look for competitors, then choose the ones to watch. You can leave and come back; setup reopens at the first step that is not done.',
-        audience: 'client',
-        guideAnchor: 'what-this-page-tells-you',
+      // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/steps/competitors-step.tsx (Ask the owner to pick); packages/tools/src/tools/setup.ts:ask_owner
+      askOwner: {
+        title: 'Ask the owner to pick',
+        body: 'Instead of choosing, you can ask the owner to pick the competitors. You still invite them, because the invite is what emails them. The pick appears on their Overview. The starting-point brief waits for their choice, for at most 14 days.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
       },
       // source: packages/engine/src/briefs/setup-clock.ts:startingPointClockStart, SETUP_HOLD_DAYS (14); packages/engine/src/briefs/readiness.ts:startingPointReadiness, STARTING_POINT_WAIT_HOURS (48)
       firstBrief: {
@@ -512,17 +513,19 @@ export const CLIENT_COPY = {
         body: 'The first brief, the starting point, shows where {client} stands next to its competitors. Its 48-hour wait starts when the competitors step is done (or setup is dismissed). It is made as soon as the business profile, reviews, first map scan and competitors are ready, or when those 48 hours are up. If setup never reaches the competitors step, the brief is held for at most 14 days after the client was added.',
         guideAnchor: 'common-questions',
       },
-      // source: packages/tools/src/client-input.ts (service area, keywords); packages/engine/src/briefs/readiness.ts:startingPointReadiness (rankings need keywords and a service area); apps/web/src/app/(app)/c/[clientId]/setup/steps/business-step.tsx (Advanced: map centre, Google listing)
+      // source: packages/tools/src/client-input.ts (service area, keywords); packages/engine/src/briefs/readiness.ts:startingPointReadiness (rankings need keywords and a service area); (onboarding)/c/[clientId]/setup/steps/area-step.tsx (keywords, search radius, City or ZIP)
       serviceArea: {
-        title: 'Service area',
-        body: 'Where {client} serves: a radius around a centre point, plus ZIP codes and towns if you list them. Competitor suggestions and local-ranking scans both use it. The centre point and the Google listing sit under Advanced; they are filled in from the lookup, so you will rarely need to touch them.',
+        title: 'Keywords and search area',
+        body: 'Up to 5 keywords, the searches customers use, and a search radius around the business. Competitor suggestions and local-ranking scans both use them. If the business has no Google listing, we place it from its address or from the City or ZIP you enter.',
         guideAnchor: 'how-to-use-it',
       },
     },
   },
-  // 16 §7 (Task 9): the owner's own pick screen; the staff wizard keeps `client.setup`. Tips and the guide text are Task 11.
+  // 16 §7: the owner's own pick screen, reached from the card on their Overview; the staff wizard keeps `client.setup`.
   'client.setup.competitors': {
+    // source: apps/web/src/app/(onboarding)/c/[clientId]/setup/competitors/owner-competitors.tsx (Choose who to watch, up to 5, Confirm, Back to Overview)
     description: 'Choose which nearby businesses {agency} should compare {client} with each week.',
+    // No tips: the page shows none (OnboardingShell has no tip row), and a `client.setup.competitors.*` tip would match the agency-only `client.setup.` prefix in payload.test.ts. The guide carries the detail.
     tips: {},
   },
   'client.settings.profile': {

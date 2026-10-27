@@ -29,9 +29,10 @@ const BATCH_B = [...BATCH_B_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`])
  * 15b-2 Task 6, client batch C. Delivery and Runbook are agency-only (a client role gets a 404): agency guide only.
  * Billing is client-owner-only (an agency role gets a 404): client guide only.
  */
-const BATCH_C_SPLIT = ['page:client.setup', 'page:client.settings.profile', 'page:client.settings.alerts', 'page:client.settings.ai', 'page:client.settings.usage'];
-const BATCH_C_AGENCY_ONLY = ['page:client.settings.delivery', 'page:client.settings.runbook'];
-const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing'];
+const BATCH_C_SPLIT = ['page:client.settings.profile', 'page:client.settings.alerts', 'page:client.settings.ai', 'page:client.settings.usage'];
+/** 16 Task 11: the staff setup flow (`client.setup`) is agency-only; the owner's pick page (`client.setup.competitors`) is client-only (staff get a 404). */
+const BATCH_C_AGENCY_ONLY = ['page:client.settings.delivery', 'page:client.settings.runbook', 'page:client.setup'];
+const BATCH_C_CLIENT_ONLY = ['page:client.settings.billing', 'page:client.setup.competitors'];
 const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...BATCH_C_AGENCY_ONLY.map((k) => `${k}#agency`), ...BATCH_C_CLIENT_ONLY.map((k) => `${k}#client`)];
 /** 15b-2 Task 7, agency batch A: every page is reachable by agency roles only, so each has one `agency` guide and no client version. */
 const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
@@ -236,10 +237,10 @@ describe('help content (real docs/help + GLOSSARY)', () => {
 
   it('batch C: the agency versions carry the agency-only content, the client versions leave it out', async () => {
     const setupA = text(await guide(admin, 'page:client.setup'));
-    for (const w of ['Invite the owner', 'Billing', 'Google Place ID', 'Dismiss setup', '48-hour', '14 days']) expect(setupA, w).toContain(w);
-    const setupC = text(await guide(owner, 'page:client.setup'));
+    for (const w of ['Invite the owner', 'Set up billing', 'Ask the owner to pick', 'Dismiss setup', '48-hour', '14 days']) expect(setupA, w).toContain(w);
+    const setupC = text(await guide(owner, 'page:client.setup.competitors'));
     expect(setupC).not.toMatch(/Invite the owner|Billing|Dismiss setup|place id|prospect/i);
-    for (const w of ['Advanced', '48 hours', '14 days', 'Pick competitors']) expect(setupC, w).toContain(w);
+    for (const w of ['Choose who to watch', 'Back to Overview', 'Confirm', '48 hours', '14 days', 'up to 5']) expect(setupC, w).toContain(w);
     const profA = text(await guide(admin, 'page:client.settings.profile'));
     for (const w of ['Client features', 'Allow review to improve answers', 'Medium pressure', '0 ZIP codes']) expect(profA, w).toContain(w);
     const profC = text(await guide(owner, 'page:client.settings.profile'));
@@ -287,9 +288,9 @@ describe('help content (real docs/help + GLOSSARY)', () => {
   it('agency batch A: the guides carry the numbers and labels the pages use, and never name the product (the assistant is a placeholder, checked by the terminology test)', async () => {
     const agencyGuide = async (key: string) => text((await registry.invoke(admin, 'get_page_guide', { helpKey: key, context: 'agency' })) as Guide);
     const port = await agencyGuide('page:agency.portfolio');
-    for (const w of ['High pressure (70 and above)', 'Medium pressure (40 to 69)', 'Low pressure (1 to 39)', 'Quiet (0)', '80%', '30 days', 'Finish setup']) expect(port, w).toContain(w);
+    for (const w of ['High pressure (70 and above)', 'Medium pressure (40 to 69)', 'Low pressure (1 to 39)', 'Quiet (0)', '80%', '30 days', 'Getting started', 'Waiting on']) expect(port, w).toContain(w);
     const wizard = await agencyGuide('page:agency.clients.new');
-    for (const w of ['Your business', 'Finding competitors', 'Pick competitors', 'Invite the owner', 'Billing']) expect(wizard, w).toContain(w);
+    for (const w of ['Client details', 'Find the business', 'What they do and where', 'Pick who to watch', 'Invite the owner', 'Set up billing', 'All set']) expect(wizard, w).toContain(w);
     expect(wizard).toContain('business type');
     const appr = await agencyGuide('page:agency.approvals');
     for (const w of ['Thursday night', 'Monday 07:00', 'Ready for review', 'Failed — retrying']) expect(appr, w).toContain(w);
@@ -456,7 +457,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const w of ['Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report', '21:00 to 07:00', 'time zone saved for your business', 'invitation']) expect(setC, w).toContain(w);
     expect(setC).not.toMatch(/Client alerts|Rank scan|Central|Chicago|Slack|Teams|Agency settings|account manager/i);
     const wizard = await agencyText(admin, 'page:account.onboarding');
-    for (const w of ['Your agency', 'Invite your team', 'Your plan', 'Make it yours', 'Skip for now', 'Add payment method', 'Getting started', 'Agency admin', 'Account manager', 'Skipped']) expect(wizard, w).toContain(w);
+    for (const w of ['About your agency', 'Your team', 'Make it yours', "You're all set", 'Skip for now', 'Add your first client', 'Getting started', 'Agency admin', 'Account manager', 'Skipped']) expect(wizard, w).toContain(w);
     for (const t of [inboxA, inboxC, setA, setC, wizard]) {
       expect(t).not.toMatch(/rival\s*monday|\btheme/i);
       expect(t).not.toContain('{{');

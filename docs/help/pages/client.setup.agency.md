@@ -5,23 +5,24 @@ title: Setting up a client
 ---
 ## What this page tells you
 
-A step-by-step setup for {{client}}. A client has five steps, shown as pills at the top: **Your business**, **Finding competitors**, **Pick competitors**, **Invite the owner** and **Billing**. A prospect has the first four. The page header says which step you are on.
+The setup for {{client}} is a guided flow with a live preview on the right. The first two screens, client details and finding the business, are on the Add a client page. This page continues from there:
 
-- **Your business** holds the services, search keywords and service area. We pre-tick what we found on the Google profile; hover a chip to see where it came from.
-- **Finding competitors** searches Google Maps around the service area. It runs in the background and we email you when suggestions are ready.
-- **Pick competitors** lists the suggestions by tier. Top rivals start ticked, up to the client's competitor limit.
-- **Invite the owner** sends the owner a sign-in email. **Billing** is where an agency admin turns on billing for the client.
+- **What they do and where** sets up to 5 search keywords, the search radius and the services. We pre-fill what we found on the Google listing. Without a listing we place the business from its address, or ask for a City or ZIP.
+- **Pick who to watch** searches Google Maps around the business. It runs in the background, so you can leave the page. When it finishes you tick up to the client's competitor limit; top rivals start ticked. Or choose **Ask the owner to pick**.
+- **Invite the owner** sends them a sign-in email, in your brand.
+- **Set up billing** is where an agency admin turns on billing for a client. Prospects do not have this screen.
+- **All set** summarises what was done, and what happens next.
 
-Setup is resumable. It reopens at the first step that is not done, and any step can be skipped.
+Setup is resumable. **Save and exit** keeps your progress, and setup reopens at the first screen that is not done.
 
 ## How to use it
 
-1. **Check the business details**, then choose **Save and find competitors**. Services and keywords are pre-ticked from the Google profile when it had them; add your own keywords, one per line.
-2. **Open Advanced only when something is off.** It holds the map centre and the Google Place ID. Both are filled in from the lookup. The centre is what the radius is measured from; the Place ID is what lets us benchmark the business's own reviews against its competitors' reviews.
-3. **Wait for the search**, or leave the page and come back. If it fails, choose **Find competitors** to try again, or skip the step.
-4. **Tick the competitors to watch** and choose **Done picking**. This is the step that starts the starting-point clock.
-5. **Invite the owner** (the button is also on the first three steps) and, for a client, turn on billing. Both can be skipped.
-6. **Dismiss setup** if you would rather finish later in settings. Everything stays editable under Client settings, and competitors on the Competitors page.
+1. **Check the keywords and radius,** then continue. Add your own keywords, the searches customers use, for example "ac repair".
+2. **Wait for the search,** or leave and come back. If it fails, choose **Find competitors** to try again, or **Skip this step**.
+3. **Tick the competitors to watch** and choose **Continue**. This starts the starting-point clock.
+4. **Or ask the owner.** Choose **Ask the owner to pick**, then invite them; the invite is what emails them, so it cannot be skipped. The owner picks on their Overview. In your Portfolio the client shows **Waiting on** and their name until they do.
+5. **Send the invite,** and for a client turn on billing. Both can be skipped, except the invite when you asked the owner to pick.
+6. **Dismiss setup** from the exit menu if you would rather finish later in settings. Everything stays editable under Client settings, and competitors on the Competitors page.
 
 ## Common questions
 
@@ -29,17 +30,17 @@ Setup is resumable. It reopens at the first step that is not done, and any step 
 
 The starting-point brief waits for competitors. Its 48-hour clock starts when the competitors step is done, or when setup is dismissed. The brief is made as soon as the business profile, the business's reviews, the first local-ranking scan and the competitors are ready, or when those 48 hours are up, whichever comes first.
 
-### What if nobody finishes setup?
+### What if nobody finishes setup, or the owner never picks?
 
-An open setup that never reaches the competitors step holds the starting point for at most 14 days after the client was added. After that the brief is made with whatever data exists.
-
-### Why can the owner see only three steps?
-
-Client roles see Your business, Finding competitors and Pick competitors. Inviting the owner and billing are agency steps.
+An open setup that never reaches the competitors step holds the starting point for at most 14 days. If you asked the owner to pick and they have not after 14 days, the brief is made with whatever data exists.
 
 ### Does skipping the competitors step stop the first brief?
 
 No. Skipping counts as done for the clock, so the 48-hour wait starts. The brief then ships with the data that is ready.
+
+### Can the owner see this setup?
+
+No. Owners do not see these screens. They get a card on their Overview and a short page to choose competitors.
 
 ### Can I change the details later?
 

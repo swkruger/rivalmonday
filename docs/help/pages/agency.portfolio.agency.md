@@ -25,7 +25,7 @@ A **Setup** chip under a client's name means its setup is still open. It shows h
 2. **Check the pressure label** to decide where to look next. Click a client's name to open its overview.
 3. **Watch Budget** for clients near their limit, then check the details under Agency settings, Usage & limits.
 4. **Add a client** with the button at the top right. Agency admins and account managers who cover all clients see it.
-5. **Use the Getting started card** if it shows. Agency admins see five steps: complete your agency profile, invite your team, review your plan, add your logo and colours, and add your first client. The card goes away when all five are done or when you dismiss it.
+5. **Use the Getting started card** if it shows. Agency admins see what is still open: add your first client, add a payment method while you are on the trial, and finish the team or brand step if you skipped it. The card goes away when nothing is left or when you dismiss it.
 
 ## Common questions
 
