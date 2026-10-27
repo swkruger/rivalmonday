@@ -33,7 +33,7 @@ None in flight. 13a (white-label, unbuilt, plan approved) touches `theme.ts`, `a
 - BACKLOG § Design system: OD-5 bottom tab bar < 768 waits for 3–5 pilot-owner phone tests (D12).
 
 ## Owner verification steps
-At the end: (1) before/after shots `apps/web/test-results/shots/index.html` (re-run `pnpm --filter @cs/web shots` with `SHOTS_LABEL`); (2) decide `design-lint` in CI (D17); (3) sign copy: Field sr-only "(required)", SaveBar visible "Unsaved changes" (aria-hidden), toast region label "Notifications (F8)" (radix default); (4) primary hover/active now derived per agency and **lighter** on the default blue (#56AFE9/#64B6EB; DS docs said darker #2F93D6/#2581C2, which fails 4.5:1 with the ink label): approve, then update 05/08/`design-tokens.json`/`rm-tokens.css`/frame 11.
+At the end: (1) before/after shots `apps/web/.shots/index.html` (re-run `pnpm --filter @cs/web shots` with `SHOTS_LABEL`); (2) decide `design-lint` in CI (D17); (3) sign copy: Field sr-only "(required)", SaveBar visible "Unsaved changes" (aria-hidden), toast region label "Notifications (F8)" (radix default); (4) primary hover/active now derived per agency and **lighter** on the default blue (#56AFE9/#64B6EB; DS docs said darker #2F93D6/#2581C2, which fails 4.5:1 with the ink label): approve, then update 05/08/`design-tokens.json`/`rm-tokens.css`/frame 11.
 
 ## 16a numbers
 Lint baseline (Task 1) 450: shadow-card 63, radius 77, off-scale 10, extrabold 16, uppercase 9, focus-ring 36, hex 122, amber 9, shadow-sm.. 12, Badge 4, text-px 92. After 16a 236 (shadow-card 1 = token definition, rounded-[14px] 0, focus-ring 0, Badge 0). Shots: 33 routes × 1440/390; axe before 30 serious / 0 critical.

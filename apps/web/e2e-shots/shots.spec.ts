@@ -7,16 +7,17 @@ import { type Browser, type BrowserContext, expect, type Page, test } from '@pla
 import { sql } from 'drizzle-orm';
 import { OWNER_LINK_FILE, SETUP_FIXTURE_FILE } from '../playwright.config';
 import { signIn } from '../e2e/helpers';
-import { writeIndexPage } from '../scripts/shots-index';
+import { shotsLabel, writeIndexPage } from '../scripts/shots-index';
 import { SHOT_ROUTES, SHOT_VIEWPORTS, type ShotAs, type ShotFixtures } from './routes';
 
 /**
  * Phase 16 screenshot + axe harness. For each route x viewport: a full-page PNG to
- * `test-results/shots/<SHOTS_LABEL>/<label>-<w>.png` and an axe (wcag2a/aa) entry in the same folder's `axe.json`.
+ * `apps/web/.shots/<SHOTS_LABEL>/<label>-<w>.png` and an axe (wcag2a/aa) entry in the same folder's `axe.json`.
+ * `.shots/` sits outside `test-results/`, which the main E2E run deletes at start. `SHOTS_LABEL` is validated by `shotsLabel`.
  * Axe never fails a route unless it has `gate: true`.
  */
-const LABEL = process.env.SHOTS_LABEL ?? 'local';
-const ROOT = fileURLToPath(new URL('../test-results/shots', import.meta.url));
+const LABEL = shotsLabel(process.env.SHOTS_LABEL);
+const ROOT = fileURLToPath(new URL('../.shots', import.meta.url));
 const DIR = join(ROOT, LABEL);
 const AXE_FILE = join(DIR, 'axe.json');
 

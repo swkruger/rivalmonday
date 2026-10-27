@@ -57,11 +57,11 @@ export function writeIndexPage(rootDir: string): void; // pairs <label>-<w>.png 
 **Behaviour:**
 - Config mirrors `playwright.config.ts` exactly (imports `E2E_SERVER_ENV`, same `globalSetup`, `webServer`, port) but `testDir: './e2e-shots'`, `timeout: 180_000`. `e2e`/`e2e:affected` never match `e2e-shots/` (verify `scripts/e2e-affected.ts` globs).
 - Routes per spec § 4.6 + D19 (≈ 30; include one `support` route). Fixtures come from the existing seed fixture files (`*_FIXTURE_FILE` in `playwright.config.ts`) and `e2e/helpers.ts` `signIn` / `e2e/admin-session.ts`; pick seeded personas from `e2e/seed.ts`.
-- Per route × viewport: `page.goto`, wait `networkidle`, full-page PNG to `test-results/shots/${process.env.SHOTS_LABEL ?? 'local'}/${label}-${width}.png`; `new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa']).analyze()`; append `{ label, width, serious, critical, ids }` to `axe.json` in the same folder. Assert 0 serious+critical only when `gate: true` (none in 16a). `afterAll` → `writeIndexPage('test-results/shots')`.
+- Per route × viewport: `page.goto`, wait `networkidle`, full-page PNG to `apps/web/.shots/${shotsLabel(process.env.SHOTS_LABEL)}/${label}-${width}.png`; `new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa']).analyze()`; append `{ label, width, serious, critical, ids }` to `axe.json` in the same folder. Assert 0 serious+critical only when `gate: true` (none in 16a). `afterAll` → `writeIndexPage(apps/web/.shots)`.
 - `apps/web/package.json`: `"shots": "playwright test -c playwright.shots.config.ts"`, dev dep `@axe-core/playwright` (current 4.x).
 - `scripts/design-lint.sh` (Git Bash, `rg`): one labelled count per 09 § 8 line plus `text-\[[0-9]+px\]` (apps/web/src + packages/ui/src, tests excluded, the § 8 chart allowlist), prints `label: N` and `total: N`; exit 0 unless `--strict` and total > 0. Root `"design:lint": "bash scripts/design-lint.sh"`.
 **Tests (first):** `apps/web/scripts/shots-index.test.ts` (web vitest includes `scripts/**/*.test.ts`), on a tmp dir: two label folders with `a-1440.png` → html contains both `<img>` srcs in one row; a route missing in one folder renders "missing".
-**Done when:** `pnpm design:lint` prints counts (record them in the work file as the baseline); `SHOTS_LABEL=before pnpm --filter @cs/web shots` completes (~60 PNGs + `axe.json`); commit (shots are gitignored under `test-results/`).
+**Done when:** `pnpm design:lint` prints counts (record them in the work file as the baseline); `SHOTS_LABEL=before pnpm --filter @cs/web shots` completes (~60 PNGs + `axe.json`); commit (shots are gitignored under `apps/web/.shots/`).
 
 ### Task 2: Tokens + radius trap + contrast test (PR 1)
 **Files:** modify `packages/ui/src/styles.css`, `button.tsx`, `input.tsx`, `select.tsx`, `tabs-classes.ts` (radius only), any textarea; create `packages/ui/src/tokens.contrast.test.ts`.
@@ -152,6 +152,6 @@ Card variant?: 'default'|'interactive' ; selected?: boolean   // data-variant, d
 
 ### Task 13: Final review prep
 - [ ] `pnpm design:lint` → record after-counts next to Task 1 baseline in `docs/work/phase-16.md`.
-- [ ] `SHOTS_LABEL=after pnpm --filter @cs/web shots` → `test-results/shots/index.html` pairs before/after; reviewer compares against frames 4, 5, 11 (09 § 9 rows 1–4): cards visible on canvas, no lost controls, focus outlines visible.
+- [ ] `SHOTS_LABEL=after pnpm --filter @cs/web shots` → `apps/web/.shots/index.html` pairs before/after; reviewer compares against frames 4, 5, 11 (09 § 9 rows 1–4): cards visible on canvas, no lost controls, focus outlines visible.
 - [ ] `pnpm test:affected --base main`; `pnpm --filter @cs/web e2e:affected --base main` (not concurrently with shots).
 - [ ] Work file: Status "16a done; 16b plan next", P4 card-in-card list, any 16f carry-overs, new BACKLOG lines (OD-5 bottom tabs, D12). Commit `docs(phase-16): 16a done`.

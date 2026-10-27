@@ -4,3 +4,4 @@ playwright-report/
 .outbox/
 tsconfig.tsbuildinfo
 .profile/
+.shots/

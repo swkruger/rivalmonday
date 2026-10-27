@@ -10,7 +10,8 @@ const BUILD = process.env.E2E_SKIP_BUILD === '1' ? '' : 'pnpm build && pnpm chec
 /**
  * Phase 16 screenshot + axe harness (`pnpm --filter @cs/web shots`, `SHOTS_LABEL=before|after`). Same server, seed and
  * port as the E2E config, so never run it alongside `e2e`. `e2e`, `e2e:affected` and CI never match `e2e-shots/`.
- * `outputDir` is its own folder: Playwright empties it at the start of a run, which must not delete earlier shots.
+ * Screenshots and `axe.json` land in `apps/web/.shots/<SHOTS_LABEL>/` (plus `index.html`), not in `test-results/`, so the
+ * main E2E run cannot wipe them. `outputDir` is its own folder: Playwright empties it at the start of a run, which must not delete earlier shots.
  */
 export default defineConfig({
   testDir: './e2e-shots',

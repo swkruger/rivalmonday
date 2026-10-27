@@ -1,6 +1,17 @@
 import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const LABEL_PATTERN = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
+
+/** Validates `SHOTS_LABEL` (the screenshot folder name under `apps/web/.shots/`). Unset means `local`. */
+export function shotsLabel(raw: string | undefined): string {
+  if (raw === undefined) return 'local';
+  if (!LABEL_PATTERN.test(raw) || raw === '.' || raw === '..') {
+    throw new Error('SHOTS_LABEL must match [A-Za-z0-9_.-] and not be empty, "." or ".."');
+  }
+  return raw;
+}
+
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
 /** Pairs `<label>-<w>.png` across the label folders (before, after, ...) of `rootDir` into `rootDir/index.html`. */

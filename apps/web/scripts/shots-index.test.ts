@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { writeIndexPage } from './shots-index';
+import { shotsLabel, writeIndexPage } from './shots-index';
 
 let dir = '';
 afterEach(() => dir && rmSync(dir, { recursive: true, force: true }));
@@ -33,5 +33,27 @@ describe('writeIndexPage', () => {
     const row = html.split('<tr').find((r) => r.includes('before/b-1440.png'))!;
     expect(row).toContain('missing');
     expect(row).not.toContain('after/b-1440.png');
+  });
+});
+
+describe('shotsLabel', () => {
+  it('defaults to local when unset', () => {
+    expect(shotsLabel(undefined)).toBe('local');
+  });
+
+  it('accepts a plain label', () => {
+    expect(shotsLabel('before')).toBe('before');
+  });
+
+  it('rejects an empty label', () => {
+    expect(() => shotsLabel('')).toThrow('SHOTS_LABEL must match');
+  });
+
+  it('rejects ".."', () => {
+    expect(() => shotsLabel('..')).toThrow('SHOTS_LABEL must match');
+  });
+
+  it('rejects a path separator', () => {
+    expect(() => shotsLabel('a/b')).toThrow('SHOTS_LABEL must match');
   });
 });
