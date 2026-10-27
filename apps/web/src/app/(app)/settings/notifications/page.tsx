@@ -1,5 +1,5 @@
 import { myNotificationSettings } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -52,11 +52,8 @@ export default async function NotificationSettingsPage() {
             ]}
           />
           {settings.map((s) => (
-            <Card key={s.contactId}>
-              <CardHeader>
-                <CardTitle>{s.clientName ?? s.agencyName}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-5">
+            <Section key={s.contactId} title={s.clientName ?? s.agencyName}>
+              <TableFrame>
                 <Table aria-label="Notification preferences">
                   <TableHeader>
                     <TableRow>
@@ -82,9 +79,9 @@ export default async function NotificationSettingsPage() {
                     })}
                   </TableBody>
                 </Table>
-                <ContactForm contactId={s.contactId} timezone={s.timezone} quietHours={s.quietHours} timezoneOptions={timezoneOptions(s.timezone ?? 'UTC')} />
-              </CardContent>
-            </Card>
+              </TableFrame>
+              <ContactForm contactId={s.contactId} timezone={s.timezone} quietHours={s.quietHours} timezoneOptions={timezoneOptions(s.timezone ?? 'UTC')} />
+            </Section>
           ))}
         </>
       )}

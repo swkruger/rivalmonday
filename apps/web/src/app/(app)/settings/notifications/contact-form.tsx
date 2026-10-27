@@ -1,5 +1,5 @@
 'use client';
-import { Input, Label, SaveBar } from '@cs/ui';
+import { Input, Label, nativeSelectClass, SaveBar } from '@cs/ui';
 import { useActionState, useRef, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import type { FormResult } from '@/server/forms';
@@ -34,7 +34,7 @@ export function ContactForm({
   const noteId = `${contactId}-quiet-note`;
 
   return (
-    <form ref={formRef} action={formAction} onChange={() => setDirty(true)} className="flex flex-col gap-4 border-t border-line pt-5">
+    <form ref={formRef} action={formAction} onChange={() => setDirty(true)} className="flex flex-col gap-4">
       <input type="hidden" name="contactId" value={contactId} />
       <FormError state={state} />
       <div className="flex flex-col gap-2">
@@ -43,7 +43,7 @@ export function ContactForm({
           id={tzId}
           name="timezone"
           defaultValue={timezone ?? ''}
-          className="h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink"
+          className={`${nativeSelectClass} w-full max-w-sm`}
         >
           <option value="">Business time zone</option>
           {timezoneOptions.map((tz) => (
@@ -63,7 +63,7 @@ export function ContactForm({
           <Input id={endId} name="quietEnd" type="time" aria-describedby={noteId} defaultValue={quietHours?.end ?? ''} className="w-36" />
         </div>
       </div>
-      <p id={noteId} className="text-sm text-muted-foreground">Emails in this window are held and sent when it ends (in-app notices still arrive at once).</p>
+      <p id={noteId} className="text-sm text-muted-ink">Emails in this window are held and sent when it ends (in-app notices still arrive at once).</p>
       {state.ok && !dirty && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}
       <SaveBar
         dirty={dirty}

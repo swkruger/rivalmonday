@@ -1,5 +1,5 @@
 import { listInbox } from '@cs/tools';
-import { Button, Card, CardContent, StatusChip } from '@cs/ui';
+import { Button, StatusChip } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -53,9 +53,10 @@ export default async function InboxPage() {
           { label: 'What arrives', tip: 'account.inbox.choose' },
         ]}
       />
-      <Card>
-        <CardContent className="flex flex-col gap-1">
-          {items.length === 0 && <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />}
+      {items.length === 0 ? (
+        <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />
+      ) : (
+        <div className="overflow-clip rounded-md border border-line divide-y divide-line">
           {items.map((item) => {
             const when = formatDateTime(item.createdAt, { tz, zoneLabel: true });
             return (
@@ -64,24 +65,24 @@ export default async function InboxPage() {
               <button
                 type="submit"
                 aria-label={`${item.title}${item.readAt ? '' : ' (new)'}, ${when}${showClient && item.clientName ? `, ${item.clientName}` : ''}. ${item.body}`}
-                className="flex w-full flex-col gap-1 rounded-lg px-3 py-2.5 text-left hover:bg-muted-surface"
+                className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
               >
                 <span className="flex items-center gap-2">
-                  <span className={item.readAt ? 'font-medium' : 'font-bold'}>{item.title}</span>
+                  <span className={item.readAt ? 'font-medium' : 'font-semibold'}>{item.title}</span>
                   {!item.readAt && <StatusChip tone="info">New</StatusChip>}
-                  <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">{when}</span>
+                  <span className="ml-auto flex-shrink-0 text-xs text-muted-ink">{when}</span>
                 </span>
-                {showClient && item.clientName && <span className="text-xs text-muted-foreground">{item.clientName}</span>}
+                {showClient && item.clientName && <span className="text-xs text-muted-ink">{item.clientName}</span>}
                 <span className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{item.body}</span>
-                  <span className="ml-auto flex-shrink-0 rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{NOTIFICATION_KIND_LABELS[item.kind] ?? item.kind}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-ink">{item.body}</span>
+                  <span className="ml-auto flex-shrink-0 rounded-sm bg-canvas px-2 py-0.5 text-xs">{NOTIFICATION_KIND_LABELS[item.kind] ?? item.kind}</span>
                 </span>
               </button>
             </form>
             );
           })}
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </>
   );
 }

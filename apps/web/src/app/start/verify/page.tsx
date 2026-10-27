@@ -34,7 +34,7 @@ export default async function IntakeLinkExpiredPage({ searchParams }: Props) {
       {href ? (
         <Link href={href} className="self-start font-semibold text-secondary underline">Start again.</Link>
       ) : (
-        <p className="text-[15px] text-muted-ink">Start again from the page where you asked for your snapshot.</p>
+        <p className="text-base text-muted-ink">Start again from the page where you asked for your snapshot.</p>
       )}
     </OnboardingShell>
   );

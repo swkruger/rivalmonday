@@ -33,7 +33,7 @@ const shellBrand = (b: IntakeBrand): OnboardingBrand =>
   b.kind === 'agency' ? { kind: 'agency', name: b.displayName, logoUrl: b.logoUrl, style: b.style as React.CSSProperties } : { kind: b.kind };
 
 /** A flat section for the wide snapshot page: a hairline frame, no shadow (design system: shadows only on floating layers). */
-const Panel = ({ children }: { children: React.ReactNode }) => <section className="flex flex-col gap-3 rounded-xl border border-line p-5">{children}</section>;
+const Panel = ({ children }: { children: React.ReactNode }) => <section className="flex flex-col gap-3 rounded-md border border-line p-5">{children}</section>;
 
 const rating = (r: number | null) => (r === null ? '—' : `${r} ★`);
 const count = (n: number | null) => (n === null ? '—' : new Intl.NumberFormat('en-US').format(n));
@@ -62,7 +62,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
     <>
       <Panel>
         <h2 className="text-lg font-semibold">{preview.self.name}</h2>
-        <p className="text-muted-foreground">
+        <p className="text-muted-ink">
           {preview.self.rating === null ? 'No rating yet' : `${preview.self.rating} ★`}
           {preview.self.votes !== null ? ` · ${count(preview.self.votes)} reviews` : ''}
         </p>
@@ -104,7 +104,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
       )}
       <Panel>
         <h2 className="text-lg font-semibold">What happens next</h2>
-        <p className="text-muted-foreground">
+        <p className="text-muted-ink">
           {agencyName ? `${agencyName} has your details and will be in touch about next steps.` : "We'll match you with a local marketing partner and they'll be in touch."}
         </p>
         {!agencyName && <p><Link href="/start" className="font-semibold underline">Back to the start page</Link></p>}

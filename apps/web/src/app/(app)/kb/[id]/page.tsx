@@ -24,7 +24,9 @@ export default async function KbArticlePage({ params }: { params: Promise<{ id: 
     <>
       {/* No Help index until 15b: the article is its own (only) crumb. */}
       <PageHeader title={article.title} breadcrumb={[{ label: article.title }]} />
-      <KbArticleView article={article} />
+      <div className="max-w-[680px]">
+        <KbArticleView article={article} />
+      </div>
     </>
   );
 }

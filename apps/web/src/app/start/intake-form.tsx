@@ -1,6 +1,6 @@
 'use client';
 import type { IntakePlaceOption, SignedIntakePlace } from '@cs/tools';
-import { Button, Input } from '@cs/ui';
+import { Button, Input, textareaClass } from '@cs/ui';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
@@ -21,7 +21,6 @@ declare global {
   }
 }
 
-const TEXTAREA_CLASS = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 const COOLDOWN_S = 60;
 const STEP_LABELS = ['Find your business', 'Your details', 'Check your email'] as const;
 const TITLES = ['See how you compare with nearby rivals', 'Where should we send it?', 'Your snapshot link is on its way'] as const;
@@ -191,7 +190,7 @@ export function IntakeFlow({ brand, slug, refCode, siteKey, preview = false, pri
         {siteKey && <TurnstileWidget siteKey={siteKey} state={state} />}
         <div className="flex items-center gap-3.5">
           <Button type="submit" variant="outline" disabled={submitting || left > 0}>{left > 0 ? `Resend in ${left} s` : 'Resend'}</Button>
-          <p role="status" className="text-[13px] text-muted-ink">{sends > 1 && left > 0 ? 'Sent again.' : left > 0 ? `You can resend in ${left} s` : ''}</p>
+          <p role="status" className="text-13 text-muted-ink">{sends > 1 && left > 0 ? 'Sent again.' : left > 0 ? `You can resend in ${left} s` : ''}</p>
         </div>
       </form>
       <button type="button" onClick={() => setStep(2)} className="self-start text-sm font-medium text-secondary underline">Wrong email? Go back</button>
@@ -216,7 +215,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
 }) {
   return (
     <>
-      {platform && <p className="text-[15px] text-muted-ink">We&apos;ll match you with a local marketing partner.</p>}
+      {platform && <p className="text-base text-muted-ink">We&apos;ll match you with a local marketing partner.</p>}
       <form
         action={onSearch}
         onSubmit={preview ? (e) => e.preventDefault() : undefined}
@@ -236,7 +235,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
         {preview && <span className="text-sm text-muted-ink">Disabled in preview</span>}
       </form>
 
-      {places && places.length === 0 && <p role="status" className="rounded-lg bg-canvas p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
+      {places && places.length === 0 && <p role="status" className="rounded-md bg-canvas p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
       {places && places.some((o) => o.possibleDuplicate) && <DuplicateHint />}
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">
@@ -249,7 +248,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
                   type="button"
                   aria-pressed={on}
                   onClick={() => setPicked(signed)}
-                  className={`flex w-full flex-col gap-1 rounded-lg border p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${on ? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-canvas'}`}
+                  className={`flex w-full flex-col gap-1 rounded-md border p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${on ? 'border-primary ring-1 ring-inset ring-primary' : 'border-line hover:bg-canvas'}`}
                 >
                   <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
                 </button>
@@ -280,7 +279,7 @@ function DetailsFields({ f, set, privacyUrl, siteKey, state, preview }: {
         </Field>
       </div>
       <Field id="message" label="What would you like help with?" optional>
-        <textarea id="message" name="message" maxLength={500} className={TEXTAREA_CLASS} value={f.message} onChange={set('message')} disabled={preview} />
+        <textarea id="message" name="message" maxLength={500} className={textareaClass} value={f.message} onChange={set('message')} disabled={preview} />
       </Field>
       <label className="flex items-start gap-2.5 text-sm leading-[1.45]">
         <input type="checkbox" name="consent" required checked={f.consent} onChange={set('consent')} disabled={preview} className="mt-0.5 size-4" />
@@ -305,7 +304,7 @@ function EmailAside() {
   return (
     <Image
       src="/onboarding/intake-email.webp" alt="An open envelope with a card rising out of it and a few small sparkles."
-      width={800} height={800} priority className="size-[420px] rounded-xl"
+      width={800} height={800} priority className="size-[420px] rounded-md"
     />
   );
 }
