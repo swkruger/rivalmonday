@@ -1,13 +1,13 @@
 # phase-16 — design system v1 on every page except onboarding
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-16   **Base:** main @ 0c28be0e
-**Plan/spec:** none yet. Inputs `docs/design-system/` (09 § 9). Prior brief + page inventory (87 pages → frame/archetype): `git show 1c2d0f0e:docs/work/phase-16.md`.
+**Spec:** `docs/superpowers/specs/2026-10-27-phase-16-design-system-design.md` (D10–D19). **Plans:** one per sub-phase, written just before it runs. Inputs `docs/design-system/` (09 § 9). Prior brief + page inventory (87 pages → frame/archetype): `git show 1c2d0f0e:docs/work/phase-16.md`.
 
 ## Status (overwrite)
-Kickoff 2026-10-27; brief below, questions open.
+2026-10-27: Q1–Q9 answered (owner: take the recommendations; whole pass, no stops between sub-phases; onboarding drift OK). Spec written. Next: 16a plan → execute → 16b … 16f on this branch.
 
 ## Next (overwrite)
-Owner answers Q1–Q9 → `superpowers:brainstorming` for the first sub-phase → spec → lean plan.
+16a lean plan (`docs/superpowers/plans/2026-10-27-phase-16a-foundations.md`) → SDD → final review → 16b plan …
 
 ## Interfaces this branch adds or changes
 Planned (09 § 9): tokens in `styles.css`, `theme.ts` foreground, new `@cs/ui` primitives, `Card` = Frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`. No migrations expected (next free **0096**).
@@ -21,11 +21,13 @@ None in flight. 13a (white-label, unbuilt, plan approved) touches `theme.ts`, `a
 - D3 Context switcher stays in the left sidebar (15a D4; overrides Frame 2).
 - D4 Runs after Phases 7 and 15 (met).
 - D5–D9 16-onboarding (done): split flows, O1–O14, images only on 4 screens (D7).
+- D10–D19 (2026-10-27): see spec § 2 — six sub-phases in one continuous pass on this branch; narrow new-UI set; no bottom tabs; shots + axe harness; lint report-only; 13a after; onboarding screens may change.
 
 ## New backlog (target → item)
+- BACKLOG § Design system: OD-5 bottom tab bar < 768 waits for 3–5 pilot-owner phone tests (D12).
 
 ## Owner verification steps
-TBD per sub-phase.
+At the end: before/after shots (`apps/web/test-results/shots/index.html`); decide `design-lint` in CI (D17); sign the sr-only "(required)" Field copy.
 
 ## Brief
 ### 1. Scope
