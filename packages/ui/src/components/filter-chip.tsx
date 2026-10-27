@@ -21,13 +21,23 @@ function FilterChip({ applied, dashed, pressed, field, onRemove, className, chil
     pressed && "border-transparent bg-ink text-white",
   )
   if (applied && onRemove) {
+    // Button-only props must not land on the span; `disabled` goes to the remove button instead.
+    const {
+      disabled, type: _type, "aria-pressed": _pressed, name: _name, value: _value,
+      form: _form, formAction: _fa, formEncType: _fe, formMethod: _fm, formNoValidate: _fn, formTarget: _ft,
+      ...spanProps
+    } = props
     return (
-      <span data-slot="filter-chip" data-applied="true" className={cn(base, state, "gap-1.5", className)} {...(props as React.ComponentProps<"span">)}>
+      <span data-slot="filter-chip" data-applied="true" className={cn(base, state, "gap-1.5", className)} {...(spanProps as React.ComponentProps<"span">)}>
         <span>{children}</span>
         <button
           type="button"
           aria-label={`Remove filter ${field ?? ""}`.trim()}
-          onClick={onRemove}
+          disabled={disabled}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
           className="inline-grid size-4 place-items-center rounded-full hover:bg-primary-soft-text/15 focus-visible:outline-2 focus-visible:outline-ring"
         >
           <X aria-hidden="true" className="size-3" />

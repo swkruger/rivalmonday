@@ -50,6 +50,20 @@ describe('FilterChip', () => {
     fireEvent.click(screen.getByTestId('chip'));
     expect(onClick).toHaveBeenCalledOnce();
   });
+  it('applied branch: remove click does not fire the chip onClick', () => {
+    const onClick = vi.fn();
+    const onRemove = vi.fn();
+    render(<FilterChip applied field="Rating" onRemove={onRemove} onClick={onClick}>Rating 4+</FilterChip>);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter Rating' }));
+    expect(onRemove).toHaveBeenCalledOnce();
+    expect(onClick).not.toHaveBeenCalled();
+  });
+  it('applied branch: disabled disables the remove button and is not spread onto the span', () => {
+    render(<FilterChip applied field="Rating" onRemove={() => {}} disabled type="button" aria-pressed data-testid="chip">Rating 4+</FilterChip>);
+    expect((screen.getByRole('button', { name: 'Remove filter Rating' }) as HTMLButtonElement).disabled).toBe(true);
+    const chip = screen.getByTestId('chip');
+    for (const a of ['disabled', 'type', 'aria-pressed']) expect(chip.hasAttribute(a)).toBe(false);
+  });
   it('pressed sets aria-pressed', () => {
     render(<FilterChip pressed>Open</FilterChip>);
     expect(screen.getByRole('button', { name: 'Open' }).getAttribute('aria-pressed')).toBe('true');
