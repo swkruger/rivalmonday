@@ -13,6 +13,13 @@ describe('EvidenceChips', () => {
     expect(screen.getAllByRole('link')).toHaveLength(6);
     expect(screen.getByText('+2 more')).toBeTruthy();
   });
+  it('names the source when refs are given and falls back otherwise', () => {
+    const refs = { [ids[0]!]: { source: 'Smith HVAC', channel: 'Website', date: 'Oct 20, 2026' } };
+    const { container } = render(<EvidenceChips clientId={C} ids={ids.slice(0, 2)} refs={refs} />);
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' }).getAttribute('href')).toBe(`/c/${C}/evidence/${ids[0]}`);
+    expect(screen.getByRole('link', { name: 'Evidence 2' })).toBeTruthy();
+    expect(container.querySelectorAll('[data-slot="citation-pill"]')).toHaveLength(2);
+  });
   it('renders nothing without evidence', () => {
     const { container } = render(<EvidenceChips clientId={C} ids={[]} />);
     expect(container.innerHTML).toBe('');

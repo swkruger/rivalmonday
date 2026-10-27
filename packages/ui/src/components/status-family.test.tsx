@@ -93,6 +93,16 @@ describe('CitationPill / SourcesList', () => {
     const a = screen.getByRole('link', { name: 'Evidence: Google, 3 Oct' });
     expect(a.getAttribute('href')).toBe('/e/1');
   });
+  it('fallback form shows and is named "Evidence n"', () => {
+    render(<CitationPill href="/e/2" n={2} />);
+    const a = screen.getByRole('link', { name: 'Evidence 2' });
+    expect(a.textContent).toBe('Evidence 2');
+    expect(a.querySelector('span')?.getAttribute('aria-hidden')).toBe('true');
+  });
+  it('n + source + date is named with all three', () => {
+    render(<CitationPill href="/e/1" n={1} source="Smith HVAC" date="Oct 20, 2026" />);
+    expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' })).toBeTruthy();
+  });
   it('lists sources as links', () => {
     render(<SourcesList items={[{ href: '/e/1', title: 'Pricing page', date: '3 Oct' }]} />);
     expect(screen.getByRole('link', { name: /Pricing page/ })).toBeTruthy();
