@@ -1,5 +1,5 @@
 export type ShotAs = 'admin' | 'agency' | 'owner' | 'support' | 'signed-out';
-export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string };
+export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string; eventId: string; prospectClientId: string };
 export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean; heading?: RegExp };
 
 /**
@@ -20,19 +20,29 @@ export const SHOT_ROUTES: ShotRoute[] = [
   // Client workspace
   { label: 'client-overview', path: c(''), as: 'agency', gate: true },
   { label: 'client-overview-ask', path: (fx) => `/c/${fx.askClientId}`, as: 'agency', gate: true },
-  { label: 'client-competitors', path: c('/competitors'), as: 'agency' },
-  { label: 'client-changes', path: c('/changes'), as: 'agency' },
-  { label: 'client-competitor-detail', path: (fx) => `/c/${fx.clientId}/competitors/${fx.competitorId}`, as: 'agency' },
-  { label: 'client-evidence', path: (fx) => `/c/${fx.clientId}/evidence/${fx.evidenceId}`, as: 'agency' },
-  { label: 'client-rankings', path: c('/rankings'), as: 'agency' },
-  { label: 'client-reviews', path: c('/reviews'), as: 'agency' },
-  { label: 'client-ads', path: c('/ads'), as: 'agency' },
+  { label: 'client-competitors', path: c('/competitors'), as: 'agency', gate: true },
+  { label: 'client-changes', path: c('/changes'), as: 'agency', gate: true },
+  { label: 'client-changes-event', path: (fx) => `/c/${fx.clientId}/changes?event=${fx.eventId}`, as: 'agency', gate: true },
+  { label: 'client-competitor-detail', path: (fx) => `/c/${fx.clientId}/competitors/${fx.competitorId}`, as: 'agency', gate: true },
+  { label: 'client-moves', path: c('/moves'), as: 'agency', gate: true },
+  { label: 'client-recommendations', path: c('/recommendations'), as: 'agency', gate: true },
+  { label: 'client-pitch-snapshot', path: (fx) => `/c/${fx.prospectClientId}/pitch-snapshot`, as: 'agency', gate: true },
+  { label: 'client-evidence', path: (fx) => `/c/${fx.clientId}/evidence/${fx.evidenceId}`, as: 'agency', gate: true },
+  { label: 'client-rankings', path: c('/rankings'), as: 'agency', gate: true },
+  { label: 'client-reviews', path: c('/reviews'), as: 'agency', gate: true },
+  { label: 'client-ads', path: c('/ads'), as: 'agency', gate: true },
+  { label: 'client-pricing', path: c('/pricing'), as: 'agency', gate: true },
   { label: 'client-ask', path: c('/ask'), as: 'agency' },
   { label: 'client-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'agency' },
-  { label: 'client-settings-profile', path: c('/settings/profile'), as: 'agency' },
+  { label: 'client-settings-profile', path: c('/settings/profile'), as: 'agency', gate: true },
+  { label: 'client-settings-delivery', path: c('/settings/delivery'), as: 'agency', gate: true },
+  { label: 'client-settings-alerts', path: c('/settings/alerts'), as: 'agency', gate: true },
+  { label: 'client-settings-usage', path: c('/settings/usage'), as: 'agency', gate: true },
+  { label: 'client-settings-ai', path: c('/settings/ai'), as: 'agency', gate: true },
+  { label: 'client-settings-runbook', path: c('/settings/runbook'), as: 'agency' },
   // Client owner (guest link)
   { label: 'owner-brief', path: (fx) => `/c/${fx.clientId}/briefs/${fx.briefId}`, as: 'owner' },
-  { label: 'owner-evidence', path: (fx) => `/c/${fx.clientId}/evidence/${fx.evidenceId}`, as: 'owner' },
+  { label: 'owner-evidence', path: (fx) => `/c/${fx.clientId}/evidence/${fx.evidenceId}`, as: 'owner', gate: true },
   // Platform
   { label: 'platform-overview', path: '/platform', as: 'admin' },
   { label: 'platform-agencies', path: '/platform/agencies', as: 'admin' },
