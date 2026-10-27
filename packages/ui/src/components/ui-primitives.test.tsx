@@ -41,7 +41,7 @@ describe('StatusChip / Skeleton', () => {
   });
 });
 
-function openDialog(props: Partial<React.ComponentProps<typeof ConfirmDialog>> = {}) {
+function openDialog(props: Partial<Omit<React.ComponentProps<typeof ConfirmDialog>, 'open' | 'onOpenChange' | 'trigger'>> = {}) {
   const action = props.action ?? vi.fn();
   render(
     <ConfirmDialog

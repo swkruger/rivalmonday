@@ -22,7 +22,7 @@ function FilterChip({ applied, dashed, pressed, field, onRemove, className, chil
   )
   if (applied && onRemove) {
     return (
-      <span data-slot="filter-chip" data-applied="true" className={cn(base, state, "gap-1.5", className)}>
+      <span data-slot="filter-chip" data-applied="true" className={cn(base, state, "gap-1.5", className)} {...(props as React.ComponentProps<"span">)}>
         <span>{children}</span>
         <button
           type="button"

@@ -44,6 +44,12 @@ describe('FilterChip', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove filter Rating' }));
     expect(onRemove).toHaveBeenCalledOnce();
   });
+  it('applied branch forwards onClick', () => {
+    const onClick = vi.fn();
+    render(<FilterChip applied field="Rating" onRemove={() => {}} onClick={onClick} data-testid="chip">Rating 4+</FilterChip>);
+    fireEvent.click(screen.getByTestId('chip'));
+    expect(onClick).toHaveBeenCalledOnce();
+  });
   it('pressed sets aria-pressed', () => {
     render(<FilterChip pressed>Open</FilterChip>);
     expect(screen.getByRole('button', { name: 'Open' }).getAttribute('aria-pressed')).toBe('true');

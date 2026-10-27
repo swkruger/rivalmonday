@@ -8,10 +8,10 @@ export type SourceItem = { href: string; title: string; date: string; icon?: Luc
 function SourcesList({ items, className }: { items: SourceItem[]; className?: string }) {
   return (
     <ul data-slot="sources-list" className={cn("m-0 flex list-none flex-col border-t border-line p-0 text-xs", className)}>
-      {items.map((it) => {
+      {items.map((it, i) => {
         const Icon = it.icon ?? FileText
         return (
-          <li key={it.href} className="border-b border-line-subtle last:border-b-0">
+          <li key={`${it.href}|${i}`} className="border-b border-line-subtle last:border-b-0">
             <a href={it.href} className="flex items-center gap-2 py-2 text-ink-secondary hover:text-ink focus-visible:outline-2 focus-visible:outline-ring">
               <Icon aria-hidden="true" className="size-3 shrink-0" />
               <span className="min-w-0 truncate">{it.title}</span>
