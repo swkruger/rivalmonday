@@ -108,6 +108,17 @@ describe('setup clock', () => {
     expect(await listStartingPointDue(dbs.service, NOW)).toEqual([IDS.clientA1]);
   });
 
+  it('a completed setup waiting on the owner pick holds the starting point until they pick (O12)', async () => {
+    await activate(hoursAgo(24 * 5));
+    await openSetup({ ownerPickRequestedAt: hoursAgo(24 * 3), completedAt: hoursAgo(24 * 3) });
+    await seedProfile();
+    await seedReviewsDone();
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: false, timedOut: false, setupHold: true });
+    expect(await listStartingPointDue(dbs.service, NOW)).toEqual([]);
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: hoursAgo(10) });
+    expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toMatchObject({ ready: true, setupHold: false });
+  });
+
   it('an open setup nobody finished is due 14 days after activation', async () => {
     await activate(hoursAgo(24 * 14 + 1));
     await openSetup();

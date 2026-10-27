@@ -4,55 +4,58 @@ import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { clientBillingEligibility } from '../tools/client-billing';
-import { clientSetupOpen, completeIfDone, deriveSetupState, getSetupState, loadSetupInvite, type SetupState } from './state';
+import { completeIfDone, deriveSetupState, getSetupState, loadSetupInvite, ownerPickOpen, type SetupState } from './state';
 
 const AREA = { center: { lat: 32.44, lng: -97.79 }, radiusKm: 10, zips: [] };
-const CLIENT = { keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJx', status: 'active' };
-const SETUP = { skipped: [] as string[], competitorsDoneAt: null as Date | null, completedAt: null as Date | null, dismissedAt: null as Date | null };
+const CLIENT = { name: 'A1 HVAC', phone: '817-555-0100', keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJx', status: 'active' };
+const SETUP = { skipped: [] as string[], competitorsDoneAt: null as Date | null, ownerPickRequestedAt: null as Date | null, completedAt: null as Date | null, dismissedAt: null as Date | null };
 const NOW = new Date('2026-10-16T12:00:00Z');
 type In = Parameters<typeof deriveSetupState>[0];
-// Default: no invite yet, billing ineligible (no Connect account) -> the billing step reads as skipped.
-const base = (o: Partial<In> = {}): In => ({ client: CLIENT, setup: SETUP, latestRun: null, hasPendingSuggestions: false, invite: { status: 'none' }, billing: { eligible: false, state: null }, ...o });
+// Default: details complete (name, phone, owner contact), no invite yet, billing ineligible (no Connect account) -> billing reads as skipped.
+const base = (o: Partial<In> = {}): In => ({ client: CLIENT, setup: SETUP, hasOwnerContact: true, latestRun: null, hasPendingSuggestions: false, invite: { status: 'none' }, billing: { eligible: false, state: null }, ...o });
 const done = { status: 'done' };
 const PICKED = { ...SETUP, competitorsDoneAt: NOW };
-/** profile, search, competitors, invite, billing (billing absent for prospects). */
+const ASKED = { ...SETUP, ownerPickRequestedAt: NOW };
+/** details, lookup, profile, competitors, invite, billing (billing absent for prospects). */
 type Steps = string[];
 
-const rows: { name: string; input: In; steps: Steps; open: boolean; clientOpen?: boolean; exists?: boolean; waitingOn: SetupState['waitingOn']; refusal?: string | null; total?: 4 | 5 }[] = [
-  { name: 'no row: closed, all five done', input: base({ setup: null }), steps: ['done', 'done', 'done', 'done', 'done'], open: false, exists: false, waitingOn: null },
-  { name: 'profile incomplete (no keywords)', input: base({ client: { ...CLIENT, keywords: [] } }), steps: ['todo', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'profile stays done without a place id (P5: keywords + a centre)', input: base({ client: { ...CLIENT, placeId: null }, latestRun: done }), steps: ['done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'profile incomplete (no service area)', input: base({ client: { ...CLIENT, serviceArea: null } }), steps: ['todo', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'profile done, no run -> search todo, agency', input: base(), steps: ['done', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'search queued -> running, system', input: base({ latestRun: { status: 'queued' } }), steps: ['done', 'running', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'system' },
-  ...['searching', 'checking', 'finalising'].map((s) => ({ name: `search ${s} -> running`, input: base({ latestRun: { status: s } }), steps: ['done', 'running', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'system' as const })),
-  { name: 'search failed -> blocked with refusal', input: base({ latestRun: { status: 'failed', error: 'budget' } }), steps: ['done', 'blocked', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency', refusal: 'budget' },
-  { name: 'all five done or skipped, closed', input: base({ latestRun: done, setup: { ...PICKED, completedAt: NOW }, invite: { status: 'pending' } }), steps: ['done', 'done', 'done', 'done', 'skipped'], open: false, waitingOn: null },
-  { name: 'competitors confirmed, invite todo -> still open, waiting on the agency; closed for the client owner', input: base({ latestRun: done, setup: PICKED }), steps: ['done', 'done', 'done', 'todo', 'skipped'], open: true, clientOpen: false, waitingOn: 'agency' },
-  { name: 'search skipped, competitors confirmed, invite pending counts done', input: base({ setup: { ...PICKED, skipped: ['search'] }, invite: { status: 'pending' } }), steps: ['done', 'skipped', 'done', 'done', 'skipped'], open: true, clientOpen: false, waitingOn: null },
-  { name: 'invite accepted counts done', input: base({ latestRun: done, setup: PICKED, invite: { status: 'accepted' } }), steps: ['done', 'done', 'done', 'done', 'skipped'], open: true, clientOpen: false, waitingOn: null },
-  { name: 'invite skipped', input: base({ latestRun: done, setup: { ...PICKED, skipped: ['invite'] } }), steps: ['done', 'done', 'done', 'skipped', 'skipped'], open: true, clientOpen: false, waitingOn: null },
-  { name: 'billing eligible, off -> todo, waiting on the agency', input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: null } }), steps: ['done', 'done', 'done', 'done', 'todo'], open: true, clientOpen: false, waitingOn: 'agency' },
-  { name: 'billing eligible, cancelled -> todo', input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: 'cancelled' } }), steps: ['done', 'done', 'done', 'done', 'todo'], open: true, clientOpen: false, waitingOn: 'agency' },
-  ...(['invited', 'active', 'payment_needed'] as const).map((st) => ({ name: `billing ${st} -> done`, input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: st } }), steps: ['done', 'done', 'done', 'done', 'done'], open: true, clientOpen: false, waitingOn: null })),
-  { name: 'billing skipped by staff', input: base({ latestRun: done, setup: { ...PICKED, skipped: ['billing'] }, invite: { status: 'pending' }, billing: { eligible: true, state: null } }), steps: ['done', 'done', 'done', 'done', 'skipped'], open: true, clientOpen: false, waitingOn: null },
-  { name: 'all skipped (profile done), closed', input: base({ setup: { ...SETUP, skipped: ['search', 'competitors', 'invite'], competitorsDoneAt: NOW, completedAt: NOW } }), steps: ['done', 'skipped', 'skipped', 'skipped', 'skipped'], open: false, waitingOn: null },
-  { name: 'search done, pending suggestions -> agency', input: base({ latestRun: done, hasPendingSuggestions: true }), steps: ['done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'skipped search beats a failed run; competitors todo -> agency', input: base({ latestRun: { status: 'failed', error: 'x' }, setup: { ...SETUP, skipped: ['search'] } }), steps: ['done', 'skipped', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency', refusal: null },
-  { name: 'search done, zero rivals found (nothing to pick) -> agency, so reminders nudge', input: base({ latestRun: done }), steps: ['done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
-  { name: 'closed by dismissal', input: base({ setup: { ...SETUP, dismissedAt: NOW } }), steps: ['done', 'todo', 'todo', 'todo', 'skipped'], open: false, waitingOn: null },
-  { name: 'prospect has 4 steps (no billing)', input: base({ client: { ...CLIENT, status: 'prospect' }, latestRun: done, setup: PICKED, billing: { eligible: true, state: null } }), steps: ['done', 'done', 'done', 'todo'], open: true, clientOpen: false, waitingOn: 'agency', total: 4 },
-  { name: 'prospect with a pending invite: every step done', input: base({ client: { ...CLIENT, status: 'prospect' }, latestRun: done, setup: PICKED, invite: { status: 'pending' } }), steps: ['done', 'done', 'done', 'done'], open: true, clientOpen: false, waitingOn: null, total: 4 },
+const rows: { name: string; input: In; steps: Steps; open: boolean; exists?: boolean; waitingOn: SetupState['waitingOn']; refusal?: string | null; total?: 5 | 6 }[] = [
+  { name: 'no row: closed, all six done', input: base({ setup: null }), steps: ['done', 'done', 'done', 'done', 'done', 'done'], open: false, exists: false, waitingOn: null },
+  { name: 'details todo without a phone', input: base({ client: { ...CLIENT, phone: null } }), steps: ['todo', 'done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'details todo without an owner contact', input: base({ hasOwnerContact: false }), steps: ['todo', 'done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'profile incomplete (no keywords)', input: base({ client: { ...CLIENT, keywords: [] } }), steps: ['done', 'done', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'profile stays done without a place id (P5: keywords + a centre)', input: base({ client: { ...CLIENT, placeId: null }, latestRun: done }), steps: ['done', 'done', 'done', 'ready', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'profile incomplete (no service area)', input: base({ client: { ...CLIENT, serviceArea: null } }), steps: ['done', 'done', 'todo', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'profile done, no run -> competitors todo, agency', input: base(), steps: ['done', 'done', 'done', 'todo', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  ...['queued', 'searching', 'checking', 'finalising'].map((s) => ({ name: `run ${s} -> searching, system`, input: base({ latestRun: { status: s } }), steps: ['done', 'done', 'done', 'searching', 'todo', 'skipped'], open: true, waitingOn: 'system' as const })),
+  { name: 'run failed -> blocked with refusal', input: base({ latestRun: { status: 'failed', error: 'budget' } }), steps: ['done', 'done', 'done', 'blocked', 'todo', 'skipped'], open: true, waitingOn: 'agency', refusal: 'budget' },
+  { name: 'run done -> ready, agency', input: base({ latestRun: done, hasPendingSuggestions: true }), steps: ['done', 'done', 'done', 'ready', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'legacy skipped search beats a failed run -> ready', input: base({ latestRun: { status: 'failed', error: 'x' }, setup: { ...SETUP, skipped: ['search'] } }), steps: ['done', 'done', 'done', 'ready', 'todo', 'skipped'], open: true, waitingOn: 'agency', refusal: null },
+  { name: 'all six done or skipped, closed', input: base({ latestRun: done, setup: { ...PICKED, completedAt: NOW }, invite: { status: 'pending' } }), steps: ['done', 'done', 'done', 'done', 'done', 'skipped'], open: false, waitingOn: null },
+  { name: 'competitors confirmed, invite todo -> still open, waiting on the agency', input: base({ latestRun: done, setup: PICKED }), steps: ['done', 'done', 'done', 'done', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'invite accepted counts done', input: base({ latestRun: done, setup: PICKED, invite: { status: 'accepted' } }), steps: ['done', 'done', 'done', 'done', 'done', 'skipped'], open: true, waitingOn: null },
+  { name: 'invite skipped', input: base({ latestRun: done, setup: { ...PICKED, skipped: ['invite'] } }), steps: ['done', 'done', 'done', 'done', 'skipped', 'skipped'], open: true, waitingOn: null },
+  { name: 'billing eligible, off -> todo, waiting on the agency', input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: null } }), steps: ['done', 'done', 'done', 'done', 'done', 'todo'], open: true, waitingOn: 'agency' },
+  { name: 'billing eligible, cancelled -> todo', input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: 'cancelled' } }), steps: ['done', 'done', 'done', 'done', 'done', 'todo'], open: true, waitingOn: 'agency' },
+  ...(['invited', 'active', 'payment_needed'] as const).map((st) => ({ name: `billing ${st} -> done`, input: base({ latestRun: done, setup: PICKED, invite: { status: 'pending' }, billing: { eligible: true, state: st } }), steps: ['done', 'done', 'done', 'done', 'done', 'done'], open: true, waitingOn: null })),
+  { name: 'all skipped (profile done), closed', input: base({ setup: { ...SETUP, skipped: ['search', 'competitors', 'invite'], competitorsDoneAt: NOW, completedAt: NOW } }), steps: ['done', 'done', 'done', 'skipped', 'skipped', 'skipped'], open: false, waitingOn: null },
+  { name: 'closed by dismissal', input: base({ setup: { ...SETUP, dismissedAt: NOW } }), steps: ['done', 'done', 'done', 'todo', 'todo', 'skipped'], open: false, waitingOn: null },
+  { name: 'owner asked to pick -> waiting_owner; invite todo keeps the agency on', input: base({ latestRun: done, setup: ASKED }), steps: ['done', 'done', 'done', 'waiting_owner', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'waiting_owner beats a running search', input: base({ latestRun: { status: 'searching' }, setup: ASKED }), steps: ['done', 'done', 'done', 'waiting_owner', 'todo', 'skipped'], open: true, waitingOn: 'agency' },
+  { name: 'waiting_owner with every staff step settled -> waiting on the client', input: base({ latestRun: done, setup: ASKED, invite: { status: 'pending' } }), steps: ['done', 'done', 'done', 'waiting_owner', 'done', 'skipped'], open: true, waitingOn: 'client' },
+  { name: 'the owner picked -> done', input: base({ latestRun: done, setup: { ...ASKED, competitorsDoneAt: NOW }, invite: { status: 'accepted' } }), steps: ['done', 'done', 'done', 'done', 'done', 'skipped'], open: true, waitingOn: null },
+  { name: 'prospect has 5 steps (no billing)', input: base({ client: { ...CLIENT, status: 'prospect' }, latestRun: done, setup: PICKED, billing: { eligible: true, state: null } }), steps: ['done', 'done', 'done', 'done', 'todo'], open: true, waitingOn: 'agency', total: 5 },
+  { name: 'prospect with a pending invite: every step done', input: base({ client: { ...CLIENT, status: 'prospect' }, latestRun: done, setup: PICKED, invite: { status: 'pending' } }), steps: ['done', 'done', 'done', 'done', 'done'], open: true, waitingOn: null, total: 5 },
 ];
 
 describe('deriveSetupState', () => {
-  it.each(rows)('$name', ({ input, steps, open, clientOpen, exists, waitingOn, refusal, total }) => {
+  it.each(rows)('$name', ({ input, steps, open, exists, waitingOn, refusal, total }) => {
     const s = deriveSetupState(input);
     expect(Object.values(s.steps)).toEqual(steps);
-    expect(Object.keys(s.steps)).toEqual(['profile', 'search', 'competitors', 'invite', 'billing'].slice(0, steps.length));
-    expect(s.totalSteps).toBe(total ?? 5);
+    expect(Object.keys(s.steps)).toEqual(['details', 'lookup', 'profile', 'competitors', 'invite', 'billing'].slice(0, steps.length));
+    expect(s.competitors).toBe(s.steps.competitors);
+    expect(s.totalSteps).toBe(total ?? 6);
     expect(s.open).toBe(open);
-    expect(s.clientOpen).toBe(clientOpen ?? open);
     expect(s.exists).toBe(exists ?? true);
     expect(s.waitingOn).toBe(waitingOn);
     expect(s.searchRefusal).toBe(refusal ?? null);
@@ -62,13 +65,21 @@ describe('deriveSetupState', () => {
     expect(s.completedAt).toEqual(NOW);
     expect(s.dismissedAt).toEqual(NOW);
   });
-  it('client owner sees setup closed once their three steps are done while invite/billing are still todo', () => {
-    const s = deriveSetupState(base({ latestRun: done, setup: PICKED, billing: { eligible: true, state: null } }));
-    expect(s.steps).toMatchObject({ invite: 'todo', billing: 'todo' });
-    expect(s).toMatchObject({ open: true, clientOpen: false });
-    // Any of the owner's own steps still open (todo, running or blocked) keeps it open for them.
-    for (const o of [{ latestRun: { status: 'searching' } }, { latestRun: { status: 'failed' } }, { setup: SETUP }, { client: { ...CLIENT, keywords: [] } }] as Partial<In>[]) {
-      expect(deriveSetupState(base({ latestRun: done, setup: PICKED, ...o })).clientOpen).toBe(true);
+  it('details and lookup done for a created client', () => {
+    const s = deriveSetupState(base({ client: { ...CLIENT, keywords: [], serviceArea: null, placeId: null } }));
+    expect(s.steps).toMatchObject({ details: 'done', lookup: 'done', profile: 'todo' });
+    expect('clientOpen' in s).toBe(false);
+  });
+  it('profile done with geocoded centre', () => {
+    // No listing (no place id): the geocoded centre alone completes the profile with keywords (P5, O13).
+    const s = deriveSetupState(base({ client: { ...CLIENT, placeId: null } }));
+    expect(s.steps.profile).toBe('done');
+    expect(s.needsLocation).toBe(false);
+  });
+  it('needsLocation whenever the service area has no centre', () => {
+    for (const serviceArea of [null, { radiusKm: 10 }, { center: null }] as In['client']['serviceArea'][]) {
+      expect(deriveSetupState(base({ client: { ...CLIENT, serviceArea, placeId: null } })).needsLocation).toBe(true);
+      expect(deriveSetupState(base({ client: { ...CLIENT, serviceArea }, setup: null })).needsLocation).toBe(true);
     }
   });
 });
@@ -82,7 +93,11 @@ describe('getSetupState / completeIfDone', () => {
   });
   const D = 86_400_000;
   const insertSetup = (v: Partial<typeof clientSetup.$inferInsert> = {}) => dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ...v });
-  const profile = () => dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
+  /** Steps 1-3 done: phone + an owner contact (details), keywords + a centre (profile). */
+  const profile = async () => {
+    await dbs.owner.update(client).set({ phone: '817-555-0100', keywords: ['ac repair'], serviceArea: AREA, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'pat@x.co', name: 'Pat', active: false });
+  };
   const connect = (v: Partial<typeof agencyConnect.$inferInsert> = {}) =>
     dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, detailsSubmitted: true, connectedAt: new Date(), ...v });
   /** Invites `o@x.co` as the owner (contact linked on the setup row) with the given invitation. */
@@ -93,7 +108,7 @@ describe('getSetupState / completeIfDone', () => {
   }
 
   it('no row reads as complete', async () => {
-    expect(await getSetupState(dbs.service, IDS.clientA1)).toMatchObject({ exists: false, open: false, clientOpen: false, totalSteps: 5 });
+    expect(await getSetupState(dbs.service, IDS.clientA1)).toMatchObject({ exists: false, open: false, totalSteps: 6, competitors: 'done' });
   });
 
   it('a done search waits on the agency to pick; pending suggestions are open suggestions of the latest done run', async () => {
@@ -107,7 +122,7 @@ describe('getSetupState / completeIfDone', () => {
     await dbs.owner.insert(competitorSuggestion).values(sug);
     const s = await getSetupState(dbs.service, IDS.clientA1);
     expect(s.pendingSuggestions).toBe(true);
-    expect(s.steps).toEqual({ profile: 'done', search: 'done', competitors: 'todo', invite: 'todo', billing: 'skipped' });
+    expect(s.steps).toEqual({ details: 'done', lookup: 'done', profile: 'done', competitors: 'ready', invite: 'todo', billing: 'skipped' });
     expect(s.waitingOn).toBe('agency');
   });
 
@@ -175,7 +190,7 @@ describe('getSetupState / completeIfDone', () => {
     expect((await dbs.owner.select().from(clientSetup))[0]!.completedAt).toEqual(NOW);
   });
 
-  it('completeIfDone needs all five client steps: invite and an eligible billing step keep it open', async () => {
+  it('completeIfDone needs all six client steps: invite and an eligible billing step keep it open', async () => {
     await profile();
     await insertSetup({ skipped: ['search', 'competitors'], competitorsDoneAt: NOW });
     expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false); // invite todo
@@ -191,7 +206,7 @@ describe('getSetupState / completeIfDone', () => {
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
     await connect(); // billing would be todo for a client
     await insertSetup({ skipped: ['search', 'competitors', 'invite'], competitorsDoneAt: NOW });
-    expect((await getSetupState(dbs.service, IDS.clientA1)).totalSteps).toBe(4);
+    expect((await getSetupState(dbs.service, IDS.clientA1)).totalSteps).toBe(5);
     expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(true);
   });
 
@@ -209,15 +224,41 @@ describe('getSetupState / completeIfDone', () => {
     expect((await dbs.owner.select().from(clientSetup))[0]!.completedAt).toBeNull();
   });
 
-  it('clientSetupOpen reads only the owner steps and works in the owner tenant transaction', async () => {
-    const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-owner', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
-    const open = () => withTenant(dbs.app, owner, (tx) => clientSetupOpen(tx, IDS.clientA1));
-    expect(await open()).toBe(false); // no row
+  it('completeIfDone needs the details step: no phone or no owner contact keeps it open', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: AREA }).where(eq(client.id, IDS.clientA1));
+    await insertSetup({ skipped: ['competitors', 'invite'], competitorsDoneAt: NOW });
+    expect((await getSetupState(dbs.service, IDS.clientA1)).steps.details).toBe('todo');
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false);
+    await dbs.owner.update(client).set({ phone: '817-555-0100' }).where(eq(client.id, IDS.clientA1));
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false); // still no owner contact
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_viewer', email: 'v@x.co', active: false });
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(false); // a viewer is not the owner
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o2@x.co', active: false });
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(true);
+  });
+
+  it('completeIfDone counts waiting_owner as settled; competitors_done_at stays unset', async () => {
     await profile();
-    await insertSetup({ skipped: ['search'] });
+    await insertSetup({ skipped: ['invite'], ownerPickRequestedAt: NOW });
+    expect((await getSetupState(dbs.service, IDS.clientA1)).competitors).toBe('waiting_owner');
+    expect(await completeIfDone(dbs.service, IDS.clientA1, NOW)).toBe(true);
+    const row = (await dbs.owner.select().from(clientSetup))[0]!;
+    expect(row).toMatchObject({ completedAt: NOW, competitorsDoneAt: null });
+    expect((await getSetupState(dbs.service, IDS.clientA1)).competitors).toBe('waiting_owner');
+  });
+
+  it('ownerPickOpen: only while owner_pick_requested_at is set and competitors_done_at is not; works in the owner tenant transaction', async () => {
+    const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-owner', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
+    const open = () => withTenant(dbs.app, owner, (tx) => ownerPickOpen(tx, IDS.clientA1));
+    expect(await open()).toBe(false); // no row
+    await insertSetup();
+    expect(await open()).toBe(false); // never asked
+    await dbs.owner.update(clientSetup).set({ ownerPickRequestedAt: NOW });
     expect(await open()).toBe(true);
-    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: NOW }); // invite still todo: open for staff, closed for the owner
+    expect(await ownerPickOpen(dbs.service, IDS.clientA1)).toBe(true);
+    await dbs.owner.update(clientSetup).set({ completedAt: NOW }); // completion does not close the window
+    expect(await open()).toBe(true);
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: NOW });
     expect(await open()).toBe(false);
-    expect((await getSetupState(dbs.service, IDS.clientA1)).open).toBe(true);
   });
 });

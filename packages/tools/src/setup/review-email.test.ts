@@ -18,11 +18,11 @@ const go = (dedupe = `competitor-review:${ID}`, manual = false, now = NOW) =>
 const mails = () => dbs.owner.select().from(notification).where(eq(notification.kind, 'competitor_review'));
 const payloadOf = (n: typeof notification.$inferSelect) => n.payload as unknown as EmailPayload & { cc: string[] };
 
-async function seed(opts: { invitedBy?: string | null; invite?: 'pending' | 'accepted' | 'expired' | 'none'; contactActive?: boolean; competitorsDone?: boolean; rivals?: boolean } = {}) {
-  const { invitedBy = 'inviter', invite = 'pending', contactActive = false, competitorsDone = false, rivals = true } = opts;
+async function seed(opts: { invitedBy?: string | null; invite?: 'pending' | 'accepted' | 'expired' | 'none'; contactActive?: boolean; competitorsDone?: boolean; rivals?: boolean; askedOwner?: boolean } = {}) {
+  const { invitedBy = 'inviter', invite = 'pending', contactActive = false, competitorsDone = false, rivals = true, askedOwner = false } = opts;
   await dbs.owner.update(client).set({ keywords: ['hvac'], serviceArea: { kind: 'radius', lat: 1, lng: 1, miles: 10 } as never, placeId: 'p1' }).where(eq(client.id, ID));
   const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: ID, role: 'client_owner', email: 'owner@smith.co', active: contactActive }).returning();
-  await dbs.owner.insert(clientSetup).values({ clientId: ID, agencyId: IDS.agencyA, invitedContactId: c!.id, invitedBy, competitorsDoneAt: competitorsDone ? NOW : null });
+  await dbs.owner.insert(clientSetup).values({ clientId: ID, agencyId: IDS.agencyA, invitedContactId: c!.id, invitedBy, competitorsDoneAt: competitorsDone ? NOW : null, ownerPickRequestedAt: askedOwner ? NOW : null });
   if (invite !== 'none') {
     await dbs.owner.insert(invitation).values({
       agencyId: IDS.agencyA, clientId: ID, email: 'owner@smith.co', role: 'client_owner', invitedBy: 'inviter',
@@ -57,7 +57,7 @@ describe('queueCompetitorReview', () => {
     expect(rows[0]!.dedupeKey).toMatch(new RegExp(`^competitor-review:${ID}:`));
     const props = payloadOf(rows[0]!).props as { competitorNames: string[]; reviewUrl: string };
     expect(props.competitorNames).toEqual(['Rival 3', 'Rival 2', 'Rival 1', 'Rival 6', 'Rival 7']); // top then watch, score desc, max 5, no minor/dismissed
-    expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}/setup`)}`);
+    expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
     expect(payloadOf(rows[0]!).cc).toEqual(['inviter@agency.co']);
   });
 
@@ -107,9 +107,28 @@ describe('queueCompetitorReview', () => {
     expect(await go(`competitor-review:${ID}:2026-10-21`, true, new Date(NOW.getTime() + D))).toBe(true);
     const rows = await mails();
     expect(rows).toHaveLength(2);
-    // The owner's own steps are done: the setup is open for staff only, so the owner's link goes to the dashboard.
+    // Owners never enter /setup (P8): the link always goes to the client overview.
     const props = payloadOf(rows[0]!).props as { reviewUrl: string };
     expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
+  });
+
+  it('review email links to overview', async () => {
+    // Profile complete (keywords + centre) and the search done: whatever the setup state, the owner lands on /c/<id>.
+    await seed({ askedOwner: true });
+    await dbs.owner.update(client).set({ serviceArea: { center: { lat: 1, lng: 1 }, radiusKm: 10, zips: [] } }).where(eq(client.id, ID));
+    expect(await go()).toBe(true);
+    const n = (await mails())[0]!;
+    expect((payloadOf(n).props as { reviewUrl: string }).reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
+    expect((payloadOf(n).props as { reviewUrl: string }).reviewUrl).not.toContain('setup');
+  });
+
+  it('auto sends while waiting on the owner pick (gate: competitors not done or skipped)', async () => {
+    await seed({ askedOwner: true });
+    expect(await go()).toBe(true);
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    await seed({ askedOwner: true, competitorsDone: true });
+    expect(await go()).toBe(false);
   });
 
   it('props carry names only', async () => {

@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext, SPEND_PAUSED_COPY } from '@cs/core';
 import { claimDueSources, ensureCompetitorSources } from '@cs/collectors';
-import { agencyConnect, client, clientCompetitor, clientSetup, prospectReport, plan } from '@cs/db';
+import { agencyConnect, client, clientCompetitor, clientSetup, contact, prospectReport, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -153,17 +153,21 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
     const DONE = new Date(Date.now() - 86_400_000);
     const setupOf = async () => (await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA2)))[0]!;
     const state = async () => ((await registry.invoke(admin, 'get_client_setup', { clientId: IDS.clientA2 })) as { state: SetupState }).state;
-    beforeEach(() => dbs.owner.update(client).set({ placeId: 'ChIJprospect' }).where(eq(client.id, IDS.clientA2)));
+    beforeEach(async () => {
+      // Steps 1-3 done: phone + an owner contact (details), keywords + a centre (outer beforeEach).
+      await dbs.owner.update(client).set({ placeId: 'ChIJprospect', phone: '512-555-0100' }).where(eq(client.id, IDS.clientA2));
+      await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, role: 'client_owner', email: 'sam@smile.co', active: false });
+    });
 
     it('convert_prospect reopens a completed setup', async () => {
       await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, detailsSubmitted: true });
       await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA2, agencyId: IDS.agencyA, skipped: ['search', 'invite'], competitorsDoneAt: DONE, completedAt: DONE });
-      expect(await state()).toMatchObject({ open: false, totalSteps: 4 });
+      expect(await state()).toMatchObject({ open: false, totalSteps: 5 });
       await registry.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 });
       const row = await setupOf();
       expect(row.completedAt).toBeNull();
       expect(row.competitorsDoneAt).toEqual(DONE); // the starting-point clock stays put
-      expect(await state()).toMatchObject({ open: true, clientOpen: false, totalSteps: 5, steps: { invite: 'skipped', billing: 'todo' }, waitingOn: 'agency' });
+      expect(await state()).toMatchObject({ open: true, totalSteps: 6, steps: { invite: 'skipped', billing: 'todo' }, waitingOn: 'agency' });
     });
 
     it('a reopened setup with nothing left to do (billing ineligible) closes again', async () => {
@@ -171,7 +175,7 @@ describe('prospects (decisions 8–12, Review Focus 1)', () => {
       await registry.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 });
       const row = await setupOf();
       expect(row.completedAt).toBeInstanceOf(Date);
-      expect(await state()).toMatchObject({ open: false, totalSteps: 5, steps: { billing: 'skipped' } });
+      expect(await state()).toMatchObject({ open: false, totalSteps: 6, steps: { billing: 'skipped' } });
     });
 
     it('leaves backfilled (no competitors_done_at), dismissed and open setups alone', async () => {

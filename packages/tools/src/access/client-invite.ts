@@ -3,17 +3,16 @@ import { client, clientSetup, contact, invitation, type Tx } from '@cs/db';
 import { loadBranding, notify } from '@cs/engine';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
-import { completeIfDone, getSetupState } from '../setup/state';
+import { completeIfDone } from '../setup/state';
 import { normalizeEmail } from './invitations';
 import { inviteMember } from './team';
 import type { Inviter } from './team-invite-email';
 
 export type ClientInviteRole = 'client_owner' | 'client_viewer';
 
-/** The page an invited client user lands on after signing in: the wizard for an owner while the setup is open for them (`clientOpen`), else the dashboard (a closed/absent setup and every viewer would 404 on `/setup`). */
-async function landingPath(tx: Tx, clientId: string, role: ClientInviteRole, now: Date): Promise<string> {
-  if (role !== 'client_owner') return `/c/${clientId}`;
-  return (await getSetupState(tx, clientId, now)).clientOpen ? `/c/${clientId}/setup` : `/c/${clientId}`;
+/** The page an invited client user lands on after signing in: always the client overview (P8: owners never enter `/setup`; an owner asked to pick finds the "choose competitors" card there). */
+function landingPath(clientId: string): string {
+  return `/c/${clientId}`;
 }
 
 /** Reuses the (agency, client, lower(email)) contact — the `contact_email_unique` key — or inserts an inactive one. An active contact stays active. */
@@ -68,7 +67,7 @@ export async function sendClientInvite(
   const rows = 'userId' in inviter ? await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${inviter.userId}`) : [];
   const inviterEmail = [...rows][0]?.email;
   // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
-  const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(await landingPath(tx, i.clientId, i.role, now))}`;
+  const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(landingPath(i.clientId))}`;
   const props = { branding, businessName: i.clientName, agencyName: branding.displayName, startUrl };
   const queued = await notify(tx, cfg, {
     agencyId: ctx.agencyId, clientId: i.clientId, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: i.clientId,

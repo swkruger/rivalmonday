@@ -1,9 +1,10 @@
 import { toolkit } from '@cs/core';
 import { alert, brief, client, clientSetup, effectiveLimitUsd, eventScore, readSpendGuardSettings, recommendation, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, gte, inArray, isNull, max, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, max, ne, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { getSetupState } from '../setup/state';
+import { pickingOwnerFirstName } from '../setup/owner-contact';
+import { getSetupState, isSettledStep } from '../setup/state';
 import { combinePressure, pressureByClient } from '../pressure';
 import { monthStart, spendByClient } from '../usage';
 import { PortfolioRow } from './schemas';
@@ -41,14 +42,22 @@ export const getPortfolio = defineTool({
         tx.select({ id: brief.clientId, at: max(brief.sentAt) }).from(brief).where(inArray(brief.clientId, ids)).groupBy(brief.clientId),
         pressureByClient(tx, ids, now),
         spendByClient(deps.service, ids, since),
-        tx.select({ id: clientSetup.clientId }).from(clientSetup).where(and(inArray(clientSetup.clientId, ids), isNull(clientSetup.completedAt), isNull(clientSetup.dismissedAt))),
+        // Open setups, plus completed ones still waiting on the owner's pick (O12); never dismissed ones.
+        tx.select({ id: clientSetup.clientId }).from(clientSetup).where(and(
+          inArray(clientSetup.clientId, ids), isNull(clientSetup.dismissedAt),
+          or(isNull(clientSetup.completedAt), and(isNotNull(clientSetup.ownerPickRequestedAt), isNull(clientSetup.competitorsDoneAt))),
+        )),
       ]);
-      // Only clients with an open setup row need the derived step states (a handful at most). Tenant-visible ids; the
-      // state's invite/billing reads need the service connection.
-      const setupBy = new Map(await Promise.all(openSetups.map(async ({ id }) => {
-        const { steps, totalSteps } = await getSetupState(deps.service, id);
-        return [id, { open: true as const, doneSteps: Object.values(steps).filter((s) => s === 'done' || s === 'skipped').length, totalSteps }] as const;
-      })));
+      // Only clients with an open (or owner-pick) setup row need the derived step states (a handful at most). Tenant-visible
+      // ids; the state's contact/invite/billing reads need the service connection.
+      const setupBy = new Map((await Promise.all(openSetups.map(async ({ id }) => {
+        const s = await getSetupState(deps.service, id);
+        const waiting = s.competitors === 'waiting_owner';
+        if (!s.open && !waiting) return null;
+        const totalSteps = (s.totalSteps + 1) as 6 | 7; // + the All set screen
+        const waitingOnOwner = waiting ? { firstName: await pickingOwnerFirstName(deps.service, ctx.agencyId, id) } : null;
+        return [id, { open: s.open, doneSteps: Object.values(s.steps).filter(isSettledStep).length, totalSteps, waitingOnOwner }] as const;
+      }))).filter((x) => x !== null));
       const byId = <T extends { id: string }>(rows: T[]) => new Map(rows.map((r) => [r.id, r]));
       const [p, d, r, ls, la, lb] = [byId(pending), byId(delivered), byId(recs), byId(lastScore), byId(lastAlert), byId(lastSent)];
       return {

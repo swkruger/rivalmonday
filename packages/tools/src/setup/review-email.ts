@@ -8,9 +8,10 @@ const MAX_NAMES = 5;
 
 /**
  * Phase 11b Task 20 (spec E3/§5): emails the invited owner the competitors to review, Cc the inviter (else the account
- * manager). Shared by the daily `setup-reminders` (dedupe `competitor-review:<clientId>`, only while competitors are not
- * done) and the manual `send_competitor_review` (dedupe adds the UTC day, ignores the competitors step). Returns false
- * when a condition fails or the dedupe key already exists. Props carry names only, never suggestion internals.
+ * manager). Shared by the daily `setup-reminders` and `invite_client_owner` (dedupe `competitor-review:<clientId>`, only
+ * while competitors are open: not done/skipped, `waiting_owner` included) and the manual `send_competitor_review`
+ * (dedupe adds the UTC day, ignores the competitors step). Returns false when a condition fails or the dedupe key
+ * already exists. Props carry names only, never suggestion internals.
  */
 export async function queueCompetitorReview(
   conn: Conn,
@@ -45,8 +46,9 @@ export async function queueCompetitorReview(
   if (!pending && !accepted) return false;
 
   const state = await getSetupState(conn, clientId, now);
-  // Automatic: only while the step is still `todo` (a staff skip means "don't ask the owner"); manual ignores it.
-  if (!input.manual && state.steps.competitors !== 'todo') return false;
+  // Automatic: only while competitors are still open — not yet picked, or the owner was asked to pick (O12/P12). A staff
+  // skip means "don't ask the owner". Manual ignores the step.
+  if (!input.manual && (state.competitors === 'done' || state.competitors === 'skipped')) return false;
 
   const run = await latestDoneRun(conn, clientId);
   if (!run) return false;
@@ -67,8 +69,8 @@ export async function queueCompetitorReview(
   ccEmail ??= (await replyToFor(conn, agencyId, clientId))?.email;
 
   const branding = await loadBranding(conn, agencyId);
-  // The owner can open /setup only while it is open for them (`clientOpen`); otherwise it would 404.
-  const next = state.clientOpen ? `/c/${clientId}/setup` : `/c/${clientId}`;
+  // Owners never enter /setup (P8): the overview carries the "choose competitors" card while they are asked to pick.
+  const next = `/c/${clientId}`;
   // Built from the validated client id only; the sign-in page re-checks `next` with `safeNext`.
   const reviewUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(owner.email.toLowerCase())}&next=${encodeURIComponent(next)}`;
   const props = { branding, businessName: c.name, competitorNames, reviewUrl };

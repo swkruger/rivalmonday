@@ -173,8 +173,15 @@ export const PortfolioRow = z.object({
   clientId: uuid, name: z.string(), verticalId: z.string(), pressure: PressureView, topCompetitor: z.string().nullable(),
   alertsPending: z.number().int(), alertsDelivered7d: z.number().int(), briefToApprove: z.object({ id: uuid, deliveryDate: z.string() }).nullable(),
   openRecommendations: z.number().int(), lastActivityAt: iso.nullable(), credits: SpendCredits,
-  /** Phase 11a/11b: set while the client's setup wizard is open (doneSteps counts done or skipped of totalSteps: 5, 4 for prospects); null otherwise. */
-  setup: z.object({ open: z.literal(true), doneSteps: z.number().int().min(0).max(5), totalSteps: z.union([z.literal(4), z.literal(5)]) }).nullable(),
+  /**
+   * Phase 16: "Setup n of N" while the client's setup is open — doneSteps = settled steps (done, skipped, waiting_owner),
+   * totalSteps = N = the steps + the All set screen (7, 6 for prospects) — or, after completion, while the owner was
+   * asked to pick and hasn't (`waitingOnOwner`, O12). Null otherwise (and for dismissed setups).
+   */
+  setup: z.object({
+    open: z.boolean(), doneSteps: z.number().int().min(0).max(7), totalSteps: z.union([z.literal(6), z.literal(7)]),
+    waitingOnOwner: z.object({ firstName: z.string().nullable() }).nullable(),
+  }).nullable(),
 });
 export type PortfolioRow = z.infer<typeof PortfolioRow>;
 

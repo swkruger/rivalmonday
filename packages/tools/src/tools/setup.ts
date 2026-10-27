@@ -11,7 +11,7 @@ import { startCompetitorSearch } from '../rival-search';
 import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
-import { clientSetupOpen, completeIfDone, getSetupState, loadSetupInvite, type SetupState } from '../setup/state';
+import { completeIfDone, getSetupState, loadSetupInvite, ownerPickOpen, type SetupState } from '../setup/state';
 import { normaliseName } from '@cs/verticals';
 import { addBusinessAreaCore, lockCatalogue, refuseClientData } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
@@ -64,26 +64,29 @@ export const findBusiness = defineTool({
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// Phase 11a §8: the wizard tools. Agency staff (with access to the client) and the client's own `client_owner`; a
-// client owner only while the setup is open. Every write re-checks "still open" inside its write transaction, after
-// the shared `client` row lock, so a concurrent completion/dismissal wins (Review focus 1–2).
+// Phase 11a §8 / Phase 16 O12: the wizard tools. Agency staff (with access to the client); a `client_owner` only for
+// picking competitors, and only while the agency asked them to pick (`ownerPickOpen`). Every write re-checks inside
+// its write transaction, after the shared `client` row lock, so a concurrent confirm/completion wins (Review focus 1–2).
+
+/** What a setup tool call does, for `assertSetupActor`. */
+type SetupOp = 'read' | 'save_profile' | 'pick' | (typeof ACTIONS)[number];
+/** The only setup operations a client owner may run (O12, P8): reading the pick screen, picking, confirming. */
+const OWNER_OPS = new Set<SetupOp>(['read', 'pick', 'confirm_competitors']);
 
 /**
- * Shared guard (security-sensitive). Clients without a setup row read as closed, so client owners are refused there.
- * A client owner acts only while `clientOpen` (one of their own three steps is still open; invite and billing are staff
- * steps — controller ruling 2026-10-17). Callers prove tenant visibility first (`assertClientVisible`): this reads on
- * the service connection.
+ * Shared guard (security-sensitive, exact rule). Agency staff always pass (tool permission + client scope are checked
+ * by the registry and `assertClientVisible`). A `client_owner` passes ONLY for reading the pick screen,
+ * `pick_setup_competitors` and `advance_client_setup` `confirm_competitors`, and ONLY while
+ * `owner_pick_requested_at IS NOT NULL AND competitors_done_at IS NULL`. Every other call by any client role is
+ * `not_found` (a scope refusal, P13). Callers prove tenant visibility first (`assertClientVisible`): this reads on the
+ * service connection.
  */
-async function assertSetupActor(ctx: AccessContext, deps: ToolDeps, clientId: string, opts: { agencyOnly?: boolean } = {}): Promise<SetupState> {
+async function assertSetupActor(ctx: AccessContext, deps: ToolDeps, clientId: string, op: SetupOp): Promise<SetupState> {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-  const isAgency = isAgencyRole(ctx.role);
-  if (opts.agencyOnly && !isAgency) throw new ToolError('permission_denied', 'Only agency staff can do this');
-  const state = await getSetupState(deps.service, clientId); // service read; client already scoped above
-  if (!isAgency) {
-    if (ctx.role !== 'client_owner') throw new ToolError('permission_denied', 'Not allowed');
-    if (!state.clientOpen) throw new ToolError('permission_denied', 'Setup is finished');
+  if (!isAgencyRole(ctx.role)) {
+    if (ctx.role !== 'client_owner' || !OWNER_OPS.has(op) || !(await ownerPickOpen(deps.service, clientId))) throw new ToolError('not_found', 'Client not found');
   }
-  return state;
+  return getSetupState(deps.service, clientId); // service read; client already scoped above
 }
 
 /** RLS proof that the caller's tenant sees the client (another agency's staff pass `canAccessClient` with scope 'all'). */
@@ -95,13 +98,13 @@ async function assertClientVisible(ctx: AccessContext, deps: ToolDeps, clientId:
 
 /**
  * The in-transaction re-guard: run it right after the `client` row lock (tenant or service tx). Agency staff pass; a
- * client owner is refused once the setup is closed for them (`clientOpen` false: completed, dismissed, the row gone, or
- * their three steps done/skipped).
+ * client owner is refused (`not_found`) once the owner-pick window is closed (competitors confirmed, the request
+ * cleared or the row gone). The caller already limited owners to the pick operations (`assertSetupActor`).
  */
 export function closedSetupRecheck(ctx: AccessContext, clientId: string): (tx: Tx) => Promise<void> {
   return async (tx) => {
     if (isAgencyRole(ctx.role)) return;
-    if (!(await clientSetupOpen(tx, clientId))) throw new ToolError('permission_denied', 'Setup is finished');
+    if (ctx.role !== 'client_owner' || !(await ownerPickOpen(tx, clientId))) throw new ToolError('not_found', 'Client not found');
   };
 }
 
@@ -121,13 +124,17 @@ export function reportedSuggestions(s: SetupSuggestions, createdAt: Date, now: D
   return s.status === 'pending' && now.getTime() - createdAt.getTime() > STALE_PENDING_MS ? { status: 'failed' } : s;
 }
 
-const StepStatusOut = z.enum(['todo', 'running', 'done', 'skipped', 'blocked']);
+const StepStatusOut = z.enum(['todo', 'done', 'skipped']);
+const CompetitorsStateOut = z.enum(['todo', 'searching', 'blocked', 'ready', 'waiting_owner', 'done', 'skipped']);
 const SetupStateOut = z.object({
   open: z.boolean(),
-  clientOpen: z.boolean(),
   exists: z.boolean(),
-  steps: z.object({ profile: StepStatusOut, search: StepStatusOut, competitors: StepStatusOut, invite: StepStatusOut.optional(), billing: StepStatusOut.optional() }),
-  totalSteps: z.union([z.literal(4), z.literal(5)]),
+  steps: z.object({
+    details: StepStatusOut, lookup: StepStatusOut, profile: StepStatusOut, competitors: CompetitorsStateOut, invite: StepStatusOut, billing: StepStatusOut.optional(),
+  }),
+  totalSteps: z.union([z.literal(5), z.literal(6)]),
+  competitors: CompetitorsStateOut,
+  needsLocation: z.boolean(),
   searchRefusal: z.string().nullable(),
   waitingOn: z.enum(['agency', 'client', 'system']).nullable(),
   completedAt: z.date().nullable(),
@@ -169,9 +176,8 @@ export const getClientSetup = defineTool({
   audit: 'skip-web',
   supportMask: ['invite.email', 'invite.name'],
   async handler(ctx, { clientId }, deps) {
-    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
-    // Spec §7: agency staff and the client's owner only.
-    if (!isAgencyRole(ctx.role) && ctx.role !== 'client_owner') throw new ToolError('not_found', 'Client not found');
+    // Agency staff; the client's owner only while asked to pick (O12, P8), for the pick screen.
+    await assertSetupActor(ctx, deps, clientId, 'read');
     const r = await withTenant(deps.app, ctx, async (tx) => {
       const [c] = await tx.select({ verticalId: client.verticalId, limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
       if (!c) return null;
@@ -183,10 +189,9 @@ export const getClientSetup = defineTool({
       return { c, row: row ?? null, tracked: tracked?.n ?? 0, rows, run: run ?? null };
     });
     if (!r) throw new ToolError('not_found', 'Client not found');
-    // Tenant visibility proven above; the state's invite/billing reads need the service connection.
+    // Tenant visibility proven above; the state's contact/invite/billing reads need the service connection.
     const state = await getSetupState(deps.service, clientId);
     const staff = isAgencyRole(ctx.role);
-    if (!staff && !state.clientOpen) throw new ToolError('not_found', 'Client not found');
     const invite = await loadSetupInvite(deps.service, clientId);
 
     const pack = await packsOf(deps)(r.c.verticalId);
@@ -224,10 +229,10 @@ export const saveSetupProfile = defineTool({
   channels: ['web'],
   async handler(ctx, { clientId, newAreas, ...input }, deps) {
     await assertClientVisible(ctx, deps, clientId);
-    await assertSetupActor(ctx, deps, clientId);
+    await assertSetupActor(ctx, deps, clientId, 'save_profile'); // staff only: owners edit services/area in Settings (§7)
     const patch = { ...input };
     if (newAreas?.length) {
-      // Client owners may tick suggested chips but never type free text: each name must be one of this client's stored suggestions.
+      // Never free text: each name must be one of this client's stored suggestions.
       const [row] = await deps.service.select({ suggestions: clientSetup.suggestions }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
       const offered = new Set((row?.suggestions.status === 'ready' ? row.suggestions.newAreas ?? [] : []).map((a) => normaliseName(a.name)));
       if (newAreas.some((a) => !offered.has(normaliseName(a.name)))) throw new ToolError('invalid_input', 'Pick new services from the suggestions.', { userFacing: true });
@@ -248,7 +253,7 @@ export const saveSetupProfile = defineTool({
       catalogOf(deps).invalidate();
       patch.services = [...new Set([...(input.services ?? ids.current), ...ids.made])];
     }
-    // No name/features in the input: client owners can't change them here.
+    // No name/features in the input: this step can't change them.
     const { search } = await applyClientProfileChange(ctx, deps, clientId, patch, { userId: ctx.userId, role: ctx.role }, closedSetupRecheck(ctx, clientId));
     // Spec §4: the write that leaves every step done or skipped sets completed_at (guarded; no-op otherwise).
     await deps.service.transaction(async (tx) => {
@@ -269,10 +274,10 @@ export const pickSetupCompetitors = defineTool({
   output: z.object({ state: SetupStateOut }),
   permission: 'manage',
   channels: ['web'],
-  // D9: the `manage_competitors` feature is bypassed here only, while the setup is open (guard + locked re-check).
+  // D9: the `manage_competitors` feature is bypassed here only, for staff and for an owner asked to pick (guard + locked re-check).
   async handler(ctx, { clientId, accept, dismiss }, deps) {
     await assertClientVisible(ctx, deps, clientId);
-    await assertSetupActor(ctx, deps, clientId);
+    await assertSetupActor(ctx, deps, clientId, 'pick');
     const toDismiss = new Set(dismiss);
     if (accept.some((id) => toDismiss.has(id))) throw new ToolError('invalid_input', 'A competitor can’t be both picked and dismissed');
     const recheck = closedSetupRecheck(ctx, clientId);
@@ -305,29 +310,35 @@ async function enqueueRunbookTailor(deps: ToolDeps, clientId: string): Promise<v
   }
 }
 
-const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss'] as const;
-/** Staff-only actions (11b: invite and billing are staff steps). */
-const AGENCY_ONLY = new Set<(typeof ACTIONS)[number]>(['dismiss', 'skip_invite', 'skip_billing']);
+/** `skip_search` is the legacy 11a skip (competitors read `ready`); `ask_owner` is O12. Owners may run `confirm_competitors` only (`OWNER_OPS`). */
+const ACTIONS = ['start_search', 'confirm_competitors', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner'] as const;
+const OPEN_COMPETITORS = new Set<SetupState['competitors']>(['todo', 'searching', 'blocked', 'ready', 'waiting_owner']);
+const INVITE_NEEDED = 'Invite the owner so they can pick the competitors.';
+const ALREADY_CHOSEN = 'Competitors are already chosen for this client.';
 
 export const advanceClientSetup = defineTool({
   name: 'advance_client_setup',
   access: 'write',
-  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, skip the search, or (agency staff) skip the invite or billing step or dismiss the setup.',
+  description: 'Move the client setup wizard on: start the competitor search, finish or skip picking competitors, ask the business owner to pick them, skip the search, or skip the invite or billing step or dismiss the setup.',
   input: z.object({ clientId: uuid, action: z.enum(ACTIONS) }),
   output: z.object({ state: SetupStateOut, searchRefusal: z.string().nullable() }),
   permission: 'manage',
   channels: ['web'],
   async handler(ctx, { clientId, action }, deps) {
     await assertClientVisible(ctx, deps, clientId);
-    const state = await assertSetupActor(ctx, deps, clientId, { agencyOnly: AGENCY_ONLY.has(action) });
+    const state = await assertSetupActor(ctx, deps, clientId, action);
     if (!state.exists) throw new ToolError('not_found', 'Setup not found');
     if (action === 'skip_billing' && !state.steps.billing) throw new ToolError('invalid_input', 'A prospect has no billing step');
+    if (action === 'ask_owner') {
+      if (state.steps.profile !== 'done') throw new ToolError('invalid_input', 'Add keywords and a location before asking the owner to pick.', { userFacing: true });
+      if (!OPEN_COMPETITORS.has(state.competitors)) throw new ToolError('invalid_input', ALREADY_CHOSEN, { userFacing: true });
+    }
     const recheck = closedSetupRecheck(ctx, clientId);
     const now = new Date();
 
     if (action === 'start_search') {
       // R1: only when nothing ran yet or the last run failed.
-      if (state.steps.search !== 'todo' && state.steps.search !== 'blocked') throw new ToolError('invalid_input', 'A competitor search is already running or has finished for this client');
+      if (state.competitors !== 'todo' && state.competitors !== 'blocked') throw new ToolError('invalid_input', 'A competitor search is already running or has finished for this client');
       await deps.service.transaction(async (tx) => {
         await lockClient(tx, clientId);
         await recheck(tx);
@@ -342,10 +353,14 @@ export const advanceClientSetup = defineTool({
     let competitorsJustDone = false;
     await deps.service.transaction(async (tx) => {
       await lockClient(tx, clientId);
-      const [row] = await tx.select({ skipped: clientSetup.skipped, competitorsDoneAt: clientSetup.competitorsDoneAt, dismissedAt: clientSetup.dismissedAt })
+      const [row] = await tx.select({ skipped: clientSetup.skipped, competitorsDoneAt: clientSetup.competitorsDoneAt, ownerPickRequestedAt: clientSetup.ownerPickRequestedAt, dismissedAt: clientSetup.dismissedAt })
         .from(clientSetup).where(eq(clientSetup.clientId, clientId)).for('update');
       if (!row) throw new ToolError('not_found', 'Setup not found');
       await recheck(tx);
+      // Re-checked under the row lock. P12: while the owner is asked to pick they must be invited (the invite sends the review email).
+      const competitorsClosed = row.competitorsDoneAt !== null || row.skipped.includes('competitors');
+      if (action === 'skip_invite' && row.ownerPickRequestedAt !== null && !competitorsClosed) throw new ToolError('invalid_input', INVITE_NEEDED, { userFacing: true });
+      if (action === 'ask_owner' && competitorsClosed) throw new ToolError('invalid_input', ALREADY_CHOSEN, { userFacing: true });
       // Under the row lock: first timestamps win, skipped stays a set.
       const skip = (step: SetupSkippedStep): SetupSkippedStep[] => (row.skipped.includes(step) ? row.skipped : [...row.skipped, step]);
       const competitorsDoneAt = row.competitorsDoneAt ?? now;
@@ -356,7 +371,9 @@ export const advanceClientSetup = defineTool({
             : action === 'skip_search' ? { skipped: skip('search') }
               : action === 'skip_invite' ? { skipped: skip('invite') }
                 : action === 'skip_billing' ? { skipped: skip('billing') }
-                  : { dismissedAt: row.dismissedAt ?? now };
+                  // O12: no email here (P12); the invite step sends the review email.
+                  : action === 'ask_owner' ? { ownerPickRequestedAt: row.ownerPickRequestedAt ?? now }
+                    : { dismissedAt: row.dismissedAt ?? now };
       await tx.update(clientSetup).set({ ...patch, ...changedBy(ctx, now) }).where(eq(clientSetup.clientId, clientId));
       await completeIfDone(tx, clientId, now);
     });
@@ -366,7 +383,11 @@ export const advanceClientSetup = defineTool({
   },
 });
 
-/** Phase 11b §4: the wizard's "Invite the owner" step. Off the paused-agency allow-list (no new outward client work while paused). */
+/**
+ * Phase 11b §4: the wizard's "Invite the owner" step. Off the paused-agency allow-list (no new outward client work while
+ * paused). P12: once the invitation exists, the competitor-review email is queued for the invited owner (gated on
+ * competitors still open, `waiting_owner` included; same dedupe as the daily reminder, so it goes out once).
+ */
 export const inviteClientOwner = defineTool({
   name: 'invite_client_owner',
   access: 'write',
@@ -376,7 +397,16 @@ export const inviteClientOwner = defineTool({
   permission: 'agency',
   channels: ['web'],
   async handler(ctx, { clientId, name, email }, deps) {
-    const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner', replaceInvitedOwner: true }, new Date());
+    const now = new Date();
+    const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner', replaceInvitedOwner: true }, now);
+    // After commit; the invitation stands even if this fails (the daily reminder retries with the same dedupe).
+    if (deps.delivery) {
+      try {
+        await queueCompetitorReview(deps.service, deps.delivery, { agencyId: ctx.agencyId, clientId, dedupe: `competitor-review:${clientId}`, now });
+      } catch (err) {
+        console.warn(`[invite_client_owner] competitor review for ${clientId} failed: ${err instanceof Error ? err.name : 'unknown'}`);
+      }
+    }
     return { invitationId: r.invitationId, expiresAt: r.expiresAt.toISOString(), contactId: r.contactId };
   },
 });

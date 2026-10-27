@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { alert, brief, changeEvent, client, clientSetup, eventScore, llmCall, move, moveEvent, recommendation } from '@cs/db';
+import { alert, brief, changeEvent, client, clientSetup, contact, eventScore, llmCall, move, moveEvent, recommendation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -82,11 +82,26 @@ describe('get_portfolio', () => {
       { ...base, clientId: IDS.clientA1, skipped: ['search'] },
       { ...base, clientId: IDS.clientA2, completedAt: new Date() },
     ]);
-    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: { open: boolean; doneSteps: number; totalSteps: number } | null }[] };
-    // A1: profile todo (the seed client has no place id), search skipped, competitors todo, invite todo, billing skipped (no Connect).
+    const { items } = (await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: { open: boolean; doneSteps: number; totalSteps: number; waitingOnOwner: unknown } | null }[] };
+    // A1: details todo (no phone), lookup done, profile todo (no keywords), competitors todo, invite todo, billing skipped (no Connect).
+    // "Setup n of N": N = 6 steps + the All set screen.
     const a1 = items.find((i) => i.clientId === IDS.clientA1)!.setup;
-    expect(a1).toEqual({ open: true, doneSteps: 2, totalSteps: 5 });
+    expect(a1).toEqual({ open: true, doneSteps: 2, totalSteps: 7, waitingOnOwner: null });
     expect(items.find((i) => i.clientId === IDS.clientA2)!.setup).toBeNull(); // completed
+  });
+
+  it('a completed setup waiting on the owner pick shows the owner first name', async () => {
+    await dbs.owner.update(client).set({ phone: '817-555-0100', keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 10, zips: [] } }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'maria@x.co', name: 'Maria Lopez', active: false });
+    const asked = new Date();
+    await dbs.owner.insert(clientSetup).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, skipped: ['invite'], ownerPickRequestedAt: asked, completedAt: asked });
+    const get = async () => ((await registry.invoke(admin, 'get_portfolio', {})) as { items: { clientId: string; setup: unknown }[] }).items.find((i) => i.clientId === IDS.clientA1)!.setup;
+    // Six steps settled (competitors waiting_owner counts), setup closed: the badge says who it waits on.
+    expect(await get()).toEqual({ open: false, doneSteps: 6, totalSteps: 7, waitingOnOwner: { firstName: 'Maria' } });
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() });
+    expect(await get()).toBeNull(); // the owner picked
+    await dbs.owner.update(clientSetup).set({ competitorsDoneAt: null, dismissedAt: new Date() });
+    expect(await get()).toBeNull(); // dismissed setups never show
   });
 
   it('rows without a setup row have no setup', async () => {

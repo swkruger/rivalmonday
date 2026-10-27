@@ -222,8 +222,10 @@ describe('runSetupReminders (Task 9)', () => {
     dbs.owner.select().from(notification).then((r) => r.filter((n) => n.channel === 'email' && (!kind || n.kind === kind)));
   const tiers = async () => (await rows('setup_idle')).map((r) => r.dedupeKey.split(':')[2]).sort();
 
+  /** Steps 1-3 done (phone + owner contact, keywords + a centre); the setup row as given. */
   async function seedOpen(over: Partial<typeof clientSetup.$inferInsert> = {}) {
-    await dbs.owner.update(client).set({ keywords: ['hvac'], serviceArea: { kind: 'radius', lat: 1, lng: 1, miles: 10 } as never, placeId: 'p1' }).where(eq(client.id, ID));
+    await dbs.owner.update(client).set({ phone: '817-555-0100', keywords: ['hvac'], serviceArea: { center: { lat: 1, lng: 1 }, radiusKm: 16, zips: [] }, placeId: 'p1' }).where(eq(client.id, ID));
+    await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: ID, role: 'client_owner', email: 'pat@smith.co', name: 'Pat', active: false });
     await dbs.owner.insert(clientSetup).values({ clientId: ID, agencyId: IDS.agencyA, createdAt: ago(D), ...over });
   }
   async function withDoneRun(suggested: number) {
@@ -357,6 +359,29 @@ describe('runSetupReminders (Task 9)', () => {
       expect((await run()).queued).toBe(6); // suggestions_ready + client_changed, 3 rows each; no review
       expect(await reviews()).toHaveLength(0);
       expect(await rows('setup_client_changed')).toHaveLength(1);
+    });
+
+    it('a completed setup waiting on the owner pick still sends the review email, but no staff notices (O12)', async () => {
+      await seedOpen({ createdAt: ago(10 * D), ownerPickRequestedAt: ago(D), completedAt: ago(D), skipped: ['invite'] });
+      await withDoneRun(2);
+      await invite();
+      expect((await run()).queued).toBe(1);
+      expect(await reviews()).toHaveLength(1);
+      expect(await dbs.owner.select().from(notification).where(like(notification.dedupeKey, 'setup-%'))).toHaveLength(0);
+      // Once the owner picked, nothing more.
+      await truncateAll(dbs.owner);
+      await seedTenancy(dbs.owner);
+      await seedOpen({ ownerPickRequestedAt: ago(D), competitorsDoneAt: ago(1000), completedAt: ago(D) });
+      await withDoneRun(2);
+      await invite();
+      expect(await run()).toEqual({ queued: 0 });
+    });
+
+    it('no suggestions_ready notice while waiting on the owner (they pick, not staff)', async () => {
+      await seedOpen({ ownerPickRequestedAt: ago(1000) });
+      await withDoneRun(2);
+      await run();
+      expect(await rows('setup_suggestions_ready')).toHaveLength(0);
     });
 
     it('does not send without an invite or once competitors are done', async () => {

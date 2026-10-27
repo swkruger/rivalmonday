@@ -1,6 +1,6 @@
 import type { MapsPlace } from '@cs/collectors';
 import { type AccessContext, type CallScope, createAccessContext } from '@cs/core';
-import { agencyConnect, businessArea, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, vendorCall, withTenant } from '@cs/db';
+import { businessArea, client, clientCompetitor, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification, vendorCall, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -142,6 +142,11 @@ type GetOut = Out & {
 const setupRow = (v: Partial<typeof clientSetup.$inferInsert> = {}) => dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ...v });
 const setupOf = async () => (await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA1)))[0]!;
 const fillProfile = () => dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+/** Step 1 done: a phone and an owner contact (A1 already has a name). */
+const fillDetails = async () => {
+  await dbs.owner.update(client).set({ phone: '817-555-0100' }).where(eq(client.id, IDS.clientA1));
+  await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'pat@x.co', name: 'Pat Owner', active: false });
+};
 const runs = () => dbs.owner.select().from(discoveryRun).where(eq(discoveryRun.clientId, IDS.clientA1));
 const statuses = async () => Object.fromEntries((await dbs.owner.select().from(competitorSuggestion)).map((x) => [x.id, x.status]));
 
@@ -174,75 +179,92 @@ describe('wizard tools', () => {
   beforeEach(() => wizEnqueue.mockClear());
 
   describe('assertSetupActor', () => {
-    it('client_owner can save profile while open', async () => {
+    const ASKED = { ownerPickRequestedAt: new Date() };
+
+    it('owner may pick only while waiting_owner', async () => {
+      await fillProfile();
+      await fillDetails();
       await setupRow();
-      const out = await save(ownerA1, { keywords: ['furnace repair'] });
-      expect(out.state.open).toBe(true);
-      const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
-      expect(c!.keywords).toEqual(['furnace repair']);
-      expect(await setupOf()).toMatchObject({ lastChangedBy: 'u-client_owner', lastChangedRole: 'client_owner' });
+      const r = await run('done');
+      const a = await sug(r, 'Pick Me');
+      // Not asked yet: the setup is open for staff, but the owner is refused (scope refusal, P13).
+      expect((await fails(pick(ownerA1, [a]))).code).toBe('not_found');
+      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('not_found');
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+      expect(await statuses()).toEqual({ [a]: 'suggested' });
+      await advance(admin, 'ask_owner');
+      await expect(get(ownerA1)).resolves.toMatchObject({ state: { competitors: 'waiting_owner' } });
+      await pick(ownerA1, [a]);
+      expect(await statuses()).toEqual({ [a]: 'accepted' });
+      const out = await advance(ownerA1, 'confirm_competitors');
+      expect(out.state.competitors).toBe('done');
+      expect(await setupOf()).toMatchObject({ lastChangedRole: 'client_owner' });
+      expect((await setupOf()).competitorsDoneAt).toBeInstanceOf(Date);
     });
 
-    it('client_owner refused after completion (permission_denied)', async () => {
-      await setupRow({ completedAt: new Date() });
-      const id = await sug(await run('done'), 'Rival One');
-      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
-      expect((await fails(pick(ownerA1, [id]))).code).toBe('permission_denied');
-      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('permission_denied');
-      expect((await fails(advance(ownerA1, 'start_search'))).code).toBe('permission_denied');
+    it('owner gets not_found on save_setup_profile', async () => {
+      await setupRow(ASKED);
+      expect((await fails(save(ownerA1, { keywords: ['furnace repair'] }))).code).toBe('not_found');
+      await dbs.owner.update(clientSetup).set({ ownerPickRequestedAt: null });
+      expect((await fails(save(ownerA1, { keywords: ['furnace repair'] }))).code).toBe('not_found');
       const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
       expect(c!.keywords).toEqual([]);
-      expect(await statuses()).toEqual({ [id]: 'suggested' });
-      expect((await setupOf()).competitorsDoneAt).toBeNull();
+      expect((await setupOf()).lastChangedBy).toBeNull();
     });
 
-    it('client_owner refused once dismissed; staff still allowed', async () => {
-      await setupRow({ dismissedAt: new Date() });
-      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
+    it('owner gets not_found for every other advance action, even while waiting_owner', async () => {
+      await fillProfile();
+      await setupRow(ASKED);
+      for (const action of ['start_search', 'skip_search', 'skip_competitors', 'skip_invite', 'skip_billing', 'dismiss', 'ask_owner']) {
+        expect((await fails(advance(ownerA1, action))).code, action).toBe('not_found');
+      }
+      const row = await setupOf();
+      expect(row).toMatchObject({ skipped: [], dismissedAt: null, competitorsDoneAt: null, lastChangedBy: null });
+      expect(await runs()).toHaveLength(0);
+    });
+
+    it('owner gets not_found after competitors done', async () => {
+      await setupRow({ ...ASKED, competitorsDoneAt: new Date() });
+      const id = await sug(await run('done'), 'Rival One');
+      expect((await fails(get(ownerA1))).code).toBe('not_found');
+      expect((await fails(pick(ownerA1, [id]))).code).toBe('not_found');
+      expect((await fails(pick(ownerA1, [], [id]))).code).toBe('not_found');
+      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('not_found');
+      expect(await statuses()).toEqual({ [id]: 'suggested' });
+    });
+
+    it('a dismissed or completed setup keeps the owner window while asked; staff are never refused', async () => {
+      await setupRow({ ...ASKED, completedAt: new Date(), dismissedAt: new Date() });
+      await expect(get(ownerA1)).resolves.toMatchObject({ state: { open: false, competitors: 'waiting_owner' } });
       await expect(save(admin, { keywords: ['heat pump'] })).resolves.toMatchObject({ state: { open: false } });
     });
 
-    it('the in-transaction re-check refuses a client owner once the row closed (a concurrent completion wins)', async () => {
-      await setupRow();
+    it('the in-transaction re-check refuses a client owner once competitors are done (a concurrent confirm wins)', async () => {
+      await setupRow(ASKED);
       const ownerCheck = (ctx: AccessContext) => withTenant(dbs.app, ctx, (tx) => closedSetupRecheck(ctx, IDS.clientA1)(tx));
       await expect(ownerCheck(ownerA1)).resolves.toBeUndefined();
-      await dbs.owner.update(clientSetup).set({ completedAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
-      await expect(ownerCheck(ownerA1)).rejects.toMatchObject({ code: 'permission_denied' });
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
+      await expect(ownerCheck(ownerA1)).rejects.toMatchObject({ code: 'not_found' });
       await expect(ownerCheck(admin)).resolves.toBeUndefined();
-      await expect(dbs.service.transaction((tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx))).rejects.toMatchObject({ code: 'permission_denied' });
+      await expect(dbs.service.transaction((tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx))).rejects.toMatchObject({ code: 'not_found' });
     });
 
-    it('the in-transaction re-check refuses a client owner once their three steps are done (invite still todo)', async () => {
-      await fillProfile();
-      await setupRow({ skipped: ['search'] });
-      const ownerCheck = () => withTenant(dbs.app, ownerA1, (tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx));
-      await expect(ownerCheck()).resolves.toBeUndefined();
-      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() }).where(eq(clientSetup.clientId, IDS.clientA1));
-      await expect(ownerCheck()).rejects.toMatchObject({ code: 'permission_denied' });
+    it('the in-transaction re-check refuses a client owner who was never asked', async () => {
+      await setupRow();
+      await expect(withTenant(dbs.app, ownerA1, (tx) => closedSetupRecheck(ownerA1, IDS.clientA1)(tx))).rejects.toMatchObject({ code: 'not_found' });
       await expect(withTenant(dbs.app, admin, (tx) => closedSetupRecheck(admin, IDS.clientA1)(tx))).resolves.toBeUndefined();
     });
 
-    it('client owner sees setup closed once their three steps are done while invite/billing are still todo', async () => {
-      await fillProfile();
-      await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, stripeAccountId: 'acct_1', status: 'connected', chargesEnabled: true, detailsSubmitted: true });
-      await setupRow({ skipped: ['search'] });
-      await expect(get(ownerA1)).resolves.toMatchObject({ state: { open: true, clientOpen: true } });
-      const out = await advance(ownerA1, 'confirm_competitors');
-      expect(out.state).toMatchObject({ open: true, clientOpen: false, totalSteps: 5, steps: { competitors: 'done', invite: 'todo', billing: 'todo' }, waitingOn: 'agency' });
-      expect((await setupOf()).completedAt).toBeNull();
-      expect((await fails(get(ownerA1))).code).toBe('not_found');
-      expect((await fails(save(ownerA1, { keywords: ['x'] }))).code).toBe('permission_denied');
-      expect((await fails(advance(ownerA1, 'confirm_competitors'))).code).toBe('permission_denied');
-      await expect(get(admin)).resolves.toMatchObject({ state: { open: true, clientOpen: false, steps: { invite: 'todo', billing: 'todo' } } });
-    });
-
     it('client_viewer refused', async () => {
-      await setupRow();
+      await setupRow(ASKED);
+      const id = await sug(await run('done'), 'Rival One');
       // The registry hides `manage` tools from viewers (not_found, like an unknown tool).
       expect((await fails(save(viewerA1, { keywords: ['x'] }))).code).toBe('not_found');
-      expect((await fails(advance(viewerA1, 'skip_search'))).code).toBe('not_found');
+      expect((await fails(advance(viewerA1, 'confirm_competitors'))).code).toBe('not_found');
+      expect((await fails(pick(viewerA1, [id]))).code).toBe('not_found');
       expect((await fails(get(viewerA1))).code).toBe('not_found');
-      expect((await setupOf()).skipped).toEqual([]);
+      expect((await setupOf()).competitorsDoneAt).toBeNull();
+      expect(await statuses()).toEqual({ [id]: 'suggested' });
     });
 
     it('other agency → not_found', async () => {
@@ -253,21 +275,35 @@ describe('wizard tools', () => {
       expect((await fails(pick(adminB, [id]))).code).toBe('not_found');
       expect((await fails(pick(adminB, [], [id]))).code).toBe('not_found');
       expect((await fails(advance(adminB, 'skip_search'))).code).toBe('not_found');
-      expect((await setupOf()).skipped).toEqual([]);
+      expect((await fails(advance(adminB, 'ask_owner'))).code).toBe('not_found');
+      expect(await setupOf()).toMatchObject({ skipped: [], ownerPickRequestedAt: null });
+      expect(await statuses()).toEqual({ [id]: 'suggested' });
+    });
+
+    it('another agency’s client owner never passes the owner window (cross-agency)', async () => {
+      await setupRow(ASKED);
+      const id = await sug(await run('done'), 'Rival One');
+      // A client_owner of agency B naming A1 (even with A1 in a forged scope) is refused before any write.
+      const ownerB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-owner-b', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
+      expect((await fails(get(ownerB))).code).toBe('not_found');
+      expect((await fails(pick(ownerB, [id]))).code).toBe('not_found');
+      expect((await fails(advance(ownerB, 'confirm_competitors'))).code).toBe('not_found');
+      expect((await setupOf()).competitorsDoneAt).toBeNull();
       expect(await statuses()).toEqual({ [id]: 'suggested' });
     });
 
     it('a client owner of another client → not_found', async () => {
-      await setupRow();
+      await setupRow(ASKED);
       const other = mk('client_owner', [IDS.clientA2]);
       expect((await fails(get(other))).code).toBe('not_found');
-      expect((await fails(advance(other, 'skip_search'))).code).toBe('not_found');
+      expect((await fails(advance(other, 'confirm_competitors'))).code).toBe('not_found');
+      expect((await setupOf()).competitorsDoneAt).toBeNull();
     });
   });
 
   describe('get_client_setup', () => {
     it('get_client_setup payload has none of overlap_score/signals/ad_matches/appearances/best_rank/upsell_tag', async () => {
-      await setupRow({ suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], newAreas: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
+      await setupRow({ ownerPickRequestedAt: new Date(), suggestions: { status: 'ready', services: [{ value: 'ac_repair', quote: 'we fix ACs' }], keywords: [], newAreas: [], sources: ['gbp'], generatedAt: new Date().toISOString() } });
       const r = await run('done');
       await sug(r, 'Rival One');
       // Internal run data that must never reach the payload (hidden names/reasons, cost, vendor error text).
@@ -290,25 +326,26 @@ describe('wizard tools', () => {
     });
 
     it('get_client_setup includes search progress while a run is running', async () => {
-      await setupRow();
+      await setupRow({ ownerPickRequestedAt: new Date() });
       const r = await run('checking');
       await dbs.owner.update(discoveryRun).set({ progress: { searchesDone: 9, searchesTotal: 9, checksDone: 2 } }).where(eq(discoveryRun.id, r));
       for (const ctx of [admin, ownerA1]) {
         const out = await get(ctx);
         expect(out.search).toEqual({ status: 'checking', progress: { searchesDone: 9, searchesTotal: 9, checksDone: 2, checksTotal: 0 }, kept: null, finishedAt: null });
-        expect(out.state.steps.search).toBe('running');
+        expect(out.state.competitors).toBe('waiting_owner'); // asked: the pick waits on the owner, search running or not
       }
     });
 
     it('search is null without a run', async () => {
-      await setupRow();
+      await setupRow({ ownerPickRequestedAt: new Date() });
       expect((await get(ownerA1)).search).toBeNull();
     });
 
     it('returns state, lookup, suggestions and the vertical services + seed keywords', async () => {
       await setupRow();
       const out = await get(admin);
-      expect(out.state).toMatchObject({ open: true, exists: true });
+      expect(out.state).toMatchObject({ open: true, exists: true, totalSteps: 6, needsLocation: true });
+      expect(out.state).not.toHaveProperty('clientOpen');
       expect(out.lookup).toBeNull();
       expect(out.suggestions).toEqual({ status: 'none' });
       expect(out.vertical.seedKeywords).toEqual(['hvac contractor', 'ac repair', 'plumber']);
@@ -322,14 +359,16 @@ describe('wizard tools', () => {
       expect(out.vertical.name).toBe('HVAC & Plumbing');
     });
 
-    it('get_client_setup not_found for client role once closed; staff still read it', async () => {
+    it('get_client_setup not_found for the owner unless asked to pick; staff still read a closed setup', async () => {
       await setupRow({ completedAt: new Date() });
       expect((await fails(get(ownerA1))).code).toBe('not_found');
       await expect(get(admin)).resolves.toMatchObject({ state: { open: false } });
+      await dbs.owner.update(clientSetup).set({ completedAt: null });
+      expect((await fails(get(ownerA1))).code).toBe('not_found'); // open for staff, never asked
     });
 
     it('get_client_setup reports the invited owner: name and email for staff only', async () => {
-      await setupRow();
+      await setupRow({ ownerPickRequestedAt: new Date() });
       expect((await get(admin)).invite).toEqual({ status: 'none', name: null, email: null });
       const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'olive@x.co', name: 'Olive', active: false }).returning();
       await dbs.owner.update(clientSetup).set({ invitedContactId: c!.id }).where(eq(clientSetup.clientId, IDS.clientA1));
@@ -395,22 +434,23 @@ describe('wizard tools', () => {
   });
 
   describe('save_setup_profile', () => {
-    it('profile save while a search is running starts no second search', async () => {
+    it('profile save during running search does not enqueue', async () => {
       await setupRow();
       await run('searching');
-      const out = await save(ownerA1, PROFILE);
+      const out = await save(admin, PROFILE);
       expect(out.searchRefusal).toBeNull();
       expect(await runs()).toHaveLength(1);
       expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'rival-search')).toHaveLength(0);
-      expect(out.state.steps).toMatchObject({ profile: 'done', search: 'running' });
+      expect(out.state.steps).toMatchObject({ profile: 'done', competitors: 'searching' });
+      expect(out.state.competitors).toBe('searching');
     });
 
     it('completing the profile starts the first auto search', async () => {
       await setupRow();
-      const out = await save(ownerA1, PROFILE);
+      const out = await save(admin, PROFILE);
       expect(out.searchRefusal).toBeNull();
       expect((await runs()).map((x) => x.trigger)).toEqual(['auto']);
-      expect(out.state.steps.search).toBe('running');
+      expect(out.state.competitors).toBe('searching');
     });
 
     it('save_setup_profile returns searchRefusal when the auto start is refused', async () => {
@@ -418,7 +458,7 @@ describe('wizard tools', () => {
       await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
       const out = await save(admin, PROFILE);
       expect(out.searchRefusal).toBe('This client is paused. Resume it to search for competitors.');
-      expect(out.state.steps).toMatchObject({ profile: 'done', search: 'todo' });
+      expect(out.state.steps).toMatchObject({ profile: 'done', competitors: 'todo' });
     });
 
     describe('newAreas (14a)', () => {
@@ -457,16 +497,17 @@ describe('wizard tools', () => {
         expect(await servicesOf()).toHaveLength(1);
       });
 
-      it('a client owner can tick a suggested chip', async () => {
+      it('a client owner cannot tick a suggested chip (owners never edit the profile in setup)', async () => {
         await offered('Duct Sealing Specials');
-        await save(ownerA1, { newAreas: [{ name: 'Duct Sealing Specials' }] });
-        expect((await areasOf()).some((a) => a.name === 'Duct Sealing Specials')).toBe(true);
+        await dbs.owner.update(clientSetup).set({ ownerPickRequestedAt: new Date() });
+        expect((await fails(save(ownerA1, { newAreas: [{ name: 'Duct Sealing Specials' }] }))).code).toBe('not_found');
+        expect((await areasOf()).some((a) => a.name === 'Duct Sealing Specials')).toBe(false);
       });
 
       it('refuses a name that is not in the stored suggestions (no free text), creating nothing', async () => {
         await offered('Duct Sealing Specials');
         const before = (await areasOf()).length;
-        const e = await fails(save(ownerA1, { newAreas: [{ name: 'Something I typed' }] }));
+        const e = await fails(save(admin, { newAreas: [{ name: 'Something I typed' }] }));
         expect(e).toMatchObject({ code: 'invalid_input', message: 'Pick new services from the suggestions.', userFacing: true });
         expect((await areasOf()).length).toBe(before);
       });
@@ -492,7 +533,7 @@ describe('wizard tools', () => {
 
     it('never changes name or features (not part of the input)', async () => {
       await setupRow();
-      await save(ownerA1, { name: 'Hijacked', features: ['dashboard'], keywords: ['ok'] });
+      await save(admin, { name: 'Hijacked', features: ['dashboard'], keywords: ['ok'] });
       const [c] = await dbs.owner.select().from(client).where(eq(client.id, IDS.clientA1));
       expect(c!.name).toBe('A1 HVAC');
       expect(c!.features).toEqual([]);
@@ -501,19 +542,20 @@ describe('wizard tools', () => {
 
     it('a service-area centre/radius change enqueues rank-map-refresh; a keyword-only save does not', async () => {
       await setupRow();
-      await save(ownerA1, { keywords: ['furnace repair'] });
+      await save(admin, { keywords: ['furnace repair'] });
       expect(wizEnqueue).not.toHaveBeenCalledWith('rank-map-refresh', expect.anything(), expect.anything());
-      await save(ownerA1, { serviceArea: AREA });
+      await save(admin, { serviceArea: AREA });
       expect(wizEnqueue).toHaveBeenCalledWith('rank-map-refresh', { clientId: IDS.clientA1 }, `rank-map:${IDS.clientA1}`);
     });
 
     it('rejects a radius outside 2-40 km (ServiceAreaWrite)', async () => {
       await setupRow();
-      expect((await fails(save(ownerA1, { serviceArea: { ...AREA, radiusKm: 41 } }))).code).toBe('invalid_input');
-      expect((await fails(save(ownerA1, { serviceArea: { ...AREA, radiusKm: 1 } }))).code).toBe('invalid_input');
+      expect((await fails(save(admin, { serviceArea: { ...AREA, radiusKm: 41 } }))).code).toBe('invalid_input');
+      expect((await fails(save(admin, { serviceArea: { ...AREA, radiusKm: 1 } }))).code).toBe('invalid_input');
     });
 
     it('a profile save that completes the last open step sets completed_at', async () => {
+      await fillDetails();
       await setupRow({ skipped: ['search', 'competitors', 'invite'] });
       const out = await save(admin, PROFILE);
       expect(out.state.open).toBe(false);
@@ -522,13 +564,13 @@ describe('wizard tools', () => {
   });
 
   describe('pick_setup_competitors', () => {
-    it('client owner can pick competitors without manage_competitors while open', async () => {
-      await setupRow();
+    it('client owner can pick competitors without manage_competitors while waiting_owner', async () => {
+      await setupRow({ ownerPickRequestedAt: new Date() });
       const r = await run('done');
       const a = await sug(r, 'Pick Me');
       const d = await sug(r, 'Not Me');
       const out = await pick(ownerA1, [a], [d]);
-      expect(out.state.open).toBe(true);
+      expect(out.state).toMatchObject({ open: true, competitors: 'waiting_owner' });
       expect(await statuses()).toEqual({ [a]: 'accepted', [d]: 'dismissed' });
       expect(await dbs.owner.select().from(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1))).toHaveLength(2);
       // Outside the wizard the same owner still needs the flag.
@@ -546,7 +588,7 @@ describe('wizard tools', () => {
     });
 
     it('pick re-submitting an accepted id succeeds', async () => {
-      await setupRow();
+      await setupRow({ ownerPickRequestedAt: new Date() });
       const r = await run('done');
       const a = await sug(r, 'Pick Me');
       const b = await sug(r, 'Me Too');
@@ -565,8 +607,8 @@ describe('wizard tools', () => {
 
   describe('advance_client_setup', () => {
     it('dismiss refused for client_owner', async () => {
-      await setupRow();
-      expect((await fails(advance(ownerA1, 'dismiss'))).code).toBe('permission_denied');
+      await setupRow({ ownerPickRequestedAt: new Date() });
+      expect((await fails(advance(ownerA1, 'dismiss'))).code).toBe('not_found');
       expect((await setupOf()).dismissedAt).toBeNull();
       const out = await advance(admin, 'dismiss');
       expect(out.state.open).toBe(false);
@@ -575,7 +617,7 @@ describe('wizard tools', () => {
 
     it('skip_invite/skip_billing refused for client roles', async () => {
       await setupRow();
-      for (const action of ['skip_invite', 'skip_billing']) expect((await fails(advance(ownerA1, action))).code).toBe('permission_denied');
+      for (const action of ['skip_invite', 'skip_billing']) expect((await fails(advance(ownerA1, action))).code).toBe('not_found');
       expect((await setupOf()).skipped).toEqual([]);
       await advance(admin, 'skip_invite');
       await advance(mk('account_manager', [IDS.clientA1]), 'skip_billing');
@@ -587,7 +629,7 @@ describe('wizard tools', () => {
       await setupRow();
       expect((await fails(advance(admin, 'skip_billing'))).code).toBe('invalid_input');
       const out = await advance(admin, 'skip_invite');
-      expect(out.state).toMatchObject({ totalSteps: 4, steps: { invite: 'skipped' } });
+      expect(out.state).toMatchObject({ totalSteps: 5, steps: { invite: 'skipped' } });
       expect(out.state.steps.billing).toBeUndefined();
     });
 
@@ -621,9 +663,12 @@ describe('wizard tools', () => {
 
     it('staff and owner confirming at once set competitors_done_at and completed_at once', async () => {
       await fillProfile();
-      await setupRow({ skipped: ['search', 'invite'] });
+      await fillDetails();
+      await setupRow({ skipped: ['search', 'invite'], ownerPickRequestedAt: new Date() });
       const results = await Promise.allSettled([advance(admin, 'confirm_competitors'), advance(ownerA1, 'confirm_competitors')]);
       expect(results[0]!.status).toBe('fulfilled');
+      // The owner either confirmed first or lost the window to the staff confirm (not_found), never anything else.
+      if (results[1]!.status === 'rejected') expect((results[1] as PromiseRejectedResult).reason).toMatchObject({ code: 'not_found' });
       const row = await setupOf();
       expect(row.completedAt).toBeInstanceOf(Date);
       expect(row.competitorsDoneAt!.getTime()).toBeLessThanOrEqual(row.completedAt!.getTime());
@@ -631,12 +676,13 @@ describe('wizard tools', () => {
 
     it('completed_at set once all steps done/skipped', async () => {
       await fillProfile();
+      await fillDetails();
       await setupRow();
-      await advance(ownerA1, 'skip_search');
+      await advance(admin, 'skip_search');
       expect((await setupOf()).completedAt).toBeNull();
       // Done picking no longer closes the setup: the invite step is next (billing reads skipped without Connect).
-      const picked = await advance(ownerA1, 'skip_competitors');
-      expect(picked.state).toMatchObject({ open: true, clientOpen: false, steps: { profile: 'done', search: 'skipped', competitors: 'skipped', invite: 'todo', billing: 'skipped' } });
+      const picked = await advance(admin, 'skip_competitors');
+      expect(picked.state).toMatchObject({ open: true, steps: { details: 'done', lookup: 'done', profile: 'done', competitors: 'skipped', invite: 'todo', billing: 'skipped' } });
       expect((await setupOf()).completedAt).toBeNull();
       const out = await advance(admin, 'skip_invite');
       expect(out.state).toMatchObject({ open: false, steps: { invite: 'skipped' } });
@@ -658,12 +704,12 @@ describe('wizard tools', () => {
     it('start_search starts an auto run when search is todo', async () => {
       await fillProfile();
       await setupRow();
-      const out = await advance(ownerA1, 'start_search');
+      const out = await advance(admin, 'start_search');
       expect(out.searchRefusal).toBeNull();
       expect((await runs()).map((x) => x.trigger)).toEqual(['auto']);
       expect(wizEnqueue).toHaveBeenCalledWith('rival-search', expect.anything(), `rival:${IDS.clientA1}`);
-      expect(out.state.steps.search).toBe('running');
-      expect(await setupOf()).toMatchObject({ lastChangedRole: 'client_owner' });
+      expect(out.state.competitors).toBe('searching');
+      expect(await setupOf()).toMatchObject({ lastChangedRole: 'agency_admin' });
     });
 
     it('start_search returns searchRefusal (cooldown) without throwing', async () => {
@@ -673,7 +719,7 @@ describe('wizard tools', () => {
       const out = await advance(admin, 'start_search');
       expect(out.searchRefusal).toBe('A search just finished — its suggestions are below. You can search again in a few minutes.');
       expect(await runs()).toHaveLength(1);
-      expect(out.state.steps.search).toBe('blocked');
+      expect(out.state.competitors).toBe('blocked');
     });
 
     it('start_search ignores the manual weekly limit', async () => {
@@ -702,9 +748,107 @@ describe('wizard tools', () => {
       expect(await runs()).toHaveLength(0);
     });
 
+    it('ask_owner sets waiting_owner and completes setup for staff', async () => {
+      await fillProfile();
+      await fillDetails();
+      await setupRow({ skipped: ['invite'] });
+      await sug(await run('done'), 'Rival One');
+      wizEnqueue.mockClear();
+      const out = await advance(admin, 'ask_owner');
+      // Every staff step is settled (invite skipped, billing skipped without Connect): the setup completes, the pick waits.
+      expect(out.state).toMatchObject({ open: false, competitors: 'waiting_owner', steps: { competitors: 'waiting_owner' } });
+      const row = await setupOf();
+      expect(row.ownerPickRequestedAt).toBeInstanceOf(Date);
+      expect(row.competitorsDoneAt).toBeNull();
+      expect(row.completedAt).toBeInstanceOf(Date);
+      expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'runbook-tailor')).toHaveLength(0); // competitors are not closed yet
+      // A second ask keeps the first request time; the owner's confirm then closes the step (and tailors the runbook once).
+      const first = row.ownerPickRequestedAt;
+      await advance(admin, 'ask_owner');
+      expect((await setupOf()).ownerPickRequestedAt).toEqual(first);
+      await advance(ownerA1, 'confirm_competitors');
+      const after = await setupOf();
+      expect(after.competitorsDoneAt).toBeInstanceOf(Date);
+      expect(after.completedAt).toEqual(row.completedAt);
+      expect(wizEnqueue.mock.calls.filter((c) => c[0] === 'runbook-tailor')).toHaveLength(1);
+    });
+
+    it('ask_owner is refused once competitors are done or skipped, and before the profile is complete', async () => {
+      await setupRow();
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input'); // no keywords / centre yet
+      await fillProfile();
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() });
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: null, skipped: ['competitors'] });
+      expect((await fails(advance(admin, 'ask_owner'))).code).toBe('invalid_input');
+      expect((await setupOf()).ownerPickRequestedAt).toBeNull();
+    });
+
+    it('invite cannot be skipped while waiting_owner', async () => {
+      await fillProfile();
+      await setupRow({ ownerPickRequestedAt: new Date() });
+      const e = await fails(advance(admin, 'skip_invite'));
+      expect(e).toMatchObject({ code: 'invalid_input', userFacing: true });
+      expect((await setupOf()).skipped).toEqual([]);
+      // Once the owner picked, the invite step may be skipped again.
+      await dbs.owner.update(clientSetup).set({ competitorsDoneAt: new Date() });
+      await advance(admin, 'skip_invite');
+      expect((await setupOf()).skipped).toEqual(['invite']);
+    });
+
     it('refuses a client without a setup row (not_found)', async () => {
       expect((await fails(advance(admin, 'skip_search'))).code).toBe('not_found');
     });
+  });
+});
+
+describe('owner pick emails (P12)', () => {
+  const D = 86_400_000;
+  const reg = () =>
+    createToolRegistry(
+      { app: dbs.app, service: dbs.service, enqueue: wizEnqueue, delivery: { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'b@app.test' } },
+      { audit: { record: async () => {} } },
+    );
+  const reviews = () => dbs.owner.select().from(notification).where(eq(notification.kind, 'competitor_review'));
+  async function rivals() {
+    const [r] = await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', trigger: 'auto', finishedAt: new Date() }).returning();
+    await dbs.owner.insert(competitorSuggestion).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, name: 'Rival', placeId: 'rp', appearances: 1, overlapScore: 1, runId: r!.id, tier: 'top' });
+  }
+
+  it('ask_owner sends no email', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA });
+    // Even with an invited owner and rivals to review, asking does not email (the invite step does).
+    const [c] = await dbs.owner.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@x.co', active: false }).returning();
+    await dbs.owner.update(clientSetup).set({ invitedContactId: c!.id });
+    await dbs.owner.insert(invitation).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, email: 'o@x.co', role: 'client_owner', invitedBy: 'x', expiresAt: new Date(Date.now() + 5 * D) });
+    await rivals();
+    const before = (await dbs.owner.select().from(notification)).length;
+    await reg().invoke(admin, 'advance_client_setup', { clientId: IDS.clientA1, action: 'ask_owner' });
+    expect(await reviews()).toHaveLength(0);
+    expect((await dbs.owner.select().from(notification)).length).toBe(before);
+  });
+
+  it('invite while waiting_owner queues the review email', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ownerPickRequestedAt: new Date() });
+    await rivals();
+    await reg().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Maria Lopez', email: 'maria@x.co' });
+    const rows = await reviews();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ address: 'maria@x.co', dedupeKey: expect.stringMatching(new RegExp(`^competitor-review:${IDS.clientA1}:`)) });
+    expect((rows[0]!.payload as { props: { reviewUrl: string } }).props.reviewUrl).toContain(encodeURIComponent(`/c/${IDS.clientA1}`));
+    // The daily reminder uses the same dedupe: no second email.
+    await reg().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Maria Lopez', email: 'maria@x.co' });
+    expect(await reviews()).toHaveLength(1);
+  });
+
+  it('an invite after competitors are done sends no review email', async () => {
+    await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, competitorsDoneAt: new Date() });
+    await rivals();
+    await reg().invoke(admin, 'invite_client_owner', { clientId: IDS.clientA1, name: 'Maria Lopez', email: 'maria@x.co' });
+    expect(await reviews()).toHaveLength(0);
   });
 });
 

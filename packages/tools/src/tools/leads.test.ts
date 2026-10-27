@@ -127,12 +127,14 @@ describe('accept_lead', () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
-  it('the invited client_owner of an accepted (prospect) lead can read get_client_setup while clientOpen', async () => {
+  it('the invited client_owner of an accepted (prospect) lead reads get_client_setup only once asked to pick', async () => {
     const id = await mkLead();
     const { clientId } = await call<{ clientId: string }>(admin, 'accept_lead', { leadId: id, verticalId: 'dental' });
     const owner = mk('sam-user', 'client_owner', [clientId]);
-    const out = await call<{ state: { clientOpen: boolean; totalSteps: number } }>(owner, 'get_client_setup', { clientId });
-    expect(out.state).toMatchObject({ clientOpen: true, totalSteps: 4 });
+    await expect(call(owner, 'get_client_setup', { clientId })).rejects.toMatchObject({ code: 'not_found' });
+    await dbs.service.update(clientSetup).set({ ownerPickRequestedAt: new Date() }).where(eq(clientSetup.clientId, clientId));
+    const out = await call<{ state: { competitors: string; totalSteps: number } }>(owner, 'get_client_setup', { clientId });
+    expect(out.state).toMatchObject({ competitors: 'waiting_owner', totalSteps: 5 });
   });
 });
 

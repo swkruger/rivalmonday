@@ -1,5 +1,5 @@
 export { queueCompetitorReview } from './setup/review-email';
-export { completeIfDone, deriveSetupState, getSetupState, type SetupState, type SetupStateInput, type StepStatus } from './setup/state';
+export { completeIfDone, type CompetitorsStepState, deriveSetupState, getSetupState, isSettledStep, type SetupState, type SetupStateInput, type SetupStepKey, type StepState, type StepStatus } from './setup/state';
 export * from './access/invitations';
 export * from './access/signup';
 export * from './access/signup-complete';

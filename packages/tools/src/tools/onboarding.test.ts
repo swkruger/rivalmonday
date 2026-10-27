@@ -261,10 +261,17 @@ describe('create_client details and geocoding (Phase 16 O13)', () => {
     expect(row!.serviceArea).toBeNull();
     const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
     expect(setup!.locationSource).toBe('geocoded');
-    expect((await getSetupState(dbs.service, clientId)).steps.profile).toBe('todo'); // no centre: Task 7 shows needs_location
+    expect(await getSetupState(dbs.service, clientId)).toMatchObject({ needsLocation: true, steps: { details: 'done', lookup: 'done', profile: 'todo' } }); // no centre
     // No geocoder at all (no STADIA_API_KEY) reads the same as a miss.
     const { clientId: c2 } = (await registry.invoke(admin, 'create_client', { ...noArea, name: 'No Key', details })) as { clientId: string };
     expect((await dbs.owner.select().from(client).where(eq(client.id, c2)))[0]!.serviceArea).toBeNull();
+  });
+
+  it('details without an address or locality: needsLocation, no location source', async () => {
+    const { clientId } = (await geoRegistry.invoke(admin, 'create_client', { ...noArea, keywords: ['ac repair'], details: { phone: details.phone, contact: details.contact } })) as { clientId: string };
+    const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+    expect(setup!.locationSource).toBeNull();
+    expect(await getSetupState(dbs.service, clientId)).toMatchObject({ needsLocation: true, competitors: 'todo', steps: { details: 'done', profile: 'todo' } });
   });
 
   it('legacy create_client without details unchanged', async () => {

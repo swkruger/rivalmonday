@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { client, clientSetup, contact, type Db } from '@cs/db';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { upsertContact } from '../access/client-invite';
+import { ownerContact } from '../setup/owner-contact';
 import type { ToolDeps } from '../deps';
 import { ClientAddressIn, ClientPhoneIn } from './onboarding';
 
@@ -16,17 +17,6 @@ async function requireClientFor(service: Db, ctx: AccessContext, clientId: strin
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
   const [own] = await service.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt)));
   if (!own) throw new ToolError('not_found', 'Client not found');
-}
-
-/**
- * THE owner contact of a client (every reader uses this): the most recently set `client_owner` contact. `contact` has
- * no updated_at, so a contact set again via `update_client_details` has its `created_at` bumped (see below); older
- * rows are kept (they may still receive reports).
- */
-async function ownerContact(service: Pick<Db, 'select'>, agencyId: string, clientId: string): Promise<{ id: string; name: string | null; email: string } | null> {
-  const [latest] = await service.select({ id: contact.id, name: contact.name, email: contact.email }).from(contact)
-    .where(and(eq(contact.agencyId, agencyId), eq(contact.clientId, clientId), eq(contact.role, 'client_owner'))).orderBy(desc(contact.createdAt), desc(contact.id)).limit(1);
-  return latest ?? null;
 }
 
 export const getClientDetails = defineTool({

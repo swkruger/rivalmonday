@@ -5,7 +5,7 @@ const NOW = new Date('2026-10-16T12:00:00Z');
 const day = (n: number) => new Date(NOW.getTime() - n * 864e5);
 const ACTIVATED = day(3);
 const CREATED = day(5);
-const NONE = { competitorsDoneAt: null, completedAt: null, dismissedAt: null };
+const NONE = { competitorsDoneAt: null, ownerPickRequestedAt: null, completedAt: null, dismissedAt: null };
 
 describe('startingPointClockStart', () => {
   it('uses activated_at, else created_at, when there is no setup row', () => {
@@ -33,5 +33,19 @@ describe('startingPointClockStart', () => {
     expect(SETUP_HOLD_DAYS).toBe(14);
     expect(startingPointClockStart({ activatedAt: day(14), createdAt: day(20) }, NONE, NOW)).toEqual(day(14));
     expect(startingPointClockStart({ activatedAt: null, createdAt: day(15) }, NONE, NOW)).toEqual(day(15));
+  });
+  it('waits for owner pick up to 14 days', () => {
+    const c = { activatedAt: ACTIVATED, createdAt: CREATED };
+    // Asked 3 days ago, setup already completed by staff: not started, even though completed_at is set.
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(3), completedAt: day(3) }, NOW)).toBeNull();
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(3) }, NOW)).toBeNull();
+    // A dismissal does not start it either while the owner may still pick.
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(3), dismissedAt: day(2) }, NOW)).toBeNull();
+    // The owner picked: starts at competitors_done_at.
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(3), completedAt: day(3), competitorsDoneAt: day(1) }, NOW)).toEqual(day(1));
+    // No pick within 14 days: starts at owner_pick_requested_at + 14 d.
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(13.9), completedAt: day(13.9) }, NOW)).toBeNull();
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(14), completedAt: day(14) }, NOW)).toEqual(NOW);
+    expect(startingPointClockStart(c, { ...NONE, ownerPickRequestedAt: day(20), completedAt: day(20) }, NOW)).toEqual(day(6));
   });
 });

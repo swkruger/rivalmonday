@@ -68,7 +68,7 @@ export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessI
     .select({
       id: client.id, name: client.name, timezone: client.timezone, briefAutoSend: client.briefAutoSend, activatedAt: client.activatedAt, createdAt: client.createdAt,
       agencyName: agency.name,
-      competitorsDoneAt: clientSetup.competitorsDoneAt, completedAt: clientSetup.completedAt, dismissedAt: clientSetup.dismissedAt, setupClientId: clientSetup.clientId,
+      competitorsDoneAt: clientSetup.competitorsDoneAt, ownerPickRequestedAt: clientSetup.ownerPickRequestedAt, completedAt: clientSetup.completedAt, dismissedAt: clientSetup.dismissedAt, setupClientId: clientSetup.clientId,
       spStatus: brief.status,
     })
     .from(client)
@@ -112,7 +112,7 @@ export async function findReadinessIssues(db: Db, now: Date): Promise<ReadinessI
   const overdue: { c: (typeof rows)[number]; tz: string; due: Date; dueLocal: { date: string; monday: boolean } }[] = [];
   for (const c of rows) {
     if (c.spStatus !== null && OK_STATUSES.has(c.spStatus)) continue;
-    const setup = c.setupClientId ? { competitorsDoneAt: c.competitorsDoneAt, completedAt: c.completedAt, dismissedAt: c.dismissedAt } : null;
+    const setup = c.setupClientId ? { competitorsDoneAt: c.competitorsDoneAt, ownerPickRequestedAt: c.ownerPickRequestedAt, completedAt: c.completedAt, dismissedAt: c.dismissedAt } : null;
     const start = startingPointClockStart(c, setup, now);
     if (!start) continue;
     const due = new Date(start.getTime() + STARTING_POINT_WAIT_HOURS * HOUR_MS);

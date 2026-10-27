@@ -94,7 +94,7 @@ describe('inviteClientUser', () => {
     expect(p.template).toBe('client_invite');
     expect(p.cc).toEqual(['admin@e.co']);
     expect(p.props).toMatchObject({ businessName: 'A1 HVAC', agencyName: 'Agency A' });
-    expect(startUrl(out[0]!)).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${IDS.clientA1}/setup`)}`);
+    expect(startUrl(out[0]!)).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
     const rendered = await renderEmail(p);
     expect(rendered.subject).toBe('Agency A invited you to see your competitors');
   });
@@ -147,6 +147,14 @@ describe('inviteClientUser', () => {
     expect(m).toMatchObject({ contactId: r.contactId, role: 'client_owner', clientId: IDS.clientA1 });
   });
 
+  it('invite link lands on overview', async () => {
+    // Open setup, owner asked to pick (O12): the owner still lands on /c/<id> (the Overview card), never /setup (P8).
+    await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ownerPickRequestedAt: NOW });
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
+    const [n] = await rows();
+    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+  });
+
   it('startUrl points at /c/<id> when the setup is closed', async () => {
     await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, completedAt: NOW });
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
@@ -170,7 +178,8 @@ describe('inviteClientUser', () => {
   });
 
   it('inviting the owner as the last open step completes the setup; a viewer invite does not', async () => {
-    await dbs.owner.update(client).set({ keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 5, zips: [] }, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
+    // The owner invite also creates the owner contact, which completes the details step (name + phone + owner contact).
+    await dbs.owner.update(client).set({ phone: '817-555-0100', keywords: ['ac'], serviceArea: { center: { lat: 1, lng: 2 }, radiusKm: 5, zips: [] }, placeId: 'ChIJx' }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, skipped: ['search'], competitorsDoneAt: NOW });
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'v@x.co', name: null, role: 'client_viewer' }, NOW);
     expect((await dbs.service.select().from(clientSetup))[0]!.completedAt).toBeNull();

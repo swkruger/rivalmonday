@@ -4,7 +4,7 @@ import { isClientRole, type Role } from '@cs/core';
 import { agencyServiceable, client, clientSetup, type Db, type EnvName, notification, review, type SetupSuggestions } from '@cs/db';
 import { buildSuggestionSource, detectNewAreas, gbpServiceNames, getSetupState, queueCompetitorReview, setupSuggestionsJsonSchema, validateSuggestions } from '@cs/tools';
 import { type DeliveryConfig, loadBranding, notify, type PackLoader } from '@cs/engine';
-import { and, desc, eq, inArray, isNotNull, isNull, like, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
@@ -117,7 +117,8 @@ const linesFor = (kind: ReminderKind, name: string, idleDays?: number): string[]
 
 /**
  * Phase 11a Task 9: daily reminders to agency staff about open setups. At most one notice per kind per dedupe key (the outbox
- * dedupes), so re-runs are no-ops. Idle: 3 days, then 7 days only once the 3-day notice exists. Returns how many outbox rows were queued.
+ * dedupes), so re-runs are no-ops. Idle: 3 days, then 7 days only once the 3-day notice exists. Phase 16 O12: a completed
+ * setup still waiting on the owner's pick only gets the owner's review email. Returns how many outbox rows were queued.
  */
 export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig }, now: Date): Promise<{ queued: number }> {
   const rows = await d.db
@@ -126,7 +127,8 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
     .innerJoin(client, eq(client.id, clientSetup.clientId))
     .where(
       and(
-        isNull(clientSetup.completedAt),
+        // Open setups, plus completed ones still waiting on the owner's pick (O12: only the owner's review email goes out).
+        or(isNull(clientSetup.completedAt), and(isNotNull(clientSetup.ownerPickRequestedAt), isNull(clientSetup.competitorsDoneAt))),
         isNull(clientSetup.dismissedAt),
         inArray(client.status, ['active', 'prospect']),
         isNull(client.pausedAt),
@@ -139,12 +141,13 @@ export async function runSetupReminders(d: { db: Db; delivery: DeliveryConfig },
   for (const { c, setup } of rows) {
     try {
       const state = await getSetupState(d.db, c.id);
-      if (!state.open) continue;
+      if (!state.open && state.competitors !== 'waiting_owner') continue;
       const due: { kind: ReminderKind; dedupe: string; idleDays?: number }[] = [];
-      if (state.steps.profile === 'done' && state.steps.search === 'done' && state.steps.competitors === 'todo' && state.pendingSuggestions) {
+      // Staff pick from `ready`; once the owner was asked (`waiting_owner`) only their review email below applies.
+      if (state.open && state.competitors === 'ready' && state.pendingSuggestions) {
         due.push({ kind: 'setup_suggestions_ready', dedupe: `setup-ready:${c.id}` });
       }
-      if (setup.lastChangedRole && isClientRole(setup.lastChangedRole as Role) && setup.lastChangedAt && now.getTime() - setup.lastChangedAt.getTime() <= DAY_MS) {
+      if (state.open && setup.lastChangedRole && isClientRole(setup.lastChangedRole as Role) && setup.lastChangedAt && now.getTime() - setup.lastChangedAt.getTime() <= DAY_MS) {
         due.push({ kind: 'setup_client_changed', dedupe: `setup-client:${c.id}:${today}` });
       }
       if (state.waitingOn === 'agency') {

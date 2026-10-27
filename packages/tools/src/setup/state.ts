@@ -6,22 +6,27 @@ import { clientBillingEligibility } from '../tools/client-billing';
 /** Phase 11a §4. The service Db or a service tx (the invite/billing reads touch service-only tables). */
 type Db = Pick<Tx, 'select' | 'update'>;
 
-export type StepStatus = 'todo' | 'running' | 'done' | 'skipped' | 'blocked';
+/** Phase 16 §6: the client setup steps (the wizard's All set screen is not a step). Billing exists for clients only. */
+export type SetupStepKey = 'details' | 'lookup' | 'profile' | 'competitors' | 'invite' | 'billing';
+/** A plain step's state. */
+export type StepStatus = 'todo' | 'done' | 'skipped';
+/** The merged search + pick step (O12 adds `waiting_owner`: the owner was asked to pick; settled for staff completion). */
+export type CompetitorsStepState = 'todo' | 'searching' | 'blocked' | 'ready' | 'waiting_owner' | 'done' | 'skipped';
+/** Any step's state (plain steps use the `StepStatus` subset). */
+export type StepState = CompetitorsStepState;
 export type InviteStatus = 'none' | 'pending' | 'accepted';
 export type SetupState = {
-  /** A setup row exists, and neither completed nor dismissed. The staff view. */
+  /** A setup row exists, and neither completed nor dismissed. The staff view (owners never enter setup, P8). */
   open: boolean;
-  /**
-   * The client owner's view (controller ruling 2026-10-17): `open` and one of the owner's own steps (profile, search,
-   * competitors) still todo/running/blocked. Invite and billing are staff steps, so the owner's setup ends before them.
-   */
-  clientOpen: boolean;
   /** False for clients without a row (old clients, tests): treated as fully set up. */
   exists: boolean;
-  /** Phase 11b §8: `invite` for clients and prospects, `billing` for clients only. */
-  steps: { profile: StepStatus; search: StepStatus; competitors: StepStatus; invite?: StepStatus; billing?: StepStatus };
-  /** 4 for prospects, 5 for clients (and row-less clients). */
-  totalSteps: 4 | 5;
+  steps: { details: StepStatus; lookup: StepStatus; profile: StepStatus; competitors: CompetitorsStepState; invite: StepStatus; billing?: StepStatus };
+  /** 6 for clients (and row-less clients), 5 for prospects (no billing). */
+  totalSteps: 5 | 6;
+  /** Same as `steps.competitors`. */
+  competitors: CompetitorsStepState;
+  /** The service area has no centre (no listing and no geocoded address): the profile step asks for a location. */
+  needsLocation: boolean;
   /** The failed discovery run's reason, if the search is blocked. */
   searchRefusal: string | null;
   waitingOn: 'agency' | 'client' | 'system' | null;
@@ -32,8 +37,10 @@ export type SetupState = {
 };
 
 export type SetupStateInput = {
-  client: { keywords: string[]; serviceArea: { center?: unknown } | null; placeId: string | null; status: string };
-  setup: { skipped: string[]; competitorsDoneAt: Date | null; completedAt: Date | null; dismissedAt: Date | null } | null;
+  client: { name: string; phone: string | null; keywords: string[]; serviceArea: { center?: unknown } | null; placeId: string | null; status: string };
+  setup: { skipped: string[]; competitorsDoneAt: Date | null; ownerPickRequestedAt: Date | null; completedAt: Date | null; dismissedAt: Date | null } | null;
+  /** A `client_owner` contact exists for the client (the step 1 contact). */
+  hasOwnerContact: boolean;
   latestRun: { status: string; error?: string | null } | null;
   hasPendingSuggestions: boolean;
   /** The invited owner's invitation (pending = unexpired and unrevoked). */
@@ -44,59 +51,67 @@ export type SetupStateInput = {
 
 const RUNNING = new Set(['queued', 'searching', 'checking', 'finalising']);
 const BILLING_DONE = new Set<ClientBillingState>(['invited', 'active', 'payment_needed']);
-const OPEN_STEP = new Set<StepStatus>(['todo', 'running', 'blocked']);
+/** Steps that need nothing more from staff (`completeIfDone`). */
+const SETTLED = new Set<StepState>(['done', 'skipped', 'waiting_owner']);
+export const isSettledStep = (s: StepState | undefined): boolean => s !== undefined && SETTLED.has(s);
 
-/** Pure (spec §4, 11b §8). A client with no setup row reads as complete: closed, every step done. */
-export function deriveSetupState({ client: c, setup, latestRun, hasPendingSuggestions, invite: inv, billing: bill }: SetupStateInput): SetupState {
+/** Pure (spec §6, O12). A client with no setup row reads as complete: closed, every step done. */
+export function deriveSetupState({ client: c, setup, hasOwnerContact, latestRun, hasPendingSuggestions, invite: inv, billing: bill }: SetupStateInput): SetupState {
+  const needsLocation = c.serviceArea?.center == null;
   if (!setup) {
     return {
-      open: false, clientOpen: false, exists: false, steps: { profile: 'done', search: 'done', competitors: 'done', invite: 'done', billing: 'done' }, totalSteps: 5,
-      searchRefusal: null, waitingOn: null, pendingSuggestions: false, completedAt: null, dismissedAt: null,
+      open: false, exists: false, steps: { details: 'done', lookup: 'done', profile: 'done', competitors: 'done', invite: 'done', billing: 'done' }, totalSteps: 6,
+      competitors: 'done', needsLocation, searchRefusal: null, waitingOn: null, pendingSuggestions: false, completedAt: null, dismissedAt: null,
     };
   }
-  // The `startFirstAutoSearch` rule.
+  const details: StepStatus = c.name.trim() !== '' && !!c.phone?.trim() && hasOwnerContact ? 'done' : 'todo';
+  // The client row exists, so a listing was picked or "continue without" chosen (P4).
+  const lookup: StepStatus = 'done';
+  // The `startFirstAutoSearch` rule (P5: keywords + a centre).
   const profile: StepStatus = searchInputsReady(c) ? 'done' : 'todo';
 
-  let search: StepStatus;
+  let competitors: CompetitorsStepState;
   let searchRefusal: string | null = null;
-  if (setup.skipped.includes('search')) search = 'skipped';
-  else if (!latestRun) search = 'todo'; // refusals of the auto start aren't stored (R1): the wizard offers "Find competitors"
-  else if (RUNNING.has(latestRun.status)) search = 'running';
-  else if (latestRun.status === 'done') search = 'done';
+  if (setup.skipped.includes('competitors')) competitors = 'skipped';
+  else if (setup.competitorsDoneAt) competitors = 'done';
+  else if (setup.ownerPickRequestedAt) competitors = 'waiting_owner';
+  else if (profile !== 'done') competitors = 'todo';
+  else if (setup.skipped.includes('search')) competitors = 'ready'; // legacy "skip the search": pick from what exists
+  else if (!latestRun) competitors = 'todo'; // refusals of the auto start aren't stored (R1): the wizard offers "Find competitors"
+  else if (RUNNING.has(latestRun.status)) competitors = 'searching';
+  else if (latestRun.status === 'done') competitors = 'ready';
   else {
-    search = 'blocked';
+    competitors = 'blocked';
     searchRefusal = latestRun.error ?? null;
   }
 
-  const competitors: StepStatus = setup.skipped.includes('competitors') ? 'skipped' : setup.competitorsDoneAt ? 'done' : 'todo';
   // An actual invitation / live billing beats an earlier skip (it says more); an ineligible agency can't bill (spec §7).
   const invite: StepStatus = inv.status !== 'none' ? 'done' : setup.skipped.includes('invite') ? 'skipped' : 'todo';
   const prospect = c.status === 'prospect';
   const billing: StepStatus = bill.state && BILLING_DONE.has(bill.state) ? 'done' : setup.skipped.includes('billing') || !bill.eligible ? 'skipped' : 'todo';
 
   const open = setup.completedAt == null && setup.dismissedAt == null;
-  const clientOpen = open && [profile, search, competitors].some((s) => OPEN_STEP.has(s));
   let waitingOn: SetupState['waitingOn'] = null;
   if (open) {
-    if (profile === 'todo') waitingOn = 'agency';
-    else if (search === 'running') waitingOn = 'system';
-    else if (search === 'todo' || search === 'blocked') waitingOn = 'agency';
+    if (details === 'todo' || profile === 'todo') waitingOn = 'agency';
+    else if (competitors === 'searching') waitingOn = 'system';
     // Picking (or "Done picking" on zero rivals) is the agency's move, open suggestions or not, so idle reminders fire.
-    else if (competitors === 'todo') waitingOn = 'agency';
+    else if (competitors === 'todo' || competitors === 'blocked' || competitors === 'ready') waitingOn = 'agency';
     // 11b: invite and billing are staff steps; idle reminders keep firing until they're done or skipped.
     else if (invite === 'todo' || (!prospect && billing === 'todo')) waitingOn = 'agency';
+    else if (competitors === 'waiting_owner') waitingOn = 'client';
   }
-  const steps: SetupState['steps'] = prospect ? { profile, search, competitors, invite } : { profile, search, competitors, invite, billing };
+  const steps: SetupState['steps'] = prospect ? { details, lookup, profile, competitors, invite } : { details, lookup, profile, competitors, invite, billing };
   return {
-    open, clientOpen, exists: true, steps, totalSteps: prospect ? 4 : 5, searchRefusal, waitingOn, pendingSuggestions: hasPendingSuggestions,
+    open, exists: true, steps, totalSteps: prospect ? 5 : 6, competitors, needsLocation, searchRefusal, waitingOn, pendingSuggestions: hasPendingSuggestions,
     completedAt: setup.completedAt, dismissedAt: setup.dismissedAt,
   };
 }
 
-/** The tables every viewer of the setup may read (client owners included, under RLS). */
 async function loadCore(db: Pick<Tx, 'select'>, clientId: string) {
   const [[c], [setup], [latestRun]] = await Promise.all([
-    db.select({ agencyId: client.agencyId, keywords: client.keywords, serviceArea: client.serviceArea, placeId: client.placeId, status: client.status }).from(client).where(eq(client.id, clientId)),
+    db.select({ agencyId: client.agencyId, name: client.name, phone: client.phone, keywords: client.keywords, serviceArea: client.serviceArea, placeId: client.placeId, status: client.status })
+      .from(client).where(eq(client.id, clientId)),
     db.select().from(clientSetup).where(eq(clientSetup.clientId, clientId)),
     db.select({ status: discoveryRun.status, error: discoveryRun.error }).from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1),
   ]);
@@ -104,38 +119,41 @@ async function loadCore(db: Pick<Tx, 'select'>, clientId: string) {
 }
 
 const NO_ROW: Omit<SetupStateInput, 'setup'> = {
-  client: { keywords: [], serviceArea: null, placeId: null, status: 'active' }, latestRun: null, hasPendingSuggestions: false, invite: { status: 'none' }, billing: { eligible: false, state: null },
+  client: { name: '', phone: null, keywords: [], serviceArea: null, placeId: null, status: 'active' }, hasOwnerContact: false, latestRun: null, hasPendingSuggestions: false,
+  invite: { status: 'none' }, billing: { eligible: false, state: null },
 };
 
 /**
- * Loads the client, its setup row, latest discovery run, open suggestions, the owner invitation and billing, then derives.
- * Pass the service connection (or a service tx): the invite and billing reads touch tables tenant roles can't read.
+ * Loads the client, its setup row, latest discovery run, open suggestions, the owner contact, the owner invitation and
+ * billing, then derives. Pass the service connection (or a service tx): the contact, invite and billing reads touch
+ * tables tenant roles can't read.
  */
 export async function getSetupState(db: Db, clientId: string, now: Date = new Date()): Promise<SetupState> {
   const { c, setup, latestRun } = await loadCore(db, clientId);
   if (!c || !setup) return deriveSetupState({ ...NO_ROW, client: c ?? NO_ROW.client, setup: null });
   const prospect = c.status === 'prospect';
-  const [hasPendingSuggestions, invite, eligibility, [bill]] = await Promise.all([
+  const [hasPendingSuggestions, invite, owner, eligibility, [bill]] = await Promise.all([
     hasPending(db, clientId),
     inviteStatus(db, clientId, setup, now),
+    db.select({ id: contact.id }).from(contact).where(and(eq(contact.agencyId, c.agencyId), eq(contact.clientId, clientId), eq(contact.role, 'client_owner'))).limit(1),
     prospect ? null : clientBillingEligibility(db, c.agencyId),
     prospect ? [] : db.select({ enabled: clientBilling.enabled, state: clientBilling.state }).from(clientBilling).where(eq(clientBilling.clientId, clientId)),
   ]);
   return deriveSetupState({
-    client: c, setup, latestRun, hasPendingSuggestions, invite: { status: invite.status },
+    client: c, setup, hasOwnerContact: owner.length > 0, latestRun, hasPendingSuggestions, invite: { status: invite.status },
     billing: { eligible: !!eligibility?.ok, state: bill?.enabled ? bill.state : null },
   });
 }
 
 /**
- * The client owner's view only (`clientOpen`), from the tables a client owner's tenant transaction may read — for the
- * in-transaction re-guard of setup writes. Clients without a row read as closed.
+ * O12 owner-pick window (security-sensitive; `assertSetupActor`): the agency asked the owner to pick
+ * (`owner_pick_requested_at IS NOT NULL`) and competitors are not confirmed yet (`competitors_done_at IS NULL`).
+ * Reads only `client_setup`, so it runs in the owner's tenant transaction (the locked re-check) or on the service connection.
  */
-export async function clientSetupOpen(db: Pick<Tx, 'select'>, clientId: string): Promise<boolean> {
-  const { c, setup, latestRun } = await loadCore(db, clientId);
-  if (!c || !setup) return false;
-  // Invite/billing never change `clientOpen`; neutral values avoid the service-only reads.
-  return deriveSetupState({ ...NO_ROW, client: c, setup, latestRun }).clientOpen;
+export async function ownerPickOpen(db: Pick<Tx, 'select'>, clientId: string): Promise<boolean> {
+  const [row] = await db.select({ id: clientSetup.clientId }).from(clientSetup)
+    .where(and(eq(clientSetup.clientId, clientId), isNotNull(clientSetup.ownerPickRequestedAt), isNull(clientSetup.competitorsDoneAt)));
+  return !!row;
 }
 
 /** Same notion as `list_competitor_suggestions`: `suggested` rows of the latest done run and of runs started after it. */
@@ -177,14 +195,15 @@ export async function loadSetupInvite(db: Pick<Tx, 'select'>, clientId: string, 
 }
 
 /**
- * Sets `completed_at` once every step of the client's list (5 for clients, 4 for prospects) is done or skipped. Guarded
+ * Sets `completed_at` once every step of the client's list (6 for clients, 5 for prospects) is settled: done, skipped or
+ * `waiting_owner` (O12: staff finish while the owner picks; `competitors_done_at` stays unset until they confirm). Guarded
  * UPDATE: never overwrites or clears an existing `completed_at`, and never completes a dismissed row (its starting-point
  * clock must not move to activation, spec §9). Pass a service-role tx (`app_user` can't write). Returns true if it just closed.
  */
 export async function completeIfDone(tx: Db, clientId: string, now: Date): Promise<boolean> {
   const s = await getSetupState(tx, clientId, now);
   if (!s.exists || s.completedAt) return false;
-  if (!Object.values(s.steps).every((v) => v === 'done' || v === 'skipped')) return false;
+  if (!Object.values(s.steps).every(isSettledStep)) return false;
   const done = await tx.update(clientSetup).set({ completedAt: now }).where(and(eq(clientSetup.clientId, clientId), isNull(clientSetup.completedAt), isNull(clientSetup.dismissedAt))).returning({ id: clientSetup.clientId });
   return done.length > 0;
 }
