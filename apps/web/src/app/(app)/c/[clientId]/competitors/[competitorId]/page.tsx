@@ -2,7 +2,7 @@ import { formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
 import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -244,11 +244,12 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
       <CardHeader>
         <CardTitle>Pages</CardTitle>
       </CardHeader>
-      <CardContent>
-        {pages.length === 0 ? (
+      {pages.length === 0 ? (
+        <CardContent>
           <EmptyState {...COPY.empty.noPages} />
-        ) : (
-          <TableFrame>
+        </CardContent>
+      ) : (
+        <div className="[&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -278,20 +279,19 @@ function PagesCard({ clientId, competitorId, pages, agency, tz }: { clientId: st
               ))}
             </TableBody>
           </Table>
-          </TableFrame>
-        )}
-        {agency && (
-          <WriteGuard>
-            <div className="mt-5 border-t border-line pt-5">
-              {webEnv().webMonitoring ? (
-                <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={PAGE_TYPES.map((t) => ({ value: t, label: labelFor(PAGE_TYPE, t).label }))} />
-              ) : (
-                <p className="text-muted-ink">Website monitoring is switched off for now, so pages can’t be added.</p>
-              )}
-            </div>
-          </WriteGuard>
-        )}
-      </CardContent>
+        </div>
+      )}
+      {agency && (
+        <WriteGuard>
+          <CardContent className={pages.length === 0 ? undefined : 'border-t border-line pt-4'}>
+            {webEnv().webMonitoring ? (
+              <AddPageForm clientId={clientId} competitorId={competitorId} pageTypes={PAGE_TYPES.map((t) => ({ value: t, label: labelFor(PAGE_TYPE, t).label }))} />
+            ) : (
+              <p className="text-muted-ink">Website monitoring is switched off for now, so pages can’t be added.</p>
+            )}
+          </CardContent>
+        </WriteGuard>
+      )}
     </Card>
   );
 }

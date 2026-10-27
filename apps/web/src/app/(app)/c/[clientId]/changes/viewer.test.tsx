@@ -40,7 +40,9 @@ describe('EventViewer capture details', () => {
 
   it('part-of-moves links read the move status label', () => {
     zoned('UTC', side, { ...detail, moves: [{ id: 'm1', label: 'Price war', status: 'emerging' }] } as unknown as EventDetail);
-    expect(screen.getByRole('link', { name: 'Price war · Emerging' })).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Price war · Emerging' });
+    expect(link.getAttribute('data-slot')).toBe('tag');
+    expect(link.getAttribute('href')).toBe('/c/c/moves?status=all&move=m1');
   });
 });
 

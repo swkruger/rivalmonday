@@ -164,4 +164,13 @@ describe('CompetitorProfilePage', () => {
     expect(screen.queryAllByRole('complementary')).toHaveLength(0);
     expect(document.querySelector('aside')).toBeNull();
   });
+
+  it('a Google profile without a rating shows an em dash and "No rating yet"', async () => {
+    gbp = { rating: null, reviews: 3 };
+    await renderPage();
+    const kpi = screen.getByText('Google rating').closest('[data-slot=kpi]') as HTMLElement;
+    expect(kpi.textContent).toContain('—');
+    expect(within(kpi).getByText('No rating yet')).toBeTruthy();
+    expect(within(kpi).getByText('3 reviews')).toBeTruthy();
+  });
 });

@@ -20,4 +20,13 @@ describe('HairlineGrid', () => {
     const { container } = render(<HairlineGrid />);
     expect(container.firstElementChild?.getAttribute('data-cols')).toBe('2');
   });
+  it('applies divider rules by column count on the grid, not on cells', () => {
+    const two = render(<HairlineGrid cols={2}><HairlineCell>a</HairlineCell></HairlineGrid>);
+    const g2 = two.container.querySelector('[data-slot=hairline-grid]')!;
+    expect(g2.className).toContain('lg:[&>*:nth-child(2n)]:border-l');
+    expect(two.container.querySelector('[data-slot=hairline-cell]')!.className).not.toContain('[&+&]');
+    cleanup();
+    const three = render(<HairlineGrid cols={3} />);
+    expect(three.container.firstElementChild!.className).toContain('lg:[&>*:nth-child(3n+3)]:border-l');
+  });
 });
