@@ -18,7 +18,10 @@ function Card({
       className={cn(
         "flex flex-col rounded-md border border-line bg-card text-card-foreground",
         variant === "interactive" &&
-          "transition-colors hover:border-line-control hover:bg-canvas focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
+          "transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
+        variant === "interactive" &&
+          !selected &&
+          "hover:border-line-control hover:bg-canvas",
         selected && "border-2 border-secondary bg-primary-soft",
         className
       )}

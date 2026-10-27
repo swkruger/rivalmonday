@@ -14,7 +14,7 @@ function KpiStrip({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="kpi-strip"
       className={cn(
-        "grid grid-cols-2 rounded-md border border-line md:auto-cols-fr md:grid-flow-col md:grid-cols-none",
+        "grid grid-cols-2 overflow-clip rounded-md border border-line md:auto-cols-fr md:grid-flow-col md:grid-cols-none",
         className
       )}
       {...props}
@@ -66,13 +66,14 @@ function KpiDeltaPill({ delta }: { delta: KpiDelta }) {
 }
 
 export interface KpiProps {
+  linkAs?: React.ElementType
   label: React.ReactNode
   value: React.ReactNode
   delta?: KpiDelta
   href?: string
 }
 
-function Kpi({ label, value, delta, href }: KpiProps) {
+function Kpi({ label, value, delta, href, linkAs: LinkAs = "a" }: KpiProps) {
   const body = (
     <>
       <div className="text-13 text-muted-ink">{label}</div>
@@ -83,10 +84,10 @@ function Kpi({ label, value, delta, href }: KpiProps) {
     </>
   )
   const cell =
-    "block min-w-0 px-5 py-4 border-line [&+&]:border-l"
+    "block min-w-0 border-line px-5 py-4 md:[&+&]:border-l max-md:even:border-l max-md:nth-[n+3]:border-t"
   if (href) {
     return (
-      <a
+      <LinkAs
         href={href}
         data-slot="kpi"
         className={cn(
@@ -95,7 +96,7 @@ function Kpi({ label, value, delta, href }: KpiProps) {
         )}
       >
         {body}
-      </a>
+      </LinkAs>
     )
   }
   return (

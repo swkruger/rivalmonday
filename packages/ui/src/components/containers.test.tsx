@@ -62,6 +62,19 @@ describe('Kpi', () => {
   });
 });
 
+describe('Kpi linkAs', () => {
+  it('renders through a custom link component', () => {
+    const Custom = ({ href, children, ...r }: { href: string; children: React.ReactNode }) => (
+      <a data-custom="1" href={href} {...r}>{children}</a>
+    );
+    render(<Kpi label="Reviews" value="120" href="/r" linkAs={Custom} />);
+    const a = screen.getByRole('link');
+    expect(a.getAttribute('data-custom')).toBe('1');
+    expect(a.getAttribute('href')).toBe('/r');
+    expect(a.textContent).toContain('Reviews120');
+  });
+});
+
 describe('Table', () => {
   it('TableFrame clips with overflow-clip', () => {
     render(<TableFrame>x</TableFrame>);
@@ -93,6 +106,10 @@ describe('Card', () => {
     const el = document.querySelector('[data-slot="card"]')!;
     expect(el.getAttribute('data-variant')).toBe('interactive');
     expect(el.getAttribute('data-selected')).toBe('true');
+  });
+  it('selected interactive card drops hover classes', () => {
+    render(<Card variant="interactive" selected>x</Card>);
+    expect(document.querySelector('[data-slot="card"]')!.className).not.toContain('hover:bg-canvas');
   });
   it('defaults to the default variant, unselected', () => {
     render(<Card>x</Card>);
