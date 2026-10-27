@@ -88,14 +88,16 @@ export async function seed(): Promise<void> {
       upsellTag: 'ppc_audit',
     });
 
+    // Two days old, so the scored $79 price cut (yesterday, seedWorkspace) stays the first Changes row as before 16c.
+    const promoAt = new Date(Date.now() - 2 * 86_400_000);
     const [event] = await db
       .insert(changeEvent)
-      .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: new Date() })
+      .values({ competitorId: comp!.id, changeType: 'promo', summary: 'Smith HVAC launched a $49 drain-cleaning promo.', confidence: 0.9, occurredAt: promoAt })
       .returning();
-    // Scored too (16c peek panel): the Changes feed then has two rows — this promo (today) above the $79 price cut
-    // (yesterday, seedWorkspace) — so Previous / Next have somewhere to go.
+    // Scored too (16c peek panel): the Changes feed then has two rows — the $79 price cut (yesterday, seedWorkspace)
+    // above this promo (two days ago) — so Previous / Next have somewhere to go.
     await db.insert(eventScore).values({
-      agencyId, clientId, eventId: event!.id, score: 81, route: 'alert', packVersion: 1, scoredAt: new Date(),
+      agencyId, clientId, eventId: event!.id, score: 81, route: 'alert', packVersion: 1, scoredAt: promoAt,
       factors: { typeWeight: 1, size: 0.8, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 0.9, maxSimilarity: 0.1, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 },
     });
 
