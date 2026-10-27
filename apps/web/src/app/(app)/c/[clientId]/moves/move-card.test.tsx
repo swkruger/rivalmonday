@@ -44,4 +44,11 @@ describe('MoveCard', () => {
     rerender(<MoveCard move={move} selected={false} current={false} href="/x" />);
     expect(screen.getByRole('link').getAttribute('data-selected')).toBeNull();
   });
+
+  it('selected card meta turns ink on lg, where the brand-tinted highlight shows (contrast on any agency primary)', () => {
+    const { rerender } = render(<MoveCard move={move} selected current={false} href="/x" />);
+    expect(screen.getByRole('link').querySelector('p')!.className).toContain('lg:text-ink');
+    rerender(<MoveCard move={move} selected={false} current={false} href="/x" />);
+    expect(screen.getByRole('link').querySelector('p')!.className).not.toContain('lg:text-ink');
+  });
 });

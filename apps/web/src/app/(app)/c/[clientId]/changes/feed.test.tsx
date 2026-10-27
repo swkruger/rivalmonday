@@ -81,6 +81,14 @@ describe('FeedList rows', () => {
     expect(document.querySelector('a[data-row-id=e2]')!.getAttribute('data-selected')).toBeNull();
   });
 
+  it('selected row text turns ink on lg, where the brand-tinted highlight shows (contrast on any agency primary)', () => {
+    list(null);
+    const sel = document.querySelector('a[data-row-id=e1]')!;
+    expect(sel.querySelector('p')!.className).toContain('lg:text-ink');
+    expect(sel.querySelector('span.font-semibold')!.className).toContain('lg:text-ink');
+    expect(document.querySelector('a[data-row-id=e2] p')!.className).not.toContain('lg:text-ink');
+  });
+
   it('rows carry data-row-id', () => {
     list(null);
     expect(Array.from(document.querySelectorAll('a[data-row-id]')).map((a) => a.getAttribute('data-row-id'))).toEqual(['e1', 'e2']);

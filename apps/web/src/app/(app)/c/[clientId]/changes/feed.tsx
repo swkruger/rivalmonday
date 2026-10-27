@@ -154,12 +154,13 @@ export function FeedList({
                       <h4 className={cn('truncate text-ink', selected ? 'font-semibold' : 'font-medium')}>
                         {row.competitorName} · {row.summary}
                       </h4>
-                      <p className="mt-0.5 truncate text-xs text-muted-ink">
+                      {/* Selected (lg): ink text — the brand-derived primary-soft tint drops muted/secondary below 4.5:1 for some agency primaries. */}
+                      <p className={cn('mt-0.5 truncate text-xs text-muted-ink', selected && 'lg:text-ink')}>
                         {row.typeLabel} · {row.channels.map(channelLabel).join(', ')} · {formatDate(row.occurredAt, { tz: timezone })}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`font-semibold ${row.route === 'archive' ? 'text-muted-ink' : 'text-secondary'}`}>{row.score}</span>
+                      <span className={cn('font-semibold', row.route === 'archive' ? 'text-muted-ink' : 'text-secondary', selected && 'lg:text-ink')}>{row.score}</span>
                       <RoutePill route={row.route} score={row.score} />
                     </div>
                   </Link>

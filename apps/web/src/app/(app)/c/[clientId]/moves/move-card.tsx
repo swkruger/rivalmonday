@@ -65,7 +65,8 @@ export function MoveCard({ move, selected, current, href }: { move: MoveRow; sel
         <h4 className={`truncate text-ink ${selected ? 'font-semibold' : 'font-medium'}`}>
           {move.label} · {move.competitorName}
         </h4>
-        <p className="mt-0.5 text-xs text-muted-ink">
+        {/* Selected (lg): ink text — the brand-derived primary-soft tint drops muted-ink below 4.5:1 for some agency primaries. */}
+        <p className={`mt-0.5 text-xs ${selected ? 'text-muted-ink lg:text-ink' : 'text-muted-ink'}`}>
           {labelFor(MOVE_STATUS, move.status).label} · {changes} over {days} days · confidence {pct}%
         </p>
       </div>
