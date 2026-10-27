@@ -48,7 +48,7 @@ async function as<T>(browser: Browser, testInfo: TestInfo, state: string, fn: (p
   }
 }
 
-const card = (page: Page, title: string) => page.getByRole('heading', { name: title, exact: true }).locator('xpath=..');
+const card = (page: Page, title: string) => page.getByRole('heading', { name: title, exact: true }).locator('xpath=ancestor::*[@data-slot="kpi"][1]');
 const dollars = async (page: Page, title: string) => Number((await card(page, title).innerText()).match(/\$([\d,]+\.\d{2})/)![1]!.replace(/,/g, ''));
 
 test.describe.serial('platform costs', () => {

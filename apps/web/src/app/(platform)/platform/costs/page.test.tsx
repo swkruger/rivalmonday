@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ callTool: vi.fn() }));
@@ -39,7 +39,8 @@ describe('/platform/costs', () => {
     expect(screen.getByText('Drafts not yet created')).toBeTruthy();
     expect(screen.getByText('$0.42')).toBeTruthy();
     expect(screen.getByText('$9.50')).toBeTruthy();
-    expect(screen.getByText('2').className).toContain('B45309');
+    const warnings = screen.getByRole('heading', { name: 'Warnings' }).closest('[data-slot="kpi"]') as HTMLElement;
+    expect(within(warnings).getByText('2')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Refreshing…' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

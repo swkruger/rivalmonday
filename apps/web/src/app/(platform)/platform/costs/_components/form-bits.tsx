@@ -1,4 +1,5 @@
 'use client';
+import { Band } from '@cs/ui';
 import { useEffect, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -7,7 +8,7 @@ export const selectClass = 'h-9 w-full rounded-sm border border-input bg-surface
 
 export function FormMessage({ state }: { state: FormResult }) {
   if (!state.ok) return <ErrorNote focusKey={state}>{state.error}</ErrorNote>;
-  return state.message ? <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p> : null;
+  return state.message ? <Band tone="muted" role="status" className="p-3 text-ink">{state.message}</Band> : null;
 }
 
 /**

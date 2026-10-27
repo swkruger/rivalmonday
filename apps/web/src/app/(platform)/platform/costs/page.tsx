@@ -1,3 +1,4 @@
+import { Section } from '@cs/ui';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { TipRow } from '@/components/help/tip-row';
@@ -13,14 +14,13 @@ import { MonthlyChart } from './_components/monthly-chart';
 import { RefreshButton } from './_components/refresh-button';
 import { ServicesTable } from './_components/services-table';
 import { type GuardSettings, SpendGuardSettings } from './_components/spend-guard-settings';
-import { SummaryCards } from './_components/summary-cards';
+import { SummaryStrip } from './_components/summary-cards';
 import type { CostsData } from './_components/types';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Costs' };
 
-const card = 'min-w-0 rounded-md border border-line bg-surface p-6';
 const HELP_KEY = 'page:platform.costs';
 const COPY = PAGE_COPY['platform.costs'];
 
@@ -33,7 +33,7 @@ export default async function PlatformCostsPage() {
     helpGuides(ctx, 'platform'),
   ]);
   return (
-    <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
+    <>
       <PageHeader
         title="Costs"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Costs' }]}
@@ -48,46 +48,27 @@ export default async function PlatformCostsPage() {
           { label: 'About low balance warnings', tip: 'platform.costs.low' },
         ]}
       />
-      <SummaryCards summary={data.summary} />
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Services</h2>
-          <HelpTip tip="platform.costs.services" />
-        </div>
+      <SummaryStrip summary={data.summary} />
+      <Section title="Services" titleAside={<HelpTip tip="platform.costs.services" />}>
         <ServicesTable services={data.services} now={new Date()} />
-      </section>
-      <section className={card}>
-        <div className="flex items-center gap-1.5">
-          <h2 className="font-semibold">Monthly spend</h2>
-          <HelpTip tip="platform.costs.monthly" />
-        </div>
-        <p className="mb-3 text-sm text-muted-foreground">Monthly spend (approximate: balance services are estimated from daily readings)</p>
+      </Section>
+      <Section
+        title="Monthly spend"
+        titleAside={<HelpTip tip="platform.costs.monthly" />}
+        description="Monthly spend (approximate: balance services are estimated from daily readings)"
+        ruled
+      >
         <MonthlyChart months={data.months} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">AI by business type (last 30 days)</h2>
-          <HelpTip tip="platform.costs.ai" />
-        </div>
+      </Section>
+      <Section title="AI by business type (last 30 days)" titleAside={<HelpTip tip="platform.costs.ai" />} ruled>
         <AiByVerticalTable rows={data.aiByVertical} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Limits &amp; spike guard</h2>
-          <HelpTip tip="platform.costs.limits" />
-        </div>
+      </Section>
+      <Section title="Limits &amp; spike guard" titleAside={<HelpTip tip="platform.costs.limits" />} ruled>
         <SpendGuardSettings settings={guard.settings} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
-            <h2 className="font-semibold">Manual costs</h2>
-            <HelpTip tip="platform.costs.manual" />
-          </div>
-          <CostItemDialog />
-        </div>
+      </Section>
+      <Section title="Manual costs" titleAside={<HelpTip tip="platform.costs.manual" />} actions={<CostItemDialog />} ruled>
         <CostItemsTable items={data.items} />
-      </section>
-    </div>
+      </Section>
+    </>
   );
 }

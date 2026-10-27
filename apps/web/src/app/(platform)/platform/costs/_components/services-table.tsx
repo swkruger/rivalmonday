@@ -1,5 +1,5 @@
 import { formatRelative } from '@/lib/format';
-import { type ChipTone, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { type ChipTone, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { daysLeftText, formatAmount } from './format';
 import { ServiceSettingsDialog } from './service-settings-dialog';
 import type { CostService, ServiceStatus } from './types';
@@ -16,34 +16,36 @@ export const StatusBadge = ({ status }: { status: ServiceStatus }) => <StatusChi
 /** Vendor balances and usage, one row each. `now` is passed in (server clock) so relative times match on hydration. */
 export function ServicesTable({ services, now }: { services: CostService[]; now: Date }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Service</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Balance / usage</TableHead>
-          <TableHead>Days left</TableHead>
-          <TableHead>Last read</TableHead>
-          <TableHead><span className="sr-only">Actions</span></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {services.map((s) => (
-          <TableRow key={s.service}>
-            <TableCell className="font-medium">
-              {s.billingUrl ? <a href={s.billingUrl} target="_blank" rel="noopener noreferrer" className="underline">{s.label}</a> : s.label}
-            </TableCell>
-            <TableCell><StatusBadge status={s.status} /></TableCell>
-            <TableCell>{formatAmount(s)}</TableCell>
-            <TableCell>{daysLeftText(s.daysLeft)}</TableCell>
-            <TableCell>
-              {s.takenAt ? formatRelative(s.takenAt, now) : '—'}
-              {s.status === 'error' && s.error && <div className="text-xs text-muted-foreground">{s.error}</div>}
-            </TableCell>
-            <TableCell className="text-right"><ServiceSettingsDialog service={s} /></TableCell>
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Service</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Balance / usage</TableHead>
+            <TableHead>Days left</TableHead>
+            <TableHead>Last read</TableHead>
+            <TableHead><span className="sr-only">Actions</span></TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {services.map((s) => (
+            <TableRow key={s.service}>
+              <TableCell className="font-medium">
+                {s.billingUrl ? <a href={s.billingUrl} target="_blank" rel="noopener noreferrer" className="underline">{s.label}</a> : s.label}
+              </TableCell>
+              <TableCell><StatusBadge status={s.status} /></TableCell>
+              <TableCell>{formatAmount(s)}</TableCell>
+              <TableCell>{daysLeftText(s.daysLeft)}</TableCell>
+              <TableCell>
+                {s.takenAt ? formatRelative(s.takenAt, now) : '—'}
+                {s.status === 'error' && s.error && <div className="text-xs text-muted-ink">{s.error}</div>}
+              </TableCell>
+              <TableCell className="text-right"><ServiceSettingsDialog service={s} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }

@@ -2,10 +2,10 @@ import { formatMoney } from '@/lib/format';
 import type { CostMonth } from './types';
 
 /** Brand tokens (CLAUDE.md): secondary for API-metered spend, accent for manual costs. */
-export const API_COLOR = '#2A6BAC';
-export const MANUAL_COLOR = '#F5A524';
+export const API_COLOR = 'var(--secondary)';
+export const MANUAL_COLOR = 'var(--amber)';
 /** The accent alone is ~2:1 on white (below the 3:1 non-text minimum), so manual segments also carry this darker outline. */
-const MANUAL_EDGE = '#B45309';
+const MANUAL_EDGE = 'var(--accent-text)';
 
 const W = 640;
 const H = 240;
@@ -40,8 +40,8 @@ export function MonthlyChart({ months }: { months: CostMonth[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Monthly platform spend, API and manual, last six months" className="h-auto w-full">
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke="#CBD5E1" strokeWidth={1} />
-            <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#475569">{formatMoney(t, { cents: true }).replace(/\.00$/, '')}</text>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" strokeWidth={1} />
+            <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--chart-axis)">{formatMoney(t, { cents: true }).replace(/\.00$/, '')}</text>
           </g>
         ))}
         {months.map((m, i) => {
@@ -54,12 +54,12 @@ export function MonthlyChart({ months }: { months: CostMonth[] }) {
               <title>{`${monthLabel(m.month)}: ${formatMoney(total, { cents: true })} (API ${formatMoney(m.apiUsd, { cents: true })}, manual ${formatMoney(m.manualUsd, { cents: true })})`}</title>
               {apiH > 0 && <rect x={x} y={y(0) - apiH} width={barW} height={apiH} fill={API_COLOR} />}
               {manH > 0 && <rect x={x} y={y(0) - apiH - manH} width={barW} height={manH} fill={MANUAL_COLOR} stroke={MANUAL_EDGE} strokeWidth={1} />}
-              <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={11} fill="#475569">{monthLabel(m.month).slice(0, 3)}</text>
+              <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--chart-axis)">{monthLabel(m.month).slice(0, 3)}</text>
             </g>
           );
         })}
       </svg>
-      <ul className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+      <ul className="mt-2 flex flex-wrap gap-4 text-xs text-muted-ink">
         <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: API_COLOR }} />API usage</li>
         <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border" style={{ background: MANUAL_COLOR, borderColor: MANUAL_EDGE }} />Manual costs</li>
       </ul>

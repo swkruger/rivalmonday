@@ -1,6 +1,6 @@
 'use client';
 import { formatDate, formatMoney } from '@/lib/format';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { useReadOnly, WriteGuard } from '@/components/read-only';
@@ -46,38 +46,40 @@ export function CostItemsTable({ items }: { items: CostItem[] }) {
   const readOnly = useReadOnly();
   if (items.length === 0) return <HelpEmpty id="platform.costs.manual" guideAnchor="common-questions" />;
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Per month</TableHead>
-          <TableHead>Dates</TableHead>
-          {!readOnly && <TableHead><span className="sr-only">Actions</span></TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((i) => (
-          <TableRow key={i.id}>
-            <TableCell className="font-medium">
-              {i.billingUrl ? <a href={i.billingUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.name}</a> : i.name}
-            </TableCell>
-            <TableCell>{typeOf(i)}</TableCell>
-            <TableCell>{formatMoney(i.amountUsd, { cents: true })}</TableCell>
-            <TableCell>{i.monthlyUsd == null ? '—' : formatMoney(i.monthlyUsd, { cents: true })}</TableCell>
-            <TableCell>{dates(i)}</TableCell>
-            {!readOnly && (
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <CostItemDialog item={i} />
-                  <ArchiveButton item={i} />
-                </div>
-              </TableCell>
-            )}
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Per month</TableHead>
+            <TableHead>Dates</TableHead>
+            {!readOnly && <TableHead><span className="sr-only">Actions</span></TableHead>}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {items.map((i) => (
+            <TableRow key={i.id}>
+              <TableCell className="font-medium">
+                {i.billingUrl ? <a href={i.billingUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.name}</a> : i.name}
+              </TableCell>
+              <TableCell>{typeOf(i)}</TableCell>
+              <TableCell>{formatMoney(i.amountUsd, { cents: true })}</TableCell>
+              <TableCell>{i.monthlyUsd == null ? '—' : formatMoney(i.monthlyUsd, { cents: true })}</TableCell>
+              <TableCell>{dates(i)}</TableCell>
+              {!readOnly && (
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <CostItemDialog item={i} />
+                    <ArchiveButton item={i} />
+                  </div>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }

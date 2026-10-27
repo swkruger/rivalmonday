@@ -43,7 +43,7 @@ export function SpendGuardSettings({ settings }: { settings: GuardSettings }) {
   };
   return (
     <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">{`${settings.creditsPerUsd} credits = $1`}</p>
+      <p className="text-sm text-muted-ink">{`${settings.creditsPerUsd} credits = $1`}</p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {FIELDS.map((f) => (
           <Field key={f.key} label={f.label} htmlFor={`sg-${f.key}`}>
