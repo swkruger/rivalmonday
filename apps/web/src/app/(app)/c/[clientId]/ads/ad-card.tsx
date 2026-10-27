@@ -14,14 +14,14 @@ export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
   const state = labelFor(AD_STATE, ad.active ? 'active' : 'ended');
   const platform = ad.platform === 'meta' ? 'Meta' : 'Google';
   return (
-    <article className="flex flex-col gap-2 rounded-md border border-line bg-surface p-5">
+    <article className="flex flex-col gap-2 rounded-md border border-line bg-surface p-4">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-muted-foreground">
         <span>{platform}</span>
         {ad.format && <span>· {ad.format}</span>}
         <span>· {ad.competitorName}</span>
         <StatusChip tone={state.tone} className="ml-auto">{state.label}</StatusChip>
       </div>
-      {ad.title && <h3 className="font-bold text-ink">{ad.title}</h3>}
+      {ad.title && <h3 className="font-semibold text-ink">{ad.title}</h3>}
       {ad.text && <p className="line-clamp-4 whitespace-pre-line text-sm text-ink">{ad.text}</p>}
       {ad.landingUrl && (
         <p className="truncate text-sm text-muted-foreground">

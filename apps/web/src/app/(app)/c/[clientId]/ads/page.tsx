@@ -1,5 +1,6 @@
 import { hasFeature } from '@cs/core';
 import type { AdActivityView, AdList, ClientProfile, TrackedCompetitor } from '@cs/tools';
+import { Button, cn, nativeSelectClass, Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -60,44 +61,40 @@ export default async function AdsPage({ params, searchParams }: {
         guide={guides.has(HELP_KEY)}
       />
 
-      <div className="rounded-md border border-line bg-surface p-6">
-        <div className="mb-2 flex items-center gap-1.5">
-          <h2 className="text-lg font-bold text-ink">Active ads per week</h2>
-          <HelpTip tip="client.ads.adsPerWeek" />
-        </div>
+      <Section title="Active ads per week" titleAside={<HelpTip tip="client.ads.adsPerWeek" />}>
         <LineChart
           title="Active competitor ads per week"
           labels={activity.weeks}
           series={foldSeries(activity.series.map((s) => ({ key: s.competitorId, name: s.name, points: s.points })))}
           valueLabel="active ads"
         />
-      </div>
+      </Section>
 
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-4">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold text-ink">Competitor</span>
-          <select name="competitor" defaultValue={competitorId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+      <form method="get" className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-ink">Competitor</span>
+          <select name="competitor" defaultValue={competitorId ?? ''} className={cn(nativeSelectClass, 'h-8 text-13')}>
             <option value="">All competitors</option>
             {tracked.items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold text-ink">Platform</span>
-          <select name="platform" defaultValue={platform} className="rounded-md border border-line bg-surface px-2 py-1.5">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-ink">Platform</span>
+          <select name="platform" defaultValue={platform} className={cn(nativeSelectClass, 'h-8 text-13')}>
             <option value="all">All</option>
             <option value="meta">Meta</option>
             <option value="google">Google</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold text-ink">Status</span>
-          <select name="status" defaultValue={status} className="rounded-md border border-line bg-surface px-2 py-1.5">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-ink">Status</span>
+          <select name="status" defaultValue={status} className={cn(nativeSelectClass, 'h-8 text-13')}>
             <option value="active">Active</option>
             <option value="ended">Ended</option>
             <option value="all">All</option>
           </select>
         </label>
-        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Apply</button>
+        <Button type="submit" variant="outline" size="sm">Apply</Button>
       </form>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">

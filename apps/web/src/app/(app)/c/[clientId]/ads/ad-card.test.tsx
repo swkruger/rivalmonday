@@ -22,6 +22,11 @@ describe('AdCard', () => {
     expect([link.getAttribute('href'), link.getAttribute('rel')]).toEqual([base.libraryUrl, 'noopener noreferrer']);
   });
 
+  it('is a static Frame: no shadow', () => {
+    render(<AdCard ad={base} timezone="UTC" />);
+    expect(screen.getByRole('article').className).not.toContain('shadow');
+  });
+
   it('ad card dates in the client zone, "Active" chip', () => {
     render(<AdCard ad={{ ...base, firstSeenAt: '2026-09-12T02:00:00.000Z' }} timezone="America/Chicago" />);
     expect(screen.getByText(/First seen Sep 11/)).toBeTruthy();

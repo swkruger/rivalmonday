@@ -32,4 +32,13 @@ describe('AdsPage', () => {
     const select = screen.getByLabelText('Competitor');
     expect(Array.from(select.querySelectorAll('option')).map((o) => o.textContent)).toEqual(['All competitors', 'Quiet Rival']);
   });
+
+  it('puts the chart in a Section and keeps the three filters with a non-primary Apply', async () => {
+    const { container } = render(await AdsPage({ params: Promise.resolve({ clientId: 'c' }), searchParams: Promise.resolve({}) }));
+    const section = container.querySelector('[data-slot=section]');
+    expect(section?.querySelector('h2')?.textContent).toBe('Active ads per week');
+    for (const n of ['competitor', 'platform', 'status']) expect(container.querySelector(`select[name=${n}]`)).toBeTruthy();
+    const apply = screen.getByRole('button', { name: 'Apply' });
+    expect(apply.getAttribute('data-variant')).toBe('outline');
+  });
 });

@@ -1,5 +1,6 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
 import type { ClientProfile, RatingTrendView, ReviewList, TopicBenchmarkView } from '@cs/tools';
+import { Button, cn, HairlineCell, HairlineGrid, nativeSelectClass, Section } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -27,6 +28,8 @@ export const metadata: Metadata = { title: 'Reviews' };
 const PAGE = 20;
 const HELP_KEY = 'page:client.reviews';
 const COPY = PAGE_COPY['client.reviews'];
+const SELECT = cn(nativeSelectClass, 'h-8 text-13');
+const LABEL = 'text-xs font-medium text-muted-ink';
 const TOPIC = /^[a-z0-9_]{1,64}$/;
 
 /** Module 6 (mockup 03, decisions 6–8). */
@@ -90,69 +93,63 @@ export default async function ReviewsPage({ params, searchParams }: {
         <SelfNotice clientId={clientId} selfPending={trend.selfPending} isAgency={isAgencyRole(ctx.role)} />
       )}
 
-      <section className="rounded-md border border-line bg-surface p-6">
-        <div className="mb-1 flex items-center gap-1.5">
-          <h2 className="text-lg font-bold text-ink">What customers talk about</h2>
-          <HelpTip tip="client.reviews.heatmap" />
-        </div>
-        <p className="mb-3 text-sm text-muted-foreground">Last 90 days. The number is how often a topic comes up; the colour is how positive those mentions are.</p>
+      <Section
+        title="What customers talk about"
+        titleAside={<HelpTip tip="client.reviews.heatmap" />}
+        description="Last 90 days. The number is how often a topic comes up; the colour is how positive those mentions are."
+      >
         <TopicHeatmap title="What customers talk about" benchmark={benchmark} />
-      </section>
+      </Section>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-        <section className="rounded-md border border-line bg-surface p-6">
-          <div className="mb-3 flex items-center gap-1.5">
-            <h2 className="text-lg font-bold text-ink">Your rating mix</h2>
-            <HelpTip tip="client.reviews.ratingMix" />
-          </div>
-          {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-foreground">Not available until your business is set up.</p>}
-        </section>
-        <section className="rounded-md border border-line bg-surface p-6">
-          <div className="mb-3 flex items-center gap-1.5">
-            <h2 className="text-lg font-bold text-ink">Rating trend</h2>
-            <HelpTip tip="client.reviews.ratingTrend" />
-          </div>
-          <LineChart title="Average stars per month" labels={trend.months} series={trendSeriesList} valueLabel="stars" yMax={5} period="month" formatValue={(v) => v.toFixed(1)} />
-        </section>
-      </div>
+      <HairlineGrid cols={2}>
+        <HairlineCell>
+          <Section title="Your rating mix" titleAside={<HelpTip tip="client.reviews.ratingMix" />}>
+            {self ? <RatingMix mix={self.mix} /> : <p className="text-sm text-muted-foreground">Not available until your business is set up.</p>}
+          </Section>
+        </HairlineCell>
+        <HairlineCell>
+          <Section title="Rating trend" titleAside={<HelpTip tip="client.reviews.ratingTrend" />}>
+            <LineChart title="Average stars per month" labels={trend.months} series={trendSeriesList} valueLabel="stars" yMax={5} period="month" formatValue={(v) => v.toFixed(1)} />
+          </Section>
+        </HairlineCell>
+      </HairlineGrid>
 
-      <section className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
-        <h2 className="text-lg font-bold text-ink">Reviews</h2>
+      <Section title="Reviews">
         <form method="get" className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Business</span>
-            <select name="business" defaultValue={business ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>Business</span>
+            <select name="business" defaultValue={business ?? ''} className={SELECT}>
               <option value="">All</option>
               {trend.businesses.map((b) => <option key={b.competitorId} value={b.self ? 'self' : b.competitorId}>{b.self ? 'You' : b.name}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Topic</span>
-            <select name="topic" defaultValue={topicId ?? ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>Topic</span>
+            <select name="topic" defaultValue={topicId ?? ''} className={SELECT}>
               <option value="">All topics</option>
               {benchmark.topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Stars</span>
-            <select name="stars" defaultValue={stars ? String(stars) : ''} className="rounded-md border border-line bg-surface px-2 py-1.5">
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>Stars</span>
+            <select name="stars" defaultValue={stars ? String(stars) : ''} className={SELECT}>
               <option value="">Any</option>
               {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}★</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Period</span>
-            <select name="days" defaultValue={String(days)} className="rounded-md border border-line bg-surface px-2 py-1.5">
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>Period</span>
+            <select name="days" defaultValue={String(days)} className={SELECT}>
               <option value="30">30 days</option>
               <option value="90">90 days</option>
               <option value="365">12 months</option>
             </select>
           </label>
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-            <span className="font-semibold text-ink">Contains</span>
-            <input name="q" defaultValue={text ?? ''} maxLength={100} className="rounded-md border border-line bg-surface px-2 py-1.5" />
+          <label className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className={LABEL}>Contains</span>
+            <input name="q" defaultValue={text ?? ''} maxLength={100} className={cn(nativeSelectClass, 'h-8 text-13')} />
           </label>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-ink">Search</button>
+          <Button type="submit" variant="outline" size="sm">Search</Button>
         </form>
         {!reviews ? (
           <p className="rounded-md bg-muted-surface p-3 text-ink">
@@ -166,7 +163,7 @@ export default async function ReviewsPage({ params, searchParams }: {
             {reviews.hasMore && <Link href={`/c/${clientId}/reviews?${more.toString()}`} className="font-semibold text-primary-soft-text">More reviews</Link>}
           </>
         )}
-      </section>
+      </Section>
     </>
   );
 }

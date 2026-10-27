@@ -1,4 +1,5 @@
 import type { ReviewView } from '@cs/tools';
+import { Band } from '@cs/ui';
 import { formatDate } from '@/lib/format';
 
 /** Decision 6: text as published; the reviewer is always "Google reviewer". */
@@ -18,10 +19,10 @@ export function ReviewItem({ review, timezone }: { review: ReviewView; timezone:
       {review.text ? <p className="whitespace-pre-line text-sm text-ink">{review.text}</p> : <p className="text-sm text-muted-foreground">No written review.</p>}
       {review.topics.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
-          {review.topics.map((t) => <li key={t.id} className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">{t.name}</li>)}
+          {review.topics.map((t) => <li key={t.id} className="rounded-xs bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-soft-text">{t.name}</li>)}
         </ul>
       )}
-      {review.ownerAnswer && <p className="rounded-md bg-muted-surface p-2 text-xs text-ink">Owner replied: {review.ownerAnswer}</p>}
+      {review.ownerAnswer && <Band tone="muted" className="text-xs text-ink">Owner replied: {review.ownerAnswer}</Band>}
     </article>
   );
 }
