@@ -45,7 +45,7 @@ async function firstId(db: Db, query: ReturnType<typeof sql>): Promise<string> {
 }
 
 async function fixtures(): Promise<ShotFixtures> {
-  const setup = JSON.parse(readFileSync(SETUP_FIXTURE_FILE, 'utf8')) as { finish: { id: string } };
+  const setup = JSON.parse(readFileSync(SETUP_FIXTURE_FILE, 'utf8')) as { finish: { id: string }; owner: { id: string } };
   return withDb(async (db) => {
     const clientId = await firstId(db, sql`select id from client where name = 'E2E HVAC'`);
     const briefId = await firstId(db, sql`select id from brief where client_id = ${clientId} and status = 'sent' order by delivery_date limit 1`);
@@ -56,6 +56,8 @@ async function fixtures(): Promise<ShotFixtures> {
       evidenceId: await firstId(db, sql`select evidence_ids ->> 0 as id from brief_item where brief_id = ${briefId} and jsonb_array_length(evidence_ids) > 0 limit 1`),
       agencyId: await firstId(db, sql`select agency_id as id from client where id = ${clientId}`),
       setupClientId: setup.finish.id,
+      setupOwnerClientId: setup.owner.id,
+      askClientId: await firstId(db, sql`select id from client where name = 'Ask Demo Heating'`),
     };
   });
 }
@@ -121,6 +123,7 @@ for (const route of SHOT_ROUTES) {
         await page.setViewportSize(viewport);
         const path = typeof route.path === 'function' ? route.path(fx) : route.path;
         await page.goto(path);
+        if (route.heading) await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible();
         await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => undefined);
         await page.screenshot({ path: join(DIR, `${route.label}-${viewport.width}.png`), fullPage: true });
         const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();

@@ -69,6 +69,16 @@ describe('foregrounds and focus', () => {
     }
     expect(v['--primary-active']).not.toBe(v['--primary-hover']);
   });
+  it('mid-tone #D9534F: hover differs from base, active differs from hover, label contrast never drops', () => {
+    const c = '#D9534F';
+    const v = themeVars({ primary: c, secondary: '#2A6BAC' });
+    const fg = v['--primary-foreground']!;
+    expect(v['--primary-hover']!.toLowerCase()).not.toBe(c.toLowerCase());
+    expect(v['--primary-active']).not.toBe(v['--primary-hover']);
+    for (const k of ['--primary-hover', '--primary-active'] as const) {
+      expect(contrastRatio(fg, v[k]!)).toBeGreaterThanOrEqual(contrastRatio(fg, c));
+    }
+  });
   it('default primary gets the ink foreground', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })['--primary-foreground']).toBe('#0B2540');
   });

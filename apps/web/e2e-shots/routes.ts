@@ -1,6 +1,6 @@
 export type ShotAs = 'admin' | 'agency' | 'owner' | 'support' | 'signed-out';
-export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string };
-export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean };
+export type ShotFixtures = { clientId: string; competitorId: string; evidenceId: string; briefId: string; agencyId: string; setupClientId: string; setupOwnerClientId: string; askClientId: string };
+export type ShotRoute = { label: string; path: string | ((fx: ShotFixtures) => string); as: ShotAs; gate?: boolean; heading?: RegExp };
 
 /**
  * One page per archetype per context (spec 4.6, D19). `admin` is the seeded `admin@e2e.test` (agency admin of "E2E Agency"
@@ -43,9 +43,9 @@ export const SHOT_ROUTES: ShotRoute[] = [
   // Support session (banner over an agency page)
   { label: 'support-agency', path: '/agency', as: 'support' },
   // Onboarding (D19)
-  { label: 'setup-profile', path: (fx) => `/c/${fx.setupClientId}/setup`, as: 'agency' },
-  { label: 'setup-competitors', path: (fx) => `/c/${fx.setupClientId}/setup?step=competitors`, as: 'agency' },
-  { label: 'setup-invite', path: (fx) => `/c/${fx.setupClientId}/setup?step=invite`, as: 'agency' },
+  { label: 'setup-profile', path: (fx) => `/c/${fx.setupClientId}/setup?step=profile`, as: 'agency', heading: /What they do and where/ },
+  { label: 'setup-competitors', path: (fx) => `/c/${fx.setupClientId}/setup`, as: 'agency', heading: /Pick who to watch/ },
+  { label: 'setup-invite', path: (fx) => `/c/${fx.setupOwnerClientId}/setup?step=invite`, as: 'agency', heading: /Invite the owner/ },
   // Signed out
   { label: 'sign-in', path: '/sign-in', as: 'signed-out' },
   { label: 'sign-up', path: '/sign-up', as: 'signed-out' },

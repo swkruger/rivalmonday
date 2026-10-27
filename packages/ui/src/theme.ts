@@ -33,7 +33,7 @@ const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
  * Hover/active state of a filled `primary` button: mix away from the label
  * colour (toward white under an ink label, toward ink under a white label) by
  * `t`, stepping back toward the base in 1 % steps if the mix would drop the
- * label below 4.5:1. For #47A8E7 this gives #56afe9 (8 %) / #64b6eb (16 %),
+ * label below 4.5:1; when no step reaches 4.5:1 (label already fails on the base) the full `t` mix is used. For #47A8E7 this gives #56afe9 (8 %) / #64b6eb (16 %),
  * the :root defaults in styles.css.
  */
 function stateShade(primary: string, fg: string, t: number): string {
@@ -42,7 +42,7 @@ function stateShade(primary: string, fg: string, t: number): string {
     const c = mixHex(primary, toward, step / 100);
     if (contrastRatio(fg, c) >= 4.5) return c;
   }
-  return primary;
+  return mixHex(primary, toward, t); // mixing away from the label only raises contrast: never worse than the base
 }
 
 /**
