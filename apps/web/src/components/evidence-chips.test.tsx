@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('next/link', () => ({ default: (p: Record<string, unknown>) => <a data-next-link="1" {...p} /> }));
 import { EvidenceChips } from './evidence-chips';
 
 const C = '11111111-1111-4111-8111-111111111111';
@@ -19,6 +21,7 @@ describe('EvidenceChips', () => {
     expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' }).getAttribute('href')).toBe(`/c/${C}/evidence/${ids[0]}`);
     expect(screen.getByRole('link', { name: 'Evidence 2' })).toBeTruthy();
     expect(container.querySelectorAll('[data-slot="citation-pill"]')).toHaveLength(2);
+    expect(container.querySelectorAll('a[data-next-link="1"][data-slot="citation-pill"]')).toHaveLength(2);
   });
   it('renders nothing without evidence', () => {
     const { container } = render(<EvidenceChips clientId={C} ids={[]} />);

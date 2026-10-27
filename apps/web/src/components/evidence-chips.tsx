@@ -1,4 +1,5 @@
 import { CitationPill } from '@cs/ui';
+import Link from 'next/link';
 import type { EvidenceRefs } from '@/server/evidence-refs';
 
 export const evidenceHref = (clientId: string, id: string) => `/c/${clientId}/evidence/${id}`;
@@ -11,8 +12,16 @@ export function EvidenceChips({ clientId, ids, max = 6, refs }: { clientId: stri
     <span className="flex flex-wrap items-center gap-1.5">
       {shown.map((id, i) => {
         const ref = refs?.[id];
-        const href = evidenceHref(clientId, id);
-        return ref ? <CitationPill key={id} href={href} n={i + 1} source={ref.source} date={ref.date} /> : <CitationPill key={id} href={href} n={i + 1} />;
+        const link = <Link href={evidenceHref(clientId, id)} />;
+        return ref ? (
+          <CitationPill key={id} asChild n={i + 1} source={ref.source} date={ref.date}>
+            {link}
+          </CitationPill>
+        ) : (
+          <CitationPill key={id} asChild n={i + 1}>
+            {link}
+          </CitationPill>
+        );
       })}
       {ids.length > max && <span className="text-xs text-muted-ink">+{ids.length - max} more</span>}
     </span>

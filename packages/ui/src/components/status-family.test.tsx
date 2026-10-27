@@ -103,6 +103,17 @@ describe('CitationPill / SourcesList', () => {
     render(<CitationPill href="/e/1" n={1} source="Smith HVAC" date="Oct 20, 2026" />);
     expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 20, 2026' })).toBeTruthy();
   });
+  it('asChild puts the pill on the single child anchor', () => {
+    const { container } = render(
+      <CitationPill asChild n={3} source="Smith HVAC" date="Oct 20">
+        <a href="/e/3" />
+      </CitationPill>,
+    )
+    expect(container.querySelectorAll('a')).toHaveLength(1)
+    const a = screen.getByRole('link', { name: 'Evidence 3: Smith HVAC, Oct 20' })
+    expect(a.getAttribute('data-slot')).toBe('citation-pill')
+    expect(a.getAttribute('href')).toBe('/e/3')
+  })
   it('lists sources as links', () => {
     render(<SourcesList items={[{ href: '/e/1', title: 'Pricing page', date: '3 Oct' }]} />);
     expect(screen.getByRole('link', { name: /Pricing page/ })).toBeTruthy();
