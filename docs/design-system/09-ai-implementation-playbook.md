@@ -71,8 +71,8 @@ Shell files: `apps/web/src/components/shell/{app-shell,sidebar,sidebar-nav,top-b
 --line-control: #CBD5E1;
 --line-strong: #8796AB;               /* input/checkbox boundary, 3.01:1 */
 --focus: #2A6BAC;                     /* NOT var(--secondary): stays fixed even when an agency changes secondary [see § 3.4] */
---primary-hover: #2F93D6;
---primary-active: #2581C2;
+--primary-hover: #56AFE9;              /* 16a: = themeVars(#47A8E7); derived per agency (8 % away from the label colour, label >= 4.5:1) */
+--primary-active: #64B6EB;             /* 16a: 16 % step, same rule */
 --link: var(--primary-soft-text);
 --danger-hover: #B91C1C;
 --danger-text: #B91C1C;

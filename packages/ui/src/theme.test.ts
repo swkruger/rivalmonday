@@ -13,7 +13,7 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb',
     });
   });
 
@@ -60,6 +60,15 @@ describe('foregrounds and focus', () => {
   it('never returns --focus (fixed #2A6BAC in :root)', () => {
     for (const c of SAMPLES) expect('--focus' in themeVars({ primary: c, secondary: c })).toBe(false);
   });
+  it.each(SAMPLES)('%s gets hover/active that differ and keep the foreground at >= 4.5', (c) => {
+    const v = themeVars({ primary: c, secondary: '#2A6BAC' });
+    const fg = v['--primary-foreground']!;
+    for (const k of ['--primary-hover', '--primary-active'] as const) {
+      expect(v[k]!.toLowerCase()).not.toBe(c.toLowerCase());
+      expect(contrastRatio(fg, v[k]!)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(v['--primary-active']).not.toBe(v['--primary-hover']);
+  });
   it('default primary gets the ink foreground', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })['--primary-foreground']).toBe('#0B2540');
   });
@@ -70,6 +79,13 @@ describe('styles.css tokens', () => {
   it('wires primary-foreground through the runtime var (not a literal) with an ink default', () => {
     expect(css).toMatch(/@theme inline\s*\{[^}]*--color-primary-foreground:\s*var\(--primary-foreground\);/);
     expect(css).toMatch(/:root\s*\{[^}]*--primary-foreground:\s*#0B2540;/);
+  });
+  it(':root hover/active defaults equal themeVars for #47A8E7', () => {
+    const v = themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' });
+    for (const k of ['--primary-hover', '--primary-active']) {
+      const m = css.match(new RegExp(String.raw`:root\s*\{[^}]*${k}:\s*(#[0-9a-fA-F]{6});`));
+      expect(m?.[1]?.toLowerCase()).toBe(v[k]!.toLowerCase());
+    }
   });
   it('maps --color-line so border-line / bg-line / divide-line draw', () => {
     expect(css).toMatch(/--color-line:\s*var\(--line\);/);

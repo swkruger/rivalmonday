@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Brand tokens (docs/brand/brand.md). --primary, --secondary, --primary-soft(-text) are overridden per agency
+/* Brand tokens (docs/brand/brand.md). --primary, --secondary, --primary-soft(-text), --primary-hover/-active are overridden per agency
    on <html style="…"> by themeVars(); everything else is fixed. */
 :root {
   --primary: #47A8E7;
@@ -31,8 +31,9 @@
   --line-strong: #8796AB;
   /* Fixed: never derived from the agency colour, so focus always passes 3:1. */
   --focus: #2A6BAC;
-  --primary-hover: #2F93D6;
-  --primary-active: #2581C2;
+  /* = themeVars('#47A8E7'): 8 % / 16 % toward white under the ink label; themeVars overrides per agency. */
+  --primary-hover: #56AFE9;
+  --primary-active: #64B6EB;
   --link: var(--primary-soft-text);
   --danger-hover: #B91C1C;
   --danger-text: #B91C1C;

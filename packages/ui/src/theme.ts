@@ -30,6 +30,22 @@ export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
 const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
 
 /**
+ * Hover/active state of a filled `primary` button: mix away from the label
+ * colour (toward white under an ink label, toward ink under a white label) by
+ * `t`, stepping back toward the base in 1 % steps if the mix would drop the
+ * label below 4.5:1. For #47A8E7 this gives #56afe9 (8 %) / #64b6eb (16 %),
+ * the :root defaults in styles.css.
+ */
+function stateShade(primary: string, fg: string, t: number): string {
+  const toward = fg === '#0B2540' ? '#FFFFFF' : RIVAL_MONDAY_TOKENS.ink;
+  for (let step = Math.round(t * 100); step > 0; step--) {
+    const c = mixHex(primary, toward, step / 100);
+    if (contrastRatio(fg, c) >= 4.5) return c;
+  }
+  return primary;
+}
+
+/**
  * CSS variables for the root element; every value is a validated 6-digit hex
  * (Review Focus 5 — nothing unvalidated reaches a style attribute). Only
  * `primary`/`secondary` are per-agency; `accent` (brand amber) is fixed and
@@ -39,10 +55,13 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
   const primary = safe(b.primary, RIVAL_MONDAY_TOKENS.primary);
   const secondary = safe(b.secondary, RIVAL_MONDAY_TOKENS.secondary);
   const isDefault = primary.toLowerCase() === RIVAL_MONDAY_TOKENS.primary.toLowerCase();
+  const primaryFg = readableTextOn(primary);
   return {
     '--primary': primary,
     '--secondary': secondary,
-    '--primary-foreground': readableTextOn(primary),
+    '--primary-foreground': primaryFg,
+    '--primary-hover': stateShade(primary, primaryFg, 0.08),
+    '--primary-active': stateShade(primary, primaryFg, 0.16),
     '--secondary-foreground': readableTextOn(secondary),
     '--primary-soft': isDefault ? DEFAULT_SOFT.soft : mixHex(primary, '#ffffff', 0.86),
     '--primary-soft-text': isDefault ? DEFAULT_SOFT.text : mixHex(primary, RIVAL_MONDAY_TOKENS.ink, 0.45),
