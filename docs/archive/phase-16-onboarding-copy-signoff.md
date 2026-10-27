@@ -136,3 +136,22 @@ Owner: read each screen's strings, tick or edit, then answer "Decisions for the 
 5. A client can finish setup without a phone or an owner contact; the details step is informational. Staff are not blocked. OK, or should those two be required before setup counts as done?
 6. The owner cannot add a missed rival on the pick page. That needs the manage_competitors feature, so the "+ Add one we missed" link shows for staff only. Owners ask the agency (the guide says so). OK?
 7. The Stadia geocoding cost of $0.001 per request is an assumption (used for the cost ledger and caps). Please confirm against the Stadia price list.
+
+## Final fixes
+
+New strings from the final fix wave (I1 ask-owner, I3 business details). Same rules as above.
+
+### Client setup step 4 and the "all set" screen (I1)
+- "Ask the owner to pick" now shows only once the search found businesses to choose from (hidden while searching, after a failed search and when nothing was found).
+- Button "Cancel request", under the note "{Owner} is choosing the competitors. …" on step 4, and under the summary on the "all set" screen while waiting on the owner. On the "all set" screen it returns to step 4.
+- Refusals (shown if the page is stale): "You can ask the owner to pick after the search finds businesses to choose from.", "The owner has already been asked to pick.", "The owner has not been asked to pick."
+- The "all set" screen's Business, Contact and Owner "Edit" links now open Settings › Business profile at "Business details" (they pointed at Delivery before).
+
+### Client Settings › Business profile: "Business details" (I3, agency staff only)
+- Heading "Business details". Text "The phone, address and owner contact from setup. The phone also keeps the business out of its own competitor suggestions."
+- Labels "Phone", "Address (optional)", "Street address", "Suite or unit (optional)", "City", "State", "ZIP code", "Owner name", "Owner email", "Logo (optional)". Logo hint "PNG, JPG or SVG, square, up to 512 KB. Leave empty to keep the current logo." Image alt "The current logo".
+- Button "Save details". Result "Details saved." Error "Enter the street address, city, state and ZIP code, or clear the address." (logo, phone and email errors reuse the existing copy).
+- Guide `client.settings.profile` (agency): new first bullet "**Business details** are the phone, address, owner name and email, and logo from setup. The phone also keeps {client} out of its own competitor suggestions, so fix a mistyped number here. Only agency staff see this section."
+
+### Owner Overview welcome line (I4)
+- Wording unchanged. It now also hides once the starting point has arrived (as well as on Dismiss).

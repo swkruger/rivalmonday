@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
 import { clientSettingsCrumbs } from '@/components/client-crumbs';
+import { ClientDetailsForm, type ClientDetailsInitial } from '@/components/client-details-form';
 import { ClientProfileForm } from '@/components/client-profile-form';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
@@ -16,7 +17,7 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
-import { saveFeaturesAction, updateProfileAction } from './actions';
+import { saveFeaturesAction, updateDetailsAction, updateProfileAction } from './actions';
 import { ClientFeaturesForm } from './client-features-form';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   // Phase 8b: `get_ask_starters` is hidden in a support session and the session is read-only, so the Ask-review toggle (an agency-admin write control) is omitted there rather than shown with a guessed value.
   const showReviewToggle = ctx.role === 'agency_admin' && !ctx.support;
   const reviewAllowed = showReviewToggle ? (await callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId })).reviewAllowed : true;
+  // Final fix I3: phone, address, owner contact and logo after setup (staff only; `update_client_details` refuses others).
+  const details = await callTool<ClientDetailsInitial>(ctx, 'get_client_details', { clientId });
   const billing = p.status === 'active' ? (await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}))?.clients?.find((b) => b.clientId === clientId) : undefined;
   return (
     <>
@@ -75,6 +78,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       <p className="text-muted-foreground">
         Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.
       </p>
+      <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details.phone, address: details.address, logoUrl: details.logoUrl, contactName: details.contactName, contactEmail: details.contactEmail }} />
       <ClientProfileForm
         mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
         initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}

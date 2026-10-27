@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 const A = '11111111-1111-4111-8111-111111111111';
 const C = '22222222-2222-4222-8222-222222222222';
 const profile = { name: 'Target Plumbing', status: 'active', verticalId: 'hvac_plumbing', services: [], keywords: [], placeId: null, serviceArea: null, features: ['dashboard', 'ask'] };
+const DETAILS = { name: 'Target Plumbing', phone: '(817) 555-0142', address: null, logoUrl: null, contactName: 'Gina Owner', contactEmail: 'gina@x.co', locationSource: 'geocoded' };
 const state = { ctx: createAccessContext({ agencyId: A, userId: 'op', role: 'agency_admin', clientScope: 'all', features: ['dashboard', 'ask'] as never, support: { sessionId: C, platformUserId: 'op' } }) };
 
 const callTool = vi.fn(async (ctx: { support?: unknown }, name: string) => {
@@ -13,6 +14,7 @@ const callTool = vi.fn(async (ctx: { support?: unknown }, name: string) => {
     if (ctx.support) throw new ToolError('not_found', 'Unknown tool');
     return { questions: [], reviewAllowed: false };
   }
+  if (name === 'get_client_details') return DETAILS;
   if (name === 'list_client_billing_status') return { clients: [{ clientId: C, state: 'active', enabled: true, pill: { key: 'paying', label: 'Paying' }, nextPriceCents: 29900 }] };
   return profile;
 });
@@ -24,7 +26,10 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <div>profile form</div> }));
 vi.mock('./client-features-form', () => ({ ClientFeaturesForm: (p: { role?: string }) => <div>features form role={String(p.role)}</div> }));
 vi.mock('@/components/billing/client-billing-controls', () => ({ ClientBillingControls: (p: { role: string; pill: { label: string } }) => <div>billing {p.pill.label} role={p.role}</div> }));
-vi.mock('./actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn() }));
+vi.mock('@/components/client-details-form', () => ({ ClientDetailsForm: (p: { initial: { phone: string } }) => <div>details form {p.initial.phone}</div> }));
+vi.mock('@/components/services-area-summary', () => ({ ServicesAreaSummary: () => <div>summary</div> }));
+vi.mock('@/components/help/tip-row', () => ({ TipRow: () => null }));
+vi.mock('./actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn(), updateDetailsAction: vi.fn() }));
 const { default: Page } = await import('./page');
 
 describe('client profile page', () => {
@@ -39,6 +44,18 @@ describe('client profile page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Business profile' })).toBeTruthy();
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_ask_starters');
     expect(screen.getByText('features form role=undefined')).toBeTruthy();
+  });
+  it('staff get the Business details section from get_client_details', async () => {
+    state.ctx = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: 'all', features: ['dashboard'] as never });
+    render(await Page({ params: Promise.resolve({ clientId: C }) }));
+    expect(screen.getByText('details form (817) 555-0142')).toBeTruthy();
+  });
+  it('client roles never see the Business details section (and it is not read)', async () => {
+    callTool.mockClear();
+    state.ctx = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard'] as never });
+    render(await Page({ params: Promise.resolve({ clientId: C }) }));
+    expect(screen.queryByText(/details form/)).toBeNull();
+    expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_client_details');
   });
   it('still loads the stored review setting for a normal agency admin', async () => {
     callTool.mockClear();

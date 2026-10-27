@@ -37,16 +37,18 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
   const first = ownerFirstName ?? 'the owner';
   const First = ownerFirstName ?? 'The owner';
   const edit = `/c/${clientId}/settings/profile`;
+  // I3: phone, address, owner contact and logo live in the profile's "Business details" section (staff only).
+  const details = `${edit}#details`;
   const rows: { k: string; v: React.ReactNode; href: string; label: string }[] = [
-    { k: 'Business', v: summary.business, href: edit, label: 'Edit' },
-    { k: 'Contact', v: summary.contact, href: `/c/${clientId}/settings/delivery`, label: 'Edit' },
+    { k: 'Business', v: summary.business, href: details, label: 'Edit' },
+    { k: 'Contact', v: summary.contact, href: details, label: 'Edit' },
     { k: 'Area', v: summary.area, href: edit, label: 'Edit' },
     {
       k: 'Competitors',
       v: summary.competitorsWaiting ? <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2 rounded-full bg-amber" />{summary.competitors}</span> : summary.competitors,
       href: `/c/${clientId}/competitors`, label: summary.competitorsWaiting ? 'Pick now' : 'Edit',
     },
-    { k: 'Owner', v: summary.owner, href: `/c/${clientId}/settings/delivery`, label: 'Edit' },
+    { k: 'Owner', v: summary.owner, href: details, label: 'Edit' },
     ...(summary.billing ? [{ k: 'Billing', v: summary.billing, href: '/agency/settings/billing', label: 'Edit' }] : []),
   ];
   const next = summary.competitorsWaiting

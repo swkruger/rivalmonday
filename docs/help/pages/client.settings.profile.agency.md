@@ -7,6 +7,7 @@ title: Business profile
 
 The details that decide who counts as a competitor for {{client}}, and which parts of the workspace the client can use.
 
+- **Business details** are the phone, address, owner name and email, and logo from setup. The phone also keeps {{client}} out of its own competitor suggestions, so fix a mistyped number here. Only agency staff see this section.
 - **Services** are what the business offers. **Search keywords** are the searches customers use, up to 5. Both are used to find competitors and to scan local rankings.
 - **Service area** is a radius around a centre point, plus ZIP codes and towns if listed. The map centre is the point the radius is measured from.
 - **Google Place ID** links the business's Google listing, which lets us benchmark its reviews against its competitors'.
