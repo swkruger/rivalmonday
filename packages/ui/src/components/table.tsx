@@ -108,12 +108,17 @@ function TableCell({
   )
 }
 
+/**
+ * A table inside a mixed page (09 § 4.7): bordered, rounded frame with a canvas header row. `overflow-clip` keeps
+ * the header fill inside the radius; it clips descendants' focus outlines like any overflow does, so focusables
+ * inside get inset outlines (`-outline-offset-2`, important to beat their own `outline-offset-2`).
+ */
 function TableFrame({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="table-frame"
       className={cn(
-        "overflow-clip rounded-md border border-line [&_thead_tr]:bg-canvas [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4",
+        "overflow-clip rounded-md border border-line [&_:focus-visible]:-outline-offset-2! [&_thead_tr]:bg-canvas [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4",
         className
       )}
       {...props}

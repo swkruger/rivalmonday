@@ -76,11 +76,10 @@ describe('Kpi linkAs', () => {
 });
 
 describe('Table', () => {
-  it('TableFrame clips with overflow-clip', () => {
+  it('TableFrame is a bordered, rounded frame whose focus outlines are inset (clipping-safe)', () => {
     render(<TableFrame>x</TableFrame>);
-    const el = document.querySelector('[data-slot="table-frame"]')!;
-    expect(el.className).toContain('overflow-clip');
-    expect(el.className).not.toContain('overflow-hidden');
+    const cls = document.querySelector('[data-slot="table-frame"]')!.className.split(' ');
+    expect(cls).toEqual(expect.arrayContaining(['rounded-md', 'border', 'border-line', '[&_:focus-visible]:-outline-offset-2!']));
   });
   it('numeric cells right-align with tabular figures', () => {
     render(

@@ -7,7 +7,7 @@
 export const tabsListClass = "inline-flex h-10 w-full items-end gap-6 border-b border-line text-muted-ink"
 
 export const tabsTriggerClass =
-  "relative inline-flex h-10 items-center gap-1.5 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+  "relative inline-flex h-10 items-center gap-1.5 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 
 export const tabsTriggerActiveClass =
   "data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:inset-x-0 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:rounded-t-sm data-[state=active]:after:bg-ink"

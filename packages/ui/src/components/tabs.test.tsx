@@ -51,3 +51,12 @@ describe('Tabs', () => {
     expect(screen.getByRole('tabpanel').textContent).toBe('Exports panel');
   });
 });
+
+describe('tabsTriggerClass focus', () => {
+  it('uses an inset outline so overflow-x-auto parents cannot clip it', async () => {
+    const { tabsTriggerClass } = await import('./tabs-classes');
+    const cls = tabsTriggerClass.split(' ');
+    expect(cls).toEqual(expect.arrayContaining(['focus-visible:outline-2', 'focus-visible:outline-ring', 'focus-visible:-outline-offset-2']));
+    expect(cls).not.toContain('focus-visible:outline-offset-2');
+  });
+});
