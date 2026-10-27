@@ -7,7 +7,7 @@
 **16-onboarding code complete 2026-10-27** (head 63f136cb): Tasks 0–11 built, each task-reviewed; final whole-branch review (opus) + one fix wave + scoped re-review clean. `pnpm test:affected --base main` green; `e2e:affected --base main` 140 passed + 2 spec fixes re-run green, no flakes. Migration **0095** `onboarding_split`. Not merged.
 
 ## Next (overwrite)
-Owner: (1) decide the prospects-flow changes and sign [archive/phase-16-onboarding-copy-signoff.md](../archive/phase-16-onboarding-copy-signoff.md) (incl. "Decisions for the owner" + "Final fixes"); (2) go-ahead for `/rm-merge phase-16` (full unit + E2E at merge). Then: rest of Phase 16 (brainstorm new pieces vs restyle → spec → plan).
+Merge (owner go-ahead 2026-10-27). Then: rest of Phase 16 (brainstorm new pieces vs restyle → spec → plan).
 
 ## 16-onboarding controller rulings (made during SDD; owner may overturn)
 - Tests: implementers ran focused tests only; affected unit + E2E once at the final review (CLAUDE.md scope over plan text).
@@ -44,9 +44,11 @@ Plan corrected in place. Main changes: migration 0095; `(onboarding)` layout re-
 - D5 (2026-10-24) **16-onboarding** sub-phase: agency (4 steps) + client (7 steps) + intake as full-page split flows with live previews; owner lands on Overview; replaces DS D-22/L7. Spec: [2026-10-24-phase-16-onboarding-design.md](../superpowers/specs/2026-10-24-phase-16-onboarding-design.md) (O1–O14). Mockups `docs/design-system/mockups/onboarding/`.
 - D6 (2026-10-25) Plan approved; code waits for the owner's explicit go-ahead.
 - D8 (2026-10-26) Owner: mockups (client, intake, agency fix) approved; image generation approved; plan decisions P10–P13 (incl. P12: ask_owner sends no email, invite step unskippable while `waiting_owner`) confirmed.
+- D9 (2026-10-27) Owner: keep the prospects-flow changes (contact/phone/email required, owner contact row, Close → /agency, "Ask the owner to pick" for prospects); copy sign-off moved to BACKLOG; merge approved.
 - D7 (2026-10-25) Generated images (gpt-image via OpenRouter, `openai/gpt-image-2.5-sunburst`) used sparingly: onboarding only on sign-up, both "All set" screens, intake "Check your email" (O14); static, owner-picked.
 
 ## New backlog (target → item)
+- Owner → sign [archive/phase-16-onboarding-copy-signoff.md](../archive/phase-16-onboarding-copy-signoff.md) (incl. "Decisions for the owner" + "Final fixes").
 - Owner → at 16-onboarding deploy add `STADIA_API_KEY` to the Vercel web env (without it, no-listing clients stall at step 3); confirm Stadia geocode price (assumed $0.001/request, `STADIA_GEOCODE_USD`).
 - Soon → `contact.updated_at` instead of bumping `created_at` for owner recency; invite target (`invited_contact_id`) can differ from the Business-details owner after an email change.
 - Soon → onboarding polish: "Save and exit" saves nothing; support banner overlaps the onboarding top row; `update_client_details` geocodes before checking an existing centre; area step duplicates `lib/format/distance.ts`; find step clears a hand-picked type on re-search; "Sent again." shown when a resend was rate-limited; owner pick+confirm are two calls; Business-details save is details-then-logo (partial save on logo failure).
