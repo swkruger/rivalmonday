@@ -154,42 +154,42 @@ export function EventViewer({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold text-ink">{detail.summary}</h2>
-              {activeChange && (
-                <p className="mt-1 text-sm text-muted-ink">
-                  {activeChange.pageUrl ?? activeChange.channelLabel}
-                  {hasCaptures
-                    ? ` · changed between ${formatDate(compare!.before!.capturedAt, { tz: timezone })} and ${formatDate(compare!.after!.capturedAt, { tz: timezone })}`
-                    : ` · detected ${formatDate(activeChange.detectedAt, { tz: timezone })}`}
-                  {detail.changes.length > 1 ? ` · also seen in ${detail.changes.length - 1} other places` : ''}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className={`text-lg font-semibold ${detail.route === 'archive' ? 'text-muted-ink' : 'text-secondary'}`}>{detail.score}</span>
-              <RoutePill route={detail.route} score={detail.score} />
-            </div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-ink">{detail.summary}</h2>
+            {activeChange && (
+              <p className="mt-1 text-sm text-muted-ink">
+                {activeChange.pageUrl ?? activeChange.channelLabel}
+                {hasCaptures
+                  ? ` · changed between ${formatDate(compare!.before!.capturedAt, { tz: timezone })} and ${formatDate(compare!.after!.capturedAt, { tz: timezone })}`
+                  : ` · detected ${formatDate(activeChange.detectedAt, { tz: timezone })}`}
+                {detail.changes.length > 1 ? ` · also seen in ${detail.changes.length - 1} other places` : ''}
+              </p>
+            )}
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className={`text-lg font-semibold ${detail.route === 'archive' ? 'text-muted-ink' : 'text-secondary'}`}>{detail.score}</span>
+            <RoutePill route={detail.route} score={detail.score} />
+          </div>
+        </div>
 
-          {detail.changes.length > 1 && (
-            <div className={cn(segmentedTrackClass, 'flex-wrap self-start')}>
-              {detail.changes.map((c, i) => {
-                const active = c.changeId === activeChange?.changeId;
-                return (
-                  <Link
-                    key={c.changeId}
-                    href={changesHref(clientId, { ...params, change: c.changeId })}
-                    aria-current={active ? 'true' : undefined}
-                    className={segmentedItemClass}
-                  >
-                    Evidence {i + 1} · {c.channelLabel}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+        {detail.changes.length > 1 && (
+          <div className={cn(segmentedTrackClass, 'flex-wrap self-start')}>
+            {detail.changes.map((c, i) => {
+              const active = c.changeId === activeChange?.changeId;
+              return (
+                <Link
+                  key={c.changeId}
+                  href={changesHref(clientId, { ...params, change: c.changeId })}
+                  aria-current={active ? 'true' : undefined}
+                  className={segmentedItemClass}
+                >
+                  Evidence {i + 1} · {c.channelLabel}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {!compare ? (
@@ -208,57 +208,57 @@ export function EventViewer({
           </nav>
 
           <div>
-              {tab === 'side' &&
-                (compare.before === null && compare.after === null ? (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-sm text-muted-ink">This change comes from {compare.channelLabel}; there is no page snapshot.</p>
-                    {compare.details.length > 0 && (
-                      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                        {compare.details.map((d) => (
-                          <div key={d.label}>
-                            <dt className="text-xs font-medium text-muted-ink">{d.label}</dt>
-                            <dd>{d.value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Snapshot clientId={clientId} label="Before" side={compare.before} pageUrl={compare.pageUrl} timezone={timezone} />
-                    <Snapshot clientId={clientId} label="After" side={compare.after} pageUrl={compare.pageUrl} timezone={timezone} />
-                  </div>
-                ))}
-
-              {tab === 'text' && (
+            {tab === 'side' &&
+              (compare.before === null && compare.after === null ? (
                 <div className="flex flex-col gap-3">
-                  {compare.facts.length > 0 && (
-                    <StatusChip tone="neutral" className="w-fit">
-                      {compare.facts.length} number change{compare.facts.length === 1 ? '' : 's'}
-                    </StatusChip>
-                  )}
-                  <DiffText segments={compare.diff} />
-                  {compare.facts.length > 0 && (
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {compare.facts.map((f, i) => (
-                        <li key={i}>
-                          <span className="font-medium text-ink">{humanise(f.kind)}:</span> {f.before ?? '—'} → {f.after ?? '—'}
-                          {f.pct !== null ? ` (${f.pct}%)` : ''}
-                        </li>
+                  <p className="text-sm text-muted-ink">This change comes from {compare.channelLabel}; there is no page snapshot.</p>
+                  {compare.details.length > 0 && (
+                    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                      {compare.details.map((d) => (
+                        <div key={d.label}>
+                          <dt className="text-xs font-medium text-muted-ink">{d.label}</dt>
+                          <dd>{d.value}</dd>
+                        </div>
                       ))}
-                    </ul>
+                    </dl>
                   )}
                 </div>
-              )}
-
-              {tab === 'page' && wholePage && <WholePageDiff view={wholePage} timezone={timezone} />}
-
-              {tab === 'details' && (
+              ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <CaptureDetails clientId={clientId} label="Before" side={compare.before} timezone={timezone} />
-                  <CaptureDetails clientId={clientId} label="After" side={compare.after} timezone={timezone} />
+                  <Snapshot clientId={clientId} label="Before" side={compare.before} pageUrl={compare.pageUrl} timezone={timezone} />
+                  <Snapshot clientId={clientId} label="After" side={compare.after} pageUrl={compare.pageUrl} timezone={timezone} />
                 </div>
-              )}
+              ))}
+
+            {tab === 'text' && (
+              <div className="flex flex-col gap-3">
+                {compare.facts.length > 0 && (
+                  <StatusChip tone="neutral" className="w-fit">
+                    {compare.facts.length} number change{compare.facts.length === 1 ? '' : 's'}
+                  </StatusChip>
+                )}
+                <DiffText segments={compare.diff} />
+                {compare.facts.length > 0 && (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {compare.facts.map((f, i) => (
+                      <li key={i}>
+                        <span className="font-medium text-ink">{humanise(f.kind)}:</span> {f.before ?? '—'} → {f.after ?? '—'}
+                        {f.pct !== null ? ` (${f.pct}%)` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tab === 'page' && wholePage && <WholePageDiff view={wholePage} timezone={timezone} />}
+
+            {tab === 'details' && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <CaptureDetails clientId={clientId} label="Before" side={compare.before} timezone={timezone} />
+                <CaptureDetails clientId={clientId} label="After" side={compare.after} timezone={timezone} />
+              </div>
+            )}
           </div>
 
           <ScorePanel detail={detail} />
