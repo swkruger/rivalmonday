@@ -4,7 +4,7 @@ import { BulkBar, bulkBarActionClass, Button, Card, ConfirmDialog, Field, Input,
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Fragment, useActionState, useEffect, useState, useTransition } from 'react';
+import { Fragment, useActionState, useEffect, useId, useState, useTransition } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
@@ -188,13 +188,27 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
   dismiss: React.ReactNode;
 }) {
   const meta = [s.category, s.distanceKm !== null ? `${kmToMiles(s.distanceKm).toFixed(1)} mi` : null, s.domain].filter(Boolean).join(' · ');
+  const checkboxId = useId();
+  // Only a card whose checkbox can be ticked looks clickable; the name block is that checkbox's label.
+  const clickable = selectable && !checkDisabled;
+  const nameBlock = (
+    <>
+      <span className="block font-semibold">{s.name}</span>
+      {meta && <span className="block text-13 text-muted-ink">{meta}</span>}
+    </>
+  );
   return (
     <li>
-    <Card variant="interactive" selected={checked} className="flex items-start gap-3 p-4">
-      {selectable && <input type="checkbox" className="mt-1.5 size-4 accent-secondary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
+    <Card variant={clickable ? 'interactive' : 'default'} selected={checked} className="flex items-start gap-3 p-4">
+      {selectable && <input id={checkboxId} type="checkbox" className="mt-1.5 size-4 accent-secondary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <p className="font-semibold">{s.name}</p>
-        {meta && <p className="text-13 text-muted-ink">{meta}</p>}
+        {selectable ? (
+          <label htmlFor={checkboxId} className={`flex min-w-0 flex-col gap-2 ${clickable ? 'cursor-pointer' : ''}`}>
+            {nameBlock}
+          </label>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-2">{nameBlock}</div>
+        )}
         <SignalPills signals={s.signals} mode="suggestion" />
         {hasUnchecked(s.signals) && <p className="text-xs text-muted-ink">Some signals unavailable</p>}
       </div>

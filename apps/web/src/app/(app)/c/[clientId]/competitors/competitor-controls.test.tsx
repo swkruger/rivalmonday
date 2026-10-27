@@ -298,6 +298,23 @@ describe('SuggestionsPanel tiers and selection', () => {
     expect(card.getAttribute('data-selected')).toBeNull();
   });
 
+  it('clicking the suggestion name toggles its checkbox (the name block is the label)', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch />);
+    const box = screen.getByRole('checkbox', { name: /track charlie/i }) as HTMLInputElement;
+    fireEvent.click(screen.getByText('Charlie'));
+    expect(box.checked).toBe(true);
+    fireEvent.click(screen.getByText('Charlie'));
+    expect(box.checked).toBe(false);
+  });
+
+  it('a card whose checkbox is disabled renders data-variant="default" (no interactive hover)', () => {
+    render(<SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} limit={5} trackedCount={3} canSearch />);
+    const disabled = screen.getByRole('checkbox', { name: /track charlie/i });
+    expect((disabled as HTMLInputElement).disabled).toBe(true);
+    expect(disabled.closest('[data-slot=card]')!.getAttribute('data-variant')).toBe('default');
+    expect(screen.getByRole('checkbox', { name: /track alpha/i }).closest('[data-slot=card]')!.getAttribute('data-variant')).toBe('interactive');
+  });
+
   it('a read-only render has no toolbar', async () => {
     const { ReadOnlyProvider } = await import('@/components/read-only');
     render(<ReadOnlyProvider readOnly><SuggestionsPanel clientId="c1" ready suggestions={list} atLimit={false} canSearch /></ReadOnlyProvider>);
