@@ -12,7 +12,7 @@ export function OwnerInviteEmail({ agency, to, firstName, client, rivals, focus 
         <Highlight active={focus}><span>To: {to || 'owner@business.com'}</span></Highlight>
       </div>
       <div className="px-8 py-7">
-        <div className="flex items-center gap-2.5 text-[15px] font-semibold">
+        <div className="flex items-center gap-2.5 text-base font-semibold">
           <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">{(agency || '·').slice(0, 1).toUpperCase()}</span>
           {agency || 'Your agency'}
         </div>
@@ -20,7 +20,7 @@ export function OwnerInviteEmail({ agency, to, firstName, client, rivals, focus 
         <p className="mt-2.5 text-sm leading-normal text-muted-ink">
           {agency || 'Your agency'} is watching {list || 'your competitors'} for {client || 'your business'}. Your first brief arrives on a Monday.
         </p>
-        <div className="mt-5 inline-flex h-9 items-center rounded-md bg-primary px-4 text-[13px] font-medium text-primary-foreground">Open your dashboard</div>
+        <div className="mt-5 inline-flex h-9 items-center rounded-md bg-primary px-4 text-13 font-medium text-primary-foreground">Open your dashboard</div>
       </div>
     </div>
   );

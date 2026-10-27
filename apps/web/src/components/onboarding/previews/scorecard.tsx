@@ -16,7 +16,7 @@ function Bars({ title, rows, value, max, format }: { title: string; rows: ScoreR
       {rows.map((r, i) => {
         const v = r.role === 'empty' ? null : value(r);
         return (
-          <div key={`${r.role}-${i}`} data-role={r.role} className="mb-2 grid grid-cols-[170px_1fr_60px] items-center gap-3 text-[13px]">
+          <div key={`${r.role}-${i}`} data-role={r.role} className="mb-2 grid grid-cols-[170px_1fr_60px] items-center gap-3 text-13">
             <span className={r.role === 'empty' ? 'text-[#8796AB]' : 'truncate'}>{r.role === 'empty' ? 'Rival' : r.role === 'you' ? `${r.name} (you)` : r.name}</span>
             <span className="block">
               {v === null ? (

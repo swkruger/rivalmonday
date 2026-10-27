@@ -47,8 +47,8 @@ export function ListingMap({ place }: { place: SetupLookup | null }) {
           <>
             <div className="min-w-0">
               <div className="text-base font-semibold">{place.title}</div>
-              <div className="mt-1 text-[13px] text-muted-ink">{[place.category, place.address].filter(Boolean).join(' · ')}</div>
-              {contact && <div className="mt-1 text-[13px] text-muted-ink">{contact}</div>}
+              <div className="mt-1 text-13 text-muted-ink">{[place.category, place.address].filter(Boolean).join(' · ')}</div>
+              {contact && <div className="mt-1 text-13 text-muted-ink">{contact}</div>}
             </div>
             {place.rating !== null && (
               <div className="shrink-0 text-right">

@@ -19,7 +19,7 @@ export function Field({ id, label, required, optional, hint, children }: { id: s
         {optional && <span className="font-normal text-muted-ink"> (optional)</span>}
       </Label>
       {children}
-      {hint && <p className="text-[13px] text-muted-ink">{hint}</p>}
+      {hint && <p className="text-13 text-muted-ink">{hint}</p>}
     </div>
   );
 }

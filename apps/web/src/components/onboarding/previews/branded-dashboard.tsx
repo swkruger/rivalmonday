@@ -13,7 +13,7 @@ export function BrandedDashboard({ name, logoSrc, color, focus }: { name: string
     <div className="grid h-[380px] grid-cols-[150px_1fr]">
       <Highlight active={focus !== null}>
         <div className="h-full p-4 text-xs" style={{ background: color, color: on }}>
-          <div data-testid="preview-dashboard-header" className="flex items-center gap-2 text-[13px] font-semibold">
+          <div data-testid="preview-dashboard-header" className="flex items-center gap-2 text-13 font-semibold">
             {logoSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoSrc} alt={name} className="h-[22px] w-auto max-w-[110px]" />

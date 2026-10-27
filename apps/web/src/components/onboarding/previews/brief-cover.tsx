@@ -30,7 +30,7 @@ export function BriefCover({ business, contact, agency, logoSrc, focus }: { busi
       <div aria-hidden="true" className="mt-6 flex flex-col gap-3">
         {[92, 78, 85].map((w) => <div key={w} className="h-2.5 rounded-full bg-[#EEF2F6]" style={{ width: `${w}%` }} />)}
       </div>
-      <div className="mt-7 border-t border-line pt-4 text-[13px] text-muted-ink">
+      <div className="mt-7 border-t border-line pt-4 text-13 text-muted-ink">
         Prepared for{' '}
         <Highlight active={focus === 'contact'}>
           <b className="font-semibold text-ink">{contact || 'the owner'}</b>

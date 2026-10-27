@@ -12,7 +12,7 @@ export function IntakeNext({ who }: { who: string | null }) {
       <ol className="mt-5 flex flex-col gap-4.5">
         {STEPS.map(([title, text], i) => (
           <li key={title} className="grid grid-cols-[28px_1fr] gap-3 text-sm leading-normal">
-            <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary-soft-text">{i + 1}</span>
+            <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{i + 1}</span>
             <div><b className="font-semibold">{title}</b><div className="text-muted-ink">{text}</div></div>
           </li>
         ))}

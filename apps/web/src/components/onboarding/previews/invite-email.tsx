@@ -12,12 +12,12 @@ export function InviteEmail({ agency, inviter, to, role, focus }: { agency: stri
         <Highlight active={focus === 'to'}><span>To: {to || 'name@agency.com'}</span></Highlight>
       </div>
       <div className="px-8 py-7">
-        <div className="text-[15px] font-semibold">{agency || 'Your agency'}</div>
+        <div className="text-base font-semibold">{agency || 'Your agency'}</div>
         <div className="mt-5 text-[19px] font-semibold">{inviter || 'A teammate'} invited you to {agency || 'your agency'}</div>
         <Highlight active={focus === 'role'}>
           <p className="mt-2.5 text-sm leading-normal text-muted-ink">You&apos;ll help run competitor tracking for our clients as {role}.</p>
         </Highlight>
-        <div className="mt-5 inline-flex h-9 items-center rounded-md bg-primary px-4 text-[13px] font-medium text-primary-foreground">Accept invite</div>
+        <div className="mt-5 inline-flex h-9 items-center rounded-md bg-primary px-4 text-13 font-medium text-primary-foreground">Accept invite</div>
       </div>
     </div>
   );

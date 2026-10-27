@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ShellProviders } from '@/components/shell/shell-providers';
 import { Highlight } from './highlight';
 import { OnboardingShell } from './onboarding-shell';
 import { PreviewWindow } from './preview-window';
@@ -67,6 +68,30 @@ describe('OnboardingShell (16 L7)', () => {
     expect(await screen.findByRole('button', { name: /guide/i }, { timeout: 8000 })).toBeTruthy();
     rerender(<OnboardingShell brand={{ kind: 'neutral' }} title="Set up" helpKey="page:account.onboarding">x</OnboardingShell>);
     expect(screen.queryByRole('button', { name: /guide/i })).toBeNull();
+  });
+});
+
+describe('support banner above the shell (16a)', () => {
+  it('the title is an h1 and the banner plus its spacer precede the top row in DOM order', () => {
+    const support = { id: 's1', agencyName: 'Acme', reason: 'help', expiresAt: new Date(Date.now() + 3_600_000) };
+    const help = { audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } } as never;
+    const { container } = render(
+      <ShellProviders reserveBanner readOnly={false} help={help} style={{}} support={support}>
+        <OnboardingShell brand={{ kind: 'neutral' }} title="Set up" exit={{ href: '/agency', label: 'Save and exit' }}>x</OnboardingShell>
+      </ShellProviders>,
+    );
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Set up');
+    const banner = screen.getByRole('region', { name: 'Support session' });
+    const spacer = container.querySelector('[data-banner-spacer]')!;
+    const main = screen.getByRole('main');
+    expect(banner.compareDocumentPosition(spacer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(spacer.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('reserves no space without a support session', () => {
+    const help = { audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } } as never;
+    const { container } = render(<ShellProviders reserveBanner readOnly={false} help={help} style={{}} support={null}><OnboardingShell brand={{ kind: 'neutral' }} title="T">x</OnboardingShell></ShellProviders>);
+    expect(container.querySelector('[data-banner-spacer]')).toBeNull();
   });
 });
 

@@ -14,7 +14,7 @@ export function SignupAside() {
         src="/onboarding/signup.webp" alt="A row of local shops and service vans on a quiet street, with map pins tracing an upward line above the rooftops."
         width={800} height={800} priority className="size-[340px] rounded-xl"
       />
-      <ul className="flex flex-wrap justify-center gap-x-7 gap-y-2 text-[13px] text-muted-ink">
+      <ul className="flex flex-wrap justify-center gap-x-7 gap-y-2 text-13 text-muted-ink">
         {PROOF.map(([strong, rest]) => <li key={strong}><b className="font-semibold text-ink">{strong}</b> {rest}</li>)}
       </ul>
     </div>

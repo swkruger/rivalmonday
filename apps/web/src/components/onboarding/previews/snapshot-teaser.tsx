@@ -21,7 +21,7 @@ export function SnapshotTeaser({ name }: { name: string }) {
             <div key={g.title}>
               <div className="mb-2.5 mt-5 text-xs font-semibold uppercase tracking-[.05em] text-muted-ink">{g.title}</div>
               {g.rows.map(([label, pct, value, colour]) => (
-                <div key={label} className="mb-2 grid grid-cols-[130px_1fr_44px] items-center gap-3 text-[13px]">
+                <div key={label} className="mb-2 grid grid-cols-[130px_1fr_44px] items-center gap-3 text-13">
                   <span className="truncate">{label === 'you' ? you : label}</span>
                   <div><div className="h-3.5 rounded-r" style={{ width: `${pct}%`, background: colour }} /></div>
                   <span className="text-right font-semibold">{value}</span>
@@ -31,7 +31,7 @@ export function SnapshotTeaser({ name }: { name: string }) {
           ))}
         </div>
       </div>
-      <span className="absolute left-1/2 top-[58%] inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white px-4 py-2 text-[13px] font-medium shadow-[0_4px_16px_rgba(11,37,64,.10)]">
+      <span className="absolute left-1/2 top-[58%] inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-white px-4 py-2 text-13 font-medium shadow-[0_4px_16px_rgba(11,37,64,.10)]">
         <Lock aria-hidden className="size-3.5" />
         Your snapshot unlocks after you confirm your email
       </span>

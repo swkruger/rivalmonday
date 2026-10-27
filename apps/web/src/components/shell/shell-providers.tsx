@@ -16,7 +16,7 @@ export interface ShellSupport { id: string; agencyName: string; reason: string; 
  * without the sidebar and top bar: read-only mode (support session or platform hold), the help provider, the themed wrapper
  * (and its `<html>` mirror), the viewer's timezone cookie and the support banner. `AppShell` adds its own chrome inside.
  */
-export function ShellProviders({ readOnly, help, style, support, children }: { readOnly: boolean; help: HelpViewer; style: Record<string, string>; support: ShellSupport | null; children: React.ReactNode }) {
+export function ShellProviders({ readOnly, help, style, support, reserveBanner, children }: { reserveBanner?: boolean; readOnly: boolean; help: HelpViewer; style: Record<string, string>; support: ShellSupport | null; children: React.ReactNode }) {
   return (
     <ReadOnlyProvider readOnly={readOnly}>
       <HelpProvider value={help}>
@@ -26,6 +26,8 @@ export function ShellProviders({ readOnly, help, style, support, children }: { r
         <div data-shell-theme="" className="contents" style={style as React.CSSProperties}>
           {/* format-gate: machine value, SupportBanner formats it for display */}
           {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
+          {/* The banner is fixed; split layouts (onboarding) that fill the viewport reserve its height so it does not cover their top row. */}
+          {support && reserveBanner && <div data-banner-spacer="" aria-hidden="true" className="h-14 shrink-0 sm:h-9" />}
           {children}
         </div>
         </ToastProvider>

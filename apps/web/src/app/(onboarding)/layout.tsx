@@ -41,7 +41,7 @@ export default async function OnboardingLayout({ children }: { children: React.R
     names: { agency: helpAgencyName(false, branding.displayName), assistant: assistantName, ...(clientName ? { client: clientName } : {}) },
   };
   return (
-    <ShellProviders readOnly={support !== null || billing?.onHold === true} help={help} style={style as Record<string, string>} support={support}>
+    <ShellProviders reserveBanner readOnly={support !== null || billing?.onHold === true} help={help} style={style as Record<string, string>} support={support}>
       <ShellNotices spend={spendAudience ? { audience: spendAudience, items: spendPaused } : null} billing={billing} role={ctx.role} userViewer={viewer.kind === 'user'} agencyName={branding.displayName} />
       {children}
     </ShellProviders>

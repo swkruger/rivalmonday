@@ -21,10 +21,10 @@ export function BriefFooter({ agency, contact, phone, email, address, focus }: {
             <div className="font-semibold">{[contact || 'Your name', agency || 'Your agency'].join(' · ')}</div>
           </Highlight>
           <Highlight active={focus === 'contact'}>
-            <div className="text-[13px] text-muted-ink">{lines || '(555) 555-0100 · you@agency.com'}</div>
+            <div className="text-13 text-muted-ink">{lines || '(555) 555-0100 · you@agency.com'}</div>
           </Highlight>
           <Highlight active={focus === 'address'}>
-            <div className="text-[13px] text-muted-ink">{address || 'Your address, if you add one'}</div>
+            <div className="text-13 text-muted-ink">{address || 'Your address, if you add one'}</div>
           </Highlight>
         </div>
       </div>

@@ -55,18 +55,18 @@ export function OnboardingShell({ brand, step, label, exit, exitSlot, title, sub
           ) : <span />}
           <div className="flex items-center gap-4">
             {showGuide && <PageGuide helpKey={helpKey!} pageTitle={title} />}
-            {exitSlot ?? (exit && <Link href={exit.href} className="text-[13px] font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
+            {exitSlot ?? (exit && <Link href={exit.href} className="text-13 font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
           </div>
         </div>
-        {step ? <div className="mt-14"><StepProgress {...step} /></div> : label && <p className="mt-14 text-[13px] font-medium text-muted-ink">{label}</p>}
-        <h1 className={`text-[30px] font-semibold leading-[1.2] tracking-[-0.015em] ${step ? 'mt-9' : label ? 'mt-5' : 'mt-14'}`}>{title}</h1>
-        {subtitle && <p className="mt-2.5 max-w-[460px] text-[15px] leading-normal text-muted-ink">{subtitle}</p>}
+        {step ? <div className="mt-14"><StepProgress {...step} /></div> : label && <p className="mt-14 text-13 font-medium text-muted-ink">{label}</p>}
+        <h1 className={`text-3xl font-semibold leading-[1.2] tracking-[-0.015em] ${step ? 'mt-9' : label ? 'mt-5' : 'mt-14'}`}>{title}</h1>
+        {subtitle && <p className="mt-2.5 max-w-[460px] text-base leading-normal text-muted-ink">{subtitle}</p>}
         <div className={`mt-8 flex flex-col gap-5 ${wide ? '' : 'max-w-[440px]'}`}>{children}</div>
         {footer}
       </main>
       {!wide && <aside aria-label="Preview" className="relative hidden items-center justify-center border-l border-line bg-canvas lg:flex">
         {preview}
-        {caption && <p className="absolute inset-x-14 bottom-10 text-center text-[13px] text-muted-ink">{caption}</p>}
+        {caption && <p className="absolute inset-x-14 bottom-10 text-center text-13 text-muted-ink">{caption}</p>}
       </aside>}
     </div>
   );

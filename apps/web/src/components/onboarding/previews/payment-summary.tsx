@@ -6,13 +6,13 @@ export function PaymentSummary({ agency, client, priceCents, setupFeeCents }: { 
   return (
     <div className="px-8 py-7">
       <div className="flex items-center gap-2.5 text-sm font-semibold">
-        <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-[13px] text-primary-foreground">{agency.slice(0, 1).toUpperCase() || '·'}</span>
+        <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-13 text-primary-foreground">{agency.slice(0, 1).toUpperCase() || '·'}</span>
         {agency || 'Your agency'}
       </div>
-      <div className="mt-5 text-[13px] text-muted-ink">{client || 'Your client'}</div>
+      <div className="mt-5 text-13 text-muted-ink">{client || 'Your client'}</div>
       <div className="text-sm">Competitor monitoring</div>
       <div className="mt-2.5">
-        <span className="text-[30px] font-semibold">{priceCents === null ? '$0.00' : money(priceCents)}</span>
+        <span className="text-3xl font-semibold">{priceCents === null ? '$0.00' : money(priceCents)}</span>
         <span className="text-sm text-muted-ink"> / month</span>
       </div>
       <dl className="mt-4 border-t border-line text-sm">
