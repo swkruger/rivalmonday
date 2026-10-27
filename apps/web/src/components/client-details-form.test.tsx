@@ -31,6 +31,36 @@ describe('ClientDetailsForm (final fix I3)', () => {
     expect(await screen.findByText('Details saved.')).toBeTruthy();
   });
 
+  it('shows Save details only after a change; Discard restores the values and hides it', () => {
+    render(<ClientDetailsForm clientId={C} initial={INITIAL} action={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Save details' })).toBeNull();
+    fireEvent.change(screen.getByLabelText(/^Phone/), { target: { value: '000' } });
+    expect(screen.getByRole('button', { name: 'Save details' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect((screen.getByLabelText(/^Phone/) as HTMLInputElement).value).toBe('(817) 555-0142');
+    expect(screen.queryByRole('button', { name: 'Save details' })).toBeNull();
+  });
+
+  it('Discard clears a chosen logo file', () => {
+    render(<ClientDetailsForm clientId={C} initial={INITIAL} action={vi.fn()} />);
+    const file = screen.getByLabelText(/^Logo/) as HTMLInputElement;
+    // jsdom cannot hold a real FileList, so watch the reset the form must perform: `value = ''`.
+    const writes: string[] = [];
+    Object.defineProperty(file, 'value', { configurable: true, get: () => '', set: (x: string) => { writes.push(x); } });
+    fireEvent.change(file, { target: { files: [new File(['x'], 'logo.png', { type: 'image/png' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(writes).toEqual(['']);
+  });
+
+  it('a refused save keeps the typed values', async () => {
+    const action = vi.fn(async () => ({ ok: false as const, error: 'Nope.' }));
+    render(<ClientDetailsForm clientId={C} initial={INITIAL} action={action} />);
+    fireEvent.change(screen.getByLabelText(/^Phone/), { target: { value: '111' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect((screen.getByLabelText(/^Phone/) as HTMLInputElement).value).toBe('111');
+  });
+
   it('under hold or support (read-only): fields disabled, no Save', () => {
     render(<ReadOnlyProvider readOnly><ClientDetailsForm clientId={C} initial={INITIAL} action={vi.fn()} /></ReadOnlyProvider>);
     expect(screen.getByLabelText(/^Phone/).matches(':disabled')).toBe(true);

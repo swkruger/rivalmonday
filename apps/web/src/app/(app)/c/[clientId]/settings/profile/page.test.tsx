@@ -27,7 +27,6 @@ vi.mock('@/components/client-profile-form', () => ({ ClientProfileForm: () => <d
 vi.mock('./client-features-form', () => ({ ClientFeaturesForm: (p: { role?: string }) => <div>features form role={String(p.role)}</div> }));
 vi.mock('@/components/billing/client-billing-controls', () => ({ ClientBillingControls: (p: { role: string; pill: { label: string } }) => <div>billing {p.pill.label} role={p.role}</div> }));
 vi.mock('@/components/client-details-form', () => ({ ClientDetailsForm: (p: { initial: { phone: string } }) => <div>details form {p.initial.phone}</div> }));
-vi.mock('@/components/services-area-summary', () => ({ ServicesAreaSummary: () => <div>summary</div> }));
 vi.mock('@/components/help/tip-row', () => ({ TipRow: () => null }));
 vi.mock('./actions', () => ({ saveFeaturesAction: vi.fn(), updateProfileAction: vi.fn(), updateDetailsAction: vi.fn() }));
 const { default: Page } = await import('./page');
@@ -56,6 +55,22 @@ describe('client profile page', () => {
     render(await Page({ params: Promise.resolve({ clientId: C }) }));
     expect(screen.queryByText(/details form/)).toBeNull();
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_client_details');
+  });
+  it('agency forms render inside the 640 px column', async () => {
+    state.ctx = createAccessContext({ agencyId: A, userId: 'u', role: 'account_manager', clientScope: 'all', features: ['dashboard'] as never });
+    render(await Page({ params: Promise.resolve({ clientId: C }) }));
+    const col = screen.getByTestId('profile-column');
+    expect(col.className).toContain('max-w-[640px]');
+    for (const t of [/details form/, /profile form/, /features form/]) expect(col.contains(screen.getByText(t))).toBe(true);
+    expect(screen.getByRole('heading', { level: 1 }).closest('[data-testid=profile-column]')).toBeNull();
+  });
+  it('the client view shows the summary section in the column', async () => {
+    state.ctx = createAccessContext({ agencyId: A, userId: 'u', role: 'client_owner', clientScope: [C], features: ['dashboard'] as never });
+    const { container } = render(await Page({ params: Promise.resolve({ clientId: C }) }));
+    const col = screen.getByTestId('profile-column');
+    expect(col.querySelector('[data-slot=section]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-slot=section]').length).toBe(1);
+    expect(screen.getByText('Services')).toBeTruthy();
   });
   it('still loads the stored review setting for a normal agency admin', async () => {
     callTool.mockClear();

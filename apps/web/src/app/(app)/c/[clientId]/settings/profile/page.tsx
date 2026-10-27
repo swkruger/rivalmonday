@@ -46,8 +46,10 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       <>
         <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} {...header} />
         <TipRow items={[...TIPS]} />
-        <ServicesAreaSummary profile={p} serviceNames={names} />
-        <p className="text-muted-foreground"><HelpText text="To change these, contact {agency}." /></p>
+        <div data-testid="profile-column" className="flex max-w-[640px] flex-col gap-6">
+          <ServicesAreaSummary profile={p} serviceNames={names} />
+          <p className="text-muted-foreground"><HelpText text="To change these, contact {agency}." /></p>
+        </div>
       </>
     );
   }
@@ -66,24 +68,26 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       )}
       <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} {...header} />
       <TipRow items={[...TIPS]} />
-      {billing && (
-        <section aria-label="Billing" className="flex items-center gap-3">
-          <span className="font-semibold">Billing</span>
-          <ClientBillingControls
-            clientId={clientId} clientName={p.name} role={ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager'} pill={billing.pill}
-            billing={{ state: billing.state, enabled: billing.enabled }} nextPriceCents={billing.nextPriceCents}
-          />
-        </section>
-      )}
-      <p className="text-muted-foreground">
-        Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.
-      </p>
-      <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details.phone, address: details.address, logoUrl: details.logoUrl, contactName: details.contactName, contactEmail: details.contactEmail }} />
-      <ClientProfileForm
-        mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
-        initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
-      />
-      <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={showReviewToggle ? ctx.role : undefined} reviewAllowed={reviewAllowed} />
+      <div data-testid="profile-column" className="flex max-w-[640px] flex-col gap-6">
+        {billing && (
+          <section aria-label="Billing" className="flex items-center gap-3">
+            <span className="font-semibold">Billing</span>
+            <ClientBillingControls
+              clientId={clientId} clientName={p.name} role={ctx.role === 'agency_admin' ? 'agency_admin' : 'account_manager'} pill={billing.pill}
+              billing={{ state: billing.state, enabled: billing.enabled }} nextPriceCents={billing.nextPriceCents}
+            />
+          </section>
+        )}
+        <p className="text-muted-foreground">
+          Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.
+        </p>
+        <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details.phone, address: details.address, logoUrl: details.logoUrl, contactName: details.contactName, contactEmail: details.contactEmail }} />
+        <ClientProfileForm
+          mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
+          initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
+        />
+        <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={showReviewToggle ? ctx.role : undefined} reviewAllowed={reviewAllowed} />
+      </div>
     </>
   );
 }

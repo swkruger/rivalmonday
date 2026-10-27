@@ -1,3 +1,4 @@
+import { Section } from '@cs/ui';
 import type { ClientProfile } from '@cs/tools';
 import { kmToMiles } from '@/lib/format';
 
@@ -10,13 +11,15 @@ export function ServicesAreaSummary({ profile, serviceNames }: { profile: Pick<C
     ['Google Business Profile', profile.placeId ? 'Linked' : 'Not linked'],
   ];
   return (
-    <dl className="grid gap-4 rounded-md border border-line bg-surface p-6 sm:grid-cols-[200px_1fr]">
-      {rows.map(([k, v]) => (
-        <div key={k} className="contents">
-          <dt className="font-semibold">{k}</dt>
-          <dd>{v}</dd>
-        </div>
-      ))}
-    </dl>
+    <Section>
+      <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-[200px_1fr]">
+        {rows.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="font-semibold text-ink">{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </Section>
   );
 }

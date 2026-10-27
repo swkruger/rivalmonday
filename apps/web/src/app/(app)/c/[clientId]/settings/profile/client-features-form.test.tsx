@@ -77,3 +77,18 @@ describe('ClientFeaturesForm', () => {
     expect((screen.getByLabelText(/Alert rules/) as HTMLInputElement).checked).toBe(true);
   });
 });
+
+describe('ClientFeaturesForm grouped rows', () => {
+  it('every feature checkbox sits in one Card and no row is itself a card', () => {
+    const { container } = render(<ClientFeaturesForm clientId="c1" features={['ask']} action={vi.fn()} role="agency_admin" reviewAllowed />);
+    const cards = container.querySelectorAll('[data-slot=card]');
+    expect(cards.length).toBe(1);
+    const boxes = container.querySelectorAll('input[type=checkbox]');
+    expect(boxes.length).toBe(6);
+    for (const b of boxes) {
+      expect(cards[0].contains(b)).toBe(true);
+      expect(b.closest('label')?.getAttribute('data-slot')).not.toBe('card');
+    }
+    expect(screen.getByRole('group', { name: 'Client features' })).toBeTruthy();
+  });
+});

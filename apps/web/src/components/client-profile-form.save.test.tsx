@@ -17,6 +17,13 @@ describe('ClientProfileForm save bar', () => {
     expect(screen.getByRole('button', { name: 'Save profile' })).toBeTruthy();
   });
 
+  it('wires the keywords hint through aria-describedby', () => {
+    edit(vi.fn());
+    const ta = screen.getByLabelText('Search keywords (one per line, up to 5)');
+    const hint = document.getElementById(ta.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent).toContain('Used for competitor discovery');
+  });
+
   it('profile form keeps typed keywords after a refused save', async () => {
     const action = vi.fn(async () => ({ ok: false as const, error: 'Keywords: up to 5' }));
     edit(action as never);

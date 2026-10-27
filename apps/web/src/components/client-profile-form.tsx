@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, Label, SaveBar } from '@cs/ui';
+import { Button, Field, Input, nativeSelectClass, SaveBar, Section, textareaClass } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import { DEFAULT_RADIUS_KM, RadiusSelect } from '@/components/radius-select';
@@ -7,8 +7,8 @@ import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
 
-const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
-const areaClass = 'min-h-20 w-full max-w-xl rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const selectClass = `${nativeSelectClass} w-full max-w-sm`;
+const areaClass = `${textareaClass} max-w-xl`;
 
 interface Initial {
   name: string;
@@ -76,82 +76,75 @@ export function ClientProfileForm(props: Props) {
       action={formAction}
       onReset={(e) => e.preventDefault()}
       onChange={() => setDirty(true)}
-      className="flex flex-col gap-5 rounded-md border border-line bg-surface p-6"
+      className="flex flex-col gap-5"
     >
       {props.mode === 'edit' && <input type="hidden" name="clientId" value={props.clientId} />}
       {props.mode === 'edit' && <input type="hidden" name="verticalId" value={verticalId} />}
 
-      <fieldset disabled={readOnly} className="contents">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="name">Business name</Label>
-        <Input id="name" name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className="max-w-sm" />
-      </div>
+      <Section>
+        <fieldset disabled={readOnly} className="contents">
+          <Field label="Business name">
+            <Input id="name" name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className="max-w-sm" />
+          </Field>
 
-      {props.mode === 'create' && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="verticalId">Business type</Label>
-          <select id="verticalId" name="verticalId" value={verticalId} onChange={(e) => setVerticalId(e.target.value)} className={selectClass}>
-            {props.verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
-        </div>
-      )}
+          {props.mode === 'create' && (
+            <Field label="Business type">
+              <select id="verticalId" name="verticalId" value={verticalId} onChange={(e) => setVerticalId(e.target.value)} className={selectClass}>
+                {props.verticals.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+            </Field>
+          )}
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 font-semibold">Services the business offers</legend>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((s) => (
-            <label key={s.id} className="flex items-center gap-2">
-              <input
-                type="checkbox" name="services" value={s.id} checked={picked.includes(s.id)} className="h-4 w-4" aria-label={s.name}
-                onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id)))}
-              />
-              <span>{s.name}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-semibold">Services the business offers</legend>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {services.map((s) => (
+                <label key={s.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox" name="services" value={s.id} checked={picked.includes(s.id)} className="h-4 w-4" aria-label={s.name}
+                    onChange={(e) => setPicked((cur) => (e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id)))}
+                  />
+                  <span>{s.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="keywords">Search keywords (one per line, up to 5)</Label>
-        <textarea id="keywords" name="keywords" value={keywords} onChange={(e) => setKeywords(e.target.value)} aria-describedby="keywords-hint" className={areaClass} />
-        <p id="keywords-hint" className="text-muted-foreground">Used for competitor discovery and local-ranking scans, e.g. “ac repair”.</p>
-      </div>
+          <Field label="Search keywords (one per line, up to 5)" help="Used for competitor discovery and local-ranking scans, e.g. “ac repair”.">
+            <textarea id="keywords" name="keywords" value={keywords} onChange={(e) => setKeywords(e.target.value)} className={areaClass} />
+          </Field>
 
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 font-semibold">Service area</legend>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="center">Map centre (latitude, longitude)</Label>
-            <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} aria-describedby="center-hint" className="w-64" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="radiusKm">Service area radius</Label>
-            <RadiusSelect id="radiusKm" name="radiusKm" storedKm={area?.radiusKm ?? null} value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />
-          </div>
-        </div>
-        <p id="center-hint" className="text-muted-foreground">In Google Maps, right-click the business location and click the coordinates to copy them.</p>
-        <Label htmlFor="zips">ZIP codes served</Label>
-        <textarea id="zips" name="zips" value={zips} onChange={(e) => setZips(e.target.value)} className={areaClass} />
-        <Label htmlFor="towns">Towns served (one per line, optional)</Label>
-        <textarea id="towns" name="towns" value={towns} onChange={(e) => setTowns(e.target.value)} className={areaClass} />
-      </fieldset>
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-1 text-sm font-semibold">Service area</legend>
+            <div className="flex flex-wrap gap-4">
+              <Field label="Map centre (latitude, longitude)" help="In Google Maps, right-click the business location and click the coordinates to copy them.">
+                <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} className="w-64" />
+              </Field>
+              <Field label="Service area radius">
+                <RadiusSelect id="radiusKm" name="radiusKm" storedKm={area?.radiusKm ?? null} value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />
+              </Field>
+            </div>
+            <Field label="ZIP codes served">
+              <textarea id="zips" name="zips" value={zips} onChange={(e) => setZips(e.target.value)} className={areaClass} />
+            </Field>
+            <Field label="Towns served (one per line, optional)">
+              <textarea id="towns" name="towns" value={towns} onChange={(e) => setTowns(e.target.value)} className={areaClass} />
+            </Field>
+          </fieldset>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="placeId">Google Place ID (optional)</Label>
-        <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} aria-describedby="placeId-hint" className="max-w-md" />
-        <p id="placeId-hint" className="text-muted-foreground">Lets us benchmark the business’s own reviews against its competitors.</p>
-      </div>
+          <Field label="Google Place ID (optional)" help="Lets us benchmark the business’s own reviews against its competitors.">
+            <Input id="placeId" name="placeId" value={placeId} onChange={(e) => setPlaceId(e.target.value)} className="max-w-md" />
+          </Field>
 
-      {props.mode === 'create' && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="timezone">Business time zone</Label>
-          <select id="timezone" name="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
-            {props.timezoneOptions.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
-        </div>
-      )}
-
-      </fieldset>
+          {props.mode === 'create' && (
+            <Field label="Business time zone">
+              <select id="timezone" name="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
+                {props.timezoneOptions.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+              </select>
+            </Field>
+          )}
+        </fieldset>
+      </Section>
 
       {/* The result sits at the end of the form, beside the Save control, not at the top. */}
       <FormError state={state} canUpgrade={props.mode === 'create' && props.canUpgrade === true} />

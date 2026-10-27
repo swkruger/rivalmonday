@@ -1,5 +1,5 @@
 'use client';
-import { SaveBar } from '@cs/ui';
+import { Card, SaveBar } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -34,36 +34,38 @@ export function ClientFeaturesForm({ clientId, features, action, role, reviewAll
   const readOnly = useReadOnly();
   const kept = features.filter((f) => !SWITCHES.some((s) => s.value === f));
   return (
-    <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
+    <form action={formAction} onReset={(e) => e.preventDefault()} onChange={() => setDirty(true)} className="flex flex-col gap-4">
       <input type="hidden" name="clientId" value={clientId} />
+      {role === 'agency_admin' && <input type="hidden" name="askReviewPresent" value="1" />}
       {kept.map((f) => (
         <input key={f} type="hidden" name="feature" value={f} />
       ))}
       <fieldset disabled={readOnly} className="contents">
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-lg font-bold">Client features</legend>
-        {SWITCHES.map((s) => (
-          <label key={s.value} className="flex items-start gap-3 rounded-md border border-line p-3">
-            <input type="checkbox" name="feature" value={s.value} checked={on.includes(s.value)} onChange={(e) => setOn((cur) => (e.target.checked ? [...cur, s.value] : cur.filter((x) => x !== s.value)))} className="mt-1 h-4 w-4" />
-            <span>
-              <span className="block font-medium">{s.label}</span>
-              <span className="block text-sm text-muted-foreground">{s.help}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-      {role === 'agency_admin' && (
-        <>
-          <input type="hidden" name="askReviewPresent" value="1" />
-          <label className="flex items-start gap-3 rounded-md border border-line p-3">
-            <input type="checkbox" name="askReviewAllowed" checked={review} onChange={(e) => setReview(e.target.checked)} className="mt-1 h-4 w-4" />
-            <span>
-              <span className="block font-medium">Allow review to improve answers</span>
-              <span className="block text-sm text-muted-foreground">Lets the platform team read this client&apos;s Ask conversations to improve answer quality.</span>
-            </span>
-          </label>
-        </>
-      )}
+      <Card>
+        <fieldset className="flex flex-col">
+          <legend className="w-full border-b border-line px-4 py-3 text-sm font-semibold text-ink">Client features</legend>
+          <div className="divide-y divide-line">
+            {SWITCHES.map((s) => (
+              <label key={s.value} className="flex min-h-14 items-start gap-3 px-4 py-3">
+                <input type="checkbox" name="feature" value={s.value} checked={on.includes(s.value)} onChange={(e) => setOn((cur) => (e.target.checked ? [...cur, s.value] : cur.filter((x) => x !== s.value)))} className="mt-1 h-4 w-4" />
+                <span>
+                  <span className="block font-medium text-ink">{s.label}</span>
+                  <span className="block text-sm text-muted-ink">{s.help}</span>
+                </span>
+              </label>
+            ))}
+            {role === 'agency_admin' && (
+              <label className="flex min-h-14 items-start gap-3 px-4 py-3">
+                <input type="checkbox" name="askReviewAllowed" checked={review} onChange={(e) => setReview(e.target.checked)} className="mt-1 h-4 w-4" />
+                <span>
+                  <span className="block font-medium text-ink">Allow review to improve answers</span>
+                  <span className="block text-sm text-muted-ink">Lets the platform team read this client&apos;s Ask conversations to improve answer quality.</span>
+                </span>
+              </label>
+            )}
+          </div>
+        </fieldset>
+      </Card>
       </fieldset>
       {!state.ok && state.error && (
         <ErrorNote focusKey={state}>
