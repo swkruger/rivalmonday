@@ -43,6 +43,7 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
     '--primary': primary,
     '--secondary': secondary,
     '--primary-foreground': readableTextOn(primary),
+    '--secondary-foreground': readableTextOn(secondary),
     '--primary-soft': isDefault ? DEFAULT_SOFT.soft : mixHex(primary, '#ffffff', 0.86),
     '--primary-soft-text': isDefault ? DEFAULT_SOFT.text : mixHex(primary, RIVAL_MONDAY_TOKENS.ink, 0.45),
   };

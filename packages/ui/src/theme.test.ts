@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { mixHex, readableTextOn, themeVars } from './theme';
+import { contrastRatio, mixHex, readableTextOn, themeVars } from './theme';
 
 describe('mixHex', () => {
   it('mixes channel-wise and rounds', () => {
@@ -13,7 +13,7 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8',
     });
   });
 
@@ -45,6 +45,22 @@ describe('readableTextOn', () => {
   it('themeVars sets --primary-foreground', () => {
     expect(themeVars({ primary: '#F5D90A', secondary: '#000000' })['--primary-foreground']).toBe('#0B2540');
     expect(themeVars({ primary: '#123ABC', secondary: '#000000' })['--primary-foreground']).toBe('#FFFFFF');
+    expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })['--primary-foreground']).toBe('#0B2540');
+  });
+});
+
+describe('foregrounds and focus', () => {
+  const SAMPLES = ['#47A8E7', '#FFD400', '#111111', '#2A6BAC', '#E11D48'];
+  it.each(SAMPLES)('%s as primary and as secondary has a readable foreground', (c) => {
+    const asPrimary = themeVars({ primary: c, secondary: '#2A6BAC' });
+    expect(contrastRatio(asPrimary['--primary-foreground']!, c)).toBeGreaterThanOrEqual(4.5);
+    const asSecondary = themeVars({ primary: '#47A8E7', secondary: c });
+    expect(contrastRatio(asSecondary['--secondary-foreground']!, c)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('never returns --focus (fixed #2A6BAC in :root)', () => {
+    for (const c of SAMPLES) expect('--focus' in themeVars({ primary: c, secondary: c })).toBe(false);
+  });
+  it('default primary gets the ink foreground', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })['--primary-foreground']).toBe('#0B2540');
   });
 });
