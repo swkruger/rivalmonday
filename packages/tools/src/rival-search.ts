@@ -172,7 +172,7 @@ export async function startFirstAutoSearch(deps: ToolDeps, clientId: string): Pr
  */
 export async function listMonthlyRivalClients(db: Pick<Tx, 'select'>): Promise<string[]> {
   const rows = await db.select({ id: client.id }).from(client)
-    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, sql`${client.serviceArea}->'center' IS NOT NULL`))
+    .where(and(clientWorkAllowed(client), agencyServiceable(client.agencyId), sql`jsonb_array_length(${client.keywords}) > 0`, isNotNull(client.serviceArea), sql`${client.serviceArea} <> 'null'::jsonb`, sql`jsonb_typeof(${client.serviceArea}->'center') = 'object'`))
     .orderBy(client.id);
   return rows.map((r) => r.id);
 }

@@ -277,11 +277,37 @@ describe('create_client details and geocoding (Phase 16 O13)', () => {
     expect(await dbs.owner.select().from(contact).where(eq(contact.clientId, clientId))).toEqual([]);
   });
 
-  it('create_client geocodes outside the transaction', async () => {
-    geocode.mockRejectedValueOnce(new Error('stadia down'));
-    await expect(geoRegistry.invoke(admin, 'create_client', { ...noArea, name: 'Half Written', details })).rejects.toThrow();
-    expect(await dbs.owner.select().from(client).where(eq(client.name, 'Half Written'))).toEqual([]);
-    expect(await dbs.owner.select().from(contact)).toEqual([]);
+  it('geocode error creates the client without a location', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      geocode.mockRejectedValueOnce(Object.assign(new Error('Stadia down https://api.stadiamaps.com/x?api_key=SECRET 12 Peachtree'), { name: 'VendorError' }));
+      const { clientId } = (await geoRegistry.invoke(admin, 'create_client', { ...noArea, name: 'Geo Error', details })) as { clientId: string };
+      const [row] = await dbs.owner.select().from(client).where(eq(client.id, clientId));
+      expect(row).toMatchObject({ serviceArea: null, phone: '(404) 555-0100' });
+      const [setup] = await dbs.owner.select().from(clientSetup).where(eq(clientSetup.clientId, clientId));
+      expect(setup!.locationSource).toBeNull();
+      expect(await dbs.owner.select().from(contact).where(eq(contact.clientId, clientId))).toHaveLength(1);
+      const logged = warn.mock.calls.map((c) => String(c[0])).join(' ');
+      expect(logged).toContain('geocode failed');
+      expect(logged).not.toMatch(/SECRET|Peachtree|stadiamaps/);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('create_client geocodes before the transaction opens', async () => {
+    const order: string[] = [];
+    geocode.mockImplementation(async () => { order.push('geocode'); return { lat: 33.75, lng: -84.39, label: 'x', precision: 'address' as const }; });
+    const spied = new Proxy(dbs.service, {
+      get(target, prop) {
+        const v = Reflect.get(target, prop) as unknown;
+        if (prop === 'transaction') return (...a: unknown[]) => { order.push('tx'); return (v as (...x: unknown[]) => unknown).apply(target, a); };
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const reg = createToolRegistry({ app: dbs.app, service: spied, enqueue, geocode }, { audit: { record: async () => {} } });
+    await reg.invoke(admin, 'create_client', { ...noArea, name: 'Order', details });
+    expect(order.slice(0, 2)).toEqual(['geocode', 'tx']);
   });
 
   it('create_client rejects a bad phone or ZIP', async () => {

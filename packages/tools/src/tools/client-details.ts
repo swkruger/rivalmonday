@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
 import { client, clientSetup, contact, type Db } from '@cs/db';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { upsertContact } from '../access/client-invite';
 import type { ToolDeps } from '../deps';
@@ -18,15 +18,15 @@ async function requireClientFor(service: Db, ctx: AccessContext, clientId: strin
   if (!own) throw new ToolError('not_found', 'Client not found');
 }
 
-/** The client's owner contact: the setup's invited contact, else the oldest `client_owner` contact (the one `create_client` stored). */
+/**
+ * THE owner contact of a client (every reader uses this): the most recently set `client_owner` contact. `contact` has
+ * no updated_at, so a contact set again via `update_client_details` has its `created_at` bumped (see below); older
+ * rows are kept (they may still receive reports).
+ */
 async function ownerContact(service: Pick<Db, 'select'>, agencyId: string, clientId: string): Promise<{ id: string; name: string | null; email: string } | null> {
-  const [invited] = await service.select({ id: contact.id, name: contact.name, email: contact.email }).from(clientSetup)
-    .innerJoin(contact, eq(contact.id, clientSetup.invitedContactId))
-    .where(and(eq(clientSetup.clientId, clientId), eq(contact.agencyId, agencyId), eq(contact.clientId, clientId)));
-  if (invited) return invited;
-  const [first] = await service.select({ id: contact.id, name: contact.name, email: contact.email }).from(contact)
-    .where(and(eq(contact.agencyId, agencyId), eq(contact.clientId, clientId), eq(contact.role, 'client_owner'))).orderBy(asc(contact.createdAt), asc(contact.id)).limit(1);
-  return first ?? null;
+  const [latest] = await service.select({ id: contact.id, name: contact.name, email: contact.email }).from(contact)
+    .where(and(eq(contact.agencyId, agencyId), eq(contact.clientId, clientId), eq(contact.role, 'client_owner'))).orderBy(desc(contact.createdAt), desc(contact.id)).limit(1);
+  return latest ?? null;
 }
 
 export const getClientDetails = defineTool({
@@ -74,7 +74,8 @@ export const updateClientDetails = defineTool({
       if (email && email !== owner?.email.toLowerCase()) {
         // A new address becomes (or reuses) the owner contact; the old row stays (it may already receive reports).
         const id = await upsertContact(tx, ctx.agencyId, clientId, email, contactName ?? owner?.name ?? null, 'client_owner');
-        if (contactName) await tx.update(contact).set({ name: contactName }).where(eq(contact.id, id));
+        // Recency marker: a reused row becomes the newest owner contact (no updated_at column on contact).
+        await tx.update(contact).set({ createdAt: new Date(), ...(contactName ? { name: contactName } : {}) }).where(eq(contact.id, id));
       } else if (contactName) {
         if (!owner) throw new ToolError('invalid_input', 'Add the owner email address first');
         await tx.update(contact).set({ name: contactName }).where(eq(contact.id, owner.id));

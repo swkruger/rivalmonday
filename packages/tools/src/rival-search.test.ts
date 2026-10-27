@@ -213,9 +213,12 @@ describe('monthly refresh (scheduled trigger)', () => {
     await dbs.owner.update(client).set({ ...PROFILE, placeId: null }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ keywords: ['x'], serviceArea: null, placeId: null }).where(eq(client.id, IDS.clientA2));
     expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA1]);
+    // SQL twin of searchInputsReady: a JSON null centre is not ready.
+    await dbs.owner.update(client).set({ keywords: ['x'], serviceArea: { center: null, radiusKm: 10, zips: [] } as never }).where(eq(client.id, IDS.clientA2));
+    expect(await listMonthlyRivalClients(dbs.service)).toEqual([IDS.clientA1]);
   });
 
-  it('listMonthlyRivalClients: active clients with keywords, a service area and a place id only', async () => {
+  it('listMonthlyRivalClients: active clients with keywords and a service area (place id optional)', async () => {
     await dbs.owner.update(client).set(PROFILE).where(eq(client.id, IDS.clientA1));
     await dbs.owner.update(client).set({ ...PROFILE, placeId: 'ChIJa2hvacplace2', status: 'prospect' }).where(eq(client.id, IDS.clientA2));
     await dbs.owner.update(client).set({ keywords: [], serviceArea: AREA, placeId: 'ChIJb1hvacplace1' }).where(eq(client.id, IDS.clientB1));

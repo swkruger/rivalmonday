@@ -67,7 +67,7 @@ export const client = pgTable(
     phone: text('phone'),
     /** Phase 16: street address captured by the client wizard. Agency/client editable. */
     address: jsonb('address').$type<ClientAddress | null>(),
-    /** Phase 16: content-addressed logo path (`/files/logo/<sha256>`). Agency/client editable. */
+    /** Phase 16: full public URL of the content-addressed logo (`<app>/files/logo/clients/<id>/<sha256>.png`). Agency/client editable. */
     logoUrl: text('logo_url'),
     scoreThresholds: jsonb('score_thresholds').$type<ScoreThresholds | null>(),
     /** The client's own business as a global competitor row (GBP, reviews and Google ads), for the spec §6.5 benchmark. Never in client_competitor. */

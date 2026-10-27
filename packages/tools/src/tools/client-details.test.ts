@@ -54,6 +54,14 @@ describe('client details tools', () => {
     expect(rows.map((r) => r.email).sort()).toEqual(['new@example.com', 'pat@example.com']);
   });
 
+  it('get_client_details returns the new owner email after update', async () => {
+    await registry.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, contactEmail: 'New@Example.com', contactName: 'Newbie' });
+    expect(await registry.invoke(admin, 'get_client_details', { clientId: IDS.clientA1 })).toMatchObject({ contactEmail: 'new@example.com', contactName: 'Newbie' });
+    // Switching back reuses the old row, which becomes the current one again.
+    await registry.invoke(admin, 'update_client_details', { clientId: IDS.clientA1, contactEmail: 'pat@example.com' });
+    expect(await registry.invoke(admin, 'get_client_details', { clientId: IDS.clientA1 })).toMatchObject({ contactEmail: 'pat@example.com' });
+  });
+
   it('client viewer cannot update details', async () => {
     for (const who of [viewer, owner]) {
       await expect(registry.invoke(who, 'update_client_details', { clientId: IDS.clientA1, phone: '(404) 555-0111' })).rejects.toMatchObject({ code: 'not_found' });
