@@ -8,10 +8,6 @@ import { dismissWelcome } from './owner-welcome-actions';
 /** The most rivals an owner picks (`MAX_PICKS` of the competitors step; repeated here so this card stays light). */
 const PICK_UP_TO = 5;
 
-/** Spec 16 §7. No gendered words; without a first name the line simply starts "Welcome." */
-export const welcomeLine = (firstName: string | null, agency: string) =>
-  `Welcome${firstName ? `, ${firstName}` : ''}. ${agency} set this up for you. Your starting point is on its way.`;
-
 /** A calm panel line on the owner's first Overview visits; "Dismiss" hides it for good (cookie, set by the server action). */
 export function OwnerWelcome({ clientId, line }: { clientId: string; line: string }) {
   const [hidden, setHidden] = useState(false);

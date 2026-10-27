@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const dismiss = vi.fn(async (_id: string) => {});
 vi.mock('./owner-welcome-actions', () => ({ dismissWelcome: (id: string) => dismiss(id) }));
 
-const { OwnerPickCard, OwnerWelcome, welcomeLine } = await import('./owner-welcome');
+const { OwnerPickCard, OwnerWelcome } = await import('./owner-welcome');
+const { welcomeLine } = await import('./owner-welcome-copy');
 
 afterEach(() => { cleanup(); dismiss.mockClear(); });
 

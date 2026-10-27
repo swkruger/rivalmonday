@@ -14,6 +14,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **One `sharp` version repo-wide (0.34.5):** two versions in one process fail `next build` on Windows (`ERR_DLOPEN_FAILED`).
 - **`AGENTS.md` is Next.js-managed** (`next dev` upserts its block); keep `@AGENTS.md` as line 1.
 - **Layouts don't re-render on client-side navigation:** the `x-rm-path` header is read once per full load. Path-dependent shell parts use `usePathname()` in a client component; a different *context* per area needs a route group (`(app)` vs `(platform)`), never a header switch.
+- **A server component never calls a function exported from a `'use client'` module:** on the server it is a client reference, so the page 500s in a production build only (unit tests ignore the directive). Shared helpers/copy go in a plain module; `src/client-boundary.test.ts` gates it.
 - **Never call `Intl.supportedValuesOf('timeZone')` in a `'use client'` component:** it lacks `'UTC'`, uses legacy names and differs Node vs browser — hydration mismatch and a stored `'UTC'` silently cleared on save. Build options server-side with `timezoneOptions(current)` (`@/server/timezones`) and pass as a prop.
 
 ### Tools, auth & access

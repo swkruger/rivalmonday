@@ -43,9 +43,10 @@ describe('Client Overview (15c-2b-2)', () => {
 
   it('hands the owner first-visit panel the setup read, viewer and context', async () => {
     tools.get_client_setup = { state: { competitors: 'waiting_owner' }, invite: { name: null } };
+    tools.get_starting_point_status = { state: 'sent' };
     await show();
     expect(screen.getByText('first visit')).toBeTruthy();
-    expect(firstVisit).toHaveBeenCalledWith(expect.objectContaining({ clientId: C, setup: tools.get_client_setup, viewer: { kind: 'user' } }));
+    expect(firstVisit).toHaveBeenCalledWith(expect.objectContaining({ clientId: C, setup: tools.get_client_setup, viewer: { kind: 'user' }, startingPending: false }));
   });
 
   it('pressure bar uses bg-danger for high', async () => {

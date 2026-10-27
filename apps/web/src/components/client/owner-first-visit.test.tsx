@@ -5,17 +5,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const C = '00000000-0000-4000-8000-0000000000c1';
 const m = vi.hoisted(() => ({ dismissed: false }));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: (n: string) => (m.dismissed && n === `rm_welcome_${C}` ? { value: '1' } : undefined) }) }));
-vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Brightside Marketing' } }) }));
+const theme = vi.hoisted(() => vi.fn(async () => ({ branding: { displayName: 'Brightside Marketing' } })));
+vi.mock('@/server/theme', () => ({ themeForViewer: theme }));
 vi.mock('./owner-welcome-actions', () => ({ dismissWelcome: vi.fn() }));
 
 const { OwnerFirstVisit } = await import('./owner-first-visit');
 const ownerCtx = { role: 'client_owner' } as never;
 const viewer = { kind: 'user', name: 'Maria Alvarez' } as never;
 const setup = (competitors: string) => ({ state: { competitors }, lookup: { city: 'Round Rock' }, competitorSuggestions: [{ status: 'suggested' }, { status: 'suggested' }, { status: 'accepted' }] }) as never;
-const show = async (o: { ctx?: unknown; viewer?: unknown; setup?: unknown } = {}) =>
-  render(await OwnerFirstVisit({ clientId: C, ctx: (o.ctx ?? ownerCtx) as never, viewer: (o.viewer ?? viewer) as never, setup: (o.setup ?? setup('todo')) as never }));
+const show = async (o: { ctx?: unknown; viewer?: unknown; setup?: unknown; startingPending?: boolean } = {}) =>
+  render(
+    await OwnerFirstVisit({
+      clientId: C,
+      ctx: (o.ctx ?? ownerCtx) as never,
+      viewer: (o.viewer ?? viewer) as never,
+      setup: (o.setup ?? setup('todo')) as never,
+      startingPending: o.startingPending ?? true,
+    }),
+  );
 
-beforeEach(() => { m.dismissed = false; });
+beforeEach(() => { m.dismissed = false; theme.mockClear(); });
 afterEach(cleanup);
 
 describe('OwnerFirstVisit', () => {
@@ -28,6 +37,15 @@ describe('OwnerFirstVisit', () => {
     m.dismissed = true;
     await show();
     expect(screen.queryByText(/Welcome/)).toBeNull();
+  });
+  it('hides the welcome once the starting point is no longer pending', async () => {
+    await show({ startingPending: false });
+    expect(screen.queryByText(/Welcome/)).toBeNull();
+  });
+  it('reads the cookie first: no theme lookup when nothing shows', async () => {
+    m.dismissed = true;
+    await show();
+    expect(theme).not.toHaveBeenCalled();
   });
   it('shows the choose-competitors card while the agency waits on the owner, even after the welcome is dismissed', async () => {
     m.dismissed = true;

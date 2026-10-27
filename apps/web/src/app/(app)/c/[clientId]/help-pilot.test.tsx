@@ -31,6 +31,8 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [] }));
 vi.mock('@/components/ask/ask-card', () => ({ AskCard: () => null }));
+// Async server component (cookies + branding); its behaviour is covered by owner-first-visit.test.tsx and owner-welcome.test.tsx.
+vi.mock('@/components/client/owner-first-visit', () => ({ OwnerFirstVisit: () => null }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./changes/actions', () => ({ submitFeedbackAction: vi.fn() }));
 vi.mock('next/navigation', () => ({ usePathname: () => `/c/${C}`, notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));

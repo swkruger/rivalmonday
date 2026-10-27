@@ -40,7 +40,7 @@ export async function ClientHomeBasic({ clientId, ctx, viewer }: { clientId: str
           </Link>
         }
       />
-      <OwnerFirstVisit clientId={clientId} ctx={ctx} viewer={viewer} setup={setup} />
+      <OwnerFirstVisit clientId={clientId} ctx={ctx} viewer={viewer} setup={setup} startingPending={preparing !== null} />
       {setupSteps !== null && (
         <div>
           <SetupBadge clientId={clientId} {...setupSteps} />
