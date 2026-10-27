@@ -1,3 +1,4 @@
+import { buttonVariants, nativeInputClass } from '@cs/ui';
 import Link from 'next/link';
 import type { HelpGroup } from './help-groups';
 
@@ -26,14 +27,14 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
         <label htmlFor="help-search" className="sr-only">Search help</label>
         <input
           id="help-search" name="q" type="search" defaultValue={query} maxLength={300} placeholder="Search help"
-          className="h-9 w-full max-w-md rounded-md border border-border bg-surface px-3 text-sm text-ink"
+          className={`${nativeInputClass} w-full max-w-md`}
         />
-        <button type="submit" className="inline-flex h-9 items-center rounded-md border border-border bg-surface px-3 text-sm font-medium text-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Search</button>
+        <button type="submit" className={buttonVariants({ variant: 'outline' })}>Search</button>
       </form>
 
       {results && (
         <section aria-labelledby="help-results" className="flex flex-col gap-3">
-          <h2 id="help-results" className="text-lg font-bold">Search results</h2>
+          <h2 id="help-results" className="text-lg font-semibold">Search results</h2>
           {results.length === 0 ? (
             <p className="text-sm text-muted-ink">No results for “{query}”.</p>
           ) : (
@@ -50,7 +51,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
       )}
 
       <section aria-labelledby="help-guides" className="flex flex-col gap-4">
-        <h2 id="help-guides" className="text-lg font-bold">Guides</h2>
+        <h2 id="help-guides" className="text-lg font-semibold">Guides</h2>
         {groups.length === 0 ? (
           <p className="text-sm text-muted-ink">No guides are available here yet.</p>
         ) : (
@@ -69,7 +70,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
 
       {glossary.length > 0 && (
         <section aria-labelledby="help-glossary" className="flex flex-col gap-3">
-          <h2 id="help-glossary" className="text-lg font-bold">Glossary</h2>
+          <h2 id="help-glossary" className="text-lg font-semibold">Glossary</h2>
           <dl className="flex flex-col gap-3">
             {glossary.map((t) => (
               <div key={t.id} className="flex flex-col gap-0.5">
@@ -82,7 +83,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
       )}
 
       {(ask || contactEmail) && (
-        <div className="flex flex-col gap-2 border-t border-border pt-4 text-sm">
+        <div className="flex flex-col gap-2 border-t border-line pt-4 text-sm">
           {ask && <Link href={ask.href} className={linkClass}>{ask.label}</Link>}
           {contactEmail && <a href={`mailto:${contactEmail}`} className={linkClass}>Contact your agency</a>}
         </div>

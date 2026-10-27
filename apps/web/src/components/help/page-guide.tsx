@@ -1,5 +1,5 @@
 'use client';
-import { Sheet, SheetContent, SheetTitle } from '@cs/ui';
+import { buttonVariants, Sheet, SheetContent, SheetTitle } from '@cs/ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -96,9 +96,9 @@ export function PageGuide({ helpKey, pageTitle, load = loadPageGuide }: { helpKe
           setOpen(true);
           start();
         }}
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-sm font-medium text-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className={buttonVariants({ variant: 'outline' })}
       >
-        <span aria-hidden className="inline-flex size-4 items-center justify-center rounded-full border border-current text-[10px] font-bold leading-none">?</span>
+        <span aria-hidden className="inline-flex size-4 items-center justify-center rounded-full border border-current text-11 font-semibold leading-none">?</span>
         Guide
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
@@ -118,11 +118,11 @@ export function PageGuide({ helpKey, pageTitle, load = loadPageGuide }: { helpKe
             <>
               {guide.sections.map((s) => (
                 <section key={s.heading} className="flex flex-col gap-2">
-                  <h2 id={guideSlug(s.heading)} className="scroll-mt-4 text-base font-bold">{s.heading}</h2>
+                  <h2 id={guideSlug(s.heading)} className="scroll-mt-4 text-base font-semibold">{s.heading}</h2>
                   <KbMarkdown>{s.markdown}</KbMarkdown>
                 </section>
               ))}
-              <div className="mt-2 flex flex-col gap-2 border-t border-border pt-4 text-sm">
+              <div className="mt-2 flex flex-col gap-2 border-t border-line pt-4 text-sm">
                 {canAsk && clientId && (
                   <Link href={`/c/${clientId}/ask?q=${encodeURIComponent(`Explain the ${pageTitle} page`)}`} className="font-medium text-secondary underline-offset-2 hover:underline">
                     Ask {names.assistant} about this page

@@ -82,12 +82,12 @@ export function answerSources(cites: AnswerCite[], refs: EvidenceRefs, clientId:
 function Cite({ cite, clientId, refs }: { cite: AnswerCite; clientId: string; refs: EvidenceRefs | undefined }) {
   switch (cite.kind) {
     case 'reason':
-      return <span className="font-medium text-ink-secondary">{REASON}</span>;
+      return <span data-slot="possible-reason" className="font-medium text-ink-secondary">{REASON}</span>;
     case 'kb':
       return <ArticleSheet kbId={cite.id} />;
     case 'app':
       return (
-        <Link href={cite.path} aria-label="Open in the app" className={`mx-0.5 ${citationPillClass}`}>
+        <Link href={cite.path} aria-label="Open in the app" data-slot="citation-pill" className={`mx-0.5 ${citationPillClass}`}>
           Data
         </Link>
       );
@@ -121,7 +121,7 @@ export function AskAnswer({ clientId, content, citations, refs, size = 'page' }:
   const { markdown, cites } = answerMarkdown(content, citations);
   const text = size === 'panel' ? 'text-sm leading-normal' : 'text-base leading-relaxed';
   return (
-    <div className={`flex flex-col gap-2 ${text} [overflow-wrap:anywhere] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5`}>
+    <div data-size={size === 'panel' ? 'panel' : 'page'} className={`flex flex-col gap-2 ${text} [overflow-wrap:anywhere] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:my-0.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5`}>
       <Markdown
         disallowedElements={['img']}
         components={{

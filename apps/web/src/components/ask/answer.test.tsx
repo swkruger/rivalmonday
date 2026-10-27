@@ -31,7 +31,7 @@ describe('AskAnswer', () => {
   it('possible reason styled', () => {
     render(<AskAnswer clientId={C} content={`Acme cut prices [ev:${E1}]. Possible reason: a slow season.`} citations={[`ev:${E1}`]} />);
     const label = screen.getByText('Possible reason:');
-    expect(label.className).toContain('text-ink-secondary');
+    expect(label.getAttribute('data-slot')).toBe('possible-reason');
     expect(screen.getByText(/a slow season\./)).toBeTruthy();
   });
 
@@ -53,13 +53,13 @@ describe('citation pills and sources', () => {
   it('the Data chip keeps its name and shares the pill look', () => {
     const P = '44444444-4444-4444-8444-444444444444';
     render(<AskAnswer clientId={C} content={`x [app:${P}]`} citations={[`app:${P}@/c/${C}/competitors/${P}`]} />);
-    expect(screen.getByRole('link', { name: 'Open in the app' }).className).toContain('rounded-xs');
+    expect(screen.getByRole('link', { name: 'Open in the app' }).getAttribute('data-slot')).toBe('citation-pill');
   });
-  it('size panel uses text-sm; page uses text-base', () => {
+  it('page and panel sizes are marked', () => {
     const { container, rerender } = render(<AskAnswer clientId={C} content="Hi" citations={[]} />);
-    expect((container.firstChild as HTMLElement).className).toContain('text-base');
+    expect((container.firstChild as HTMLElement).getAttribute('data-size')).toBe('page');
     rerender(<AskAnswer clientId={C} content="Hi" citations={[]} size="panel" />);
-    expect((container.firstChild as HTMLElement).className).toContain('text-sm');
+    expect((container.firstChild as HTMLElement).getAttribute('data-size')).toBe('panel');
   });
   it('answerSources lists resolved ev cites once each in first-appearance order', () => {
     const refs2 = { ...refs, [E2]: { source: 'Jones Air', channel: 'Reviews', date: 'Oct 21, 2026' } };

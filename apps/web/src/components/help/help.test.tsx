@@ -270,6 +270,14 @@ describe('EmptyState', () => {
     expect((seen.mock.calls[0]![0] as CustomEvent).detail).toEqual({ anchor: 'changes' });
   });
 
+  it('an empty state is borderless and marked (data-slot), keeping its text', () => {
+    render(wrap('client', <EmptyState title="Nothing yet" body="Add one." />));
+    const box = screen.getByRole('heading', { name: 'Nothing yet' }).closest('[data-slot="empty-state"]') as HTMLElement;
+    expect(box).not.toBeNull();
+    expect(box.className).not.toContain('border');
+    expect(screen.getByText('Add one.')).toBeTruthy();
+  });
+
   it('an audience-limited empty state renders only for viewers in that audience', () => {
     const es = <EmptyState audience="agency" title="No upsells yet" body="Tag items for {client}." />;
     const { rerender } = render(wrap('client', es));

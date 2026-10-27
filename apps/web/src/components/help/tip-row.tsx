@@ -17,7 +17,7 @@ export function TipRow({ items }: { items: { label: string; tip: TipKey }[] }) {
   });
   if (shown.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
       {shown.map((i) => (
         <span key={i.tip} className="inline-flex items-center gap-1.5">
           {i.label}

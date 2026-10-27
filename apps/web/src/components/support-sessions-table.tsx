@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDateTime } from '@/lib/format';
 
 /** One `list_support_sessions` / `list_agency_support_sessions` row (`id` only on the console list). */
@@ -21,33 +22,33 @@ const END_REASON: Record<NonNullable<SupportSessionRow['endReason']>, string> = 
 /** Phase 8b: support-session history, shared by the agency's Platform access page and the platform agency page. */
 export function SupportSessionsTable({ rows, empty, tz }: { rows: SupportSessionRow[]; empty: string; tz: string }) {
   const when = (iso: string) => formatDateTime(iso, { tz, zoneLabel: true });
-  if (rows.length === 0) return <p className="mt-3 text-sm text-muted-foreground">{empty}</p>;
+  if (rows.length === 0) return <p className="mt-3 text-sm text-muted-ink">{empty}</p>;
   return (
-    <div className="mt-3 overflow-x-auto">
-      <table className="w-full min-w-[640px] text-left text-sm">
-        <thead>
-          <tr className="text-muted-foreground">
-            <th scope="col" className="px-3 py-2 font-semibold">Started</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Ended</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Platform user</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Reason</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Duration</th>
-            <th scope="col" className="px-3 py-2 font-semibold">End reason</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="mt-3">
+      <Table className="min-w-[640px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col">Started</TableHead>
+            <TableHead scope="col">Ended</TableHead>
+            <TableHead scope="col">Platform user</TableHead>
+            <TableHead scope="col">Reason</TableHead>
+            <TableHead scope="col">Duration</TableHead>
+            <TableHead scope="col">End reason</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((r) => (
-            <tr key={r.id ?? r.startedAt} className="border-t border-border">
-              <td className="whitespace-nowrap px-3 py-2">{when(r.startedAt)}</td>
-              <td className="whitespace-nowrap px-3 py-2">{r.endedAt ? when(r.endedAt) : 'Open'}</td>
-              <td className="px-3 py-2 font-semibold">{r.platformUserName}</td>
-              <td className="px-3 py-2">{r.reason}</td>
-              <td className="whitespace-nowrap px-3 py-2">{r.durationMinutes === null ? '—' : `${r.durationMinutes} min`}</td>
-              <td className="px-3 py-2">{r.endReason ? END_REASON[r.endReason] : '—'}</td>
-            </tr>
+            <TableRow key={r.id ?? r.startedAt}>
+              <TableCell>{when(r.startedAt)}</TableCell>
+              <TableCell>{r.endedAt ? when(r.endedAt) : 'Open'}</TableCell>
+              <TableCell className="font-semibold text-ink">{r.platformUserName}</TableCell>
+              <TableCell className="whitespace-normal">{r.reason}</TableCell>
+              <TableCell>{r.durationMinutes === null ? '—' : `${r.durationMinutes} min`}</TableCell>
+              <TableCell className="whitespace-normal">{r.endReason ? END_REASON[r.endReason] : '—'}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

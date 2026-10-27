@@ -24,7 +24,7 @@ export function EmptyState({ title, body, action, guideAnchor, audience = 'all' 
   const guide = usePageGuideAvailable();
   if (!visibleAudiences(viewer).includes(audience)) return null;
   return (
-    <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-border bg-surface p-6 text-ink">
+    <div data-slot="empty-state" className="flex flex-col items-center gap-2 px-6 py-10 text-center text-ink">
       <h3 className="text-base font-semibold">{renderCopy(title, names, viewer)}</h3>
       <p className="max-w-prose text-sm text-muted-ink">{renderCopy(body, names, viewer)}</p>
       {action}
