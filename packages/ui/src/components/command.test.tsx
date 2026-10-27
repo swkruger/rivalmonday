@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   Command,
+  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -52,5 +53,24 @@ describe('Command input height', () => {
     const cls = screen.getByPlaceholderText('Find').className;
     expect(cls).toContain('h-11');
     expect(cls).not.toContain('h-10');
+  });
+});
+
+describe('Command chrome', () => {
+  it('the root has no frame chrome, so a Command inside a Popover does not double it', () => {
+    render(<Command><CommandInput placeholder="Find" /></Command>);
+    const cls = document.querySelector('[data-slot="command"]')!.className.split(' ');
+    for (const c of ['border', 'shadow-overlay', 'rounded-md']) expect(cls).not.toContain(c);
+  });
+  it('CommandDialog carries the palette chrome and an accessible title', () => {
+    render(
+      <CommandDialog open title="Search">
+        <CommandInput placeholder="Find" />
+      </CommandDialog>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Search' });
+    expect(dialog.className.split(' ')).toEqual(expect.arrayContaining(['border', 'border-line', 'rounded-md', 'shadow-overlay']));
+    expect(dialog.className.split(' ')).not.toContain('shadow-dialog');
+    expect(dialog.querySelector('[data-slot="command"]')).not.toBeNull();
   });
 });

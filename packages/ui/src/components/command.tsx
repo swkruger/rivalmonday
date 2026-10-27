@@ -4,7 +4,9 @@ import * as React from "react"
 import { cn } from "../lib/cn"
 import { Command as CommandPrimitive } from "cmdk"
 import { SearchIcon } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog"
 
+/** Bare command surface: no border, radius or shadow; the container (Popover, `CommandDialog`) owns the chrome. */
 function Command({
   className,
   ...props
@@ -13,11 +15,41 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden rounded-md border border-line bg-surface text-ink shadow-overlay",
+        "flex h-full w-full flex-col overflow-hidden bg-surface text-ink",
         className
       )}
       {...props}
     />
+  )
+}
+
+/** The command palette (09 § 4.6): a 600px dialog with overlay chrome around a `Command`. */
+function CommandDialog({
+  title = "Command palette",
+  description = "Search for a command to run",
+  children,
+  className,
+  commandProps,
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
+  title?: string
+  description?: string
+  className?: string
+  commandProps?: React.ComponentProps<typeof CommandPrimitive>
+}) {
+  return (
+    <Dialog {...props}>
+      <DialogContent
+        showCloseButton={false}
+        className={cn("w-[600px] gap-0 overflow-hidden rounded-md border border-line p-0 shadow-overlay sm:max-w-[600px]", className)}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command {...commandProps}>{children}</Command>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -119,6 +151,7 @@ function CommandItem({
 
 export {
   Command,
+  CommandDialog,
   CommandInput,
   CommandList,
   CommandEmpty,

@@ -238,7 +238,7 @@ export function ContextSwitcher({ hotkey = false, modal = false, ...p }: Switche
           <Card current={current} interactive />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[280px] p-0">
+      <PopoverContent align="start" className="w-[280px] overflow-hidden p-0">
         <Command shouldFilter={false} loop>
           <CommandInput placeholder={platform ? 'Search agencies' : 'Search clients'} value={query} onValueChange={setQuery} />
           <CommandList className="max-h-[360px]">
