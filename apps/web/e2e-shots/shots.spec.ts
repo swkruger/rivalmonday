@@ -58,7 +58,7 @@ async function fixtures(): Promise<ShotFixtures> {
       setupClientId: setup.finish.id,
       setupOwnerClientId: setup.owner.id,
       askClientId: await firstId(db, sql`select id from client where name = 'Ask Demo Heating'`),
-      eventId: await firstId(db, sql`select ce.id from change_event ce join event_score es on es.event_id = ce.id where es.client_id = ${clientId} and ce.retracted_at is null order by ce.occurred_at desc limit 1`),
+      eventId: await firstId(db, sql`select ce.id from event ce join event_score es on es.event_id = ce.id where es.client_id = ${clientId} and ce.retracted_at is null order by ce.occurred_at desc limit 1`),
       prospectClientId: await firstId(db, sql`select id from client where name = 'E2E Prospect Dental'`),
     };
   });
