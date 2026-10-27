@@ -1,5 +1,5 @@
 'use client';
-import { Button, StatusChip, Tooltip, TooltipProvider } from '@cs/ui';
+import { Alert, Button, StatusChip, Tooltip, TooltipProvider } from '@cs/ui';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { AGENCY_LIFECYCLE } from '@/lib/labels';
@@ -35,7 +35,8 @@ export function HoldBanner({ agencyId, issue, hold, canRetry }: { agencyId: stri
   const [message, setMessage] = useState<string | null>(null);
   const label = issue === 'pause' ? 'Retry billing pause' : 'Retry billing resume';
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-danger/30 bg-danger/[0.06] p-3 text-ink">
+    <Alert tone="warning">
+      <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm">
           {issue === 'pause' ? (
@@ -70,6 +71,7 @@ export function HoldBanner({ agencyId, issue, hold, canRetry }: { agencyId: stri
         }}
       />
       )}
-    </div>
+      </div>
+    </Alert>
   );
 }

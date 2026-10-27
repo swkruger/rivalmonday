@@ -278,3 +278,14 @@ describe('platform agency page: archived', () => {
     expect(screen.queryByRole('button', { name: 'Unarchive' })).toBeNull();
   });
 });
+
+describe('platform agency page: layout (16e)', () => {
+  it('starts with the h1 agency name; the health chip sits in the header, not above it', async () => {
+    m.callTool.mockImplementation(async (_ctx: unknown, name: string) => (name === 'get_platform_agency' ? detail : name === 'list_agency_people' ? { members: [], invitations: [] } : name === 'get_client_limits' ? { items: [] } : name === 'get_agency_billing' ? { state: 'trialing' } : name === 'list_plan_agencies' ? { currentVersion: 3, agencies: [] } : name === 'list_discount_codes' ? { codes: [] } : { rows: [] }));
+    const { container } = render(await page({ ended: '1' }));
+    const first = container.querySelector('h1, h2, h3');
+    expect(first?.tagName).toBe('H1');
+    expect(first?.textContent).toBe('Acme');
+    expect(screen.getByRole('heading', { name: 'Support sessions' })).toBeTruthy();
+  });
+});

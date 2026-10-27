@@ -1,3 +1,4 @@
+import { HairlineCell, HairlineGrid, Section } from '@cs/ui';
 import { formatMoney } from '@/lib/format';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
@@ -10,7 +11,7 @@ import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { loadMoreActivity } from './actions';
 import { ActivityFeed, type ActivityPage } from './_components/activity-feed';
-import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from './_components/overview-charts';
+import { deltaPill, PlatformCharts, type Point, type Tile } from './_components/overview-charts';
 import { parseRange, RangeToggle } from './_components/range-toggle';
 
 export const dynamic = 'force-dynamic';
@@ -61,15 +62,14 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
           { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
         ]}
       />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <HairlineGrid cols={2}>
         <PlatformCharts series={series} range={range} includeAgencies rangeToggle={<RangeToggle current={range} basePath="/platform" />} />
-        <section className={cardCls}>
-          <h2 className="font-semibold">Recent activity</h2>
-          <div className="mt-3">
+        <HairlineCell>
+          <Section title="Recent activity">
             <ActivityFeed initial={activity} loadMore={loadMoreActivity} tz={tz} />
-          </div>
-        </section>
-      </div>
+          </Section>
+        </HairlineCell>
+      </HairlineGrid>
     </>
   );
 }

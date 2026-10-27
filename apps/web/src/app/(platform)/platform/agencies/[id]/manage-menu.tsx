@@ -85,7 +85,7 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
         <div className="grid gap-1.5">
           <Label htmlFor="hold-reason">Reason (staff only)</Label>
           <textarea id="hold-reason" name="reason" rows={3} required minLength={REASON_MIN} maxLength={REASON_MAX} aria-describedby="hold-reason-hint" value={reason} onChange={(e) => setReason(e.target.value)} className={textareaCls} />
-          <p id="hold-reason-hint" className="text-xs text-muted-foreground">Never shown to the agency. 3–500 characters.</p>
+          <p id="hold-reason-hint" className="text-xs text-muted-ink">Never shown to the agency. 3–500 characters.</p>
         </div>
       </ActionDialog>
 

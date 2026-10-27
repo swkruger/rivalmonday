@@ -15,7 +15,7 @@ export function AiGuardBanner({ state }: { state: AiGuardBannerState | null }) {
   return (
     <div role="region" aria-label="AI spend guard" className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-muted-surface px-4 py-2 text-sm font-semibold text-ink lg:px-7">
       <p>{text}</p>
-      <Link href="/platform/health" className="rounded-md bg-white px-3 py-1 text-xs font-bold text-ink hover:opacity-90">
+      <Link href="/platform/health" className="rounded-md bg-surface px-3 py-1 text-xs font-semibold text-ink hover:opacity-90">
         Open Health
       </Link>
     </div>

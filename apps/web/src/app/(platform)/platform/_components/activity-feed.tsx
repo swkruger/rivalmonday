@@ -56,7 +56,7 @@ export function ActivityFeed({ initial, loadMore, tz }: { initial: ActivityPage;
   };
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">
+      <ul className="flex flex-col divide-y divide-line">
         {page.items.map((i, n) => (
           <li key={`${i.at}-${i.kind}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-4 py-2 text-sm">
             <span>
@@ -65,7 +65,7 @@ export function ActivityFeed({ initial, loadMore, tz }: { initial: ActivityPage;
               </Link>{' '}
               {describe(i)}
             </span>
-            <time dateTime={i.at} className="text-xs text-muted-foreground">
+            <time dateTime={i.at} className="text-xs text-muted-ink">
               {formatDateTime(i.at, { tz, zoneLabel: true })}
             </time>
           </li>
@@ -73,9 +73,9 @@ export function ActivityFeed({ initial, loadMore, tz }: { initial: ActivityPage;
       </ul>
       {error && <ErrorNote compact>{error}</ErrorNote>}
       {page.nextCursor && (
-        <button type="button" onClick={more} disabled={pending} className="self-start rounded-full bg-muted-surface px-4 py-1.5 text-sm font-semibold text-ink disabled:opacity-60">
+        <Button type="button" variant="outline" onClick={more} disabled={pending} className="self-start">
           {pending ? 'Loading…' : 'Show more'}
-        </button>
+        </Button>
       )}
     </div>
   );

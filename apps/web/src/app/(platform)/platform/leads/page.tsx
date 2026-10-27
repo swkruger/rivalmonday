@@ -1,5 +1,5 @@
 import { platformRole } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
@@ -82,63 +82,57 @@ export default async function PlatformLeadsPage({ searchParams }: { searchParams
           { label: 'About returned leads', tip: 'platform.leads.declined' },
         ]}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Pool ({total})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AssignScope>
+      <Section title={`Pool (${total})`}>
+        <AssignScope>
           {leads.length === 0 && (total > 0 || prevCursor) ? (
             <OffPageNotice firstHref="/platform/leads" />
           ) : leads.length === 0 ? (
             <EmptyState {...COPY.empty.pool} guideAnchor="what-this-page-tells-you" />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Business</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Verified</TableHead>
-                  {canAssign && <TableHead>Assign</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leads.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>
-                      <div className="font-semibold">{l.businessName}</div>
-                      {l.declinedBack && <StatusChip tone="warning">Declined by an agency</StatusChip>}
-                      <div className="text-xs text-muted-foreground">{[l.address ?? l.city, l.category].filter(Boolean).join(' · ')}</div>
-                      {l.message && <div className="mt-1 max-w-md whitespace-pre-wrap text-xs">{l.message}</div>}
-                    </TableCell>
-                    <TableCell>
-                      <div>{l.contactName}</div>
-                      <div className="text-xs text-muted-foreground">{l.email}{l.phone ? ` · ${l.phone}` : ''}</div>
-                      {l.ref && <div className="text-xs text-muted-foreground">Ref {l.ref}</div>}
-                    </TableCell>
-                    <TableCell>{l.verifiedAt ? formatDate(l.verifiedAt, { tz }) : '—'}</TableCell>
-                    {canAssign && (
-                      <TableCell>
-                        <AssignForm leadId={l.id} leadName={l.businessName} agencies={agencies} />
-                      </TableCell>
-                    )}
+            <TableFrame>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Business</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Verified</TableHead>
+                    {canAssign && <TableHead>Assign</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((l) => (
+                    <TableRow key={l.id}>
+                      <TableCell>
+                        <div className="font-semibold text-ink">{l.businessName}</div>
+                        {l.declinedBack && <StatusChip tone="warning">Declined by an agency</StatusChip>}
+                        <div className="text-xs text-muted-ink">{[l.address ?? l.city, l.category].filter(Boolean).join(' · ')}</div>
+                        {l.message && <div className="mt-1 max-w-md whitespace-pre-wrap text-xs">{l.message}</div>}
+                      </TableCell>
+                      <TableCell>
+                        <div>{l.contactName}</div>
+                        <div className="text-xs text-muted-ink">{l.email}{l.phone ? ` · ${l.phone}` : ''}</div>
+                        {l.ref && <div className="text-xs text-muted-ink">Ref {l.ref}</div>}
+                      </TableCell>
+                      <TableCell>{l.verifiedAt ? formatDate(l.verifiedAt, { tz }) : '—'}</TableCell>
+                      {canAssign && (
+                        <TableCell>
+                          <AssignForm leadId={l.id} leadName={l.businessName} agencies={agencies} />
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableFrame>
           )}
-          </AssignScope>
-        </CardContent>
-      </Card>
+        </AssignScope>
+      </Section>
       <PrevNext previous={prevCursor ? leadsHref(prevCursor) : null} next={nextCursor ? leadsHref(nextCursor) : null} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent assignments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentAssignments.length === 0 ? (
-            <EmptyState {...COPY.empty.assigned} />
-          ) : (
+      <Section ruled title="Recent assignments">
+        {recentAssignments.length === 0 ? (
+          <EmptyState {...COPY.empty.assigned} />
+        ) : (
+          <TableFrame>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -150,16 +144,16 @@ export default async function PlatformLeadsPage({ searchParams }: { searchParams
               <TableBody>
                 {recentAssignments.map((r) => (
                   <TableRow key={r.leadId}>
-                    <TableCell className="font-semibold">{r.businessName}</TableCell>
+                    <TableCell className="font-semibold text-ink">{r.businessName}</TableCell>
                     <TableCell>{r.agencyName}</TableCell>
                     <TableCell>{formatDate(r.assignedAt, { tz })}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </TableFrame>
+        )}
+      </Section>
     </>
   );
 }

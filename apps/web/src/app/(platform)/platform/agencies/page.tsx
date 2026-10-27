@@ -9,7 +9,7 @@ import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { platformRole } from '@cs/tools';
-import { Button, Input, Label } from '@cs/ui';
+import { Button, Input, Label, segmentedItemClass, segmentedTrackClass } from '@cs/ui';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
 import { type AgencyRow, type AgencySort, AgencyTable, type AgencyStatus, agenciesHref, defaultDir, SORTS, STATUSES, type SortDir } from './agency-table';
@@ -65,7 +65,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           { label: 'About the status filters', tip: 'platform.agencies.status' },
         ]}
       />
-      <nav aria-label="Agency status" className="flex flex-wrap gap-1">
+      <nav aria-label="Agency status" className={`${segmentedTrackClass} self-start`}>
         {FILTERS.map((f) => {
           const n = f.key === 'on_hold' ? counts?.onHold : f.key === 'archived' ? counts?.archived : undefined;
           const current = f.key === status;
@@ -74,7 +74,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
               key={f.key}
               href={agenciesHref({ q, status: f.key, sort, dir })}
               aria-current={current ? 'page' : undefined}
-              className={`rounded-full px-3 py-1 text-sm font-semibold ${current ? 'bg-secondary text-white' : 'bg-muted-surface text-ink hover:bg-border'}`}
+              className={segmentedItemClass}
             >
               {f.label}
               {n !== undefined && ` ${n}`}
@@ -91,7 +91,7 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           <Input id="agency-q" name="q" type="search" defaultValue={q} maxLength={100} className="w-72" />
         </div>
         <Button type="submit" variant="outline">Search</Button>
-        {q && <Link href={agenciesHref({ status, sort, dir })} className="py-2 text-sm font-semibold text-primary-soft-text hover:underline">Clear</Link>}
+        {q && <Link href={agenciesHref({ status, sort, dir })} className="py-2 text-sm font-medium text-primary-soft-text hover:underline">Clear</Link>}
       </form>
       <AgencyTable rows={rows} sort={sort} dir={dir} now={new Date()} tz={tz} query={q} status={status} canUnarchive={role === 'owner'} />
       <PrevNext

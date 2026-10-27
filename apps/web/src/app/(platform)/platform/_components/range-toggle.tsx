@@ -1,3 +1,4 @@
+import { segmentedItemClass, segmentedTrackClass } from '@cs/ui';
 import Link from 'next/link';
 
 export type PlatformRange = '12w' | '12m';
@@ -12,13 +13,13 @@ export const parseRange = (v: string | string[] | undefined): PlatformRange => (
 export function RangeToggle({ current, basePath }: { current: PlatformRange; basePath: string }) {
   const sep = basePath.includes('?') ? '&' : '?';
   return (
-    <nav aria-label="Time range" className="inline-flex gap-1 rounded-full bg-muted-surface p-1 text-sm">
+    <nav aria-label="Time range" className={segmentedTrackClass}>
       {OPTIONS.map((o) => (
         <Link
           key={o.value}
           href={`${basePath}${sep}range=${o.value}`}
           aria-current={o.value === current ? 'true' : undefined}
-          className={`rounded-full px-3 py-1 font-semibold ${o.value === current ? 'bg-surface text-secondary' : 'text-ink'}`}
+          className={segmentedItemClass}
         >
           {o.label}
         </Link>

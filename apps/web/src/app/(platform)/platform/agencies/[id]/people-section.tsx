@@ -1,5 +1,5 @@
 'use client';
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Input, Label, TabsLink, TabsLinkList } from '@cs/ui';
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Input, Label, Section, TabsLink, TabsLinkList, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -20,8 +20,6 @@ const roleLabel = (r: string) => labelFor(MEMBERSHIP_ROLE, r).label;
 const displayName = (p: AgencyPerson) => p.name.trim() || p.email;
 const firstName = (p: AgencyPerson) => p.name.trim().split(/\s+/)[0] || p.email;
 const counted = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
-const th = 'px-3 py-2 font-semibold';
-const td = 'px-3 py-2';
 
 type Target =
   | { kind: 'invite' }
@@ -90,78 +88,76 @@ export function PeopleSection({ agency, people, tab, hrefs, canManage, tz, nowMs
   );
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">
-          People <span className="ml-2 text-sm font-normal text-muted-foreground">{countsLine(people)}</span>
-        </h2>
-        {canManage && <Button type="button" variant="outline" size="sm" onClick={() => open({ kind: 'invite' })}>Invite agency admin</Button>}
-      </div>
+    <Section
+      ruled
+      title={<>People <span className="ml-2 text-sm font-normal text-muted-ink">{countsLine(people)}</span></>}
+      actions={canManage ? <Button type="button" variant="outline" size="sm" onClick={() => open({ kind: 'invite' })}>Invite agency admin</Button> : undefined}
+    >
       <ResultLine message={message} />
       <TabsLinkList aria-label="People views" className="max-w-full self-start overflow-x-auto">
         {tabs.map((t) => (
           <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
-            <Link href={hrefs[t.key]} scroll={false}>{t.label}<span className="ml-1.5 text-xs text-muted-foreground">{t.n}</span></Link>
+            <Link href={hrefs[t.key]} scroll={false}>{t.label}<span className="ml-1.5 text-xs text-muted-ink">{t.n}</span></Link>
           </TabsLink>
         ))}
       </TabsLinkList>
 
-      <div className="overflow-x-auto">
+      <>
         {tab === 'team' && (team.length === 0 ? <Empty text="No one on the agency team." /> : (
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead><tr className="text-muted-foreground"><th scope="col" className={th}>Name</th><th scope="col" className={th}>Email</th><th scope="col" className={th}>Role</th><th scope="col" className={th}>Clients</th>{canManage && <th scope="col" className={th}><span className="sr-only">Actions</span></th>}</tr></thead>
-            <tbody>
+          <TableFrame><Table className="min-w-[560px]">
+            <TableHeader><TableRow className="hover:bg-transparent"><TableHead scope="col">Name</TableHead><TableHead scope="col">Email</TableHead><TableHead scope="col">Role</TableHead><TableHead scope="col">Clients</TableHead>{canManage && <TableHead scope="col"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader>
+            <TableBody>
               {team.map((p) => (
-                <tr key={p.membershipId} className="border-t border-border">
-                  <td className={`${td} font-semibold`}>{displayName(p)}</td>
-                  <td className={`${td} text-muted-foreground`}>{p.email}</td>
-                  <td className={td}>{roleLabel(p.role)}</td>
-                  <td className={`${td} text-muted-foreground`}>{p.clients.length ? p.clients.map((c) => c.name).join(', ') : 'All clients'}</td>
-                  {canManage && <td className={`${td} text-right`}>{rowMenu(p)}</td>}
-                </tr>
+                <TableRow key={p.membershipId}>
+                  <TableCell className="font-semibold">{displayName(p)}</TableCell>
+                  <TableCell className="text-muted-ink">{p.email}</TableCell>
+                  <TableCell>{roleLabel(p.role)}</TableCell>
+                  <TableCell className="text-muted-ink">{p.clients.length ? p.clients.map((c) => c.name).join(', ') : 'All clients'}</TableCell>
+                  {canManage && <TableCell className="text-right">{rowMenu(p)}</TableCell>}
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table></TableFrame>
         ))}
         {tab === 'clients' && (clientPeople.length === 0 ? <Empty text="No client people yet." /> : (
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead><tr className="text-muted-foreground"><th scope="col" className={th}>Name</th><th scope="col" className={th}>Email</th><th scope="col" className={th}>Role</th><th scope="col" className={th}>Client</th>{canManage && <th scope="col" className={th}><span className="sr-only">Actions</span></th>}</tr></thead>
-            <tbody>
+          <TableFrame><Table className="min-w-[560px]">
+            <TableHeader><TableRow className="hover:bg-transparent"><TableHead scope="col">Name</TableHead><TableHead scope="col">Email</TableHead><TableHead scope="col">Role</TableHead><TableHead scope="col">Client</TableHead>{canManage && <TableHead scope="col"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader>
+            <TableBody>
               {clientPeople.map((p) => (
-                <tr key={p.membershipId} className="border-t border-border">
-                  <td className={`${td} font-semibold`}>{displayName(p)}</td>
-                  <td className={`${td} text-muted-foreground`}>{p.email}</td>
-                  <td className={td}>{roleLabel(p.role)}</td>
-                  <td className={`${td} text-muted-foreground`}>{p.clients.map((c) => c.name).join(', ') || '—'}</td>
-                  {canManage && <td className={`${td} text-right`}>{rowMenu(p)}</td>}
-                </tr>
+                <TableRow key={p.membershipId}>
+                  <TableCell className="font-semibold">{displayName(p)}</TableCell>
+                  <TableCell className="text-muted-ink">{p.email}</TableCell>
+                  <TableCell>{roleLabel(p.role)}</TableCell>
+                  <TableCell className="text-muted-ink">{p.clients.map((c) => c.name).join(', ') || '—'}</TableCell>
+                  {canManage && <TableCell className="text-right">{rowMenu(p)}</TableCell>}
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table></TableFrame>
         ))}
         {tab === 'invites' && (people.invitations.length === 0 ? <Empty text="No pending invites." /> : (
-          <table className="w-full min-w-[620px] text-left text-sm">
-            <thead><tr className="text-muted-foreground"><th scope="col" className={th}>Email</th><th scope="col" className={th}>Role</th><th scope="col" className={th}>Client</th><th scope="col" className={th}>Sent</th><th scope="col" className={th}>Expires</th>{canManage && <th scope="col" className={th}><span className="sr-only">Actions</span></th>}</tr></thead>
-            <tbody>
+          <TableFrame><Table className="min-w-[620px]">
+            <TableHeader><TableRow className="hover:bg-transparent"><TableHead scope="col">Email</TableHead><TableHead scope="col">Role</TableHead><TableHead scope="col">Client</TableHead><TableHead scope="col">Sent</TableHead><TableHead scope="col">Expires</TableHead>{canManage && <TableHead scope="col"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader>
+            <TableBody>
               {people.invitations.map((i) => (
-                <tr key={i.invitationId} className="border-t border-border">
-                  <td className={td}>{i.email}</td>
-                  <td className={td}>{roleLabel(i.role)}</td>
-                  <td className={`${td} text-muted-foreground`}>{i.clientName ?? '—'}</td>
-                  <td className={`${td} whitespace-nowrap text-muted-foreground`}>{formatDate(i.sentAt, { tz, now })}</td>
-                  <td className={`${td} whitespace-nowrap text-muted-foreground`}>{formatDate(i.expiresAt, { tz, now })}</td>
+                <TableRow key={i.invitationId}>
+                  <TableCell>{i.email}</TableCell>
+                  <TableCell>{roleLabel(i.role)}</TableCell>
+                  <TableCell className="text-muted-ink">{i.clientName ?? '—'}</TableCell>
+                  <TableCell className="text-muted-ink">{formatDate(i.sentAt, { tz, now })}</TableCell>
+                  <TableCell className="text-muted-ink">{formatDate(i.expiresAt, { tz, now })}</TableCell>
                   {canManage && (
-                    <td className={`${td} whitespace-nowrap text-right`}>
+                    <TableCell className="text-right">
                       <Button type="button" variant="outline" size="sm" aria-label={`Resend invite to ${i.email}`} onClick={() => open({ kind: 'resend', invite: i })}>Resend</Button>{' '}
                       <Button type="button" variant="outline" size="sm" aria-label={`Revoke invite to ${i.email}`} onClick={() => open({ kind: 'revoke', invite: i })}>Revoke</Button>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table></TableFrame>
         ))}
-      </div>
+      </>
 
       {canManage && (
         <>
@@ -230,10 +226,10 @@ export function PeopleSection({ agency, people, tab, hrefs, canManage, tz, nowMs
           )}
         </>
       )}
-    </section>
+    </Section>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="py-2 text-sm text-muted-foreground">{text}</p>;
+  return <p className="py-2 text-sm text-muted-ink">{text}</p>;
 }

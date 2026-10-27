@@ -43,12 +43,12 @@ export function MoveLines({ rows, targetVersion }: { rows: PlanAgencyRow[]; targ
             <li key={r.agencyId} className="text-sm text-ink">
               <span className="font-semibold">{r.name}</span>{' '}
               <span>({versionText(r.version)} → v{targetVersion}): {monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)} a month</span>
-              {warning && <span className="block text-xs text-muted-foreground">{warning}</span>}
+              {warning && <span className="block text-xs text-muted-ink">{warning}</span>}
             </li>
           );
         })}
       </ul>
-      <p className="text-sm text-muted-foreground">{MOVE_NOTE}</p>
+      <p className="text-sm text-muted-ink">{MOVE_NOTE}</p>
     </div>
   );
 }

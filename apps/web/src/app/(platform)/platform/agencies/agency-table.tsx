@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
 import Link from 'next/link';
 import type { BillingState } from '@cs/db';
-import { StatusChip } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { UnarchiveRowButton } from './unarchive-row-button';
 
 type Health = 'at_risk' | 'idle' | 'growing' | 'steady';
@@ -65,58 +65,56 @@ export function agenciesHref(o: { q?: string; status?: AgencyStatus; sort: Agenc
 export function AgencyTable({ rows, sort, dir, now, tz = 'UTC', query, status = 'active', canUnarchive = false }: { rows: AgencyRow[]; sort: AgencySort; dir: SortDir; now: Date; tz?: string; query?: string; status?: AgencyStatus; canUnarchive?: boolean }) {
   if (status === 'archived') return <ArchivedTable rows={rows} now={now} tz={tz} query={query} canUnarchive={canUnarchive} />;
   return (
-    <div className="min-w-0 rounded-md border border-line bg-surface p-2 sm:p-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[940px] text-left text-sm">
-          <thead>
-            <tr className="text-muted-foreground">
-              {COLUMNS.map((c) => {
-                const active = c.sort === sort;
-                const next = c.sort ? (active ? (dir === 'asc' ? 'desc' : 'asc') : defaultDir(c.sort)) : null;
-                return (
-                  <th
-                    key={c.label}
-                    scope="col"
-                    aria-sort={c.sort && active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                    className={`whitespace-nowrap px-3 py-2 font-semibold ${c.right ? 'text-right' : ''}`}
-                  >
-                    {c.sort ? (
-                      <Link href={agenciesHref({ q: query, status, sort: c.sort, dir: next! })} className="hover:text-ink">
-                        {c.label}
-                        {active && <span aria-hidden="true">{dir === 'asc' ? ' ▲' : ' ▼'}</span>}
-                      </Link>
-                    ) : (
-                      c.label
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-[#EEF2F6]">
-                <td className="px-3 py-2 font-semibold">
-                  <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
-                  {r.onHold && !r.archivedAt && <> <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip></>}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2">{formatDate(r.createdAt, { tz, now })}</td>
-                <td className="px-3 py-2 text-right">{r.clientsActive}</td>
-                <td className="px-3 py-2 text-right">{r.clientsProspect}</td>
-                <td className="px-3 py-2 text-right">{r.agencySeats + r.clientSeats}</td>
-                <td className="px-3 py-2 text-right">{r.wau ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2">{r.lastActivityAt ? formatRelative(r.lastActivityAt, now, { tz }) : '—'}</td>
-                <td className="px-3 py-2 text-right">{formatMoney(r.spendMonthUsd, { cents: true })}</td>
-                <td className="px-3 py-2"><Chip entry={labelFor(AGENCY_HEALTH, r.health)} /></td>
-                <td className="px-3 py-2"><Chip entry={labelFor(BILLING_STATE, r.billingState)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {rows.length === 0 && query && <p className="px-3 py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
+    <>
+      <Table className="min-w-[940px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {COLUMNS.map((c) => {
+              const active = c.sort === sort;
+              const next = c.sort ? (active ? (dir === 'asc' ? 'desc' : 'asc') : defaultDir(c.sort)) : null;
+              return (
+                <TableHead
+                  key={c.label}
+                  scope="col"
+                  numeric={c.right}
+                  aria-sort={c.sort && active ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                >
+                  {c.sort ? (
+                    <Link href={agenciesHref({ q: query, status, sort: c.sort, dir: next! })} className="hover:text-ink">
+                      {c.label}
+                      {active && <span aria-hidden="true">{dir === 'asc' ? ' ▲' : ' ▼'}</span>}
+                    </Link>
+                  ) : (
+                    c.label
+                  )}
+                </TableHead>
+              );
+            })}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="font-semibold">
+                <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
+                {r.onHold && !r.archivedAt && <> <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip></>}
+              </TableCell>
+              <TableCell>{formatDate(r.createdAt, { tz, now })}</TableCell>
+              <TableCell numeric>{r.clientsActive}</TableCell>
+              <TableCell numeric>{r.clientsProspect}</TableCell>
+              <TableCell numeric>{r.agencySeats + r.clientSeats}</TableCell>
+              <TableCell numeric>{r.wau ?? '—'}</TableCell>
+              <TableCell>{r.lastActivityAt ? formatRelative(r.lastActivityAt, now, { tz }) : '—'}</TableCell>
+              <TableCell numeric>{formatMoney(r.spendMonthUsd, { cents: true })}</TableCell>
+              <TableCell><Chip entry={labelFor(AGENCY_HEALTH, r.health)} /></TableCell>
+              <TableCell><Chip entry={labelFor(BILLING_STATE, r.billingState)} /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {rows.length === 0 && query && <p className="py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
       {rows.length === 0 && !query && <EmptyState {...PAGE_COPY['platform.agencies'].empty.none} guideAnchor="what-this-page-tells-you" />}
-    </div>
+    </>
   );
 }
 
@@ -126,39 +124,37 @@ const Chip = ({ entry }: { entry: { label: string; tone: Parameters<typeof Statu
 function ArchivedTable({ rows, now, tz, query, canUnarchive }: { rows: AgencyRow[]; now: Date; tz: string; query?: string; canUnarchive: boolean }) {
   const archived = AGENCY_LIFECYCLE.archived;
   return (
-    <div className="min-w-0 rounded-md border border-line bg-surface p-2 sm:p-4">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr className="text-muted-foreground">
-              <th scope="col" className="px-3 py-2 font-semibold">Agency</th>
-              <th scope="col" className="px-3 py-2 font-semibold">Status</th>
-              <th scope="col" className="px-3 py-2 text-right font-semibold">Clients</th>
-              <th scope="col" className="px-3 py-2 font-semibold">Archived</th>
-              {canUnarchive && <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const at = r.archivedAt ?? null;
-              const purgeable = at !== null && now.getTime() - new Date(at).getTime() >= PURGE_AFTER_MS;
-              return (
-                <tr key={r.id} className="border-t border-[#EEF2F6]">
-                  <td className="px-3 py-2 font-semibold">
-                    <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
-                  </td>
-                  <td className="px-3 py-2"><StatusChip tone={archived.tone}>{archived.label}</StatusChip></td>
-                  <td className="px-3 py-2 text-right">{r.clientsActive + r.clientsProspect}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{at ? formatDate(at, { tz, now }) : '—'}{purgeable && ' · purge possible'}</td>
-                  {canUnarchive && <td className="px-3 py-2 text-right"><UnarchiveRowButton agency={{ id: r.id, name: r.name }} /></td>}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {rows.length === 0 && query && <p className="px-3 py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
-      {rows.length === 0 && !query && <p className="px-3 py-6 text-sm text-muted-ink">No archived agencies.</p>}
-    </div>
+    <>
+      <Table className="min-w-[640px]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col">Agency</TableHead>
+            <TableHead scope="col">Status</TableHead>
+            <TableHead scope="col" numeric>Clients</TableHead>
+            <TableHead scope="col">Archived</TableHead>
+            {canUnarchive && <TableHead scope="col"><span className="sr-only">Actions</span></TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => {
+            const at = r.archivedAt ?? null;
+            const purgeable = at !== null && now.getTime() - new Date(at).getTime() >= PURGE_AFTER_MS;
+            return (
+              <TableRow key={r.id}>
+                <TableCell className="font-semibold">
+                  <Link href={`/platform/agencies/${r.id}`} className="text-secondary hover:underline">{r.name}</Link>
+                </TableCell>
+                <TableCell><StatusChip tone={archived.tone}>{archived.label}</StatusChip></TableCell>
+                <TableCell numeric>{r.clientsActive + r.clientsProspect}</TableCell>
+                <TableCell>{at ? formatDate(at, { tz, now }) : '—'}{purgeable && ' · purge possible'}</TableCell>
+                {canUnarchive && <TableCell className="text-right"><UnarchiveRowButton agency={{ id: r.id, name: r.name }} /></TableCell>}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      {rows.length === 0 && query && <p className="py-6 text-sm text-muted-ink">No agencies match “{query}”.</p>}
+      {rows.length === 0 && !query && <p className="py-6 text-sm text-muted-ink">No archived agencies.</p>}
+    </>
   );
 }

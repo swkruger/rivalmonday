@@ -1,5 +1,5 @@
 'use client';
-import { Button } from '@cs/ui';
+import { Button, nativeSelectClass } from '@cs/ui';
 import { createContext, useActionState, useContext } from 'react';
 import type { FormResult } from '@/server/forms';
 import { assignLeadAction } from './actions';
@@ -29,7 +29,7 @@ export function AssignScope({ children }: { children: React.ReactNode }) {
   const [state, action, pending] = useActionState(assignLeadAction, { ok: true } as FormResult);
   return (
     <AssignContext.Provider value={{ action, pending }}>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {!state.ok && <ErrorNote focusKey={state}>{state.error}</ErrorNote>}
         {state.ok && state.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>}
         {children}
@@ -44,7 +44,7 @@ export function AssignForm({ leadId, leadName, agencies }: { leadId: string; lea
   return (
     <form action={scope.action} onReset={(e) => e.preventDefault()} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="leadId" value={leadId} />
-      <select name="agencyId" aria-label={`Agency for ${leadName}`} required defaultValue="" className="h-9 max-w-xs rounded-md border border-input bg-transparent px-3 text-sm shadow-xs">
+      <select name="agencyId" aria-label={`Agency for ${leadName}`} required defaultValue="" className={`${nativeSelectClass} max-w-xs`}>
         <option value="" disabled>Choose an agency</option>
         {agencies.map((a) => (
           <option key={a.id} value={a.id}>{agencyOptionLabel(a)}</option>

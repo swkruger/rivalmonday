@@ -45,6 +45,13 @@ describe('HoldBanner for a viewer', () => {
   });
 });
 
+describe('HoldBanner container', () => {
+  it('is a toned notice (data-tone) holding the sentence', () => {
+    render(<HoldBanner agencyId={AG} issue="resume" hold={null} canRetry={false} />);
+    expect(screen.getByText('Billing resume failed for some subscriptions.').closest('[data-tone]')?.getAttribute('data-tone')).toBe('warning');
+  });
+});
+
 describe('HoldChip', () => {
   it('a danger "On hold" chip whose accessible name carries the reason, since and by', () => {
     render(<HoldChip reason="Card declined" since="Oct 25" byName="Alex" />);

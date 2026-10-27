@@ -1,5 +1,5 @@
 import { ARCHIVE_BILLING_MESSAGE, platformRole } from '@cs/tools';
-import { StatusChip } from '@cs/ui';
+import { HairlineGrid, Section, StatusChip, TableFrame } from '@cs/ui';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { cache } from 'react';
@@ -18,7 +18,7 @@ import { helpGuides } from '@/server/help';
 import { platformAdmins } from '@/server/runtime-env';
 import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
-import { cardCls, deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
+import { deltaPill, PlatformCharts, type Point, type Tile } from '../../_components/overview-charts';
 import { parseRange, RangeToggle } from '../../_components/range-toggle';
 import { type AgencyClientRow, ArchivedView, ClientsSection } from './archived-view';
 import type { PlanAgencyRow } from '../../_components/plan-move-parts';
@@ -113,7 +113,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const peopleTab: PeopleTab = PEOPLE_TABS.find((t) => t === peopleParam) ?? 'team';
   const hrefs = peopleHrefs(agency.id, one(sp.range));
   const ref = { id: agency.id, name: agency.name };
-  const header = (actions: ReactNode, after?: string) => (
+  const header = (meta: ReactNode, actions: ReactNode, after?: string) => (
     <PageHeader
       title={agency.name}
       breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies', href: '/platform/agencies' }, { label: agency.name }]}
@@ -124,6 +124,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       }
       helpKey={HELP_KEY}
       guide={guides.has(HELP_KEY)}
+      meta={meta}
       actions={actions}
     />
   );
@@ -133,10 +134,8 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
     return (
       <>
         {header(
-          <>
-            <StatusChip tone={archived.tone}>{archived.label}</StatusChip>
-            {role === 'owner' && <UnarchiveButton agency={ref} />}
-          </>,
+          <StatusChip tone={archived.tone}>{archived.label}</StatusChip>,
+          role === 'owner' ? <UnarchiveButton agency={ref} /> : null,
           `Archived ${formatDate(archivedAt, { tz })}.`,
         )}
         <TipRow
@@ -169,18 +168,20 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const t = tiles as Tiles;
   return (
     <>
-      {sp.ended === '1' && (
-        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
-          Support session ended.
-        </p>
-      )}
       {header(
         <>
           {hold && <HoldChip reason={hold.reason} since={formatDate(hold.since, { tz })} byName={hold.byName} />}
           {health && <StatusChip tone={health.tone}>{health.label}</StatusChip>}
+        </>,
+        <>
           {canStart && <SupportDialog agencyId={agency.id} />}
           {canStart && <ManageMenu agency={ref} role={role} held={hold !== null} archiveRefusal={archiveRefusal(archiveBlockers)} planMove={planMove} />}
         </>,
+      )}
+      {sp.ended === '1' && (
+        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
+          Support session ended.
+        </p>
       )}
       {holdBillingIssue && (
         <HoldBanner agencyId={agency.id} issue={holdBillingIssue} canRetry={canStart} hold={hold ? { since: formatDate(hold.since, { tz }), byName: hold.byName } : null} />
@@ -203,28 +204,26 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
           { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
         ]}
       />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <HairlineGrid cols={2}>
         <PlatformCharts series={series ?? []} range={range} includeAgencies={false} rangeToggle={<RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />} />
-      </div>
-      <div className={cardCls}>
-        <PeopleSection agency={ref} people={people} tab={peopleTab} hrefs={hrefs} canManage={canStart} tz={tz} nowMs={nowMs} />
-      </div>
+      </HairlineGrid>
+      <PeopleSection agency={ref} people={people} tab={peopleTab} hrefs={hrefs} canManage={canStart} tz={tz} nowMs={nowMs} />
       <ClientsSection clients={clients} tz={tz} />
-      <section className={cardCls}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Client limits</h2>
-          <HelpTip tip="platform.agencies.detail.clientLimits" />
-        </div>
+      <Section ruled title="Client limits" titleAside={<HelpTip tip="platform.agencies.detail.clientLimits" />}>
         <ClientLimitsTable data={limits} canEdit={canStart} />
-      </section>
-      <section className={cardCls}>
-        <h2 className="mb-3 font-semibold">Billing</h2>
+      </Section>
+      <Section ruled title="Billing">
         <BillingPanel billing={billing} role={role ?? 'viewer'} codes={codes.map((c) => ({ id: c.id, code: c.code }))} tz={tz} behind={behind} />
-      </section>
-      <section className={cardCls}>
-        <h2 className="font-semibold">Support sessions</h2>
-        <SupportSessionsTable rows={sessions} empty="No support sessions yet." tz={tz} />
-      </section>
+      </Section>
+      <Section ruled title="Support sessions">
+        {sessions.length === 0 ? (
+          <SupportSessionsTable rows={sessions} empty="No support sessions yet." tz={tz} />
+        ) : (
+          <TableFrame>
+            <SupportSessionsTable rows={sessions} empty="No support sessions yet." tz={tz} />
+          </TableFrame>
+        )}
+      </Section>
     </>
   );
 }

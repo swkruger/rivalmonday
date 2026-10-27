@@ -41,21 +41,21 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
         <StatusChip tone={state.tone}>{state.label}</StatusChip>
         <span className="font-semibold">
           {behind ? (behind.version === null ? 'Plan version not set' : `Plan v${behind.version}`) : b.plan ? `Plan v${b.plan.version}` : 'No plan'}
-          {behind && <span className="font-normal text-muted-foreground"> (current: v{behind.currentVersion})</span>}
+          {behind && <span className="font-normal text-muted-ink"> (current: v{behind.currentVersion})</span>}
         </span>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-muted-foreground">Trial ends</dt><dd>{dateOr(b.trialEndsAt)}</dd></div>
-        <div><dt className="text-muted-foreground">Pilot ends</dt><dd>{dateOr(b.pilotEndsAt)}</dd></div>
+        <div><dt className="text-muted-ink">Trial ends</dt><dd>{dateOr(b.trialEndsAt)}</dd></div>
+        <div><dt className="text-muted-ink">Pilot ends</dt><dd>{dateOr(b.pilotEndsAt)}</dd></div>
         <div>
-          <dt className="text-muted-foreground">Seats</dt>
+          <dt className="text-muted-ink">Seats</dt>
           <dd>{b.seatsSynced === null ? '—' : `${b.seatsSynced} synced`}{b.seatSyncPending ? ' (sync pending)' : ''}</dd>
         </div>
-        <div><dt className="text-muted-foreground">Pilot client cap</dt><dd>{b.seatCapExempt ? 'Exempt' : 'Standard cap'}</dd></div>
-        <div><dt className="text-muted-foreground">Attached coupon</dt><dd>{b.attachedCouponId ?? '—'}</dd></div>
+        <div><dt className="text-muted-ink">Pilot client cap</dt><dd>{b.seatCapExempt ? 'Exempt' : 'Standard cap'}</dd></div>
+        <div><dt className="text-muted-ink">Attached coupon</dt><dd>{b.attachedCouponId ?? '—'}</dd></div>
       </dl>
       {staff && (
-        <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <div className="flex flex-col gap-3 border-t border-line pt-4">
           {b.state === 'pilot' ? (
             <ConfirmForm
               action={endPilotAction}
@@ -123,9 +123,9 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
         </div>
       )}
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground">Recent invoices</h3>
+        <h3 className="text-sm font-semibold text-muted-ink">Recent invoices</h3>
         {b.invoices.length === 0 ? (
-          <p className="mt-1 text-sm text-muted-foreground">No invoices yet.</p>
+          <p className="mt-1 text-sm text-muted-ink">No invoices yet.</p>
         ) : (
           <ul className="mt-1 text-sm">
             {b.invoices.map((i) => (
@@ -137,21 +137,21 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
                 )}
                 <span>{formatMoney(i.amountPaidCents, { unit: 'cents' })}</span>
                 {i.status && <StatusChip tone={labelFor(INVOICE_STATUS, i.status).tone}>{labelFor(INVOICE_STATUS, i.status).label}</StatusChip>}
-                <span className="text-muted-foreground">{formatDate(i.created, { tz })}</span>
+                <span className="text-muted-ink">{formatDate(i.created, { tz })}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground">Last events</h3>
+        <h3 className="text-sm font-semibold text-muted-ink">Last events</h3>
         {b.events.length === 0 ? (
-          <p className="mt-1 text-sm text-muted-foreground">No billing events yet.</p>
+          <p className="mt-1 text-sm text-muted-ink">No billing events yet.</p>
         ) : (
           <ul className="mt-1 text-sm">
             {b.events.slice(0, 5).map((e) => (
               <li key={`${e.createdAt}-${e.toState}-${e.reason}`} className="py-0.5">
-                <span className="text-muted-foreground">{formatDate(e.createdAt, { tz })}</span>{' · '}
+                <span className="text-muted-ink">{formatDate(e.createdAt, { tz })}</span>{' · '}
                 {e.fromState ? (
                   <>
                     <StatusChip tone={labelFor(BILLING_STATE, e.fromState).tone}>{labelFor(BILLING_STATE, e.fromState).label}</StatusChip> <span aria-label="to">→</span>{' '}
