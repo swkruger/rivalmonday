@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
-const m = vi.hoisted(() => ({ ask: false }));
+const m = vi.hoisted(() => ({ ask: false, dash: false }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: 'user' }, ctx: { role: 'agency_owner', userId: 'u1' } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 vi.mock('@/server/help', () => ({ helpGuides: async () => new Set() }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
-vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasChannel: () => m.ask, hasFeature: () => false, hasPermission: () => false }));
+vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasChannel: () => m.ask, hasFeature: () => m.dash, hasPermission: () => false }));
 vi.mock('react', async (orig) => ({ ...(await orig<typeof import('react')>()), cache: <T,>(f: T) => f }));
 vi.mock('@/components/ask/save-recommendation-dialog', () => ({ RATIONALE_MAX: 10, TITLE_MAX: 10, SaveRecommendationDialog: () => null }));
 vi.mock('../../ask/actions', () => ({ saveAskRecommendation: vi.fn() }));
@@ -35,7 +35,15 @@ function hasId(node: unknown, id: string): boolean {
   if (Array.isArray(node)) return node.some((n) => hasId(n, id));
   if (!node || typeof node !== 'object') return false;
   const props = (node as { props?: Record<string, unknown> }).props;
-  return !!props && (props.id === id || hasId(props.children, id));
+  return !!props && (props.title === id || hasId(props.children, id));
+}
+
+/** Elements of `type` (by function name) in the tree. */
+function countByName(node: unknown, name: string): number {
+  if (Array.isArray(node)) return node.reduce((n: number, c) => n + countByName(c, name), 0);
+  if (!node || typeof node !== 'object') return 0;
+  const el = node as { type?: { name?: string }; props?: { children?: unknown } };
+  return (typeof el.type === 'function' && el.type.name === name ? 1 : 0) + countByName(el.props?.children, name);
 }
 
 /** The `ComparePrevious` element (async server component) inside the page tree. */
@@ -56,9 +64,9 @@ function findSection(node: unknown): { type: unknown; props: unknown } {
 describe('Evidence page "Compare with previous"', () => {
   it('section only for web evidence', async () => {
     mount('web');
-    expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'compare-previous-heading')).toBe(true);
+    expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'Compare with previous')).toBe(true);
     mount('google_ads');
-    expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'compare-previous-heading')).toBe(false);
+    expect(hasId(await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) }), 'Compare with previous')).toBe(false);
   });
 
   it('a throw from compare_captures shows the note instead of failing the page', async () => {
@@ -82,6 +90,25 @@ describe('Evidence page "Compare with previous"', () => {
     const tree = await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) });
     expect(textOf(tree)).toContain('Site asks not to be monitored');
     expect(textOf(tree)).not.toContain('robots_disallowed');
+  });
+});
+
+describe('Evidence page on the sheet', () => {
+  const tree = async () => EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e1' }) });
+  it('only the preview is a Card; detail blocks are Sections', async () => {
+    mount('web', { citedBy: [{ eventId: 'ev1', typeLabel: 'Price', summary: 's', occurredAt: '2026-10-20T00:00:00Z' }] });
+    const t = await tree();
+    expect(countByName(t, 'Card')).toBe(1);
+    expect(textOf(t)).toContain('Preview');
+    expect(hasId(t, 'Capture details')).toBe(true);
+    expect(hasId(t, 'Compare with previous')).toBe(true);
+    expect(textOf(t)).toContain('SHA-256');
+  });
+  it('part of these changes is a Section for dashboard viewers', async () => {
+    mount('web', { citedBy: [{ eventId: 'ev1', typeLabel: 'Price', summary: 's', occurredAt: '2026-10-20T00:00:00Z' }] });
+    m.dash = true;
+    expect(hasId(await tree(), 'Part of these changes')).toBe(true);
+    m.dash = false;
   });
 });
 

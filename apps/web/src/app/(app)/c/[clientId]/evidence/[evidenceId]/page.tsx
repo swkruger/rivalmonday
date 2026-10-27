@@ -1,6 +1,6 @@
 import { hasChannel, hasFeature, hasPermission } from '@cs/core';
 import type { CaptureCompareView, ClientProfile, EvidenceView } from '@cs/tools';
-import { Card, CardContent, CardHeader, CardTitle, StatusChip } from '@cs/ui';
+import { Card, CardContent, CardHeader, CardTitle, Section, StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cache, type ReactNode, Suspense } from 'react';
@@ -29,12 +29,12 @@ const COPY = PAGE_COPY['client.evidence.detail'];
 
 function DetailRow({ label, value, tip }: { label: string; value: ReactNode; tip?: TipKey }) {
   return (
-    <div>
-      <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+    <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6">
+      <dt className="flex items-center gap-1.5 text-13 text-muted-ink">
         {label}
         {tip && <HelpTip tip={tip} />}
       </dt>
-      <dd className="break-all">{value}</dd>
+      <dd className="break-all text-sm text-ink">{value}</dd>
     </div>
   );
 }
@@ -47,7 +47,7 @@ const loadEvidence = cache((ctx: Ctx, clientId: string, evidenceId: string) => c
 async function ComparePrevious({ clientId, captureId, timezone }: { clientId: string; captureId: string; timezone: string }) {
   const { ctx } = await requireContext();
   const view = await tryCallTool<CaptureCompareView>(ctx, 'compare_captures', { clientId, captureId }).catch(() => null);
-  if (!view) return <p className="text-sm text-muted-foreground">Comparison not available for this capture.</p>;
+  if (!view) return <p className="text-sm text-muted-ink">Comparison not available for this capture.</p>;
   return <WholePageDiff view={view} timezone={timezone} />;
 }
 
@@ -121,7 +121,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               <EvidenceImage
                 src={fileHref}
                 alt={`Snapshot of ${evidence.url ?? evidence.competitorName} captured ${captured}`}
-                className="w-full rounded-md border border-line"
+                className="w-full"
               />
             </div>
           ) : evidence.kind === 'text' ? (
@@ -129,19 +129,15 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               Open the captured text
             </a>
           ) : (
-            <p className="text-muted-foreground">
+            <p className="text-muted-ink">
               This evidence is stored as raw {labelFor(EVIDENCE_KIND, evidence.kind).label.toLowerCase()} and kept unchanged; it isn’t displayed here. Its fingerprint is below.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Capture details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+      <Section title="Capture details">
+          <dl className="divide-y divide-line border-y border-line">
             <DetailRow label="Source" tip="client.evidence.detail.captured" value={evidence.channel === 'web' ? `${evidence.channelLabel} · captured by our monitoring service` : evidence.channelLabel} />
             <DetailRow label="URL" value={evidence.url ?? '—'} />
             <DetailRow label="Captured" value={captured} />
@@ -153,26 +149,18 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               value={evidence.legalHold ? 'On legal hold — never deleted' : 'Kept under the retention policy, and for as long as a delivered brief cites it'}
             />
           </dl>
-        </CardContent>
-      </Card>
+      </Section>
 
       {evidence.channel === 'web' && (
-        <section aria-labelledby="compare-previous-heading" className="flex flex-col gap-3">
-          <h2 id="compare-previous-heading" className="text-lg font-semibold text-ink">
-            Compare with previous
-          </h2>
+        <Section title="Compare with previous">
           <Suspense fallback={<PageSkeleton />}>
             <ComparePrevious clientId={clientId} captureId={evidence.captureId} timezone={profile.timezone} />
           </Suspense>
-        </section>
+        </Section>
       )}
 
       {hasFeature(ctx, 'dashboard') && evidence.citedBy.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Part of these changes</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Section title="Part of these changes">
             <ul className="flex flex-col gap-2">
               {evidence.citedBy.map((c) => (
                 <li key={c.eventId}>
@@ -182,8 +170,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
+        </Section>
       )}
     </>
   );
