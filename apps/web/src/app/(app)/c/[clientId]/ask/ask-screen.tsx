@@ -72,7 +72,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
       />
       <TipRow items={[...tipsFor(threadId)]} />
       <div className="flex items-start gap-5">
-        <aside className="hidden w-64 flex-shrink-0 rounded-[14px] bg-surface p-3 shadow-card lg:sticky lg:top-6 lg:block">
+        <aside className="hidden w-64 flex-shrink-0 rounded-md bg-surface p-3 shadow-card lg:sticky lg:top-6 lg:block">
           <ThreadList {...list} />
         </aside>
         <AskChat
@@ -118,7 +118,7 @@ async function supportAskView(clientId: string, threadId: string | null, ctx: Ac
         helpKey={`page:${helpKeyFor(threadId)}`}
         guide={guides.has(`page:${helpKeyFor(threadId)}`)}
       />
-      <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">{ASK_PRIVATE_COPY}</p>
+      <p className="rounded-md bg-surface p-6 text-muted-foreground shadow-card">{ASK_PRIVATE_COPY}</p>
     </>
   );
 }

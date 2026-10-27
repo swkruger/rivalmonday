@@ -30,7 +30,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
             {rows.map((it) =>
               it.kind === 'move' ? (
                 <li key={`m-${it.id}`}>
-                  <Link href={movesHref(clientId, { status: 'all', move: it.id })} className="flex items-center gap-3 rounded-[14px] p-2 hover:bg-muted-surface">
+                  <Link href={movesHref(clientId, { status: 'all', move: it.id })} className="flex items-center gap-3 rounded-md p-2 hover:bg-muted-surface">
                     <span aria-hidden="true" className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-amber/20 text-amber-text">
                       <TrendingUp className="h-4 w-4" strokeWidth={2} />
                     </span>
@@ -43,7 +43,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
                 </li>
               ) : (
                 <li key={`e-${it.id}`}>
-                  <Link href={changesHref(clientId, { route: 'all', days: 365, event: it.id })} className="flex items-center gap-3 rounded-[14px] p-2 hover:bg-muted-surface">
+                  <Link href={changesHref(clientId, { route: 'all', days: 365, event: it.id })} className="flex items-center gap-3 rounded-md p-2 hover:bg-muted-surface">
                     <span className="min-w-0 flex-1 truncate text-ink">
                       {it.label} · {it.title}
                     </span>

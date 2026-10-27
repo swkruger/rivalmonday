@@ -123,10 +123,10 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
         page === 1 ? (
           <EmptyState {...EMPTY_STATE[tab]} />
         ) : (
-          <p className="rounded-[14px] bg-surface p-6 text-muted-foreground shadow-card">Nothing more to show.</p>
+          <p className="rounded-md bg-surface p-6 text-muted-foreground shadow-card">Nothing more to show.</p>
         )
       ) : (
-        <ul className="flex flex-col gap-1 rounded-[14px] bg-surface p-3 shadow-card">
+        <ul className="flex flex-col gap-1 rounded-md bg-surface p-3 shadow-card">
           {rows.map((r) => (
             <li key={r.id}>
               <Link href={r.href} className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted-surface">

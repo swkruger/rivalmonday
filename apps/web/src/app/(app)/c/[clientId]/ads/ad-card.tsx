@@ -14,7 +14,7 @@ export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
   const state = labelFor(AD_STATE, ad.active ? 'active' : 'ended');
   const platform = ad.platform === 'meta' ? 'Meta' : 'Google';
   return (
-    <article className="flex flex-col gap-2 rounded-[14px] bg-surface p-5 shadow-card">
+    <article className="flex flex-col gap-2 rounded-md bg-surface p-5 shadow-card">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-muted-foreground">
         <span>{platform}</span>
         {ad.format && <span>· {ad.format}</span>}

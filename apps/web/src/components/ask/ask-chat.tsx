@@ -202,7 +202,7 @@ export function AskChat(props: AskChatProps) {
   };
 
   return (
-    <section aria-label={`Ask ${assistantName}`} className="flex min-h-[60vh] min-w-0 flex-1 flex-col rounded-[14px] bg-surface shadow-card">
+    <section aria-label={`Ask ${assistantName}`} className="flex min-h-[60vh] min-w-0 flex-1 flex-col rounded-md bg-surface shadow-card">
       <div className="flex flex-1 flex-col gap-4 p-4 lg:p-5">
         {empty && (
           <div className="flex flex-col gap-3">
