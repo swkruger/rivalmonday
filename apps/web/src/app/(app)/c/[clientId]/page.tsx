@@ -70,8 +70,8 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
-    // Agency staff and the client's owner while setup is open; anyone else (and a closed setup for owners) reads null.
-    tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
+    // Agency staff (and an owner asked to pick, for whom the badge stays hidden); anyone else reads null.
+    tryCallTool<{ state: SetupState; invite: { name: string | null } }>(ctx, 'get_client_setup', { clientId }),
     // Same scope `PageGuide` derives from `/c/<id>`: client context for this client.
     helpGuides(ctx, 'client', clientId),
   ]);
@@ -109,7 +109,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
       />
       {setupSteps !== null && (
         <div>
-          <SetupBadge clientId={clientId} open {...setupSteps} />
+          <SetupBadge clientId={clientId} {...setupSteps} />
         </div>
       )}
 

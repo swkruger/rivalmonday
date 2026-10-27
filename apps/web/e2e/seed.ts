@@ -610,17 +610,17 @@ export const SETUP_OWNER_EMAIL = 'setup-owner@e2e.test';
 /**
  * 11a: no worker runs in E2E, so four open/closed setups are written directly (P5). Every open one has a done discovery
  * run (so saving the profile never starts an auto search: `startFirstAutoSearch` skips clients with any run) and tiered
- * suggestions. `finish` has a complete profile (opens on the pick step; staff finish it), `owner` has an empty profile
- * with ready Google suggestions (its owner edits the profile, then picks), `badge` stays open untouched (portfolio
- * badge), `closed` is completed (its owner gets 404). The setup owner owns `owner` and `closed`.
+ * suggestions. `finish` has complete details + profile (opens on the pick step; staff finish it), `owner` has a complete
+ * profile and the agency asked its owner to pick (Phase 16 O12: competitors `waiting_owner`; the owner picks), `badge`
+ * stays open untouched (portfolio badge), `closed` is completed (its owner gets 404). The setup owner owns `owner` and `closed`.
  */
 async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: string }): Promise<void> {
   const { agencyId } = o;
   const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
   const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'] };
   const [finish, owner, badge, closed] = await db.insert(client).values([
-    { ...base, name: 'Setup Finish Plumbing', keywords: ['plumber near me'], serviceArea: area, placeId: 'e2e-setup-finish-place' },
-    { ...base, name: 'Setup Owner Heating' },
+    { ...base, name: 'Setup Finish Plumbing', phone: '817-555-0100', keywords: ['plumber near me'], serviceArea: area, placeId: 'e2e-setup-finish-place' },
+    { ...base, name: 'Setup Owner Heating', keywords: ['furnace repair'], serviceArea: area, placeId: 'e2e-setup-owner-place' },
     { ...base, name: 'Setup Badge Cooling' },
     { ...base, name: 'Setup Closed Air', keywords: ['ac repair'], serviceArea: area, placeId: 'e2e-setup-closed-place' },
   ]).returning({ id: client.id, name: client.name });
@@ -635,7 +635,7 @@ async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: s
   };
   await db.insert(clientSetup).values([
     { clientId: finish!.id, agencyId, suggestions: { status: 'none' } },
-    { clientId: owner!.id, agencyId, suggestions: ready },
+    { clientId: owner!.id, agencyId, suggestions: ready, ownerPickRequestedAt: new Date() },
     { clientId: badge!.id, agencyId, suggestions: { status: 'none' } },
     { clientId: closed!.id, agencyId, suggestions: { status: 'none' }, competitorsDoneAt: new Date(), completedAt: new Date() },
   ]);
@@ -660,6 +660,8 @@ async function seedSetup(db: ReturnType<typeof createDb>['db'], o: { agencyId: s
     ]),
   ]);
 
+  // Phase 16 details step: a phone (above) and an owner contact, so `finish` closes once its invite is skipped.
+  await db.insert(contact).values({ agencyId, clientId: finish!.id, role: 'client_owner', email: 'finish-owner@e2e.test', name: 'Fran Finish' });
   await createInvitation(db, { agencyId, email: SETUP_OWNER_EMAIL, role: 'client_owner', clientId: owner!.id, invitedBy: 'e2e-seed' });
   await createInvitation(db, { agencyId, email: SETUP_OWNER_EMAIL, role: 'client_owner', clientId: closed!.id, invitedBy: 'e2e-seed' });
 
@@ -704,7 +706,7 @@ async function seedInviteSetup(db: ReturnType<typeof createDb>['db']): Promise<v
   await ensureExemptPilot(db, agencyId);
   await createInvitation(db, { agencyId, email: SI_ADMIN, role: 'agency_admin', invitedBy: 'e2e-seed' });
   const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
-  const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber near me'], serviceArea: area };
+  const base = { agencyId, verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['plumber near me'], serviceArea: area, phone: '817-555-0100' };
   const [step4, step3, billing] = await db.insert(client).values([
     { ...base, name: SI_STEP4, placeId: 'e2e-si-step4-place' },
     { ...base, name: SI_STEP3, placeId: 'e2e-si-step3-place' },
@@ -719,6 +721,12 @@ async function seedInviteSetup(db: ReturnType<typeof createDb>['db']): Promise<v
   await db.insert(discoveryRun).values([step4!, step3!, billing!].map((c) => ({
     agencyId, clientId: c.id, trigger: 'auto' as const, status: 'done' as const, kept: 0, startedAt: new Date(Date.now() - 3600_000), finishedAt: new Date(Date.now() - 3000_000), hidden: {},
   })));
+  // Phase 16 details step (phone above + an owner contact); the billing client's contact is its pending owner.
+  await db.insert(contact).values([
+    { agencyId, clientId: step4!.id, role: 'client_owner', email: 'si-details-four@e2e.test', name: 'Dana Four' },
+    { agencyId, clientId: step3!.id, role: 'client_owner', email: 'si-details-three@e2e.test', name: 'Dana Three' },
+    { agencyId, clientId: billing!.id, role: 'client_owner', email: SI_PENDING_OWNER, name: 'Pending Owner' },
+  ]);
   await createInvitation(db, { agencyId, email: SI_PENDING_OWNER, role: 'client_owner', clientId: billing!.id, invitedBy: 'e2e-seed' });
   await seedIntake(db, agencyId);
 }

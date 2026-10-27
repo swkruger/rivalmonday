@@ -45,7 +45,7 @@ describe('destinationPath', () => {
     expect(destinationPath('trend_report_pdf', 'R', 'C')).toBe('/files/report/R');
     expect(destinationPath('digest', 'X', 'C')).toBe('/inbox');
     expect(destinationPath('notifications', 'C', 'C')).toBe('/inbox');
-    expect(destinationPath('setup', 'C', 'C')).toBe('/c/C/setup');
+    expect(destinationPath('setup', 'C', 'C')).toBe('/c/C');
   });
 });
 

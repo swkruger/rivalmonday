@@ -8,7 +8,7 @@ import { parseClientProfileForm } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
 import type { ClientSetupView, SetupActionResult } from './types';
 
-/** Re-derives the viewer on every call; the tools re-check access (agency staff or the client's owner) themselves. */
+/** Re-derives the viewer on every call; the tools re-check access (agency staff, or the client's owner asked to pick) themselves. */
 const ctxOf = async () => (await requireContext()).ctx;
 
 function refresh(clientId: string): void {
@@ -16,12 +16,12 @@ function refresh(clientId: string): void {
 }
 
 /**
- * A client owner can't open a setup that is closed for them (404 once `clientOpen` is false: their three steps are done,
- * or the setup completed/was dismissed), so the write that closes it sends them to the overview instead of refreshing
- * this page into the 404. Staff stay (the invite/billing steps or the "Setup finished" summary).
+ * A client owner may be in setup only to pick competitors while asked to (O12: competitors `waiting_owner`); the write
+ * that ends that (their confirm) sends them to the overview instead of refreshing this page into the 404. Staff stay
+ * (the invite/billing steps or the "Setup finished" summary).
  */
-async function leaveIfClosed(clientId: string, state: { clientOpen: boolean }): Promise<void> {
-  if (!state.clientOpen && !isAgencyRole((await ctxOf()).role)) redirect(`/c/${clientId}`);
+async function leaveIfClosed(clientId: string, state: { competitors: string }): Promise<void> {
+  if (state.competitors !== 'waiting_owner' && !isAgencyRole((await ctxOf()).role)) redirect(`/c/${clientId}`);
 }
 
 /** Polled by the wizard while suggestions are pending or the search runs. */
@@ -35,7 +35,7 @@ export async function saveSetupProfileAction(clientId: string, fd: FormData): Pr
   if ('error' in parsed) return { ok: false, error: parsed.error };
   const typed = String(fd.get('extraKeywords') ?? '').split(/\r?\n/).map((k) => k.trim()).filter(Boolean);
   const keywords = [...new Set([...fd.getAll('keywords').map((k) => String(k).trim()).filter(Boolean), ...typed])];
-  const r = await runTool<{ state: { open: boolean; clientOpen: boolean }; searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
+  const r = await runTool<{ state: { open: boolean; competitors: string }; searchRefusal: string | null }>(await ctxOf(), 'save_setup_profile', {
     clientId, services: parsed.services, keywords, newAreas: fd.getAll('newAreas').map((n) => ({ name: String(n).trim() })).filter((n) => n.name), serviceArea: parsed.serviceArea, placeId: parsed.placeId,
   });
   if (!r.ok) return r;
@@ -51,10 +51,10 @@ export async function pickSetupCompetitorsAction(clientId: string, accept: strin
   return { ok: true, searchRefusal: null };
 }
 
-export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss';
+export type SetupAdvance = 'start_search' | 'confirm_competitors' | 'skip_search' | 'skip_competitors' | 'skip_invite' | 'skip_billing' | 'dismiss' | 'ask_owner';
 
 export async function advanceSetupAction(clientId: string, action: SetupAdvance): Promise<SetupActionResult> {
-  const r = await runTool<{ state: { open: boolean; clientOpen: boolean }; searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
+  const r = await runTool<{ state: { open: boolean; competitors: string }; searchRefusal: string | null }>(await ctxOf(), 'advance_client_setup', { clientId, action });
   if (!r.ok) return r;
   refresh(clientId);
   await leaveIfClosed(clientId, r.data.state);

@@ -67,7 +67,7 @@ test.describe('agency staff', () => {
   test('staff finishes setup', { tag: ['@setup', '@clients', '@overview'] }, async ({ page }) => {
     const { id } = fx().finish;
     await page.goto(`/c/${id}`);
-    await expect(page.getByRole('link', { name: /Finish setup · \d of 5/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Setup \d of 7$/ })).toBeVisible();
 
     await page.goto(`/c/${id}/setup`);
     for (const tier of ['Top rival', 'Worth watching', 'Minor']) await expect(page.getByRole('group', { name: tier })).toBeVisible();
@@ -87,7 +87,7 @@ test.describe('agency staff', () => {
     await page.goto(`/c/${id}`);
     await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible();
     await expect(page.getByText(`How ${fx().finish.name} compares with its competitors this week.`).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^Setup \d of \d/ })).toHaveCount(0);
     // Picking had an effect: the two ticked top rivals are tracked, the unticked ones are not.
     await page.goto(`/c/${id}/competitors`);
     const tracked = page.getByRole('table');
@@ -96,11 +96,11 @@ test.describe('agency staff', () => {
     await expect(tracked.getByRole('link', { name: 'Setup Watch Plumbing' })).toHaveCount(0);
   });
 
-  test('portfolio shows Finish setup badge for an open setup', { tag: ['@setup', '@clients'] }, async ({ page }) => {
+  test('portfolio shows the setup badge for an open setup', { tag: ['@setup', '@clients'] }, async ({ page }) => {
     const { id, name } = fx().badge;
     await page.goto('/agency');
     const badge = page.locator(`a[href="/c/${id}/setup"]`).first(); // the portfolio renders each row in two layouts
-    await expect(badge).toHaveText(/Finish setup · \d of 5/);
+    await expect(badge).toHaveText(/^Setup \d of 7$/);
     await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
     // A finished setup (the seeded closed one) shows none.
     await expect(page.locator(`a[href="/c/${fx().closed.id}/setup"]`)).toHaveCount(0);
@@ -110,37 +110,20 @@ test.describe('agency staff', () => {
 test.describe('client owner', () => {
   test.use({ storageState: OWNER_STATE });
 
-  test('client owner edits profile and picks competitors', { tag: ['@setup'] }, async ({ page }) => {
+  test('client owner asked to pick picks competitors', { tag: ['@setup'] }, async ({ page }) => {
     const { id } = fx().owner;
+    // O12: the agency asked the owner to pick, so the pick screen is the owner's only setup surface (P8).
     await page.goto(`/c/${id}/setup`);
-    // Ready Google suggestions arrive pre-ticked.
-    await expect(page.getByRole('checkbox', { name: 'AC repair', exact: true })).toBeChecked();
-    await expect(page.getByRole('checkbox', { name: 'ac repair near me' })).toBeChecked();
-    await expect(page.getByRole('button', { name: 'Dismiss setup' })).toHaveCount(0);
-    // 14a: a Google service we have no area for is an unticked "New" chip; ticking it adds it as a service.
-    const newChip = page.getByRole('checkbox', { name: /Radiant floor heating/ });
-    await expect(newChip).not.toBeChecked();
-    await expect(page.getByText('Not in our list yet. Tick to add it as a service; our team reviews new ones.')).toBeVisible();
-    await newChip.check();
-
-    await page.getByLabel('Add your own (one per line, up to 5 in total)').fill('emergency furnace repair');
-    await page.getByText('Advanced', { exact: true }).click(); // map centre and place id live in the closed Advanced disclosure
-    await page.getByLabel('Map centre (latitude, longitude)').fill('32.4, -97.79');
-    await page.getByLabel('Service area radius').selectOption({ label: '20 mi' });
-    await page.getByLabel('ZIP codes served').fill('76048');
-    await page.getByLabel('Google Place ID').fill('e2e-setup-owner-place');
-    await page.getByRole('button', { name: 'Save and find competitors' }).click();
-
-    // The profile is complete and a search already ran, so the wizard moves on to picking.
     await expect(page.getByRole('heading', { name: 'Pick competitors' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dismiss setup' })).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: 'Owner Rival Heating' })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: 'Owner Watch Heating' })).not.toBeChecked();
     await page.getByRole('button', { name: 'Done picking' }).click();
-    // The setup is closed: a client owner can't open it any more, so they land on the overview, with the pick tracked.
+    // Their pick closes the window: they land on the overview, with the pick tracked, and /setup is a 404 again.
     await expect(page).toHaveURL(new RegExp(`/c/${id}$`));
     await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible();
     await expect(page.getByText(`How ${fx().owner.name} compares with its competitors this week.`).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /Finish setup/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^Setup \d/ })).toHaveCount(0);
     await page.goto(`/c/${id}/competitors`);
     await expect(page.getByRole('table').getByRole('link', { name: 'Owner Rival Heating' })).toBeVisible();
     await expect(page.getByRole('table').getByRole('link', { name: 'Owner Watch Heating' })).toHaveCount(0);

@@ -1,6 +1,6 @@
 import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
 import type { AGENCY_KINDS, AlertStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
-import type { MoveRow, StepStatus } from '@cs/tools';
+import type { MoveRow, StepState } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
 
@@ -248,9 +248,10 @@ export const RECOMMENDATION_STATUS: LabelMap<RecommendationStatus> = {
 // runbook play effort / impact
 export const LEVEL: LabelMap<'L' | 'M' | 'H'> = { L: e('Low'), M: e('Medium'), H: e('High') };
 
-// setup wizard StepStatus (packages/tools/src/setup/state.ts)
-export const SETUP_STEP_STATUS: LabelMap<StepStatus> = {
-  todo: e('Not started'), running: e('Running', 'info'), done: e('Done', 'success'), skipped: e('Skipped'), blocked: e('Needs attention', 'warning'),
+// setup wizard StepState (packages/tools/src/setup/state.ts; competitors adds searching/ready/waiting_owner)
+export const SETUP_STEP_STATUS: LabelMap<StepState> = {
+  todo: e('Not started'), searching: e('Searching', 'info'), ready: e('Ready to pick', 'info'), waiting_owner: e('Waiting on the owner', 'info'),
+  done: e('Done', 'success'), skipped: e('Skipped'), blocked: e('Needs attention', 'warning'),
 };
 
 // the client's plan state on the billing / plan card

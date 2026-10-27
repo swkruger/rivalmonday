@@ -21,7 +21,8 @@ export function destinationPath(t: LinkTarget, id: string, clientId: string, bri
     case 'trend_report_pdf':
       return `/files/report/${id}`;
     case 'setup':
-      return `/c/${clientId}/setup`;
+      // Phase 16: setup notices and invites land on the overview (owners never enter /setup, P8; staff find the setup badge there).
+      return `/c/${clientId}`;
     case 'digest':
     case 'notifications':
       return '/inbox';

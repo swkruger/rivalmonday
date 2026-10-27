@@ -58,7 +58,8 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'get_client_profile': return PROFILE;
     case 'get_client_setup':
       return {
-        state: { open: m.setupOpen, exists: true, totalSteps: 5, steps: { profile: 'todo', search: 'todo', competitors: 'todo', invite: 'todo', billing: 'todo' }, dismissedAt: null },
+        // The owner sees setup only while asked to pick (O12): `waiting_owner`.
+        state: { open: m.setupOpen, exists: true, totalSteps: 6, competitors: 'waiting_owner', needsLocation: false, steps: { details: 'done', lookup: 'done', profile: 'todo', competitors: 'waiting_owner', invite: 'todo', billing: 'todo' }, dismissedAt: null },
         lookup: null, suggestions: { status: 'none' }, search: null, competitorSuggestions: [],
         invite: { status: 'none', name: null, email: null },
         vertical: { name: 'HVAC & Plumbing', services: [{ id: 'ac_repair', name: 'AC repair' }], seedKeywords: ['ac repair'] },

@@ -193,9 +193,9 @@ function ClientName({ row, labels }: { row: PortfolioRow; labels: Map<string, st
         {row.name}
       </Link>
       <div className="text-muted-ink">{labels.get(row.verticalId) ?? row.verticalId}</div>
-      {row.setup?.open && (
+      {row.setup && (
         <div className="mt-1">
-          <SetupBadge clientId={row.clientId} open doneSteps={row.setup.doneSteps} totalSteps={row.setup.totalSteps} />
+          <SetupBadge clientId={row.clientId} {...row.setup} />
         </div>
       )}
     </div>

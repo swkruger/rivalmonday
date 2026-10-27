@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic';
 const HELP_KEY = 'page:client.setup';
 const COPY = PAGE_COPY['client.setup'];
 
-const STEP_LABEL = { profile: 'Your business', search: 'Finding competitors', competitors: 'Pick competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
+const STEP_LABEL = { details: 'Client details', lookup: 'Find the business', profile: 'What they do and where', competitors: 'Competitors', invite: 'Invite the owner', billing: 'Billing' } as const;
 
 type Ctx = Awaited<ReturnType<typeof requireContext>>['ctx'];
 
@@ -46,8 +46,8 @@ async function billingPrefill(ctx: Ctx, clientId: string): Promise<BillingPrefil
 }
 
 /**
- * Spec §7. `get_client_setup` refuses (-> 404) anyone but agency staff and the client's owner, and a client owner once
- * the setup is closed; staff may still open a finished or dismissed setup, read-only.
+ * Spec §7. `get_client_setup` refuses (-> 404) anyone but agency staff and the client's owner while asked to pick
+ * (O12/P8); staff may still open a finished or dismissed setup, read-only.
  */
 const loadSetup = cache(async (clientId: string) => {
   const { ctx } = await requireContext();
@@ -75,7 +75,8 @@ export default async function SetupPage({ params }: { params: Promise<{ clientId
   const guides = await helpGuides(ctx, 'client', clientId);
   const header = { description: <HelpText text={COPY.description} />, helpKey: HELP_KEY, guide: guides.has(HELP_KEY) };
 
-  if (!state.open) {
+  // The owner only ever sees the pick screen (Task 8 moves it to /setup/competitors); staff the wizard while open.
+  if (agency ? !state.open : state.competitors !== 'waiting_owner') {
     return (
       <>
         <PageHeader title={title} breadcrumb={crumbs} {...header} />

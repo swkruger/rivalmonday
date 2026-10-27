@@ -11,7 +11,7 @@ import { InviteForm, InviteStatus, InviteStep } from './steps/invite-step';
 import { PickStep } from './steps/pick-step';
 import { SearchStep } from './steps/search-step';
 import type { ClientSetupView, SetupActionResult } from './types';
-import { currentStep, type StepKey, STEPS, stepsFor } from './wizard-steps';
+import { currentStep, type LegacySteps, legacySteps, legacyTotal, type StepKey, STEPS, stepsFor } from './wizard-steps';
 import { ErrorNote } from '@/components/form-error';
 
 
@@ -20,7 +20,7 @@ const SLOW_POLL_MS = 10_000;
 const FAST_FOR_MS = 60_000;
 const GIVE_UP_MS = 60 * 60_000;
 
-const signature = (v: ClientSetupView) => `${v.state.steps.profile}|${v.state.steps.search}|${v.state.steps.competitors}|${v.state.steps.invite ?? ''}|${v.state.steps.billing ?? ''}|${v.invite.status}|${v.suggestions.status}|${v.search?.status ?? ''}|${v.state.open}`;
+const signature = (v: ClientSetupView) => `${v.state.steps.details}|${v.state.steps.profile}|${v.state.competitors}|${v.state.steps.invite}|${v.state.steps.billing ?? ''}|${v.invite.status}|${v.suggestions.status}|${v.search?.status ?? ''}|${v.state.open}`;
 
 /**
  * Same shape as `useSearchProgress` (competitors/competitor-controls.tsx): every 5 s for the first minute, then every
@@ -35,7 +35,7 @@ function useSetupPoll(clientId: string, view: ClientSetupView): ClientSetupView 
     setSeen(view);
     setPolled(null);
   }
-  const waiting = view.suggestions.status === 'pending' || view.state.steps.search === 'running';
+  const waiting = view.suggestions.status === 'pending' || view.state.competitors === 'searching';
   const baseline = signature(view);
   useEffect(() => {
     if (!waiting) return;
@@ -68,7 +68,7 @@ function useSetupPoll(clientId: string, view: ClientSetupView): ClientSetupView 
   return polled ?? view;
 }
 
-function Stepper({ current, steps, list }: { current: StepKey; steps: ClientSetupView['state']['steps']; list: typeof STEPS }) {
+function Stepper({ current, steps, list }: { current: StepKey; steps: LegacySteps; list: typeof STEPS }) {
   return (
     <ol aria-label="Setup steps" className="flex flex-wrap gap-2">
       {list.map((s, i) => {
@@ -97,8 +97,8 @@ export function SetupWizard({
   // Hoisted here (always mounted): a refusal or error must survive the revalidation that swaps the step.
   const [notice, setNotice] = useState<{ kind: 'error' | 'info' | 'ok'; text: string } | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const { steps } = view.state;
-  const list = stepsFor(agency, view.state.totalSteps);
+  const steps = legacySteps(view.state, agency);
+  const list = stepsFor(agency, legacyTotal(view.state));
   const current = currentStep(steps, list);
 
   const run = (job: () => Promise<SetupActionResult>) =>

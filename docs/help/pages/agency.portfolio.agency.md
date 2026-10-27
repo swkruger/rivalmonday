@@ -17,7 +17,7 @@ The four tiles at the top count your clients, the alerts waiting for your check,
 - **Last activity** is the most recent scored change, alert or sent brief.
 - **Billing** shows the client's payment state when you bill clients through your account.
 
-A **Finish setup** chip under a client's name means its setup is still open. It shows how many setup steps are done or skipped out of the total.
+A **Setup** chip under a client's name means its setup is still open. It shows how many setup steps are finished out of the total. **Waiting on** and a name means you asked the owner to pick the competitors and they haven't yet.
 
 ## How to use it
 

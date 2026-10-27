@@ -20,7 +20,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
     tryCallTool<StartingPointStatus>(ctx, 'get_starting_point_status', { clientId }),
-    tryCallTool<{ state: SetupState }>(ctx, 'get_client_setup', { clientId }),
+    tryCallTool<{ state: SetupState; invite: { name: string | null } }>(ctx, 'get_client_setup', { clientId }),
     helpGuides(ctx, 'client', clientId),
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
@@ -40,7 +40,7 @@ export async function ClientHomeBasic({ clientId, ctx }: { clientId: string; ctx
       />
       {setupSteps !== null && (
         <div>
-          <SetupBadge clientId={clientId} open {...setupSteps} />
+          <SetupBadge clientId={clientId} {...setupSteps} />
         </div>
       )}
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">

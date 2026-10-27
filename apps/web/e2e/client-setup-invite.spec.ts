@@ -93,14 +93,14 @@ test.describe.serial('client setup: invite and billing', () => {
     expect(mail.subject).toBe(`${SI_AGENCY} invited you to see your competitors`);
     expect(mail.from).toContain(SI_AGENCY);
     expect(mail.text + mail.subject).not.toMatch(/rival\s*monday/i);
-    // This owner's own three steps are already done, so the link lands on the dashboard, not the (404) wizard.
+    // Owners never enter setup (Phase 16 P8): the link lands on the overview.
     expect(mail.text).toContain(`/sign-in?email=${encodeURIComponent(owner)}&next=${encodeURIComponent(`/c/${id}`)}`);
     // Invited: the invite step is done and billing is now the current step.
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
   });
 
-  test('the invited owner follows the link, signs in with the email prefilled and lands in the setup', { tag: ['@setup', '@clients'] }, async ({ page, browser }, testInfo) => {
+  test('the invited owner follows the link, signs in with the email prefilled and lands on the overview', { tag: ['@setup', '@clients'] }, async ({ page, browser }, testInfo) => {
     const id = await clientId(SI_STEP3);
     const owner = 'si-owner-three@e2e.test';
     await page.goto(`/c/${id}/setup`);
@@ -118,24 +118,19 @@ test.describe.serial('client setup: invite and billing', () => {
       await ownerPage.goto(startUrl!);
       await expect(ownerPage.getByLabel(/email/i)).toHaveValue(owner);
       await openMagicLink(ownerPage, await requestMagicLink(ownerPage, owner));
-      await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}/setup$`));
+      await expect(ownerPage).toHaveURL(new RegExp(`/c/${id}$`));
       await context.storageState({ path: OWNER_STATE });
     } finally {
       await context.close();
     }
   });
 
-  test('a client role sees only its own three steps and never the billing step', { tag: ['@setup', '@client-billing'] }, async ({ browser }, testInfo) => {
+  test('a client owner who was not asked to pick gets 404 on setup', { tag: ['@setup', '@client-billing'] }, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: OWNER_STATE });
     try {
       const page = await context.newPage();
-      await page.goto(`/c/${await clientId(SI_STEP3)}/setup`);
-      const stepper = page.getByRole('list', { name: 'Setup steps' });
-      await expect(stepper.getByRole('listitem')).toHaveCount(3);
-      await expect(stepper.getByText('Billing')).toHaveCount(0);
-      await expect(stepper.getByText('Invite the owner')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Invite the owner' })).toHaveCount(0);
-      await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toHaveCount(0);
+      // Phase 16 O12/P8: an owner reaches setup only while asked to pick competitors.
+      expect((await page.goto(`/c/${await clientId(SI_STEP3)}/setup`))?.status()).toBe(404);
       // Another client of the same agency is a 404 for this owner.
       expect((await page.goto(`/c/${await clientId(SI_BILLING)}/setup`))?.status()).toBe(404);
     } finally {

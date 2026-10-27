@@ -3,6 +3,7 @@ import { Button } from '@cs/ui';
 import { Loader2 } from 'lucide-react';
 import { WriteGuard } from '@/components/read-only';
 import type { ClientSetupView } from '../types';
+import { legacySteps } from '../wizard-steps';
 import { ErrorNote } from '@/components/form-error';
 
 const STAFF_COPY = "Finding competitors. This can take a few minutes — you can leave this page; we'll email you when suggestions are ready.";
@@ -23,7 +24,7 @@ function progressLine(search: ClientSetupView['search']): string | null {
 export function SearchStep({ view, agency, pending, refusal, onStart, onSkip }: {
   view: ClientSetupView; agency: boolean; pending: boolean; refusal: string | null; onStart: () => void; onSkip: () => void;
 }) {
-  const status = view.state.steps.search;
+  const status = legacySteps(view.state, agency).search;
   const running = status === 'running';
   const line = running ? progressLine(view.search) : null;
   return (

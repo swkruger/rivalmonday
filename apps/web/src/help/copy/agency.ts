@@ -31,10 +31,10 @@ export const AGENCY_COPY = {
         title: 'Open actions',
         body: 'Recommendations for the client that are still To do or In progress. Click the number to open them.',
       },
-      // source: apps/web/src/components/setup-badge.tsx:openSetupSteps; packages/tools/src/tools/portfolio.ts:getPortfolio (done or skipped steps of the open setup)
+      // source: apps/web/src/components/setup-badge.tsx:openSetupSteps; packages/tools/src/tools/portfolio.ts:getPortfolio (settled steps of the open setup; waiting_owner)
       setup: {
         title: 'The setup chip',
-        body: "Shows while a client's setup is still open: how many setup steps are done or skipped out of the total. Click it to continue the setup.",
+        body: "Shows while a client's setup is still open: how many setup steps are finished out of the total. \"Waiting on\" and a name means you asked the owner to pick the competitors and they haven't yet. Click it to open the setup.",
       },
       // source: apps/web/src/components/agency/onboarding-checklist.tsx:OnboardingChecklist (openItems: what is still open); apps/web/src/app/(app)/agency/page.tsx (agency admins only)
       checklist: {
