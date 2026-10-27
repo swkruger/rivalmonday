@@ -4,10 +4,10 @@
 **Spec:** `docs/superpowers/specs/2026-10-27-phase-16-design-system-design.md` (D10–D19). **Plans:** one per sub-phase, written just before it runs. Inputs `docs/design-system/` (09 § 9). Prior brief + page inventory (87 pages → frame/archetype): `git show 1c2d0f0e:docs/work/phase-16.md`.
 
 ## Status (overwrite)
-2026-10-27: Q1–Q9 answered (owner: take the recommendations; whole pass, no stops between sub-phases; onboarding drift OK). Spec written. Next: 16a plan → execute → 16b … 16f on this branch.
+2026-10-27: **16a (foundations) built** — 26 + 8 fix commits on this branch: tokens, theme hover/active + secondary-foreground, restyled/new `@cs/ui` primitives (Field, Segmented, Toast, Alert, DotStatus, FilterChip, Tag, TierMark, CitationPill, SourcesList, Section, Band, KpiStrip, TableFrame; Badge + Button `secondary`/`xs` removed), container sweep C1–C4, web control sweep, onboarding tokens, shots + axe harness (`pnpm --filter @cs/web shots`), `pnpm design:lint`. Unit affected green; E2E affected 144/144. design-lint 450 → 236.
 
 ## Next (overwrite)
-16a lean plan (`docs/superpowers/plans/2026-10-27-phase-16a-foundations.md`) → SDD → final review → 16b plan …
+16b plan (shell + PageHeader + Overview slice, spec § 3) → SDD → … 16f. Owner review only at the end (D10).
 
 ## Interfaces this branch adds or changes
 Planned (09 § 9): tokens in `styles.css`, `theme.ts` foreground, new `@cs/ui` primitives, `Card` = Frame, `PageHeader` `meta`/`tabs`/`variant`, shell frame + sheet, `scripts/design-lint.sh`. No migrations expected (next free **0096**).
@@ -24,10 +24,18 @@ None in flight. 13a (white-label, unbuilt, plan approved) touches `theme.ts`, `a
 - D10–D19 (2026-10-27): see spec § 2 — six sub-phases in one continuous pass on this branch; narrow new-UI set; no bottom tabs; shots + axe harness; lint report-only; 13a after; onboarding screens may change.
 
 ## New backlog (target → item)
+- 16b: fix shot routes for setup competitors/invite (`?step` ignored → 3 identical shots); agency onboarding + real invite step not reachable from seed.
+- 16c–16e: review-controls pressed state now primary fill (was `secondary`); remaining native controls `rounded-md bg-transparent` (scope-fields, review-queue, knowledge/editor, ask-card, assign-form, changes/feed); export a shared control class from `@cs/ui`; Field label `gap-2` → `gap-1` when first adopted; agency-coloured `focus-visible:ring-primary` (help-index, help-tip, page-guide, signal-pills) → fixed focus; Card `selected` border-2 shift.
+- 16f: fold onboarding Field into `@cs/ui` Field; delete `--shadow-card`; `design-lint --strict` (first: stop silencing git-grep errors, count untracked files, allowlist playbook literals `border-[1.5px]`/`rounded-[2px]`/gradient/`size-[11px]`/`leading-[18px]`/`tracking-[-0.01em]`); StatusChip `icon` required; onboarding `min-h-screen` + banner spacer scroll; banner height in 3 places → one constant; remaining onboarding `#8796AB`/`text-[11px]`.
+- 13a: checked Switch uses `bg-secondary` + white thumb (~1.4:1 on #FFD400).
+- Card-in-card reduced to plain wrappers (P4): `agency/leads/lead-card.tsx:135` (quote rule), `components/ai-connections.tsx:128` (Band), `changes/viewer.tsx` (frame kept as media well), `competitor-controls.tsx:193,361` (divided list). Not traced across component files.
 - BACKLOG § Design system: OD-5 bottom tab bar < 768 waits for 3–5 pilot-owner phone tests (D12).
 
 ## Owner verification steps
-At the end: before/after shots (`apps/web/test-results/shots/index.html`); decide `design-lint` in CI (D17); sign the sr-only "(required)" Field copy.
+At the end: (1) before/after shots `apps/web/test-results/shots/index.html` (re-run `pnpm --filter @cs/web shots` with `SHOTS_LABEL`); (2) decide `design-lint` in CI (D17); (3) sign copy: Field sr-only "(required)", SaveBar visible "Unsaved changes" (aria-hidden), toast region label "Notifications (F8)" (radix default); (4) primary hover/active now derived per agency and **lighter** on the default blue (#56AFE9/#64B6EB; DS docs said darker #2F93D6/#2581C2, which fails 4.5:1 with the ink label): approve, then update 05/08/`design-tokens.json`/`rm-tokens.css`/frame 11.
+
+## 16a numbers
+Lint baseline (Task 1) 450: shadow-card 63, radius 77, off-scale 10, extrabold 16, uppercase 9, focus-ring 36, hex 122, amber 9, shadow-sm.. 12, Badge 4, text-px 92. After 16a 236 (shadow-card 1 = token definition, rounded-[14px] 0, focus-ring 0, Badge 0). Shots: 33 routes × 1440/390; axe before 30 serious / 0 critical.
 
 ## Brief
 ### 1. Scope
