@@ -205,6 +205,8 @@ test.describe.serial('agency management', () => {
 
       await page.getByRole('button', { name: 'Unarchive' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Unarchive' }).click();
+      // Wait for the action to finish: a goto while the POST is in flight aborts it.
+      await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByRole('link', { name: ARCHIVE_AGENCY, exact: true })).toHaveCount(0);
       await page.goto(`/platform/agencies?q=${encodeURIComponent(ARCHIVE_AGENCY)}`);
       await expect(page.getByRole('link', { name: ARCHIVE_AGENCY, exact: true })).toBeVisible();
