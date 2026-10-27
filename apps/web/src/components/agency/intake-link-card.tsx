@@ -16,7 +16,7 @@ export interface IntakeLinkState {
 type SaveAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 type ToggleAction = (enabled: boolean) => Promise<FormResult>;
 
-const fieldCls = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const fieldCls = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 export const BUTTON_TEXT = 'Get your free competitor snapshot';
 
 /** The snippet an agency pastes into its website (inline styles only: it must work in any page builder). */

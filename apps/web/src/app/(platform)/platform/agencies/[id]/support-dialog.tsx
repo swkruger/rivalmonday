@@ -37,7 +37,7 @@ export function SupportDialog({ agencyId }: { agencyId: string }) {
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink"
             />
           </div>
           {!state.ok && state.error && (

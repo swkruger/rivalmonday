@@ -36,7 +36,7 @@ export interface LeadView {
 
 /** Shown instead of the "Let them know" checkbox: a declined platform lead returns to the pool and the visitor is not emailed. */
 export const PLATFORM_NOTE = 'This lead goes back to the pool.';
-const fieldCls = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const fieldCls = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** "From your website" for the agency's own intake link; a lead the platform assigned is "From the platform" (agency pages never name Rival Monday). */
 export function sourceLabel(source: LeadView['source']): string {

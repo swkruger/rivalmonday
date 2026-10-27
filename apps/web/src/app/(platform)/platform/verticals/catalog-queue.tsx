@@ -46,7 +46,7 @@ interface Props {
 }
 
 const card = 'flex flex-col gap-3 rounded-md border border-line bg-surface p-6';
-const selectClass = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 const chip = 'inline-flex items-center rounded-full bg-muted-surface px-3 py-1 text-sm font-semibold text-ink';
 
 /** Every `quote` string in a draft's evidence (areas, keywords, topics), deduplicated. */

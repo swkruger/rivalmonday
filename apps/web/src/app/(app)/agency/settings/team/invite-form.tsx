@@ -8,7 +8,7 @@ import { labelFor, MEMBERSHIP_ROLE } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { inviteAction, resendInvitationAction, revokeInvitationAction, revokeMembershipAction } from './actions';
 
-const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 const AGENCY_ROLE_OPTIONS: Role[] = ['agency_admin', 'account_manager', 'client_owner', 'client_viewer'];
 const CLIENT_ROLE_OPTIONS: Role[] = ['client_owner', 'client_viewer'];

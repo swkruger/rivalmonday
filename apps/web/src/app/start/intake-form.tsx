@@ -21,7 +21,7 @@ declare global {
   }
 }
 
-const TEXTAREA_CLASS = 'min-h-20 w-full rounded-md border border-[#8796AB] bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const TEXTAREA_CLASS = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 const COOLDOWN_S = 60;
 const STEP_LABELS = ['Find your business', 'Your details', 'Check your email'] as const;
 const TITLES = ['See how you compare with nearby rivals', 'Where should we send it?', 'Your snapshot link is on its way'] as const;
@@ -249,7 +249,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
                   type="button"
                   aria-pressed={on}
                   onClick={() => setPicked(signed)}
-                  className={`flex w-full flex-col gap-1 rounded-lg border p-3.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${on ? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-canvas'}`}
+                  className={`flex w-full flex-col gap-1 rounded-lg border p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${on ? 'border-primary shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-canvas'}`}
                 >
                   <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
                 </button>

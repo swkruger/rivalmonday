@@ -29,7 +29,7 @@ count focus-ring-legacy 'ring-ring/50|ring-\[3px\]' $WEB $UI
 count hex-literals-tsx '#[0-9A-Fa-f]{6}\b' ":(glob)$WEB/**/*.tsx" ':(exclude,glob)**/charts/change-grid.tsx' ':(exclude,glob)**/charts/geo-grid.tsx' ':(exclude,glob)**/charts/theme-heatmap.tsx'
 count bg-amber 'bg-amber' $WEB
 count shadow-sm-md-lg-xl 'shadow-(sm|md|lg|xl)\b' $WEB $UI
-count badge-usage '<Badge' $WEB
+count badge-usage '<Badge\b' $WEB ':(exclude)apps/web/src/lib/page-gates.ts'
 count text-px-arbitrary 'text-\[[0-9]+px\]' $WEB $UI
 
 echo "total: $total"

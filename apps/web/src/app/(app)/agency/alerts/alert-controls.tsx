@@ -9,8 +9,8 @@ import { ALERT_STATUS, labelFor } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { approveAlertAction, dismissAlertAction } from './actions';
 
-const textareaClass = 'min-h-20 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
-const selectClass = 'h-9 w-full max-w-xs rounded-sm border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const textareaClass = 'min-h-20 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+const selectClass = 'h-9 w-full max-w-xs rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** Unreviewed alerts expire after this many days (packages/engine/src/alerts/create.ts:ALERT_REVIEW_EXPIRY_DAYS). */
 const EXPIRY_DAYS = 7;

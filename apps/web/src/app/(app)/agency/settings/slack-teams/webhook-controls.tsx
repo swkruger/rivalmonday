@@ -7,7 +7,7 @@ import { AGENCY_NOTICE_KIND, labelFor, WEBHOOK_KIND } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { addWebhookAction, deleteWebhookAction, testWebhookAction, toggleWebhookAction, type WebhookTestOutcome } from './actions';
 
-const selectClass = 'h-9 w-full max-w-40 rounded-sm border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 w-full max-w-40 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** The agency notices a webhook can carry, in `AGENCY_KINDS` order, worded by the label map (no raw slugs). */
 const AGENCY_KIND_OPTIONS = Object.entries(AGENCY_NOTICE_KIND).map(([value, { label }]) => ({ value, label }));

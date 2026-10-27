@@ -25,7 +25,7 @@ export type RowResult = FormResult & { rowId?: string };
 type FormAction<S> = (prev: S, fd: FormData) => Promise<S>;
 
 export const ACCESS_LABEL: Record<TokenScope, string> = { read: 'Read only', feedback: 'Read and feedback', manage: 'Read, feedback and manage' };
-const selectClass = 'h-9 w-full max-w-[240px] rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const selectClass = 'h-9 w-full max-w-[240px] rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** Extra hidden inputs every form on the card carries (the client page sends its `clientId` for revalidation). */
 type Hidden = Record<string, string>;
