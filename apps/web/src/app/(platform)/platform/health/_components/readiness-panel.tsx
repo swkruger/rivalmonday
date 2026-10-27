@@ -1,5 +1,5 @@
 import type { PlatformHealth } from '@cs/tools';
-import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
 import { READINESS_CHECKPOINT, READINESS_SEVERITY, labelFor } from '@/lib/labels';
 
@@ -22,16 +22,16 @@ const COUNTS: { key: Exclude<keyof ReadinessData, 'checkedAt' | 'deliveryDate' |
  * readiness queries failed (the tool degrades that block only, like the queue stats).
  */
 export function ReadinessPanel({ data, now, tz }: { data: ReadinessData | null; now: Date; tz: string }) {
-  if (!data) return <p className="text-sm text-muted-foreground">Brief readiness unavailable — the readiness query failed; check the web logs.</p>;
+  if (!data) return <p className="text-sm text-muted-ink">Brief readiness unavailable — the readiness query failed; check the web logs.</p>;
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground">Briefs for Monday {formatDate(data.deliveryDate, { tz, now })}</p>
+        <p className="text-sm text-muted-ink">Briefs for Monday {formatDate(data.deliveryDate, { tz, now })}</p>
         <ul aria-label="Brief counts" className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 xl:grid-cols-8">
           {COUNTS.map((c) => (
             <li key={c.key}>
               <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground">{c.label}</span>
+                <span className="text-xs text-muted-ink">{c.label}</span>
                 <span className="text-lg font-semibold tabular-nums text-ink">{data[c.key]}</span>
               </div>
             </li>
@@ -40,41 +40,43 @@ export function ReadinessPanel({ data, now, tz }: { data: ReadinessData | null; 
       </div>
 
       {data.issues.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No readiness issues.</p>
+        <p className="text-sm text-muted-ink">No readiness issues.</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Severity</TableHead><TableHead>Issue</TableHead><TableHead>Delivery date</TableHead><TableHead>Clients</TableHead><TableHead>First seen</TableHead><TableHead>Email</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.issues.map((i) => {
-              const sev = labelFor(READINESS_SEVERITY, i.severity);
-              return (
-                <TableRow key={i.id}>
-                  <TableCell><StatusChip tone={sev.tone}>{sev.label}</StatusChip></TableCell>
-                  <TableCell>
-                    <span className="font-medium">{labelFor(READINESS_CHECKPOINT, i.checkpoint).label}</span>
-                    {i.timezone ? <span className="text-muted-foreground"> · {i.timezone}</span> : null}
-                  </TableCell>
-                  <TableCell>{formatDate(i.deliveryDate, { tz, now })}</TableCell>
-                  <TableCell>{i.clients}</TableCell>
-                  <TableCell>
-                    <time dateTime={i.firstSeenAt} title={formatDateTime(i.firstSeenAt, { tz, zoneLabel: true, now })}>{formatRelative(i.firstSeenAt, now, { tz })}</time>
-                  </TableCell>
-                  <TableCell>
-                    {i.emailedAt ? (
-                      <time dateTime={i.emailedAt} title={formatDateTime(i.emailedAt, { tz, zoneLabel: true, now })}>emailed {formatRelative(i.emailedAt, now, { tz })}</time>
-                    ) : (
-                      <span className="text-muted-foreground">not emailed yet</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <TableFrame>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Severity</TableHead><TableHead>Issue</TableHead><TableHead>Delivery date</TableHead><TableHead>Clients</TableHead><TableHead>First seen</TableHead><TableHead>Email</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.issues.map((i) => {
+                const sev = labelFor(READINESS_SEVERITY, i.severity);
+                return (
+                  <TableRow key={i.id}>
+                    <TableCell><StatusChip tone={sev.tone}>{sev.label}</StatusChip></TableCell>
+                    <TableCell>
+                      <span className="font-medium">{labelFor(READINESS_CHECKPOINT, i.checkpoint).label}</span>
+                      {i.timezone ? <span className="text-muted-ink"> · {i.timezone}</span> : null}
+                    </TableCell>
+                    <TableCell>{formatDate(i.deliveryDate, { tz, now })}</TableCell>
+                    <TableCell>{i.clients}</TableCell>
+                    <TableCell>
+                      <time dateTime={i.firstSeenAt} title={formatDateTime(i.firstSeenAt, { tz, zoneLabel: true, now })}>{formatRelative(i.firstSeenAt, now, { tz })}</time>
+                    </TableCell>
+                    <TableCell>
+                      {i.emailedAt ? (
+                        <time dateTime={i.emailedAt} title={formatDateTime(i.emailedAt, { tz, zoneLabel: true, now })}>emailed {formatRelative(i.emailedAt, now, { tz })}</time>
+                      ) : (
+                        <span className="text-muted-ink">not emailed yet</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableFrame>
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import type { PlatformHealth } from '@cs/tools';
-import { StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { HEALTH_STATUS } from '@/lib/labels';
 
@@ -16,7 +16,7 @@ export function HealthChip({ status }: { status: HealthStatus }) {
 
 /** Relative time with the absolute time (viewer zone) on hover; `now` is the server clock so hydration matches. */
 function When({ iso, now, never, tz }: { iso: string | null; now: Date; never: string; tz: string }) {
-  if (!iso) return <span className="text-muted-foreground">{never}</span>;
+  if (!iso) return <span className="text-muted-ink">{never}</span>;
   return <time dateTime={iso} title={formatDateTime(iso, { tz, zoneLabel: true, now })}>{formatRelative(iso, now, { tz })}</time>;
 }
 
@@ -29,85 +29,93 @@ function age(s: number | null): string {
 
 export function WorkerTable({ worker, now, tz }: { worker: HealthData['worker']; now: Date; tz: string }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow><TableHead>Status</TableHead><TableHead>Last heartbeat</TableHead></TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow>
-          <TableCell><HealthChip status={worker.status} /></TableCell>
-          <TableCell><When tz={tz} iso={worker.lastHeartbeatAt} now={now} never="No heartbeat yet" /></TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow><TableHead>Status</TableHead><TableHead>Last heartbeat</TableHead></TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell><HealthChip status={worker.status} /></TableCell>
+            <TableCell><When tz={tz} iso={worker.lastHeartbeatAt} now={now} never="No heartbeat yet" /></TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }
 
 export function QueuesTable({ queues, queueError = false }: { queues: HealthData['queues']; queueError?: boolean }) {
-  if (queueError) return <p className="text-sm text-muted-foreground">Queue database unreachable — check the worker&apos;s grants and DATABASE_URL.</p>;
-  if (queues.length === 0) return <p className="text-sm text-muted-foreground">No queues reported.</p>;
+  if (queueError) return <p className="text-sm text-muted-ink">Queue database unreachable — check the worker&apos;s grants and DATABASE_URL.</p>;
+  if (queues.length === 0) return <p className="text-sm text-muted-ink">No queues reported.</p>;
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Queue</TableHead><TableHead>Status</TableHead><TableHead>Queued</TableHead><TableHead>Running</TableHead><TableHead>Failed (24 h)</TableHead><TableHead>Oldest waiting</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {queues.map((q) => (
-          <TableRow key={q.name}>
-            <TableCell className="font-medium">{q.name}</TableCell>
-            <TableCell><HealthChip status={q.status} /></TableCell>
-            <TableCell>{q.queued}</TableCell>
-            <TableCell>{q.active}</TableCell>
-            <TableCell>{q.failed24h}</TableCell>
-            <TableCell>{age(q.oldestQueuedAgeS)}</TableCell>
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Queue</TableHead><TableHead>Status</TableHead><TableHead>Queued</TableHead><TableHead>Running</TableHead><TableHead>Failed (24 h)</TableHead><TableHead>Oldest waiting</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {queues.map((q) => (
+            <TableRow key={q.name}>
+              <TableCell className="font-medium">{q.name}</TableCell>
+              <TableCell><HealthChip status={q.status} /></TableCell>
+              <TableCell>{q.queued}</TableCell>
+              <TableCell>{q.active}</TableCell>
+              <TableCell>{q.failed24h}</TableCell>
+              <TableCell>{age(q.oldestQueuedAgeS)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }
 
 export function VendorsTable({ vendors, now, tz }: { vendors: HealthData['vendors']; now: Date; tz: string }) {
-  if (vendors.length === 0) return <p className="text-sm text-muted-foreground">No vendor calls in the last 48 hours.</p>;
+  if (vendors.length === 0) return <p className="text-sm text-muted-ink">No vendor calls in the last 48 hours.</p>;
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Vendor</TableHead><TableHead>Status</TableHead><TableHead>Calls (24 h)</TableHead><TableHead>Errors (24 h)</TableHead><TableHead>Last success</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {vendors.map((v) => (
-          <TableRow key={v.vendor}>
-            <TableCell className="font-medium">{v.vendor}</TableCell>
-            <TableCell><HealthChip status={v.status} /></TableCell>
-            <TableCell>{v.calls24h}</TableCell>
-            <TableCell>{v.errors24h}</TableCell>
-            <TableCell><When tz={tz} iso={v.lastOkAt} now={now} never="None in 48 h" /></TableCell>
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Vendor</TableHead><TableHead>Status</TableHead><TableHead>Calls (24 h)</TableHead><TableHead>Errors (24 h)</TableHead><TableHead>Last success</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {vendors.map((v) => (
+            <TableRow key={v.vendor}>
+              <TableCell className="font-medium">{v.vendor}</TableCell>
+              <TableCell><HealthChip status={v.status} /></TableCell>
+              <TableCell>{v.calls24h}</TableCell>
+              <TableCell>{v.errors24h}</TableCell>
+              <TableCell><When tz={tz} iso={v.lastOkAt} now={now} never="None in 48 h" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }
 
 export function SourcesTable({ sources, now, tz }: { sources: HealthData['sources']; now: Date; tz: string }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow><TableHead>Source</TableHead><TableHead>Status</TableHead><TableHead>When</TableHead></TableRow>
-      </TableHeader>
-      <TableBody>
-        {sources.map((s) => (
-          <TableRow key={s.kind}>
-            <TableCell className="font-medium">{SOURCE_LABEL[s.kind]}</TableCell>
-            <TableCell><HealthChip status={s.status} /></TableCell>
-            <TableCell><When tz={tz} iso={s.lastOkAt} now={now} never="Never" /></TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <TableFrame>
+      <Table>
+        <TableHeader>
+          <TableRow><TableHead>Source</TableHead><TableHead>Status</TableHead><TableHead>When</TableHead></TableRow>
+        </TableHeader>
+        <TableBody>
+          {sources.map((s) => (
+            <TableRow key={s.kind}>
+              <TableCell className="font-medium">{SOURCE_LABEL[s.kind]}</TableCell>
+              <TableCell><HealthChip status={s.status} /></TableCell>
+              <TableCell><When tz={tz} iso={s.lastOkAt} now={now} never="Never" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableFrame>
   );
 }

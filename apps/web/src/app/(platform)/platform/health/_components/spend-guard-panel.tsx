@@ -1,4 +1,4 @@
-import { StatusChip } from '@cs/ui';
+import { StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { SPEND_GUARD_EVENT_KIND, labelFor } from '@/lib/labels';
@@ -18,8 +18,6 @@ const STATE_CHIP = {
   paused: { tone: 'neutral', label: 'Paused' },
 } as const;
 
-const th = 'px-3 py-2 font-semibold';
-const td = 'px-3 py-2';
 const money = (n: number | null) => (n === null ? '—' : formatMoney(n, { cents: true }));
 
 /**
@@ -34,7 +32,7 @@ export function SpendGuardPanel({ data, canReset, tz = 'UTC' }: { data: SpendGua
       <div className="flex flex-wrap items-center gap-3">
         <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
         {data.state.state !== 'ok' && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-ink">
             {data.state.scope ? `${spendScopeLabel(data.state.scope)}` : ''}
             {data.state.since ? ` · since ${when(data.state.since)}` : ''}
           </span>
@@ -42,98 +40,98 @@ export function SpendGuardPanel({ data, canReset, tz = 'UTC' }: { data: SpendGua
         {canReset && <ResetAiPause active={data.state.state !== 'ok'} />}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px] text-left text-sm">
+      <TableFrame>
+        <Table>
           <caption className="sr-only">Spike readings by scope</caption>
-          <thead>
-            <tr className="text-muted-foreground">
-              <th scope="col" className={th}>Scope</th>
-              <th scope="col" className={`${th} text-right`}>Observed</th>
-              <th scope="col" className={`${th} text-right`}>Baseline</th>
-              <th scope="col" className={`${th} text-right`}>Above normal</th>
-            </tr>
-          </thead>
-          <tbody>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Scope</TableHead>
+              <TableHead numeric>Observed</TableHead>
+              <TableHead numeric>Baseline</TableHead>
+              <TableHead numeric>Above normal</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.scopes.map((s) => (
-              <tr key={s.scope} className="border-t border-[#EEF2F6]">
-                <td className={`${td} font-semibold`}>{spendScopeLabel(s.scope)}</td>
-                <td className={`${td} text-right`}>{money(s.observedUsd)}</td>
-                <td className={`${td} text-right`}>{money(s.baselineUsd)}</td>
-                <td className={`${td} text-right`}>
+              <TableRow key={s.scope}>
+                <TableCell className="font-medium">{spendScopeLabel(s.scope)}</TableCell>
+                <TableCell numeric>{money(s.observedUsd)}</TableCell>
+                <TableCell numeric>{money(s.baselineUsd)}</TableCell>
+                <TableCell numeric>
                   {s.ratioPercent}%
-                  {s.floorOnly && <span className="ml-2 rounded-full bg-muted-surface px-2 py-0.5 text-xs font-semibold text-ink" title="Below the spend floor, so it cannot trigger the guard">floor</span>}
-                </td>
-              </tr>
+                  {s.floorOnly && <StatusChip tone="neutral" className="ml-2" title="Below the spend floor, so it cannot trigger the guard">floor</StatusChip>}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableFrame>
 
       <div>
         <h3 className="mb-2 text-sm font-semibold">Paused clients</h3>
         {data.pausedClients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No client is paused for spend.</p>
+          <p className="text-sm text-muted-ink">No client is paused for spend.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-sm">
-              <thead>
-                <tr className="text-muted-foreground">
-                  <th scope="col" className={th}>Client</th>
-                  <th scope="col" className={th}>Agency</th>
-                  <th scope="col" className={`${th} text-right`}>Spend</th>
-                  <th scope="col" className={`${th} text-right`}>Limit</th>
-                  <th scope="col" className={th}>Since</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableFrame>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Agency</TableHead>
+                  <TableHead numeric>Spend</TableHead>
+                  <TableHead numeric>Limit</TableHead>
+                  <TableHead>Since</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.pausedClients.map((c) => (
-                  <tr key={c.clientId} className="border-t border-[#EEF2F6]">
-                    <td className={`${td} font-semibold`}>{c.clientName}</td>
-                    <td className={td}>
+                  <TableRow key={c.clientId}>
+                    <TableCell className="font-medium">{c.clientName}</TableCell>
+                    <TableCell>
                       <Link href={`/platform/agencies/${c.agencyId}`} className="underline">{c.agencyName}</Link>
-                    </td>
-                    <td className={`${td} text-right`}>{money(c.spendUsd)}</td>
-                    <td className={`${td} text-right`}>{money(c.limitUsd)}</td>
-                    <td className={`${td} whitespace-nowrap`}>{when(c.spendPausedAt)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell numeric>{money(c.spendUsd)}</TableCell>
+                    <TableCell numeric>{money(c.limitUsd)}</TableCell>
+                    <TableCell>{when(c.spendPausedAt)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableFrame>
         )}
       </div>
 
       <div>
         <h3 className="mb-2 text-sm font-semibold">Recent events</h3>
         {data.events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No guard events yet.</p>
+          <p className="text-sm text-muted-ink">No guard events yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead>
-                <tr className="text-muted-foreground">
-                  <th scope="col" className={th}>When</th>
-                  <th scope="col" className={th}>Event</th>
-                  <th scope="col" className={th}>Scope</th>
-                  <th scope="col" className={`${th} text-right`}>Observed / baseline</th>
-                  <th scope="col" className={th}>By</th>
-                  <th scope="col" className={th}>Note</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableFrame>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>Event</TableHead>
+                  <TableHead>Scope</TableHead>
+                  <TableHead numeric>Observed / baseline</TableHead>
+                  <TableHead>By</TableHead>
+                  <TableHead>Note</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.events.map((e) => (
-                  <tr key={e.id} className="border-t border-[#EEF2F6]">
-                    <td className={`${td} whitespace-nowrap`}>{when(e.createdAt)}</td>
-                    <td className={td}>{labelFor(SPEND_GUARD_EVENT_KIND, e.kind).label}</td>
-                    <td className={td}>{e.scope ? spendScopeLabel(e.scope) : '—'}</td>
-                    <td className={`${td} text-right`}>{e.observedUsd === null ? '—' : `${money(e.observedUsd)} / ${money(e.baselineUsd)}`}</td>
-                    <td className={td}>{e.actor}</td>
-                    <td className={td}>{e.note ?? '—'}</td>
-                  </tr>
+                  <TableRow key={e.id}>
+                    <TableCell>{when(e.createdAt)}</TableCell>
+                    <TableCell>{labelFor(SPEND_GUARD_EVENT_KIND, e.kind).label}</TableCell>
+                    <TableCell>{e.scope ? spendScopeLabel(e.scope) : '—'}</TableCell>
+                    <TableCell numeric>{e.observedUsd === null ? '—' : `${money(e.observedUsd)} / ${money(e.baselineUsd)}`}</TableCell>
+                    <TableCell>{e.actor}</TableCell>
+                    <TableCell>{e.note ?? '—'}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableFrame>
         )}
       </div>
     </div>

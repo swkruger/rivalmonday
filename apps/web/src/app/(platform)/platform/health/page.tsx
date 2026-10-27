@@ -1,3 +1,4 @@
+import { Section } from '@cs/ui';
 import { HelpText } from '@/components/help/help-context';
 import { HelpTip } from '@/components/help/help-tip';
 import { PageHeader } from '@/components/page-header';
@@ -17,7 +18,6 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Health' };
 
-const card = 'min-w-0 rounded-md border border-line bg-surface p-6';
 const HELP_KEY = 'page:platform.health';
 const COPY = PAGE_COPY['platform.health'];
 
@@ -33,7 +33,7 @@ export default async function PlatformHealthPage() {
   ]);
   const now = new Date(data.generatedAt);
   return (
-    <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-5">
+    <>
       <PageHeader
         title="Health"
         breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Health' }]}
@@ -46,45 +46,24 @@ export default async function PlatformHealthPage() {
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
       />
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Spend guard</h2>
-          <HelpTip tip="platform.health.spendGuard" />
-        </div>
+      <Section title="Spend guard" titleAside={<HelpTip tip="platform.health.spendGuard" />}>
         <SpendGuardPanel data={guard} canReset={role === 'owner' || role === 'staff'} tz={tz} />
-      </section>
-      <section className={card}>
-        <h2 className="mb-3 font-semibold">Brief readiness</h2>
+      </Section>
+      <Section title="Brief readiness" ruled>
         <ReadinessPanel data={data.briefReadiness ?? null} now={now} tz={tz} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Worker</h2>
-          <HelpTip tip="platform.health.worker" />
-        </div>
+      </Section>
+      <Section title="Worker" titleAside={<HelpTip tip="platform.health.worker" />} ruled>
         <WorkerTable worker={data.worker} now={now} tz={tz} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Queues</h2>
-          <HelpTip tip="platform.health.queues" />
-        </div>
+      </Section>
+      <Section title="Queues" titleAside={<HelpTip tip="platform.health.queues" />} ruled>
         <QueuesTable queues={data.queues} queueError={data.queueError} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Vendors</h2>
-          <HelpTip tip="platform.health.vendors" />
-        </div>
+      </Section>
+      <Section title="Vendors" titleAside={<HelpTip tip="platform.health.vendors" />} ruled>
         <VendorsTable vendors={data.vendors} now={now} tz={tz} />
-      </section>
-      <section className={card}>
-        <div className="mb-3 flex items-center gap-1.5">
-          <h2 className="font-semibold">Sources</h2>
-          <HelpTip tip="platform.health.sources" />
-        </div>
+      </Section>
+      <Section title="Sources" titleAside={<HelpTip tip="platform.health.sources" />} ruled>
         <SourcesTable sources={data.sources} now={now} tz={tz} />
-      </section>
-    </div>
+      </Section>
+    </>
   );
 }
