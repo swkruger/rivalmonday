@@ -15,8 +15,8 @@ const TERMS: GlossaryTerm[] = [
   { id: 'pool', term: 'Pool', audience: 'operator', short: 'Operator only.' },
 ];
 
-function mockPointer(fine: boolean) {
-  window.matchMedia = ((q: string) => ({ matches: fine && q.includes('fine'), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as typeof window.matchMedia;
+function mockPointer(fine: boolean, wide = true) {
+  window.matchMedia = ((q: string) => ({ matches: q.includes('min-width') ? wide : fine && q.includes('fine'), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as typeof window.matchMedia;
 }
 
 beforeEach(() => mockPointer(true));
@@ -41,6 +41,15 @@ describe('HelpTip', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('Your slice of the mentions for Bob HVAC.')).toBeTruthy();
     expect(screen.getByText('Longer text.')).toBeTruthy();
+  });
+
+  it('below 768 px the tip opens as a bottom-sheet dialog with the same text', async () => {
+    mockPointer(false, false);
+    render(wrap('client', <HelpTip term="share-of-voice" terms={TERMS} />, 'Bob HVAC'));
+    fireEvent.click(await screen.findByRole('button', { name: 'What is Share of voice?' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Share of voice' });
+    expect(dialog.textContent).toContain('Your slice of the mentions for Bob HVAC.');
+    expect(dialog.textContent).toContain('Longer text.');
   });
 
   it('trigger focus outline is the fixed ring, never the agency colour (guard)', () => {

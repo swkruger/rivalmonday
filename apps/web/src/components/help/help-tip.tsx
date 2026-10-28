@@ -1,6 +1,6 @@
 'use client';
 import { type GlossaryTerm, visibleAudiences } from '@cs/core';
-import { Popover, PopoverContent, PopoverTrigger } from '@cs/ui';
+import { ResponsivePopover, useMediaQuery } from '@cs/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { TipKey } from '@/help/copy';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/render';
@@ -41,6 +41,7 @@ export function HelpTip(props: Props) {
   const r = useResolved(props);
   const guide = usePageGuideAvailable();
   const [open, setOpen] = useState(false);
+  const phone = useMediaQuery('(min-width: 768px)') === false; // sheet branch: no hover-open
   // `hovered`: opened by pointer hover (no focus move, closes on leave). `pinned`: a click turned a hover-open into a normal open.
   const hovered = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,7 +52,7 @@ export function HelpTip(props: Props) {
   useEffect(() => cancelClose, []);
   if (!r || !r.visible) return null;
   const enter = (e: React.PointerEvent) => {
-    if (!finePointer(e)) return;
+    if (phone || !finePointer(e)) return;
     cancelClose();
     if (!open) {
       hovered.current = true;
@@ -59,7 +60,7 @@ export function HelpTip(props: Props) {
     }
   };
   const leave = (e: React.PointerEvent) => {
-    if (!finePointer(e) || !hovered.current) return;
+    if (phone || !finePointer(e) || !hovered.current) return;
     cancelClose();
     timer.current = setTimeout(() => {
       hovered.current = false;
@@ -67,15 +68,23 @@ export function HelpTip(props: Props) {
     }, HOVER_CLOSE_DELAY_MS);
   };
   return (
-    <Popover
+    <ResponsivePopover
       open={open}
       onOpenChange={(next) => {
         cancelClose();
         hovered.current = false;
         setOpen(next);
       }}
-    >
-      <PopoverTrigger asChild>
+      title={r.title}
+      contentClassName="text-sm"
+      popoverContentProps={{
+        onPointerEnter: enter,
+        onPointerLeave: leave,
+        onOpenAutoFocus: (e) => {
+          if (hovered.current) e.preventDefault();
+        },
+      }}
+      trigger={
         <button
           type="button"
           aria-label={r.label}
@@ -93,16 +102,10 @@ export function HelpTip(props: Props) {
         >
           ?
         </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="text-sm"
-        onPointerEnter={enter}
-        onPointerLeave={leave}
-        onOpenAutoFocus={(e) => {
-          if (hovered.current) e.preventDefault();
-        }}
-      >
-        <p className="font-semibold">{r.title}</p>
+      }
+    >
+      <div className="text-sm">
+        {!phone && <p className="font-semibold">{r.title}</p>}
         <p className="mt-1 text-muted-ink">{r.body}</p>
         {r.long && <p className="mt-2 text-muted-ink">{r.long}</p>}
         {r.guideAnchor !== undefined && guide && (
@@ -117,7 +120,7 @@ export function HelpTip(props: Props) {
             More in the guide →
           </button>
         )}
-      </PopoverContent>
-    </Popover>
+      </div>
+    </ResponsivePopover>
   );
 }

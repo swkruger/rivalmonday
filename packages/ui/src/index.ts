@@ -1,5 +1,6 @@
 export * from './theme';
 export * from './lib/cn';
+export * from './hooks/use-media-query';
 export * from './components/alert';
 export * from './components/band';
 export * from './components/breadcrumb';
@@ -18,6 +19,7 @@ export * from './components/kpi-strip';
 export * from './components/hairline-grid';
 export * from './components/label';
 export * from './components/popover';
+export * from './components/responsive-popover';
 export * from './components/save-bar';
 export * from './components/section';
 export * from './components/select';

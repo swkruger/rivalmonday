@@ -1,8 +1,7 @@
 'use client';
 
-import { Sheet, SheetContent, SheetTitle } from '@cs/ui';
+import { Sheet, SheetContent, SheetTitle, useMediaQuery } from '@cs/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 export const LG_QUERY = '(min-width: 1024px)';
 
@@ -18,18 +17,7 @@ export function ListDetailSheet({ open, closeHref, title, children }: {
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [isLg, setIsLg] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
-      setIsLg(true);
-      return;
-    }
-    const mq = window.matchMedia(LG_QUERY);
-    setIsLg(mq.matches);
-    const onChange = (e: { matches: boolean }) => setIsLg(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
+  const isLg = useMediaQuery(LG_QUERY); // null until matchMedia ran (or when it is missing): closed
   return (
     <Sheet open={isLg === false && open} onOpenChange={(o) => { if (!o) router.push(closeHref); }}>
       <SheetContent side="right" aria-describedby={undefined}>
