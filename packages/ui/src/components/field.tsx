@@ -23,7 +23,7 @@ function Field({
   optional?: boolean
   help?: React.ReactNode
   error?: React.ReactNode
-  /** The control's id when `children` is a wrapper (input group, prefix, chips) rather than the control itself: the label points there and nothing is injected into the wrapper. */
+  /** The control's id when `children` is a wrapper (input group, prefix, chips) rather than the control itself: the label points there and nothing is injected into the wrapper. The caller then wires `aria-describedby={`${htmlFor}-help`}` (and `-error`) on the control itself. */
   htmlFor?: string
   children: React.ReactElement<ControlProps>
   className?: string

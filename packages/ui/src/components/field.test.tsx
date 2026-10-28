@@ -59,4 +59,4 @@ describe('Field', () => {
     expect(wrap.id).toBe('');
     expect(wrap.getAttribute('aria-describedby')).toBeNull();
   });
-})
+});

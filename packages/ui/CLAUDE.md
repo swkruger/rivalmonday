@@ -12,7 +12,7 @@ New or changed UI follows it now; existing screens migrate via docs/design-syste
 - Tokens only: no hex, `rounded-[…]`, `text-[…px]` or shadow literals in components; add tokens to styles.css.
 - Radii: controls `rounded-sm` (6), containers/overlays `rounded-md` (8), badges/tags `rounded-xs` (4); pills only for filter chips, Friday, switch, avatars.
 - Shadows: none on static surfaces; `shadow-overlay` for menus/popovers/tooltips/toasts/bars, `shadow-dialog` for dialogs/sheets.
-- Containers: Section > Band > Frame (`Card`) > interactive Card; never nest; cards only for independent objects.
+- Containers: Section > Band > `Frame` (its own primitive) > `Card` (an independent or interactive object); never nest; cards only for independent objects.
 - Status: DotStatus (lifecycle), StatusChip + icon (attention), FilterChip (pill), Tag, TierMark — never colour alone.
 - Lint: `bash scripts/design-lint.sh` is strict by default (exit 1 if total > 0; must stay 0); `--report` prints counts and exits 0. Allowlist = `ALLOW_<LABEL>` arrays at the top of the script; each entry needs a `# reason` line. Not in CI/turbo (owner's call, D17).
 - `StatusChip`: non-neutral tones always show a glyph (`icon={null}` is a type error); only `neutral` may suppress it.

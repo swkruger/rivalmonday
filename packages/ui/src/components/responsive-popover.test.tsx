@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ResponsivePopover } from './responsive-popover';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from './sheet';
 
 type Listener = (e: { matches: boolean }) => void;
 const listeners = new Set<Listener>();
@@ -68,5 +69,34 @@ describe('ResponsivePopover', () => {
     cross(true);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByText('Tip body')).toBeNull();
+  });
+
+  it('the sheet has a named Close button that closes it and returns focus to the trigger', async () => {
+    stub(false);
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'Open tip' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    await screen.findByRole('dialog', { name: 'Tip title' });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('inside a sheet below 768 it stays a popover (no nested sheet)', async () => {
+    stub(false);
+    render(
+      <Sheet open onOpenChange={() => {}}>
+        <SheetTrigger>outer</SheetTrigger>
+        <SheetContent side="right" aria-describedby={undefined}>
+          <SheetTitle>Outer</SheetTitle>
+          <Harness />
+        </SheetContent>
+      </Sheet>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Open tip' }));
+    expect(await screen.findByText('Tip body')).toBeTruthy();
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeTruthy();
+    expect(document.querySelectorAll('[data-slot="sheet-content"]').length).toBe(1);
   });
 });

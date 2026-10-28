@@ -1,8 +1,14 @@
 'use client';
 
 import { Dialog as SheetPrimitive } from 'radix-ui';
-import type * as React from 'react';
+import * as React from 'react';
 import { cn } from '../lib/cn';
+
+/** True inside any `SheetContent`, so an overlay opened there (ResponsivePopover) never nests a second sheet. */
+const InSheetContext = React.createContext(false);
+function useInSheet() {
+  return React.useContext(InSheetContext);
+}
 
 function Sheet(props: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -32,16 +38,16 @@ function SheetContent({ className, children, side = 'left', ...props }: React.Co
           side === 'left' && 'inset-y-0 left-0 w-[280px] max-w-[85vw] border-r border-line',
           side === 'right' && 'inset-y-0 right-0 w-[280px] max-w-[85vw] border-l border-line',
           side === 'top' && 'inset-x-0 top-0 max-h-[85vh] border-b border-line',
-          side === 'bottom' && 'inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-lg border-t border-line',
+          side === 'bottom' && 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-lg border-t border-line',
           className,
         )}
         {...props}
       >
         {side === 'bottom' && <span aria-hidden="true" data-slot="sheet-handle" className="mx-auto mb-2 h-1 w-9 shrink-0 rounded-full bg-line" />}
-        {children}
+        <InSheetContext.Provider value>{children}</InSheetContext.Provider>
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>
   );
 }
 
-export { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger };
+export { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger, useInSheet };

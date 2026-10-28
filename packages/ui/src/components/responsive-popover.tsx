@@ -3,7 +3,9 @@
 import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from './sheet';
+import { X } from 'lucide-react';
+import { Button } from './button';
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger, useInSheet } from './sheet';
 
 export const RESPONSIVE_POPOVER_QUERY = '(min-width: 768px)';
 
@@ -24,6 +26,7 @@ export function ResponsivePopover({ open, onOpenChange, trigger, title, children
   /** Popover branch only (hover handlers, focus control). */
   popoverContentProps?: Omit<ComponentProps<typeof PopoverContent>, 'children' | 'className' | 'align'>;
 }) {
+  const inSheet = useInSheet();
   const wide = useMediaQuery(RESPONSIVE_POPOVER_QUERY);
   const prev = useRef(wide);
   useEffect(() => {
@@ -31,12 +34,18 @@ export function ResponsivePopover({ open, onOpenChange, trigger, title, children
     prev.current = wide;
   }, [wide, open, onOpenChange]);
 
-  if (wide === false) {
+  // Inside a sheet (e.g. the Changes detail on phones) a second bottom sheet would nest; use the popover there.
+  if (wide === false && !inSheet) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>{trigger}</SheetTrigger>
         <SheetContent side="bottom" aria-describedby={undefined}>
-          <SheetTitle className="text-base">{title}</SheetTitle>
+          <div className="flex items-start justify-between gap-2">
+            <SheetTitle className="text-base">{title}</SheetTitle>
+            <SheetClose asChild>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label="Close"><X aria-hidden="true" /></Button>
+            </SheetClose>
+          </div>
           {children}
         </SheetContent>
       </Sheet>
