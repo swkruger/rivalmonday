@@ -21,7 +21,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/ai` | admin | `list_api_tokens`, `list_help_guides` | `list_oauth_grants`: OAuth grants need a real AI app to connect |
 | `/agency/alerts` | admin | `list_alert_queue`, `list_help_guides` | — |
 | `/agency/approvals` | admin | `list_brief_queue`, `list_help_guides` | — |
-| `/agency/approvals/[briefId]` | admin | `get_brief_review`, `list_help_guides` | — |
+| `/agency/approvals/[briefId]` | admin | `get_brief_review`, `get_evidence_refs`, `list_help_guides` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
 | `/agency/settings/branding` | admin | `get_agency_branding`, `list_help_guides` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions`, `list_help_guides` | — |
@@ -58,7 +58,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile`, `list_help_guides` | `get_price_history`: one competitor shows no prices |
 | `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings`, `get_client_profile`, `list_help_guides` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
-| `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations`, `list_help_guides` | — |
+| `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations`, `get_evidence_refs`, `list_help_guides` | — |
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports`, `list_help_guides` | — |
 | `/c/[clientId]/reviews` | admin | `get_topic_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/reviews (Brazos)` | admin | `get_rating_trend` | `search_reviews`: Brazos has no own business ("add your place id"); `search_reviews`: one competitor has no reviews |
