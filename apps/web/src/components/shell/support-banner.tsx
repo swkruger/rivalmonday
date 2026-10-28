@@ -1,6 +1,5 @@
 'use client';
 import { TriangleAlert } from 'lucide-react';
-import { TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BANNER_HEIGHT } from '@/components/shell/banner-height';
 
