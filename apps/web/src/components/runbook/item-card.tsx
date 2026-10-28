@@ -260,7 +260,7 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
           <p className="text-xs text-muted-ink">Leave all unticked to use this play for every service.</p>
         </fieldset>
       )}
-      {error && <ErrorNote compact>{error}</ErrorNote>}
+      {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}
       <div className="flex gap-2">
         <Button size="sm" disabled={pending} onClick={save}>Save</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>

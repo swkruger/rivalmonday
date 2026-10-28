@@ -61,7 +61,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
   return (
     <>
       <Panel>
-        <h2 className="text-lg font-semibold">{preview.self.name}</h2>
+        <h2 className="text-base font-semibold">{preview.self.name}</h2>
         <p className="text-muted-ink">
           {preview.self.rating === null ? 'No rating yet' : `${preview.self.rating} ★`}
           {preview.self.votes !== null ? ` · ${count(preview.self.votes)} reviews` : ''}
@@ -69,7 +69,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
       </Panel>
       {preview.nearby.length > 0 && (
         <Panel>
-          <h2 className="text-lg font-semibold">Nearby competitors</h2>
+          <h2 className="text-base font-semibold">Nearby competitors</h2>
           <Table>
             <TableHeader>
               <TableRow>
@@ -103,7 +103,7 @@ function Body({ preview, agencyName }: { preview: LeadPreview; agencyName: strin
         </Panel>
       )}
       <Panel>
-        <h2 className="text-lg font-semibold">What happens next</h2>
+        <h2 className="text-base font-semibold">What happens next</h2>
         <p className="text-muted-ink">
           {agencyName ? `${agencyName} has your details and will be in touch about next steps.` : "We'll match you with a local marketing partner and they'll be in touch."}
         </p>

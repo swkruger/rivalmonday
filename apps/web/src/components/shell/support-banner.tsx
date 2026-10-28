@@ -34,40 +34,40 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
     >
       {/* Below `sm` two lines (agency and reason; then minutes and Exit) so the reason stays readable at 390 px. */}
       <div className="mx-auto flex w-full min-w-0 max-w-[1560px] items-center gap-2">
-      <TriangleAlert aria-hidden className="size-4 shrink-0 text-warning" />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
-        {ended ? (
-          <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-semibold underline">
-            Session ended — reload
-          </a>
-        ) : (
-          <>
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="min-w-0 max-w-[40%] truncate">
-                Viewing <strong>{agencyName}</strong>
-              </span>
-              <span className="flex-shrink-0">as platform · read only ·</span>
-              <span className="min-w-0 truncate" title={reason}>
-                {reason}
-              </span>
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-1.5">
-              {left !== null && (
-                <span data-testid="support-minutes">
-                  <span className="hidden sm:inline">· </span>
-                  {left} min left
+        <TriangleAlert aria-hidden className="size-4 shrink-0 text-warning" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
+          {ended ? (
+            <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-semibold underline">
+              Session ended — reload
+            </a>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="min-w-0 max-w-[40%] truncate">
+                  Viewing <strong>{agencyName}</strong>
                 </span>
-              )}
-              <span>·</span>
-              <form method="post" action={SUPPORT_EXIT_PATH}>
-                <button type="submit" className="font-semibold underline">
-                  Exit
-                </button>
-              </form>
-            </div>
-          </>
-        )}
-      </div>
+                <span className="flex-shrink-0">as platform · read only ·</span>
+                <span className="min-w-0 truncate" title={reason}>
+                  {reason}
+                </span>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                {left !== null && (
+                  <span data-testid="support-minutes">
+                    <span className="hidden sm:inline">· </span>
+                    {left} min left
+                  </span>
+                )}
+                <span>·</span>
+                <form method="post" action={SUPPORT_EXIT_PATH}>
+                  <button type="submit" className="font-semibold underline">
+                    Exit
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

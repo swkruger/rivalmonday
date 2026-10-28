@@ -125,7 +125,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
           {canEdit && <div><Button size="sm" disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
         </>
       )}
-      {error && <ErrorNote compact>{error}</ErrorNote>}
+      {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}
       {item && <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />}
     </div>
   );
