@@ -1,5 +1,5 @@
 'use client';
-import { Band, Button, Card, ConfirmDialog, Input, Label, nativeSelectClass, Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Band, Button, Card, ConfirmDialog, Input, Label, nativeSelectClass, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
@@ -156,7 +156,7 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
     <Card className="gap-3 p-6">
       <h3 className="text-base font-semibold text-ink">{v.name} <span className="font-mono text-xs text-muted-ink">{v.id}</span></h3>
       <Meta createdBy={v.createdBy} clientCount={v.clientCount} extra={v.draftCostUsd !== null ? `draft cost $${v.draftCostUsd.toFixed(3)}` : undefined} />
-      {v.categories.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Google categories">{v.categories.map((c) => <StatusChip key={c} tone="neutral">{c}</StatusChip>)}</div>}
+      {v.categories.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Google categories">{v.categories.map((c) => <Tag key={c}>{c}</Tag>)}</div>}
       {v.services.length > 0 && <p className="text-sm"><span className="font-semibold">Services:</span> {v.services.map((s) => s.name).join(', ')}</p>}
       <Evidence evidence={v.evidence} />
       <WriteGuard>
@@ -312,7 +312,7 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
       <div className="text-sm text-muted-ink">{a.verticalName}</div>
       <h3 className="text-base font-semibold text-ink">{a.name} <span className="font-mono text-xs text-muted-ink">{a.id}</span></h3>
       <Meta createdBy={a.createdBy} clientCount={a.clientCount} />
-      {a.aliases.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Other names">{a.aliases.map((x) => <StatusChip key={x} tone="neutral">{x}</StatusChip>)}</div>}
+      {a.aliases.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Other names">{a.aliases.map((x) => <Tag key={x}>{x}</Tag>)}</div>}
       <Evidence evidence={a.evidence} />
       <WriteGuard>
         {canEdit && (
