@@ -1,4 +1,6 @@
 'use client';
+import { TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { BANNER_HEIGHT } from '@/components/shell/banner-height';
 
@@ -28,9 +30,11 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
     <div
       role="region"
       aria-label="Support session"
-      className={`fixed inset-x-0 top-0 z-50 flex ${BANNER_HEIGHT.base} items-center bg-amber px-4 text-sm text-amber-text ${BANNER_HEIGHT.sm}`}
+      className={`fixed inset-x-0 top-0 z-50 flex ${BANNER_HEIGHT.base} items-center bg-warning-surface px-4 text-sm text-ink shadow-[inset_3px_0_0_var(--warning)] ${BANNER_HEIGHT.sm}`}
+      data-tone="warning"
     >
       {/* Below `sm` two lines (agency and reason; then minutes and Exit) so the reason stays readable at 390 px. */}
+      <TriangleAlert aria-hidden className="mr-2 size-4 shrink-0 text-warning" />
       <div className="mx-auto flex w-full min-w-0 max-w-[1560px] flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
         {ended ? (
           <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-semibold underline">

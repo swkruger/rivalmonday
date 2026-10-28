@@ -25,7 +25,7 @@ export function zoomView(v: MapView, factor: number, cx: number, cy: number, w: 
   return clampView({ k, tx: cx - (cx - v.tx) * r, ty: cy - (cy - v.ty) * r }, w, h);
 }
 
-const btn = 'flex size-7 items-center justify-center rounded-md border border-border bg-white text-ink shadow-sm hover:bg-muted disabled:cursor-default disabled:opacity-40';
+const btn = 'flex size-7 items-center justify-center rounded-md border border-border bg-white text-ink shadow-overlay hover:bg-muted disabled:cursor-default disabled:opacity-40';
 
 /**
  * Phase 13b polish: zoom and pan for a map-backed grid. +/− and reset buttons, drag to pan once zoomed, pinch on touch,

@@ -103,7 +103,7 @@ describe('MonthlyChart', () => {
     expect(bars[5]!.querySelector('title')!.textContent).toBe('Oct 2026: $75.00 (API $50.00, manual $25.00)');
     expect(bars[0]!.querySelectorAll('rect')).toHaveLength(1); // zero API spend draws no API segment
     expect(container.querySelectorAll('rect[fill="var(--secondary)"]')).toHaveLength(5);
-    expect(container.querySelectorAll('rect[fill="var(--amber)"]')).toHaveLength(6);
+    expect(container.querySelectorAll('rect[fill="var(--chart-rival-2)"]')).toHaveLength(6);
     expect(screen.getByText('API usage')).toBeTruthy();
     expect(screen.getByText('Manual costs')).toBeTruthy();
   });

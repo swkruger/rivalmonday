@@ -14,12 +14,12 @@ export function OwnerWelcome({ clientId, line }: { clientId: string; line: strin
   const [, start] = useTransition();
   if (hidden) return null;
   return (
-    <div className="flex items-center gap-4 rounded-lg bg-[#EEF2F6] px-[18px] py-3.5 text-sm">
+    <div className="flex items-center gap-4 rounded-md bg-muted-surface px-[18px] py-3.5 text-sm">
       <p className="flex-1">{line}</p>
       <button
         type="button"
         onClick={() => { setHidden(true); start(() => dismissWelcome(clientId)); }}
-        className="text-[13px] font-medium text-muted-ink hover:text-ink"
+        className="text-13 font-medium text-muted-ink hover:text-ink"
       >
         Dismiss
       </button>
@@ -31,7 +31,7 @@ export function OwnerWelcome({ clientId, line }: { clientId: string; line: strin
 export function OwnerPickCard({ clientId, agency, count, place }: { clientId: string; agency: string; count: number; place: string | null }) {
   const found = count > 0 ? `We found ${count} ${count === 1 ? 'business' : 'businesses'}${place ? ` near ${place}` : ''}. ` : '';
   return (
-    <section className="flex max-w-[1000px] items-center gap-5 rounded-xl border border-line px-6 py-[22px]">
+    <section className="flex max-w-[1000px] items-center gap-5 rounded-lg border border-line px-6 py-[22px]">
       <div aria-hidden="true" className="flex size-11 flex-none items-center justify-center rounded-lg bg-primary-soft text-primary-soft-text"><Users className="size-[22px]" /></div>
       <div className="min-w-0 flex-1">
         <h2 className="text-base font-semibold">{agency} asked you to choose who to watch</h2>

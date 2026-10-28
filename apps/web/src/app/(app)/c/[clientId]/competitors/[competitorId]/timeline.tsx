@@ -31,7 +31,7 @@ export function Timeline({ clientId, items, timezone }: { clientId: string; item
               it.kind === 'move' ? (
                 <li key={`m-${it.id}`}>
                   <Link href={movesHref(clientId, { status: 'all', move: it.id })} className="flex items-center gap-3 rounded-md p-2 hover:bg-muted-surface">
-                    <span aria-hidden="true" className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-amber/20 text-amber-text">
+                    <span aria-hidden="true" className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-md bg-warning-surface text-warning-text">
                       <TrendingUp className="h-4 w-4" strokeWidth={2} />
                     </span>
                     <span className="min-w-0 flex-1 truncate font-semibold text-ink">

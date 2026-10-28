@@ -1,11 +1,11 @@
 import { formatMoney } from '@/lib/format';
 import type { CostMonth } from './types';
 
-/** Brand tokens (CLAUDE.md): secondary for API-metered spend, accent for manual costs. */
+/** Chart roles: secondary for API-metered spend, `--chart-rival-2` (not amber: that is Friday's) for manual costs. dataviz validator vs secondary: normal dE 18.1, worst CVD dE 7.6 (tritan; legend and surface outline carry identity), 3.88:1 on white. */
 export const API_COLOR = 'var(--secondary)';
-export const MANUAL_COLOR = 'var(--amber)';
-/** The accent alone is ~2:1 on white (below the 3:1 non-text minimum), so manual segments also carry this darker outline. */
-const MANUAL_EDGE = 'var(--accent-text)';
+export const MANUAL_COLOR = 'var(--chart-rival-2)';
+/** A surface-coloured hairline separates the stacked segments. */
+const MANUAL_EDGE = 'var(--surface)';
 
 const W = 640;
 const H = 240;

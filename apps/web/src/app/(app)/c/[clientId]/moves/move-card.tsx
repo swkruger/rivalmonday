@@ -8,13 +8,13 @@ import { TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { labelFor, MOVE_STATUS } from '@/lib/labels';
 
-const ROW = 'flex items-start gap-3 p-3 hover:bg-muted-surface first:rounded-t-[5px] last:rounded-b-[5px]';
+const ROW = 'flex items-start gap-3 p-3 hover:bg-muted-surface first:rounded-t-sm last:rounded-b-sm';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Pre-flight F12: colour by status — active → accent (amber), emerging → primary, fading/closed → muted. */
+/** Pre-flight F12: colour by status — active → warning, emerging → primary, fading/closed → muted. */
 const TILE: Record<MoveRow['status'], string> = {
-  active: 'bg-amber/20 text-amber-text',
+  active: 'bg-warning-surface text-warning-text',
   emerging: 'bg-primary/15 text-primary',
   fading: 'bg-muted-surface-2 text-muted-ink',
   closed: 'bg-muted-surface-2 text-muted-ink',

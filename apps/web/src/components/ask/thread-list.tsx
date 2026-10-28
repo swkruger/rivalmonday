@@ -72,12 +72,12 @@ export function ThreadList({ clientId, threads, activeId, deleteAction }: Thread
           {threads.map((t) => {
             const active = t.id === activeId;
             return (
-              <li key={t.id} className={`rounded-lg ${active ? 'bg-primary-soft' : 'hover:bg-muted-surface'}`}>
+              <li key={t.id} className={`rounded-md ${active ? 'bg-primary-soft' : 'hover:bg-muted-surface'}`}>
                 <div className="flex items-center gap-1">
                 <Link
                   href={`/c/${clientId}/ask/${t.id}`}
                   aria-current={active ? 'page' : undefined}
-                  className={`min-w-0 flex-1 truncate px-2.5 py-2 text-[13px] ${active ? 'font-semibold text-primary-soft-text' : 'text-ink/80'}`}
+                  className={`min-w-0 flex-1 truncate px-2.5 py-2 text-13 ${active ? 'font-semibold text-primary-soft-text' : 'text-ink/80'}`}
                   title={t.title}
                 >
                   {t.title}
