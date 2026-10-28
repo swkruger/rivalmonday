@@ -149,21 +149,25 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Unscheduled (15b): console editor for platform guides; help-usage analytics; first-visit "new" hints — *phase-15b*
 
 ## Phase 16 follow-ups (design system v1, onboarding)
-- [ ] Rest of Phase 16 (design system v1 on all other pages): `/rm-kickoff` a new sub-phase; brief, D1–D4, open OD-5 and the 9 open questions are in `git show 1c2d0f0e:docs/work/phase-16.md`; 16-onboarding done — *phase-16*
-
 **Soon**
+- [ ] Shell: top-bar search trigger + Ask pill (Frame 2); sidebar collapse-to-rail — *phase-16*
+- [ ] Phones (16f P1 deferred): canvas bands; 44 px touch targets; dropdown menus as bottom sheets; swipe-to-close on sheets; `ResponsivePopover` beyond HelpTip. OD-5 bottom tab bar < 768 waits for 3–5 pilot-owner phone tests (D12) — *phase-16*
+- [ ] design-lint gaps: skips `.ts`, 3-digit hex, `shadow-[…]`, `font-bold`; narrow `ALLOW_HEX`/`ALLOW_AMBER` (chart files incl. topic-heatmap fills → tokens); design-lint in CI awaits owner (D17) — *phase-16*
+- [ ] Friday panel: feedback icons, follow-ups after answers, conversation title, toast (Frame 12); composer draft survives panel close/resize; stale proposed-write link after confirming on the full page; dock reads repeat on every Ask-page refresh (request-cache starters/profile); `refsAction` in page mode duplicates `router.refresh` — *phase-16 (16d)*
+- [ ] Client pages: applied-filter chips with ✕; bulk bar Select all/clear; client + agency settings danger zones; `rounded-[5px]` on Moves rows; thin tests (AI page sections, Rankings compare form, history-period nav) — *phase-16 (16c)*
+- [ ] Rulings to confirm: "≤ 1 primary per view" vs one primary per queue card; `kb/article-view` date not in viewer tz (behaviour change) — *phase-16 (16e)*
+- [ ] Card-in-card reduced to plain wrappers, not traced across component files (`lead-card.tsx:135`, `ai-connections.tsx:128`, `changes/viewer.tsx`, `competitor-controls.tsx`) — *phase-16*
 - [ ] `contact.updated_at` instead of bumping `created_at` for owner recency; invite target (`invited_contact_id`) can differ from the Business-details owner after an email change — *phase-16*
 - [ ] Onboarding polish: "Save and exit" saves nothing; support banner overlaps the onboarding top row; `update_client_details` geocodes before checking an existing centre; area step duplicates `lib/format/distance.ts`; find step clears a hand-picked type on re-search; "Sent again." shown when a resend was rate-limited; owner pick+confirm are two calls; Business-details save is details-then-logo (partial save on logo failure) — *phase-16*
 - [ ] Owner-pick clock: cancel + re-ask restarts the 14-day wait; after a cancel the activation-based hold may already be due — *phase-16*
 - [ ] `client-boundary` gate ignores default imports/barrels; pages import constants from `'use client'` modules (`knowledge/page.tsx` `selectClass`) — *phase-16*
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
+- [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
 - [ ] Extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` (platform agency page) into it — *phase-15c3 (R11)*
-- [ ] 15c-3b: plans-tab "Agencies not on the current version" uses the shadow `card`; move `billing/plan-move-parts.tsx` to `platform/_components/`; web hard-codes `['ask','mcp']` instead of `PLAN_FEATURES` — *phase-15c3b*
+- [ ] 15c-3b: move `billing/plan-move-parts.tsx` to `platform/_components/`; web hard-codes `['ask','mcp']` instead of `PLAN_FEATURES` — *phase-15c3b*
 - [ ] `--color-secondary-foreground` is still a literal (15c-2a made `--primary-foreground` a runtime var via `readableTextOn`) — *phase-15c2a*
-- [ ] Hex without tokens (existing Cards stay for phase-16, Q2): disabled `bg-[#CBD5E1]`; signal-pills unticked border `#CBD5E1`; tier chip `#E2E8F0`/`#F1F5F9`/`#4A5D73`; topic-heatmap INK/WHITE/LINE and sentiment fills — *phase-15c2b2*
-- [ ] **Next phase candidate:** `/rm-kickoff design-system`. Migrate the app to `docs/design-system/` following `09-ai-implementation-playbook.md` § 9 (11 PRs: tokens → primitives → new primitives → container sweep → shell + PageHeader → Overview slice (owner review) → workspace pages → detail/settings → Friday + briefs → responsive → lock-in). 153 Card/shadow-card usages mapped. Coordinate with **15c-2** (same files). — *design-system*
-- [ ] Validate the responsive proposal (D-23: drawer < 1024, bottom tab bar < 768) with 3–5 pilot owners on phones before PR 10. — *design-system*
+- [ ] 13a: brand-aware chart check (`--you` = agency secondary may clash with rival orange #E05A2B); neutral chart-series alias for the platform costs chart (manual series borrows `--chart-rival-2`); checked Switch `bg-secondary` + white thumb (~1.4:1 on #FFD400) — *phase-16*
 
 ## Polish (small UI/UX fixes, any time)
 - [ ] Pack YAML flow-mapping descriptions containing commas are truncated (generic `staff_professionalism` is stored as "Courtesy"): quote descriptions + new migration — *from 15b-3b*
