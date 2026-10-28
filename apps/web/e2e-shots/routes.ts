@@ -16,7 +16,7 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'agency-alerts', path: '/agency/alerts', as: 'agency', gate: true },
   { label: 'agency-settings-team', path: '/agency/settings/team', as: 'agency', gate: true },
   { label: 'agency-settings-branding', path: '/agency/settings/branding', as: 'agency', gate: true },
-  { label: 'agency-new-client', path: '/agency/clients/new', as: 'agency' },
+  { label: 'agency-new-client', path: '/agency/clients/new', as: 'agency', gate: true },
   { label: 'agency-approvals', path: '/agency/approvals', as: 'agency', gate: true },
   { label: 'agency-approval-detail', path: (fx) => `/agency/approvals/${fx.approvalBriefId ?? ''}`, as: 'agency', gate: true, skipIf: (fx) => fx.approvalBriefId === null },
   { label: 'agency-leads', path: '/agency/leads', as: 'agency', gate: true },
@@ -71,9 +71,9 @@ export const SHOT_ROUTES: ShotRoute[] = [
   // Support session (banner over an agency page)
   { label: 'support-agency', path: '/agency', as: 'support', gate: true },
   // Onboarding (D19)
-  { label: 'setup-profile', path: (fx) => `/c/${fx.setupClientId}/setup?step=profile`, as: 'agency', heading: /What they do and where/ },
-  { label: 'setup-competitors', path: (fx) => `/c/${fx.setupClientId}/setup`, as: 'agency', heading: /Pick who to watch/ },
-  { label: 'setup-invite', path: (fx) => `/c/${fx.setupOwnerClientId}/setup?step=invite`, as: 'agency', heading: /Invite the owner/ },
+  { label: 'setup-profile', path: (fx) => `/c/${fx.setupClientId}/setup?step=profile`, as: 'agency', gate: true, heading: /What they do and where/ },
+  { label: 'setup-competitors', path: (fx) => `/c/${fx.setupClientId}/setup`, as: 'agency', gate: true, heading: /Pick who to watch/ },
+  { label: 'setup-invite', path: (fx) => `/c/${fx.setupOwnerClientId}/setup?step=invite`, as: 'agency', gate: true, heading: /Invite the owner/ },
   // Signed out
   { label: 'sign-in', path: '/sign-in', as: 'signed-out', gate: true },
   { label: 'sign-up', path: '/sign-up', as: 'signed-out', gate: true },
