@@ -1,5 +1,5 @@
 import { getReviewableAskThread } from '@cs/tools';
-import { StatusChip } from '@cs/ui';
+import { Frame, StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -71,7 +71,7 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
           { label: 'Message status', tip: 'platform.ask.thread.status' },
         ]}
       />
-      <ol className="divide-y divide-line rounded-md border border-line">
+      <Frame flush><ol className="divide-y divide-line">
         {thread.messages.map((m) => (
           <li key={m.id} className="p-4">
             <div className="mb-1 flex flex-wrap items-center gap-2 text-13 text-muted-ink">
@@ -111,7 +111,7 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
             )}
           </li>
         ))}
-      </ol>
+      </ol></Frame>
     </>
   );
 }

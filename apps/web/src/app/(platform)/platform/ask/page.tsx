@@ -1,5 +1,5 @@
 import { listReviewableAskThreads } from '@cs/tools';
-import { Section, StatusChip } from '@cs/ui';
+import { Frame, Section, StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -53,7 +53,7 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
       {page.items.length === 0 ? (
         <EmptyState {...COPY.empty.none} guideAnchor="what-this-page-tells-you" />
       ) : (
-        <ul className="divide-y divide-line rounded-md border border-line">
+        <Frame flush><ul className="divide-y divide-line">
           {page.items.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div>
@@ -69,7 +69,7 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
               </div>
             </li>
           ))}
-        </ul>
+        </ul></Frame>
       )}
       </Section>
       {page.nextCursor && <Link href={`/platform/ask?cursor=${page.nextCursor}`} className="text-secondary hover:underline">Older threads</Link>}

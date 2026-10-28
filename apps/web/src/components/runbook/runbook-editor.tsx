@@ -1,5 +1,5 @@
 'use client';
-import { Band, Button } from '@cs/ui';
+import { Band, Button, Frame } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 import { ErrorNote } from '@/components/form-error';
@@ -108,12 +108,12 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
         {rules.length === 0 ? <p className="text-muted-ink">No rules yet.</p> : <div className="grid gap-5 xl:grid-cols-2">{rules.map(card)}</div>}
       </Section>
       <Section title="Settings">
-        <div className="divide-y divide-line rounded-md border border-line">
+        <Frame flush className="divide-y divide-line">
           {KNOBS.map((n) => {
             const item = knob(n);
             return <KnobCard key={`${n}:${item?.version ?? 0}:${item?.state ?? ''}:${JSON.stringify(item?.content ?? null)}`} name={n} item={item} level={level} businessAreas={data.businessAreas} canEdit={canEdit} run={run} />;
           })}
-        </div>
+        </Frame>
       </Section>
     </div>
   );

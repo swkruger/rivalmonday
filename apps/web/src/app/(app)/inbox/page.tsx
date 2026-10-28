@@ -1,5 +1,5 @@
 import { listInbox } from '@cs/tools';
-import { Button, StatusChip, Tag } from '@cs/ui';
+import { Button, Frame, StatusChip, Tag } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -56,7 +56,7 @@ export default async function InboxPage() {
       {items.length === 0 ? (
         <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />
       ) : (
-        <div className="overflow-clip rounded-md border border-line divide-y divide-line">
+        <Frame flush className="overflow-clip divide-y divide-line">
           {items.map((item) => {
             const when = formatDateTime(item.createdAt, { tz, zoneLabel: true });
             return (
@@ -81,7 +81,7 @@ export default async function InboxPage() {
             </form>
             );
           })}
-        </div>
+        </Frame>
       )}
     </>
   );

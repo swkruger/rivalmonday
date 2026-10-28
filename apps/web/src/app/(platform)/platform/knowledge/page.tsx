@@ -1,5 +1,5 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
-import { Button, Section, StatusChip, toolbarControlClass } from '@cs/ui';
+import { Button, Frame, Section, StatusChip, toolbarControlClass } from '@cs/ui';
 import Link from 'next/link';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -84,7 +84,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
       {page.items.length === 0 ? (
         <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />
       ) : (
-        <ul className="divide-y divide-line rounded-md border border-line">
+        <Frame flush><ul className="divide-y divide-line">
           {page.items.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
@@ -100,7 +100,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
               </div>
             </li>
           ))}
-        </ul>
+        </ul></Frame>
       )}
       </Section>
       {page.nextCursor && <Link href={`/platform/knowledge?${more.toString()}`} className="text-secondary hover:underline">Older articles</Link>}

@@ -1,6 +1,6 @@
 import type { LeadPreview } from '@cs/db';
 import { getPublicPreview, type PublicAgencyBranding } from '@cs/tools';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Frame, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -33,7 +33,7 @@ const shellBrand = (b: IntakeBrand): OnboardingBrand =>
   b.kind === 'agency' ? { kind: 'agency', name: b.displayName, logoUrl: b.logoUrl, style: b.style as React.CSSProperties } : { kind: b.kind };
 
 /** A flat section for the wide snapshot page: a hairline frame, no shadow (design system: shadows only on floating layers). */
-const Panel = ({ children }: { children: React.ReactNode }) => <section className="flex flex-col gap-3 rounded-md border border-line p-5">{children}</section>;
+const Panel = ({ children }: { children: React.ReactNode }) => <Frame className="flex flex-col gap-3 bg-transparent p-5">{children}</Frame>;
 
 const rating = (r: number | null) => (r === null ? '—' : `${r} ★`);
 const count = (n: number | null) => (n === null ? '—' : new Intl.NumberFormat('en-US').format(n));

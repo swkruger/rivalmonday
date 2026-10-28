@@ -1,7 +1,7 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Band, Button, Input, Label, SaveBar, Section, readableTextOn, themeVars } from '@cs/ui';
+import { Band, Button, Frame, Input, Label, SaveBar, Section, readableTextOn, themeVars } from '@cs/ui';
 import { useActionState, useId, useRef, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -160,7 +160,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
       {footer}
       </div>
 
-      <div style={vars} className="sticky top-4 flex flex-col gap-3 rounded-md border border-line bg-surface p-4" data-slot="frame">
+      <Frame style={vars} className="sticky top-4 flex flex-col gap-3">
         <h2 className="text-base font-semibold">Live preview</h2>
         <p className="text-xs font-semibold text-muted-ink">Dashboard</p>
         <div className="overflow-hidden rounded-md border border-line">
@@ -206,7 +206,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
             </div>
           </div>
         </div>
-      </div>
+      </Frame>
     </div>
   );
 }

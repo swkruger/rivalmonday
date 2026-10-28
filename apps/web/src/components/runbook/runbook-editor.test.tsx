@@ -222,7 +222,7 @@ describe('RunbookEditor', () => {
     render(<RunbookEditor data={data([knob('thresholds')])} canEdit action={ok} />);
     const row = document.querySelector('[data-item="knob:thresholds"]') as HTMLElement;
     expect(row.getAttribute('data-slot')).toBeNull();
-    expect(row.parentElement?.className).toContain('divide-y');
+    expect(row.parentElement?.getAttribute('data-slot')).toBe('frame');
     expect(within(row).getByRole('switch', { name: 'Alert and brief thresholds on or off' })).toBeTruthy();
   });
 });

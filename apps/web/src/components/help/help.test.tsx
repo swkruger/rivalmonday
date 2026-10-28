@@ -283,7 +283,7 @@ describe('EmptyState', () => {
     render(wrap('client', <EmptyState title="Nothing yet" body="Add one." />));
     const box = screen.getByRole('heading', { name: 'Nothing yet' }).closest('[data-slot="empty-state"]') as HTMLElement;
     expect(box).not.toBeNull();
-    expect(box.className).not.toContain('border');
+    expect(box.closest('[data-slot="frame"]')).toBeNull();
     expect(screen.getByText('Add one.')).toBeTruthy();
   });
 
