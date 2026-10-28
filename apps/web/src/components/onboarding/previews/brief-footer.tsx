@@ -12,10 +12,10 @@ export function BriefFooter({ agency, contact, phone, email, address, focus }: {
       <div className="text-xs font-medium text-muted-ink">Weekly brief</div>
       <div className="mt-1.5 text-xl font-semibold">Three things your rivals did this week</div>
       <div aria-hidden="true" className="mt-5 flex flex-col gap-3">
-        {[92, 78, 85].map((w) => <div key={w} className="h-2.5 rounded-full bg-[#EEF2F6]" style={{ width: `${w}%` }} />)}
+        {[92, 78, 85].map((w) => <div key={w} className="h-2.5 rounded-full bg-muted-surface" style={{ width: `${w}%` }} />)}
       </div>
       <div className="mt-7 flex items-center gap-3.5 border-t border-line pt-4">
-        <div aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EEF2F6] text-sm font-semibold">{initialsOf(contact) || '·'}</div>
+        <div aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted-surface text-sm font-semibold">{initialsOf(contact) || '·'}</div>
         <div className="min-w-0 text-sm">
           <Highlight active={focus === 'agency'}>
             <div className="font-semibold">{[contact || 'Your name', agency || 'Your agency'].join(' · ')}</div>

@@ -1,5 +1,5 @@
-/** Chart roles (dataviz skill, validated): you #2A6BAC, rival 1 #E05A2B, rival 2 #14936A, context grey #A3B1C2. */
-export const SCORE_COLORS = { you: '#2A6BAC', rival1: '#E05A2B', rival2: '#14936A', context: '#A3B1C2' } as const;
+/** Chart roles (dataviz skill, validated): you (secondary), rival 1, rival 2, context grey: the chart tokens in `@cs/ui` styles. */
+export const SCORE_COLORS = { you: 'var(--secondary)', rival1: 'var(--chart-rival-1)', rival2: 'var(--chart-rival-2)', context: 'var(--chart-context)' } as const;
 
 export interface ScoreRow {
   name: string;
@@ -12,20 +12,20 @@ export interface ScoreRow {
 function Bars({ title, rows, value, max, format }: { title: string; rows: ScoreRow[]; value: (r: ScoreRow) => number | null; max: number; format: (v: number) => string }) {
   return (
     <section aria-label={title}>
-      <h3 className="mb-2.5 mt-5 text-xs font-semibold uppercase tracking-[0.05em] text-muted-ink">{title}</h3>
+      <h3 className="mb-2.5 mt-5 text-11 font-medium text-muted-ink">{title}</h3>
       {rows.map((r, i) => {
         const v = r.role === 'empty' ? null : value(r);
         return (
           <div key={`${r.role}-${i}`} data-role={r.role} className="mb-2 grid grid-cols-[170px_1fr_60px] items-center gap-3 text-13">
-            <span className={r.role === 'empty' ? 'text-[#8796AB]' : 'truncate'}>{r.role === 'empty' ? 'Rival' : r.role === 'you' ? `${r.name} (you)` : r.name}</span>
+            <span className={r.role === 'empty' ? 'text-muted-ink' : 'truncate'}>{r.role === 'empty' ? 'Rival' : r.role === 'you' ? `${r.name} (you)` : r.name}</span>
             <span className="block">
               {v === null ? (
-                <span className="block h-3.5 rounded border border-dashed border-[#C9D3DE]" />
+                <span className="block h-3.5 rounded border border-dashed border-line-control" />
               ) : (
                 <span className="block h-3.5 rounded-r" style={{ width: `${Math.max(2, Math.min(100, (v / max) * 100))}%`, background: SCORE_COLORS[r.role === 'empty' ? 'context' : r.role] }} />
               )}
             </span>
-            <span className={`text-right font-semibold tabular-nums ${v === null ? 'text-[#8796AB]' : ''}`}>{v === null ? '–' : format(v)}</span>
+            <span className={`text-right font-semibold tabular-nums ${v === null ? 'text-muted-ink' : ''}`}>{v === null ? '–' : format(v)}</span>
           </div>
         );
       })}

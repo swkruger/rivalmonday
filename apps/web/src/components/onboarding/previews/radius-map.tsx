@@ -13,10 +13,10 @@ export function RadiusMap({ miles, business }: { miles: number; business: string
   const cy = H / 2;
   return (
     <MapBackdrop width={W} height={H} zoom={10 / Math.max(miles, 1)}>
-      <circle cx={cx} cy={cy} r={R} fill="#2A6BAC" fillOpacity=".08" stroke="#2A6BAC" strokeWidth="2" />
-      <line x1={cx} y1={cy} x2={cx + R} y2={cy} stroke="#2A6BAC" strokeWidth="1.5" strokeDasharray="4 4" />
+      <circle cx={cx} cy={cy} r={R} className="fill-secondary/10 stroke-secondary" strokeWidth="2" />
+      <line x1={cx} y1={cy} x2={cx + R} y2={cy} className="stroke-secondary" strokeWidth="1.5" strokeDasharray="4 4" />
       <rect x={cx + R / 2 - 22} y={cy - 22} width="44" height="20" rx="4" fill="#fff" />
-      <text x={cx + R / 2} y={cy - 8} textAnchor="middle" fontSize="12" fontWeight="600" fill="#2A6BAC" fontFamily="Inter, sans-serif">{miles} mi</text>
+      <text x={cx + R / 2} y={cy - 8} textAnchor="middle" fontSize="12" fontWeight="600" className="fill-secondary" fontFamily="Inter, sans-serif">{miles} mi</text>
       <Pin x={cx} y={cy + 26} />
       <title>{`${business || 'The business'}: ${miles} mile search area`}</title>
     </MapBackdrop>

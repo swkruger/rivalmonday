@@ -31,11 +31,11 @@ export function BrandedDashboard({ name, logoSrc, color, focus }: { name: string
         <div className="text-base font-semibold">Overview</div>
         <div className="mt-3.5 grid grid-cols-3 gap-2.5">
           {[['Your rating', '4.7'], ['Rival moves', '6'], ['Map rank', '#3']].map(([k, v]) => (
-            <div key={k} className="rounded-md border border-line p-2.5"><div className="text-[11px] text-muted-ink">{k}</div><div className="text-xl font-semibold">{v}</div></div>
+            <div key={k} className="rounded-md border border-line p-2.5"><div className="text-11 text-muted-ink">{k}</div><div className="text-xl font-semibold">{v}</div></div>
           ))}
         </div>
         <div aria-hidden="true" className="mt-4 flex flex-col gap-2">
-          {[90, 70, 80].map((w) => <div key={w} className="h-2.5 rounded-full bg-[#EEF2F6]" style={{ width: `${w}%` }} />)}
+          {[90, 70, 80].map((w) => <div key={w} className="h-2.5 rounded-full bg-muted-surface" style={{ width: `${w}%` }} />)}
         </div>
         <div className="mt-5 inline-flex h-8 items-center rounded-md px-3.5 text-xs font-medium" style={{ background: color, color: on }}>Open this week&apos;s brief</div>
       </div>

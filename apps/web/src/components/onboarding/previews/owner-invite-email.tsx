@@ -16,7 +16,7 @@ export function OwnerInviteEmail({ agency, to, firstName, client, rivals, focus 
           <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">{(agency || '·').slice(0, 1).toUpperCase()}</span>
           {agency || 'Your agency'}
         </div>
-        <div className="mt-5 text-[19px] font-semibold">Hi {firstName || 'there'}, your competitor dashboard is ready</div>
+        <div className="mt-5 text-xl font-semibold">Hi {firstName || 'there'}, your competitor dashboard is ready</div>
         <p className="mt-2.5 text-sm leading-normal text-muted-ink">
           {agency || 'Your agency'} is watching {list || 'your competitors'} for {client || 'your business'}. Your first brief arrives on a Monday.
         </p>

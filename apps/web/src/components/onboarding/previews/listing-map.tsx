@@ -25,11 +25,11 @@ export function MapBackdrop({ width, height, zoom = 1, children }: { width: numb
 }
 
 /** A map pin whose point is at (x, y). */
-export function Pin({ x, y, fill = '#2A6BAC' }: { x: number; y: number; fill?: string }) {
+export function Pin({ x, y, fill }: { x: number; y: number; fill?: string }) {
   return (
     <g aria-hidden="true">
-      <path d={`M${x} ${y - 24} c-12 0-21 9-21 20 c0 15 21 34 21 34 s21-19 21-34 c0-11-9-20-21-20z`} fill={fill} />
-      <circle cx={x} cy={y - 4} r="7" fill="#fff" />
+      <path d={`M${x} ${y - 24} c-12 0-21 9-21 20 c0 15 21 34 21 34 s21-19 21-34 c0-11-9-20-21-20z`} className={fill ? undefined : 'fill-secondary'} fill={fill} />
+      <circle cx={x} cy={y - 4} r="7" className="fill-surface" />
     </g>
   );
 }
