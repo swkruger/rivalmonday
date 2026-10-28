@@ -21,11 +21,12 @@ const ROOT = fileURLToPath(new URL('../.shots', import.meta.url));
 const DIR = join(ROOT, LABEL);
 const AXE_FILE = join(DIR, 'axe.json');
 
-type AxeRow = { label: string; width: number; serious: number; critical: number; ids: string[] };
+type AxeRow = { label: string; width: number; serious: number; critical: number; ids: string[]; nodes: { id: string; targets: string[] }[] };
 type Db = ReturnType<typeof createDb>['db'];
 
 test.describe.configure({ mode: 'serial' });
 
+const gateFailures: string[] = [];
 let fx: ShotFixtures;
 const contexts: Partial<Record<ShotAs, BrowserContext>> = {};
 
@@ -170,15 +171,20 @@ for (const route of SHOT_ROUTES) {
         if (route.heading) await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible();
         await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => undefined);
         await page.screenshot({ path: join(DIR, `${route.label}-${viewport.width}.png`), fullPage: true });
-        const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+        // WCAG 1.4.3 exempts logotype text: the wordmark's amber "monday" half is the decided brand colour (1.93:1 on canvas).
+        const results = await new AxeBuilder({ page }).exclude('[data-part="monday"]').withTags(['wcag2a', 'wcag2aa']).analyze();
         const count = (impact: string) => results.violations.filter((v) => v.impact === impact).length;
-        const row: AxeRow = { label: route.label, width: viewport.width, serious: count('serious'), critical: count('critical'), ids: results.violations.map((v) => v.id) };
+        const row: AxeRow = { label: route.label, width: viewport.width, serious: count('serious'), critical: count('critical'), ids: results.violations.map((v) => v.id), nodes: results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => ({ id: v.id, targets: v.nodes.slice(0, 10).map((n) => n.target.join(' ') + ' :: ' + (n.any[0]?.message ?? '')) })) };
         const rows = existsSync(AXE_FILE) ? (JSON.parse(readFileSync(AXE_FILE, 'utf8')) as AxeRow[]) : [];
         writeFileSync(AXE_FILE, JSON.stringify([...rows, row], null, 2));
-        if (route.gate) expect(row.serious + row.critical, `axe serious+critical on ${route.label}`).toBe(0);
+        if (route.gate && row.serious + row.critical > 0) gateFailures.push(`${route.label} @ ${viewport.width}: ${JSON.stringify(row.nodes)}`);
       } finally {
         await page.close();
       }
     });
   }
 }
+
+test('axe gate: no serious/critical on gated routes', () => {
+  expect(gateFailures).toEqual([]);
+});

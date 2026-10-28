@@ -11,7 +11,7 @@ export function Wordmark({ name, className }: { name?: string; className?: strin
   return (
     <span className={cn('text-2xl font-extrabold tracking-[-1px]', className)}>
       <span data-part="rival" className="text-secondary">rival</span>
-      <span className="text-amber">monday</span>
+      <span data-part="monday" className="text-amber">monday</span>
     </span>
   );
 }
