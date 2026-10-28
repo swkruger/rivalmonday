@@ -63,7 +63,7 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
           <TableBody>
             {([['Open sign-up', funnel.open], ['Invite link', funnel.invite]] as const).map(([label, counts]) => (
               <TableRow key={label}>
-                <TableCell className="font-medium">{label}</TableCell>
+                <TableHead scope="row" className="font-medium text-ink">{label}</TableHead>
                 {COLUMNS.map((c) => <TableCell key={c.key} numeric>{counts[c.key]}</TableCell>)}
               </TableRow>
             ))}

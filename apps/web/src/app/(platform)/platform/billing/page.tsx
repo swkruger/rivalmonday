@@ -77,12 +77,15 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
           ]}
         />
         <Section title="Agencies by state">
-          <StatStrip
-            items={BILLING_STATES.map((s: BillingState) => ({
-              title: labelFor(BILLING_STATE, s).label,
-              value: String(overview.agenciesByState[s] ?? 0),
-            }))}
-          />
+          {[BILLING_STATES.slice(0, 3), BILLING_STATES.slice(3)].map((group) => (
+            <StatStrip
+              key={group[0]}
+              items={group.map((s: BillingState) => ({
+                title: labelFor(BILLING_STATE, s).label,
+                value: String(overview.agenciesByState[s] ?? 0),
+              }))}
+            />
+          ))}
         </Section>
       </>
     );

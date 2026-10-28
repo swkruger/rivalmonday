@@ -16,6 +16,12 @@ describe('SignupsPanel', () => {
     expect(screen.getByRole('link', { name: '90 days' }).getAttribute('href')).toBe('/platform/billing?tab=signups&days=90');
     expect(screen.getByRole('link', { name: '30 days' }).getAttribute('aria-current')).toBe('true');
   });
+  it('funnel row labels are row headers', () => {
+    render(<SignupsPanel paused={false} canEdit days={30} funnel={funnel} />);
+    expect(screen.getByRole('rowheader', { name: 'Open sign-up' })).toBeTruthy();
+    expect(screen.getByRole('rowheader', { name: 'Invite link' })).toBeTruthy();
+  });
+
   it('owner gets the toggle button matching the state; others see none', () => {
     const { rerender } = render(<SignupsPanel paused={false} canEdit days={30} funnel={funnel} />);
     expect(screen.getByRole('button', { name: 'Pause sign-ups' })).toBeTruthy();
