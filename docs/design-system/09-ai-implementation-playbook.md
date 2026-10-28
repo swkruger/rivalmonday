@@ -499,7 +499,7 @@ rg -n 'bg-amber' apps/web/src --glob '!*.test.*'      # only Friday/assistant, p
 rg -n 'shadow-(sm|md|lg|xl)\b' apps/web/src packages/ui/src --glob '!*.test.*'   # → shadow-overlay/dialog or none
 rg -n '<Badge' apps/web/src --glob '!*.test.*'        # → StatusChip/DotStatus/Tag
 ```
-Add these as a non-blocking `scripts/design-lint.sh` in PR 1 that prints counts, and make it blocking in the last PR. Ask the owner before adding it to CI.
+`scripts/design-lint.sh` runs these checks (plus arbitrary `text-[Npx]`). It is now blocking: strict by default (exit 1 if the total is above 0), and `--report` prints the counts and exits 0. Intentional exceptions live in the `ALLOW_<LABEL>` arrays at the top of the script, excluded only from the check they hit; every entry needs a `# reason` line above it. Adding an entry without a reason is a review blocker. It is not in CI or turbo; adding it is the owner's call (D17).
 
 **Per-page checks:** `pnpm --filter @cs/web e2e:affected` (existing) plus an axe run on the page with no serious or critical violations. Visually compare at 1440 and 390 against the storyboard frame named in § 9.
 

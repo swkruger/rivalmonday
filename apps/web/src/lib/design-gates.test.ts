@@ -17,4 +17,7 @@ describe('design gates', () => {
     );
     expect(hits).toEqual([]);
   });
+  it('styles.css has no --shadow-card token', () => {
+    expect(readFileSync(join(SRC_ROOT, '../../../packages/ui/src/styles.css'), 'utf8')).not.toContain('--shadow-card');
+  });
 });

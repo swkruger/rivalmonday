@@ -14,13 +14,16 @@ import { TierMark } from './tier-mark';
 afterEach(cleanup);
 
 describe('StatusChip glyphs', () => {
-  it('warning renders an aria-hidden svg; neutral none; icon={null} suppresses', () => {
+  it('warning renders an aria-hidden svg; neutral none; non-neutral always keeps a glyph', () => {
     const { container, rerender } = render(<StatusChip tone="warning">Slow</StatusChip>);
     const svg = container.querySelector('svg');
     expect(svg?.getAttribute('aria-hidden')).toBe('true');
     rerender(<StatusChip tone="neutral">Idle</StatusChip>);
     expect(container.querySelector('svg')).toBeNull();
+    // @ts-expect-error non-neutral tones cannot suppress the glyph (P7)
     rerender(<StatusChip tone="danger" icon={null}>Bad</StatusChip>);
+    expect(container.querySelector('svg[aria-hidden]')).not.toBeNull();
+    rerender(<StatusChip tone="neutral" icon={null}>Idle</StatusChip>);
     expect(container.querySelector('svg')).toBeNull();
     rerender(<StatusChip tone="neutral" icon={Star}>Fav</StatusChip>);
     expect(container.querySelector('svg')).not.toBeNull();

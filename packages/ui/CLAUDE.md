@@ -14,6 +14,8 @@ New or changed UI follows it now; existing screens migrate via docs/design-syste
 - Shadows: none on static surfaces; `shadow-overlay` for menus/popovers/tooltips/toasts/bars, `shadow-dialog` for dialogs/sheets.
 - Containers: Section > Band > Frame (`Card`) > interactive Card; never nest; cards only for independent objects.
 - Status: DotStatus (lifecycle), StatusChip + icon (attention), FilterChip (pill), Tag, TierMark — never colour alone.
+- Lint: `bash scripts/design-lint.sh` is strict by default (exit 1 if total > 0; must stay 0); `--report` prints counts and exits 0. Allowlist = `ALLOW_<LABEL>` arrays at the top of the script; each entry needs a `# reason` line. Not in CI/turbo (owner's call, D17).
+- `StatusChip`: non-neutral tones always show a glyph (`icon={null}` is a type error); only `neutral` may suppress it.
 - Focus: `focus-visible:outline-2 outline-offset-2 outline-ring` (#2A6BAC). Weights 400/500/600 (800 wordmark only). Primary-button label ink.
 
 ## Phase 16 gotchas

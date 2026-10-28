@@ -14,4 +14,9 @@ describe('StatusChip tokens', () => {
       }
     }
   });
+
+  it('--shadow-card is retired', () => {
+    const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+    expect(css).not.toContain('--shadow-card');
+  });
 });

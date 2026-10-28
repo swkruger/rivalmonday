@@ -22,7 +22,7 @@ const toneClass: Record<ChipTone, string> = {
   danger: "bg-chip-danger-bg text-chip-danger-text",
 }
 
-/** Default glyph per tone (colour is never the only signal); neutral has none. `icon={null}` suppresses. */
+/** Default glyph per tone (colour is never the only signal); neutral has none. Only neutral may pass `icon={null}` (P7). */
 const defaultIcon: Record<ChipTone, LucideIcon | null> = {
   neutral: null,
   info: Info,
@@ -31,21 +31,18 @@ const defaultIcon: Record<ChipTone, LucideIcon | null> = {
   danger: CircleAlert,
 }
 
-function StatusChip({
-  tone,
-  children,
-  title,
-  icon,
-  className,
-}: {
-  tone: ChipTone
+type ChipBase = {
   children: React.ReactNode
   title?: string
-  /** Lucide glyph; defaults per tone, `null` = none. */
-  icon?: LucideIcon | null
   className?: string
-}) {
-  const Icon = icon === undefined ? defaultIcon[tone] : icon
+}
+/** Lucide glyph; defaults per tone. Only the neutral tone may suppress it with `null`. */
+type StatusChipProps =
+  | ({ tone: "neutral"; icon?: LucideIcon | null } & ChipBase)
+  | ({ tone: Exclude<ChipTone, "neutral">; icon?: LucideIcon } & ChipBase)
+
+function StatusChip({ tone, children, title, icon, className }: StatusChipProps) {
+  const Icon = tone === "neutral" ? (icon === undefined ? null : icon) : (icon ?? defaultIcon[tone])
   return (
     <span
       data-slot="status-chip"
