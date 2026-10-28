@@ -2,6 +2,7 @@ import { ToastProvider } from '@cs/ui';
 import { HelpProvider } from '@/components/help/help-provider';
 import type { HelpViewer } from '@/components/help/help-context';
 import { ReadOnlyProvider } from '@/components/read-only';
+import { BANNER_SPACER } from '@/components/shell/banner-height';
 import { BillingBanner } from '@/components/shell/billing-banner';
 import { ShellTheme } from '@/components/shell/shell-theme';
 import { SpendBanner } from '@/components/shell/spend-banner';
@@ -27,7 +28,7 @@ export function ShellProviders({ readOnly, help, style, support, reserveBanner, 
             {/* format-gate: machine value, SupportBanner formats it for display */}
             {support && <SupportBanner sessionId={support.id} agencyName={support.agencyName} reason={support.reason} expiresAt={support.expiresAt.toISOString()} />}
             {/* The banner is fixed; split layouts (onboarding) that fill the viewport reserve its height so it does not cover their top row. */}
-            {support && reserveBanner && <div data-banner-spacer="" aria-hidden="true" className="h-14 shrink-0 sm:h-9" />}
+            {support && reserveBanner && <div data-banner-spacer="" aria-hidden="true" className={BANNER_SPACER} />}
             {children}
           </div>
         </ToastProvider>

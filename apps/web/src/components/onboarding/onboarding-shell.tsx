@@ -1,6 +1,7 @@
 import { Wordmark } from '@cs/ui';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { BANNER_FILL } from '@/components/shell/banner-height';
 import { StepProgress } from './step-progress';
 // Lazy, like PageHeader: the guide sheet loads only on pages that have a guide.
 const PageGuide = dynamic(() => import('@/components/help/page-guide').then((m) => m.PageGuide));
@@ -41,7 +42,7 @@ export function OnboardingShell({ brand, step, label, exit, exitSlot, title, sub
   // The platform Wordmark keeps its default 24 px / 800 weight: its amber half is 2:1 on white, which axe only accepts as large bold text (as in the sidebar and AuthCard).
   const showGuide = Boolean(helpKey && guide);
   return (
-    <div className={`grid min-h-screen bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
+    <div className={`grid ${BANNER_FILL} bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
       <main className={wide ? 'mx-auto flex w-full max-w-[760px] flex-col px-6 pb-12 pt-9' : 'mx-auto flex w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16'}>
         <div className="flex items-center justify-between gap-4">
           {brand.kind === 'platform' ? (

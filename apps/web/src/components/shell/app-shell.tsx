@@ -6,6 +6,7 @@ import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
 import type { SwitcherProps } from '@/components/shell/context-switcher';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
+import { BANNER_HEIGHT } from '@/components/shell/banner-height';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { showsClientBilling } from '@/components/shell/nav-items';
@@ -35,8 +36,6 @@ import type { Viewer } from '@/server/viewer';
  * from the static, process-cached vertical packs — no extra tool call). The guest top-bar label reads the client name
  * directly through `withTenant` (RLS-scoped, not a registered tool) to avoid adding a second audited call here.
  */
-/** The support banner's height: two lines (h-14) below `sm`, one line (h-9) from `sm` up. */
-const BANNER_OFFSET = 'pt-14 sm:pt-9';
 
 /** The platform zone's look (spec §2.3): Rival Monday branding and the default theme, whatever the operator's own agency. */
 function platformTheme() {
@@ -117,7 +116,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   );
   return (
     <ShellProviders readOnly={support !== null || billing?.onHold === true} help={help} style={style as Record<string, string>} support={support}>
-      <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_OFFSET}` : ''}`}>
+      <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_HEIGHT.offset}` : ''}`}>
         <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
         <div className="flex min-w-0 flex-1 flex-col">
           {viewer.kind === 'guest' && <GuestBanner />}

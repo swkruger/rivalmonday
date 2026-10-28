@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BANNER_FILL, BANNER_HEIGHT, BANNER_SPACER } from '@/components/shell/banner-height';
 import { ShellProviders } from '@/components/shell/shell-providers';
 import { Highlight } from './highlight';
 import { OnboardingShell } from './onboarding-shell';
@@ -131,5 +132,27 @@ describe('PreviewWindow and Highlight', () => {
     expect(container.firstElementChild!.className).toContain('outline-dashed');
     rerender(<Highlight active={false}>x</Highlight>);
     expect(container.firstElementChild!.className).not.toContain('outline-dashed');
+  });
+});
+
+describe('support banner height constant (16f)', () => {
+  it('fills the viewport without extra scroll when the support banner shows', () => {
+    const support = { id: 's1', agencyName: 'Acme', reason: 'help', expiresAt: new Date(Date.now() + 3_600_000) };
+    const help = { audience: 'agency', names: { agency: 'Acme', assistant: 'Friday' } } as never;
+    const { container } = render(
+      <ShellProviders reserveBanner readOnly={false} help={help} style={{}} support={support}>
+        <OnboardingShell brand={{ kind: 'neutral' }} title="Set up">x</OnboardingShell>
+      </ShellProviders>,
+    );
+    const spacer = container.querySelector('[data-banner-spacer]')!;
+    expect(spacer.className).toBe(BANNER_SPACER);
+    expect(spacer.className).toContain(BANNER_HEIGHT.base);
+    expect(spacer.className).toContain(BANNER_HEIGHT.sm);
+    // The root subtracts the same height from the viewport when it follows the spacer.
+    const root = screen.getByRole('main').parentElement!;
+    expect(root.className).toContain(BANNER_FILL);
+    expect(BANNER_FILL).toContain('calc(100dvh-3.5rem)');
+    expect(BANNER_FILL).toContain('calc(100dvh-2.25rem)');
+    expect(screen.getByRole('region', { name: 'Support session' }).className).toContain(BANNER_HEIGHT.base);
   });
 });

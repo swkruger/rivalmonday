@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { BANNER_HEIGHT } from '@/components/shell/banner-height';
 
 /** Where the banner's Exit posts (`app/support/exit/route.ts`). */
 export const SUPPORT_EXIT_PATH = '/support/exit';
@@ -22,12 +23,12 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
     return () => clearInterval(id);
   }, [expiresAt]);
   const ended = left === 0;
-  // Height h-14 below `sm`, h-9 from `sm` up: keep in step with `BANNER_OFFSET` in app-shell.tsx.
+  // Height h-14 below `sm`, h-9 from `sm` up: from banner-height.ts.
   return (
     <div
       role="region"
       aria-label="Support session"
-      className="fixed inset-x-0 top-0 z-50 flex h-14 items-center bg-amber px-4 text-sm text-amber-text sm:h-9"
+      className={`fixed inset-x-0 top-0 z-50 flex ${BANNER_HEIGHT.base} items-center bg-amber px-4 text-sm text-amber-text ${BANNER_HEIGHT.sm}`}
     >
       {/* Below `sm` two lines (agency and reason; then minutes and Exit) so the reason stays readable at 390 px. */}
       <div className="mx-auto flex w-full min-w-0 max-w-[1560px] flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
