@@ -1,5 +1,5 @@
 'use client';
-import { Button, ConfirmDialog, Input, Label } from '@cs/ui';
+import { Band, Button, Card, ConfirmDialog, Input, Label, nativeSelectClass, Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
@@ -45,9 +45,7 @@ interface Props {
   action: Action;
 }
 
-const card = 'flex flex-col gap-3 rounded-md border border-line bg-surface p-6';
-const selectClass = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
-const chip = 'inline-flex items-center rounded-full bg-muted-surface px-3 py-1 text-sm font-semibold text-ink';
+const selectClass = nativeSelectClass;
 
 /** Every `quote` string in a draft's evidence (areas, keywords, topics), deduplicated. */
 export function quotesOf(evidence: unknown): string[] {
@@ -77,7 +75,7 @@ function Evidence({ evidence }: { evidence: unknown }) {
     <details className="text-sm">
       <summary className="cursor-pointer font-semibold text-ink">Evidence ({quotes.length})</summary>
       <ul className="mt-2 flex flex-col gap-1">
-        {quotes.map((q) => <li key={q} className="rounded-md bg-muted-surface p-2">“{q}”</li>)}
+        {quotes.map((q) => <li key={q}><Band tone="muted" className="p-2">“{q}”</Band></li>)}
       </ul>
     </details>
   );
@@ -97,17 +95,19 @@ export function CatalogQueue({ verticals, areas, targets, catalogue, defaultMaps
   // One action state for every control, held here so the result survives the approved item leaving the list on revalidate.
   const [result, formAction, busy] = useActionState(action, { ok: true } as FormResult);
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-10">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">{result.message}</p>}
 
-      <h2 className="text-lg font-bold">New business types</h2>
-      {verticals.length === 0 && <HelpEmpty id="platform.verticals.types" guideAnchor="what-this-page-tells-you" />}
-      {verticals.map((v) => <VerticalCard key={v.id} v={v} targets={targets.filter((t) => t.id !== v.id)} maps={defaultMaps[v.id] ?? {}} canEdit={canEdit} formAction={formAction} busy={busy} />)}
+      <Section title="New business types">
+        {verticals.length === 0 && <HelpEmpty id="platform.verticals.types" guideAnchor="what-this-page-tells-you" />}
+        {verticals.map((v) => <VerticalCard key={v.id} v={v} targets={targets.filter((t) => t.id !== v.id)} maps={defaultMaps[v.id] ?? {}} canEdit={canEdit} formAction={formAction} busy={busy} />)}
+      </Section>
 
-      <h2 className="text-lg font-bold">New services</h2>
-      {areas.length === 0 && <HelpEmpty id="platform.verticals.services" guideAnchor="what-this-page-tells-you" />}
-      {areas.map((a) => <AreaCard key={`${a.verticalId}/${a.id}`} a={a} siblings={(catalogue.find((c) => c.id === a.verticalId)?.services ?? []).filter((s) => s.id !== a.id)} canEdit={canEdit} formAction={formAction} busy={busy} />)}
+      <Section title="New services">
+        {areas.length === 0 && <HelpEmpty id="platform.verticals.services" guideAnchor="what-this-page-tells-you" />}
+        {areas.map((a) => <AreaCard key={`${a.verticalId}/${a.id}`} a={a} siblings={(catalogue.find((c) => c.id === a.verticalId)?.services ?? []).filter((s) => s.id !== a.id)} canEdit={canEdit} formAction={formAction} busy={busy} />)}
+      </Section>
     </div>
   );
 }
@@ -153,10 +153,10 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
   const [mode, setMode] = useState<Mode>('none');
   const [editing, setEditing] = useState(false);
   return (
-    <div className={card}>
-      <h3 className="text-lg font-bold">{v.name} <span className="font-mono text-xs text-muted-ink">{v.id}</span></h3>
+    <Card className="gap-3 p-6">
+      <h3 className="text-base font-semibold text-ink">{v.name} <span className="font-mono text-xs text-muted-ink">{v.id}</span></h3>
       <Meta createdBy={v.createdBy} clientCount={v.clientCount} extra={v.draftCostUsd !== null ? `draft cost $${v.draftCostUsd.toFixed(3)}` : undefined} />
-      {v.categories.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Google categories">{v.categories.map((c) => <span key={c} className={chip}>{c}</span>)}</div>}
+      {v.categories.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Google categories">{v.categories.map((c) => <StatusChip key={c} tone="neutral">{c}</StatusChip>)}</div>}
       {v.services.length > 0 && <p className="text-sm"><span className="font-semibold">Services:</span> {v.services.map((s) => s.name).join(', ')}</p>}
       <Evidence evidence={v.evidence} />
       <WriteGuard>
@@ -187,7 +187,7 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
           </>
         )}
       </WriteGuard>
-    </div>
+    </Card>
   );
 }
 
@@ -219,7 +219,8 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
   };
   const p = payload();
   return (
-    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Edit ${v.name}`} className="flex flex-col gap-3 rounded-md bg-muted-surface p-4">
+    <form action={(fd) => { formAction(fd); onDone(); }} aria-label={`Edit ${v.name}`}>
+      <Band tone="muted" className="flex flex-col gap-3">
       <Post fields={{ intent: 'edit-vertical', id: v.id, label: v.name, payload: JSON.stringify(p) }}>
         <div className="flex flex-wrap gap-4">
           <div className="flex flex-col gap-1"><Label htmlFor={`e-name-${v.id}`}>Business type name</Label><Input id={`e-name-${v.id}`} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} className="w-64" /></div>
@@ -245,6 +246,7 @@ function EditForm({ v, formAction, busy, onDone }: { v: ReviewVertical; formActi
           <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
         </div>
       </Post>
+      </Band>
     </form>
   );
 }
@@ -258,7 +260,7 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
     setMap(maps[id] ?? {});
   };
   return (
-    <div role="group" aria-label={`Merge ${v.name}`} className="flex flex-col gap-3 rounded-md bg-muted-surface p-4">
+    <Band tone="muted" role="group" aria-label={`Merge ${v.name}`} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor={`m-target-${v.id}`}>Merge into</Label>
           <select id={`m-target-${v.id}`} value={targetId} onChange={(e) => choose(e.target.value)} className={`${selectClass} max-w-sm`}>
@@ -267,22 +269,24 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
           </select>
         </div>
         {target && v.services.length > 0 && (
-          <table className="text-sm">
-            <thead><tr><th className="pr-4 text-left">Service</th><th className="text-left">Becomes</th></tr></thead>
-            <tbody>
+          <TableFrame>
+          <Table>
+            <TableHeader><TableRow><TableHead>Service</TableHead><TableHead>Becomes</TableHead></TableRow></TableHeader>
+            <TableBody>
               {v.services.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-1 pr-4">{s.name}</td>
-                  <td>
+                <TableRow key={s.id}>
+                  <TableCell>{s.name}</TableCell>
+                  <TableCell>
                     <select aria-label={`Where ${s.name} goes`} value={map[s.id] ?? ''} className={selectClass} onChange={(e) => setMap({ ...map, [s.id]: e.target.value || null })}>
                       <option value="">Move (keep as a new service)</option>
                       {target.services.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
+          </TableFrame>
         )}
         <div className="flex gap-2">
           <ConfirmDialog
@@ -296,7 +300,7 @@ function MergeForm({ v, targets, maps, formAction, busy, onDone }: { v: ReviewVe
           />
           <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
         </div>
-    </div>
+    </Band>
   );
 }
 
@@ -304,11 +308,11 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
   const [mode, setMode] = useState<Mode>('none');
   const [targetId, setTargetId] = useState('');
   return (
-    <div className={card}>
+    <Card className="gap-3 p-6">
       <div className="text-sm text-muted-ink">{a.verticalName}</div>
-      <h3 className="text-lg font-bold">{a.name} <span className="font-mono text-xs text-muted-ink">{a.id}</span></h3>
+      <h3 className="text-base font-semibold text-ink">{a.name} <span className="font-mono text-xs text-muted-ink">{a.id}</span></h3>
       <Meta createdBy={a.createdBy} clientCount={a.clientCount} />
-      {a.aliases.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Other names">{a.aliases.map((x) => <span key={x} className={chip}>{x}</span>)}</div>}
+      {a.aliases.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Other names">{a.aliases.map((x) => <StatusChip key={x} tone="neutral">{x}</StatusChip>)}</div>}
       <Evidence evidence={a.evidence} />
       <WriteGuard>
         {canEdit && (
@@ -331,7 +335,7 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
             />
             {mode === 'rename' && <RenameForm intent="rename-area" id={a.id} verticalId={a.verticalId} current={a.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {mode === 'merge' && (
-              <div role="group" aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2 rounded-md bg-muted-surface p-4">
+              <Band tone="muted" role="group" aria-label={`Merge ${a.name}`} className="flex flex-wrap items-end gap-2">
                 <div className="flex flex-col gap-1">
                   <Label htmlFor={`am-${a.verticalId}-${a.id}`}>Merge into</Label>
                   <select id={`am-${a.verticalId}-${a.id}`} value={targetId} onChange={(e) => setTargetId(e.target.value)} className={selectClass}>
@@ -348,11 +352,11 @@ function AreaCard({ a, siblings, canEdit, formAction, busy }: { a: ReviewArea; s
                   fields={{ intent: 'merge-area', id: a.id, verticalId: a.verticalId, label: a.name, targetId }}
                   action={(fd) => { formAction(fd); setMode('none'); }}
                 />
-              </div>
+              </Band>
             )}
           </>
         )}
       </WriteGuard>
-    </div>
+    </Card>
   );
 }

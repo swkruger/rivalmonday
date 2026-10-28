@@ -66,9 +66,9 @@ describe('/platform/knowledge', () => {
     expect(screen.getByText('Managed in repo')).toBeTruthy();
     expect(screen.getByText('Synced Oct 5, 2025 · changed')).toBeTruthy();
     expect(screen.getByText('Synced Oct 5, 2025')).toBeTruthy();
-    expect(screen.getByText('The page returned an error.').className).toContain('text-danger');
+    expect(screen.getByText('The page returned an error.').closest('[data-slot="status-chip"]')?.getAttribute('data-tone')).toBe('danger');
     expect(screen.getAllByText('Auto-sync off')).toHaveLength(2);
-    expect(screen.getByText("The site's robots.txt doesn't allow us to read this page.").className).toContain('text-danger');
+    expect(screen.getByText("The site's robots.txt doesn't allow us to read this page.").closest('[data-slot="status-chip"]')?.getAttribute('data-tone')).toBe('danger');
     expect(screen.getByRole('link', { name: 'Changed' }).getAttribute('href')).toBe('/platform/knowledge/u1');
   });
 

@@ -31,6 +31,15 @@ describe('CatalogQueue', () => {
     expect(screen.getAllByText('Nothing to review')).toHaveLength(2);
   });
 
+  it('keeps the heading and buttons of each item inside one card', () => {
+    setup();
+    for (const [heading, button] of [[/Craft distilleries/, 'Approve Craft distilleries'], [/Sedation/, 'Approve Sedation']] as const) {
+      const card = screen.getByRole('heading', { name: heading }).closest('[data-slot="card"]');
+      expect(card).toBeTruthy();
+      expect(within(card as HTMLElement).getByRole('button', { name: button })).toBeTruthy();
+    }
+  });
+
   it('approves a business type and keeps the message', async () => {
     const action = setup();
     expect(screen.getByText(/Agency A · 1 client · draft cost \$0.031/)).toBeTruthy();

@@ -1,13 +1,13 @@
 'use client';
 import type { DecisionReviewView } from '@cs/tools';
-import { Button } from '@cs/ui';
+import { Band, Button, Card, nativeSelectClass } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { OffPageNotice } from '@/components/prev-next';
 
-const selectClass = 'h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
+const selectClass = `${nativeSelectClass} w-full max-w-md`;
 /** A review plus the card header's display text (computed on the server: labels, age in the viewer's zone). */
 export type ReviewCard = DecisionReviewView & { sourceText: string; kindText: string; age: string };
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
@@ -26,12 +26,13 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
       {total > 0 && <h2 className="text-lg font-semibold">Waiting for review ({total})</h2>}
       {items.length === 0 && (offPage ? <OffPageNotice firstHref="/platform/reviews" /> : <HelpEmpty id="platform.reviews.queue" guideAnchor="what-this-page-tells-you" />)}
       {items.map((item) => (
-        <form key={item.id} action={formAction} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
+        <Card key={item.id} className="p-6">
+        <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="reviewId" value={item.id} />
-          <div className="text-sm text-muted-ink">{item.competitorName} · {item.sourceText} · {item.kindText} · {item.age}</div>
+          <div className="text-13 text-muted-ink">{item.competitorName} · {item.sourceText} · {item.kindText} · {item.age}</div>
           <div className="grid gap-3 md:grid-cols-2">
-            <div><div className="text-xs font-semibold uppercase text-muted-ink">Before</div><pre className="whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{item.beforeText ?? '—'}</pre></div>
-            <div><div className="text-xs font-semibold uppercase text-muted-ink">After</div><pre className="whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{item.afterText ?? '—'}</pre></div>
+            <div><div className="mb-1 text-13 text-muted-ink">Before</div><Band tone="muted"><pre className="whitespace-pre-wrap text-sm">{item.beforeText ?? '—'}</pre></Band></div>
+            <div><div className="mb-1 text-13 text-muted-ink">After</div><Band tone="muted"><pre className="whitespace-pre-wrap text-sm">{item.afterText ?? '—'}</pre></Band></div>
           </div>
           {item.questions.map((q) => {
             const id = `${item.id}-${q.key}`;
@@ -43,12 +44,13 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
                   <option value="" disabled>Choose…</option>
                   {q.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                {said !== null && <span className="text-xs text-muted-ink">Model said: {said}{q.confidence !== null ? ` (${Math.round(q.confidence * 100)}%)` : ''}</span>}
+                {said !== null && <span className="text-13 text-muted-ink">Model said: {said}{q.confidence !== null ? ` (${Math.round(q.confidence * 100)}%)` : ''}</span>}
               </div>
             );
           })}
           <Button type="submit" disabled={pending} className="self-start">Resolve</Button>
         </form>
+        </Card>
       ))}
     </div>
   );

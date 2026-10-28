@@ -1,4 +1,5 @@
 import type { KbKind, KbLevel } from '@cs/core';
+import { StatusChip } from '@cs/ui';
 import { formatDate } from '@/lib/format';
 import { importErrorCopy } from './import-errors';
 
@@ -23,10 +24,10 @@ export function SyncBadge({ a, tz }: { a: KbListItem; tz: string }) {
   if (a.source !== 'url') return null;
   return (
     <>
-      {a.syncError && <span className="text-xs text-danger">{importErrorCopy(a.syncError)}</span>}
-      {!a.autoSync && <span className="text-xs text-muted-foreground">Auto-sync off</span>}
+      {a.syncError && <StatusChip tone="danger" className="h-auto whitespace-normal py-0.5">{importErrorCopy(a.syncError)}</StatusChip>}
+      {!a.autoSync && <span className="text-13 text-muted-ink">Auto-sync off</span>}
       {a.autoSync && !a.syncError && a.lastSyncedAt && (
-        <span className="text-xs text-muted-foreground">Synced {formatDate(a.lastSyncedAt, { tz })}{a.lastSyncChanged ? ' · changed' : ''}</span>
+        <span className="text-13 text-muted-ink">Synced {formatDate(a.lastSyncedAt, { tz })}{a.lastSyncChanged ? ' · changed' : ''}</span>
       )}
     </>
   );

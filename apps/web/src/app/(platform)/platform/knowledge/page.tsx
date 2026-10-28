@@ -1,5 +1,5 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
-import { StatusChip } from '@cs/ui';
+import { Button, Section, StatusChip, toolbarControlClass } from '@cs/ui';
 import Link from 'next/link';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -14,7 +14,7 @@ import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { kbImportStatusAction, startKbImportAction } from './actions';
 import { ImportPanel } from './import-panel';
-import { KIND_OPTION, type KbTargets, LEVEL_OPTION, selectClass } from './scope-fields';
+import { KIND_OPTION, type KbTargets, LEVEL_OPTION } from './scope-fields';
 import { SyncBadge } from './sync-badge';
 import type { KbListItem } from './sync-badge';
 
@@ -71,30 +71,29 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
           { label: 'URL articles', tip: 'platform.knowledge.sync' },
         ]}
       />
-      <form method="get" className="grid gap-2 rounded-md border border-line bg-surface p-4 md:grid-cols-6">
-        <select name="level" aria-label="Level" defaultValue={sp.level ?? ''} className={selectClass}><option value="">All levels</option>{KB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_OPTION[l]}</option>)}</select>
-        <select name="agencyId" aria-label="Agency" defaultValue={sp.agencyId ?? ''} className={selectClass}><option value="">All agencies</option>{targets.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-        <select name="clientId" aria-label="Client" defaultValue={sp.clientId ?? ''} className={selectClass}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <select name="kind" aria-label="Kind" defaultValue={sp.kind ?? ''} className={selectClass}><option value="">All kinds</option>{KB_KINDS.map((k) => <option key={k} value={k}>{KIND_OPTION[k]}</option>)}</select>
-        <select name="status" aria-label="Status" defaultValue={sp.status ?? ''} className={selectClass}><option value="">Any status</option><option value="draft">Draft</option><option value="published">Published</option></select>
-        <div className="flex gap-2">
-          <input name="q" aria-label="Search" placeholder="Search titles" defaultValue={sp.q ?? ''} className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs" />
-          <button type="submit" className="rounded-md border px-3 text-sm font-semibold">Filter</button>
-        </div>
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <select name="level" aria-label="Level" defaultValue={sp.level ?? ''} className={toolbarControlClass}><option value="">All levels</option>{KB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_OPTION[l]}</option>)}</select>
+        <select name="agencyId" aria-label="Agency" defaultValue={sp.agencyId ?? ''} className={toolbarControlClass}><option value="">All agencies</option>{targets.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <select name="clientId" aria-label="Client" defaultValue={sp.clientId ?? ''} className={toolbarControlClass}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <select name="kind" aria-label="Kind" defaultValue={sp.kind ?? ''} className={toolbarControlClass}><option value="">All kinds</option>{KB_KINDS.map((k) => <option key={k} value={k}>{KIND_OPTION[k]}</option>)}</select>
+        <select name="status" aria-label="Status" defaultValue={sp.status ?? ''} className={toolbarControlClass}><option value="">Any status</option><option value="draft">Draft</option><option value="published">Published</option></select>
+        <input name="q" aria-label="Search" placeholder="Search titles" defaultValue={sp.q ?? ''} className={`${toolbarControlClass} w-56`} />
+        <Button type="submit" variant="outline" size="sm">Filter</Button>
       </form>
+      <Section>
       {page.items.length === 0 ? (
         <EmptyState {...COPY.empty.none} guideAnchor="how-to-use-it" />
       ) : (
-        <ul className="divide-y rounded-lg border bg-card">
+        <ul className="divide-y divide-line rounded-md border border-line">
           {page.items.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div className="min-w-0">
                 <Link href={`/platform/knowledge/${a.id}`} className="font-semibold text-secondary hover:underline">{a.title}</Link>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-13 text-muted-ink">
                   {LEVEL_OPTION[a.level]}{a.agencyName ? ` · ${a.agencyName}` : ''}{a.clientName ? ` · ${a.clientName}` : ''} · {KIND_OPTION[a.kind]}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
                 <StatusChip tone={labelFor(KB_ARTICLE_STATUS, a.status).tone}>{labelFor(KB_ARTICLE_STATUS, a.status).label}</StatusChip>
                 <StatusChip tone="neutral">{SOURCE_BADGE[a.source]}</StatusChip>
                 <SyncBadge a={a} tz={tz} />
@@ -103,6 +102,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
           ))}
         </ul>
       )}
+      </Section>
       {page.nextCursor && <Link href={`/platform/knowledge?${more.toString()}`} className="text-secondary hover:underline">Older articles</Link>}
       {webEnv().kbImport && <ImportPanel targets={targets} start={startKbImportAction} status={kbImportStatusAction} />}
     </>

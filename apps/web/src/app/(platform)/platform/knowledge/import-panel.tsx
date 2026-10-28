@@ -1,5 +1,5 @@
 'use client';
-import { Button } from '@cs/ui';
+import { Button, nativeInputClass, Section } from '@cs/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { type ImportStatusResult, importErrorCopy, type StartImportResult } from './import-errors';
@@ -65,12 +65,11 @@ export function ImportPanel({
   }
 
   return (
-    <section aria-labelledby="kb-import-h" className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
-      <h2 id="kb-import-h" className="text-lg font-bold">Import from a URL</h2>
+    <Section title="Import from a URL" labelled ruled>
       <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-semibold md:col-span-2">
           URL
-          <input name="url" type="url" required placeholder="https://" className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs" />
+          <input name="url" type="url" required placeholder="https://" className={`${nativeInputClass} w-full`} />
         </label>
         <ScopeFields targets={targets} idPrefix="import" initial={{ kind: 'blog' }} />
         <label className="flex items-center gap-2 text-sm font-semibold md:self-end md:pb-2">
@@ -80,8 +79,8 @@ export function ImportPanel({
           <Button type="submit" disabled={phase.kind === 'working'}>Import</Button>
         </div>
       </form>
-      {phase.kind === 'working' && <p role="status" className="text-sm text-muted-foreground">Importing… this can take a minute.</p>}
+      {phase.kind === 'working' && <p role="status" className="text-13 text-muted-ink">Importing… this can take a minute.</p>}
       {phase.kind === 'error' && <ErrorNote>{phase.message}</ErrorNote>}
-    </section>
+    </Section>
   );
 }

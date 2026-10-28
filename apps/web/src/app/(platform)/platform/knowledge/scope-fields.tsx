@@ -1,10 +1,11 @@
 'use client';
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
+import { nativeSelectClass } from '@cs/ui';
 import { useState } from 'react';
 
 export type KbTargets = { agencies: { id: string; name: string; clients: { id: string; name: string }[] }[] };
 
-export const selectClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
+export const selectClass = `${nativeSelectClass} w-full`;
 export const LEVEL_OPTION: Record<KbLevel, string> = { platform: 'Help (platform)', agency: 'Agency', client: 'Client' };
 export const KIND_OPTION: Record<KbKind, string> = { help: 'Help article', playbook: 'Playbook', qa: 'Q&A', blog: 'Blog post', fact: 'Fact' };
 

@@ -1,5 +1,5 @@
 import { listReviewableAskThreads } from '@cs/tools';
-import { StatusChip } from '@cs/ui';
+import { Section, StatusChip } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -49,15 +49,16 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
           { label: 'The status chips', tip: 'platform.ask.flags' },
         ]}
       />
+      <Section>
       {page.items.length === 0 ? (
         <EmptyState {...COPY.empty.none} guideAnchor="what-this-page-tells-you" />
       ) : (
-        <ul className="divide-y rounded-lg border bg-card">
+        <ul className="divide-y divide-line rounded-md border border-line">
           {page.items.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
               <div>
                 <Link href={`/platform/ask/${t.id}`} className="font-semibold text-secondary hover:underline">{t.clientName}</Link>
-                <span className="ml-2 text-sm text-muted-foreground">{t.agencyName} · {formatDateTime(t.createdAt, { tz, zoneLabel: true })}</span>
+                <span className="ml-2 text-13 text-muted-ink">{t.agencyName} · {formatDateTime(t.createdAt, { tz, zoneLabel: true })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {t.deletedAt && <StatusChip tone="neutral">Deleted by user</StatusChip>}
@@ -70,6 +71,7 @@ export default async function PlatformAskPage({ searchParams }: { searchParams: 
           ))}
         </ul>
       )}
+      </Section>
       {page.nextCursor && <Link href={`/platform/ask?cursor=${page.nextCursor}`} className="text-secondary hover:underline">Older threads</Link>}
     </>
   );

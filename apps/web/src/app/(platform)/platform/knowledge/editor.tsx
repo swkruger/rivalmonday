@@ -1,6 +1,6 @@
 'use client';
 import type { KbKind, KbLevel } from '@cs/core';
-import { Button } from '@cs/ui';
+import { Button, nativeInputClass, Section, textareaClass } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { KbArticleView } from '@/components/kb/article-view';
 import type { FormResult } from '@/server/forms';
@@ -26,7 +26,7 @@ export interface EditorArticle {
 }
 export interface EditorActions { save: Action; remove: Action; autoSync: Action }
 
-const inputClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs';
+const inputClass = `${nativeInputClass} w-full`;
 
 function Notice({ result }: { result: FormResult }) {
   if (!result.ok) return <ErrorNote focusKey={result}>{result.error}</ErrorNote>;
@@ -48,7 +48,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
     return (
       <div className="flex flex-col gap-4">
         <p className="rounded-md bg-muted-surface p-3 text-ink">Managed in repo</p>
-        <div className="rounded-md border border-line bg-surface p-6">
+        <div className="rounded-md border border-line p-6">
           <KbArticleView article={{ kbId: article.id, title: article.title, kind: article.kind, level: article.level, bodyMd: article.bodyMd, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
         </div>
       </div>
@@ -63,7 +63,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
         <Notice result={removed} />
         <Notice result={synced} />
       </div>
-      <form action={save} className="flex flex-col gap-4 rounded-md border border-line bg-surface p-6">
+      <form action={save} className="flex flex-col gap-4">
         {article && <input type="hidden" name="id" value={article.id} />}
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Title
@@ -80,14 +80,14 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
         <div className="flex flex-col gap-2">
           <div role="tablist" className="flex gap-1 text-sm font-semibold">
             {(['write', 'preview'] as const).map((t) => (
-              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1 ${tab === t ? 'bg-primary-soft text-primary-soft-text' : 'text-muted-foreground'}`}>
+              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1 ${tab === t ? 'bg-primary-soft text-primary-soft-text' : 'text-muted-ink'}`}>
                 {t === 'write' ? 'Write' : 'Preview'}
               </button>
             ))}
           </div>
-          <textarea name="bodyMd" aria-label="Body (Markdown)" rows={18} value={body} onChange={(e) => setBody(e.target.value)} hidden={tab !== 'write'} className="w-full rounded-md border border-input bg-transparent p-3 font-mono text-sm shadow-xs" />
+          <textarea name="bodyMd" aria-label="Body (Markdown)" rows={18} value={body} onChange={(e) => setBody(e.target.value)} hidden={tab !== 'write'} className={`${textareaClass} p-3 font-mono`} />
           {tab === 'preview' && (
-            <div aria-label="Preview" className="rounded-lg border p-4">
+            <div aria-label="Preview" className="rounded-md border border-line p-4">
               <KbArticleView article={{ kbId: article?.id ?? 'preview', title, kind: article?.kind ?? 'help', level, bodyMd: body, sourceUrl: null, updatedAt: new Date().toISOString() /* format-gate: preview of text not yet saved, so today is its date */ }} />
             </div>
           )}
@@ -100,7 +100,7 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
       </form>
 
       {isUrl && article && (
-        <div className="flex flex-col gap-3 rounded-md border border-line bg-surface p-6">
+        <Section ruled>
           <a href={article.sourceUrl ?? '#'} target="_blank" rel="noopener noreferrer" className="text-sm text-secondary underline [overflow-wrap:anywhere]">{article.sourceUrl}</a>
           <form action={sync} className="flex items-center gap-3">
             <input type="hidden" name="id" value={article.id} />
@@ -108,29 +108,29 @@ export function KbEditor({ article, targets, actions, initialNotice }: { article
             <span className="text-sm font-semibold">Auto-sync: {article.autoSync ? 'on' : 'off'}</span>
             <Button type="submit" variant="outline" disabled={syncing}>{article.autoSync ? 'Turn off auto-sync' : 'Turn on auto-sync'}</Button>
           </form>
-          {article.syncError && <p className="text-sm text-red-700">{article.syncError}</p>}
+          {article.syncError && <p className="text-sm text-danger">{article.syncError}</p>}
           {article.previousBodyMd !== null && (
             <details>
               <summary className="cursor-pointer text-sm font-semibold">Previous version</summary>
               <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted-surface p-3 text-sm">{article.previousBodyMd}</pre>
             </details>
           )}
-        </div>
+        </Section>
       )}
 
       {article && (
-        <div className="flex flex-col gap-2">
+        <Section ruled>
           {!confirming ? (
             <Button type="button" variant="outline" className="self-start" onClick={() => setConfirming(true)}>Delete</Button>
           ) : (
-            <form action={remove} role="alertdialog" aria-label="Confirm delete" className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+            <form action={remove} role="alertdialog" aria-label="Confirm delete" className="flex flex-wrap items-center gap-3 rounded-md border border-line p-3">
               <input type="hidden" name="id" value={article.id} />
               <span className="text-sm">Delete this article and its search index? This cannot be undone.</span>
               <Button type="submit" disabled={removing}>Delete article</Button>
               <Button type="button" variant="outline" onClick={() => setConfirming(false)}>Cancel</Button>
             </form>
           )}
-        </div>
+        </Section>
       )}
     </div>
   );

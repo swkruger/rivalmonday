@@ -1,6 +1,6 @@
 'use client';
 import type { TopicProposalView } from '@cs/tools';
-import { Button, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Button, Band, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, Section, StatusChip, Table, TableFrame, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -44,8 +44,8 @@ export function TopicQueue({ pending, decided, action, tz, nowMs }: { pending: T
             {p.samples.length > 0 && (
               <ul className="flex flex-col gap-1 text-sm">
                 {p.samples.map((s, i) => (
-                  <li key={i} className="rounded-md bg-muted-surface p-2">
-                    “<span>{s}</span>”
+                  <li key={i}><Band tone="muted" className="p-2">
+                    “<span>{s}</span>”</Band>
                   </li>
                 ))}
               </ul>
@@ -75,9 +75,8 @@ export function TopicQueue({ pending, decided, action, tz, nowMs }: { pending: T
         </Card>
       ))}
       {decided.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Recently decided</CardTitle></CardHeader>
-          <CardContent>
+        <Section title="Recently decided">
+          <TableFrame>
             <Table>
               <TableHeader><TableRow><TableHead>Topic</TableHead><TableHead>Business type</TableHead><TableHead>Decision</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -86,8 +85,8 @@ export function TopicQueue({ pending, decided, action, tz, nowMs }: { pending: T
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </TableFrame>
+        </Section>
       )}
     </div>
   );

@@ -71,10 +71,10 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
           { label: 'Message status', tip: 'platform.ask.thread.status' },
         ]}
       />
-      <ol className="flex flex-col gap-3">
+      <ol className="divide-y divide-line rounded-md border border-line">
         {thread.messages.map((m) => (
-          <li key={m.id} className="rounded-lg border bg-card p-4">
-            <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <li key={m.id} className="p-4">
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-13 text-muted-ink">
               <span className="font-semibold text-ink">{roleLabel(m.role, assistant)}</span>
               <StatusChip tone={labelFor(ASK_MESSAGE_STATUS, m.status).tone}>{labelFor(ASK_MESSAGE_STATUS, m.status).label}</StatusChip>
               {/* format-gate: machine-readable dateTime attribute */}
@@ -82,7 +82,7 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
             </div>
             <p className="whitespace-pre-wrap">{m.content}</p>
             {m.citations.length > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-13 text-muted-ink">
                 Citations:{' '}
                 {m.citations.map((c, i) => (
                   <span key={c}>
@@ -94,7 +94,7 @@ export default async function PlatformAskThreadPage({ params }: { params: Promis
             )}
             {(m.action != null || m.trace != null) && (
               <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-muted-foreground">Technical details</summary>
+                <summary className="cursor-pointer text-13 text-muted-ink">Technical details</summary>
                 {m.action != null && (
                   <>
                     <p className="mt-1 text-xs font-semibold text-ink">Action</p>
