@@ -455,6 +455,37 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
           </>
         )
       ) : (
+        <>
+        {/* P5: below md each competitor is a stacked row; the table (and its controls) is display:none there, and vice versa. */}
+        <ul data-slot="competitor-rows" className="m-0 flex list-none flex-col divide-y divide-line p-0 md:hidden">
+          {ordered.map((c) => {
+            const rated = byCompetitor.get(c.id);
+            return (
+              <li key={c.id} className="flex flex-col gap-1.5 py-3 first:pt-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <Link href={`/c/${clientId}/competitors/${c.id}`} className="break-words font-semibold text-primary-soft-text">
+                      {c.name}
+                    </Link>
+                    {rated && <TierChip tier={rated.tier} />}
+                  </div>
+                  {canRemove && <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} onOpen={() => setResult({ ok: true })} />}
+                </div>
+                <p className="text-11 text-muted-ink">{rated ? ratedLabel(rated.computedAt, timezone) : 'Not rated yet'}</p>
+                {rated && (
+                  <div className="overflow-x-auto">
+                    <SignalPills signals={rated.signals} mode="tracked" />
+                  </div>
+                )}
+                <p className="break-words text-13 text-muted-ink">
+                  {[c.domain, `${c.activePages} ${c.activePages === 1 ? 'page' : 'pages'} monitored`, `Since ${formatDate(c.addedAt, { tz: timezone })}`].filter(Boolean).join(' · ')}
+                </p>
+                {!result.ok && result.rowId === c.id && <Message state={result} />}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -513,6 +544,8 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
             })}
           </TableBody>
         </Table>
+        </div>
+        </>
       )}
     </div>
   );

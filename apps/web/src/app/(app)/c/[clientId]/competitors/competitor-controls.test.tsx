@@ -220,7 +220,7 @@ describe('row messages survive revalidation', () => {
     // A client owner who manages competitors: the empty state reads its copy from the shell's help provider.
     const wrapper = ({ children }: { children: React.ReactNode }) => <HelpProvider value={{ audience: 'client', names: { agency: 'Acme', assistant: 'Sunny' } }}>{children}</HelpProvider>;
     const { rerender } = render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked]} canRemove />, { wrapper });
-    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
+    fireEvent.click(within(screen.getByRole('table')).getByRole('button', { name: /^remove$/i }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
     rerender(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[]} canRemove />);
@@ -232,18 +232,19 @@ describe('row messages survive revalidation', () => {
     const second: TrackedCompetitor = { ...tracked, id: 'x2', name: 'Jones Air' };
     vi.mocked(removeCompetitorAction).mockResolvedValueOnce({ ok: false, error: 'Not found' });
     render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked, second]} canRemove />);
-    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
+    fireEvent.click(within(screen.getByRole('table')).getAllByRole('button', { name: /^remove$/i })[0]!);
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
     expect(removeCompetitorAction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
+    fireEvent.click(within(screen.getByRole('table')).getAllByRole('button', { name: /^remove$/i })[0]!);
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('Stop tracking Jones Air?')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: /stop tracking/i }));
     await waitFor(() => expect(removeCompetitorAction).toHaveBeenCalledTimes(1));
-    const alert = await screen.findByRole('alert');
+    const alert = await within(screen.getByRole('table')).findByRole('alert');
     expect(alert.textContent).toBe('Not found');
     expect(alert.closest('tr')?.previousElementSibling?.textContent).toContain('Jones Air');
-    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    // One copy per layout (table >= md, stacked list < md); the list is display:none at desktop widths.
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
@@ -383,17 +384,17 @@ describe('TrackedCompetitorsTable ratings', () => {
     render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked, other]} canRemove={false} signals={[rating]} />);
     expect(screen.queryByRole('columnheader', { name: /^Tier/ })).toBeNull();
     expect(screen.getByRole('columnheader', { name: /^Signals/ })).toBeTruthy();
-    const nameCell = screen.getByRole('link', { name: 'Smith HVAC' }).closest('td')!;
+    const nameCell = within(screen.getByRole('table')).getByRole('link', { name: 'Smith HVAC' }).closest('td')!;
     expect(within(nameCell as HTMLElement).getByText('Top rival')).toBeTruthy();
     expect(within(nameCell as HTMLElement).getByText('Rated Oct 13')).toBeTruthy();
-    expect(screen.getAllByRole('list', { name: 'Signals' })).toHaveLength(1);
+    expect(within(screen.getByRole('table')).getAllByRole('list', { name: 'Signals' })).toHaveLength(1);
     expect(screen.queryByText(/Matched automatically|Possible .* account/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
   });
 
   it('says "Not rated yet" for a competitor with no signal row, never a tier', () => {
     render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[other]} canRemove={false} signals={[rating]} />);
-    expect(screen.getByText('Not rated yet')).toBeTruthy();
+    expect(within(screen.getByRole('table')).getByText('Not rated yet')).toBeTruthy();
     expect(screen.queryByText('Minor')).toBeNull();
   });
 
@@ -402,7 +403,7 @@ describe('TrackedCompetitorsTable ratings', () => {
     const items = [mk('n1', 'Zulu Unrated'), mk('m1', 'Minor Co'), mk('w2', 'Watch Beta'), mk('t1', 'Top Zed'), mk('w1', 'Watch Alpha'), mk('n0', 'Alpha Unrated'), mk('t0', 'Top Able')];
     const sig = (competitorId: string, tier: 'top' | 'watch' | 'minor') => ({ ...rating, competitorId, tier });
     render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={items} canRemove={false} signals={[sig('m1', 'minor'), sig('w2', 'watch'), sig('t1', 'top'), sig('w1', 'watch'), sig('t0', 'top')]} />);
-    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(['Top Able', 'Top Zed', 'Watch Alpha', 'Watch Beta', 'Minor Co', 'Alpha Unrated', 'Zulu Unrated']);
+    expect(within(screen.getByRole('table')).getAllByRole('link').map((a) => a.textContent)).toEqual(['Top Able', 'Top Zed', 'Watch Alpha', 'Watch Beta', 'Minor Co', 'Alpha Unrated', 'Zulu Unrated']);
     // No group rows: one row per competitor plus the header.
     expect(screen.getAllByRole('row')).toHaveLength(items.length + 1);
   });
@@ -424,5 +425,16 @@ describe('TrackedCompetitorsTable empty state by viewer', () => {
     render(<HelpProvider value={{ audience: 'client', names }}><TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[]} canRemove={false} /></HelpProvider>);
     expect(screen.getByText('Your competitors appear here once Cool Comfort has set them up.')).toBeTruthy();
     expect(screen.queryByText(/read-only/)).toBeNull();
+  });
+
+  it('below md the stacked rows carry the same links and actions as the table (P5)', () => {
+    const tracked: TrackedCompetitor = { id: 'x', name: 'Smith HVAC', domain: null, placeId: null, addedAt: '2026-10-01T00:00:00Z', activePages: 0 };
+    render(<TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[tracked]} canRemove />);
+    const list = document.querySelector('[data-slot=competitor-rows]') as HTMLElement;
+    expect(list.className).toContain('md:hidden');
+    expect(list.nextElementSibling?.className).toContain('hidden md:block');
+    expect(list.nextElementSibling?.querySelector('table')).not.toBeNull();
+    expect(within(list).getByRole('link', { name: 'Smith HVAC' }).getAttribute('href')).toBe('/c/c1/competitors/x');
+    expect(within(list).getByRole('button', { name: /^remove$/i })).toBeTruthy();
   });
 });
