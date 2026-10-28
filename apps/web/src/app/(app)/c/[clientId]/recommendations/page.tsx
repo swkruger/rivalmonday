@@ -29,12 +29,14 @@ const TIPS: readonly { label: string; tip: TipKey }[] = [
 export default async function RecommendationsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
   const { viewer, ctx } = await requireContext();
-  const [profile, recs, guides] = await Promise.all([
-    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
+  const profileP = callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+  const recsP = callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId });
+  const [profile, recs, guides, refs] = await Promise.all([
+    profileP,
+    recsP,
     helpGuides(ctx, 'client', clientId),
+    Promise.all([profileP, recsP]).then(([p, r]) => evidenceRefsFor(ctx, clientId, r.items.flatMap((i) => i.evidenceIds), p.timezone)),
   ]);
-  const refs = await evidenceRefsFor(ctx, clientId, recs.items.flatMap((r) => r.evidenceIds), profile.timezone);
   // "Save from an assistant answer" is offered only when the viewer can: the Ask module on for a signed-in user (never a
   // guest) and the permission to give feedback, as on the evidence page. Otherwise the copy does not mention the assistant.
   const canSaveFromAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasFeature(ctx, 'ask') && hasPermission(ctx, 'feedback') && hasFeature(ctx, 'dashboard');

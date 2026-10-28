@@ -1,4 +1,5 @@
 import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { StatStrip } from '@/components/stat-strip';
 import { formatMoney } from '@/lib/format';
 import { Field, fieldCls } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
@@ -27,12 +28,15 @@ const pct = (n: number) => `${n}%`;
 export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOverview; canEdit: boolean }) {
   return (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-muted-ink">Connected agencies</dt><dd className="text-xl font-semibold text-ink">{o.totals.connectedAgencies}</dd></div>
-        <div><dt className="text-muted-ink">Paying clients</dt><dd className="text-xl font-semibold text-ink">{o.totals.payingClients}</dd></div>
-        <div><dt className="text-muted-ink">Client MRR via Connect</dt><dd className="text-xl font-semibold text-ink">{formatMoney(o.totals.clientMrrCents, { unit: 'cents' })}</dd></div>
-        <div><dt className="text-muted-ink">Default fee</dt><dd className="text-xl font-semibold text-ink">{pct(o.globalFeePercent)}</dd></div>
-      </dl>
+      <StatStrip
+        headingLevel={3}
+        items={[
+          { title: 'Connected agencies', value: String(o.totals.connectedAgencies) },
+          { title: 'Paying clients', value: String(o.totals.payingClients) },
+          { title: 'Client MRR via Connect', value: formatMoney(o.totals.clientMrrCents, { unit: 'cents' }) },
+          { title: 'Default fee', value: pct(o.globalFeePercent) },
+        ]}
+      />
       {o.agencies.length === 0 ? (
         <p className="text-sm text-muted-ink">No agency has connected Stripe yet.</p>
       ) : (

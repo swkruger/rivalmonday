@@ -1,6 +1,6 @@
 'use client';
 import type { IntakePlaceOption, SignedIntakePlace } from '@cs/tools';
-import { Band, Button, Field, Input, textareaClass } from '@cs/ui';
+import { Band, Button, Card, Field, Input, textareaClass } from '@cs/ui';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
@@ -123,11 +123,11 @@ export function IntakeFlow({ brand, slug, refCode, siteKey, preview = false, pri
     return (
       <div style={brand.style as React.CSSProperties} className="flex flex-col gap-8 bg-white p-6 text-ink">
         <section className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">{TITLES[0]}</h2>
+          <h2 className="text-base font-semibold">{TITLES[0]}</h2>
           {findStep}
         </section>
         <section className="flex flex-col gap-4 border-t border-line pt-6">
-          <h2 className="text-xl font-semibold">{TITLES[1]}</h2>
+          <h2 className="text-base font-semibold">{TITLES[1]}</h2>
           {detailsFields}
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" disabled aria-disabled="true" className="self-start">Get my free snapshot</Button>
@@ -244,14 +244,16 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
             const on = picked?.place.placeId === p.placeId;
             return (
               <li key={p.placeId}>
-                <button
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setPicked(signed)}
-                  className={`flex w-full flex-col gap-1 rounded-md border p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${on ? 'border-primary ring-1 ring-inset ring-primary' : 'border-line hover:bg-canvas'}`}
-                >
-                  <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
-                </button>
+                <Card variant="interactive" selected={on}>
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setPicked(signed)}
+                    className="flex w-full flex-col gap-1 rounded-md p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
+                  </button>
+                </Card>
               </li>
             );
           })}
@@ -291,7 +293,8 @@ function DetailsFields({ f, set, privacyUrl, siteKey, state, preview }: {
               <a href={privacyUrl} className="text-secondary underline" target="_blank" rel="noreferrer">Privacy policy</a>
             </>
           )}
-          <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
+          <span aria-hidden="true" className="ml-0.5 text-danger-text">*</span>
+          <span className="sr-only">(required)</span>
         </span>
       </label>
       {siteKey && <TurnstileWidget siteKey={siteKey} state={state} />}

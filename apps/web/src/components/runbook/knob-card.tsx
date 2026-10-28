@@ -1,6 +1,7 @@
 'use client';
-import { Band, Button, Input, Label, StatusChip } from '@cs/ui';
+import { Button, Input, Label, StatusChip } from '@cs/ui';
 import { useState } from 'react';
+import { ErrorNote } from '@/components/form-error';
 import { badgeFor, EnabledSwitch, type RunFn, UpdatePrompts, useCardRun } from './item-card';
 import type { RunbookItemData, RunbookLevel } from './types';
 
@@ -124,7 +125,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
           {canEdit && <div><Button size="sm" disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
         </>
       )}
-      {error && <Band tone="muted" role="alert" className="text-sm text-ink">{error}</Band>}
+      {error && <ErrorNote compact>{error}</ErrorNote>}
       {item && <UpdatePrompts item={item} level={level} canEdit={canEdit} run={run} />}
     </div>
   );

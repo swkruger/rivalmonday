@@ -33,8 +33,9 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
       data-tone="warning"
     >
       {/* Below `sm` two lines (agency and reason; then minutes and Exit) so the reason stays readable at 390 px. */}
-      <TriangleAlert aria-hidden className="mr-2 size-4 shrink-0 text-warning" />
-      <div className="mx-auto flex w-full min-w-0 max-w-[1560px] flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1560px] items-center gap-2">
+      <TriangleAlert aria-hidden className="size-4 shrink-0 text-warning" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 whitespace-nowrap sm:flex-row sm:items-center sm:gap-1.5">
         {ended ? (
           <a href={`/support/end?sid=${encodeURIComponent(sessionId)}&next=%2Fagency`} className="font-semibold underline">
             Session ended — reload
@@ -66,6 +67,7 @@ export function SupportBanner({ sessionId, agencyName, reason, expiresAt }: { se
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

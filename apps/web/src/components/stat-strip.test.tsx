@@ -22,6 +22,11 @@ describe('StatStrip', () => {
     expect(screen.getByRole('link', { name: /Alerts waiting/ }).getAttribute('href')).toBe('/agency/alerts');
     expect(container.querySelectorAll('[data-slot=kpi-strip] a')).toHaveLength(1);
   });
+  it('headingLevel 3 renders h3 titles', () => {
+    render(<StatStrip headingLevel={3} items={[{ title: 'A', value: '1' }, { title: 'B', value: '2' }]} />);
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2);
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
+  });
   it('keeps the help button name', () => {
     render(<StatStrip items={[{ title: 'Changes this week', value: '1', help: <button type="button" aria-label="About Changes this week">?</button> }]} />);
     expect(screen.getByRole('button', { name: 'About Changes this week' })).toBeTruthy();

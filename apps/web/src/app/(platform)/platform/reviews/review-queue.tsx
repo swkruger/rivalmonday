@@ -23,7 +23,7 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
     <div className="flex flex-col gap-5">
       {!result.ok && <ErrorNote focusKey={result}>{result.error}</ErrorNote>}
       {result.ok && result.message && <p className="rounded-md bg-muted-surface p-3 text-ink">{result.message}</p>}
-      {total > 0 && <h2 className="text-lg font-semibold">Waiting for review ({total})</h2>}
+      {total > 0 && <h2 className="text-base font-semibold">Waiting for review ({total})</h2>}
       {items.length === 0 && (offPage ? <OffPageNotice firstHref="/platform/reviews" /> : <HelpEmpty id="platform.reviews.queue" guideAnchor="what-this-page-tells-you" />)}
       {items.map((item) => (
         <Card key={item.id} className="p-6">

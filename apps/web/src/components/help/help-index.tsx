@@ -34,7 +34,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
 
       {results && (
         <section aria-labelledby="help-results" className="flex flex-col gap-3">
-          <h2 id="help-results" className="text-lg font-semibold">Search results</h2>
+          <h2 id="help-results" className="text-base font-semibold">Search results</h2>
           {results.length === 0 ? (
             <p className="text-sm text-muted-ink">No results for “{query}”.</p>
           ) : (
@@ -51,7 +51,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
       )}
 
       <section aria-labelledby="help-guides" className="flex flex-col gap-4">
-        <h2 id="help-guides" className="text-lg font-semibold">Guides</h2>
+        <h2 id="help-guides" className="text-base font-semibold">Guides</h2>
         {groups.length === 0 ? (
           <p className="text-sm text-muted-ink">No guides are available here yet.</p>
         ) : (
@@ -70,7 +70,7 @@ export function HelpIndex({ articleBase, groups, glossary, query, results, ask, 
 
       {glossary.length > 0 && (
         <section aria-labelledby="help-glossary" className="flex flex-col gap-3">
-          <h2 id="help-glossary" className="text-lg font-semibold">Glossary</h2>
+          <h2 id="help-glossary" className="text-base font-semibold">Glossary</h2>
           <dl className="flex flex-col gap-3">
             {glossary.map((t) => (
               <div key={t.id} className="flex flex-col gap-0.5">

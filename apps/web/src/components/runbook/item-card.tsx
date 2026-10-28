@@ -4,6 +4,7 @@ import { changeTypeLabel } from '@cs/email/labels';
 import { Band, Button, Card, ConfirmDialog, Input, Label, StatusChip, Switch, textareaClass } from '@cs/ui';
 import { useOptimistic, useState, useTransition } from 'react';
 import { LEVEL, labelFor } from '@/lib/labels';
+import { ErrorNote } from '@/components/form-error';
 import { DiffView } from './diff';
 import type { RunbookActionResult, RunbookItemData, RunbookLevel, RunbookOp, Tailoring } from './types';
 
@@ -259,7 +260,7 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
           <p className="text-xs text-muted-ink">Leave all unticked to use this play for every service.</p>
         </fieldset>
       )}
-      {error && <Band tone="muted" role="alert" className="text-sm text-ink">{error}</Band>}
+      {error && <ErrorNote compact>{error}</ErrorNote>}
       <div className="flex gap-2">
         <Button size="sm" disabled={pending} onClick={save}>Save</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>

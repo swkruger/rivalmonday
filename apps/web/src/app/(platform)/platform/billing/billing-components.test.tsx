@@ -242,6 +242,16 @@ describe('ConnectPanel', () => {
     expect(screen.getByRole('button', { name: 'Save agency fee' })).toBeTruthy();
     expect(screen.getByLabelText('Agency')).toBeTruthy();
   });
+  it('totals render as a KPI strip, read by [data-slot="kpi"]', () => {
+    const { container } = render(<ConnectPanel overview={overview} canEdit={false} />);
+    const cells = [...container.querySelectorAll('[data-slot="kpi"]')].map((k) => k.textContent);
+    expect(cells).toHaveLength(4);
+    expect(cells[0]).toContain('Connected agencies');
+    expect(cells[0]).toContain('1');
+    expect(cells[2]).toContain('Client MRR via Connect');
+    expect(cells[2]).toContain('$297');
+    expect(cells[3]).toContain('2.5%');
+  });
   it('says so when no agency has connected', () => {
     render(<ConnectPanel overview={{ ...overview, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } }} canEdit={false} />);
     expect(screen.getByText(/No agency has connected Stripe yet/)).toBeTruthy();

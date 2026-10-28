@@ -63,7 +63,7 @@ export default async function PlatformCostsPage() {
       <Section title="AI by business type (last 30 days)" titleAside={<HelpTip tip="platform.costs.ai" />} ruled>
         <AiByVerticalTable rows={data.aiByVertical} />
       </Section>
-      <Section title="Limits &amp; spike guard" titleAside={<HelpTip tip="platform.costs.limits" />} ruled>
+      <Section title="Limits & spike guard" titleAside={<HelpTip tip="platform.costs.limits" />} ruled>
         <SpendGuardSettings settings={guard.settings} />
       </Section>
       <Section title="Manual costs" titleAside={<HelpTip tip="platform.costs.manual" />} actions={<CostItemDialog />} ruled>

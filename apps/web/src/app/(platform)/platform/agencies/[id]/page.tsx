@@ -205,7 +205,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         ]}
       />
       <HairlineGrid cols={2}>
-        <PlatformCharts series={series ?? []} range={range} includeAgencies={false} rangeToggle={<RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />} />
+        <PlatformCharts series={series ?? []} range={range} includeAgencies={false} wideLast rangeToggle={<RangeToggle current={range} basePath={`/platform/agencies/${agency.id}`} />} />
       </HairlineGrid>
       <PeopleSection agency={ref} people={people} tab={peopleTab} hrefs={hrefs} canManage={canStart} tz={tz} nowMs={nowMs} />
       <ClientsSection clients={clients} tz={tz} />

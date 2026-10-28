@@ -18,15 +18,16 @@ export function deltaPill(t: Tile, fmt: (n: number) => string = String): StatPil
 /**
  * The three platform charts (clients, seats + WAU, spend) as `HairlineCell`s (the caller supplies the `HairlineGrid`). NULL series values stay NULL (chart gaps).
  * `includeAgencies` adds the platform-wide agency count to the first chart (meaningless for one agency).
+ * `wideLast` makes the Spend chart span both columns of a 2-column grid (a lone third chart).
  * `rangeToggle` sits in the first chart's header: it switches the range of all three.
  */
-export function PlatformCharts({ series, range, includeAgencies, rangeToggle }: { series: Point[]; range: '12w' | '12m'; includeAgencies: boolean; rangeToggle?: ReactNode }) {
+export function PlatformCharts({ series, range, includeAgencies, rangeToggle, wideLast }: { series: Point[]; range: '12w' | '12m'; includeAgencies: boolean; rangeToggle?: ReactNode; wideLast?: boolean }) {
   const period = range === '12m' ? 'month' : 'week';
   const labels = series.map((p) => (period === 'month' ? p.start.slice(0, 7) : p.start));
   const col = (k: keyof Omit<Point, 'start'>) => series.map((p) => p[k]);
   const hasData = series.some((p) => [p.agencies, p.clientsActive, p.seats, p.wau, p.spendUsd].some((v) => v !== null));
-  const chart = (title: string, s: { key: string; name: string; points: (number | null)[] }[], valueLabel: string, fmt?: (n: number) => string, toggle?: ReactNode) => (
-    <HairlineCell>
+  const chart = (title: string, s: { key: string; name: string; points: (number | null)[] }[], valueLabel: string, fmt?: (n: number) => string, toggle?: ReactNode, cellClass?: string) => (
+    <HairlineCell className={cellClass}>
       <Section title={title} actions={toggle}>
         {hasData ? <LineChart title={title} labels={labels} series={s} valueLabel={valueLabel} period={period} formatValue={fmt} /> : <p className="text-sm text-muted-ink">{EMPTY_CHART}</p>}
       </Section>
@@ -42,7 +43,7 @@ export function PlatformCharts({ series, range, includeAgencies, rangeToggle }: 
         { key: 'seats', name: 'Seats', points: col('seats') },
         { key: 'wau', name: 'Weekly active users', points: col('wau') },
       ], 'total')}
-      {chart('Spend', [{ key: 'spendUsd', name: 'Spend', points: col('spendUsd') }], 'spend', (n: number) => formatMoney(n, { cents: true }))}
+      {chart('Spend', [{ key: 'spendUsd', name: 'Spend', points: col('spendUsd') }], 'spend', (n: number) => formatMoney(n, { cents: true }), undefined, wideLast ? 'lg:col-span-2' : undefined)}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { isAgencyRole } from '@cs/core';
+import { TabsLink, TabsLinkList } from '@cs/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
@@ -95,18 +96,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           { label: 'Snapshots', tip: 'agency.leads.preview' },
         ]}
       />
-      <nav aria-label="Lead status" className="flex gap-1 border-b border-line">
+      <TabsLinkList aria-label="Lead status">
         {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={t.key === 'new' ? '/agency/leads' : `/agency/leads?tab=${t.key}`}
-            aria-current={t.key === tab.key ? 'page' : undefined}
-            className={t.key === tab.key ? 'border-b-2 border-primary px-3 py-2 text-sm font-semibold text-primary-soft-text' : 'px-3 py-2 text-sm font-medium text-ink/70 hover:text-ink'}
-          >
-            {t.label} <span className="text-muted-ink">({counts[t.status]})</span>
-          </Link>
+          <TabsLink key={t.key} asChild active={t.key === tab.key}>
+            <Link href={t.key === 'new' ? '/agency/leads' : `/agency/leads?tab=${t.key}`}>
+              {t.label} <span className="text-muted-ink">({counts[t.status]})</span>
+            </Link>
+          </TabsLink>
         ))}
-      </nav>
+      </TabsLinkList>
       {views.length === 0 ? (
         <EmptyState title={EMPTY[tab.key].title} body={EMPTY[tab.key].body} guideAnchor="how-to-use-it" />
       ) : (

@@ -254,6 +254,16 @@ describe('agency batch A: Leads', () => {
     expect(screen.getByText('No accepted leads yet')).toBeTruthy();
   });
 
+  it('the status tabs are links, the current one marked aria-current="page"', async () => {
+    await show('agency.leads');
+    const nav = screen.getByRole('navigation', { name: 'Lead status' });
+    const links = nav.querySelectorAll('a[href]');
+    expect(links.length).toBeGreaterThan(1);
+    expect(nav.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    expect(links[0]!.getAttribute('aria-current')).toBe('page');
+    expect(links[0]!.getAttribute('href')).toBe('/agency/leads');
+  });
+
   it('the tips name the Accept and invite flow, the lead pool and both sources, with the card labels', async () => {
     await show('agency.leads');
     expect(open('Where leads come from')).toMatch(/From your website.*From the platform/s);

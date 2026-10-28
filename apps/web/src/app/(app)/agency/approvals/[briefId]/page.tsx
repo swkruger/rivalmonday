@@ -41,15 +41,16 @@ export async function generateMetadata({ params }: { params: Promise<{ briefId: 
 export default async function ApprovalReviewPage({ params }: { params: Promise<{ briefId: string }> }) {
   const brief = await loadBrief((await params).briefId);
   const { ctx } = await requireContext();
-  const guides = await helpGuides(ctx, 'agency');
-
   const active = brief.items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
   const dropped = brief.items.filter((i) => i.status !== 'active').sort((a, b) => a.ord - b.ord);
   const sorted = [...active, ...dropped];
   const editable = brief.status === 'ready';
   const fixed = brief.factCheck.sentences > 0 || brief.factCheck.items > 0;
   const startingPoint = brief.kind === 'starting_point';
-  const refs = await evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone);
+  const [guides, refs] = await Promise.all([
+    helpGuides(ctx, 'agency'),
+    evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone),
+  ]);
 
   return (
     <>

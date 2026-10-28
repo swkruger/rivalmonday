@@ -29,8 +29,9 @@ export function StatBadge({ pill }: { pill: StatPill }) {
   );
 }
 
-/** Overview KPI row (09 § 5.3): one hairline-framed strip; titles stay `h2`. */
-export function StatStrip({ items, label }: { items: StatItem[]; label?: string }) {
+/** Overview KPI row (09 § 5.3): one hairline-framed strip; titles are `h2` (`headingLevel={3}` under a Section `h2`). */
+export function StatStrip({ items, label, headingLevel = 2 }: { items: StatItem[]; label?: string; headingLevel?: 2 | 3 }) {
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
   return (
     <KpiStrip aria-label={label}>
       {items.map((i) => (
@@ -38,7 +39,7 @@ export function StatStrip({ items, label }: { items: StatItem[]; label?: string 
           key={i.title}
           linkAs={Link}
           href={i.href}
-          label={<span className="flex items-center gap-1.5"><h2 className="text-13 font-normal text-muted-ink">{i.title}</h2>{i.help}</span>}
+          label={<span className="flex items-center gap-1.5"><Heading className="text-13 font-normal text-muted-ink">{i.title}</Heading>{i.help}</span>}
           value={i.value}
           badge={i.pill ? <StatBadge pill={i.pill} /> : undefined}
           caption={i.hint}
