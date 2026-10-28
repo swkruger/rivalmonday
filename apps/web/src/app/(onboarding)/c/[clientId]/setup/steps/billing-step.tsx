@@ -1,9 +1,9 @@
 'use client';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input } from '@cs/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Input } from '@cs/ui';
 import Link from 'next/link';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { PaymentSummary } from '@/components/onboarding/previews/payment-summary';
@@ -73,13 +73,13 @@ export function BillingStep({ frame, agencyName, clientName, ownerFirstName, pre
           <p className="text-sm text-muted-ink"><Link href="/agency/settings/billing" className="font-semibold text-secondary">Connect Stripe in Settings → Billing</Link> to bill this client.</p>
         ) : (
           <fieldset disabled={readOnly} className="contents">
-            <Field id="billing-price" label="Monthly price" required>
+            <Field htmlFor="billing-price" label="Monthly price" required>
               <div className="relative max-w-[200px]">
                 <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-ink">$</span>
                 <Input id="billing-price" inputMode="decimal" required aria-required value={price} onChange={(e) => setPrice(e.target.value)} className={`${INPUT_CLASS} pl-7`} />
               </div>
             </Field>
-            <Field id="billing-fee" label="Setup fee" optional>
+            <Field htmlFor="billing-fee" label="Setup fee" optional>
               <div className="relative max-w-[200px]">
                 <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-ink">$</span>
                 <Input id="billing-fee" inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value)} className={`${INPUT_CLASS} pl-7`} />

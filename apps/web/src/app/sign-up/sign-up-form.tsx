@@ -1,10 +1,10 @@
 'use client';
-import { Button, Input } from '@cs/ui';
+import { Button, Field, Input } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect } from 'react';
 import { type SignupState, startSignup } from './actions';
 import { ErrorNote } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 
 const REASONS: Record<string, string> = {
   link: 'That link expired or was already used. Fill in the form to get a new one.',
@@ -32,10 +32,10 @@ export function SignUpForm({
         </ErrorNote>
       )}
       {inviteToken && <input type="hidden" name="inviteToken" value={inviteToken} />}
-      <Field id="email" label="Work email" required>
+      <Field label="Work email" required>
         <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={lockedEmail ?? ''} readOnly={lockedEmail !== null} className={INPUT_CLASS} />
       </Field>
-      <Field id="agencyName" label="Agency name" required>
+      <Field label="Agency name" required>
         <Input id="agencyName" name="agencyName" autoComplete="organization" required maxLength={120} className={INPUT_CLASS} />
       </Field>
       {siteKey && (

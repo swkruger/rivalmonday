@@ -1,8 +1,8 @@
 'use client';
-import { Input } from '@cs/ui';
+import { Field, Input } from '@cs/ui';
 import { useActionState, useEffect, useState } from 'react';
 import { FormError } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { type BriefFocus, BriefFooter } from '@/components/onboarding/previews/brief-footer';
@@ -34,7 +34,7 @@ export function AboutStep({ initial, guide }: { initial: AboutValues; guide: boo
   useEffect(() => { setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone); }, []);
 
   const input = (id: (typeof FIELDS)[number], label: string, extra: React.ComponentProps<typeof Input> = {}, opts: { required?: boolean } = {}) => (
-    <Field id={id} label={label} required={opts.required}>
+    <Field label={label} required={opts.required}>
       <Input
         id={id} name={id} value={vals[id]} className={INPUT_CLASS} maxLength={200}
         onChange={(e) => setVals((v) => ({ ...v, [id]: e.target.value }))}

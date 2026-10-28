@@ -1,9 +1,9 @@
 'use client';
-import { Input } from '@cs/ui';
+import { Field, Input } from '@cs/ui';
 import { X } from 'lucide-react';
 import { useActionState, useState } from 'react';
 import { FormError } from '@/components/form-error';
-import { Field, INPUT_CLASS, SELECT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS, SELECT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { InviteEmail, type InviteFocus } from '@/components/onboarding/previews/invite-email';
@@ -61,11 +61,11 @@ export function TeamStep({ agencyName, inviterName, guide }: { agencyName: strin
             <p className="text-[13px] font-medium">Invite people <span className="font-normal text-muted-ink">(optional)</span></p>
             {rows.map((r, i) => (
               <div key={r.id} className="grid grid-cols-[1fr_170px_20px] items-end gap-2.5">
-                <Field id={`email-${r.id}`} label={`Email${rows.length > 1 ? ` ${i + 1}` : ''}`}>
+                <Field label={`Email${rows.length > 1 ? ` ${i + 1}` : ''}`}>
                   <Input id={`email-${r.id}`} name="email" type="email" placeholder="name@agency.com" className={INPUT_CLASS} value={r.email}
                     onChange={(e) => patch(r.id, { email: e.target.value })} onFocus={() => setFocus({ id: r.id, part: 'to' })} onBlur={() => setFocus(null)} />
                 </Field>
-                <Field id={`role-${r.id}`} label={`Role${rows.length > 1 ? ` ${i + 1}` : ''}`}>
+                <Field label={`Role${rows.length > 1 ? ` ${i + 1}` : ''}`}>
                   <select id={`role-${r.id}`} name="role" value={r.role} className={SELECT_CLASS}
                     onChange={(e) => patch(r.id, { role: e.target.value })} onFocus={() => setFocus({ id: r.id, part: 'role' })} onBlur={() => setFocus(null)}>
                     <option value="agency_admin">Agency admin</option>

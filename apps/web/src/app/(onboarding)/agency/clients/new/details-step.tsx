@@ -1,7 +1,7 @@
 'use client';
-import { Button, Input } from '@cs/ui';
+import { Button, Field, Input } from '@cs/ui';
 import { useEffect, useState } from 'react';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { BriefCover, type CoverFocus } from '@/components/onboarding/previews/brief-cover';
@@ -49,11 +49,10 @@ export function DetailsStep({ kind, brand, agencyName, steps, draft, onChange, o
   };
 
   const field = (id: keyof DraftErrors, label: string, opts: { required?: boolean; optional?: boolean; hint?: string; input?: React.ComponentProps<typeof Input> } = {}) => (
-    <Field id={id} label={label} required={opts.required} optional={opts.optional}
-      hint={errors[id] ? <span id={`${id}-error`} role="alert" className="text-danger">{errors[id]}</span> : opts.hint}>
+    <Field label={label} required={opts.required} optional={opts.optional}
+      error={errors[id] ? <span role="alert">{errors[id]}</span> : undefined} help={opts.hint}>
       <Input
         id={id} name={id} value={draft[id]} className={INPUT_CLASS} maxLength={200}
-        aria-invalid={errors[id] ? true : undefined} aria-describedby={errors[id] ? `${id}-error` : undefined}
         {...(opts.required ? { 'aria-required': true } : {})}
         onChange={(e) => onChange({ [id]: e.target.value })}
         onFocus={() => setFocus(FOCUS[id] ?? null)} onBlur={() => setFocus(null)}

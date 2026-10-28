@@ -1,8 +1,8 @@
 'use client';
-import { Input } from '@cs/ui';
+import { Field, Input } from '@cs/ui';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { OwnerInviteEmail } from '@/components/onboarding/previews/owner-invite-email';
@@ -78,10 +78,10 @@ export function InviteStep({ frame, clientName, agencyName, contact, invite, riv
             </>
           ) : (
             <>
-              <Field id="invite-name" label="Owner's name" required>
+              <Field label="Owner's name" required>
                 <Input id="invite-name" autoComplete="off" required aria-required value={name} onChange={(e) => setName(e.target.value)} className={INPUT_CLASS} maxLength={120} />
               </Field>
-              <Field id="invite-email" label="Owner's email" required>
+              <Field label="Owner's email" required>
                 <Input id="invite-email" type="email" autoComplete="off" required aria-required value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocusEmail(true)} onBlur={() => setFocusEmail(false)} className={INPUT_CLASS} />
               </Field>
               {known && <button type="button" onClick={() => setOther(false)} className="self-start text-sm font-medium text-secondary">Use {firstNameOf(contact!.name)} instead</button>}

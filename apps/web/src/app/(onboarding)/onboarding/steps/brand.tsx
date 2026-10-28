@@ -1,10 +1,10 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Input } from '@cs/ui';
+import { Field, Input } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote, FormError } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { type BrandFocus, BrandedDashboard } from '@/components/onboarding/previews/branded-dashboard';
@@ -73,7 +73,8 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
         <input type="hidden" name="logoUrl" value={draft.logoUrl ?? ''} />
         <input type="hidden" name="primary" value={draft.primary ?? ''} />
         <fieldset disabled={readOnly} className="contents">
-          <Field id="logoFile" label="Agency logo" optional hint="PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit.">
+          <Field htmlFor="logoFile" label="Agency logo" optional help="PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit.">
+            <>
             <div className="flex items-center gap-3.5">
               {logoSrc && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -88,8 +89,9 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
               {uploading && <span className="text-[13px] text-muted-ink" role="status">Uploading…</span>}
             </div>
             {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
+            </>
           </Field>
-          <Field id="primaryHex" label="Brand colour" optional hint="We keep text readable on any colour.">
+          <Field htmlFor="primaryHex" label="Brand colour" optional help="We keep text readable on any colour.">
             <div role="group" aria-label="Brand colour" className="flex flex-wrap items-center gap-2.5">
               {SWATCHES.map((c) => (
                 <button
@@ -101,7 +103,7 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
               <Input id="primaryHex" value={draft.primary ?? ''} placeholder="#47A8E7" className={`${INPUT_CLASS} ml-1.5 w-32`} onChange={(e) => set('primary')(e.target.value)} onFocus={() => setFocus('color')} onBlur={() => setFocus(null)} />
             </div>
           </Field>
-          <Field id="displayName" label="Name your clients see" optional>
+          <Field label="Name your clients see" optional>
             <Input id="displayName" name="displayName" className={INPUT_CLASS} maxLength={120} value={draft.displayName ?? ''} placeholder={agencyName}
               onChange={(e) => set('displayName')(e.target.value)} onFocus={() => setFocus('name')} onBlur={() => setFocus(null)} />
           </Field>

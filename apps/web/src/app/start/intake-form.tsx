@@ -1,13 +1,13 @@
 'use client';
 import type { IntakePlaceOption, SignedIntakePlace } from '@cs/tools';
-import { Band, Button, Input, textareaClass } from '@cs/ui';
+import { Band, Button, Field, Input, textareaClass } from '@cs/ui';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { lookupBusinessAction, type SubmitState, submitIntakeAction } from './actions';
 import type { IntakeBrand } from './brand';
 import { ErrorNote } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
 import { IntakeNext } from '@/components/onboarding/previews/intake-next';
 import { SnapshotTeaser } from '@/components/onboarding/previews/snapshot-teaser';
@@ -223,10 +223,10 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
         className="flex flex-col gap-4"
       >
         {lookupError && <ErrorNote>{lookupError}</ErrorNote>}
-        <Field id="businessName" label="Business name" required>
+        <Field label="Business name" required>
           <Input id="businessName" name="businessName" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className={INPUT_CLASS} />
         </Field>
-        <Field id="location" label="City or ZIP" required>
+        <Field htmlFor="location" label="City or ZIP" required>
           <div className="grid grid-cols-[1fr_auto] gap-2.5">
             <Input id="location" name="location" required minLength={2} maxLength={120} value={location} onChange={(e) => setLocation(e.target.value)} className={INPUT_CLASS} />
             <Button type="submit" variant="outline" className="h-10" disabled={searching || preview} aria-disabled={preview || undefined}>{searching ? 'Searching…' : 'Search'}</Button>
@@ -267,18 +267,18 @@ function DetailsFields({ f, set, privacyUrl, siteKey, state, preview }: {
 }) {
   return (
     <>
-      <Field id="contactName" label="Your name" required>
+      <Field label="Your name" required>
         <Input id="contactName" name="contactName" autoComplete="name" required maxLength={120} value={f.contactName} onChange={set('contactName')} className={INPUT_CLASS} disabled={preview} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="email" label="Email" required>
+        <Field label="Email" required>
           <Input id="email" name="email" type="email" autoComplete="email" required maxLength={320} value={f.email} onChange={set('email')} className={INPUT_CLASS} disabled={preview} />
         </Field>
-        <Field id="phone" label="Phone" optional>
+        <Field label="Phone" optional>
           <Input id="phone" name="phone" type="tel" autoComplete="tel" maxLength={40} value={f.phone} onChange={set('phone')} className={INPUT_CLASS} disabled={preview} />
         </Field>
       </div>
-      <Field id="message" label="What would you like help with?" optional>
+      <Field label="What would you like help with?" optional>
         <textarea id="message" name="message" maxLength={500} className={textareaClass} value={f.message} onChange={set('message')} disabled={preview} />
       </Field>
       <label className="flex items-start gap-2.5 text-sm leading-[1.45]">

@@ -1,8 +1,8 @@
 'use client';
-import { Input } from '@cs/ui';
+import { Field, Input } from '@cs/ui';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
-import { Field, INPUT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { RadiusMap } from '@/components/onboarding/previews/radius-map';
@@ -91,7 +91,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
       {error && <ErrorNote focusKey={error}>{error}</ErrorNote>}
       <form id="area-form" onSubmit={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5">
         <fieldset disabled={readOnly} className="contents">
-          <Field id="keyword-add" label="Search keywords" required hint={`${keywords.length} of ${maxKeywords}.${edited === null && fromGoogle ? ' Suggested from their Google listing.' : ''}`}>
+          <Field htmlFor="keyword-add" label="Search keywords" required help={`${keywords.length} of ${maxKeywords}.${edited === null && fromGoogle ? ' Suggested from their Google listing.' : ''}`}>
             <div role="group" aria-label="Search keywords" className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-[#8796AB] bg-white p-1.5">
               {keywords.map((k) => (
                 <span key={k} data-chip="" className="inline-flex h-[26px] items-center gap-1 rounded-full bg-[#EEF2F6] pl-2.5 pr-1.5 text-[13px]">
@@ -110,7 +110,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
           </Field>
 
           {needsLocation && (
-            <Field id="locality" label="City or ZIP" required hint="We could not place this business from its address. Where is it?">
+            <Field label="City or ZIP" required help="We could not place this business from its address. Where is it?">
               <Input id="locality" name="locality" value={locality} onChange={(e) => setLocality(e.target.value)} maxLength={120} className={INPUT_CLASS} aria-required placeholder="Round Rock, TX" />
             </Field>
           )}

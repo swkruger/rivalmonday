@@ -14,6 +14,7 @@ function Field({
   optional,
   help,
   error,
+  htmlFor,
   children,
   className,
 }: {
@@ -22,11 +23,13 @@ function Field({
   optional?: boolean
   help?: React.ReactNode
   error?: React.ReactNode
+  /** The control's id when `children` is a wrapper (input group, prefix, chips) rather than the control itself: the label points there and nothing is injected into the wrapper. */
+  htmlFor?: string
   children: React.ReactElement<ControlProps>
   className?: string
 }) {
   const autoId = React.useId()
-  const id = children.props.id ?? autoId
+  const id = htmlFor ?? children.props.id ?? autoId
   const helpId = `${id}-help`
   const errorId = `${id}-error`
   const noteId = error ? errorId : help ? helpId : undefined
@@ -46,11 +49,13 @@ function Field({
         )}
         {optional && <span className="font-normal text-muted-ink">(optional)</span>}
       </Label>
-      {React.cloneElement(children, {
-        id,
-        "aria-describedby": describedBy || undefined,
-        ...(error ? { "aria-invalid": true } : {}),
-      })}
+      {htmlFor
+        ? children
+        : React.cloneElement(children, {
+            id,
+            "aria-describedby": describedBy || undefined,
+            ...(error ? { "aria-invalid": true } : {}),
+          })}
       {error ? (
         <p id={errorId} className="flex items-start gap-1 text-xs text-danger-text">
           <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />

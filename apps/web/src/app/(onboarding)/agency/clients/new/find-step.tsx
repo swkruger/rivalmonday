@@ -1,9 +1,9 @@
 'use client';
-import { Button, Input } from '@cs/ui';
+import { Button, Field, Input } from '@cs/ui';
 import { useState, useTransition } from 'react';
 import { ErrorNote, FormError } from '@/components/form-error';
 import { NewBusinessType, type VerticalActions, useVerticalChoice } from '@/components/new-business-type';
-import { Field, INPUT_CLASS, SELECT_CLASS } from '@/components/onboarding/field';
+import { INPUT_CLASS, SELECT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
 import { PreviewWindow } from '@/components/onboarding/preview-window';
 import { ListingMap } from '@/components/onboarding/previews/listing-map';
@@ -95,10 +95,10 @@ export function FindStep({ kind, brand, steps, initialName, initialLocation, fin
       <FormError state={result ?? { ok: true }} canUpgrade={canUpgrade} />
       <form onSubmit={search} className="flex flex-col gap-4">
         <fieldset disabled={readOnly || busy} className="flex flex-col gap-4">
-          <Field id="businessName" label="Business name" required>
+          <Field label="Business name" required>
             <Input id="businessName" name="businessName" value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} className={INPUT_CLASS} aria-required />
           </Field>
-          <Field id="location" label="City or ZIP" required>
+          <Field label="City or ZIP" required>
             <Input id="location" name="location" value={location} onChange={(e) => setLocation(e.target.value)} required minLength={2} maxLength={120} className={INPUT_CLASS} aria-required />
           </Field>
           <Button type="submit" variant="outline" className="self-start" disabled={!name.trim() || location.trim().length < 2}>{searching ? 'Searching…' : places ? 'Search again' : 'Find business'}</Button>
@@ -131,7 +131,7 @@ export function FindStep({ kind, brand, steps, initialName, initialLocation, fin
           onCreated={(id, n) => choice.choose(id, n)}
         />
       )}
-      <Field id="verticalId" label="Business type" required hint={need ?? (suggested ? `Chosen from the Google category "${suggested}".` : undefined)}>
+      <Field label="Business type" required help={need ?? (suggested ? `Chosen from the Google category "${suggested}".` : undefined)}>
         <select id="verticalId" name="verticalId" value={choice.value} onChange={(e) => choice.choose(e.target.value)} disabled={readOnly || pending} required aria-required className={SELECT_CLASS}>
           <option value="" disabled>Choose a business type</option>
           {choice.options.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}

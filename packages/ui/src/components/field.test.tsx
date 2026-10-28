@@ -47,4 +47,16 @@ describe('Field', () => {
     render(<Field label="Name" optional><Input /></Field>);
     expect(screen.getByText('(optional)')).toBeTruthy();
   });
-});
+
+  it('htmlFor points the label at a control inside a wrapper and leaves the wrapper alone', () => {
+    render(
+      <Field label="Price" htmlFor="price" help="Per month">
+        <div data-testid="wrap"><Input id="price" /></div>
+      </Field>,
+    );
+    expect(screen.getByLabelText('Price').tagName).toBe('INPUT');
+    const wrap = screen.getByTestId('wrap');
+    expect(wrap.id).toBe('');
+    expect(wrap.getAttribute('aria-describedby')).toBeNull();
+  });
+})
