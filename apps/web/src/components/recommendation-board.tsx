@@ -1,6 +1,6 @@
 'use client';
 import type { RecommendationView } from '@cs/tools';
-import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, textareaClass } from '@cs/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, Tag, textareaClass } from '@cs/ui';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
 import type { EvidenceRefs } from '@/server/evidence-refs';
@@ -124,7 +124,7 @@ function RecommendationCard({ item, clientId, canEdit, agency, action, refs }: {
         <StatusChip tone="neutral">Impact: {labelFor(LEVEL, item.impact).label}</StatusChip>
         <StatusChip tone="neutral">{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</StatusChip>
         <StatusChip tone="neutral">{SOURCE_LABEL[item.source] ?? item.source}</StatusChip>
-        {agency && item.upsellTag && <StatusChip tone="warning">Upsell: {item.upsellTag}</StatusChip>}
+        {agency && item.upsellTag && <Tag>Upsell: {item.upsellTag}</Tag>}
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />
       </div>
       {canEdit &&

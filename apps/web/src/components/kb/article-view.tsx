@@ -15,7 +15,7 @@ const formatDate = (iso: string) => formatDay(iso, { tz: 'UTC', withYear: 'alway
 /** Markdown only (raw HTML is not rendered); links open in a new tab. Shared by the article view and the page guide sheet. */
 export function KbMarkdown({ children }: { children: string }) {
   return (
-    <div className="flex flex-col gap-3 leading-relaxed [overflow-wrap:anywhere] [&_a]:text-secondary [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+    <div className="flex flex-col gap-3 leading-relaxed [overflow-wrap:anywhere] [&_a]:text-secondary [&_a]:underline [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
       <Markdown components={{ a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>{children}</Markdown>
     </div>
   );
@@ -27,7 +27,7 @@ export function KbArticleView({ article }: { article: KbArticle }) {
     <article className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-md bg-primary-soft px-2 py-0.5 font-semibold text-primary-soft-text">{KB_LEVEL_LABEL[article.level]}</span>
-        <span className="text-muted-foreground">{KIND_LABEL[article.kind]}</span>
+        <span className="text-muted-ink">{KIND_LABEL[article.kind]}</span>
       </div>
       <KbMarkdown>{article.bodyMd}</KbMarkdown>
       {article.sourceUrl && (
@@ -35,7 +35,7 @@ export function KbArticleView({ article }: { article: KbArticle }) {
           Source
         </a>
       )}
-      <p className="text-xs text-muted-foreground">Updated {formatDate(article.updatedAt)}</p>
+      <p className="text-xs text-muted-ink">Updated {formatDate(article.updatedAt)}</p>
     </article>
   );
 }

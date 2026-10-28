@@ -6,7 +6,7 @@ export function QuestionsCell({ questions }: { questions: { used: number; quota:
   return (
     <>
       <span>{askQuotaText(questions)}</span>
-      {over && <div className="text-amber-text">At quota</div>}
+      {over && <div className="text-warning-text">At quota</div>}
     </>
   );
 }

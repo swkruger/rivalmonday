@@ -38,13 +38,14 @@ export interface OnboardingShellProps {
  * at 560px). `logoUrl` is only ever `https` or `null` (`resolveBranding`). Agency brand: `style` carries the theme vars.
  */
 export function OnboardingShell({ brand, step, label, exit, exitSlot, title, subtitle, helpKey, guide, wide, preview, caption, footer, children }: OnboardingShellProps) {
+  // The platform Wordmark keeps its default 24 px / 800 weight: its amber half is 2:1 on white, which axe only accepts as large bold text (as in the sidebar and AuthCard).
   const showGuide = Boolean(helpKey && guide);
   return (
     <div className={`grid min-h-screen bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
       <main className={wide ? 'mx-auto flex w-full max-w-[760px] flex-col px-6 pb-12 pt-9' : 'mx-auto flex w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16'}>
         <div className="flex items-center justify-between gap-4">
           {brand.kind === 'platform' ? (
-            <Wordmark className="text-xl font-semibold" />
+            <Wordmark />
           ) : brand.kind === 'agency' ? (
             brand.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -110,7 +110,7 @@ export default async function UsagePage() {
               </TableCell>
               <TableCell>
                 {row.competitors} of {row.competitorLimit}
-                {row.competitors > row.competitorLimit && <div className="text-amber-text">Over limit</div>}
+                {row.competitors > row.competitorLimit && <div className="text-warning-text">Over limit</div>}
               </TableCell>
               <TableCell>
                 <QuestionsCell questions={row.questions} />

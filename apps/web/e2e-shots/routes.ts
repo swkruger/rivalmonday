@@ -76,8 +76,8 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'setup-invite', path: (fx) => `/c/${fx.setupOwnerClientId}/setup?step=invite`, as: 'agency', heading: /Invite the owner/ },
   // Signed out
   { label: 'sign-in', path: '/sign-in', as: 'signed-out', gate: true },
-  { label: 'sign-up', path: '/sign-up', as: 'signed-out' },
-  { label: 'start-intake', path: '/start/e2e-invite', as: 'signed-out' },
+  { label: 'sign-up', path: '/sign-up', as: 'signed-out', gate: true },
+  { label: 'start-intake', path: '/start/e2e-invite', as: 'signed-out', gate: true },
   { label: 'check-email', path: '/sign-in/check-email?for=signup', as: 'signed-out', gate: true },
   { label: 'link-expired', path: '/link-expired', as: 'signed-out', gate: true },
   { label: 'not-found', path: '/no-such-page', as: 'signed-out', gate: true },

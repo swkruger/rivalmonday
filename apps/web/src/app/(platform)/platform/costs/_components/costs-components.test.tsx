@@ -33,6 +33,7 @@ describe('CostWarningStrip', () => {
     const text = () => screen.getByRole('region', { name: 'Low balance warning' }).textContent;
     expect(text()).toBe('OpenRouter balance low: $12.34 · about 5 days left. View costs →');
     expect(screen.getByRole('link', { name: 'View costs →' }).getAttribute('href')).toBe('/platform/costs');
+    expect(screen.getByRole('region', { name: 'Low balance warning' }).getAttribute('data-tone')).toBe('warning');
     rerender(<CostWarningStrip low={[{ ...one, daysLeft: null }]} />);
     expect(text()).toBe('OpenRouter balance low: $12.34. View costs →');
     rerender(<CostWarningStrip low={[{ ...one, daysLeft: 0.2 }]} />);

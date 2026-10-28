@@ -41,9 +41,9 @@ export function ServiceSettingsDialog({ service }: { service: CostService }) {
               <Label htmlFor={`lt-${service.service}`}>Low balance threshold (USD)</Label>
               <Input id={`lt-${service.service}`} name="lowThresholdUsd" inputMode="decimal" defaultValue={service.lowThresholdUsd ?? ''} />
               {HAS_RATE.has(service.service) && service.unitRateUsd == null && (
-                <p className="text-xs text-muted-foreground">Warnings need a dollars-per-{service.unit === 'credits' ? 'credit' : 'CU-hour'} rate.</p>
+                <p className="text-xs text-muted-ink">Warnings need a dollars-per-{service.unit === 'credits' ? 'credit' : 'CU-hour'} rate.</p>
               )}
-              {NO_CAP.has(service.service) && <p className="text-xs text-muted-foreground">Usage services without a plan cap never warn.</p>}
+              {NO_CAP.has(service.service) && <p className="text-xs text-muted-ink">Usage services without a plan cap never warn.</p>}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`wd-${service.service}`}>Warn when days left is under</Label>

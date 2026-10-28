@@ -1,5 +1,5 @@
 import { ARCHIVE_BILLING_MESSAGE, platformRole } from '@cs/tools';
-import { HairlineGrid, Section, StatusChip, TableFrame } from '@cs/ui';
+import { Band, HairlineGrid, Section, StatusChip, TableFrame } from '@cs/ui';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { cache } from 'react';
@@ -179,9 +179,9 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         </>,
       )}
       {sp.ended === '1' && (
-        <p role="status" className="rounded-md bg-muted-surface p-3 text-ink">
+        <Band tone="muted" role="status" className="p-3 text-ink">
           Support session ended.
-        </p>
+        </Band>
       )}
       {holdBillingIssue && (
         <HoldBanner agencyId={agency.id} issue={holdBillingIssue} canRetry={canStart} hold={hold ? { since: formatDate(hold.since, { tz }), byName: hold.byName } : null} />

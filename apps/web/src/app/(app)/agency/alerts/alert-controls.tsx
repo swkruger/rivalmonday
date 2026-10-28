@@ -1,6 +1,6 @@
 'use client';
 import type { AlertQueueClient, AlertQueueRow } from '@cs/tools';
-import { Band, Button, Card, CardContent, ConfirmDialog, Label, StatusChip, nativeSelectClass, textareaClass } from '@cs/ui';
+import { Band, Button, Card, CardContent, ConfirmDialog, Label, StatusChip, Tag, nativeSelectClass, textareaClass } from '@cs/ui';
 import { useState } from 'react';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { ErrorNote } from '@/components/form-error';
@@ -105,11 +105,11 @@ function AlertCard({ alert, run, pending, assistantName, now, onOpenDismiss }: {
           <StatusChip tone={status.tone}>{status.label}</StatusChip>
           {alert.heldForDigest && <StatusChip tone="info">Held for the 17:00 digest</StatusChip>}
         </div>
-        <Band className="mt-3 flex flex-col gap-1.5">
-          <h3 className="text-base font-semibold text-ink">{alert.headline}</h3>
+        <h3 className="mt-3 text-base font-semibold text-ink">{alert.headline}</h3>
+        <Band className="mt-2 flex flex-col gap-1.5">
           <p>{alert.body}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm bg-muted-surface-2 px-2 py-0.5 text-xs">{alert.evidenceCount} evidence items</span>
+            <Tag>{alert.evidenceCount} evidence items</Tag>
             {pendingReview && <span className="text-xs text-muted-ink">{waiting(alert.createdAt, now)}</span>}
             {pendingReview && <span className="text-xs text-muted-ink">Expires if not reviewed within {EXPIRY_DAYS} days</span>}
           </div>

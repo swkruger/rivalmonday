@@ -1,6 +1,6 @@
 'use client';
 import { pilotLinkRefusal } from '@cs/core/invite-offer';
-import { Button, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Band, Button, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { formatDate } from '@/lib/format';
@@ -27,7 +27,7 @@ const status = (l: LinkRow) =>
 function CopyBox({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex flex-col gap-2 rounded-md bg-muted-surface p-4">
+    <Band tone="muted" className="flex flex-col gap-2">
       <label htmlFor="new-invite-url" className="sr-only">New invite link</label>
       <div className="flex gap-2">
         <input id="new-invite-url" readOnly value={url} onFocus={(e) => e.currentTarget.select()} className={`${fieldCls} min-w-0 flex-1 font-mono`} />
@@ -41,7 +41,7 @@ function CopyBox({ url }: { url: string }) {
       </div>
       <p role="status" className="text-sm font-semibold text-ink">Copy link — it won&apos;t be shown again.</p>
       {copied && <p className="text-xs text-muted-ink">Copied to clipboard.</p>}
-    </div>
+    </Band>
   );
 }
 

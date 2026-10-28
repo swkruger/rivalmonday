@@ -22,9 +22,9 @@ const END_REASON: Record<NonNullable<SupportSessionRow['endReason']>, string> = 
 /** Phase 8b: support-session history, shared by the agency's Platform access page and the platform agency page. */
 export function SupportSessionsTable({ rows, empty, tz }: { rows: SupportSessionRow[]; empty: string; tz: string }) {
   const when = (iso: string) => formatDateTime(iso, { tz, zoneLabel: true });
-  if (rows.length === 0) return <p className="mt-3 text-sm text-muted-ink">{empty}</p>;
+  if (rows.length === 0) return <p className="text-sm text-muted-ink">{empty}</p>;
   return (
-    <div className="mt-3">
+    <div>
       <Table className="min-w-[640px]">
         <TableHeader>
           <TableRow>

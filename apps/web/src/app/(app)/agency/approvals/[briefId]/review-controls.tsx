@@ -1,6 +1,6 @@
 'use client';
 import type { BriefItemView } from '@cs/tools';
-import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Band, Label, StatusChip, Switch, textareaClass } from '@cs/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Band, Label, StatusChip, Switch, Tag, textareaClass } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
@@ -19,7 +19,7 @@ function Message({ state }: { state: FormResult }) {
     );
   }
   if (state.ok && state.message) {
-    return <p className="rounded-md bg-muted-surface p-3 text-ink">{state.message}</p>;
+    return <p role="status" className="text-sm text-ink">{state.message}</p>;
   }
   return null;
 }
@@ -183,9 +183,9 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last, ref
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />
-        {item.upsellTag && <StatusChip tone="warning">Upsell: {item.upsellTag}</StatusChip>}
+        {item.upsellTag && <Tag>Upsell: {item.upsellTag}</Tag>}
         {dropped && <StatusChip tone="neutral">Dropped</StatusChip>}
-        <span className="ml-auto rounded-md bg-muted-surface-2 px-2 py-0.5 text-xs">{confidenceLabel(item.confidence).text}</span>
+        <Tag className="ml-auto">{confidenceLabel(item.confidence).text}</Tag>
       </div>
       <WriteGuard>
         <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -1,6 +1,6 @@
 'use client';
 import type { IntakePlaceOption, SignedIntakePlace } from '@cs/tools';
-import { Button, Input, textareaClass } from '@cs/ui';
+import { Band, Button, Input, textareaClass } from '@cs/ui';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
@@ -235,7 +235,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
         {preview && <span className="text-sm text-muted-ink">Disabled in preview</span>}
       </form>
 
-      {places && places.length === 0 && <p role="status" className="rounded-md bg-canvas p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
+      {places && places.length === 0 && <Band role="status" className="p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</Band>}
       {places && places.some((o) => o.possibleDuplicate) && <DuplicateHint />}
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">

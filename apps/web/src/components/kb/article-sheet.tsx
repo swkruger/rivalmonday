@@ -32,8 +32,8 @@ export function ArticleSheet({ kbId, load = loadKbArticle }: { kbId: string; loa
       <SheetContent className="overflow-y-auto">
         <SheetTitle>{state.status === 'ready' ? state.article.title : 'Article'}</SheetTitle>
         {state.status === 'ready' && <KbArticleView article={state.article} />}
-        {state.status === 'missing' && <p className="text-muted-foreground">{KB_MISSING}</p>}
-        {state.status === 'loading' && <p className="text-muted-foreground">Loading…</p>}
+        {state.status === 'missing' && <p className="text-muted-ink">{KB_MISSING}</p>}
+        {state.status === 'loading' && <p className="text-muted-ink">Loading…</p>}
       </SheetContent>
     </Sheet>
   );

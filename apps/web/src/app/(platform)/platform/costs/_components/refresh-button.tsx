@@ -12,7 +12,7 @@ export function RefreshButton({ refreshQueued }: { refreshQueued: boolean }) {
   return (
     <WriteGuard>
       <form action={formAction} className="flex items-center gap-3">
-        {state.ok && state.message && <span role="status" className="text-sm text-muted-foreground">{state.message}</span>}
+        {state.ok && state.message && <span role="status" className="text-sm text-muted-ink">{state.message}</span>}
         {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
         <Button type="submit" variant="outline" disabled={pending || refreshQueued}>
           {refreshQueued ? 'Refreshing…' : 'Refresh now'}

@@ -1,5 +1,6 @@
 'use client';
 import { Button, StatusChip, Tooltip, TooltipProvider } from '@cs/ui';
+import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { AGENCY_LIFECYCLE } from '@/lib/labels';
@@ -37,7 +38,9 @@ export function HoldBanner({ agencyId, issue, hold, canRetry }: { agencyId: stri
   return (
     <div data-tone="warning" className="flex flex-col gap-2 rounded-sm bg-warning-surface px-4 py-3 text-13 text-ink shadow-[inset_3px_0_0_var(--warning)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm">
+        <div className="flex min-w-0 items-start gap-2">
+        <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+        <p className="min-w-0 text-sm">
           {issue === 'pause' ? (
             <>
               {hold && <><span className="font-semibold">On hold since {hold.since}</span> by {hold.byName}. </>}
@@ -47,6 +50,7 @@ export function HoldBanner({ agencyId, issue, hold, canRetry }: { agencyId: stri
             'Billing resume failed for some subscriptions.'
           )}
         </p>
+        </div>
         {canRetry && <Button type="button" variant="outline" size="sm" onClick={() => { setError(null); setMessage(null); setOpen(true); }}>{label}</Button>}
       </div>
       {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}

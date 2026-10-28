@@ -1,5 +1,5 @@
 import { listInbox } from '@cs/tools';
-import { Button, StatusChip } from '@cs/ui';
+import { Button, StatusChip, Tag } from '@cs/ui';
 import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/help/empty-state';
 import { HelpText } from '@/components/help/help-context';
@@ -75,7 +75,7 @@ export default async function InboxPage() {
                 {showClient && item.clientName && <span className="text-xs text-muted-ink">{item.clientName}</span>}
                 <span className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm text-muted-ink">{item.body}</span>
-                  <span className="ml-auto flex-shrink-0 rounded-sm bg-canvas px-2 py-0.5 text-xs">{NOTIFICATION_KIND_LABELS[item.kind] ?? item.kind}</span>
+                  <Tag className="ml-auto shrink-0">{NOTIFICATION_KIND_LABELS[item.kind] ?? item.kind}</Tag>
                 </span>
               </button>
             </form>
