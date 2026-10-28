@@ -116,7 +116,11 @@ async function show(render_: () => Promise<React.ReactNode>, audience: 'agency' 
   m.role = audience === 'agency' ? 'account_manager' : 'client_owner';
   render(<HelpProvider value={{ audience, names: { agency: 'Cool Comfort', assistant: 'Sunny', client: 'Lone Star Cooling' } }}>{await render_()}</HelpProvider>);
 }
-const tipNames = (names: string[]) => names.map((name) => screen.getByRole('button', { name }));
+const tipNames = (names: string[]) => names.map((name) => {
+  const els = screen.getAllByRole('button', { name });
+  expect(els.length, name).toBeGreaterThan(0);
+  return els[0];
+});
 const hasTip = (name: string) => screen.queryByRole('button', { name }) !== null;
 
 beforeEach(() => { m.guides = []; m.calls = []; m.empty = false; m.noPrices = false; m.setup = 'ready'; });
