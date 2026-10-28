@@ -20,10 +20,10 @@ const turn = (body: string) => new Response(body, { status: 200, headers: { 'x-a
 
 /** jsdom has no matchMedia: every query answers `wide`; listeners are kept so `fire` can cross 1280 px. */
 let mq: { matches: boolean; listeners: Set<(e: { matches: boolean }) => void> };
-function viewport(wide: boolean) {
+function viewport(wide: boolean, tablet = true) {
   mq = { matches: wide, listeners: new Set() };
   window.matchMedia = ((q: string) => ({
-    get matches() { return mq.matches; },
+    get matches() { return q.includes('768px') ? tablet : mq.matches; },
     media: q,
     addEventListener: (_: string, l: (e: { matches: boolean }) => void) => mq.listeners.add(l),
     removeEventListener: (_: string, l: (e: { matches: boolean }) => void) => mq.listeners.delete(l),
@@ -173,6 +173,35 @@ describe('FridayDock (16d D-14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask Friday' }));
     fireEvent.keyDown(screen.getByRole('dialog', { name: 'Ask Friday' }), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('FridayDockTrigger on phones and tablets (16f P3)', () => {
+  it('phone trigger is a link to the Ask page', () => {
+    viewport(false, false);
+    render(<FridayDock config={config}>{page()}</FridayDock>);
+    const link = screen.getByRole('link', { name: 'Ask Friday' });
+    expect(link.getAttribute('href')).toBe(`/c/${C}/ask`);
+    expect(link.getAttribute('data-slot')).toBe('friday-trigger');
+    expect(screen.queryByRole('button', { name: 'Ask Friday' })).toBeNull();
+  });
+
+  it('tablet trigger opens the sheet (aria-expanded)', () => {
+    viewport(false, true);
+    render(<FridayDock config={config}>{page()}</FridayDock>);
+    const trigger = screen.getByRole('button', { name: 'Ask Friday' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('dialog', { name: 'Ask Friday' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ask Friday', hidden: true }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('renders the button before matchMedia resolves', () => {
+    // @ts-expect-error jsdom without matchMedia: the hook stays null
+    delete window.matchMedia;
+    render(<FridayDock config={config}>{page()}</FridayDock>);
+    expect(screen.getByRole('button', { name: 'Ask Friday' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Ask Friday' })).toBeNull();
   });
 });
 

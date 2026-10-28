@@ -12,6 +12,8 @@ export interface FridayDockValue {
   open: boolean;
   setOpen(v: boolean): void;
   assistantName: string;
+  /** The client the dock belongs to: the phone trigger links to its Ask page. */
+  clientId: string;
   /** True at ≥ 1280 px (the column); false before hydration and below it (the sheet). */
   wide: boolean;
   /** The panel element's id, for the trigger's `aria-controls`. */

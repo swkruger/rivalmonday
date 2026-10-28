@@ -53,8 +53,8 @@ function Dock({ config, children }: { config: FridayDockConfig; children: React.
 
   const setOpen = useCallback((v: boolean) => setOpenState(v), []);
   const value = useMemo<FridayDockValue>(
-    () => ({ available: !onAsk, open, setOpen, assistantName: config.assistantName, wide, panelId }),
-    [onAsk, open, setOpen, config.assistantName, wide, panelId],
+    () => ({ available: !onAsk, open, setOpen, assistantName: config.assistantName, clientId: config.clientId, wide, panelId }),
+    [onAsk, open, setOpen, config.assistantName, config.clientId, wide, panelId],
   );
   const column = open && wide;
 
@@ -92,7 +92,7 @@ function Dock({ config, children }: { config: FridayDockConfig; children: React.
       </div>
       {!wide && (
         <Sheet open={open} onOpenChange={(o) => { if (!o) setOpenState(false); }}>
-          <SheetContent side="right" id={panelId} aria-describedby={undefined} className="w-[400px] gap-3 overflow-hidden px-4 py-4">
+          <SheetContent side="right" id={panelId} aria-describedby={undefined} className="w-full gap-3 sm:max-w-[400px] overflow-hidden px-4 py-4">
             <PanelBody config={config} chat={chat} title={<SheetTitle className={TITLE_CLASS}>Ask <FridayBadge name={config.assistantName} size="label" /></SheetTitle>}
               close={<SheetClose asChild><CloseButton name={config.assistantName} /></SheetClose>} />
           </SheetContent>
