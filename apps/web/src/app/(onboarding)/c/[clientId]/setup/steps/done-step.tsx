@@ -45,7 +45,7 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
     { k: 'Area', v: summary.area, href: edit, label: 'Edit' },
     {
       k: 'Competitors',
-      v: summary.competitorsWaiting ? <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2 rounded-full bg-amber" />{summary.competitors}</span> : summary.competitors,
+      v: summary.competitorsWaiting ? <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2 rounded-full bg-warning" />{summary.competitors}</span> : summary.competitors,
       href: `/c/${clientId}/competitors`, label: summary.competitorsWaiting ? 'Pick now' : 'Edit',
     },
     { k: 'Owner', v: summary.owner, href: details, label: 'Edit' },
@@ -67,7 +67,7 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
       helpKey="page:client.setup"
       guide={frame.guide}
       preview={
-        <Image src="/onboarding/client-done.webp" alt="A local storefront under a map pin, linked to two shops in the distance, with a calendar marking the next brief." width={800} height={800} className="size-[360px] rounded-xl" priority />
+        <Image src="/onboarding/client-done.webp" alt="A local storefront under a map pin, linked to two shops in the distance, with a calendar marking the next brief." width={800} height={800} className="size-[360px] rounded-lg" priority />
       }
       caption={<><b className="font-semibold">What&apos;s next:</b> {summary.competitorsWaiting ? `${First} picks, then the starting point within 48 hours.` : 'starting point within 48 hours, then a brief every Monday.'}</>}
       footer={<StepFooter skip={{ label: prospect ? 'Add another prospect' : 'Add another client', onSkip: () => router.push(another) }} primary={{ label: `Go to ${clientName}`, form: 'done-form' }} />}
@@ -79,7 +79,7 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
           <li key={r.k} className="grid grid-cols-[110px_1fr_auto] items-center gap-3 border-b border-line py-2.5 text-sm">
             <span className="text-muted-ink">{r.k}</span>
             <span className="min-w-0">{r.v}</span>
-            <Link href={r.href} className="text-[13px] font-medium text-secondary">{r.label}<span className="sr-only"> {r.k.toLowerCase()}</span></Link>
+            <Link href={r.href} className="text-13 font-medium text-secondary">{r.label}<span className="sr-only"> {r.k.toLowerCase()}</span></Link>
           </li>
         ))}
       </ul>
@@ -87,11 +87,11 @@ export function DoneStep({ frame, clientId, clientName, ownerFirstName, summary,
         <Button type="button" variant="outline" className="self-start" disabled={pending} onClick={onCancelAsk}>Cancel request</Button>
       )}
       <section aria-labelledby="next-heading">
-        <h2 id="next-heading" className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-ink">What happens next</h2>
+        <h2 id="next-heading" className="text-11 font-medium text-muted-ink">What happens next</h2>
         <ol className="mt-3.5 flex flex-col gap-3.5">
           {next.map(([title, body], i) => (
             <li key={title} className="grid grid-cols-[28px_1fr] gap-3 text-sm leading-[1.45]">
-              <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary-soft-text">{i + 1}</span>
+              <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{i + 1}</span>
               <div><b className="font-semibold">{title}</b><div className="text-muted-ink">{body}</div></div>
             </li>
           ))}

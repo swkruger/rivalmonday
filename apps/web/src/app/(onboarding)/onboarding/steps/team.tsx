@@ -58,7 +58,7 @@ export function TeamStep({ agencyName, inviterName, guide }: { agencyName: strin
         <FormError state={state} />
         <fieldset disabled={readOnly} className="contents">
           <div className="flex flex-col gap-2.5">
-            <p className="text-[13px] font-medium">Invite people <span className="font-normal text-muted-ink">(optional)</span></p>
+            <p className="text-13 font-medium">Invite people <span className="font-normal text-muted-ink">(optional)</span></p>
             {rows.map((r, i) => (
               <div key={r.id} className="grid grid-cols-[1fr_170px_20px] items-end gap-2.5">
                 <Field label={`Email${rows.length > 1 ? ` ${i + 1}` : ''}`}>
@@ -82,7 +82,7 @@ export function TeamStep({ agencyName, inviterName, guide }: { agencyName: strin
             <button type="button" onClick={() => setRows((rs) => [...rs, { id: Math.max(...rs.map((x) => x.id)) + 1, email: '', role: 'account_manager' }])} className="self-start text-sm font-medium text-secondary">
               + Add another
             </button>
-            <p className="text-[13px] text-muted-ink">Admins manage billing and team. Account managers run clients.</p>
+            <p className="text-13 text-muted-ink">Admins manage billing and team. Account managers run clients.</p>
           </div>
         </fieldset>
       </form>

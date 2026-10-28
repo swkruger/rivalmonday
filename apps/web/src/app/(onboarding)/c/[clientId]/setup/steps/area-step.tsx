@@ -92,11 +92,11 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
       <form id="area-form" onSubmit={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5">
         <fieldset disabled={readOnly} className="contents">
           <Field htmlFor="keyword-add" label="Search keywords" required help={`${keywords.length} of ${maxKeywords}.${edited === null && fromGoogle ? ' Suggested from their Google listing.' : ''}`}>
-            <div role="group" aria-label="Search keywords" className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-[#8796AB] bg-white p-1.5">
+            <div role="group" aria-label="Search keywords" className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-line-strong bg-white p-1.5">
               {keywords.map((k) => (
-                <span key={k} data-chip="" className="inline-flex h-[26px] items-center gap-1 rounded-full bg-[#EEF2F6] pl-2.5 pr-1.5 text-[13px]">
+                <span key={k} data-chip="" className="inline-flex h-[26px] items-center gap-1 rounded-full bg-muted-surface pl-2.5 pr-1.5 text-13">
                   {k}
-                  <button type="button" aria-label={`Remove ${k}`} onClick={() => setEdited(keywords.filter((x) => x !== k))} className="text-[11px] text-[#8796AB] hover:text-ink">✕</button>
+                  <button type="button" aria-label={`Remove ${k}`} onClick={() => setEdited(keywords.filter((x) => x !== k))} className="text-11 text-muted-ink hover:text-ink">✕</button>
                 </span>
               ))}
               <input
@@ -104,7 +104,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
                 disabled={keywords.length >= maxKeywords}
                 onChange={(e) => setDraftKeyword(e.target.value)} onBlur={addKeyword}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
-                className="min-w-[120px] flex-1 border-0 bg-transparent px-1 text-sm outline-none placeholder:text-[#8796AB] disabled:cursor-not-allowed"
+                className="min-w-[120px] flex-1 border-0 bg-transparent px-1 text-sm outline-none placeholder:text-muted-ink disabled:cursor-not-allowed"
               />
             </div>
           </Field>
@@ -125,25 +125,25 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
                 </label>
               ))}
             </div>
-            <p className="text-[13px] text-muted-ink">{around ? `Around ${around}.` : 'Around the business location.'}</p>
+            <p className="text-13 text-muted-ink">{around ? `Around ${around}.` : 'Around the business location.'}</p>
           </fieldset>
 
           <div className="flex flex-col gap-1.5">
             <div className="text-sm font-medium">Services <span className="font-normal text-muted-ink">(optional)</span></div>
             <div className="flex items-center gap-2.5 text-sm">
               <span>{serviceLine}</span>
-              <button type="button" aria-expanded={servicesOpen} onClick={() => setServicesOpen((o) => !o)} className="text-[13px] font-medium text-secondary">Review {servicesOpen ? '▴' : '▾'}</button>
+              <button type="button" aria-expanded={servicesOpen} onClick={() => setServicesOpen((o) => !o)} className="text-13 font-medium text-secondary">Review {servicesOpen ? '▴' : '▾'}</button>
             </div>
             {servicesOpen && (
               <div role="group" aria-label="Services the business offers" className="mt-1 flex flex-wrap gap-2">
                 {view.vertical.services.map((s) => (
-                  <label key={s.id} className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm ${services.has(s.id) ? 'bg-primary-soft font-semibold text-primary-soft-text' : 'bg-[#EEF2F6]'}`}>
+                  <label key={s.id} className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm ${services.has(s.id) ? 'bg-primary-soft font-semibold text-primary-soft-text' : 'bg-muted-surface'}`}>
                     <input type="checkbox" checked={services.has(s.id)} onChange={() => setServicesEdited(toggled(services, s.id))} className="size-4" />
                     {s.name}
                   </label>
                 ))}
                 {newAreas.map((a) => (
-                  <label key={a.name} title={`From Google: “${a.quote}”`} className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm ${pickedNew.has(a.name) ? 'bg-primary-soft font-semibold text-primary-soft-text' : 'bg-[#EEF2F6]'}`}>
+                  <label key={a.name} title={`From Google: “${a.quote}”`} className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1 text-sm ${pickedNew.has(a.name) ? 'bg-primary-soft font-semibold text-primary-soft-text' : 'bg-muted-surface'}`}>
                     <input type="checkbox" checked={pickedNew.has(a.name)} onChange={() => setPickedNew(toggled(pickedNew, a.name))} className="size-4" />
                     {a.name}
                     <span className="rounded-full bg-white px-2 text-xs font-semibold">New</span>
@@ -151,7 +151,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
                 ))}
               </div>
             )}
-            <p className="text-[13px] text-muted-ink">{newAreas.length > 0 && servicesOpen ? 'Not in our list yet: tick to add it as a service; our team reviews new ones. ' : ''}Used to compare what each rival offers. Towns and ZIPs live in Settings.</p>
+            <p className="text-13 text-muted-ink">{newAreas.length > 0 && servicesOpen ? 'Not in our list yet: tick to add it as a service; our team reviews new ones. ' : ''}Used to compare what each rival offers. Towns and ZIPs live in Settings.</p>
           </div>
         </fieldset>
       </form>

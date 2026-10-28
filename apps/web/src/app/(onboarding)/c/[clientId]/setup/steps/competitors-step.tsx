@@ -118,10 +118,10 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
         {searching && (
           <div role="status" className="flex flex-col gap-2.5">
             <p className="flex items-center gap-2 text-sm font-medium"><Loader2 className="size-4 animate-spin" aria-hidden />Searching {keywordCount} {keywordCount === 1 ? 'keyword' : 'keywords'} across your area…</p>
-            <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-[#EEF2F6]"><b className="block h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
-            <p className="text-[13px] text-muted-ink">{progressLine(view.search) ?? 'Usually under a minute. You can leave this page; it keeps going.'}</p>
+            <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted-surface"><b className="block h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
+            <p className="text-13 text-muted-ink">{progressLine(view.search) ?? 'Usually under a minute. You can leave this page; it keeps going.'}</p>
             <div aria-hidden="true" className="mt-2 flex flex-col gap-2">
-              {[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 rounded-md border border-line px-3.5 py-3"><span className="size-[18px] rounded border border-[#C9D3DE]" /><span className="h-2.5 w-2/5 rounded-full bg-[#EEF2F6]" /></div>)}
+              {[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3 rounded-md border border-line px-3.5 py-3"><span className="size-[18px] rounded border border-line-control" /><span className="h-2.5 w-2/5 rounded-full bg-muted-surface" /></div>)}
             </div>
           </div>
         )}
@@ -141,12 +141,12 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
 
         {state === 'waiting_owner' && !owner && (
           <div className="flex flex-col gap-2">
-            <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{ownerName ?? 'The owner'} is choosing the competitors. They show up on their Overview, and we start watching once they have picked.</p>
+            <p role="status" className="rounded-md bg-muted-surface p-3 text-sm">{ownerName ?? 'The owner'} is choosing the competitors. They show up on their Overview, and we start watching once they have picked.</p>
             {!readOnly && <Button type="button" variant="outline" className="self-start" disabled={pending} onClick={onCancelAsk}>Cancel request</Button>}
           </div>
         )}
         {closed && (
-          <p role="status" className="rounded-md bg-[#EEF2F6] p-3 text-sm">{tracked.length > 0 ? `Competitors are chosen: ${tracked.length} tracked.` : 'This step was skipped. You can add competitors any time on the Competitors page.'}</p>
+          <p role="status" className="rounded-md bg-muted-surface p-3 text-sm">{tracked.length > 0 ? `Competitors are chosen: ${tracked.length} tracked.` : 'This step was skipped. You can add competitors any time on the Competitors page.'}</p>
         )}
 
         {(picking || (closed && tracked.length > 0)) && (
@@ -156,7 +156,7 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
               {tracked.map((s) => (
                 <li key={s.id} className="flex items-center gap-3 rounded-md border border-line px-3.5 py-2.5">
                   <input type="checkbox" checked disabled aria-label={s.name} className="size-[18px]" />
-                  <span className="min-w-0 flex-1"><span className="font-medium">{s.name}</span><span className="block text-[13px] text-muted-ink">{ratedLine(s)}</span></span>
+                  <span className="min-w-0 flex-1"><span className="font-medium">{s.name}</span><span className="block text-13 text-muted-ink">{ratedLine(s)}</span></span>
                   <span className="text-sm font-semibold">Tracking</span>
                 </li>
               ))}
@@ -164,9 +164,9 @@ export function CompetitorsStep({ frame, view, clientId, clientName, ownerName, 
                 const on = ticked.includes(s.id);
                 return (
                   <li key={s.id}>
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-md border px-3.5 py-2.5 ${on ? 'border-primary bg-white shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-[#F6F9FC]'}`}>
+                    <label className={`flex cursor-pointer items-center gap-3 rounded-md border px-3.5 py-2.5 ${on ? 'border-primary bg-white shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-canvas'}`}>
                       <input type="checkbox" aria-label={s.name} checked={on} disabled={readOnly || (!on && ticked.length >= room)} onChange={() => toggle(s.id)} className="size-[18px]" />
-                      <span className="min-w-0 flex-1"><span className="font-medium">{s.name}</span><span className="block text-[13px] text-muted-ink">{ratedLine(s)}</span></span>
+                      <span className="min-w-0 flex-1"><span className="font-medium">{s.name}</span><span className="block text-13 text-muted-ink">{ratedLine(s)}</span></span>
                       <TierChip tier={s.tier} />
                     </label>
                   </li>

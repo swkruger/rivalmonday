@@ -45,7 +45,7 @@ export function DoneStep({ firstName, summary, guide }: { firstName: string; sum
       guide={guide}
       preview={
         <div className="flex flex-col items-center gap-6">
-          <Image src="/onboarding/agency-done.webp" alt="A laptop showing a simple dashboard beside a stack of folders and a check mark." width={800} height={800} className="size-[220px] rounded-xl" priority />
+          <Image src="/onboarding/agency-done.webp" alt="A laptop showing a simple dashboard beside a stack of folders and a check mark." width={800} height={800} className="size-[220px] rounded-lg" priority />
           <Timeline />
         </div>
       }
@@ -64,16 +64,16 @@ export function DoneStep({ firstName, summary, guide }: { firstName: string; sum
           <li key={k} className="grid grid-cols-[110px_1fr_auto] items-center gap-3 border-b border-line py-3 text-sm">
             <span className="text-muted-ink">{k}</span>
             <span>{v}</span>
-            <Link href={href} className="text-[13px] font-medium text-secondary">Edit<span className="sr-only"> {k.toLowerCase()}</span></Link>
+            <Link href={href} className="text-13 font-medium text-secondary">Edit<span className="sr-only"> {k.toLowerCase()}</span></Link>
           </li>
         ))}
       </ul>
       <section aria-labelledby="next-heading" className="-mt-1">
-        <h2 id="next-heading" className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-ink">What happens next</h2>
+        <h2 id="next-heading" className="text-11 font-medium text-muted-ink">What happens next</h2>
         <ol className="mt-3.5 flex flex-col gap-3.5">
           {NEXT.map(([title, body], i) => (
             <li key={title} className="grid grid-cols-[28px_1fr] gap-3 text-sm leading-[1.45]">
-              <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary-soft-text">{i + 1}</span>
+              <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{i + 1}</span>
               <div><b className="font-semibold">{title}</b><div className="text-muted-ink">{body}</div></div>
             </li>
           ))}

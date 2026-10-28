@@ -23,7 +23,7 @@ export function OwnerCompetitors({ clientId, clientName, agency, place, radiusMi
 
   const frame: StepFrame = {
     brand: { kind: 'agency', name: agency.name, logoUrl: agency.logoUrl, style: {} }, // the theme variables are already on <html>
-    exitSlot: <Link href={overview} className="text-[13px] font-medium text-muted-ink hover:text-ink">Back to Overview</Link>,
+    exitSlot: <Link href={overview} className="text-13 font-medium text-muted-ink hover:text-ink">Back to Overview</Link>,
     guide, steps: [],
   };
   const confirm = (accept: string[]) =>

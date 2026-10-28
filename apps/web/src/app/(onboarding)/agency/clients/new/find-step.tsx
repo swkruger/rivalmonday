@@ -105,7 +105,7 @@ export function FindStep({ kind, brand, steps, initialName, initialLocation, fin
         </fieldset>
       </form>
       {error && <ErrorNote focusKey={attempt}>{error}</ErrorNote>}
-      {places && places.length === 0 && <p role="status" className="rounded-lg bg-[#EEF2F6] p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
+      {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
       {places && places.some((p) => p.possibleDuplicate) && <DuplicateHint />}
       {places && places.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="Matching businesses">
@@ -113,7 +113,7 @@ export function FindStep({ kind, brand, steps, initialName, initialLocation, fin
             const on = picked?.placeId === p.placeId;
             return (
               <li key={p.placeId}>
-                <label className={`flex cursor-pointer items-start gap-3 rounded-md border px-3.5 py-2.5 ${on ? 'border-primary bg-white shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-[#F6F9FC]'}`}>
+                <label className={`flex cursor-pointer items-start gap-3 rounded-md border px-3.5 py-2.5 ${on ? 'border-primary bg-white shadow-[inset_0_0_0_1px_var(--color-primary)]' : 'border-line hover:bg-canvas'}`}>
                   <input type="radio" name="listing" checked={on} onChange={() => pick(p)} disabled={readOnly || pending} className="mt-1 size-4" />
                   <span className="flex min-w-0 flex-col gap-0.5"><PlaceSummary place={p} isClaimed={p.isClaimed} possibleDuplicate={p.possibleDuplicate} /></span>
                 </label>

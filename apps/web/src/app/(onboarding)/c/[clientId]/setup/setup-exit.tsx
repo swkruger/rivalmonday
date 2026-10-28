@@ -18,7 +18,7 @@ export function SetupExit({ exitHref = '/agency', onDismiss, pending }: { exitHr
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-ink hover:text-ink">
+          <button type="button" className="inline-flex items-center gap-1 text-13 font-medium text-muted-ink hover:text-ink">
             Save and exit <ChevronDown aria-hidden className="size-3.5" />
           </button>
         </DropdownMenuTrigger>

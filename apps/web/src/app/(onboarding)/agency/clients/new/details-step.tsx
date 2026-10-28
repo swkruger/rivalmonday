@@ -90,7 +90,7 @@ export function DetailsStep({ kind, brand, agencyName, steps, draft, onChange, o
             {field('email', 'Email', { required: true, input: { type: 'email', autoComplete: 'off' } })}
           </div>
           <div className="flex flex-col gap-3.5 border-t border-line pt-4">
-            <p className="text-[13px] font-medium">Address <span className="font-normal text-muted-ink">(optional)</span></p>
+            <p className="text-13 font-medium">Address <span className="font-normal text-muted-ink">(optional)</span></p>
             {field('line1', 'Street address')}
             <div className="grid grid-cols-[1fr_90px_110px] gap-2.5">
               {field('city', 'City')}
@@ -109,11 +109,11 @@ export function DetailsStep({ kind, brand, agencyName, steps, draft, onChange, o
                 id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
                 onFocus={() => setFocus('logo')} onBlur={() => setFocus(null)}
                 onChange={(e) => pickLogo(e.target.files?.[0])}
-                className="text-sm file:mr-3 file:h-9 file:rounded-md file:border file:border-[#8796AB] file:bg-white file:px-3 file:text-sm file:font-medium"
+                className="text-sm file:mr-3 file:h-9 file:rounded-md file:border file:border-line-strong file:bg-white file:px-3 file:text-sm file:font-medium"
               />
               {draft.logo && <Button type="button" variant="ghost" size="sm" onClick={() => { onChange({ logo: null }); setLogoError(null); }}>Remove</Button>}
             </div>
-            <p className={`text-[13px] ${logoError ? 'text-danger' : 'text-muted-ink'}`} role={logoError ? 'alert' : undefined}>{logoError ?? 'PNG, JPG or SVG, square, up to 512 KB.'}</p>
+            <p className={`text-13 ${logoError ? 'text-danger' : 'text-muted-ink'}`} role={logoError ? 'alert' : undefined}>{logoError ?? 'PNG, JPG or SVG, square, up to 512 KB.'}</p>
           </div>
         </fieldset>
       </form>

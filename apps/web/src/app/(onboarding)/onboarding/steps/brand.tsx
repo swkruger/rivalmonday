@@ -86,7 +86,7 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ''; }}
                 className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
               />
-              {uploading && <span className="text-[13px] text-muted-ink" role="status">Uploading…</span>}
+              {uploading && <span className="text-13 text-muted-ink" role="status">Uploading…</span>}
             </div>
             {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
             </>

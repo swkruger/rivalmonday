@@ -64,15 +64,15 @@ export function InviteStep({ frame, clientName, agencyName, contact, invite, riv
     >
       {error && <ErrorNote focusKey={error}>{error}</ErrorNote>}
       <InviteStatus invite={invite} />
-      {waitingOwner && <p className="rounded-md bg-[#EEF2F6] p-3 text-sm">You asked the owner to pick the competitors. The invite is what emails them, so it can&apos;t be skipped.</p>}
+      {waitingOwner && <p className="rounded-md bg-muted-surface p-3 text-sm">You asked the owner to pick the competitors. The invite is what emails them, so it can&apos;t be skipped.</p>}
       <form id="invite-form" onSubmit={(e) => { e.preventDefault(); if (ready) onSend(target.name, target.email); }} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4">
         <fieldset disabled={readOnly} className="contents">
           {!other && contact ? (
             <>
               <p className="text-sm font-medium">Send {first} an invite</p>
               <div className="flex items-center gap-3 rounded-md border border-line px-3.5 py-3">
-                <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary-soft-text">{initialsOf(contact.name ?? '')}</span>
-                <span className="min-w-0 text-sm"><b className="font-semibold">{contact.name}</b><span className="block truncate text-[13px] text-muted-ink">{contact.email} · from client details</span></span>
+                <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{initialsOf(contact.name ?? '')}</span>
+                <span className="min-w-0 text-sm"><b className="font-semibold">{contact.name}</b><span className="block truncate text-13 text-muted-ink">{contact.email} · from client details</span></span>
               </div>
               <button type="button" onClick={() => setOther(true)} className="self-start text-sm font-medium text-secondary">Invite someone else instead</button>
             </>

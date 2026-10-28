@@ -72,7 +72,7 @@ export function AboutStep({ initial, guide }: { initial: AboutValues; guide: boo
           {input('contactEmail', 'Email address', { type: 'email', autoComplete: 'email' }, { required: true })}
           {addressOpen ? (
             <div className="flex flex-col gap-3.5 border-t border-line pt-4">
-              <p className="text-[13px] font-medium">Address <span className="font-normal text-muted-ink">(optional)</span></p>
+              <p className="text-13 font-medium">Address <span className="font-normal text-muted-ink">(optional)</span></p>
               {input('line1', 'Street address')}
               {input('line2', 'Suite or unit')}
               <div className="grid grid-cols-[1fr_90px_110px] gap-2.5">
@@ -84,7 +84,7 @@ export function AboutStep({ initial, guide }: { initial: AboutValues; guide: boo
                 <input type="checkbox" name="billingSameAsPostal" checked={same} onChange={(e) => setSame(e.target.checked)} />
                 Use this for billing too
               </label>
-              {!same && <p className="text-[13px] text-muted-ink">Add a separate billing address later in Settings, under Agency profile.</p>}
+              {!same && <p className="text-13 text-muted-ink">Add a separate billing address later in Settings, under Agency profile.</p>}
             </div>
           ) : (
             <button type="button" onClick={() => setAddressOpen(true)} className="self-start text-sm font-medium text-secondary">+ Add an address</button>
