@@ -98,6 +98,7 @@ async function fixtures(): Promise<ShotFixtures> {
       eventId: await firstId(db, sql`select ce.id from event ce join event_score es on es.event_id = ce.id where es.client_id = ${clientId} and ce.retracted_at is null order by ce.occurred_at desc limit 1`),
       prospectClientId: await firstId(db, sql`select id from client where name = 'E2E Prospect Dental'`),
       alertId: await firstId(db, sql`select id from alert where client_id = ${clientId} and status = 'delivered' order by created_at desc limit 1`),
+      approvalBriefId: await maybeId(db, sql`select id from brief where agency_id = (select agency_id from client where id = ${clientId}) and status = 'ready' order by created_at desc limit 1`),
       reportId: await maybeId(db, sql`select id from trend_report where client_id = ${clientId} limit 1`),
     };
   });
