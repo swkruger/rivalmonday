@@ -1,8 +1,8 @@
 import { Lock } from 'lucide-react';
 
 const BARS: { title: string; rows: [label: string, pct: number, value: string, colour: string][] }[] = [
-  { title: 'Rating', rows: [['you', 94, '4.7', 'var(--secondary)'], ['Rival 1', 90, '4.5', 'var(--chart-rival-1)'], ['Rival 2', 96, '4.8', 'var(--chart-rival-2)'], ['Rival 3', 86, '4.3', 'var(--chart-context)']] },
-  { title: 'Reviews', rows: [['you', 44, '212', 'var(--secondary)'], ['Rival 1', 100, '486', 'var(--chart-rival-1)'], ['Rival 2', 27, '133', 'var(--chart-rival-2)'], ['Rival 3', 62, '301', 'var(--chart-context)']] },
+  { title: 'Rating', rows: [['you', 94, '4.7', 'var(--you)'], ['Rival 1', 90, '4.5', 'var(--chart-rival-1)'], ['Rival 2', 96, '4.8', 'var(--chart-rival-2)'], ['Rival 3', 86, '4.3', 'var(--chart-context)']] },
+  { title: 'Reviews', rows: [['you', 44, '212', 'var(--you)'], ['Rival 1', 100, '486', 'var(--chart-rival-1)'], ['Rival 2', 27, '133', 'var(--chart-rival-2)'], ['Rival 3', 62, '301', 'var(--chart-context)']] },
 ];
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 import { type GlossaryTerm, visibleAudiences } from '@cs/core';
-import { ResponsivePopover, useMediaQuery } from '@cs/ui';
+import { ResponsivePopover, useInSheet, useMediaQuery } from '@cs/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { TipKey } from '@/help/copy';
 import { OPEN_PAGE_GUIDE_EVENT, renderCopy } from '@/help/render';
@@ -41,7 +41,8 @@ export function HelpTip(props: Props) {
   const r = useResolved(props);
   const guide = usePageGuideAvailable();
   const [open, setOpen] = useState(false);
-  const phone = useMediaQuery('(min-width: 768px)') === false; // sheet branch: no hover-open
+  const inSheet = useInSheet(); // inside a sheet ResponsivePopover keeps the popover branch
+  const phone = useMediaQuery('(min-width: 768px)') === false && !inSheet; // sheet branch: no hover-open
   // `hovered`: opened by pointer hover (no focus move, closes on leave). `pinned`: a click turned a hover-open into a normal open.
   const hovered = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

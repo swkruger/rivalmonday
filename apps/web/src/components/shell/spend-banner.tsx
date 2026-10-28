@@ -12,7 +12,7 @@ export function SpendBanner({ items, audience, agencyName }: { items: { clientId
   const shown = items.slice(0, MAX_LINES);
   const more = items.length - shown.length;
   return (
-    <div role="region" aria-label="Usage" className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-muted-surface px-4 py-2 text-sm font-semibold text-ink lg:px-8">
+    <div role="region" aria-label="Usage" className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-muted-surface px-4 py-2 text-sm font-semibold text-ink md:px-6 lg:px-8">
       {audience === 'client' ? (
         <p>{pausedForClient(agencyName)}</p>
       ) : (

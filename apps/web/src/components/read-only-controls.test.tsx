@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReadOnlyProvider } from './read-only';
@@ -123,7 +123,10 @@ describe('write controls hide in a support session', () => {
         <AddCompetitorForm clientId="c1" atLimit={false} limit={5} />
       </>,
     );
-    expect(screen.getByRole('link', { name: 'Peachtree Air' }).getAttribute('href')).toBe('/c/c1/competitors/k1');
+    expect(within(screen.getByRole('table')).getByRole('link', { name: 'Peachtree Air' }).getAttribute('href')).toBe('/c/c1/competitors/k1');
+    const stacked = container.querySelector('[data-slot=competitor-rows]') as HTMLElement; // the phone copy (jsdom applies no CSS)
+    expect(within(stacked).getByRole('link', { name: 'Peachtree Air' })).toBeTruthy();
+    expect(within(stacked).queryByRole('button')).toBeNull();
     expect(screen.queryByRole('button', { name: /remove|add competitor/i })).toBeNull();
     expect(container.querySelector('form')).toBeNull();
     expect(container.querySelectorAll('th').length).toBe(5);

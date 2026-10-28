@@ -249,7 +249,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
                     type="button"
                     aria-pressed={on}
                     onClick={() => setPicked(signed)}
-                    className="flex w-full flex-col gap-1 rounded-md p-3.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="flex w-full flex-col gap-1 rounded-md p-3.5 text-left outline-none"
                   >
                     <PlaceSummary place={p} isClaimed={signed.isClaimed} possibleDuplicate={signed.possibleDuplicate} />
                   </button>

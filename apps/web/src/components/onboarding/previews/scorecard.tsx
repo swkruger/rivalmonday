@@ -1,5 +1,5 @@
 /** Chart roles (dataviz skill, validated): you (secondary), rival 1, rival 2, context grey: the chart tokens in `@cs/ui` styles. */
-export const SCORE_COLORS = { you: 'var(--secondary)', rival1: 'var(--chart-rival-1)', rival2: 'var(--chart-rival-2)', context: 'var(--chart-context)' } as const;
+export const SCORE_COLORS = { you: 'var(--you)', rival1: 'var(--chart-rival-1)', rival2: 'var(--chart-rival-2)', context: 'var(--chart-context)' } as const;
 
 export interface ScoreRow {
   name: string;

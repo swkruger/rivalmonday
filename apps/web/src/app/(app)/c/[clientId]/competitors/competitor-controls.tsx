@@ -457,6 +457,16 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
       ) : (
         <>
         {/* P5: below md each competitor is a stacked row; the table (and its controls) is display:none there, and vice versa. */}
+        <div data-slot="competitor-rows-caption" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-11 font-medium text-muted-ink md:hidden">
+          <span className="inline-flex items-center gap-1.5">
+            Name
+            <HelpTip tip="client.competitors.rated" />
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            Signals
+            <HelpTip term="signal" />
+          </span>
+        </div>
         <ul data-slot="competitor-rows" className="m-0 flex list-none flex-col divide-y divide-line p-0 md:hidden">
           {ordered.map((c) => {
             const rated = byCompetitor.get(c.id);

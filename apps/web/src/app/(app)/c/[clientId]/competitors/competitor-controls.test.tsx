@@ -437,4 +437,20 @@ describe('TrackedCompetitorsTable empty state by viewer', () => {
     expect(within(list).getByRole('link', { name: 'Smith HVAC' }).getAttribute('href')).toBe('/c/c1/competitors/x');
     expect(within(list).getByRole('button', { name: /^remove$/i })).toBeTruthy();
   });
+
+  it('the stacked rows keep the Rating and Signals help tips (caption above the list) and show a rated competitor in full', async () => {
+    const { HelpProvider } = await import('@/components/help/help-provider');
+    const t: TrackedCompetitor = { id: 'x1', name: 'Smith HVAC', domain: 'smith.example', placeId: null, addedAt: '2026-09-01T00:00:00.000Z', activePages: 2 };
+    const rating = { competitorId: 'x1', tier: 'top' as const, signals: { ...NO_SIGNALS, rating: 4.7, votes: 90 }, computedAt: '2026-10-13T09:00:00.000Z' };
+    render(<HelpProvider value={{ audience: 'client', names }}><TrackedCompetitorsTable timezone="America/Chicago" clientId="c1" items={[t]} canRemove={false} signals={[rating]} /></HelpProvider>);
+    const list = document.querySelector('[data-slot=competitor-rows]') as HTMLElement;
+    const caption = list.previousElementSibling as HTMLElement;
+    expect(caption.getAttribute('data-slot')).toBe('competitor-rows-caption');
+    expect(caption.className).toContain('md:hidden');
+    expect(within(caption).getAllByRole('button')).toHaveLength(2);
+    expect(within(list).getByText('Top rival')).toBeTruthy();
+    expect(within(list).getByText('Rated Oct 13')).toBeTruthy();
+    expect(within(list).getByRole('list', { name: 'Signals' })).toBeTruthy();
+    expect(within(list).getByText(/smith\.example · 2 pages monitored · Since /)).toBeTruthy();
+  });
 });

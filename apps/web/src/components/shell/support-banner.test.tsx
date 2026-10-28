@@ -7,10 +7,11 @@ const SID = '11111111-1111-4111-8111-111111111111';
 afterEach(() => vi.useRealTimers());
 
 describe('SupportBanner', () => {
-  it('uses the warning recipe, never the amber accent, and keeps its region label', () => {
+  it('uses the warning recipe (data-tone), carries no amber accent class, and keeps its region label', () => {
     render(<SupportBanner sessionId={SID} agencyName="Acme" reason="r" expiresAt={new Date(Date.now() + 60_000).toISOString()} />);
     const region = screen.getByRole('region', { name: 'Support session' });
     expect(region.getAttribute('data-tone')).toBe('warning');
+    expect(region.className).not.toContain('bg-amber');
   });
 
   it('shows the agency, the reason, the minutes left and an Exit form posting to /support/exit', () => {

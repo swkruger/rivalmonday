@@ -50,6 +50,8 @@ describe('HelpTip', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Share of voice' });
     expect(dialog.textContent).toContain('Your slice of the mentions for Bob HVAC.');
     expect(dialog.textContent).toContain('Longer text.');
+    expect(dialog.querySelector('[data-slot="sheet-handle"]')).toBeTruthy();
+    expect(dialog.textContent?.split('Share of voice').length).toBe(2); // the title appears exactly once
   });
 
   it('trigger focus outline is the fixed ring, never the agency colour (guard)', () => {

@@ -100,7 +100,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
                 </span>
               ))}
               <input
-                id="keyword-add" aria-label="Add a keyword" placeholder={keywords.length >= maxKeywords ? '' : 'Add a keyword'} value={draftKeyword} maxLength={60}
+                id="keyword-add" aria-describedby="keyword-add-help" aria-label="Add a keyword" placeholder={keywords.length >= maxKeywords ? '' : 'Add a keyword'} value={draftKeyword} maxLength={60}
                 disabled={keywords.length >= maxKeywords}
                 onChange={(e) => setDraftKeyword(e.target.value)} onBlur={addKeyword}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
