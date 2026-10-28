@@ -21,7 +21,7 @@ const ROOT = fileURLToPath(new URL('../.shots', import.meta.url));
 const DIR = join(ROOT, LABEL);
 const AXE_FILE = join(DIR, 'axe.json');
 
-type AxeRow = { label: string; width: number; serious: number; critical: number; ids: string[]; nodes: { id: string; targets: string[] }[] };
+type AxeRow = { label: string; width: number; overflowX: number; serious: number; critical: number; ids: string[]; nodes: { id: string; targets: string[] }[] };
 type Db = ReturnType<typeof createDb>['db'];
 
 test.describe.configure({ mode: 'serial' });
@@ -174,10 +174,12 @@ for (const route of SHOT_ROUTES) {
         // WCAG 1.4.3 exempts logotype text: the wordmark's amber "monday" half is the decided brand colour (1.93:1 on canvas).
         const results = await new AxeBuilder({ page }).exclude('[data-part="monday"]').withTags(['wcag2a', 'wcag2aa']).analyze();
         const count = (impact: string) => results.violations.filter((v) => v.impact === impact).length;
-        const row: AxeRow = { label: route.label, width: viewport.width, serious: count('serious'), critical: count('critical'), ids: results.violations.map((v) => v.id), nodes: results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => ({ id: v.id, targets: v.nodes.slice(0, 10).map((n) => n.target.join(' ') + ' :: ' + (n.any[0]?.message ?? '')) })) };
+        const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        const row: AxeRow = { label: route.label, width: viewport.width, overflowX, serious: count('serious'), critical: count('critical'), ids: results.violations.map((v) => v.id), nodes: results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => ({ id: v.id, targets: v.nodes.slice(0, 10).map((n) => n.target.join(' ') + ' :: ' + (n.any[0]?.message ?? '')) })) };
         const rows = existsSync(AXE_FILE) ? (JSON.parse(readFileSync(AXE_FILE, 'utf8')) as AxeRow[]) : [];
         writeFileSync(AXE_FILE, JSON.stringify([...rows, row], null, 2));
         if (route.gate && row.serious + row.critical > 0) gateFailures.push(`${route.label} @ ${viewport.width}: ${JSON.stringify(row.nodes)}`);
+        if (route.gate && viewport.width === 390 && overflowX > 1) gateFailures.push(`${route.label} @ 390: overflow ${overflowX}px`);
       } finally {
         await page.close();
       }
