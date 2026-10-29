@@ -12,7 +12,8 @@
     "lint": "vitest run src/import-boundary.test.ts",
     "e2e": "playwright test",
     "check:bundle": "tsx scripts/check-bundle.ts",
-    "check:placeholders": "tsx scripts/check-placeholders.ts"
+    "check:placeholders": "tsx scripts/check-placeholders.ts",
+    "check:facts": "tsx scripts/check-compare-facts.ts"
   },
   "dependencies": {
     "@cs/ui": "workspace:*",

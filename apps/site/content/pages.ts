@@ -1,3 +1,4 @@
+import { comparePageEntry, enabledRivals } from './compare';
 import { listedIntegrations } from './integrations';
 import { SOURCES } from './sources';
 
@@ -98,6 +99,17 @@ export const PAGES: readonly SitePage[] = [
     group: 'sources',
   },
   ...SOURCES.map((s) => collectionPage('/sources', { slug: s.slug, ...s.seo })),
+  {
+    path: '/compare',
+    title: 'Compare',
+    description: 'How Rival Monday compares with other kinds of local-competitor tools, and named comparisons where we publish them.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+    crumb: 'Compare',
+    group: 'compare',
+  },
+  ...enabledRivals().map((r) => collectionPage('/compare', comparePageEntry(r))),
 ];
 
 export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [

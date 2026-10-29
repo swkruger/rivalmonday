@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const social = vi.hoisted(() => ({ linkedin: null, x: null, youtube: null, facebook: null, instagram: null }) as Record<string, string | null>);
-vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test', social } }));
+vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test', social, comparePages: [] } }));
 
 const pages = vi.hoisted(() => ({ list: [] as { path: string; nav?: { label: string; order: number } }[] }));
 vi.mock('../../../content/pages', async (orig) => {
