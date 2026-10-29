@@ -1,0 +1,58 @@
+@import "@cs/ui/styles.css";
+@source "../../../../packages/ui/src";
+
+/* Site-local marketing tokens (plan P11, spec § 7.8). `@cs/ui/styles.css` stays unchanged;
+   components use these via utilities (`text-display`, `shadow-float`, …), never literals. */
+:root {
+  --shadow-float-value: 0 2px 4px rgba(11,37,64,.06), 0 12px 32px rgba(11,37,64,.12);
+  /* Outline for a changed block in a snapshot fragment (`.ring-change`). */
+  --ring-change: 2px solid color-mix(in srgb, var(--secondary) 45%, transparent);
+}
+
+@theme inline {
+  /* Display headings: 36 px on phones → 56 px on wide screens. */
+  --text-display: clamp(2.25rem, 1.5rem + 3.2vw, 3.5rem);
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.02em;
+  /* Display sub-line: 18 → 20 px. */
+  --text-display-sub: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
+  --text-display-sub--line-height: 1.5;
+  /* Floating hero fragments only (the one shadow a static site surface may carry). */
+  --shadow-float: var(--shadow-float-value);
+}
+
+@layer components {
+  .site-container {
+    width: 100%;
+    max-width: 1560px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  @media (min-width: 768px) {
+    .site-container { padding-inline: 32px; }
+  }
+
+  /* Faint vertical grid lines behind a hero: 1 px, 4 % ink, every 120 px. */
+  .bg-grid-lines {
+    background-image: linear-gradient(to right, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px);
+    background-size: 120px 100%;
+  }
+
+  /* The one soft blue wash per hero. Decorative only. */
+  .hero-wash {
+    pointer-events: none;
+    background: radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0%, color-mix(in srgb, var(--secondary) 6%, transparent) 55%, transparent 100%);
+  }
+
+  .ring-change {
+    outline: var(--ring-change);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

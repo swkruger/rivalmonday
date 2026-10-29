@@ -36,6 +36,10 @@ ALLOW_AMBER=(
   ':(exclude,glob)apps/web/src/app/(app)/c/[[]clientId]/evidence/[[]evidenceId]/page.tsx'
   # BAR priority scale (low/elevated/high): amber is the mid step of a bar, not a status chip.
   ':(exclude,glob)apps/web/src/app/(app)/c/[[]clientId]/page.tsx'
+  # Friday identity is the orange pill (brand decision).
+  ':(exclude,glob)apps/site/src/components/**/friday-*.tsx'
+  # Pilot pill: the screen's one orange highlight, spec § 7.8.
+  ':(exclude,glob)apps/site/src/components/home/pilot-pill.tsx'
 )
 
 NOTEST=':(exclude,glob)**/*.test.*'
@@ -56,17 +60,18 @@ count() { # label, pattern, pathspecs...
 
 WEB=apps/web/src
 UI=packages/ui/src
-count shadow-card 'shadow-card' $WEB $UI
-count radius-14-2xl-xl 'rounded-\[14px\]|rounded-2xl|rounded-xl' $WEB $UI
+SITE=apps/site/src
+count shadow-card 'shadow-card' $WEB $UI $SITE
+count radius-14-2xl-xl 'rounded-\[14px\]|rounded-2xl|rounded-xl' $WEB $UI $SITE
 count off-scale-text-25-39 'text-\[(2[5-9]|3\d)px\]' $WEB
-count font-extrabold 'font-extrabold' $WEB $UI ':(exclude,glob)**/wordmark.tsx'
+count font-extrabold 'font-extrabold' $WEB $UI $SITE ':(exclude,glob)**/wordmark.tsx'
 count uppercase-tracking 'uppercase tracking' $WEB
 count focus-ring-legacy 'ring-ring/50|ring-\[3px\]' $WEB $UI
-count hex-literals-tsx '#[0-9A-Fa-f]{6}\b' ":(glob)$WEB/**/*.tsx" "${ALLOW_HEX[@]}"
-count bg-amber 'bg-amber' $WEB $UI "${ALLOW_AMBER[@]}"
-count shadow-sm-md-lg-xl 'shadow-(sm|md|lg|xl)\b' $WEB $UI
+count hex-literals-tsx '#[0-9A-Fa-f]{6}\b' ":(glob)$WEB/**/*.tsx" ":(glob)$SITE/**/*.tsx" "${ALLOW_HEX[@]}"
+count bg-amber 'bg-amber' $WEB $UI $SITE "${ALLOW_AMBER[@]}"
+count shadow-sm-md-lg-xl 'shadow-(sm|md|lg|xl)\b' $WEB $UI $SITE
 count badge-usage '<Badge\b' $WEB ':(exclude)apps/web/src/lib/page-gates.ts'
-count text-px-arbitrary 'text-\[[0-9]+px\]' $WEB $UI
+count text-px-arbitrary 'text-\[[0-9]+px\]' $WEB $UI $SITE
 
 echo "total: $total"
 if [ "$REPORT" = 0 ] && [ "$total" -gt 0 ]; then exit 1; fi

@@ -78,6 +78,8 @@
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },
     "test": { "cache": false },
-    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"] }
+    "build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"] },
+    "@cs/site#build": { "dependsOn": ["^build"], "outputs": [".next/**", "!.next/cache/**"], "env": ["NEXT_PUBLIC_*", "VERCEL_ENV"] },
+    "lint": {}
   }
 }
