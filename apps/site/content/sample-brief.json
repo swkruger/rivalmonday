@@ -44,12 +44,13 @@
       "id": "i1",
       "rivalId": "r1",
       "kind": "rank",
-      "headline": "\"ac repair marlowemere\": average map position 5.5 → 3.1, top-3 share 16% → 63%",
+      "headline": "\"ac repair marlowemere\": top-3 share 16% → 63%",
       "whatChanged": "Quillstone Climate Pros now ranks in the map top 3 at 31 of 49 points for \"ac repair marlowemere\", up from 8 of 49.",
       "whyItMatters": "Quillstone Climate Pros now shows in the map top 3 across 63% of your service area, up from 16%.",
-      "recommendedAction": "Check your Google Business Profile categories and recent reviews for the areas they took.",
+      "recommendedAction": "Check your Google Business Profile categories and recent reviews in the areas where it moved into the top 3.",
       "evidenceIds": [
-        "e1"
+        "e1",
+        "e2"
       ]
     },
     {
@@ -61,7 +62,7 @@
       "whyItMatters": "Price-sensitive customers in your area compare these prices before they book.",
       "recommendedAction": "Promote a value bundle instead of matching the price.",
       "evidenceIds": [
-        "e2"
+        "e3"
       ]
     },
     {
@@ -73,8 +74,8 @@
       "whyItMatters": "More paid ads usually mean more calls going to them for the same searches.",
       "recommendedAction": "Check your ad coverage on the same keywords.",
       "evidenceIds": [
-        "e3",
-        "e4"
+        "e4",
+        "e5"
       ]
     },
     {
@@ -86,7 +87,7 @@
       "whyItMatters": "They now compete for a service you offer.",
       "recommendedAction": "Highlight your experience with this service on your site.",
       "evidenceIds": [
-        "e5"
+        "e6"
       ]
     }
   ],
@@ -100,6 +101,13 @@
     },
     "e2": {
       "id": "e2",
+      "kind": "rank",
+      "keyword": "ac repair marlowemere",
+      "weekOf": "2026-10-06",
+      "summary": "Quillstone Climate Pros: top 3 in 8 of 49 points"
+    },
+    "e3": {
+      "id": "e3",
       "kind": "snapshot",
       "rivalId": "r6",
       "url": "https://kestrel-mechanical.example/pricing",
@@ -113,8 +121,8 @@
       ],
       "changed": 0
     },
-    "e3": {
-      "id": "e3",
+    "e4": {
+      "id": "e4",
       "kind": "ad",
       "rivalId": "r1",
       "platform": "meta",
@@ -122,8 +130,8 @@
       "headline": "0% financing on new systems",
       "body": "Replace your old unit with 0% APR for 60 months on approved credit."
     },
-    "e4": {
-      "id": "e4",
+    "e5": {
+      "id": "e5",
       "kind": "ad",
       "rivalId": "r1",
       "platform": "meta",
@@ -131,8 +139,8 @@
       "headline": "Join our Comfort Club",
       "body": "Two tune-ups a year, priority service and 15% off repairs."
     },
-    "e5": {
-      "id": "e5",
+    "e6": {
+      "id": "e6",
       "kind": "snapshot",
       "rivalId": "r3",
       "url": "https://tidewell-mechanical.example/",
@@ -146,85 +154,85 @@
       ],
       "changed": 0
     },
-    "e6": {
-      "id": "e6",
-      "kind": "rank",
-      "keyword": "ac repair marlowemere",
-      "weekOf": "2026-08-04",
-      "summary": "You: top 3 in 33 of 49 points"
-    },
     "e7": {
       "id": "e7",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-08-11",
+      "weekOf": "2026-08-04",
       "summary": "You: top 3 in 33 of 49 points"
     },
     "e8": {
       "id": "e8",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-08-18",
-      "summary": "You: top 3 in 43 of 49 points"
+      "weekOf": "2026-08-11",
+      "summary": "You: top 3 in 33 of 49 points"
     },
     "e9": {
       "id": "e9",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-08-25",
-      "summary": "You: top 3 in 36 of 49 points"
+      "weekOf": "2026-08-18",
+      "summary": "You: top 3 in 43 of 49 points"
     },
     "e10": {
       "id": "e10",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-09-01",
-      "summary": "You: top 3 in 41 of 49 points"
+      "weekOf": "2026-08-25",
+      "summary": "You: top 3 in 36 of 49 points"
     },
     "e11": {
       "id": "e11",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-09-08",
-      "summary": "You: top 3 in 40 of 49 points"
+      "weekOf": "2026-09-01",
+      "summary": "You: top 3 in 41 of 49 points"
     },
     "e12": {
       "id": "e12",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-09-15",
-      "summary": "You: top 3 in 46 of 49 points"
+      "weekOf": "2026-09-08",
+      "summary": "You: top 3 in 40 of 49 points"
     },
     "e13": {
       "id": "e13",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-09-22",
-      "summary": "You: top 3 in 44 of 49 points"
+      "weekOf": "2026-09-15",
+      "summary": "You: top 3 in 46 of 49 points"
     },
     "e14": {
       "id": "e14",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-09-29",
-      "summary": "You: top 3 in 43 of 48 points"
+      "weekOf": "2026-09-22",
+      "summary": "You: top 3 in 44 of 49 points"
     },
     "e15": {
       "id": "e15",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-10-06",
-      "summary": "You: top 3 in 48 of 49 points"
+      "weekOf": "2026-09-29",
+      "summary": "You: top 3 in 43 of 48 points"
     },
     "e16": {
       "id": "e16",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
-      "weekOf": "2026-10-13",
-      "summary": "You: top 3 in 42 of 49 points"
+      "weekOf": "2026-10-06",
+      "summary": "You: top 3 in 48 of 49 points"
     },
     "e17": {
       "id": "e17",
+      "kind": "rank",
+      "keyword": "ac repair marlowemere",
+      "weekOf": "2026-10-13",
+      "summary": "You: top 3 in 42 of 49 points"
+    },
+    "e18": {
+      "id": "e18",
       "kind": "rank",
       "keyword": "ac repair marlowemere",
       "weekOf": "2026-10-20",

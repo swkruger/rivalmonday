@@ -50,24 +50,22 @@ async function pageTexts(db: Db, store: ObjectStore, captureId: string, changeTe
 /** One done scan of keyword 0: points with data, and per tracked rival the cells where it ranks in the top 3. */
 interface ScanStats { id: string; finishedAt: Date; points: number; top3: Map<string, number> }
 const pct = (n: number, of: number) => (of === 0 ? 0 : Math.round((n / of) * 100));
-const pos = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x.toFixed(1) : null);
 
 /**
- * Owner signs (Phase 17b Task 5 fix): rank items get exporter copy built from the same snapshots as their evidence, so the claim
- * and its evidence always agree. The seed's rank items carry the generic "content" why/action.
+ * Owner signs (Phase 17b Task 5 fix; final fix wave): rank items get exporter copy built from the same two snapshots as their
+ * two evidence entries (after + before scan), so every figure in the claim is in cited evidence. No average map position:
+ * the seed's `avgRank*` details are not computed from the snapshots. The seed's rank items carry the generic "content" why/action.
  */
-export function rankItemCopy(o: { rival: string; keyword: string; before: { n: number; points: number }; after: { n: number; points: number }; avgBefore: unknown; avgAfter: unknown }) {
+export function rankItemCopy(o: { rival: string; keyword: string; before: { n: number; points: number }; after: { n: number; points: number } }) {
   const p0 = pct(o.before.n, o.before.points);
   const p1 = pct(o.after.n, o.after.points);
-  const a0 = pos(o.avgBefore);
-  const a1 = pos(o.avgAfter);
-  const avg = a0 && a1 ? `average map position ${a0} → ${a1}, ` : '';
   return {
-    headline: `"${o.keyword}": ${avg}top-3 share ${p0}% → ${p1}%`,
+    headline: `"${o.keyword}": top-3 share ${p0}% → ${p1}%`,
     whatChanged: `${o.rival} now ranks in the map top 3 at ${o.after.n} of ${o.after.points} points for "${o.keyword}", up from ${o.before.n} of ${o.before.points}.`,
     whyItMatters: `${o.rival} now shows in the map top 3 across ${p1}% of your service area, up from ${p0}%.`,
-    recommendedAction: 'Check your Google Business Profile categories and recent reviews for the areas they took.',
+    recommendedAction: 'Check your Google Business Profile categories and recent reviews in the areas where it moved into the top 3.',
     summary: `${o.rival}: top 3 in ${o.after.n} of ${o.after.points} points`,
+    summaryBefore: `${o.rival}: top 3 in ${o.before.n} of ${o.before.points} points`,
   };
 }
 
@@ -150,10 +148,10 @@ export async function collectSampleBrief(db: Db, store: ObjectStore, clientName 
           const [s0, s1] = [stats[at - 1]!, stats[at]!];
           const copy = rankItemCopy({
             rival: nameOf(rivalId), keyword: rankGrid.keyword, before: { n: s0.top3.get(rivalId) ?? 0, points: s0.points }, after: { n: s1.top3.get(rivalId) ?? 0, points: s1.points },
-            avgBefore: ev.details.avgRankBefore, avgAfter: ev.details.avgRankAfter,
           });
           Object.assign(item, { headline: copy.headline, whatChanged: copy.whatChanged, whyItMatters: copy.whyItMatters, recommendedAction: copy.recommendedAction });
           add({ id: `rank-rival:${row.id}`, kind: 'rank', keyword: rankGrid.keyword, weekOf: day(s1.finishedAt), summary: copy.summary });
+          add({ id: `rank-rival-before:${row.id}`, kind: 'rank', keyword: rankGrid.keyword, weekOf: day(s0.finishedAt), summary: copy.summaryBefore });
         }
       }
       // Listing changes (rating, service area, location, hiring) and tier changes have no text evidence: skipped.

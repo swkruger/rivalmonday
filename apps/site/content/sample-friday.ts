@@ -16,33 +16,33 @@ export const FRIDAY_ANSWERS: readonly CannedAnswer[] = [
     question: 'What changed with Quillstone Climate Pros?',
     answer: [
       { text: "In last week's map scan for \"ac repair marlowemere\", Quillstone Climate Pros ranked in the top 3 at 31 of 49 points.", cite: 'e1' },
-      { text: ' It also started Meta ads. One offers 0% financing for 60 months on new systems,', cite: 'e3' },
-      { text: ' another a Comfort Club with two tune-ups a year and 15% off repairs.', cite: 'e4' },
+      { text: ' It also started Meta ads. One offers 0% financing for 60 months on new systems,', cite: 'e4' },
+      { text: ' another offers a Comfort Club with two tune-ups a year and 15% off repairs.', cite: 'e5' },
     ],
   },
   {
     id: 'kestrel-price',
     question: "Should we match Kestrel Mechanical's price?",
     answer: [
-      { text: 'Kestrel Mechanical cut its AC repair diagnostic from $89 to $69.', cite: 'e2' },
-      { text: ' Rather than match it, promote a value bundle: price-sensitive customers in your area compare these prices before they book.', cite: 'e2' },
+      { text: 'Kestrel Mechanical cut its AC repair diagnostic from $89 to $69.', cite: 'e3' },
+      { text: ' Rather than match it, promote a value bundle: price-sensitive customers in your area compare these prices before they book.', cite: 'e3' },
     ],
   },
   {
     id: 'map-leader',
     question: 'Who is winning the map for "ac repair marlowemere"?',
     answer: [
-      { text: 'In the latest scan you are in the map top 3 at 42 of 49 points.', cite: 'e17' },
+      { text: 'In the latest scan you are in the map top 3 at 42 of 49 points.', cite: 'e18' },
       { text: ' The rival to watch is Quillstone Climate Pros: in the scan a week earlier it ranked in the top 3 at 31 of 49 points.', cite: 'e1' },
-      { text: ' Check your Google Business Profile categories and recent reviews for the areas it took.', cite: 'e1' },
+      { text: ' It was in the top 3 at 8 of 49 points the week before, so check your Google Business Profile categories and recent reviews in the areas where it moved up.', cite: 'e2' },
     ],
   },
   {
     id: 'tidewell-service',
     question: 'What did Tidewell Mechanical change on its website?',
     answer: [
-      { text: 'Tidewell Mechanical added heat pump installation to its list of services.', cite: 'e5' },
-      { text: ' They now compete for a service you offer, so highlight your heat pump experience on your site.', cite: 'e5' },
+      { text: 'Tidewell Mechanical added heat pump installation to its list of services.', cite: 'e6' },
+      { text: ' They now compete for a service you offer, so highlight your heat pump experience on your site.', cite: 'e6' },
     ],
   },
 ];

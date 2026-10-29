@@ -145,13 +145,53 @@ describe('finalizeSampleBrief', () => {
 });
 
 describe('rankItemCopy', () => {
-  it('rounds both positions to one decimal and builds claim and evidence from the same counts', () => {
-    const c = rankItemCopy({ rival: 'R', keyword: 'k', before: { n: 8, points: 49 }, after: { n: 31, points: 49 }, avgBefore: 5.53, avgAfter: 3.1 });
-    expect(c.headline).toBe('"k": average map position 5.5 → 3.1, top-3 share 16% → 63%');
+  it('builds claim and both evidence summaries from the same counts, with no average position', () => {
+    const c = rankItemCopy({ rival: 'R', keyword: 'k', before: { n: 8, points: 49 }, after: { n: 31, points: 49 } });
+    expect(c.headline).toBe('"k": top-3 share 16% → 63%');
     expect(c.whyItMatters).toBe('R now shows in the map top 3 across 63% of your service area, up from 16%.');
     expect(c.summary).toBe('R: top 3 in 31 of 49 points');
+    expect(c.summaryBefore).toBe('R: top 3 in 8 of 49 points');
+    expect(JSON.stringify(c)).not.toMatch(/average|position/);
+    const evidence = [c.summary, c.summaryBefore].join(' ');
+    expect(uncitedNumbers([c.headline, c.whatChanged, c.whyItMatters, c.recommendedAction], evidence)).toEqual([]);
   });
 });
+
+/** ISO dates and timestamps are not figures. */
+const ISO_DATE = /\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?/g;
+/** Evidence values that are references or indexes, not figures. */
+const NOT_FIGURES = new Set(['id', 'rivalId', 'changed']);
+
+/**
+ * Numbers in item text that its cited evidence does not back: a whole number must appear as a token in the evidence
+ * (or equal the number of cited ads: "started 2 ads" citing 2 ads); a percentage must be derivable
+ * from a cited "N of P" pair (Math.round(N / P * 100)).
+ */
+function uncitedNumbers(texts: string[], evidenceText: string, ads = 0): string[] {
+  const ev = evidenceText.replace(ISO_DATE, ' ');
+  const tokens = new Set(ev.match(/\d+(?:[.,]\d+)*/g) ?? []);
+  const shares = new Set([...ev.matchAll(/(\d+) of (\d+)/g)].map((m) => String(Math.round((Number(m[1]) / Number(m[2])) * 100))));
+  const problems: string[] = [];
+  for (const t of texts) {
+    const clean = t.replace(ISO_DATE, ' ');
+    for (const m of clean.matchAll(/(\d+(?:[.,]\d+)*)(%?)/g)) {
+      const [, n, isPct] = m;
+      if (isPct ? !shares.has(n!) : !(tokens.has(n!) || (ads > 0 && Number(n) === ads))) problems.push(`${n}${isPct}`);
+    }
+  }
+  return problems;
+}
+
+function evidenceText(d: SampleBriefData, ids: string[]): string {
+  const out: string[] = [];
+  const walk = (v: unknown): void => {
+    if (typeof v === 'string' || typeof v === 'number') out.push(String(v));
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!NOT_FIGURES.has(k)) walk(x);
+  };
+  for (const id of ids) walk(d.evidence[id]);
+  return out.join(' | ');
+}
 
 describe('committed site content', () => {
   it('committed json passes the guard', () => {
@@ -182,6 +222,28 @@ describe('committed site content', () => {
       expect(item.whyItMatters).toBe(`${rival.name} now shows in the map top 3 across ${share}% of your service area, up from ${/up from (\d+)%/.exec(item.whyItMatters)![1]}%.`);
       expect(item.headline.endsWith(`→ ${share}%`)).toBe(true);
       expect(item.whatChanged).toContain(`at ${m![2]} of ${m![3]} points`);
+    }
+  });
+
+  it('every number in committed item text is backed by its cited evidence', () => {
+    const json = JSON.parse(readFileSync(content('sample-brief.json'), 'utf8')) as SampleBriefData;
+    // Sanity: "8 of 49" backs 8 and 16%, but not 17% or a 5.5 the evidence never states.
+    expect(uncitedNumbers(['up from 8 (16%)'], 'R: top 3 in 8 of 49 points')).toEqual([]);
+    expect(uncitedNumbers(['5.5 → 3.1, 17%'], 'R: top 3 in 8 of 49 points')).toEqual(['5.5', '3.1', '17%']);
+    expect(uncitedNumbers(['on 2026-10-13'], 'x')).toEqual([]);
+    const problems = json.items.flatMap((i) =>
+      uncitedNumbers([i.headline, i.whatChanged, i.whyItMatters, i.recommendedAction], evidenceText(json, i.evidenceIds), i.evidenceIds.filter((id) => json.evidence[id]?.kind === 'ad').length).map((p) => `${i.id}: ${p}`));
+    expect(problems).toEqual([]);
+  });
+
+  it('a rank item cites the earlier scan it compares against', () => {
+    const json = JSON.parse(readFileSync(content('sample-brief.json'), 'utf8')) as SampleBriefData;
+    for (const item of json.items.filter((i) => i.kind === 'rank')) {
+      const evs = item.evidenceIds.map((id) => json.evidence[id]!).filter((e) => e.kind === 'rank');
+      expect(evs).toHaveLength(2);
+      const [after, before] = evs as Extract<SampleBriefData['evidence'][string], { kind: 'rank' }>[];
+      expect(before!.weekOf < after!.weekOf).toBe(true);
+      expect(item.whatChanged).toContain(`up from ${/top 3 in (\d+ of \d+) points$/.exec(before!.summary)![1]}`);
     }
   });
 
