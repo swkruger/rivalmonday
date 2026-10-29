@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 
-const m = vi.hoisted(() => ({ calls: [] as [string, unknown][], answer: {} as Record<string, unknown>, refuse: false }));
+const m = vi.hoisted(() => ({ calls: [] as [string, unknown][], answer: {} as Record<string, unknown>, refuse: false, role: 'staff' }));
 vi.mock('@/server/current-viewer', () => ({
   requireOperatorContext: async () => {
     if (m.refuse) throw new Error('NEXT_NOT_FOUND');
@@ -17,6 +17,10 @@ vi.mock('@/server/tools', () => ({
   },
   tryCallTool: async () => ({ guides: [] }),
 }));
+vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
+vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
+vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn() }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC and plumbing', services: [] }] }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
@@ -36,7 +40,7 @@ const base = {
 const show = async (sp: Record<string, string> = {}) =>
   render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}>{await Waitlist({ searchParams: Promise.resolve(sp) })}</HelpProvider>);
 
-beforeEach(() => { m.calls = []; m.refuse = false; m.answer = base; });
+beforeEach(() => { m.calls = []; m.refuse = false; m.role = 'staff'; m.answer = base; });
 afterEach(cleanup);
 
 describe('platform waitlist page', () => {

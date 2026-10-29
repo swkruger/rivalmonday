@@ -286,6 +286,45 @@ export const listInviteLinksTool = defineTool({
   },
 });
 
+export interface InsertInviteLinkInput {
+  offer: 'pilot' | 'trial';
+  pilotEndsAt?: string | undefined;
+  emailLock?: string | undefined;
+  maxUses: number;
+  expiresInDays: number;
+  note?: string | undefined;
+  discountCodeId?: string | undefined;
+}
+
+/** The body of `create_invite_link` after `operate()`: validates and inserts one link. No audit row of its own (callers audit). */
+export async function insertInviteLink(
+  deps: ToolDeps, ctx: AccessContext, input: InsertInviteLinkInput,
+): Promise<{ id: string; url: string; token: string; expiresAt: Date }> {
+  if (!deps.appUrl) throw new ToolError('internal', 'Invite links are not configured (APP_URL)');
+  if (input.offer === 'pilot' && !input.pilotEndsAt) throw new ToolError('invalid_input', 'A pilot offer needs pilotEndsAt');
+  if (input.offer === 'trial' && input.pilotEndsAt) throw new ToolError('invalid_input', 'pilotEndsAt only applies to a pilot offer');
+  if (input.discountCodeId) {
+    const [d] = await deps.service.select().from(discountCode).where(and(eq(discountCode.id, input.discountCodeId), isNull(discountCode.revokedAt)));
+    if (!d) throw new ToolError('invalid_input', 'Discount code not found or revoked');
+    // The agency created from this link does not exist yet, so a code limited to named agencies can never apply to it.
+    if (d.expiresAt && d.expiresAt.getTime() <= Date.now()) throw new ToolError('invalid_input', 'That discount code is expired');
+    if (d.restrictedAgencyIds) throw new ToolError('invalid_input', 'That discount code is restricted to specific agencies and cannot go on an invite link');
+  }
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + input.expiresInDays * DAY);
+  if (input.offer === 'pilot' && input.pilotEndsAt) {
+    const why = pilotLinkRefusal(new Date(input.pilotEndsAt), expiresAt, now);
+    if (why) throw new ToolError('invalid_input', why);
+  }
+  const { token, hash, prefix } = generateInviteToken();
+  const [row] = await deps.service.insert(agencyInviteLink).values({
+    tokenHash: hash, tokenPrefix: prefix, offer: input.offer, pilotEndsAt: input.pilotEndsAt ? new Date(input.pilotEndsAt) : null,
+    discountCodeId: input.discountCodeId ?? null, emailLock: input.emailLock ?? null, maxUses: input.maxUses,
+    expiresAt, note: input.note ?? null, createdBy: ctx.userId,
+  }).returning({ id: agencyInviteLink.id });
+  return { id: row!.id, url: `${deps.appUrl.replace(/\/+$/, '')}/join/${token}`, token, expiresAt };
+}
+
 export const createInviteLinkTool = defineTool({
   name: 'create_invite_link',
   access: 'write',
@@ -308,29 +347,8 @@ export const createInviteLinkTool = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'staff', 'create_invite_link', input, undefined, async () => {
-      if (!deps.appUrl) throw new ToolError('internal', 'Invite links are not configured (APP_URL)');
-      if (input.offer === 'pilot' && !input.pilotEndsAt) throw new ToolError('invalid_input', 'A pilot offer needs pilotEndsAt');
-      if (input.offer === 'trial' && input.pilotEndsAt) throw new ToolError('invalid_input', 'pilotEndsAt only applies to a pilot offer');
-      if (input.discountCodeId) {
-        const [d] = await deps.service.select().from(discountCode).where(and(eq(discountCode.id, input.discountCodeId), isNull(discountCode.revokedAt)));
-        if (!d) throw new ToolError('invalid_input', 'Discount code not found or revoked');
-        // The agency created from this link does not exist yet, so a code limited to named agencies can never apply to it.
-        if (d.expiresAt && d.expiresAt.getTime() <= Date.now()) throw new ToolError('invalid_input', 'That discount code is expired');
-        if (d.restrictedAgencyIds) throw new ToolError('invalid_input', 'That discount code is restricted to specific agencies and cannot go on an invite link');
-      }
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + input.expiresInDays * DAY);
-      if (input.offer === 'pilot' && input.pilotEndsAt) {
-        const why = pilotLinkRefusal(new Date(input.pilotEndsAt), expiresAt, now);
-        if (why) throw new ToolError('invalid_input', why);
-      }
-      const { token, hash, prefix } = generateInviteToken();
-      await deps.service.insert(agencyInviteLink).values({
-        tokenHash: hash, tokenPrefix: prefix, offer: input.offer, pilotEndsAt: input.pilotEndsAt ? new Date(input.pilotEndsAt) : null,
-        discountCodeId: input.discountCodeId ?? null, emailLock: input.emailLock ?? null, maxUses: input.maxUses,
-        expiresAt, note: input.note ?? null, createdBy: ctx.userId,
-      });
-      return { url: `${deps.appUrl.replace(/\/+$/, '')}/join/${token}`, token };
+      const { url, token } = await insertInviteLink(deps, ctx, input);
+      return { url, token };
     });
   },
 });

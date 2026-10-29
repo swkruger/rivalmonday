@@ -1,6 +1,7 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { brief, platformAdmin, platformSetting, waitlistEntry } from '@cs/db';
+import { agencyInviteLink, brief, platformAdmin, platformAuditLog, platformSetting, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
@@ -126,5 +127,73 @@ describe('list_waitlist', () => {
     expect(p2.entries).toHaveLength(2);
     expect(p2.nextCursor).toBeNull();
     expect(p2.prevCursor).not.toBeNull();
+  });
+});
+
+describe('invite_waitlist_agencies and decline_waitlist_entry', () => {
+  const op = ctxOf('op');
+  const inviteRegistry = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], appUrl: 'https://app.test' }, { audit: { record: async () => {} } });
+  const invite = (ctx: AccessContext, input: Record<string, unknown>) => inviteRegistry.invoke(ctx, 'invite_waitlist_agencies', input) as Promise<{ results: { id: string; outcome: string; reason?: string; email?: string; url?: string; expiresAt?: string }[] }>;
+  const decline = (ctx: AccessContext, id: string) => inviteRegistry.invoke(ctx, 'decline_waitlist_entry', { id });
+  const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { return e as { code?: string; message: string }; } throw new Error('expected a failure'); };
+  const row = async (id: string) => (await dbs.service.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)))[0]!;
+  const pilotEnd = () => new Date(Date.now() + 60 * 86_400_000).toISOString();
+
+  it('skips unconfirmed, non-agency and non-new rows with reasons', async () => {
+    const unconfirmed = await mk({ emailConfirmedAt: null });
+    const business = await mk({ kind: 'business' });
+    const handled = await mk({ status: 'declined' });
+    const missing = '99999999-9999-4999-8999-999999999999';
+    const r = await invite(op, { ids: [unconfirmed, business, handled, missing], offer: 'trial' });
+    expect(r.results.map((x) => [x.id, x.outcome, x.reason])).toEqual([
+      [unconfirmed, 'skipped', 'unconfirmed'], [business, 'skipped', 'not_agency'], [handled, 'skipped', 'not_new'], [missing, 'skipped', 'not_found'],
+    ]);
+    expect(await dbs.service.select().from(agencyInviteLink)).toHaveLength(0);
+  });
+
+  it('creates one email-locked single-use link per row and marks invited', async () => {
+    const a = await mk({ email: 'a@x.co' });
+    const b = await mk({ email: 'b@x.co' });
+    const r = await invite(op, { ids: [a, b, a], offer: 'pilot', pilotEndsAt: pilotEnd() });
+    expect(r.results).toHaveLength(2);
+    expect(r.results.every((x) => x.outcome === 'invited' && x.url?.startsWith('https://app.test/join/') && x.expiresAt)).toBe(true);
+    const links = await dbs.service.select().from(agencyInviteLink);
+    expect(links.map((l) => [l.emailLock, l.maxUses, l.offer, l.note]).sort()).toEqual([['a@x.co', 1, 'pilot', 'waitlist'], ['b@x.co', 1, 'pilot', 'waitlist']]);
+    const ra = await row(a);
+    expect(ra.status).toBe('invited');
+    expect(ra.inviteLinkId).toBe(links.find((l) => l.emailLock === 'a@x.co')!.id);
+    expect(ra.decidedAt).not.toBeNull();
+    expect(ra.decidedBy).toBe('op');
+    expect((await dbs.service.select().from(platformAuditLog)).filter((x) => x.tool === 'invite_waitlist_agencies')).toHaveLength(1);
+    const again = await invite(op, { ids: [a], offer: 'trial' });
+    expect(again.results[0]).toMatchObject({ outcome: 'skipped', reason: 'not_new' });
+  });
+
+  it('pilot without pilotEndsAt → invalid_input before any row', async () => {
+    const a = await mk();
+    expect((await fails(invite(op, { ids: [a], offer: 'pilot' }))).code).toBe('invalid_input');
+    expect((await row(a)).status).toBe('new');
+    expect(await dbs.service.select().from(agencyInviteLink)).toHaveLength(0);
+  });
+
+  it('51 ids → invalid_input', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+    expect((await fails(invite(op, { ids, offer: 'trial' }))).code).toBe('invalid_input');
+  });
+
+  it('staff only (viewer → permission_denied)', async () => {
+    const a = await mk();
+    expect((await fails(invite(viewer, { ids: [a], offer: 'trial' }))).code).toBe('permission_denied');
+    expect((await fails(decline(viewer, a))).code).toBe('permission_denied');
+  });
+
+  it('decline twice → conflict; a requested sample is declined with it', async () => {
+    const s = await sample('requested');
+    await decline(op, s);
+    const d = await row(s);
+    expect([d.status, d.sampleStatus, d.sampleRequested, d.decidedBy]).toEqual(['declined', 'declined', true, 'op']);
+    const e = await fails(decline(op, s));
+    expect(e.code).toBe('conflict');
+    expect(e.message).toBe('This entry was already handled.');
   });
 });

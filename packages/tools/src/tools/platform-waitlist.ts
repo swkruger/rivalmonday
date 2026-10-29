@@ -1,10 +1,11 @@
-import { type AccessContext, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, pilotLinkRefusal, toolkit, ToolError } from '@cs/core';
 import { brief, type Db, SAMPLE_STATUSES, WAITLIST_KINDS, WAITLIST_STATUSES, waitlistEntry } from '@cs/db';
 import { and, count, desc, asc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
+import { insertInviteLink, operate } from './platform-billing';
 import { withPlatformAudit } from '../platform/audit';
 import { sampleCostEstimate } from '../waitlist/estimate';
 import { sampleBriefMonthlyLimit } from '../waitlist/settings';
@@ -159,4 +160,88 @@ export const listWaitlistTool = defineTool({
   },
 });
 
-export const platformWaitlistTools = [listWaitlistTool];
+const INVITE_EXPIRES_DAYS = 14;
+const Id = z.string().uuid();
+
+export const inviteWaitlistAgenciesTool = defineTool({
+  name: 'invite_waitlist_agencies',
+  access: 'write',
+  description: 'Platform staff: invite confirmed waitlist agencies, one email-locked single-use invite link each (14 days). Returns each link once so the web action can email it; rows that cannot be invited are skipped with a reason.',
+  input: z.object({ ids: z.array(Id).min(1).max(50), offer: z.enum(['pilot', 'trial']), pilotEndsAt: z.string().datetime().optional() }),
+  output: z.object({
+    results: z.array(z.object({
+      id: Id,
+      outcome: z.enum(['invited', 'skipped']),
+      reason: z.enum(['not_found', 'not_agency', 'not_new', 'unconfirmed']).optional(),
+      email: z.string().optional(),
+      url: z.string().optional(),
+      expiresAt: z.string().optional(),
+    })),
+  }),
+  supportMask: ['results[].email'],
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'invite_waitlist_agencies', { ids: input.ids, offer: input.offer, pilotEndsAt: input.pilotEndsAt }, undefined, async () => {
+      // Validated once, before any row: a bad offer must not leave half the batch invited.
+      if (input.offer === 'pilot') {
+        if (!input.pilotEndsAt) throw new ToolError('invalid_input', 'A pilot offer needs pilotEndsAt');
+        const now = new Date();
+        const why = pilotLinkRefusal(new Date(input.pilotEndsAt), new Date(now.getTime() + INVITE_EXPIRES_DAYS * 86_400_000), now);
+        if (why) throw new ToolError('invalid_input', why);
+      } else if (input.pilotEndsAt) {
+        throw new ToolError('invalid_input', 'pilotEndsAt only applies to a pilot offer');
+      }
+      const results: Array<{ id: string; outcome: 'invited' | 'skipped'; reason?: 'not_found' | 'not_agency' | 'not_new' | 'unconfirmed'; email?: string; url?: string; expiresAt?: string }> = [];
+      for (const id of new Set(input.ids)) {
+        // One transaction per row: the link insert and the status change commit together or not at all.
+        results.push(await deps.service.transaction(async (tx) => {
+          const [row] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)).for('update');
+          if (!row) return { id, outcome: 'skipped' as const, reason: 'not_found' as const };
+          if (row.kind !== 'agency') return { id, outcome: 'skipped' as const, reason: 'not_agency' as const };
+          if (row.status !== 'new') return { id, outcome: 'skipped' as const, reason: 'not_new' as const };
+          if (!row.emailConfirmedAt) return { id, outcome: 'skipped' as const, reason: 'unconfirmed' as const };
+          const link = await insertInviteLink({ ...deps, service: tx as unknown as Db }, ctx, {
+            offer: input.offer, pilotEndsAt: input.pilotEndsAt, emailLock: row.email, maxUses: 1, expiresInDays: INVITE_EXPIRES_DAYS, note: 'waitlist',
+          });
+          const now = new Date();
+          await tx.update(waitlistEntry).set({ status: 'invited', inviteLinkId: link.id, decidedAt: now, decidedBy: ctx.userId, updatedAt: now }).where(eq(waitlistEntry.id, id));
+          return { id, outcome: 'invited' as const, email: row.email, url: link.url, expiresAt: link.expiresAt.toISOString() };
+        }));
+      }
+      return { results };
+    });
+  },
+});
+
+export const declineWaitlistEntryTool = defineTool({
+  name: 'decline_waitlist_entry',
+  access: 'write',
+  description: 'Platform staff: decline a new waitlist entry (agency or business). A pending sample request is declined with it. Nobody is emailed.',
+  input: z.object({ id: Id }),
+  output: z.object({ ok: z.literal(true) }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'decline_waitlist_entry', input, undefined, async () => {
+      const now = new Date();
+      const rows = await deps.service
+        .update(waitlistEntry)
+        .set({
+          status: 'declined', decidedAt: now, decidedBy: ctx.userId, updatedAt: now,
+          // sample_requested stays true: the check is sample_requested = (sample_status IS NOT NULL).
+          sampleStatus: sql`case when ${waitlistEntry.sampleStatus} = 'requested' then 'declined' else ${waitlistEntry.sampleStatus} end`,
+        })
+        .where(and(eq(waitlistEntry.id, input.id), eq(waitlistEntry.status, 'new')))
+        .returning({ id: waitlistEntry.id });
+      if (rows.length === 0) {
+        const [exists] = await deps.service.select({ id: waitlistEntry.id }).from(waitlistEntry).where(eq(waitlistEntry.id, input.id));
+        if (!exists) throw new ToolError('not_found', 'Waitlist entry not found');
+        throw new ToolError('conflict', 'This entry was already handled.', { userFacing: true });
+      }
+      return { ok: true as const };
+    });
+  },
+});
+
+export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool];

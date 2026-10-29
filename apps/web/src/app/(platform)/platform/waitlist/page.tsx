@@ -1,3 +1,4 @@
+import { platformRole } from '@cs/tools';
 import { Button, Input, Label, Section, TabsLink, TabsLinkList } from '@cs/ui';
 import Link from 'next/link';
 import { EmptyState } from '@/components/help/empty-state';
@@ -7,6 +8,8 @@ import { PageHeader } from '@/components/page-header';
 import { OffPageNotice, PrevNext } from '@/components/prev-next';
 import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
+import { dbs } from '@/server/db';
+import { platformAdmins } from '@/server/runtime-env';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { verticalOptions } from '@/server/verticals';
@@ -56,13 +59,14 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
   const q = one(sp.q)?.trim().slice(0, 120) || undefined;
   const cursor = one(sp.cursor)?.slice(0, 200) || undefined;
   const { ctx } = await requireOperatorContext();
-  const [list, guides, tz, catalogue] = await Promise.all([
+  const [list, guides, tz, catalogue, role] = await Promise.all([
     callTool<Listing>(ctx, 'list_waitlist', { ...tab.input, ...(q ? { q } : {}), ...(cursor ? { cursor } : {}) }),
     helpGuides(ctx, 'platform'),
     viewerTimeZone(),
     verticalOptions(),
+    platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
   ]);
-  const verticals = new Map(catalogue.map((v) => [v.id, v.name]));
+  const verticals = Object.fromEntries(catalogue.map((v) => [v.id, v.name]));
   const newCount: Record<WaitlistTab, number> = { agencies: list.counts.agencyNew, businesses: list.counts.businessNew, samples: list.counts.sampleRequested };
   const { entries, nextCursor, prevCursor, total, sampleMonth, estimate } = list;
   const emptyKey = q ? 'search' : tab.key;
@@ -110,7 +114,7 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
         ) : entries.length === 0 ? (
           <EmptyState {...COPY.empty[emptyKey]} guideAnchor="what-this-page-tells-you" />
         ) : (
-          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} />
+          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} canWrite={role === 'owner' || role === 'staff'} />
         )}
       </Section>
       <PrevNext previous={prevCursor ? hrefOf(tab.key, { q, cursor: prevCursor }) : null} next={nextCursor ? hrefOf(tab.key, { q, cursor: nextCursor }) : null} />
