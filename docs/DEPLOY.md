@@ -80,8 +80,9 @@ Second Vercel project (`apps/site`); it holds no secrets (public `NEXT_PUBLIC_*`
 2. Vercel project: root `apps/site`, Next.js, region iad1, auto-deploy off, domains `rivalmonday.com` + `www` redirecting to apex, Web Analytics on.
 3. Its env (Production + Preview): `NEXT_PUBLIC_APP_URL=https://rivalmonday.app`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the app's widget key), `NEXT_PUBLIC_SENTRY_DSN` (new Sentry project "site"), optional `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`.
 4. Turnstile widget hostnames: add `rivalmonday.com`, `www.rivalmonday.com`, the preview host.
-5. App env: `SITE_ORIGIN=https://rivalmonday.com`, `SITE_ORIGIN_EXTRA` = preview origin(s), and `TURNSTILE_SECRET_KEY` (unset = every submission fails). Pilot-mode flips show on the site after up to ~6 min.
+5. App env: `SITE_ORIGIN=https://rivalmonday.com`, `SITE_ORIGIN_EXTRA` = preview origin(s) (per-deploy preview URLs change, so only a stable aliased host works, e.g. `site-git-<branch>-<team>.vercel.app` or a fixed preview domain), and `TURNSTILE_SECRET_KEY` (unset = every submission fails). Pilot-mode flips show on the site after up to ~6 min.
 6. GitHub `production` secrets: `VERCEL_SITE_PROJECT_ID`, `SENTRY_PROJECT_SITE` (`VERCEL_ORG_ID`, `VERCEL_TOKEN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` are shared).
+7. Replace the placeholders (privacy, terms, founder note) — the deploy refuses until then.
 
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.
