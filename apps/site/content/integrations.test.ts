@@ -9,7 +9,18 @@ const ROOT = join(__dirname, '../..', '..');
 const CLAIMS = readFileSync(join(ROOT, 'docs/research/2026-10-29-phase-17c-claim-check.md'), 'utf8');
 const LOGOS = readFileSync(join(ROOT, 'docs/research/2026-10-29-phase-17c-vendor-logos.md'), 'utf8');
 
-/** First two columns (slug, verdict) of the binding logo table. */
+/** Guideline URL (column 4) of the binding logo table; null when the cell has none. */
+function ledgerUrls(): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  for (const line of LOGOS.split('\n')) {
+    const cells = line.split('|').map((c) => c.trim());
+    if (cells.length > 4 && /^[a-z]+$/.test(cells[1] ?? '') && /^(logo-ok|text-only|drop|unchecked)$/.test(cells[2] ?? '')) {
+      out.set(cells[1]!, /^https:\/\/\S+/.exec(cells[4] ?? '')?.[0] ?? null);
+    }
+  }
+  return out;
+}
+
 function ledgerVerdicts(): Map<string, string> {
   const out = new Map<string, string>();
   for (const line of LOGOS.split('\n')) {
@@ -57,6 +68,11 @@ describe('integrations content', () => {
     const ledger = ledgerVerdicts();
     for (const i of INTEGRATIONS) expect(i.brand.verdict, i.slug).toBe(ledger.get(i.slug));
     expect(ledger.size).toBe(9);
+  });
+
+  it('brand guideline URLs match the ledger doc', () => {
+    const urls = ledgerUrls();
+    for (const i of INTEGRATIONS) expect(i.brand.guidelineUrl, i.slug).toBe(urls.get(i.slug));
   });
 
   it('listedIntegrations drops only drop verdicts', () => {

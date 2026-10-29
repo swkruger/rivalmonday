@@ -53,7 +53,7 @@ export const INTEGRATIONS: readonly Integration[] = [
     whatItIs: 'The company behind the Claude family of AI models.',
     howWeUseIt: [
       'Claude models write the briefs and answer Friday (through OpenRouter).',
-      "Background topic work uses Anthropic's batch API.",
+      "Background topic work can use Anthropic's batch API.",
     ],
     forYourAgency: [
       'Claude is one of the model families behind your briefs. Other services in this list handle other AI jobs.',
@@ -149,7 +149,7 @@ export const INTEGRATIONS: readonly Integration[] = [
       'Delivers briefs, alerts, invitations and sign-in emails.',
       'Reports bounces back to us so a bad address is noticed.',
     ],
-    forYourAgency: ['Briefs and alerts reach your clients by email, and a failed delivery is flagged.'],
+    forYourAgency: ['Briefs and alerts reach your clients by email, and a hard bounce is flagged to your agency.'],
     vendorUrl: 'https://postmarkapp.com',
     brand: { guidelineUrl: null, verdict: 'unchecked' },
     verifiedIn: ['packages/email/src/transport.ts', 'apps/web/src/app/api/postmark/webhook/route.ts'],
@@ -190,9 +190,9 @@ export const INTEGRATIONS: readonly Integration[] = [
     whatItIs: 'An error-tracking service.',
     howWeUseIt: [
       'Tells us when the app, the worker or this site hits an error.',
-      'Reports are scrubbed of personal details before they leave our systems.',
+      'Email addresses are masked, and cookies, IP addresses and request bodies are dropped before a report is sent.',
     ],
-    forYourAgency: ['We hear about problems early, often before anyone writes in.'],
+    forYourAgency: ['We hear about problems early, before anyone writes in.'],
     vendorUrl: 'https://sentry.io',
     brand: { guidelineUrl: null, verdict: 'unchecked' },
     verifiedIn: ['apps/worker/src/sentry.ts', 'apps/site/src/lib/sentry-options.ts', 'packages/core/src/server/log.ts'],
