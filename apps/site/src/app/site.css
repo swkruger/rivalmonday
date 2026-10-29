@@ -19,6 +19,17 @@
   --text-display-sub--line-height: 1.5;
   /* Floating hero fragments only (the one shadow a static site surface may carry). */
   --shadow-float: var(--shadow-float-value);
+  /* Map-rank buckets for the sample grid (P11): the app's single-hue ordinal ramp from
+     apps/web/src/components/charts/geo-grid.tsx (validated 2026-10-08), darker = better. Each cell also prints its
+     rank, so colour is never the only signal. `-ink` is the label colour on that fill (all >= 4.5:1). */
+  --color-rank-top3: #0d366b;
+  --color-rank-top3-ink: var(--surface);
+  --color-rank-top10: #256abf;
+  --color-rank-top10-ink: var(--surface);
+  --color-rank-top20: #86b6ef;
+  --color-rank-top20-ink: var(--ink);
+  --color-rank-none: #f0efec;
+  --color-rank-none-ink: var(--ink);
 }
 
 @layer components {
@@ -44,11 +55,18 @@
     background: radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0%, color-mix(in srgb, var(--secondary) 6%, transparent) 55%, transparent 100%);
   }
 
+  /* Sample evidence sheet: a short slide in (the reduced-motion rule below removes it). */
+  .sheet-in-right { animation: sheet-in-right 180ms ease-out; }
+  .sheet-in-bottom { animation: sheet-in-bottom 180ms ease-out; }
+
   .ring-change {
     outline: var(--ring-change);
     outline-offset: 2px;
   }
 }
+
+@keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
+@keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
