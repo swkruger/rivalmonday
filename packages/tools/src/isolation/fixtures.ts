@@ -345,6 +345,11 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   set_sample_brief_limit: platform(() => ({ n: 5 })),
   invite_waitlist_agencies: platform((w) => ({ ids: [w.platformIds.waitlistAgency], offer: 'trial' })),
   decline_waitlist_entry: platform((w) => ({ id: w.platformIds.waitlistBusiness })),
+  platform_find_business: platform(() => ({ name: 'Smith HVAC', location: 'Austin, TX' })),
+  assign_waitlist_business: platform((w) => ({
+    id: w.platformIds.waitlistBusiness, agencyId: w.ids.agencyA,
+    lookup: { placeId: 'world-place', cid: null, title: 'World Biz', address: null, city: null, category: null, phone: null, domain: null, rating: null, votes: null, lat: 30.2, lng: -97.7 },
+  })),
   assign_lead: platform((w) => ({ leadId: w.platformIds.poolLead, agencyId: w.ids.agencyA })),
   review_vertical: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, action: 'approve' })),
   review_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, areaId: w.platformIds.unreviewedArea, action: 'approve' })),

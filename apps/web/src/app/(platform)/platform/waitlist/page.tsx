@@ -66,6 +66,9 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
     verticalOptions(),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
   ]);
+  const canWrite = role === 'owner' || role === 'staff';
+  // The agencies a business can be assigned to: the pool tool already lists the serviceable ones.
+  const agencies = tab.key === 'businesses' && canWrite ? (await callTool<{ agencies: { id: string; name: string }[] }>(ctx, 'list_pool_leads', {})).agencies.map(({ id, name }) => ({ id, name })) : [];
   const verticals = Object.fromEntries(catalogue.map((v) => [v.id, v.name]));
   const newCount: Record<WaitlistTab, number> = { agencies: list.counts.agencyNew, businesses: list.counts.businessNew, samples: list.counts.sampleRequested };
   const { entries, nextCursor, prevCursor, total, sampleMonth, estimate } = list;
@@ -114,7 +117,7 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
         ) : entries.length === 0 ? (
           <EmptyState {...COPY.empty[emptyKey]} guideAnchor="what-this-page-tells-you" />
         ) : (
-          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} canWrite={role === 'owner' || role === 'staff'} />
+          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} canWrite={canWrite} agencies={agencies} homeAgencyId={ctx.agencyId} />
         )}
       </Section>
       <PrevNext previous={prevCursor ? hrefOf(tab.key, { q, cursor: prevCursor }) : null} next={nextCursor ? hrefOf(tab.key, { q, cursor: nextCursor }) : null} />

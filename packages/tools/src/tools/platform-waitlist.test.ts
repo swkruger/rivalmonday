@@ -1,6 +1,8 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyInviteLink, brief, platformAdmin, platformAuditLog, platformSetting, waitlistEntry } from '@cs/db';
+import type { MapsPlace } from '@cs/collectors';
+import { agencyInviteLink, brief, contact, intakeRate, lead, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { createMemoryTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
@@ -195,5 +197,101 @@ describe('invite_waitlist_agencies and decline_waitlist_entry', () => {
     const e = await fails(decline(op, s));
     expect(e.code).toBe('conflict');
     expect(e.message).toBe('This entry was already handled.');
+  });
+});
+
+describe('platform_find_business and assign_waitlist_business', () => {
+  const op = ctxOf('op');
+  const place: SetupLookup = { placeId: 'pl-smith-1', cid: null, title: 'Smith Dental', address: '1 Main St', city: 'Austin', category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 30.2, lng: -97.7 };
+  const maps = (i: number): MapsPlace => ({ placeId: `p${i}`, cid: `c${i}`, title: `Biz ${i}`, domain: null, url: null, rank: i, rating: 4, votes: 5, category: 'Dentist', address: 'x', lat: 1, lng: 2, city: 'Austin', phone: null });
+  let transport: ReturnType<typeof createMemoryTransport>;
+  let calls: { q: { keyword: string; locationName: string }; scope: unknown }[];
+  let reg: ReturnType<typeof createToolRegistry>;
+  const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; } throw new Error('expected a failure'); };
+  const assign = (ctx: AccessContext, input: Record<string, unknown>) => reg.invoke(ctx, 'assign_waitlist_business', input) as Promise<{ leadId: string }>;
+  const row = async (id: string) => (await dbs.service.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)))[0]!;
+  const biz = (over: Partial<typeof waitlistEntry.$inferInsert> = {}) => mk({ kind: 'business', email: 'sam@smith.co', contactName: 'Sam Smith', orgName: 'Smith Dental', location: 'Austin, TX', ...over });
+  const pool = () => dbs.service.select().from(lead).where(eq(lead.source, 'platform'));
+
+  beforeEach(async () => {
+    transport = createMemoryTransport();
+    calls = [];
+    reg = createToolRegistry({
+      app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'],
+      setupLookup: async (q, scope) => { calls.push({ q, scope }); return [maps(1), maps(2)]; },
+      leadEmail: { transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['op@example.com'] },
+    }, { audit: { record: async () => {} } });
+    await dbs.service.insert(contact).values({ agencyId: IDS.agencyB, role: 'agency_admin', email: 'admin@b.co', name: 'Bea' });
+  });
+
+  it('refuses unconfirmed, handled and agency entries; viewers are refused', async () => {
+    const unconfirmed = await biz({ emailConfirmedAt: null, email: 'u@x.co' });
+    const handled = await biz({ status: 'declined', email: 'h@x.co' });
+    const agencyRow = await mk();
+    for (const id of [unconfirmed, handled]) {
+      const e = await fails(assign(op, { id, agencyId: IDS.agencyB, lookup: place }));
+      expect([e.code, e.message]).toEqual(['conflict', 'Only confirmed new entries can be assigned.']);
+    }
+    expect((await fails(assign(op, { id: agencyRow, agencyId: IDS.agencyB, lookup: place }))).code).toBe('not_found');
+    expect((await fails(assign(op, { id: '99999999-9999-4999-8999-999999999999', agencyId: IDS.agencyB, lookup: place }))).code).toBe('not_found');
+    const ok = await biz({ email: 'ok@x.co' });
+    expect((await fails(assign(viewer, { id: ok, agencyId: IDS.agencyB, lookup: place }))).code).toBe('permission_denied');
+    expect(await pool()).toHaveLength(0);
+  });
+
+  it('creates a verified pool lead and assigns it in one transaction', async () => {
+    const confirmed = new Date(Date.UTC(2026, 9, 20));
+    const id = await biz({ emailConfirmedAt: confirmed, ipHash: 'iph' });
+    const { leadId } = await assign(op, { id, agencyId: IDS.agencyB, lookup: place });
+    const rows = await pool();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: leadId, agencyId: IDS.agencyB, source: 'platform', status: 'verified', ref: 'waitlist', contactName: 'Sam Smith', email: 'sam@smith.co', ipHash: 'iph', assignedBy: 'op' });
+    expect(rows[0]!.verifiedAt).toEqual(confirmed);
+    expect(rows[0]!.lookup.placeId).toBe('pl-smith-1');
+    expect(rows.filter((x) => x.agencyId === null)).toHaveLength(0); // never visible in the pool
+    const e = await row(id);
+    expect([e.status, e.leadId, e.decidedBy]).toEqual(['assigned', leadId, 'op']);
+    expect(e.decidedAt).not.toBeNull();
+  });
+
+  it('reuses an identical pool lead', async () => {
+    const [existing] = await dbs.service.insert(lead).values({ agencyId: null, source: 'platform', status: 'verified', contactName: 'Sam', email: 'SAM@smith.co', lookup: place, verifiedAt: new Date() }).returning();
+    const id = await biz();
+    const { leadId } = await assign(op, { id, agencyId: IDS.agencyB, lookup: place });
+    expect(leadId).toBe(existing!.id);
+    const rows = await pool();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.agencyId).toBe(IDS.agencyB);
+  });
+
+  it('agency twin → conflict, entry unchanged', async () => {
+    await dbs.service.insert(lead).values({ agencyId: IDS.agencyB, source: 'agency_link', status: 'verified', contactName: 'Sam', email: 'sam@smith.co', lookup: place, verifiedAt: new Date() });
+    const id = await biz();
+    const e = await fails(assign(op, { id, agencyId: IDS.agencyB, lookup: place }));
+    expect([e.code, e.message]).toEqual(['conflict', 'This agency already has this lead.']);
+    const after = await row(id);
+    expect([after.status, after.leadId, after.decidedAt]).toEqual(['new', null, null]);
+    expect(await dbs.service.select().from(lead)).toHaveLength(1); // only the twin: the pool lead inserted in the failed transaction rolled back
+    expect(transport.sent).toHaveLength(0);
+  });
+
+  it('sends agency_new after commit', async () => {
+    const id = await biz();
+    await assign(op, { id, agencyId: IDS.agencyB, lookup: place });
+    expect(transport.sent).toHaveLength(1);
+    expect(transport.sent[0]!.to).toBe('admin@b.co');
+  });
+
+  it('platform_find_business is ledgered with agencyId null and capped at 50/day', async () => {
+    const find = () => reg.invoke(op, 'platform_find_business', { name: 'Smile', location: 'Austin, TX' }) as Promise<{ places: { placeId: string; possibleDuplicate: boolean }[] }>;
+    const r = await find();
+    expect(r.places.map((p) => p.placeId)).toEqual(['p1', 'p2']);
+    expect(r.places[0]).toHaveProperty('possibleDuplicate', false);
+    expect(calls).toEqual([{ q: { keyword: 'Smile Austin, TX', locationName: 'United States' }, scope: { agencyId: null, clientId: null } }]);
+    await dbs.service.update(intakeRate).set({ count: 50 }).where(eq(intakeRate.key, 'platform-lookup:op'));
+    const e = await fails(find());
+    expect([e.code, e.userFacing, e.message]).toEqual(['rate_limited', true, "You've reached today's limit of 50 business searches."]);
+    expect(calls).toHaveLength(1);
+    expect((await fails(reg.invoke(viewer, 'platform_find_business', { name: 'Smile', location: 'Austin, TX' }))).code).toBe('permission_denied');
   });
 });

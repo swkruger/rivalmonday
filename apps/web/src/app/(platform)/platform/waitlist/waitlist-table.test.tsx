@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn() }));
+vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn() }));
 const { WaitlistTable } = await import('./waitlist-table');
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -42,5 +42,28 @@ describe('WaitlistTable invites', () => {
     cleanup();
     show(true);
     expect(screen.getAllByRole('button', { name: 'Decline' })).toHaveLength(2); // Cool Air and Unconfirmed Co (both status new)
+  });
+});
+
+describe('WaitlistTable assign', () => {
+  const biz = [
+    row({ id: 'b1', kind: 'business', orgName: 'Smith Dental', location: 'Austin, TX' }),
+    row({ id: 'b2', kind: 'business', orgName: 'Unconfirmed Biz', emailConfirmed: false }),
+    row({ id: 'b3', kind: 'business', orgName: 'Done Biz', status: 'assigned' }),
+  ];
+  const showBiz = (canWrite = true, agencies = [{ id: 'a', name: 'Acme' }]) =>
+    render(<WaitlistTable rows={biz} tab="businesses" tz="UTC" verticals={{}} canWrite={canWrite} agencies={agencies} homeAgencyId="a" />);
+
+  it('Assign only on confirmed new business rows, for writers', () => {
+    showBiz();
+    const assign = screen.getAllByRole('button', { name: 'Assign' });
+    expect(assign).toHaveLength(1);
+    expect(assign[0]!.closest('tr')!.textContent).toContain('Smith Dental');
+    cleanup();
+    showBiz(false);
+    expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
+    cleanup();
+    show(true, 'agencies');
+    expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
   });
 });

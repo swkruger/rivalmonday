@@ -5,6 +5,7 @@ import type { FormResult } from '@/server/forms';
 import { sendAgencyInviteEmail } from '@/server/invite-email';
 import { runTool } from '@/server/run-tool';
 import { endOfDayIso } from '../billing/parse';
+import type { FoundPlace } from './place-lookup';
 
 const PATH = '/platform/waitlist';
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
@@ -53,4 +54,28 @@ export async function declineWaitlistEntryAction(_prev: FormResult, fd: FormData
   if (!r.ok) return r;
   revalidatePath(PATH);
   return { ok: true, message: 'Declined.' };
+}
+
+export type FindPlacesResult = { ok: true; places: FoundPlace[] } | { ok: false; error: string };
+
+/** Google listing search for the assign (and sample) dialogs: a paid vendor call, capped per operator per day by the tool. */
+export async function findPlacesAction(input: { name: string; location: string }): Promise<FindPlacesResult> {
+  const { ctx } = await requireOperatorContext();
+  const r = await runTool<{ places: FoundPlace[] }>(ctx, 'platform_find_business', { name: String(input.name ?? ''), location: String(input.location ?? '') });
+  return r.ok ? { ok: true, places: r.data.places } : r;
+}
+
+/** Gives a confirmed new business to an agency with its picked listing (`lookup` is the JSON `PlaceLookup` posts). */
+export async function assignBusinessAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  let lookup: unknown;
+  try {
+    lookup = JSON.parse(str(fd, 'lookup'));
+  } catch {
+    return { ok: false, error: 'Pick the business listing first.' };
+  }
+  const r = await runTool(ctx, 'assign_waitlist_business', { id: str(fd, 'id'), agencyId: str(fd, 'agencyId'), lookup });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: 'Assigned.' };
 }

@@ -88,7 +88,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/platform/billing` | operator | `get_billing_overview`, `list_plans`, `list_discount_codes`, `get_connect_overview`, `get_signup_funnel`, `list_help_guides` | `list_plan_agencies`: every demo agency is on the current plan version; `list_invite_links`: the demo seeds no invite links; `get_signups_paused`: open sign-up is not paused in the demo; `get_pilot_settings`: pilot mode is off in the demo |
 | `/platform/costs` | operator | `list_platform_costs`, `get_spend_guard`, `list_help_guides` | — |
 | `/platform/leads` | operator | `list_pool_leads`, `list_help_guides` | — |
-| `/platform/waitlist` | operator | `list_waitlist`, `list_help_guides` | — |
+| `/platform/waitlist` | operator | `list_waitlist`, `list_pool_leads`, `list_help_guides` | — |
 | `/platform/health` | operator | `get_platform_health`, `get_spend_guard`, `list_help_guides` | — |
 | `/platform/ask` | operator | `fn:listReviewableAskThreads`, `list_help_guides` | — |
 | `/platform/ask/[threadId]` | operator | `fn:getReviewableAskThread`, `list_help_guides` | — |

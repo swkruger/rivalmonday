@@ -6,6 +6,8 @@ import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import { formatDate } from '@/lib/format';
 import { labelFor, SAMPLE_STAGE, SAMPLE_STATUS, WAITLIST_STATUS } from '@/lib/labels';
+import type { FormResult } from '@/server/forms';
+import { AssignDialog, type AssignAgency } from './assign-dialog';
 import { declineWaitlistEntryAction, inviteAgenciesAction, type InviteResult } from './actions';
 
 export type WaitlistTab = 'agencies' | 'businesses' | 'samples';
@@ -69,9 +71,14 @@ function InviteResultNote({ state }: { state: InviteResult }) {
 
 /**
  * Phase 17a: the waitlist table. The Agencies tab selects confirmed new rows for a bulk invite; new rows on the Agencies and
- * Businesses tabs can be declined. Assign and sample actions arrive with tasks 9-11. `canWrite` is false for platform viewers.
+ * Businesses tabs can be declined. New confirmed businesses can be assigned to an agency. Sample actions arrive with tasks 10-11. `canWrite` is false for platform viewers.
  */
-export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false }: { rows: WaitlistRow[]; tab: WaitlistTab; tz: string; verticals: Record<string, string>; canWrite?: boolean }) {
+export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agencies = [], homeAgencyId = null }: {
+  rows: WaitlistRow[]; tab: WaitlistTab; tz: string; verticals: Record<string, string>; canWrite?: boolean;
+  /** Agencies a business can be assigned to (Businesses tab); the operator's home agency is the default pick. */
+  agencies?: AssignAgency[]; homeAgencyId?: string | null;
+}) {
+  const [assigned, setAssigned] = useState<FormResult | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState<InviteResult, FormData>(async (prev, fd) => {
     const r = await inviteAgenciesAction(prev, fd);
@@ -85,6 +92,7 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false }: { 
   return (
     <div className="flex flex-col gap-3">
       <InviteResultNote state={state} />
+      {assigned && (assigned.ok ? <p role="status" className="text-sm text-ink">{assigned.message}</p> : <ErrorNote compact focusKey={assigned}>{assigned.error}</ErrorNote>)}
       <TableFrame>
         <Table>
           <TableHeader>
@@ -139,7 +147,10 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false }: { 
                         className="flex flex-wrap items-center gap-2"
                       />
                     )}
-                    {/* Tasks 9-11: assign, approve and send sample */}
+                    {canWrite && tab === 'businesses' && r.status === 'new' && r.emailConfirmed && agencies.length > 0 && (
+                      <AssignDialog entryId={r.id} orgName={r.orgName} location={r.location} agencies={agencies} homeAgencyId={homeAgencyId} onResult={setAssigned} />
+                    )}
+                    {/* Tasks 10-11: approve and send sample */}
                   </TableCell>
                 </TableRow>
               );

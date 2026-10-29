@@ -1,11 +1,17 @@
 import { type AccessContext, pilotLinkRefusal, toolkit, ToolError } from '@cs/core';
-import { brief, type Db, SAMPLE_STATUSES, WAITLIST_KINDS, WAITLIST_STATUSES, waitlistEntry } from '@cs/db';
-import { and, count, desc, asc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import { brief, type Db, lead, SAMPLE_STATUSES, setupLookupSchema, WAITLIST_KINDS, WAITLIST_STATUSES, waitlistEntry } from '@cs/db';
+import { and, count, desc, asc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
+import { catalogPacks } from '../catalog/access';
+import { intakeLookupSchema } from '../intake/signed';
+import { hitRate } from '../intake/rate';
+import { collapseSameListing, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
+import { sendAfterCommit } from './leads';
 import { insertInviteLink, operate } from './platform-billing';
+import { assignPoolLeadTx } from './platform-leads';
 import { withPlatformAudit } from '../platform/audit';
 import { sampleCostEstimate } from '../waitlist/estimate';
 import { sampleBriefMonthlyLimit } from '../waitlist/settings';
@@ -244,4 +250,86 @@ export const declineWaitlistEntryTool = defineTool({
   },
 });
 
-export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool];
+/** Operator searches per user per UTC day (the vendor call is paid; the agency-side `find_business` has its own cap). */
+const PLATFORM_LOOKUP_DAILY_CAP = 50;
+const FoundPlace = setupLookupSchema.extend({ suggestedVerticalId: z.string().nullable(), possibleDuplicate: z.boolean() });
+
+export const platformFindBusinessTool = defineTool({
+  name: 'platform_find_business',
+  access: 'write', // a paid vendor call, ledgered with no agency
+  description: 'Platform staff: look up a business on Google Maps by name and city/ZIP, to pick the listing when assigning a waitlisted business to an agency. Limited to 50 searches per operator per day.',
+  input: z.object({ name: z.string().trim().min(1).max(120), location: z.string().trim().min(2).max(120) }),
+  output: z.object({ places: z.array(FoundPlace).max(5) }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'platform_find_business', input, undefined, async () => {
+      if (ctx.support) throw new ToolError('permission_denied', 'Not available in a support session');
+      if (!deps.setupLookup) throw new ToolError('internal', 'Business search is not configured', { userFacing: true });
+      if (!(await hitRate(deps.service, `platform-lookup:${ctx.userId}`, 'day', PLATFORM_LOOKUP_DAILY_CAP, new Date()))) {
+        throw new ToolError('rate_limited', `You've reached today's limit of ${PLATFORM_LOOKUP_DAILY_CAP} business searches.`, { userFacing: true });
+      }
+      let found: Awaited<ReturnType<NonNullable<typeof deps.setupLookup>>>;
+      try {
+        found = await deps.setupLookup({ keyword: `${input.name} ${input.location}`, locationName: 'United States' }, { agencyId: null, clientId: null });
+      } catch (e) {
+        if (e instanceof ToolError) throw e;
+        console.error('[platform_find_business] vendor lookup failed', (e as { name?: string } | null)?.name);
+        throw new ToolError('internal', "Business search isn't available right now. Try again in a moment.", { userFacing: true });
+      }
+      const usable = collapseSameListing(found.filter((p) => !p.closed).flatMap((p) => {
+        const l = toSetupLookup(p);
+        return l ? [{ ...l, isClaimed: p.isClaimed ?? null, categories: [p.category, ...(p.additionalCategories ?? [])].filter((c): c is string => !!c) }] : [];
+      })).slice(0, 5);
+      const dup = possibleDuplicates(usable);
+      const packs = usable.length ? await catalogPacks(deps) : [];
+      return { places: usable.map(({ categories, isClaimed: _claimed, ...rest }, i) => ({ ...rest, suggestedVerticalId: preselectVertical(packs, categories), possibleDuplicate: dup[i]! })) };
+    });
+  },
+});
+
+export const assignWaitlistBusinessTool = defineTool({
+  name: 'assign_waitlist_business',
+  access: 'write',
+  description: 'Platform staff: give a confirmed new waitlist business to an agency with its picked Google listing. Creates (or reuses) a verified pool lead and assigns it in one step; the agency is notified by email.',
+  input: z.object({ id: Id, agencyId: Id, lookup: intakeLookupSchema }),
+  output: z.object({ leadId: Id }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'assign_waitlist_business', input, undefined, async () => {
+      const leadId = await deps.service.transaction(async (tx) => {
+        const [entry] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, input.id)).for('update');
+        if (!entry || entry.kind !== 'business') throw new ToolError('not_found', 'Waitlist entry not found');
+        if (entry.status !== 'new' || !entry.emailConfirmedAt) throw new ToolError('conflict', 'Only confirmed new entries can be assigned.', { userFacing: true });
+        // An identical pool lead (same email + place) is reused, so a repeat never trips lead_dedupe_idx.
+        const [existing] = await tx
+          .select({ id: lead.id, status: lead.status })
+          .from(lead)
+          .where(and(
+            isNull(lead.agencyId), inArray(lead.status, ['unverified', 'verified']),
+            sql`lower(${lead.email}) = ${entry.email.toLowerCase()}`, sql`${lead.lookup}->>'placeId' = ${input.lookup.placeId}`,
+          ))
+          .for('update');
+        let id = existing?.id;
+        if (existing && existing.status !== 'verified') {
+          await tx.update(lead).set({ status: 'verified', verifiedAt: entry.emailConfirmedAt, updatedAt: new Date() }).where(eq(lead.id, existing.id));
+        } else if (!existing) {
+          const [created] = await tx.insert(lead).values({
+            agencyId: null, source: 'platform', status: 'verified', ref: 'waitlist', contactName: entry.contactName, email: entry.email,
+            lookup: input.lookup, verifiedAt: entry.emailConfirmedAt, ipHash: entry.ipHash,
+          }).returning({ id: lead.id });
+          id = created!.id;
+        }
+        const now = new Date();
+        await assignPoolLeadTx(tx, ctx, id!, input.agencyId, now);
+        await tx.update(waitlistEntry).set({ status: 'assigned', leadId: id!, decidedAt: now, decidedBy: ctx.userId, updatedAt: now }).where(eq(waitlistEntry.id, entry.id));
+        return id!;
+      });
+      await sendAfterCommit(deps, leadId, 'agency_new');
+      return { leadId };
+    });
+  },
+});
+
+export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool, platformFindBusinessTool, assignWaitlistBusinessTool];

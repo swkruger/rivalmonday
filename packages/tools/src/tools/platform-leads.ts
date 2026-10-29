@@ -1,5 +1,5 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, agencyServiceable, client, lead, leadPreviewSchema } from '@cs/db';
+import { agency, agencyServiceable, client, lead, leadPreviewSchema, type Tx } from '@cs/db';
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -92,6 +92,28 @@ export const listPoolLeadsTool = defineTool({
   },
 });
 
+/**
+ * assign_lead's transaction body: locks the verified pool lead, checks the target agency and its twin (same email + place),
+ * then hands the lead over. Shared with `assign_waitlist_business`. The caller sends the `agency_new` email after commit.
+ */
+export async function assignPoolLeadTx(tx: Tx, ctx: AccessContext, leadId: string, agencyId: string, now: Date): Promise<void> {
+  const [row] = await tx.select().from(lead).where(and(eq(lead.id, leadId), isNull(lead.agencyId), eq(lead.status, 'verified'))).for('update');
+  if (!row) throw new ToolError('not_found', 'Lead not found');
+  const [target] = await tx.select({ id: agency.id }).from(agency).where(and(eq(agency.id, agencyId), agencyServiceable(agency.id)));
+  if (!target) throw new ToolError('not_found', 'Agency not found');
+  // The target may already hold this visitor (same email + place) from its own link: lead_dedupe_idx would collide.
+  const [twin] = await tx
+    .select({ id: lead.id })
+    .from(lead)
+    .where(and(
+      eq(lead.agencyId, agencyId), inArray(lead.status, ['unverified', 'verified']),
+      sql`lower(${lead.email}) = lower(${row.email})`, sql`${lead.lookup}->>'placeId' = ${row.lookup.placeId}`,
+    ));
+  if (twin) throw new ToolError('conflict', 'This agency already has this lead.', { userFacing: true });
+  // decided_* belongs to the agency that declined it back (pool marker only); the new agency must not see it.
+  await tx.update(lead).set({ agencyId, assignedBy: ctx.userId, assignedAt: now, agencyNotifiedAt: null, decidedBy: null, decidedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
+}
+
 export const assignLeadTool = defineTool({
   name: 'assign_lead',
   access: 'write',
@@ -102,24 +124,7 @@ export const assignLeadTool = defineTool({
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'staff', 'assign_lead', input, async () => {
-      await deps.service.transaction(async (tx) => {
-        const [row] = await tx.select().from(lead).where(and(eq(lead.id, input.leadId), isNull(lead.agencyId), eq(lead.status, 'verified'))).for('update');
-        if (!row) throw new ToolError('not_found', 'Lead not found');
-        const [target] = await tx.select({ id: agency.id }).from(agency).where(and(eq(agency.id, input.agencyId), agencyServiceable(agency.id)));
-        if (!target) throw new ToolError('not_found', 'Agency not found');
-        // The target may already hold this visitor (same email + place) from its own link: lead_dedupe_idx would collide.
-        const [twin] = await tx
-          .select({ id: lead.id })
-          .from(lead)
-          .where(and(
-            eq(lead.agencyId, input.agencyId), inArray(lead.status, ['unverified', 'verified']),
-            sql`lower(${lead.email}) = lower(${row.email})`, sql`${lead.lookup}->>'placeId' = ${row.lookup.placeId}`,
-          ));
-        if (twin) throw new ToolError('conflict', 'This agency already has this lead.', { userFacing: true });
-        const now = new Date();
-        // decided_* belongs to the agency that declined it back (pool marker only); the new agency must not see it.
-        await tx.update(lead).set({ agencyId: input.agencyId, assignedBy: ctx.userId, assignedAt: now, agencyNotifiedAt: null, decidedBy: null, decidedAt: null, updatedAt: now }).where(eq(lead.id, row.id));
-      });
+      await deps.service.transaction((tx) => assignPoolLeadTx(tx, ctx, input.leadId, input.agencyId, new Date()));
       await sendAfterCommit(deps, input.leadId, 'agency_new');
       return { ok: true as const };
     });
