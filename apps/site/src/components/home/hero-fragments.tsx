@@ -40,7 +40,7 @@ export function HeroFragments() {
   const sources = answer ? new Set(answer.answer.map((p) => p.cite).filter(Boolean)).size : 0;
 
   return (
-    <div data-slot="hero-fragments" aria-hidden="true" className="relative z-10 flex flex-col gap-4 lg:block lg:min-h-[28rem]">
+    <div data-slot="hero-fragments" aria-hidden="true" className="relative z-10 flex flex-col gap-4 lg:block lg:min-h-[40rem]">
       <div data-fragment="brief" className={`${FRAGMENT} p-4 lg:absolute lg:left-0 lg:top-0 lg:w-[25rem]`}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-ink">Monday brief · {SAMPLE.business.name}</span>
@@ -62,7 +62,7 @@ export function HeroFragments() {
       </div>
 
       {snap && (
-        <div data-fragment="snapshot" className={`${FRAGMENT} p-3 lg:absolute lg:right-0 lg:top-44 lg:w-[16.5rem]`}>
+        <div data-fragment="snapshot" className={`${FRAGMENT} p-3 lg:absolute lg:right-0 lg:top-[20rem] lg:w-[16.5rem]`}>
           <div className="overflow-hidden rounded-md border border-line bg-canvas p-3">
             <p className="mb-2 text-xs font-semibold text-ink">{snap.title}</p>
             <p className="ring-change rounded-xs bg-surface px-2 py-1 text-13 font-semibold text-ink">{snap.after[snap.changed]}</p>
@@ -74,7 +74,7 @@ export function HeroFragments() {
       )}
 
       {answer && (
-        <div data-fragment="friday" className={`${FRAGMENT} p-4 lg:absolute lg:left-12 lg:top-80 lg:w-[22.5rem]`}>
+        <div data-fragment="friday" className={`${FRAGMENT} p-4 lg:absolute lg:left-12 lg:top-[30rem] lg:w-[22.5rem]`}>
           <FridayBadge />
           <p className="mt-2 text-13 font-semibold text-ink">{answer.question}</p>
           <p className="mt-1 text-13 text-ink">

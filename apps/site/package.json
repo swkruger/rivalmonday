@@ -10,6 +10,7 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "lint": "vitest run src/import-boundary.test.ts",
+    "e2e": "playwright test",
     "check:bundle": "tsx scripts/check-bundle.ts",
     "check:placeholders": "tsx scripts/check-placeholders.ts"
   },
