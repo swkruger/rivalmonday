@@ -13,6 +13,7 @@ export type RawSiteEnv = {
   turnstileSiteKey?: string;
   social?: Partial<Record<SocialNetwork, string | undefined>>;
   clientPriceUsd?: string;
+  comparePages?: string;
   vercelEnv?: string;
 };
 
@@ -22,6 +23,8 @@ export type SiteEnv = {
   turnstileSiteKey: string | null;
   social: Record<SocialNetwork, string | null>;
   clientPriceUsd: number;
+  /** Enabled named compare-page slugs (`NEXT_PUBLIC_COMPARE_PAGES`, read at build). Unset = none: fail closed until counsel signs off. */
+  comparePages: readonly string[];
   /** `VERCEL_ENV === 'production'` — build/server only (not inlined client-side). */
   isProduction: boolean;
 };
@@ -55,6 +58,12 @@ function positiveInt(value: string | undefined, fallback: number): number {
   return Number.isSafeInteger(n) && n > 0 ? n : fallback;
 }
 
+export function parseCompareList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const slugs = raw.split(',').map((s) => s.trim().toLowerCase()).filter((s) => /^[a-z0-9-]+$/.test(s));
+  return [...new Set(slugs)];
+}
+
 export function parseSiteEnv(raw: RawSiteEnv): SiteEnv {
   const key = raw.turnstileSiteKey?.trim();
   return {
@@ -62,6 +71,7 @@ export function parseSiteEnv(raw: RawSiteEnv): SiteEnv {
     turnstileSiteKey: key ? key : null,
     social: Object.fromEntries(SOCIAL_NETWORKS.map((n) => [n, httpsLink(raw.social?.[n])])) as Record<SocialNetwork, string | null>,
     clientPriceUsd: positiveInt(raw.clientPriceUsd, DEFAULT_CLIENT_PRICE_USD),
+    comparePages: parseCompareList(raw.comparePages),
     isProduction: raw.vercelEnv === 'production',
   };
 }
@@ -77,5 +87,6 @@ export const siteEnv: SiteEnv = parseSiteEnv({
     instagram: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM,
   },
   clientPriceUsd: process.env.NEXT_PUBLIC_CLIENT_PRICE_USD,
+  comparePages: process.env.NEXT_PUBLIC_COMPARE_PAGES,
   vercelEnv: process.env.VERCEL_ENV,
 });

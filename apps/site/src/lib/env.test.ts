@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { parseSiteEnv } from './env';
+import { parseCompareList, parseSiteEnv } from './env';
 
 describe('parseSiteEnv', () => {
   it('appUrl falls back on a non-https value', () => {
@@ -30,5 +30,16 @@ describe('parseSiteEnv', () => {
     expect(env.social).toEqual({ linkedin: 'https://www.linkedin.com/company/x', x: null, youtube: null, facebook: null, instagram: null });
     expect(env.turnstileSiteKey).toBeNull();
     expect(parseSiteEnv({ turnstileSiteKey: ' 1x00000000000000000000AA ' }).turnstileSiteKey).toBe('1x00000000000000000000AA');
+  });
+
+  it('compare list unset is empty', () => {
+    expect(parseSiteEnv({}).comparePages).toEqual([]);
+    expect(parseSiteEnv({ comparePages: '' }).comparePages).toEqual([]);
+    expect(parseCompareList(undefined)).toEqual([]);
+  });
+
+  it('compare list trims, lower-cases, drops junk and duplicates', () => {
+    expect(parseCompareList(' BrightLocal, birdeye ,,local_falcon,visual ping,birdeye,local-falcon')).toEqual(['brightlocal', 'birdeye', 'local-falcon']);
+    expect(parseSiteEnv({ comparePages: 'brightlocal,x/y' }).comparePages).toEqual(['brightlocal']);
   });
 });

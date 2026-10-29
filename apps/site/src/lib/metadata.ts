@@ -24,5 +24,6 @@ export function pageMetadata(path: SitePage['path']): Metadata {
     description: page.description,
     alternates: { canonical: url },
     openGraph: { title: effectiveTitle(page), description: page.description, url, siteName: SITE_NAME, type: 'website' },
+    twitter: { card: 'summary_large_image' },
   };
 }

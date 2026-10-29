@@ -6,6 +6,26 @@ export interface SitePage {
   sitemap: boolean;
   changeFrequency?: 'weekly' | 'monthly' | 'yearly';
   priority?: number;
+  /** Breadcrumb label; falls back to `nav.label`, then `title`. */
+  crumb?: string;
+  group?: 'integrations' | 'sources' | 'compare';
+}
+
+/** A page under a collection base; `/<base>/[slug]` serves it. */
+export function collectionPage(
+  base: '/integrations' | '/sources' | '/compare',
+  item: { slug: string; title: string; description: string; crumb: string },
+): SitePage {
+  return {
+    path: `${base}/${item.slug}`,
+    title: item.title,
+    description: item.description,
+    crumb: item.crumb,
+    group: base.slice(1) as NonNullable<SitePage['group']>,
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  };
 }
 
 /** Each task that creates a page registers its route here (Task 2: '/' only). */

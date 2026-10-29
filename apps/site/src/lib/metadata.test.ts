@@ -23,4 +23,8 @@ describe('pageMetadata', () => {
   it('brand-bearing titles are absolute, others use the template', () => {
     expect(pageMetadata('/').title).toEqual({ absolute: PAGES.find((p) => p.path === '/')!.title });
   });
+
+  it('twitter card is summary_large_image', () => {
+    expect(pageMetadata('/').twitter).toMatchObject({ card: 'summary_large_image' });
+  });
 });
