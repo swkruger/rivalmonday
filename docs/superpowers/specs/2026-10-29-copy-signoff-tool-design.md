@@ -166,7 +166,7 @@ and the plain text. Keyboard: `j/k` move, `s` sign, `c` comment.
 
 `copy:status` → table: surface × unsigned/changed/signed/ignored/needs-edit, plus stale count. Flags: `--strict
 <surfaces>` (exit 1 if any unsigned/changed there), `--todo` (Markdown of open comments), `--prune` (drop stale
-entries), `--json`. CI `ci` job gets one step `pnpm copy:status` (report-only, `continue-on-error: true`).
+entries), `--json`. CI `ci` job gets one step `pnpm copy:status` (report-only: exits 0 unless the ledger is malformed; no `continue-on-error`, Ruling R9).
 
 ## 9. Testing
 
