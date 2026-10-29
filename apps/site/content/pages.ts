@@ -56,7 +56,6 @@ export const PAGES: readonly SitePage[] = [
     path: '/sample-brief',
     title: 'Sample Monday brief',
     description: 'See a full Monday brief for a fictional local business, with every claim linked to the evidence behind it.',
-    nav: { label: 'Sample brief', order: 20 },
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.8,
@@ -65,6 +64,7 @@ export const PAGES: readonly SitePage[] = [
     path: '/pricing',
     title: 'Pricing',
     description: 'Agency and local-business plans for Rival Monday: what each includes, what it costs, and how to cancel.',
+    nav: { label: 'Pricing', order: 40 },
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.8,
@@ -75,6 +75,7 @@ export const PAGES: readonly SitePage[] = [
     description: 'Resell Rival Monday under your own brand: you set your client prices and bill through your own Stripe account.',
     sitemap: true,
     changeFrequency: 'monthly',
+    nav: { label: 'Partners', order: 50 },
     priority: 0.6,
     crumb: 'Partners',
   },
@@ -101,6 +102,7 @@ export const PAGES: readonly SitePage[] = [
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.6,
+    nav: { label: 'Integrations', order: 20 },
     crumb: 'Integrations',
     group: 'integrations',
   },
@@ -123,12 +125,11 @@ export const PAGES: readonly SitePage[] = [
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.6,
+    nav: { label: 'Compare', order: 30 },
     crumb: 'Compare',
     group: 'compare',
   },
   ...enabledRivals().map((r) => collectionPage('/compare', comparePageEntry(r))),
 ];
 
-export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [
-  { label: 'Pricing', href: '/#pricing', order: 40 },
-];
+export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [];

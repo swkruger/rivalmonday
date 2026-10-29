@@ -49,8 +49,9 @@ describe('page registry', () => {
     expect(p).toMatchObject({ path: '/compare/birdeye', group: 'compare', crumb: 'Birdeye', sitemap: true, changeFrequency: 'monthly', priority: 0.6 });
   });
 
-  it('only the 17b pages carry nav', () => {
-    expect(PAGES.filter((p) => p.nav).map((p) => p.path).sort()).toEqual(['/how-it-works', '/sample-brief']);
+  it('nav entries follow the spec order', () => {
+    const nav = PAGES.filter((p) => p.nav).sort((a, b) => a.nav!.order - b.nav!.order);
+    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/integrations', '/compare', '/pricing', '/partners']);
   });
 
   it('every page path has a page.tsx', () => {

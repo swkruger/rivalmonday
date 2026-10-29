@@ -15,6 +15,9 @@ const FORBIDDEN = [
   /(?:packages|@cs)\/email\/src\/(?!branding\.ts)/,
 ];
 
+/** Data-vendor names must not appear in prerendered pages (plan P12); JS chunks are not scanned for names. */
+const VENDOR_NAMES = /dataforseo|apify|scrapecreators|stadia/i;
+
 function walk(dir: string): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).flatMap((name) => {
@@ -51,9 +54,15 @@ for (const { abs, rel } of scanned) {
   }
 }
 
+const prerendered = all.filter(({ rel }) => rel.startsWith('server/app/') && /[.](html|rsc|body|meta)$/.test(rel));
+for (const { abs, rel } of prerendered) {
+  const m = readFileSync(abs, 'utf8').match(VENDOR_NAMES);
+  if (m) problems.push(`${rel}: names a data vendor (${m[0]})`);
+}
+
 if (problems.length > 0) {
   console.error(`check:bundle: ${problems.length} forbidden reference(s) in the site build:`);
   for (const p of problems) console.error(`  ${p}`);
   process.exit(1);
 }
-console.log(`check:bundle: ok (${scanned.length} files scanned, no server package in the site build)`);
+console.log(`check:bundle: ok (${scanned.length} files scanned, ${prerendered.length} prerendered files checked for vendor names, no server package in the site build)`);

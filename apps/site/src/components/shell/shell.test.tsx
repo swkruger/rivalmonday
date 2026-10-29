@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const social = vi.hoisted(() => ({ linkedin: null, x: null, youtube: null, facebook: null, instagram: null }) as Record<string, string | null>);
@@ -87,16 +87,23 @@ describe('site shell', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('nav shows only registered pages', async () => {
+  it('nav follows the spec order', async () => {
     await renderShell();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(nav.textContent).toContain('Pricing');
-    for (const missing of ['Integrations', 'Compare', 'Partners']) expect(nav.textContent).not.toContain(missing);
-    // footer lists a legal/product link only when its path is registered
-    const registered = new Set(PAGES.map((p) => p.path));
-    for (const [label, path] of [['Privacy', '/privacy'], ['Terms', '/terms'], ['How it works', '/how-it-works'], ['Sample brief', '/sample-brief']] as const) {
-      expect(screen.queryAllByRole('link', { name: label }).length > 0).toBe(registered.has(path));
-    }
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Integrations', 'Compare', 'Pricing', 'Partners']);
+    expect(within(nav).queryByText('Sample brief')).toBeNull();
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Sample brief' })).toBeTruthy();
+  });
+
+  it('footer compare column lists only enabled rivals', async () => {
+    await renderShell();
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).getByRole('link', { name: 'Compare overview' }).getAttribute('href')).toBe('/compare');
+    expect(within(footer).queryByRole('link', { name: 'Birdeye' })).toBeNull();
+    cleanup();
+    pages.list = [...realPages, { path: '/compare/birdeye', title: 'Rival Monday vs Birdeye', crumb: 'Birdeye', group: 'compare' } as never];
+    await renderShell();
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Birdeye' }).getAttribute('href')).toBe('/compare/birdeye');
   });
 
   it('social link renders only when its env is set', async () => {

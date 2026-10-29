@@ -10,4 +10,11 @@ describe('sitemap', () => {
     expect(urls).toEqual(PAGES.filter((p) => p.sitemap).map((p) => SITE_URL + p.path));
     for (const u of urls) expect(u).toMatch(/^https:\/\//);
   });
+
+  it('includes collection pages and only enabled rivals', () => {
+    const urls = sitemap().map((e) => e.url);
+    for (const p of ['/integrations', '/sources', '/compare', '/pricing', '/partners']) expect(urls).toContain(SITE_URL + p);
+    const rivalUrls = urls.filter((u) => u.startsWith(SITE_URL + '/compare/'));
+    expect(rivalUrls).toEqual(PAGES.filter((p) => p.path.startsWith('/compare/')).map((p) => SITE_URL + p.path));
+  });
 });
