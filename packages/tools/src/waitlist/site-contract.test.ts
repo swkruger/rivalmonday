@@ -70,6 +70,8 @@ describe('site ↔ waitlistSubmitSchema contract', () => {
     for (const n of [FIELD_MAX.sampleBusinessName, FIELD_MAX.sampleBusinessName + 1]) edge.push([`sample name ${n}`, { kind: 'agency', form: agency({ wantsSample: true, sampleBusinessName: 'a'.repeat(n), sampleLocation: 'Austin' }) }]);
     // email: total length 254 / 255 around the max
     for (const n of [254, 255]) edge.push([`email ${n}`, { kind: 'agency', form: agency({ email: emailOfLength(n) }) }]);
+    expect(emailOfLength(254)).toHaveLength(254);
+    expect(waitlistSubmitSchema.safeParse(buildWaitlistBody({ kind: 'agency', form: agency({ email: emailOfLength(254) }) }, 't', null)).success).toBe(true);
     for (const [label, input] of edge) check(input, label);
 
     const bad: [string, Fixture['input']][] = [

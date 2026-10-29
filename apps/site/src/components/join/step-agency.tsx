@@ -18,7 +18,7 @@ export function StepAgency({ form, errors, pending, formError, onChange, onBack 
     <>
       <DialogHeader>
         <p className="text-xs text-muted-ink">{c.eyebrow}</p>
-        <DialogTitle className="text-lg leading-snug">{c.title}</DialogTitle>
+        <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{c.title}</DialogTitle>
         <DialogDescription>{c.sub}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3">

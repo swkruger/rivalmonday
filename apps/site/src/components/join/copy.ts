@@ -18,6 +18,8 @@ export const JOIN_COPY = {
     next: 'Continue',
   },
   back: 'Back',
+  // Draft (owner signs).
+  submitFailed: 'Something went wrong. Please try again.',
   agency: {
     eyebrow: 'Step 2 of 2 · Agency',
     title: 'About your agency',

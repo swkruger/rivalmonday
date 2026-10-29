@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@cs/ui';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { siteEnv } from '../../lib/env';
 import {
   validateAgency, validateBusiness,
@@ -39,13 +39,26 @@ export function JoinDialog({ open, start, onClose, submit }: { open: boolean; st
 
 function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () => void; submit?: JoinSubmit }) {
   const { pilotMode } = usePilot();
-  const [step, setStep] = useState<Step>(start === 'business' ? 'business' : start === 'choose' ? 'choose' : 'agency');
-  const [choice, setChoice] = useState<JoinChoice>(start === 'business' || !pilotMode ? 'business' : 'agency');
+  const [stepState, setStep] = useState<Step>(start === 'business' ? 'business' : start === 'choose' ? 'choose' : 'agency');
+  const [choiceState, setChoice] = useState<JoinChoice>(start === 'business' ? 'business' : 'agency');
+  // Read live from the pilot context: with the pilot off the agency form is never shown (its option is the sign-up link).
+  const step: Step = !pilotMode && stepState === 'agency' ? 'choose' : stepState;
+  const choice: JoinChoice = pilotMode ? choiceState : 'business';
   const [agency, setAgency] = useState<AgencyForm>(() => emptyAgency(start === 'agency-sample'));
   const [business, setBusiness] = useState<BusinessForm>(emptyBusiness);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Move focus to the new step's heading on every step change (not on the first render: Radix focuses the dialog itself).
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    document.querySelector<HTMLElement>('[data-slot="dialog-title"]')?.focus();
+  }, [step]);
 
   function focusFirst(found: FieldErrors, order: readonly string[]) {
     const first = order.find((k) => found[k]);
@@ -75,6 +88,8 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
       const result = await submit(step === 'agency' ? { kind: 'agency', form: agency } : { kind: 'business', form: business });
       if (result.ok) setStep('done');
       else setFormError(result.error);
+    } catch {
+      setFormError(JOIN_COPY.submitFailed);
     } finally {
       setPending(false);
     }
@@ -84,7 +99,7 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
     return (
       <>
         <DialogHeader>
-          <DialogTitle className="text-lg leading-snug">{JOIN_COPY.done.title}</DialogTitle>
+          <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{JOIN_COPY.done.title}</DialogTitle>
           <DialogDescription>{JOIN_COPY.done.sub}</DialogDescription>
         </DialogHeader>
         <div className="flex justify-end">

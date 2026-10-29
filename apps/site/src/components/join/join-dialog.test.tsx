@@ -8,8 +8,14 @@ const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
 import { JoinButton } from './join-button';
-import { JoinProvider } from './join-provider';
+import { JoinDialog } from './join-dialog';
+import { JoinProvider, useJoin } from './join-provider';
 import { PilotProvider } from '../shell/pilot-context';
+
+function OpenAgency() {
+  const { open } = useJoin();
+  return <button type="button" onClick={() => open('agency')}>Open agency</button>;
+}
 
 function App() {
   return (
@@ -17,6 +23,7 @@ function App() {
       <JoinProvider>
         <JoinButton>Join the pilot</JoinButton>
         <JoinButton start="business">Business</JoinButton>
+        <OpenAgency />
       </JoinProvider>
     </PilotProvider>
   );
@@ -118,5 +125,78 @@ describe('join dialog', () => {
     await renderApp();
     const link = screen.getByRole('link', { name: /I run an agency/ });
     expect(link.getAttribute('href')).toBe('https://app.test/sign-up');
+  });
+
+  it('close, then #join again, reopens; the address bar is cleaned', async () => {
+    window.history.replaceState(null, '', '/#join');
+    await renderApp();
+    expect(window.location.hash).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByText('Join the Rival Monday pilot')).toBeNull();
+    await act(async () => {
+      window.location.hash = '#join';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    expect(screen.getByText('Join the Rival Monday pilot')).toBeTruthy();
+  });
+
+  it('reload after close does not reopen', async () => {
+    window.history.replaceState(null, '', '/?join=business#join');
+    await renderApp();
+    expect(screen.getByText('About your business')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(window.location.search + window.location.hash).toBe('');
+    cleanup();
+    await renderApp();
+    expect(screen.queryByText('About your business')).toBeNull();
+    expect(screen.queryByText('Join the Rival Monday pilot')).toBeNull();
+  });
+
+  it('step change moves focus to the new step', async () => {
+    await renderApp();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Join the pilot' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(document.activeElement).toBe(screen.getByText('About your agency'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(document.activeElement).toBe(screen.getByText('Join the Rival Monday pilot'));
+  });
+
+  it('done moves focus to the done heading', async () => {
+    const submit = vi.fn().mockResolvedValue({ ok: true });
+    render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+    await act(async () => {});
+    type(/Your name/, 'Sam Roe');
+    type(/Email/, 'sam@roe.test');
+    type(/Business name/, 'Roe Heating');
+    type(/or city/, 'Austin');
+    fireEvent.change(screen.getByLabelText(/Type of business/), { target: { value: 'dental' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Join the waitlist' })); });
+    expect(submit).toHaveBeenCalledOnce();
+    const heading = screen.getByText("You're on the list. We've emailed you a confirmation.");
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it('a throwing submit shows a generic error and re-enables the button', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error('boom'));
+    render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+    await act(async () => {});
+    type(/Your name/, 'Sam Roe');
+    type(/Email/, 'sam@roe.test');
+    type(/Business name/, 'Roe Heating');
+    type(/or city/, 'Austin');
+    fireEvent.change(screen.getByLabelText(/Type of business/), { target: { value: 'dental' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Join the waitlist' })); });
+    expect(screen.getByRole('alert').textContent).toBe('Something went wrong. Please try again.');
+    expect((screen.getByRole('button', { name: 'Join the waitlist' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('pilot off: start=agency shows the sign-up link, not the agency form, link outside the radiogroup', async () => {
+    fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: { rivalSitesWatched: 1, snapshotsThisWeek: 1, claimsChecked: 1, claimsDropped: 0 } });
+    await renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Open agency' }));
+    expect(screen.queryByText('About your agency')).toBeNull();
+    const link = screen.getByRole('link', { name: /I run an agency/ });
+    expect(link.getAttribute('href')).toBe('https://app.test/sign-up');
+    expect(link.closest('[role="radiogroup"]')).toBeNull();
   });
 });

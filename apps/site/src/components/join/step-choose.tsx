@@ -19,27 +19,31 @@ export function StepChoose({ choice, onChoice, onNext, agencySignUpHref }: {
     <>
       <DialogHeader>
         <p className="text-xs text-muted-ink">{c.eyebrow}</p>
-        <DialogTitle className="text-lg leading-snug">{c.title}</DialogTitle>
+        <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{c.title}</DialogTitle>
         <DialogDescription>{c.sub}</DialogDescription>
       </DialogHeader>
-      <div role="radiogroup" aria-label="Who are you?" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
+        {/* A link is not a radio: with the pilot off it sits outside the radiogroup. */}
         {agencySignUpHref ? (
           <a href={agencySignUpHref} className={OPTION}>
             <span className="text-sm font-semibold text-ink">{c.agency.title}</span>
             <span className="text-sm text-ink-secondary">{c.agency.body}</span>
           </a>
-        ) : (
+        ) : null}
+        <div role="radiogroup" aria-label="Who are you?" className="flex flex-col gap-3">
+          {agencySignUpHref ? null : (
+            <label className={OPTION}>
+              <input type="radio" name="join-kind" className="sr-only" checked={choice === 'agency'} onChange={() => onChoice('agency')} />
+              <span className="text-sm font-semibold text-ink">{c.agency.title}</span>
+              <span className="text-sm text-ink-secondary">{c.agency.body}</span>
+            </label>
+          )}
           <label className={OPTION}>
-            <input type="radio" name="join-kind" className="sr-only" checked={choice === 'agency'} onChange={() => onChoice('agency')} />
-            <span className="text-sm font-semibold text-ink">{c.agency.title}</span>
-            <span className="text-sm text-ink-secondary">{c.agency.body}</span>
+            <input type="radio" name="join-kind" className="sr-only" checked={choice === 'business'} onChange={() => onChoice('business')} />
+            <span className="text-sm font-semibold text-ink">{c.business.title}</span>
+            <span className="text-sm text-ink-secondary">{c.business.body}</span>
           </label>
-        )}
-        <label className={OPTION}>
-          <input type="radio" name="join-kind" className="sr-only" checked={choice === 'business'} onChange={() => onChoice('business')} />
-          <span className="text-sm font-semibold text-ink">{c.business.title}</span>
-          <span className="text-sm text-ink-secondary">{c.business.body}</span>
-        </label>
+        </div>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-ink">{c.foot}</p>

@@ -12,6 +12,15 @@ interface JoinValue {
   close(): void;
 }
 
+/** Drops `#join` and `?join=` from the address bar, so a reload does not reopen the popup and `<a href="#join">` fires hashchange again. */
+function clearJoinUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('join');
+  const search = url.searchParams.toString();
+  const hash = url.hash === '#join' ? '' : url.hash;
+  window.history.replaceState(null, '', url.pathname + (search ? `?${search}` : '') + hash);
+}
+
 const JoinContext = createContext<JoinValue | null>(null);
 
 /** Holds the join popup's open state and mounts the dialog. `#join` (also on hashchange) and `?join=business` open it. */
@@ -22,12 +31,20 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
     setStart(next);
     setOpen(true);
   }, []);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    clearJoinUrl();
+  }, []);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('join') === 'business') open('business');
-    else if (window.location.hash === '#join') open('choose');
+    const fromUrl = () => {
+      if (new URLSearchParams(window.location.search).get('join') === 'business') open('business');
+      else if (window.location.hash === '#join') open('choose');
+      else return;
+      clearJoinUrl();
+    };
+    fromUrl();
     const onHash = () => {
-      if (window.location.hash === '#join') open('choose');
+      if (window.location.hash === '#join') fromUrl();
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
