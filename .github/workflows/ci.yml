@@ -63,6 +63,8 @@ jobs:
       NEXT_PUBLIC_APP_URL: https://app.e2e.test
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
       VERCEL_ENV: ""
+      # Must equal SERVER_ENV in apps/site/playwright.config.ts (E2E_SKIP_BUILD reuses this build).
+      NEXT_PUBLIC_COMPARE_PAGES: rivalmappd,brightlocal,local-falcon,birdeye
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -163,6 +165,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Refuse while placeholders remain
         run: pnpm --filter @cs/site check:placeholders
+      - name: Refuse while enabled compare pages have stale facts (> 90 days)
+        run: pnpm --filter @cs/site check:facts
+        env:
+          NEXT_PUBLIC_COMPARE_PAGES: ${{ vars.NEXT_PUBLIC_COMPARE_PAGES }}
       - name: Vercel pull
         run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:

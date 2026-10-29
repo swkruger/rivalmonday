@@ -79,13 +79,20 @@ Second Vercel project (`apps/site`); it holds no secrets (public `NEXT_PUBLIC_*`
 1. **Before the site deploy:** set `WEB_MONITORING_ENABLED=true` on the app (after `https://rivalmonday.app/bot` loads) — the site promises website snapshots.
 2. Register `rivalmonday.com` (trademark knockout first); Namecheap DNS to Vercel (apex A, `www` CNAME).
 3. Vercel project: root `apps/site`, Next.js, region iad1, auto-deploy off, domains `rivalmonday.com` + `www` redirecting to apex, Web Analytics on.
-4. Its env (Production + Preview): `NEXT_PUBLIC_APP_URL=https://rivalmonday.app`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the app's widget key), `NEXT_PUBLIC_SENTRY_DSN` (new Sentry project "site"), optional `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`.
+4. Its env (Production + Preview): `NEXT_PUBLIC_APP_URL=https://rivalmonday.app`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the app's widget key), `NEXT_PUBLIC_SENTRY_DSN` (new Sentry project "site"), optional `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`, `NEXT_PUBLIC_COMPARE_PAGES` (comma-separated rival slugs; unset = no named compare pages).
 5. Turnstile widget hostnames: add `rivalmonday.com`, `www.rivalmonday.com`, the preview host.
 6. App env: `SITE_ORIGIN=https://rivalmonday.com`, `SITE_ORIGIN_EXTRA` = preview origin(s) (per-deploy preview URLs change, so only a stable aliased host works, e.g. `site-git-<branch>-<team>.vercel.app` or a fixed preview domain), and `TURNSTILE_SECRET_KEY` (unset = every submission fails). Pilot-mode flips show on the site after up to ~6 min.
 7. GitHub `production` secrets: `VERCEL_SITE_PROJECT_ID`, `SENTRY_PROJECT_SITE` (`VERCEL_ORG_ID`, `VERCEL_TOKEN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` are shared).
 8. Replace the placeholders (privacy, terms, founder note) — the deploy refuses until then.
 9. Vercel project settings: turn the Vercel Toolbar off for this project (Production and Preview); the site CSP blocks `vercel.live`, so the toolbar would only log CSP errors.
 10. Sentry: an EU-hosted (`de`) Sentry project ingests at `*.ingest.de.sentry.io`; add that host to the site CSP `connect-src` (`apps/site/src/lib/headers.ts`) before using such a DSN, or browser errors are blocked.
+
+### Compare pages on/off
+Named compare pages stay off until counsel signs off. Before "no platform fee" copy ships, confirm the Stripe Connect fee is 0. Re-check the facts within 7 days of first publish (spec § 7.5).
+1. Change `NEXT_PUBLIC_COMPARE_PAGES` in Vercel (Production), and set the same value as GitHub repo variable `NEXT_PUBLIC_COMPARE_PAGES` (the `check:facts` gate reads it).
+2. GitHub → Actions → latest `main` `ci` run → `deploy-site` → *Re-run this job*.
+3. After 30 days the run expires: in `apps/site` with the site project linked, `vercel pull --environment=production && vercel build --prod && vercel deploy --prebuilt --prod`.
+`deploy-site` refuses while an enabled page's facts are more than 90 days old.
 
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.

@@ -19,3 +19,10 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 ## Build
 - Pages must prerender (no `cookies()`/`headers()`/dynamic APIs in pages); no `output: 'export'` because security headers need the Next runtime.
 - `next build` and `next dev` share `.next`: don't build while dev runs.
+
+## Pages and content (17c)
+- `content/pages.ts` is the registry: nav, footer, sitemap and collection pages (`/integrations`, `/sources`, `/compare`) are derived from it; never hand-edit them elsewhere. Enabled rivals = the known-rival array filtered by `siteEnv.comparePages` (`NEXT_PUBLIC_COMPARE_PAGES`, read at build; unset = no named compare pages). Never index an object by an env slug.
+- Switching compare pages: `docs/DEPLOY.md` § Compare pages on/off. `pnpm --filter @cs/site check:facts` (also in `deploy-site`) fails when an enabled page's facts are over 90 days old. CI's `site` job sets the same `NEXT_PUBLIC_COMPARE_PAGES` as Playwright `SERVER_ENV` so `E2E_SKIP_BUILD=1` reuses the build; change both together.
+- Every claim about Rival Monday carries `verifiedIn` paths to shipped code (tests check they exist and match the ledger `docs/research/2026-10-29-phase-17c-claim-check.md`).
+- Never name data vendors (DataForSEO, Apify, ScrapeCreators, Stadia): three scans guard it (compare, integrations, sources tests).
+- OG colour hex lives only in `src/lib/og-theme.ts`; each `pageMetadata` page needs its own `opengraph-image.tsx`.
