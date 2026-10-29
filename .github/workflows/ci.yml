@@ -55,6 +55,32 @@ jobs:
       - name: Image smoke test
         run: docker run --rm --network none rivalmonday-worker:ci pnpm --filter @cs/worker smoke:image
 
+  # Marketing site (apps/site): no database. Unit tests + typecheck already run in `test`. The build env matches
+  # apps/site/playwright.config.ts (SERVER_ENV), because the E2E starts the server on this build (E2E_SKIP_BUILD=1).
+  site:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_APP_URL: https://app.e2e.test
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+      VERCEL_ENV: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cs/site lint
+      - run: pnpm --filter @cs/site build
+      - run: pnpm --filter @cs/site check:bundle
+      - name: Install Playwright chromium for site E2E
+        run: pnpm --filter @cs/site exec playwright install --with-deps chromium
+      - name: Site E2E
+        run: pnpm --filter @cs/site e2e
+        env:
+          E2E_SKIP_BUILD: "1"
+
   # Gated migrate-then-deploy (docs/DEPLOY.md). Any failed step stops every later one.
   # Off until the repo variable DEPLOY_ENABLED is 'true' (set once the prod accounts exist).
   deploy:
@@ -113,3 +139,42 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WORKER }}
+
+  # Marketing site (docs/DEPLOY.md § Marketing site). After `deploy` so the app's /api/waitlist and SITE_ORIGIN are live.
+  # Same gate as `deploy`; refuses while OWNER-PLACEHOLDER markers remain (privacy, terms, founder note).
+  deploy-site:
+    needs: [site, deploy]
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-site
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Refuse while placeholders remain
+        run: pnpm --filter @cs/site check:placeholders
+      - name: Vercel pull
+        run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Vercel build (uploads site source maps to Sentry)
+        run: npx --yes vercel@62.4.0 build --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_SITE }}
+      - name: Vercel deploy
+        run: npx --yes vercel@62.4.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

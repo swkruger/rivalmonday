@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs/config';
 import { siteEnv } from './src/lib/env';
 import { securityHeaders } from './src/lib/headers';
 
@@ -15,4 +16,9 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+// Source maps upload only with SENTRY_AUTH_TOKEN (CI deploy-site); the wrapper is inert without it.
+export default withSentryConfig(config, {
+  silent: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN || undefined,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN, deleteSourcemapsAfterUpload: true },
+});

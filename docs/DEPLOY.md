@@ -74,6 +74,15 @@ For the 7c2 rehearsal (120 clients, one week; run it with `docs/OPS.md` § Rehea
 8. **Order matters:** deploy and migrate staging first, then seed (OPS § Rehearsal), then set `REHEARSAL_LIVE_CLIENT_IDS` and redeploy the staging worker once; do not redeploy it again mid-week. Seed, fault and approve must use the same `SERVICE_DATABASE_URL` host form. The worker never crawls hosts outside `CRAWL_HOST_ALLOWLIST` on staging (empty allowlist with `WEB_MONITORING_ENABLED=true` refuses to start).
 9. **Teardown:** after the report, delete the Railway project, the Neon `staging` branch, the R2 bucket and token, the five CNAMEs and the Vercel Preview staging env values.
 
+## Marketing site (rivalmonday.com)
+Second Vercel project (`apps/site`); it holds no secrets (public `NEXT_PUBLIC_*` only). CI job `deploy-site` runs after `deploy`, same `DEPLOY_ENABLED` gate, and refuses while `check:placeholders` finds `OWNER-PLACEHOLDER` markers (privacy, terms, founder note).
+1. Register `rivalmonday.com` (trademark knockout first); Namecheap DNS to Vercel (apex A, `www` CNAME).
+2. Vercel project: root `apps/site`, Next.js, region iad1, auto-deploy off, domains `rivalmonday.com` + `www` redirecting to apex, Web Analytics on.
+3. Its env (Production + Preview): `NEXT_PUBLIC_APP_URL=https://rivalmonday.app`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the app's widget key), `NEXT_PUBLIC_SENTRY_DSN` (new Sentry project "site"), optional `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`.
+4. Turnstile widget hostnames: add `rivalmonday.com`, `www.rivalmonday.com`, the preview host.
+5. App env: `SITE_ORIGIN=https://rivalmonday.com`, `SITE_ORIGIN_EXTRA` = preview origin(s), and `TURNSTILE_SECRET_KEY` (unset = every submission fails). Pilot-mode flips show on the site after up to ~6 min.
+6. GitHub `production` secrets: `VERCEL_SITE_PROJECT_ID`, `SENTRY_PROJECT_SITE` (`VERCEL_ORG_ID`, `VERCEL_TOKEN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` are shared).
+
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.
 

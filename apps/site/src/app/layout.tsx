@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { Inter } from 'next/font/google';
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
 import { siteEnv } from '../lib/env';
@@ -29,6 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SiteFooter />
           </JoinProvider>
         </PilotProvider>
+        {/* Cookieless, no banner. Only on Vercel: elsewhere `/_vercel/insights/script.js` would 404. */}
+        {process.env.VERCEL_ENV ? <Analytics /> : null}
       </body>
     </html>
   );
