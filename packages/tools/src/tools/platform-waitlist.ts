@@ -1,5 +1,7 @@
+import { pauseClient } from '@cs/billing';
 import { type AccessContext, pilotLinkRefusal, toolkit, ToolError } from '@cs/core';
-import { brief, type Db, lead, SAMPLE_STATUSES, setupLookupSchema, WAITLIST_KINDS, WAITLIST_STATUSES, waitlistEntry } from '@cs/db';
+import { brief, type Db, lead, SAMPLE_STATUSES, type SampleStatus, setupLookupSchema, WAITLIST_KINDS, WAITLIST_STATUSES, waitlistEntry } from '@cs/db';
+import { BRIEF_MAX_ATTEMPTS } from '@cs/engine';
 import { and, count, desc, asc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -15,6 +17,9 @@ import { assignPoolLeadTx } from './platform-leads';
 import { withPlatformAudit } from '../platform/audit';
 import { sampleCostEstimate } from '../waitlist/estimate';
 import { sampleBriefMonthlyLimit } from '../waitlist/settings';
+import { ensureOperatorMembership, ensureSampleAgency } from '../waitlist/sample';
+import { platformAgencyCtx } from '../platform/agency-ctx';
+import { createClientCore } from './onboarding';
 
 /**
  * Phase 17a: the operator's waitlist list. Same pattern as platform-leads.ts: role check first (a refusal never reaches the
@@ -39,10 +44,16 @@ export async function waitlistCounts(db: Db): Promise<{ agencyNew: number; busin
   return { agencyNew: row?.agencyNew ?? 0, businessNew: row?.businessNew ?? 0, sampleRequested: row?.sampleRequested ?? 0 };
 }
 
-const STAGES = ['setup', 'generating', 'review', 'ready_to_send', 'sent'] as const;
+const STAGES = ['setup', 'generating', 'stopped', 'review', 'ready_to_send', 'sent'] as const;
 type Stage = (typeof STAGES)[number];
 
 const BRIEF_STAGE: Record<string, Stage> = { generating: 'generating', failed: 'generating', ready: 'review', approved: 'ready_to_send', sent: 'sent' };
+/** A failed starting point is retried until its attempts run out; then it has stopped and needs the operator. */
+const briefStage = (b: { status: string; attempts: number }): Stage | undefined =>
+  b.status === 'failed' && b.attempts >= BRIEF_MAX_ATTEMPTS ? 'stopped' : BRIEF_STAGE[b.status];
+
+/** Sample briefs approved since the start of the current UTC month (the session time zone must not matter). */
+const approvedThisMonth = sql`${waitlistEntry.sampleApprovedAt} >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')`;
 
 const n = z.number().int().nonnegative();
 const WaitlistEntryView = z.object({
@@ -129,14 +140,14 @@ export const listWaitlistTool = defineTool({
       // Stage of a sample in progress = the state of its client's starting-point brief.
       const clientIds = rows.filter((r) => r.sampleStatus === 'approved' && r.sampleClientId).map((r) => r.sampleClientId!);
       const briefs = clientIds.length
-        ? await db.select({ clientId: brief.clientId, status: brief.status }).from(brief).where(and(inArray(brief.clientId, clientIds), eq(brief.kind, 'starting_point')))
+        ? await db.select({ clientId: brief.clientId, status: brief.status, attempts: brief.attempts }).from(brief).where(and(inArray(brief.clientId, clientIds), eq(brief.kind, 'starting_point')))
         : [];
-      const briefStatus = new Map(briefs.map((b) => [b.clientId, b.status]));
+      const briefOf = new Map(briefs.map((b) => [b.clientId, b]));
       const stageOf = (r: (typeof rows)[number]): Stage | null => {
         if (r.sampleStatus === 'sent') return 'sent';
         if (r.sampleStatus !== 'approved') return null;
-        const s = r.sampleClientId ? briefStatus.get(r.sampleClientId) : undefined;
-        return (s && BRIEF_STAGE[s]) || 'setup';
+        const b = r.sampleClientId ? briefOf.get(r.sampleClientId) : undefined;
+        return (b && briefStage(b)) || 'setup';
       };
 
       const [counts, limitN, estimate, [used] = [{ n: 0 }]] = await Promise.all([
@@ -146,8 +157,7 @@ export const listWaitlistTool = defineTool({
         db
           .select({ n: count() })
           .from(waitlistEntry)
-          // Start of the current UTC month as an instant (the session time zone must not matter).
-          .where(sql`${waitlistEntry.sampleApprovedAt} >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')`),
+          .where(approvedThisMonth),
       ]);
 
       return {
@@ -332,4 +342,66 @@ export const assignWaitlistBusinessTool = defineTool({
   },
 });
 
-export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool, platformFindBusinessTool, assignWaitlistBusinessTool];
+const DecideSampleIn = z
+  .object({ id: Id, approve: z.boolean(), lookup: intakeLookupSchema.optional(), verticalId: z.string().max(40).optional() })
+  .superRefine((v, c) => {
+    if (v.approve && (!v.lookup || !v.verticalId)) c.addIssue({ code: 'custom', message: 'Pick the listing and business type.' });
+  });
+
+/**
+ * Approve: the sample business becomes an active client of the Rival Monday Samples agency (created on first use, the operator
+ * joins it as an admin) and the operator continues in its setup. Decline (requested) / Stop (approved; the client is paused).
+ */
+export const decideSampleBriefTool = defineTool({
+  name: 'decide_sample_brief',
+  access: 'write',
+  description: "Platform staff: approve a confirmed sample-brief request (creates the business in the Rival Monday Samples agency and returns its setup link; counts against this month's sample limit), decline it, or stop a sample in progress (its business is paused). Nobody is emailed.",
+  input: DecideSampleIn,
+  output: z.object({ status: z.enum(SAMPLE_STATUSES), clientId: Id.nullable(), setupUrl: z.string().nullable() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'decide_sample_brief', input, undefined, async () => {
+      const out = await deps.service.transaction(async (tx) => {
+        const [entry] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, input.id)).for('update');
+        if (!entry || entry.kind !== 'agency' || !entry.sampleStatus) throw new ToolError('not_found', 'Sample request not found');
+        const now = new Date();
+        const decided = { decidedAt: now, decidedBy: ctx.userId, updatedAt: now };
+
+        if (!input.approve) {
+          if (entry.sampleStatus === 'requested') {
+            await tx.update(waitlistEntry).set({ sampleStatus: 'declined', ...decided }).where(eq(waitlistEntry.id, entry.id));
+            return { status: 'declined' as SampleStatus, clientId: null, afterCommit: null };
+          }
+          if (entry.sampleStatus === 'approved') {
+            if (entry.sampleClientId) await pauseClient(tx, entry.sampleClientId, ctx.userId, 'agency');
+            await tx.update(waitlistEntry).set({ sampleStatus: 'failed', ...decided }).where(eq(waitlistEntry.id, entry.id));
+            return { status: 'failed' as SampleStatus, clientId: entry.sampleClientId, afterCommit: null };
+          }
+          throw new ToolError('conflict', 'This sample was already handled.', { userFacing: true });
+        }
+
+        if (!entry.emailConfirmedAt || entry.sampleStatus !== 'requested') throw new ToolError('conflict', 'Only confirmed requests can be approved.', { userFacing: true });
+        // The setting row lock (held from here to commit) serialises approvals, so the month's count below cannot be raced past.
+        const sampleId = await ensureSampleAgency(tx, deps, ctx.userId);
+        const limit = await sampleBriefMonthlyLimit(tx as unknown as Db);
+        const [{ used } = { used: 0 }] = await tx.select({ used: count() }).from(waitlistEntry).where(approvedThisMonth);
+        if (used >= limit) {
+          throw new ToolError('conflict', `This month's sample limit (${limit}) is used up. Raise it on Billing & plans or wait until next month.`, { userFacing: true });
+        }
+        await ensureOperatorMembership(tx, sampleId, ctx.userId);
+        const lookup = input.lookup!;
+        const created = await createClientCore(tx, deps, platformAgencyCtx(ctx, sampleId), {
+          name: lookup.title.slice(0, 120), verticalId: input.verticalId!, services: [], keywords: [], serviceArea: null, placeId: null, features: [], status: 'active', lookup,
+        });
+        await tx.update(waitlistEntry).set({ sampleStatus: 'approved', sampleClientId: created.clientId, sampleApprovedAt: now, ...decided }).where(eq(waitlistEntry.id, entry.id));
+        return { status: 'approved' as SampleStatus, clientId: created.clientId, afterCommit: created.afterCommit };
+      });
+      if (out.afterCommit) await out.afterCommit();
+      return { status: out.status, clientId: out.clientId, setupUrl: out.status === 'approved' && out.clientId ? `/c/${out.clientId}/setup` : null };
+    });
+  },
+});
+
+export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool, platformFindBusinessTool, assignWaitlistBusinessTool, decideSampleBriefTool];
+

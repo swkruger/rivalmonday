@@ -350,6 +350,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
     id: w.platformIds.waitlistBusiness, agencyId: w.ids.agencyA,
     lookup: { placeId: 'world-place', cid: null, title: 'World Biz', address: null, city: null, category: null, phone: null, domain: null, rating: null, votes: null, lat: 30.2, lng: -97.7 },
   })),
+  // approve:false (decline) keeps the world unchanged elsewhere; the approve path (a new agency + client) is covered in platform-waitlist.test.ts
+  decide_sample_brief: platform((w) => ({ id: w.platformIds.waitlistAgencySample, approve: false })),
   assign_lead: platform((w) => ({ leadId: w.platformIds.poolLead, agencyId: w.ids.agencyA })),
   review_vertical: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, action: 'approve' })),
   review_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, areaId: w.platformIds.unreviewedArea, action: 'approve' })),

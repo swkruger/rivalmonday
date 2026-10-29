@@ -12,6 +12,7 @@ import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, prese
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { completeIfDone, getSetupState, loadSetupInvite, ownerPickOpen, type SetupState } from '../setup/state';
+import { refuseSampleContacts } from '../waitlist/sample';
 import { normaliseName } from '@cs/verticals';
 import { addBusinessAreaCore, lockCatalogue, refuseClientData } from './verticals';
 import { acceptSuggestions, dismissSuggestions, preTickTop, RUN_STATUSES, runSuggestionRows, SearchProgress, searchProgress, searchRefusalMessage } from './competitors';
@@ -413,6 +414,7 @@ export const inviteClientOwner = defineTool({
   permission: 'agency',
   channels: ['web'],
   async handler(ctx, { clientId, name, email }, deps) {
+    await refuseSampleContacts(deps, ctx.agencyId);
     const now = new Date();
     const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner', replaceInvitedOwner: true }, now);
     // After commit; the invitation stands even if this fails (the daily reminder retries with the same dedupe).

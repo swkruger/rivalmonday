@@ -5,7 +5,7 @@ vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => 
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/invite-email', () => ({ sendAgencyInviteEmail: (...a: unknown[]) => m.email(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-const { inviteAgenciesAction, declineWaitlistEntryAction } = await import('./actions');
+const { approveSampleAction, inviteAgenciesAction, declineWaitlistEntryAction, stopSampleAction } = await import('./actions');
 
 const form = (o: Record<string, string | string[]>) => {
   const fd = new FormData();
@@ -60,5 +60,23 @@ describe('declineWaitlistEntryAction', () => {
     expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'decline_waitlist_entry', { id: 'w1' });
     m.runTool.mockResolvedValue({ ok: false, error: 'This entry was already handled.' });
     expect(await declineWaitlistEntryAction({ ok: true }, form({ id: 'w1' }))).toEqual({ ok: false, error: 'This entry was already handled.' });
+  });
+});
+
+describe('sample actions', () => {
+  const lookup = { placeId: 'p1', title: 'Smith Dental' };
+  it('approve posts the listing and type and returns the setup url', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { status: 'approved', clientId: 'c1', setupUrl: '/c/c1/setup' } });
+    expect(await approveSampleAction(null, form({ id: 'w1', verticalId: 'dental', lookup: JSON.stringify(lookup) }))).toEqual({ ok: true, setupUrl: '/c/c1/setup' });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'decide_sample_brief', { id: 'w1', approve: true, lookup, verticalId: 'dental' });
+    expect(await approveSampleAction(null, form({ id: 'w1', verticalId: 'dental' }))).toEqual({ ok: false, error: 'Pick the listing and business type.' });
+  });
+
+  it('stop declines a request or stops a sample in progress', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { status: 'declined', clientId: null, setupUrl: null } });
+    expect(await stopSampleAction({ ok: true }, form({ id: 'w1' }))).toEqual({ ok: true, message: 'Declined.' });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'decide_sample_brief', { id: 'w1', approve: false });
+    m.runTool.mockResolvedValue({ ok: true, data: { status: 'failed', clientId: 'c1', setupUrl: null } });
+    expect(await stopSampleAction({ ok: true }, form({ id: 'w1' }))).toEqual({ ok: true, message: 'Stopped.' });
   });
 });

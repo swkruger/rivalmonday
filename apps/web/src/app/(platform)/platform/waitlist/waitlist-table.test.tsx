@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn() }));
+vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn(), approveSampleAction: vi.fn(), stopSampleAction: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }) }));
 const { WaitlistTable } = await import('./waitlist-table');
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -65,5 +66,28 @@ describe('WaitlistTable assign', () => {
     cleanup();
     show(true, 'agencies');
     expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
+  });
+});
+
+describe('WaitlistTable samples', () => {
+  const s = (id: string, status: string, stage: string | null, clientId: string | null = null) =>
+    row({ id, orgName: `Org ${id}`, sample: { businessName: `Biz ${id}`, location: 'Austin, TX', website: null, status, stage, clientId } });
+  const samples = [s('s1', 'requested', null), s('s2', 'approved', 'setup', 'c2'), s('s3', 'approved', 'review', 'c3'), s('s4', 'sent', 'sent', 'c4')];
+  const showSamples = (canWrite = true) =>
+    render(<WaitlistTable rows={samples} tab="samples" tz="UTC" verticals={{ dental: 'Dental' }} canWrite={canWrite} sampleEstimate="Estimated cost per sample: x" />);
+  const rowOf = (name: string) => screen.getByText(`Org ${name}`).closest('tr')!;
+
+  it('Approve and Decline on requested, Stop and the stage link on approved', () => {
+    showSamples();
+    expect(within(rowOf('s1')).getByRole('button', { name: 'Approve' })).toBeTruthy();
+    expect(within(rowOf('s1')).getByRole('button', { name: 'Decline' })).toBeTruthy();
+    expect(within(rowOf('s2')).getByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(within(rowOf('s2')).getByRole('link', { name: 'Open setup' }).getAttribute('href')).toBe('/c/c2/setup');
+    expect(within(rowOf('s3')).getByRole('link', { name: 'Review brief' }).getAttribute('href')).toBe('/agency/approvals');
+    expect(within(rowOf('s4')).queryByRole('button')).toBeNull();
+    cleanup();
+    showSamples(false);
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { agencyDailyStat, billingNotice, client, llmCall, platformAdmin, readAiGuardState, SpendGuardSettings, spendGuardEvent, vendorCall, writeAiGuardState } from '@cs/db';
+import { agencyDailyStat, billingNotice, client, llmCall, platformAdmin, platformSetting, readAiGuardState, SpendGuardSettings, spendGuardEvent, vendorCall, writeAiGuardState } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -234,6 +234,15 @@ describe('readSpikes', () => {
     expect((await scope('openrouter')).observedUsd).toBe(9);
     expect((await scope('anthropic')).observedUsd).toBe(7);
     expect((await scope('total')).observedUsd).toBe(16);
+  });
+
+  it('spike excludes sample', async () => {
+    await plat('openrouter', 10, recent);
+    await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyB, clientId: IDS.clientB1, task: 't', provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 50, latencyMs: 1, ok: true, createdAt: recent });
+    const perClient = SpendGuardSettings.parse({ spikeFloorUsdPerClientDay: 4 });
+    expect(await scope('total', perClient)).toMatchObject({ observedUsd: 60, baselineUsd: 12 }); // no sample agency yet: everything counts, N = 3
+    await dbs.owner.insert(platformSetting).values({ key: 'sample_agency_id', value: { agencyId: IDS.agencyB }, updatedBy: 't' });
+    expect(await scope('total', perClient)).toMatchObject({ observedUsd: 10, baselineUsd: 8 }); // B's spend and its one client left out
   });
 });
 

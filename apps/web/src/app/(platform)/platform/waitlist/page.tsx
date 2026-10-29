@@ -73,6 +73,9 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
   const newCount: Record<WaitlistTab, number> = { agencies: list.counts.agencyNew, businesses: list.counts.businessNew, samples: list.counts.sampleRequested };
   const { entries, nextCursor, prevCursor, total, sampleMonth, estimate } = list;
   const emptyKey = q ? 'search' : tab.key;
+  const estimateLine = `Estimated cost per sample: discovery up to ${usd(estimate.discoveryCapUsd)} + starting point${
+    estimate.startingPointAvgUsd === null ? ': no history yet' : ` about ${usd(estimate.startingPointAvgUsd)} (average of the last ${estimate.basedOn})`
+  }`;
   return (
     <>
       <PageHeader
@@ -105,11 +108,7 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
         {tab.key === 'samples' && (
           <div className="mb-3 flex flex-col gap-1 text-sm text-muted-ink">
             <p>This month: {sampleMonth.used} of {sampleMonth.limit} sample briefs</p>
-            <p>
-              {`Estimated cost per sample: discovery up to ${usd(estimate.discoveryCapUsd)} + starting point${
-                estimate.startingPointAvgUsd === null ? ': no history yet' : ` about ${usd(estimate.startingPointAvgUsd)} (average of the last ${estimate.basedOn})`
-              }`}
-            </p>
+            <p>{estimateLine}</p>
           </div>
         )}
         {entries.length === 0 && (total > 0 || prevCursor) ? (
@@ -117,7 +116,7 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
         ) : entries.length === 0 ? (
           <EmptyState {...COPY.empty[emptyKey]} guideAnchor="what-this-page-tells-you" />
         ) : (
-          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} canWrite={canWrite} agencies={agencies} homeAgencyId={ctx.agencyId} />
+          <WaitlistTable rows={entries} tab={tab.key} tz={tz} verticals={verticals} canWrite={canWrite} agencies={agencies} homeAgencyId={ctx.agencyId} sampleEstimate={estimateLine} />
         )}
       </Section>
       <PrevNext previous={prevCursor ? hrefOf(tab.key, { q, cursor: prevCursor }) : null} next={nextCursor ? hrefOf(tab.key, { q, cursor: nextCursor }) : null} />

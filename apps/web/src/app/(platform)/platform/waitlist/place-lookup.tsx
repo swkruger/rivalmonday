@@ -26,7 +26,8 @@ export function PlaceLookup({ initialName, initialLocation, find, fieldName = 'l
   initialLocation: string;
   find: FindPlaces;
   fieldName?: string;
-  onPick?: (lookup: SetupLookup | null) => void;
+  /** `place` (with its hints, e.g. `suggestedVerticalId`) comes with a pick; a cleared pick passes null alone. */
+  onPick?: (lookup: SetupLookup | null, place?: FoundPlace) => void;
   disabled?: boolean;
 }) {
   const id = useId();
@@ -56,7 +57,7 @@ export function PlaceLookup({ initialName, initialLocation, find, fieldName = 'l
   };
   const pick = (p: FoundPlace) => {
     setPicked(p);
-    onPick?.(lookupOf(p));
+    onPick?.(lookupOf(p), p);
   };
   const enterSearches = (e: React.KeyboardEvent) => {
     if (e.key !== 'Enter') return;

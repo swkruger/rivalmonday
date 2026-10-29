@@ -1,5 +1,6 @@
 'use client';
 import { BulkBar, bulkBarActionClass, Button, Input, Label, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
+import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { ConfirmForm } from '@/components/confirm-form';
 import { ErrorNote } from '@/components/form-error';
@@ -8,7 +9,8 @@ import { formatDate } from '@/lib/format';
 import { labelFor, SAMPLE_STAGE, SAMPLE_STATUS, WAITLIST_STATUS } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { AssignDialog, type AssignAgency } from './assign-dialog';
-import { declineWaitlistEntryAction, inviteAgenciesAction, type InviteResult } from './actions';
+import { declineWaitlistEntryAction, inviteAgenciesAction, type InviteResult, stopSampleAction } from './actions';
+import { SampleDialog } from './sample-dialog';
 
 export type WaitlistTab = 'agencies' | 'businesses' | 'samples';
 
@@ -25,7 +27,7 @@ export interface WaitlistRow {
   clientCountBand: string | null;
   emailConfirmed: boolean;
   createdAt: string;
-  sample: { businessName: string | null; location: string | null; website: string | null; status: string; stage: string | null } | null;
+  sample: { businessName: string | null; location: string | null; website: string | null; status: string; stage: string | null; clientId: string | null } | null;
 }
 
 const dash = '—';
@@ -47,6 +49,41 @@ function Detail({ row, tab, verticals }: { row: WaitlistRow; tab: WaitlistTab; v
 
 /** Only a confirmed, still-new agency can be invited. */
 const invitable = (r: WaitlistRow) => r.kind === 'agency' && r.status === 'new' && r.emailConfirmed;
+
+const linkClass = 'text-sm font-medium text-primary-soft-text hover:underline';
+
+/** Sample requests tab: Approve / Decline a confirmed request; Stop one in progress, with a link to where it stands. */
+function SampleActions({ row, estimate, verticals }: { row: WaitlistRow; estimate: string; verticals: Record<string, string> }) {
+  const s = row.sample;
+  if (!s) return null;
+  if (s.status === 'requested') {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {row.emailConfirmed && (
+          <SampleDialog
+            entryId={row.id} orgName={row.orgName} contactName={row.contactName} businessName={s.businessName ?? row.orgName} location={s.location} website={s.website}
+            estimate={estimate} verticals={Object.entries(verticals).map(([id, name]) => ({ id, name }))}
+          />
+        )}
+        <ConfirmForm
+          action={stopSampleAction} submit="Decline" variant="outline" title="Decline this sample request?" body="Nobody is emailed." confirmLabel="Decline" tone="danger"
+          fields={{ id: row.id }} className="flex flex-wrap items-center gap-2"
+        />
+      </div>
+    );
+  }
+  if (s.status !== 'approved') return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {s.stage === 'setup' && s.clientId && <Link href={`/c/${s.clientId}/setup`} className={linkClass}>Open setup</Link>}
+      {s.stage === 'review' && <Link href="/agency/approvals" className={linkClass}>Review brief</Link>}
+      <ConfirmForm
+        action={stopSampleAction} submit="Stop" variant="outline" title="Stop this sample?" body="The business is paused and no link is sent." confirmLabel="Stop" tone="danger"
+        fields={{ id: row.id }} className="flex flex-wrap items-center gap-2"
+      />
+    </div>
+  );
+}
 
 /** The result lines live in the table component, which stays mounted, so they survive the list refreshing after an action. */
 function InviteResultNote({ state }: { state: InviteResult }) {
@@ -71,12 +108,15 @@ function InviteResultNote({ state }: { state: InviteResult }) {
 
 /**
  * Phase 17a: the waitlist table. The Agencies tab selects confirmed new rows for a bulk invite; new rows on the Agencies and
- * Businesses tabs can be declined. New confirmed businesses can be assigned to an agency. Sample actions arrive with tasks 10-11. `canWrite` is false for platform viewers.
+ * Businesses tabs can be declined. New confirmed businesses can be assigned to an agency. Sample requests are approved, declined or
+ * stopped here (Task 11 adds sending). `canWrite` is false for platform viewers.
  */
-export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agencies = [], homeAgencyId = null }: {
+export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agencies = [], homeAgencyId = null, sampleEstimate = '' }: {
   rows: WaitlistRow[]; tab: WaitlistTab; tz: string; verticals: Record<string, string>; canWrite?: boolean;
   /** Agencies a business can be assigned to (Businesses tab); the operator's home agency is the default pick. */
   agencies?: AssignAgency[]; homeAgencyId?: string | null;
+  /** The Sample requests tab's cost line, repeated in the approve dialog. */
+  sampleEstimate?: string;
 }) {
   const [assigned, setAssigned] = useState<FormResult | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -150,7 +190,8 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agen
                     {canWrite && tab === 'businesses' && r.status === 'new' && r.emailConfirmed && agencies.length > 0 && (
                       <AssignDialog entryId={r.id} orgName={r.orgName} location={r.location} agencies={agencies} homeAgencyId={homeAgencyId} onResult={setAssigned} />
                     )}
-                    {/* Tasks 10-11: approve and send sample */}
+                    {canWrite && tab === 'samples' && <SampleActions row={r} estimate={sampleEstimate} verticals={verticals} />}
+                    {/* Task 11: send sample */}
                   </TableCell>
                 </TableRow>
               );

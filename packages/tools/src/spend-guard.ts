@@ -2,8 +2,9 @@ import {
   type AiGuardState, agency, agencyDailyStat, billingNotice, client, clientServiceable, type Db, effectiveLimitUsd, llmCall, monthStart, pauseThresholdUsd, lockAiGuardState, readAiGuardState,
   llmProviderCounted, readSpendGuardSettings, type SpendGuardSettings, spendByClient, spendGuardEvent, writeAiGuardState,
 } from '@cs/db';
-import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from './platform/costs/alerts';
+import { sampleAgencyId } from './waitlist/settings';
 
 /** 7b1 (C9): what platform staff are emailed about a pause (USD allowed: staff only). */
 export type PlatformSpendAlertPayload = { kind: 'client_paused' | 'spike_warn' | 'spike_paused'; title: string; lines: string[]; url: string };
@@ -160,13 +161,16 @@ const H = 3_600_000;
 const D = 24 * H;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-/** llm_call cost in [from, to): `total` = every provider (Jev included since jev-openrouter) except any excluded ones (none today); vendor scopes = their providers. `vendor_call` never. */
-async function sumLlm(db: Db, scope: SpikeScope, from: number, to: number): Promise<number> {
+/**
+ * llm_call cost in [from, to): `total` = every provider (Jev included since jev-openrouter) except any excluded ones (none today); vendor scopes = their providers. `vendor_call` never.
+ * 17a: the sample agency's spend (operator-run sample briefs) is left out, so a burst of samples never pauses tenant AI.
+ */
+async function sumLlm(db: Db, scope: SpikeScope, from: number, to: number, sampleId: string | null): Promise<number> {
   const providers = scope === 'total' ? llmProviderCounted() : inArray(llmCall.provider, [...SPIKE_PROVIDERS[scope]]);
   const [row] = await db
     .select({ usd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
     .from(llmCall)
-    .where(and(providers, gte(llmCall.createdAt, new Date(from)), lt(llmCall.createdAt, new Date(to))));
+    .where(and(providers, gte(llmCall.createdAt, new Date(from)), lt(llmCall.createdAt, new Date(to)), sampleId ? sql`${llmCall.agencyId} IS DISTINCT FROM ${sampleId}::uuid` : undefined));
   return Number(row?.usd ?? 0);
 }
 
@@ -177,13 +181,14 @@ async function sumLlm(db: Db, scope: SpikeScope, from: number, to: number): Prom
  */
 export async function readSpikes(db: Db, now: Date, s: SpendGuardSettings): Promise<SpikeReading[]> {
   const day0 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const [nRow] = await db.select({ n: sql<number>`count(*)::int` }).from(client).where(clientServiceable(client));
+  const sampleId = await sampleAgencyId(db);
+  const [nRow] = await db.select({ n: sql<number>`count(*)::int` }).from(client).where(and(clientServiceable(client), sampleId ? ne(client.agencyId, sampleId) : undefined));
   const n = Number(nRow?.n ?? 0);
   // Deliberate deviation from the 7-day brief: 8 days back, so before 12:00 UTC the same-weekday window's midpoint day is still found.
   const rows = await db
     .select({ day: agencyDailyStat.day, clients: sql<number>`coalesce(sum(${agencyDailyStat.clientsActive}), 0)::int` })
     .from(agencyDailyStat)
-    .where(and(gte(agencyDailyStat.day, isoDay(day0 - 8 * D)), lt(agencyDailyStat.day, isoDay(day0))))
+    .where(and(gte(agencyDailyStat.day, isoDay(day0 - 8 * D)), lt(agencyDailyStat.day, isoDay(day0)), sampleId ? ne(agencyDailyStat.agencyId, sampleId) : undefined))
     .groupBy(agencyDailyStat.day);
   const days = new Map(rows.map((r) => [r.day, Number(r.clients)]));
   const weekStart = isoDay(day0 - 7 * D);
@@ -193,13 +198,13 @@ export async function readSpikes(db: Db, now: Date, s: SpendGuardSettings): Prom
   const floor = Math.max(s.spikeFloorUsdPerClientDay * n, s.spikeFloorUsdPerDay);
   const out: SpikeReading[] = [];
   for (const scope of SCOPES) {
-    const observedUsd = await sumLlm(db, scope, now.getTime() - D, now.getTime());
+    const observedUsd = await sumLlm(db, scope, now.getTime() - D, now.getTime(), sampleId);
     let rate = 0;
     if (historyOk) {
-      const rate7 = (await sumLlm(db, scope, day0 - 7 * D, day0)) / clientDays7;
+      const rate7 = (await sumLlm(db, scope, day0 - 7 * D, day0, sampleId)) / clientDays7;
       const wEnd = now.getTime() - 7 * D;
       const wClients = days.get(isoDay(wEnd - 12 * H)) ?? 0;
-      const rateW = wClients > 0 ? (await sumLlm(db, scope, wEnd - D, wEnd)) / wClients : 0;
+      const rateW = wClients > 0 ? (await sumLlm(db, scope, wEnd - D, wEnd, sampleId)) / wClients : 0;
       rate = Math.max(rate7, rateW);
     }
     const baselineUsd = Math.max(rate * n, floor);

@@ -1,13 +1,15 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
 import type { MapsPlace } from '@cs/collectors';
-import { agencyInviteLink, brief, contact, intakeRate, lead, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
+import { agencyInviteLink, brief, client, clientSetup, contact, intakeRate, lead, membership, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
 import { allTools } from './all';
+import type { ToolDeps } from '../deps';
+import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -33,8 +35,8 @@ async function mk(over: Partial<typeof waitlistEntry.$inferInsert> = {}): Promis
 }
 const sample = (status: 'requested' | 'approved' | 'sent' | 'declined' | 'failed', over: Partial<typeof waitlistEntry.$inferInsert> = {}) =>
   mk({ sampleRequested: true, sampleStatus: status, sampleBusinessName: 'Smith Dental', sampleLocation: 'Austin, TX', sampleWebsite: 'smith.co', ...over });
-const startingPoint = (clientId: string, status: string) =>
-  dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId, kind: 'starting_point', status, deliveryDate: '2026-10-05', periodStart: new Date(), periodEnd: new Date(), summary: 's' });
+const startingPoint = (clientId: string, status: string, attempts = 1) =>
+  dbs.owner.insert(brief).values({ agencyId: IDS.agencyA, clientId, kind: 'starting_point', status, attempts, deliveryDate: '2026-10-05', periodStart: new Date(), periodEnd: new Date(), summary: 's' });
 
 beforeEach(async () => {
   n = 0;
@@ -82,6 +84,13 @@ describe('list_waitlist', () => {
       await startingPoint(IDS.clientA2, status);
       expect(await stageOf(withBrief), status).toBe(stage);
     }
+    // a failed starting point with no attempts left has stopped; with attempts left it is still being built
+    await dbs.owner.delete(brief);
+    await startingPoint(IDS.clientA2, 'failed', 2);
+    expect(await stageOf(withBrief)).toBe('generating');
+    await dbs.owner.delete(brief);
+    await startingPoint(IDS.clientA2, 'failed', 3);
+    expect(await stageOf(withBrief)).toBe('stopped');
     // a sent entry is 'sent' (its client kept); a requested one has no stage
     const sent = await sample('sent', { sampleClientId: IDS.clientA1, sampleSentAt: new Date('2026-10-20T00:00:00Z') });
     const req = await sample('requested');
@@ -293,5 +302,107 @@ describe('platform_find_business and assign_waitlist_business', () => {
     expect([e.code, e.userFacing, e.message]).toEqual(['rate_limited', true, "You've reached today's limit of 50 business searches."]);
     expect(calls).toHaveLength(1);
     expect((await fails(reg.invoke(viewer, 'platform_find_business', { name: 'Smile', location: 'Austin, TX' }))).code).toBe('permission_denied');
+  });
+});
+
+describe('decide_sample_brief', () => {
+  const op = ctxOf('op');
+  const place: SetupLookup = { placeId: 'pl-smith-1', cid: null, title: 'Smith Dental', address: '1 Main St', city: 'Austin', category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 30.2, lng: -97.7 };
+  const deps: ToolDeps = { app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], enqueue: async () => {} };
+  const reg = createToolRegistry(deps, { audit: { record: async () => {} } });
+  type Decided = { status: string; clientId: string | null; setupUrl: string | null };
+  const decide = (ctx: AccessContext, input: Record<string, unknown>) => reg.invoke(ctx, 'decide_sample_brief', input) as Promise<Decided>;
+  const approve = (id: string, ctx = op) => decide(ctx, { id, approve: true, lookup: place, verticalId: 'dental' });
+  const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; } throw new Error('expected a failure'); };
+  const row = async (id: string) => (await dbs.service.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)))[0]!;
+  const smithClients = () => dbs.service.select().from(client).where(eq(client.name, 'Smith Dental'));
+
+  it('refuses unconfirmed', async () => {
+    const unconfirmed = await sample('requested', { emailConfirmedAt: null });
+    const declined = await sample('declined');
+    for (const id of [unconfirmed, declined]) {
+      const e = await fails(approve(id));
+      expect([e.code, e.message]).toEqual(['conflict', 'Only confirmed requests can be approved.']);
+    }
+    expect((await fails(approve(await mk({ kind: 'business' })))).code).toBe('not_found');
+    expect((await fails(approve(await mk()))).code).toBe('not_found'); // an agency without a sample request
+    const e = await fails(decide(op, { id: unconfirmed, approve: true }));
+    expect(e.code).toBe('invalid_input');
+    expect(e.message).toContain('Pick the listing and business type.');
+    expect(await smithClients()).toHaveLength(0);
+  });
+
+  it('refuses over the monthly limit with the limit in the message', async () => {
+    await dbs.service.insert(platformSetting).values({ key: 'sample_brief_monthly_limit', value: { n: 1 }, updatedBy: 't' });
+    await sample('approved', { sampleApprovedAt: new Date() });
+    const id = await sample('requested');
+    const e = await fails(approve(id));
+    expect([e.code, e.userFacing, e.message]).toEqual(['conflict', true, "This month's sample limit (1) is used up. Raise it on Billing & plans or wait until next month."]);
+    expect((await row(id)).sampleStatus).toBe('requested');
+    expect(await smithClients()).toHaveLength(0);
+  });
+
+  it('approve creates an active client with the lookup and returns the setup url', async () => {
+    const id = await sample('requested');
+    const r = await approve(id);
+    expect(r.status).toBe('approved');
+    expect(r.setupUrl).toBe(`/c/${r.clientId}/setup`);
+    const [setting] = await dbs.service.select().from(platformSetting).where(eq(platformSetting.key, 'sample_agency_id'));
+    const sampleId = (setting!.value as { agencyId: string }).agencyId;
+    const [c] = await dbs.service.select().from(client).where(eq(client.id, r.clientId!));
+    expect(c).toMatchObject({ agencyId: sampleId, status: 'active', name: 'Smith Dental', verticalId: 'dental', placeId: 'pl-smith-1' });
+    const [setup] = await dbs.service.select().from(clientSetup).where(eq(clientSetup.clientId, r.clientId!));
+    expect(setup!.lookup?.placeId).toBe('pl-smith-1');
+    const e = await row(id);
+    expect([e.sampleStatus, e.sampleClientId, e.decidedBy, e.status]).toEqual(['approved', r.clientId, 'op', 'new']);
+    expect(e.sampleApprovedAt).not.toBeNull();
+    expect(e.decidedAt).not.toBeNull();
+    expect(await dbs.service.select().from(membership).where(and(eq(membership.agencyId, sampleId), eq(membership.userId, 'op')))).toHaveLength(1);
+    // a second request goes into the same sample agency
+    const r2 = await approve(await sample('requested', { email: 'second@x.co' }));
+    expect((await dbs.service.select().from(client).where(eq(client.id, r2.clientId!)))[0]!.agencyId).toBe(sampleId);
+    expect((await fails(approve(id))).code).toBe('conflict');
+  });
+
+  it('reject requested → declined; approved → failed and client paused', async () => {
+    const req = await sample('requested');
+    expect(await decide(op, { id: req, approve: false })).toEqual({ status: 'declined', clientId: null, setupUrl: null });
+    const d = await row(req);
+    expect([d.sampleStatus, d.decidedBy]).toEqual(['declined', 'op']);
+    expect((await fails(decide(op, { id: req, approve: false }))).code).toBe('conflict');
+
+    const started = await sample('requested', { email: 'started@x.co' });
+    const { clientId } = await approve(started);
+    expect(await decide(op, { id: started, approve: false })).toEqual({ status: 'failed', clientId, setupUrl: null });
+    expect((await row(started)).sampleStatus).toBe('failed');
+    const [c] = await dbs.service.select().from(client).where(eq(client.id, clientId!));
+    expect(c!.pausedAt).not.toBeNull();
+    for (const s of ['sent', 'failed'] as const) {
+      const e = await fails(decide(op, { id: await sample(s, { email: `${s}2@x.co` }), approve: false }));
+      expect(e.code).toBe('conflict');
+    }
+  });
+
+  it('viewer → permission_denied', async () => {
+    const id = await sample('requested');
+    expect((await fails(approve(id, viewer))).code).toBe('permission_denied');
+    expect((await fails(decide(viewer, { id, approve: false }))).code).toBe('permission_denied');
+    expect((await fails(decide(agencyAdmin, { id, approve: false }))).code).toBe('permission_denied'); // not an operator (a 404 on the web)
+  });
+
+  it('sample agency refuses contacts', async () => {
+    const sampleId = await dbs.service.transaction((tx) => ensureSampleAgency(tx, deps, 'op'));
+    const [c] = await dbs.service.insert(client).values({ agencyId: sampleId, name: 'Sample Biz', verticalId: 'dental' }).returning({ id: client.id });
+    const inSample = createAccessContext({ agencyId: sampleId, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [] });
+    const calls: [string, Record<string, unknown>][] = [
+      ['invite_client_owner', { clientId: c!.id, name: 'Sam', email: 'sam@smith.co' }],
+      ['add_client_recipient', { clientId: c!.id, email: 'sam@smith.co', role: 'client_viewer' }],
+      ['invite_member', { email: 'sam@smith.co', role: 'client_viewer', clientId: c!.id }],
+    ];
+    for (const [tool, input] of calls) {
+      const e = await fails(reg.invoke(inSample, tool, input));
+      expect([tool, e.code, e.message, e.userFacing]).toEqual([tool, 'invalid_input', SAMPLE_NO_CONTACTS, true]);
+    }
+    expect(await dbs.service.select().from(contact).where(eq(contact.clientId, c!.id))).toHaveLength(0);
   });
 });

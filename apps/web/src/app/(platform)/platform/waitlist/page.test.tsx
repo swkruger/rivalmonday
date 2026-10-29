@@ -20,7 +20,7 @@ vi.mock('@/server/tools', () => ({
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role }));
-vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn() }));
+vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn(), approveSampleAction: vi.fn(), stopSampleAction: vi.fn() }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC and plumbing', services: [] }] }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));

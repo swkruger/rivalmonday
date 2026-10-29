@@ -73,9 +73,10 @@ export const SAMPLE_STATUS: LabelMap<SampleStatus> = {
 };
 
 // Where an approved sample brief stands (derived by list_waitlist from the sample client's starting-point brief)
-export const SAMPLE_STAGE: LabelMap<'setup' | 'generating' | 'review' | 'ready_to_send' | 'sent'> = {
+export const SAMPLE_STAGE: LabelMap<'setup' | 'generating' | 'stopped' | 'review' | 'ready_to_send' | 'sent'> = {
   setup: e('Set up the client', 'info'),
   generating: e('Brief being built', 'info'),
+  stopped: e('Brief stopped — needs attention', 'danger'),
   review: e('Brief ready to review', 'warning'),
   ready_to_send: e('Ready to send', 'warning'),
   sent: e('Sent', 'success'),

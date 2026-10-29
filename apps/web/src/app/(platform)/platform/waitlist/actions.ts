@@ -65,6 +65,32 @@ export async function findPlacesAction(input: { name: string; location: string }
   return r.ok ? { ok: true, places: r.data.places } : r;
 }
 
+export type ApproveSampleResult = { ok: true; setupUrl: string } | { ok: false; error: string };
+
+/** Approves a sample request with its picked listing and business type; the dialog then opens the new client's setup. */
+export async function approveSampleAction(_prev: unknown, fd: FormData): Promise<ApproveSampleResult> {
+  const { ctx } = await requireOperatorContext();
+  let lookup: unknown;
+  try {
+    lookup = JSON.parse(str(fd, 'lookup'));
+  } catch {
+    return { ok: false, error: 'Pick the listing and business type.' };
+  }
+  const r = await runTool<{ setupUrl: string | null }>(ctx, 'decide_sample_brief', { id: str(fd, 'id'), approve: true, lookup, verticalId: str(fd, 'verticalId') });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return r.data.setupUrl ? { ok: true, setupUrl: r.data.setupUrl } : { ok: false, error: 'Something went wrong. Try again.' };
+}
+
+/** Declines a requested sample, or stops one in progress (its business is paused). */
+export async function stopSampleAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const r = await runTool<{ status: string }>(ctx, 'decide_sample_brief', { id: str(fd, 'id'), approve: false });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: r.data.status === 'failed' ? 'Stopped.' : 'Declined.' };
+}
+
 /** Gives a confirmed new business to an agency with its picked listing (`lookup` is the JSON `PlaceLookup` posts). */
 export async function assignBusinessAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
   const { ctx } = await requireOperatorContext();
