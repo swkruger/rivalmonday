@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { hashText } from '../text.js';
 import type { CopyItem, SourceRule } from '../types.js';
-import { isCopyLike, isDroppedName } from './filters.js';
+import { isCopyLike, isDroppedName, KEEP_JSX_ATTRS } from './filters.js';
 
 export type TsScanRule = Pick<SourceRule, 'surface' | 'mode' | 'properties'>;
 
@@ -10,6 +10,10 @@ export interface RawLiteral {
   line: number;
   /** Dotted property path from the outermost variable (`a.b[0].c`). */
   scope: string;
+  /** Source position, used for ordering and de-duplication when scans are merged. */
+  pos: number;
+  /** Human hint overriding the scope (jsx: `<Tag attr>` / parent tag). */
+  context?: string;
 }
 
 export function parseTs(file: string, source: string): ts.SourceFile {
@@ -49,7 +53,9 @@ function rootIdent(e: ts.Expression): string | undefined {
 
 /** True when the node sits inside a position that is never copy (imports, types, console/logger/z/sql, throw). */
 export function inDroppedContext(node: ts.Node): boolean {
+  let propChecked = false;
   for (let p: ts.Node | undefined = node.parent; p; p = p.parent) {
+    if (ts.isJsxElement(p) || ts.isJsxFragment(p) || ts.isJsxSelfClosingElement(p)) propChecked = true;
     if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isTypeNode(p)) return true;
     if (ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p) || ts.isThrowStatement(p)) return true;
     if (ts.isCallExpression(p)) {
@@ -57,7 +63,9 @@ export function inDroppedContext(node: ts.Node): boolean {
       if (root === 'console' || root === 'logger' || root === 'z') return true;
     }
     if (ts.isTaggedTemplateExpression(p) && /^sql\b/.test(p.tag.getText())) return true;
-    if (ts.isPropertyAssignment(p)) {
+    // Only the nearest enclosing property decides: `{ meta: { title: 'Real copy' } }` keeps the title.
+    if (ts.isPropertyAssignment(p) && !propChecked) {
+      propChecked = true;
       const n = propName(p.name);
       if (n !== undefined && isDroppedName(n)) return true;
     }
@@ -79,7 +87,7 @@ export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
 
   const emit = (node: ts.Node, text: string) => {
     if (inDroppedContext(node)) return;
-    out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path) });
+    out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path), pos: node.getStart(sf) });
   };
 
   /** A variable initializer or returned value: keeps literals reached through ?:, ??, ||, && and wrappers. */
@@ -178,7 +186,7 @@ export function collectPropertyLiterals(sf: ts.SourceFile, names: ReadonlySet<st
     const text = literalText(node);
     if (text !== undefined) {
       if (capture && !inDroppedContext(node)) {
-        out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path) });
+        out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path), pos: node.getStart(sf) });
       }
       return;
     }
@@ -202,13 +210,110 @@ export function toCopyItems(file: string, rule: Pick<SourceRule, 'surface'>, raw
       file,
       line: r.line,
       anchor: `${file}#${r.scope}#${n}`,
-      context: r.scope,
+      context: r.context ?? r.scope,
       text: r.text,
       hash: hashText(r.text),
       kind: 'string',
     });
   }
   return items;
+}
+
+function branchLiterals(e: ts.Expression, out: ts.Expression[] = []): ts.Expression[] {
+  if (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e)) return branchLiterals(e.expression, out);
+  if (ts.isConditionalExpression(e)) {
+    branchLiterals(e.whenTrue, out);
+    branchLiterals(e.whenFalse, out);
+  } else if (ts.isBinaryExpression(e) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(e.operatorToken.kind)) {
+    branchLiterals(e.left, out);
+    branchLiterals(e.right, out);
+  } else if (literalText(e) !== undefined) out.push(e);
+  return out;
+}
+
+/** Nearest enclosing function / component (named function, or arrow/function assigned to a variable), else variable. */
+function jsxScope(node: ts.Node): string {
+  let variable: string | undefined;
+  for (let p: ts.Node | undefined = node.parent; p; p = p.parent) {
+    if ((ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p)) && p.name && ts.isIdentifier(p.name)) return p.name.text;
+    if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) {
+      const init = p.initializer;
+      if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) return p.name.text;
+      variable ??= p.name.text;
+    }
+  }
+  return variable ?? '(module)';
+}
+
+/** JSX mode: JsxText runs (joined across `{expr}`), string-literal expression children and allow-listed attributes. */
+export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
+  const out: RawLiteral[] = [];
+  const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
+  const push = (n: ts.Node, text: string, context: string) => {
+    if (inDroppedContext(n)) return;
+    out.push({ text, line: lineOf(n), scope: jsxScope(n), pos: n.getStart(sf), context });
+  };
+
+  const children = (parent: ts.JsxElement | ts.JsxFragment) => {
+    const tag = ts.isJsxElement(parent) ? `<${parent.openingElement.tagName.getText(sf)}>` : '<>';
+    let text = '';
+    let first: ts.Node | undefined;
+    let hasWords = false;
+    const flush = () => {
+      if (first && hasWords) push(first, text.replace(/\s+/g, ' ').trim(), tag);
+      text = '';
+      first = undefined;
+      hasWords = false;
+    };
+    for (const c of parent.children) {
+      if (ts.isJsxText(c)) {
+        if (c.containsOnlyTriviaWhiteSpaces) {
+          if (!c.text.includes(String.fromCharCode(10))) text += ' ';
+          continue;
+        }
+        first ??= c;
+        hasWords = true;
+        text += c.text;
+      } else if (ts.isJsxExpression(c)) {
+        if (!c.expression) continue;
+        const lit = literalText(c.expression);
+        if (lit !== undefined) {
+          first ??= c;
+          hasWords ||= lit.trim() !== '';
+          text += lit;
+        } else {
+          const branches = branchLiterals(c.expression);
+          for (const b of branches) push(b, literalText(b)!, tag);
+          if (branches.length) flush();
+          else {
+            first ??= c;
+            text += `{${substitutionName(c.expression)}}`;
+          }
+        }
+      } else flush();
+    }
+    flush();
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return;
+    if (ts.isJsxElement(node) || ts.isJsxFragment(node)) children(node);
+    else if (ts.isJsxAttribute(node) && node.initializer) {
+      const attr = node.name.getText(sf);
+      if (KEEP_JSX_ATTRS.has(attr)) {
+        const el = node.parent.parent;
+        const tag = ts.isJsxOpeningElement(el) || ts.isJsxSelfClosingElement(el) ? el.tagName.getText(sf) : '?';
+        const exprs = ts.isJsxExpression(node.initializer) ? (node.initializer.expression ? branchLiterals(node.initializer.expression) : []) : [node.initializer];
+        for (const e of exprs) {
+          const t = literalText(e);
+          if (t !== undefined) push(e, t, `<${tag} ${attr}>`);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
 }
 
 export function scanTsFile(file: string, source: string, rule: TsScanRule): CopyItem[] {
@@ -218,6 +323,13 @@ export function scanTsFile(file: string, source: string, rule: TsScanRule): Copy
       return toCopyItems(file, rule, collectModuleLiterals(sf));
     case 'property':
       return toCopyItems(file, rule, collectPropertyLiterals(sf, new Set(rule.properties ?? [])));
+    case 'jsx': {
+      const seen = new Set<number>();
+      const raws = [...collectJsxLiterals(sf), ...collectModuleLiterals(sf)]
+        .filter((r) => !seen.has(r.pos) && seen.add(r.pos))
+        .sort((a, b) => a.pos - b.pos);
+      return toCopyItems(file, rule, raws);
+    }
     default:
       throw new Error(`scanTsFile: mode '${rule.mode}' not implemented`);
   }

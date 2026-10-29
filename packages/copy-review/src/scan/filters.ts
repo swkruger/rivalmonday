@@ -20,10 +20,13 @@ const PATH_RE = /^(?:\.{0,2}\/|~\/)\S*$|^\S+\.(?:[a-z0-9]{1,5})$/;
 const ENV_RE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/;
 const IDENT_RE = /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/;
 
+/** Hyphen-less Tailwind utilities that appear next to hyphenated ones. */
+const BARE_UTILITIES = new Set(['flex', 'grid', 'block', 'hidden', 'border', 'rounded', 'shadow', 'relative', 'absolute', 'fixed', 'sticky', 'truncate', 'italic', 'underline', 'uppercase', 'transition', 'container', 'inline', 'static']);
+
 /** Every whitespace-separated token looks like a CSS class / utility (contains one of `-:[]/`). */
 function isCssLike(text: string): boolean {
   const tokens = text.split(/\s+/).filter(Boolean);
-  return tokens.length > 0 && tokens.every((t) => /^[a-z0-9]/.test(t) && /[-:[\]/]/.test(t));
+  return tokens.length > 0 && tokens.some((t) => /[-:[\]/]/.test(t)) && tokens.every((t) => BARE_UTILITIES.has(t) || (/^[a-z0-9]/.test(t) && /[-:[\]/]/.test(t)));
 }
 
 /** Keep only strings that read as copy: a letter plus (a space, or leading capital, or ending in `.?!:`). */
