@@ -1,13 +1,13 @@
 # copy-signoff-tool — local tool to view and sign off every piece of user-facing copy, emails included
 
 **Kind:** planning (dev/owner tool)   **Worktree:** ../CompetitorSpy-wt/copy-signoff-tool   **Base:** main @ 45d6372b
-**Plan/spec:** none yet
+**Plan/spec:** `docs/superpowers/plans/2026-10-29-copy-signoff-tool.md` / `docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`
 
 ## Status (overwrite)
-Kickoff brief written. Nothing built.
+Spec + lean plan written (owner said "just start": decisions D1–D12 are Claude's calls). Awaiting owner plan approval.
 
 ## Next (overwrite)
-Owner answers the open questions; then brainstorming → spec → lean plan.
+Owner approves the plan → Task 0 pre-flight → subagent-driven development.
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration `0097` (only if Q2 picks a DB table).
