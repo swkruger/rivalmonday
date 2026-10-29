@@ -1,7 +1,10 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { JoinDialog } from './join-dialog';
+import { siteEnv } from '../../lib/env';
+import { buildWaitlistBody, sourceFrom } from '../../lib/waitlist-body';
+import { submitWaitlist } from '../../lib/waitlist-submit';
+import { JoinDialog, type JoinSubmit } from './join-dialog';
 
 export type JoinStart = 'choose' | 'agency' | 'agency-sample' | 'business';
 
@@ -20,6 +23,10 @@ function clearJoinUrl() {
   const hash = url.hash === '#join' ? '' : url.hash;
   window.history.replaceState(null, '', url.pathname + (search ? `?${search}` : '') + hash);
 }
+
+/** The live submit: the waitlist body to the app's `/api/waitlist`. Nothing here logs or reports the form. */
+const sendToWaitlist: JoinSubmit = (input, turnstileToken) =>
+  submitWaitlist(siteEnv.appUrl, buildWaitlistBody(input, turnstileToken, sourceFrom(window.location, document.referrer)));
 
 const JoinContext = createContext<JoinValue | null>(null);
 
@@ -53,7 +60,7 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
   return (
     <JoinContext.Provider value={value}>
       {children}
-      <JoinDialog open={isOpen} start={start} onClose={close} />
+      <JoinDialog open={isOpen} start={start} onClose={close} submit={sendToWaitlist} />
     </JoinContext.Provider>
   );
 }

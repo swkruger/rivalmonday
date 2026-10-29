@@ -20,6 +20,11 @@ export const JOIN_COPY = {
   back: 'Back',
   // Draft (owner signs).
   submitFailed: 'Something went wrong. Please try again.',
+  // Task 8 submit outcomes (owner signs).
+  stillChecking: 'Still checking, try again in a moment.',
+  check: "The check didn't go through. Please try it again.",
+  invalid: 'Please check the details above.',
+  unavailable: "We couldn't send this just now. Please try again in a minute, or email support@rivalmonday.app.",
   agency: {
     eyebrow: 'Step 2 of 2 · Agency',
     title: 'About your agency',

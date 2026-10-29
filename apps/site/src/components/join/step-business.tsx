@@ -6,11 +6,13 @@ import { JOIN_COPY } from './copy';
 /** Field order = focus order for the first invalid field. */
 export const BUSINESS_FIELD_ORDER = ['contactName', 'email', 'orgName', 'website', 'location', 'vertical', 'verticalOther'] as const;
 
-export function StepBusiness({ form, errors, pending, formError, onChange, onBack }: {
+export function StepBusiness({ form, errors, pending, formError, turnstile, onChange, onBack }: {
   form: BusinessForm;
   errors: FieldErrors;
   pending: boolean;
   formError: string | null;
+  /** The Turnstile widget, rendered above the submit row. */
+  turnstile?: React.ReactNode;
   onChange: (patch: Partial<BusinessForm>) => void;
   onBack: () => void;
 }) {
@@ -52,10 +54,10 @@ export function StepBusiness({ form, errors, pending, formError, onChange, onBac
         ) : null}
       </div>
       {formError ? <p role="alert" className="text-sm text-danger-text">{formError}</p> : null}
-      {/* Task 8 renders the Turnstile widget here, above the submit row. */}
+      {turnstile}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>{JOIN_COPY.back}</Button>
-        <Button type="submit" disabled={pending}>{c.submit}</Button>
+        <Button type="submit" disabled={pending} aria-busy={pending || undefined}>{c.submit}</Button>
       </div>
       <p className="text-xs text-muted-ink">{c.fine}</p>
     </>

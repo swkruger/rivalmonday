@@ -1,9 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../lib/env', () => ({
-  siteEnv: { appUrl: 'https://app.test', clientPriceUsd: 99, social: {} },
-}));
+const env = vi.hoisted(() => ({ siteEnv: { appUrl: 'https://app.test', clientPriceUsd: 99, social: {}, turnstileSiteKey: null as string | null } }));
+vi.mock('../../lib/env', () => env);
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
@@ -35,12 +34,17 @@ async function renderApp() {
 }
 
 beforeEach(() => {
+  env.siteEnv.turnstileSiteKey = null;
+  delete window.turnstile;
   fetchSiteStatus.mockResolvedValue(null);
   window.history.replaceState(null, '', '/');
 });
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete window.turnstile;
 });
 
 const type = (label: RegExp | string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -198,5 +202,132 @@ describe('join dialog', () => {
     const link = screen.getByRole('link', { name: /I run an agency/ });
     expect(link.getAttribute('href')).toBe('https://app.test/sign-up');
     expect(link.closest('[role="radiogroup"]')).toBeNull();
+  });
+  describe('submit (Task 8)', () => {
+    function stubTurnstile() {
+      const api = { render: vi.fn((_el: HTMLElement, _o: Record<string, unknown>) => 'w1'), reset: vi.fn(), remove: vi.fn() };
+      window.turnstile = api;
+      const token = (t: string) => act(() => (api.render.mock.calls.at(-1)![1] as { callback: (t: string) => void }).callback(t));
+      return { api, token };
+    }
+    function fillBusiness() {
+      type(/Your name/, 'Sam Roe');
+      type(/Email/, 'sam@roe.test');
+      type(/Business name/, 'Roe Heating');
+      type(/or city/, 'Austin');
+      fireEvent.change(screen.getByLabelText(/Type of business/), { target: { value: 'dental' } });
+    }
+    const send = () => act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Join the waitlist' })); });
+
+    it('submit blocked until a token when a key is set', async () => {
+      env.siteEnv.turnstileSiteKey = 'site-key';
+      const { api, token } = stubTurnstile();
+      const submit = vi.fn().mockResolvedValue({ ok: true });
+      render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+      await act(async () => {});
+      expect(api.render).toHaveBeenCalledOnce();
+      fillBusiness();
+      await send();
+      expect(submit).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert').textContent).toBe('Still checking, try again in a moment.');
+      token('tok-1');
+      await send();
+      expect(submit).toHaveBeenCalledOnce();
+      expect(submit.mock.calls[0]![1]).toBe('tok-1');
+      expect(screen.getByText("You're on the list. We've emailed you a confirmation.")).toBeTruthy();
+    });
+
+    it('token reset after every attempt', async () => {
+      env.siteEnv.turnstileSiteKey = 'site-key';
+      const { api, token } = stubTurnstile();
+      const submit = vi.fn()
+        .mockResolvedValueOnce({ ok: false, reason: 'check' })
+        .mockResolvedValueOnce({ ok: false, reason: 'unavailable' })
+        .mockResolvedValueOnce({ ok: false, reason: 'invalid' });
+      render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+      await act(async () => {});
+      fillBusiness();
+      token('tok-1');
+      await send();
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(api.reset).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert').textContent).toBe("The check didn't go through. Please try it again.");
+      await send(); // the used token is gone
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert').textContent).toBe('Still checking, try again in a moment.');
+      token('tok-2');
+      await send();
+      expect(submit.mock.calls[1]![1]).toBe('tok-2');
+      expect(api.reset).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('alert').textContent).toBe("We couldn't send this just now. Please try again in a minute, or email support@rivalmonday.app.");
+      token('tok-3');
+      await send();
+      expect(submit.mock.calls[2]![1]).toBe('tok-3');
+      expect(api.reset).toHaveBeenCalledTimes(3);
+      expect(screen.getByRole('alert').textContent).toBe('Please check the details above.');
+      expect((screen.getByRole('button', { name: 'Join the waitlist' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('double submit is blocked while in flight', async () => {
+      let resolve!: (v: { ok: true }) => void;
+      const submit = vi.fn(() => new Promise<{ ok: true }>((r) => { resolve = r; }));
+      render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+      await act(async () => {});
+      fillBusiness();
+      const button = screen.getByRole('button', { name: 'Join the waitlist' });
+      await act(async () => {
+        fireEvent.click(button);
+        fireEvent.submit(button.closest('form')!);
+      });
+      expect(submit).toHaveBeenCalledOnce();
+      expect((submit.mock.calls[0] as unknown[])[1]).toBe('no-widget');
+      expect(button.getAttribute('aria-busy')).toBe('true');
+      await act(async () => resolve({ ok: true }));
+    });
+
+    async function joinThroughProvider() {
+      fireEvent.click(screen.getByRole('button', { name: 'Business' }));
+      fillBusiness();
+      await send();
+      await act(async () => {});
+      expect(screen.getByText("You're on the list. We've emailed you a confirmation.")).toBeTruthy();
+      fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+      expect(screen.queryByText("You're on the list. We've emailed you a confirmation.")).toBeNull();
+    }
+
+    it('duplicate and new both show the done state', async () => {
+      // The route answers 200 {ok:true} for new, duplicate and rate-limited alike.
+      const f = vi.fn(async (..._a: unknown[]) => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      vi.stubGlobal('fetch', f);
+      await renderApp();
+      await joinThroughProvider();
+      await joinThroughProvider();
+      expect(f).toHaveBeenCalledTimes(2);
+      const [url, init] = f.mock.calls[0]! as unknown as [string, RequestInit];
+      expect(url).toBe('https://app.test/api/waitlist');
+      expect(init.credentials).toBe('omit');
+      const sent = JSON.parse(init.body as string);
+      expect(sent).toMatchObject({ kind: 'business', email: 'sam@roe.test', verticalId: 'dental', turnstileToken: 'no-widget' });
+    });
+
+    it('nothing logged', async () => {
+      const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
+      const f = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: false, error: 'invalid' }), { status: 400 }))
+        .mockResolvedValueOnce(new Response('oops', { status: 500 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      vi.stubGlobal('fetch', f);
+      await renderApp();
+      fireEvent.click(screen.getByRole('button', { name: 'Business' }));
+      fillBusiness();
+      for (let i = 0; i < 4; i++) {
+        await send();
+        await act(async () => {});
+      }
+      expect(f).toHaveBeenCalledTimes(4);
+      expect(screen.getByText("You're on the list. We've emailed you a confirmation.")).toBeTruthy();
+      for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+    });
   });
 });
