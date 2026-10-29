@@ -47,9 +47,34 @@ async function pageTexts(db: Db, store: ObjectStore, captureId: string, changeTe
   return changeText ? [changeText] : [];
 }
 
+/** One done scan of keyword 0: points with data, and per tracked rival the cells where it ranks in the top 3. */
+interface ScanStats { id: string; finishedAt: Date; points: number; top3: Map<string, number> }
+const pct = (n: number, of: number) => (of === 0 ? 0 : Math.round((n / of) * 100));
+const pos = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x.toFixed(1) : null);
+
+/**
+ * Owner signs (Phase 17b Task 5 fix): rank items get exporter copy built from the same snapshots as their evidence, so the claim
+ * and its evidence always agree. The seed's rank items carry the generic "content" why/action.
+ */
+export function rankItemCopy(o: { rival: string; keyword: string; before: { n: number; points: number }; after: { n: number; points: number }; avgBefore: unknown; avgAfter: unknown }) {
+  const p0 = pct(o.before.n, o.before.points);
+  const p1 = pct(o.after.n, o.after.points);
+  const a0 = pos(o.avgBefore);
+  const a1 = pos(o.avgAfter);
+  const avg = a0 && a1 ? `average map position ${a0} → ${a1}, ` : '';
+  return {
+    headline: `"${o.keyword}": ${avg}top-3 share ${p0}% → ${p1}%`,
+    whatChanged: `${o.rival} now ranks in the map top 3 at ${o.after.n} of ${o.after.points} points for "${o.keyword}", up from ${o.before.n} of ${o.before.points}.`,
+    whyItMatters: `${o.rival} now shows in the map top 3 across ${p1}% of your service area, up from ${p0}%.`,
+    recommendedAction: 'Check your Google Business Profile categories and recent reviews for the areas they took.',
+    summary: `${o.rival}: top 3 in ${o.after.n} of ${o.after.points} points`,
+  };
+}
+
 /**
  * Reads the demo client's latest approved/sent brief (read-only, service role). Raw ids stay; `finalizeSampleBrief` renames and re-keys.
  * Evidence is text only: page text, review rows, ad copy, rank summaries — never screenshots, html or vendor json.
+ * Items without evidence are skipped (a vendor-json-only listing change, an identical snapshot, a scan outside the window).
  */
 export async function collectSampleBrief(db: Db, store: ObjectStore, clientName = 'Lone Star Cooling'): Promise<{ raw: SampleBriefData; sources: RenameSources }> {
   const clients = await rows<{ id: string; name: string; keywords: string[]; service_area: { towns?: string[] } }>(db,
@@ -62,69 +87,80 @@ export async function collectSampleBrief(db: Db, store: ObjectStore, clientName 
     left join competitor_signal s on s.client_id = cc.client_id and s.competitor_id = co.id where cc.client_id = ${c.id}`);
   const rivals = tracked.map((t) => ({ id: t.id, name: t.name, tier: t.tier ?? 'minor' }))
     .sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || a.name.localeCompare(b.name));
+  const nameOf = (id: string) => tracked.find((t) => t.id === id)?.name ?? '';
   const [self] = await rows<{ domain: string | null }>(db, sql`select co.domain from client cl join competitor co on co.id = cl.self_competitor_id where cl.id = ${c.id}`);
 
   const briefs = await rows<{ id: string; period_start: Date; period_end: Date }>(db,
     sql`select id, period_start, period_end from brief where client_id = ${c.id} and status in ('approved', 'sent') order by period_end desc limit 4`);
   if (briefs.length === 0) throw new Error('sample brief: the demo client has no approved or sent brief');
-  type ItemRow = { id: string; brief_id: string; competitor_id: string | null; headline: string; what_changed: string; why_it_matters: string; recommended_action: string; event_ids: string[] };
-  const picked: ItemRow[] = [];
-  for (const b of briefs) {
-    if (picked.length >= MIN_ITEMS) break;
-    // upsell_tag is agency-only and never selected.
-    picked.push(...await rows<ItemRow>(db, sql`
-      select id, brief_id, competitor_id, headline, what_changed, why_it_matters, recommended_action, event_ids
-      from brief_item where brief_id = ${b.id} and status = 'active' order by ord`));
-  }
-  const itemRows = picked.slice(0, MAX_ITEMS);
 
   const evidence: Record<string, SampleEvidence> = {};
-  const rankGrid = await collectRankGrid(db, c, tracked, evidence);
-  const rankEvidenceFor = (at: Date) => Object.values(evidence).filter((e) => e.kind === 'rank' && e.weekOf <= day(at)).at(-1)?.id;
+  const { rankGrid, stats } = await collectRankGrid(db, c, tracked, evidence);
 
+  type ItemRow = { id: string; competitor_id: string | null; headline: string; what_changed: string; why_it_matters: string; recommended_action: string; event_ids: string[] };
   const items: Item[] = [];
-  for (const row of itemRows) {
-    const period = briefs.find((b) => b.id === row.brief_id)!;
-    const [ev] = await rows<{ id: string; change_type: string; details: { items?: { id: string }[] }; occurred_at: Date }>(db,
-      sql`select id, change_type, details, occurred_at from event where id = ${row.event_ids[0] ?? null}::uuid and retracted_at is null`);
-    const kind = (ev && KIND_OF[ev.change_type]) || 'listing';
-    const evidenceIds: string[] = [];
-    const add = (e: SampleEvidence) => { evidence[e.id] = e; evidenceIds.push(e.id); };
-    const rivalId = row.competitor_id;
-    if (ev && rivalId && kind === 'website') {
-      const [ch] = await rows<{ before_capture_id: string | null; after_capture_id: string | null; before_text: string | null; after_text: string | null }>(db, sql`
-        select dc.before_capture_id, dc.after_capture_id, dc.before_text, dc.after_text from event_change ec join detected_change dc on dc.id = ec.change_id where ec.event_id = ${ev.id} limit 1`);
-      if (ch?.before_capture_id && ch.after_capture_id) {
-        const [cap] = await rows<{ url: string | null; captured_at: Date }>(db, sql`select url, captured_at from capture where id = ${ch.after_capture_id}`);
-        const before = await pageTexts(db, store, ch.before_capture_id, ch.before_text);
-        const after = await pageTexts(db, store, ch.after_capture_id, ch.after_text);
-        const changed = after.findIndex((t, i) => t !== before[i]);
-        // The seed's page title is the competitor's name (evidence.ts PageMock).
-        const title = tracked.find((t) => t.id === rivalId)?.name ?? '';
-        if (cap && after.length > 0) add({ id: `snapshot:${ch.after_capture_id}`, kind: 'snapshot', rivalId, url: cap.url ?? '', capturedAt: iso(cap.captured_at), title, before, after, changed: Math.max(0, changed) });
+  for (const period of briefs) {
+    if (items.length >= MIN_ITEMS) break;
+    // upsell_tag is agency-only and never selected.
+    const itemRows = await rows<ItemRow>(db, sql`
+      select id, competitor_id, headline, what_changed, why_it_matters, recommended_action, event_ids
+      from brief_item where brief_id = ${period.id} and status = 'active' order by ord`);
+    for (const row of itemRows) {
+      if (items.length >= MAX_ITEMS) break;
+      const [ev] = await rows<{ id: string; change_type: string; details: Record<string, unknown> & { items?: { id: string }[] }; occurred_at: Date }>(db,
+        sql`select id, change_type, details, occurred_at from event where id = ${row.event_ids[0] ?? null}::uuid and retracted_at is null`);
+      const rivalId = row.competitor_id;
+      if (!ev || !rivalId) continue;
+      const kind = KIND_OF[ev.change_type];
+      if (!kind) throw new Error(`sample brief: no item kind for change type ${ev.change_type}`);
+      const item: Item = { id: row.id, rivalId, kind, headline: row.headline, whatChanged: row.what_changed, whyItMatters: row.why_it_matters, recommendedAction: row.recommended_action, evidenceIds: [] };
+      const add = (e: SampleEvidence) => { evidence[e.id] = e; item.evidenceIds.push(e.id); };
+      if (kind === 'website') {
+        const [ch] = await rows<{ before_capture_id: string | null; after_capture_id: string | null; before_text: string | null; after_text: string | null }>(db, sql`
+          select dc.before_capture_id, dc.after_capture_id, dc.before_text, dc.after_text from event_change ec join detected_change dc on dc.id = ec.change_id where ec.event_id = ${ev.id} limit 1`);
+        if (ch?.before_capture_id && ch.after_capture_id) {
+          const [cap] = await rows<{ url: string | null; captured_at: Date }>(db, sql`select url, captured_at from capture where id = ${ch.after_capture_id}`);
+          const before = await pageTexts(db, store, ch.before_capture_id, ch.before_text);
+          const after = await pageTexts(db, store, ch.after_capture_id, ch.after_text);
+          const changed = Array.from({ length: Math.max(before.length, after.length) }, (_, i) => i).find((i) => before[i] !== after[i]);
+          // Identical text proves nothing: no evidence. The seed's page title is the competitor's name (evidence.ts PageMock).
+          if (cap && changed !== undefined) add({ id: `snapshot:${ch.after_capture_id}`, kind: 'snapshot', rivalId, url: cap.url ?? '', capturedAt: iso(cap.captured_at), title: nameOf(rivalId), before, after, changed });
+        }
+      } else if (kind === 'ads') {
+        const ids = (ev.details.items ?? []).map((x) => x.id);
+        const ads = await rows<{ id: string; platform: string; title: string | null; text: string | null; started_at: Date | null; first_seen_at: Date }>(db, sql`
+          select id, platform, title, text, started_at, first_seen_at from ad where competitor_id = ${rivalId} and external_id in ${ids.length ? ids : ['']} order by external_id limit ${MAX_ADS}`);
+        // The raw platform passes through; finalize refuses anything but google/meta.
+        for (const a of ads) add({ id: `ad:${a.id}`, kind: 'ad', rivalId, platform: a.platform as 'google' | 'meta', firstSeen: day(a.started_at ?? a.first_seen_at), headline: a.title ?? 'Untitled', body: a.text ?? '' });
+      } else if (kind === 'reviews') {
+        const window = sql`competitor_id = ${rivalId} and posted_at >= ${iso(period.period_start)}::timestamptz and posted_at < ${iso(period.period_end)}::timestamptz`;
+        const [{ n } = { n: 0 }] = await rows<{ n: number }>(db, sql`select count(*)::int as n from review where ${window}`);
+        const list = await rows<{ rating: number; posted_at: Date; text: string }>(db,
+          sql`select rating, posted_at, text from review where ${window} and text is not null and rating is not null order by posted_at desc limit ${MAX_REVIEWS}`);
+        if (list.length > 0) {
+          add({
+            id: `reviews:${row.id}`, kind: 'reviews', rivalId, from: day(period.period_start), to: day(period.period_end), count: Number(n),
+            reviews: list.map((r, i) => ({ author: `Reviewer ${'ABCDE'[i]}`, rating: r.rating, date: day(r.posted_at), text: r.text })),
+          });
+        }
+      } else if (kind === 'rank' && ev.change_type === 'rank_change') {
+        // The scan the event came from (occurred_at = scan finish) against the previous done scan, counted for this item's rival.
+        const at = stats.findIndex((s) => Math.abs(s.finishedAt.getTime() - new Date(ev.occurred_at).getTime()) < 60_000);
+        if (at > 0) {
+          const [s0, s1] = [stats[at - 1]!, stats[at]!];
+          const copy = rankItemCopy({
+            rival: nameOf(rivalId), keyword: rankGrid.keyword, before: { n: s0.top3.get(rivalId) ?? 0, points: s0.points }, after: { n: s1.top3.get(rivalId) ?? 0, points: s1.points },
+            avgBefore: ev.details.avgRankBefore, avgAfter: ev.details.avgRankAfter,
+          });
+          Object.assign(item, { headline: copy.headline, whatChanged: copy.whatChanged, whyItMatters: copy.whyItMatters, recommendedAction: copy.recommendedAction });
+          add({ id: `rank-rival:${row.id}`, kind: 'rank', keyword: rankGrid.keyword, weekOf: day(s1.finishedAt), summary: copy.summary });
+        }
       }
-    } else if (ev && rivalId && kind === 'ads') {
-      const ids = (ev.details.items ?? []).map((x) => x.id);
-      const ads = await rows<{ id: string; platform: string; title: string | null; text: string | null; started_at: Date | null; first_seen_at: Date }>(db, sql`
-        select id, platform, title, text, started_at, first_seen_at from ad where competitor_id = ${rivalId} and external_id in ${ids.length ? ids : ['']} order by external_id limit ${MAX_ADS}`);
-      for (const a of ads) {
-        add({ id: `ad:${a.id}`, kind: 'ad', rivalId, platform: a.platform === 'meta' ? 'meta' : 'google', firstSeen: day(a.started_at ?? a.first_seen_at), headline: a.title ?? 'Untitled', body: a.text ?? '' });
-      }
-    } else if (ev && rivalId && kind === 'reviews') {
-      const window = sql`competitor_id = ${rivalId} and posted_at >= ${iso(period.period_start)}::timestamptz and posted_at < ${iso(period.period_end)}::timestamptz`;
-      const [{ n } = { n: 0 }] = await rows<{ n: number }>(db, sql`select count(*)::int as n from review where ${window}`);
-      const list = await rows<{ rating: number | null; posted_at: Date; text: string }>(db,
-        sql`select rating, posted_at, text from review where ${window} and text is not null and rating is not null order by posted_at desc limit ${MAX_REVIEWS}`);
-      add({
-        id: `reviews:${row.id}`, kind: 'reviews', rivalId, from: day(period.period_start), to: day(period.period_end), count: Number(n),
-        reviews: list.map((r, i) => ({ author: `Reviewer ${'ABCDE'[i]}`, rating: r.rating!, date: day(r.posted_at), text: r.text })),
-      });
-    } else if (ev && kind === 'rank') {
-      const id = rankEvidenceFor(ev.occurred_at);
-      if (id) evidenceIds.push(id);
+      // Listing changes (rating, service area, location, hiring) and tier changes have no text evidence: skipped.
+      if (item.evidenceIds.length > 0) items.push(item);
     }
-    items.push({ id: row.id, rivalId, kind, headline: row.headline, whatChanged: row.what_changed, whyItMatters: row.why_it_matters, recommendedAction: row.recommended_action, evidenceIds });
   }
+  if (items.length === 0) throw new Error('sample brief: no brief item has text evidence');
 
   const resultTitles = await rows<{ title: string; domain: string | null }>(db, sql`
     select distinct r->>'title' as title, r->>'domain' as domain from rank_snapshot s cross join jsonb_array_elements(s.results) r
@@ -142,39 +178,53 @@ export async function collectSampleBrief(db: Db, store: ObjectStore, clientName 
   return { raw, sources };
 }
 
-/** The 12 latest done scans of keyword 0: per cell the client's own rank (title match) and, per week, the rival ranked first in most cells. */
-async function collectRankGrid(db: Db, c: { id: string; name: string; keywords: string[] }, tracked: { id: string; name: string; place_id: string | null }[], evidence: Record<string, SampleEvidence>): Promise<SampleBriefData['rankGrid']> {
+/**
+ * Done scans that include keyword 0 (scans without snapshots skipped): the grid shows the latest 12, per cell the client's own rank
+ * (title match) and per week the rival ranked first in most cells; `stats` (every kept scan) feeds the rank items.
+ */
+async function collectRankGrid(db: Db, c: { id: string; name: string; keywords: string[] }, tracked: { id: string; name: string; place_id: string | null }[], evidence: Record<string, SampleEvidence>): Promise<{ rankGrid: SampleBriefData['rankGrid']; stats: ScanStats[] }> {
   const keyword = c.keywords[0];
   if (!keyword) throw new Error('sample brief: the demo client has no keywords');
-  const scans = (await rows<{ id: string; finished_at: Date; grid_size: number | null }>(db,
-    sql`select id, finished_at, grid_size from rank_scan where client_id = ${c.id} and status = 'done' order by finished_at desc limit ${WEEKS}`)).reverse();
+  const scans = (await rows<{ id: string; finished_at: Date; grid_size: number | null }>(db, sql`
+    select id, finished_at, grid_size from rank_scan where client_id = ${c.id} and status = 'done' and keywords @> ${JSON.stringify([keyword])}::jsonb
+    order by finished_at desc limit ${WEEKS * 2}`)).reverse();
   if (scans.length === 0) throw new Error('sample brief: the demo client has no done rank scans');
   const snaps = await rows<{ scan_id: string; lat: number; lng: number; results: { rank: number; title: string; placeId: string | null }[] }>(db,
     sql`select scan_id, lat, lng, results from rank_snapshot where scan_id in ${scans.map((s) => s.id)} and keyword = ${keyword}`);
-  const size = scans[0]!.grid_size ?? 7;
+  const size = scans.at(-1)!.grid_size ?? 7;
   // Grid rows run north to south, columns west to east; coordinates are identical across scans of the same settings.
   const lats = [...new Set(snaps.map((s) => s.lat))].sort((a, b) => b - a);
   const lngs = [...new Set(snaps.map((s) => s.lng))].sort((a, b) => a - b);
   if (lats.length > size || lngs.length > size) throw new Error('sample brief: rank snapshots do not form one grid');
   const rivalOf = (r: { title: string; placeId: string | null }) => tracked.find((t) => (r.placeId && t.place_id === r.placeId) || t.name === r.title)?.id ?? null;
-  const weeks: Week[] = [];
+  const weeks: (Week & { points: number })[] = [];
+  const stats: ScanStats[] = [];
   for (const scan of scans) {
+    const cells = snaps.filter((x) => x.scan_id === scan.id);
+    if (cells.length === 0) continue;
     const you: (number | null)[] = Array(size * size).fill(null);
     const leads = new Map<string, number>();
-    for (const s of snaps.filter((x) => x.scan_id === scan.id)) {
-      const cell = lats.indexOf(s.lat) * size + lngs.indexOf(s.lng);
-      you[cell] = s.results.find((r) => r.title === c.name)?.rank ?? null;
+    const top3 = new Map<string, number>();
+    for (const s of cells) {
+      you[lats.indexOf(s.lat) * size + lngs.indexOf(s.lng)] = s.results.find((r) => r.title === c.name)?.rank ?? null;
+      for (const r of s.results.filter((x) => x.rank <= 3)) {
+        const id = rivalOf(r);
+        if (id) top3.set(id, (top3.get(id) ?? 0) + 1);
+      }
       const top = s.results.find((r) => r.rank === 1);
       const lead = top ? rivalOf(top) : null;
       if (lead) leads.set(lead, (leads.get(lead) ?? 0) + 1);
     }
+    stats.push({ id: scan.id, finishedAt: new Date(scan.finished_at), points: cells.length, top3 });
     const leaderRivalId = [...leads.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
-    const weekOf = day(scan.finished_at);
-    weeks.push({ weekOf, you, leaderRivalId });
-    const top3 = you.filter((r) => r !== null && r <= 3).length;
-    evidence[`rank:${scan.id}`] = { id: `rank:${scan.id}`, kind: 'rank', keyword, weekOf, summary: `top 3 in ${top3} of ${size * size} points` };
+    weeks.push({ weekOf: day(scan.finished_at), you, leaderRivalId, points: cells.length });
   }
-  return { keyword, size, weeks };
+  const shown = weeks.slice(-WEEKS);
+  for (const w of shown) {
+    const n = w.you.filter((r) => r !== null && r <= 3).length;
+    evidence[`rank:${w.weekOf}`] = { id: `rank:${w.weekOf}`, kind: 'rank', keyword, weekOf: w.weekOf, summary: `You: top 3 in ${n} of ${w.points} points` };
+  }
+  return { rankGrid: { keyword, size, weeks: shown.map(({ weekOf, you, leaderRivalId }) => ({ weekOf, you, leaderRivalId })) }, stats };
 }
 
 export class SampleBriefGuardError extends Error {
@@ -205,6 +255,8 @@ export function finalizeSampleBrief(raw: SampleBriefData, sources: RenameSources
     if (!v) throw new Error('sample brief: unknown rival id');
     return v;
   };
+  // No evidence, no claim: every item carries at least one evidence id.
+  if (raw.items.some((i) => i.evidenceIds.length === 0)) throw new Error('sample brief: an item has no evidence');
   const referenced = raw.items.flatMap((i) => i.evidenceIds);
   for (const k of referenced) if (!(k in raw.evidence)) throw new Error('sample brief: unknown evidence id');
   const evIds = new Map([...new Set([...referenced, ...Object.keys(raw.evidence)])].map((k, i) => [k, `e${i + 1}`]));

@@ -59,6 +59,13 @@ describe('buildRenamer', () => {
     expect(r.apply('tx')).toBe(FICTIONAL.stateCode.toLowerCase());
     expect(guard([out, r.apply('Texas, North Texas, tx')], [], new Set())).toEqual([]);
   });
+  it('neighbouring derived names use different tails and all 120 stay distinct', () => {
+    const r = buildRenamer({ client: 'C', businesses: many(120), places: [], domains: [] });
+    const names = [...new Set(many(120))].sort().map((s) => r.terms.get(s)!);
+    expect(new Set(names).size).toBe(120);
+    const tails = names.slice(0, 5).map((n) => FICTIONAL.businessTails.find((t) => n.endsWith(t)));
+    expect(new Set(tails).size).toBe(5);
+  });
   it('throws on a collision', () => {
     expect(() => buildRenamer({ client: 'C', businesses: ['Copperleaf Comfort Co'], places: [], domains: [] })).toThrow(/collides/);
   });

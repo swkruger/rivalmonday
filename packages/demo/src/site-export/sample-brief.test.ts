@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { FILLER_BUSINESSES } from '../rankings';
 import { CLIENT_SPECS } from '../tenancy';
 import { buildRenamer, DEMO_PLACES, FICTIONAL, guard, type RenameSources, STATE_TERMS } from './rename';
-import { finalizeSampleBrief, SampleBriefGuardError } from './sample-brief';
+import { finalizeSampleBrief, rankItemCopy, SampleBriefGuardError } from './sample-brief';
 import type { SampleBriefData } from './types';
 
 const content = (f: string) => new URL(`../../../../apps/site/content/${f}`, import.meta.url);
@@ -133,6 +133,24 @@ describe('finalizeSampleBrief', () => {
     raw.items[1]!.evidenceIds = ['missing'];
     expect(() => finalizeSampleBrief(raw, sources)).toThrow(/unknown evidence/);
   });
+
+  it('finalize refuses an item without evidence and an unknown ad platform', () => {
+    const noEvidence = fixture();
+    noEvidence.items[1]!.evidenceIds = [];
+    expect(() => finalizeSampleBrief(noEvidence, sources)).toThrow(/no evidence/);
+    const badPlatform = fixture();
+    (badPlatform.evidence[E2] as { platform: string }).platform = 'tiktok';
+    expect(() => finalizeSampleBrief(badPlatform, sources)).toThrow(/unknown ad platform/);
+  });
+});
+
+describe('rankItemCopy', () => {
+  it('rounds both positions to one decimal and builds claim and evidence from the same counts', () => {
+    const c = rankItemCopy({ rival: 'R', keyword: 'k', before: { n: 8, points: 49 }, after: { n: 31, points: 49 }, avgBefore: 5.53, avgAfter: 3.1 });
+    expect(c.headline).toBe('"k": average map position 5.5 → 3.1, top-3 share 16% → 63%');
+    expect(c.whyItMatters).toBe('R now shows in the map top 3 across 63% of your service area, up from 16%.');
+    expect(c.summary).toBe('R: top 3 in 31 of 49 points');
+  });
 });
 
 describe('committed site content', () => {
@@ -145,8 +163,26 @@ describe('committed site content', () => {
     const domains = [...JSON.stringify(json).matchAll(/\b([a-z0-9-]+\.example)\b/g)].map((m) => m[1]!);
     const allow = new Set(domains.filter((d) => /^rival-\d+\.example$/.test(d) || fictionalSlugs.some((s) => d.startsWith(s))));
     expect(guard(json, deny, allow)).toEqual([]);
-    expect(json.items.filter((i) => i.evidenceIds.length > 0).length).toBeGreaterThanOrEqual(4);
+    expect(json.items.length).toBeGreaterThanOrEqual(4);
+    for (const i of json.items) expect(i.evidenceIds.length).toBeGreaterThan(0);
     expect(json.rankGrid.weeks).toHaveLength(12);
+  });
+
+  it("rank item evidence counts the item's rival and agrees with its claim", () => {
+    const json = JSON.parse(readFileSync(content('sample-brief.json'), 'utf8')) as SampleBriefData;
+    const rankItems = json.items.filter((i) => i.kind === 'rank');
+    expect(rankItems.length).toBeGreaterThan(0);
+    for (const item of rankItems) {
+      const rival = json.rivals.find((r) => r.id === item.rivalId)!;
+      const ev = item.evidenceIds.map((id) => json.evidence[id]!).find((e) => e.kind === 'rank');
+      if (ev?.kind !== 'rank') throw new Error('rank item without rank evidence');
+      const m = /^(.+): top 3 in (\d+) of (\d+) points$/.exec(ev.summary);
+      expect(m?.[1]).toBe(rival.name);
+      const share = Math.round((Number(m![2]) / Number(m![3])) * 100);
+      expect(item.whyItMatters).toBe(`${rival.name} now shows in the map top 3 across ${share}% of your service area, up from ${/up from (\d+)%/.exec(item.whyItMatters)![1]}%.`);
+      expect(item.headline.endsWith(`→ ${share}%`)).toBe(true);
+      expect(item.whatChanged).toContain(`at ${m![2]} of ${m![3]} points`);
+    }
   });
 
   it('committed verticals are id/name pairs, sorted, no generic', () => {

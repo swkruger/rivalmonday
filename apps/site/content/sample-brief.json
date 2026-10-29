@@ -4,28 +4,28 @@
   "business": {
     "name": "Northwind Heating & Air",
     "vertical": "Heating & air",
-    "area": "Marlowehaven"
+    "area": "Marlowemere"
   },
   "weekOf": "2026-10-19",
   "rivals": [
     {
       "id": "r1",
-      "name": "Quillstone Comfort Co",
+      "name": "Quillstone Climate Pros",
       "tier": "top"
     },
     {
       "id": "r2",
-      "name": "Juniperwell Comfort Co",
+      "name": "Juniperwell Air Works",
       "tier": "top"
     },
     {
       "id": "r3",
-      "name": "Tidewell Comfort Co",
+      "name": "Tidewell Mechanical",
       "tier": "watch"
     },
     {
       "id": "r4",
-      "name": "Saffronfield Comfort Co",
+      "name": "Saffronfield Climate Pros",
       "tier": "watch"
     },
     {
@@ -35,7 +35,7 @@
     },
     {
       "id": "r6",
-      "name": "Kestrel Comfort Co",
+      "name": "Kestrel Mechanical",
       "tier": "minor"
     }
   ],
@@ -44,10 +44,10 @@
       "id": "i1",
       "rivalId": "r1",
       "kind": "rank",
-      "headline": "\"ac repair marlowehaven\": average map position 5.53 → 3.1, top-3 share 16% → 63%",
-      "whatChanged": "\"ac repair marlowehaven\": average map position 5.53 → 3.1, top-3 share 16% → 63%.",
-      "whyItMatters": "A minor site change, worth a glance.",
-      "recommendedAction": "No action needed.",
+      "headline": "\"ac repair marlowemere\": average map position 5.5 → 3.1, top-3 share 16% → 63%",
+      "whatChanged": "Quillstone Climate Pros now ranks in the map top 3 at 31 of 49 points for \"ac repair marlowemere\", up from 8 of 49.",
+      "whyItMatters": "Quillstone Climate Pros now shows in the map top 3 across 63% of your service area, up from 16%.",
+      "recommendedAction": "Check your Google Business Profile categories and recent reviews for the areas they took.",
       "evidenceIds": [
         "e1"
       ]
@@ -56,8 +56,8 @@
       "id": "i2",
       "rivalId": "r6",
       "kind": "website",
-      "headline": "Kestrel Comfort Co cut its AC repair diagnostic to $69 (was $89)",
-      "whatChanged": "Kestrel Comfort Co cut its AC repair diagnostic to $69 (was $89).",
+      "headline": "Kestrel Mechanical cut its AC repair diagnostic to $69 (was $89)",
+      "whatChanged": "Kestrel Mechanical cut its AC repair diagnostic to $69 (was $89).",
       "whyItMatters": "Price-sensitive customers in your area compare these prices before they book.",
       "recommendedAction": "Promote a value bundle instead of matching the price.",
       "evidenceIds": [
@@ -68,8 +68,8 @@
       "id": "i3",
       "rivalId": "r1",
       "kind": "ads",
-      "headline": "Quillstone Comfort Co started 2 Meta ads",
-      "whatChanged": "Quillstone Comfort Co started 2 Meta ads.",
+      "headline": "Quillstone Climate Pros started 2 Meta ads",
+      "whatChanged": "Quillstone Climate Pros started 2 Meta ads.",
       "whyItMatters": "More paid ads usually mean more calls going to them for the same searches.",
       "recommendedAction": "Check your ad coverage on the same keywords.",
       "evidenceIds": [
@@ -81,8 +81,8 @@
       "id": "i4",
       "rivalId": "r3",
       "kind": "website",
-      "headline": "Tidewell Comfort Co added heat pump installation to its services",
-      "whatChanged": "Tidewell Comfort Co added heat pump installation to its services.",
+      "headline": "Tidewell Mechanical added heat pump installation to its services",
+      "whatChanged": "Tidewell Mechanical added heat pump installation to its services.",
       "whyItMatters": "They now compete for a service you offer.",
       "recommendedAction": "Highlight your experience with this service on your site.",
       "evidenceIds": [
@@ -94,17 +94,17 @@
     "e1": {
       "id": "e1",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-10-13",
-      "summary": "top 3 in 42 of 49 points"
+      "summary": "Quillstone Climate Pros: top 3 in 31 of 49 points"
     },
     "e2": {
       "id": "e2",
       "kind": "snapshot",
       "rivalId": "r6",
-      "url": "https://kestrel-comfort-co.example/pricing",
+      "url": "https://kestrel-mechanical.example/pricing",
       "capturedAt": "2026-10-09T11:19:24.669Z",
-      "title": "Kestrel Comfort Co",
+      "title": "Kestrel Mechanical",
       "before": [
         "AC repair diagnostic: $89"
       ],
@@ -135,9 +135,9 @@
       "id": "e5",
       "kind": "snapshot",
       "rivalId": "r3",
-      "url": "https://tidewell-comfort-co.example/",
+      "url": "https://tidewell-mechanical.example/",
       "capturedAt": "2026-10-03T11:19:24.669Z",
-      "title": "Tidewell Comfort Co",
+      "title": "Tidewell Mechanical",
       "before": [
         "Our services: repair, maintenance, installation"
       ],
@@ -149,83 +149,90 @@
     "e6": {
       "id": "e6",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-08-04",
-      "summary": "top 3 in 33 of 49 points"
+      "summary": "You: top 3 in 33 of 49 points"
     },
     "e7": {
       "id": "e7",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-08-11",
-      "summary": "top 3 in 33 of 49 points"
+      "summary": "You: top 3 in 33 of 49 points"
     },
     "e8": {
       "id": "e8",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-08-18",
-      "summary": "top 3 in 43 of 49 points"
+      "summary": "You: top 3 in 43 of 49 points"
     },
     "e9": {
       "id": "e9",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-08-25",
-      "summary": "top 3 in 36 of 49 points"
+      "summary": "You: top 3 in 36 of 49 points"
     },
     "e10": {
       "id": "e10",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-09-01",
-      "summary": "top 3 in 41 of 49 points"
+      "summary": "You: top 3 in 41 of 49 points"
     },
     "e11": {
       "id": "e11",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-09-08",
-      "summary": "top 3 in 40 of 49 points"
+      "summary": "You: top 3 in 40 of 49 points"
     },
     "e12": {
       "id": "e12",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-09-15",
-      "summary": "top 3 in 46 of 49 points"
+      "summary": "You: top 3 in 46 of 49 points"
     },
     "e13": {
       "id": "e13",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-09-22",
-      "summary": "top 3 in 44 of 49 points"
+      "summary": "You: top 3 in 44 of 49 points"
     },
     "e14": {
       "id": "e14",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-09-29",
-      "summary": "top 3 in 43 of 49 points"
+      "summary": "You: top 3 in 43 of 48 points"
     },
     "e15": {
       "id": "e15",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-10-06",
-      "summary": "top 3 in 48 of 49 points"
+      "summary": "You: top 3 in 48 of 49 points"
     },
     "e16": {
       "id": "e16",
       "kind": "rank",
-      "keyword": "ac repair marlowehaven",
+      "keyword": "ac repair marlowemere",
+      "weekOf": "2026-10-13",
+      "summary": "You: top 3 in 42 of 49 points"
+    },
+    "e17": {
+      "id": "e17",
+      "kind": "rank",
+      "keyword": "ac repair marlowemere",
       "weekOf": "2026-10-20",
-      "summary": "top 3 in 42 of 49 points"
+      "summary": "You: top 3 in 42 of 49 points"
     }
   },
   "rankGrid": {
-    "keyword": "ac repair marlowehaven",
+    "keyword": "ac repair marlowemere",
     "size": 7,
     "weeks": [
       {

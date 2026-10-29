@@ -37,7 +37,9 @@ const PHONE = /(?<![\da-z])(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}(?![\
 const matchCase = (found: string, repl: string) => (found === found.toLowerCase() ? repl.toLowerCase() : repl);
 const derive = (stems: readonly string[], tails: readonly string[], sep: string, i: number, kind: string) => {
   if (i >= stems.length * tails.length) throw new Error(`rename: more than ${stems.length * tails.length} ${kind}`);
-  return `${stems[i % stems.length]}${sep}${tails[Math.floor(i / stems.length)]}`;
+  // The tail varies per name (stem index + round), so neighbours differ while every (stem, tail) pair is still used at most once.
+  const stem = i % stems.length;
+  return `${stems[stem]}${sep}${tails[(stem + Math.floor(i / stems.length)) % tails.length]}`;
 };
 
 export function buildRenamer(src: RenameSources): Renamer {
