@@ -1,15 +1,14 @@
 # phase-17 — marketing launch site (rivalmonday.com) + pilot waitlist
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 023a9f52 (rebased; phase-16 merged)
-**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (implemented, final review pending); 17b, 17c to follow
+**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (done, final review clean); 17b `docs/superpowers/plans/2026-10-29-phase-17b-site-foundation-and-home.md` (executing); 17c to follow
 
 ## Status (overwrite)
-2026-10-29: **17a implemented (Tasks 1-12)**, final whole-branch review pending. Spec approved 2026-10-28; split 17a (app: waitlist, pilot switch, invites, samples) -> 17b (`apps/site` foundation + home + popup + sample brief) -> 17c (integrations/sources/compare/pricing/partners + SEO). Task 12 added the copy sign-off (`docs/archive/phase-17a-copy-signoff.md`), `apps/web/e2e/waitlist.spec.ts` (`@waitlist`, `@platform`; not yet run, runs once at the final review), seed rows, 8b doc rows and guide additions.
+2026-10-29: **17a done (Tasks 1-12 + final fix wave 3817a19b)**: final review clean; test:affected green after the fix wave (fixed help-content + billing page tests); E2E affected 150/150. Spec approved 2026-10-28; split 17a (app: waitlist, pilot switch, invites, samples) -> 17b (`apps/site` foundation + home + popup + sample brief) -> 17c (integrations/sources/compare/pricing/partners + SEO). Task 12 added the copy sign-off (`docs/archive/phase-17a-copy-signoff.md`), `apps/web/e2e/waitlist.spec.ts` (`@waitlist`, `@platform`; not yet run, runs once at the final review), seed rows, 8b doc rows and guide additions.
 
 ## Next (overwrite)
-1. Final review: `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` once (`--base main`), `bash scripts/design-lint.sh`, `git ls-files --eol | grep crlf` (empty), `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`; one fix wave.
-2. Owner: sign the copy file and do the verification steps below; then `/rm-merge`.
-3. Write the 17b and 17c plans.
+1. 17b execution (subagent-driven), then write + execute the 17c plan.
+2. Owner: sign `docs/archive/phase-17a-copy-signoff.md` (+ the skipped-row message "(not confirmed, already handled or failed)") and do the verification steps below; `/rm-merge` only after 17b/17c or on the owner's call.
 
 ## Interfaces this branch adds or changes
 - **Migration 0096** `waitlist_entry` (platform class, service role only; unique `(kind, email)`; confirm token hash + 7-day expiry; sample columns) and `brief.claims_checked integer`. Next free migration **0097**.
@@ -37,7 +36,7 @@ Plan P1-P15 (details in the plan): P1 public writes are service functions, no sy
 1. Add `SITE_ORIGIN=https://rivalmonday.com` (+ preview origins in `SITE_ORIGIN_EXTRA`, comma-separated) on Vercel and in `.env` yourself.
 2. Add `rivalmonday.com` (+ `www`) to the Turnstile widget's hostnames.
 3. `pnpm db:migrate`. Turn Pilot mode on at `/platform/billing`, open `/sign-up` in a private window: the pilot message shows.
-4. In dev without Turnstile keys: `curl -X POST <app>/api/waitlist -H 'Origin: https://rivalmonday.com' -H 'content-type: application/json' -d '{...agency json with "turnstileToken":"x"...}'` returns `{"ok":true}`. Open the confirmation email in `apps/web/.outbox/`, click Confirm: "You're confirmed".
+4. With Cloudflare's **test** Turnstile secret in `.env` (`TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA`; without any secret the live/dev env now refuses with `400 check`): `curl -X POST <app>/api/waitlist -H 'Origin: https://rivalmonday.com' -H 'content-type: application/json' -d '{...agency json with "turnstileToken":"x"...}'` returns `{"ok":true}`. Open the confirmation email in `apps/web/.outbox/`, click Confirm: "You're confirmed".
 5. Invite it from `/platform/waitlist`: the invite email is in the outbox.
 6. Submit a sample request, approve it with a real listing, run setup (pick rivals yourself, do not use "Ask the owner"), approve the starting point in Approvals, press Send sample, open the link in a private window. Check the evidence opens and nothing links into the app.
 7. `curl <app>/api/site-status`.
