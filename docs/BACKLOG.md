@@ -72,6 +72,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Model ops
 
 ### Pilot
+- [ ] Copy gate: make `copy:status --strict emails,site,site-legal,app-client` block `deploy`/`deploy-site` before the first pilot invite (owner decision; today the CI step only fails on a malformed `docs/copy/signoff.json`) — *copy-signoff-tool*
+- [ ] Copy tool gaps: scan `packages/verticals/packs/*.yaml` playbook titles/bodies (reach clients as recommendations) and labels passed to local helpers (`chart(…)`, `input(…)`, `adMatchAction(…)`); exclude dev-only strings (`apps/web/src/server/env.ts`, `tools/src/kb/seed.ts`); split JSX sentences show as fragments ("First seen {…}"); an edit whose old text still appears elsewhere in the file shows "unsigned", not "changed" — *copy-signoff-tool*
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a* (7c2 Task 13, owner)
 - [ ] Review/rename/remove the `CS Dev Verification Agency`/`Client` (`aaf5e009-…`/`25f99947-…`) before real onboarding — *from HANDOVER §5 item 5* (7c2 Task 13, owner)
@@ -250,6 +252,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Copy sign-off now happens in `pnpm copy:review` (ledger `docs/copy/signoff.json`): the per-phase sign-off items below (archive `*copy-signoff*.md` docs) close once their surfaces are signed in the tool; decide whether tool `.describe()` parameter text stays in the scan — *copy-signoff-tool*
 - [ ] Verify 15c-2a: slack-teams settings; Team Resend (4th/24 h refused); intake Preview with link off; check-email Resend countdown; `/platform/billing` tabs; Alert review client filter; Branding buttons — *moved from STATE at jev-openrouter merge*
 - [ ] Verify 15c-1: unknown URL shows "Page not found"; radius in miles; rankings charts "You" dark blue; sign off [archive/phase-15c1-copy-signoff.md](archive/phase-15c1-copy-signoff.md); decide the `reportError` digest-skip — *moved from STATE at jev-openrouter merge*
 - [ ] Sign [archive/phase-16-onboarding-copy-signoff.md](archive/phase-16-onboarding-copy-signoff.md) (incl. "Decisions for the owner" + "Final fixes") — *phase-16*
