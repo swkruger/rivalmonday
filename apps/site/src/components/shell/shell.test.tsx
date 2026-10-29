@@ -87,7 +87,7 @@ describe('site shell', () => {
     // footer lists a legal/product link only when its path is registered
     const registered = new Set(PAGES.map((p) => p.path));
     for (const [label, path] of [['Privacy', '/privacy'], ['Terms', '/terms'], ['How it works', '/how-it-works'], ['Sample brief', '/sample-brief']] as const) {
-      expect(screen.queryByRole('link', { name: label }) !== null).toBe(registered.has(path));
+      expect(screen.queryAllByRole('link', { name: label }).length > 0).toBe(registered.has(path));
     }
   });
 

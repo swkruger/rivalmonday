@@ -19,6 +19,40 @@ export const PAGES: readonly SitePage[] = [
     changeFrequency: 'monthly',
     priority: 1,
   },
+  {
+    path: '/how-it-works',
+    title: 'How it works',
+    description: 'How every claim in a brief is captured, written from evidence, verified and linked back to its source.',
+    nav: { label: 'How it works', order: 10 },
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
+    path: '/sample-brief',
+    title: 'Sample Monday brief',
+    description: 'See a full Monday brief for a fictional local business, with every claim linked to the evidence behind it.',
+    nav: { label: 'Sample brief', order: 20 },
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
+    path: '/privacy',
+    title: 'Privacy',
+    description: 'What the waitlist form collects, why, and who helps us run the site.',
+    sitemap: true,
+    changeFrequency: 'yearly',
+    priority: 0.3,
+  },
+  {
+    path: '/terms',
+    title: 'Terms',
+    description: 'Terms for the Rival Monday pilot and this website.',
+    sitemap: true,
+    changeFrequency: 'yearly',
+    priority: 0.3,
+  },
 ];
 
 export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [
