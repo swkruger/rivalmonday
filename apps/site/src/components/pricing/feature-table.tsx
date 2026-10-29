@@ -1,5 +1,5 @@
 import { Check, Minus } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Frame, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { FEATURE_ROWS } from '../../../content/pricing-page';
 
 function Cell({ value }: { value: boolean | string }) {
@@ -7,7 +7,7 @@ function Cell({ value }: { value: boolean | string }) {
     return (
       <>
         <Check aria-hidden="true" className="mr-1.5 inline size-4 text-secondary" />
-        <span className="sr-only">Included</span>
+        <span>Included</span>
       </>
     );
   }
@@ -15,7 +15,7 @@ function Cell({ value }: { value: boolean | string }) {
     return (
       <>
         <Minus aria-hidden="true" className="mr-1.5 inline size-4 text-muted-ink" />
-        <span className="sr-only">Not included</span>
+        <span>Not included</span>
       </>
     );
   }
@@ -24,6 +24,7 @@ function Cell({ value }: { value: boolean | string }) {
 
 export function FeatureTable() {
   return (
+    <Frame flush className="overflow-hidden px-4">
     <Table>
       <TableHeader>
         <TableRow>
@@ -42,5 +43,6 @@ export function FeatureTable() {
         ))}
       </TableBody>
     </Table>
+    </Frame>
   );
 }

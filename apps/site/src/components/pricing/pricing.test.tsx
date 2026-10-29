@@ -48,8 +48,10 @@ describe('Faq', () => {
   it('faq ld matches visible questions', () => {
     const { container } = render(<Faq />);
     const visible = [...container.querySelectorAll('details summary')].map((s) => s.textContent);
-    const ld = faqPageLd(PRICING_FAQ) as { mainEntity: { name: string }[] };
+    const ld = faqPageLd(PRICING_FAQ) as { mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
     expect(ld.mainEntity.map((m) => m.name)).toEqual(visible);
+    const answers = [...container.querySelectorAll('details > p:first-of-type')].map((p) => p.textContent);
+    expect(ld.mainEntity.map((m) => m.acceptedAnswer.text)).toEqual(answers);
     expect(container.querySelector('a[href="/sources"]')).toBeTruthy();
   });
 });

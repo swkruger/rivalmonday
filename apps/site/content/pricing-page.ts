@@ -46,7 +46,7 @@ export const PLAN_CARDS: { pilot: { agency: PlanCopy; business: PlanCopy }; tria
     business: {
       name: 'For local businesses',
       price: `$${business.monthlyUsd}/mo`,
-      note: 'Join the waitlist and we will pair you with an agency',
+      note: "Join the waitlist and we'll match you with an agency where we can",
       points: BUSINESS_POINTS,
       cta: 'business',
     },
@@ -79,12 +79,12 @@ export const FEATURE_ROWS: readonly { label: string; agency: boolean | string; b
 export const PRICING_FAQ: readonly { q: string; a: string; ledger: string; link?: { href: string; label: string } }[] = [
   {
     q: 'Is it really white-label?',
-    a: "Mostly. You set your name, logo, colors, email sender name and sign-off, and your assistant's name, and client pages do not show Rival Monday's name. Your own web address for client logins is on the roadmap. For now, logins and links use our address.",
+    a: "Mostly. You set your name, logo, colors, email sender name and sign-off, and your assistant's name, and client pages do not show Rival Monday's name. Your own web address for client logins is on the roadmap. For now, logins and links use our address. Emails are sent from our address under your sender name.",
     ledger: 'faq-white-label',
   },
   {
     q: 'Where does the data come from?',
-    a: 'Public information only. We never log in to anything, and reviewers are pseudonymised.',
+    a: 'Public information only. We never log in to anything, and reviewers are pseudonymized.',
     ledger: 'faq-data',
     link: { href: '/sources', label: 'See what we collect' },
   },
