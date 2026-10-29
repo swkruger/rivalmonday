@@ -1,7 +1,7 @@
 # phase-17 — marketing launch site (rivalmonday.com) + pilot waitlist
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 023a9f52 (rebased; phase-16 merged)
-**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (drafting); 17b, 17c to follow
+**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (awaiting owner approval); 17b, 17c to follow
 
 ## Status (overwrite)
 2026-10-28: brainstorm done, spec approved by owner. Split 17a (app: waitlist, pilot switch, invites, samples) → 17b (`apps/site` foundation + home + popup + sample brief) → 17c (integrations/sources/compare/pricing/partners + SEO). 17a plan being drafted.
