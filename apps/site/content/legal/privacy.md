@@ -1,4 +1,4 @@
-<!-- OWNER-PLACEHOLDER: replace with counsel-reviewed text. The analytics and error-monitoring sentences describe the site after Task 14 (Vercel Web Analytics, browser Sentry); check them against what actually ships. -->
+<!-- OWNER-PLACEHOLDER: replace with counsel-reviewed text. The analytics and error-monitoring sentences describe the site after Task 14 (Vercel Web Analytics, browser Sentry); check them against what actually ships. The "sets no cookies of its own" line is about the site only: Cloudflare Turnstile may set its own cookies. -->
 Last updated: 2026-10-29
 
 This is a draft outline, not final legal text. It describes in plain words what the waitlist form collects and why.

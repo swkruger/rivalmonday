@@ -42,8 +42,13 @@ describe('findPlaceholders', () => {
     expect(findPlaceholders(root).map((h) => h.file).sort()).toEqual(['content/a.md', 'content/b.md', 'content/c.md', 'public/d.txt']);
   });
 
-  it('catches the real founder note', () => {
-    const real = findPlaceholders(join(__dirname, '..'));
-    expect(real.some((h) => h.file === 'content/founder.ts')).toBe(true);
+  it('catches a founder-style marker and passes once it is filled in', () => {
+    const marked = tree({ 'content/founder.ts': '// OWNER-PLACEHOLDER: the owner supplies the note
+export const FOUNDER_NOTE = null;
+' });
+    expect(findPlaceholders(marked)).toEqual([{ file: 'content/founder.ts', line: 1 }]);
+    const filled = tree({ 'content/founder.ts': "export const FOUNDER_NOTE = { name: 'A' };
+" });
+    expect(findPlaceholders(filled)).toEqual([]);
   });
 });
