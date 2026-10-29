@@ -27,14 +27,15 @@ import { PilotProvider } from './pilot-context';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { AnnouncementBar } from './announcement-bar';
+import { footerColumns, navItems } from './nav-items';
 
 function Shell() {
   return (
     <PilotProvider>
       <JoinProvider>
         <AnnouncementBar />
-        <SiteHeader />
-        <SiteFooter />
+        <SiteHeader items={navItems()} />
+        <SiteFooter columns={footerColumns()} />
       </JoinProvider>
     </PilotProvider>
   );
@@ -84,6 +85,23 @@ describe('site shell', () => {
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Join the pilot' }));
     expect(openSpy).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('mobile menu items equal the header items', async () => {
+    await renderShell();
+    const main = within(screen.getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const mobile = within(screen.getByRole('navigation', { name: 'Mobile' })).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')]);
+    expect(mobile).toEqual(main);
+    expect(main.length).toBeGreaterThan(0);
+  });
+
+  it('a mobile menu link closes the sheet on navigate', async () => {
+    await renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const link = within(screen.getByRole('navigation', { name: 'Mobile' })).getByRole('link', { name: 'Pricing' });
+    fireEvent.click(link);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

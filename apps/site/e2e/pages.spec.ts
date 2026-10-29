@@ -106,6 +106,28 @@ test.describe('compare toggle', () => {
       await expect(page.locator('footer a[href="/compare/brightlocal"]')).toHaveCount(1);
     }
   });
+
+  test('a disabled rival has no og image', async ({ request }) => {
+    expect((await request.get('/compare/visualping/opengraph-image')).status()).toBe(404);
+  });
+
+  test('no static chunk any page loads contains the disabled rival', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    await mockApp(page);
+    const chunks = new Set<string>();
+    page.on('request', (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith('/_next/static/')) chunks.add(u.pathname);
+    });
+    for (const path of ['/', '/compare', '/compare/brightlocal', '/pricing', '/integrations', '/sources']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+    }
+    expect(chunks.size).toBeGreaterThan(0);
+    const leaking: string[] = [];
+    for (const c of chunks) if ((await (await request.get(c)).text()).includes('Visualping')) leaking.push(c);
+    expect(leaking).toEqual([]);
+  });
 });
 
 test.describe('structured data', () => {
@@ -141,6 +163,14 @@ test.describe('structured data', () => {
     await page.goto('/compare/brightlocal');
     expect((await ldJson(page)).flatMap(types)).toContain('BreadcrumbList');
   });
+
+  for (const path of ['/how-it-works', '/sample-brief', '/privacy', '/terms']) {
+    test(`${path} has BreadcrumbList`, async ({ page }) => {
+      await mockApp(page);
+      await page.goto(path);
+      expect((await ldJson(page)).flatMap(types)).toContain('BreadcrumbList');
+    });
+  }
 });
 
 test('og images: absolute url, served locally as png, canonical on the real domain', async ({ page, request }) => {

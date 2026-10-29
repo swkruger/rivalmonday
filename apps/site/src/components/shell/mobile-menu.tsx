@@ -5,10 +5,10 @@ import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { siteEnv } from '../../lib/env';
 import { JoinButton } from '../join/join-button';
-import type { NavItem } from './nav-items';
+import type { NavLink } from './nav-items';
 
 /** Phone/tablet menu (≤ 1023 px): a right-hand sheet with focus trap, Esc and backdrop close. */
-export function MobileMenu({ items }: { items: NavItem[] }) {
+export function MobileMenu({ items }: { items: NavLink[] }) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>

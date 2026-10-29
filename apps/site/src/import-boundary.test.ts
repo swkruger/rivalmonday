@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -98,5 +98,70 @@ describe('site import boundary', () => {
     // The real sources (covered by the scan above, asserted here for the env rule's name).
     const problems = siteSources().flatMap((p) => boundaryViolations(rel(p), readFileSync(p, 'utf8')).filter((s) => s.includes('process.env')));
     expect(problems).toEqual([]);
+  });
+});
+
+/** Content modules that carry every rival / vendor / source entry, enabled or not: server-only by convention. */
+const SERVER_CONTENT = new Set(['content/pages.ts', 'content/compare.ts', 'content/integrations.ts', 'content/sources.ts']);
+
+/** Relative specifiers a module imports as values (`import type …` and `export type …` lines are erased by the compiler). */
+function valueImports(source: string): string[] {
+  const stripped = source.replace(/\b(?:import|export)\s+type\b[^;]*?from\s*['"][^'"]+['"]/g, '');
+  return importSpecifiers(stripped).filter((s) => s.startsWith('.'));
+}
+
+function resolveRelative(fromFile: string, spec: string): string | null {
+  const base = resolve(dirname(fromFile), spec);
+  for (const c of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
+    if (existsSync(c) && statSync(c).isFile()) return c;
+  }
+  return null;
+}
+
+/** Every path (site-relative) from a `'use client'` module to a server-content module, following value imports. */
+function clientLeaks(entries: string[], read: (abs: string) => string, toRel: (abs: string) => string, resolveSpec = resolveRelative): string[] {
+  const leaks: string[] = [];
+  for (const entry of entries) {
+    const seen = new Set<string>();
+    const stack: { file: string; chain: string[] }[] = [{ file: entry, chain: [toRel(entry)] }];
+    while (stack.length > 0) {
+      const { file, chain } = stack.pop()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      const r = toRel(file);
+      if (SERVER_CONTENT.has(r)) {
+        leaks.push(chain.join(' -> '));
+        continue;
+      }
+      for (const spec of valueImports(read(file))) {
+        const next = resolveSpec(file, spec);
+        if (next) stack.push({ file: next, chain: [...chain, toRel(next)] });
+      }
+    }
+  }
+  return leaks;
+}
+
+const isClient = (source: string) => /^\s*['"]use client['"]/.test(source);
+
+describe('client modules stay off the server-only content', () => {
+  it('matcher: value imports are followed, type imports are not', () => {
+    const files: Record<string, string> = {
+      'src/a.tsx': "'use client';\nimport { x } from './b';\nimport type { T } from '../content/pages';",
+      'src/b.ts': "export { y } from '../content/compare';",
+    };
+    const resolveFake = (from: string, spec: string) => {
+      const target = join(dirname(from), spec).split(sep).join('/');
+      return Object.keys(files).find((k) => k === `${target}.ts` || k === `${target}.tsx`) ?? (`${target}.ts` === 'content/compare.ts' ? 'content/compare.ts' : null);
+    };
+    const leaks = clientLeaks(['src/a.tsx'], (f) => files[f] ?? '', (f) => f, resolveFake);
+    expect(leaks).toEqual(['src/a.tsx -> src/b.ts -> content/compare.ts']);
+    expect(valueImports("import type { NavLink } from './nav-items';")).toEqual([]);
+  });
+
+  it("no 'use client' module imports content/pages, compare, integrations or sources (directly or transitively)", () => {
+    const clients = walk(join(SITE_ROOT, 'src')).filter((p) => isClient(readFileSync(p, 'utf8')));
+    expect(clients.length).toBeGreaterThan(5);
+    expect(clientLeaks(clients, (f) => readFileSync(f, 'utf8'), rel)).toEqual([]);
   });
 });

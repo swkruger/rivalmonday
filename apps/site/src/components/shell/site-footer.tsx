@@ -1,38 +1,14 @@
 'use client';
 
 import { Wordmark } from '@cs/ui';
-import { PAGES } from '../../../content/pages';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from './pilot-context';
+import type { FooterColumn } from './nav-items';
 import { SocialLinks } from './social-links';
 
-const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] = [
-  {
-    heading: 'Product',
-    links: [
-      { label: 'How it works', href: '/how-it-works' },
-      { label: 'Sample brief', href: '/sample-brief' },
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Integrations', href: '/integrations' },
-      { label: 'Sources', href: '/sources' },
-    ],
-  },
-  { heading: 'Compare', links: [{ label: 'Compare overview', href: '/compare' }] },
-  { heading: 'Company', links: [{ label: 'Partners', href: '/partners' }] },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
-    ],
-  },
-];
-
-export function SiteFooter() {
+/** `columns` come from the server (`footerColumns()` in `nav-items.ts`): this client module never imports the page registry. */
+export function SiteFooter({ columns }: { columns: FooterColumn[] }) {
   const { pilotMode } = usePilot();
-  const registered = new Set<string>(PAGES.map((p) => p.path));
-  const rivals = PAGES.filter((p) => p.group === 'compare' && p.path !== '/compare').map((p) => ({ label: p.crumb ?? p.title, href: p.path as string }));
-  const columns = COLUMNS.map((c) => (c.heading === 'Compare' ? { ...c, links: [...c.links, ...rivals] } : c)).map((c) => ({ ...c, links: c.links.filter((l) => registered.has(l.href)) })).filter((c) => c.links.length > 0);
 
   return (
     <footer className="mt-16 border-t border-line bg-surface">

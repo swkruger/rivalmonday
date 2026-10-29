@@ -10,6 +10,7 @@ import { PilotProvider } from '../components/shell/pilot-context';
 import { SiteAnalytics } from '../components/shell/site-analytics';
 import { SiteFooter } from '../components/shell/site-footer';
 import { SiteHeader } from '../components/shell/site-header';
+import { footerColumns, navItems } from '../components/shell/nav-items';
 import './site.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '800'], display: 'swap' });
@@ -28,9 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PilotProvider>
           <JoinProvider>
             <AnnouncementBar />
-            <SiteHeader />
+            <SiteHeader items={navItems()} />
             {children}
-            <SiteFooter />
+            <SiteFooter columns={footerColumns()} />
           </JoinProvider>
         </PilotProvider>
         {/* Cookieless, no banner. Only on Vercel: elsewhere `/_vercel/insights/script.js` would 404. */}

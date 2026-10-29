@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react';
 import { siteEnv } from '../../lib/env';
 import { JoinButton } from '../join/join-button';
 import { MobileMenu } from './mobile-menu';
-import { navItems } from './nav-items';
+import type { NavLink } from './nav-items';
 
-export function SiteHeader() {
-  const items = navItems();
+/** `items` come from the server (`navItems()` in `nav-items.ts`): this client module never imports the page registry. */
+export function SiteHeader({ items }: { items: NavLink[] }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {

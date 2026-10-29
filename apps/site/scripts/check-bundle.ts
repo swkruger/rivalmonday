@@ -2,10 +2,13 @@
  * Post-build boundary check (plan P9, Review Focus 1). Run after `next build`:
  * fails if any server package — or `@cs/email` source other than `branding.ts` — reached the
  * site's build output (`.next/static/**`, `.next/server/**\/*.js`) or its file traces (`*.nft.json`).
+ * Also fails if a disabled rival's name or summary (slug not in `NEXT_PUBLIC_COMPARE_PAGES`, read
+ * from the same env the build used) reached any public client file under `.next/static/**`.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { enabledRivals, RIVALS } from '../content/compare';
 
 const SITE_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const NEXT_DIR = join(SITE_ROOT, '.next');
@@ -54,6 +57,18 @@ for (const { abs, rel } of scanned) {
   }
 }
 
+/** Disabled rivals: their comparison content must not ship to the browser. */
+const enabled = new Set<string>(enabledRivals().map((r) => r.slug));
+const disabled = RIVALS.filter((r) => !enabled.has(r.slug));
+const staticText = scanned.filter(({ rel }) => rel.startsWith('static/') && /\.(js|mjs|cjs|json|css|html|txt)$/.test(rel));
+for (const { abs, rel } of staticText) {
+  const text = readFileSync(abs, 'utf8');
+  for (const r of disabled) {
+    if (text.includes(r.name)) problems.push(`${rel}: ships disabled rival name "${r.name}"`);
+    if (text.includes(r.summary)) problems.push(`${rel}: ships disabled rival summary (${r.slug})`);
+  }
+}
+
 const prerendered = all.filter(({ rel }) => rel.startsWith('server/app/') && /[.](html|rsc|body|meta)$/.test(rel));
 for (const { abs, rel } of prerendered) {
   const m = readFileSync(abs, 'utf8').match(VENDOR_NAMES);
@@ -65,4 +80,6 @@ if (problems.length > 0) {
   for (const p of problems) console.error(`  ${p}`);
   process.exit(1);
 }
-console.log(`check:bundle: ok (${scanned.length} files scanned, ${prerendered.length} prerendered files checked for vendor names, no server package in the site build)`);
+console.log(
+  `check:bundle: ok (${scanned.length} files scanned, ${prerendered.length} prerendered files checked for vendor names, ${staticText.length} static files clear of ${disabled.length} disabled rival(s): ${disabled.map((r) => r.slug).join(', ') || 'none'}; no server package in the site build)`,
+);
