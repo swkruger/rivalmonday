@@ -59,12 +59,16 @@
   .sheet-in-right { animation: sheet-in-right 180ms ease-out; }
   .sheet-in-bottom { animation: sheet-in-bottom 180ms ease-out; }
 
+  /* Hero fragments float in once (<= 400 ms). The reduced-motion rule below removes it. */
+  .hero-float { animation: hero-float-in 350ms ease-out both; }
+
   .ring-change {
     outline: var(--ring-change);
     outline-offset: 2px;
   }
 }
 
+@keyframes hero-float-in { from { transform: translateY(12px); opacity: 0; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
 
