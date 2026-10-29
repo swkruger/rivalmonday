@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { JoinDialog } from './join-dialog';
 
 export type JoinStart = 'choose' | 'agency' | 'agency-sample' | 'business';
 
@@ -13,7 +14,7 @@ interface JoinValue {
 
 const JoinContext = createContext<JoinValue | null>(null);
 
-/** Holds the join popup's open state. Task 7 mounts the dialog inside this provider. */
+/** Holds the join popup's open state and mounts the dialog. `#join` (also on hashchange) and `?join=business` open it. */
 export function JoinProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const [start, setStart] = useState<JoinStart>('choose');
@@ -22,8 +23,22 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
     setOpen(true);
   }, []);
   const close = useCallback(() => setOpen(false), []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('join') === 'business') open('business');
+    else if (window.location.hash === '#join') open('choose');
+    const onHash = () => {
+      if (window.location.hash === '#join') open('choose');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [open]);
   const value = useMemo(() => ({ open, isOpen, start, close }), [open, isOpen, start, close]);
-  return <JoinContext.Provider value={value}>{children}</JoinContext.Provider>;
+  return (
+    <JoinContext.Provider value={value}>
+      {children}
+      <JoinDialog open={isOpen} start={start} onClose={close} />
+    </JoinContext.Provider>
+  );
 }
 
 export function useJoin(): JoinValue {
