@@ -43,12 +43,9 @@ describe('findPlaceholders', () => {
   });
 
   it('catches a founder-style marker and passes once it is filled in', () => {
-    const marked = tree({ 'content/founder.ts': '// OWNER-PLACEHOLDER: the owner supplies the note
-export const FOUNDER_NOTE = null;
-' });
+    const marked = tree({ 'content/founder.ts': '// OWNER-PLACEHOLDER: the owner supplies the note\nexport const FOUNDER_NOTE = null;\n' });
     expect(findPlaceholders(marked)).toEqual([{ file: 'content/founder.ts', line: 1 }]);
-    const filled = tree({ 'content/founder.ts': "export const FOUNDER_NOTE = { name: 'A' };
-" });
+    const filled = tree({ 'content/founder.ts': "export const FOUNDER_NOTE = { name: 'A' };\n" });
     expect(findPlaceholders(filled)).toEqual([]);
   });
 });
