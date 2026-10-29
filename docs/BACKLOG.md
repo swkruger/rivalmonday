@@ -162,6 +162,17 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Owner-pick clock: cancel + re-ask restarts the 14-day wait; after a cancel the activation-based hold may already be due — *phase-16*
 - [ ] `client-boundary` gate ignores default imports/barrels; pages import constants from `'use client'` modules (`knowledge/page.tsx` `selectClass`) — *phase-16*
 
+## Phase 17 follow-ups (marketing site, waitlist)
+**Soon**
+- [ ] Site favicon + apple-touch icon, `Organization.logo` in JSON-LD (no logo asset yet); SRI / nonce CSP (P7) — *phase-17*
+- [ ] Sample space: hide "Ask the owner to pick" on the competitors step for sample clients; an approving operator's Samples-agency membership is permanent (add expiry); alert when the `waitlist:all` cap (500/day) is hit — *phase-17a*
+- [ ] 17c minors: `^logo$` in the JSON-LD deep-walk key guard; guard test that `public/logos/*.svg` belong to logo-ok vendors with `approved=yes`; type `INTEGRATION_VERIFIED_IN` by slug; `check:facts` tests for unknown/stale source; mobile-menu nav vs header test; llms headings vs registry; fixed-date test assertions; Sentry "before anyone writes in" wording — *phase-17c*
+**Recurring / later**
+- [ ] Quarterly: re-run the rival fact check (`check:facts` blocks deploys past 90 days, all five rivals) — *phase-17c*
+- [ ] Re-run `pnpm --filter @cs/demo export:site-verticals` when verticals change (manual, P2) — *phase-17b*
+- [ ] 13a: when white-label (own domain, email) ships, update the site's white-label FAQ, partners page and RM compare cells — *phase-17c*
+- [ ] Social collection, if ever built: flip the compare row from "Not offered" — *phase-17c*
+
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
 - [ ] Extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` (platform agency page) into it — *phase-15c3 (R11)*
@@ -277,7 +288,6 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] **UI/UX review against Mobbin** (Mobbin MCP): optional cross-check of 15b/15c against real-world app patterns (the Phase 15 designer audit replaced the main review) — *owner, 2026-10-17*
 - [ ] **Affiliate program (fully featured)**: affiliate sign-up and approval, referral links/codes attributed through agency sign-up (Phase 10) and billing (9a Stripe), commission rules (one-off / recurring %, cookie window, clawback on refund or churn), affiliate dashboard (clicks, sign-ups, conversions, earnings), payouts, console management + fraud checks; scope and details to be provided by the owner at planning — *owner, 2026-10-17*
 - [ ] Automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c platform pool - *phase-11*
-- [ ] Public "request access" form / marketing landing page (declined for now) — *phase-10*
 - [ ] Console: activity `client_activated` lacks `clientName` (record activation, e.g. `client.activated_at`); `list_platform_activity` loads all sources per call (bound/paginate in SQL); agencies list silently capped at 100 (paging or notice) — *from 8a*
 - [ ] Cost APIs for Vercel / Cloudflare R2; Neon storage cost; costs CSV export; renewal reminders — *from 8c*
 - [ ] REST API (spec §8.1) — *from 6a*

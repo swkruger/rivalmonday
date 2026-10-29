@@ -28,6 +28,6 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 - Every claim about Rival Monday carries `verifiedIn` paths to shipped code (tests check they exist and match the ledger `docs/research/2026-10-29-phase-17c-claim-check.md`).
 - Never name data vendors (DataForSEO, Apify, ScrapeCreators, Stadia): three scans guard it (compare, integrations, sources tests).
 - OG colour hex lives only in `src/lib/og-theme.ts`; each `pageMetadata` page needs its own `opengraph-image.tsx`.
-- No `'use client'` module may import `content/{pages,compare,integrations,sources}` (transitive boundary test): pass server-built `{label, href}[]` props instead, or disabled compare copy ships in public JS.
+- `verifiedIn` code paths live in `content/*-evidence.ts`, never in the content modules (keeps repo paths out of page bundles).
 - The app's `/api/waitlist` fails closed (`400 check`) in env `dev` without a Turnstile secret — local end-to-end tries need Cloudflare's test keys in `.env`.
 - Windows working copies can drift to CRLF while the index stays LF (`git ls-files --eol` shows `w/crlf`, status clean): `rm <file> && git checkout -- <file>`; a plain checkout doesn't rewrite.
