@@ -1,5 +1,6 @@
 'use client';
 
+import { Frame } from '@cs/ui';
 import { PARTNER_COPY, PARTNER_EXAMPLE, partnerExample } from '../../../content/partners';
 import { PRICING } from '../../../content/pricing';
 import { usePilot } from '../shell/pilot-context';
@@ -22,7 +23,8 @@ export function MarginExample() {
     <div data-slot="margin-example">
       <p className="text-sm text-ink-secondary">{PARTNER_COPY.plan}</p>
       {pilotMode ? <p className="mt-1 text-sm font-medium text-ink">{PARTNER_COPY.pilotNote}</p> : null}
-      <table className="mt-4 w-full max-w-[640px] border-collapse text-sm">
+      <Frame flush className="mt-4 max-w-[640px] overflow-x-auto px-4">
+      <table className="w-full border-collapse text-sm">
         <caption className="mb-3 text-left text-sm text-ink-secondary">
           Example: {e.clients} clients at an example price of {usd(e.clientPriceUsd)}/mo. You set your own prices. Before Stripe processing fees and taxes.
         </caption>
@@ -35,6 +37,7 @@ export function MarginExample() {
           ))}
         </tbody>
       </table>
+      </Frame>
     </div>
   );
 }

@@ -28,6 +28,10 @@ describe('MarginExample', () => {
     expect(text).toContain(`$${e.marginUsd.toLocaleString('en-US')}`);
     expect(text).toContain(`$${e.costUsd}`);
   });
+  it('rendered copy has no affiliate or commission wording', () => {
+    const { container } = render(<MarginExample />);
+    expect(container.textContent).not.toMatch(/affiliate|commission|referral fee/i);
+  });
   it('shows the pilot note only in pilot mode', () => {
     const { container, rerender } = render(<MarginExample />);
     expect(container.textContent).toContain('Free during the pilot');

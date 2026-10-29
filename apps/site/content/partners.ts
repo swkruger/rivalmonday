@@ -37,7 +37,7 @@ export const PARTNER_COPY = {
     {
       id: 'prices',
       heading: 'Your prices',
-      body: 'You set what your clients pay, and you can change it any time. We do not set or see a price for you.',
+      body: 'You set what your clients pay.',
     },
     {
       id: 'billing',
@@ -46,6 +46,6 @@ export const PARTNER_COPY = {
     },
   ],
   exampleHeading: 'A worked example',
-  plan: `Your plan is $${PRICING.agency.monthlyUsd}/mo including ${PRICING.agency.seatsIncluded} client seats, then $${PRICING.agency.extraSeatUsd} per extra seat.`,
+  plan: `Your plan is $${PRICING.agency.monthlyUsd}/mo including ${PRICING.agency.seatsIncluded} seats, then $${PRICING.agency.extraSeatUsd} per extra seat.`,
   pilotNote: 'Free during the pilot',
 } as const;
