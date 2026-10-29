@@ -4,15 +4,18 @@
 **Plan/spec:** `docs/superpowers/plans/2026-10-29-copy-signoff-tool.md` / `docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`
 
 ## Status (overwrite)
-Spec + lean plan written (owner said "just start": decisions D1–D12 are Claude's calls). Plan approved; SDD in progress.
-Task 4 scan (2026-10-29, incl. Ruling R3 error text): 5,725 items in ~2.4 s — app-client 694, app-agency 442, app-platform 988, app-account 298, app-shared 727, help 692, guides 86, glossary 81, labels 252, mcp-tools 621 (258 descriptions + 363 refusal messages), site 842, site-legal 2 (emails/documents come in Task 5). Manual read of 60 random items per surface (4 seeds) plus all 129 web error/message values and 60 of the tool refusals: est. < 2 % non-copy per surface (tool refusals ~2 %). Left: short format strings like `{d} days`, sentence pieces cut at inline tags. Sample: `docs/work/copy-signoff-tool-noise.txt` (not committed).
-Task 9 manual check (2026-10-29, `pnpm copy:review --port 4310`): page 1–300 of 5,812 items (~390 KB, ~2.8 s incl. re-scan); signed one help tip, group-signed `apps/web/src/app/sign-in/page.tsx`, commented on an inbox string → `docs/copy/signoff.json` got 3 entries and `pnpm copy:status --todo` listed the comment. Playwright at 1440 px: j/j/s signs in place and updates counts, `c` opens the comment form, email preview loads in the sandboxed iframe, no console errors. Ledger reverted to empty.
+Built; tasks 1-10 done (guard test + docs in Task 10). `pnpm copy:status` on a fresh ledger: 5,812 items, all unsigned (app-client 694, app-agency 442, app-platform 988, app-account 298, app-shared 727, help 692, guides 86, glossary 81, labels 252, emails 84, documents 3, site 842, site-legal 2, mcp-tools 621), 0 stale. Noise < 2 % per surface (manual samples). Viewer checked in Playwright at 1440 px (sign, group sign, comment, email preview).
 
 ## Next (overwrite)
-Owner approves the plan → Task 0 pre-flight → subagent-driven development.
+Final review -> owner verification -> merge.
+
+## Owner verification
+- `pnpm copy:review`: sign one item and one file group, add a comment.
+- `git diff docs/copy/signoff.json` shows the entries; `pnpm copy:status --todo` lists the comment.
+- Decide when the CI step becomes blocking (see backlog).
 
 ## Interfaces this branch adds or changes
-None yet. Next free migration `0097` (only if Q2 picks a DB table).
+New package `@cs/copy-review` (never imported by apps; guard test); `@cs/email/previews` export; root scripts `copy:review` / `copy:status`; CI report-only `copy:status` step; ledger `docs/copy/signoff.json`. No migration.
 
 ## Assumes from other branches
 None (`git branch --no-merged main` empty).
@@ -21,7 +24,8 @@ None (`git branch --no-merged main` empty).
 None yet.
 
 ## New backlog (target → item)
-None yet.
+- Pre-pilot: blocking copy gate in `deploy`/`deploy-site` (`copy:status --strict emails,site,site-legal,app-client`) before the first pilot invite - owner decision.
+- Close the per-phase copy sign-off BACKLOG items once their surfaces are signed in the tool.
 
 ## Brief
 
@@ -51,13 +55,5 @@ None yet.
 - Readiness item "… no `HelpTip` on the readiness section (needs owner copy) … — *7c2 T6/T7/final review*"; 7c2 Task 12 "… close … the 7c2 part of the copy sign-off item — *phase-7c2*"
 - Copy docs linked from BACKLOG verify items 15b-3b, 14, 15a, 11-fixes, 11; STATE: 17a/b/c files, 7c2 list.
 
-## Open questions for the owner (most design-changing first)
-1. **Form factor.** (A) local web app in a new private package (`pnpm copy:review`, 127.0.0.1), imports `@cs/email`, reads app/site sources; (B) dev-only route in `apps/web` behind the dev-panel guard; (C) CLI that writes static HTML, sign-off by editing a file. **Rec A:** no change to either app's build.
-2. **Where sign-off lives.** (A) repo ledger (e.g. `docs/copy/signoff.json`) keyed by copy id + hash of normalised text, so an edit flips the item to "changed"; (B) DB table (migration 0097, `TABLE_CLASS`, RLS); (C) markers in source comments. **Rec A:** git-reviewable, no tenancy work.
-3. **Granularity.** (A) per string, grouped by surface/page with "sign group"; (B) per file/template; (C) per screen. **Rec A**, with emails per template variant (subject + rendered text).
-4. **Inline JSX strings.** (A) static AST scan of JSX text + literal props (id = file + text hash) with links to the route's screenshot; (B) extract all to copy modules first; (C) screenshots only, sign per screen. **Rec A**, extracting only files the scan finds noisy.
-5. **Existing Markdown docs.** (A) all items start unsigned; (B) seed "signed" only from docs marked signed (15c2/15c-2b-2); (C) grandfather all current copy as signed. **Rec B.**
-6. **CI/deploy gate.** (A) none; (B) report-only CI step listing unsigned/changed counts; (C) `deploy`/`deploy-site` refuse while client-facing copy, emails or site copy is unsigned/changed (like `check:placeholders`). **Rec B now, C before the first pilot invite.**
-7. **Editing.** (A) view + sign only; (B) plus per-item comments/suggested wording stored in the ledger for an agent to apply; (C) edit source in place. **Rec B.**
-8. **Model-facing text** (tool descriptions, Ask prompt). (A) out of scope; (B) tool descriptions in, prompts out; (C) both. **Rec B** (agencies read them in MCP clients).
-9. **Split into sub-phases?** (A) one branch; (B) copy-1: ledger, viewer, copy modules, help, guides, labels, emails (fixtures), site; copy-2: JSX scan, screenshots, CI gate, legacy import. **Rec B.**
+## Open questions
+Answered by the spec, decisions D1-D12 (`docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`).
