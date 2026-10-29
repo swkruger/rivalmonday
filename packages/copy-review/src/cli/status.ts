@@ -1,7 +1,6 @@
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { collectItems } from '../collect.js';
 import { LedgerError, loadLedger, saveLedger } from '../ledger.js';
+import { isMainModule, ledgerPathFor, repoRoot } from '../paths.js';
 import { staleEntries, withStatus } from '../status.js';
 import type { CopyItem, ItemStatus, Surface } from '../types.js';
 
@@ -97,9 +96,8 @@ export async function runStatus(argv: string[], deps: Deps & { root: string }): 
   return runStatusWith(await collectItems(deps.root), argv, deps);
 }
 
-const isMain = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  const root = fileURLToPath(new URL('../../../..', import.meta.url));
-  runStatus(process.argv.slice(2), { root, ledgerPath: join(root, 'docs', 'copy', 'signoff.json'), out: (s) => console.log(s) })
+if (isMainModule(import.meta.url)) {
+  const root = repoRoot();
+  runStatus(process.argv.slice(2), { root, ledgerPath: ledgerPathFor(root), out: (s) => console.log(s) })
     .then((code) => process.exit(code));
 }
