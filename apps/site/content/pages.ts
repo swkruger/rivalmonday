@@ -1,4 +1,5 @@
 import { listedIntegrations } from './integrations';
+import { SOURCES } from './sources';
 
 export interface SitePage {
   path: `/${string}`;
@@ -86,6 +87,17 @@ export const PAGES: readonly SitePage[] = [
     group: 'integrations',
   },
   ...listedIntegrations().map((i) => collectionPage('/integrations', { slug: i.slug, ...i.seo })),
+  {
+    path: '/sources',
+    title: 'Sources',
+    description: 'What Rival Monday collects from public information, how often, and what it leaves alone.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+    crumb: 'Sources',
+    group: 'sources',
+  },
+  ...SOURCES.map((s) => collectionPage('/sources', { slug: s.slug, ...s.seo })),
 ];
 
 export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [
