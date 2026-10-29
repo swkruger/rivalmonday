@@ -28,6 +28,24 @@ describe('waitlistSubmitSchema', () => {
   it('business without website and location is invalid', () => {
     expect(waitlistSubmitSchema.safeParse({ kind: 'business', contactName: 'Bo', email: 'bo@biz.co', orgName: 'Bo', turnstileToken: 't' }).success).toBe(false);
   });
+  it('contactName with a url is invalid', () => {
+    for (const contactName of ['Visit https://evil.example now', 'www.evil.example', 'click evil.example/win', 'bit.ly']) {
+      expect(waitlistSubmitSchema.safeParse({ kind: 'business', contactName, email: 'bo@biz.co', orgName: 'Bo', location: 'Austin', turnstileToken: 't' }).success, contactName).toBe(false);
+      expect(waitlistSubmitSchema.safeParse({ kind: 'agency', contactName, email: 'bo@biz.co', orgName: 'Bo', clientCountBand: '6-15', turnstileToken: 't' }).success, contactName).toBe(false);
+    }
+  });
+
+  it('sample business name with a domain is invalid', () => {
+    for (const businessName of ['Smith.com', 'https://smith.co', 'www.smith', 'Smith Dental smith.co/offer']) {
+      expect(waitlistSubmitSchema.safeParse({ kind: 'agency', contactName: 'Ada', email: 'a@a.co', orgName: 'A', clientCountBand: '6-15', turnstileToken: 't', sample: { businessName, location: 'Austin' } }).success, businessName).toBe(false);
+    }
+  });
+
+  it('plain names still valid', () => {
+    expect(() => agency({ contactName: "Ada J. O'Neil-Smith", orgName: 'Acme.io', sample: { businessName: "St. Louis Dental & Smith's HVAC", location: 'Austin' } })).not.toThrow();
+    expect(() => business({ contactName: 'Mary-Ann St. Pierre' })).not.toThrow();
+  });
+
   it('agency sample needs website or location', () => {
     const bad = waitlistSubmitSchema.safeParse({ kind: 'agency', contactName: 'A', email: 'a@a.co', orgName: 'A', clientCountBand: '1-5', turnstileToken: 't', sample: { businessName: 'Smith Dental' } });
     expect(bad.success).toBe(false);

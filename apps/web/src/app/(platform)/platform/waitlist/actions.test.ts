@@ -34,7 +34,22 @@ describe('inviteAgenciesAction', () => {
     expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'invite_waitlist_agencies', { ids: ['a', 'b', 'c'], offer: 'pilot', pilotEndsAt: '2027-01-31T23:59:59.000Z' });
     expect(m.email).toHaveBeenCalledTimes(2);
     expect(m.email).toHaveBeenNthCalledWith(1, { to: 'a@x.co', url: 'https://app/join/A', offer: 'pilot', pilotEndsAt: '2027-01-31T23:59:59.000Z', expiresAt: EXP });
-    expect(r).toEqual({ ok: true, message: 'Invited 2. Skipped 1 (not confirmed or already handled).', failed: [{ orgName: 'Beta', url: 'https://app/join/B' }] });
+    expect(r).toEqual({ ok: true, message: 'Invited 2. Skipped 1 (not confirmed, already handled or failed).', failed: [{ orgName: 'Beta', url: 'https://app/join/B' }] });
+  });
+
+  it('a row the tool could not invite counts as skipped and the others are still emailed', async () => {
+    m.runTool.mockResolvedValue({
+      ok: true,
+      data: { results: [
+        { id: 'a', outcome: 'invited', email: 'a@x.co', url: 'https://app/join/A', expiresAt: EXP },
+        { id: 'b', outcome: 'skipped', reason: 'error' },
+        { id: 'c', outcome: 'invited', email: 'c@x.co', url: 'https://app/join/C', expiresAt: EXP },
+      ] },
+    });
+    m.email.mockReset();
+    const r = await inviteAgenciesAction(null, form({ ids: ['a', 'b', 'c'], offer: 'trial' }));
+    expect(m.email).toHaveBeenCalledTimes(2);
+    expect(r).toMatchObject({ ok: true, message: 'Invited 2. Skipped 1 (not confirmed, already handled or failed).' });
   });
 
   it('a trial invite sends no end date; a pilot without one is refused before the tool', async () => {

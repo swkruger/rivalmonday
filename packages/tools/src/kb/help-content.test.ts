@@ -42,7 +42,7 @@ const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'pa
  * 15b-2 Task 9a, platform pages: operator-only (`requireOperatorContext`), so every page has one `operator` guide and nothing else.
  */
 const PLATFORM_KEYS = [
-  'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'reviews', 'topics', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
+  'overview', 'agencies', 'agencies.detail', 'billing', 'leads', 'waitlist', 'reviews', 'topics', 'ask', 'ask.thread', 'knowledge', 'knowledge.new', 'knowledge.detail', 'health', 'costs', 'verticals', 'runbook',
 ].map((k) => `page:platform.${k}`).sort();
 /**
  * 15b-2 Task 9b, account pages: listed in every context (`page:account.%`, `list_help_guides`) and audience-filtered. Inbox and Notification
@@ -337,7 +337,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     }
   });
 
-  it('platform batch (Task 9a): operators read the sixteen operator guides in the platform context, with the three standard sections', async () => {
+  it('platform batch (Task 9a): operators read the seventeen operator guides in the platform context, with the three standard sections', async () => {
     const platform = (await opRegistry.invoke(op, 'list_help_guides', { context: 'platform' })) as { guides: { helpKey: string }[] };
     expect(platform.guides.map((g) => g.helpKey).filter((k) => k.startsWith('page:platform.')).sort()).toEqual(PLATFORM_KEYS);
     for (const key of PLATFORM_KEYS) {
@@ -389,6 +389,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
       costs: ['06:00 UTC', '14 days', '7 days', 'six months', '30 days', 'Projected this month'],
       verticals: ['old id', 'Merge into', 'Evidence', 'owners and staff'],
       runbook: ['Update available', 'Removed upstream', 'owners and staff'],
+      waitlist: ['25 at a time', 'Previous and Next', 'Samples agency', '30 days', 'Send again'],
     };
     for (const k of PLATFORM_KEYS.map((x) => x.replace('page:platform.', ''))) {
       const t = await pg(k);

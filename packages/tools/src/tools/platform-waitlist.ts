@@ -190,7 +190,7 @@ export const inviteWaitlistAgenciesTool = defineTool({
     results: z.array(z.object({
       id: Id,
       outcome: z.enum(['invited', 'skipped']),
-      reason: z.enum(['not_found', 'not_agency', 'not_new', 'unconfirmed']).optional(),
+      reason: z.enum(['not_found', 'not_agency', 'not_new', 'unconfirmed', 'error']).optional(),
       email: z.string().optional(),
       url: z.string().optional(),
       expiresAt: z.string().optional(),
@@ -210,9 +210,11 @@ export const inviteWaitlistAgenciesTool = defineTool({
       } else if (input.pilotEndsAt) {
         throw new ToolError('invalid_input', 'pilotEndsAt only applies to a pilot offer');
       }
-      const results: Array<{ id: string; outcome: 'invited' | 'skipped'; reason?: 'not_found' | 'not_agency' | 'not_new' | 'unconfirmed'; email?: string; url?: string; expiresAt?: string }> = [];
+      const results: Array<{ id: string; outcome: 'invited' | 'skipped'; reason?: 'not_found' | 'not_agency' | 'not_new' | 'unconfirmed' | 'error'; email?: string; url?: string; expiresAt?: string }> = [];
       for (const id of new Set(input.ids)) {
         // One transaction per row: the link insert and the status change commit together or not at all.
+        // A row that throws is reported as skipped (`error`): rows already committed keep their links, so the caller still emails them.
+        try {
         results.push(await deps.service.transaction(async (tx) => {
           const [row] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)).for('update');
           if (!row) return { id, outcome: 'skipped' as const, reason: 'not_found' as const };
@@ -226,6 +228,10 @@ export const inviteWaitlistAgenciesTool = defineTool({
           await tx.update(waitlistEntry).set({ status: 'invited', inviteLinkId: link.id, decidedAt: now, decidedBy: ctx.userId, updatedAt: now }).where(eq(waitlistEntry.id, id));
           return { id, outcome: 'invited' as const, email: row.email, url: link.url, expiresAt: link.expiresAt.toISOString() };
         }));
+        } catch (e) {
+          console.error('[waitlist] invite row failed:', (e as { name?: string } | null)?.name ?? 'Error');
+          results.push({ id, outcome: 'skipped', reason: 'error' });
+        }
       }
       return { results };
     });
@@ -243,20 +249,16 @@ export const declineWaitlistEntryTool = defineTool({
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'staff', 'decline_waitlist_entry', input, undefined, async () => {
       const now = new Date();
-      const rows = await deps.service
-        .update(waitlistEntry)
-        .set({
-          status: 'declined', decidedAt: now, decidedBy: ctx.userId, updatedAt: now,
-          // sample_requested stays true: the check is sample_requested = (sample_status IS NOT NULL).
-          sampleStatus: sql`case when ${waitlistEntry.sampleStatus} = 'requested' then 'declined' else ${waitlistEntry.sampleStatus} end`,
-        })
-        .where(and(eq(waitlistEntry.id, input.id), eq(waitlistEntry.status, 'new')))
-        .returning({ id: waitlistEntry.id });
-      if (rows.length === 0) {
-        const [exists] = await deps.service.select({ id: waitlistEntry.id }).from(waitlistEntry).where(eq(waitlistEntry.id, input.id));
-        if (!exists) throw new ToolError('not_found', 'Waitlist entry not found');
-        throw new ToolError('conflict', 'This entry was already handled.', { userFacing: true });
-      }
+      await deps.service.transaction(async (tx) => {
+        const [entry] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, input.id)).for('update');
+        if (!entry) throw new ToolError('not_found', 'Waitlist entry not found');
+        if (entry.status !== 'new') throw new ToolError('conflict', 'This entry was already handled.', { userFacing: true });
+        // An approved sample is stopped with it (as Stop in decide_sample_brief): its business is paused and send_sample_brief refuses it.
+        if (entry.sampleStatus === 'approved' && entry.sampleClientId) await pauseClient(tx, entry.sampleClientId, ctx.userId, 'agency');
+        const sampleStatus = entry.sampleStatus === 'requested' ? 'declined' : entry.sampleStatus === 'approved' ? 'failed' : entry.sampleStatus;
+        // sample_requested stays true: the check is sample_requested = (sample_status IS NOT NULL).
+        await tx.update(waitlistEntry).set({ status: 'declined', decidedAt: now, decidedBy: ctx.userId, updatedAt: now, sampleStatus }).where(eq(waitlistEntry.id, entry.id));
+      });
       return { ok: true as const };
     });
   },

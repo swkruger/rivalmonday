@@ -6,6 +6,8 @@ const m = vi.hoisted(() => ({
   send: vi.fn(),
   afterCbs: [] as Array<() => Promise<void>>,
   deps: { service: 'svc', leadEmail: { appUrl: 'https://app.test' } as unknown },
+  envName: 'test' as string,
+  secret: 'k' as string | undefined,
 }));
 vi.mock('@cs/tools', async () => {
   const { z } = await import('zod');
@@ -18,9 +20,9 @@ vi.mock('@cs/tools', async () => {
 });
 vi.mock('next/server', () => ({ after: (fn: () => Promise<void>) => { m.afterCbs.push(fn); } }));
 vi.mock('@/server/turnstile', () => ({ verifyTurnstile: (...a: unknown[]) => m.turnstile(...a) }));
-vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'test' }));
+vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => m.envName }));
 vi.mock('@/server/tools', () => ({ toolDeps: () => m.deps }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ siteOrigins: ['https://rivalmonday.com'], authSecret: 's', turnstile: { secretKey: 'k' } }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ siteOrigins: ['https://rivalmonday.com'], authSecret: 's', turnstile: m.secret ? { secretKey: m.secret } : undefined }) }));
 const { OPTIONS, POST } = await import('./route');
 
 const SITE = 'https://rivalmonday.com';
@@ -38,6 +40,8 @@ beforeEach(() => {
   m.turnstile.mockReset().mockResolvedValue(true);
   m.send.mockReset().mockResolvedValue(undefined);
   m.afterCbs.length = 0;
+  m.envName = 'test';
+  m.secret = 'k';
   m.deps = { service: 'svc', leadEmail: { appUrl: 'https://app.test' } };
 });
 afterEach(() => {
@@ -81,6 +85,24 @@ describe('POST /api/waitlist', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, error: 'check' });
     expect(m.submit).not.toHaveBeenCalled();
+  });
+
+  it('live env (dev) without a Turnstile secret fails closed: 400 check, the verifier is not consulted, nothing submitted', async () => {
+    m.envName = 'dev';
+    m.secret = undefined;
+    const res = await run(post(good));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: 'check' });
+    expect(m.turnstile).not.toHaveBeenCalled();
+    expect(m.submit).not.toHaveBeenCalled();
+  });
+
+  it('dev with a secret verifies normally; test/demo without a secret use the fake verifier', async () => {
+    m.envName = 'dev';
+    expect((await run(post(good))).status).toBe(200);
+    m.envName = 'demo';
+    m.secret = undefined;
+    expect((await run(post(good))).status).toBe(200);
   });
 
   it('uniform response: accepted, refused (send null) and submit throwing all → 200 {ok:true} with identical headers', async () => {

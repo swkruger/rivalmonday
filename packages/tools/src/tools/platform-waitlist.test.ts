@@ -3,7 +3,7 @@ import type { MapsPlace } from '@cs/collectors';
 import { agencyInviteLink, brief, client, clientSetup, contact, intakeLink, intakeRate, invitation, lead, membership, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
@@ -183,6 +183,29 @@ describe('invite_waitlist_agencies and decline_waitlist_entry', () => {
     expect(again.results[0]).toMatchObject({ outcome: 'skipped', reason: 'not_new' });
   });
 
+  it('a failing row returns error and earlier invited rows keep their links', async () => {
+    const a = await mk({ email: 'a@x.co' });
+    const bad = await mk({ email: 'boom@x.co' });
+    const c = await mk({ email: 'c@x.co' });
+    await dbs.owner.execute(sql`create or replace function wl_boom() returns trigger language plpgsql as $f$ begin if new.email = 'boom@x.co' and new.status = 'invited' then raise exception 'boom'; end if; return new; end $f$`);
+    await dbs.owner.execute(sql`create trigger wl_boom_t before update on waitlist_entry for each row execute function wl_boom()`);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const r = await invite(op, { ids: [a, bad, c], offer: 'trial' });
+      expect(r.results.map((x) => [x.id, x.outcome, x.reason])).toEqual([[a, 'invited', undefined], [bad, 'skipped', 'error'], [c, 'invited', undefined]]);
+      expect(r.results[0]!.url).toContain('/join/');
+      expect(spy.mock.calls.flat().join(' ')).not.toContain('boom@x.co');
+    } finally {
+      spy.mockRestore();
+      await dbs.owner.execute(sql`drop trigger if exists wl_boom_t on waitlist_entry`);
+      await dbs.owner.execute(sql`drop function if exists wl_boom()`);
+    }
+    expect((await row(a)).status).toBe('invited');
+    expect((await row(bad)).status).toBe('new');
+    expect((await row(c)).status).toBe('invited');
+    expect(await dbs.service.select().from(agencyInviteLink)).toHaveLength(2);
+  });
+
   it('pilot without pilotEndsAt → invalid_input before any row', async () => {
     const a = await mk();
     expect((await fails(invite(op, { ids: [a], offer: 'pilot' }))).code).toBe('invalid_input');
@@ -209,6 +232,18 @@ describe('invite_waitlist_agencies and decline_waitlist_entry', () => {
     const e = await fails(decline(op, s));
     expect(e.code).toBe('conflict');
     expect(e.message).toBe('This entry was already handled.');
+  });
+
+  it('declining an entry whose sample is approved fails the sample and pauses its client', async () => {
+    const [c] = await dbs.service.insert(client).values({ agencyId: IDS.agencyA, name: 'Sample Biz', verticalId: 'dental' }).returning({ id: client.id });
+    const id = await sample('approved', { sampleClientId: c!.id });
+    await decline(op, id);
+    const d = await row(id);
+    expect([d.status, d.sampleStatus]).toEqual(['declined', 'failed']);
+    expect((await dbs.service.select().from(client).where(eq(client.id, c!.id)))[0]!.pausedAt).not.toBeNull();
+    const sendReg = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], appUrl: 'https://app.test', sampleLinkSecret: 'secret-secret-secret-secret-1234' }, { audit: { record: async () => {} } });
+    const e = await fails(sendReg.invoke(op, 'send_sample_brief', { id }));
+    expect(e.code).toBe('conflict');
   });
 });
 

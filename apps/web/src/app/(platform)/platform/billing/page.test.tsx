@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ role: 'owner' as string | null, callTool: vi.fn() }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ viewer: { kind: 'user' }, ctx: { userId: 'op' } }) }));
-vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a) }));
+vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => m.callTool(...a), registry: () => ({ invoke: async () => ({}) }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
@@ -25,6 +25,7 @@ const answers: Record<string, unknown> = {
   list_discount_codes: { codes: [] },
   list_invite_links: { links: [] },
   get_signups_paused: { paused: false },
+  get_pilot_settings: { pilotMode: false, sampleBriefMonthlyLimit: 10 },
   get_signup_funnel: { open: { signups: 0, profileDone: 0, firstClient: 0, cardAdded: 0 }, invite: { signups: 0, profileDone: 0, firstClient: 0, cardAdded: 0 } },
   get_connect_overview: { globalFeePercent: 0, agencies: [], totals: { connectedAgencies: 0, payingClients: 0, clientMrrCents: 0 } },
 };
@@ -101,7 +102,7 @@ describe('/platform/billing', () => {
     ['overview', ['get_billing_overview']],
     ['plans', ['list_plan_agencies', 'list_plans']],
     ['codes', ['list_discount_codes']],
-    ['signups', ['get_signups_paused', 'get_signup_funnel', 'list_invite_links', 'list_discount_codes']],
+    ['signups', ['get_signups_paused', 'get_pilot_settings', 'get_signup_funnel', 'list_invite_links', 'list_discount_codes']],
     ['connect', ['get_connect_overview']],
   ])('each tab renders only its section: %s', async (tab, tools) => {
     render(await Page({ searchParams: Promise.resolve({ tab }) }));

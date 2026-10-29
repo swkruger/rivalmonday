@@ -57,14 +57,14 @@ describe('generateBrief', () => {
     await seedEvent();
     await run();
     const [b] = await dbs.owner.select().from(brief);
-    expect(b!.claimsChecked).toBeGreaterThan(0);
+    expect(b!.claimsChecked).toBe(5); // the fixture draft's checked claims (deterministic fake writer + verifier)
   });
 
   it('writes a quiet brief without calling the writer when nothing qualifies', async () => {
     const ai = createFakeAi({ decide: supportAll });
     expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });
     expect(ai.calls.chat).toHaveLength(0);
-    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY, claimsChecked: 0 });
   });
 
   it('becomes quiet when the verifier drops every item (never padded)', async () => {

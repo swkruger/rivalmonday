@@ -11,12 +11,15 @@ import { hashToken, newToken } from '../intake/tokens';
 const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
 const req = (max: number) => z.string().trim().min(1).max(max);
 const email = z.string().trim().max(254).email().transform((v) => v.toLowerCase());
-const common = { contactName: req(120), email, orgName: req(120), source: opt(200), turnstileToken: z.string().min(1).max(2048) };
+/** URL- or domain-like text in a free-text name field; those reach our emails and the operator's mail client as live links, so reject them. */
+const LINKISH = /:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,}(\/|\b)/i;
+const plainName = (max: number) => req(max).refine((v) => !LINKISH.test(v), { message: 'no links in names' });
+const common = { contactName: plainName(120), email, orgName: req(120), source: opt(200), turnstileToken: z.string().min(1).max(2048) };
 
 export const waitlistSubmitSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('agency'), ...common, website: opt(253), clientCountBand: z.enum(CLIENT_COUNT_BANDS),
-    sample: z.object({ businessName: req(120), website: opt(253), location: opt(120) })
+    sample: z.object({ businessName: plainName(120), website: opt(253), location: opt(120) })
       .refine((s) => s.website || s.location, { message: 'website or location' }).optional(),
   }),
   z.object({

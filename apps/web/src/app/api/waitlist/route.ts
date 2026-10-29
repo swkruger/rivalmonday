@@ -34,7 +34,12 @@ export async function POST(req: Request) {
   const parsed = waitlistSubmitSchema.safeParse(body);
   if (!parsed.success) return reply(400, { ok: false, error: 'invalid' });
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
-  const ok = await verifyTurnstile(parsed.data.turnstileToken, ip, { envName: activeEnvName(), turnstileSecretKey: env.turnstile?.secretKey });
+  // No site-key gate here (unlike sign-up): the marketing site holds the widget key, this endpoint only needs the secret.
+  // 'dev' is the live environment (production included); the shared verifier passes everything when its secret is missing, so a live
+  // deploy without the secret would be an open endpoint that sends mail. Fail closed there. demo/test keep the fake verifier.
+  const envName = activeEnvName();
+  const ok = !(envName === 'dev' && !env.turnstile?.secretKey)
+    && (await verifyTurnstile(parsed.data.turnstileToken, ip, { envName, turnstileSecretKey: env.turnstile?.secretKey }));
   if (!ok) { await floor(); return reply(400, { ok: false, error: 'check' }); }
   const deps = toolDeps();
   try {

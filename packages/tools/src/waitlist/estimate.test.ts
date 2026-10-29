@@ -1,4 +1,4 @@
-import { brief, llmCall, vendorCall } from '@cs/db';
+import { brief, discoveryRun, llmCall, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { SAMPLE_DISCOVERY_CAP_USD, sampleCostEstimate } from './estimate';
@@ -41,5 +41,14 @@ describe('sampleCostEstimate', () => {
     await startingPoint(IDS.clientA1, 'approved', at(1), 0.5, 0.25); // 0.75
     await startingPoint(IDS.clientA2, 'sent', at(2), 1, 0.5); // 1.50
     expect(await sampleCostEstimate(dbs.service)).toEqual({ discoveryCapUsd: 3, startingPointAvgUsd: 1.13, basedOn: 2 });
+  });
+
+  it('leaves out spend made during the client discovery runs (the cap covers it)', async () => {
+    await startingPoint(IDS.clientA1, 'approved', at(5), 0.5, 0.25); // 0.75 before generation
+    const during = new Date(at(5).getTime() - 7_200_000);
+    await dbs.owner.insert(discoveryRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', trigger: 'auto', startedAt: new Date(during.getTime() - 60_000), finishedAt: new Date(during.getTime() + 60_000) });
+    await dbs.owner.insert(vendorCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, vendor: 'v', operation: 'maps', units: 1, costUsd: 2, latencyMs: 1, ok: true, createdAt: during });
+    await dbs.owner.insert(llmCall).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, task: 't', provider: 'p', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 1, latencyMs: 1, ok: true, createdAt: during });
+    expect(await sampleCostEstimate(dbs.service)).toMatchObject({ startingPointAvgUsd: 0.75, basedOn: 1 });
   });
 });

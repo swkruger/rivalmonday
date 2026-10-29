@@ -37,7 +37,7 @@ Samples count only once the agency has confirmed its email address, and they use
 
 ### Where does a sample go after I approve it?
 
-The business is created in the Samples agency and its setup opens. Run setup as usual, approve the starting point in Approvals, then send the sample from here.
+The business is created in the Samples agency and its setup opens. Only the operator who approved the sample becomes a member of the Samples agency, so that operator finishes its setup; other operators approve their own samples. Run setup as usual, approve the starting point in Approvals, then send the sample from here.
 
 ### What should I do on the competitors step of a sample's setup?
 

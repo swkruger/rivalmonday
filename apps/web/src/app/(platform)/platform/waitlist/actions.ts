@@ -45,7 +45,7 @@ export async function inviteAgenciesAction(_prev: InviteResult, fd: FormData): P
       failed.push({ orgName: str(fd, `org:${row.id}`) || row.email, url: row.url });
     }
   }
-  return { ok: true, message: `Invited ${invited}. Skipped ${r.data.results.length - invited} (not confirmed or already handled).`, failed };
+  return { ok: true, message: `Invited ${invited}. Skipped ${r.data.results.length - invited} (not confirmed, already handled or failed).`, failed };
 }
 
 export async function declineWaitlistEntryAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
