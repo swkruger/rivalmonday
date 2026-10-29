@@ -1,0 +1,22 @@
+{
+  "name": "@cs/copy-review",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "review": "tsx src/cli/review.ts",
+    "status": "tsx src/cli/status.ts"
+  },
+  "dependencies": {
+    "@cs/email": "workspace:*",
+    "typescript": "^5.9.2",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4"
+  }
+}

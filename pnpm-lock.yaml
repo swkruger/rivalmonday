@@ -432,6 +432,28 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.4)(jiti@2.7.0)(jsdom@30.1.2(@noble/hashes@2.4.0))(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  packages/copy-review:
+    dependencies:
+      '@cs/email':
+        specifier: workspace:*
+        version: link:../email
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      zod:
+        specifier: ^4.1.5
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.4
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.15
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.4)(jiti@2.7.0)(jsdom@30.1.2(@noble/hashes@2.4.0))(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1)
+
   packages/core:
     dependencies:
       pino:
