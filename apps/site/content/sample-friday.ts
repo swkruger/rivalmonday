@@ -1,6 +1,7 @@
 /**
  * Friday's canned answers on the sample brief (plan P4, owner signs). Written from `sample-brief.json`: every part
- * that states a figure cites the evidence it came from (`sample-friday.test.ts` fails on any uncited number).
+ * that states a figure cites the evidence it came from, and the figure must appear in that evidence itself
+ * (`sample-friday.test.ts`; item text does not count: no evidence, no claim).
  * No network, no model: the site plays these back as typed text.
  */
 export interface CannedAnswer {
@@ -12,11 +13,11 @@ export interface CannedAnswer {
 export const FRIDAY_ANSWERS: readonly CannedAnswer[] = [
   {
     id: 'quillstone-week',
-    question: 'What changed with Quillstone Climate Pros this week?',
+    question: 'What changed with Quillstone Climate Pros?',
     answer: [
-      { text: 'Quillstone Climate Pros moved up on the map for "ac repair marlowemere": it now ranks in the top 3 at 31 of 49 points, up from 8 of 49.', cite: 'e1' },
-      { text: ' It also started 2 Meta ads. One offers 0% financing for 60 months on new systems,', cite: 'e3' },
-      { text: ' the other a Comfort Club with two tune-ups a year and 15% off repairs.', cite: 'e4' },
+      { text: "In last week's map scan for \"ac repair marlowemere\", Quillstone Climate Pros ranked in the top 3 at 31 of 49 points.", cite: 'e1' },
+      { text: ' It also started Meta ads. One offers 0% financing for 60 months on new systems,', cite: 'e3' },
+      { text: ' another a Comfort Club with two tune-ups a year and 15% off repairs.', cite: 'e4' },
     ],
   },
   {
@@ -32,7 +33,7 @@ export const FRIDAY_ANSWERS: readonly CannedAnswer[] = [
     question: 'Who is winning the map for "ac repair marlowemere"?',
     answer: [
       { text: 'In the latest scan you are in the map top 3 at 42 of 49 points.', cite: 'e17' },
-      { text: ' The rival to watch is Quillstone Climate Pros: it is now in the top 3 at 31 of 49 points, up from 8.', cite: 'e1' },
+      { text: ' The rival to watch is Quillstone Climate Pros: in the scan a week earlier it ranked in the top 3 at 31 of 49 points.', cite: 'e1' },
       { text: ' Check your Google Business Profile categories and recent reviews for the areas it took.', cite: 'e1' },
     ],
   },

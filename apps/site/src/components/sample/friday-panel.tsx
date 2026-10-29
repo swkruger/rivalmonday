@@ -30,6 +30,7 @@ export function FridayPanel({ answers, data, onOpen }: { answers: readonly Canne
   const ask = (a: CannedAnswer) => setActive({ id: a.id, shown: reduced ? Number.POSITIVE_INFINITY : 0 });
 
   let offset = 0;
+  let pillNo = 0;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -49,7 +50,11 @@ export function FridayPanel({ answers, data, onOpen }: { answers: readonly Canne
           </button>
         ))}
       </div>
-      <div data-testid="friday-answer" aria-live="polite" aria-busy={typing} className="min-h-12 text-sm leading-relaxed text-ink">
+      {/* Screen readers get the whole answer at once; the typed copy below is aria-hidden (its pills stay reachable). */}
+      <p data-testid="friday-live" aria-live="polite" className="sr-only">
+        {answer ? answer.answer.map((p) => p.text).join('') : ''}
+      </p>
+      <div data-testid="friday-answer" className="min-h-12 text-sm leading-relaxed text-ink">
         {answer && (
           <p>
             {answer.answer.map((part, i) => {
@@ -59,13 +64,14 @@ export function FridayPanel({ answers, data, onOpen }: { answers: readonly Canne
               const done = visible.length === part.text.length;
               // Consecutive parts citing the same evidence share one pill, after the last of them.
               const pill = part.cite && answer.answer[i + 1]?.cite !== part.cite;
+              const n = pill ? ++pillNo : 0;
               return (
                 <span key={i}>
-                  {visible}
+                  <span aria-hidden="true">{visible}</span>
                   {done && pill && part.cite && (
                     <>
                       {' '}
-                      <EvidencePills ids={[part.cite]} data={data} onOpen={onOpen} />
+                      <EvidencePills ids={[part.cite]} data={data} onOpen={onOpen} start={n} />
                     </>
                   )}
                 </span>

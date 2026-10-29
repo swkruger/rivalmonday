@@ -5,7 +5,7 @@ import { formatDay } from '../../sample/format';
 import type { SampleBriefData } from '../../sample/schema';
 import { EvidencePills, type OpenEvidence } from './brief-items';
 
-type Bucket = 'top3' | 'top10' | 'top20' | 'none';
+type Bucket = 'top3' | 'top10' | 'top20' | 'none' | 'nodata';
 
 // Literal class strings so Tailwind sees them; the hex lives only in site.css (`--color-rank-*`).
 const CELL: Record<Bucket, string> = {
@@ -13,15 +13,18 @@ const CELL: Record<Bucket, string> = {
   top10: 'bg-rank-top10 text-rank-top10-ink',
   top20: 'bg-rank-top20 text-rank-top20-ink',
   none: 'border border-line bg-rank-none text-rank-none-ink',
+  // No rank recorded for the point (outside the caption's denominator): an empty, dashed cell.
+  nodata: 'border border-dashed border-line-control bg-surface text-muted-ink',
 };
 const LEGEND: { bucket: Bucket; label: string }[] = [
   { bucket: 'top3', label: '1–3' },
   { bucket: 'top10', label: '4–10' },
   { bucket: 'top20', label: '11–20' },
   { bucket: 'none', label: 'Not found' },
+  { bucket: 'nodata', label: 'No data' },
 ];
 
-const bucketOf = (rank: number | null): Bucket => (rank === null || rank > 20 ? 'none' : rank <= 3 ? 'top3' : rank <= 10 ? 'top10' : 'top20');
+const bucketOf = (rank: number | null): Bucket => (rank === null ? 'nodata' : rank > 20 ? 'none' : rank <= 3 ? 'top3' : rank <= 10 ? 'top10' : 'top20');
 const labelOf = (rank: number | null) => (rank === null ? '–' : rank > 20 ? '20+' : String(rank));
 
 /** Top-3 count over the points that have a rank (the exporter's "N of P points"). */
@@ -42,8 +45,13 @@ export function RankGrid({ data, onOpen }: { data: SampleBriefData; onOpen: Open
   const { top3, points } = weekStats(week.you);
   const caption = `Top 3 in ${top3} of ${points} points`;
   const weekLabel = `Week of ${formatDay(week.weekOf)}`;
+  const rankEvidence = Object.values(data.evidence).filter((e) => e.kind === 'rank' && e.weekOf === week.weekOf && e.keyword === keyword);
+  const evidenceId = rankEvidence.find((e) => e.kind === 'rank' && e.summary.startsWith('You:'))?.id;
+  // Rival lines only where that week has the rival's own rank evidence ("no evidence, no claim"), leader first.
   const leader = week.leaderRivalId ? data.rivals.find((r) => r.id === week.leaderRivalId)?.name : undefined;
-  const evidenceId = Object.values(data.evidence).find((e) => e.kind === 'rank' && e.weekOf === week.weekOf && e.summary.startsWith('You:'))?.id;
+  const rivalLines = rankEvidence
+    .flatMap((e) => (e.kind === 'rank' && !e.summary.startsWith('You:') ? [{ id: e.id, summary: e.summary }] : []))
+    .sort((a, b) => Number(!!leader && b.summary.startsWith(`${leader}:`)) - Number(!!leader && a.summary.startsWith(`${leader}:`)));
   const rows = Array.from({ length: size }, (_, r) => week.you.slice(r * size, r * size + size));
   return (
     <figure className="flex flex-col gap-4">
@@ -93,7 +101,12 @@ export function RankGrid({ data, onOpen }: { data: SampleBriefData; onOpen: Open
           <span className="font-semibold text-ink">{caption}</span>
           {evidenceId && <EvidencePills ids={[evidenceId]} data={data} onOpen={onOpen} />}
         </span>
-        {leader && <span className="text-ink-secondary">Most first places among rivals: {leader}</span>}
+        {rivalLines.map((l, i) => (
+          <span key={l.id} className="flex flex-wrap items-center gap-2 text-ink-secondary">
+            {l.summary}
+            <EvidencePills ids={[l.id]} data={data} onOpen={onOpen} start={(evidenceId ? 2 : 1) + i} />
+          </span>
+        ))}
       </figcaption>
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-ink">Show as table</summary>
@@ -110,7 +123,7 @@ export function RankGrid({ data, onOpen }: { data: SampleBriefData; onOpen: Open
               {rows.map((row, r) => (
                 <tr key={r}>
                   <th scope="row" className="font-normal">{r === 0 ? 'Row 1 (north)' : r === size - 1 ? `Row ${r + 1} (south)` : `Row ${r + 1}`}</th>
-                  {row.map((rank, c) => <td key={c}>{rank === null ? 'not found' : labelOf(rank)}</td>)}
+                  {row.map((rank, c) => <td key={c}>{rank === null ? 'no data' : rank > 20 ? 'not found' : labelOf(rank)}</td>)}
                 </tr>
               ))}
             </tbody>

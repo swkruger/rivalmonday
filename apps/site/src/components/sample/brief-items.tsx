@@ -8,8 +8,11 @@ export type OpenEvidence = (id: string, trigger: HTMLElement) => void;
 
 const KIND_LABEL: Record<SampleItem['kind'], string> = { website: 'Website', reviews: 'Reviews', ads: 'Ads', rank: 'Map rankings', listing: 'Listing' };
 
-/** Inline evidence pills for a list of ids; each opens the evidence sheet. Shared by brief items and Friday. */
-export function EvidencePills({ ids, data, onOpen }: { ids: string[]; data: SampleBriefData; onOpen: OpenEvidence }) {
+/**
+ * Inline evidence pills for a list of ids; each opens the evidence sheet. Shared by brief items, the grid and Friday.
+ * `start` numbers the first pill, so a host showing several groups keeps "Evidence n" distinct.
+ */
+export function EvidencePills({ ids, data, onOpen, start = 1 }: { ids: string[]; data: SampleBriefData; onOpen: OpenEvidence; start?: number }) {
   return (
     <>
       {ids.map((id, i) => {
@@ -17,7 +20,7 @@ export function EvidencePills({ ids, data, onOpen }: { ids: string[]; data: Samp
         if (!ev) return null;
         const { source, date } = evidenceSource(ev);
         return (
-          <CitationPill key={id} asChild n={i + 1} source={source} date={date}>
+          <CitationPill key={id} asChild n={start + i} source={source} date={date}>
             <button type="button" aria-haspopup="dialog" onClick={(e) => onOpen(id, e.currentTarget)} />
           </CitationPill>
         );

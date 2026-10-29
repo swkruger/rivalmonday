@@ -91,6 +91,47 @@ describe('SampleBrief', () => {
     expect(slider.getAttribute('aria-valuetext')).not.toBe('');
   });
 
+  it('a rival line on the grid appears only with its cited rank evidence', () => {
+    render(<SampleBrief />);
+    const weeks = SAMPLE.rankGrid.weeks;
+    const rivalEv = Object.values(SAMPLE.evidence).find((e) => e.kind === 'rank' && !e.summary.startsWith('You:'))!;
+    if (rivalEv.kind !== 'rank') throw new Error('fixture');
+    const slider = screen.getByRole('slider', { name: 'Week' });
+    const withEv = weeks.findIndex((w) => w.weekOf === rivalEv.weekOf);
+    const without = weeks.findIndex((w) => !Object.values(SAMPLE.evidence).some((e) => e.kind === 'rank' && e.weekOf === w.weekOf && !e.summary.startsWith('You:')));
+    fireEvent.change(slider, { target: { value: String(withEv) } });
+    const line = screen.getByText(rivalEv.summary);
+    expect(within(line).getByRole('button', { name: /^Evidence 2: Map rankings/ })).toBeTruthy();
+    fireEvent.change(slider, { target: { value: String(without) } });
+    expect(screen.queryByText(rivalEv.summary)).toBeNull();
+    expect(screen.queryByText(/Most first places/)).toBeNull();
+  });
+
+  it('a point without data reads "no data", apart from not found', () => {
+    render(<SampleBrief />);
+    const i = SAMPLE.rankGrid.weeks.findIndex((w) => w.you.includes(null));
+    expect(i).toBeGreaterThanOrEqual(0);
+    fireEvent.change(screen.getByRole('slider', { name: 'Week' }), { target: { value: String(i) } });
+    expect(screen.getByText('No data')).toBeTruthy();
+    expect(screen.getByText('Not found')).toBeTruthy();
+    expect(screen.getAllByText('no data').length).toBe(SAMPLE.rankGrid.weeks[i]!.you.filter((r) => r === null).length);
+  });
+
+  it('friday pills are numbered by position and the live region holds the whole answer', () => {
+    vi.useFakeTimers();
+    render(<SampleBrief />);
+    fireEvent.click(screen.getByRole('button', { name: FRIDAY_ANSWERS[0]!.question }));
+    // Screen readers get the full text at once; the typed copy is hidden from them.
+    expect(screen.getByTestId('friday-live').textContent).toBe(FRIDAY_ANSWERS[0]!.answer.map((p) => p.text).join(''));
+    act(() => { vi.advanceTimersByTime(10_000); });
+    const answer = screen.getByTestId('friday-answer');
+    const names = within(answer).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+    expect(names.length).toBeGreaterThan(1);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.map((n) => n!.match(/^Evidence (\d+)/)![1])).toEqual(names.map((_, i) => String(i + 1)));
+    for (const span of answer.querySelectorAll('p > span > span:first-child')) expect(span.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('compact shows the first 3 items and no rank grid', () => {
     render(<SampleBrief compact />);
     expect(screen.getAllByRole('article')).toHaveLength(3);
