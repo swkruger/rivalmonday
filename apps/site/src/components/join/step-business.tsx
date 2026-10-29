@@ -6,7 +6,7 @@ import { JOIN_COPY } from './copy';
 /** Field order = focus order for the first invalid field. */
 export const BUSINESS_FIELD_ORDER = ['contactName', 'email', 'orgName', 'website', 'location', 'vertical', 'verticalOther'] as const;
 
-export function StepBusiness({ form, errors, pending, formError, turnstile, onChange, onBack }: {
+export function StepBusiness({ form, errors, pending, formError, turnstile, onChange, onBack, pilotMode = true }: {
   form: BusinessForm;
   errors: FieldErrors;
   pending: boolean;
@@ -15,6 +15,8 @@ export function StepBusiness({ form, errors, pending, formError, turnstile, onCh
   turnstile?: React.ReactNode;
   onChange: (patch: Partial<BusinessForm>) => void;
   onBack: () => void;
+  /** Off: the consent line names the waitlist, not the pilot. */
+  pilotMode?: boolean;
 }) {
   const c = JOIN_COPY.business;
   return (
@@ -56,10 +58,10 @@ export function StepBusiness({ form, errors, pending, formError, turnstile, onCh
       {formError ? <p role="alert" className="text-sm text-danger-text">{formError}</p> : null}
       {turnstile}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack}>{JOIN_COPY.back}</Button>
+        <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button>
         <Button type="submit" disabled={pending} aria-busy={pending || undefined}>{c.submit}</Button>
       </div>
-      <p className="text-xs text-muted-ink">{c.fine}</p>
+      <p className="text-xs text-muted-ink">{pilotMode ? c.fine : c.fineTrial}</p>
     </>
   );
 }

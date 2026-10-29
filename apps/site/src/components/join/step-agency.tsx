@@ -63,7 +63,7 @@ export function StepAgency({ form, errors, pending, formError, turnstile, onChan
       {formError ? <p role="alert" className="text-sm text-danger-text">{formError}</p> : null}
       {turnstile}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack}>{JOIN_COPY.back}</Button>
+        <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button>
         <Button type="submit" disabled={pending} aria-busy={pending || undefined}>{c.submit}</Button>
       </div>
       <p className="text-xs text-muted-ink">{c.fine}</p>

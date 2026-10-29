@@ -169,7 +169,7 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
       {step === 'agency' ? (
         <StepAgency form={agency} errors={errors} pending={pending} formError={formError} turnstile={turnstile} onChange={(p) => setAgency((f) => ({ ...f, ...p }))} onBack={back} />
       ) : (
-        <StepBusiness form={business} errors={errors} pending={pending} formError={formError} turnstile={turnstile} onChange={(p) => setBusiness((f) => ({ ...f, ...p }))} onBack={back} />
+        <StepBusiness form={business} errors={errors} pending={pending} formError={formError} turnstile={turnstile} pilotMode={pilotMode} onChange={(p) => setBusiness((f) => ({ ...f, ...p }))} onBack={back} />
       )}
     </form>
   );

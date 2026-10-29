@@ -10,6 +10,8 @@ export const HERO = {
   primaryCta: 'Join the pilot',
   secondaryCta: 'See a sample brief',
   finePrint: 'Free during the pilot · No card needed · Limited places',
+  /** Pilot off (NEW, owner signs). */
+  finePrintTrial: `${PRICING.agency.trialDays}-day free trial · then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats`,
 } as const;
 
 export const ANNOUNCEMENT = {
@@ -100,10 +102,23 @@ export const PRICING_LINES = {
   business: `Local businesses: then $${business.monthlyUsd}/mo.`,
 } as const;
 
+/** Pilot off (NEW, owner signs). */
+export const PRICING_HEADING_TRIAL = `Start with a ${agency.trialDays}-day free trial.`;
+export const PRICING_LINES_TRIAL = {
+  agency: `Agencies: $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, after a ${agency.trialDays}-day free trial.`,
+  business: `Local businesses: $${business.monthlyUsd}/mo.`,
+} as const;
+
 export const CTA_BAND = {
   heading: 'Join the pilot',
   body: 'Places are limited while we work closely with each agency.',
   button: 'Join the pilot',
+} as const;
+
+/** Pilot off (NEW, owner signs). The button is `JoinButton`'s own "Start your free trial". */
+export const CTA_BAND_TRIAL = {
+  heading: 'Start your free trial',
+  body: `Try Rival Monday free for ${agency.trialDays} days, then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats.`,
 } as const;
 
 export const COUNTER_LABELS = [

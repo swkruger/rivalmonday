@@ -1,7 +1,6 @@
 'use client';
 
 import { Wordmark } from '@cs/ui';
-import { CTA_BAND } from '../../../content/home';
 import { PAGES } from '../../../content/pages';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from './pilot-context';
@@ -32,13 +31,6 @@ export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-line bg-surface">
       <div className="site-container py-10">
-        <div className="mb-10 flex flex-col items-start justify-between gap-4 rounded-lg border border-line bg-muted-surface p-6 md:flex-row md:items-center">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">{CTA_BAND.heading}</h2>
-            <p className="text-sm text-ink-secondary">{CTA_BAND.body}</p>
-          </div>
-          <JoinButton>{CTA_BAND.button}</JoinButton>
-        </div>
         <div className="flex flex-col gap-8 md:flex-row md:justify-between">
           <div className="flex flex-col gap-3">
             <Wordmark />

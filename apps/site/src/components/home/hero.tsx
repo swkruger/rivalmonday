@@ -1,6 +1,7 @@
 import { Button } from '@cs/ui';
 import { HERO } from '../../../content/home';
 import { JoinButton } from '../join/join-button';
+import { HeroFinePrint } from './hero-fine-print';
 import { HeroFragments } from './hero-fragments';
 import { PilotPill } from './pilot-pill';
 
@@ -27,12 +28,17 @@ export function Hero() {
               <a href="#sample">{HERO.secondaryCta}</a>
             </Button>
           </div>
-          <p className="mt-3.5 text-13 text-ink-secondary">{HERO.finePrint}</p>
+          <HeroFinePrint />
         </div>
         <div className="relative min-w-0">
-          <p className="sr-only">
-            Preview of a sample Monday brief. <a href="#sample">Jump to the full sample</a>
-          </p>
+          <p className="sr-only">Preview of a sample Monday brief.</p>
+          {/* Visible when focused, so a keyboard user sees where the tab stop is. */}
+          <a
+            href="#sample"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-0 focus:top-0 focus:z-20 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-link focus:shadow-float"
+          >
+            Jump to the full sample
+          </a>
           <HeroFragments />
         </div>
       </div>

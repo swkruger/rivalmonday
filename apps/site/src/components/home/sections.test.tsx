@@ -6,7 +6,7 @@ vi.mock('../../lib/env', () => env);
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
-import { COUNTER_LABELS, HOME_ANCHORS } from '../../../content/home';
+import { CTA_BAND, CTA_BAND_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_HEADING_TRIAL, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
 import { PRICING } from '../../../content/pricing';
 import HomePage from '../../app/page';
 import { JoinProvider } from '../join/join-provider';
@@ -154,5 +154,32 @@ describe('HomePage', () => {
     cleanup();
     const out = await renderApp(<HomePage />, { pilotMode: true, counters: null });
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
+  });
+});
+
+describe('pilot-aware copy', () => {
+  const OFF = { pilotMode: false, counters: ALL };
+
+  it('pilot off: no pilot wording on the home page, real sample hidden, trial copy from PRICING', async () => {
+    const { container } = await renderApp(<HomePage />, OFF);
+    expect(container.textContent).not.toMatch(/pilot/i);
+    expect(container.querySelector('#real-sample')).toBeNull();
+    expect(screen.getByText(HERO.finePrintTrial)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: CTA_BAND_TRIAL.heading })).toBeTruthy();
+    expect(screen.getByText(CTA_BAND_TRIAL.body)).toBeTruthy();
+    expect(screen.getByText(PRICING_HEADING_TRIAL)).toBeTruthy();
+    expect(container.querySelector('[data-slot="pricing-agency"]')!.textContent).toBe(PRICING_LINES_TRIAL.agency);
+    for (const t of [HERO.finePrintTrial, CTA_BAND_TRIAL.body, PRICING_LINES_TRIAL.agency]) {
+      expect(t).toContain(`$${PRICING.agency.monthlyUsd}`);
+      expect(t).toContain(`${PRICING.agency.trialDays}`);
+    }
+  });
+
+  it('pilot on: the pilot copy and the real-sample section show', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    expect(screen.getByText(HERO.finePrint)).toBeTruthy();
+    expect(screen.getByText(CTA_BAND.body)).toBeTruthy();
+    expect(screen.getByText(SECTIONS.pricing.heading)).toBeTruthy();
+    expect(container.querySelector('#real-sample')).toBeTruthy();
   });
 });

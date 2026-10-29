@@ -15,19 +15,21 @@ export function StepChoose({ choice, onChoice, onNext, agencySignUpHref }: {
   agencySignUpHref: string | null;
 }) {
   const c = JOIN_COPY.step1;
+  // The sign-up link exists only with the pilot off: then no pilot wording.
+  const trial = agencySignUpHref !== null;
   return (
     <>
       <DialogHeader>
         <p className="text-xs text-muted-ink">{c.eyebrow}</p>
-        <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{c.title}</DialogTitle>
-        <DialogDescription>{c.sub}</DialogDescription>
+        <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{trial ? c.titleTrial : c.title}</DialogTitle>
+        <DialogDescription>{trial ? c.subTrial : c.sub}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-3">
         {/* A link is not a radio: with the pilot off it sits outside the radiogroup. */}
         {agencySignUpHref ? (
           <a href={agencySignUpHref} className={OPTION}>
             <span className="text-sm font-semibold text-ink">{c.agency.title}</span>
-            <span className="text-sm text-ink-secondary">{c.agency.body}</span>
+            <span className="text-sm text-ink-secondary">{c.agency.bodyTrial}</span>
           </a>
         ) : null}
         <div role="radiogroup" aria-label="Who are you?" className="flex flex-col gap-3">
@@ -41,7 +43,7 @@ export function StepChoose({ choice, onChoice, onNext, agencySignUpHref }: {
           <label className={OPTION}>
             <input type="radio" name="join-kind" className="sr-only" checked={choice === 'business'} onChange={() => onChoice('business')} />
             <span className="text-sm font-semibold text-ink">{c.business.title}</span>
-            <span className="text-sm text-ink-secondary">{c.business.body}</span>
+            <span className="text-sm text-ink-secondary">{trial ? c.business.bodyTrial : c.business.body}</span>
           </label>
         </div>
       </div>

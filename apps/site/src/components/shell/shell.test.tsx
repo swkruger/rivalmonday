@@ -68,6 +68,14 @@ describe('site shell', () => {
     expect(screen.getByRole('link', { name: 'Privacy' }).getAttribute('href')).toBe('/privacy');
   });
 
+  it('footer has no closing CTA of its own (pages render CtaBand)', async () => {
+    await renderShell();
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).queryByRole('button', { name: 'Join the pilot' })).toBeNull();
+    expect(footer.querySelector('h2')).toBeNull();
+    expect(footer.textContent).not.toContain('Places are limited');
+  });
+
   it('join from the mobile menu closes the sheet', async () => {
     await renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));

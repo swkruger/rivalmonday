@@ -37,7 +37,9 @@ export function HeroFragments() {
   const rows = briefRows();
   const snap = firstSnapshot();
   const answer = FRIDAY_ANSWERS[0];
-  const sources = answer ? new Set(answer.answer.map((p) => p.cite).filter(Boolean)).size : 0;
+  // Only the first part is shown, so only its cites count.
+  const shown = answer?.answer[0];
+  const sources = shown?.cite ? 1 : 0;
 
   return (
     <div data-slot="hero-fragments" aria-hidden="true" className="relative z-10 flex flex-col gap-4 lg:block lg:min-h-[40rem]">
@@ -78,8 +80,8 @@ export function HeroFragments() {
           <FridayBadge />
           <p className="mt-2 text-13 font-semibold text-ink">{answer.question}</p>
           <p className="mt-1 text-13 text-ink">
-            {answer.answer[0]?.text}{' '}
-            <span className="rounded-xs bg-muted-surface px-1.5 text-xs text-link">{sources} sources</span>
+            {shown?.text}{' '}
+            <span data-slot="friday-sources" className="rounded-xs bg-muted-surface px-1.5 text-xs text-link">{sources} {sources === 1 ? 'source' : 'sources'}</span>
           </p>
         </div>
       )}

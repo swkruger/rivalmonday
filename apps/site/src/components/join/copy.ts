@@ -6,13 +6,18 @@ export const JOIN_COPY = {
     eyebrow: 'Step 1 of 2',
     title: 'Join the Rival Monday pilot',
     sub: "Tell us who you are — we'll send you an invite as places open.",
+    // Pilot off (NEW, owner signs): `*Trial` variants.
+    titleTrial: 'Get started with Rival Monday',
+    subTrial: 'Agencies can start a free trial now. Local businesses join the waitlist.',
     agency: {
       title: 'I run an agency',
       body: `Resell Rival Monday to your clients under your own brand. Free during the pilot, then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats.`,
+      bodyTrial: `Resell Rival Monday to your clients under your own brand. ${PRICING.agency.trialDays}-day free trial, then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats.`,
     },
     business: {
       title: 'I own a local business',
       body: `Get a weekly brief on what your competitors are doing. Free during the pilot, then $${PRICING.business.monthlyUsd}/mo.`,
+      bodyTrial: `Get a weekly brief on what your competitors are doing, for $${PRICING.business.monthlyUsd}/mo. Join the waitlist and we'll email you when we can start.`,
     },
     foot: 'Takes 30 seconds',
     next: 'Continue',
@@ -59,6 +64,8 @@ export const JOIN_COPY = {
     verticalOther: 'Describe your business',
     submit: 'Join the waitlist',
     fine: 'Protected by Cloudflare Turnstile. We only use this to contact you about the pilot.',
+    // Pilot off (NEW, owner signs).
+    fineTrial: 'Protected by Cloudflare Turnstile. We only use this to contact you about the waitlist.',
   },
   done: {
     title: "You're on the list. We've emailed you a confirmation.",

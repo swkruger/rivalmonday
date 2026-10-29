@@ -40,7 +40,10 @@ describe('Hero', () => {
     expect(frags.textContent).toContain(snap.after[snap.changed]!);
     expect(frags.textContent).toContain(FRIDAY_ANSWERS[0]!.question);
     expect(frags.textContent).toContain(FRIDAY_ANSWERS[0]!.answer[0]!.text);
-    expect(frags.textContent).toMatch(/\d+ sources/);
+    // Only the shown part is on screen, so only its cites count.
+    const shown = FRIDAY_ANSWERS[0]!.answer[0]!;
+    const n = shown.cite ? 1 : 0;
+    expect(frags.querySelector('[data-slot="friday-sources"]')!.textContent).toBe(`${n} ${n === 1 ? 'source' : 'sources'}`);
   });
 
   it('fragments are aria-hidden with one visually hidden summary linking to the sample', () => {
@@ -48,7 +51,24 @@ describe('Hero', () => {
     expect(container.querySelector('[data-slot="hero-fragments"]')!.getAttribute('aria-hidden')).toBe('true');
     const summary = screen.getByText(/Preview of a sample Monday brief/);
     expect(summary.className).toContain('sr-only');
-    expect(summary.querySelector('a')!.getAttribute('href')).toBe('#sample');
+    expect(screen.getByText('Jump to the full sample').getAttribute('href')).toBe('#sample');
+  });
+
+  it('the sr-only jump link becomes visible on focus', () => {
+    render(<Hero />);
+    const link = screen.getByText('Jump to the full sample');
+    expect(link.className).toContain('focus:not-sr-only');
+    expect(link.parentElement!.closest('.sr-only')).toBeNull();
+  });
+
+  it('fine print follows pilot mode', () => {
+    const { rerender } = render(<Hero />);
+    expect(screen.getByText(HERO.finePrint)).toBeTruthy();
+    pilot.pilotMode = false;
+    rerender(<Hero />);
+    expect(screen.queryByText(HERO.finePrint)).toBeNull();
+    expect(screen.getByText(HERO.finePrintTrial)).toBeTruthy();
+    expect(HERO.finePrintTrial).not.toMatch(/pilot/i);
   });
 
   it('secondary CTA targets #sample', () => {
