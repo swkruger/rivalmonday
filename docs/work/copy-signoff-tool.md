@@ -4,7 +4,8 @@
 **Plan/spec:** `docs/superpowers/plans/2026-10-29-copy-signoff-tool.md` / `docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`
 
 ## Status (overwrite)
-Spec + lean plan written (owner said "just start": decisions D1–D12 are Claude's calls). Awaiting owner plan approval.
+Spec + lean plan written (owner said "just start": decisions D1–D12 are Claude's calls). Plan approved; SDD in progress.
+Task 4 scan (2026-10-29): 5,233 items in ~1.9 s — app-client 678, app-agency 420, app-platform 923, app-account 282, app-shared 717, help 692, guides 86, glossary 81, labels 252, mcp-tools 258, site 842, site-legal 2 (emails/documents come in Task 5). Manual read of 60 random items per surface (3 seeds): est. < 2 % non-copy on every surface (left: short format strings like `{d} days`, cut sentence pieces around inline tags). Sample: `docs/work/copy-signoff-tool-noise.txt` (not committed).
 
 ## Next (overwrite)
 Owner approves the plan → Task 0 pre-flight → subagent-driven development.

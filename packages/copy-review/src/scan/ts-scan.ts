@@ -51,17 +51,67 @@ function rootIdent(e: ts.Expression): string | undefined {
   }
 }
 
-/** True when the node sits inside a position that is never copy (imports, types, console/logger/z/sql, throw). */
+/** Call roots whose string arguments are never copy (`console.x`, `logger.x`, `log.x`, `z.` schema chains). */
+const DROP_CALL_ROOTS: ReadonlySet<string> = new Set(['console', 'logger', 'log', 'z']);
+/** Objects whose method calls are logging, wherever they hang (`this.logger.x`, `deps.logger.x`, `ctx.log.x`). */
+const LOGGER_OBJECTS: ReadonlySet<string> = new Set(['console', 'logger', 'log']);
+/** Built-in error constructors: their messages are for developers (`new Error('…')` anywhere, thrown or not). */
+const ERROR_CTORS: ReadonlySet<string> = new Set(['Error', 'TypeError', 'RangeError']);
+/** Methods whose literal arguments are compared, never shown (`.includes('x')`). */
+const MATCH_METHODS: ReadonlySet<string> = new Set(['includes', 'startsWith', 'endsWith', 'has', 'indexOf']);
+const EQUALITY_OPS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken,
+  ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken,
+]);
+
+function isLoggerCall(call: ts.CallExpression): boolean {
+  const root = rootIdent(call.expression);
+  if (root !== undefined && DROP_CALL_ROOTS.has(root)) return true;
+  if (!ts.isPropertyAccessExpression(call.expression)) return false;
+  const obj = call.expression.expression;
+  const objName = ts.isIdentifier(obj) ? obj.text : ts.isPropertyAccessExpression(obj) ? obj.name.text : undefined;
+  return objName !== undefined && LOGGER_OBJECTS.has(objName);
+}
+
+const isMatchCall = (e: ts.Node): e is ts.CallExpression =>
+  ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && MATCH_METHODS.has(e.expression.name.text);
+
+/**
+ * A literal used only as a comparison operand: `x === 'a'`, `case 'a':`, `.includes('a')`, or an element of the array
+ * a `.includes(...)` is called on. Such strings are matched against, never shown.
+ */
+function isComparedLiteral(node: ts.Node): boolean {
+  let cur = node;
+  while (ts.isParenthesizedExpression(cur.parent) || ts.isAsExpression(cur.parent)) cur = cur.parent;
+  const p = cur.parent;
+  if (!p) return false;
+  if (ts.isBinaryExpression(p) && EQUALITY_OPS.has(p.operatorToken.kind)) return true;
+  if (ts.isCaseClause(p) && p.expression === cur) return true;
+  if (isMatchCall(p) && p.arguments.includes(cur as ts.Expression)) return true;
+  if (ts.isArrayLiteralExpression(p)) {
+    let arr: ts.Node = p;
+    while (ts.isParenthesizedExpression(arr.parent) || ts.isAsExpression(arr.parent)) arr = arr.parent;
+    const access = arr.parent;
+    return !!access && ts.isPropertyAccessExpression(access) && access.expression === arr && isMatchCall(access.parent);
+  }
+  return false;
+}
+
+/**
+ * True when the node sits inside a position that is never copy (imports, types, console/logger/z/sql, throw,
+ * `new Error`, comparisons).
+ */
 export function inDroppedContext(node: ts.Node): boolean {
+  if (isComparedLiteral(node)) return true;
   let propChecked = false;
   for (let p: ts.Node | undefined = node.parent; p; p = p.parent) {
     if (ts.isJsxElement(p) || ts.isJsxFragment(p) || ts.isJsxSelfClosingElement(p)) propChecked = true;
     if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isTypeNode(p)) return true;
     if (ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p) || ts.isThrowStatement(p)) return true;
-    if (ts.isCallExpression(p)) {
-      const root = rootIdent(p.expression);
-      if (root === 'console' || root === 'logger' || root === 'z') return true;
-    }
+    if (ts.isCallExpression(p) && isLoggerCall(p)) return true;
+    if (ts.isNewExpression(p) && ts.isIdentifier(p.expression) && ERROR_CTORS.has(p.expression.text)) return true;
+    // `style={{ fontFamily: 'Inter' }}`: a dropped JSX attribute drops everything inside its value.
+    if (ts.isJsxAttribute(p) && isDroppedName(p.name.getText())) return true;
     if (ts.isTaggedTemplateExpression(p) && /^sql\b/.test(p.tag.getText())) return true;
     // Only the nearest enclosing property decides: `{ meta: { title: 'Real copy' } }` keeps the title.
     if (ts.isPropertyAssignment(p) && !propChecked) {
@@ -197,11 +247,33 @@ export function collectPropertyLiterals(sf: ts.SourceFile, names: ReadonlySet<st
   return out;
 }
 
+/** Runs of unnamed placeholders (from `${a ? 'x' : ''}${b ? 'y' : ''}` or `{cond && …}` children) read as one. */
+export function collapsePlaceholders(text: string): string {
+  return text.replace(/(?:\{…\}){2,}/g, '{…}');
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0', mdash: '—', ndash: '–', hellip: '…',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', middot: '·', rarr: '→', larr: '←', times: '×', copy: '©',
+};
+
+/** JSX text and JSX attribute strings carry HTML entities (`can&apos;t`); show them as the browser does. */
+export function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === '#') {
+      const code = e[1] === 'x' || e[1] === 'X' ? Number.parseInt(e.slice(2), 16) : Number.parseInt(e.slice(1), 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+    }
+    return ENTITIES[e.toLowerCase()] ?? m;
+  });
+}
+
 /** Filter with isCopyLike and assign stable anchors (`file#scope#n`, n = index among kept items of the same scope). */
 export function toCopyItems(file: string, rule: Pick<SourceRule, 'surface'>, raws: RawLiteral[]): CopyItem[] {
   const counts = new Map<string, number>();
   const items: CopyItem[] = [];
-  for (const r of raws) {
+  for (const raw of raws) {
+    const r = { ...raw, text: collapsePlaceholders(raw.text) };
     if (!isCopyLike(r.text)) continue;
     const n = counts.get(r.scope) ?? 0;
     counts.set(r.scope, n + 1);
@@ -273,7 +345,7 @@ export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
         }
         first ??= c;
         hasWords = true;
-        text += c.text;
+        text += decodeEntities(c.text);
       } else if (ts.isJsxExpression(c)) {
         if (!c.expression) continue;
         const lit = literalText(c.expression);
@@ -306,7 +378,7 @@ export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
         const exprs = ts.isJsxExpression(node.initializer) ? (node.initializer.expression ? branchLiterals(node.initializer.expression) : []) : [node.initializer];
         for (const e of exprs) {
           const t = literalText(e);
-          if (t !== undefined) push(e, t, `<${tag} ${attr}>`);
+          if (t !== undefined) push(e, ts.isStringLiteral(e) && e.parent === node ? decodeEntities(t) : t, `<${tag} ${attr}>`);
         }
       }
     }
