@@ -232,6 +232,13 @@ describe('copy-review server', () => {
     expect(all).toContain('>Hello<');
     expect(all).toContain('>Second<');
     expect(all).not.toContain('>Third<');
+    // Every box unticked: only the hidden sentinel is sent → all statuses.
+    const none = (await call(port, 'GET', '/?status=&q=')).body;
+    for (const t of ['>Hello<', '>Second<', '>Third<']) expect(none).toContain(t);
+    // Sentinel plus ticked boxes → just those.
+    const signedOnly = (await call(port, 'GET', '/?status=&status=signed')).body;
+    expect(signedOnly).toContain('>Hello<');
+    expect(signedOnly).not.toContain('>Third<');
   });
 
   it('malformed ledger → server refuses to start', () => {

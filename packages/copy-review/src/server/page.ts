@@ -24,19 +24,32 @@ const CHIP: Record<ItemStatus, string> = {
   unsigned: '○ Unsigned', changed: '△ Changed', signed: '✓ Signed', ignored: '– Ignored',
 };
 
-/** The group-sign payload: the shown rows' (file, hash), in order, without duplicates. */
-export function groupRefs(items: StatusedItem[]): { file: string; hash: string }[] {
-  const seen = new Set<string>();
-  const out: { file: string; hash: string }[] = [];
-  for (const i of items) {
-    const k = `${i.file}\u0000${i.hash}`;
+/** One row as the group-sign picker sees it: its ref, live status, and whether its file group is expanded. */
+export interface GroupRow { file: string; hash: string; status: string; open: boolean }
+export interface GroupPick { n: number; refs: { file: string; hash: string }[] }
+
+/**
+ * Ruling R7: a group sign covers only rows the owner can see (file group expanded) that still need a signature
+ * (unsigned / changed, live status). `n` = matching rows; `refs` = their (file, hash), in order, deduplicated.
+ * Kept as plain-JS source so the page script runs exactly the function the tests exercise.
+ */
+const PICK_SRC = `function pickGroupRefs(rows) {
+  var seen = new Set();
+  var refs = [];
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r.open || (r.status !== 'unsigned' && r.status !== 'changed')) continue;
+    n++;
+    var k = r.file + '\\u0000' + r.hash;
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ file: i.file, hash: i.hash });
+      refs.push({ file: r.file, hash: r.hash });
     }
   }
-  return out;
-}
+  return { n: n, refs: refs };
+}`;
+export const pickGroupRefs = new Function(`return ${PICK_SRC}`)() as (rows: GroupRow[]) => GroupPick;
 
 /** `vscode://file/<abs path>:<line>` with forward slashes and a URL-safe path. */
 export function vscodeLink(root: string, file: string, line: number): string {
@@ -58,8 +71,10 @@ function qs(f: ViewFilter, page?: number, surface: Surface | undefined | null = 
 
 const plural = (n: number, one: string, many = `${one}s`) => `${fmt(n)} ${n === 1 ? one : many}`;
 
+/** Initial label (all file groups start open); the page script recomputes it live with pickGroupRefs. */
 function groupButton(items: StatusedItem[]): string {
-  return `<button type="button" class="group-sign" data-n="${items.length}" data-refs="${esc(JSON.stringify(groupRefs(items)))}">Sign all shown (${fmt(items.length)})</button>`;
+  const { n } = pickGroupRefs(items.map((i) => ({ file: i.file, hash: i.hash, status: i.status, open: true })));
+  return `<button type="button" class="group-sign" data-n="${n}"${n === 0 ? ' disabled' : ''}>Sign all shown (${fmt(n)})</button>`;
 }
 
 function textHtml(i: StatusedItem, text: string, signedText?: string): string {
@@ -242,6 +257,7 @@ ${stat('needsEdit', 'Needs edit')}
 <div class="scope muted">${filter.surface ? esc(filter.surface) : 'All surfaces'}</div>
 </div>
 <form class="filters" method="get" action="/">
+<input type="hidden" name="status" value="">
 ${filter.surface ? `<input type="hidden" name="surface" value="${esc(filter.surface)}">` : ''}
 <fieldset><legend>Status</legend>
 ${checks}
@@ -413,6 +429,7 @@ const SCRIPT = `
     if (!res.ok) { say(data.error || 'Request failed (' + res.status + ')', true); return null; }
     applyCounts(data.counts);
     applyItems(data.items);
+    refreshGroups();
     return data;
   }
   const ref = (row) => ({ file: row.dataset.file, hash: row.dataset.hash });
@@ -421,13 +438,29 @@ const SCRIPT = `
     const path = which === 'sign' ? (st === 'signed' ? '/api/unsign' : '/api/sign') : (st === 'ignored' ? '/api/unignore' : '/api/ignore');
     await post(path, { items: [ref(row)] });
   }
+  const pickGroupRefs = ${PICK_SRC};
+  function pickFor(btn) {
+    const scope = btn.closest('details.file') || btn.closest('section.surface');
+    return pickGroupRefs(Array.from(scope.querySelectorAll('.row')).map((r) => ({
+      file: r.dataset.file, hash: r.dataset.hash, status: r.dataset.status, open: r.closest('details.file').open,
+    })));
+  }
+  function refreshGroups() {
+    for (const btn of document.querySelectorAll('button.group-sign')) {
+      const n = pickFor(btn).n;
+      btn.dataset.n = String(n);
+      btn.textContent = 'Sign all shown (' + n.toLocaleString('en-US') + ')';
+      btn.disabled = n === 0;
+    }
+  }
   async function group(btn) {
-    const refs = JSON.parse(btn.dataset.refs);
-    const n = Number(btn.dataset.n);
+    const pick = pickFor(btn);
+    const n = pick.n;
+    if (n === 0) return;
     if (!confirm('Sign ' + n + (n === 1 ? ' item?' : ' items?'))) return;
     btn.disabled = true;
-    const data = await post('/api/sign', { items: refs });
-    btn.disabled = false;
+    const data = await post('/api/sign', { items: pick.refs });
+    refreshGroups();
     if (data) say('Signed ' + n + (n === 1 ? ' item.' : ' items.'));
   }
   const tpl = document.getElementById('comment-tpl');
@@ -493,6 +526,7 @@ const SCRIPT = `
   });
   document.addEventListener('toggle', (e) => {
     const d = e.target;
+    if (d.matches && d.matches('details.file')) { refreshGroups(); return; }
     if (!d.matches || !d.matches('details.preview') || !d.open) return;
     const f = d.querySelector('iframe[data-src]');
     if (f && !f.getAttribute('src')) f.setAttribute('src', f.dataset.src);

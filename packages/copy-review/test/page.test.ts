@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildView } from '../src/server/app.js';
-import { groupRefs, PAGE_SIZE, renderPage, vscodeLink } from '../src/server/page.js';
+import { PAGE_SIZE, pickGroupRefs, renderPage, vscodeLink, type GroupRow } from '../src/server/page.js';
 import type { ItemStatus, StatusedItem } from '../src/types.js';
 
 const si = (o: Partial<StatusedItem> = {}): StatusedItem => ({
@@ -13,24 +13,35 @@ function page(items: StatusedItem[], status: ItemStatus[] = ['unsigned', 'change
   return renderPage({ ...v, root: 'E:/repo', page: extra.page });
 }
 
-const unesc = (s: string) =>
-  s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+/** Labels of every group button, in document order. */
+const groupLabels = (html: string) =>
+  [...html.matchAll(/<button[^>]*class="group-sign"[^>]*>([^<]*)<\/button>/g)].map((m) => m[1]!);
 
-/** data-refs of every group button, in document order. */
-function groupButtons(html: string) {
-  return [...html.matchAll(/<button[^>]*class="group-sign"[^>]*data-refs="([^"]*)"[^>]*>([^<]*)<\/button>/g)].map((m) => ({
-    refs: JSON.parse(unesc(m[1]!)) as { file: string; hash: string }[],
-    label: m[2]!,
-  }));
-}
+const row = (o: Partial<GroupRow> = {}): GroupRow => ({ file: 'a.ts', hash: 'a'.repeat(16), status: 'unsigned', open: true, ...o });
 
 describe('renderPage', () => {
   it('escapes item text (<script> renders inert)', () => {
-    const html = page([si({ text: '<script>alert(1)</script>', context: '<img src=x onerror=alert(2)>', file: 'a"b.ts' })]);
+    const evil = '<script>alert(1)</script>';
+    const html = page([
+      si({
+        text: evil, context: '<img src=x onerror=alert(2)>', file: 'a"b.ts', needsEdit: true,
+        comments: [{
+          type: 'comment', file: 'a"b.ts', hash: 'a'.repeat(16), anchor: 'a#0', text: evil, at: '2026-10-29',
+          by: '<script>by()</script>', comment: '<script>c()</script>', suggestion: '<script>s()</script>',
+        }],
+      }),
+      si({ file: '<script>f()</script>.ts', hash: 'e'.repeat(16) }),
+    ]);
     expect(html).not.toContain('<script>alert(1)');
     expect(html).not.toContain('<img src=x');
+    for (const bad of ['<script>by()', '<script>c()', '<script>s()', '<script>f()']) expect(html).not.toContain(bad);
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('&lt;script&gt;by()&lt;/script&gt;');
+    expect(html).toContain('&lt;script&gt;c()&lt;/script&gt;');
+    expect(html).toContain('&lt;script&gt;s()&lt;/script&gt;');
     expect(html).toContain('a&quot;b.ts');
+    // Group-sign payloads are built from each row's data-file / data-hash.
+    expect(html).toContain('data-file="&lt;script&gt;f()&lt;/script&gt;.ts"');
     // Only the page's own inline script.
     expect(html.match(/<script>/g)).toHaveLength(1);
   });
@@ -49,27 +60,50 @@ describe('renderPage', () => {
       si({ hash: 'c'.repeat(16), text: 'Signed one', anchor: 'a#2', status: 'signed' }),
       si({ file: 'apps/web/src/help/b.ts', hash: 'd'.repeat(16), text: 'Other file' }),
     ];
-    const html = page(items);
-    const groups = groupButtons(html);
-    // surface header (help: 3 shown), file a (2 shown; the signed one is filtered out), file b (1).
-    expect(groups.map((g) => g.label)).toEqual(['Sign all shown (3)', 'Sign all shown (2)', 'Sign all shown (1)']);
-    expect(groups[1]!.refs).toEqual([
-      { file: 'apps/web/src/help/a.ts', hash: 'a'.repeat(16) },
-      { file: 'apps/web/src/help/a.ts', hash: 'b'.repeat(16) },
-    ]);
-    expect(groups[0]!.refs).toHaveLength(3);
-    expect(groups[0]!.refs).not.toContainEqual({ file: 'apps/web/src/help/a.ts', hash: 'c'.repeat(16) });
-    expect(html).toContain('<details class="file" open');
+    // Default filter: the signed row is not shown. surface (3), file a (2), file b (1).
+    expect(groupLabels(page(items))).toEqual(['Sign all shown (3)', 'Sign all shown (2)', 'Sign all shown (1)']);
+    // Shown but already signed rows are never counted.
+    const all = page(items, ['unsigned', 'changed', 'signed']);
+    expect(all).toContain('>Signed one<');
+    expect(groupLabels(all)).toEqual(['Sign all shown (3)', 'Sign all shown (2)', 'Sign all shown (1)']);
+    expect(page([si({ status: 'signed' })], ['signed'])).toMatch(/class="group-sign" data-n="0" disabled>Sign all shown \(0\)/);
+    expect(all).toContain('<details class="file" open');
   });
 
-  it('group payload is exactly the shown rows (file, hash), deduplicated', () => {
-    const a = si();
-    expect(groupRefs([a, si({ line: 9 }), si({ hash: 'b'.repeat(16) })])).toEqual([
-      { file: a.file, hash: 'a'.repeat(16) },
-      { file: a.file, hash: 'b'.repeat(16) },
-    ]);
-    // The page script posts the button's data-refs as-is.
-    expect(page([a])).toMatch(/JSON\.parse\(btn\.dataset\.refs\)/);
+  it('surface sign skips rows in collapsed files', () => {
+    const rows = [
+      row(),
+      row({ file: 'b.ts', hash: 'b'.repeat(16), open: false }),
+      row({ file: 'c.ts', hash: 'c'.repeat(16), status: 'changed' }),
+    ];
+    expect(pickGroupRefs(rows)).toEqual({
+      n: 2,
+      refs: [{ file: 'a.ts', hash: 'a'.repeat(16) }, { file: 'c.ts', hash: 'c'.repeat(16) }],
+    });
+    expect(pickGroupRefs([row({ open: false })])).toEqual({ n: 0, refs: [] });
+  });
+
+  it('group sign skips rows already signed in place', () => {
+    const rows = [
+      row(),
+      row({ hash: 'b'.repeat(16), status: 'signed' }),
+      row({ hash: 'c'.repeat(16), status: 'ignored' }),
+      row({ hash: 'd'.repeat(16) }),
+      row({ hash: 'd'.repeat(16) }), // same (file, hash) twice: counted twice, posted once
+    ];
+    expect(pickGroupRefs(rows)).toEqual({
+      n: 3,
+      refs: [{ file: 'a.ts', hash: 'a'.repeat(16) }, { file: 'a.ts', hash: 'd'.repeat(16) }],
+    });
+    // The page script runs this exact picker over live row state and open file groups, and posts its refs.
+    const html = page([si()]);
+    expect(html).toContain('const pickGroupRefs = function pickGroupRefs(rows)');
+    expect(html).toContain("open: r.closest('details.file').open");
+    expect(html).toContain('items: pick.refs');
+  });
+
+  it('unticking every status box round-trips to "all" (hidden sentinel)', () => {
+    expect(page([si()])).toMatch(/<form class="filters"[^>]*>\s*<input type="hidden" name="status" value="">/);
   });
 
   it('email item has sandboxed iframe', () => {
