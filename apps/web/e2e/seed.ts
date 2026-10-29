@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core/server';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, vertical } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, vertical, waitlistEntry } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
@@ -239,6 +239,13 @@ export async function seed(): Promise<void> {
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
     await writeFile(OWNER_LINK_FILE, `http://localhost:${process.env.E2E_PORT ?? 3100}/l/${token}`);
 
+    // Phase 17a: one confirmed agency and one confirmed business on the pilot waitlist (`waitlist.spec.ts`). `pilot_mode` has no
+    // row = off; the spec turns it on for one test and deletes the row again.
+    await db.insert(waitlistEntry).values([
+      { kind: 'agency', contactName: 'Wendy Waitlist', email: WAITLIST_AGENCY_EMAIL, orgName: WAITLIST_AGENCY, clientCountBand: '6-15', ipHash: 'e2e', emailConfirmedAt: new Date() },
+      { kind: 'business', contactName: 'Bob Business', email: WAITLIST_BUSINESS_EMAIL, orgName: WAITLIST_BUSINESS, location: 'Granbury, TX', verticalId: 'hvac_plumbing', ipHash: 'e2e', emailConfirmedAt: new Date() },
+    ]);
+
     // Phase 10: the seeded agencies stand in for pre-Phase-10 agencies, which migration 0066 backfills as completed
     // `legacy` onboarding. Without a row the getting-started checklist shows on /agency (and pushes the portfolio down).
     await db.execute(sql`
@@ -254,6 +261,10 @@ export async function seed(): Promise<void> {
 }
 
 // Sorts after 'E2E Agency': kb.spec.ts picks the agency select's index 1.
+export const WAITLIST_AGENCY = 'Waitlist Agency E2E';
+export const WAITLIST_AGENCY_EMAIL = 'wendy@waitlist-agency.test';
+export const WAITLIST_BUSINESS = 'Waitlist Plumbing E2E';
+export const WAITLIST_BUSINESS_EMAIL = 'bob@waitlist-business.test';
 export const CB_AGENCY = 'Metro Billing Agency E2E';
 export const CB_CLIENT = 'Furnace Billing Co';
 export const CB_USERS = { admin: 'cb-admin@e2e.test', owner: 'cb-owner@e2e.test', viewer: 'cb-viewer@e2e.test' } as const;

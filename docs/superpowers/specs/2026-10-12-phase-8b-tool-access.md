@@ -202,6 +202,9 @@ platform_unarchive_agency (platform-agency.ts) | write | clears agency.archived_
 get_signups_paused (platform-signups.ts) | read | read-only; platform operator
 get_signup_funnel (platform-signups.ts) | read | read-only aggregate counts; platform operator
 set_signups_paused (platform-signups.ts) | write | upserts platform_setting; platform owner
+get_pilot_settings (platform-signups.ts) | read | read-only; platform operator (17a)
+set_pilot_mode (platform-signups.ts) | write | upserts platform_setting `pilot_mode` (closes open agency sign-up); platform owner (17a)
+set_sample_brief_limit (platform-signups.ts) | write | upserts platform_setting `sample_brief_monthly_limit`; platform owner (17a)
 add_webhook (settings.ts) | write | inserts webhook
 set_webhook_active (settings.ts) | write | updates webhook
 delete_webhook (settings.ts) | write | deletes webhook (notifications cascade); agency_admin (15c-2a)
@@ -244,3 +247,10 @@ merge_vertical (platform-verticals.ts) | write | rewrites clients, events, price
 merge_business_area (platform-verticals.ts) | write | rewrites references from one area to another
 list_catalog_review (platform-verticals.ts) | read | operator-only read of unreviewed catalogue entries
 count_catalog_review (platform-verticals.ts) | read | operator-only count of unreviewed catalogue entries (sidebar badge; unaudited)
+list_waitlist (platform-waitlist.ts) | read | read (supportMask entries[].email, entries[].emailConfirmed); platform operator, viewer and up (17a)
+invite_waitlist_agencies (platform-waitlist.ts) | write | creates agency_invite_link rows, updates waitlist_entry status, sends the agency invite email directly; platform staff (17a)
+decline_waitlist_entry (platform-waitlist.ts) | write | sets waitlist_entry status declined (and a requested sample declined); nobody is emailed; platform staff (17a)
+platform_find_business (platform-waitlist.ts) | write | paid vendor listing lookup, ledgered with no agency; 50 per operator per UTC day via intake_rate; platform staff (17a)
+assign_waitlist_business (platform-waitlist.ts) | write | inserts a verified pool lead, assigns it to an agency, updates waitlist_entry, sends the agency new-lead email directly; platform staff (17a)
+decide_sample_brief (platform-waitlist.ts) | write | approve: creates the Samples agency once, an agency_admin membership and the sample client, updates waitlist_entry; decline or stop: updates waitlist_entry and pauses the sample client; platform staff (17a)
+send_sample_brief (platform-waitlist.ts) | write | signs the 30-day sample link, emails it (supportMask emailed), sets sample status sent, pauses the sample client; platform staff (17a)

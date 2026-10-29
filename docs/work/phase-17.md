@@ -1,29 +1,48 @@
 # phase-17 — marketing launch site (rivalmonday.com) + pilot waitlist
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 023a9f52 (rebased; phase-16 merged)
-**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (awaiting owner approval); 17b, 17c to follow
+**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (implemented, final review pending); 17b, 17c to follow
 
 ## Status (overwrite)
-2026-10-28: brainstorm done, spec approved by owner. Split 17a (app: waitlist, pilot switch, invites, samples) → 17b (`apps/site` foundation + home + popup + sample brief) → 17c (integrations/sources/compare/pricing/partners + SEO). 17a plan being drafted.
+2026-10-29: **17a implemented (Tasks 1-12)**, final whole-branch review pending. Spec approved 2026-10-28; split 17a (app: waitlist, pilot switch, invites, samples) -> 17b (`apps/site` foundation + home + popup + sample brief) -> 17c (integrations/sources/compare/pricing/partners + SEO). Task 12 added the copy sign-off (`docs/archive/phase-17a-copy-signoff.md`), `apps/web/e2e/waitlist.spec.ts` (`@waitlist`, `@platform`; not yet run, runs once at the final review), seed rows, 8b doc rows and guide additions.
 
 ## Next (overwrite)
-Owner reviews the 17a plan → subagent-driven development of 17a. Then write the 17b and 17c plans.
+1. Final review: `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` once (`--base main`), `bash scripts/design-lint.sh`, `git ls-files --eol | grep crlf` (empty), `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`; one fix wave.
+2. Owner: sign the copy file and do the verification steps below; then `/rm-merge`.
+3. Write the 17b and 17c plans.
 
 ## Interfaces this branch adds or changes
-TBD. Next free migration **0096** (main at 0095; phase-16 adds none). Likely: `waitlist_entry` table (`TABLE_CLASS` + world rows), operator tools (`ISOLATION_FIXTURES`), public submit route, `platform_setting` key for the pilot flag, new app `apps/site` + Vercel project + turbo tasks.
+- **Migration 0096** `waitlist_entry` (platform class, service role only; unique `(kind, email)`; confirm token hash + 7-day expiry; sample columns) and `brief.claims_checked integer`. Next free migration **0097**.
+- **platform_setting keys:** `pilot_mode {on}`, `sample_brief_monthly_limit {n}` (default 10), `sample_agency_id {agencyId}`.
+- **Routes:** `POST|OPTIONS /api/waitlist` (Origin allowlist, Turnstile, uniform `{ok:true}`, 400 ms floor), `GET /api/site-status` (pilot flag + rounded counters, CORS `*`), `GET /waitlist/confirm/<token>`, `/waitlist/confirmed`, `/sample/<token>` (+ `/evidence/<id>`), `/platform/waitlist` (tabs Agencies / Businesses / Sample requests), `/sign-up` pilot branch, pilot panel on `/platform/billing`.
+- **Tools (all web-only, platform):** `get_pilot_settings`, `set_pilot_mode`, `set_sample_brief_limit` (owner), `list_waitlist` (viewer+), `invite_waitlist_agencies`, `decline_waitlist_entry`, `platform_find_business`, `assign_waitlist_business`, `decide_sample_brief`, `send_sample_brief` (staff). Rows in the 8b doc.
+- **Service functions (`@cs/tools` `waitlist/`):** `submitWaitlistEntry`, `confirmWaitlistEmail`, `siteStatus`, `getSampleBrief`, `sampleEvidenceKey`, `sendWaitlistEmail`, `pilotMode`, `sampleBriefMonthlyLimit`.
+- **Emails:** `waitlist_confirmation`, `sample_brief_ready` (platform-branded, direct send, Reply-To `support@rivalmonday.app`).
+- **Env:** `SITE_ORIGIN`, `SITE_ORIGIN_EXTRA` (`turbo.json` `globalPassThroughEnv`); the owner adds them to `.env` and Vercel.
+- **Engine:** the verifier tallies model-written sentences per brief (`claims_checked`).
 
 ## Assumes from other branches
-- **phase-16** (done, awaiting merge): DS v1 primitives in `@cs/ui` (`Section`, `Frame`, `Tag`, `KpiStrip`, `Segmented`, `Toast`, `ResponsivePopover`, `Table`, tokens in `styles.css`, `theme.ts` foreground, wordmark), `AuthCard`, `/bot`, `/sign-up`, `/start` restyled; strict `scripts/design-lint.sh`. **Plan after phase-16 merges** and build the site on its primitives.
-- **13a** (white-label, unbuilt, plan approved) touches `theme.ts`, `app-shell`, `auth-card`, host-aware error pages; keep the marketing site out of those files.
+phase-16 (merged @ 023a9f52): DS v1 primitives, `AuthCard`, `/sign-up`. 13a (white-label, unbuilt) touches `theme.ts`, `app-shell`, `auth-card`: 17a edits none of them; 17b should keep the site out of those files too.
 
-## Decisions (owner-approved)
-See spec (O)/(C) marks, all approved 2026-10-28. Headline "Every Monday, your clients learn what their competitors did last week, under your brand."; businesses served by the owner's agency ($99/mo, free in pilot); pilot invites = pitched agencies, trial = later; `pilot_mode` blocks token-less sign-up; samples requested by agencies, operator-driven setup (option A), read-only `/sample/<token>`; data vendors never named (sources instead); named compare pages live, each switchable by config; partners = standard reseller offer; social links shown when configured.
+## Decisions (owner-approved; spec (O)/(C) marks stand)
+Headline "Every Monday, your clients learn what their competitors did last week, under your brand."; businesses served by the owner's agency ($99/mo, free in pilot); pilot invites = pitched agencies; `pilot_mode` blocks token-less sign-up; samples requested by agencies, operator-driven setup, read-only `/sample/<token>`; data vendors never named; named compare pages switchable by config; partners = standard reseller offer.
+Plan P1-P15 (details in the plan): P1 public writes are service functions, no system-actor tool; P2 extra columns, no stored `running` sample status; P3 resubmit never overwrites a confirmed row; P4 rate limits 5/h/IP and 500/day; P5 same Turnstile widget as the app; P6 exact-origin CORS, fail closed; P7 settings on `/platform/billing`; P8 `claims_checked` tally; P9 counters floored/rounded, sample + archived excluded; P10 place pick via `platform_find_business` for assign and approve; P11 sample space = operator membership in the Samples agency (not a support session); P12 sending is an explicit step; P13 pause after send, spike guard and counters exclude the sample agency, no client contacts; P14 HMAC sample link, evidence only for cited screenshot/text; P15 cost estimate = $3 discovery cap + recent average.
 
-## New backlog (target → item)
-- (none yet)
+## New backlog (target -> item)
+- 17a/follow-up: the Samples agency membership of an approving operator is permanent (never removed); add a cleanup or expiry.
+- 17a/follow-up: hide "Ask the owner to pick" on the competitors step for sample clients (no owner; the starting point would wait for the 14-day cap). Today only the operator guide warns about it.
+- Copy: waitlist short copy says "the public website" / "the Samples agency" because copy tests forbid the product name; revisit if the owner wants the names back.
 
 ## Owner verification steps
-TBD.
+1. Add `SITE_ORIGIN=https://rivalmonday.com` (+ preview origins in `SITE_ORIGIN_EXTRA`, comma-separated) on Vercel and in `.env` yourself.
+2. Add `rivalmonday.com` (+ `www`) to the Turnstile widget's hostnames.
+3. `pnpm db:migrate`. Turn Pilot mode on at `/platform/billing`, open `/sign-up` in a private window: the pilot message shows.
+4. In dev without Turnstile keys: `curl -X POST <app>/api/waitlist -H 'Origin: https://rivalmonday.com' -H 'content-type: application/json' -d '{...agency json with "turnstileToken":"x"...}'` returns `{"ok":true}`. Open the confirmation email in `apps/web/.outbox/`, click Confirm: "You're confirmed".
+5. Invite it from `/platform/waitlist`: the invite email is in the outbox.
+6. Submit a sample request, approve it with a real listing, run setup (pick rivals yourself, do not use "Ask the owner"), approve the starting point in Approvals, press Send sample, open the link in a private window. Check the evidence opens and nothing links into the app.
+7. `curl <app>/api/site-status`.
+8. Sign `docs/archive/phase-17a-copy-signoff.md`; confirm the reworded copy (decision 1) and that `support@rivalmonday.app` exists.
+9. Know that the approving operator keeps an `agency_admin` membership in the Samples agency (backlog item above).
 
 ## Brief
 
@@ -60,19 +79,5 @@ Channel = agency clients first, then wholesale (§1.3); **nothing client-facing 
 - [ ] **Affiliate program (fully featured)** … scope and details to be provided by the owner at planning — *owner, 2026-10-17* (partner page only links to it)
 - [ ] Automatic lead routing to agencies (vertical/area/capacity/opt-in) on the 11c platform pool - *phase-11*
 
-### 5. In-flight workstreams
-phase-16 (DS v1 everywhere; 445 files; done, awaiting merge): see Assumes. No migrations; next free 0096.
-
-### 6. Open questions for the owner (ordered by design impact; rec = recommendation)
-1. **Split.** (A) 17a waitlist + pilot flag + `/platform/waitlist` invites; 17b `apps/site` foundation + home + popup; 17c integrations, comparisons, pricing, partner, SEO; (B) one phase; (C) site first, waitlist later. *Rec A* (17a is app-side and testable alone; 17b/17c are content-heavy).
-2. **Where the site lives.** (A) `apps/site` Next.js App Router in the monorepo, static/ISR, own Vercel project, shares `@cs/ui` + `styles.css` tokens; (B) same but own tokens copied (no `@cs/ui` dep, avoids pulling `@cs/email`); (C) Astro/Framer outside the repo. *Rec A*, with a lint rule that the site imports no server packages (`@cs/db`, `@cs/tools`).
-3. **Waitlist submission path.** (A) public `POST https://rivalmonday.app/api/waitlist` (CORS allow rivalmonday.com, Turnstile, `hashIp` + rate counter, uniform `{ok:true}`, ≥ 400 ms floor), the site holds no secrets but the Turnstile site key; (B) site server action → app with a shared HMAC secret; (C) site writes to the DB. *Rec A* (C excluded: no DB credentials on the site).
-4. **Waitlisted clients vs the agency-owned model.** (A) client entries become platform-pool `lead`s (reuse `/platform/leads` + `assign_lead`; agency then invites them); (B) owner assigns a waitlisted client to an agency from the waitlist page, which creates a pool lead pre-assigned; (C) "pilot-direct" clients under a house agency owned by the platform. *Rec B* (keeps §1.3 and 11 intact; C reopens direct SMB).
-5. **Invite types.** (A) agency entries: "Pilot invite" = `create_invite_link` offer `pilot` (email-locked, `pilot_ends_at`), "Trial invite" = offer `trial` (30-day, card at end); client entries: no invite, only assign (Q4); (B) also a direct client invite into a house agency; (C) one generic "You're in" link to `/sign-up`. *Rec A*; bulk = same tool per row, ≤ 20 per batch, results per row; waitlist status `new/invited/assigned/declined`.
-6. **Pilot flag.** (A) `platform_setting` key `pilot_mode` (console toggle, audited), exposed to the site via a public `GET /api/site-status` cached 5 min; ON = "In pilot" badges, CTA opens the waitlist popup, `/sign-up` shows "join the waitlist" (or stays invite-only); OFF = CTA links to `/sign-up` (open trial); (B) env var on both deploys (redeploy to switch); (C) site build flag only. *Rec A*. Sub-question: does ON also pause open self sign-up (reuse `signups_paused`)? *Rec yes*.
-7. **Comparisons content.** (A) 3–5 named rivals (e.g. agency competitive-intel and local-SEO tools), each fact with a source URL + "checked on" date in repo content, neutral tone, "as of" footer, owner + counsel sign-off before publishing; (B) category comparisons only (vs "manual spreadsheets", "SEO rank trackers", "generic CI tools"), no names; (C) skip for launch. *Rec B at launch, A after counsel review* (counsel review is still open).
-8. **Client pricing.** (A) agency pricing only ($229 incl. 3 seats, $99/seat, 30-day trial, pilot free) + "clients: priced by your agency"; (B) also a suggested resale range; (C) hide pricing during the pilot. *Rec A* (agencies set client prices; white-label).
-9. **Partner program terms.** (A) referral page with "terms announced after the pilot" + interest form = waitlist type `partner`; (B) define now: one-off or recurring %, cookie window (feeds the backlog affiliate program); (C) reseller/wholesale tier description only. *Rec A* (affiliate build is a separate backlog phase).
-10. **Content management.** (A) MDX/TS content in `apps/site/content/` (PR = edit, owner signs copy); (B) headless CMS (Sanity/Contentful); (C) reuse the KB tables. *Rec A* (low volume, no blog yet).
-11. **Analytics & consent.** (A) Vercel Web Analytics (cookieless, no banner); (B) Plausible; (C) GA4 + consent banner. *Rec A*; plus Sentry on the site.
-12. **Domain/DNS.** (A) register rivalmonday.com (+ .ai) at Namecheap, apex + `www` → Vercel site project, `.app` unchanged, `/` on rivalmonday.app keeps redirecting to sign-in; (B) site at `www.rivalmonday.app`; (C) marketing at rivalmonday.app root, app at `app.rivalmonday.app`. *Rec A* (matches DEPLOY.md; trademark knockout first).
+### 5. Open questions
+All answered by the owner 2026-10-28; see the spec (O)/(C) marks.

@@ -15,7 +15,7 @@ Entries are newest first, 25 at a time, with Previous and Next links. Use the se
 
 An entry marked **Not confirmed** has not yet opened the confirmation link in its email. It is shown so you can see demand, but it is not counted as new and cannot be invited, assigned or given a sample.
 
-The number next to **Waitlist** in the menu counts confirmed new entries plus confirmed sample requests.
+The number next to **Waitlist** in the menu counts confirmed new entries plus confirmed sample requests. An agency that also asked for a sample is counted twice: once as a new agency and once as a sample request.
 
 ## How to use it
 
@@ -38,3 +38,15 @@ Samples count only once the agency has confirmed its email address, and they use
 ### Where does a sample go after I approve it?
 
 The business is created in the Samples agency and its setup opens. Run setup as usual, approve the starting point in Approvals, then send the sample from here.
+
+### What should I do on the competitors step of a sample's setup?
+
+Pick the rivals yourself. Do not use "Ask the owner to pick": a sample business has no owner, so the starting point would wait for the 14-day cap before it was built.
+
+### What does Send again do?
+
+**Send again** issues a fresh link and cancels the older sample links, so only the newest one opens.
+
+### How long does a sample link work?
+
+A sample link ends 30 days after it was sent. Send again if the agency needs more time.
