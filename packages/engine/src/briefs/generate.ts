@@ -106,7 +106,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
     const c = await loadBriefClient(deps, clientId);
     const selected = selectBriefItems(await gatherBriefCandidates(deps, c, period), { focusAreaIds: c.focusAreaIds });
     const trend = await trendSnapshot(deps, clientId, period);
-    let verified = { summary: '', items: [] as Awaited<ReturnType<typeof verifyDraft>>['items'], dropped: { items: 0, sentences: 0 } as BriefDropStats };
+    let verified = { summary: '', items: [] as Awaited<ReturnType<typeof verifyDraft>>['items'], dropped: { items: 0, sentences: 0 } as BriefDropStats, checked: 0 };
     let playbooks: (Playbook & { version: number })[] = [];
     if (selected.length > 0) {
       playbooks = (await loadClientRunbook(deps, clientId)).plays;
@@ -133,7 +133,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
       const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : countSummary(items.length);
       const scorecard = kind === 'quiet' ? quietScorecard : null;
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
-      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, trend, dropped, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, trend, dropped, claimsChecked: verified.checked, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       if (items.length > 0) {
         await tx.insert(briefItem).values(items.map((i, ord) => ({

@@ -219,7 +219,9 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     }
 
     const why = new Map<string, string>();
+    let claimsChecked = 0; // why-it-matters sentences only, and only when the writer pass completes
     if (kept.length > 0) {
+      let checkedSentences = 0;
       let droppedSentences = 0; // counted only when the whole pass completes: a failed pass discards its model text and its drops
       try {
         const drafts = await writeWhy(deps.ai, scope, c, kept.map((k) => ({ fact: k.f.fact, title: k.title })), [c.name, ...rivalNames]);
@@ -228,6 +230,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
           const text = drafts.get(findingRef(i));
           if (!text) continue;
           const sentences = splitSentences(text);
+          checkedSentences += sentences.length;
           const passing = sentences.map((s, j) => ({ key: `s${j}`, sentence: s, mode: 'interpretation' as const })).filter((x) => checkSentence(x.sentence, { ...ruleEv, text: evidenceForModel }, ruleCtx).ok);
           const supported = passing.length > 0 ? await supportCheck(deps.ai, scope, evidenceForModel, passing) : new Set<string>();
           const ok = passing.filter((p) => supported.has(p.key));
@@ -236,6 +239,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
           else droppedSentences += sentences.length - ok.length;
         }
         dropped.sentences += droppedSentences;
+        claimsChecked = checkedSentences;
       } catch (err) {
         // The writer is optional (D11): its failure or a verifier outage leaves the deterministic text, never unverified model text.
         console.warn(`[briefs] starting point ${briefId}: writer pass skipped: ${briefErrorMessage(err)}`);
@@ -254,7 +258,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
 
     return await deps.db.transaction(async (tx): Promise<BriefRunResult> => {
       const won = await tx.update(brief)
-        .set({ status: 'ready', kind: 'starting_point', summary, scorecard, trend: null, dropped, generatedAt: new Date(), updatedAt: new Date() })
+        .set({ status: 'ready', kind: 'starting_point', summary, scorecard, trend: null, dropped, claimsChecked, generatedAt: new Date(), updatedAt: new Date() })
         .where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       await tx.insert(briefItem).values(items.map((i, ord) => ({

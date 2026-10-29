@@ -53,6 +53,13 @@ describe('generateBrief', () => {
     expect(i!.evidenceIds.length).toBeGreaterThan(0);
   });
 
+  it('tally: stored ready brief has claims_checked = verified.checked', async () => {
+    await seedEvent();
+    await run();
+    const [b] = await dbs.owner.select().from(brief);
+    expect(b!.claimsChecked).toBeGreaterThan(0);
+  });
+
   it('writes a quiet brief without calling the writer when nothing qualifies', async () => {
     const ai = createFakeAi({ decide: supportAll });
     expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });

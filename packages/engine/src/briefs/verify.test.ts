@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import type { BriefClient, EventCandidate, MoveCandidate } from './gather';
 import { supportCheck } from './support';
-import { ruleEvidenceFor, verifyDraft } from './verify';
+import { ruleEvidenceFor, verifyDraft, verifyText } from './verify';
 
 const client: BriefClient = {
   id: 'c', agencyId: 'a', name: 'A1 HVAC', verticalId: 'hvac_plumbing', verticalName: 'HVAC & Plumbing', services: [], serviceNames: [],
@@ -105,5 +105,20 @@ describe('verifyDraft', () => {
 
   it('throws when the verifier providers fail (the brief attempt fails, nothing unverified is kept)', async () => {
     await expect(verifyDraft(ai([], true), { agencyId: 'a', clientId: 'c' }, client, [cand], { summary: 's', items: [item()] }, opts)).rejects.toThrow(/down/);
+  });
+});
+
+describe('tally', () => {
+  const scope = { agencyId: 'a', clientId: 'c' };
+  it('tally: verifyText reports checked = all sentences, dropped = removed', async () => {
+    const out = await verifyText(ai(['bankrupt']), scope, client, [cand], 'Price shoppers may compare. Smith HVAC wants to bankrupt you.', 'interpretation', opts);
+    expect(out).toEqual({ kept: 'Price shoppers may compare.', dropped: 1, checked: 2 });
+  });
+  it('tally: verifyDraft sums checked across fields and summary, including items that failed', async () => {
+    const failing = item({ ref: 'C1', headline: 'Smith HVAC cut its tune-up to $59.' }); // fails at the headline: 1 sentence checked, loop stops
+    const good = item(); // headline 1 + what_changed 2 + why 2 + action 1
+    const out = await verifyDraft(ai(), scope, client, [cand], { summary: 'Smith HVAC cut a price.', items: [failing, good] }, opts);
+    expect(out.items).toHaveLength(1);
+    expect(out.checked).toBe(1 + 6 + 1);
   });
 });

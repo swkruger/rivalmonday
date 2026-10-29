@@ -14,6 +14,8 @@ export interface VerifiedBrief {
   summary: string;
   items: VerifiedItem[];
   dropped: BriefDropStats;
+  /** Model-written sentences the verifier checked (sum over every verifyText call, summary included). */
+  checked: number;
 }
 export interface VerifyOptions {
   year: number;
@@ -55,17 +57,18 @@ const ruleContext = (c: BriefClient, year: number): RuleContext => ({ trackedCom
 /** Verifies one block of text against the cited candidates; returns the surviving sentences joined. */
 export async function verifyText(
   ai: Ai, scope: CallScope, c: BriefClient, cands: BriefCandidate[], text: string, mode: ClaimMode | null, opts: VerifyOptions,
-): Promise<{ kept: string; dropped: number }> {
+): Promise<{ kept: string; dropped: number; checked: number }> {
   const ev = ruleEvidenceFor(cands, opts.period);
   const sentences = splitSentences(text);
   const passing = sentences.map((s, i) => ({ key: `s${i}`, sentence: s, mode: mode ?? 'fact' })).filter((x) => checkSentence(x.sentence, ev, ruleContext(c, opts.year)).ok);
   const supported = mode === null ? new Set(passing.map((p) => p.key)) : await supportCheck(ai, scope, ev.text, passing);
   const kept = passing.filter((p) => supported.has(p.key)).map((p) => p.sentence);
-  return { kept: kept.join(' '), dropped: sentences.length - kept.length };
+  return { kept: kept.join(' '), dropped: sentences.length - kept.length, checked: sentences.length };
 }
 
 export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], draft: BriefDraft, opts: VerifyOptions): Promise<VerifiedBrief> {
   const dropped: BriefDropStats = { items: 0, sentences: 0 };
+  let checked = 0;
   const items: VerifiedItem[] = [];
   for (const d of draft.items) {
     const idx = candidates.findIndex((_, i) => candidateRef(i) === d.ref);
@@ -76,6 +79,7 @@ export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, cand
     for (const f of FIELDS) {
       const r = await verifyText(ai, scope, c, [cand], d[f.field], f.mode, opts);
       dropped.sentences += r.dropped;
+      checked += r.checked;
       out[f.field] = r.kept;
       if ((f.field === 'headline' && (r.dropped > 0 || !r.kept)) || (f.field === 'what_changed' && !r.kept)) {
         failed = true;
@@ -92,8 +96,9 @@ export async function verifyDraft(ai: Ai, scope: CallScope, c: BriefClient, cand
   if (items.length > 0 && draft.summary) {
     const r = await verifyText(ai, scope, c, items.map((i) => i.candidate), draft.summary, 'fact', opts);
     dropped.sentences += r.dropped;
+    checked += r.checked;
     summary = r.kept;
   }
   if (!summary && items.length > 0) summary = countSummary(items.length);
-  return { summary, items, dropped };
+  return { summary, items, dropped, checked };
 }

@@ -105,6 +105,18 @@ describe('generateStartingPoint', () => {
     expect((await items()).map((i) => i.whyItMatters)).toEqual([SELF_WHY_IT_MATTERS.review_velocity_gap, SELF_WHY_IT_MATTERS.profile_gap]);
   });
 
+  it('tally: starting point counts why-sentences only and 0 after a failed writer pass', async () => {
+    await seedFindings();
+    await run();
+    expect((await dbs.owner.select().from(brief))[0]!.claimsChecked).toBe(2);
+    await dbs.owner.delete(briefItem);
+    await dbs.owner.delete(brief);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await run(createFakeAi({ chat: writer, decide: () => { throw new Error('verifier down'); } }));
+    warn.mockRestore();
+    expect((await dbs.owner.select().from(brief))[0]!.claimsChecked).toBe(0);
+  });
+
   it('counts dropped sentences only when the whole writer pass completes', async () => {
     await seedFindings();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
