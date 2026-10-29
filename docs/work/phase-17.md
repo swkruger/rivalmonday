@@ -1,15 +1,14 @@
 # phase-17 — marketing launch site (rivalmonday.com) + pilot waitlist
 
 **Kind:** execution   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 023a9f52 (rebased; phase-16 merged)
-**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (done); 17b `docs/superpowers/plans/2026-10-29-phase-17b-site-foundation-and-home.md` (implemented); 17c to follow
+**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (done); 17b `docs/superpowers/plans/2026-10-29-phase-17b-site-foundation-and-home.md` (done); 17c `docs/superpowers/plans/2026-10-29-phase-17c-pages-compare-pricing-seo.md` (done)
 
 ## Status (overwrite)
-2026-10-29: **17a done** (final review clean). **17b implemented, pending final review.** **17c implemented (Tasks 0-16), pending final review**: integrations hub + 9 vendor pages, sources hub + 6, compare hub + 5 rival pages (off by default), `/pricing`, `/partners`, `llms.txt`, per-page OG images, JSON-LD, `check:facts`, CI gate. Sign-offs: `docs/archive/phase-17a-copy-signoff.md`, `phase-17b-copy-signoff.md`, `phase-17c-copy-signoff.md` (compare also needs counsel). Ledgers: `docs/research/2026-10-29-phase-17c-claim-check.md` (truth ledger), `-vendor-logos.md`. Site E2E: 88 passed, 6 skipped.
+2026-10-29: **17a done.** **17b done** (final review closed, fix wave `5859cba8`). **17c done**: integrations hub + 9 vendor pages, sources hub + 6, compare hub + 5 rival pages (off by default), `/pricing`, `/partners`, `llms.txt`, OG images, JSON-LD, `check:facts`; final review + one fix wave (client JS carries no disabled rival: nav/footer built server-side, boundary test, `check:bundle` + E2E guards; `WEBSITE_MONITORING_LIVE` constant; `check:facts --all`). Sign-offs: `docs/archive/phase-17{a,b,c}-copy-signoff.md` (compare also needs counsel). Ledgers: `docs/research/2026-10-29-phase-17c-claim-check.md`, `-vendor-logos.md`.
 
 ## Next (overwrite)
-1. Final review of 17b + 17c (`--base main`): `pnpm test:affected`, `pnpm --filter @cs/site e2e`, `pnpm --filter @cs/web e2e:affected` (17a `@waitlist` spec has not run), `bash scripts/design-lint.sh`, `git ls-files --eol | grep crlf`, `iconv` over the diff; fold deferred minors from both SDD ledgers (`.superpowers/sdd/2026-10-29-phase-17{b,c}-*/progress.md`); one fix wave.
-2. Owner: sign the three copy files, do the verification steps below, counsel review of `/compare/*`.
-3. `/rm-merge` only on the owner's go-ahead (note below).
+1. Owner: sign the three copy files (17c rows marked CHANGED/NEW by the fix wave), § 0 owner checks, counsel review of `/compare/*`.
+2. `/rm-merge` only on the owner's go-ahead (note below).
 
 ## Interfaces this branch adds or changes
 **17a (app):**
@@ -29,7 +28,7 @@
 
 **17c (`apps/site`):**
 - **Pages:** `/integrations` + `/integrations/<vendor>` (9), `/sources` + `/sources/<source>` (6), `/compare` (always) + `/compare/<rival>` (only slugs in `NEXT_PUBLIC_COMPARE_PAGES`, fail closed), `/pricing`, `/partners`, `/llms.txt`; each with its own `opengraph-image.tsx`; `PageIntro` + BreadcrumbList on all.
-- **Env (site):** `NEXT_PUBLIC_COMPARE_PAGES` (comma list of rival slugs). **Script:** `@cs/site check:facts` (fails on rival facts or sources over 90 days old, or unknown source ids); `deploy-site` runs it for all five rivals.
+- **Env (site):** `NEXT_PUBLIC_COMPARE_PAGES` (comma list of rival slugs). **Script:** `@cs/site check:facts` (fails on rival facts or sources over 90 days old, or unknown source ids); `deploy-site` runs `check:facts --all`. `content/website-monitoring.ts` `WEBSITE_MONITORING_LIVE` (owner flips after `WEB_MONITORING_ENABLED=true`). Client modules never import `content/{pages,compare,integrations,sources}` (nav/footer props from `components/shell/nav-items.ts`).
 - **Content modules:** `content/{integrations,integrations-evidence,sources,sources-evidence,compare,pricing-page,partners}.ts`; `pages.ts` derives collections via `collectionPage()`. Ledgers: `docs/research/2026-10-29-phase-17c-{claim-check,vendor-logos}.md`.
 
 ## Assumes from other branches

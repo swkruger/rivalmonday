@@ -21,8 +21,10 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 - `next build` and `next dev` share `.next`: don't build while dev runs.
 
 ## Pages and content (17c)
+- **Client boundary:** no `'use client'` module may import (even transitively) `content/pages`, `content/compare`, `content/integrations` or `content/sources`: they hold every rival, on or off. The layout builds nav/footer links server-side (`components/shell/nav-items.ts`) and passes `{label, href}[]` props (import-boundary test; `check:bundle` fails on a disabled rival's name in `.next/static`).
+- Website-monitoring copy follows one constant, `content/website-monitoring.ts` `WEBSITE_MONITORING_LIVE`; the owner flips it after `WEB_MONITORING_ENABLED=true`.
 - `content/pages.ts` is the registry: nav, footer, sitemap and collection pages (`/integrations`, `/sources`, `/compare`) are derived from it; never hand-edit them elsewhere. Enabled rivals = the known-rival array filtered by `siteEnv.comparePages` (`NEXT_PUBLIC_COMPARE_PAGES`, read at build; unset = no named compare pages). Never index an object by an env slug.
-- Switching compare pages: `docs/DEPLOY.md` § Compare pages on/off. `pnpm --filter @cs/site check:facts` (also in `deploy-site`) fails when any rival's facts (all five in `deploy-site`, on or off) are over 90 days old. CI's `site` job sets the same `NEXT_PUBLIC_COMPARE_PAGES` as Playwright `SERVER_ENV` so `E2E_SKIP_BUILD=1` reuses the build; change both together.
+- Switching compare pages: `docs/DEPLOY.md` § Compare pages on/off. `pnpm --filter @cs/site check:facts` fails when an enabled rival's facts are over 90 days old; `deploy-site` runs `check:facts --all` (all five, on or off). CI's `site` job sets the same `NEXT_PUBLIC_COMPARE_PAGES` as Playwright `SERVER_ENV` so `E2E_SKIP_BUILD=1` reuses the build; change both together.
 - Every claim about Rival Monday carries `verifiedIn` paths to shipped code (tests check they exist and match the ledger `docs/research/2026-10-29-phase-17c-claim-check.md`).
 - Never name data vendors (DataForSEO, Apify, ScrapeCreators, Stadia): three scans guard it (compare, integrations, sources tests).
 - OG colour hex lives only in `src/lib/og-theme.ts`; each `pageMetadata` page needs its own `opengraph-image.tsx`.

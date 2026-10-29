@@ -76,7 +76,7 @@ For the 7c2 rehearsal (120 clients, one week; run it with `docs/OPS.md` § Rehea
 
 ## Marketing site (rivalmonday.com)
 Second Vercel project (`apps/site`); it holds no secrets (public `NEXT_PUBLIC_*` only). CI job `deploy-site` runs after `deploy`, same `DEPLOY_ENABLED` gate, and refuses while `check:placeholders` finds `OWNER-PLACEHOLDER` markers (privacy, terms, founder note).
-1. **Before the site deploy:** set `WEB_MONITORING_ENABLED=true` on the app (after `https://rivalmonday.app/bot` loads) — the site promises website snapshots.
+1. **Before the site deploy:** set `WEB_MONITORING_ENABLED=true` on the app (after `https://rivalmonday.app/bot` loads) — the site promises website snapshots. Then set `WEBSITE_MONITORING_LIVE = true` in `apps/site/content/website-monitoring.ts` (one constant: compare `websites` cell, hub row, website `weDiffer` lines), commit, and deploy the site.
 2. Register `rivalmonday.com` (trademark knockout first); Namecheap DNS to Vercel (apex A, `www` CNAME).
 3. Vercel project: root `apps/site`, Next.js, region iad1, auto-deploy off, domains `rivalmonday.com` + `www` redirecting to apex, Web Analytics on.
 4. Its env (Production + Preview): `NEXT_PUBLIC_APP_URL=https://rivalmonday.app`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the app's widget key), `NEXT_PUBLIC_SENTRY_DSN` (new Sentry project "site"), optional `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`, `NEXT_PUBLIC_COMPARE_PAGES` (comma-separated rival slugs; unset = no named compare pages).
@@ -92,7 +92,7 @@ Named compare pages stay off until counsel signs off. Before "no platform fee" c
 1. Change `NEXT_PUBLIC_COMPARE_PAGES` in Vercel (Production).
 2. GitHub → Actions → latest `main` `ci` run → `deploy-site` → *Re-run this job*.
 3. After 30 days the run expires: in `apps/site` with the site project linked, `vercel pull --environment=production && vercel build --prod && vercel deploy --prebuilt --prod`.
-`deploy-site` checks all five rivals' facts (on or off): a rival older than 90 days blocks the deploy until its facts are re-checked or it is removed from `content/compare.ts`.
+`deploy-site` runs `check:facts --all`, so all five rivals' facts are checked (on or off): a rival older than 90 days blocks the deploy until its facts are re-checked or it is removed from `content/compare.ts`.
 
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.
