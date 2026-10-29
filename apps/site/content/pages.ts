@@ -62,6 +62,14 @@ export const PAGES: readonly SitePage[] = [
     priority: 0.8,
   },
   {
+    path: '/pricing',
+    title: 'Pricing',
+    description: 'Agency and local-business plans for Rival Monday: what each includes, what it costs, and how to cancel.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
     path: '/privacy',
     title: 'Privacy',
     description: 'What the waitlist form collects, why, and who helps us run the site.',
