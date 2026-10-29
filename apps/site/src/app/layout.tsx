@@ -1,10 +1,16 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
+import { siteEnv } from '../lib/env';
 import './site.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '800'], display: 'swap' });
 
-export const metadata: Metadata = { title: 'Rival Monday' };
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${SITE_NAME} — ${TITLE_STEM}`, template: `%s · ${SITE_NAME}` },
+  robots: siteEnv.isProduction ? { index: true, follow: true } : { index: false, follow: false },
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
