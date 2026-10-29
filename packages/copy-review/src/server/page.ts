@@ -51,6 +51,12 @@ const PICK_SRC = `function pickGroupRefs(rows) {
 }`;
 export const pickGroupRefs = new Function(`return ${PICK_SRC}`)() as (rows: GroupRow[]) => GroupPick;
 
+/** Keyboard `s` signs only rows that need a signature: never a signed row, never an ignored one (it would stay ignored). */
+const QUICK_SIGN_SRC = `function quickSignable(status) {
+  return status === 'unsigned' || status === 'changed';
+}`;
+export const quickSignable = new Function(`return ${QUICK_SIGN_SRC}`)() as (status: string) => boolean;
+
 /** `vscode://file/<abs path>:<line>` with forward slashes and a URL-safe path. */
 export function vscodeLink(root: string, file: string, line: number): string {
   const path = `${root.replace(/\\/g, '/').replace(/\/+$/, '')}/${file}`;
@@ -439,6 +445,7 @@ const SCRIPT = `
     await post(path, { items: [ref(row)] });
   }
   const pickGroupRefs = ${PICK_SRC};
+  const quickSignable = ${QUICK_SIGN_SRC};
   function pickFor(btn) {
     const scope = btn.closest('details.file') || btn.closest('section.surface');
     return pickGroupRefs(Array.from(scope.querySelectorAll('.row')).map((r) => ({
@@ -541,7 +548,7 @@ const SCRIPT = `
     if (e.target.closest && e.target.closest('input, textarea, select')) return;
     if (e.key === 'j') move(1);
     else if (e.key === 'k') move(-1);
-    else if (e.key === 's' && cur >= 0) { if (rows[cur].dataset.status !== 'signed') act(rows[cur], 'sign'); }
+    else if (e.key === 's' && cur >= 0) { if (quickSignable(rows[cur].dataset.status)) act(rows[cur], 'sign'); }
     else if (e.key === 'c' && cur >= 0) openComment(rows[cur]);
     else return;
     e.preventDefault();

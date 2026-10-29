@@ -29,6 +29,14 @@ describe('withStatus', () => {
     expect(r.status).toBe('changed');
     expect(r.signedText).toBe('Hi');
   });
+  it('a newly inserted string is not "changed" against a neighbour whose signed text is still in the file', () => {
+    const kept = item('Hello', { anchor: 'a.ts#x#1' });
+    const inserted = item('Brand new words', { anchor: 'a.ts#x#0' });
+    const signedAtOldAnchor = entry('sign', item('Hello'));
+    const r = withStatus([inserted, kept], ledger(signedAtOldAnchor));
+    expect(r.map((x) => x.status)).toEqual(['unsigned', 'signed']);
+    expect(r[0]!.signedText).toBeUndefined();
+  });
   it('unsigned otherwise', () => {
     const i = item('Hello');
     expect(withStatus([i], ledger(entry('sign', item('Zzz', { anchor: 'other' }))))[0]!.status).toBe('unsigned');

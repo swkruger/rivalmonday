@@ -16,7 +16,7 @@ export interface SourceRule {
   include: string[];
   exclude?: string[];
   properties?: string[];
-  /** Mode 'property' (Ruling R3): also keep the string arguments of these calls / constructors (`new ToolError(…)`, `refuse(…)`), thrown or not. */
+  /** Also keep the string arguments of these calls / constructors (`new ToolError(…)`, `refuse(…)`), thrown or not (R3; every TS mode since R8, on top of the built-in message calls). */
   calls?: string[];
   /** Mode 'property' (Ruling R3): also keep string initializers of variables whose name matches this regex source (`_MESSAGE$`). */
   constants?: string;

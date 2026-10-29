@@ -17,3 +17,5 @@ coverage/
 # 7c2 rehearsal CLI outputs (ids of a staging run; the archive script)
 rehearsal-manifest.json
 rehearsal-archive.sh
+# Copy sign-off ledger: temp file of an interrupted write (tmp + rename)
+docs/copy/*.tmp

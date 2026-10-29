@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { hashText } from '../text.js';
 import type { CopyItem, SourceRule } from '../types.js';
-import { isCopyLike, isDroppedName, KEEP_JSX_ATTRS } from './filters.js';
+import { isCopyLike, isDroppedName, isNonCopyJsxAttr } from './filters.js';
 
 export type TsScanRule = Pick<SourceRule, 'surface' | 'mode' | 'properties' | 'calls' | 'constants'>;
 
@@ -51,8 +51,8 @@ function rootIdent(e: ts.Expression): string | undefined {
   }
 }
 
-/** Call roots whose string arguments are never copy (`console.x`, `logger.x`, `log.x`, `z.` schema chains). */
-const DROP_CALL_ROOTS: ReadonlySet<string> = new Set(['console', 'logger', 'log', 'z']);
+/** Call roots whose string arguments are never copy (`console.x`, `logger.x`, `log.x`). `z.` chains: see `schemaMessageCall`. */
+const DROP_CALL_ROOTS: ReadonlySet<string> = new Set(['console', 'logger', 'log']);
 /** Objects whose method calls are logging, wherever they hang (`this.logger.x`, `deps.logger.x`, `ctx.log.x`). */
 const LOGGER_OBJECTS: ReadonlySet<string> = new Set(['console', 'logger', 'log']);
 /** Built-in error constructors: their messages are for developers (`new Error('…')` anywhere, thrown or not). */
@@ -71,6 +71,58 @@ function isLoggerCall(call: ts.CallExpression): boolean {
   const obj = call.expression.expression;
   const objName = ts.isIdentifier(obj) ? obj.text : ts.isPropertyAccessExpression(obj) ? obj.name.text : undefined;
   return objName !== undefined && LOGGER_OBJECTS.has(objName);
+}
+
+/**
+ * Schema methods whose string arguments are error messages or descriptions (`.min(1, 'msg')`, `.email('msg')`,
+ * `.refine(fn, 'msg')`, `.describe('…')`, `z.string('msg')`). Any other string inside a `z.` chain (enum / literal /
+ * default values, keys, refine bodies) is never copy (Ruling R8 / I3a).
+ */
+const SCHEMA_MESSAGE_METHODS: ReadonlySet<string> = new Set([
+  'min', 'max', 'length', 'nonempty', 'email', 'url', 'uuid', 'regex', 'refine', 'superRefine', 'check', 'int', 'positive',
+  'negative', 'nonnegative', 'nonpositive', 'gt', 'gte', 'lt', 'lte', 'multipleOf', 'finite', 'safe', 'datetime', 'date',
+  'time', 'ip', 'ipv4', 'ipv6', 'cuid', 'cuid2', 'ulid', 'emoji', 'e164', 'describe', 'string', 'number', 'boolean',
+]);
+/** Object-argument properties of a schema call that hold its error message (`{ message }`, zod 4 `{ error }`). */
+const SCHEMA_MESSAGE_PROPS: ReadonlySet<string> = new Set(['message', 'error', 'required_error', 'invalid_type_error', 'description']);
+/** Calls that carry schema messages whatever their root: `IsoDate.refine(fn, 'msg')`, `ctx.addIssue({ message })`. */
+const ANY_ROOT_SCHEMA_METHODS: ReadonlySet<string> = new Set(['refine', 'superRefine', 'addIssue']);
+
+function methodName(call: ts.CallExpression): string | undefined {
+  const e = call.expression;
+  if (ts.isPropertyAccessExpression(e)) return e.name.text;
+  return ts.isIdentifier(e) ? e.text : undefined;
+}
+
+const isZodCall = (n: ts.Node): n is ts.CallExpression => ts.isCallExpression(n) && rootIdent(n.expression) === 'z';
+const isSchemaCall = (n: ts.Node): n is ts.CallExpression =>
+  ts.isCallExpression(n) && (isZodCall(n) || ANY_ROOT_SCHEMA_METHODS.has(methodName(n) ?? ''));
+
+/** Climb through wrappers that keep a literal "the value" (parens, `as`, `?:` branches, `??` / `||` / `&&`). */
+function valueTop(node: ts.Node): ts.Node {
+  let cur = node;
+  for (;;) {
+    const p = cur.parent;
+    if (!p) return cur;
+    if (ts.isParenthesizedExpression(p) || ts.isAsExpression(p) || ts.isNonNullExpression(p) || ts.isSatisfiesExpression(p)) cur = p;
+    else if (ts.isConditionalExpression(p) && p.condition !== cur) cur = p;
+    else if (ts.isBinaryExpression(p) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(p.operatorToken.kind)) cur = p;
+    else return cur;
+  }
+}
+
+/** The schema call whose error message / description this literal is, else undefined. */
+function schemaMessageCall(node: ts.Node): ts.CallExpression | undefined {
+  let cur = valueTop(node);
+  let p = cur.parent;
+  if (p && ts.isPropertyAssignment(p) && p.initializer === cur) {
+    if (!SCHEMA_MESSAGE_PROPS.has(propName(p.name) ?? '') || !ts.isObjectLiteralExpression(p.parent)) return undefined;
+    cur = p.parent;
+    p = cur.parent;
+    return p && isSchemaCall(p) && p.arguments.includes(cur as ts.Expression) ? p : undefined;
+  }
+  if (p && isSchemaCall(p) && p.arguments.includes(cur as ts.Expression) && SCHEMA_MESSAGE_METHODS.has(methodName(p) ?? '')) return p;
+  return undefined;
 }
 
 const isMatchCall = (e: ts.Node): e is ts.CallExpression =>
@@ -103,6 +155,7 @@ function isComparedLiteral(node: ts.Node): boolean {
  */
 export function inDroppedContext(node: ts.Node, opts: { allowThrow?: boolean } = {}): boolean {
   if (isComparedLiteral(node)) return true;
+  const schemaMessage = schemaMessageCall(node) !== undefined;
   let propChecked = false;
   for (let p: ts.Node | undefined = node.parent; p; p = p.parent) {
     if (ts.isJsxElement(p) || ts.isJsxFragment(p) || ts.isJsxSelfClosingElement(p)) propChecked = true;
@@ -110,6 +163,7 @@ export function inDroppedContext(node: ts.Node, opts: { allowThrow?: boolean } =
     if (ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p)) return true;
     if (ts.isThrowStatement(p) && !opts.allowThrow) return true;
     if (ts.isCallExpression(p) && isLoggerCall(p)) return true;
+    if (!schemaMessage && isZodCall(p)) return true;
     if (ts.isNewExpression(p) && ts.isIdentifier(p.expression) && ERROR_CTORS.has(p.expression.text)) return true;
     // `style={{ fontFamily: 'Inter' }}`: a dropped JSX attribute drops everything inside its value.
     if (ts.isJsxAttribute(p) && isDroppedName(p.name.getText())) return true;
@@ -124,32 +178,69 @@ export function inDroppedContext(node: ts.Node, opts: { allowThrow?: boolean } =
   return false;
 }
 
+/**
+ * Calls whose string arguments are user-facing messages, returned or thrown (Ruling R8 / I3b): server-action result
+ * helpers (`done(…)`, `fail(…)`, `failProspectReport(…)`), refusal helpers (`refuse`, `refused`, `new ToolError`), local
+ * `push(…)` finding builders and
+ * React state setters (`setError`, `setNotice`, `setUploadError`; plain identifiers only, so `res.setHeader` is not one).
+ */
+const MESSAGE_CALLEE_RE = /^(?:done|fail\w*|refuse|refused|ToolError|push|set[A-Z]\w*)$/;
+
+function isMessageCall(node: ts.Node, extra?: ReadonlySet<string>): node is ts.CallExpression | ts.NewExpression {
+  if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return false;
+  const e = node.expression;
+  if (ts.isIdentifier(e)) return (MESSAGE_CALLEE_RE.test(e.text) || !!extra?.has(e.text)) && !isInternalToolError(node);
+  // `problems.push('Name is required')`, `facts.push(\`You rank …\`)`: lists of messages built up for display.
+  return ts.isCallExpression(node) && ts.isPropertyAccessExpression(e) && e.name.text === 'push';
+}
+
+/** Literal nodes a call hands out as user-facing text: message-call arguments, or a schema call's messages. */
+function messageLiterals(node: ts.Node, extra?: ReadonlySet<string>): ts.Expression[] {
+  if (isMessageCall(node, extra)) return (node.arguments ?? []).flatMap((a) => branchLiterals(a));
+  if (!isSchemaCall(node)) return [];
+  const out: ts.Expression[] = [];
+  for (const a of node.arguments) {
+    if (!ts.isObjectLiteralExpression(a)) out.push(...branchLiterals(a));
+    else {
+      for (const pr of a.properties) {
+        if (ts.isPropertyAssignment(pr) && SCHEMA_MESSAGE_PROPS.has(propName(pr.name) ?? '')) out.push(...branchLiterals(pr.initializer));
+      }
+    }
+  }
+  return out.filter((l) => schemaMessageCall(l) === node);
+}
+
 function pathJoin(path: string[]): string {
   return path.reduce((acc, seg) => (seg.startsWith('[') ? acc + seg : acc ? `${acc}.${seg}` : seg), '');
 }
 
 /**
  * Module mode: string / template literals that are a property-assignment value or array element (also when wrapped in
- * a call, conditional, `as`, etc. inside one), anywhere in the file. Reused by the jsx mode for object literals in .tsx.
+ * a call, conditional, `as`, etc. inside one), a variable initializer, returned value, default value or assignment
+ * (R2, R8), or a message-call / schema-message argument (R8), anywhere in the file. Reused by the jsx mode for .tsx.
  */
-export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
+export function collectModuleLiterals(sf: ts.SourceFile, opts: { calls?: ReadonlySet<string> } = {}): RawLiteral[] {
   const out: RawLiteral[] = [];
   const path: string[] = [];
 
-  const emit = (node: ts.Node, text: string) => {
-    if (inDroppedContext(node)) return;
+  const emit = (node: ts.Node, text: string, allowThrow = false) => {
+    if (inDroppedContext(node, { allowThrow })) return;
     out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path), pos: node.getStart(sf) });
   };
 
   /** A variable initializer or returned value: keeps literals reached through ?:, ??, ||, && and wrappers. */
   const direct = (node: ts.Expression, inValue: boolean): void => {
+    const receiver = textKeepingReceiver(node);
     if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
       direct(node.expression, inValue);
+    } else if (receiver) {
+      direct(receiver, inValue);
+      (node as ts.CallExpression).arguments.forEach((a) => visit(a, inValue));
     } else if (ts.isConditionalExpression(node)) {
       visit(node.condition, inValue);
       direct(node.whenTrue, inValue);
       direct(node.whenFalse, inValue);
-    } else if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(node.operatorToken.kind)) {
+    } else if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.PlusToken].includes(node.operatorToken.kind)) {
       direct(node.left, inValue);
       direct(node.right, inValue);
     } else {
@@ -164,6 +255,8 @@ export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
 
   const visit = (node: ts.Node, inValue: boolean): void => {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return;
+    // Messages handed to a result helper / setter / `.push` / schema, wherever the call sits (Ruling R8 / I3).
+    for (const lit of messageLiterals(node, opts.calls)) emit(lit, literalText(lit)!, true);
     if (ts.isVariableDeclaration(node)) {
       if (node.initializer) {
         path.push(ts.isIdentifier(node.name) ? node.name.text : '…');
@@ -180,6 +273,18 @@ export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
     }
     if (ts.isReturnStatement(node)) {
       if (node.expression) direct(node.expression, inValue);
+      return;
+    }
+    // Default values (`{ title = 'Save as recommendation' }`) and assignments (`e.name = 'Enter the business name.'`).
+    if ((ts.isParameter(node) || ts.isBindingElement(node)) && node.initializer) {
+      path.push(ts.isIdentifier(node.name) ? node.name.text : '…');
+      direct(node.initializer, inValue);
+      path.pop();
+      return;
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      visit(node.left, inValue);
+      direct(node.right, inValue);
       return;
     }
     if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) {
@@ -329,8 +434,20 @@ export function toCopyItems(file: string, rule: Pick<SourceRule, 'surface'>, raw
   return items;
 }
 
+/** `\`Remove filter ${x}\`.trim()`, `.slice(0, MAX)`: the receiver literal is still the shown text. */
+const TEXT_KEEPING_METHODS: ReadonlySet<string> = new Set(['trim', 'trimStart', 'trimEnd', 'slice']);
+
+/** The receiver of a text-keeping method call (`'…'.trim()`), else undefined. */
+function textKeepingReceiver(e: ts.Expression): ts.Expression | undefined {
+  return ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && TEXT_KEEPING_METHODS.has(e.expression.name.text)
+    ? e.expression.expression
+    : undefined;
+}
+
 function branchLiterals(e: ts.Expression, out: ts.Expression[] = []): ts.Expression[] {
   if (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e)) return branchLiterals(e.expression, out);
+  const receiver = textKeepingReceiver(e);
+  if (receiver) return branchLiterals(receiver, out);
   if (ts.isConditionalExpression(e)) {
     branchLiterals(e.whenTrue, out);
     branchLiterals(e.whenFalse, out);
@@ -355,7 +472,7 @@ function jsxScope(node: ts.Node): string {
   return variable ?? '(module)';
 }
 
-/** JSX mode: JsxText runs (joined across `{expr}`), string-literal expression children and allow-listed attributes. */
+/** JSX mode: JsxText runs (joined across `{expr}`), string-literal expression children and non-deny-listed attributes. */
 export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
   const out: RawLiteral[] = [];
   const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
@@ -410,7 +527,8 @@ export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
     if (ts.isJsxElement(node) || ts.isJsxFragment(node)) children(node);
     else if (ts.isJsxAttribute(node) && node.initializer) {
       const attr = node.name.getText(sf);
-      if (KEEP_JSX_ATTRS.has(attr)) {
+      // Every attribute is copy unless deny-listed (Ruling R8 / I1); `on*` handler values are code.
+      if (!isNonCopyJsxAttr(attr) && !/^on[A-Z]/.test(attr)) {
         const el = node.parent.parent;
         const tag = ts.isJsxOpeningElement(el) || ts.isJsxSelfClosingElement(el) ? el.tagName.getText(sf) : '?';
         const exprs = ts.isJsxExpression(node.initializer) ? (node.initializer.expression ? branchLiterals(node.initializer.expression) : []) : [node.initializer];
@@ -429,8 +547,13 @@ export function collectJsxLiterals(sf: ts.SourceFile): RawLiteral[] {
 export function scanTsFile(file: string, source: string, rule: TsScanRule): CopyItem[] {
   const sf = parseTs(file, source);
   switch (rule.mode) {
-    case 'module':
-      return toCopyItems(file, rule, collectModuleLiterals(sf));
+    case 'module': {
+      const seen = new Set<number>();
+      const raws = collectModuleLiterals(sf, { calls: new Set(rule.calls ?? []) })
+        .filter((r) => !seen.has(r.pos) && seen.add(r.pos))
+        .sort((a, b) => a.pos - b.pos);
+      return toCopyItems(file, rule, raws);
+    }
     case 'property': {
       const opts = { calls: new Set(rule.calls ?? []), constants: rule.constants ? new RegExp(rule.constants) : undefined };
       const seen = new Set<number>();
@@ -441,7 +564,7 @@ export function scanTsFile(file: string, source: string, rule: TsScanRule): Copy
     }
     case 'jsx': {
       const seen = new Set<number>();
-      const raws = [...collectJsxLiterals(sf), ...collectModuleLiterals(sf)]
+      const raws = [...collectJsxLiterals(sf), ...collectModuleLiterals(sf, { calls: new Set(rule.calls ?? []) })]
         .filter((r) => !seen.has(r.pos) && seen.add(r.pos))
         .sort((a, b) => a.pos - b.pos);
       return toCopyItems(file, rule, raws);

@@ -20,6 +20,9 @@ export function withStatus(items: CopyItem[], l: Ledger): StatusedItem[] {
     } else (comments.get(k) ?? comments.set(k, []).get(k)!).push(e);
   });
 
+  // A prior sign is "changed from" only when its text is gone from the file: an inserted string that takes over a
+  // neighbour's anchor must not diff against the neighbour's (still present) text.
+  const live = new Set(items.map((i) => key(i.file, i.hash)));
   return items.map((it) => {
     const k = key(it.file, it.hash);
     const cs = comments.get(k) ?? [];
@@ -27,7 +30,7 @@ export function withStatus(items: CopyItem[], l: Ledger): StatusedItem[] {
     if (ignored.has(k)) return { ...base, status: 'ignored' as const };
     if (signed.has(k)) return { ...base, status: 'signed' as const };
     const prior = (signsByAnchor.get(key(it.file, it.anchor)) ?? [])
-      .filter((s) => s.entry.hash !== it.hash)
+      .filter((s) => s.entry.hash !== it.hash && !live.has(key(it.file, s.entry.hash)))
       .sort((a, b) => (a.entry.at < b.entry.at ? -1 : a.entry.at > b.entry.at ? 1 : a.idx - b.idx))
       .at(-1);
     if (prior) return { ...base, status: 'changed' as const, signedText: prior.entry.text };

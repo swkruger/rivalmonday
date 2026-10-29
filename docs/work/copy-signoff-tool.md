@@ -4,7 +4,7 @@
 **Plan/spec:** `docs/superpowers/plans/2026-10-29-copy-signoff-tool.md` / `docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`
 
 ## Status (overwrite)
-Built; tasks 1-10 done (guard test + docs in Task 10). `pnpm copy:status` on a fresh ledger: 5,812 items, all unsigned (app-client 694, app-agency 442, app-platform 988, app-account 298, app-shared 727, help 692, guides 86, glossary 81, labels 252, emails 84, documents 3, site 842, site-legal 2, mcp-tools 621), 0 stale. Noise < 2 % per surface (manual samples). Viewer checked in Playwright at 1440 px (sign, group sign, comment, email preview).
+Built; tasks 1-10 + final-review fix wave (R8) done. `pnpm copy:status` on a fresh ledger: 6,729 items, all unsigned (app-client 864, app-agency 538, app-platform 1,118, app-account 330, app-shared 889, help 692, guides 86, glossary 81, labels 255, emails 84, documents 3, site 886, site-legal 2, mcp-tools 901), 0 stale. Noise <= 5 % per surface (60-item samples, seed 7); misses (final-review probe) 341 -> 42, 31 of them by design. Viewer checked in Playwright at 1440 px (sign, group sign, comment, email preview).
 
 ## Next (overwrite)
 Final review -> owner verification -> merge.
@@ -15,17 +15,27 @@ Final review -> owner verification -> merge.
 - Decide when the CI step becomes blocking (see backlog).
 
 ## Interfaces this branch adds or changes
-New package `@cs/copy-review` (never imported by apps; guard test); `@cs/email/previews` export; root scripts `copy:review` / `copy:status`; CI report-only `copy:status` step; ledger `docs/copy/signoff.json`. No migration.
+New package `@cs/copy-review` (never imported by apps; guard test); `@cs/email/previews` export; root scripts `copy:review` / `copy:status`; CI `copy:status` step (no `--strict`, so report-only for counts; a malformed ledger fails CI, R9); ledger `docs/copy/signoff.json`. No migration.
 
 ## Assumes from other branches
 None (`git branch --no-merged main` empty).
 
 ## Decisions (owner-approved)
-None yet.
+Spec D1-D12 (`docs/superpowers/specs/2026-10-29-copy-signoff-tool-design.md`). Implementation rulings (`.superpowers/sdd/2026-10-29-copy-signoff-tool/progress.md`):
+- R1 `sign` never deletes other entries; "changed" diffs against the latest sign at the same anchor; stale entries leave only via `--prune`.
+- R2 Module mode also keeps variable initializers and returned literals.
+- R3 User-facing error text is scanned (web server modules, `ToolError` messages).
+- R4 Extra sources: `engine/briefs/notify.ts` (app-agency), `apps/site/content/*.json` (site).
+- R5 Stale = sign/ignore/unresolved comments matching no item; `copy:status` counts them, `--prune` removes exactly those.
+- R6 Framing denial on every response except `/preview` (CSP `frame-ancestors`).
+- R7 Group sign = visible unsigned/changed rows in open file groups only.
+- R8 Final fix wave: JSX attribute deny-list; `name`/`type` dropped only as JSX attributes; web `.ts` and tools in module mode plus message calls and zod messages; engine/ask/billing copy sources; YAML playbooks stay out (known gap).
+- R9 CI `copy:status` step has no `continue-on-error` (repo rule, `ci-workflow.test.ts`); a malformed ledger fails CI.
 
 ## New backlog (target → item)
 - Pre-pilot: blocking copy gate in `deploy`/`deploy-site` (`copy:status --strict emails,site,site-legal,app-client`) before the first pilot invite - owner decision.
 - Close the per-phase copy sign-off BACKLOG items once their surfaces are signed in the tool.
+- Later: scan `packages/verticals/packs/*.yaml` playbook titles/bodies (they reach clients as recommendations), and labels passed to local helpers (`chart(…)`, `input(…)`).
 
 ## Brief
 

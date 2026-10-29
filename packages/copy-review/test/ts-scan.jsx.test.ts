@@ -66,7 +66,8 @@ describe('DROP_ATTRS', () => {
     const items = scanTsFile('fx/a.ts', "export const X = { name: 'x', meta: { title: 'Real copy here' }, type: 'Primary button text', style: { label: 'Nested under dropped' } };", { surface: 'help', mode: 'module' });
     const t = items.map((i) => i.text);
     expect(t).toContain('Real copy here');
-    expect(t).not.toContain('Primary button text');
+    // Ruling R8 / I2: `name` / `type` object values are display copy; only JSX `name` / `type` attributes are dropped.
+    expect(t).toContain('Primary button text');
     expect(t).toContain('Nested under dropped');
   });
 });

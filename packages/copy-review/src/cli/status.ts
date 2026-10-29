@@ -2,9 +2,15 @@ import { collectItems } from '../collect.js';
 import { LedgerError, loadLedger, saveLedger } from '../ledger.js';
 import { isMainModule, ledgerPathFor, repoRoot } from '../paths.js';
 import { staleEntries, withStatus } from '../status.js';
-import { SURFACES, type CopyItem, type ItemStatus, type Surface } from '../types.js';
+import { SURFACES, type CopyItem, type ItemStatus, type LedgerEntry, type Surface } from '../types.js';
 
 interface Deps { ledgerPath: string; out: (s: string) => void }
+
+/** First 60 characters, whitespace collapsed (prune listing). */
+const excerpt = (t: string) => {
+  const s = t.replace(/\s+/g, ' ').trim();
+  return s.length > 60 ? `${s.slice(0, 59)}…` : s;
+};
 type Counts = Record<ItemStatus | 'needsEdit', number>;
 
 /** Testable core: the items are injected. Returns the exit code (0 ok, 1 strict failure, 2 usage / ledger error). */
@@ -38,6 +44,7 @@ export async function runStatusWith(items: CopyItem[], argv: string[], deps: Dep
     const drop = new Set(stale);
     saveLedger(ledgerPath, { version: 1, entries: ledger.entries.filter((e) => !drop.has(e)) });
     out(`Pruned ${stale.length} stale entr${stale.length === 1 ? 'y' : 'ies'}.`);
+    for (const e of stale) out(`- ${e.type} ${e.file} ${e.anchor} ${JSON.stringify(excerpt(e.text))}`);
     return 0;
   }
 
@@ -55,6 +62,20 @@ export async function runStatusWith(items: CopyItem[], argv: string[], deps: Dep
         if (c.suggestion) out(`- Suggestion: ${c.suggestion}`);
       }
       out('');
+    }
+    // Unresolved comments whose text no longer exists (usually: the edit was applied). Check the current text, then
+    // re-sign the "changed" item and `--prune`.
+    const orphaned = stale.filter((e): e is Extract<LedgerEntry, { type: 'comment' }> => e.type === 'comment');
+    if (orphaned.length > 0) {
+      out(`# Orphaned comments (${orphaned.length}): the commented text has since changed
+`);
+      for (const c of orphaned) {
+        out(`## ${c.anchor}`);
+        out(`- Commented text: ${c.text}`);
+        out(`- Comment: ${c.comment}`);
+        if (c.suggestion) out(`- Suggestion: ${c.suggestion}`);
+        out('');
+      }
     }
     return 0;
   }

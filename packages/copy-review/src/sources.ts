@@ -16,14 +16,14 @@ const WEB = 'apps/web/src';
 const WEB_NOT_USER_FACING = ['apps/web/src/app/api/stripe/**', 'apps/web/src/app/api/postmark/**', 'apps/web/src/lib/sentry-*.ts'];
 
 /**
- * Web sources split by route group: `.tsx` in jsx mode, `*copy*.ts` modules in module mode (spec 3.1), and every
- * other `.ts` (server actions, server modules) in property mode on `error` / `message` values (Ruling R3).
+ * Web sources split by route group: `.tsx` in jsx mode; every `.ts` (copy modules, server actions, server modules) in
+ * module mode (spec 3.1; Ruling R8 / I3 widened R3's `error` / `message` property mode to the module catch-all, so
+ * labels in view models, result-helper messages and validation lists are scanned too).
  */
 function webRules(surface: Surface, dirs: string[], exclude: string[] = []): SourceRule[] {
   return [
-    { surface, mode: 'module', include: dirs.map((d) => `${d}/**/*copy*.ts`), exclude },
     { surface, mode: 'jsx', include: dirs.map((d) => `${d}/**/*.tsx`), exclude },
-    { surface, mode: 'property', include: dirs.map((d) => `${d}/**/*.ts`), exclude: [...exclude, ...WEB_NOT_USER_FACING], properties: ['error', 'message'] },
+    { surface, mode: 'module', include: dirs.map((d) => `${d}/**/*.ts`), exclude: [...exclude, ...WEB_NOT_USER_FACING] },
   ];
 }
 
@@ -45,6 +45,27 @@ export const SOURCES: readonly SourceRule[] = [
   ...webRules('app-platform', [`${WEB}/app/(platform)`]),
   // Agency-facing notification titles/lines (inbox + agency notice email), built in the engine.
   { surface: 'app-agency', mode: 'module', include: ['packages/engine/src/briefs/notify.ts'] },
+  // Ruling R8 / I4: copy built outside apps/. Client-facing brief text (starting-point findings and why-it-matters,
+  // the "Where you stand" scorecard, the quiet-week summary) and Ask's client messages. Model prompts in these files
+  // show up too: Ignore them (prompts are a spec non-goal).
+  {
+    surface: 'app-client',
+    mode: 'module',
+    include: [
+      'packages/engine/src/briefs/self-rules.ts', 'packages/engine/src/briefs/starting-point.ts',
+      'packages/engine/src/briefs/scorecard-model.ts', 'packages/engine/src/briefs/generate.ts', 'packages/ask/src/quota.ts',
+    ],
+  },
+  // Agency-facing engine / billing text: alert routing notes, brief delivery notices, review refusals, billing
+  // access messages and the billing pill.
+  {
+    surface: 'app-agency',
+    mode: 'module',
+    include: [
+      'packages/engine/src/alerts/route.ts', 'packages/engine/src/briefs/deliver.ts', 'packages/engine/src/briefs/readiness.ts',
+      'packages/engine/src/briefs/recommendations.ts', 'packages/billing/src/access.ts', 'packages/billing/src/pill.ts',
+    ],
+  },
   // Account, auth and public pages: everything else under app/ except the dev panel (never ships).
   ...webRules('app-account', [`${WEB}/app`], [`${WEB}/app/dev-panel/**`]),
   ...webRules('app-shared', [`${WEB}/components`, `${WEB}/lib`, `${WEB}/server`]),
@@ -52,15 +73,14 @@ export const SOURCES: readonly SourceRule[] = [
   { surface: 'site-legal', mode: 'markdown', include: ['apps/site/content/legal/*.md'] },
   { surface: 'site', mode: 'module', include: ['apps/site/content/*.ts', 'apps/site/content/*.json', 'apps/site/src/**/copy.ts'] },
   { surface: 'site', mode: 'jsx', include: ['apps/site/src/**/*.tsx'] },
-  // Tool descriptions (D11) plus refusal text (Ruling R3): `new ToolError(code, msg)`, the local `refuse(msg)` /
-  // `refused(reason)` helpers, and the shared `*_MESSAGE` constants they throw.
+  // Tool descriptions (D11), refusal text (R3: `ToolError` / `refuse` / `refused` are built-in message calls) and every
+  // other user-facing tool string (R8 / I3): module mode, so message constants, validation lists, returned reasons and
+  // zod messages are scanned. Isolation fixtures are test data.
   {
     surface: 'mcp-tools',
-    mode: 'property',
+    mode: 'module',
     include: ['packages/tools/src/**/*.ts'],
-    properties: ['description'],
-    calls: ['ToolError', 'refuse', 'refused'],
-    constants: '_MESSAGE$',
+    exclude: ['packages/tools/src/isolation/**'],
   },
 ];
 

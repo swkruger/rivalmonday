@@ -41,6 +41,16 @@ describe('surfaceFor', () => {
       ['apps/web/src/app/dev-panel/[...path]/route.ts', null],
       ['apps/web/src/server/tools.ts', 'app-shared'],
       ['packages/ask/src/prompt.ts', null],
+      // Ruling R8 / I4: copy built outside apps/.
+      ['packages/engine/src/briefs/self-rules.ts', 'app-client'],
+      ['packages/engine/src/briefs/starting-point.ts', 'app-client'],
+      ['packages/engine/src/briefs/scorecard-model.ts', 'app-client'],
+      ['packages/ask/src/quota.ts', 'app-client'],
+      ['packages/engine/src/briefs/readiness.ts', 'app-agency'],
+      ['packages/engine/src/briefs/recommendations.ts', 'app-agency'],
+      ['packages/engine/src/alerts/route.ts', 'app-agency'],
+      ['packages/billing/src/access.ts', 'app-agency'],
+      ['packages/tools/src/isolation/fixtures.ts', null],
     ];
     for (const [file, surface] of table) expect([file, surfaceFor(file)]).toEqual([file, surface]);
   });
@@ -86,6 +96,12 @@ describe('collectScanned', () => {
     expect(items.every((i) => !i.file.includes('\\') && !i.file.startsWith('/'))).toBe(true);
     const keys = items.map((i) => `${i.surface}\u0000${i.file}\u0000${String(i.line).padStart(6, '0')}`);
     expect(keys).toEqual([...keys].sort());
+    // Final-review misses (Ruling R8): each must now be scanned.
+    const has = (file: string, text: string) => items.some((i) => i.file === file && i.text === text);
+    expect(has('apps/site/content/pricing-page.ts', 'For local businesses')).toBe(true);
+    expect(has('packages/engine/src/briefs/self-rules.ts', 'Your rating is {ys}; the rival median is {ms}.')).toBe(true);
+    expect(has('packages/ask/src/quota.ts', 'Ask is paused for the rest of this month. Your past answers are still here.')).toBe(true);
+    expect(has('packages/tools/src/access/team.ts', "You've sent a lot of invites today. Try again tomorrow.")).toBe(true);
   }, 60_000);
 });
 
@@ -100,11 +116,13 @@ describe('error text (Ruling R3)', () => {
       export async function save(fd: FormData) {
         if (!fd.get('x')) return { ok: false, error: 'Enter a name first.' };
         logger.warn({ error: 'Logged only' }, 'x');
-        return { ok: true, message: 'Saved.', status: 'Done Now' };
+        if (fd.get('y')) return fail('Pick a channel first.');
+        return { ok: true, message: 'Saved.', status: 'done', label: 'Delivery settings' };
       }`;
     const client = scanAs('apps/web/src/app/(app)/c/[clientId]/settings/delivery/actions.ts', src);
-    expect(client.rule).toMatchObject({ surface: 'app-client', mode: 'property' });
-    expect(client.items.map((i) => i.text)).toEqual(['Enter a name first.', 'Saved.']);
+    // Ruling R8 / I3: server modules are scanned in module mode (labels and result-helper messages too).
+    expect(client.rule).toMatchObject({ surface: 'app-client', mode: 'module' });
+    expect(client.items.map((i) => i.text)).toEqual(['Enter a name first.', 'Pick a channel first.', 'Saved.', 'Delivery settings']);
     expect(surfaceFor('apps/web/src/app/(app)/agency/leads/actions.ts')).toBe('app-agency');
     expect(surfaceFor('apps/web/src/app/(platform)/platform/billing/actions.ts')).toBe('app-platform');
     expect(surfaceFor('apps/web/src/app/sign-up/actions.ts')).toBe('app-account');
@@ -118,7 +136,8 @@ describe('error text (Ruling R3)', () => {
 
   it('ToolError message is scanned in mcp-tools', () => {
     const src = `export const LAST_ADMIN_MESSAGE = 'An agency needs at least one admin.';
-      const KIND = 'Not a message';
+      const KIND = 'invite_rate';
+      const RATE_LIMITED = "You've sent a lot of invites today. Try again tomorrow.";
       const refuse = (msg: string) => new ToolError('invalid_input', msg, { userFacing: true });
       export const tool = { name: 'x', description: 'Does the thing.', run: async () => {
         if (a) throw new ToolError('not_found', 'Client not found');
@@ -131,7 +150,7 @@ describe('error text (Ruling R3)', () => {
     const { rule, items } = scanAs('packages/tools/src/tools/x.ts', src);
     expect(rule.surface).toBe('mcp-tools');
     expect(items.map((i) => i.text)).toEqual([
-      'An agency needs at least one admin.', 'Does the thing.', 'Client not found', 'That play is already adopted.', 'Search is down right now.',
+      'An agency needs at least one admin.', "You've sent a lot of invites today. Try again tomorrow.", 'Does the thing.', 'Client not found', 'That play is already adopted.', 'Search is down right now.',
       'Too many items: {n}',
     ]);
   });

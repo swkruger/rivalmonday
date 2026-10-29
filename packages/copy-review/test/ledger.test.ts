@@ -12,6 +12,19 @@ const item = (o: Partial<CopyItem> = {}): CopyItem => ({
 const empty: Ledger = { version: 1, entries: [] };
 const tmp = () => join(mkdtempSync(join(tmpdir(), 'led-')), 'signoff.json');
 
+describe('committed ledger', () => {
+  it('docs/copy/signoff.json is in serialiseLedger form', () => {
+    const raw = readFileSync(new URL('../../../docs/copy/signoff.json', import.meta.url), 'utf8');
+    expect(raw).toBe(serialiseLedger(loadLedgerFromText(raw)));
+  });
+});
+
+function loadLedgerFromText(raw: string): Ledger {
+  const p = tmp();
+  writeFileSync(p, raw);
+  return loadLedger(p);
+}
+
 describe('ledger', () => {
   it('round-trips and sorts entries', () => {
     let l = applyAction(empty, 'sign', [item({ file: 'b.ts', anchor: 'b.ts#x#0', hash: '2'.repeat(16) })], meta);

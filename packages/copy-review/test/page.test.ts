@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildView } from '../src/server/app.js';
-import { PAGE_SIZE, pickGroupRefs, renderPage, vscodeLink, type GroupRow } from '../src/server/page.js';
+import { PAGE_SIZE, pickGroupRefs, quickSignable, renderPage, vscodeLink, type GroupRow } from '../src/server/page.js';
 import type { ItemStatus, StatusedItem } from '../src/types.js';
 
 const si = (o: Partial<StatusedItem> = {}): StatusedItem => ({
@@ -100,6 +100,13 @@ describe('renderPage', () => {
     expect(html).toContain('const pickGroupRefs = function pickGroupRefs(rows)');
     expect(html).toContain("open: r.closest('details.file').open");
     expect(html).toContain('items: pick.refs');
+  });
+
+  it('keyboard s signs only unsigned / changed rows (never ignored or signed)', () => {
+    expect(['unsigned', 'changed', 'signed', 'ignored'].map((s) => quickSignable(s))).toEqual([true, true, false, false]);
+    const html = page([si()]);
+    expect(html).toContain('const quickSignable = function quickSignable(status)');
+    expect(html).toContain('if (quickSignable(rows[cur].dataset.status))');
   });
 
   it('unticking every status box round-trips to "all" (hidden sentinel)', () => {

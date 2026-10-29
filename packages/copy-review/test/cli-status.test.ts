@@ -62,6 +62,21 @@ describe('copy:status CLI', () => {
     const saved = JSON.parse(readFileSync(s.ledgerPath, 'utf8')) as Ledger;
     expect(saved.entries.map((e) => e.file)).toEqual(['a.ts']);
     expect(s.text()).toMatch(/1/);
+    // Each removed entry is listed, so a prune after a scanner regression is visible.
+    expect(s.text()).toContain('sign gone.ts gone.ts#z#0');
+    expect(s.text()).toContain('"Hello"');
+  });
+  it('--todo lists unresolved comments whose text was since edited as orphaned', async () => {
+    const edited = item({ hash: 'e'.repeat(16), text: 'Old wording' });
+    const s = setup(applyAction(empty, 'comment', [edited], meta, { comment: 'Say it plainly', suggestion: 'New wording' }));
+    expect(await runStatusWith(items, ['--todo'], s)).toBe(0);
+    const t = s.text();
+    expect(t).toContain('# Copy to edit (0)');
+    expect(t).toMatch(/# Orphaned comments \(1\)/);
+    expect(t).toContain('a.ts#x#0');
+    expect(t).toContain('Old wording');
+    expect(t).toContain('Say it plainly');
+    expect(t).toContain('New wording');
   });
   it('--json is parseable', async () => {
     const s = setup();
