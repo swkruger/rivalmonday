@@ -31,6 +31,9 @@ jobs:
       - name: Create roles (incl. runtime cs_worker/cs_web, which migration 0081 needs) and test database
         run: psql postgres://postgres:postgres@localhost:5432/cs_dev -f infra/db/init/01-roles.sql
       - run: pnpm install --frozen-lockfile
+      - name: Copy sign-off status (report only)
+        run: pnpm copy:status
+        continue-on-error: true
       - name: Install Playwright chromium
         run: pnpm --filter @cs/collectors exec playwright install --with-deps chromium
       - run: pnpm typecheck
