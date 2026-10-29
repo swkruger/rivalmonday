@@ -27,4 +27,12 @@ describe('pageMetadata', () => {
   it('twitter card is summary_large_image', () => {
     expect(pageMetadata('/').twitter).toMatchObject({ card: 'summary_large_image' });
   });
+
+  it('sets no config OG images (they would override each segment opengraph-image file)', () => {
+    for (const p of PAGES) {
+      const m = pageMetadata(p.path);
+      expect(m.openGraph && 'images' in m.openGraph, p.path).toBeFalsy();
+      expect(m.twitter && 'images' in m.twitter, p.path).toBeFalsy();
+    }
+  });
 });
