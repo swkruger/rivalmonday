@@ -3,7 +3,7 @@ import { hashText } from '../text.js';
 import type { CopyItem, SourceRule } from '../types.js';
 import { isCopyLike, isDroppedName, KEEP_JSX_ATTRS } from './filters.js';
 
-export type TsScanRule = Pick<SourceRule, 'surface' | 'mode' | 'properties'>;
+export type TsScanRule = Pick<SourceRule, 'surface' | 'mode' | 'properties' | 'calls' | 'constants'>;
 
 export interface RawLiteral {
   text: string;
@@ -101,13 +101,14 @@ function isComparedLiteral(node: ts.Node): boolean {
  * True when the node sits inside a position that is never copy (imports, types, console/logger/z/sql, throw,
  * `new Error`, comparisons).
  */
-export function inDroppedContext(node: ts.Node): boolean {
+export function inDroppedContext(node: ts.Node, opts: { allowThrow?: boolean } = {}): boolean {
   if (isComparedLiteral(node)) return true;
   let propChecked = false;
   for (let p: ts.Node | undefined = node.parent; p; p = p.parent) {
     if (ts.isJsxElement(p) || ts.isJsxFragment(p) || ts.isJsxSelfClosingElement(p)) propChecked = true;
     if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isTypeNode(p)) return true;
-    if (ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p) || ts.isThrowStatement(p)) return true;
+    if (ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p)) return true;
+    if (ts.isThrowStatement(p) && !opts.allowThrow) return true;
     if (ts.isCallExpression(p) && isLoggerCall(p)) return true;
     if (ts.isNewExpression(p) && ts.isIdentifier(p.expression) && ERROR_CTORS.has(p.expression.text)) return true;
     // `style={{ fontFamily: 'Inter' }}`: a dropped JSX attribute drops everything inside its value.
@@ -213,17 +214,54 @@ export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
   return out;
 }
 
-/** Property mode: string values of properties named in `names` (also through conditionals / calls inside the value). */
-export function collectPropertyLiterals(sf: ts.SourceFile, names: ReadonlySet<string>): RawLiteral[] {
+export interface PropertyScanOptions {
+  /** Callee / constructor names whose string arguments are kept even when thrown (`ToolError`, `refuse`). */
+  calls?: ReadonlySet<string>;
+  /** Variable names whose string initializers are kept (`/_MESSAGE$/`). */
+  constants?: RegExp;
+}
+
+/** `new ToolError('internal', msg)` without `{ userFacing: true }`: an operator/config message, never shown as copy. */
+function isInternalToolError(node: ts.Node): boolean {
+  if (!ts.isNewExpression(node) || calleeName(node) !== 'ToolError') return false;
+  const [code, , options] = node.arguments ?? [];
+  if (!code || !ts.isStringLiteral(code) || code.text !== 'internal') return false;
+  const userFacing = options && ts.isObjectLiteralExpression(options) && options.properties.some((p) =>
+    ts.isPropertyAssignment(p) && propName(p.name) === 'userFacing' && p.initializer.kind === ts.SyntaxKind.TrueKeyword);
+  return !userFacing;
+}
+
+function calleeName(node: ts.Node): string | undefined {
+  if (!ts.isCallExpression(node) && !ts.isNewExpression(node)) return undefined;
+  return ts.isIdentifier(node.expression) ? node.expression.text : undefined;
+}
+
+/**
+ * Property mode: string values of properties named in `names` (also through conditionals / calls inside the value),
+ * plus (Ruling R3) the string arguments of `opts.calls` and the initializers of `opts.constants` variables.
+ */
+export function collectPropertyLiterals(sf: ts.SourceFile, names: ReadonlySet<string>, opts: PropertyScanOptions = {}): RawLiteral[] {
   const out: RawLiteral[] = [];
   const path: string[] = [];
+  const keep = (e: ts.Expression, allowThrow: boolean) => {
+    for (const b of branchLiterals(e)) {
+      if (inDroppedContext(b, { allowThrow })) continue;
+      out.push({ text: literalText(b)!, line: sf.getLineAndCharacterOfPosition(b.getStart(sf)).line + 1, scope: pathJoin(path), pos: b.getStart(sf) });
+    }
+  };
   const visit = (node: ts.Node, capture: boolean): void => {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return;
     if (ts.isVariableDeclaration(node)) {
-      path.push(ts.isIdentifier(node.name) ? node.name.text : '…');
+      const name = ts.isIdentifier(node.name) ? node.name.text : '…';
+      path.push(name);
+      if (node.initializer && opts.constants?.test(name)) keep(node.initializer, false);
       if (node.initializer) visit(node.initializer, false);
       path.pop();
       return;
+    }
+    const callee = calleeName(node);
+    if (callee !== undefined && opts.calls?.has(callee) && !isInternalToolError(node)) {
+      for (const a of (node as ts.CallExpression | ts.NewExpression).arguments ?? []) keep(a, true);
     }
     if (ts.isPropertyAssignment(node)) {
       const n = propName(node.name);
@@ -393,8 +431,14 @@ export function scanTsFile(file: string, source: string, rule: TsScanRule): Copy
   switch (rule.mode) {
     case 'module':
       return toCopyItems(file, rule, collectModuleLiterals(sf));
-    case 'property':
-      return toCopyItems(file, rule, collectPropertyLiterals(sf, new Set(rule.properties ?? [])));
+    case 'property': {
+      const opts = { calls: new Set(rule.calls ?? []), constants: rule.constants ? new RegExp(rule.constants) : undefined };
+      const seen = new Set<number>();
+      const raws = collectPropertyLiterals(sf, new Set(rule.properties ?? []), opts)
+        .filter((r) => !seen.has(r.pos) && seen.add(r.pos))
+        .sort((a, b) => a.pos - b.pos);
+      return toCopyItems(file, rule, raws);
+    }
     case 'jsx': {
       const seen = new Set<number>();
       const raws = [...collectJsxLiterals(sf), ...collectModuleLiterals(sf)]

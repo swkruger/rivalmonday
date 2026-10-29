@@ -10,6 +10,10 @@ export interface SourceRule {
   include: string[];
   exclude?: string[];
   properties?: string[];
+  /** Mode 'property' (Ruling R3): also keep the string arguments of these calls / constructors (`new ToolError(…)`, `refuse(…)`), thrown or not. */
+  calls?: string[];
+  /** Mode 'property' (Ruling R3): also keep string initializers of variables whose name matches this regex source (`_MESSAGE$`). */
+  constants?: string;
 }
 
 export interface CopyItem {

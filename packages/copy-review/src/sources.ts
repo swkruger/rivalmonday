@@ -12,11 +12,18 @@ export const ALWAYS_EXCLUDE: readonly string[] = [
 
 const WEB = 'apps/web/src';
 
-/** Web sources split by route group: `.tsx` in jsx mode, `*copy*.ts` modules in module mode (spec 3.1). */
-function webRules(surface: Surface, dirs: string[], exclude?: string[]): SourceRule[] {
+/** Not user-facing although under a scanned web dir: payment/email webhooks (server-to-server) and Sentry config. */
+const WEB_NOT_USER_FACING = ['apps/web/src/app/api/stripe/**', 'apps/web/src/app/api/postmark/**', 'apps/web/src/lib/sentry-*.ts'];
+
+/**
+ * Web sources split by route group: `.tsx` in jsx mode, `*copy*.ts` modules in module mode (spec 3.1), and every
+ * other `.ts` (server actions, server modules) in property mode on `error` / `message` values (Ruling R3).
+ */
+function webRules(surface: Surface, dirs: string[], exclude: string[] = []): SourceRule[] {
   return [
     { surface, mode: 'module', include: dirs.map((d) => `${d}/**/*copy*.ts`), exclude },
     { surface, mode: 'jsx', include: dirs.map((d) => `${d}/**/*.tsx`), exclude },
+    { surface, mode: 'property', include: dirs.map((d) => `${d}/**/*.ts`), exclude: [...exclude, ...WEB_NOT_USER_FACING], properties: ['error', 'message'] },
   ];
 }
 
@@ -40,12 +47,21 @@ export const SOURCES: readonly SourceRule[] = [
   { surface: 'app-agency', mode: 'module', include: ['packages/engine/src/briefs/notify.ts'] },
   // Account, auth and public pages: everything else under app/ except the dev panel (never ships).
   ...webRules('app-account', [`${WEB}/app`], [`${WEB}/app/dev-panel/**`]),
-  ...webRules('app-shared', [`${WEB}/components`, `${WEB}/lib`]),
+  ...webRules('app-shared', [`${WEB}/components`, `${WEB}/lib`, `${WEB}/server`]),
   { surface: 'app-shared', mode: 'jsx', include: ['packages/ui/src/**/*.tsx'] },
   { surface: 'site-legal', mode: 'markdown', include: ['apps/site/content/legal/*.md'] },
   { surface: 'site', mode: 'module', include: ['apps/site/content/*.ts', 'apps/site/content/*.json', 'apps/site/src/**/copy.ts'] },
   { surface: 'site', mode: 'jsx', include: ['apps/site/src/**/*.tsx'] },
-  { surface: 'mcp-tools', mode: 'property', include: ['packages/tools/src/**/*.ts'], properties: ['description'] },
+  // Tool descriptions (D11) plus refusal text (Ruling R3): `new ToolError(code, msg)`, the local `refuse(msg)` /
+  // `refused(reason)` helpers, and the shared `*_MESSAGE` constants they throw.
+  {
+    surface: 'mcp-tools',
+    mode: 'property',
+    include: ['packages/tools/src/**/*.ts'],
+    properties: ['description'],
+    calls: ['ToolError', 'refuse', 'refused'],
+    constants: '_MESSAGE$',
+  },
 ];
 
 const matches = (file: string, globs: readonly string[] | undefined) => !!globs?.some((g) => posix.matchesGlob(file, g));

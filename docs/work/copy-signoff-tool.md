@@ -5,7 +5,7 @@
 
 ## Status (overwrite)
 Spec + lean plan written (owner said "just start": decisions D1–D12 are Claude's calls). Plan approved; SDD in progress.
-Task 4 scan (2026-10-29): 5,233 items in ~1.9 s — app-client 678, app-agency 420, app-platform 923, app-account 282, app-shared 717, help 692, guides 86, glossary 81, labels 252, mcp-tools 258, site 842, site-legal 2 (emails/documents come in Task 5). Manual read of 60 random items per surface (3 seeds): est. < 2 % non-copy on every surface (left: short format strings like `{d} days`, cut sentence pieces around inline tags). Sample: `docs/work/copy-signoff-tool-noise.txt` (not committed).
+Task 4 scan (2026-10-29, incl. Ruling R3 error text): 5,725 items in ~2.4 s — app-client 694, app-agency 442, app-platform 988, app-account 298, app-shared 727, help 692, guides 86, glossary 81, labels 252, mcp-tools 621 (258 descriptions + 363 refusal messages), site 842, site-legal 2 (emails/documents come in Task 5). Manual read of 60 random items per surface (4 seeds) plus all 129 web error/message values and 60 of the tool refusals: est. < 2 % non-copy per surface (tool refusals ~2 %). Left: short format strings like `{d} days`, sentence pieces cut at inline tags. Sample: `docs/work/copy-signoff-tool-noise.txt` (not committed).
 
 ## Next (overwrite)
 Owner approves the plan → Task 0 pre-flight → subagent-driven development.

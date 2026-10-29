@@ -1,7 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { collectScanned } from '../src/collect.js';
-import { SOURCES, surfaceFor } from '../src/sources.js';
+import { scanTsFile } from '../src/scan/ts-scan.js';
+import { ruleFor, SOURCES, surfaceFor } from '../src/sources.js';
 
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\\/g, '/').replace(/\/$/, '');
 
@@ -38,7 +39,7 @@ describe('surfaceFor', () => {
       ['apps/web/e2e-shots/shots.ts', null],
       ['apps/web/src/dev-panel/banner.tsx', null],
       ['apps/web/src/app/dev-panel/[...path]/route.ts', null],
-      ['apps/web/src/server/tools.ts', null],
+      ['apps/web/src/server/tools.ts', 'app-shared'],
       ['packages/ask/src/prompt.ts', null],
     ];
     for (const [file, surface] of table) expect([file, surfaceFor(file)]).toEqual([file, surface]);
@@ -86,4 +87,52 @@ describe('collectScanned', () => {
     const keys = items.map((i) => `${i.surface}\u0000${i.file}\u0000${String(i.line).padStart(6, '0')}`);
     expect(keys).toEqual([...keys].sort());
   }, 60_000);
+});
+
+describe('error text (Ruling R3)', () => {
+  const scanAs = (file: string, src: string) => {
+    const rule = ruleFor(file)!;
+    return { rule, items: scanTsFile(file, src, rule) };
+  };
+
+  it('server action error values are scanned with route surface', () => {
+    const src = `'use server';
+      export async function save(fd: FormData) {
+        if (!fd.get('x')) return { ok: false, error: 'Enter a name first.' };
+        logger.warn({ error: 'Logged only' }, 'x');
+        return { ok: true, message: 'Saved.', status: 'Done Now' };
+      }`;
+    const client = scanAs('apps/web/src/app/(app)/c/[clientId]/settings/delivery/actions.ts', src);
+    expect(client.rule).toMatchObject({ surface: 'app-client', mode: 'property' });
+    expect(client.items.map((i) => i.text)).toEqual(['Enter a name first.', 'Saved.']);
+    expect(surfaceFor('apps/web/src/app/(app)/agency/leads/actions.ts')).toBe('app-agency');
+    expect(surfaceFor('apps/web/src/app/(platform)/platform/billing/actions.ts')).toBe('app-platform');
+    expect(surfaceFor('apps/web/src/app/sign-up/actions.ts')).toBe('app-account');
+    expect(surfaceFor('apps/web/src/server/forms.ts')).toBe('app-shared');
+    // Copy modules keep module mode; webhooks and Sentry config are not user-facing.
+    expect(ruleFor('apps/web/src/lib/spend-copy.ts')?.mode).toBe('module');
+    for (const f of ['apps/web/src/app/api/stripe/webhook/route.ts', 'apps/web/src/lib/sentry-options.ts', 'apps/web/src/proxy.ts']) {
+      expect([f, surfaceFor(f)]).toEqual([f, null]);
+    }
+  });
+
+  it('ToolError message is scanned in mcp-tools', () => {
+    const src = `export const LAST_ADMIN_MESSAGE = 'An agency needs at least one admin.';
+      const KIND = 'Not a message';
+      const refuse = (msg: string) => new ToolError('invalid_input', msg, { userFacing: true });
+      export const tool = { name: 'x', description: 'Does the thing.', run: async () => {
+        if (a) throw new ToolError('not_found', 'Client not found');
+        if (b) throw refuse('That play is already adopted.');
+        if (c) throw new Error('Internal Only Thing');
+        if (d) throw new ToolError('internal', 'Evidence storage is not configured');
+        if (e) throw new ToolError('internal', 'Search is down right now.', { userFacing: true });
+        throw new ToolError('invalid_input', \`Too many items: \${n}\`);
+      } };`;
+    const { rule, items } = scanAs('packages/tools/src/tools/x.ts', src);
+    expect(rule.surface).toBe('mcp-tools');
+    expect(items.map((i) => i.text)).toEqual([
+      'An agency needs at least one admin.', 'Does the thing.', 'Client not found', 'That play is already adopted.', 'Search is down right now.',
+      'Too many items: {n}',
+    ]);
+  });
 });
