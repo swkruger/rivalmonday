@@ -71,6 +71,16 @@ describe('integrations content', () => {
     expect(ledger.size).toBe(9);
   });
 
+  it('brand approved flags match the ledger doc', () => {
+    const approved = new Map<string, string>();
+    for (const line of LOGOS.split('\n')) {
+      const cells = line.split('|').map((c) => c.trim());
+      if (cells.length > 4 && /^[a-z]+$/.test(cells[1] ?? '') && /^(yes|no)$/.test(cells[3] ?? '')) approved.set(cells[1]!, cells[3]!);
+    }
+    expect(approved.size).toBe(9);
+    for (const i of INTEGRATIONS) expect(i.brand.approved, i.slug).toBe(approved.get(i.slug) === 'yes');
+  });
+
   it('brand guideline URLs match the ledger doc', () => {
     const urls = ledgerUrls();
     for (const i of INTEGRATIONS) expect(i.brand.guidelineUrl, i.slug).toBe(urls.get(i.slug));

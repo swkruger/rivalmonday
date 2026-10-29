@@ -1,8 +1,14 @@
 import { LegalPage } from '../../components/legal/legal-page';
+import { BreadcrumbJsonLd } from '../../components/seo/page-intro';
 import { pageMetadata } from '../../lib/metadata';
 
 export const metadata = pageMetadata('/terms');
 
 export default function Page() {
-  return <LegalPage name="terms" title="Terms" />;
+  return (
+    <>
+      <BreadcrumbJsonLd path="/terms" />
+      <LegalPage name="terms" title="Terms" />
+    </>
+  );
 }

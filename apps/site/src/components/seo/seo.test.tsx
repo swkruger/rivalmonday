@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PageIntro } from './page-intro';
+import { BreadcrumbJsonLd, PageIntro } from './page-intro';
 
 describe('PageIntro', () => {
   it('page intro renders one h1, breadcrumb and ld script', () => {
@@ -20,5 +20,17 @@ describe('PageIntro', () => {
     const ld = JSON.parse(scripts[0]!.textContent ?? '');
     expect(ld['@type']).toBe('BreadcrumbList');
     expect(ld.itemListElement).toHaveLength(2);
+  });
+});
+
+describe('BreadcrumbJsonLd', () => {
+  it('renders only BreadcrumbList JSON-LD, Home then the page', () => {
+    const { container } = render(<BreadcrumbJsonLd path="/privacy" />);
+    expect(container.querySelector('nav')).toBeNull();
+    const scripts = container.querySelectorAll('script[type="application/ld+json"]');
+    expect(scripts).toHaveLength(1);
+    const ld = JSON.parse(scripts[0]!.textContent ?? '');
+    expect(ld['@type']).toBe('BreadcrumbList');
+    expect(ld.itemListElement.map((i: { name: string }) => i.name)).toEqual(['Home', 'Privacy']);
   });
 });

@@ -69,7 +69,7 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     id: 'integrations',
     eyebrow: 'Integrations',
     heading: 'The services Rival Monday runs on',
-    body: "Hosting, AI, email and billing from established providers. Your clients' data stays in our database and evidence store.",
+    body: "Hosting, AI, email and billing from established providers. Your clients' data is stored in our database and evidence store.",
   },
   'real-sample': {
     id: 'real-sample',

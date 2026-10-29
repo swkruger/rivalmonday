@@ -23,9 +23,13 @@ describe('VendorMark', () => {
     expect(screen.getByText('Stripe').className).toContain('font-semibold');
   });
 
-  it('logo only when verdict logo-ok and file exists', () => {
+  it('logo only when verdict logo-ok, approved and file exists', () => {
     fs.existsSync.mockReturnValue(true);
-    const ok = render(<VendorMark integration={by('neon')} size="page" />);
+    const unapproved = render(<VendorMark integration={{ ...by('neon'), brand: { ...by('neon').brand, approved: false } }} size="page" />);
+    expect(unapproved.container.querySelector('img')).toBeNull();
+    cleanup();
+    const neon = { ...by('neon'), brand: { ...by('neon').brand, approved: true } };
+    const ok = render(<VendorMark integration={neon} size="page" />);
     const img = ok.container.querySelector('img')!;
     expect(img.getAttribute('src')).toBe('/logos/neon.svg');
     expect(img.getAttribute('alt')).toBe('Neon');
@@ -34,7 +38,7 @@ describe('VendorMark', () => {
     expect(textOnly.container.querySelector('img')).toBeNull();
     cleanup();
     fs.existsSync.mockReturnValue(false);
-    const missing = render(<VendorMark integration={by('neon')} size="page" />);
+    const missing = render(<VendorMark integration={neon} size="page" />);
     expect(missing.container.querySelector('img')).toBeNull();
   });
 });
@@ -48,13 +52,19 @@ describe('dropped vendor', () => {
       const real = await orig<typeof import('../../../content/integrations')>();
       return { ...real, INTEGRATIONS: [...rest, dropped], listedIntegrations: () => [...rest, dropped].filter((i) => i.brand.verdict !== 'drop') };
     });
-    const { generateStaticParams } = await import('../../app/integrations/[vendor]/page');
-    const { IntegrationsStrip: Strip } = await import('./integrations-strip');
-    expect(generateStaticParams().map((p) => p.vendor)).not.toContain('sentry');
-    const { container } = render(<Strip />);
-    expect(container.textContent).not.toContain('Sentry');
-    vi.doUnmock('../../../content/integrations');
-  });
+    try {
+      const [{ generateStaticParams }, { IntegrationsStrip: Strip }] = await Promise.all([
+        import('../../app/integrations/[vendor]/page'),
+        import('./integrations-strip'),
+      ]);
+      expect(generateStaticParams().map((p) => p.vendor)).not.toContain('sentry');
+      const { container } = render(<Strip />);
+      expect(container.textContent).not.toContain('Sentry');
+    } finally {
+      vi.doUnmock('../../../content/integrations');
+      vi.resetModules();
+    }
+  }, 20_000); // resetModules + cold dynamic imports are slow under parallel load
 
   it('the strip lists every listed vendor and links to the hub', () => {
     const { container } = render(<IntegrationsStrip />);

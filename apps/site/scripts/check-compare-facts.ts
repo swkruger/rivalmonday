@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { FACT_SOURCES, enabledRivals, type Rival } from '../content/compare';
+import { FACT_SOURCES, RIVALS, enabledRivals, type Rival } from '../content/compare';
 
 const DAY_MS = 86_400_000;
 
@@ -23,14 +23,20 @@ export function findStaleFacts(rivals: readonly Rival[], today: Date, maxAgeDays
   return stale;
 }
 
+/** `--all` checks every known rival (on or off); otherwise the ones `NEXT_PUBLIC_COMPARE_PAGES` enables. */
+export function rivalsToCheck(argv: readonly string[]): readonly Rival[] {
+  return argv.includes('--all') ? RIVALS : enabledRivals();
+}
+
 function main(): void {
-  const rivals = enabledRivals();
+  const all = process.argv.includes('--all');
+  const rivals = rivalsToCheck(process.argv.slice(2));
   const stale = findStaleFacts(rivals, new Date());
   if (stale.length) {
     console.error(`check:facts failed:\n${stale.map((s) => `  - ${s}`).join('\n')}`);
     process.exit(1);
   }
-  console.log(`check:facts ok: ${rivals.length} enabled rival(s) [${rivals.map((r) => r.slug).join(', ')}] within 90 days`);
+  console.log(`check:facts ok: ${rivals.length} ${all ? 'known' : 'enabled'} rival(s) [${rivals.map((r) => r.slug).join(', ')}] within 90 days`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

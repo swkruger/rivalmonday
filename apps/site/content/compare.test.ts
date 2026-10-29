@@ -13,8 +13,12 @@ import {
   comparePageEntry,
   enabledRivals,
   formatFactDate,
+  watchedHubCell,
+  websitesCell,
+  websiteWeDiffer,
   type CapabilityKey,
 } from './compare';
+import { WEBSITE_MONITORING_LIVE } from './website-monitoring';
 
 const ROOT = join(__dirname, '../..', '..');
 const CLAIMS = readFileSync(join(ROOT, 'docs/research/2026-10-29-phase-17c-claim-check.md'), 'utf8');
@@ -36,6 +40,8 @@ function copy(): string[] {
   out.push(...CAPABILITIES.map((c) => c.label), ...CATEGORY_TABLE.columns);
   for (const row of CATEGORY_TABLE.rows) out.push(row.label, ...row.cells);
   out.push(COMPARE_COPY.asOf('2026-10-28'), COMPARE_COPY.corrections);
+  // Both website-monitoring states, so the scans cover the copy the owner's flip will publish.
+  for (const live of [false, true]) out.push(websitesCell(live).label ?? '', watchedHubCell(live), ...websiteWeDiffer(live).map((w) => w.text));
   return out;
 }
 
@@ -108,7 +114,7 @@ describe('compare facts', () => {
     expect(RIVAL_MONDAY.social.mark).toBe('no');
     expect(RIVAL_MONDAY.api.mark).toBe('no');
     expect(RIVAL_MONDAY.whiteLabel.mark).toBe('partial');
-    expect(RIVAL_MONDAY.websites.mark).toBe('partial'); // gated: WEB_MONITORING_ENABLED
+    expect(RIVAL_MONDAY.websites).toEqual(websitesCell(WEBSITE_MONITORING_LIVE)); // gated: WEB_MONITORING_ENABLED
     expect(RIVAL_MONDAY.ads.label).toMatch(/Meta/);
     expect(RIVAL_MONDAY.ads.label).toMatch(/Google/);
     expect(RIVAL_MONDAY.publicPricing.label).toContain('$229');
@@ -189,5 +195,45 @@ describe('compare facts', () => {
     expect(CATEGORY_TABLE.columns).toEqual(['Rival Monday', 'DIY spreadsheets', 'Local-SEO toolkits', 'Reputation suites']);
     for (const row of CATEGORY_TABLE.rows) expect(row.cells, row.label).toHaveLength(CATEGORY_TABLE.columns.length);
     for (const row of CATEGORY_TABLE.rows) for (const c of row.cells.slice(2)) expect(c, c).toMatch(/^Typically /);
+  });
+
+  describe('website monitoring switch (WEBSITE_MONITORING_LIVE)', () => {
+    it('ships off: partial "Switching on soon", no website weDiffer line, hub row without websites', () => {
+      expect(WEBSITE_MONITORING_LIVE).toBe(false);
+      expect(websitesCell(false)).toEqual({ mark: 'partial', label: 'Switching on soon', ledger: 'cap-websites' });
+      expect(websiteWeDiffer(false)).toEqual([]);
+      expect(watchedHubCell(false)).not.toMatch(/website/i);
+      for (const r of RIVALS) expect(r.weDiffer.some((w) => w.key === 'websites'), r.slug).toBe(false);
+      expect(CATEGORY_TABLE.rows[0]!.cells[0]).toBe(watchedHubCell(false));
+    });
+
+    it('on: yes cell, website line in weDiffer, hub row names websites', () => {
+      expect(websitesCell(true).mark).toBe('yes');
+      expect(websitesCell(true).ledger).toBe('cap-websites');
+      expect(websiteWeDiffer(true)).toEqual([{ text: "Snapshots rivals' key pages and flags changes.", key: 'websites' }]);
+      expect(watchedHubCell(true)).toMatch(/^Rivals' websites, /);
+    });
+
+    it('flipping the constant flips the cell, the hub row and the RivalMappd/Birdeye weDiffer lines', async () => {
+      vi.resetModules();
+      vi.doMock('./website-monitoring', () => ({ WEBSITE_MONITORING_LIVE: true }));
+      try {
+        const m = await import('./compare');
+        expect(m.RIVAL_MONDAY.websites.mark).toBe('yes');
+        expect(m.CATEGORY_TABLE.rows[0]!.cells[0]).toBe(watchedHubCell(true));
+        const withLine = m.RIVALS.filter((r) => r.weDiffer.some((w) => w.key === 'websites')).map((r) => r.slug);
+        expect(withLine).toEqual(['rivalmappd', 'birdeye']);
+        for (const r of m.RIVALS) for (const w of r.weDiffer) expect(m.RIVAL_MONDAY[w.key].mark, `${r.slug}: ${w.text}`).toBe('yes');
+      } finally {
+        vi.doUnmock('./website-monitoring');
+        vi.resetModules();
+      }
+    }, 20_000);
+  });
+
+  it('white-label cells do not carry the roadmap line (kept in FAQ and partners)', () => {
+    expect(RIVAL_MONDAY.whiteLabel.label).not.toMatch(/roadmap/i);
+    const row = CATEGORY_TABLE.rows.find((r) => r.label === 'Under your brand')!;
+    expect(row.cells[0]).not.toMatch(/roadmap/i);
   });
 });

@@ -51,7 +51,7 @@ export default async function ComparePage({ params }: { params: Promise<{ rival:
           <h2 className={`${H2} mt-10`}>Pricing</h2>
           <FactList items={r.pricing} />
 
-          <h2 className={`${H2} mt-10`}>What {r.name} says about itself</h2>
+          <h2 className={`${H2} mt-10`}>{r.name}, from public pages</h2>
           <FactList items={r.facts} />
 
           <div className="mt-12 space-y-1 border-t border-line pt-6 text-13 text-muted-ink">

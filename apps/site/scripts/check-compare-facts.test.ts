@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RIVALS } from '../content/compare';
-import { findStaleFacts } from './check-compare-facts';
+import { findStaleFacts, rivalsToCheck } from './check-compare-facts';
 
 const rival = RIVALS[0]!;
 const on = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -18,5 +18,12 @@ describe('findStaleFacts', () => {
   it('passes fresh facts', () => {
     expect(findStaleFacts(RIVALS, on('2026-10-29'))).toEqual([]);
     expect(findStaleFacts(RIVALS, on('2026-10-28'))).toEqual([]);
+  });
+});
+
+describe('rivalsToCheck', () => {
+  it('--all checks every known rival, whatever the env enables', () => {
+    expect(rivalsToCheck(['--all']).map((r) => r.slug)).toEqual(RIVALS.map((r) => r.slug));
+    expect(rivalsToCheck(['--all'])).toHaveLength(5);
   });
 });

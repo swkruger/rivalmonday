@@ -10,6 +10,11 @@ export interface PageIntroProps {
   lead?: string;
 }
 
+/** `BreadcrumbList` JSON-LD only, for pages with their own intro (17b pages: how-it-works, sample brief, legal). */
+export function BreadcrumbJsonLd({ path }: { path: SitePage['path'] }) {
+  return <JsonLd data={breadcrumbLd(breadcrumbTrail(path))} />;
+}
+
 /** Visible breadcrumb + `BreadcrumbList` JSON-LD + eyebrow, h1 and lead. Every content page opens with it. */
 export function PageIntro({ path, eyebrow, h1, lead }: PageIntroProps) {
   const trail = breadcrumbTrail(path);

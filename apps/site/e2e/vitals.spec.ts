@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockApp } from './helpers';
 
-/** Lab check on a throttled phone (slow 4G-ish network, 4x CPU). Real-user vitals come from Vercel Analytics. */
+/** Lab check on a throttled phone (slow 4G-ish network, 4x CPU). Real-user vitals are not collected: Vercel Analytics counts page views only (Speed Insights is not installed). */
 const LCP_MAX_MS = 2500;
 const CLS_MAX = 0.1;
 

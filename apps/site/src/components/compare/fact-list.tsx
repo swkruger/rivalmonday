@@ -6,13 +6,27 @@ export function sourceHost(id: string): string {
   return s ? new URL(s.url).hostname.replace(/^www\./, '') : '';
 }
 
-/** Link to a fact's public source (optionally superscript). It is a third-party page, so it is nofollow. */
+/**
+ * Link to a fact's public source (optionally superscript). It is a third-party page, so it is nofollow.
+ * It opens in a new tab, which screen readers announce from the sr-only suffix (no aria-label, so the text is the name).
+ */
 export function SourceLink({ id, sup = false }: { id: string; sup?: boolean }) {
   const s = FACT_SOURCES.find((x) => x.id === id);
   if (!s) return null;
+  const host = sourceHost(id);
   const link = (
-    <a href={s.url} rel="noopener nofollow" target="_blank" className="text-secondary hover:underline" aria-label={`Source: ${sourceHost(id)}`}>
-      {sup ? `[${sourceHost(id)}]` : `Source: ${sourceHost(id)}`}
+    <a href={s.url} rel="noopener nofollow" target="_blank" className="text-secondary hover:underline">
+      {sup ? (
+        <>
+          <span className="sr-only">Source: </span>
+          <span aria-hidden="true">[</span>
+          {host}
+          <span aria-hidden="true">]</span>
+        </>
+      ) : (
+        `Source: ${host}`
+      )}
+      <span className="sr-only"> (opens in a new tab)</span>
     </a>
   );
   return sup ? <sup className="ml-1 text-xs">{link}</sup> : link;

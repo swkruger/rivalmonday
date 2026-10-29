@@ -1,5 +1,6 @@
 import { CtaBand } from '../../components/home/cta-band';
 import { SampleBrief } from '../../components/sample/sample-brief';
+import { BreadcrumbJsonLd } from '../../components/seo/page-intro';
 import { pageMetadata } from '../../lib/metadata';
 
 export const metadata = pageMetadata('/sample-brief');
@@ -7,6 +8,7 @@ export const metadata = pageMetadata('/sample-brief');
 export default function SampleBriefPage() {
   return (
     <main>
+      <BreadcrumbJsonLd path="/sample-brief" />
       <section className="site-container pb-16 pt-16 lg:pt-20">
         <div className="max-w-3xl">
           <p className="text-13 font-medium text-secondary">Sample brief</p>

@@ -1,5 +1,6 @@
 import { siteEnv } from '../src/lib/env';
 import { PRICING } from './pricing';
+import { WEBSITE_MONITORING_LIVE } from './website-monitoring';
 
 // Draft copy: owner + counsel sign. Rival facts come only from
 // docs/research/2026-10-28-phase-17-comparison-facts.md (each with its source id from that file's Sources list);
@@ -123,10 +124,28 @@ export const FACT_SOURCES: readonly FactSource[] = [
 
 const P = PRICING.agency;
 
+/** Our `websites` cell (ledger cap-websites, gated by WEB_MONITORING_ENABLED): `partial` "Switching on soon" until live. Owner signs. */
+export function websitesCell(live: boolean = WEBSITE_MONITORING_LIVE): OurCell {
+  return live
+    ? { mark: 'yes', label: "Snapshots of rivals' key pages, changes flagged", ledger: 'cap-websites' }
+    : { mark: 'partial', label: 'Switching on soon', ledger: 'cap-websites' };
+}
+
+/** The website line in a rival's `weDiffer` (only once live: `weDiffer` cites `yes` rows only). Owner signs. */
+export function websiteWeDiffer(live: boolean = WEBSITE_MONITORING_LIVE): { text: string; key: CapabilityKey }[] {
+  return live ? [{ text: "Snapshots rivals' key pages and flags changes.", key: 'websites' }] : [];
+}
+
+/** Our cell in the compare hub's "What gets watched" row. Owner signs. */
+export function watchedHubCell(live: boolean = WEBSITE_MONITORING_LIVE): string {
+  return live
+    ? "Rivals' websites, Google reviews, Google Business Profiles, Meta and Google ads, and map rankings"
+    : "Rivals' Google reviews, Google Business Profiles, Meta and Google ads, and map rankings";
+}
+
 /** Rival Monday's own column: the claims ledger, rows cap-<key>. */
 export const RIVAL_MONDAY: Record<CapabilityKey, OurCell> = {
-  // Gated by WEB_MONITORING_ENABLED (ledger): `partial` until the owner switches it on, then `yes`.
-  websites: { mark: 'partial', label: 'Switching on soon', ledger: 'cap-websites' },
+  websites: websitesCell(),
   reviews: { mark: 'yes', label: "Rivals' new Google reviews, weekly", ledger: 'cap-reviews' },
   ads: { mark: 'yes', label: "Rivals' ads on Meta and Google", ledger: 'cap-ads' },
   gbp: { mark: 'yes', label: "Changes to rivals' Google Business Profiles", ledger: 'cap-gbp' },
@@ -139,7 +158,7 @@ export const RIVAL_MONDAY: Record<CapabilityKey, OurCell> = {
   api: { mark: 'no', ledger: 'cap-api' },
   whiteLabel: {
     mark: 'partial',
-    label: 'Your name, logo, colors, email sender name and sign-off, and assistant name; your own web address is on the roadmap',
+    label: 'Your name, logo, colors, email sender name and sign-off, and assistant name',
     ledger: 'cap-whiteLabel',
   },
   reseller: { mark: 'yes', label: 'Bill clients through your own Stripe account', ledger: 'cap-reseller' },
@@ -196,6 +215,7 @@ export const RIVALS: readonly Rival[] = [
       'Done-for-you work: blog posts, review responses, ad creative analysis and human review.',
     ],
     weDiffer: [
+      ...websiteWeDiffer(),
       { text: 'A brief every Monday, which your team can edit or approve before it goes out.', key: 'weeklyBrief' },
       { text: 'Every claim in the brief links to its evidence.', key: 'evidenceLinks' },
       { text: 'Self-serve software your agency runs for its clients, billed through your own Stripe account.', key: 'reseller' },
@@ -367,6 +387,7 @@ export const RIVALS: readonly Rival[] = [
       'Scale for brands with many locations.',
     ],
     weDiffer: [
+      ...websiteWeDiffer(),
       { text: "Watches rivals' ads on Meta and Google.", key: 'ads' },
       { text: 'Weekly map rankings across the service area.', key: 'rankings' },
       { text: 'Every claim in the brief links to its evidence.', key: 'evidenceLinks' },
@@ -458,7 +479,7 @@ export const CATEGORY_TABLE: { columns: string[]; rows: { label: string; cells: 
     {
       label: 'What gets watched',
       cells: [
-        "Rivals' Google reviews, Google Business Profiles, Meta and Google ads, and map rankings",
+        watchedHubCell(),
         'Whatever someone checks by hand',
         'Typically your own rankings and listings, with some competitor benchmarks',
         'Typically your own reviews and social, with competitor benchmarks',
@@ -485,7 +506,7 @@ export const CATEGORY_TABLE: { columns: string[]; rows: { label: string; cells: 
     {
       label: 'Under your brand',
       cells: [
-        'Your name, logo, colors, email sender name and sign-off, and assistant name; your own web address is on the roadmap',
+        'Your name, logo, colors, email sender name and sign-off, and assistant name',
         'Your own templates',
         'Typically white-label reports',
         'Typically through a reseller program',

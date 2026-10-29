@@ -1,6 +1,7 @@
 import { HOW_IT_WORKS } from '../../../content/how-it-works';
 import { ChecksHub } from '../../components/home/checks-hub';
 import { CtaBand } from '../../components/home/cta-band';
+import { BreadcrumbJsonLd } from '../../components/seo/page-intro';
 import { pageMetadata } from '../../lib/metadata';
 
 export const metadata = pageMetadata('/how-it-works');
@@ -8,6 +9,7 @@ export const metadata = pageMetadata('/how-it-works');
 export default function HowItWorksPage() {
   return (
     <main>
+      <BreadcrumbJsonLd path="/how-it-works" />
       <section className="site-container py-16 lg:py-20">
         <div className="max-w-[720px]">
           <p className="text-13 font-medium text-secondary">How it works</p>

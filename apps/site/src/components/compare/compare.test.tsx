@@ -14,6 +14,9 @@ afterEach(() => {
   vi.resetModules();
 });
 
+/** resetModules + cold dynamic imports (pages, next/og) are slow under parallel load: give each test room. */
+const COLD_IMPORT_TIMEOUT = 20_000;
+
 async function load(env: string) {
   vi.stubEnv('NEXT_PUBLIC_COMPARE_PAGES', env);
   vi.resetModules();
@@ -26,7 +29,7 @@ async function load(env: string) {
   };
 }
 
-describe('compare pages', () => {
+describe('compare pages', { timeout: COLD_IMPORT_TIMEOUT }, () => {
   it('disabled slug is absent from params and PAGES', async () => {
     const m = await load('brightlocal');
     expect(m.rivalPage.generateStaticParams()).toEqual([{ rival: 'brightlocal' }]);
@@ -76,4 +79,24 @@ describe('compare pages', () => {
     expect(container.textContent).not.toMatch(/[✗✘×❌]/);
     expect(container.querySelector('svg.lucide-x, svg.lucide-circle-x')).toBeNull();
   });
+});
+
+describe('SourceLink', () => {
+  it('new-tab links announce "(opens in a new tab)" and keep the source name', async () => {
+    const { SourceLink } = await import('./fact-list');
+    const { getAllByRole } = render(
+      <>
+        <SourceLink id="bl-price" />
+        <SourceLink id="bl-price" sup />
+      </>,
+    );
+    const [plain, sup] = getAllByRole('link');
+    for (const a of [plain!, sup!]) {
+      expect(a.getAttribute('target')).toBe('_blank');
+      expect(a.getAttribute('aria-label')).toBeNull();
+      expect(a.querySelector('.sr-only:last-child')?.textContent).toBe(' (opens in a new tab)');
+    }
+    expect(plain!.textContent).toBe('Source: brightlocal.com (opens in a new tab)');
+    expect(sup!.textContent).toBe('Source: [brightlocal.com] (opens in a new tab)');
+  }, 20_000);
 });

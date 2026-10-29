@@ -166,10 +166,8 @@ jobs:
       - name: Refuse while placeholders remain
         run: pnpm --filter @cs/site check:placeholders
       - name: Refuse while any rival's facts are stale (> 90 days)
-        run: pnpm --filter @cs/site check:facts
-        env:
-          # All rivals, whether or not their page is on.
-          NEXT_PUBLIC_COMPARE_PAGES: rivalmappd,brightlocal,local-falcon,birdeye,visualping
+        # --all: every known rival, whether or not its page is on.
+        run: pnpm --filter @cs/site check:facts --all
       - name: Vercel pull
         run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:
