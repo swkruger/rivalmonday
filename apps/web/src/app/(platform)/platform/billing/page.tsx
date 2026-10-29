@@ -20,6 +20,7 @@ import { type CodeRow, Codes } from './codes';
 import { ConnectPanel, type ConnectOverview } from './connect-panel';
 import { InviteLinks, type LinkRow } from './invite-links';
 import { type PlanAgenciesData, PlanAgencies } from './plan-agencies';
+import { PilotPanel } from './pilot-panel';
 import { PlanEditor, type PlanRow } from './plan-editor';
 import { parseDays, type SignupFunnel, SignupsPanel } from './signups-panel';
 import { billingTab, TAB_LABEL, TABS } from './tabs';
@@ -113,15 +114,19 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
       </BillingSection>
     );
   } else if (tab === 'signups') {
-    const [signups, funnel, links, codes] = await Promise.all([
+    const [signups, pilot, funnel, links, codes] = await Promise.all([
       callTool<{ paused: boolean }>(ctx, 'get_signups_paused', {}),
+      callTool<{ pilotMode: boolean; sampleBriefMonthlyLimit: number }>(ctx, 'get_pilot_settings', {}),
       callTool<SignupFunnel>(ctx, 'get_signup_funnel', { days }),
       canInvite ? callTool<{ links: LinkRow[] }>(ctx, 'list_invite_links', {}).then((r) => r.links) : Promise.resolve(null),
       canInvite ? callTool<{ codes: CodeRow[] }>(ctx, 'list_discount_codes', {}).then((r) => r.codes) : Promise.resolve([] as CodeRow[]),
     ]);
     body = (
       <>
-        <BillingSection title="Agency sign-up" tips={['signup']}>
+        <BillingSection title="Pilot" tips={[]}>
+          <PilotPanel pilotOn={pilot.pilotMode} sampleLimit={pilot.sampleBriefMonthlyLimit} canEdit={isOwner} />
+        </BillingSection>
+        <BillingSection title="Agency sign-up" tips={['signup']} ruled>
           <SignupsPanel paused={signups.paused} canEdit={isOwner} days={days} funnel={funnel} />
         </BillingSection>
         {links && (

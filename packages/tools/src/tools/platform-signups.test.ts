@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { signupsPaused } from '../access/signup';
+import { pilotMode } from '../waitlist/settings';
 import { createToolRegistry } from '../registry';
 
 const dbs = openTestDbs();
@@ -91,5 +92,35 @@ describe('get_signup_funnel', () => {
 
   it('days must be 30 or 90', async () => {
     expect((await fails(call(viewer, 'get_signup_funnel', { days: 7 }))).code).toBe('invalid_input');
+  });
+});
+
+describe('pilot settings tools', () => {
+  it('set_pilot_mode is owner-only', async () => {
+    for (const ctx of [viewer, staff, admin]) expect((await fails(call(ctx, 'set_pilot_mode', { on: true }))).code).toBe('permission_denied');
+    expect((await fails(call(staff, 'set_sample_brief_limit', { n: 5 }))).code).toBe('permission_denied');
+    expect(await pilotMode(dbs.service)).toBe(false);
+    expect(await dbs.owner.select().from(platformAuditLog)).toEqual([]);
+  });
+
+  it('writes platform_setting and one platform audit row', async () => {
+    expect(await call(owner, 'set_pilot_mode', { on: true })).toEqual({ on: true });
+    expect(await call(owner, 'set_sample_brief_limit', { n: 3 })).toEqual({ n: 3 });
+    const [pm] = await dbs.owner.select().from(platformSetting).where(eq(platformSetting.key, 'pilot_mode'));
+    expect(pm!.value).toEqual({ on: true });
+    const [lim] = await dbs.owner.select().from(platformSetting).where(eq(platformSetting.key, 'sample_brief_monthly_limit'));
+    expect(lim!.value).toEqual({ n: 3 });
+    const audits = await dbs.owner.select().from(platformAuditLog);
+    expect(audits.filter((a) => a.tool === 'set_pilot_mode')).toHaveLength(1);
+    expect(audits.filter((a) => a.tool === 'set_sample_brief_limit')).toHaveLength(1);
+  });
+
+  it('viewers read both settings; defaults are off and 10; the limit is bounded', async () => {
+    expect(await call(viewer, 'get_pilot_settings', {})).toEqual({ pilotMode: false, sampleBriefMonthlyLimit: 10 });
+    await call(owner, 'set_pilot_mode', { on: true });
+    expect(await call(viewer, 'get_pilot_settings', {})).toEqual({ pilotMode: true, sampleBriefMonthlyLimit: 10 });
+    expect((await fails(call(admin, 'get_pilot_settings', {}))).code).toBe('permission_denied');
+    expect((await fails(call(owner, 'set_sample_brief_limit', { n: 101 }))).code).toBe('invalid_input');
+    expect((await fails(call(owner, 'set_sample_brief_limit', { n: -1 }))).code).toBe('invalid_input');
   });
 });

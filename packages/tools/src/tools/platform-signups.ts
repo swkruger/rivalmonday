@@ -6,6 +6,7 @@ import { SIGNUPS_PAUSED_KEY, signupsPaused } from '../access/signup';
 import type { ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
+import { PILOT_MODE_KEY, pilotMode, SAMPLE_LIMIT_KEY, sampleBriefMonthlyLimit } from '../waitlist/settings';
 
 /**
  * Phase 10 Task 14: console controls for agency self-serve sign-up. Same pattern as platform-billing.ts: role check first
@@ -86,4 +87,61 @@ export const getSignupFunnelTool = defineTool({
   },
 });
 
-export const platformSignupsTools = [getSignupsPausedTool, setSignupsPausedTool, getSignupFunnelTool];
+export const getPilotSettingsTool = defineTool({
+  name: 'get_pilot_settings',
+  access: 'read',
+  description: 'Platform operators: whether pilot mode is on (open agency sign-up closed, waitlist shown) and the monthly sample-brief approval limit.',
+  input: z.object({}),
+  output: z.object({ pilotMode: z.boolean(), sampleBriefMonthlyLimit: z.number().int() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'viewer', 'get_pilot_settings', input, async () => ({
+      pilotMode: await pilotMode(deps.service),
+      sampleBriefMonthlyLimit: await sampleBriefMonthlyLimit(deps.service),
+    }));
+  },
+});
+
+async function putSetting(deps: ToolDeps, ctx: AccessContext, key: string, value: Record<string, unknown>) {
+  await deps.service
+    .insert(platformSetting)
+    .values({ key, value, updatedBy: ctx.userId })
+    .onConflictDoUpdate({ target: platformSetting.key, set: { value, updatedAt: new Date(), updatedBy: ctx.userId } });
+}
+
+export const setPilotModeTool = defineTool({
+  name: 'set_pilot_mode',
+  access: 'write',
+  description: 'Platform owners: turn pilot mode on or off. On closes open agency sign-up and shows the waitlist; invite links keep working.',
+  input: z.object({ on: z.boolean() }),
+  output: z.object({ on: z.boolean() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'owner', 'set_pilot_mode', input, async () => {
+      const value = { on: input.on };
+      await putSetting(deps, ctx, PILOT_MODE_KEY, value);
+      return value;
+    });
+  },
+});
+
+export const setSampleBriefLimitTool = defineTool({
+  name: 'set_sample_brief_limit',
+  access: 'write',
+  description: 'Platform owners: set how many sample briefs may be approved per month (0 to 100).',
+  input: z.object({ n: z.number().int().min(0).max(100) }),
+  output: z.object({ n: z.number().int() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'owner', 'set_sample_brief_limit', input, async () => {
+      const value = { n: input.n };
+      await putSetting(deps, ctx, SAMPLE_LIMIT_KEY, value);
+      return value;
+    });
+  },
+});
+
+export const platformSignupsTools = [getSignupsPausedTool, setSignupsPausedTool, getSignupFunnelTool, getPilotSettingsTool, setPilotModeTool, setSampleBriefLimitTool];

@@ -91,3 +91,13 @@ describe('parseWebEnv', () => {
     expect(set.sentry).toEqual({ dsn: 'https://k@o.ingest.sentry.io/1', publicDsn: 'https://p@o.ingest.sentry.io/2', environment: 'preview', issuesUrl: 'https://sentry.io/issues' });
   });
 });
+
+describe('siteOrigins', () => {
+  it('defaults to empty', () => {
+    expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).siteOrigins).toEqual([]);
+  });
+  it('reads SITE_ORIGIN then SITE_ORIGIN_EXTRA, drops trailing slashes and anything that is not a bare origin', () => {
+    const env = parseWebEnv({ ...ok, SITE_ORIGIN: 'https://rivalmonday.com/', SITE_ORIGIN_EXTRA: 'https://www.rivalmonday.com, https://x.com/path, nope, ' } as unknown as NodeJS.ProcessEnv);
+    expect(env.siteOrigins).toEqual(['https://rivalmonday.com', 'https://www.rivalmonday.com']);
+  });
+});

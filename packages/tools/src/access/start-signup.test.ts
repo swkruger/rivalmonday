@@ -105,3 +105,24 @@ describe('startAgencySignup', () => {
     await expect(startAgencySignup(dbs.service, { ...base, email: 'nope' }, NOW)).rejects.toThrow();
   });
 });
+
+describe('pilot mode', () => {
+  const pilotOn = () => dbs.service.insert(platformSetting).values({ key: 'pilot_mode', value: { on: true }, updatedBy: 't' });
+
+  it('pilot_mode on refuses open sign-up and logs "pilot"', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    await pilotOn();
+    expect(await startAgencySignup(dbs.service, base, NOW)).toEqual({ ok: true, sendLink: false });
+    expect(await rows()).toHaveLength(0);
+    expect(info.mock.calls.map((c) => c.join(' ')).join(' ')).toContain('[signup] refused pilot');
+    info.mockRestore();
+  });
+
+  it('pilot_mode on still accepts a valid invite token', async () => {
+    await pilotOn();
+    const { token, id } = await link();
+    expect(await startAgencySignup(dbs.service, { ...base, inviteToken: token }, NOW)).toEqual({ ok: true, sendLink: true });
+    expect((await rows())[0]).toMatchObject({ source: 'invite', inviteLinkId: id });
+  });
+});
+

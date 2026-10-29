@@ -27,6 +27,8 @@ export interface WebEnv {
   /** Phase 10: all optional. No Turnstile secret => the fake verifier; `supportReplyTo` is the Reply-To of lifecycle emails. */
   turnstile?: { siteKey?: string; secretKey?: string };
   supportReplyTo?: string;
+  /** Phase 17a: origins of the marketing site (SITE_ORIGIN first, then SITE_ORIGIN_EXTRA, comma-separated). Entries that are not a bare origin are dropped. */
+  siteOrigins: string[];
   /** Phase 16: Stadia Maps key for geocoding the typed address; absent in a real environment => no geocoder (callers skip the centre). */
   stadiaApiKey?: string;
   /** Phase 7a1: all optional; Sentry is inert without a DSN. */
@@ -68,6 +70,9 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (webhookFake && env.VERCEL_ENV?.trim() === 'production') problems.push('WEBHOOK_FAKE_SEND must not be set in production');
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
   if (billingFake && env.VERCEL_ENV?.trim()) problems.push('BILLING_FAKE_GATEWAY must not be set on Vercel (any VERCEL_ENV)');
+  const siteOrigins = [env.SITE_ORIGIN, ...(env.SITE_ORIGIN_EXTRA?.split(',') ?? [])]
+    .map((x) => x?.trim().replace(/\/+$/, ''))
+    .filter((x): x is string => !!x && isOrigin(x));
   const parsed: WebEnv = {
     appUrl, authSecret,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),
@@ -83,6 +88,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     webhookFakeSend: webhookFake === '1',
     turnstile: { siteKey: env.TURNSTILE_SITE_KEY?.trim() || undefined, secretKey: env.TURNSTILE_SECRET_KEY?.trim() || undefined },
     supportReplyTo: env.SUPPORT_REPLY_TO?.trim() || undefined,
+    siteOrigins,
     stadiaApiKey: env.STADIA_API_KEY?.trim() || undefined,
     sentry: {
       dsn: env.SENTRY_DSN?.trim() || undefined,
@@ -103,6 +109,14 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;
+}
+
+function isOrigin(x: string): boolean {
+  try {
+    return new URL(x).origin === x;
+  } catch {
+    return false;
+  }
 }
 
 function safeHost(url: string): string {

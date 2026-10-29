@@ -1,4 +1,4 @@
-import { signupsPaused } from '@cs/tools';
+import { pilotMode, signupsPaused } from '@cs/tools';
 import Link from 'next/link';
 import { AuthCard } from '@/components/auth-card';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
@@ -8,6 +8,7 @@ import { defaultBranding } from '@/server/branding';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
 import { webEnv } from '@/server/env';
+import { siteJoinUrl } from '@/server/site-origin';
 import { SignUpForm } from './sign-up-form';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,26 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const env = webEnv();
   const service = dbs().service;
-  // The switch is also enforced server-side in startAgencySignup; invite links (/join) are unaffected.
+  // Both switches are also enforced server-side in startAgencySignup; invite links (/join) are unaffected. Pilot wins over paused.
+  if (await pilotMode(service)) {
+    return (
+      <AuthCard branding={await defaultBranding(service, env)} title="Rival Monday is in pilot">
+        <p className="text-ink">We&apos;re opening places to agencies a few at a time. Join the waitlist and we&apos;ll email you an invite when yours is ready.</p>
+        <p className="mt-4">
+          <a href={siteJoinUrl(env)} className="font-semibold text-ink underline">
+            Join the waitlist
+          </a>
+        </p>
+        <p className="mt-4 text-sm text-ink">Already have an invite? Open the link in your invite email.</p>
+        <p className="mt-4 text-sm text-ink">
+          Already have an account?{' '}
+          <Link href="/sign-in" className="font-semibold underline">
+            Sign in
+          </Link>
+        </p>
+      </AuthCard>
+    );
+  }
   if (await signupsPaused(service)) {
     return (
       <AuthCard branding={await defaultBranding(service, env)} title="Start your Rival Monday trial">

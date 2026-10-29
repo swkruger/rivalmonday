@@ -141,6 +141,26 @@ export async function setSignupsPausedAction(_p: FormResult, fd: FormData): Prom
   return { ok: true, message: paused ? 'Open sign-up paused. Invite links still work.' : 'Open sign-up resumed.' };
 }
 
+/** Owner only (the tool enforces it). */
+export async function setPilotModeAction(on: boolean): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const r = await runTool(ctx, 'set_pilot_mode', { on });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: on ? 'Pilot mode on. Open sign-up is closed.' : 'Pilot mode off.' };
+}
+
+/** Owner only (the tool enforces it). `n` is a whole number from 0 to 100. */
+export async function setSampleLimitAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const n = toInt(str(fd, 'n'));
+  if (n === null || n < 0 || n > 100) return { ok: false, error: 'Enter a whole number from 0 to 100' };
+  const r = await runTool(ctx, 'set_sample_brief_limit', { n });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: 'Sample brief limit saved.' };
+}
+
 /** Owner only (the tool enforces it). Returns the tool result; the caller builds the summary from the per-agency outcomes. */
 export async function moveAgenciesToCurrentPlanAction(agencyIds: string[]): Promise<ToolResult<MoveResultData>> {
   const { ctx } = await requireOperatorContext();

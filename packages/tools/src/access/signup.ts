@@ -5,6 +5,7 @@ import { and, count, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { FREE_MAIL_DOMAINS } from './free-mail';
 import { normalizeEmail } from './invitations';
+import { pilotMode } from '../waitlist/settings';
 
 export const SIGNUP_RATE_LIMIT = 5;
 export const SIGNUPS_PAUSED_KEY = 'signups_paused';
@@ -94,6 +95,7 @@ export async function startAgencySignup(service: Db, input: StartAgencySignupInp
     if (!c.ok) return refuse(c.problem);
     inviteLinkId = c.link.id;
   } else {
+    if (await pilotMode(service)) return refuse('pilot');
     if (await signupsPaused(service)) return refuse('paused');
     if (!(await trialAllowed(service, email, now))) return refuse('trial_used');
   }
