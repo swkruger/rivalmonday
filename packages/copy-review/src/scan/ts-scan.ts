@@ -82,14 +82,49 @@ export function collectModuleLiterals(sf: ts.SourceFile): RawLiteral[] {
     out.push({ text, line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, scope: pathJoin(path) });
   };
 
+  /** A variable initializer or returned value: keeps literals reached through ?:, ??, ||, && and wrappers. */
+  const direct = (node: ts.Expression, inValue: boolean): void => {
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
+      direct(node.expression, inValue);
+    } else if (ts.isConditionalExpression(node)) {
+      visit(node.condition, inValue);
+      direct(node.whenTrue, inValue);
+      direct(node.whenFalse, inValue);
+    } else if (ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(node.operatorToken.kind)) {
+      direct(node.left, inValue);
+      direct(node.right, inValue);
+    } else {
+      const text = literalText(node);
+      if (text === undefined) visit(node, inValue);
+      else {
+        emit(node, text);
+        if (ts.isTemplateExpression(node)) node.templateSpans.forEach((s) => visit(s.expression, inValue));
+      }
+    }
+  };
+
   const visit = (node: ts.Node, inValue: boolean): void => {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return;
     if (ts.isVariableDeclaration(node)) {
       if (node.initializer) {
         path.push(ts.isIdentifier(node.name) ? node.name.text : '…');
-        visit(node.initializer, inValue);
+        direct(node.initializer, inValue);
         path.pop();
       }
+      return;
+    }
+    if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) {
+      path.push(node.name && ts.isIdentifier(node.name) ? node.name.text : '…');
+      ts.forEachChild(node, (c) => visit(c, inValue));
+      path.pop();
+      return;
+    }
+    if (ts.isReturnStatement(node)) {
+      if (node.expression) direct(node.expression, inValue);
+      return;
+    }
+    if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) {
+      direct(node.body, inValue);
       return;
     }
     if (ts.isPropertyAssignment(node)) {

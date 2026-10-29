@@ -58,6 +58,32 @@ describe('scanTsFile module mode', () => {
   });
 });
 
+describe('scanTsFile module mode: variables and returns', () => {
+  const src = readFileSync(new URL('./fixtures/returns.ts', import.meta.url), 'utf8');
+  const items = () => scanTsFile('fx/returns.ts', src, rule);
+  it('keeps top-level const string', () => {
+    const i = items().find((x) => x.text.startsWith('The last search'))!;
+    expect(i.context).toBe('GENERIC_REFUSAL');
+    expect(items().map((x) => x.text)).not.toContain('compact');
+  });
+  it('keeps template returned from arrow with {name} placeholders', () => {
+    const i = items().find((x) => x.text.startsWith('{clientName} has used'))!;
+    expect(i.context).toBe('reachedCopy');
+  });
+  it('keeps both branches of a conditional return', () => {
+    const t = items().map((x) => x.text);
+    expect(t).toContain('{used} used · Ask turned off by limit');
+    expect(t).toContain('{used} of {quota}');
+  });
+  it('drops string in throw inside a copy function', () => {
+    const t = items().map((x) => x.text);
+    expect(t).not.toContain('Code is required here.');
+    expect(t).toContain('Something went wrong. Try again.');
+    expect(t).toContain('Unknown code reported.');
+    expect(items().find((x) => x.text === 'Unknown code reported.')!.context).toBe('pick');
+  });
+});
+
 describe('scanTsFile property mode', () => {
   it('property mode keeps only description values', () => {
     const items = scanTsFile('fx/tool.ts', toolSrc, { surface: 'mcp-tools', mode: 'property', properties: ['description'] });
