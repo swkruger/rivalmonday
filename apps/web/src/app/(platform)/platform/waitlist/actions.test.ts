@@ -82,8 +82,9 @@ describe('sample actions', () => {
 
   it('send returns the link; an email failure keeps it with the notice', async () => {
     m.runTool.mockResolvedValue({ ok: true, data: { url: 'https://app/sample/T', expiresAt: EXP, emailed: true } });
-    expect(await sendSampleAction(null, form({ id: 'w1' }))).toEqual({ ok: true, url: 'https://app/sample/T', message: 'Sample sent. The link works for 30 days:' });
+    expect(await sendSampleAction(null, form({ id: 'w1', orgName: 'Agency Co' }))).toEqual({ ok: true, url: 'https://app/sample/T', message: 'Sample sent to Agency Co. The link works for 30 days:' });
     expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'send_sample_brief', { id: 'w1' });
+    expect(await sendSampleAction(null, form({ id: 'w1' }))).toMatchObject({ message: 'Sample sent to the requester. The link works for 30 days:' });
     m.runTool.mockResolvedValue({ ok: true, data: { url: 'https://app/sample/T', expiresAt: EXP, emailed: false } });
     expect(await sendSampleAction(null, form({ id: 'w1' }))).toEqual({ ok: true, url: 'https://app/sample/T', notice: 'Link created, but the email failed — copy the link below.' });
     m.runTool.mockResolvedValue({ ok: false, error: "The starting point isn't approved yet. Approve it in Approvals first." });

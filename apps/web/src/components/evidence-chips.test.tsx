@@ -24,8 +24,20 @@ describe('EvidenceChips', () => {
     expect(container.querySelectorAll('a[data-next-link="1"][data-slot="citation-pill"]')).toHaveLength(2);
   });
   it('evidenceHref replaces the app evidence link', () => {
-    render(<EvidenceChips clientId={C} ids={ids.slice(0, 2)} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
+    const ref = { source: 'Smith HVAC', channel: 'Website', date: 'Oct 20, 2026', servable: true };
+    render(<EvidenceChips clientId={C} ids={ids.slice(0, 2)} refs={{ [ids[0]!]: ref, [ids[1]!]: ref }} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
     expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([`/sample/T/evidence/${ids[0]}`, `/sample/T/evidence/${ids[1]}`]);
+  });
+  it('unservable evidence renders without a link', () => {
+    const refs = {
+      [ids[0]!]: { source: 'Smith HVAC', channel: 'Website', date: 'Oct 20, 2026', servable: true },
+      [ids[1]!]: { source: 'Smith HVAC', channel: 'Google Business Profile', date: 'Oct 21, 2026', servable: false },
+    };
+    const { container } = render(<EvidenceChips clientId={C} ids={ids.slice(0, 3)} refs={refs} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([`/sample/T/evidence/${ids[0]}`]);
+    const plain = container.querySelectorAll('span[data-slot="citation-pill"]');
+    expect([...plain].map((p) => p.getAttribute('aria-label'))).toEqual(['Evidence 2: Smith HVAC, Oct 21, 2026', 'Evidence 3']);
+    expect(container.querySelectorAll('[data-slot="citation-pill"]')).toHaveLength(3);
   });
   it('renders nothing without evidence', () => {
     const { container } = render(<EvidenceChips clientId={C} ids={[]} />);

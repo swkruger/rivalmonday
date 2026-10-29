@@ -106,6 +106,7 @@ describe('WaitlistTable samples', () => {
     await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Send' })); });
     await waitFor(() => expect(m.send).toHaveBeenCalled());
     expect((m.send.mock.calls[0]![1] as FormData).get('id')).toBe('r1');
+    expect((m.send.mock.calls[0]![1] as FormData).get('orgName')).toBe('Org r1');
     expect(await screen.findByText('Link created, but the email failed — copy the link below.')).toBeTruthy();
     expect(screen.getByText('https://app.test/sample/TOKEN')).toBeTruthy();
   });

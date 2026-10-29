@@ -77,5 +77,5 @@ export { recordSupportAccess, type SupportAccessSurface } from './platform/audit
 export { CONFIRM_TTL_MS, confirmWaitlistEmail, submitWaitlistEntry, WAITLIST_LIMITS, type WaitlistSubmit, waitlistSubmitSchema } from './waitlist/public';
 export { sendWaitlistEmail, type WaitlistEmailKind } from './waitlist/emails';
 // Phase 17a: the public sample-brief link (`/sample/<token>` page and its evidence route).
-export { getSampleBrief, sampleEvidenceKey } from './waitlist/sample';
+export { getSampleBrief, type SampleEvidenceRef, sampleEvidenceKey } from './waitlist/sample';
 export { COUNTER_FLOOR, publicCount, type SiteStatus, siteStatus } from './waitlist/site-status';

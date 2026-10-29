@@ -6,7 +6,8 @@ export const evidenceHref = (clientId: string, id: string) => `/c/${clientId}/ev
 
 /**
  * Decision 8: every chip opens the stored proof. With `refs` a chip names its source; without, it reads "Evidence n". `evidenceHref`
- * replaces the app's evidence page (17a: the public sample page links its own evidence route). No `'use client'` — safe in both server and client hosts.
+ * replaces the app's evidence page (17a: the public sample page links its own evidence route) and links only refs marked
+ * `servable`; any other chip is a plain, non-linked pill with the same label. No `'use client'` — safe in both server and client hosts.
  */
 export function EvidenceChips({ clientId, ids, max = 6, refs, evidenceHref: hrefOf }: {
   clientId: string; ids: string[]; max?: number; refs?: EvidenceRefs; evidenceHref?: (id: string) => string;
@@ -17,7 +18,7 @@ export function EvidenceChips({ clientId, ids, max = 6, refs, evidenceHref: href
     <span className="flex flex-wrap items-center gap-1.5">
       {shown.map((id, i) => {
         const ref = refs?.[id];
-        const link = <Link href={hrefOf ? hrefOf(id) : evidenceHref(clientId, id)} />;
+        const link = !hrefOf ? <Link href={evidenceHref(clientId, id)} /> : ref?.servable ? <Link href={hrefOf(id)} /> : <span />;
         return ref ? (
           <CitationPill key={id} asChild n={i + 1} source={ref.source} date={ref.date}>
             {link}

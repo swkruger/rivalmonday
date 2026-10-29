@@ -74,6 +74,8 @@ describe('getSampleBrief', () => {
     expect(ref.competitorName).toBeTruthy();
     expect(ref.channelLabel).toBe('Website');
     expect(typeof ref.capturedAt).toBe('string');
+    const servable = Object.fromEntries(r.refs.map((x) => [x.evidenceId, x.servable]));
+    expect(servable).toEqual({ [cited.ids.screenshot!]: true, [cited.ids.text!]: true, [cited.ids.html!]: false, [vendor.ids.vendor_json!]: false });
   });
 
   it('null for a starting point that is not approved', async () => {
@@ -85,6 +87,19 @@ describe('getSampleBrief', () => {
     expect(await getSampleBrief(deps, token, SECRET, now)).not.toBeNull();
     await dbs.owner.update(brief).set({ kind: 'standard' }).where(eq(brief.id, briefId));
     expect(await getSampleBrief(deps, token, SECRET, now)).toBeNull();
+  });
+});
+
+describe('sample link revocation', () => {
+  it('a link issued before sample_sent_at is refused (page and evidence)', async () => {
+    await dbs.service.update(waitlistEntry).set({ sampleSentAt: new Date(now.getTime() + 1) }).where(eq(waitlistEntry.id, entryId));
+    expect(await getSampleBrief(deps, token, SECRET, now)).toBeNull();
+    expect(await sampleEvidenceKey(dbs.service, token, SECRET, cited.ids.screenshot!, now)).toBeNull();
+    const newer = signSampleToken(entryId, exp + 1, SECRET);
+    expect(await getSampleBrief(deps, newer, SECRET, now)).not.toBeNull();
+    expect(await sampleEvidenceKey(dbs.service, newer, SECRET, cited.ids.screenshot!, now)).not.toBeNull();
+    await dbs.service.update(waitlistEntry).set({ sampleSentAt: null }).where(eq(waitlistEntry.id, entryId));
+    expect(await getSampleBrief(deps, newer, SECRET, now)).toBeNull();
   });
 });
 

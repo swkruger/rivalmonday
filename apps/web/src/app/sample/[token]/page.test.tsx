@@ -27,7 +27,10 @@ const brief: BriefDetail = {
 };
 const ready = {
   brief, businessName: 'Smith Dental', timezone: 'America/Chicago', expiresAt: '2026-11-27T12:00:00.000Z',
-  refs: [{ evidenceId: E1, competitorName: 'Bright Smiles', channelLabel: 'Website', capturedAt: '2026-10-08T15:00:00.000Z' }],
+  refs: [
+    { evidenceId: E1, competitorName: 'Bright Smiles', channelLabel: 'Website', capturedAt: '2026-10-08T15:00:00.000Z', servable: true },
+    { evidenceId: E2, competitorName: 'Bright Smiles', channelLabel: 'Google Business Profile', capturedAt: '2026-10-08T15:00:00.000Z', servable: false },
+  ],
 };
 const params = (token = TOKEN) => ({ params: Promise.resolve({ token }) });
 
@@ -51,7 +54,8 @@ describe('/sample/<token>', () => {
     expect(screen.getByText('Bright Smiles cut its cleaning price')).toBeTruthy();
     expect(container.textContent).toContain("This is the first brief your clients would get, under your agency's brand. This link works until Nov 27, 2026.");
     const links = screen.getAllByRole('link');
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/sample/${TOKEN}/evidence/${E1}`, `/sample/${TOKEN}/evidence/${E2}`]);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([`/sample/${TOKEN}/evidence/${E1}`]); // only sample evidence links; E2 (vendor data) is a plain chip
+    expect(container.querySelector('span[data-slot="citation-pill"]')?.getAttribute('aria-label')).toMatch(/^Evidence 2: Bright Smiles/);
     expect(screen.getByRole('link', { name: /Evidence 1: Bright Smiles/ })).toBeTruthy();
     expect(screen.queryByText('Download PDF')).toBeNull();
     expect(container.querySelector('nav')).toBeNull();

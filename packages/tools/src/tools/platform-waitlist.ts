@@ -409,8 +409,9 @@ const NOT_APPROVED = "The starting point isn't approved yet. Approve it in Appro
 
 /**
  * Send (or send again): the requester gets a fresh 30-day read-only link to the approved starting point and its evidence, and the
- * sample business is paused (no more paid work). The link is stateless (`sample-token.ts`); the page re-checks the entry is `sent`,
- * so Stop ends every link. The email is sent after commit; a failure keeps the state and the operator copies the returned link.
+ * sample business is paused (no more paid work). The token is signed, not stored (`sample-token.ts`); the page re-checks the entry
+ * is `sent` and refuses a link issued before `sample_sent_at`, so Send again revokes every older link, and archiving the sample client
+ * ends them all. The email is sent after commit; a failure keeps the state and the operator copies the returned link.
  */
 export const sendSampleBriefTool = defineTool({
   name: 'send_sample_brief',

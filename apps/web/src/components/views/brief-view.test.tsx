@@ -24,8 +24,9 @@ describe('BriefView evidenceHref (17a)', () => {
   });
 
   it('evidenceHref routes every chip and drops the PDF link (no app links)', () => {
-    render(<BriefView brief={brief} agency={false} timezone="UTC" titled={false} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
-    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/sample/T/evidence/e1', '/sample/T/evidence/e2']);
+    const refs = { e1: { source: 'Smith HVAC', channel: 'Website', date: 'Oct 8', servable: true }, e2: { source: 'Smith HVAC', channel: 'Google Business Profile', date: 'Oct 8', servable: false } };
+    render(<BriefView brief={brief} agency={false} timezone="UTC" titled={false} refs={refs} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/sample/T/evidence/e1']);
     expect(screen.queryByText('Download PDF')).toBeNull();
   });
 });

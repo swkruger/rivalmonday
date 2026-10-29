@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { formatDate } from '@/lib/format';
 import { tryCallTool } from '@/server/tools';
 
-export type EvidenceRefDisplay = { source: string; channel: string; date: string };
+/** `servable` (17a sample page only): false = the caller's evidence route cannot serve it (html/vendor_json), so the chip is not a link. */
+export type EvidenceRefDisplay = { source: string; channel: string; date: string; servable?: boolean };
 /** Keyed by evidence id; a plain object so it crosses to client components. */
 export type EvidenceRefs = Record<string, EvidenceRefDisplay>;
 

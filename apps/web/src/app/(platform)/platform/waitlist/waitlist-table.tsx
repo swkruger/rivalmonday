@@ -62,7 +62,7 @@ function SendSample({ row, again, onResult }: { row: WaitlistRow; again: boolean
         title={again ? `Send ${row.contactName} a fresh sample link?` : `Send the sample brief to ${row.contactName}?`}
         body={`${row.email} gets a link to the sample that works for 30 days. The sample business is paused.`}
         confirmLabel="Send"
-        fields={{ id: row.id }}
+        fields={{ id: row.id, orgName: row.orgName }}
         action={async (fd) => onResult(await sendSampleAction(null, fd))}
       />
     </WriteGuard>

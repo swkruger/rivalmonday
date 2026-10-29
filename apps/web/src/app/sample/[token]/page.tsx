@@ -23,7 +23,7 @@ export default async function SamplePage({ params }: { params: Promise<{ token: 
   if (!sample) notFound();
   const tz = sample.timezone;
   const refs: EvidenceRefs = Object.fromEntries(
-    sample.refs.map((r) => [r.evidenceId, { source: r.competitorName, channel: r.channelLabel, date: formatDate(r.capturedAt, { tz }) }]),
+    sample.refs.map((r) => [r.evidenceId, { source: r.competitorName, channel: r.channelLabel, date: formatDate(r.capturedAt, { tz }), servable: r.servable }]),
   );
   const base = `/sample/${encodeURIComponent(token)}/evidence/`;
   return (

@@ -10,7 +10,7 @@ import { briefDetail } from '../tools/briefs';
 import type { BriefDetail, EvidenceRef } from '../tools/schemas';
 import { evidenceContentType } from '../workspace/evidence-access';
 import { channelLabel } from '../workspace/labels';
-import { verifySampleToken } from './sample-token';
+import { SAMPLE_LINK_TTL_MS, verifySampleToken } from './sample-token';
 import { SAMPLE_AGENCY_KEY, sampleAgencyId } from './settings';
 
 /**
@@ -78,13 +78,17 @@ export async function refuseSampleContacts(db: Db | Tx, agencyId: string): Promi
 
 // ---- the public sample link (Task 11). Service-role reads behind a verified token; every miss is `null` (a 404). ----
 
-/** The sent sample a link names: its entry (still `sent`), that entry's live client and the client's approved/sent starting point. */
+/**
+ * The sent sample a link names: its entry (still `sent`), that entry's live client and the client's approved/sent starting point.
+ * A link issued before the entry's `sample_sent_at` is refused: "Send again" revokes every older link.
+ */
 async function sampleTarget(service: Db, token: string, secret: string, now: Date) {
   const v = verifySampleToken(token, secret, now);
   if (!v) return null;
-  const [e] = await service.select({ clientId: waitlistEntry.sampleClientId }).from(waitlistEntry)
+  const [e] = await service.select({ clientId: waitlistEntry.sampleClientId, sentAt: waitlistEntry.sampleSentAt }).from(waitlistEntry)
     .where(and(eq(waitlistEntry.id, v.entryId), eq(waitlistEntry.kind, 'agency'), eq(waitlistEntry.sampleStatus, 'sent'), isNotNull(waitlistEntry.sampleClientId)));
-  if (!e?.clientId) return null;
+  if (!e?.clientId || !e.sentAt) return null;
+  if (v.expMs - SAMPLE_LINK_TTL_MS < Math.floor(e.sentAt.getTime())) return null;
   const [row] = await service
     .select({ briefId: brief.id, agencyId: client.agencyId, clientId: client.id, name: client.name, timezone: client.timezone })
     .from(brief).innerJoin(client, eq(client.id, brief.clientId))
@@ -92,12 +96,15 @@ async function sampleTarget(service: Db, token: string, secret: string, now: Dat
   return row ? { ...row, expMs: v.expMs } : null;
 }
 
+/** A citation label plus whether the sample's evidence route serves it (screenshot/text; html and vendor_json are never served). */
+export type SampleEvidenceRef = EvidenceRef & { servable: boolean };
+
 /**
  * The sample starting point as its client would read it, for `/sample/<token>`. The reader context is a `client_viewer`
  * of this one client (active items only, `upsellTag` null); it is built here and never leaves this function.
  */
 export async function getSampleBrief(deps: Pick<ToolDeps, 'service' | 'app'>, token: string, secret: string, now: Date)
-  : Promise<{ brief: BriefDetail; businessName: string; timezone: string; expiresAt: string; refs: EvidenceRef[] } | null> {
+  : Promise<{ brief: BriefDetail; businessName: string; timezone: string; expiresAt: string; refs: SampleEvidenceRef[] } | null> {
   const t = await sampleTarget(deps.service, token, secret, now);
   if (!t) return null;
   const readerCtx = createAccessContext({ agencyId: t.agencyId, userId: 'sample-link', role: 'client_viewer', clientScope: [t.clientId], features: [] });
@@ -111,14 +118,14 @@ export async function getSampleBrief(deps: Pick<ToolDeps, 'service' | 'app'>, to
   const ids = [...new Set(detail.items.flatMap((i) => i.evidenceIds))].filter(isUuid);
   const rows = ids.length
     ? await deps.service
-      .select({ id: evidence.id, source: capture.source, capturedAt: capture.capturedAt, competitorName: competitor.name })
+      .select({ id: evidence.id, kind: evidence.kind, source: capture.source, capturedAt: capture.capturedAt, competitorName: competitor.name })
       .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
       .where(inArray(evidence.id, ids))
     : [];
   const byId = new Map(rows.map((r) => [r.id, r]));
   const refs = ids.flatMap((id) => {
     const r = byId.get(id);
-    return r ? [{ evidenceId: id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString() }] : [];
+    return r ? [{ evidenceId: id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString(), servable: !!evidenceContentType(r.kind) }] : [];
   });
   return { brief: detail, businessName: t.name, timezone: t.timezone, expiresAt: new Date(t.expMs).toISOString(), refs };
 }

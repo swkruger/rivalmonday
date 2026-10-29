@@ -11,6 +11,7 @@ import { allTools } from './all';
 import type { ToolDeps } from '../deps';
 import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
 import { resolveIntake } from '../intake/public';
+import { getSampleBrief } from '../waitlist/sample';
 import { SAMPLE_LINK_TTL_MS, verifySampleToken } from '../waitlist/sample-token';
 
 const dbs = openTestDbs();
@@ -527,6 +528,28 @@ describe('send_sample_brief', () => {
     expect((await row(id)).sampleStatus).toBe('sent');
     expect(await pausedAt()).toEqual(paused);
     expect(transport.sent).toHaveLength(2);
+  });
+
+  describe('send again', () => {
+    const tokenOf = (url: string) => url.slice('https://app.test/sample/'.length);
+    const open = (url: string) => getSampleBrief({ app: dbs.app, service: dbs.service }, tokenOf(url), SECRET, new Date());
+    it('send again revokes the older link', async () => {
+      const id = await sample('approved', { sampleClientId: IDS.clientA1 });
+      await startingPoint(IDS.clientA1, 'approved');
+      const first = await send(id);
+      expect(await open(first.url)).not.toBeNull();
+      const second = await send(id);
+      expect(await open(first.url)).toBeNull();
+      expect(await open(second.url)).not.toBeNull();
+    });
+    it('the newest link still works', async () => {
+      const id = await sample('approved', { sampleClientId: IDS.clientA1 });
+      await startingPoint(IDS.clientA1, 'approved');
+      await send(id);
+      await send(id);
+      const third = await send(id);
+      expect((await open(third.url))?.brief.kind).toBe('starting_point');
+    });
   });
 
   it('email failure → emailed false, state kept', async () => {

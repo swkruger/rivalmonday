@@ -101,7 +101,7 @@ export async function sendSampleAction(_prev: unknown, fd: FormData): Promise<Se
   if (!r.ok) return r;
   revalidatePath(PATH);
   return r.data.emailed
-    ? { ok: true, url: r.data.url, message: 'Sample sent. The link works for 30 days:' }
+    ? { ok: true, url: r.data.url, message: `Sample sent to ${str(fd, 'orgName') || 'the requester'}. The link works for 30 days:` }
     : { ok: true, url: r.data.url, notice: 'Link created, but the email failed — copy the link below.' };
 }
 
