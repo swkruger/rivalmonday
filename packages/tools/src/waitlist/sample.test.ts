@@ -51,4 +51,15 @@ describe('sample space', () => {
     expect(cs).toHaveLength(1);
     expect(cs[0]).toMatchObject({ id: ms[0]!.contactId, role: 'agency_admin', email: 'op@example.com', clientId: null });
   });
+
+  it('reuses a stale agency contact for the operator', async () => {
+    const id = await ensure();
+    const [stale] = await dbs.service.insert(contact).values({ agencyId: id, role: 'agency_admin', email: 'OP@example.com', name: 'Old', active: false }).returning();
+    await dbs.service.transaction((tx) => ensureOperatorMembership(tx, id, 'op'));
+    const [m] = await dbs.service.select().from(membership).where(eq(membership.agencyId, id));
+    expect(m!.contactId).toBe(stale!.id);
+    const cs = await dbs.service.select().from(contact).where(eq(contact.agencyId, id));
+    expect(cs).toHaveLength(1);
+    expect(cs[0]).toMatchObject({ active: true, userId: 'op' });
+  });
 });

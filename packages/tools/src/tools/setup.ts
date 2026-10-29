@@ -414,7 +414,7 @@ export const inviteClientOwner = defineTool({
   permission: 'agency',
   channels: ['web'],
   async handler(ctx, { clientId, name, email }, deps) {
-    await refuseSampleContacts(deps, ctx.agencyId);
+    await refuseSampleContacts(deps.service, ctx.agencyId);
     const now = new Date();
     const r = await inviteClientUser(ctx, deps, { clientId, email, name, role: 'client_owner', replaceInvitedOwner: true }, now);
     // After commit; the invitation stands even if this fails (the daily reminder retries with the same dedupe).

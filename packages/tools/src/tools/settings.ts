@@ -33,7 +33,7 @@ export const inviteMemberTool = defineTool({
   async handler(ctx, input, deps) {
     // 11b Q4: client roles go through the shared client invite (contact + queued `client_invite` email).
     if (!isAgencyRole(input.role)) {
-      await refuseSampleContacts(deps, ctx.agencyId);
+      await refuseSampleContacts(deps.service, ctx.agencyId);
       if (!input.clientId) throw new ToolError('invalid_input', 'Client roles need a client');
       if (input.clientScope != null) throw new ToolError('invalid_input', 'Only account managers have a client scope');
       const r = await inviteClientUser(ctx, deps, { clientId: input.clientId, email: input.email, name: null, role: input.role as 'client_owner' | 'client_viewer' }, new Date());
@@ -157,7 +157,7 @@ export const addClientRecipientTool = defineTool({
   output: z.object({ contactId: uuid }),
   permission: 'agency',
   async handler(ctx, input, deps) {
-    await refuseSampleContacts(deps, ctx.agencyId);
+    await refuseSampleContacts(deps.service, ctx.agencyId);
     return { contactId: await addClientRecipient(deps.service, ctx, input) };
   },
 });

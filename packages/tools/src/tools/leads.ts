@@ -8,6 +8,7 @@ import type { ToolDeps } from '../deps';
 import { type LeadEmailKind, sendLeadEmail } from '../intake/emails';
 import { preselectVertical } from '../setup/lookup';
 import { createClientCore } from './onboarding';
+import { isSampleAgency } from '../waitlist/sample';
 
 // Phase 11c §5: the agency side of the intake. `lead`/`intake_link` are SELECT-only for app_user (reads go through
 // withTenant + RLS); every write runs on deps.service, scoped to ctx.agencyId by hand (the service role bypasses RLS).
@@ -261,6 +262,11 @@ async function intakeLinkState(ctx: AccessContext, deps: ToolDeps): Promise<Inta
   });
 }
 
+/** 17a: the sample agency has no intake link (its leads could never be invited or emailed). The settings page 404s. */
+async function refuseSampleIntake(deps: ToolDeps, agencyId: string): Promise<void> {
+  if (await isSampleAgency(deps.service, agencyId)) throw new ToolError('not_found', 'Intake link not found');
+}
+
 export const getIntakeLink = defineTool({
   name: 'get_intake_link',
   access: 'read',
@@ -270,6 +276,7 @@ export const getIntakeLink = defineTool({
   permission: 'agency',
   async handler(ctx, _input, deps) {
     requireAdmin(ctx);
+    await refuseSampleIntake(deps, ctx.agencyId);
     return intakeLinkState(ctx, deps);
   },
 });
@@ -283,6 +290,7 @@ export const updateIntakeLink = defineTool({
   permission: 'agency',
   async handler(ctx, { slug, enabled }, deps) {
     requireAdmin(ctx);
+    await refuseSampleIntake(deps, ctx.agencyId);
     if (slug !== undefined && RESERVED_SLUGS.has(slug)) throw slugTaken();
     await deps.service.transaction(async (tx) => {
       // The agency row lock serialises two admins creating the link at once (no intake_link row to lock yet).

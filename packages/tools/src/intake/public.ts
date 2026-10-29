@@ -8,6 +8,7 @@ import { collapseSameListing, possibleDuplicates, toSetupLookup } from '../setup
 import { hitRate, INTAKE_LIMITS } from './rate';
 import { intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema, signIntakePlace, verifyIntakePlace } from './signed';
 import { hashToken, newToken } from './tokens';
+import { isSampleAgency } from '../waitlist/sample';
 
 // Phase 11c §3: public (unauthenticated) intake service functions, called by server actions — not registered tools.
 // Privacy: never log tokens, raw IPs or emails. Refusal reasons are logged as a bare reason word only.
@@ -25,6 +26,8 @@ export async function resolveIntake(service: Db, slug: string | null): Promise<{
   if (slug === null) return { agencyId: null, branding: 'platform' };
   const [row] = await service.select({ agencyId: intakeLink.agencyId }).from(intakeLink)
     .where(and(eq(intakeLink.slug, slug), eq(intakeLink.enabled, true), agencyServiceable(intakeLink.agencyId))).limit(1);
+  // 17a: a link row for the sample agency (none can be created through the tools) never takes leads.
+  if (row && (await isSampleAgency(service, row.agencyId))) return null;
   return row ? { agencyId: row.agencyId, branding: 'agency' } : null;
 }
 

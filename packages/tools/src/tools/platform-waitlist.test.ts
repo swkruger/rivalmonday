@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
 import type { MapsPlace } from '@cs/collectors';
-import { agencyInviteLink, brief, client, clientSetup, contact, intakeRate, lead, membership, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
+import { agencyInviteLink, brief, client, clientSetup, contact, intakeLink, intakeRate, invitation, lead, membership, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
 import { and, eq } from 'drizzle-orm';
@@ -10,6 +10,7 @@ import { createToolRegistry } from '../registry';
 import { allTools } from './all';
 import type { ToolDeps } from '../deps';
 import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
+import { resolveIntake } from '../intake/public';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -404,5 +405,46 @@ describe('decide_sample_brief', () => {
       expect([tool, e.code, e.message, e.userFacing]).toEqual([tool, 'invalid_input', SAMPLE_NO_CONTACTS, true]);
     }
     expect(await dbs.service.select().from(contact).where(eq(contact.clientId, c!.id))).toHaveLength(0);
+  });
+
+  describe('the sample agency takes no leads', () => {
+    let sampleId: string;
+    let inSample: AccessContext;
+    beforeEach(async () => {
+      sampleId = await dbs.service.transaction((tx) => ensureSampleAgency(tx, deps, 'op'));
+      inSample = createAccessContext({ agencyId: sampleId, userId: 'op', role: 'agency_admin', clientScope: 'all', features: [] });
+    });
+
+    it('accept_lead in the sample agency is refused', async () => {
+      const [l] = await dbs.service.insert(lead).values({ agencyId: sampleId, source: 'agency_link', status: 'verified', contactName: 'Sam', email: 'sam@smith.co', lookup: place, verifiedAt: new Date() }).returning();
+      const e = await fails(reg.invoke(inSample, 'accept_lead', { leadId: l!.id, verticalId: 'dental' }));
+      expect([e.code, e.message, e.userFacing]).toEqual(['invalid_input', SAMPLE_NO_CONTACTS, true]);
+      expect(await smithClients()).toHaveLength(0); // the whole accept rolled back
+      expect((await dbs.service.select().from(lead).where(eq(lead.id, l!.id)))[0]!.status).toBe('verified');
+      expect(await dbs.service.select().from(invitation).where(eq(invitation.agencyId, sampleId))).toHaveLength(0);
+    });
+
+    it('assign to sample agency refused', async () => {
+      const [l] = await dbs.service.insert(lead).values({ agencyId: null, source: 'platform', status: 'verified', contactName: 'Sam', email: 'sam@smith.co', lookup: place, verifiedAt: new Date() }).returning();
+      expect((await fails(reg.invoke(op, 'assign_lead', { leadId: l!.id, agencyId: sampleId }))).code).toBe('not_found');
+      const biz = await mk({ kind: 'business', email: 'biz@smith.co' });
+      expect((await fails(reg.invoke(op, 'assign_waitlist_business', { id: biz, agencyId: sampleId, lookup: place }))).code).toBe('not_found');
+      expect((await dbs.service.select().from(lead).where(eq(lead.id, l!.id)))[0]!.agencyId).toBeNull();
+      expect((await row(biz)).status).toBe('new');
+    });
+
+    it('sample agency not in agency list', async () => {
+      const { agencies } = (await reg.invoke(op, 'list_pool_leads', {})) as { agencies: { id: string }[] };
+      expect(agencies.map((a) => a.id)).toContain(IDS.agencyA);
+      expect(agencies.map((a) => a.id)).not.toContain(sampleId);
+    });
+
+    it('intake link refused for sample agency', async () => {
+      expect((await fails(reg.invoke(inSample, 'get_intake_link', {}))).code).toBe('not_found');
+      expect((await fails(reg.invoke(inSample, 'update_intake_link', { slug: 'samples', enabled: true }))).code).toBe('not_found');
+      expect(await dbs.service.select().from(intakeLink).where(eq(intakeLink.agencyId, sampleId))).toHaveLength(0);
+      await dbs.service.insert(intakeLink).values({ agencyId: sampleId, slug: 'samples', enabled: true }); // a row written outside the tools
+      expect(await resolveIntake(dbs.service, 'samples')).toBeNull();
+    });
   });
 });

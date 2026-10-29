@@ -1,12 +1,14 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
 import { agency, agencyServiceable, client, lead, leadPreviewSchema, type Tx } from '@cs/db';
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pageOf, pageResult, prevCursorOf } from '../paging';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
 import { sendAfterCommit } from './leads';
+import { isSampleAgency } from '../waitlist/sample';
+import { sampleAgencyId } from '../waitlist/settings';
 
 /**
  * Phase 11c §6: the platform pool of unassigned verified leads. Same pattern as platform-signups.ts: role check first (a refusal
@@ -60,6 +62,7 @@ export const listPoolLeadsTool = defineTool({
       const fetched = await deps.service.select().from(lead).where(poolWhere).orderBy(desc(lead.createdAt), asc(lead.id)).limit(limit + 1).offset(offset);
       const { rows, nextCursor } = pageResult(fetched, limit, offset);
       const [{ n: total } = { n: 0 }] = await deps.service.select({ n: count() }).from(lead).where(poolWhere);
+      const sampleId = await sampleAgencyId(deps.service);
       const agencies = await deps.service
         .select({
           id: agency.id,
@@ -69,7 +72,8 @@ export const listPoolLeadsTool = defineTool({
         })
         .from(agency)
         .leftJoin(client, and(eq(client.agencyId, agency.id), isNull(client.archivedAt)))
-        .where(agencyServiceable(agency.id))
+        // 17a: the sample agency never takes a lead (it cannot invite or email the business).
+        .where(and(agencyServiceable(agency.id), sampleId ? ne(agency.id, sampleId) : undefined))
         .groupBy(agency.id, agency.name)
         .orderBy(asc(agency.name));
       const assigned = await deps.service
@@ -100,7 +104,8 @@ export async function assignPoolLeadTx(tx: Tx, ctx: AccessContext, leadId: strin
   const [row] = await tx.select().from(lead).where(and(eq(lead.id, leadId), isNull(lead.agencyId), eq(lead.status, 'verified'))).for('update');
   if (!row) throw new ToolError('not_found', 'Lead not found');
   const [target] = await tx.select({ id: agency.id }).from(agency).where(and(eq(agency.id, agencyId), agencyServiceable(agency.id)));
-  if (!target) throw new ToolError('not_found', 'Agency not found');
+  // 17a: the sample agency is not a lead target (it never invites or emails the business).
+  if (!target || (await isSampleAgency(tx, agencyId))) throw new ToolError('not_found', 'Agency not found');
   // The target may already hold this visitor (same email + place) from its own link: lead_dedupe_idx would collide.
   const [twin] = await tx
     .select({ id: lead.id })

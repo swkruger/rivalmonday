@@ -7,6 +7,7 @@ import { completeIfDone } from '../setup/state';
 import { normalizeEmail } from './invitations';
 import { inviteMember } from './team';
 import type { Inviter } from './team-invite-email';
+import { refuseSampleContacts } from '../waitlist/sample';
 
 export type ClientInviteRole = 'client_owner' | 'client_viewer';
 
@@ -56,6 +57,8 @@ export async function sendClientInvite(
   i: { ctx: AccessContext; clientId: string; clientName: string; contactId: string; email: string; role: ClientInviteRole; dedupe: string; now: Date; inviter?: Inviter },
 ): Promise<boolean> {
   const { ctx, now } = i;
+  // 17a: the sample agency never emails a business (also covers resends).
+  await refuseSampleContacts(tx, ctx.agencyId);
   if (!deps.delivery) {
     console.warn('[invite] email delivery is not configured (APP_URL / LINK_SIGNING_SECRET); invitation created without an email', { clientId: i.clientId });
     return false;
@@ -99,6 +102,8 @@ export async function inviteClientUser(
   if (!isAgencyRole(ctx.role)) throw new ToolError('permission_denied', 'Only agency roles invite people');
   if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
   const email = normalizeEmail(input.email);
+  // 17a: no invitation or contact in the sample agency (accept_lead, the wizard, the team page all land here).
+  await refuseSampleContacts(deps.service, ctx.agencyId);
 
   return deps.service.transaction(async (tx) => {
     // The shared client-row lock (as `lockClient` in tools/setup.ts), scoped to the caller's agency: the service role bypasses RLS.

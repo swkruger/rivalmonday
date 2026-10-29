@@ -384,7 +384,7 @@ export const decideSampleBriefTool = defineTool({
         if (!entry.emailConfirmedAt || entry.sampleStatus !== 'requested') throw new ToolError('conflict', 'Only confirmed requests can be approved.', { userFacing: true });
         // The setting row lock (held from here to commit) serialises approvals, so the month's count below cannot be raced past.
         const sampleId = await ensureSampleAgency(tx, deps, ctx.userId);
-        const limit = await sampleBriefMonthlyLimit(tx as unknown as Db);
+        const limit = await sampleBriefMonthlyLimit(tx);
         const [{ used } = { used: 0 }] = await tx.select({ used: count() }).from(waitlistEntry).where(approvedThisMonth);
         if (used >= limit) {
           throw new ToolError('conflict', `This month's sample limit (${limit}) is used up. Raise it on Billing & plans or wait until next month.`, { userFacing: true });

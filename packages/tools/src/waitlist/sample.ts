@@ -1,6 +1,6 @@
 import { ensureExemptPilot } from '@cs/billing';
 import { ToolError } from '@cs/core';
-import { agency, type Db, membership, platformSetting, type Tx } from '@cs/db';
+import { agency, contact, type Db, membership, platformSetting, type Tx } from '@cs/db';
 import { addContact, ensureAgencyRunbook } from '@cs/engine';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -50,15 +50,23 @@ export async function ensureOperatorMembership(tx: Tx, agencyId: string, userId:
   if (has) return;
   const [u] = [...(await tx.execute<{ email: string; name: string | null }>(sql`select email, name from auth."user" where id = ${userId}`))];
   if (!u) throw new ToolError('internal', 'Operator account not found');
-  const contactId = await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: u.email, name: u.name || null, clientScope: null, userId });
+  // A stale agency-level contact (its membership was removed) is reused, so contact_email_unique never blocks an approval.
+  const [stale] = await tx.select({ id: contact.id }).from(contact)
+    .where(and(eq(contact.agencyId, agencyId), isNull(contact.clientId), sql`lower(${contact.email}) = lower(${u.email})`)).limit(1);
+  if (stale) await tx.update(contact).set({ active: true, userId, role: 'agency_admin' }).where(eq(contact.id, stale.id));
+  const contactId = stale?.id
+    ?? await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: u.email, name: u.name || null, clientScope: null, userId });
   await tx.insert(membership).values({ userId, agencyId, role: 'agency_admin', clientId: null, clientScope: null, contactId, createdBy: userId });
 }
 
-export async function isSampleAgency(db: Db, agencyId: string): Promise<boolean> {
+export async function isSampleAgency(db: Db | Tx, agencyId: string): Promise<boolean> {
   return (await sampleAgencyId(db)) === agencyId;
 }
 
-/** Contact-creating tools call this first: the sample agency never invites or emails a business. */
-export async function refuseSampleContacts(deps: ToolDeps, agencyId: string): Promise<void> {
-  if (await isSampleAgency(deps.service, agencyId)) throw new ToolError('invalid_input', SAMPLE_NO_CONTACTS, { userFacing: true });
+/**
+ * The sample agency never invites or emails a business: contact tools call this first, and the client-invite choke points
+ * (`inviteClientUser`, `sendClientInvite`) call it too, so every path (accept_lead, resends) is covered.
+ */
+export async function refuseSampleContacts(db: Db | Tx, agencyId: string): Promise<void> {
+  if (await isSampleAgency(db, agencyId)) throw new ToolError('invalid_input', SAMPLE_NO_CONTACTS, { userFacing: true });
 }

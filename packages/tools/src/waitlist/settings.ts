@@ -1,4 +1,4 @@
-import { type Db, platformSetting } from '@cs/db';
+import { type Db, platformSetting, type Tx } from '@cs/db';
 import { eq } from 'drizzle-orm';
 
 /** Phase 17a pilot switches, kept in `platform_setting` (same pattern as `signups_paused`). */
@@ -7,22 +7,25 @@ export const SAMPLE_LIMIT_KEY = 'sample_brief_monthly_limit'; // value { n: numb
 export const DEFAULT_SAMPLE_LIMIT = 10;
 export const SAMPLE_AGENCY_KEY = 'sample_agency_id'; // value { agencyId }; written only by ensureSampleAgency (Task 10)
 
-async function settingValue<T>(db: Db, key: string): Promise<T | undefined> {
+/** The service connection or a transaction on it (a caller holding locks reads inside its own transaction). */
+type Conn = Db | Tx;
+
+async function settingValue<T>(db: Conn, key: string): Promise<T | undefined> {
   const [s] = await db.select({ value: platformSetting.value }).from(platformSetting).where(eq(platformSetting.key, key));
   return s?.value as T | undefined;
 }
 
-export async function sampleAgencyId(db: Db): Promise<string | null> {
+export async function sampleAgencyId(db: Conn): Promise<string | null> {
   const v = await settingValue<{ agencyId?: unknown }>(db, SAMPLE_AGENCY_KEY);
   return typeof v?.agencyId === 'string' ? v.agencyId : null;
 }
 
 /** Missing row = off. */
-export async function pilotMode(db: Db): Promise<boolean> {
+export async function pilotMode(db: Conn): Promise<boolean> {
   return (await settingValue<{ on?: boolean }>(db, PILOT_MODE_KEY))?.on === true;
 }
 
-export async function sampleBriefMonthlyLimit(db: Db): Promise<number> {
+export async function sampleBriefMonthlyLimit(db: Conn): Promise<number> {
   const n = (await settingValue<{ n?: unknown }>(db, SAMPLE_LIMIT_KEY))?.n;
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : DEFAULT_SAMPLE_LIMIT;
 }
