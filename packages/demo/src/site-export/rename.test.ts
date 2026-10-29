@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRenamer, FICTIONAL, guard, STATE_TERMS } from './rename';
+import { buildRenamer, DEMO_PLACES, DEMO_REAL_BUSINESS_WORDS, DEMO_ZIPS, FICTIONAL, guard, STATE_TERMS } from './rename';
 
 const src = {
   client: 'Lone Star Cooling',
@@ -69,7 +69,7 @@ describe('guard', () => {
   it('flags a surviving term, uuid, email, phone (also beside the placeholder), street, state and unknown domain', () => {
     expect(g({ a: 'Visit Granbury' }, ['Granbury'])).toEqual([{ path: '$.a', reason: 'term:Granbury' }]);
     expect(g(['x', '3f2b8c1e-1234-4abc-8def-0123456789ab'])).toEqual([{ path: '$[1]', reason: 'uuid' }]);
-    expect(g({ e: 'mail bob@acme.test' })).toEqual([{ path: '$.e', reason: 'email' }]);
+    expect(g({ e: 'mail bob@acme.example' }, [], ['acme.example'])).toEqual([{ path: '$.e', reason: 'email' }]);
     expect(g({ p: 'call 817-555-0142' })).toEqual([{ path: '$.p', reason: 'phone' }]);
     expect(g({ p: '(555) 010-0100 or 817-555-0142' })).toEqual([{ path: '$.p', reason: 'phone' }]);
     expect(g({ p: '(555) 010-0100' })).toEqual([]);
@@ -78,6 +78,30 @@ describe('guard', () => {
     expect(g({ t: 'in Texas' })).toEqual([{ path: '$.t', reason: 'state' }]);
     expect(g({ d: 'see acme.com' })).toEqual([{ path: '$.d', reason: 'domain:acme.com' }]);
     expect(g({ d: 'see acme.example' }, [], ['acme.example'])).toEqual([]);
+  });
+  it('street rule is case-insensitive, takes directionals and route numbers', () => {
+    for (const s of ['208 N Houston St', '1105 E Pearl St', '412 cedar creek rd', '14 Paluxy Road', 'FM 51', 'Hwy 377', 'US-377']) {
+      expect(g({ s: `at ${s}` }).map((h) => h.reason), s).toContain('street');
+    }
+    expect(g({ s: 'Up 12 percent in 3 weeks, 4.8 stars' })).toEqual([]);
+  });
+  it('checks object keys, multi-word spacing, bare TX / Texans, .test domains and phone forms', () => {
+    expect(g({ 'Granbury Pros': 'x' }, ['Granbury'])).toEqual([{ path: '$.<key:Granbury Pros>', reason: 'term:Granbury' }]);
+    for (const v of ['Lone  Star', 'Lone\nStar', 'Lone Star']) expect(g({ a: v }, ['Lone Star']).map((h) => h.reason)).toEqual(['term:Lone Star']);
+    expect(g({ a: 'Based in TX' }).map((h) => h.reason)).toContain('state');
+    expect(g({ a: 'Texans love AC' }).map((h) => h.reason)).toContain('state');
+    expect(g({ a: 'demo.rivalmonday.test' }).map((h) => h.reason)).toEqual(['domain:rivalmonday.test']);
+    for (const p of ['817.555.0142', '+1 817 555 0142', '8175550142', '(817) 555-0142']) expect(g({ p }).map((h) => h.reason), p).toContain('phone');
+    expect(g({ a: '2026-10-29, 12,345 reviews, $12345' })).toEqual([]);
+  });
+  it('seed ZIPs are denied as terms', () => {
+    expect(g({ z: 'ZIP 76048' }, [...DEMO_ZIPS]).map((h) => h.reason)).toEqual(['term:76048']);
+  });
+  it('every seed place is renamed (no throw, none survive) and every seed business word is denied by the guard', () => {
+    const r = buildRenamer({ client: 'Lone Star Cooling', businesses: [], places: [...DEMO_PLACES], domains: [] });
+    const out = r.apply(`${DEMO_PLACES.join(' | ')} 76048 208 N Houston St`);
+    expect(guard(out, [...DEMO_PLACES, ...DEMO_ZIPS], new Set())).toEqual([]);
+    for (const w of DEMO_REAL_BUSINESS_WORDS) expect(g({ a: `the ${w} crew` }, [...DEMO_REAL_BUSINESS_WORDS]).length, w).toBeGreaterThan(0);
   });
   it('passes clean fictional output', () => {
     const r = mk();
