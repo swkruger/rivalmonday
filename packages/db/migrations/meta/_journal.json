@@ -673,6 +673,13 @@
       "when": 1793054928248,
       "tag": "0095_onboarding_split",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793241028380,
+      "tag": "0096_waitlist",
+      "breakpoints": true
     }
   ]
 }

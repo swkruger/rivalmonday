@@ -45,6 +45,7 @@ export interface IsolationWorld {
   platformIds: {
     unreviewedVertical: string; unreviewedArea: string; unreviewedArea2: string; poolLead: string; discountCode: string; inviteLink: string; costItem: string;
     topicProposal: string;
+    waitlistAgency: string; waitlistAgencySample: string; waitlistBusiness: string; waitlistUnconfirmed: string;
   };
 }
 
@@ -502,9 +503,21 @@ async function seedPlatform(b: WorldBuilder, db: Db): Promise<IsolationWorld['pl
   const proposal = await b.ins('topic_proposal', null, {
     id: hashUuid('topic_proposal:world'), vertical_id: 'hvac_plumbing', topic_id: 'world_topic', name: 'Wait times', description: 'Reviews about waiting', other_count: 3,
   });
+  const wl = (key: string, values: Record<string, unknown>) =>
+    b.ins('waitlist_entry', null, {
+      id: hashUuid(`waitlist_entry:${key}`), contact_name: `World ${key}`, org_name: `World ${key} org`, email: `${key}@world.example`, ip_hash: 'world-ip',
+      email_confirmed_at: b.at(-1), ...values,
+    });
+  const wlAgency = await wl('agency', { kind: 'agency', status: 'new' });
+  const wlSample = await wl('agency-sample', {
+    kind: 'agency', sample_requested: true, sample_status: 'requested', sample_business_name: 'World Sample HVAC', sample_location: 'Austin, TX',
+  });
+  const wlBusiness = await wl('business', { kind: 'business', vertical_id: 'hvac_plumbing' });
+  const wlUnconfirmed = await wl('unconfirmed', { kind: 'agency', email_confirmed_at: null });
   return {
     unreviewedVertical, unreviewedArea: 'pool_repair', unreviewedArea2: 'pool_opening', poolLead: lead.id as string, discountCode: code.id as string, inviteLink: link.id as string,
     costItem: item.id as string, topicProposal: proposal.id as string,
+    waitlistAgency: wlAgency.id as string, waitlistAgencySample: wlSample.id as string, waitlistBusiness: wlBusiness.id as string, waitlistUnconfirmed: wlUnconfirmed.id as string,
   };
 }
 

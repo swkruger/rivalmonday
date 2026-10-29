@@ -113,7 +113,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   vertical_draft: 'service_only',
   volatile_block: 'service_only',
 
-  // platform (11)
+  // platform (12)
   business_area: 'platform',
   discount_code: 'platform',
   plan: 'platform',
@@ -125,4 +125,5 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   platform_setting: 'platform',
   vertical: 'platform',
   vertical_category: 'platform',
+  waitlist_entry: 'platform',
 };
