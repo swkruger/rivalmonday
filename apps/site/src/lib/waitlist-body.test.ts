@@ -52,6 +52,29 @@ describe('sourceFrom', () => {
     expect(sourceFrom({ search: '', pathname: '/pricing' }, 'not a url')).toBe('/pricing');
     expect(sourceFrom({ search: `?utm_source=${'a'.repeat(300)}`, pathname: '/' }, '')).toHaveLength(200);
   });
+
+  it('ignores a same-host referrer (an internal page hop)', () => {
+    expect(sourceFrom({ search: '', pathname: '/pricing', host: 'rivalmonday.com' }, 'https://rivalmonday.com/how-it-works')).toBe('/pricing');
+    expect(sourceFrom({ search: '', pathname: '/pricing', host: 'rivalmonday.com' }, 'https://news.example/post')).toBe('news.example');
+  });
+
+  it('keeps the first-touch utm_source or external referrer for the session', () => {
+    const mem = new Map<string, string>();
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    const host = 'rivalmonday.com';
+    // Landing on a path first stores nothing.
+    expect(sourceFrom({ search: '', pathname: '/', host }, '', storage)).toBe('/');
+    expect(sourceFrom({ search: '?utm_source=newsletter', pathname: '/', host }, '', storage)).toBe('newsletter');
+    // Later hops (same-host referrer, no utm, even another external referrer) keep the first touch.
+    expect(sourceFrom({ search: '', pathname: '/pricing', host }, 'https://rivalmonday.com/', storage)).toBe('newsletter');
+    expect(sourceFrom({ search: '?utm_source=other', pathname: '/x', host }, 'https://b.example/', storage)).toBe('newsletter');
+  });
+
+  it('works when sessionStorage throws', () => {
+    const storage = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+    expect(sourceFrom({ search: '?utm_source=ads', pathname: '/', host: 'h' }, '', storage)).toBe('ads');
+    expect(sourceFrom({ search: '', pathname: '/x', host: 'h' }, '', storage)).toBe('/x');
+  });
 });
 
 describe('validators', () => {

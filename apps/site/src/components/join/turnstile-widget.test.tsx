@@ -88,6 +88,17 @@ describe('TurnstileWidget', () => {
     expect(onToken).not.toHaveBeenCalledWith(expect.any(String));
   });
 
+  it('a throwing turnstile.render → onUnavailable, no token', async () => {
+    const api = stubTurnstile();
+    api.render.mockImplementation(() => { throw new Error('bad sitekey'); });
+    const onToken = vi.fn();
+    const onUnavailable = vi.fn();
+    render(<TurnstileWidget siteKey="k" onToken={onToken} resetKey={0} onUnavailable={onUnavailable} />);
+    await act(async () => {});
+    expect(onUnavailable).toHaveBeenCalledOnce();
+    expect(onToken).not.toHaveBeenCalledWith(expect.any(String));
+  });
+
   it('no key → renders nothing', async () => {
     const api = stubTurnstile();
     const onToken = vi.fn();
@@ -136,8 +147,10 @@ describe('loadTurnstile', () => {
     vi.advanceTimersByTime(10_000);
     await rejected;
 
+    // A timed-out script tag is removed too, so a retry never stacks a second one.
+    expect(scripts()).toHaveLength(0);
     const third = loadTurnstile();
     expect(third).not.toBe(second);
-    expect(scripts()).toHaveLength(2);
+    expect(scripts()).toHaveLength(1);
   });
 });

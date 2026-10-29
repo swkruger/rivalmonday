@@ -6,6 +6,8 @@ vi.mock('../../lib/env', () => env);
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
+import { TURNSTILE_SRC } from '../../lib/turnstile';
+import { JOIN_COPY } from './copy';
 import { JoinButton } from './join-button';
 import { JoinDialog } from './join-dialog';
 import { JoinProvider, useJoin } from './join-provider';
@@ -45,6 +47,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   delete window.turnstile;
+  document.head.querySelectorAll('script').forEach((sc) => sc.remove());
+  window.sessionStorage.clear();
 });
 
 const type = (label: RegExp | string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -115,6 +119,12 @@ describe('join dialog', () => {
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
     expect(screen.getByText('Join the Rival Monday pilot')).toBeTruthy();
+  });
+
+  it('landing records the first-touch utm_source for the session', async () => {
+    window.history.replaceState(null, '', '/?utm_source=newsletter');
+    await renderApp();
+    expect(window.sessionStorage.getItem('rm_source')).toBe('newsletter');
   });
 
   it('?join=business opens the business step', async () => {
@@ -203,6 +213,45 @@ describe('join dialog', () => {
     expect(link.getAttribute('href')).toBe('https://app.test/sign-up');
     expect(link.closest('[role="radiogroup"]')).toBeNull();
   });
+  it('pilot off: the popup names no pilot (choose and business steps)', async () => {
+    fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: { rivalSitesWatched: 1, snapshotsThisWeek: 1, claimsChecked: 1, claimsDropped: 0 } });
+    window.history.replaceState(null, '', '/#join');
+    await renderApp();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).not.toMatch(/pilot/i);
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.titleTrial);
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.agency.bodyTrial);
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.business.bodyTrial);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText('About your business')).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).not.toMatch(/pilot/i);
+    expect(screen.getByText(JOIN_COPY.business.fineTrial)).toBeTruthy();
+  });
+
+  it('pilot on: the popup keeps the pilot copy', async () => {
+    window.history.replaceState(null, '', '/#join');
+    await renderApp();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.title);
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.agency.body);
+    expect(dialog.textContent).toContain(JOIN_COPY.step1.business.body);
+  });
+
+  it('back is disabled while a submit is pending', async () => {
+    let resolve!: (v: { ok: true }) => void;
+    const submit = vi.fn(() => new Promise<{ ok: true }>((r) => { resolve = r; }));
+    render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+    await act(async () => {});
+    type(/Your name/, 'Sam Roe');
+    type(/Email/, 'sam@roe.test');
+    type(/Business name/, 'Roe Heating');
+    type(/or city/, 'Austin');
+    fireEvent.change(screen.getByLabelText(/Type of business/), { target: { value: 'dental' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Join the waitlist' })); });
+    expect((screen.getByRole('button', { name: 'Back' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => resolve({ ok: true }));
+  });
+
   describe('submit (Task 8)', () => {
     function stubTurnstile() {
       const api = { render: vi.fn((_el: HTMLElement, _o: Record<string, unknown>) => 'w1'), reset: vi.fn(), remove: vi.fn() };
@@ -283,6 +332,49 @@ describe('join dialog', () => {
       expect((submit.mock.calls[0] as unknown[])[1]).toBe('no-widget');
       expect(button.getAttribute('aria-busy')).toBe('true');
       await act(async () => resolve({ ok: true }));
+    });
+
+    it('a throwing submit still resets the token', async () => {
+      env.siteEnv.turnstileSiteKey = 'site-key';
+      const { api, token } = stubTurnstile();
+      const submit = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce({ ok: true });
+      render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+      await act(async () => {});
+      fillBusiness();
+      token('tok-1');
+      await send();
+      expect(api.reset).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert').textContent).toBe('Something went wrong. Please try again.');
+      await send(); // the used token is gone
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert').textContent).toBe('Still checking, try again in a moment.');
+      token('tok-2');
+      await send();
+      expect(submit.mock.calls[1]![1]).toBe('tok-2');
+    });
+
+    it('a failed script load says unavailable, then remounts the widget for a fresh load', async () => {
+      env.siteEnv.turnstileSiteKey = 'site-key';
+      const submit = vi.fn().mockResolvedValue({ ok: true });
+      render(<PilotProvider><JoinDialog open start="business" onClose={() => {}} submit={submit} /></PilotProvider>);
+      await act(async () => {});
+      const first = document.head.querySelector(`script[src="${TURNSTILE_SRC}"]`) as HTMLScriptElement;
+      await act(async () => first.onerror!(new Event('error')));
+      fillBusiness();
+      await send();
+      expect(submit).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert').textContent).toBe(JOIN_COPY.unavailable);
+      await act(async () => {});
+      const second = document.head.querySelector(`script[src="${TURNSTILE_SRC}"]`) as HTMLScriptElement;
+      expect(second).toBeTruthy();
+      expect(second).not.toBe(first);
+      const { api, token } = stubTurnstile();
+      await act(async () => second.onload!(new Event('load')));
+      expect(api.render).toHaveBeenCalledOnce();
+      token('tok-1');
+      await send();
+      expect(submit).toHaveBeenCalledOnce();
+      expect(submit.mock.calls[0]![1]).toBe('tok-1');
     });
 
     async function joinThroughProvider() {

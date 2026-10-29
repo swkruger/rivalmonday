@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import { Analytics } from '@vercel/analytics/next';
 import { Inter } from 'next/font/google';
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
 import { siteEnv } from '../lib/env';
 import { JoinProvider } from '../components/join/join-provider';
 import { AnnouncementBar } from '../components/shell/announcement-bar';
 import { PilotProvider } from '../components/shell/pilot-context';
+import { SiteAnalytics } from '../components/shell/site-analytics';
 import { SiteFooter } from '../components/shell/site-footer';
 import { SiteHeader } from '../components/shell/site-header';
 import './site.css';
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </JoinProvider>
         </PilotProvider>
         {/* Cookieless, no banner. Only on Vercel: elsewhere `/_vercel/insights/script.js` would 404. */}
-        {process.env.VERCEL_ENV ? <Analytics /> : null}
+        {process.env.VERCEL_ENV ? <SiteAnalytics /> : null}
       </body>
     </html>
   );

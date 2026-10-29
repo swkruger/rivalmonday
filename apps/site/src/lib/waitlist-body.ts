@@ -137,18 +137,52 @@ export function buildWaitlistBody(
   return body;
 }
 
-/** Where the visitor came from, ≤ 200 chars: `utm_source`, else the referrer's host, else the landing path. */
-export function sourceFrom(loc: { search: string; pathname: string }, referrer: string): string | null {
+/** sessionStorage key for the visit's first external source (first touch survives page hops within the site). */
+export const SOURCE_KEY = 'rm_source';
+type SourceStore = Pick<Storage, 'getItem' | 'setItem'>;
+
+/** `utm_source`, else the referrer's host when it is not the site's own (an internal hop is not a source). */
+function externalSource(loc: { search: string; host?: string }, referrer: string): string | null {
   const utm = new URLSearchParams(loc.search).get('utm_source')?.trim();
-  let value = utm || '';
-  if (!value && referrer) {
+  if (utm) return utm;
+  if (!referrer) return null;
+  try {
+    const host = new URL(referrer).host;
+    return host && host !== loc.host ? host : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where the visitor came from, ≤ 200 chars: the first-touch external source of this session (kept in `store`, normally
+ * sessionStorage), else this page's `utm_source` or external referrer host, else the landing path. Call it on landing
+ * too, so the first touch is recorded before an internal hop drops the query and referrer. Storage errors are ignored.
+ */
+export function sourceFrom(loc: { search: string; pathname: string; host?: string }, referrer: string, store?: SourceStore | null): string | null {
+  let stored: string | null = null;
+  try {
+    stored = store?.getItem(SOURCE_KEY) ?? null;
+  } catch {
+    stored = null;
+  }
+  const external = externalSource(loc, referrer)?.slice(0, 200) ?? null;
+  if (!stored && external) {
     try {
-      value = new URL(referrer).host;
+      store?.setItem(SOURCE_KEY, external);
     } catch {
-      value = '';
+      // Private mode or blocked storage: this page's source still applies.
     }
   }
-  if (!value) value = loc.pathname;
-  value = value.slice(0, 200);
+  const value = (stored || external || loc.pathname).slice(0, 200);
   return value || null;
+}
+
+/** `window.sessionStorage`, or null where reading it throws (blocked site data). */
+export function sessionStore(): SourceStore | null {
+  try {
+    return typeof window === 'undefined' ? null : window.sessionStorage;
+  } catch {
+    return null;
+  }
 }

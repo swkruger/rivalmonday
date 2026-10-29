@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { siteEnv } from '../../lib/env';
-import { buildWaitlistBody, sourceFrom } from '../../lib/waitlist-body';
+import { buildWaitlistBody, sessionStore, sourceFrom } from '../../lib/waitlist-body';
 import { submitWaitlist } from '../../lib/waitlist-submit';
 import { JoinDialog, type JoinSubmit } from './join-dialog';
 
@@ -26,7 +26,7 @@ function clearJoinUrl() {
 
 /** The live submit: the waitlist body to the app's `/api/waitlist`. Nothing here logs or reports the form. */
 const sendToWaitlist: JoinSubmit = (input, turnstileToken) =>
-  submitWaitlist(siteEnv.appUrl, buildWaitlistBody(input, turnstileToken, sourceFrom(window.location, document.referrer)));
+  submitWaitlist(siteEnv.appUrl, buildWaitlistBody(input, turnstileToken, sourceFrom(window.location, document.referrer, sessionStore())));
 
 const JoinContext = createContext<JoinValue | null>(null);
 
@@ -41,6 +41,10 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
   const close = useCallback(() => {
     setOpen(false);
     clearJoinUrl();
+  }, []);
+  useEffect(() => {
+    // Record the first-touch source on landing, before an internal hop drops `utm_source` and the external referrer.
+    sourceFrom(window.location, document.referrer, sessionStore());
   }, []);
   useEffect(() => {
     const fromUrl = () => {
