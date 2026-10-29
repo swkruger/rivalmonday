@@ -54,6 +54,7 @@ Headline "Every Monday, your clients learn what their competitors did last week,
 5. Sign `docs/archive/phase-17b-copy-signoff.md`; supply the founder note + photo, privacy and terms.
 6. Before the first site deploy, re-run `pnpm --filter @cs/demo export:site-verticals` against prod (prod `SERVICE_DATABASE_URL` in the shell; the committed `verticals.json` lists only dental + HVAC) and commit it. Then follow `docs/DEPLOY.md` § Marketing site (Vercel project, toolbar off, env, DNS, Turnstile hostnames, `DEPLOY_ENABLED`).
 7. Set the social URLs (`NEXT_PUBLIC_SOCIAL_*`) and `NEXT_PUBLIC_CLIENT_PRICE_USD`.
+8. Before the site deploy: set `WEB_MONITORING_ENABLED=true` on the app (after `https://rivalmonday.app/bot` loads) — the site promises website snapshots.
 
 ## Brief (condensed)
 No roadmap row. Request: separate Vercel deployable (rivalmonday.com vs app rivalmonday.app); launch site marked "in pilot", no social proof yet; waitlist popup (agency vs business) + in-app waitlist page; integrations strip + pages, comparisons, pricing, partner page, social, full SEO. Binding: agency clients first; nothing client-facing names Rival Monday; claims evidence-backed (counsel review of AI claims about named rivals pending); owner signs copy; Turnstile + uniform responses on public forms. Backlog folded in: marketing page, register rivalmonday.com/.ai + trademark knockout, Phase 0 validation (GHL/Vendasta check, LOIs, counsel review), affiliate program, automatic lead routing (phase-11). All open questions answered 2026-10-28 (spec (O)/(C) marks).

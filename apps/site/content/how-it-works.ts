@@ -11,7 +11,7 @@ export const HOW_IT_WORKS = {
     },
     {
       heading: '3. A second check reads every claim',
-      body: 'A separate verifier compares each claim with its evidence. A claim that falls below the bar is dropped, not softened. When the verifier is unsure, a person decides.',
+      body: 'A separate verifier compares each claim with its evidence. A claim that falls below the bar is dropped, not softened. When it cannot back a claim up, the claim is dropped. Your team can edit or approve each brief before it is sent.',
     },
     {
       heading: '4. You can always click through',

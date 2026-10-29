@@ -63,7 +63,7 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     id: 'friday',
     eyebrow: "Friday, your clients' assistant",
     heading: 'Ask about any rival. Every answer shows its sources.',
-    body: "Friday answers from the same evidence as the brief, with the sources inline. It's included under your brand, in the dashboard and for AI tools that support MCP.",
+    body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client. MCP is separate: it lets a client's own AI tools read the evidence, also switched on per client.",
   },
   'real-sample': {
     id: 'real-sample',
@@ -122,8 +122,8 @@ export const CTA_BAND_TRIAL = {
 } as const;
 
 export const COUNTER_LABELS = [
-  { key: 'rivalsWatched', label: 'rival sites watched', caption: 'Right now' },
-  { key: 'snapshots', label: 'snapshots taken', caption: 'Last 7 days' },
+  { key: 'rivalsWatched', label: 'rivals watched', caption: 'Right now' },
+  { key: 'snapshots', label: 'evidence captured', caption: 'Last 7 days' },
   { key: 'claimsChecked', label: 'claims checked against evidence', caption: 'Last 7 days' },
   { key: 'claimsDropped', label: 'claims dropped for lack of evidence', caption: 'Last 7 days' },
 ] as const;

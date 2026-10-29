@@ -48,7 +48,7 @@ afterEach(() => {
 describe('LiveCounters', () => {
   it('counters hide a null value', async () => {
     await renderApp(<LiveCounters />, { pilotMode: true, counters: { ...ALL, claimsDropped: null } });
-    expect(screen.getByText('rival sites watched')).toBeTruthy();
+    expect(screen.getByText('rivals watched')).toBeTruthy();
     expect(screen.queryByText('claims dropped for lack of evidence')).toBeNull();
     expect(document.querySelectorAll('[data-slot="kpi"]')).toHaveLength(3);
   });
@@ -131,7 +131,7 @@ describe('ChecksHub and Steps', () => {
     const { container } = await renderApp(<ChecksHub />, null);
     const svg = container.querySelector('svg[role="img"]')!;
     const name = svg.getAttribute('aria-label')!;
-    for (const t of ['Competitor websites', 'Google reviews', 'Google Business Profile', 'Meta Ad Library', 'Local map rankings', 'Monday brief', 'No evidence, no claim']) {
+    for (const t of ['Competitor websites', 'Google reviews', 'Google Business Profile', 'Meta Ad Library', 'Google Ads Transparency Center', 'Local map rankings', 'Monday brief', 'No evidence, no claim']) {
       expect(name).toContain(t);
     }
   });

@@ -36,7 +36,7 @@ Owner: mark each row OK or write the edit, then answer "Decisions to confirm" at
 | live | This week on Rival Monday / Real numbers from the platform, updated every few minutes. / Rounded down. | |
 | how-it-works | How it works / From client to Monday brief in four steps. | |
 | checks | How we check every claim / No evidence, no claim. / Every sentence in a brief starts from something we captured: a page snapshot, a review, an ad, a ranking. Before a brief goes out, a separate check compares each claim with its evidence. Anything it can't back up is dropped, not softened. Link: "Read how we check claims →" | |
-| friday | Friday, your clients' assistant / Ask about any rival. Every answer shows its sources. / Friday answers from the same evidence as the brief, with the sources inline. It's included under your brand, in the dashboard and for AI tools that support MCP. (**NEW** wording) | |
+| friday | Friday, your clients' assistant / Ask about any rival. Every answer shows its sources. / Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client. MCP is separate: it lets a client's own AI tools read the evidence, also switched on per client. (**CHANGED** 17c claims ledger) | |
 | real-sample | A real sample for your client / See one of your own clients before you commit. / Tick "Send me a real sample brief" when you join. We build a starting-point brief for one of your clients from public information and email you a private link. Free during the pilot, a limited number each month. Button: "Request a real sample" | |
 | pricing | Pricing / Free during the pilot. / You set your own prices for your clients and bill them in your name. | |
 | Steps | 1 Add a client: Enter the business and its service area. We find its Google listing. 2 We find the rivals: We search the area and suggest the competitors that matter, ranked Top rival, Worth watching or Minor. You pick. 3 We watch every week: Websites, Google reviews, ads and map rankings, checked on a schedule and saved as evidence. 4 Monday brief + alerts: Your client gets a short brief under your brand, with the evidence one click away. Big moves send an alert. | |
@@ -47,8 +47,8 @@ Owner: mark each row OK or write the edit, then answer "Decisions to confirm" at
 ## 5. Live counters (`content/home.ts` 109-114; `src/components/home/live-counters.tsx`)
 | Label | Caption | OK / edit |
 |---|---|---|
-| rival sites watched | Right now | |
-| snapshots taken | Last 7 days | |
+| rivals watched (**CHANGED**, was "rival sites watched"; counts tracked rivals) | Right now | |
+| evidence captured (**CHANGED**, was "snapshots taken"; counts all captures: pages, reviews, ads, listings) | Last 7 days | |
 | claims checked against evidence | Last 7 days | |
 | claims dropped for lack of evidence | Last 7 days | |
 
@@ -89,7 +89,7 @@ Names are produced by `packages/demo/src/site-export/rename.ts` (`FICTIONAL`). B
 | Pilot-off CTAs | Footer: "Own a local business? Join the waitlist" appears only while Pilot mode is off; the bar and the Pilot pill disappear then; the popup, hero fine print, CTA band and pricing switch to the NEW trial copy below | |
 
 ## 9. How it works page (`content/how-it-works.ts`; eyebrow in `src/app/how-it-works/page.tsx`)
-Title "How we check every claim". Sections: 1 We capture the evidence · 2 We write only from the evidence · 3 A second check reads every claim · 4 You can always click through · What we don't do. All of it is **NEW**; read the file in full (1.4 KB), especially "When the verifier is unsure, a person decides." and "we identify our crawler and respect each site's robots.txt".
+Title "How we check every claim". Sections: 1 We capture the evidence · 2 We write only from the evidence · 3 A second check reads every claim · 4 You can always click through · What we don't do. All of it is **NEW**; read the file in full (1.4 KB), especially § 3, **CHANGED**: "When it cannot back a claim up, the claim is dropped. Your team can edit or approve each brief before it is sent." (was "When the verifier is unsure, a person decides."), and "we identify our crawler and respect each site's robots.txt".
 
 | OK / edit | |
 |---|---|
@@ -139,3 +139,8 @@ Also: the hero Friday card's count now reads "1 source" (only the shown sentence
 4. **Social glyphs**: generic icons (no brand logos, per the no-Meta-logos rule). Keep, or supply brand icons.
 5. **Still to write**: the founder note and photo (section hidden until supplied), the privacy text and the terms text.
 6. Plan decisions P1, P3, P6 and P13 are unchanged in the code; no action unless you object.
+
+## 17c corrections (CHANGED, owner signs)
+- Checks diagram, source tile (was "Meta Ad Library"): "Meta Ad Library" / "Google Ads Transparency Center" (text only, no logos; phone list: "Meta Ad Library and Google Ads Transparency Center").
+- Kept as written (website monitoring ships; owner sets `WEB_MONITORING_ENABLED=true` first, see DEPLOY.md): website snapshot claims, real-sample "a limited number each month".
+- Not changed, owner decides: `HERO.eyebrow` / "under your brand" (white-label is partial: no own domain yet).

@@ -6,7 +6,7 @@ const SOURCES = [
   { label: 'Competitor websites', Icon: Globe },
   { label: 'Google reviews', Icon: Star },
   { label: 'Google Business Profile', Icon: Store },
-  { label: 'Meta Ad Library', Icon: Megaphone },
+  { label: 'Meta Ad Library and Google Ads Transparency Center', Icon: Megaphone, lines: ['Meta Ad Library', 'Google Ads Transparency Center'] },
   { label: 'Local map rankings', Icon: Map },
 ] as const;
 
@@ -30,7 +30,14 @@ export function ChecksHub({ hideLink = false }: { hideLink?: boolean } = {}) {
               <path d={`M 270 ${y + TILE_H / 2} C 320 ${y + TILE_H / 2}, 330 ${MID_Y}, ${HUB.x} ${MID_Y}`} fill="none" className="stroke-chart-grid" strokeWidth="2" />
               <rect x="0" y={y} width="270" height={TILE_H} rx="8" className="fill-surface stroke-line" />
               <s.Icon x="16" y={y + 16} width="24" height="24" className="stroke-secondary" aria-hidden="true" />
-              <text x="52" y={y + 33} className="fill-ink text-sm font-medium">{s.label}</text>
+              {'lines' in s ? (
+                <text x="52" y={y + 26} className="fill-ink text-sm font-medium">
+                  <tspan x="52">{s.lines[0]}</tspan>
+                  <tspan x="52" dy="16">{s.lines[1]}</tspan>
+                </text>
+              ) : (
+                <text x="52" y={y + 33} className="fill-ink text-sm font-medium">{s.label}</text>
+              )}
             </g>
           );
         })}
@@ -49,7 +56,7 @@ export function ChecksHub({ hideLink = false }: { hideLink?: boolean } = {}) {
         {SOURCES.map((s) => (
           <li key={s.label} className="flex items-center gap-3 rounded-md border border-line px-3 py-2.5 text-sm font-medium text-ink">
             <s.Icon aria-hidden="true" className="size-5 shrink-0 text-secondary" />
-            {s.label}
+            {'lines' in s ? s.lines.join(' and ') : s.label}
           </li>
         ))}
         <li className="rounded-md border border-secondary bg-canvas px-3 py-3 text-sm font-semibold text-ink">
