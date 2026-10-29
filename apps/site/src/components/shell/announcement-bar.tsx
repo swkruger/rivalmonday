@@ -7,10 +7,6 @@ import { usePilot } from './pilot-context';
 
 const ROTATE_MS = 3_000;
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 /** Pilot-only strip above the header. Examples rotate every 3 s; static (first example) under reduced motion. */
 export function AnnouncementBar() {
   const { pilotMode } = usePilot();
@@ -20,7 +16,12 @@ export function AnnouncementBar() {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    setReduced(prefersReducedMotion());
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduced(query.matches);
+    sync();
+    query.addEventListener?.('change', sync);
+    return () => query.removeEventListener?.('change', sync);
   }, []);
 
   useEffect(() => {

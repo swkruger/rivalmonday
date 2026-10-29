@@ -24,10 +24,9 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
   },
 ];
 
-const registered = new Set<string>(PAGES.map((p) => p.path));
-
 export function SiteFooter() {
   const { pilotMode } = usePilot();
+  const registered = new Set<string>(PAGES.map((p) => p.path));
   const columns = COLUMNS.map((c) => ({ ...c, links: c.links.filter((l) => registered.has(l.href)) })).filter((c) => c.links.length > 0);
 
   return (

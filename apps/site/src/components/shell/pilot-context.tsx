@@ -18,9 +18,11 @@ export function PilotProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetchSiteStatus(siteEnv.appUrl, controller.signal).then((status) => {
-      if (!controller.signal.aborted) setState({ status, loaded: true });
-    });
+    fetchSiteStatus(siteEnv.appUrl, controller.signal)
+      .catch(() => null)
+      .then((status) => {
+        if (!controller.signal.aborted) setState({ status, loaded: true });
+      });
     return () => controller.abort();
   }, []);
 

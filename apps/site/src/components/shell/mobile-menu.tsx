@@ -28,7 +28,8 @@ export function MobileMenu({ items }: { items: NavItem[] }) {
             </SheetClose>
           ))}
         </nav>
-        <div className="mt-3 flex flex-col items-stretch gap-2 px-2">
+        {/* Any control inside (Sign in, Join) closes the sheet so no second modal layer stacks on it. */}
+        <div className="mt-3 flex flex-col items-stretch gap-2 px-2" onClick={() => setOpen(false)}>
           <Button asChild variant="outline">
             <a href={`${siteEnv.appUrl}/sign-in`}>Sign in</a>
           </Button>

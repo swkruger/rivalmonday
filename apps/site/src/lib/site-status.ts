@@ -20,8 +20,8 @@ const TIMEOUT_MS = 5_000;
 
 /** GET `<appUrl>/api/site-status`. Any failure (network, non-2xx, bad body, timeout) is `null`. */
 export async function fetchSiteStatus(appUrl: string, signal?: AbortSignal): Promise<SiteStatus | null> {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
   try {
+    const timeout = AbortSignal.timeout(TIMEOUT_MS);
     const res = await fetch(`${appUrl}/api/site-status`, {
       method: 'GET',
       credentials: 'omit',

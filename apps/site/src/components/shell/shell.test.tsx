@@ -1,8 +1,15 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const social = vi.hoisted(() => ({ linkedin: null, x: null, youtube: null, facebook: null, instagram: null }) as Record<string, string | null>);
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test', social } }));
+
+const pages = vi.hoisted(() => ({ list: [] as { path: string; nav?: { label: string; order: number } }[] }));
+vi.mock('../../../content/pages', async (orig) => {
+  const real = await orig<typeof import('../../../content/pages')>();
+  pages.list = [...real.PAGES];
+  return { ...real, get PAGES() { return pages.list; } };
+});
 
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
@@ -13,6 +20,8 @@ vi.mock('../join/join-provider', async (orig) => {
   return { ...real, useJoin: () => ({ ...real.useJoin(), open: openSpy }) };
 });
 
+import { PAGES } from '../../../content/pages';
+const realPages = [...PAGES];
 import { JoinProvider } from '../join/join-provider';
 import { PilotProvider } from './pilot-context';
 import { SiteFooter } from './site-footer';
@@ -45,6 +54,7 @@ beforeEach(() => {
   mockMatchMedia(false);
   for (const k of Object.keys(social)) social[k] = null;
   openSpy.mockClear();
+  pages.list = [...realPages];
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -52,13 +62,33 @@ afterEach(() => {
 });
 
 describe('site shell', () => {
+  it('footer link appears when its path is registered', async () => {
+    pages.list = [...pages.list, { path: '/privacy' }];
+    await renderShell();
+    expect(screen.getByRole('link', { name: 'Privacy' }).getAttribute('href')).toBe('/privacy');
+  });
+
+  it('join from the mobile menu closes the sheet', async () => {
+    await renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const mobile = screen.getByRole('navigation', { name: 'Mobile' });
+    expect(mobile).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Join the pilot' }));
+    expect(openSpy).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('nav shows only registered pages', async () => {
     await renderShell();
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(nav.textContent).toContain('Pricing');
     for (const missing of ['Integrations', 'Compare', 'Partners']) expect(nav.textContent).not.toContain(missing);
-    // footer lists only registered pages: none of Product/Legal exist yet in 17b
-    expect(screen.queryByRole('link', { name: 'Privacy' })).toBeNull();
+    // footer lists a legal/product link only when its path is registered
+    const registered = new Set(PAGES.map((p) => p.path));
+    for (const [label, path] of [['Privacy', '/privacy'], ['Terms', '/terms'], ['How it works', '/how-it-works'], ['Sample brief', '/sample-brief']] as const) {
+      expect(screen.queryByRole('link', { name: label }) !== null).toBe(registered.has(path));
+    }
   });
 
   it('social link renders only when its env is set', async () => {
