@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
 import { siteEnv } from '../lib/env';
+import { organizationLd } from '../lib/json-ld';
 import { JoinProvider } from '../components/join/join-provider';
+import { JsonLd } from '../components/seo/json-ld';
 import { AnnouncementBar } from '../components/shell/announcement-bar';
 import { PilotProvider } from '../components/shell/pilot-context';
 import { SiteAnalytics } from '../components/shell/site-analytics';
@@ -22,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <body className="bg-surface text-ink font-sans">
+        <JsonLd data={organizationLd(Object.values(siteEnv.social).filter((v): v is string => !!v))} />
         <PilotProvider>
           <JoinProvider>
             <AnnouncementBar />

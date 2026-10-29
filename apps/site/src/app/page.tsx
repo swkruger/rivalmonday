@@ -9,7 +9,9 @@ import { PricingTeaser } from '../components/home/pricing-teaser';
 import { RealSample } from '../components/home/real-sample';
 import { HomeSectionShell, SectionHeading } from '../components/home/section-heading';
 import { Steps } from '../components/home/steps';
+import { JsonLd } from '../components/seo/json-ld';
 import { SampleBrief } from '../components/sample/sample-brief';
+import { softwareApplicationLd } from '../lib/json-ld';
 import { pageMetadata } from '../lib/metadata';
 
 export const metadata = pageMetadata('/');
@@ -18,6 +20,7 @@ export const metadata = pageMetadata('/');
 export default function HomePage() {
   return (
     <main>
+      <JsonLd data={softwareApplicationLd()} />
       <Hero />
       <HomeSectionShell id="sample" labelledBy="sample-heading">
         <SectionHeading section={SECTIONS.sample} />
