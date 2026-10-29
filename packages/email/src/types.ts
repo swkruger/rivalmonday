@@ -252,6 +252,15 @@ export interface LeadVerifyProps {
   /** Contains the raw verify token, so never log it. */
   verifyUrl: string;
 }
+/** Phase 17a: pilot waitlist confirmation. Always platform-branded. `confirmUrl` holds the raw token, so never log it. */
+export interface WaitlistConfirmationProps {
+  branding: Branding;
+  kind: 'agency' | 'business';
+  contactName: string;
+  orgName: string;
+  confirmUrl: string;
+  sampleBusinessName: string | null;
+}
 export interface LeadConfirmationProps {
   branding: Branding;
   businessName: string;
@@ -300,6 +309,7 @@ export type EmailPayload =
   | { template: 'platform_signup_notice'; props: PlatformSignupNoticeProps }
   | { template: 'lead_verify'; props: LeadVerifyProps }
   | { template: 'lead_confirmation'; props: LeadConfirmationProps }
+  | { template: 'waitlist_confirmation'; props: WaitlistConfirmationProps }
   | { template: 'lead_declined'; props: LeadDeclinedProps }
   | { template: 'lead_new'; props: LeadNewProps }
   | { template: 'agency_plan_change'; props: AgencyPlanChangeProps };

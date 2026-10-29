@@ -72,3 +72,7 @@ export { archiveTenant, type ArchiveResult, liveBilling } from './platform/archi
 // 15c-3a: the agency page words its archive refusal from `get_platform_agency.archiveBlockers` before the tool would refuse.
 export { ARCHIVE_BILLING_MESSAGE } from './tools/platform-agency';
 export { recordSupportAccess, type SupportAccessSurface } from './platform/audit';
+
+// Phase 17a: public waitlist service functions (no session; called by the /waitlist server actions).
+export { CONFIRM_TTL_MS, confirmWaitlistEmail, submitWaitlistEntry, WAITLIST_LIMITS, type WaitlistSubmit, waitlistSubmitSchema } from './waitlist/public';
+export { sendWaitlistEmail, type WaitlistEmailKind } from './waitlist/emails';
