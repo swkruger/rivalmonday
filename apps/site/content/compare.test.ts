@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { effectiveTitle } from '../src/lib/metadata';
 import {
   CAPABILITIES,
@@ -130,7 +130,7 @@ describe('compare facts', () => {
   it('absence is stated in the dated public-pages form', () => {
     for (const r of RIVALS) {
       for (const f of r.facts) {
-        if (/\bdon't list|doesn't list|not stated\b/i.test(f.text)) expect(f.text, f.text).toMatch(/^As of Oct 28, 2026, /);
+        if (/\b(don't list|doesn't list|not stated|not described|not listed)\b/i.test(f.text)) expect(f.text, f.text).toMatch(/^As of Oct 28, 2026, /);
       }
     }
   });
@@ -151,7 +151,27 @@ describe('compare facts', () => {
     expect(enabledRivals(['visualping', 'brightlocal']).map((r) => r.slug)).toEqual(['brightlocal', 'visualping']);
     expect(enabledRivals(['nope', 'birdeye']).map((r) => r.slug)).toEqual(['birdeye']);
     expect(enabledRivals([])).toEqual([]);
-    expect(enabledRivals()).toEqual([]); // siteEnv.comparePages unset in tests: fail closed
+  });
+
+  describe('enabledRivals default reads NEXT_PUBLIC_COMPARE_PAGES', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    it('follows the env list, in RIVALS order', async () => {
+      vi.stubEnv('NEXT_PUBLIC_COMPARE_PAGES', 'visualping, RivalMappd,junk!');
+      vi.resetModules();
+      const m = await import('./compare');
+      expect(m.enabledRivals().map((r) => r.slug)).toEqual(['rivalmappd', 'visualping']);
+    });
+
+    it('unset is empty (fail closed)', async () => {
+      vi.stubEnv('NEXT_PUBLIC_COMPARE_PAGES', '');
+      vi.resetModules();
+      const m = await import('./compare');
+      expect(m.enabledRivals()).toEqual([]);
+    });
   });
 
   it('no data vendor names', () => {

@@ -132,14 +132,14 @@ export const RIVAL_MONDAY: Record<CapabilityKey, OurCell> = {
   gbp: { mark: 'yes', label: "Changes to rivals' Google Business Profiles", ledger: 'cap-gbp' },
   rankings: { mark: 'yes', label: 'Weekly map rankings across the service area', ledger: 'cap-rankings' },
   social: { mark: 'no', ledger: 'cap-social' },
-  weeklyBrief: { mark: 'yes', label: 'A brief every Monday; your team can edit or approve it', ledger: 'cap-weeklyBrief' },
+  weeklyBrief: { mark: 'yes', label: 'A brief every Monday; your team can edit or approve it before it goes out', ledger: 'cap-weeklyBrief' },
   evidenceLinks: { mark: 'yes', label: 'Every claim links to its evidence', ledger: 'cap-evidenceLinks' },
   assistant: { mark: 'yes', label: 'Friday answers with its sources, under the name you choose', ledger: 'cap-assistant' },
   mcp: { mark: 'yes', label: "AI tools that support MCP can read your clients' data", ledger: 'cap-mcp' },
-  api: { mark: 'no', label: 'MCP instead', ledger: 'cap-api' },
+  api: { mark: 'no', ledger: 'cap-api' },
   whiteLabel: {
     mark: 'partial',
-    label: 'Your name, logo, colors, email sender and assistant name; your own web address is on the roadmap',
+    label: 'Your name, logo, colors, email sender name and sign-off, and assistant name; your own web address is on the roadmap',
     ledger: 'cap-whiteLabel',
   },
   reseller: { mark: 'yes', label: 'Bill clients through your own Stripe account', ledger: 'cap-reseller' },
@@ -167,9 +167,10 @@ export const RIVALS: readonly Rival[] = [
         source: 'rmp',
       },
       {
-        text: 'Sells to businesses directly, and says “We offer white-label options for agencies managing multiple clients”, with an “Agency or reseller inquiry?” contact. What the white-label covers is not described.',
+        text: 'Sells to businesses directly, and says “We offer white-label options for agencies managing multiple clients”, with an “Agency or reseller inquiry?” contact.',
         source: 'rmp',
       },
+      { text: notListed('RivalMappd', 'what the white-label options cover'), source: 'rmp' },
       {
         text: 'Monitors Google Business Profiles, reviews (Google, Yelp), local search rankings, and ads from the Meta Ad Library and Google Ads Transparency Center (“every active Meta and Google ad”).',
         source: 'rmp',
@@ -198,7 +199,7 @@ export const RIVALS: readonly Rival[] = [
       { text: 'A brief every Monday, which your team can edit or approve before it goes out.', key: 'weeklyBrief' },
       { text: 'Every claim in the brief links to its evidence.', key: 'evidenceLinks' },
       { text: 'Self-serve software your agency runs for its clients, billed through your own Stripe account.', key: 'reseller' },
-      { text: `Public pricing for agencies: $${P.monthlyUsd}/mo with ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
+      { text: `Agency pricing: $${P.monthlyUsd}/mo with ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
     ],
     cells: {
       websites: U,
@@ -212,7 +213,7 @@ export const RIVALS: readonly Rival[] = [
       assistant: U,
       mcp: U,
       api: U,
-      whiteLabel: { mark: 'partial', label: 'White-label options for agencies; scope not described', source: 'rmp' },
+      whiteLabel: { mark: 'partial', label: 'White-label options for agencies', source: 'rmp' },
       reseller: { mark: 'partial', label: 'Agency or reseller inquiry contact', source: 'rmp' },
       publicPricing: { mark: 'yes', label: 'From $299/mo', source: 'rmp' },
       trial: U,
@@ -224,7 +225,7 @@ export const RIVALS: readonly Rival[] = [
     kind: 'Local-SEO toolkit',
     factsCheckedOn: CHECKED,
     summary:
-      'BrightLocal is a local-SEO toolkit for agencies and businesses: rank tracking, listings audits, reputation tools and white-label reports, priced per location.',
+      'BrightLocal is a local-SEO toolkit for agencies: rank tracking, a Google Business Profile audit, reputation tools and white-label reports, priced per location.',
     facts: [
       {
         text: 'The Track plan includes rank tracking for up to 100 keywords and four competitors, and a Google Business Profile audit benchmarked against competitors.',
@@ -295,8 +296,10 @@ export const RIVALS: readonly Rival[] = [
         source: 'lf',
       },
       { text: 'Lists an MCP server, an API, a Claude Connector and a ChatGPT plugin.', source: 'lf' },
-      { text: 'Auto Scans can be scheduled; the cadence is not described.', source: 'lf' },
-      { text: 'Lists White Label Reports; the plan that includes them is not described.', source: 'lf-price' },
+      { text: 'Auto Scans can be scheduled.', source: 'lf' },
+      { text: notListed('Local Falcon', 'an Auto Scan cadence'), source: 'lf' },
+      { text: 'Lists White Label Reports.', source: 'lf-price' },
+      { text: notListed('Local Falcon', 'which plan includes White Label Reports', 'pricing page'), source: 'lf-price' },
     ],
     pricing: [
       { text: 'Starter $24.99, Basic $49.99, Pro $99.99 and Premium $199.99 per month (credit-based).', source: 'lf-price' },
@@ -347,7 +350,8 @@ export const RIVALS: readonly Rival[] = [
       },
       { text: 'It sits under Robin (“CX coworker”) and is aimed at “local brands”.', source: 'be' },
       { text: notListed('Birdeye', 'website, ad or ranking monitoring', 'Competitors AI page'), source: 'be' },
-      { text: 'Describes “real-time tracking”; a report schedule is not described.', source: 'be' },
+      { text: 'Describes “real-time tracking”.', source: 'be' },
+      { text: notListed('Birdeye', 'a report schedule', 'Competitors AI page'), source: 'be' },
       {
         text: 'Its reseller program lets agencies “whitelabel the platform or use it in a co-branded way”, with an agency dashboard and a partner success manager.',
         source: 'be-res',
@@ -417,7 +421,6 @@ export const RIVALS: readonly Rival[] = [
     ],
     betterAt: [
       'Monitoring any web page, not just local businesses.',
-      'Checks on a schedule you choose.',
       'Side-by-side screenshots of each change.',
       'A REST API and an MCP server on every plan, including the free one.',
       'A free tier.',
@@ -482,7 +485,7 @@ export const CATEGORY_TABLE: { columns: string[]; rows: { label: string; cells: 
     {
       label: 'Under your brand',
       cells: [
-        'Your name, logo, colors, email sender and assistant name; your own web address is on the roadmap',
+        'Your name, logo, colors, email sender name and sign-off, and assistant name; your own web address is on the roadmap',
         'Your own templates',
         'Typically white-label reports',
         'Typically through a reseller program',
