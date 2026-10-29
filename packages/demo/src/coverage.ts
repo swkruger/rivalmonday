@@ -357,6 +357,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'list_invite_links', input: none, path: 'links', expect: 'empty', why: 'the demo seeds no invite links' },
       { tool: 'get_connect_overview', input: none, path: 'agencies' },
       { tool: 'get_signups_paused', input: none, path: 'paused', expect: 'empty', why: 'open sign-up is not paused in the demo' },
+      { tool: 'get_pilot_settings', input: none, path: 'pilotMode', expect: 'empty', why: 'pilot mode is off in the demo' },
       // The mid-wizard demo agency counts as one open sign-up.
       { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups' },
     ],
