@@ -70,6 +70,9 @@ const agencyNotice = (notice: AgencyNoticeProps['notice'], title: string, lines:
   id: `agency_notice.${notice}`, label: `Agency notice: ${notice}`,
   payload: { template: 'agency_notice', props: { branding: agency, recipientName: PERSON, clientName: CLIENT, notice, title, lines, link: `${APP}/l/notice`, actionLabel } },
 });
+const BILLING_KINDS = ['trial_started', 'trial_ending_7', 'trial_ending_1', 'trial_ended', 'payment_failed', 'service_paused', 'account_suspended', 'account_reactivated', 'pilot_ending_7'] as const satisfies readonly BillingNoticeKind[];
+/** Compile-time: a new `BillingNoticeKind` missing from BILLING_KINDS is a type error. */
+export const BILLING_KINDS_EXHAUSTIVE: Exclude<BillingNoticeKind, (typeof BILLING_KINDS)[number]> extends never ? true : false = true;
 const billing = (kind: BillingNoticeKind): EmailPreview => ({
   id: `billing_notice.${kind}`, label: `Billing notice: ${kind}`,
   payload: { template: 'billing_notice', props: { branding: platform, kind, agencyName: AGENCY, date: '2026-11-13', billingUrl: `${APP}/agency/settings/billing` } },
@@ -110,6 +113,7 @@ export const EMAIL_PREVIEWS: readonly EmailPreview[] = [
   { id: 'alert.feedback', label: 'Competitor alert with feedback line', payload: { template: 'alert', props: { ...alertProps, feedback: sam } } },
   { id: 'alert.feedback_no_name', label: 'Competitor alert, feedback line without a name', payload: { template: 'alert', props: { ...alertProps, feedback: { email: 'hello@example.com', name: null } } } },
   { id: 'alert_digest', label: 'Alert digest', payload: { template: 'alert_digest', props: { branding: agency, recipientName: null, clientName: CLIENT, date: '2026-10-05', link: `${APP}/l/digest`, alerts: [1, 2, 3].map((n) => ({ competitorName: 'Harbor Dental', headline: `Headline ${n}`, body: `Body ${n}`, link: `${APP}/l/${n}` })) } } },
+  { id: 'alert_digest.single', label: 'Alert digest, one alert', payload: { template: 'alert_digest', props: { branding: agency, recipientName: null, clientName: CLIENT, date: '2026-10-05', link: `${APP}/l/digest`, alerts: [{ competitorName: 'Harbor Dental', headline: 'Headline 1', body: 'Body 1', link: `${APP}/l/1` }] } } },
   { id: 'brief', label: 'Weekly brief', payload: { template: 'brief', props: brief } },
   { id: 'brief.feedback', label: 'Weekly brief with feedback line', payload: { template: 'brief', props: { ...brief, feedback: sam } } },
   { id: 'brief.quiet', label: 'Weekly brief, quiet week', payload: { template: 'brief', props: { ...brief, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [] } } },
@@ -152,18 +156,11 @@ export const EMAIL_PREVIEWS: readonly EmailPreview[] = [
   spend('spike_paused'),
   ops('generation_closed', 'warning'),
   ops('generation_closed', 'critical'),
+  { id: 'platform_ops_alert.many', label: 'Ops alert: more clients than the list shows ("and N more")', payload: { template: 'platform_ops_alert', props: { branding: platform, checkpoint: 'generation_closed', severity: 'warning', deliveryDate: '2026-10-26', clients: Array.from({ length: 23 }, (_, i) => ({ clientName: `Demo Client ${i + 1}`, agencyName: AGENCY })), healthUrl: `${APP}/platform/health` } } },
   ops('pre_delivery', 'warning'),
   ops('pre_delivery_unapproved', 'warning'),
   ops('starting_point_late', 'warning'),
-  billing('trial_started'),
-  billing('trial_ending_7'),
-  billing('trial_ending_1'),
-  billing('trial_ended'),
-  billing('payment_failed'),
-  billing('service_paused'),
-  billing('account_suspended'),
-  billing('account_reactivated'),
-  billing('pilot_ending_7'),
+  ...BILLING_KINDS.map(billing),
   agencyClientBilling('client-payment-failed'),
   agencyClientBilling('client-paid'),
   agencyClientBilling('client-auto-paused'),

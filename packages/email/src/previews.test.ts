@@ -51,3 +51,16 @@ describe('email previews', () => {
     }
   });
 });
+
+describe('billing_notice previews', () => {
+  it('one preview per BillingNoticeKind', () => {
+    const kinds = EMAIL_PREVIEWS.filter((p) => p.payload.template === 'billing_notice').map((p) => (p.payload.props as { kind: string }).kind);
+    expect(new Set(kinds).size).toBe(9);
+    expect(kinds).toHaveLength(9);
+  });
+  it('digest and ops variants exist', () => {
+    const ids = EMAIL_PREVIEWS.map((p) => p.id);
+    expect(ids).toContain('alert_digest.single');
+    expect(ids).toContain('platform_ops_alert.many');
+  });
+});
