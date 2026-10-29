@@ -1,29 +1,6 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-const APP = 'https://app.e2e.test';
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type' };
-const COUNTERS = { rivalSitesWatched: 120, snapshotsThisWeek: 940, claimsChecked: 2300, claimsDropped: 41 };
-
-type Mocks = { pilotMode?: boolean; counters?: typeof COUNTERS | null; waitlist?: { status: number; body: unknown } };
-
-/** Routes the app's two public endpoints (no real network). Returns the waitlist request bodies seen. */
-async function mockApp(page: Page, m: Mocks = {}): Promise<unknown[]> {
-  const bodies: unknown[] = [];
-  const reply = (route: Route, status: number, body: unknown) =>
-    route.fulfill({ status, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
-  await page.route(`${APP}/api/site-status`, (route) =>
-    route.request().method() === 'OPTIONS'
-      ? route.fulfill({ status: 204, headers: CORS })
-      : reply(route, 200, { pilotMode: m.pilotMode ?? true, counters: m.counters === undefined ? COUNTERS : m.counters }),
-  );
-  await page.route(`${APP}/api/waitlist`, (route) => {
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
-    bodies.push(route.request().postDataJSON());
-    const w = m.waitlist ?? { status: 200, body: { ok: true } };
-    return reply(route, w.status, w.body);
-  });
-  return bodies;
-}
+import { APP, mockApp, overflow } from './helpers';
 
 const dialog = (page: Page) => page.getByRole('dialog');
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1440) < 1024;
@@ -36,10 +13,6 @@ async function openJoin(page: Page) {
     await page.locator('header').getByRole('button', { name: 'Join the pilot' }).click();
   }
   await expect(dialog(page).getByRole('heading', { name: 'Join the Rival Monday pilot' })).toBeVisible();
-}
-
-async function overflow(page: Page) {
-  return page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
 }
 
 const firstClaim = (page: Page) => page.locator('[data-item] button[aria-haspopup="dialog"]').first();

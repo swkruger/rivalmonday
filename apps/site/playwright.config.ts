@@ -10,6 +10,8 @@ const BUILD = process.env.E2E_SKIP_BUILD === '1' ? '' : 'pnpm build && ';
 const SERVER_ENV = {
   NEXT_PUBLIC_APP_URL: MOCK_APP_URL,
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: '',
+  /** Same value as the CI `site` job's build env (so `E2E_SKIP_BUILD=1` reuses it); Visualping is off on purpose. */
+  NEXT_PUBLIC_COMPARE_PAGES: 'rivalmappd,brightlocal,local-falcon,birdeye',
   // Blank: no `<Analytics />`, and a non-production build (robots disallows everything).
   VERCEL_ENV: '',
 };
