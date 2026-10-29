@@ -70,6 +70,15 @@ export const PAGES: readonly SitePage[] = [
     priority: 0.8,
   },
   {
+    path: '/partners',
+    title: 'Partners',
+    description: 'Resell Rival Monday under your own brand: you set your client prices and bill through your own Stripe account.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+    crumb: 'Partners',
+  },
+  {
     path: '/privacy',
     title: 'Privacy',
     description: 'What the waitlist form collects, why, and who helps us run the site.',
