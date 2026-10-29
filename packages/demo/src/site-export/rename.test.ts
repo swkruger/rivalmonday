@@ -85,6 +85,19 @@ describe('guard', () => {
     }
     expect(g({ s: 'Up 12 percent in 3 weeks, 4.8 stars' })).toEqual([]);
   });
+  it('ordinary prose is not a street or route', () => {
+    for (const s of ['3 new patients per Dr. Lee', 'Top 3 moves drive calls', '5 ways to drive growth', '50% of the way', '12 St. Patrick\'s Day promos', 'US 2026 trends', 'US 100 agencies']) {
+      expect(g({ s }), s).toEqual([]);
+    }
+    expect(g({ s: 'at 9 Oak Lane' }).map((h) => h.reason)).toContain('street');
+    expect(g({ s: 'on US-377 and US Hwy 67' }).map((h) => h.reason)).toContain('street');
+  });
+  it('seed street addresses are renamed and pass the guard', () => {
+    const r = buildRenamer({ client: 'Lone Star Cooling', businesses: [], places: [...DEMO_PLACES], domains: [] });
+    for (const addr of ['14 Paluxy Rd, Tolar, TX 76476', '412 Cedar Creek Rd, Granbury, TX 76048']) {
+      expect(guard(r.apply(addr), [...DEMO_PLACES, ...DEMO_ZIPS], new Set()), addr).toEqual([]);
+    }
+  });
   it('checks object keys, multi-word spacing, bare TX / Texans, .test domains and phone forms', () => {
     expect(g({ 'Granbury Pros': 'x' }, ['Granbury'])).toEqual([{ path: '$.<key:Granbury Pros>', reason: 'term:Granbury' }]);
     for (const v of ['Lone  Star', 'Lone\nStar', 'Lone Star']) expect(g({ a: v }, ['Lone Star']).map((h) => h.reason)).toEqual(['term:Lone Star']);

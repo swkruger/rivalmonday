@@ -19,7 +19,7 @@ export const STATE_TERMS: Readonly<Record<string, string>> = { 'North Texas': `N
 /** Towns, counties and streets the demo seed emits (tenancy, rankings, leads, setup, ads, changes). The exporter
  *  passes them as `places` and the guard denies them, so a place the exporter forgets still fails the export. */
 export const DEMO_PLACES = ['Granbury', 'Acton', 'Tolar', 'Lipan', 'Stephenville', 'Weatherford', 'Glen Rose', 'Cresson', 'Pecan Plantation',
-  'Hood County', 'Hood Co', 'Hill Country', 'Brazos Valley', 'Brazos', 'Paluxy', 'Pearl St', 'Houston St', 'Lake Country', 'Tarrant Valley',
+  'Hood County', 'Hood Co', 'Hill Country', 'Brazos Valley', 'Brazos', 'Paluxy Rd', 'Cedar Creek Rd', 'Paluxy', 'Pearl St', 'Houston St', 'Lake Country', 'Tarrant Valley',
   'Cleburne', 'Comanche Peak', 'Stockton Bend', 'Harbor Lakes', 'Mesquite'] as const;
 /** ZIPs the seed uses. The renamer blanks every 5-digit number; the guard denies these as terms rather than flagging all 5-digit numbers (that would hit legitimate figures). */
 export const DEMO_ZIPS = ['76048', '76049', '76050', '76031', '76033', '76476', '76462'] as const;
@@ -34,7 +34,7 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const words = (s: string) => s.trim().split(/\s+/).map(esc).join('\\s+'); // multi-word terms match across newlines, double spaces and NBSP
 const norm = (s: string) => s.replace(/\s+/g, ' ').toLowerCase();
 const PHONE = /(?<![\da-z])(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}(?![\da-z])/i;
-const matchCase =(found: string, repl: string) => (found === found.toLowerCase() ? repl.toLowerCase() : repl);
+const matchCase = (found: string, repl: string) => (found === found.toLowerCase() ? repl.toLowerCase() : repl);
 const derive = (stems: readonly string[], tails: readonly string[], sep: string, i: number, kind: string) => {
   if (i >= stems.length * tails.length) throw new Error(`rename: more than ${stems.length * tails.length} ${kind}`);
   return `${stems[i % stems.length]}${sep}${tails[Math.floor(i / stems.length)]}`;
@@ -73,8 +73,10 @@ export function buildRenamer(src: RenameSources): Renamer {
 export interface GuardHit { path: string; reason: string }
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/;
-const STREET = /\b\d{1,5}\s+(?:[NSEW]\.?\s+)?(?:[a-z0-9]+\s+){1,3}(?:St|Street|Rd|Road|Ave|Avenue|Hwy|Highway|Blvd|Dr|Drive|Ln|Lane|Way|Pkwy|Loop|Ct|Cir|Trl|Pl)\b/i;
-const ROUTE = /\b(?:FM|US|SH|[Hh]wy)[- ]?\d{1,4}\b/;
+// Unambiguous suffixes match in any case ("412 cedar creek rd"); ambiguous ones (Dr, Way, Lane, ...) are also ordinary words, so they need Capitalised street words and suffix.
+const STREET = /\b\d{1,5}\s+(?:[NSEW]\.?\s+)?(?:[a-z0-9]+\s+){1,3}(?:St|Street|Rd|Road|Ave|Avenue|Blvd|Pkwy|Hwy|Highway|Trl)\b/i;
+const STREET_AMBIGUOUS = /\b\d{1,5}\s+(?:[NSEW]\.?\s+)?(?:[A-Z][A-Za-z0-9]*\s+){1,3}(?:Dr|Drive|Way|Lane|Ln|Loop|Ct|Pl|Cir)\b/;
+const ROUTE = /\b(?:FM|SH|[Hh]wy)[- ]?\d{1,4}\b|\bUS-\d{1,3}\b|\bUS\s(?:Hwy|Highway)\s\d{1,3}\b/;
 const STATE = /,\s?(?:TX|Texas)\b|\bTexas\b|\bTX\b|\bTexans?\b/;
 
 /** Walks every string value; any hit fails the export. `deny` = every source term plus extra known-real words. */
@@ -85,7 +87,7 @@ export function guard(value: unknown, deny: readonly string[], allowDomains: Rea
     if (UUID.test(value)) hits.push({ path, reason: 'uuid' });
     if (EMAIL.test(value)) hits.push({ path, reason: 'email' });
     if (PHONE.test(value.replaceAll('(555) 010-0100', ''))) hits.push({ path, reason: 'phone' }); // a real phone beside the placeholder still fails
-    if (STREET.test(value)) hits.push({ path, reason: 'street' });
+    if (STREET.test(value) || STREET_AMBIGUOUS.test(value)) hits.push({ path, reason: 'street' });
     if (ROUTE.test(value)) hits.push({ path, reason: 'street' });
     if (STATE.test(value)) hits.push({ path, reason: 'state' });
     for (const m of value.matchAll(/\b([a-z0-9-]+\.(?:example|com|net|org|test))\b/gi)) if (!allowDomains.has(m[1]!.toLowerCase())) hits.push({ path, reason: `domain:${m[1]}` });
