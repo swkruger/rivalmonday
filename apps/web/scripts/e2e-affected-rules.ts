@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -112,6 +112,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}\\(platform\\)/platform/leads/`), tags: ['@leads', '@platform'], why: 'platform lead pool and assign form' },
   { pattern: /^packages\/tools\/src\/(?:intake\/|tools\/(?:platform-)?leads\.ts$)/, tags: ['@leads'], why: 'public intake functions, lead tools, preview and lead email' },
+  { pattern: re(`${APP}(?:api/waitlist/|waitlist/)`), tags: ['@waitlist'], why: 'public waitlist endpoint, confirm link and confirmed page (17a)' },
   { pattern: re(`${APP}start/`), tags: ['@leads'], why: 'public client intake pages (intake form, verify link, preview)' },
   { pattern: re(`(?:${APP}u/|${SERVER}unsubscribe\\.ts$)`), tags: [], why: 'setup-tip unsubscribe pages (public, no E2E yet)' },
   { pattern: re(`${APP}(?:l/|go/|files/)`), tags: GUEST_FILES, why: 'signed links and stored files' },
