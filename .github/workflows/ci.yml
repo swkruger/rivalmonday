@@ -165,10 +165,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Refuse while placeholders remain
         run: pnpm --filter @cs/site check:placeholders
-      - name: Refuse while enabled compare pages have stale facts (> 90 days)
+      - name: Refuse while any rival's facts are stale (> 90 days)
         run: pnpm --filter @cs/site check:facts
         env:
-          NEXT_PUBLIC_COMPARE_PAGES: ${{ vars.NEXT_PUBLIC_COMPARE_PAGES }}
+          # All rivals, whether or not their page is on.
+          NEXT_PUBLIC_COMPARE_PAGES: rivalmappd,brightlocal,local-falcon,birdeye,visualping
       - name: Vercel pull
         run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:

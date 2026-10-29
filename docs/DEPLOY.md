@@ -89,10 +89,10 @@ Second Vercel project (`apps/site`); it holds no secrets (public `NEXT_PUBLIC_*`
 
 ### Compare pages on/off
 Named compare pages stay off until counsel signs off. Before "no platform fee" copy ships, confirm the Stripe Connect fee is 0. Re-check the facts within 7 days of first publish (spec § 7.5).
-1. Change `NEXT_PUBLIC_COMPARE_PAGES` in Vercel (Production), and set the same value as GitHub repo variable `NEXT_PUBLIC_COMPARE_PAGES` (the `check:facts` gate reads it).
+1. Change `NEXT_PUBLIC_COMPARE_PAGES` in Vercel (Production).
 2. GitHub → Actions → latest `main` `ci` run → `deploy-site` → *Re-run this job*.
 3. After 30 days the run expires: in `apps/site` with the site project linked, `vercel pull --environment=production && vercel build --prod && vercel deploy --prebuilt --prod`.
-`deploy-site` refuses while an enabled page's facts are more than 90 days old.
+`deploy-site` checks all five rivals' facts (on or off): a rival older than 90 days blocks the deploy until its facts are re-checked or it is removed from `content/compare.ts`.
 
 ## Archive and purge
 Offboarding a tenant (commands: `docs/OPS.md` § Archive and purge): cancel its Stripe subscription, `archive <agency|client> <id>` (undoable), after the grace period `purge-archived --older-than 90d --dry-run`, then without `--dry-run`. Run with the prod `SERVICE_DATABASE_URL`; purge is irreversible.
