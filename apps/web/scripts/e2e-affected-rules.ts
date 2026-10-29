@@ -111,6 +111,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}(?:sign-up/|join/|onboarding/start/)`), tags: ['@auth', '@onboarding'], why: 'agency sign-up, invite-link redemption and the sign-up callback' },
   { pattern: re(`${APP}(?:sign-in/|api/auth/|link-[^/]+/|no-access/|page\\.tsx$)`), tags: ['@auth'], why: 'sign-in and link-error pages' },
   { pattern: re(`${APP}\\(platform\\)/platform/leads/`), tags: ['@leads', '@platform'], why: 'platform lead pool and assign form' },
+  { pattern: re(`${APP}\\(platform\\)/platform/waitlist/`), tags: ['@platform'], why: 'platform waitlist page and table (17a)' },
+  { pattern: /^packages\/tools\/src\/tools\/platform-waitlist\.ts$/, tags: ['@platform'], why: 'list_waitlist tool (17a)' },
   { pattern: /^packages\/tools\/src\/(?:intake\/|tools\/(?:platform-)?leads\.ts$)/, tags: ['@leads'], why: 'public intake functions, lead tools, preview and lead email' },
   { pattern: re(`${APP}(?:api/waitlist/|api/site-status/|waitlist/)`), tags: ['@waitlist'], why: 'public waitlist and site-status endpoints, confirm link and confirmed page (17a)' },
   { pattern: re(`${APP}start/`), tags: ['@leads'], why: 'public client intake pages (intake form, verify link, preview)' },

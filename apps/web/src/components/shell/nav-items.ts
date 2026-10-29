@@ -14,7 +14,7 @@ export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavC
 export type IconKey =
   | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
   | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'topics' | 'prospects' | 'ask' | 'knowledge'
-  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'intake' | 'briefs' | 'settings' | 'catalogue';
+  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'waitlist' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
 export interface NavItem {
   href: string;
@@ -43,6 +43,8 @@ export interface NavCounts {
   leads?: number;
   modelReviews?: number;
   topics?: number;
+  /** Phase 17a: confirmed new waitlist entries plus confirmed sample requests (Waitlist badge). */
+  waitlist?: number;
   /** Phase 14a: business types and services waiting for operator review (Business types badge). */
   catalog?: number;
 }
@@ -118,6 +120,7 @@ function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
     section('customers', 'Customers', (add) => {
       add('/platform/agencies', 'Agencies', 'agencies');
       add('/platform/leads', 'Lead pool', 'leads');
+      add('/platform/waitlist', 'Waitlist', 'waitlist', { count: counts.waitlist });
     }),
     section('revenue', 'Revenue', (add) => add('/platform/billing', 'Billing & plans', 'billing')),
     section('quality', 'Quality', (add) => {

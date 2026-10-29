@@ -1,4 +1,4 @@
-import { intakeLink, lead, type LeadPreview, type SetupLookup } from '@cs/db';
+import { intakeLink, lead, type LeadPreview, type SetupLookup, waitlistEntry } from '@cs/db';
 import { snapshotFacts } from '@cs/tools';
 import type { SeedContext } from './context';
 import { DEMO_DOMAIN } from './users';
@@ -74,4 +74,15 @@ export async function seedLeads(ctx: SeedContext): Promise<void> {
     },
   ];
   await db.insert(lead).values(rows);
+
+  // Phase 17a: the pilot waitlist the platform Waitlist page lists (an agency with a sample request, a business, an unconfirmed agency).
+  const wl = (days: number) => ({ ipHash: 'demo', createdAt: clock.daysAgo(days), updatedAt: clock.daysAgo(days) });
+  await db.insert(waitlistEntry).values([
+    {
+      ...wl(2), kind: 'agency', contactName: 'Wes Waitlist', email: `wes@northstar-marketing.${DEMO_DOMAIN}`, orgName: 'North Star Marketing', clientCountBand: '6-15',
+      emailConfirmedAt: clock.daysAgo(2), sampleRequested: true, sampleStatus: 'requested', sampleBusinessName: 'Oakridge Family Dental', sampleLocation: 'Granbury, TX',
+    },
+    { ...wl(3), kind: 'business', contactName: 'Bea Business', email: `bea@bluebonnet-hvac.${DEMO_DOMAIN}`, orgName: 'Bluebonnet Heating & Air', verticalId: 'hvac_plumbing', location: 'Granbury, TX', emailConfirmedAt: clock.daysAgo(3) },
+    { ...wl(1), kind: 'agency', contactName: 'Una Unconfirmed', email: `una@lakeshore-seo.${DEMO_DOMAIN}`, orgName: 'Lakeshore SEO', clientCountBand: '1-5' },
+  ]);
 }

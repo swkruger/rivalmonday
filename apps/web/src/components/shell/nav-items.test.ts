@@ -25,12 +25,12 @@ describe('navFor platform', () => {
     const s = navFor('platform', operator, null);
     expect(labels(s)).toEqual([
       ['top', null, ['Overview']],
-      ['customers', 'Customers', ['Agencies', 'Lead pool']],
+      ['customers', 'Customers', ['Agencies', 'Lead pool', 'Waitlist']],
       ['revenue', 'Revenue', ['Billing & plans']],
       ['quality', 'Quality', ['Model reviews', 'Topic proposals', 'Ask reviews']],
       ['content', 'Content', ['Knowledge', 'Business types', 'Runbook']],
     ]);
-    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/billing', '/platform/reviews', '/platform/topics', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
+    expect(hrefs(s)).toEqual(['/platform', '/platform/agencies', '/platform/leads', '/platform/waitlist', '/platform/billing', '/platform/reviews', '/platform/topics', '/platform/ask', '/platform/knowledge', '/platform/verticals', '/platform/runbook']);
     expect(s[0]!.placement).toBe('top');
   });
 
@@ -48,6 +48,15 @@ describe('navFor platform', () => {
     expect(navFor('platform', agencyAdmin, null)).toEqual([]);
     expect(navFor('platform', { ...agencyAdmin, isPlatformOwner: true }, null)).toEqual([]);
     expect(navFor('platform', clientOwner, null)).toEqual([]);
+  });
+
+  it('shows Waitlist with its badge for operators only', () => {
+    expect(item(navFor('platform', operator, null, { waitlist: 3 }), 'Waitlist')).toMatchObject({ href: '/platform/waitlist', icon: 'waitlist', count: 3 });
+    expect(item(navFor('platform', operator, null, { waitlist: 0 }), 'Waitlist')).not.toHaveProperty('count');
+    expect(item(navFor('platform', operator, null), 'Waitlist')).not.toHaveProperty('count');
+    for (const flags of [agencyAdmin, clientOwner]) {
+      for (const ctx of ['platform', 'agency', 'client'] as const) expect(hrefs(navFor(ctx, flags, 'c1', { waitlist: 3 }))).not.toContain('/platform/waitlist');
+    }
   });
 
   it('puts queue counts on the quality items and hides badges at 0', () => {

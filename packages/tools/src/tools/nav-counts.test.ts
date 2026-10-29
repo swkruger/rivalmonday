@@ -131,10 +131,10 @@ describe('get_platform_nav_counts', () => {
 
   it('counts exactly the open rows the platform queue pages list', async () => {
     const counts = await call<PlatformCounts>(op, 'get_platform_nav_counts');
-    expect(counts).toEqual({ modelReviews: 2, topics: 2 });
+    expect(counts).toEqual({ modelReviews: 2, topics: 2, waitlist: 0 });
     const reviews = (await call<{ items: unknown[] }>(op, 'list_decision_reviews')).items;
     const topics = (await call<{ pending: unknown[] }>(op, 'list_topic_proposals')).pending;
-    expect(counts).toEqual({ modelReviews: reviews.length, topics: topics.length });
+    expect(counts).toEqual({ modelReviews: reviews.length, topics: topics.length, waitlist: 0 });
   });
 
   it('looks unknown to non-operators (agency admins, client users)', async () => {

@@ -364,6 +364,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   },
   { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },
   { route: '/platform/leads', as: 'operator', calls: [{ tool: 'list_pool_leads', input: none, path: 'leads' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
+  { route: '/platform/waitlist', as: 'operator', calls: [{ tool: 'list_waitlist', input: none, path: 'entries' }] },
   { route: '/platform/health', as: 'operator', calls: [{ tool: 'get_platform_health', input: none, path: 'sources' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },
   { route: '/platform/ask', as: 'operator', calls: [{ tool: 'fn:listReviewableAskThreads', input: none, path: 'items' }] },
   { route: '/platform/ask/[threadId]', as: 'operator', calls: [{ tool: 'fn:getReviewableAskThread', input: (ids) => ({ threadId: ids.ask.ownerLoneStar }), path: 'messages.*.trace' }] },
@@ -412,7 +413,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/c/[clientId]/settings/runbook', '/c/[clientId]/settings/usage', '/c/[clientId]/setup',
   '/platform', '/platform/agencies', '/platform/agencies/[id]', '/platform/ask', '/platform/ask/[threadId]', '/platform/billing', '/platform/costs',
   '/platform/health', '/platform/knowledge', '/platform/knowledge/new', '/platform/knowledge/[id]', '/platform/leads', '/platform/reviews',
-  '/platform/runbook', '/platform/topics', '/platform/verticals',
+  '/platform/runbook', '/platform/topics', '/platform/verticals', '/platform/waitlist',
 ];
 const guideCallFor = (route: string): CoverageCall =>
   route.startsWith('/c/') ? lsGuides

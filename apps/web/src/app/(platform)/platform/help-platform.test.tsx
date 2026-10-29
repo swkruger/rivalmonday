@@ -59,6 +59,7 @@ const { default: Agencies } = await import('./agencies/page');
 const { default: AgencyDetail } = await import('./agencies/[id]/page');
 const { default: Billing } = await import('./billing/page');
 const { default: Leads } = await import('./leads/page');
+const { default: Waitlist } = await import('./waitlist/page');
 const { default: Reviews } = await import('./reviews/page');
 const { default: Topics } = await import('./topics/page');
 const { default: Ask } = await import('./ask/page');
@@ -100,6 +101,8 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   get_signup_funnel: { open: funnel, invite: funnel },
   get_connect_overview: connect,
   list_pool_leads: { leads: [], agencies: [], recentAssignments: [], nextCursor: null, prevCursor: null, total: 0 },
+  get_pilot_settings: { pilotMode: false, sampleBriefMonthlyLimit: 10 },
+  list_waitlist: { entries: [], nextCursor: null, prevCursor: null, total: 0, counts: { agencyNew: 0, businessNew: 0, sampleRequested: 0 }, sampleMonth: { used: 0, limit: 10 }, estimate: { discoveryCapUsd: 3, startingPointAvgUsd: null, basedOn: 0 } },
   list_decision_reviews: { items: [], nextCursor: null, prevCursor: null, total: 0 },
   list_topic_proposals: { pending: [], decided: [] },
   ask_list: { items: [], nextCursor: null },
@@ -133,6 +136,7 @@ const PAGES: [string, () => Promise<React.ReactNode>, string[]][] = [
   ['platform.agencies.detail', () => AgencyDetail({ params: Promise.resolve({ id: AG }), searchParams: Promise.resolve({}) }), []],
   ['platform.billing', () => Billing({ searchParams: Promise.resolve({}) }), ['plans', 'codes', 'restrict', 'signup', 'links', 'connect']],
   ['platform.leads', () => Leads({ searchParams: Promise.resolve({}) }), []],
+  ['platform.waitlist', () => Waitlist({ searchParams: Promise.resolve({}) }), []],
   ['platform.reviews', () => Reviews({ searchParams: Promise.resolve({}) }), []],
   ['platform.topics', () => Topics(), []],
   ['platform.ask', () => Ask({ searchParams: Promise.resolve({}) }), []],

@@ -232,6 +232,32 @@ export const PLATFORM_COPY = {
       },
     },
   },
+  'platform.waitlist': {
+    // source: apps/web/src/app/(platform)/platform/waitlist/page.tsx; packages/tools/src/tools/platform-waitlist.ts:listWaitlistTool
+    description: 'People who joined the pilot waitlist from the public website. Invite agencies, pass businesses to an agency and build sample briefs.',
+    tips: {
+      // source: packages/tools/src/tools/platform-waitlist.ts:waitlistNewWhere (status new and email confirmed; unconfirmed rows are listed but never counted)
+      about: {
+        title: 'About the list',
+        body: 'Only entries whose email address is confirmed can be invited, assigned or given a sample. Unconfirmed entries are shown so you can see demand.',
+        audience: 'operator',
+        guideAnchor: 'what-this-page-tells-you',
+      },
+      // source: docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md (sample briefs); packages/tools/src/tools/platform-waitlist.ts (stage)
+      sample: {
+        title: 'Sample briefs',
+        body: 'Approving a sample creates the business in the Samples agency and opens its setup. Run setup as usual, approve the starting point in Approvals, then press Send sample here.',
+        audience: 'operator',
+        guideAnchor: 'how-to-use-it',
+      },
+    },
+    empty: {
+      agencies: { title: 'No agencies yet', body: 'Agencies that join the waitlist from the public website appear here.', audience: 'operator' },
+      businesses: { title: 'No businesses yet', body: 'Local businesses that join the waitlist from the public website appear here.', audience: 'operator' },
+      samples: { title: 'No sample requests yet', body: 'Agencies that ask for a sample brief when they join appear here.', audience: 'operator' },
+      search: { title: 'No matches', body: 'Nothing on the waitlist matches that search.', audience: 'operator' },
+    },
+  },
   'platform.reviews': {
     // source: apps/web/src/app/(platform)/platform/reviews/page.tsx (the page's existing description)
     description: 'Decisions the models weren’t sure about. Your answer fixes the event and becomes a gold label.',

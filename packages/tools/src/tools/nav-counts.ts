@@ -6,6 +6,7 @@ import type { ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
 import { countAlertsAwaitingReview } from './alert-queue';
 import { countNewLeads } from './leads';
+import { waitlistCounts } from './platform-waitlist';
 import { countBriefsAwaitingReview } from './review';
 import { countPendingTopicProposals } from './topics';
 
@@ -39,7 +40,7 @@ export const getPlatformNavCounts = defineTool({
   access: 'read',
   description: 'Platform operators: badge counts for the platform menu — open model reviews and pending topic proposals.',
   input: z.object({}),
-  output: z.object({ modelReviews: n, topics: n }),
+  output: z.object({ modelReviews: n, topics: n, waitlist: n }),
   permission: 'agency',
   async handler(ctx, _input, deps) {
     try {
@@ -49,9 +50,12 @@ export const getPlatformNavCounts = defineTool({
       if (e instanceof ToolError && e.code === 'permission_denied') throw new ToolError('not_found', 'Unknown tool: get_platform_nav_counts');
       throw e;
     }
+    // Waitlist badge = confirmed new entries + confirmed sample requests (the same helper the Waitlist page's tab counts use).
+    const w = await waitlistCounts(deps.service);
     return {
       modelReviews: await countOpenReviews(deps.service),
       topics: await countPendingTopicProposals(deps.service),
+      waitlist: w.agencyNew + w.businessNew + w.sampleRequested,
     };
   },
 });

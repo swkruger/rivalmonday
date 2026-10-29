@@ -189,6 +189,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_pilot_settings: platform(),
   get_signup_funnel: platform(() => ({ days: 30 })),
   list_pool_leads: platform(),
+  list_waitlist: platform(),
   list_catalog_review: platform(),
   count_catalog_review: platform(),
   list_agency_people: platform((w) => ({ agencyId: w.ids.agencyA })),

@@ -1,5 +1,5 @@
 import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
-import type { AGENCY_KINDS, AlertStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AGENCY_KINDS, AlertStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { MoveRow, StepState } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
@@ -53,6 +53,32 @@ export const LEAD_STATUS: LabelMap<LeadStatus> = {
   accepted: e('Accepted', 'success'),
   declined: e('Declined', 'danger'),
   expired: e('Expired'),
+};
+
+// WAITLIST_STATUSES (packages/db/src/schema/waitlist.ts)
+export const WAITLIST_STATUS: LabelMap<WaitlistStatus> = {
+  new: e('New', 'info'),
+  invited: e('Invited', 'success'),
+  assigned: e('Assigned', 'success'),
+  declined: e('Declined'),
+};
+
+// SAMPLE_STATUSES (packages/db/src/schema/waitlist.ts)
+export const SAMPLE_STATUS: LabelMap<SampleStatus> = {
+  requested: e('Requested', 'warning'),
+  approved: e('In progress', 'info'),
+  sent: e('Sent', 'success'),
+  declined: e('Declined'),
+  failed: e('Stopped', 'danger'),
+};
+
+// Where an approved sample brief stands (derived by list_waitlist from the sample client's starting-point brief)
+export const SAMPLE_STAGE: LabelMap<'setup' | 'generating' | 'review' | 'ready_to_send' | 'sent'> = {
+  setup: e('Set up the client', 'info'),
+  generating: e('Brief being built', 'info'),
+  review: e('Brief ready to review', 'warning'),
+  ready_to_send: e('Ready to send', 'warning'),
+  sent: e('Sent', 'success'),
 };
 
 // ALERT_STATUSES (packages/db/src/schema/delivery.ts)
