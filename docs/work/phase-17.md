@@ -4,12 +4,12 @@
 **Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (done); 17b `docs/superpowers/plans/2026-10-29-phase-17b-site-foundation-and-home.md` (implemented); 17c to follow
 
 ## Status (overwrite)
-2026-10-29: **17a done** (final review clean, fix wave 3817a19b). **17b implemented (Tasks 1-15), pending final review**: new `apps/site` (home, popup, sample brief, how-it-works, legal drafts, 404, SEO files), `@cs/demo` exporters, CI jobs, DEPLOY.md section, Sentry + Vercel Analytics. Copy sign-off: `docs/archive/phase-17b-copy-signoff.md` (17a: `phase-17a-copy-signoff.md`). Site E2E ran green in Task 13 (43 passed, 3 skipped).
+2026-10-29: **17a done** (final review clean). **17b implemented, pending final review.** **17c implemented (Tasks 0-16), pending final review**: integrations hub + 9 vendor pages, sources hub + 6, compare hub + 5 rival pages (off by default), `/pricing`, `/partners`, `llms.txt`, per-page OG images, JSON-LD, `check:facts`, CI gate. Sign-offs: `docs/archive/phase-17a-copy-signoff.md`, `phase-17b-copy-signoff.md`, `phase-17c-copy-signoff.md` (compare also needs counsel). Ledgers: `docs/research/2026-10-29-phase-17c-claim-check.md` (truth ledger), `-vendor-logos.md`. Site E2E: 88 passed, 6 skipped.
 
 ## Next (overwrite)
-1. Final review (`--base main`): `pnpm test:affected`, `pnpm --filter @cs/site e2e`, `pnpm --filter @cs/web e2e:affected` (17a's `@waitlist` spec has not run yet), `bash scripts/design-lint.sh`, `git ls-files --eol | grep crlf`, `iconv` over the diff; fold in the deferred minors in `.superpowers/sdd/2026-10-29-phase-17b-site-foundation-and-home/progress.md` (Task 8 Turnstile retry, Task 10 count, Task 11 hub SVG, copy typos in the sign-off file); one fix wave.
-2. Write + execute the 17c plan (integrations, sources, compare, pricing, partners, SEO; each page registers in `content/pages.ts`).
-3. Owner: sign both copy files and do the verification steps below. `/rm-merge` only after 17b/17c or on the owner's call.
+1. Final review of 17b + 17c (`--base main`): `pnpm test:affected`, `pnpm --filter @cs/site e2e`, `pnpm --filter @cs/web e2e:affected` (17a `@waitlist` spec has not run), `bash scripts/design-lint.sh`, `git ls-files --eol | grep crlf`, `iconv` over the diff; fold deferred minors from both SDD ledgers (`.superpowers/sdd/2026-10-29-phase-17{b,c}-*/progress.md`); one fix wave.
+2. Owner: sign the three copy files, do the verification steps below, counsel review of `/compare/*`.
+3. `/rm-merge` only on the owner's go-ahead (note below).
 
 ## Interfaces this branch adds or changes
 **17a (app):**
@@ -27,6 +27,11 @@
 - **CI:** job `site` = lint, build, check:bundle, e2e (site unit tests run in `test`; `check:placeholders` runs in `deploy-site`); `deploy-site` gated like `deploy`. Deploy steps: `docs/DEPLOY.md` § Marketing site.
 - Join popup posts to `<app>/api/waitlist`; pilot flag from `/api/site-status` (CDN 300 s + swr 60 s + 60 s memo).
 
+**17c (`apps/site`):**
+- **Pages:** `/integrations` + `/integrations/<vendor>` (9), `/sources` + `/sources/<source>` (6), `/compare` (always) + `/compare/<rival>` (only slugs in `NEXT_PUBLIC_COMPARE_PAGES`, fail closed), `/pricing`, `/partners`, `/llms.txt`; each with its own `opengraph-image.tsx`; `PageIntro` + BreadcrumbList on all.
+- **Env (site):** `NEXT_PUBLIC_COMPARE_PAGES` (comma list of rival slugs). **Script:** `@cs/site check:facts` (fails on rival facts or sources over 90 days old, or unknown source ids); `deploy-site` runs it for all five rivals.
+- **Content modules:** `content/{integrations,integrations-evidence,sources,sources-evidence,compare,pricing-page,partners}.ts`; `pages.ts` derives collections via `collectionPage()`. Ledgers: `docs/research/2026-10-29-phase-17c-{claim-check,vendor-logos}.md`.
+
 ## Assumes from other branches
 phase-16 (merged): DS v1 primitives, `AuthCard`, `/sign-up`. 13a (white-label, unbuilt) touches `theme.ts`, `app-shell`, `auth-card`: neither 17a nor 17b edits them; `@cs/ui` untouched.
 
@@ -35,26 +40,31 @@ Headline "Every Monday, your clients learn what their competitors did last week,
 17a P1-P15 (in the 17a plan): public writes are service functions; resubmit never overwrites a confirmed row; exact-origin CORS fail closed; HMAC sample link; sample agency excluded from spike guard and counters. 17b rulings (ledger): the site never imports app code; sample data is renamed + leak-guarded at export; Friday figures must appear in their cited evidence; site utility classes `text-display*`/`shadow-float` only on site-owned elements.
 
 ## New backlog (target -> item)
-- 17c/follow-up: favicon + apple-touch icon (none yet).
-- 17c/follow-up: SRI / nonce-based CSP for the site (P7).
-- Later: affiliate program (owner scope pending; partner page only links to it).
-- 17a/follow-up: hide "Ask the owner to pick" on the competitors step for sample clients (no owner; starting point would wait for the 14-day cap).
-- 17a/follow-up: Samples-agency membership of an approving operator is permanent; add cleanup or expiry (revocation).
-- Ops: alert when the `waitlist:all` rate-limit cap (500/day) is hit.
+- 17c/follow-up: favicon + apple-touch icon, `Organization.logo` (none yet); SRI / nonce CSP (P7).
+- Later: affiliate program (owner scope pending; partners page only offers reselling); social collection if ever built (compare row says Not offered).
+- 13a: when white-label (own domain, email) ships, update the white-label FAQ, partners and RM compare cells.
+- Quarterly: re-run the rival fact check (`check:facts` enforces 90 days).
+- 17c minors: add `^logo$` to the JSON-LD deep-walk key guard; guard test that `public/logos/*.svg` belong to logo-ok vendors with `approved=yes`; type `INTEGRATION_VERIFIED_IN` by slug; `check:facts` tests for unknown/stale source; mobile-menu nav vs header test; llms headings vs registry; fixed-date test assertions; Sentry "before anyone writes in" wording.
+- 17a/follow-up: hide "Ask the owner to pick" on the competitors step for sample clients; Samples-agency membership of an approving operator is permanent (add expiry); alert when the `waitlist:all` cap (500/day) is hit.
 - Manual vertical refresh (P2): re-run `export:site-verticals` when verticals change.
 
 ## Owner verification steps
-**17a:** (1) Set `SITE_ORIGIN=https://rivalmonday.com` (+ previews in `SITE_ORIGIN_EXTRA`) on Vercel and in `.env` yourself. (2) Add `rivalmonday.com` + `www` to the Turnstile widget hostnames. (3) `pnpm db:migrate`; Pilot mode on at `/platform/billing`; `/sign-up` in a private window shows the pilot message. (4) With Cloudflare's test secret `TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA` in `.env` (no secret = `400 check`): POST an agency JSON to `<app>/api/waitlist` with `Origin: https://rivalmonday.com`, `"turnstileToken":"x"` -> `{"ok":true}`; confirm via `apps/web/.outbox/`. (5) Invite from `/platform/waitlist`. (6) Sample: submit, approve with a real listing, run setup (pick rivals yourself), approve the starting point, Send sample, open the link privately; evidence opens, nothing links into the app. (7) `curl <app>/api/site-status`. (8) Sign the 17a copy file; confirm `support@rivalmonday.app` exists.
+**17a:** (1) `SITE_ORIGIN=https://rivalmonday.com` (+ previews in `SITE_ORIGIN_EXTRA`) on Vercel and in `.env` yourself. (2) Add `rivalmonday.com` + `www` to the Turnstile hostnames. (3) `pnpm db:migrate`; Pilot mode on at `/platform/billing`; `/sign-up` in a private window shows the pilot message. (4) With Cloudflare's test secret (`1x0000000000000000000000000000000AA`) POST an agency JSON to `<app>/api/waitlist` with `Origin: https://rivalmonday.com` and `"turnstileToken":"x"` -> `{"ok":true}`; confirm via `apps/web/.outbox/`. (5) Invite from `/platform/waitlist`. (6) Sample: submit, approve, run setup, approve the starting point, Send sample, open the link privately. (7) `curl <app>/api/site-status`. (8) Sign the 17a copy file; confirm `support@rivalmonday.app` exists.
 
-**17b:**
-1. Local: `pnpm --filter @cs/site dev`, open `http://localhost:3001` at 1440 and 390 wide (check hero, popup, menu, sample brief, no sideways scroll).
-2. With the app running (`pnpm dev:web`), add `SITE_ORIGIN_EXTRA=http://localhost:3001` and the Cloudflare test secret to `.env` (ask first); in the site shell use `NEXT_PUBLIC_APP_URL=http://localhost:3000` and the test site key `NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA`. Try both join flows (agency with a sample request, local business); the confirmation email lands in `apps/web/.outbox/`. Without any secret the dev app refuses every submit.
-3. Turn Pilot mode off at `/platform/billing`; within about 6 minutes the bar, pill and fine print go and CTAs read "Start your free trial".
-4. Click through `/sample-brief`: claim -> evidence, slider, Friday; every name fictional. Optional: `pnpm demo:reset` then re-run `export:sample-brief` for richer snapshots (your call).
-5. Sign `docs/archive/phase-17b-copy-signoff.md`; supply the founder note + photo, privacy and terms.
-6. Before the first site deploy, re-run `pnpm --filter @cs/demo export:site-verticals` against prod (prod `SERVICE_DATABASE_URL` in the shell; the committed `verticals.json` lists only dental + HVAC) and commit it. Then follow `docs/DEPLOY.md` § Marketing site (Vercel project, toolbar off, env, DNS, Turnstile hostnames, `DEPLOY_ENABLED`).
-7. Set the social URLs (`NEXT_PUBLIC_SOCIAL_*`) and `NEXT_PUBLIC_CLIENT_PRICE_USD`.
-8. Before the site deploy: set `WEB_MONITORING_ENABLED=true` on the app (after `https://rivalmonday.app/bot` loads) — the site promises website snapshots.
+**17b:** (1) `pnpm --filter @cs/site dev`, check `http://localhost:3001` at 1440 and 390. (2) Both join flows against `pnpm dev:web` (`SITE_ORIGIN_EXTRA=http://localhost:3001`, Cloudflare test secret and site key `1x00000000000000000000AA`; ask first before editing `.env`). (3) Pilot mode off: within ~6 minutes bar and pill go, CTAs read "Start your free trial". (4) Click through `/sample-brief`. (5) Sign the 17b file; supply founder note + photo, privacy and terms. (6) Before the first deploy re-run `pnpm --filter @cs/demo export:site-verticals` against prod and commit `verticals.json`, then follow `docs/DEPLOY.md` § Marketing site. (7) Set `NEXT_PUBLIC_SOCIAL_*` and `NEXT_PUBLIC_CLIENT_PRICE_USD`.
+
+**17c:**
+1. `pnpm --filter @cs/site dev`; visit every new page (`/integrations`, 9 vendors, `/sources`, 6 sources, `/compare`, `/pricing`, `/partners`) at 1440, 1024 and 390. To see rival pages set `NEXT_PUBLIC_COMPARE_PAGES=rivalmappd,brightlocal,local-falcon,birdeye,visualping` locally.
+2. Vendor logos: download from official press kits for OpenRouter and Neon (logo-ok), commit under `apps/site/public/logos/`, set `approved=yes` in `docs/research/2026-10-29-phase-17c-vendor-logos.md`; check Railway, Postmark, Sentry guidelines. Never Google/Meta logos.
+3. Confirm Connect fee = 0 at `/platform/billing` (global and per agency) before "no platform fee" is live. Confirm prod `standard` plan includes Ask + MCP, the Stripe portal lets agencies cancel, and `ANTHROPIC_API_KEY` is set in prod.
+4. Set `WEB_MONITORING_ENABLED=true` (after `https://rivalmonday.app/bot` loads) BEFORE the site deploy (DEPLOY.md step 1). Then flip the RM `websites` cell ("Switching on soon") and restore the website `weDiffer` lines once.
+5. Counsel review of `/compare/*` with archived PDFs of every source URL (save outside the site, e.g. `docs/research/compare-sources-2026-10-28/`); then set `NEXT_PUBLIC_COMPARE_PAGES` in Vercel and re-run `deploy-site`.
+6. Re-check every rival fact within 7 days of first publish: update the research file + `compare.ts` `factsCheckedOn`/source dates; `check:facts` blocks the deploy past 90 days (all five rivals, even if disabled).
+7. Sign `docs/archive/phase-17c-copy-signoff.md` (answer its decisions, incl. `HERO.eyebrow` / "under your brand" vs partial white-label, and the vendor `<title>` format).
+8. After deploy: Google Rich Results Test on `/pricing`; confirm `/llms.txt` and `/sitemap.xml`.
+
+## Note for /rm-merge
+Fold: ARCHITECTURE (site pages and registry `content/pages.ts`, derived collections, SEO helpers `lib/{metadata,json-ld,breadcrumbs,llms,og}`, per-page `opengraph-image.tsx`, `check:facts`); STATE; DEPLOY.md (already updated: `WEB_MONITORING_ENABLED` step, `check:facts` gate, compare env); BACKLOG (section above); gotchas: every `pageMetadata` page needs its own `opengraph-image.tsx`; enabled rivals = known-rival array filtered by env; evidence paths live in `*-evidence.ts` (bundle rule). Compare pages ship **off**. Docs-only owner gates above are not merge blockers except 3-4 before the site deploy.
 
 ## Brief (condensed)
 No roadmap row. Request: separate Vercel deployable (rivalmonday.com vs app rivalmonday.app); launch site marked "in pilot", no social proof yet; waitlist popup (agency vs business) + in-app waitlist page; integrations strip + pages, comparisons, pricing, partner page, social, full SEO. Binding: agency clients first; nothing client-facing names Rival Monday; claims evidence-backed (counsel review of AI claims about named rivals pending); owner signs copy; Turnstile + uniform responses on public forms. Backlog folded in: marketing page, register rivalmonday.com/.ai + trademark knockout, Phase 0 validation (GHL/Vendasta check, LOIs, counsel review), affiliate program, automatic lead routing (phase-11). All open questions answered 2026-10-28 (spec (O)/(C) marks).
