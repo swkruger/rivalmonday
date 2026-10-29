@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const PORT = Number(process.env.E2E_PORT ?? 3200);
+const PORT = Number(process.env.SITE_E2E_PORT ?? 3200);
 /** https on purpose: the CSP's `upgrade-insecure-requests` would upgrade an http fetch past the route mock. */
 export const MOCK_APP_URL = 'https://app.e2e.test';
 

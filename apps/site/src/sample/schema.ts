@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import json from '../../content/sample-brief.json';
 
+// Skip zod's `new Function` probe: the CSP has no unsafe-eval, so the probe would be reported as a violation.
+z.config({ jitless: true });
+
 /**
  * Zod mirror of `packages/demo/src/site-export/types.ts` (`SampleBriefData`). The site never imports `@cs/demo`
  * (import boundary), so the shape is restated here and the committed JSON is parsed against it at module load.

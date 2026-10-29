@@ -115,10 +115,7 @@ test('no csp violations or console errors', async ({ page }) => {
     }
     violations.push(...(await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)));
   }
-  // Known, harmless: zod 4 probes `Function('')` inside try/catch to choose its JIT path; the CSP (no unsafe-eval) reports
-  // that probe as a script-src "eval" violation and zod falls back. Anything else (or eval from a non-site chunk) fails.
-  const unexpected = violations.filter((v) => !/^script-src eval http:\/\/localhost:\d+\/_next\/static\/chunks\//.test(v));
-  expect(unexpected).toEqual([]);
+  expect(violations).toEqual([]);
   expect(problems).toEqual([]);
 });
 
@@ -199,7 +196,7 @@ test('business join flow with Other', async ({ page }) => {
 });
 
 test('400 check shows the check message', async ({ page }) => {
-  await mockApp(page, { waitlist: { status: 400, body: { error: 'check' } } });
+  await mockApp(page, { waitlist: { status: 400, body: { ok: false, error: 'check' } } });
   await page.goto('/');
   await openJoin(page);
   await fillBusiness(page, 'first');
@@ -245,13 +242,17 @@ test('sample claim opens evidence; slider changes week; friday answer cites', as
   await expect(dialog(page)).toHaveCount(0);
   await expect(claim).toBeFocused();
 
-  // The rank grid's week control, if the sample has a slider.
-  const slider = page.getByRole('slider').first();
-  if ((await slider.count()) > 0) {
-    const before = await slider.inputValue();
-    await slider.press('ArrowLeft');
-    expect(await slider.inputValue()).not.toBe(before);
-  }
+  // The rank grid's week slider changes the visible week.
+  const slider = page.getByRole('slider', { name: 'Week' });
+  await slider.scrollIntoViewIfNeeded();
+  await expect(slider).toBeVisible();
+  const before = await slider.inputValue();
+  await slider.focus();
+  await slider.press('ArrowLeft');
+  expect(await slider.inputValue()).not.toBe(before);
+  const mid = await slider.inputValue();
+  await slider.press('ArrowRight');
+  expect(await slider.inputValue()).not.toBe(mid);
 
   await page.getByRole('button', { name: 'What changed with Quillstone Climate Pros?' }).click();
   const pill = page.getByTestId('friday-answer').locator('button[aria-haspopup="dialog"]').first();

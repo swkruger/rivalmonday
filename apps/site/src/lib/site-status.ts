@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Skip zod's `new Function` probe: the CSP has no unsafe-eval, so the probe would be reported as a violation.
+z.config({ jitless: true });
+
 /** Mirrors `@cs/tools` SiteStatus (17a). Never imported from there: the site only talks to the app over HTTP. */
 const counter = z.number().int().nonnegative().nullable();
 

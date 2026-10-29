@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Skip zod's `new Function` probe: the CSP has no unsafe-eval, so the probe would be reported as a violation.
+z.config({ jitless: true });
+
 // Pure helpers for the join popup. Only zod is imported: packages/tools' site-contract test imports this file by relative path.
 
 export const CLIENT_BANDS = [
