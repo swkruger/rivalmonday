@@ -22,7 +22,7 @@ export const ANNOUNCEMENT = {
 } as const;
 
 /** Final; owned here only. `join` is the CtaBand. */
-export const HOME_ANCHORS = ['sample', 'live', 'how-it-works', 'checks', 'friday', 'real-sample', 'pricing', 'join'] as const;
+export const HOME_ANCHORS = ['sample', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'pricing', 'join'] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
 
 export interface HomeSection {
@@ -64,6 +64,12 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     eyebrow: "Friday, your clients' assistant",
     heading: 'Ask about any rival. Every answer shows its sources.',
     body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client. MCP is separate: it lets a client's own AI tools read the evidence, also switched on per client.",
+  },
+  integrations: {
+    id: 'integrations',
+    eyebrow: 'Integrations',
+    heading: 'The services Rival Monday runs on',
+    body: "Hosting, AI, email and billing from established providers. Your clients' data stays in our database and evidence store.",
   },
   'real-sample': {
     id: 'real-sample',

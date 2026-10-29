@@ -9,6 +9,7 @@ import { PricingTeaser } from '../components/home/pricing-teaser';
 import { RealSample } from '../components/home/real-sample';
 import { HomeSectionShell, SectionHeading } from '../components/home/section-heading';
 import { Steps } from '../components/home/steps';
+import { IntegrationsStrip } from '../components/integrations/integrations-strip';
 import { JsonLd } from '../components/seo/json-ld';
 import { SampleBrief } from '../components/sample/sample-brief';
 import { softwareApplicationLd } from '../lib/json-ld';
@@ -32,6 +33,7 @@ export default function HomePage() {
       <Steps />
       <ChecksHub />
       <FridayRow />
+      <IntegrationsStrip />
       <RealSample />
       <FounderNote />
       <PricingTeaser />

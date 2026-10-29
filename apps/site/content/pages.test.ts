@@ -14,7 +14,30 @@ const resolvesToPage = (path: string) => {
   return readdirSync(join(appDir, parent)).some((d) => /^\[[a-z]+\]$/.test(d) && existsSync(join(appDir, parent, d, 'page.tsx')));
 };
 
+/** Image file for a path: own `opengraph-image.tsx`, else the `[param]` sibling's. */
+const ogFile = (path: string) => {
+  if (path === '/') return join(appDir, 'opengraph-image.tsx');
+  const own = join(appDir, path.slice(1), 'opengraph-image.tsx');
+  if (existsSync(own)) return own;
+  const parent = path.slice(1).split('/').slice(0, -1).join('/');
+  if (!parent || !existsSync(join(appDir, parent))) return null;
+  const dyn = readdirSync(join(appDir, parent)).find((d) => /^\[[a-z]+\]$/.test(d));
+  const f = dyn ? join(appDir, parent, dyn, 'opengraph-image.tsx') : null;
+  return f && existsSync(f) ? f : null;
+};
+
 describe('page registry', () => {
+  it('[param] branch resolves a real dynamic route and rejects a missing one', () => {
+    expect(existsSync(join(appDir, 'integrations', '[vendor]', 'page.tsx'))).toBe(true);
+    expect(resolvesToPage('/integrations/stripe')).toBe(true);
+    expect(resolvesToPage('/integrations')).toBe(true);
+    expect(resolvesToPage('/how-it-works/stripe')).toBe(false);
+  });
+
+  it('every registered path has an opengraph-image.tsx', () => {
+    for (const p of PAGES) expect(ogFile(p.path), p.path).not.toBeNull();
+  });
+
   it('dynamic paths resolve to a [param] page', () => {
     expect(resolvesToPage('/how-it-works')).toBe(true);
     expect(resolvesToPage('/no-such-section/x')).toBe(false);

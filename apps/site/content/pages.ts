@@ -1,3 +1,5 @@
+import { listedIntegrations } from './integrations';
+
 export interface SitePage {
   path: `/${string}`;
   title: string;
@@ -73,6 +75,17 @@ export const PAGES: readonly SitePage[] = [
     changeFrequency: 'yearly',
     priority: 0.3,
   },
+  {
+    path: '/integrations',
+    title: 'Integrations',
+    description: 'The services Rival Monday runs on, and what each one means for your agency.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+    crumb: 'Integrations',
+    group: 'integrations',
+  },
+  ...listedIntegrations().map((i) => collectionPage('/integrations', { slug: i.slug, ...i.seo })),
 ];
 
 export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [

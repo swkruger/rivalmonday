@@ -14,8 +14,6 @@ export interface Integration {
   forYourAgency: string[];
   vendorUrl: `https://${string}`;
   brand: { guidelineUrl: string | null; verdict: BrandVerdict };
-  /** Repo-relative paths from the claims ledger (row int-<slug>). */
-  verifiedIn: string[];
   /** Feeds collectionPage(). */
   seo: { title: string; description: string; crumb: string };
 }
@@ -38,7 +36,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     ],
     vendorUrl: 'https://openrouter.ai',
     brand: { guidelineUrl: 'https://openrouter.ai/brand', verdict: 'logo-ok' },
-    verifiedIn: ['packages/ai/config/ai.yaml'],
     seo: {
       title: 'OpenRouter integration',
       description: 'How Rival Monday uses OpenRouter to route its AI calls, and what that means for your agency.',
@@ -60,7 +57,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     ],
     vendorUrl: 'https://www.anthropic.com',
     brand: { guidelineUrl: 'https://www.anthropic.com/legal/trademark-guidelines', verdict: 'text-only' },
-    verifiedIn: ['packages/ai/src/anthropic-batch.ts'],
     seo: {
       title: 'Anthropic integration',
       description: 'How Rival Monday uses Claude models from Anthropic for briefs, Friday and topic work.',
@@ -77,7 +73,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['Your agency sees only its own clients and data.'],
     vendorUrl: 'https://neon.com',
     brand: { guidelineUrl: 'https://neon.com/brand', verdict: 'logo-ok' },
-    verifiedIn: ['packages/db/src/tenant.ts', 'packages/db/migrations/0001_rls.sql'],
     seo: {
       title: 'Neon integration',
       description: 'How Rival Monday uses Neon Postgres, with row-level security separating each agency.',
@@ -94,7 +89,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['The dashboard, Friday and the MCP connection are served from the same place.'],
     vendorUrl: 'https://vercel.com',
     brand: { guidelineUrl: 'https://vercel.com/geist/brands', verdict: 'text-only' },
-    verifiedIn: ['docs/DEPLOY.md'],
     seo: {
       title: 'Vercel integration',
       description: 'How Rival Monday uses Vercel to host the app, its API, the MCP endpoint and this site.',
@@ -111,7 +105,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['Collection and briefs run in the background, so your team does not have to start them.'],
     vendorUrl: 'https://railway.com',
     brand: { guidelineUrl: null, verdict: 'unchecked' },
-    verifiedIn: ['apps/worker/railway.json'],
     seo: {
       title: 'Railway integration',
       description: 'How Rival Monday uses Railway to run the worker that collects public information each week.',
@@ -128,11 +121,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['Evidence stays available, so you can open the source behind any claim.'],
     vendorUrl: 'https://www.cloudflare.com',
     brand: { guidelineUrl: 'https://www.cloudflare.com/trademark/', verdict: 'text-only' },
-    verifiedIn: [
-      'packages/storage/src/r2.ts',
-      'apps/web/src/server/turnstile.ts',
-      'apps/web/src/app/api/waitlist/route.ts',
-    ],
     seo: {
       title: 'Cloudflare integration',
       description: 'How Rival Monday uses Cloudflare R2 for evidence storage and Turnstile on public forms.',
@@ -152,7 +140,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['Briefs and alerts reach your clients by email, and a hard bounce is flagged to your agency.'],
     vendorUrl: 'https://postmarkapp.com',
     brand: { guidelineUrl: null, verdict: 'unchecked' },
-    verifiedIn: ['packages/email/src/transport.ts', 'apps/web/src/app/api/postmark/webhook/route.ts'],
     seo: {
       title: 'Postmark integration',
       description: 'How Rival Monday uses Postmark to send briefs, alerts, invites and sign-in email.',
@@ -175,7 +162,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     ],
     vendorUrl: 'https://stripe.com',
     brand: { guidelineUrl: 'https://stripe.com/newsroom/brand-assets', verdict: 'text-only' },
-    verifiedIn: ['packages/billing/src/stripe-gateway.ts', 'packages/billing/src/connect-fee.ts'],
     seo: {
       title: 'Stripe integration',
       description: 'How Rival Monday uses Stripe for agency billing and Stripe Connect for client payments.',
@@ -195,7 +181,6 @@ export const INTEGRATIONS: readonly Integration[] = [
     forYourAgency: ['We hear about problems early, before anyone writes in.'],
     vendorUrl: 'https://sentry.io',
     brand: { guidelineUrl: null, verdict: 'unchecked' },
-    verifiedIn: ['apps/worker/src/sentry.ts', 'apps/site/src/lib/sentry-options.ts', 'packages/core/src/server/log.ts'],
     seo: {
       title: 'Sentry integration',
       description: 'How Rival Monday uses Sentry to catch errors in the app, the worker and this site.',

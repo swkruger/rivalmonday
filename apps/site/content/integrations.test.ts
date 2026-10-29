@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { effectiveTitle } from '../src/lib/metadata';
 import { INTEGRATIONS, INTEGRATIONS_PAGE, listedIntegrations } from './integrations';
+import { INTEGRATION_VERIFIED_IN } from './integrations-evidence';
 
 const ROOT = join(__dirname, '../..', '..');
 const CLAIMS = readFileSync(join(ROOT, 'docs/research/2026-10-29-phase-17c-claim-check.md'), 'utf8');
@@ -51,8 +52,8 @@ describe('integrations content', () => {
 
   it('verifiedIn paths exist', () => {
     for (const i of INTEGRATIONS) {
-      expect(i.verifiedIn.length, i.slug).toBeGreaterThan(0);
-      for (const p of i.verifiedIn) expect(existsSync(join(ROOT, p)), `${i.slug}: ${p}`).toBe(true);
+      expect((INTEGRATION_VERIFIED_IN[i.slug] ?? []).length, i.slug).toBeGreaterThan(0);
+      for (const p of (INTEGRATION_VERIFIED_IN[i.slug] ?? [])) expect(existsSync(join(ROOT, p)), `${i.slug}: ${p}`).toBe(true);
     }
   });
 
@@ -60,7 +61,7 @@ describe('integrations content', () => {
     for (const i of INTEGRATIONS) {
       const row = CLAIMS.split('\n').find((l) => l.startsWith(`| int-${i.slug} |`));
       expect(row, `int-${i.slug}`).toBeDefined();
-      for (const p of i.verifiedIn) expect(row, `${i.slug}: ${p}`).toContain(p);
+      for (const p of (INTEGRATION_VERIFIED_IN[i.slug] ?? [])) expect(row, `${i.slug}: ${p}`).toContain(p);
     }
   });
 
