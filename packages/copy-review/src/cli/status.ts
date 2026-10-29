@@ -2,12 +2,7 @@ import { collectItems } from '../collect.js';
 import { LedgerError, loadLedger, saveLedger } from '../ledger.js';
 import { isMainModule, ledgerPathFor, repoRoot } from '../paths.js';
 import { staleEntries, withStatus } from '../status.js';
-import type { CopyItem, ItemStatus, Surface } from '../types.js';
-
-export const SURFACES: Surface[] = [
-  'app-client', 'app-agency', 'app-platform', 'app-account', 'app-shared',
-  'help', 'guides', 'glossary', 'labels', 'emails', 'documents', 'site', 'site-legal', 'mcp-tools',
-];
+import { SURFACES, type CopyItem, type ItemStatus, type Surface } from '../types.js';
 
 interface Deps { ledgerPath: string; out: (s: string) => void }
 type Counts = Record<ItemStatus | 'needsEdit', number>;

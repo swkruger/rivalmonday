@@ -2,11 +2,11 @@ import { execFileSync } from 'node:child_process';
 import { createServer as createHttpServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { z } from 'zod';
-import { SURFACES } from '../cli/status.js';
 import { collectItems } from '../collect.js';
 import { applyAction, LedgerError, loadLedger, saveLedger, type LedgerAction } from '../ledger.js';
 import { withStatus } from '../status.js';
-import type { CopyItem, ItemStatus, StatusedItem, Surface } from '../types.js';
+import { SURFACES, type CopyItem, type ItemStatus, type StatusedItem, type Surface } from '../types.js';
+import { renderPage } from './page.js';
 
 export interface ServerOptions {
   root: string;
@@ -17,7 +17,14 @@ export interface ServerOptions {
 }
 
 export const STATUSES: ItemStatus[] = ['unsigned', 'changed', 'signed', 'ignored'];
-export const PREVIEW_CSP = "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'";
+/** Spec §7 preview CSP; Ruling R6 lets only our own page frame it. */
+export const PREVIEW_CSP = "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; frame-ancestors 'self'";
+/** The page: inline script/style only (no build step), Inter from Google Fonts, same-origin fetch and preview frames. */
+export const PAGE_CSP =
+  "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+  "font-src https://fonts.gstatic.com; frame-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'";
+/** Ruling R6: everything except /preview/* refuses to be framed. */
+const NO_FRAME = { 'x-frame-options': 'DENY', 'content-security-policy': "default-src 'none'; frame-ancestors 'none'" };
 const MAX_BODY = 1_000_000;
 
 export interface ViewFilter { surface?: Surface; status?: ItemStatus[]; q?: string }
@@ -47,29 +54,21 @@ export function buildView(items: StatusedItem[], filter: ViewFilter): View {
   return { filter, items: shown, counts, total };
 }
 
-/** Query string → filter. Unknown surface/status values are dropped; `status` is a comma list. */
+/** Query string → filter. Unknown surface/status values are dropped. */
 export function parseFilter(params: URLSearchParams, defaultStatus?: ItemStatus[]): ViewFilter {
   const f: ViewFilter = {};
   const surface = params.get('surface');
   if (surface && SURFACES.includes(surface as Surface)) f.surface = surface as Surface;
-  const status = params.get('status');
-  const list = status === null ? defaultStatus : status.split(',').filter((s): s is ItemStatus => STATUSES.includes(s as ItemStatus));
+  // `status` is a comma list and/or repeated (form checkboxes); absent → default, present but empty → all.
+  const status = params.getAll('status');
+  const list =
+    status.length === 0
+      ? defaultStatus
+      : status.join(',').split(',').filter((s): s is ItemStatus => STATUSES.includes(s as ItemStatus));
   if (list && list.length > 0) f.status = list;
   const q = params.get('q');
   if (q) f.q = q.slice(0, 500);
   return f;
-}
-
-export const escapeHtml = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
-/** Placeholder until Task 9's `renderPage(view)` (src/server/page.ts) replaces it. */
-function renderPlaceholder(view: View): string {
-  const t = view.total;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Copy sign-off</title></head><body>
-<h1>Copy sign-off</h1>
-<p>${escapeHtml(`${view.items.length} shown · unsigned ${t.unsigned} · changed ${t.changed} · signed ${t.signed} · ignored ${t.ignored} · needs edit ${t.needsEdit}`)}</p>
-</body></html>`;
 }
 
 const itemRef = z.object({ file: z.string().min(1).max(1000), hash: z.string().min(1).max(64) }).strict();
@@ -103,8 +102,9 @@ function today(): string {
 
 const BASE_HEADERS = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' };
 
-function send(res: ServerResponse, status: number, type: string, body: string, headers: Record<string, string> = {}) {
-  res.writeHead(status, { ...BASE_HEADERS, 'content-type': type, ...headers });
+/** `frameable` = a /preview/* response: no NO_FRAME headers (its own CSP sets frame-ancestors 'self'). */
+function send(res: ServerResponse, status: number, type: string, body: string, headers: Record<string, string> = {}, frameable = false) {
+  res.writeHead(status, { ...BASE_HEADERS, ...(frameable ? {} : NO_FRAME), 'content-type': type, ...headers });
   res.end(body);
 }
 const sendJson = (res: ServerResponse, status: number, body: unknown) =>
@@ -179,7 +179,14 @@ export function createServer(opts: ServerOptions): Server {
       const targets = refs.map((r) => byKey.get(`${r.file}\u0000${r.hash}`)!);
       const next = applyAction(loadLedger(ledgerPath), action, targets, { at: now(), by: who() }, extra);
       saveLedger(ledgerPath, next);
-      return { ok: true, counts: buildView(withStatus(items, next), {}).counts };
+      const all = withStatus(items, next);
+      const posted = new Set(refs.map((r) => `${r.file}\u0000${r.hash}`));
+      const states = new Map<string, { file: string; hash: string; status: ItemStatus; needsEdit: boolean }>();
+      for (const i of all) {
+        const k = `${i.file}\u0000${i.hash}`;
+        if (posted.has(k) && !states.has(k)) states.set(k, { file: i.file, hash: i.hash, status: i.status, needsEdit: i.needsEdit });
+      }
+      return { ok: true, counts: buildView(all, {}).counts, items: [...states.values()] };
     });
   }
 
@@ -206,7 +213,9 @@ export function createServer(opts: ServerOptions): Server {
     if (req.method === 'GET') {
       if (path === '/') {
         const view = buildView(statused(await scan()), parseFilter(url.searchParams, ['unsigned', 'changed']));
-        return send(res, 200, 'text/html; charset=utf-8', renderPlaceholder(view));
+        const page = Number.parseInt(url.searchParams.get('page') ?? '1', 10);
+        const html = renderPage({ ...view, root, page: Number.isFinite(page) ? page : 1 });
+        return send(res, 200, 'text/html; charset=utf-8', html, { 'content-security-policy': PAGE_CSP });
       }
       if (path === '/api/items') {
         const view = buildView(statused(await current()), parseFilter(url.searchParams));
@@ -222,7 +231,7 @@ export function createServer(opts: ServerOptions): Server {
         }
         const hit = (await current()).find((i) => (i.anchor === `email:${id}` || i.anchor === `document:${id}`) && i.html !== undefined);
         if (!hit) throw new HttpError(404, 'Not found');
-        return send(res, 200, 'text/html; charset=utf-8', hit.html!, { 'content-security-policy': PREVIEW_CSP });
+        return send(res, 200, 'text/html; charset=utf-8', hit.html!, { 'content-security-policy': PREVIEW_CSP }, true);
       }
       throw new HttpError(404, 'Not found');
     }

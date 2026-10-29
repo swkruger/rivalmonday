@@ -2,6 +2,12 @@ export type Surface =
   | 'app-client' | 'app-agency' | 'app-platform' | 'app-account' | 'app-shared'
   | 'help' | 'guides' | 'glossary' | 'labels' | 'emails' | 'documents' | 'site' | 'site-legal' | 'mcp-tools';
 
+/** Every surface, in display order. */
+export const SURFACES: Surface[] = [
+  'app-client', 'app-agency', 'app-platform', 'app-account', 'app-shared',
+  'help', 'guides', 'glossary', 'labels', 'emails', 'documents', 'site', 'site-legal', 'mcp-tools',
+];
+
 export type ScanMode = 'module' | 'jsx' | 'property' | 'markdown';
 
 export interface SourceRule {

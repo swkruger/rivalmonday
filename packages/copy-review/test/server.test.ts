@@ -28,11 +28,11 @@ afterEach(async () => {
   servers = [];
 });
 
-async function start(opts: { ledger?: string } = {}) {
+async function start(opts: { ledger?: string; collect?: () => Promise<CopyItem[]> } = {}) {
   const ledgerPath = join(mkdtempSync(join(tmpdir(), 'srv-')), 'signoff.json');
   if (opts.ledger !== undefined) writeFileSync(ledgerPath, opts.ledger);
   const server = createServer({
-    root: '/repo', ledgerPath, collect: async () => ITEMS, now: () => '2026-10-29', who: () => 'Owner',
+    root: '/repo', ledgerPath, collect: opts.collect ?? (async () => ITEMS), now: () => '2026-10-29', who: () => 'Owner',
   });
   servers.push(server);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -83,6 +83,7 @@ describe('copy-review server', () => {
     const r = await call(port, 'POST', '/api/sign', { body: { items: [ref(ITEMS[1]!)] } });
     expect(r.status).toBe(200);
     expect(json(r).counts.help.signed).toBe(1);
+    expect(json(r).items).toEqual([{ file: 'a.ts', hash: 'b'.repeat(16), status: 'signed', needsEdit: false }]);
     const l = loadLedger(ledgerPath);
     expect(l.entries).toEqual([
       { type: 'sign', file: 'a.ts', hash: 'b'.repeat(16), anchor: 'a.ts#x#1', text: 'Second', at: '2026-10-29', by: 'Owner' },
@@ -126,12 +127,25 @@ describe('copy-review server', () => {
   });
 
   it('two concurrent signs both land', async () => {
-    const { port, ledgerPath } = await start();
-    const [a, b] = await Promise.all([
-      call(port, 'POST', '/api/sign', { body: { items: [ref(ITEMS[0]!)] } }),
-      call(port, 'POST', '/api/ignore', { body: { items: [ref(ITEMS[1]!)] } }),
-    ]);
+    // The first collect() is slow and the second request arrives while it is pending. Without the write queue the
+    // second write would finish first and its response counts would miss the first sign.
+    let calls = 0;
+    let firstStarted!: () => void;
+    const started = new Promise<void>((r) => (firstStarted = r));
+    const collect = async () => {
+      if (calls++ === 0) {
+        firstStarted();
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return ITEMS;
+    };
+    const { port, ledgerPath } = await start({ collect });
+    const pa = call(port, 'POST', '/api/sign', { body: { items: [ref(ITEMS[0]!)] } });
+    await started;
+    const b = await call(port, 'POST', '/api/ignore', { body: { items: [ref(ITEMS[1]!)] } });
+    const a = await pa;
     expect([a.status, b.status]).toEqual([200, 200]);
+    expect(json(b).counts.help).toMatchObject({ signed: 1, ignored: 1 });
     expect(loadLedger(ledgerPath).entries.map((e) => e.type).sort()).toEqual(['ignore', 'sign']);
   });
 
@@ -166,7 +180,10 @@ describe('copy-review server', () => {
     const { port } = await start();
     const r = await call(port, 'GET', '/preview/welcome');
     expect(r.status).toBe(200);
-    expect(r.headers['content-security-policy']).toBe("default-src 'none'; img-src data: https:; style-src 'unsafe-inline'");
+    expect(r.headers['content-security-policy']).toBe(
+      "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; frame-ancestors 'self'",
+    );
+    expect(r.headers['x-frame-options']).toBeUndefined();
     expect(r.headers['content-type']).toMatch(/^text\/html/);
     expect(r.body).toBe('<p>Hi <b>there</b></p>');
     expect((await call(port, 'GET', '/preview/nope')).status).toBe(404);
@@ -178,6 +195,43 @@ describe('copy-review server', () => {
     expect(r.status).toBe(200);
     expect(r.headers['content-type']).toMatch(/^text\/html/);
     expect(r.body).not.toContain('<script>alert(1)');
+  });
+
+  it('every non-preview response denies framing (R6)', async () => {
+    const { port } = await start();
+    const page = await call(port, 'GET', '/');
+    expect(page.headers['x-frame-options']).toBe('DENY');
+    expect(page.headers['content-security-policy']).toBe(
+      "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src https://fonts.gstatic.com; frame-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+    );
+    for (const r of [
+      await call(port, 'GET', '/api/items'),
+      await call(port, 'GET', '/nope'),
+      await call(port, 'POST', '/api/sign', { body: { items: [ref(ITEMS[0]!)] } }),
+      await call(port, 'GET', '/api/items', { headers: { host: 'evil.example' } }),
+    ]) {
+      expect(r.headers['x-frame-options']).toBe('DENY');
+      expect(r.headers['content-security-policy']).toMatch(/frame-ancestors 'none'$/);
+    }
+  });
+
+  it('default filter shows unsigned+changed only', async () => {
+    const { port } = await start();
+    await call(port, 'POST', '/api/sign', { body: { items: [ref(ITEMS[0]!)] } });
+    await call(port, 'POST', '/api/ignore', { body: { items: [ref(ITEMS[1]!)] } });
+    const html = (await call(port, 'GET', '/')).body;
+    expect(html).not.toContain('>Hello<');
+    expect(html).not.toContain('>Second<');
+    expect(html).toContain('>Third<');
+    expect(html).toMatch(/name="status" value="unsigned" checked/);
+    expect(html).toMatch(/name="status" value="changed" checked/);
+    expect(html).toMatch(/name="status" value="signed"(?! checked)/);
+    // Repeated status params (form checkboxes) are honoured.
+    const all = (await call(port, 'GET', '/?status=signed&status=ignored')).body;
+    expect(all).toContain('>Hello<');
+    expect(all).toContain('>Second<');
+    expect(all).not.toContain('>Third<');
   });
 
   it('malformed ledger → server refuses to start', () => {
