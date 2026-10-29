@@ -31,4 +31,19 @@ describe('findPlaceholders', () => {
     const root = tree({ 'content/a.ts': 'x', 'src/a.tsx': 'y', 'src/a.test.tsx': 'OWNER-PLACEHOLDER' });
     expect(findPlaceholders(root)).toEqual([]);
   });
+
+  it('matches variants, including across a line break', () => {
+    const root = tree({
+      'content/a.md': 'a\nowner_placeholder: x',
+      'content/b.md': 'b\n<!-- Owner Placeholder -->',
+      'content/c.md': 'c\nOWNER-\nPLACEHOLDER',
+      'public/d.txt': 'owner-placeholder',
+    });
+    expect(findPlaceholders(root).map((h) => h.file).sort()).toEqual(['content/a.md', 'content/b.md', 'content/c.md', 'public/d.txt']);
+  });
+
+  it('catches the real founder note', () => {
+    const real = findPlaceholders(join(__dirname, '..'));
+    expect(real.some((h) => h.file === 'content/founder.ts')).toBe(true);
+  });
 });

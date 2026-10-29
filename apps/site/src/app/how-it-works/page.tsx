@@ -20,7 +20,7 @@ export default function HowItWorksPage() {
           ))}
         </div>
       </section>
-      <ChecksHub />
+      <ChecksHub hideLink />
       <CtaBand />
     </main>
   );

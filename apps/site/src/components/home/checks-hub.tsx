@@ -18,7 +18,7 @@ const HUB = { x: 380, y: 142, w: 220, h: 96 };
 const MID_Y = HUB.y + HUB.h / 2;
 
 /** Hub diagram: five sources → the Monday brief (verifying) → "No evidence, no claim". Phones get the same story as a list. */
-export function ChecksHub() {
+export function ChecksHub({ hideLink = false }: { hideLink?: boolean } = {}) {
   return (
     <HomeSectionShell id="checks" labelledBy="checks-heading">
       <SectionHeading section={SECTIONS.checks} />
@@ -60,9 +60,11 @@ export function ChecksHub() {
           No evidence, no claim
         </li>
       </ol>
-      <a href={CHECKS_LINK.href} className="mt-6 inline-flex text-sm font-medium text-link hover:underline">
-        {CHECKS_LINK.label}
-      </a>
+      {!hideLink && (
+        <a href={CHECKS_LINK.href} className="mt-6 inline-flex text-sm font-medium text-link hover:underline">
+          {CHECKS_LINK.label}
+        </a>
+      )}
     </HomeSectionShell>
   );
 }

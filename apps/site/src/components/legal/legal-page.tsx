@@ -17,6 +17,11 @@ export function parseLegal(source: string): { body: string; updated: string | nu
 type H = ComponentPropsWithoutRef<'h2'> & { node?: unknown };
 // The page owns the single h1, so Markdown headings drop one level.
 const components = {
+  a: ({ node: _n, href, ...p }: ComponentPropsWithoutRef<'a'> & { node?: unknown }) => {
+    const external = /^(https?:)?\/\//.test(href ?? '');
+    return <a href={href} rel="noopener noreferrer" {...(external ? { target: '_blank' } : {})} {...p} />;
+  },
+  img: () => null,
   h1: ({ node: _n, ...p }: H) => <h2 className="mt-10 text-2xl font-semibold text-ink" {...p} />,
   h2: ({ node: _n, ...p }: H) => <h3 className="mt-8 text-xl font-semibold text-ink" {...p} />,
   h3: ({ node: _n, ...p }: H) => <h4 className="mt-6 text-lg font-semibold text-ink" {...p} />,

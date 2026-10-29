@@ -32,6 +32,16 @@ describe('LegalDocument', () => {
     expect(container.querySelector('#raw')).toBeNull();
   });
 
+  it('links get rel, external ones open in a new tab, images are dropped', () => {
+    const { container } = render(<LegalDocument title="T" markdown={'[ext](https://example.com) [int](/terms) ![pic](https://example.com/x.png)'} />);
+    const [ext, int] = Array.from(container.querySelectorAll('a'));
+    expect(ext.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(ext.getAttribute('target')).toBe('_blank');
+    expect(int.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(int.getAttribute('target')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+  });
+
   it('parseLegal returns no date when the line is missing', () => {
     expect(parseLegal('Hello').updated).toBeNull();
   });
