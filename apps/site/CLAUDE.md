@@ -7,6 +7,9 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 - **Only `@cs/ui` (and `@cs/ui/styles.css`) may be imported from the workspace.** Never `@cs/db`, `@cs/tools`, `@cs/email` root or any server package; no `'server-only'`. `src/import-boundary.test.ts` (`pnpm --filter @cs/site lint`) checks `package.json` and every specifier; `pnpm --filter @cs/site check:bundle` checks `.next` output and traces after a build.
 - **No secrets.** Read env only through `src/lib/env.ts` (`siteEnv`), with literal `process.env.NEXT_PUBLIC_*` reads (Next inlines only literals). Allowed: `NEXT_PUBLIC_*`, `VERCEL_ENV`, `NODE_ENV`; `SENTRY_AUTH_TOKEN|ORG|PROJECT` only in `next.config.ts`. No `.env` loading anywhere. A new `NEXT_PUBLIC_*` var is already hashed by turbo (`@cs/site#build` `env`).
 
+## Cross-package test
+- `packages/tools/src/waitlist/site-contract.test.ts` imports `apps/site/src/lib/waitlist-body.ts` to prove the form agrees with the server schema. After changing `waitlist-body.ts`, run `pnpm --filter @cs/tools exec vitest run site-contract`: turbo's affected filter won't pick `@cs/tools` up from a site change.
+
 ## Styling
 - Design system v1 with marketing latitude (spec § 7.8): `@cs/ui` tokens and primitives, compose in `src/components/`; never edit `@cs/ui`.
 - Site-local tokens live only in `src/app/site.css` (`text-display`, `text-display-sub`, `shadow-float`, `--ring-change`/`.ring-change`, `.bg-grid-lines`, `.hero-wash`, `.site-container`). No hex, `rounded-[…]`, `text-[…px]` or shadow literals in components; `bash scripts/design-lint.sh` covers `apps/site/src`.

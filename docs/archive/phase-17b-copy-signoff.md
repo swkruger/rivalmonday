@@ -62,7 +62,7 @@ Strip aria "Live platform numbers" (**NEW**). Numbers are fetched once per page 
 | Panel labels | "Map rankings", "Ask Friday", "Canned answers from the sample data", "Recommended:", "Show as table", "Not found", "No data", "Nothing here in this version.", kind labels Website / Reviews / Ads / Map rankings / Listing (**NEW**) | |
 | Fictional client | **Northwind Heating & Air**, "Heating & air", area "Marlowemere" (see decision 1) | |
 | Rivals | Quillstone Climate Pros (top), Juniperwell Air Works (top), Tidewell Mechanical (watch), Saffronfield Climate Pros (watch), Copperleaf Comfort Co (minor), Kestrel Mechanical (minor) | |
-| Item i1 (rank) | "ac repair marlowemere": average map position 5.5 → 3.1, top-3 share 16% → 63%. Why: Quillstone Climate Pros now shows in the map top 3 across 63% of your service area, up from 16%. Action: Check your Google Business Profile categories and recent reviews for the areas they took. (See "Open copy issues".) | |
+| Item i1 (rank) | "ac repair marlowemere": top-3 share 16% → 63%. What: Quillstone Climate Pros now ranks in the map top 3 at 31 of 49 points for "ac repair marlowemere", up from 8 of 49. Why: … across 63% of your service area, up from 16%. Action: Check your Google Business Profile categories and recent reviews in the areas where it moved into the top 3. (NEW, final fix wave: cites e1 + e2) | |
 | Item i2 (website) | Kestrel Mechanical cut its AC repair diagnostic to $69 (was $89). Why: Price-sensitive customers in your area compare these prices before they book. Action: Promote a value bundle instead of matching the price. | |
 | Item i3 (ads) | Quillstone Climate Pros started 2 Meta ads. Why: More paid ads usually mean more calls going to them for the same searches. Action: Check your ad coverage on the same keywords. | |
 | Item i4 (website) | Tidewell Mechanical added heat pump installation to its services. Why: They now compete for a service you offer. Action: Highlight your experience with this service on your site. | |
@@ -73,9 +73,9 @@ Names are produced by `packages/demo/src/site-export/rename.ts` (`FICTIONAL`). B
 ## 7. Friday's canned answers (`content/sample-friday.ts` 13-48; each figure cites its evidence)
 | Question | Answer | OK / edit |
 |---|---|---|
-| What changed with Quillstone Climate Pros? | In last week's map scan for "ac repair marlowemere", Quillstone Climate Pros ranked in the top 3 at 31 of 49 points. It also started Meta ads. One offers 0% financing for 60 months on new systems, another a Comfort Club with two tune-ups a year and 15% off repairs. (**typo**: the code reads "another a Comfort Club") | |
+| What changed with Quillstone Climate Pros? | In last week's map scan for "ac repair marlowemere", Quillstone Climate Pros ranked in the top 3 at 31 of 49 points. It also started Meta ads. One offers 0% financing for 60 months on new systems, another offers a Comfort Club with two tune-ups a year and 15% off repairs. (typo fixed) | |
 | Should we match Kestrel Mechanical's price? | Kestrel Mechanical cut its AC repair diagnostic from $89 to $69. Rather than match it, promote a value bundle: price-sensitive customers in your area compare these prices before they book. | |
-| Who is winning the map for "ac repair marlowemere"? | In the latest scan you are in the map top 3 at 42 of 49 points. The rival to watch is Quillstone Climate Pros: in the scan a week earlier it ranked in the top 3 at 31 of 49 points. Check your Google Business Profile categories and recent reviews for the areas it took. (implies a gain e1 does not show; suggested "the areas it covers") | |
+| Who is winning the map for "ac repair marlowemere"? | In the latest scan you are in the map top 3 at 42 of 49 points. The rival to watch is Quillstone Climate Pros: in the scan a week earlier it ranked in the top 3 at 31 of 49 points. It was in the top 3 at 8 of 49 points the week before, so check your Google Business Profile categories and recent reviews in the areas where it moved up. (NEW last sentence, cites e2) | |
 | What did Tidewell Mechanical change on its website? | Tidewell Mechanical added heat pump installation to its list of services. They now compete for a service you offer, so highlight your heat pump experience on your site. | |
 
 ## 8. Join popup (`src/components/join/copy.ts`)
@@ -86,7 +86,7 @@ Names are produced by `packages/demo/src/site-export/rename.ts` (`FICTIONAL`). B
 | 2 Business | Step 2 of 2 · Local business · About your business · We'll email you when we can start watching your competitors. Fields: Your name, Email, Business name, Website, "or city / ZIP", hint "One of the two is enough.", Type of business ("Select…", "Other…", "Describe your business"). Submit and fine print as above. | |
 | Validation and submit messages (**NEW**, plan gave none) | "Please leave web addresses out of this field." · "Please check the details above." · "Still checking, try again in a moment." · "The check didn't go through. Please try it again." · "We couldn't send this just now. Please try again in a minute, or email support@rivalmonday.app." · "Something went wrong. Please try again." | |
 | Done | You're on the list. We've emailed you a confirmation. · Click the link in that email to confirm your address. (second line **NEW**) · Close | |
-| Pilot-off CTAs | Footer: "Own a local business? Join the waitlist" appears only while Pilot mode is off; the bar and the Pilot pill disappear then; the popup copy is unchanged | |
+| Pilot-off CTAs | Footer: "Own a local business? Join the waitlist" appears only while Pilot mode is off; the bar and the Pilot pill disappear then; the popup, hero fine print, CTA band and pricing switch to the NEW trial copy below | |
 
 ## 9. How it works page (`content/how-it-works.ts`; eyebrow in `src/app/how-it-works/page.tsx`)
 Title "How we check every claim". Sections: 1 We capture the evidence · 2 We write only from the evidence · 3 A second check reads every claim · 4 You can always click through · What we don't do. All of it is **NEW**; read the file in full (1.4 KB), especially "When the verifier is unsure, a person decides." and "we identify our crawler and respect each site's robots.txt".
@@ -109,15 +109,28 @@ Title "How we check every claim". Sections: 1 We capture the evidence · 2 We wr
 SEO stem (`content/site.ts`): "White-label competitor intelligence for agencies".
 
 ## 12. Footer (`src/components/shell/site-footer.tsx`)
-Columns "Product" (How it works, Sample brief) and "Legal" (Privacy, Terms); nav aria "Footer"; "© {year} Rival Monday"; CTA band as in section 4.
+Columns "Product" (How it works, Sample brief) and "Legal" (Privacy, Terms); nav aria "Footer"; "© {year} Rival Monday"; no CTA card (removed in the final fix wave; pages keep the CTA band).
 
 ## 13. Legal drafts (placeholders; counsel replaces them)
 `apps/site/content/legal/privacy.md` and `terms.md` are drafts marked `OWNER-PLACEHOLDER`; `check:placeholders` flags them. The privacy draft also describes the source/referrer, the hashed IP, the confirmation email, Turnstile, Vercel Web Analytics and browser Sentry. Confirm those claims with counsel and against what ships.
 
-## Open copy issues (found while collecting; docs-only task, not fixed here)
-1. Friday Q1 "another a Comfort Club" is a typo (`sample-friday.ts` 26). Suggested: "another offers a Comfort Club".
-2. "the areas they took" (item i1 action) and Q3 "the areas it took" imply a gain the cited evidence does not show.
-3. Item i1's headline "5.5 → 3.1, 16% → 63%" cites e1, which evidences only 31 of 49 points; the prior-week figures have no evidence of their own. Add evidence for the earlier scan or drop the before-figures.
+## Open copy issues
+Resolved in the final fix wave: Q1 now reads "another offers a Comfort Club"; item i1 dropped the uncited average map position and cites the earlier scan (e2, "Quillstone Climate Pros: top 3 in 8 of 49 points"); "the areas they/it took" replaced (see NEW below). Evidence ids from e2 on shifted by one (snapshot e3, ads e4/e5, Tidewell e6, latest scan e18).
+
+## NEW in the final fix wave (owner signs)
+Pilot-off variants (shown only when the app reports pilot mode off; every figure from `PRICING`):
+| Where | Copy | OK / edit |
+|---|---|---|
+| Hero fine print | 30-day free trial · then $229/mo incl. 3 client seats | |
+| CTA band | Start your free trial / Try Rival Monday free for 30 days, then $229/mo including 3 client seats. | |
+| Pricing heading | Start with a 30-day free trial. | |
+| Pricing lines | Agencies: $229/mo including 3 client seats, $99 per extra seat, after a 30-day free trial. / Local businesses: ${NEXT_PUBLIC_CLIENT_PRICE_USD}/mo. | |
+| Popup title / sub | Get started with Rival Monday / Agencies can start a free trial now. Local businesses join the waitlist. | |
+| Popup agency option | Resell Rival Monday to your clients under your own brand. 30-day free trial, then $229/mo incl. 3 client seats. | |
+| Popup business option | Get a weekly brief on what your competitors are doing, for ${price}/mo. Join the waitlist and we'll email you when we can start. | |
+| Business consent line | Protected by Cloudflare Turnstile. We only use this to contact you about the waitlist. | |
+| Real-sample section | Hidden with the pilot off. | |
+Also: the hero Friday card's count now reads "1 source" (only the shown sentence's cite); the footer no longer repeats the closing CTA (pages keep the CTA band).
 
 ## Decisions to confirm
 1. **Fictional client "Northwind Heating & Air"**: a Microsoft sample-company name and possibly a real US firm. Keep, or choose another (`rename.ts` `FICTIONAL.client`; re-export the sample after changing it).

@@ -23,8 +23,8 @@
 - **Pages:** `/`, `/how-it-works`, `/sample-brief`, `/privacy`, `/terms`, 404, `robots`, `sitemap`; registry `content/pages.ts` (`PAGES`, `NAV_EXTRA`).
 - **Content files:** `content/{site,home,how-it-works,pricing,founder,sample-friday,pages}.ts`, `sample-brief.json`, `verticals.json`, `legal/{privacy,terms}.md` (OWNER-PLACEHOLDER markers).
 - **Env (site):** `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_SOCIAL_*`, `NEXT_PUBLIC_CLIENT_PRICE_USD`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_VERCEL_ENV`.
-- **Scripts (`apps/site`):** `export:sample-brief`, `export:site-verticals` (read `cs_demo`, `@cs/demo` `site-export/` renamer + leak guard), `check:placeholders`, `check:bundle`, `e2e`.
-- **CI:** jobs `site` (lint/test/build/placeholders/bundle) and `deploy-site` (gated like `deploy`). Deploy steps: `docs/DEPLOY.md` § Marketing site.
+- **Scripts:** `@cs/demo` `export:sample-brief` (reads `cs_demo`) and `export:site-verticals` (reads the `SERVICE_DATABASE_URL` DB), via `site-export/` renamer + leak guard, writing `apps/site/content/`; `@cs/site` `check:placeholders`, `check:bundle`, `e2e`.
+- **CI:** job `site` = lint, build, check:bundle, e2e (site unit tests run in `test`; `check:placeholders` runs in `deploy-site`); `deploy-site` gated like `deploy`. Deploy steps: `docs/DEPLOY.md` § Marketing site.
 - Join popup posts to `<app>/api/waitlist`; pilot flag from `/api/site-status` (CDN 300 s + swr 60 s + 60 s memo).
 
 ## Assumes from other branches
@@ -52,7 +52,7 @@ Headline "Every Monday, your clients learn what their competitors did last week,
 3. Turn Pilot mode off at `/platform/billing`; within about 6 minutes the bar, pill and fine print go and CTAs read "Start your free trial".
 4. Click through `/sample-brief`: claim -> evidence, slider, Friday; every name fictional. Optional: `pnpm demo:reset` then re-run `export:sample-brief` for richer snapshots (your call).
 5. Sign `docs/archive/phase-17b-copy-signoff.md`; supply the founder note + photo, privacy and terms.
-6. Deploy: follow `docs/DEPLOY.md` § Marketing site (Vercel project, env, DNS, Turnstile hostnames, `DEPLOY_ENABLED`).
+6. Before the first site deploy, re-run `pnpm --filter @cs/demo export:site-verticals` against prod (prod `SERVICE_DATABASE_URL` in the shell; the committed `verticals.json` lists only dental + HVAC) and commit it. Then follow `docs/DEPLOY.md` § Marketing site (Vercel project, toolbar off, env, DNS, Turnstile hostnames, `DEPLOY_ENABLED`).
 7. Set the social URLs (`NEXT_PUBLIC_SOCIAL_*`) and `NEXT_PUBLIC_CLIENT_PRICE_USD`.
 
 ## Brief (condensed)
