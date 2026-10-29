@@ -1,13 +1,13 @@
 # phase-17 — marketing launch site (rivalmonday.com) + pilot waitlist
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 8ff2e857
-**Plan/spec:** none yet (brainstorm from Q1–Q12 below)
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-17   **Base:** main @ 023a9f52 (rebased; phase-16 merged)
+**Spec:** `docs/superpowers/specs/2026-10-28-phase-17-marketing-site-design.md` (owner-approved 2026-10-28) · **Plans:** 17a `docs/superpowers/plans/2026-10-28-phase-17a-waitlist-and-pilot.md` (drafting); 17b, 17c to follow
 
 ## Status (overwrite)
-2026-10-28: kickoff brief written. No roadmap row yet (new phase). Mobbin "RivalMonday Site" collection handled separately.
+2026-10-28: brainstorm done, spec approved by owner. Split 17a (app: waitlist, pilot switch, invites, samples) → 17b (`apps/site` foundation + home + popup + sample brief) → 17c (integrations/sources/compare/pricing/partners + SEO). 17a plan being drafted.
 
 ## Next (overwrite)
-Owner answers Q1–Q12, then `superpowers:brainstorming` → spec (new decisions only) → lean plans.
+Owner reviews the 17a plan → subagent-driven development of 17a. Then write the 17b and 17c plans.
 
 ## Interfaces this branch adds or changes
 TBD. Next free migration **0096** (main at 0095; phase-16 adds none). Likely: `waitlist_entry` table (`TABLE_CLASS` + world rows), operator tools (`ISOLATION_FIXTURES`), public submit route, `platform_setting` key for the pilot flag, new app `apps/site` + Vercel project + turbo tasks.
@@ -17,7 +17,7 @@ TBD. Next free migration **0096** (main at 0095; phase-16 adds none). Likely: `w
 - **13a** (white-label, unbuilt, plan approved) touches `theme.ts`, `app-shell`, `auth-card`, host-aware error pages; keep the marketing site out of those files.
 
 ## Decisions (owner-approved)
-None yet.
+See spec (O)/(C) marks, all approved 2026-10-28. Headline "Every Monday, your clients learn what their competitors did last week, under your brand."; businesses served by the owner's agency ($99/mo, free in pilot); pilot invites = pitched agencies, trial = later; `pilot_mode` blocks token-less sign-up; samples requested by agencies, operator-driven setup (option A), read-only `/sample/<token>`; data vendors never named (sources instead); named compare pages live, each switchable by config; partners = standard reseller offer; social links shown when configured.
 
 ## New backlog (target → item)
 - (none yet)
