@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { PAGES } from '../../content/pages';
 import { SITE_URL } from '../../content/site';
-import { pageMetadata } from './metadata';
+import { effectiveTitle, pageMetadata } from './metadata';
 
 describe('pageMetadata', () => {
   it('canonical is SITE_URL + path', () => {
@@ -11,9 +12,15 @@ describe('pageMetadata', () => {
   });
 
   it('title within 60', () => {
-    const m = pageMetadata('/');
-    const title = String(m.title);
-    expect(title.length).toBeLessThanOrEqual(60);
-    expect(String(m.description).length).toBeLessThanOrEqual(155);
+    expect(String(pageMetadata('/').description).length).toBeLessThanOrEqual(155);
+    for (const p of PAGES) expect(effectiveTitle(p).length, p.path).toBeLessThanOrEqual(60);
+  });
+
+  it('effective title never repeats the brand', () => {
+    for (const p of PAGES) expect(effectiveTitle(p).split('Rival Monday').length - 1, p.path).toBeLessThanOrEqual(1);
+  });
+
+  it('brand-bearing titles are absolute, others use the template', () => {
+    expect(pageMetadata('/').title).toEqual({ absolute: PAGES.find((p) => p.path === '/')!.title });
   });
 });
