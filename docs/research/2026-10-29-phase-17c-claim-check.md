@@ -41,7 +41,7 @@ What 17c pages may say about Rival Monday, read from the code at `21622051`. Ids
 | int-anthropic | Claude models via OpenRouter + direct Message Batches API (topic discovery) | packages/ai/src/anthropic-batch.ts | shipped | plan example; never "all our AI is Claude" |
 | int-neon | Postgres, row-level security per agency | packages/db/src/tenant.ts, packages/db/migrations/0001_rls.sql | shipped | "Row-level security walls off each agency." |
 | int-vercel | Hosts the app, API, MCP endpoint, this site | docs/DEPLOY.md | shipped | no "cron" (schedules run in the worker) |
-| int-railway | Runs the worker (collection, schedules, browser snapshots) | apps/worker/railway.json | shipped | as claim |
+| int-railway | Runs the worker (collection, schedules) | apps/worker/railway.json | shipped | as claim |
 | int-cloudflare | R2 evidence store; Turnstile on join, sign-up, intake | packages/storage/src/r2.ts, apps/web/src/server/turnstile.ts, apps/web/src/app/api/waitlist/route.ts | shipped | plan example |
 | int-postmark | Briefs, alerts, invites, sign-in mail; bounce webhook | packages/email/src/transport.ts, apps/web/src/app/api/postmark/webhook/route.ts | shipped | as claim |
 | int-stripe | Billing (platform → agency) + Connect Standard (agency → client) | packages/billing/src/stripe-gateway.ts, packages/billing/src/connect-fee.ts | shipped; "no platform fee" gated: connect_application_fee_percent = 0 | Only while the global value and every `agency_connect.application_fee_percent` are 0. **Owner check** `/platform/billing` |
@@ -64,7 +64,7 @@ Client users get the dashboard, Friday and MCP only when the agency switches the
 | feat-map-rankings | Weekly map rankings | packages/collectors/src/rankings/scan.ts | yes · yes |
 | feat-client-billing | Client billing in your name | packages/tools/src/tools/client-billing.ts | yes · no |
 
-`standard` versions default to `["ask","mcp"]` (packages/db/src/schema/billing.ts); staff can drop them. **Owner check:** the current prod version has both.
+`standard` versions default to `["ask","mcp"]` (packages/db/src/schema/billing.ts); staff can drop them. **Owner check:** prod has both.
 
 ## FAQ (`faq-<topic>`)
 
