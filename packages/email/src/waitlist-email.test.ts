@@ -28,3 +28,19 @@ describe('waitlist_confirmation', () => {
     expect(out.text).not.toMatch(/Agency Co/);
   });
 });
+
+describe('sample_brief_ready', () => {
+  it('subject and body carry the decided copy, link and expiry', async () => {
+    const out = await renderEmail({
+      template: 'sample_brief_ready',
+      props: { branding: platform, contactName: 'Ada', businessName: 'Smith Dental', url: 'https://app.test/sample/TOKEN', expiresAt: '2026-11-27T12:00:00.000Z' },
+    });
+    expect(out.subject).toBe('Your sample brief for Smith Dental is ready');
+    expect(out.text).toContain('Hi Ada, here is the sample starting-point brief we built for Smith Dental from public information.');
+    expect(out.text).toContain('Open the sample brief');
+    expect(out.html).toContain('href="https://app.test/sample/TOKEN"');
+    expect(out.text).toContain(
+      "Every statement in it links to the evidence it came from. This is what a client gets in their first week, sent under your agency's name and branding. The link works until November 27, 2026. Questions, or ready to start? Just reply to this email.",
+    );
+  });
+});

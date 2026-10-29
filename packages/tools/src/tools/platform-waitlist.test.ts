@@ -2,15 +2,16 @@ import { type AccessContext, createAccessContext } from '@cs/core';
 import type { MapsPlace } from '@cs/collectors';
 import { agencyInviteLink, brief, client, clientSetup, contact, intakeLink, intakeRate, invitation, lead, membership, platformAdmin, platformAuditLog, platformSetting, type SetupLookup, waitlistEntry } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createMemoryTransport } from '@cs/email';
+import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { and, eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
 import { allTools } from './all';
 import type { ToolDeps } from '../deps';
 import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
 import { resolveIntake } from '../intake/public';
+import { SAMPLE_LINK_TTL_MS, verifySampleToken } from '../waitlist/sample-token';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -446,5 +447,100 @@ describe('decide_sample_brief', () => {
       await dbs.service.insert(intakeLink).values({ agencyId: sampleId, slug: 'samples', enabled: true }); // a row written outside the tools
       expect(await resolveIntake(dbs.service, 'samples')).toBeNull();
     });
+  });
+});
+
+describe('send_sample_brief', () => {
+  const op = ctxOf('op');
+  const SECRET = 'sample-link-secret-0123456789abcdef';
+  let transport: EmailTransport & { sent: { to: string; subject: string; html: string; text: string; tag?: string }[] };
+  const depsOf = (t: EmailTransport, over: Partial<ToolDeps> = {}): ToolDeps => ({
+    app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], appUrl: 'https://app.test', sampleLinkSecret: SECRET,
+    leadEmail: { transport: t, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: [] }, ...over,
+  });
+  type Sent = { url: string; expiresAt: string; emailed: boolean };
+  const send = (id: string, deps: ToolDeps = depsOf(transport), ctx = op) =>
+    createToolRegistry(deps, { audit: { record: async () => {} } }).invoke(ctx, 'send_sample_brief', { id }) as Promise<Sent>;
+  const fails = async (p: Promise<unknown>) => { try { await p; } catch (e) { return e as { code?: string; message: string; userFacing?: boolean }; } throw new Error('expected a failure'); };
+  const row = async (id: string) => (await dbs.service.select().from(waitlistEntry).where(eq(waitlistEntry.id, id)))[0]!;
+  const pausedAt = async () => (await dbs.service.select({ p: client.pausedAt }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.p;
+  const NOT_APPROVED = "The starting point isn't approved yet. Approve it in Approvals first.";
+
+  beforeEach(() => {
+    transport = createMemoryTransport() as typeof transport;
+  });
+
+  it('send refuses before approval', async () => {
+    const id = await sample('approved', { sampleClientId: IDS.clientA1, email: 'ada@a.co' });
+    let e = await fails(send(id)); // no starting point yet
+    expect([e.code, e.message, e.userFacing]).toEqual(['conflict', NOT_APPROVED, true]);
+    await startingPoint(IDS.clientA1, 'ready');
+    e = await fails(send(id));
+    expect([e.code, e.message]).toEqual(['conflict', NOT_APPROVED]);
+    for (const s of ['requested', 'declined', 'failed'] as const) {
+      const other = await sample(s, { email: `${s}@x.co` });
+      expect((await fails(send(other))).code).toBe('conflict');
+    }
+    expect((await fails(send(await mk({ kind: 'business' })))).code).toBe('not_found');
+    expect((await fails(send('99999999-9999-4999-8999-999999999999'))).code).toBe('not_found');
+    expect((await fails(send(id, depsOf(transport), viewer))).code).toBe('permission_denied');
+    expect((await row(id)).sampleStatus).toBe('approved');
+    expect(await pausedAt()).toBeNull();
+    expect(transport.sent).toHaveLength(0);
+  });
+
+  it('refuses without the link secret or app url', async () => {
+    const id = await sample('approved', { sampleClientId: IDS.clientA1 });
+    await startingPoint(IDS.clientA1, 'approved');
+    for (const over of [{ sampleLinkSecret: undefined }, { appUrl: undefined }]) {
+      const e = await fails(send(id, depsOf(transport, over)));
+      expect(e.code).toBe('internal');
+      expect(e.message).toMatch(/APP_URL|BETTER_AUTH_SECRET/);
+    }
+    expect((await row(id)).sampleStatus).toBe('approved');
+  });
+
+  it('send sets sent, pauses the client and returns a verifiable url', async () => {
+    const id = await sample('approved', { sampleClientId: IDS.clientA1, email: 'ada@a.co', contactName: 'Ada' });
+    await startingPoint(IDS.clientA1, 'sent'); // approveBrief marks a contact-less starting point sent
+    const before = Date.now();
+    const r = await send(id);
+    expect(r.emailed).toBe(true);
+    expect(r.url.startsWith('https://app.test/sample/')).toBe(true);
+    const v = verifySampleToken(r.url.slice('https://app.test/sample/'.length), SECRET, new Date());
+    expect(v?.entryId).toBe(id);
+    expect(r.expiresAt).toBe(new Date(v!.expMs).toISOString());
+    expect(v!.expMs - before).toBeGreaterThanOrEqual(SAMPLE_LINK_TTL_MS - 1000);
+    expect(v!.expMs - before).toBeLessThanOrEqual(SAMPLE_LINK_TTL_MS + 60_000);
+    const e = await row(id);
+    expect(e.sampleStatus).toBe('sent');
+    expect(e.sampleSentAt).not.toBeNull();
+    const paused = await pausedAt();
+    expect(paused).not.toBeNull();
+    expect(transport.sent).toHaveLength(1);
+    const [c] = await dbs.service.select({ name: client.name }).from(client).where(eq(client.id, IDS.clientA1));
+    expect(transport.sent[0]).toMatchObject({ to: 'ada@a.co', subject: `Your sample brief for ${c!.name} is ready`, tag: 'sample_brief_ready' });
+    expect(transport.sent[0]!.html).toContain(r.url);
+    // Send again: a fresh link, still sent, the pause time kept.
+    const again = await send(id);
+    expect(again.url).not.toBe(r.url);
+    expect((await row(id)).sampleStatus).toBe('sent');
+    expect(await pausedAt()).toEqual(paused);
+    expect(transport.sent).toHaveLength(2);
+  });
+
+  it('email failure → emailed false, state kept', async () => {
+    const id = await sample('approved', { sampleClientId: IDS.clientA1 });
+    await startingPoint(IDS.clientA1, 'approved');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failing: EmailTransport = { kind: 'memory', send: async () => { throw new Error('boom'); } };
+    const r = await send(id, depsOf(failing));
+    err.mockRestore();
+    expect(r.emailed).toBe(false);
+    expect(r.url.startsWith('https://app.test/sample/')).toBe(true);
+    expect((await row(id)).sampleStatus).toBe('sent');
+    expect(await pausedAt()).not.toBeNull();
+    const noMail = await send(id, depsOf(transport, { leadEmail: null }));
+    expect(noMail.emailed).toBe(false);
   });
 });

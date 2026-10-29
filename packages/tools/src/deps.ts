@@ -46,6 +46,8 @@ export interface ToolDeps {
   platformAdmins?: readonly string[];
   /** P11: public app origin; makes MCP row `url`s absolute (absent: root-relative paths). */
   appUrl?: string;
+  /** Phase 17a: signs the 30-day `/sample/<token>` links (web: BETTER_AUTH_SECRET). Absent: `send_sample_brief` refuses with `internal`. */
+  sampleLinkSecret?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */
   embedQuery?: (text: string, scope: CallScope) => Promise<number[]>;
   /** Phase 9a: billing gateway (`gatewayFor`): fake in DEMO/TEST, Stripe with a key, absent when billing is not configured (R27: Stripe-backed tools refuse, reads degrade, seat sync is skipped and the daily job reconciles). */

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn(), approveSampleAction: vi.fn(), stopSampleAction: vi.fn() }));
+const m = vi.hoisted(() => ({ send: vi.fn() }));
+
+vi.mock('./actions', () => ({ inviteAgenciesAction: vi.fn(), declineWaitlistEntryAction: vi.fn(), findPlacesAction: vi.fn(), assignBusinessAction: vi.fn(), approveSampleAction: vi.fn(), stopSampleAction: vi.fn(), sendSampleAction: m.send }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }) }));
 const { WaitlistTable } = await import('./waitlist-table');
 
@@ -84,10 +86,27 @@ describe('WaitlistTable samples', () => {
     expect(within(rowOf('s2')).getByRole('button', { name: 'Stop' })).toBeTruthy();
     expect(within(rowOf('s2')).getByRole('link', { name: 'Open setup' }).getAttribute('href')).toBe('/c/c2/setup');
     expect(within(rowOf('s3')).getByRole('link', { name: 'Review brief' }).getAttribute('href')).toBe('/agency/approvals');
-    expect(within(rowOf('s4')).queryByRole('button')).toBeNull();
+    expect(within(rowOf('s4')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Send again']);
     cleanup();
     showSamples(false);
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Send/ })).toBeNull();
+  });
+
+  it('Send sample when ready to send (or already marked sent), Send again once sent; the link shows in the result line', async () => {
+    const rows = [s('r1', 'approved', 'ready_to_send', 'c1'), s('r2', 'approved', 'sent', 'c2'), s('r3', 'approved', 'review', 'c3'), s('r4', 'sent', 'sent', 'c4')];
+    render(<WaitlistTable rows={rows} tab="samples" tz="UTC" verticals={{}} canWrite />);
+    expect(within(rowOf('r1')).getByRole('button', { name: 'Send sample' })).toBeTruthy();
+    expect(within(rowOf('r2')).getByRole('button', { name: 'Send sample' })).toBeTruthy();
+    expect(within(rowOf('r3')).queryByRole('button', { name: /Send/ })).toBeNull();
+    expect(within(rowOf('r4')).getByRole('button', { name: 'Send again' })).toBeTruthy();
+    m.send.mockResolvedValue({ ok: true, url: 'https://app.test/sample/TOKEN', notice: 'Link created, but the email failed — copy the link below.' });
+    fireEvent.click(within(rowOf('r1')).getByRole('button', { name: 'Send sample' }));
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Send' })); });
+    await waitFor(() => expect(m.send).toHaveBeenCalled());
+    expect((m.send.mock.calls[0]![1] as FormData).get('id')).toBe('r1');
+    expect(await screen.findByText('Link created, but the email failed — copy the link below.')).toBeTruthy();
+    expect(screen.getByText('https://app.test/sample/TOKEN')).toBeTruthy();
   });
 });

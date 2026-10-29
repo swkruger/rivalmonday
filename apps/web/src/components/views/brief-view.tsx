@@ -44,6 +44,8 @@ function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
  * `archiveHref` (the Overview) adds "Brief archive →"; `titled={false}` (the brief page, whose `PageHeader` names
  * the week) drops the own title. `surface="overview"` (16b, D-26) renders a `Section` with the summary in a canvas
  * `Band`; the default `reading` surface (16d, design system 09 § 5.5) is the 680 px column of the brief page.
+ * `evidenceHref` (17a, the public sample page) points every chip at the caller's evidence route and drops the PDF link,
+ * so the view carries no link into the app.
  */
 export function BriefView({
   brief,
@@ -53,6 +55,7 @@ export function BriefView({
   titled = true,
   surface = 'reading',
   refs,
+  evidenceHref,
 }: {
   brief: BriefDetail;
   agency: boolean;
@@ -61,11 +64,13 @@ export function BriefView({
   titled?: boolean;
   surface?: 'reading' | 'overview';
   refs?: EvidenceRefs;
+  evidenceHref?: (id: string) => string;
 }) {
   const items = [...brief.items].filter((i) => agency || i.status === 'active').sort((a, b) => a.ord - b.ord);
   const startingPoint = brief.kind === 'starting_point';
   const model = brief.scorecard ? scorecardModel(brief.scorecard, { clientName: brief.items.find((i) => i.subject === 'self')?.competitorName ?? '' }) : null;
   const deliverable = brief.status === 'approved' || brief.status === 'sent';
+  const pdf = deliverable && !evidenceHref;
   const title = startingPoint ? 'Your starting point' : formatWeekOf(brief.deliveryDate, { tz: 'UTC' });
   const chips = (
     <>
@@ -73,9 +78,9 @@ export function BriefView({
       {agency && <StatusChip tone={labelFor(BRIEF_STATUS, brief.status).tone}>{labelFor(BRIEF_STATUS, brief.status).label}</StatusChip>}
     </>
   );
-  const links = (extra: string) => (deliverable || archiveHref) && (
+  const links = (extra: string) => (pdf || archiveHref) && (
     <span className={`${extra}flex flex-wrap items-center gap-4`}>
-      {deliverable && (
+      {pdf && (
         <a href={`/files/brief/${brief.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
           Download PDF
         </a>
@@ -122,7 +127,7 @@ export function BriefView({
             </p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <EvidenceChips clientId={brief.clientId} ids={i.evidenceIds} refs={refs} />
+            <EvidenceChips clientId={brief.clientId} ids={i.evidenceIds} refs={refs} {...(evidenceHref ? { evidenceHref } : {})} />
             {agency && i.upsellTag && <StatusChip tone="warning">Upsell: {i.upsellTag}</StatusChip>}
             {agency && i.status !== 'active' && <StatusChip tone={labelFor(BRIEF_ITEM_STATUS, i.status).tone}>{labelFor(BRIEF_ITEM_STATUS, i.status).label}</StatusChip>}
             <Tag className="ml-auto">{confidenceLabel(i.confidence).text}</Tag>
@@ -152,7 +157,7 @@ export function BriefView({
   }
   return (
     <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
-      {(titled || deliverable || archiveHref || startingPoint || agency) && (
+      {(titled || pdf || archiveHref || startingPoint || agency) && (
         <div className="flex flex-wrap items-center gap-3">
           {titled && <h2 className="text-3xl font-semibold tracking-tight text-ink">{title}</h2>}
           {chips}

@@ -261,6 +261,15 @@ export interface WaitlistConfirmationProps {
   confirmUrl: string;
   sampleBusinessName: string | null;
 }
+/** Phase 17a: the sample-brief link mail. Always platform-branded. `url` holds the signed token, so never log it. */
+export interface SampleBriefReadyProps {
+  branding: Branding;
+  contactName: string;
+  businessName: string;
+  url: string;
+  /** ISO timestamp; rendered as e.g. "November 27, 2026" (UTC). */
+  expiresAt: string;
+}
 export interface LeadConfirmationProps {
   branding: Branding;
   businessName: string;
@@ -310,6 +319,7 @@ export type EmailPayload =
   | { template: 'lead_verify'; props: LeadVerifyProps }
   | { template: 'lead_confirmation'; props: LeadConfirmationProps }
   | { template: 'waitlist_confirmation'; props: WaitlistConfirmationProps }
+  | { template: 'sample_brief_ready'; props: SampleBriefReadyProps }
   | { template: 'lead_declined'; props: LeadDeclinedProps }
   | { template: 'lead_new'; props: LeadNewProps }
   | { template: 'agency_plan_change'; props: AgencyPlanChangeProps };

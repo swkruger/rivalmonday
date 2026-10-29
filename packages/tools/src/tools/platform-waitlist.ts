@@ -18,6 +18,8 @@ import { withPlatformAudit } from '../platform/audit';
 import { sampleCostEstimate } from '../waitlist/estimate';
 import { sampleBriefMonthlyLimit } from '../waitlist/settings';
 import { ensureOperatorMembership, ensureSampleAgency } from '../waitlist/sample';
+import { SAMPLE_LINK_TTL_MS, signSampleToken } from '../waitlist/sample-token';
+import { sendWaitlistEmail } from '../waitlist/emails';
 import { platformAgencyCtx } from '../platform/agency-ctx';
 import { createClientCore } from './onboarding';
 
@@ -403,5 +405,57 @@ export const decideSampleBriefTool = defineTool({
   },
 });
 
-export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool, platformFindBusinessTool, assignWaitlistBusinessTool, decideSampleBriefTool];
+const NOT_APPROVED = "The starting point isn't approved yet. Approve it in Approvals first.";
+
+/**
+ * Send (or send again): the requester gets a fresh 30-day read-only link to the approved starting point and its evidence, and the
+ * sample business is paused (no more paid work). The link is stateless (`sample-token.ts`); the page re-checks the entry is `sent`,
+ * so Stop ends every link. The email is sent after commit; a failure keeps the state and the operator copies the returned link.
+ */
+export const sendSampleBriefTool = defineTool({
+  name: 'send_sample_brief',
+  access: 'write',
+  description: 'Platform staff: email the requester a 30-day read-only link to the approved sample starting point and its evidence, and pause the sample business. On a sent sample it sends a fresh link.',
+  input: z.object({ id: Id }),
+  output: z.object({ url: z.string(), expiresAt: z.string(), emailed: z.boolean() }),
+  supportMask: ['emailed'], // a boolean (nothing to mask); listed because the key matches /email/i
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'staff', 'send_sample_brief', input, undefined, async () => {
+      const secret = deps.sampleLinkSecret;
+      if (!secret || !deps.appUrl) throw new ToolError('internal', 'Sample links need APP_URL and BETTER_AUTH_SECRET');
+      const now = new Date();
+      await deps.service.transaction(async (tx) => {
+        const [entry] = await tx.select().from(waitlistEntry).where(eq(waitlistEntry.id, input.id)).for('update');
+        if (!entry || entry.kind !== 'agency' || !entry.sampleStatus) throw new ToolError('not_found', 'Sample request not found');
+        if (entry.sampleStatus === 'declined' || entry.sampleStatus === 'failed') throw new ToolError('conflict', 'This sample was already handled.', { userFacing: true });
+        const clientId = entry.sampleStatus === 'requested' ? null : entry.sampleClientId;
+        const [sp] = clientId
+          ? await tx.select({ id: brief.id }).from(brief).where(and(eq(brief.clientId, clientId), eq(brief.kind, 'starting_point'), inArray(brief.status, ['approved', 'sent'])))
+          : [];
+        if (!clientId || !sp) throw new ToolError('conflict', NOT_APPROVED, { userFacing: true });
+        await tx.update(waitlistEntry).set({ sampleStatus: 'sent', sampleSentAt: now, updatedAt: now }).where(eq(waitlistEntry.id, entry.id));
+        await pauseClient(tx, clientId, ctx.userId, 'agency'); // keeps an earlier pause time
+      });
+      const expMs = now.getTime() + SAMPLE_LINK_TTL_MS;
+      const url = `${deps.appUrl.replace(/\/+$/, '')}/sample/${signSampleToken(input.id, expMs, secret)}`;
+      const expiresAt = new Date(expMs).toISOString();
+      let emailed = false;
+      if (!deps.leadEmail) {
+        console.warn(`[waitlist] email is not configured; sample link not emailed entry=${input.id}`);
+      } else {
+        try {
+          await sendWaitlistEmail({ service: deps.service, ...deps.leadEmail }, input.id, 'sample_ready', { sampleUrl: url, expiresAt });
+          emailed = true;
+        } catch {
+          // sendWaitlistEmail logged the entry id; the web shows the link to copy.
+        }
+      }
+      return { url, expiresAt, emailed };
+    });
+  },
+});
+
+export const platformWaitlistTools = [listWaitlistTool, inviteWaitlistAgenciesTool, declineWaitlistEntryTool, platformFindBusinessTool, assignWaitlistBusinessTool, decideSampleBriefTool, sendSampleBriefTool];
 

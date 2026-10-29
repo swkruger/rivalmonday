@@ -1,5 +1,5 @@
 'use client';
-import { BulkBar, bulkBarActionClass, Button, Input, Label, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
+import { BulkBar, bulkBarActionClass, Button, ConfirmDialog, Input, Label, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { ConfirmForm } from '@/components/confirm-form';
@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/format';
 import { labelFor, SAMPLE_STAGE, SAMPLE_STATUS, WAITLIST_STATUS } from '@/lib/labels';
 import type { FormResult } from '@/server/forms';
 import { AssignDialog, type AssignAgency } from './assign-dialog';
-import { declineWaitlistEntryAction, inviteAgenciesAction, type InviteResult, stopSampleAction } from './actions';
+import { declineWaitlistEntryAction, inviteAgenciesAction, type InviteResult, sendSampleAction, type SendSampleResult, stopSampleAction } from './actions';
 import { SampleDialog } from './sample-dialog';
 
 export type WaitlistTab = 'agencies' | 'businesses' | 'samples';
@@ -52,10 +52,28 @@ const invitable = (r: WaitlistRow) => r.kind === 'agency' && r.status === 'new' 
 
 const linkClass = 'text-sm font-medium text-primary-soft-text hover:underline';
 
-/** Sample requests tab: Approve / Decline a confirmed request; Stop one in progress, with a link to where it stands. */
-function SampleActions({ row, estimate, verticals }: { row: WaitlistRow; estimate: string; verticals: Record<string, string> }) {
+/** Send sample / Send again: asks first, then the result (with the link) goes to the table's always-mounted result line. */
+function SendSample({ row, again, onResult }: { row: WaitlistRow; again: boolean; onResult: (r: SendSampleResult) => void }) {
+  const label = again ? 'Send again' : 'Send sample';
+  return (
+    <WriteGuard>
+      <ConfirmDialog
+        trigger={<Button type="button" variant={again ? 'outline' : 'default'}>{label}</Button>}
+        title={again ? `Send ${row.contactName} a fresh sample link?` : `Send the sample brief to ${row.contactName}?`}
+        body={`${row.email} gets a link to the sample that works for 30 days. The sample business is paused.`}
+        confirmLabel="Send"
+        fields={{ id: row.id }}
+        action={async (fd) => onResult(await sendSampleAction(null, fd))}
+      />
+    </WriteGuard>
+  );
+}
+
+/** Sample requests tab: Approve / Decline a confirmed request; Stop or Send one in progress, with a link to where it stands. */
+function SampleActions({ row, estimate, verticals, onSent }: { row: WaitlistRow; estimate: string; verticals: Record<string, string>; onSent: (r: SendSampleResult) => void }) {
   const s = row.sample;
   if (!s) return null;
+  if (s.status === 'sent') return <SendSample row={row} again onResult={onSent} />;
   if (s.status === 'requested') {
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -77,10 +95,22 @@ function SampleActions({ row, estimate, verticals }: { row: WaitlistRow; estimat
     <div className="flex flex-wrap items-center gap-2">
       {s.stage === 'setup' && s.clientId && <Link href={`/c/${s.clientId}/setup`} className={linkClass}>Open setup</Link>}
       {s.stage === 'review' && <Link href="/agency/approvals" className={linkClass}>Review brief</Link>}
+      {(s.stage === 'ready_to_send' || s.stage === 'sent') && <SendSample row={row} again={false} onResult={onSent} />}
       <ConfirmForm
         action={stopSampleAction} submit="Stop" variant="outline" title="Stop this sample?" body="The business is paused and no link is sent." confirmLabel="Stop" tone="danger"
         fields={{ id: row.id }} className="flex flex-wrap items-center gap-2"
       />
+    </div>
+  );
+}
+
+function SendSampleNote({ state }: { state: SendSampleResult }) {
+  if (!state) return null;
+  if (!state.ok) return <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>;
+  return (
+    <div role="status" className="flex flex-col gap-1 text-sm text-ink">
+      <p>{state.notice ?? state.message}</p>
+      <p className="break-all font-mono text-xs">{state.url}</p>
     </div>
   );
 }
@@ -109,7 +139,7 @@ function InviteResultNote({ state }: { state: InviteResult }) {
 /**
  * Phase 17a: the waitlist table. The Agencies tab selects confirmed new rows for a bulk invite; new rows on the Agencies and
  * Businesses tabs can be declined. New confirmed businesses can be assigned to an agency. Sample requests are approved, declined or
- * stopped here (Task 11 adds sending). `canWrite` is false for platform viewers.
+ * stopped here, and sent (or sent again) once the starting point is approved. `canWrite` is false for platform viewers.
  */
 export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agencies = [], homeAgencyId = null, sampleEstimate = '' }: {
   rows: WaitlistRow[]; tab: WaitlistTab; tz: string; verticals: Record<string, string>; canWrite?: boolean;
@@ -119,6 +149,7 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agen
   sampleEstimate?: string;
 }) {
   const [assigned, setAssigned] = useState<FormResult | null>(null);
+  const [sent, setSent] = useState<SendSampleResult>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState<InviteResult, FormData>(async (prev, fd) => {
     const r = await inviteAgenciesAction(prev, fd);
@@ -132,6 +163,7 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agen
   return (
     <div className="flex flex-col gap-3">
       <InviteResultNote state={state} />
+      <SendSampleNote state={sent} />
       {assigned && (assigned.ok ? <p role="status" className="text-sm text-ink">{assigned.message}</p> : <ErrorNote compact focusKey={assigned}>{assigned.error}</ErrorNote>)}
       <TableFrame>
         <Table>
@@ -190,8 +222,7 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agen
                     {canWrite && tab === 'businesses' && r.status === 'new' && r.emailConfirmed && agencies.length > 0 && (
                       <AssignDialog entryId={r.id} orgName={r.orgName} location={r.location} agencies={agencies} homeAgencyId={homeAgencyId} onResult={setAssigned} />
                     )}
-                    {canWrite && tab === 'samples' && <SampleActions row={r} estimate={sampleEstimate} verticals={verticals} />}
-                    {/* Task 11: send sample */}
+                    {canWrite && tab === 'samples' && <SampleActions row={r} estimate={sampleEstimate} verticals={verticals} onSent={setSent} />}
                   </TableCell>
                 </TableRow>
               );

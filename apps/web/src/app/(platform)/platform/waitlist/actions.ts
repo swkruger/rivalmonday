@@ -91,6 +91,20 @@ export async function stopSampleAction(_prev: FormResult, fd: FormData): Promise
   return { ok: true, message: r.data.status === 'failed' ? 'Stopped.' : 'Declined.' };
 }
 
+/** Result of Send sample / Send again: the link is always returned, so a failed email never hides it. Null before the first send. */
+export type SendSampleResult = { ok: true; url: string; message?: string; notice?: string } | { ok: false; error: string } | null;
+
+/** Emails the requester a fresh 30-day sample link (the tool also pauses the sample business). Never logs the URL or token. */
+export async function sendSampleAction(_prev: unknown, fd: FormData): Promise<SendSampleResult> {
+  const { ctx } = await requireOperatorContext();
+  const r = await runTool<{ url: string; expiresAt: string; emailed: boolean }>(ctx, 'send_sample_brief', { id: str(fd, 'id') });
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return r.data.emailed
+    ? { ok: true, url: r.data.url, message: 'Sample sent. The link works for 30 days:' }
+    : { ok: true, url: r.data.url, notice: 'Link created, but the email failed — copy the link below.' };
+}
+
 /** Gives a confirmed new business to an agency with its picked listing (`lookup` is the JSON `PlaceLookup` posts). */
 export async function assignBusinessAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
   const { ctx } = await requireOperatorContext();

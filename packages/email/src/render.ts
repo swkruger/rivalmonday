@@ -24,6 +24,7 @@ import { PlatformOpsAlertEmail, platformOpsAlertSubject } from './templates/plat
 import { PlatformSpendAlertEmail, platformSpendAlertSubject } from './templates/platform-spend-alert';
 import { SignInEmail, signInSubject } from './templates/sign-in';
 import { WaitlistConfirmationEmail, waitlistConfirmationSubject } from './templates/waitlist-confirmation';
+import { SampleBriefReadyEmail, sampleBriefReadySubject } from './templates/sample-brief-ready';
 import { TeamInviteEmail, teamInviteSubject } from './templates/team-invite';
 import { SupportSessionStartedEmail, supportSessionStartedSubject } from './templates/support-session-started';
 import { TrendReportEmail, trendReportSubject } from './templates/trend-report';
@@ -81,6 +82,8 @@ function element(p: EmailPayload): { el: ReactElement; subject: string } {
       return { el: createElement(LeadConfirmationEmail, p.props), subject: leadConfirmationSubject(p.props) };
     case 'waitlist_confirmation':
       return { el: createElement(WaitlistConfirmationEmail, p.props), subject: waitlistConfirmationSubject(p.props) };
+    case 'sample_brief_ready':
+      return { el: createElement(SampleBriefReadyEmail, p.props), subject: sampleBriefReadySubject(p.props) };
     case 'lead_declined':
       return { el: createElement(LeadDeclinedEmail, p.props), subject: leadDeclinedSubject(p.props) };
     case 'lead_new':

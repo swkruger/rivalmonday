@@ -18,7 +18,7 @@ const WRITE_TOOLS = [
   'add_runbook_item', 'dismiss_runbook_update', 'pull_runbook_update', 'remove_runbook_item', 'retailor_runbook_item', 'set_runbook_item_enabled', 'update_runbook_item',
   'update_recommendation_status', 'update_vertical', 'draft_vertical', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area', 'upload_agency_logo', 'upsert_kb_article',
   'platform_rename_agency', 'platform_change_member_role', 'platform_remove_member', 'platform_invite_agency_admin', 'platform_resend_invitation', 'platform_revoke_invitation',
-  'invite_waitlist_agencies', 'decline_waitlist_entry', 'platform_find_business', 'assign_waitlist_business', 'decide_sample_brief', 'platform_suspend_agency', 'platform_unsuspend_agency', 'platform_retry_hold_billing', 'platform_archive_agency', 'platform_unarchive_agency',
+  'invite_waitlist_agencies', 'decline_waitlist_entry', 'platform_find_business', 'assign_waitlist_business', 'decide_sample_brief', 'send_sample_brief', 'platform_suspend_agency', 'platform_unsuspend_agency', 'platform_retry_hold_billing', 'platform_archive_agency', 'platform_unarchive_agency',
 ].sort();
 
 const ASK_THREAD_TOOLS = ['delete_ask_thread', 'get_ask_starters', 'get_my_ask_thread', 'list_my_ask_threads'];

@@ -23,6 +23,10 @@ describe('EvidenceChips', () => {
     expect(container.querySelectorAll('[data-slot="citation-pill"]')).toHaveLength(2);
     expect(container.querySelectorAll('a[data-next-link="1"][data-slot="citation-pill"]')).toHaveLength(2);
   });
+  it('evidenceHref replaces the app evidence link', () => {
+    render(<EvidenceChips clientId={C} ids={ids.slice(0, 2)} evidenceHref={(id) => `/sample/T/evidence/${id}`} />);
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([`/sample/T/evidence/${ids[0]}`, `/sample/T/evidence/${ids[1]}`]);
+  });
   it('renders nothing without evidence', () => {
     const { container } = render(<EvidenceChips clientId={C} ids={[]} />);
     expect(container.innerHTML).toBe('');

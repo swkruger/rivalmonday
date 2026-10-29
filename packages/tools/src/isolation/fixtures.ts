@@ -352,6 +352,10 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   })),
   // approve:false (decline) keeps the world unchanged elsewhere; the approve path (a new agency + client) is covered in platform-waitlist.test.ts
   decide_sample_brief: platform((w) => ({ id: w.platformIds.waitlistAgencySample, approve: false })),
+  send_sample_brief: {
+    kind: 'platform', input: (w) => ({ id: w.platformIds.waitlistAgencySample }),
+    skipPositive: "needs an approved sample with an approved starting point: the world's sample is only requested (a conflict, nothing written); covered in platform-waitlist.test.ts",
+  },
   assign_lead: platform((w) => ({ leadId: w.platformIds.poolLead, agencyId: w.ids.agencyA })),
   review_vertical: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, action: 'approve' })),
   review_business_area: platform((w) => ({ verticalId: w.platformIds.unreviewedVertical, areaId: w.platformIds.unreviewedArea, action: 'approve' })),

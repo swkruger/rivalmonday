@@ -5,7 +5,7 @@ vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => 
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/invite-email', () => ({ sendAgencyInviteEmail: (...a: unknown[]) => m.email(...a) }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
-const { approveSampleAction, inviteAgenciesAction, declineWaitlistEntryAction, stopSampleAction } = await import('./actions');
+const { approveSampleAction, inviteAgenciesAction, declineWaitlistEntryAction, sendSampleAction, stopSampleAction } = await import('./actions');
 
 const form = (o: Record<string, string | string[]>) => {
   const fd = new FormData();
@@ -78,5 +78,15 @@ describe('sample actions', () => {
     expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'decide_sample_brief', { id: 'w1', approve: false });
     m.runTool.mockResolvedValue({ ok: true, data: { status: 'failed', clientId: 'c1', setupUrl: null } });
     expect(await stopSampleAction({ ok: true }, form({ id: 'w1' }))).toEqual({ ok: true, message: 'Stopped.' });
+  });
+
+  it('send returns the link; an email failure keeps it with the notice', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { url: 'https://app/sample/T', expiresAt: EXP, emailed: true } });
+    expect(await sendSampleAction(null, form({ id: 'w1' }))).toEqual({ ok: true, url: 'https://app/sample/T', message: 'Sample sent. The link works for 30 days:' });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'send_sample_brief', { id: 'w1' });
+    m.runTool.mockResolvedValue({ ok: true, data: { url: 'https://app/sample/T', expiresAt: EXP, emailed: false } });
+    expect(await sendSampleAction(null, form({ id: 'w1' }))).toEqual({ ok: true, url: 'https://app/sample/T', notice: 'Link created, but the email failed — copy the link below.' });
+    m.runTool.mockResolvedValue({ ok: false, error: "The starting point isn't approved yet. Approve it in Approvals first." });
+    expect(await sendSampleAction(null, form({ id: 'w1' }))).toEqual({ ok: false, error: "The starting point isn't approved yet. Approve it in Approvals first." });
   });
 });

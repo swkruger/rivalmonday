@@ -1,11 +1,16 @@
 import { ensureExemptPilot } from '@cs/billing';
-import { ToolError } from '@cs/core';
-import { agency, contact, type Db, membership, platformSetting, type Tx } from '@cs/db';
+import { createAccessContext, isUuid, ToolError } from '@cs/core';
+import { agency, brief, briefItem, capture, client, competitor, contact, type Db, evidence, membership, platformSetting, type Tx, waitlistEntry } from '@cs/db';
 import { addContact, ensureAgencyRunbook } from '@cs/engine';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { catalogOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
+import { briefDetail } from '../tools/briefs';
+import type { BriefDetail, EvidenceRef } from '../tools/schemas';
+import { evidenceContentType } from '../workspace/evidence-access';
+import { channelLabel } from '../workspace/labels';
+import { verifySampleToken } from './sample-token';
 import { SAMPLE_AGENCY_KEY, sampleAgencyId } from './settings';
 
 /**
@@ -69,4 +74,65 @@ export async function isSampleAgency(db: Db | Tx, agencyId: string): Promise<boo
  */
 export async function refuseSampleContacts(db: Db | Tx, agencyId: string): Promise<void> {
   if (await isSampleAgency(db, agencyId)) throw new ToolError('invalid_input', SAMPLE_NO_CONTACTS, { userFacing: true });
+}
+
+// ---- the public sample link (Task 11). Service-role reads behind a verified token; every miss is `null` (a 404). ----
+
+/** The sent sample a link names: its entry (still `sent`), that entry's live client and the client's approved/sent starting point. */
+async function sampleTarget(service: Db, token: string, secret: string, now: Date) {
+  const v = verifySampleToken(token, secret, now);
+  if (!v) return null;
+  const [e] = await service.select({ clientId: waitlistEntry.sampleClientId }).from(waitlistEntry)
+    .where(and(eq(waitlistEntry.id, v.entryId), eq(waitlistEntry.kind, 'agency'), eq(waitlistEntry.sampleStatus, 'sent'), isNotNull(waitlistEntry.sampleClientId)));
+  if (!e?.clientId) return null;
+  const [row] = await service
+    .select({ briefId: brief.id, agencyId: client.agencyId, clientId: client.id, name: client.name, timezone: client.timezone })
+    .from(brief).innerJoin(client, eq(client.id, brief.clientId))
+    .where(and(eq(brief.clientId, e.clientId), eq(brief.kind, 'starting_point'), inArray(brief.status, ['approved', 'sent']), isNull(client.archivedAt)));
+  return row ? { ...row, expMs: v.expMs } : null;
+}
+
+/**
+ * The sample starting point as its client would read it, for `/sample/<token>`. The reader context is a `client_viewer`
+ * of this one client (active items only, `upsellTag` null); it is built here and never leaves this function.
+ */
+export async function getSampleBrief(deps: Pick<ToolDeps, 'service' | 'app'>, token: string, secret: string, now: Date)
+  : Promise<{ brief: BriefDetail; businessName: string; timezone: string; expiresAt: string; refs: EvidenceRef[] } | null> {
+  const t = await sampleTarget(deps.service, token, secret, now);
+  if (!t) return null;
+  const readerCtx = createAccessContext({ agencyId: t.agencyId, userId: 'sample-link', role: 'client_viewer', clientScope: [t.clientId], features: [] });
+  let detail: BriefDetail;
+  try {
+    detail = await briefDetail({ app: deps.app } as ToolDeps, readerCtx, t.briefId);
+  } catch (err) {
+    if (err instanceof ToolError) return null;
+    throw err;
+  }
+  const ids = [...new Set(detail.items.flatMap((i) => i.evidenceIds))].filter(isUuid);
+  const rows = ids.length
+    ? await deps.service
+      .select({ id: evidence.id, source: capture.source, capturedAt: capture.capturedAt, competitorName: competitor.name })
+      .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
+      .where(inArray(evidence.id, ids))
+    : [];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const refs = ids.flatMap((id) => {
+    const r = byId.get(id);
+    return r ? [{ evidenceId: id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString() }] : [];
+  });
+  return { brief: detail, businessName: t.name, timezone: t.timezone, expiresAt: new Date(t.expMs).toISOString(), refs };
+}
+
+/** The stored file behind one evidence chip of the sample: cited by an active item, and a servable kind only (never html/vendor_json). */
+export async function sampleEvidenceKey(service: Db, token: string, secret: string, evidenceId: string, now: Date)
+  : Promise<{ objectKey: string; kind: 'screenshot' | 'text' } | null> {
+  if (!isUuid(evidenceId)) return null;
+  const t = await sampleTarget(service, token, secret, now);
+  if (!t) return null;
+  const items = await service.select({ evidenceIds: briefItem.evidenceIds }).from(briefItem)
+    .where(and(eq(briefItem.briefId, t.briefId), eq(briefItem.status, 'active')));
+  if (!items.some((i) => i.evidenceIds.includes(evidenceId))) return null;
+  const [ev] = await service.select({ objectKey: evidence.objectKey, kind: evidence.kind }).from(evidence).where(eq(evidence.id, evidenceId));
+  if (!ev || !evidenceContentType(ev.kind)) return null;
+  return { objectKey: ev.objectKey, kind: ev.kind as 'screenshot' | 'text' };
 }

@@ -68,6 +68,7 @@ export function isolationDeps(w: IsolationWorld): { deps: ToolDeps; enqueued: un
     webMonitoring: true,
     kbImportEnabled: true,
     appUrl: 'https://app.example',
+    sampleLinkSecret: 'isolation-sample-secret-0123456789abcdef',
     delivery: { appUrl: 'https://app.example', linkSecrets: ['isolation-link-secret-0123456789abcdef'], fromAddress: 'briefs@app.example' },
     webhookFetch,
     // direct sends (team invites, hold emails, lead notices) go to memory, never "email is not configured"

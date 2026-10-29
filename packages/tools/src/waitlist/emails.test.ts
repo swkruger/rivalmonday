@@ -42,9 +42,22 @@ describe('sendWaitlistEmail', () => {
     err.mockRestore();
   });
 
-  it('sample_ready is not implemented yet and confirmation needs confirmRaw', async () => {
+  it('sample_ready sends the platform-branded link mail', async () => {
+    const id = await mk({ sampleRequested: true, sampleStatus: 'sent', sampleBusinessName: 'Smith Dental' });
+    await sendWaitlistEmail(deps(), id, 'sample_ready', { sampleUrl: 'https://app.test/sample/TOKEN1', expiresAt: '2026-11-27T12:00:00.000Z' });
+    expect(transport.sent).toHaveLength(1);
+    const m = transport.sent[0]!;
+    expect(m).toMatchObject({ to: 'ada@a.co', replyTo: 'support@rivalmonday.app', tag: 'sample_brief_ready', subject: 'Your sample brief for Smith Dental is ready', metadata: { waitlist: id } });
+    expect(m.from).toBe('"Rival Monday" <briefs@app.test>');
+    expect(m.html).toContain('https://app.test/sample/TOKEN1');
+    expect(m.text).toContain('November 27, 2026');
+  });
+
+  it('sample_ready needs the url and expiry; confirmation needs confirmRaw', async () => {
     const id = await mk();
-    await expect(sendWaitlistEmail(deps(), id, 'sample_ready', {})).rejects.toThrow('not implemented');
+    await expect(sendWaitlistEmail(deps(), id, 'sample_ready', {})).rejects.toThrow();
+    await expect(sendWaitlistEmail(deps(), id, 'sample_ready', { sampleUrl: 'https://app.test/sample/T' })).rejects.toThrow();
     await expect(sendWaitlistEmail(deps(), id, 'confirmation', {})).rejects.toThrow();
+    expect(transport.sent).toHaveLength(0);
   });
 });
