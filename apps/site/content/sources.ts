@@ -1,6 +1,6 @@
 // Draft copy: owner signs. Every entry is checked against the claims ledger
 // (docs/research/2026-10-29-phase-17c-claim-check.md, rows src-<slug>); evidence paths live in sources-evidence.ts.
-// competitor-websites is gated by WEB_MONITORING_ENABLED: the owner turns it on before this page deploys.
+// inTheBrief lines are illustrative examples, not product claims. competitor-websites is gated by WEB_MONITORING_ENABLED: the owner turns it on before this page deploys.
 export interface Source {
   slug: 'competitor-websites' | 'google-reviews' | 'google-business-profile' | 'ads' | 'local-map-rankings' | 'job-postings';
   name: string;
@@ -14,7 +14,7 @@ export interface Source {
   seo: { title: string; description: string; crumb: string };
 }
 
-const NO_LOGINS = 'We never log in anywhere, and we never use private data.';
+const NO_LOGINS = 'We never log in to any site to collect, and we never use private data.';
 
 export const SOURCES: readonly Source[] = [
   {
@@ -26,7 +26,7 @@ export const SOURCES: readonly Source[] = [
       'A snapshot of each rival page we watch, such as services, pricing and offers, so a change can be shown against the earlier version.',
       'Only public pages. Our crawler identifies itself as RivalMondayBot, respects robots.txt, and waits at least 3 seconds between requests to the same site.',
     ],
-    howOften: 'Daily or weekly for each page. A trial agency gets weekly checks.',
+    howOften: 'Daily or weekly for each page. Weekly during an open free trial.',
     whatWeDont: [NO_LOGINS, 'We do not read pages a site has asked crawlers to stay out of, and we do not try to get around a block.'],
     inTheBrief: 'A rival changes its offer or adds a service page, and the brief shows the page before and after.',
     seo: {
@@ -78,8 +78,8 @@ export const SOURCES: readonly Source[] = [
       'Ads your rivals are running, as listed in the Google Ads Transparency Center.',
     ],
     howOften: 'Weekly.',
-    whatWeDont: [NO_LOGINS, 'We do not see what a rival spends or who it targets, only what the public libraries list.'],
-    inTheBrief: 'A rival starts a new seasonal campaign, with the ad text and the date it first appeared.',
+    whatWeDont: [NO_LOGINS, 'We see only what the public ad libraries list.'],
+    inTheBrief: 'A rival starts a new seasonal campaign, with the text of the ad where the library shows it.',
     seo: {
       title: 'Competitor ads on Meta and Google',
       description: "How Rival Monday follows your rivals' ads in the Meta Ad Library and the Google Ads Transparency Center.",
@@ -95,9 +95,9 @@ export const SOURCES: readonly Source[] = [
       'A grid of points across your service area. At each point we record who ranks in the local map results.',
       'Up to five keywords per client.',
     ],
-    howOften: 'Weekly, every Sunday. A "Scan now" button runs an extra scan once a week.',
+    howOften: 'Weekly, every Sunday. You can run one extra scan a week with "Scan now".',
     whatWeDont: [NO_LOGINS, 'We do not track individual searchers. A ranking is what a public map search shows at that point.'],
-    inTheBrief: 'A rival moves ahead of you in one part of town, shown on a map of the grid.',
+    inTheBrief: 'A rival moves ahead of you in one part of your service area.',
     seo: {
       title: 'Local map ranking grid',
       description: 'How Rival Monday scans local map rankings on a grid across your service area every Sunday.',

@@ -46,7 +46,7 @@ export default async function SourcePage({ params }: { params: Promise<{ source:
           </div>
           <Section title="What we don't do" items={s.whatWeDont} />
           <div className="mt-8">
-            <h2 className="text-xl font-semibold text-ink">In your brief</h2>
+            <h2 className="text-xl font-semibold text-ink">In your brief, for example</h2>
             <p className="mt-2 text-base leading-relaxed text-ink-secondary">{s.inTheBrief}</p>
           </div>
           <div className="mt-10 border-t border-line pt-6">
