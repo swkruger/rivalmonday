@@ -80,6 +80,15 @@ export const PAGES: readonly SitePage[] = [
     crumb: 'Partners',
   },
   {
+    path: '/roadmap',
+    title: 'Roadmap: acting on recommendations',
+    description: 'Planned for version 2.0: draft, approve and publish review replies, Google profile updates and listing fixes, then see the gap to rivals close.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.5,
+    crumb: 'Roadmap',
+  },
+  {
     path: '/privacy',
     title: 'Privacy',
     description: 'What the waitlist form collects, why, and who helps us run the site.',

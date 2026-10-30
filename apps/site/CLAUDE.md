@@ -31,3 +31,4 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 - `verifiedIn` code paths live in `content/*-evidence.ts`, never in the content modules (keeps repo paths out of page bundles).
 - The app's `/api/waitlist` fails closed (`400 check`) in env `dev` without a Turnstile secret — local end-to-end tries need Cloudflare's test keys in `.env`.
 - Windows working copies can drift to CRLF while the index stays LF (`git ls-files --eol` shows `w/crlf`, status clean): `rm <file> && git checkout -- <file>`; a plain checkout doesn't rewrite.
+- `/roadmap` (`content/roadmap.ts`) is **planned** work, never a claim: no `verifiedIn`, no ledger row; keep the "Planned · may change" status and notice (roadmap test). When a roadmap item ships, move its wording to claims-backed pages and drop it here.

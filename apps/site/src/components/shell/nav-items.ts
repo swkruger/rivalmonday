@@ -30,6 +30,7 @@ const COLUMNS: FooterColumn[] = [
       { label: 'Pricing', href: '/pricing' },
       { label: 'Integrations', href: '/integrations' },
       { label: 'Sources', href: '/sources' },
+      { label: 'Roadmap', href: '/roadmap' },
     ],
   },
   { heading: 'Compare', links: [{ label: 'Compare overview', href: '/compare' }] },

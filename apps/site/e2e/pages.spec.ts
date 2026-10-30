@@ -11,6 +11,7 @@ const NEW_PAGES = [
   '/compare/brightlocal',
   '/pricing',
   '/partners',
+  '/roadmap',
 ];
 
 async function ldJson(page: Page): Promise<unknown[]> {
