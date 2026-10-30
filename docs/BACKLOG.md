@@ -272,7 +272,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
 - [ ] Sign off copy marked in the 7b1/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, feedback links) — *phase-7-planning*
 - [ ] `ask-inject-09`: make the Ask prompt paraphrase injected text (it quotes the phrase while refusing in most live runs; B3 failed 7 of 10 live), re-record ask; until then keep `evals-live` advisory (not a required check) (not a Jev 1.14 regression; `eval record --fill` avoids paying for full retakes) — *phase-7c1*
-- [ ] Staging setup before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon staging branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
+- [ ] Permanent staging setup per `docs/STAGING.md` § 1 (staging.rivalmonday.app/.com, Neon `staging` branch of cs_dev; then `STAGING_DEPLOY_ENABLED=true`) — *staging-env*
+- [ ] Rehearsal-stack setup (`docs/DEPLOY.md` § Rehearsal stack) before 7c2 Task 12 (needs O17 prod Neon): Vercel Preview + Neon schema-only branch + Railway worker sized like prod + fixture-hosts service (5 custom domains); rehearsal ≤ \$5 AI, ~\$20 infra — *phase-7-planning*
 - [ ] Postmark webhook: answer 500 or 200 on handler errors (500 makes Postmark retry)? — *7a2 T8*
 - [ ] Purge anonymises `platform_support` rows: confirm — *7a2 T10*
 - [ ] Scope-`all` roles still see an archived client's `llm_call`/`vendor_call`/`audit_log` rows (0006 policies): accept or hide — *7a2*
