@@ -166,7 +166,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Phase 17 follow-ups (marketing site, waitlist)
 **Soon**
-- [ ] Site favicon + apple-touch icon, `Organization.logo` in JSON-LD (no logo asset yet); SRI / nonce CSP (P7) — *phase-17*
+- [ ] SRI / nonce CSP (P7) — *phase-17*
+- [ ] Free map-check tool (link magnet): one-off grid scan for any business from the site; needs app-side vendor calls behind cost guards + Turnstile — *site-showcase*
+- [ ] More SEO pages once signed: further trades (roofing, landscaping, med spas…) in `content/industries.ts`; more guides; port the hand-tuned rank story into `@cs/demo` `site-export` so a re-export keeps it — *site-showcase*
 - [ ] Sample space: hide "Ask the owner to pick" on the competitors step for sample clients; an approving operator's Samples-agency membership is permanent (add expiry); alert when the `waitlist:all` cap (500/day) is hit — *phase-17a*
 - [ ] 17c minors: `^logo$` in the JSON-LD deep-walk key guard; guard test that `public/logos/*.svg` belong to logo-ok vendors with `approved=yes`; type `INTEGRATION_VERIFIED_IN` by slug; `check:facts` tests for unknown/stale source; mobile-menu nav vs header test; llms headings vs registry; fixed-date test assertions; Sentry "before anyone writes in" wording — *phase-17c*
 **Recurring / later**
@@ -174,6 +176,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Re-run `pnpm --filter @cs/demo export:site-verticals` when verticals change (manual, P2) — *phase-17b*
 - [ ] 13a: when white-label (own domain, email) ships, update the site's white-label FAQ, partners page and RM compare cells — *phase-17c*
 - [ ] Social collection, if ever built: flip the compare row from "Not offered" — *phase-17c*
+- [ ] Bump a guide's `updated` date in `content/guides.ts` on every substantive edit (Article `dateModified`) — *site-showcase*
+- [ ] Testimonials: add real pilot quotes (with permission) to `content/testimonials.ts`; the section stays hidden while empty — *site-showcase*
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
