@@ -85,11 +85,120 @@ jobs:
         env:
           E2E_SKIP_BUILD: "1"
 
+  # Staging (docs/STAGING.md): every push to main migrates and deploys staging.rivalmonday.app first; production waits
+  # for it. Off until the repo variable STAGING_DEPLOY_ENABLED is 'true'. Same steps as `deploy`, but Vercel custom
+  # environment `staging` and Railway environment `staging`. Shares the `staging` group with staging-refresh.yml.
+  deploy-staging:
+    needs: [test, image]
+    if: vars.STAGING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: staging
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      STAGING_APP_URL: ${{ vars.STAGING_APP_URL || 'https://staging.rivalmonday.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check the target is the Neon staging branch (never migrate another database from here)
+        run: bash scripts/staging-target-check.sh
+        env:
+          NEON_API: https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          STAGING_BRANCH_ID: ${{ vars.NEON_STAGING_BRANCH_ID }}
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      - name: Pre-deploy data check (migration 0025)
+        run: pnpm --filter @cs/db predeploy-check
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      - name: Migrate staging database
+        run: pnpm --filter @cs/db migrate
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      - name: Vercel pull (staging)
+        run: npx --yes vercel@62.4.0 pull --yes --environment=staging --token="$VERCEL_TOKEN"
+      - name: Vercel build (staging; uploads web source maps to Sentry)
+        run: npx --yes vercel@62.4.0 build --target=staging --token="$VERCEL_TOKEN"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+      - name: Vercel deploy (staging)
+        run: npx --yes vercel@62.4.0 deploy --prebuilt --target=staging --token="$VERCEL_TOKEN"
+      - name: Stamp worker release
+        run: echo "$GITHUB_SHA" > apps/worker/.release
+      - name: Railway deploy (staging worker)
+        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker --environment staging
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Sentry release (worker)
+        run: |
+          npx --yes @sentry/cli@3.8.0 releases new "$GITHUB_SHA"
+          npx --yes @sentry/cli@3.8.0 releases finalize "$GITHUB_SHA"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WORKER }}
+      - name: Smoke (staging app answers signed-out)
+        # A 401 here means Vercel Deployment Protection covers the staging domain (docs/STAGING.md § 4).
+        run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
+
+  # Staging marketing site. No placeholder or facts gate here (staging is noindex); production keeps both.
+  deploy-staging-site:
+    needs: [site, deploy-staging]
+    if: vars.STAGING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: staging-site
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      STAGING_SITE_URL: ${{ vars.STAGING_SITE_URL || 'https://staging.rivalmonday.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vercel pull (staging)
+        run: npx --yes vercel@62.4.0 pull --yes --environment=staging --token="$VERCEL_TOKEN"
+      - name: Vercel build (staging; uploads site source maps to Sentry)
+        run: npx --yes vercel@62.4.0 build --target=staging --token="$VERCEL_TOKEN"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_SITE }}
+      - name: Vercel deploy (staging)
+        run: npx --yes vercel@62.4.0 deploy --prebuilt --target=staging --token="$VERCEL_TOKEN"
+      - name: Smoke (staging site loads and is not indexable)
+        run: |
+          curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_SITE_URL/"
+          curl -fsS "$STAGING_SITE_URL/robots.txt" | tr -d '\r' | grep -qx 'Disallow: /' \
+            || { echo "::error::staging robots.txt allows crawling (VERCEL_ENV=production on staging?)"; exit 1; }
+
   # Gated migrate-then-deploy (docs/DEPLOY.md). Any failed step stops every later one.
   # Off until the repo variable DEPLOY_ENABLED is 'true' (set once the prod accounts exist).
+  # With staging on (STAGING_DEPLOY_ENABLED), production deploys only after both staging jobs succeeded for the same commit.
   deploy:
-    needs: [test, image]
-    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, image, deploy-staging, deploy-staging-site]
+    if: >-
+      !cancelled() && needs.test.result == 'success' && needs.image.result == 'success'
+      && ((needs.deploy-staging.result == 'success' && needs.deploy-staging-site.result == 'success') || vars.STAGING_DEPLOY_ENABLED != 'true')
+      && vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     concurrency:
@@ -147,8 +256,11 @@ jobs:
   # Marketing site (docs/DEPLOY.md § Marketing site). After `deploy` so the app's /api/waitlist and SITE_ORIGIN are live.
   # Same gate as `deploy`; refuses while OWNER-PLACEHOLDER markers remain (privacy, terms, founder note).
   deploy-site:
-    needs: [site, deploy]
-    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [site, deploy, deploy-staging-site]
+    if: >-
+      !cancelled() && needs.site.result == 'success' && needs.deploy.result == 'success'
+      && (needs.deploy-staging-site.result == 'success' || vars.STAGING_DEPLOY_ENABLED != 'true')
+      && vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     concurrency:

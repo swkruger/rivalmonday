@@ -1,0 +1,120 @@
+name: staging-refresh
+# Replaces staging data with a fresh copy of cs_dev (docs/STAGING.md § Refresh): stops the staging worker, resets the
+# Neon `staging` branch from its parent, neutralises dev's queued work (infra/db/staging/after-refresh.sql), migrates
+# to main and redeploys the worker. Manual only; shares the `staging` group with ci.yml `deploy-staging`.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type "refresh staging". Everything on staging is replaced by a copy of cs_dev.
+        required: true
+      first_run:
+        description: First run only (STAGING.md § 1 step 12) — nothing is deployed to staging yet, so skip stopping the worker and the web smoke test.
+        type: boolean
+        default: false
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: inputs.confirm == 'refresh staging' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      NEON_API: https://console.neon.tech/api/v2/projects/${{ vars.NEON_PROJECT_ID }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      STAGING_BRANCH_ID: ${{ vars.NEON_STAGING_BRANCH_ID }}
+      DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      STAGING_APP_URL: ${{ vars.STAGING_APP_URL || 'https://staging.rivalmonday.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the target (branch named staging, has a parent, owner URL is its direct endpoint)
+        run: bash scripts/staging-target-check.sh
+
+      - name: Stop the staging worker (no job may run against the half-refreshed copy)
+        # Must succeed: a worker left running would pick up dev's copied jobs before the clean-up below.
+        if: ${{ !inputs.first_run }}
+        run: npx --yes @railway/cli@5.63.1 down --service rivalmonday-worker --environment staging --yes
+
+      - name: Reset the staging branch from its parent (cs_dev)
+        run: |
+          set -euo pipefail
+          api() { curl -fsS -H "Authorization: Bearer $NEON_API_KEY" -H 'Accept: application/json' "$@"; }
+          ops=$(api -X POST -H 'Content-Type: application/json' -d "{\"source_branch_id\":\"$PARENT_BRANCH_ID\"}" \
+            "$NEON_API/branches/$STAGING_BRANCH_ID/restore" | jq -r '.operations[].id')
+          for op in $ops; do
+            status=unknown
+            for _ in $(seq 1 60); do
+              status=$(api "$NEON_API/operations/$op" | jq -r .operation.status)
+              case "$status" in
+                finished|skipped) break ;;
+                failed|error|cancelled) echo "::error::Neon operation $op ended $status"; exit 1 ;;
+              esac
+              sleep 5
+            done
+            case "$status" in finished|skipped) ;; *) echo "::error::Neon operation $op still $status after 5 minutes"; exit 1 ;; esac
+          done
+
+      - name: Re-apply the staging role passwords (the reset copied dev's back)
+        # app_user/app_service/cs_worker/cs_web are SQL roles, so their passwords live in the copied data. \getenv keeps
+        # the values off the command line; the owner holds ADMIN on these roles (it created them).
+        env:
+          PW_APP_USER: ${{ secrets.STAGING_PW_APP_USER }}
+          PW_APP_SERVICE: ${{ secrets.STAGING_PW_APP_SERVICE }}
+          PW_CS_WORKER: ${{ secrets.STAGING_PW_CS_WORKER }}
+          PW_CS_WEB: ${{ secrets.STAGING_PW_CS_WEB }}
+        run: |
+          set -euo pipefail
+          for v in PW_APP_USER PW_APP_SERVICE PW_CS_WORKER PW_CS_WEB; do
+            [ -n "${!v}" ] || { echo "::error::secret STAGING_$v is not set in the staging environment"; exit 1; }
+          done
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          \getenv pw PW_APP_USER
+          ALTER ROLE app_user PASSWORD :'pw';
+          \getenv pw PW_APP_SERVICE
+          ALTER ROLE app_service PASSWORD :'pw';
+          \getenv pw PW_CS_WORKER
+          ALTER ROLE cs_worker PASSWORD :'pw';
+          \getenv pw PW_CS_WEB
+          ALTER ROLE cs_web PASSWORD :'pw';
+          SQL
+
+      - name: Neutralise dev's sessions, webhooks, outbox and queued jobs
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f infra/db/staging/after-refresh.sql
+
+      - name: Refuse migrations that main does not have (branch work applied to cs_dev)
+        # Every applied migration must be in main's journal: drizzle would otherwise skip older main migrations silently.
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -XtAc 'SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY 1' | sed '/^$/d' > applied.txt
+          jq -r '.entries[].when' packages/db/migrations/meta/_journal.json > journal.txt
+          if extra=$(grep -vxFf journal.txt applied.txt); then
+            echo "::error::cs_dev has migrations main lacks (created_at: $(echo $extra)). Merge that branch, then refresh again; the staging worker stays stopped."
+            exit 1
+          fi
+
+      - name: Pre-deploy data check (migration 0025)
+        run: pnpm --filter @cs/db predeploy-check
+
+      - name: Migrate staging to main
+        run: pnpm --filter @cs/db migrate
+
+      - name: Stamp worker release
+        run: echo "$GITHUB_SHA" > apps/worker/.release
+
+      - name: Start the staging worker again (main)
+        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker --environment staging
+
+      - name: Smoke (staging app answers)
+        if: ${{ !inputs.first_run }}
+        run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"

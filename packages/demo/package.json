@@ -16,6 +16,7 @@
     "links": "tsx src/cli/links.ts",
     "snapshot": "tsx src/cli/snapshot.ts",
     "restore": "tsx src/cli/restore.ts",
+    "staging:evidence": "tsx src/cli/staging-evidence.ts",
     "rehearsal": "tsx src/cli/rehearsal.ts",
     "export:sample-brief": "tsx src/cli/export-sample-brief.ts",
     "export:site-verticals": "tsx src/cli/export-site-verticals.ts"

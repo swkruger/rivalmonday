@@ -2,7 +2,7 @@
 
 `rivalmonday.app`: web on **Vercel** (`iad1`), worker on **Railway** (one container), Postgres on **Neon** (PG18, `us-east-1`), evidence in **R2**, mail via **Postmark**, errors in **Sentry**.
 
-**Pipeline** (`.github/workflows/ci.yml`): a push to `main` runs `test` + `image` (worker image build + offline `smoke:image`), then `deploy` (environment `production`, one at a time, never cancelled): `predeploy-check` → `migrate` (owner URL) → `vercel pull/build/deploy --prebuilt --prod` (uploads web source maps) → `railway up` (worker, release = commit SHA) → Sentry worker release. A failed step stops every later one. Vercel and Railway auto-deploys stay **off**: this job is the only deploy path.
+**Pipeline** (`.github/workflows/ci.yml`): a push to `main` runs `test` + `image` (worker image build + offline `smoke:image`), then `deploy` (environment `production`, one at a time, never cancelled): `predeploy-check` → `migrate` (owner URL) → `vercel pull/build/deploy --prebuilt --prod` (uploads web source maps) → `railway up` (worker, release = commit SHA) → Sentry worker release. A failed step stops every later one. Vercel and Railway auto-deploys stay **off**: this job is the only deploy path. With `STAGING_DEPLOY_ENABLED=true`, `deploy-staging` and `deploy-staging-site` run first and production waits for both: [STAGING.md](STAGING.md).
 
 ## 1. First-time setup (in order)
 1. **Neon:** prod project (PG18, `us-east-1`) and its database (migration `0014` creates the `vector` extension as the owner). Create the roles — § Roles.
@@ -60,8 +60,8 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 - **Health checks gate deploys only:** Railway's `/healthz` decides whether a new deployment goes live. A job loop that dies after go-live is caught by the Sentry `system-heartbeat` cron monitor (missed check-in alert), not by a restart.
 - **One worker replica only** (in-process per-host crawl limits). Never raise `numReplicas`.
 
-## Staging
-For the 7c2 rehearsal (120 clients, one week; run it with `docs/OPS.md` § Rehearsal). Nothing here touches production data or real competitor sites; vendor APIs are answered by fixtures, so the only paid calls are the live-AI slice (≤ $5). Use fresh secrets; never reuse production tokens.
+## Rehearsal stack (7c2, temporary)
+Not the permanent staging (`staging.rivalmonday.app`, a copy of `cs_dev`: [STAGING.md](STAGING.md)); the rehearsal seed refuses a database holding real agencies, so it gets its own throwaway stack. For the 7c2 rehearsal (120 clients, one week; run it with `docs/OPS.md` § Rehearsal). Nothing here touches production data or real competitor sites; vendor APIs are answered by fixtures, so the only paid calls are the live-AI slice (≤ $5). Use fresh secrets; never reuse production tokens.
 1. **Neon:** in the prod project, create a **schema-only** branch `staging` from the production branch; compute = the planned prod size. Roles (`app_user`, `app_service`, `cs_worker`, `cs_web`) are inherited; reset their passwords on the branch. Migrate with the branch's owner URL: `DATABASE_URL=<staging owner URL> pnpm --filter @cs/db migrate`.
 2. **R2:** bucket `rivalmonday-staging` + a token limited to it.
 3. **Postmark:** use a **test-server** token (accepted, never delivered).
