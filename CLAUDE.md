@@ -48,7 +48,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Quality gates (7c1):** new tool => `ISOLATION_FIXTURES` entry; new table => `TABLE_CLASS` + world rows; out-of-scope client => `not_found`, never an empty list; CI `eval:replay` miss => re-record in the PR (<= $5/run); Ask drops uncited figures.
 - **Pilot & scale (7c):** <= 20 agencies x <= 3 clients, slow invites, gates block leaks/claims/injection; feedback by email. One worker, N pollers/queue (`QUEUE_CONCURRENCY`); `SERVICE_DATABASE_POOLED_URL` required in prod; vendor calls via the limiter (`timeoutMs`); captures defer; rehearsal vars staging-only; `docs/PILOT.md`.
 - **Marketing site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; claims only from the claims ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; `pilot_mode` = waitlist.
-- **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks carry a "Where you stand" scorecard.
+- **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks get a "Where you stand" card.
 - Phase-local decisions live in each plan's "Decisions"; don't re-open.
 
 ## Process (owner preference)
