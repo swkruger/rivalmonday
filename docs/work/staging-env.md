@@ -4,7 +4,7 @@
 **Runbook:** [docs/STAGING.md](../STAGING.md). Owner skipped brainstorming ("go ahead"); the defaults below are agent calls, listed for review.
 
 ## Status (overwrite)
-Code + docs done, not yet committed or merged: CI `deploy-staging` / `deploy-staging-site` (gate `STAGING_DEPLOY_ENABLED`; prod waits for them when on), `staging-refresh.yml` (manual reset of the Neon `staging` branch from cs_dev), `infra/db/staging/after-refresh.sql`, `pnpm staging:evidence` (dev evidence dir → `*-staging` R2 bucket; 6 unit tests), `scripts/staging-target-check.sh` (both staging jobs refuse any DB but the staging branch). Independent review: 0 critical; 3 important + 5 minor all fixed. Nothing is provisioned yet; workflows not yet exercised on GitHub.
+Code + docs committed on the branch (not merged): CI `deploy-staging` / `deploy-staging-site` (gate `STAGING_DEPLOY_ENABLED`; prod waits for them when on), `staging-refresh.yml` (manual reset of the Neon `staging` branch from cs_dev), `infra/db/staging/after-refresh.sql`, `pnpm staging:evidence` (dev evidence dir → `*-staging` R2 bucket; 6 unit tests), `scripts/staging-target-check.sh` (both staging jobs refuse any DB but the staging branch). Independent review: 0 critical; 3 important + 5 minor all fixed. Nothing is provisioned yet; workflows not yet exercised on GitHub.
 
 ## Next (overwrite)
 Owner: review, then `/rm-merge staging-env`; then STAGING.md § 1 setup (Neon branch, R2, Postmark, Railway env, Vercel custom envs x2, DNS, Stripe/Turnstile, GitHub `staging` env) and the first `staging-refresh` run.
