@@ -284,7 +284,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ## Version 2.0 (deferred by the owner)
 
-- [ ] Act on a recommendation: drafted review replies, GBP edits/posts, citation audit + fixes, review request kit; approve → publish (copy-first, GBP API later) → verify from public data → gap closed vs rival median. Proposal: [research/2026-10-29-act-on-recommendations-proposal.md](research/2026-10-29-act-on-recommendations-proposal.md). Long lead time: GBP API access (needs a 60+ day verified GBP) and OAuth verification; direct publishing needs 13a2 (neutral consent screen) — *deferred 2026-10-29*
+- [ ] Act on a recommendation: drafted review replies, GBP edits/posts, citation audit + fixes, review request kit; approve → publish (copy-first, GBP API later) → verify from public data → gap closed vs rival median. Proposal: [research/2026-10-29-act-on-recommendations-proposal.md](research/2026-10-29-act-on-recommendations-proposal.md). Long lead time: GBP API access (needs a 60+ day verified GBP) and OAuth verification; direct publishing needs 13a2 (neutral consent screen) — *deferred 2026-10-29*. Public preview: rivalmonday.com `/roadmap`; keep it in step with scope and replace it with claims-backed pages when it ships
 
 ## Unscheduled / ideas
 
