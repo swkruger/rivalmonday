@@ -9,6 +9,8 @@ const SECTIONS: { heading: string; group: NonNullable<SitePage['group']> }[] = [
   { heading: 'Integrations', group: 'integrations' },
   { heading: 'Sources', group: 'sources' },
   { heading: 'Compare', group: 'compare' },
+  { heading: 'Industries', group: 'industries' },
+  { heading: 'Guides', group: 'guides' },
 ];
 
 const line = (p: SitePage) => `- [${p.title}](${SITE_URL}${p.path}): ${p.description}`;

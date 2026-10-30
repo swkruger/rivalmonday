@@ -112,7 +112,8 @@ describe('PricingTeaser', () => {
     expect(text).toContain(`${PRICING.agency.seatsIncluded} client seats`);
     expect(text).toContain(`$${PRICING.agency.extraSeatUsd}`);
     expect(container.querySelector('[data-slot="pricing-business"]')!.textContent).toContain(`$${PRICING.business.monthlyUsd}`);
-    expect(screen.getByRole('button', { name: 'Join the pilot' })).toBeTruthy();
+    // The closing band right after it carries the call to action.
+    expect(screen.queryByRole('button')).toBeNull();
     expect(container.querySelector('section')!.id).toBe('pricing');
   });
 });
@@ -120,7 +121,7 @@ describe('PricingTeaser', () => {
 describe('RealSample', () => {
   it('real sample button opens the popup with the sample ticked', async () => {
     await renderApp(<RealSample />, null);
-    fireEvent.click(screen.getByRole('button', { name: 'Request a real sample' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get a real brief for one client' }));
     expect(screen.getByText('About your agency')).toBeTruthy();
     expect((screen.getByLabelText('Send me a real sample brief for one of my clients') as HTMLInputElement).checked).toBe(true);
   });
@@ -164,7 +165,8 @@ describe('pilot-aware copy', () => {
     const { container } = await renderApp(<HomePage />, OFF);
     expect(container.textContent).not.toMatch(/pilot/i);
     expect(container.querySelector('#real-sample')).toBeNull();
-    expect(screen.getByText(HERO.finePrintTrial)).toBeTruthy();
+    // Hero and closing band both carry the fine print.
+    expect(screen.getAllByText(HERO.finePrintTrial)).toHaveLength(2);
     expect(screen.getByRole('heading', { name: CTA_BAND_TRIAL.heading })).toBeTruthy();
     expect(screen.getByText(CTA_BAND_TRIAL.body)).toBeTruthy();
     expect(screen.getByText(PRICING_HEADING_TRIAL)).toBeTruthy();
@@ -177,7 +179,7 @@ describe('pilot-aware copy', () => {
 
   it('pilot on: the pilot copy and the real-sample section show', async () => {
     const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
-    expect(screen.getByText(HERO.finePrint)).toBeTruthy();
+    expect(screen.getAllByText(HERO.finePrint)).toHaveLength(2);
     expect(screen.getByText(CTA_BAND.body)).toBeTruthy();
     expect(screen.getByText(SECTIONS.pricing.heading)).toBeTruthy();
     expect(container.querySelector('#real-sample')).toBeTruthy();

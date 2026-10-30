@@ -2,6 +2,7 @@ import { CtaBand } from '../../components/home/cta-band';
 import { SampleBrief } from '../../components/sample/sample-brief';
 import { BreadcrumbJsonLd } from '../../components/seo/page-intro';
 import { pageMetadata } from '../../lib/metadata';
+import { sourceLinks } from '../../lib/source-links';
 
 export const metadata = pageMetadata('/sample-brief');
 
@@ -16,7 +17,7 @@ export default function SampleBriefPage() {
           <p className="mt-3 text-base text-ink-secondary">Fictional business, real product. Click any claim to see its evidence.</p>
         </div>
         <div className="mt-8">
-          <SampleBrief />
+          <SampleBrief sourceLinks={sourceLinks()} />
         </div>
       </section>
       <CtaBand />

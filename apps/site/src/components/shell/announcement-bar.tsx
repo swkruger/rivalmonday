@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ANNOUNCEMENT } from '../../../content/home';
+import { INDUSTRY_EXAMPLE_LINKS } from '../../../content/industries';
 import { useJoin } from '../join/join-provider';
 import { usePilot } from './pilot-context';
 
@@ -31,6 +32,8 @@ export function AnnouncementBar() {
   }, [pilotMode, paused, reduced]);
 
   if (!pilotMode) return null;
+  // Trades with an industry page link there, quietly (same weight as the text around it).
+  const example = ANNOUNCEMENT.examples[index]!;
 
   return (
     <div
@@ -45,7 +48,12 @@ export function AnnouncementBar() {
         <p className="min-w-0">
           {ANNOUNCEMENT.lead}{' '}
           <span aria-live="off">
-            — like <span data-testid="announcement-example" className="font-semibold">{ANNOUNCEMENT.examples[index]}</span>
+            — like{' '}
+            {INDUSTRY_EXAMPLE_LINKS[example] ? (
+              <a data-testid="announcement-example" href={INDUSTRY_EXAMPLE_LINKS[example]} className="font-semibold text-ink hover:underline">{example}</a>
+            ) : (
+              <span data-testid="announcement-example" className="font-semibold">{example}</span>
+            )}
           </span>
         </p>
         <button type="button" onClick={() => open('choose')} className="font-semibold text-link underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">

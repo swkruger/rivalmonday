@@ -1,6 +1,6 @@
 'use client';
 
-import { Band, CitationPill, Tag } from '@cs/ui';
+import { Band, CitationPill, Tag, TierMark } from '@cs/ui';
 import type { SampleBriefData, SampleItem } from '../../sample/schema';
 import { evidenceSource } from './evidence-panel';
 
@@ -30,11 +30,17 @@ export function EvidencePills({ ids, data, onOpen, start = 1 }: { ids: string[];
 }
 
 /** DS feed rows (follows apps/web brief-view): rival, headline, what changed (the claim, clickable), why it matters, action, pills. */
-export function BriefItems({ items, data, onOpen }: { items: SampleItem[]; data: SampleBriefData; onOpen: OpenEvidence }) {
+export function BriefItems({ items, data, onOpen, sourceLinks = {} }: {
+  items: SampleItem[];
+  data: SampleBriefData;
+  onOpen: OpenEvidence;
+  /** Kind → page explaining how that evidence is collected; the kind tag becomes a link when present. */
+  sourceLinks?: Partial<Record<SampleItem['kind'], string>>;
+}) {
   return (
     <div className="flex flex-col">
       {items.map((item) => {
-        const rival = item.rivalId ? data.rivals.find((r) => r.id === item.rivalId)?.name : undefined;
+        const rival = item.rivalId ? data.rivals.find((r) => r.id === item.rivalId) : undefined;
         const first = item.evidenceIds.find((id) => data.evidence[id]);
         // Some exported items repeat the headline as "what changed": then the headline itself is the clickable claim.
         const dup = item.whatChanged.replace(/\.$/, '') === item.headline;
@@ -51,8 +57,15 @@ export function BriefItems({ items, data, onOpen }: { items: SampleItem[]; data:
         return (
           <article key={item.id} data-item={item.id} className="flex flex-col gap-2 border-t border-line py-5 first:border-t-0 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              {rival && <span className="font-semibold text-ink">{rival}</span>}
-              <Tag>{KIND_LABEL[item.kind]}</Tag>
+              {rival && <span className="font-semibold text-ink">{rival.name}</span>}
+              {rival && <TierMark tier={rival.tier} />}
+              {sourceLinks[item.kind] ? (
+                <a href={sourceLinks[item.kind]} title={`How we collect ${KIND_LABEL[item.kind].toLowerCase()} evidence`} className="rounded-xs hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                  <Tag>{KIND_LABEL[item.kind]}</Tag>
+                </a>
+              ) : (
+                <Tag>{KIND_LABEL[item.kind]}</Tag>
+              )}
             </div>
             {dup ? <h4 className="text-base font-semibold text-ink">{claim}</h4> : (
               <>

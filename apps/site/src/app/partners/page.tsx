@@ -1,3 +1,4 @@
+import { HERO } from '../../../content/home';
 import { PARTNER_COPY } from '../../../content/partners';
 import { JoinButton } from '../../components/join/join-button';
 import { MarginExample } from '../../components/partners/margin-example';
@@ -13,7 +14,7 @@ export default function PartnersPage() {
         <div className="max-w-[720px]">
           <PageIntro path="/partners" eyebrow={PARTNER_COPY.eyebrow} h1={PARTNER_COPY.h1} lead={PARTNER_COPY.lead} />
           <div className="mt-6">
-            <JoinButton>Join the pilot</JoinButton>
+            <JoinButton>{HERO.primaryCta}</JoinButton>
           </div>
         </div>
       </section>
@@ -31,7 +32,7 @@ export default function PartnersPage() {
           <MarginExample />
         </div>
         <div className="mt-8">
-          <JoinButton>Join the pilot</JoinButton>
+          <JoinButton>{HERO.primaryCta}</JoinButton>
         </div>
       </section>
     </main>

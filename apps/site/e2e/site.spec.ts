@@ -8,9 +8,9 @@ const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1440) < 1024;
 async function openJoin(page: Page) {
   if (isPhone(page)) {
     await page.getByRole('button', { name: 'Menu' }).click();
-    await dialog(page).getByRole('button', { name: 'Join the pilot' }).click();
+    await dialog(page).getByRole('button', { name: 'Join the free pilot' }).click();
   } else {
-    await page.locator('header').getByRole('button', { name: 'Join the pilot' }).click();
+    await page.locator('header').getByRole('button', { name: 'Join the free pilot' }).click();
   }
   await expect(dialog(page).getByRole('heading', { name: 'Join the Rival Monday pilot' })).toBeVisible();
 }
@@ -20,9 +20,7 @@ const firstClaim = (page: Page) => page.locator('[data-item] button[aria-haspopu
 test('home renders the decided headline', async ({ page }) => {
   await mockApp(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'Every Monday, your clients learn what their competitors did last week, under your brand.',
-  );
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("Your clients' rivals, briefed every Monday, under your brand.");
 });
 
 test.describe('no horizontal overflow', () => {
@@ -184,7 +182,7 @@ test('pilot off swaps the CTA to sign-up', async ({ page }) => {
   if (isPhone(page)) await page.getByRole('button', { name: 'Menu' }).click();
   const scope = isPhone(page) ? dialog(page) : page.locator('header');
   await expect(scope.getByRole('link', { name: 'Start your free trial' })).toHaveAttribute('href', `${APP}/sign-up`);
-  await expect(scope.getByRole('button', { name: 'Join the pilot' })).toHaveCount(0);
+  await expect(scope.getByRole('button', { name: 'Join the free pilot' })).toHaveCount(0);
 });
 
 test('counters hidden when null', async ({ page }) => {
@@ -195,7 +193,7 @@ test('counters hidden when null', async ({ page }) => {
   await expect(page.locator('#live')).toHaveCount(0);
   if (isPhone(page)) await page.getByRole('button', { name: 'Menu' }).click();
   const scope = isPhone(page) ? dialog(page) : page.locator('header');
-  await expect(scope.getByRole('button', { name: 'Join the pilot' })).toBeVisible();
+  await expect(scope.getByRole('button', { name: 'Join the free pilot' })).toBeVisible();
 });
 
 test('counters shown when present', async ({ page }) => {
@@ -219,13 +217,16 @@ test('sample claim opens evidence; slider changes week; friday answer cites', as
   const slider = page.getByRole('slider', { name: 'Week' });
   await slider.scrollIntoViewIfNeeded();
   await expect(slider).toBeVisible();
-  const before = await slider.inputValue();
+  // Stop the first-view autoplay, then step by keyboard.
+  const pause = page.getByRole('button', { name: 'Pause' });
+  if (await pause.isVisible()) await pause.click();
   await slider.focus();
-  await slider.press('ArrowLeft');
-  expect(await slider.inputValue()).not.toBe(before);
-  const mid = await slider.inputValue();
+  await slider.press('Home');
+  expect(await slider.inputValue()).toBe('0');
   await slider.press('ArrowRight');
-  expect(await slider.inputValue()).not.toBe(mid);
+  expect(await slider.inputValue()).toBe('1');
+  await slider.press('ArrowLeft');
+  expect(await slider.inputValue()).toBe('0');
 
   await page.getByRole('button', { name: 'What changed with Quillstone Climate Pros?' }).click();
   const pill = page.getByTestId('friday-answer').locator('button[aria-haspopup="dialog"]').first();
@@ -258,7 +259,7 @@ test('Join the pilot from the mobile menu closes the menu and focuses the dialog
   await page.goto('/');
   await page.getByRole('button', { name: 'Menu' }).click();
   await expect(page.getByRole('navigation', { name: 'Mobile' })).toBeVisible();
-  await dialog(page).getByRole('button', { name: 'Join the pilot' }).click();
+  await dialog(page).getByRole('button', { name: 'Join the free pilot' }).click();
   await expect(page.getByRole('navigation', { name: 'Mobile' })).toHaveCount(0);
   await expect(dialog(page)).toHaveCount(1);
   await expect(dialog(page).getByRole('heading', { name: 'Join the Rival Monday pilot' })).toBeVisible();
@@ -273,7 +274,7 @@ test.describe('hero fragments do not overlap', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/');
       const boxes = await page.evaluate(() =>
-        ['brief', 'snapshot', 'friday'].map((n) => {
+        ['brief', 'map', 'friday'].map((n) => {
           const r = document.querySelector(`[data-fragment="${n}"]`)!.getBoundingClientRect();
           return { n, x: r.x, y: r.y, w: r.width, h: r.height };
         }),

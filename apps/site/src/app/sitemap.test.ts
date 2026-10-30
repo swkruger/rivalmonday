@@ -17,4 +17,8 @@ describe('sitemap', () => {
     const rivalUrls = urls.filter((u) => u.startsWith(SITE_URL + '/compare/'));
     expect(rivalUrls).toEqual(PAGES.filter((p) => p.path.startsWith('/compare/')).map((p) => SITE_URL + p.path));
   });
+
+  it('never stamps a build-time lastmod on every page', () => {
+    for (const e of sitemap()) expect(e.lastModified, e.url).toBeUndefined();
+  });
 });

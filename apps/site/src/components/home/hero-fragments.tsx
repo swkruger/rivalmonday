@@ -2,6 +2,7 @@ import { FridayBadge } from '@cs/ui';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { formatDay } from '../../sample/format';
 import { SAMPLE, type SampleItem } from '../../sample/schema';
+import { HeroMapCard } from './hero-map-card';
 
 // Site-owned elements carry `shadow-float`; it never goes through a @cs/ui primitive's className.
 const FRAGMENT = 'hero-float rounded-lg border border-line bg-surface shadow-float';
@@ -24,25 +25,21 @@ function briefRows() {
   });
 }
 
-function firstSnapshot() {
-  const ev = Object.values(SAMPLE.evidence).find((e) => e.kind === 'snapshot');
-  return ev && ev.kind === 'snapshot' ? ev : null;
-}
-
 /**
- * Three offset product fragments built from the committed sample (no screenshots). Decorative: `aria-hidden`; the
- * hero adds one visually hidden summary. Below `lg` they stack in flow; from `lg` they overlap.
+ * Three offset product fragments built from the committed sample (no screenshots): the brief, the latest map scan
+ * over the sample town and a Friday answer. Decorative: `aria-hidden`; the
+ * hero adds one visually hidden summary. Below `lg` they stack in flow; from `lg` they sit offset without overlapping,
+ * and the Friday card joins from `xl` (the column is too narrow for three at `lg`; phones meet Friday in the tour).
  */
 export function HeroFragments() {
   const rows = briefRows();
-  const snap = firstSnapshot();
   const answer = FRIDAY_ANSWERS[0];
   // Only the first part is shown, so only its cites count.
   const shown = answer?.answer[0];
   const sources = shown?.cite ? 1 : 0;
 
   return (
-    <div data-slot="hero-fragments" aria-hidden="true" className="relative z-10 flex flex-col gap-4 lg:block lg:min-h-[40rem]">
+    <div data-slot="hero-fragments" aria-hidden="true" className="relative z-10 flex flex-col gap-4 lg:block lg:min-h-[38rem]">
       <div data-fragment="brief" className={`${FRAGMENT} p-4 lg:absolute lg:left-0 lg:top-0 lg:w-[25rem]`}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-ink">Monday brief · {SAMPLE.business.name}</span>
@@ -63,20 +60,12 @@ export function HeroFragments() {
         ))}
       </div>
 
-      {snap && (
-        <div data-fragment="snapshot" className={`${FRAGMENT} p-3 lg:absolute lg:right-0 lg:top-[20rem] lg:w-[16.5rem]`}>
-          <div className="overflow-hidden rounded-md border border-line bg-canvas p-3">
-            <p className="mb-2 text-xs font-semibold text-ink">{snap.title}</p>
-            <p className="ring-change rounded-xs bg-surface px-2 py-1 text-13 font-semibold text-ink">{snap.after[snap.changed]}</p>
-          </div>
-          <p className="mt-2 truncate text-xs text-ink-secondary">
-            {snap.url} · captured {formatDay(snap.capturedAt)}
-          </p>
-        </div>
-      )}
+      <div data-fragment="map" className={`${FRAGMENT} w-full max-w-xs self-center p-3 lg:absolute lg:right-0 lg:top-[18.5rem] lg:w-[16rem]`}>
+        <HeroMapCard />
+      </div>
 
       {answer && (
-        <div data-fragment="friday" className={`${FRAGMENT} p-4 lg:absolute lg:left-12 lg:top-[30rem] lg:w-[22.5rem]`}>
+        <div data-fragment="friday" className={`${FRAGMENT} p-4 hidden xl:absolute xl:left-0 xl:top-[21rem] xl:block xl:w-[18rem]`}>
           <FridayBadge />
           <p className="mt-2 text-13 font-semibold text-ink">{answer.question}</p>
           <p className="mt-1 text-13 text-ink">

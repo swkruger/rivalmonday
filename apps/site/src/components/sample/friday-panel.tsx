@@ -14,9 +14,16 @@ const TICK_MS = 20;
  * Friday on the sample: question buttons and canned answers from the sample data. No input, no network. Each part's
  * citation pill appears once that part has typed in, and opens the evidence sheet.
  */
-export function FridayPanel({ answers, data, onOpen }: { answers: readonly CannedAnswer[]; data: SampleBriefData; onOpen: OpenEvidence }) {
+export function FridayPanel({ answers, data, onOpen, initialId, label = 'Canned answers from the sample data' }: {
+  answers: readonly CannedAnswer[];
+  data: SampleBriefData;
+  onOpen: OpenEvidence;
+  /** An answer shown in full from the start (no typing), so the panel is never empty. */
+  initialId?: string;
+  label?: string;
+}) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)') === true;
-  const [active, setActive] = useState<{ id: string; shown: number } | null>(null);
+  const [active, setActive] = useState<{ id: string; shown: number } | null>(initialId ? { id: initialId, shown: Number.POSITIVE_INFINITY } : null);
   const answer = active ? answers.find((a) => a.id === active.id) : undefined;
   const total = answer ? answer.answer.reduce((n, p) => n + p.text.length, 0) : 0;
   const typing = !!active && active.shown < total;
@@ -35,7 +42,7 @@ export function FridayPanel({ answers, data, onOpen }: { answers: readonly Canne
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <FridayBadge />
-        <span className="text-sm text-ink-secondary">Canned answers from the sample data</span>
+        <span className="text-sm text-ink-secondary">{label}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {answers.map((a) => (
@@ -44,7 +51,7 @@ export function FridayPanel({ answers, data, onOpen }: { answers: readonly Canne
             type="button"
             aria-pressed={active?.id === a.id}
             onClick={() => ask(a)}
-            className="rounded-sm border border-line-control bg-surface px-3 py-1.5 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:border-secondary aria-pressed:font-medium"
+            className="press min-h-11 rounded-sm border border-line-control bg-surface px-3 py-1.5 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:border-secondary aria-pressed:font-medium"
           >
             {a.question}
           </button>

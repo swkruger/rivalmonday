@@ -34,10 +34,14 @@ describe('Hero', () => {
     const { container } = render(<Hero />);
     const frags = container.querySelector('[data-slot="hero-fragments"]')!;
     for (const item of SAMPLE.items.slice(0, 3)) expect(frags.textContent).toContain(item.headline);
-    const snap = Object.values(SAMPLE.evidence).find((e) => e.kind === 'snapshot')!;
-    if (snap.kind !== 'snapshot') throw new Error('fixture');
-    expect(frags.textContent).toContain(snap.url);
-    expect(frags.textContent).toContain(snap.after[snap.changed]!);
+    // The map card shows the latest scan over the sample town, with its top-3 count.
+    const last = SAMPLE.rankGrid.weeks.at(-1)!.you;
+    const top3 = last.filter((r) => r !== null && r <= 3).length;
+    const points = last.filter((r) => r !== null).length;
+    const map = frags.querySelector('[data-fragment="map"]')!;
+    expect(map.querySelectorAll('[data-rank-cell]')).toHaveLength(SAMPLE.rankGrid.size ** 2);
+    expect(map.textContent).toContain(`Top 3 in ${top3} of ${points} map points`);
+    expect(map.querySelector('img')!.getAttribute('alt')).toBe('');
     expect(frags.textContent).toContain(FRIDAY_ANSWERS[0]!.question);
     expect(frags.textContent).toContain(FRIDAY_ANSWERS[0]!.answer[0]!.text);
     // Only the shown part is on screen, so only its cites count.
@@ -71,9 +75,11 @@ describe('Hero', () => {
     expect(HERO.finePrintTrial).not.toMatch(/pilot/i);
   });
 
-  it('secondary CTA targets #sample', () => {
+  it('secondary CTA is a text link to the client tour', () => {
     render(<Hero />);
-    expect(screen.getByRole('link', { name: HERO.secondaryCta }).getAttribute('href')).toBe('#sample');
+    const link = screen.getByRole('link', { name: HERO.secondaryCta });
+    expect(link.getAttribute('href')).toBe('#client-view');
+    expect(link.className).not.toContain('border');
   });
 
   it('exactly one h1', () => {

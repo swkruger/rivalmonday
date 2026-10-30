@@ -17,3 +17,16 @@ export async function renderOg({ eyebrow, title }: { eyebrow: string; title: str
     { ...OG_SIZE, fonts: [{ name: 'Inter', data: await font, weight: 600, style: 'normal' }] },
   );
 }
+
+/**
+ * The site icon (favicon, Apple touch icon, manifest): the wordmark's two halves as "r" + "m" on white, in the brand's
+ * `rival` and `monday` colours. Drawn from the wordmark, not a new mark; square, so platforms can round it themselves.
+ */
+export async function renderIcon(px: number): Promise<ImageResponse> {
+  return new ImageResponse(
+    (<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', fontFamily: 'Inter', fontSize: px * 0.62, letterSpacing: -px * 0.04, lineHeight: 1, paddingBottom: px * 0.08 }}>
+      <span style={{ color: OG.rival }}>r</span><span style={{ color: OG.monday }}>m</span>
+    </div>),
+    { width: px, height: px, fonts: [{ name: 'Inter', data: await font, weight: 600, style: 'normal' }] },
+  );
+}

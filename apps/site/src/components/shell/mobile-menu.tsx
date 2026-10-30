@@ -13,7 +13,7 @@ export function MobileMenu({ items }: { items: NavLink[] }) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu" aria-expanded={open}>
+        <Button variant="ghost" size="icon" className="size-11 lg:hidden" aria-label="Menu" aria-expanded={open}>
           <Menu />
         </Button>
       </SheetTrigger>

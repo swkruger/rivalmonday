@@ -37,10 +37,17 @@ describe('SampleBrief', () => {
     if (ev.kind !== 'snapshot') throw new Error('fixture');
     fireEvent.click(screen.getByRole('button', { name: snapshotItem.whatChanged }));
     const dialog = screen.getByRole('dialog', { name: `Website snapshot · ${ev.url}` });
-    expect(within(dialog).getByText(ev.after[ev.changed]!)).toBeTruthy();
-    // Before/after switch shows the earlier text.
+    // The diff row names both versions; the page mock shows the changed line.
+    const diff = dialog.querySelector('[data-slot="snapshot-diff"]')!;
+    expect(diff.textContent).toContain(ev.before[ev.changed]!);
+    expect(diff.textContent).toContain(ev.after[ev.changed]!);
+    expect(within(dialog).getAllByText(ev.after[ev.changed]!)).toHaveLength(2);
+    // Before/after switch shows the earlier text in the page mock too.
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Before' }));
-    expect(within(dialog).getByText(ev.before[ev.changed]!)).toBeTruthy();
+    expect(within(dialog).getAllByText(ev.before[ev.changed]!)).toHaveLength(2);
+    // The claim it backs and the trail to the brief.
+    expect(within(dialog).getByText(snapshotItem.whatChanged, { selector: 'blockquote' })).toBeTruthy();
+    expect(within(dialog).getByRole('region', { name: 'Evidence trail' }).querySelectorAll('li')).toHaveLength(4);
   });
 
   it('a headline repeated as what changed shows once, as the claim', () => {
@@ -82,11 +89,12 @@ describe('SampleBrief', () => {
     const points = (i: number) => weeks[i]!.you.filter((r) => r !== null).length;
     const slider = screen.getByRole('slider', { name: 'Week' });
     expect(slider.getAttribute('aria-valuetext')).toMatch(/^Week of /);
-    expect(screen.getByText(`Top 3 in ${top3(11)} of ${points(11)} points`)).toBeTruthy();
+    // Opens on the first scan, so the story plays forward.
+    expect(screen.getByText(`Top 3 in ${top3(0)} of ${points(0)} points`)).toBeTruthy();
     const grid = () => screen.getByRole('img', { name: /Map rankings for/ }).textContent;
     const before = grid();
-    fireEvent.change(slider, { target: { value: '0' } });
-    expect(screen.getByText(`Top 3 in ${top3(0)} of ${points(0)} points`)).toBeTruthy();
+    fireEvent.change(slider, { target: { value: '11' } });
+    expect(screen.getByText(`Top 3 in ${top3(11)} of ${points(11)} points`)).toBeTruthy();
     expect(grid()).not.toBe(before);
     expect(slider.getAttribute('aria-valuetext')).not.toBe('');
   });
@@ -101,7 +109,7 @@ describe('SampleBrief', () => {
     const without = weeks.findIndex((w) => !Object.values(SAMPLE.evidence).some((e) => e.kind === 'rank' && e.weekOf === w.weekOf && !e.summary.startsWith('You:')));
     fireEvent.change(slider, { target: { value: String(withEv) } });
     const line = screen.getByText(rivalEv.summary);
-    expect(within(line).getByRole('button', { name: /^Evidence 2: Map rankings/ })).toBeTruthy();
+    expect(within(line).getByRole('button', { name: /^Evidence 2: Map scan, / })).toBeTruthy();
     fireEvent.change(slider, { target: { value: String(without) } });
     expect(screen.queryByText(rivalEv.summary)).toBeNull();
     expect(screen.queryByText(/Most first places/)).toBeNull();

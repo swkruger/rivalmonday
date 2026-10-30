@@ -21,7 +21,7 @@ describe('PlanCards', () => {
     render(<PlanCards />);
     expect(screen.getAllByText('Free during the pilot')).toHaveLength(2);
     expect(screen.getByText(PLAN_CARDS.pilot.agency.note)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Join the pilot' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Join the free pilot' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Join the waitlist' })).toBeTruthy();
   });
 

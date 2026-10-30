@@ -1,8 +1,9 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
 import { siteEnv } from '../lib/env';
-import { organizationLd } from '../lib/json-ld';
+import { organizationLd, websiteLd } from '../lib/json-ld';
+import { OG } from '../lib/og-theme';
 import { JoinProvider } from '../components/join/join-provider';
 import { JsonLd } from '../components/seo/json-ld';
 import { AnnouncementBar } from '../components/shell/announcement-bar';
@@ -21,11 +22,14 @@ export const metadata: Metadata = {
   robots: siteEnv.isProduction ? { index: true, follow: true } : { index: false, follow: false },
 };
 
+/** Browser UI colour matches the page canvas. */
+export const viewport: Viewport = { themeColor: OG.canvas };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en-US" className={inter.variable}>
       <body className="bg-surface text-ink font-sans">
-        <JsonLd data={organizationLd(Object.values(siteEnv.social).filter((v): v is string => !!v))} />
+        <JsonLd data={[organizationLd(Object.values(siteEnv.social).filter((v): v is string => !!v)), websiteLd()]} />
         <PilotProvider>
           <JoinProvider>
             <AnnouncementBar />

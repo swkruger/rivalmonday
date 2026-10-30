@@ -66,8 +66,41 @@
     outline: var(--ring-change);
     outline-offset: 2px;
   }
+
+  /* Scroll reveal (`Reveal`): hidden only when scripts run, so no-JS readers always see the content. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .reveal:not([data-shown]) { opacity: 0; transform: translateY(16px); }
+  }
+  .reveal { transition: opacity 500ms ease-out, transform 500ms ease-out; }
+
+  /* Charts that draw in once they scroll into view (`data-drawn` set by `useInView`). */
+  .draw-line { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1200ms ease-out; }
+  [data-drawn] .draw-line { stroke-dashoffset: 0; }
+  .grow-bar { transform: scaleX(0); transform-origin: left; transition: transform 900ms cubic-bezier(.2,.7,.2,1); }
+  [data-drawn] .grow-bar { transform: scaleX(1); }
+  .grow-col { transform: scaleY(0); transform-origin: bottom; transform-box: fill-box; transition: transform 700ms cubic-bezier(.2,.7,.2,1); }
+  [data-drawn] .grow-col { transform: scaleY(1); }
+
+  /* Evidence moving along the claim-check connectors. */
+  .flow-dash { stroke-dasharray: 3 9; animation: flow-dash 1.6s linear infinite; }
+
+  /* Map-rank cells change colour smoothly as the week changes. */
+  .rank-cell { transition: background-color 450ms ease-out, color 450ms ease-out, opacity 300ms ease-out; }
+  /* Hero map replay: cells stay hidden until the first frame is set, so the end state never flashes first. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .hero-map:not([data-ready]) [data-rank-cell] { opacity: 0; }
+  }
+
+  /* A short fade-up for content that swaps in place (tab notes). */
+  .reveal-quick { animation: reveal-quick 300ms ease-out both; }
+
+  /* Pressable feedback for site buttons and tabs. */
+  .press { transition: transform 120ms ease-out; }
+  .press:active { transform: scale(.97); }
 }
 
+@keyframes reveal-quick { from { opacity: 0; transform: translateY(6px); } }
+@keyframes flow-dash { to { stroke-dashoffset: -24; } }
 @keyframes hero-float-in { from { transform: translateY(12px); opacity: 0; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
@@ -77,4 +110,16 @@
     animation: none !important;
     transition: none !important;
   }
+  /* Draw-in charts show their final state at once. */
+  .draw-line { stroke-dashoffset: 0; }
+  .grow-bar, .grow-col { transform: none; }
+}
+
+/* A page that ends on the ink CTA band runs straight into the footer (no white strip between them). */
+main:has(#join) ~ [data-slot="site-footer"] { margin-top: 0; }
+
+/* Printing never waits for a scroll: everything revealed, the hero map at its final state. */
+@media print {
+  .reveal, .hero-map [data-rank-cell] { opacity: 1 !important; transform: none !important; }
+  [data-slot="mobile-cta"] { display: none; }
 }

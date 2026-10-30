@@ -2,6 +2,7 @@
 
 import { Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@cs/ui';
+import { HERO } from '../../../content/home';
 import { PLAN_CARDS, type PlanCopy } from '../../../content/pricing-page';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from '../shell/pilot-context';
@@ -27,7 +28,7 @@ function PlanCard({ plan, slot }: { plan: PlanCopy; slot: string }) {
           {plan.cta === 'business' ? (
             <JoinButton start="business">Join the waitlist</JoinButton>
           ) : (
-            <JoinButton>Join the pilot</JoinButton>
+            <JoinButton>{HERO.primaryCta}</JoinButton>
           )}
         </div>
       </CardContent>

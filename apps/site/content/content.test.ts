@@ -18,16 +18,14 @@ const DIGIT_ALLOWLIST = ['Last 7 days'];
 
 describe('site copy', () => {
   it('hero matches the decided copy', () => {
-    expect(home.HERO.headline).toBe(
-      'Every Monday, your clients learn what their competitors did last week, under your brand.',
-    );
+    expect(home.HERO.headline).toBe("Your clients' rivals, briefed every Monday, under your brand.");
     expect(home.HERO.headline.endsWith(home.HERO.headlineAccent)).toBe(true);
     expect(home.HERO.sub).toBe(
-      "Rival Monday watches your clients' local rivals — websites, Google reviews, ads and map rankings — and turns it into an evidence-backed weekly brief, a dashboard and an AI assistant you sell as your own.",
+      'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
     );
     expect(home.HERO.eyebrow).toBe('White-label competitor intelligence for agencies');
     expect(home.HERO.eyebrowPill).toBe('Pilot');
-    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Join the pilot', 'See a sample brief']);
+    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Join the free pilot', 'See what your clients get']);
     expect(home.HERO.finePrint).toBe('Free during the pilot · No card needed · Limited places');
   });
 

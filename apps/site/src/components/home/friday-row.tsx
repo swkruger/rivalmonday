@@ -1,17 +1,19 @@
 'use client';
 
-import { FridayBadge, TierMark } from '@cs/ui';
+import { TierMark } from '@cs/ui';
 import { useRef, useState } from 'react';
 import { SECTIONS } from '../../../content/home';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
-import { EvidencePills, type OpenEvidence } from '../sample/brief-items';
+import { type OpenEvidence } from '../sample/brief-items';
 import { EvidencePanel } from '../sample/evidence-panel';
+import { FridayPanel } from '../sample/friday-panel';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
-const ANSWER = FRIDAY_ANSWERS[1]!;
-
-/** Copy on the left; on the right the sample's rivals with a static Ask box docked underneath. Its pills open the evidence sheet. */
+/**
+ * Copy on the left; on the right the sample's rivals with Friday docked underneath. The dock is live: it opens on one
+ * answer, any question chip types in another, and every citation pill opens the evidence sheet.
+ */
 export function FridayRow() {
   const [openId, setOpenId] = useState<string | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
@@ -19,11 +21,12 @@ export function FridayRow() {
     trigger.current = el;
     setOpenId(id);
   };
-  let pillNo = 0;
   return (
     <HomeSectionShell id="friday" labelledBy="friday-heading" className="border-t border-line bg-canvas py-16 lg:py-20">
-      <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-        <SectionHeading section={SECTIONS.friday} />
+      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="lg:sticky lg:top-28">
+          <SectionHeading section={SECTIONS.friday} />
+        </div>
         <div className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Rivals watched for {SAMPLE.business.name}</caption>
@@ -43,24 +46,7 @@ export function FridayRow() {
             </tbody>
           </table>
           <div data-slot="ask-dock" className="border-t border-line bg-canvas p-4">
-            <FridayBadge />
-            <p className="mt-2 text-13 font-semibold text-ink">{ANSWER.question}</p>
-            <p className="mt-1 text-sm leading-relaxed text-ink">
-              {ANSWER.answer.map((part, i) => {
-                const pill = part.cite && ANSWER.answer[i + 1]?.cite !== part.cite;
-                return (
-                  <span key={i}>
-                    {part.text}
-                    {pill && part.cite && (
-                      <>
-                        {' '}
-                        <EvidencePills ids={[part.cite]} data={SAMPLE} onOpen={open} start={++pillNo} />
-                      </>
-                    )}
-                  </span>
-                );
-              })}
-            </p>
+            <FridayPanel answers={FRIDAY_ANSWERS} data={SAMPLE} onOpen={open} initialId={FRIDAY_ANSWERS[1]!.id} label="Pick a question" />
           </div>
         </div>
       </div>

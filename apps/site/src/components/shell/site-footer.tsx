@@ -1,6 +1,7 @@
 'use client';
 
 import { Wordmark } from '@cs/ui';
+import { HERO } from '../../../content/home';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from './pilot-context';
 import type { FooterColumn } from './nav-items';
@@ -11,11 +12,12 @@ export function SiteFooter({ columns }: { columns: FooterColumn[] }) {
   const { pilotMode } = usePilot();
 
   return (
-    <footer className="mt-16 border-t border-line bg-surface">
+    <footer data-slot="site-footer" className="mt-16 border-t border-line bg-surface">
       <div className="site-container py-10">
         <div className="flex flex-col gap-8 md:flex-row md:justify-between">
           <div className="flex flex-col gap-3">
             <Wordmark />
+            <p className="max-w-xs text-sm text-ink-secondary">{HERO.eyebrow}</p>
             <SocialLinks />
           </div>
           {columns.length > 0 && (

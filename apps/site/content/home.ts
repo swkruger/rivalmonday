@@ -3,13 +3,15 @@ import { PRICING } from './pricing';
 export const HERO = {
   eyebrowPill: 'Pilot',
   eyebrow: 'White-label competitor intelligence for agencies',
-  headline: 'Every Monday, your clients learn what their competitors did last week, under your brand.',
+  headline: "Your clients' rivals, briefed every Monday, under your brand.",
   /** Rendered in the secondary colour. */
   headlineAccent: 'under your brand.',
-  sub: "Rival Monday watches your clients' local rivals — websites, Google reviews, ads and map rankings — and turns it into an evidence-backed weekly brief, a dashboard and an AI assistant you sell as your own.",
-  primaryCta: 'Join the pilot',
-  secondaryCta: 'See a sample brief',
+  sub: 'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
+  primaryCta: 'Join the free pilot',
+  secondaryCta: 'See what your clients get',
   finePrint: 'Free during the pilot · No card needed · Limited places',
+  /** Three short proofs under the CTA; each restates a claim the site already makes (pages.ts, checks, white label). */
+  proof: ['Public information only', 'No claim without evidence', 'Sold under your brand'],
   /** Pilot off (NEW, owner signs). */
   finePrintTrial: `${PRICING.agency.trialDays}-day free trial · then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats`,
 } as const;
@@ -18,11 +20,11 @@ export const ANNOUNCEMENT = {
   lead: 'Pilot now open for agencies serving local businesses',
   /** Kinds of business, not claims of customers. Rendered "— like {x}". */
   examples: ['HVAC', 'plumbing', 'dental', 'roofing', 'med spas', 'law firms', 'landscaping', 'auto repair'],
-  link: 'Join the pilot →',
+  link: 'Join the free pilot →',
 } as const;
 
 /** Final; owned here only. `join` is the CtaBand. */
-export const HOME_ANCHORS = ['sample', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'pricing', 'join'] as const;
+export const HOME_ANCHORS = ['client-view', 'sample', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'pricing', 'join'] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
 
 export interface HomeSection {
@@ -35,11 +37,17 @@ export interface HomeSection {
 const { agency, business } = PRICING;
 
 export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
+  'client-view': {
+    id: 'client-view',
+    eyebrow: 'What your clients see',
+    heading: 'A dashboard, a Monday brief and an assistant, all under your brand.',
+    body: 'This is what a client gets: their rivals on one page, a short brief in their inbox every Monday, and Friday to answer questions. Every number links back to the evidence it came from.',
+  },
   sample: {
     id: 'sample',
     eyebrow: 'Sample brief',
     heading: 'Click any claim to see the evidence behind it.',
-    body: 'This is a full Monday brief for a fictional heating and air business. Every line links to the snapshot, reviews or ads it came from. Move the slider to see how the map rankings changed week by week, or ask Friday.',
+    body: 'This is a full Monday brief for a fictional heating and air business. Every line links to the snapshot, reviews or ads it came from. Press play to watch its map rankings spread out from its own street over twelve weeks, or ask Friday.',
   },
   live: {
     id: 'live',
@@ -85,6 +93,14 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
   },
 };
 
+/** The real-sample preview card (illustrative; figures are the fictional sample's). */
+export const REAL_SAMPLE_PREVIEW = {
+  subject: 'Your starting-point brief is ready',
+  scorecardTitle: 'Where you stand',
+  link: 'Open the private link',
+  note: 'Illustration with sample data',
+} as const;
+
 export const CHECKS_LINK = { label: 'Read how we check claims →', href: '/how-it-works' } as const;
 
 export const HOW_STEPS = [
@@ -118,7 +134,7 @@ export const PRICING_LINES_TRIAL = {
 export const CTA_BAND = {
   heading: 'Join the pilot',
   body: 'Places are limited while we work closely with each agency.',
-  button: 'Join the pilot',
+  button: 'Join the free pilot',
 } as const;
 
 /** Pilot off (NEW, owner signs). The button is `JoinButton`'s own "Start your free trial". */

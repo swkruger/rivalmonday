@@ -72,7 +72,7 @@ describe('site shell', () => {
   it('footer has no closing CTA of its own (pages render CtaBand)', async () => {
     await renderShell();
     const footer = screen.getByRole('contentinfo');
-    expect(within(footer).queryByRole('button', { name: 'Join the pilot' })).toBeNull();
+    expect(within(footer).queryByRole('button', { name: /^Join the (free )?pilot$/ })).toBeNull();
     expect(footer.querySelector('h2')).toBeNull();
     expect(footer.textContent).not.toContain('Places are limited');
   });
@@ -83,7 +83,7 @@ describe('site shell', () => {
     const mobile = screen.getByRole('navigation', { name: 'Mobile' });
     expect(mobile).toBeTruthy();
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Join the pilot' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Join the free pilot' }));
     expect(openSpy).toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -138,15 +138,15 @@ describe('site shell', () => {
     await renderShell();
     const cta = screen.getAllByRole('link', { name: 'Start your free trial' });
     expect(cta[0]?.getAttribute('href')).toBe('https://app.test/sign-up');
-    expect(screen.queryByText('Join the pilot →')).toBeNull();
+    expect(screen.queryByText('Join the free pilot →')).toBeNull();
   });
 
   it('degraded answer keeps pilot state', async () => {
     fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: null });
     await renderShell();
     expect(screen.queryByRole('link', { name: 'Start your free trial' })).toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Join the pilot' }).length).toBeGreaterThan(0);
-    expect(screen.getByText('Join the pilot →')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Join the free pilot' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Join the free pilot →')).toBeTruthy();
   });
 
   it('business waitlist link calls open(business) with pilot off', async () => {

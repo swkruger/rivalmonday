@@ -33,6 +33,23 @@ const COLUMNS: FooterColumn[] = [
       { label: 'Roadmap', href: '/roadmap' },
     ],
   },
+  {
+    heading: 'Industries',
+    links: [
+      { label: 'HVAC', href: '/for/hvac' },
+      { label: 'Plumbing', href: '/for/plumbing' },
+      { label: 'Dental', href: '/for/dental' },
+    ],
+  },
+  {
+    heading: 'Guides',
+    links: [
+      { label: 'Local competitor analysis', href: '/guides/local-competitor-analysis' },
+      { label: 'Map rank grids', href: '/guides/map-rank-grid' },
+      { label: 'Monitoring checklist', href: '/guides/competitor-monitoring-checklist' },
+      { label: 'All guides', href: '/guides' },
+    ],
+  },
   { heading: 'Compare', links: [{ label: 'Compare overview', href: '/compare' }] },
   { heading: 'Company', links: [{ label: 'Partners', href: '/partners' }] },
   {

@@ -24,7 +24,8 @@ describe('json-ld', () => {
     const links = ['https://www.linkedin.com/company/x'];
     const org = organizationLd(links);
     expect(org).toMatchObject({ '@type': 'Organization', url: SITE_URL, sameAs: links });
-    expect(org).not.toHaveProperty('logo');
+    // The logo is the generated site icon (app/apple-icon.tsx).
+    expect(org.logo).toBe(`${SITE_URL}/apple-icon`);
   });
 
   it('offers come from PRICING', () => {
