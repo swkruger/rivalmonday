@@ -108,7 +108,7 @@ describe('site shell', () => {
   it('nav follows the spec order', async () => {
     await renderShell();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Integrations', 'Compare', 'Pricing', 'Partners']);
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Integrations', 'Compare', 'Pricing', 'Partners', 'Roadmap']);
     expect(within(nav).queryByText('Sample brief')).toBeNull();
     expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Sample brief' })).toBeTruthy();
   });

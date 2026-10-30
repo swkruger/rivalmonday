@@ -86,6 +86,7 @@ export const PAGES: readonly SitePage[] = [
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.5,
+    nav: { label: 'Roadmap', order: 60 },
     crumb: 'Roadmap',
   },
   {
