@@ -1,6 +1,6 @@
 import { toolkit } from '@cs/core';
 import { alert, brief, client, clientSetup, effectiveLimitUsd, eventScore, readSpendGuardSettings, recommendation, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, max, ne, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, max, ne, or, notInArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pickingOwnerFirstName } from '../setup/owner-contact';
@@ -26,7 +26,7 @@ export const getPortfolio = defineTool({
   input: z.object({}),
   output: z.object({
     items: z.array(PortfolioRow),
-    /** Oldest first, 8 rolling 7-day windows ending now: clients that existed then, alerts raised and briefs generated. Only these clients. */
+    /** Oldest first, 8 rolling 7-day windows ending now: today's clients by start date (not past headcount), alerts raised and briefs produced. Only these clients. */
     trends: z.object({ clients: z.array(z.number().int()), alerts: z.array(z.number().int()), briefs: z.array(z.number().int()) }).optional(),
   }),
   permission: 'agency',
@@ -41,13 +41,14 @@ export const getPortfolio = defineTool({
       const settings = await readSpendGuardSettings(deps.service);
       const trendSince = new Date(now.getTime() - TREND_WEEKS * WEEK);
       const [alertTimes, briefTimes] = await Promise.all([
-        tx.select({ at: alert.createdAt }).from(alert).where(and(inArray(alert.clientId, ids), gte(alert.createdAt, trendSince))),
-        tx.select({ at: brief.createdAt }).from(brief).where(and(inArray(brief.clientId, ids), gte(brief.createdAt, trendSince))),
+        tx.select({ at: alert.createdAt }).from(alert).where(and(inArray(alert.clientId, ids), gte(alert.createdAt, trendSince), notInArray(alert.status, ['drafting', 'withdrawn']))),
+        tx.select({ at: brief.createdAt }).from(brief).where(and(inArray(brief.clientId, ids), gte(brief.createdAt, trendSince), notInArray(brief.status, ['generating', 'failed']))),
       ]);
       const weekly = (rows: { at: Date }[]) => {
         const out = Array<number>(TREND_WEEKS).fill(0);
         for (const { at } of rows) {
-          const i = TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / WEEK);
+          // A row stamped after `now` (database clock, or written mid-request) belongs in the latest window.
+          const i = Math.min(TREND_WEEKS - 1, TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / WEEK));
           if (i >= 0) out[i]! += 1;
         }
         return out;

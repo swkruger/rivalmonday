@@ -87,7 +87,7 @@ export function kpiTraceRuns(points: readonly (number | null)[]): [number, numbe
     } else run.push([x(i), y(p)])
   })
   if (run.length) runs.push(run)
-  return runs
+  return runs.some((r) => r.length > 1) ? runs : []
 }
 
 function KpiTrace({ points }: { points: readonly (number | null)[] }) {

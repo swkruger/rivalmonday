@@ -61,7 +61,8 @@ export const getWorkspaceOverview = defineTool({
     const since = new Date(now.getTime() - 7 * DAY);
     const recent = and(clientEvents(c.id), gte(eventScore.scoredAt, since));
     const trendSince = new Date(now.getTime() - TREND_WEEKS * 7 * DAY);
-    const weekIndex = (at: Date) => TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / (7 * DAY));
+    // A row stamped after `now` (database clock, or written mid-request) belongs in the latest window.
+    const weekIndex = (at: Date) => Math.min(TREND_WEEKS - 1, TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / (7 * DAY)));
     const { tracked, pressure, counts, priceRows, routedRows, latestReport } = await withTenant(deps.app, ctx, async (tx) => {
       const trackedRows = await tx.select({ id: competitor.id, name: competitor.name }).from(clientCompetitor)
         .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId)).where(eq(clientCompetitor.clientId, c.id));

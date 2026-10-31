@@ -18,7 +18,7 @@ export function ChartPlot({ label, height, yTicks, xTicks, children }: { label: 
     <div data-chart-plot className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_1.5rem] pt-2 pr-2 text-xs text-chart-axis tabular-nums" style={{ height }}>
       <div aria-hidden className="relative mr-2" style={{ width: `${gutter}ch` }}>
         {yTicks.map((t) => (
-          <span key={t.label} data-y-tick className="absolute right-0 -translate-y-1/2 leading-none whitespace-nowrap" style={{ top: `${t.at * PLOT}%` }}>
+          <span key={t.at} data-y-tick className="absolute right-0 -translate-y-1/2 leading-none whitespace-nowrap" style={{ top: `${t.at * PLOT}%` }}>
             {t.label}
           </span>
         ))}
@@ -26,7 +26,7 @@ export function ChartPlot({ label, height, yTicks, xTicks, children }: { label: 
       <div className="relative min-w-0">
         <svg viewBox={`0 0 ${PLOT} ${PLOT}`} preserveAspectRatio="none" role="img" aria-label={label} className="absolute inset-0 size-full overflow-visible">
           {yTicks.map((t) => (
-            <PlotLine key={t.label} x1={0} x2={PLOT} y1={t.at * PLOT} y2={t.at * PLOT} stroke="var(--chart-grid)" strokeWidth={1} />
+            <PlotLine key={t.at} x1={0} x2={PLOT} y1={t.at * PLOT} y2={t.at * PLOT} stroke="var(--chart-grid)" strokeWidth={1} />
           ))}
           {children}
         </svg>

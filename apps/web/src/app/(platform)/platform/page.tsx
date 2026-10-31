@@ -60,7 +60,7 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
           { title: 'Active clients', value: String(tiles.clientsActive.value), pill: deltaPill(tiles.clientsActive), hint: 'Last 28 days', trace: series.map((p) => p.clientsActive), traceLabel },
           { title: 'Seats', value: String(tiles.seats.value), pill: deltaPill(tiles.seats), hint: 'Last 28 days', trace: series.map((p) => p.seats), traceLabel },
           { title: 'Weekly active users', value: String(tiles.wau.value), pill: deltaPill(tiles.wau), hint: 'Last 28 days', trace: series.map((p) => p.wau), traceLabel },
-          { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: series.map((p) => p.spendUsd), traceLabel },
+          { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: series.map((p) => p.spendUsd), traceLabel: range === '12m' ? 'Spend per month, last 12 months' : 'Spend per week, last 12 weeks' },
         ]}
       />
       <HairlineGrid cols={2}>

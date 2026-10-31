@@ -95,7 +95,7 @@ export default async function AgencyPortfolioPage() {
 
       <StatStrip
         items={[
-          { title: 'Clients', value: String(items.length), trace: trends?.clients, traceLabel: 'Clients, last 8 weeks' },
+          { title: 'Clients', value: String(items.length), trace: trends?.clients, traceLabel: 'Today’s clients by start date, last 8 weeks' },
           { title: 'Alerts waiting', value: String(alertsWaiting), href: '/agency/alerts', tone: alertsWaiting > 0 ? 'warn' : 'brand', trace: trends?.alerts, traceLabel: 'Alerts raised per week, last 8 weeks' },
           { title: 'Briefs to approve', value: String(briefsToApprove), href: '/agency/approvals', tone: briefsToApprove > 0 ? 'warn' : 'brand', trace: trends?.briefs, traceLabel: 'Briefs generated per week, last 8 weeks' },
           { title: 'High pressure', value: String(highPressure), tone: highPressure > 0 ? 'bad' : 'brand' },

@@ -50,6 +50,12 @@ describe('get_ad_activity', () => {
 });
 
 describe('get_workspace_overview', () => {
+  it('puts a change stamped after now in the latest window, without breaking the output', async () => {
+    await seedEvent({ score: 50, route: 'brief', ageDays: -0.01, type: 'promo' });
+    const o = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
+    expect(o.weekly.changes).toEqual([0, 0, 0, 0, 0, 0, 0, 1]);
+  });
+
   it('computes the KPIs from live events only (Review Focus 3)', async () => {
     const priceFacts = [{ kind: 'price', before: { kind: 'price', value: 99, unit: 'USD', raw: '$99', context: '' }, after: { kind: 'price', value: 79, unit: 'USD', raw: '$79', context: '' }, pct: -20.2 }];
     await seedEvent({ score: 86, route: 'alert', ageDays: 1, facts: priceFacts as never });

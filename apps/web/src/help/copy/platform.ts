@@ -376,7 +376,7 @@ export const PLATFORM_COPY = {
     // source: apps/web/src/app/(platform)/platform/knowledge/page.tsx (the page's existing description)
     description: 'Articles the Ask assistant can search and cite, at platform, agency and client level.',
     tips: {
-      // source: apps/web/src/app/(platform)/platform/knowledge/scope-fields.tsx:LEVEL_OPTION, KIND_OPTION
+      // source: apps/web/src/app/(platform)/platform/knowledge/options.ts:LEVEL_OPTION, KIND_OPTION
       levels: {
         title: 'Levels and kinds',
         body: 'Level says who the article belongs to: Help (platform) for everyone, Agency for one agency, Client for one client. Kind is its type: help article, playbook, Q&A, blog post or fact. Use the filters to narrow the list.',

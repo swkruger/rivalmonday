@@ -350,7 +350,7 @@ export function SuggestionsPanel({
         ))}
         {suggestions.length > 0 && !readOnly && (
           // In flow at the end of the list, not sticky: a floating bar covered the search button and headings.
-          <BulkBar label="Selected suggestions" className="static mx-0">
+          <BulkBar label="Selected suggestions" className="static mx-0 shadow-none">
             <Button
               type="button"
               onClick={track}

@@ -203,7 +203,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
           { title: 'Active clients', value: String(t.clientsActive.value), pill: deltaPill(t.clientsActive), hint: 'Last 28 days', trace: trace('clientsActive'), traceLabel },
           { title: 'Seats', value: String(t.seats.value), pill: deltaPill(t.seats), hint: 'Last 28 days', trace: trace('seats'), traceLabel },
           { title: 'Weekly active users', value: String(t.wau.value), pill: deltaPill(t.wau), hint: 'Last 28 days', trace: trace('wau'), traceLabel },
-          { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: trace('spendUsd'), traceLabel },
+          { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: trace('spendUsd'), traceLabel: range === '12m' ? 'Spend per month, last 12 months' : 'Spend per week, last 12 weeks' },
         ]}
       />
       <HairlineGrid cols={2}>

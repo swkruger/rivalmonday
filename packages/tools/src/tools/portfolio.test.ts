@@ -64,6 +64,28 @@ describe('get_portfolio', () => {
     expect(trends.briefs).toHaveLength(8);
   });
 
+  it('counts only alerts raised and briefs produced, for visible clients, with a row dated after now in the latest window', async () => {
+    const [e1, e2, e3, e4] = [await scored(80, 'alert', 1), await scored(80, 'alert', 1), await scored(80, 'alert', 1), await scored(80, 'alert', 1)];
+    const a = { agencyId: IDS.agencyA, competitorId: IDS.competitorX, score: 80, headline: 'h', body: 'b', mode: 'direct' };
+    const recent = new Date(Date.now() - day);
+    await dbs.owner.insert(alert).values([
+      { ...a, clientId: IDS.clientA1, eventId: e1!, status: 'delivered', createdAt: recent },
+      { ...a, clientId: IDS.clientA1, eventId: e2!, status: 'withdrawn', createdAt: recent },
+      { ...a, clientId: IDS.clientA1, eventId: e3!, status: 'drafting', createdAt: recent },
+      { ...a, clientId: IDS.clientA1, eventId: e4!, status: 'pending_review', createdAt: new Date(Date.now() + 60_000) },
+      { ...a, clientId: IDS.clientA2, eventId: e1!, status: 'delivered', createdAt: recent },
+    ] as never);
+    const b = { agencyId: IDS.agencyA, clientId: IDS.clientA1, periodStart: new Date(), periodEnd: new Date(), createdAt: recent };
+    await dbs.owner.insert(brief).values([
+      { ...b, deliveryDate: '2026-10-05', status: 'sent' },
+      { ...b, deliveryDate: '2026-10-12', status: 'failed' },
+      { ...b, deliveryDate: '2026-10-19', status: 'generating' },
+    ]);
+    const { trends } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { trends: { alerts: number[]; briefs: number[] } };
+    expect(trends.alerts).toEqual([0, 0, 0, 0, 0, 0, 0, 2]);
+    expect(trends.briefs).toEqual([0, 0, 0, 0, 0, 0, 0, 1]);
+  });
+
   it('respects scope and is agency-only', async () => {
     const { items } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { items: { clientId: string }[] };
     expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);
