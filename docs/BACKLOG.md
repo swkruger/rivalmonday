@@ -178,6 +178,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Social collection, if ever built: flip the compare row from "Not offered" — *phase-17c*
 - [ ] Bump a guide's `updated` date in `content/guides.ts` on every substantive edit (Article `dateModified`) — *site-showcase*
 - [ ] Testimonials: add real pilot quotes (with permission) to `content/testimonials.ts`; the section stays hidden while empty — *site-showcase*
+- [ ] Friday's live voice: add the drafted prompt line (`docs/brand/friday.md`) and re-record the Ask cassettes (~$1.60/run, stop at $5, owner's call first); the personality is site + brand doc only until then — *site-polish*
+- [ ] Retake the hero collage (`public/sample/hero-{overview,map,friday}.webp`) when the tour sample in `content/client-view.ts` changes: static screenshots, no script — *site-polish*
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
