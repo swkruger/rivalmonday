@@ -1,5 +1,6 @@
-import { Section } from '@cs/ui';
+import { Section, Skeleton } from '@cs/ui';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { HelpText } from '@/components/help/help-context';
 import { PageHeader } from '@/components/page-header';
 import { showsClientBilling } from '@/components/shell/nav-items';
@@ -47,10 +48,17 @@ export default async function ProfilePage() {
         <AvatarControl name={profile.name} email={profile.email} avatarUrl={profile.avatarUrl} />
         <DetailsForm name={profile.name} email={profile.email} />
       </Section>
-      {clientId && <ClientSummaries ctx={ctx} clientId={clientId} billingEnabled={billingEnabled} />}
-      <section id="notifications" className="scroll-mt-20 flex flex-col gap-6">
-        <NotificationLists lists={notifications.lists} />
-      </section>
+      {/* Streams: the billing panel makes a live Stripe read, which must not hold back the rest of the page. */}
+      {clientId && (
+        <Suspense fallback={<Skeleton className="h-32 w-full max-w-[640px]" />}>
+          <ClientSummaries ctx={ctx} clientId={clientId} billingEnabled={billingEnabled} />
+        </Suspense>
+      )}
+      <div id="notifications" className="scroll-mt-20">
+        <Section title="Notifications" className="gap-6">
+          <NotificationLists lists={notifications.lists} />
+        </Section>
+      </div>
     </>
   );
 }

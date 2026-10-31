@@ -31,6 +31,9 @@ vi.mock('@cs/tools', () => ({
   listInbox: async () => m.inbox,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => null }));
+// An async server component with its own test (settings/profile/client-summaries.test.tsx); this file is about the help.
+vi.mock('./settings/profile/client-summaries', () => ({ ClientSummaries: () => null }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chicago' }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [] }));

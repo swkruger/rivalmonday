@@ -35,7 +35,7 @@ export function NotificationLists({ lists }: { lists: Lists }) {
         ]}
       />
       {lists.map((s) => (
-        <Section key={s.contactId} title={s.clientName ?? s.agencyName}>
+        <Section key={s.contactId} as="h3" title={s.clientName ?? s.agencyName}>
           <TableFrame>
             <Table aria-label="Notification preferences">
               <TableHeader>

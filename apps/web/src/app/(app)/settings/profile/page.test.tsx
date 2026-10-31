@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { createAccessContext } from '@cs/core';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { use } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 
 const A = '11111111-1111-4111-8111-111111111111';
-const m = vi.hoisted(() => ({ kind: 'user' as string, role: 'agency_admin' as string, calls: [] as string[] }));
+const m = vi.hoisted(() => ({ kind: 'user' as string, role: 'agency_admin' as string, calls: [] as string[], slowSummaries: false, never: new Promise<never>(() => {}) }));
 const SETTING = {
   contactId: 'k1', agencyName: 'Cool Comfort', clientName: null, email: 'a@b.co', timezone: null, quietHours: null,
   kinds: [{ kind: 'am_alert', channels: { in_app: true, email: true } }],
@@ -32,7 +33,12 @@ const tool = async (_ctx: unknown, name: string) => {
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 // The real one is an async server component (tested in client-summaries.test.tsx); a stand-in shows the page's wiring.
-vi.mock('./client-summaries', () => ({ ClientSummaries: (p: { clientId: string; billingEnabled: boolean }) => <section><h2>Your business</h2><a href={`/c/${p.clientId}/settings/usage`}>View usage</a>{p.billingEnabled && <a href="#b">View billing</a>}</section> }));
+vi.mock('./client-summaries', () => ({
+  ClientSummaries: (p: { clientId: string; billingEnabled: boolean }) => {
+    if (m.slowSummaries) use(m.never);
+    return <section><h2>Your business</h2><a href={`/c/${p.clientId}/settings/usage`}>View usage</a>{p.billingEnabled && <a href="#b">View billing</a>}</section>;
+  },
+}));
 vi.mock('./actions', () => ({ updateNameAction: vi.fn(), removeAvatarAction: vi.fn() }));
 vi.mock('../notifications/actions', () => ({ setPrefAction: vi.fn(), updateContactAction: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -43,7 +49,7 @@ vi.mock('next/navigation', () => ({
 const { default: Profile, metadata } = await import('./page');
 const { default: OldNotifications } = await import('../notifications/page');
 
-beforeEach(() => { m.kind = 'user'; m.role = 'agency_admin'; m.calls = []; });
+beforeEach(() => { m.kind = 'user'; m.role = 'agency_admin'; m.calls = []; m.slowSummaries = false; });
 afterEach(cleanup);
 
 describe('/settings/profile', () => {
@@ -70,6 +76,23 @@ describe('/settings/profile', () => {
     expect(heads.indexOf('Your business')).toBeGreaterThan(heads.indexOf('Your details'));
     expect(screen.getByRole('link', { name: 'View usage' }).getAttribute('href')).toBe('/c/00000000-0000-4000-8000-0000000000c1/settings/usage');
     expect(screen.queryByRole('link', { name: 'View billing' })).toBeNull();
+  });
+
+  it('slow client summaries (a live Stripe read) do not hold back the rest of the page', async () => {
+    m.role = 'client_owner';
+    m.slowSummaries = true;
+    render(<HelpProvider value={{ audience: 'client', names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>{await Profile()}</HelpProvider>);
+    expect(screen.getByRole('heading', { name: 'Your details' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Your business' })).toBeNull();
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+  });
+
+  it('Notifications is a section heading at the #notifications anchor, with each list one level below it', async () => {
+    render(<HelpProvider value={{ audience: 'agency', names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>{await Profile()}</HelpProvider>);
+    const anchor = within(document.getElementById('notifications')!);
+    expect(anchor.getByRole('heading', { level: 2, name: 'Notifications' })).toBeTruthy();
+    expect(anchor.getByRole('heading', { level: 3, name: 'Cool Comfort' })).toBeTruthy();
   });
 
   it.each(['guest', 'support'])('is a 404 for a %s viewer', async (kind) => {
