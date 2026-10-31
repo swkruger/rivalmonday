@@ -389,14 +389,14 @@ export function AddCompetitorForm({ clientId, atLimit, limit }: { clientId: stri
       <input type="hidden" name="clientId" value={clientId} />
       <Message state={state} />
       <div className="flex flex-wrap items-end gap-4">
-        <Field label="Name">
-          <Input id="competitor-name" name="name" required className="w-48" />
+        <Field label="Name" className="w-full sm:w-auto">
+          <Input id="competitor-name" name="name" required className="w-full sm:w-56" />
         </Field>
-        <Field label="Website">
-          <Input id="competitor-domain" name="domain" placeholder="smithhvac.com" className="w-56" />
+        <Field label="Website" className="w-full sm:w-auto">
+          <Input id="competitor-domain" name="domain" placeholder="smithhvac.com" className="w-full sm:w-56" />
         </Field>
-        <Field label="Google Place ID (optional)">
-          <Input id="competitor-place-id" name="placeId" className="w-56" />
+        <Field label="Google Place ID (optional)" className="w-full sm:w-auto">
+          <Input id="competitor-place-id" name="placeId" className="w-full sm:w-56" />
         </Field>
         <Button type="submit" disabled={atLimit || pending} title={atLimit ? `This client already tracks ${limit} competitors` : undefined}>
           Add competitor

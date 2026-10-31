@@ -16,7 +16,7 @@ function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
   return (
     <TableFrame>
     <Table>
-      <caption className="pb-2 text-left text-xs font-semibold text-muted-ink">Last {trend.windowDays} days</caption>
+      <caption className="px-4 py-2 text-left text-xs font-semibold text-muted-ink">Last {trend.windowDays} days</caption>
       <TableHeader>
         <TableRow>
           <TableHead scope="col">Business</TableHead>

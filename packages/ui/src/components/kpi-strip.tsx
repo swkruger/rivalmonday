@@ -72,7 +72,7 @@ export type KpiTone = "brand" | "good" | "warn" | "bad"
 /** Runs of known points, oldest first, in a 0-100 box; the trace fills the cell's lower part. NULL stays a gap, never a guess. */
 export function kpiTraceRuns(points: readonly (number | null)[]): [number, number][][] {
   const known = points.filter((p): p is number => p !== null)
-  if (known.length < 2) return []
+  if (known.length < 2 || known.every((v) => v === 0)) return []
   const min = Math.min(...known)
   const span = Math.max(...known) - min
   const x = (i: number) => (i * 100) / (points.length - 1)

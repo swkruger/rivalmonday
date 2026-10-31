@@ -54,7 +54,7 @@ export function FilterBar({
   services: { id: string; name: string }[];
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3">
       <form action={`/c/${clientId}/changes`} className="flex flex-1 flex-wrap items-center gap-2">
         <input type="hidden" name="route" value={params.route} />
         <input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className={cn(toolbarControlClass, 'min-w-48 flex-1 basis-48')} />

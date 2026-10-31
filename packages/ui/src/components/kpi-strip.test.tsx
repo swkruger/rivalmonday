@@ -42,8 +42,8 @@ describe('Kpi trace', () => {
     expect(cell.querySelector('[data-slot=kpi-trace]')!.getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByText('1')).toBeTruthy();
   });
-  it('draws nothing with fewer than two known points, and never invents one', () => {
-    for (const trace of [[], [5], [null, 5, null]]) {
+  it('draws nothing with fewer than two known points or only zeros, and never invents one', () => {
+    for (const trace of [[], [5], [null, 5, null], [0, 0, 0]]) {
       const { container } = render(<Kpi label="A" value="1" trace={trace} />);
       expect(container.querySelector('[data-slot=kpi-trace]')).toBeNull();
       cleanup();

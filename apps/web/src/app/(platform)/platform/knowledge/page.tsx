@@ -79,7 +79,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
         <select name="kind" aria-label="Kind" defaultValue={sp.kind ?? ''} className={toolbarControlClass}><option value="">All kinds</option>{KB_KINDS.map((k) => <option key={k} value={k}>{KIND_OPTION[k]}</option>)}</select>
         <select name="status" aria-label="Status" defaultValue={sp.status ?? ''} className={toolbarControlClass}><option value="">Any status</option><option value="draft">Draft</option><option value="published">Published</option></select>
         <input name="q" aria-label="Search" placeholder="Search titles" defaultValue={sp.q ?? ''} className={`${toolbarControlClass} w-56`} />
-        <Button type="submit" variant="outline" size="sm">Filter</Button>
+        <Button type="submit" variant="outline">Filter</Button>
       </form>
       <Section>
       {page.items.length === 0 ? (
