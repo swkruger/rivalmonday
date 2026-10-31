@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist', '@profile-page',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -134,7 +134,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/usage/`), tags: ['@usage'], why: 'usage and limits' },
   { pattern: re(`${C}settings/usage/`), tags: ['@usage'], why: 'client credits page (client owner and agency roles)' },
   { pattern: re(`${AGENCY}settings/branding/logo/`), tags: ['@onboarding'], why: 'logo upload route (the wizard branding step uploads a logo)' },
-  { pattern: re(`${APP}\\(app\\)/settings/profile/avatar/`), tags: ['@navigation'], why: 'profile photo upload route (no flow uploads one yet; the top-bar menu shows the result)' },
+  { pattern: re(`${APP}\\(app\\)/settings/profile/avatar/`), tags: ['@navigation', '@profile-page'], why: 'profile photo upload route (the profile spec uploads a photo; the top-bar menu shows it)' },
   { pattern: re(`${APP}files/avatar/`), tags: ['@navigation'], why: 'private profile photo file route (the top-bar menu loads it)' },
   { pattern: re(`${COMP}user-avatar\\.tsx$`), tags: ['@navigation'], why: 'user avatar circle (top-bar menu)' },
   { pattern: re(`${SERVER}(?:avatar|upload)\\.ts$`), tags: ['@onboarding', '@navigation'], why: 'avatar pipeline and shared upload helpers (the logo route uses upload.ts)' },
@@ -191,7 +191,8 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/health/`), tags: ['@platform'], why: 'platform health page (operator tables)' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/topic queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
-  { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications|settings/profile)/`), tags: [], why: 'no E2E covers this page' },
+  { pattern: re(`${APP}\\(app\\)/inbox/`), tags: [], why: 'no E2E covers this page' },
+  { pattern: re(`${APP}\\(app\\)/settings/(?:profile|notifications)/`), tags: ['@profile-page'], why: 'profile page (details, photo, client summaries, notifications) and the old notifications URL redirect' },
 
   // --- Web components and server modules (by who renders/uses them) ---
   { pattern: re(`${WEB}src/dev-panel/`), tags: ['@dev-panel'], why: 'dev panel' },

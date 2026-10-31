@@ -33,6 +33,8 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 - **`rm_pending_email`** is a signed cookie holding the address for the check-email resend; read it only server-side, never trust a query param.
 
+- **Avatars are private and live in `/settings/profile`:** `GET /files/avatar/**` is session-gated (never add it to `proxy.ts` `PUBLIC`; only logos are public), photos are 256 px PNGs under `avatars/<userId>/`, and `user.image` counts only when it starts `/files/avatar/`; notification settings moved onto that page (`/settings/notifications` redirects), so link `#notifications`, not the old URL.
+
 ### Platform & support sessions (8a/8b)
 - **`/platform/**` lives in `app/(platform)/` and every page/action there uses `requireOperatorContext()`** (operator's own ctx, ignores `rm_support`); `/agency`, `/c` use `requireContext()`, which returns the synthetic support ctx during a session. Start/Exit/sign-out must use the operator ctx (a support ctx refuses every write).
 - **Never set/clear cookies during render (Next 16):** support-cookie problems redirect to `GET /support/end?sid=…`; only that route (and `POST /support/exit`, sign-out) touches `rm_support`, and render passes `endStale: false`.
