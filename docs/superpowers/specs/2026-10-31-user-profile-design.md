@@ -8,7 +8,7 @@
 2. **One URL for all signed-in users: `/settings/profile`**, title "Profile". Summaries follow the current membership (`ctx`). Avatar menu: "Profile" replaces "Notification settings".
 3. **Page order:** Your details → Your business (client roles only) → Notifications (`#notifications`).
 4. **Notifications move onto the page.** `/settings/notifications` becomes a redirect to `/settings/profile#notifications`, and the read becomes a registered tool (closes the BACKLOG point that it reads via a service fn in support).
-5. **Summaries are read-only panels with a link to the full page.** No editing, no limit controls, no dollars; credits only.
+5. **Summaries are read-only panels with a link to the full page.** No editing, no limit controls. AI usage is in credits, never dollars; the Billing panel shows the client's own plan charge in dollars, as the Billing page does.
    | Role | Business profile | Usage | Billing |
    |---|---|---|---|
    | `client_owner` | if `dashboard` | yes | if `showsClientBilling` |
