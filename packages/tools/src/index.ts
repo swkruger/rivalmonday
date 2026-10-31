@@ -33,6 +33,7 @@ export * from './workspace/word-diff';
 // 15a: the web's numbered pages (Briefs & reports) ask a paged list tool for page n.
 export { encodeCursor } from './paging';
 export * from './tools/schemas';
+export { avatarUrlOf, AVATAR_PREFIX } from './tools/my-profile';
 export { clientOwnerEmails } from './tools/client-billing';
 export { assertRoomForCompetitors, type Discovery, lockClientLimit, startDiscovery } from './tools/competitors';
 export { latestDoneRun, listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, type SearchRefusal, type SearchStart, type SearchTrigger, searchDayLabel, searchDayLabelAt, startCompetitorSearch } from './rival-search';

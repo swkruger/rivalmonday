@@ -70,6 +70,8 @@ export interface ToolDeps {
   evidenceStore?: {
     get(key: string): Promise<Uint8Array | null>;
     put(key: string, body: Uint8Array, contentType: string, opts?: { overwrite?: boolean }): Promise<void>;
+    /** Avatars only (`my-profile.ts`); evidence is never deleted. */
+    delete?(key: string): Promise<void>;
   };
 }
 

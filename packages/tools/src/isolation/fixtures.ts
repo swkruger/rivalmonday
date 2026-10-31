@@ -275,6 +275,11 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   deactivate_recipient: object((w, t) => ({ contactId: idOf(w, 'contact', t.tenant) })),
   // "my" tools: the target's owner contact; the control runs as that owner (A1)
   set_my_notification_pref: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), kind: 'alert', channel: 'email', enabled: false }), positiveAs: 'ownerA1' },
+  get_my_profile: { kind: 'caller', reason: "reads only the caller's own user row", input: () => ({}) },
+  get_my_notification_settings: { kind: 'caller', reason: "lists only the caller's own contacts", input: () => ({}) },
+  update_my_profile: { kind: 'caller', reason: "renames only the caller's own user row", input: () => ({ name: 'World Name' }) },
+  upload_my_avatar: { kind: 'caller', reason: "writes only the caller's own avatar object and user row", input: () => ({ png: PNG_1X1, sha256: PNG_1X1_SHA }) },
+  remove_my_avatar: { kind: 'caller', reason: "clears only the caller's own avatar", input: () => ({}) },
   update_my_contact: { kind: 'object', input: (w, t) => ({ contactId: idOf(w, 'contact', t.tenant), timezone: 'America/Chicago' }), positiveAs: 'ownerA1' },
   // A1's control: adminA soft-deletes its own live thread (the hostile callers never own the target's thread)
   delete_ask_thread: clientWith((w, t) => ({ threadId: askThreadOf(w, t) })),
@@ -416,4 +421,5 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
  */
 export const VIEWER_WRITES: readonly string[] = [
   'create_api_token', 'delete_ask_thread', 'revoke_api_token', 'revoke_oauth_grant', 'set_my_notification_pref', 'update_my_contact',
+  'update_my_profile', 'upload_my_avatar', 'remove_my_avatar',
 ];
