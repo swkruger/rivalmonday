@@ -1,13 +1,13 @@
 # user-profile — personal profile page, avatar, client summaries
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/user-profile   **Base:** main @ fd1f2af1
-**Plan/spec:** none yet
+**Kind:** feature   **Worktree:** ../CompetitorSpy-wt/user-profile   **Base:** main @ fd1f2af1
+**Plan/spec:** `docs/superpowers/plans/2026-10-31-user-profile.md`, `docs/superpowers/specs/2026-10-31-user-profile-design.md`
 
 ## Status (overwrite)
-Brief written; no code.
+Plan written; executing (owner said "Just go", 2026-10-31).
 
 ## Next (overwrite)
-Owner answers § 6, then `superpowers:brainstorming`.
+Subagent-driven execution of the plan; then final review, `/rm-wrap-up`.
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration **0097** (verified); `auth.user.image` already exists.
