@@ -1,5 +1,6 @@
-import { AVATAR_ERROR_COPY, AVATAR_MAX_BYTES, type AvatarError, normalizeAvatar } from '@/server/avatar';
-import { getViewer } from '@/server/current-viewer';
+import { AVATAR_ERROR_COPY, AVATAR_MAX_BYTES, type AvatarError } from '@/lib/avatar-limits';
+import { normalizeAvatar } from '@/server/avatar';
+import { getViewerForClient } from '@/server/current-viewer';
 import { runTool } from '@/server/run-tool';
 import { readCapped, sameOrigin } from '@/server/upload';
 
@@ -14,10 +15,11 @@ const refuse = (error: AvatarError) => Response.json({ error, message: AVATAR_ER
 /**
  * `POST /settings/profile/avatar` (multipart field `file`): any signed-in user acting as themselves (support sessions,
  * guests and member-less users 404). Same shape as the logo upload: origin check, capped read, `normalizeAvatar`
- * re-encodes to a 256 px PNG, `upload_my_avatar` stores it. Errors: 400 `{ error, message }`.
+ * re-encodes to a 256 px PNG, `upload_my_avatar` stores it. Errors: 400 `{ error, message }`. API-mode viewer: a page-mode
+ * redirect for a stale support cookie would be a 307 to a GET-only route, so a 405 here.
  */
 export async function POST(req: Request) {
-  const viewer = await getViewer();
+  const viewer = await getViewerForClient(null);
   if (!viewer || viewer.kind !== 'user') return notFound();
   if (!sameOrigin(req)) return notFound();
 

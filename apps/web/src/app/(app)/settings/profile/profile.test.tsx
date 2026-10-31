@@ -30,6 +30,17 @@ describe('DetailsForm', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Saved.'));
     expect((m.updateName.mock.calls[0]![1] as FormData).get('name')).toBe('Patricia Doe');
+    await waitFor(() => expect(m.refresh).toHaveBeenCalled());
+  });
+
+  it('a name saved with a trailing space settles on the trimmed value and still says Saved.', async () => {
+    m.updateName.mockResolvedValue({ ok: true, message: 'Saved.' });
+    render(<DetailsForm name="Pat Doe" email="pat@example.com" />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Patricia Doe ' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Saved.'));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Patricia Doe');
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
   });
 
   it('a blank name shows the error and keeps what was typed', async () => {
@@ -63,6 +74,23 @@ describe('AvatarControl', () => {
     choose();
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('That photo is too big.'));
     expect(m.refresh).not.toHaveBeenCalled();
+  });
+
+  it('a file over 4 MB is refused here with the decided copy, with no upload', async () => {
+    render(<AvatarControl name="Pat Doe" email="p@x.co" avatarUrl={null} />);
+    const big = new File([new Uint8Array(4 * 1024 * 1024 + 1)], 'big.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [big] } });
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Photo must be 4 MB or smaller.'));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('a file of exactly 4 MB still uploads', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ avatarUrl: '/files/avatar/u/abc.png' }), { status: 200 }));
+    render(<AvatarControl name="Pat Doe" email="p@x.co" avatarUrl={null} />);
+    const edge = new File([new Uint8Array(4 * 1024 * 1024)], 'edge.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Photo file'), { target: { files: [edge] } });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   });
 
   it('Remove asks first, then removes and refreshes', async () => {

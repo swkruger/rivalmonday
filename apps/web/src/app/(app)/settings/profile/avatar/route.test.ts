@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ viewer: null as Record<string, unknown> | null, runTool: vi.fn() }));
-vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
+const m = vi.hoisted(() => ({ viewer: null as Record<string, unknown> | null, runTool: vi.fn(), viewerFor: vi.fn() }));
+// API mode only: a page-mode `getViewer` can answer a stale support cookie with a 307 to a GET-only route, a 405 on POST.
+vi.mock('@/server/current-viewer', () => ({ getViewerForClient: m.viewerFor }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example' }) }));
 const { POST } = await import('./route');
@@ -22,6 +23,8 @@ function upload(bytes: Uint8Array | string | null, opts: { origin?: string | nul
 
 beforeEach(() => {
   m.viewer = me;
+  m.viewerFor.mockReset();
+  m.viewerFor.mockImplementation(async () => m.viewer);
   m.runTool.mockReset();
   m.runTool.mockImplementation(async (_c, _n, input: { sha256: string }) => ({ ok: true, data: { avatarUrl: `/files/avatar/u1/${input.sha256}.png` } }));
 });
@@ -37,6 +40,7 @@ describe('POST /settings/profile/avatar', () => {
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(input.sha256);
     expect((await sharp(bytes).metadata()).width).toBe(256);
     expect(((await res.json()) as { avatarUrl: string }).avatarUrl).toBe(`/files/avatar/u1/${input.sha256}.png`);
+    expect(m.viewerFor).toHaveBeenCalledWith(null);
   });
 
   it('404s a cross-origin or origin-less post before reading the body', async () => {

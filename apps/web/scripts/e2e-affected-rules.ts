@@ -137,6 +137,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(app\\)/settings/profile/avatar/`), tags: ['@navigation', '@profile-page'], why: 'profile photo upload route (the profile spec uploads a photo; the top-bar menu shows it)' },
   { pattern: re(`${APP}files/avatar/`), tags: ['@navigation'], why: 'private profile photo file route (the top-bar menu loads it)' },
   { pattern: re(`${COMP}user-avatar\\.tsx$`), tags: ['@navigation'], why: 'user avatar circle (top-bar menu)' },
+  { pattern: re(`${WEB}src/lib/avatar-limits\\.ts$`), tags: ['@profile-page'], why: 'profile photo size limit and error copy (the photo control and the upload route)' },
   { pattern: re(`${SERVER}(?:avatar|upload)\\.ts$`), tags: ['@onboarding', '@navigation'], why: 'avatar pipeline and shared upload helpers (the logo route uses upload.ts)' },
   { pattern: re(`${AGENCY}settings/team/`), tags: ['@support', '@navigation'], why: 'agency team page (a support session opens it; old /agency/team redirects here)' },
   { pattern: re(`${AGENCY}settings/branding/`), tags: ['@navigation'], why: 'agency branding page (old /agency/branding redirects here)' },

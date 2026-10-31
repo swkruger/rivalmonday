@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import { UserAvatar } from '@/components/user-avatar';
+import { AVATAR_ERROR_COPY, AVATAR_MAX_BYTES } from '@/lib/avatar-limits';
 import { removeAvatarAction } from './actions';
 
 /**
@@ -20,9 +21,14 @@ export function AvatarControl({ name, email, avatarUrl }: { name: string; email:
   const [saved, setSaved] = useState(false);
 
   async function upload(file: File) {
-    setBusy(true);
     setError(null);
     setSaved(false);
+    // Checked here too: in production a body over 4.5 MB never reaches the route, so its message could not arrive.
+    if (file.size > AVATAR_MAX_BYTES) {
+      setError(AVATAR_ERROR_COPY.too_large);
+      return;
+    }
+    setBusy(true);
     try {
       const body = new FormData();
       body.append('file', file);
@@ -41,7 +47,7 @@ export function AvatarControl({ name, email, avatarUrl }: { name: string; email:
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div role="group" aria-label="Your photo" className="flex flex-col gap-3">
       <div className="flex items-center gap-4">
         <UserAvatar name={name} email={email} avatarUrl={url} size={84} />
         <WriteGuard>

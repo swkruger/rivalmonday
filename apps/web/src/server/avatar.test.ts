@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { AVATAR_MAX_BYTES, normalizeAvatar } from './avatar';
+import { AVATAR_MAX_BYTES } from '@/lib/avatar-limits';
+import { normalizeAvatar } from './avatar';
 
 const solid = (w: number, h: number) => sharp({ create: { width: w, height: h, channels: 3, background: '#47A8E7' } });
 const ok = (r: Awaited<ReturnType<typeof normalizeAvatar>>) => {

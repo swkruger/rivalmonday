@@ -1,5 +1,6 @@
 'use client';
 import { Input, Label, SaveBar } from '@cs/ui';
+import { useRouter } from 'next/navigation';
 import { useActionState, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import type { FormResult } from '@/server/forms';
@@ -7,11 +8,18 @@ import { updateNameAction } from './actions';
 
 /** Name (editable) and email (read-only: it is the sign-in address). The page is a 404 in a support session. */
 export function DetailsForm({ name: initial, email }: { name: string; email: string }) {
+  const router = useRouter();
   const [name, setName] = useState(initial);
   const [saved, setSaved] = useState(initial);
   const [state, formAction, pending] = useActionState(async (prev: FormResult, fd: FormData) => {
     const r = await updateNameAction(prev, fd);
-    if (r.ok) setSaved(String(fd.get('name') ?? '').trim());
+    if (r.ok) {
+      // The field takes the trimmed value the server stored, so the form is clean; the refresh updates the top bar's name and initials.
+      const trimmed = String(fd.get('name') ?? '').trim();
+      setName(trimmed);
+      setSaved(trimmed);
+      router.refresh();
+    }
     return r;
   }, { ok: true } as FormResult);
   const dirty = name !== saved;
