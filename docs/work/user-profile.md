@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/plans/2026-10-31-user-profile.md`, `docs/superpowers/specs/2026-10-31-user-profile-design.md`
 
 ## Status (overwrite)
-All six plan tasks are built and committed: tools, storage `delete`, avatar upload and file routes, `/settings/profile`, client summaries, E2E spec `apps/web/e2e/profile.spec.ts` (tag `@profile-page`; not yet run, the final review runs E2E once). No migration. Owner asked "Just go", so every decision below is the agent's call.
+All six plan tasks are built, reviewed and committed, plus the final-review fix wave. On the fixed branch: `test:affected` all green (web 2176, tools 2300), E2E `--full` 153/153. Screenshots checked by eye: client owner (desktop + 390 px) and agency admin. Nothing uncommitted. Not merged; `main`'s checkout still has unrelated uncommitted work (form fix, favicon, chart changes, `apps/site`) that this branch doesn't contain.
 
 ## Next (overwrite)
-Final review, then `/rm-wrap-up`; merge only with the owner's go-ahead.
+Owner tries the page (steps below), then says go: `/rm-merge user-profile`. At merge expect small textual conflicts with main's uncommitted `e2e-affected-rules.ts`, `apps/web/CLAUDE.md` and `client-boundary` edits once those are committed.
 
 ## Interfaces this branch adds or changes
 - Page `/settings/profile` (all signed-in users; guests and support get 404). `/settings/notifications` redirects to `/settings/profile#notifications`. Avatar menu item "Profile" replaces "Notification settings".
@@ -37,6 +37,8 @@ None.
 - Polish → A user viewing `/c/B` who opens Profile sees summaries for the cookie membership.
 - Polish → Suspended agency users can't reach Remove (the page redirects), so the privacy intent of "remove stays allowed" holds only for read-only agencies.
 - Polish → No rate limit on `POST /settings/profile/avatar` (same as the logo route).
+- Polish → Read-only email on Profile looks like an editable field (same border and background); style it read-only.
+- Polish → On a phone, long business names wrap to three lines in the "Your business" rows; stack the fact under the label there.
 
 ## At merge
 - After deploy run `pnpm kb:seed` (precedent `docs/OPS.md`, 15b-3b): until it runs Profile has no Guide button and the old `page:account.settings.notifications` row stays.
