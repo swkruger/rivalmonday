@@ -2,6 +2,7 @@ node_modules/
 .turbo/
 dist/
 .env
+.env.staging
 coverage/
 .superpowers/
 .claude/*

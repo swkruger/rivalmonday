@@ -1,7 +1,7 @@
 name: staging-refresh
-# Replaces staging data with a fresh copy of cs_dev (docs/STAGING.md § Refresh): stops the staging worker, resets the
-# Neon `staging` branch from its parent, neutralises dev's queued work (infra/db/staging/after-refresh.sql), migrates
-# to main and redeploys the worker. Manual only; shares the `staging` group with ci.yml `deploy-staging`.
+# Replaces staging data with a fresh copy of cs_dev (docs/STAGING.md § Refresh): refuses while the local staging worker
+# is connected, resets the Neon `staging` branch from its parent, neutralises dev's queued work
+# (infra/db/staging/after-refresh.sql) and migrates to main. Manual only; shares the `staging` group with ci.yml `deploy-staging`.
 on:
   workflow_dispatch:
     inputs:
@@ -9,7 +9,7 @@ on:
         description: Type "refresh staging". Everything on staging is replaced by a copy of cs_dev.
         required: true
       first_run:
-        description: First run only (STAGING.md § 1 step 12) — nothing is deployed to staging yet, so skip stopping the worker and the web smoke test.
+        description: First run only (STAGING.md § 1 step 12) — nothing is deployed to staging yet, so skip the web smoke test.
         type: boolean
         default: false
 
@@ -27,7 +27,6 @@ jobs:
       NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
       STAGING_BRANCH_ID: ${{ vars.NEON_STAGING_BRANCH_ID }}
       DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       STAGING_APP_URL: ${{ vars.STAGING_APP_URL || 'https://staging.rivalmonday.app' }}
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +40,16 @@ jobs:
       - name: Check the target (branch named staging, has a parent, owner URL is its direct endpoint)
         run: bash scripts/staging-target-check.sh
 
-      - name: Stop the staging worker (no job may run against the half-refreshed copy)
-        # Must succeed: a worker left running would pick up dev's copied jobs before the clean-up below.
-        if: ${{ !inputs.first_run }}
-        run: npx --yes @railway/cli@5.63.1 down --service rivalmonday-worker --environment staging --yes
+      - name: Refuse while the staging worker is connected (no job may run against the half-refreshed copy)
+        # The worker runs on the owner's machine, so CI cannot stop it. A worker left running would pick up dev's copied
+        # jobs before the clean-up below. It is the only cs_worker client, and pg-boss keeps its connections open.
+        run: |
+          set -euo pipefail
+          connected=$(psql "$DATABASE_URL" -XtAc "SELECT count(*) FROM pg_stat_activity WHERE usename = 'cs_worker'")
+          if [ "$connected" != "0" ]; then
+            echo "::error::The staging worker is running ($connected connections). Stop it (Ctrl+C), wait a moment, then run this again."
+            exit 1
+          fi
 
       - name: Reset the staging branch from its parent (cs_dev)
         run: |
@@ -99,7 +104,7 @@ jobs:
           psql "$DATABASE_URL" -XtAc 'SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY 1' | sed '/^$/d' > applied.txt
           jq -r '.entries[].when' packages/db/migrations/meta/_journal.json > journal.txt
           if extra=$(grep -vxFf journal.txt applied.txt); then
-            echo "::error::cs_dev has migrations main lacks (created_at: $(echo $extra)). Merge that branch, then refresh again; the staging worker stays stopped."
+            echo "::error::cs_dev has migrations main lacks (created_at: $(echo $extra)). Merge that branch, then refresh again; keep the staging worker stopped."
             exit 1
           fi
 
@@ -108,12 +113,6 @@ jobs:
 
       - name: Migrate staging to main
         run: pnpm --filter @cs/db migrate
-
-      - name: Stamp worker release
-        run: echo "$GITHUB_SHA" > apps/worker/.release
-
-      - name: Start the staging worker again (main)
-        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker --environment staging
 
       - name: Smoke (staging app answers)
         if: ${{ !inputs.first_run }}

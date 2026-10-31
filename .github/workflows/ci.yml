@@ -87,7 +87,8 @@ jobs:
 
   # Staging (docs/STAGING.md): every push to main migrates and deploys staging.rivalmonday.app first; production waits
   # for it. Off until the repo variable STAGING_DEPLOY_ENABLED is 'true'. Same steps as `deploy`, but Vercel custom
-  # environment `staging` and Railway environment `staging`. Shares the `staging` group with staging-refresh.yml.
+  # environment `staging`, and no worker (it runs locally: STAGING.md § Local worker). Shares the `staging` group with
+  # staging-refresh.yml.
   deploy-staging:
     needs: [test, image]
     if: vars.STAGING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -134,20 +135,6 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
       - name: Vercel deploy (staging)
         run: npx --yes vercel@62.4.0 deploy --prebuilt --target=staging --token="$VERCEL_TOKEN"
-      - name: Stamp worker release
-        run: echo "$GITHUB_SHA" > apps/worker/.release
-      - name: Railway deploy (staging worker)
-        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker --environment staging
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      - name: Sentry release (worker)
-        run: |
-          npx --yes @sentry/cli@3.8.0 releases new "$GITHUB_SHA"
-          npx --yes @sentry/cli@3.8.0 releases finalize "$GITHUB_SHA"
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WORKER }}
       - name: Smoke (staging app answers signed-out)
         # A 401 here means Vercel Deployment Protection covers the staging domain (docs/STAGING.md § 4).
         run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
