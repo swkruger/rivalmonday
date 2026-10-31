@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { safeNext } from './server/safe-next';
 
-/** `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). */
-const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/join\//, /^\/u\//, /^\/files\/logo\//, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/bot$/, /^\/robots\.txt$/, /^\/api\/postmark\/webhook$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon/, /^\/dev-panel\//, /^\/mcp$/, /^\/\.well-known\//, /^\/api\/ask\//, /^\/api\/stripe\/webhook$/, /^\/api\/stripe\/connect-webhook$/, /^\/api\/waitlist$/, /^\/api\/site-status$/, /^\/waitlist\//, /^\/sample\//];
+/** `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). `/onboarding/*.webp` are the static O14 images: the `next/image` optimizer fetches them without cookies. */
+const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/join\//, /^\/u\//, /^\/files\/logo\//, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/bot$/, /^\/robots\.txt$/, /^\/api\/postmark\/webhook$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon/, /^\/dev-panel\//, /^\/mcp$/, /^\/\.well-known\//, /^\/api\/ask\//, /^\/api\/stripe\/webhook$/, /^\/api\/stripe\/connect-webhook$/, /^\/api\/waitlist$/, /^\/api\/site-status$/, /^\/waitlist\//, /^\/sample\//, /^\/onboarding\/[\w-]+\.webp$/];
 
 const NO_REFERRER = /^\/(?:start\/(?:v|verify)|waitlist\/confirm|sample)\//;
 

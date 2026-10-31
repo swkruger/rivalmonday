@@ -27,6 +27,11 @@ describe('proxy', () => {
     for (const p of ['/onboarding', '/onboarding/start', '/signup', '/joinx']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });
 
+  it('lets the public onboarding images through without cookies (the next/image optimizer fetches them cookie-less)', () => {
+    for (const p of ['/onboarding/client-done.webp', '/onboarding/signup.webp']) expect(run(p).headers.get('location'), p).toBeNull();
+    for (const p of ['/onboarding/start', '/onboarding/x.webp/y', '/onboarding/sub/x.webp']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  });
+
   it('lets the Phase 11c public intake pages through without cookies', () => {
     for (const p of ['/start', '/start/smith-co', '/start/verify/tok', '/start/verify', '/start/v/11111111-1111-4111-8111-111111111111']) {
       expect(run(p).headers.get('location'), p).toBeNull();
