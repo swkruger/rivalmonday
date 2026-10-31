@@ -40,6 +40,14 @@ describe('resolveViewer', () => {
     expect(second?.kind === 'user' && second.ctx.clientScope).toEqual([IDS.clientB1]);
   });
 
+  it('avatarUrl counts only an uploaded photo: a Google image is null, as is none', async () => {
+    await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't' });
+    const withImage = async (image: string | null) => resolveViewer({ service: dbs.service, session: { ...session, image }, linkSecrets: S, now: NOW });
+    expect(await withImage('https://lh3.googleusercontent.com/a/photo')).toMatchObject({ kind: 'user', avatarUrl: null });
+    expect(await withImage(null)).toMatchObject({ kind: 'user', avatarUrl: null });
+    expect(await withImage('/files/avatar/u1/abc.png')).toMatchObject({ kind: 'user', avatarUrl: '/files/avatar/u1/abc.png' });
+  });
+
   it('prefers a signed-in user over a guest cookie, and stops honouring a guest cookie once the contact is deactivated (Review Focus 3)', async () => {
     const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'g@e.co' }).returning();
     const cookie = signGuest(S[0]!, { contactId: c!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1 }, NOW);
