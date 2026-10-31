@@ -17,14 +17,21 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
+// A receiver named `*store` (optional chaining included), or an optional call of any `delete` method.
+const DELETE_CALL = /\b\w*[sS]tore\??\.delete\(|\bdelete\?\.\(/;
+
 describe('ObjectStore.delete gate', () => {
+  it('recognises the plain and the optional call forms', () => {
+    for (const call of ['store.delete(k)', 'evidenceStore.delete(k)', 'store?.delete(k)', 'store.delete?.(k)', 'store?.delete?.(k)', 'x.delete?.(k)']) expect(call).toMatch(DELETE_CALL);
+    for (const other of ['map.delete(k)', 'db.delete(table)']) expect(other).not.toMatch(DELETE_CALL);
+  });
+
   it('is called only from the avatar code', () => {
     const files: string[] = [];
     walk(join(ROOT, 'packages'), files);
     walk(join(ROOT, 'apps'), files);
-    const re = /\b\w*[sS]tore\.delete\(/;
     const hits = files
-      .filter((f) => re.test(readFileSync(f, 'utf8')))
+      .filter((f) => DELETE_CALL.test(readFileSync(f, 'utf8')))
       .map((f) => relative(ROOT, f).split(sep).join('/'))
       .filter((f) => !f.startsWith('packages/storage/'));
     expect(hits.filter((f) => !ALLOWED.includes(f))).toEqual([]);
