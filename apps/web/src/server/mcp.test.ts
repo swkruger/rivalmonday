@@ -115,6 +115,9 @@ describe('mcpDeps', () => {
     expect(new TextDecoder().decode((await d.deps.evidenceStore!.get('k1'))!)).toBe('hi');
     expect(await d.deps.evidenceStore!.get('missing')).toBeNull();
     vi.stubEnv('OPENROUTER_API_KEY', 'sk-x');
+    // Earlier tests built the live (`dev`) deps; embedQueryFor reads the key at build time, so rebuild with the stub.
+    const { clearEnvCaches } = await import('./env-cache');
+    await clearEnvCaches();
     const { toolDeps } = await import('./tools');
     expect(toolDeps('demo').embedQuery).toBeUndefined();
     expect(toolDeps('dev').embedQuery).toBeTypeOf('function');
