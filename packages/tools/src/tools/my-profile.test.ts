@@ -78,12 +78,21 @@ describe('personal profile tools', () => {
     expect(await nameOf('u2')).toBe('u2@e.co');
   });
 
-  it('update_my_profile rejects blank and control chars', async () => {
-    for (const name of ['   ', '', 'a\nb', 'a\u0000b', 'a\u007fb', 'x'.repeat(81)]) {
-      await expect(registry.invoke(me, 'update_my_profile', { name })).rejects.toMatchObject({ code: 'invalid_input' });
+  it('update_my_profile refuses a bad name with exactly one plain message', async () => {
+    const cases: [string, string][] = [
+      ['', 'Enter your name.'],
+      ['   ', 'Enter your name.'],
+      ['a\nb', 'Enter a name without line breaks.'],
+      ['a\u0000b', 'Enter a name without line breaks.'],
+      ['a\u007fb', 'Enter a name without line breaks.'],
+      ['x'.repeat(81), 'Use 80 characters or fewer.'],
+    ];
+    for (const [name, message] of cases) {
+      await expect(registry.invoke(me, 'update_my_profile', { name }), JSON.stringify(name)).rejects.toMatchObject({ code: 'invalid_input', message });
     }
-    await expect(registry.invoke(me, 'update_my_profile', { name: 'a\nb' })).rejects.toThrow('Enter a name without line breaks.');
     expect(await nameOf()).toBe('u1@e.co');
+    expect(await registry.invoke(me, 'update_my_profile', { name: `  ${'x'.repeat(80)}  ` })).toEqual({ ok: true });
+    expect(await nameOf()).toBe('x'.repeat(80));
   });
 
   it('upload stores and returns the path', async () => {

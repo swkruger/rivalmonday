@@ -12,6 +12,7 @@ const ok = { ok: true as const };
 export const AVATAR_PREFIX = '/files/avatar/';
 const MAX_AVATAR_PNG_BYTES = 512 * 1024;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const MAX_NAME_INPUT = 1000;
 const OWN_AVATAR = /^\/files\/avatar\/([^/]+)\/([0-9a-f]{64})\.png$/;
 
 /** An uploaded avatar's path, or null (initials): other values (e.g. an old Google URL in `user.image`) are ignored. */
@@ -22,6 +23,13 @@ export function avatarUrlOf(image: string | null): string | null {
 /** Guests (email-link sessions) have no profile. */
 function requireSignedIn(ctx: AccessContext) {
   if (ctx.userId.startsWith('contact:')) throw new ToolError('permission_denied', 'Sign in to change your profile');
+}
+
+function nameProblem(name: string): string | null {
+  if (!name) return 'Enter your name.';
+  if (/[\u0000-\u001f\u007f]/.test(name)) return 'Enter a name without line breaks.';
+  if (name.length > 80) return 'Use 80 characters or fewer.';
+  return null;
 }
 
 const keyOf = (userId: string, sha: string) => `avatars/${userId}/${sha}.png`;
@@ -92,13 +100,15 @@ export const updateMyProfileTool = defineTool({
   name: 'update_my_profile',
   access: 'write',
   description: 'Change your own display name.',
-  input: z.object({
-    name: z.string().trim().min(1, 'Enter your name.').max(80, 'Use 80 characters or fewer.').refine((v) => /^[^\u0000-\u001f\u007f]+$/.test(v), 'Enter a name without line breaks.'),
-  }),
+  // Loose on purpose: a schema failure reaches the form as validator text, so the handler refuses with one plain line.
+  input: z.object({ name: z.string().max(MAX_NAME_INPUT) }),
   output: OK,
   permission: 'read',
-  async handler(ctx, { name }, deps) {
+  async handler(ctx, input, deps) {
     requireSignedIn(ctx);
+    const name = input.name.trim();
+    const problem = nameProblem(name);
+    if (problem) throw new ToolError('invalid_input', problem);
     await deps.service.execute(sql`update auth."user" set name = ${name}, "updatedAt" = now() where id = ${ctx.userId}`);
     return ok;
   },
