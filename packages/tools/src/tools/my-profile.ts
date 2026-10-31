@@ -41,7 +41,11 @@ async function readUser(deps: ToolDeps, userId: string) {
 
 /** A failed delete leaves a harmless orphan (the pointer is the truth), so it is logged, never thrown. */
 async function deleteAvatarObject(store: NonNullable<ToolDeps['evidenceStore']>, key: string | null): Promise<void> {
-  if (!key || !store.delete) return;
+  if (!key) return;
+  if (!store.delete) {
+    console.error('[avatar] delete failed', 'store has no delete');
+    return;
+  }
   try {
     await store.delete(key);
   } catch (err) {

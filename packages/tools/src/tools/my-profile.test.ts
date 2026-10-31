@@ -4,7 +4,7 @@ import { createAccessContext } from '@cs/core';
 import { agencyBilling, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { createToolRegistry } from '../registry';
 import { avatarUrlOf } from './my-profile';
@@ -145,6 +145,23 @@ describe('personal profile tools', () => {
     expect(await registry.invoke(me, 'remove_my_avatar', {})).toEqual({ ok: true });
     expect(await imageOf()).toBeNull();
     expect(await upload(2)).toEqual({ avatarUrl: pathOf('u1', 2) });
+  });
+
+  it('a store without delete logs an error and still succeeds', async () => {
+    const noDelete = createToolRegistry(
+      { app: dbs.app, service: dbs.service, evidenceStore: { get: evidenceStore.get, put: evidenceStore.put }, billing: fakeGateway() },
+      { audit: { record: async () => {} } },
+    );
+    await upload(1, me, noDelete);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await noDelete.invoke(me, 'remove_my_avatar', {})).toEqual({ ok: true });
+      expect(spy).toHaveBeenCalledWith('[avatar] delete failed', 'store has no delete');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await imageOf()).toBeNull();
+    expect(objects.has(keyOf('u1', 1))).toBe(true);
   });
 
   it('guests and support sessions are refused', async () => {

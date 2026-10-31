@@ -77,7 +77,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     sampleLinkSecret: webEnv().authSecret, // 17a: /sample/<token> links (the page verifies with the same secret)
     // Phase 11c: decline/assign send their lead mail directly after commit; the transport is built per environment (ledger = this env's db).
     leadEmail: { transport: webEmailTransport(processGuardOn(), process.env, createLedgerSink(service)), appUrl: webEnv().appUrl, fromAddress: webEnv().emailFrom, platformAdmins: platformAdmins(name) },
-    evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType, opts) => store.put(key, body, contentType, opts) },
+    evidenceStore: { get: (key) => store.get(key), put: (key, body, contentType, opts) => store.put(key, body, contentType, opts), delete: (key) => store.delete(key) },
     embedQuery: embedQueryFor(name, service),
     setupLookup: setupLookupFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     geocode: geocodeFor(name, service, { fake: webEnv().setupFakeLookup, apiKey: webEnv().stadiaApiKey }),

@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// ObjectStore.delete is for avatars only (evidence is never deleted). Only the profile tool may call it.
-const ALLOWED = ['packages/tools/src/tools/my-profile.ts'];
+// ObjectStore.delete is for avatars only (evidence is never deleted). Only the profile tool may call it (and the web dep wiring forwards it).
+const ALLOWED = ['packages/tools/src/tools/my-profile.ts', 'apps/web/src/server/tools.ts']; // the second only forwards the dep
 const ROOT = join(__dirname, '..', '..', '..', '..');
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.turbo', 'coverage', '.vercel']);
 
