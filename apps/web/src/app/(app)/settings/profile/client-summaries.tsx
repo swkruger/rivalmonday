@@ -7,7 +7,6 @@ import { clientPlanStatus, type MyBilling } from '@/lib/client-plan-status';
 import { formatCreditsOf, formatDate, formatMoney } from '@/lib/format';
 import { CLIENT_PLAN_STATUS, labelFor } from '@/lib/labels';
 import { tryCallTool } from '@/server/tools';
-import { viewerTimeZone } from '@/server/viewer-tz';
 
 interface Props {
   ctx: AccessContext;
@@ -35,11 +34,10 @@ export async function ClientSummaries({ ctx, clientId, billingEnabled }: Props) 
   const owner = ctx.role === 'client_owner';
   if (!owner && ctx.role !== 'client_viewer') return null;
   const base = `/c/${clientId}/settings`;
-  const [profile, usage, billing, tz] = await Promise.all([
+  const [profile, usage, billing] = await Promise.all([
     hasFeature(ctx, 'dashboard') ? tryCallTool<ClientProfile>(ctx, 'get_client_profile', { clientId }) : null,
     owner ? tryCallTool<{ credits: SpendCredits }>(ctx, 'get_my_usage', { clientId }) : null,
     owner && billingEnabled ? tryCallTool<MyBilling>(ctx, 'get_my_billing', { clientId }) : null,
-    viewerTimeZone(),
   ]);
   if (!profile && !usage && !billing) return null;
 
@@ -68,7 +66,7 @@ export async function ClientSummaries({ ctx, clientId, billingEnabled }: Props) 
             {!billing.paused && billing.nextChargeDate ? (
               <span className="text-ink">
                 Next charge {billing.nextChargeAmountCents !== null ? `${formatMoney(billing.nextChargeAmountCents, { unit: 'cents' })} on ` : 'on '}
-                {formatDate(billing.nextChargeDate, { tz })}
+                {formatDate(billing.nextChargeDate, { tz: 'UTC' })}
               </span>
             ) : plan.detail ? (
               <span className="text-muted-ink">{plan.detail}</span>

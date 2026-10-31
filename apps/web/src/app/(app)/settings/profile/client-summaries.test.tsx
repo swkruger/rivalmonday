@@ -18,7 +18,6 @@ vi.mock('@/server/tools', () => ({
     return m.refuse.has(name) ? null : DATA[name];
   },
 }));
-vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 
 const { ClientSummaries } = await import('./client-summaries');
 
@@ -40,6 +39,13 @@ describe('ClientSummaries', () => {
     expect(document.body.textContent).toContain('3 services');
     expect(document.body.textContent).toContain('Active');
     expect(document.body.textContent).toContain('$129 on Dec 1');
+  });
+
+  it('the next charge date is the UTC date, as on the Billing page', async () => {
+    DATA.get_my_billing = { ...BILLING, nextChargeDate: '2026-12-01T02:00:00.000Z' };
+    await show('client_owner');
+    expect(document.body.textContent).toContain('$129 on Dec 1');
+    expect(document.body.textContent).not.toContain('Nov 30');
   });
 
   it('viewer sees only the Business panel', async () => {
