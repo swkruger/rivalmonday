@@ -14,7 +14,8 @@ import { SiteHeader } from '../components/shell/site-header';
 import { footerColumns, navItems } from '../components/shell/nav-items';
 import './site.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '800'], display: 'swap' });
+// `optional`, not `swap`: the size-matched fallback needs Arial, so without it (Android, Linux) the swap reflows the hero (CLS 0.3).
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '800'], display: 'optional' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
