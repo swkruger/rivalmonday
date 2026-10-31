@@ -162,7 +162,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] `contact.updated_at` instead of bumping `created_at` for owner recency; invite target (`invited_contact_id`) can differ from the Business-details owner after an email change — *phase-16*
 - [ ] Onboarding polish: "Save and exit" saves nothing; support banner overlaps the onboarding top row; `update_client_details` geocodes before checking an existing centre; area step duplicates `lib/format/distance.ts`; find step clears a hand-picked type on re-search; "Sent again." shown when a resend was rate-limited; owner pick+confirm are two calls; Business-details save is details-then-logo (partial save on logo failure) — *phase-16*
 - [ ] Owner-pick clock: cancel + re-ask restarts the 14-day wait; after a cancel the activation-based hold may already be due — *phase-16*
-- [ ] `client-boundary` gate ignores default imports/barrels; pages import constants from `'use client'` modules (`knowledge/page.tsx` `selectClass`) — *phase-16*
+- [ ] `client-boundary` gate ignores default imports/barrels — *phase-16*
 
 ## Phase 17 follow-ups (marketing site, waitlist)
 **Soon**
@@ -189,6 +189,13 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 13a: brand-aware chart check (`--you` = agency secondary may clash with rival orange #E05A2B); neutral chart-series alias for the platform costs chart (manual series borrows `--chart-rival-2`); checked Switch `bg-secondary` + white thumb (~1.4:1 on #FFD400) — *phase-16*
 
 ## Polish (small UI/UX fixes, any time)
+- [ ] Phones: table-to-card for leads, waitlist, agencies, team, usage (scroll cue added meanwhile) — *ui-visual-review*
+- [ ] Several stacked "?" tips per heading; sign-in layout; long help and runbook pages; activity feed timezone; duplicated title/body sentences ("Hill Country Air & Heat — Hill Country Air & Heat cut…"); raw `{{tokens}}` in runbook text — *ui-visual-review*
+- [ ] Trace maths: flow traces end in a partial period, so they dip early in each period; y scale is min-max, so tiny moves fill the band (acceptable as decoration) — *ui-visual-review*
+- [ ] Decorative reads via `tryCallTool` still fail the page on an `internal` error (only refusals degrade) — *ui-visual-review*
+- [ ] `MonthlyChart` has no table fallback (gap against D-13, older than this branch) — *ui-visual-review*
+- [ ] Alert-threshold form shows no Save until a field changes; review row spacing (`py-4`) was a guess; `/platform/health` readiness counts stay a plain list, not `StatStrip` — *ui-visual-review*
+- [ ] `rm-scroll-x` white edge covers would show on a tinted container; none traced — *ui-visual-review*
 - [ ] Pack YAML flow-mapping descriptions containing commas are truncated (generic `staff_professionalism` is stored as "Courtesy"): quote descriptions + new migration — *from 15b-3b*
 - [ ] `review_analysis.checked_at` has no index; the daily-cap count scans the table each idle sweep. Add one if volume grows — *from 15b-3b*
 - [ ] Vertical-edit re-ask trigger fires on any `vertical.updated_at` bump (area version bumps, renames, reviewed status; a generic edit hits every inheriting vertical); on cs_dev ~84% of analysed reviews have a below-tau seed topic, so each bump re-asks most of that vertical's 180-day reviews and shares the 2,000/day cap with approval re-asks. Fix: topics-specific edit marker (`config->'topics'` hash or `topics_edited_at`) or order approval gaps first — *from 15b-3b*
@@ -258,6 +265,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Sign in `pnpm copy:review`: `traceLabel` hover strings, `moveFactLabel` output, chart and toolbar labels — *ui-visual-review*
 - [ ] Copy sign-off now happens in `pnpm copy:review` (ledger `docs/copy/signoff.json`): the per-phase sign-off items below (archive `*copy-signoff*.md` docs) close once their surfaces are signed in the tool; decide whether tool `.describe()` parameter text stays in the scan — *copy-signoff-tool*
 - [ ] Verify 15c-2a: slack-teams settings; Team Resend (4th/24 h refused); intake Preview with link off; check-email Resend countdown; `/platform/billing` tabs; Alert review client filter; Branding buttons — *moved from STATE at jev-openrouter merge*
 - [ ] Verify 15c-1: unknown URL shows "Page not found"; radius in miles; rankings charts "You" dark blue; sign off [archive/phase-15c1-copy-signoff.md](archive/phase-15c1-copy-signoff.md); decide the `reportError` digest-skip — *moved from STATE at jev-openrouter merge*
@@ -296,6 +304,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Unscheduled / ideas
 
 ### Features
+- [ ] Check charts in Safari and Firefox; check `apps/site` selects after the global chevron rule — *ui-visual-review*
 - [ ] No-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider a "Link Google listing" prompt — *phase-16*
 - [ ] Drop `playbook_override` (table, tools, tests) after the runbook backfill is verified in prod; new migration — *phase-14b*
 - [ ] "Sync platform runbook" step: the platform runbook is seeded once from `generic.yaml`; later generic/pack additions don't reach existing runbooks — *phase-14b*

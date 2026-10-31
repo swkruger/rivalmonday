@@ -20,7 +20,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 | Cross-cutting gotchas, env | `docs/gotchas-cross-cutting.md` |
 | Vendor API contracts | `docs/research/2026-09-30-phase-2-vendor-apis.md` |
 | Brand, mockups | `docs/brand/` |
-| **Design system (binding UI rules, tokens, storyboard)** | `docs/design-system/README.md`; agents implementing UI: `09-ai-implementation-playbook.md` |
+| **Design system (binding)** | `docs/design-system/README.md`; agents implementing UI: `09-ai-implementation-playbook.md` |
 | Old handover | `docs/archive/` (don't read) |
 
 ## Decisions (do not re-litigate)
@@ -28,7 +28,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Brand:** Rival Monday, wordmark `rivalmonday` (`rival` #2A6BAC, `monday` #F5A524). Assistant **Friday** (renamable), orange pill (#F5A524 bg, #3B2300 text). Primary #47A8E7 (ink #0B2540 label on primary buttons), secondary #2A6BAC, accent #F5A524, ink #0B2540, canvas #F6F9FC, grey panels #EEF2F6 (dark text). Inter. Max 1560px.
 - **Stack:** TypeScript monorepo, pnpm 10 + Turborepo, Node 24. Next.js App Router + Tailwind + shadcn/ui; per-agency CSS-variable brand tokens. Vercel (web/API/MCP/cron) + one worker container (pg-boss + Playwright). Neon Postgres, RLS tenancy. Evidence in R2. OpenRouter generation (`ai.yaml`); Jev decisions via OpenRouter (`typesafe/jev-1.14`), cascade Jev → LLM → human.
 - **Auth:** **self-hosted Better Auth** inside `apps/web` (schema `auth`), not Neon Auth (invitation-only hooks, OAuth 2.1 MCP provider). Access lives in our own `membership` table, not Better Auth's `organization` plugin.
-- **Design system v1 (2026-10-23):** `docs/design-system/` is binding for all UI — one white sheet in a #F6F9FC frame, sections before cards, shadows only on floating layers, chart roles you #2A6BAC + ≤2 rivals + grey. Existing UI migrates per its playbook.
+- **Design system v1 (2026-10-23):** `docs/design-system/` is binding for all UI — one white sheet in a #F6F9FC frame, sections before cards, shadows only on floating layers, chart roles you #2A6BAC + ≤2 rivals + grey.
 - **Charts:** hand-written inline SVG; validate colours with the dataviz skill.
 - **Review decisions stay on Jev** until pilots supply gold labels at volume; don't change verifier τ (0.85) before labelling `verifier_decisions`.
 - **Competitor discovery (Phase 12):** vendor-only two-stage search, $3/run cap; auto-run once when a profile completes, then 1 manual search/client/week + monthly refresh; tiers Top rival / Worth watching / Minor.
@@ -48,19 +48,20 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Quality gates (7c1):** new tool => `ISOLATION_FIXTURES` entry; new table => `TABLE_CLASS` + world rows; out-of-scope client => `not_found`, never an empty list; CI `eval:replay` miss => re-record in the PR (<= $5/run); Ask drops uncited figures.
 - **Pilot & scale (7c):** <= 20 agencies x <= 3 clients, slow invites, gates block leaks/claims/injection; feedback by email. One worker, N pollers/queue (`QUEUE_CONCURRENCY`); `SERVICE_DATABASE_POOLED_URL` required in prod; vendor calls via the limiter (`timeoutMs`); captures defer; rehearsal vars staging-only; `docs/PILOT.md`.
 - **Marketing site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; claims only from the claims ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; pilot = waitlist.
+- **Stats & controls:** stat-card traces from real history only, else plain; one 36 px control height (D-15).
 - **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters only; quiet weeks get a "Where you stand" card.
 - Phase-local decisions: each plan's "Decisions"; don't re-open.
 
 ## Process (owner preference)
 1. `/rm-kickoff <phase>` → own **worktree + branch** + distilled brief (`docs/work/<branch>.md`).
-2. `superpowers:brainstorming` from the brief's open questions. Split large phases.
+2. `superpowers:brainstorming` from the brief's open questions.
 3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md`, aim ≤ 15 KB). Reference the core spec by §; don't restate it.
 4. `superpowers:writing-plans` in the **lean plan format** below. 
 5. **Owner approval** of the plan.
 6. `superpowers:subagent-driven-development`: pre-flight (rebase, re-check dependencies, conflict-scan), fresh implementer + reviewer per task, final whole-branch review (most capable model), one fix wave. **Test scope:** implementers run focused tests; task reviewers run none; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` run once, at the final review (`--base main`). Full unit + E2E only in `/rm-merge`, after asking the owner (CI runs both).
 7. `/rm-wrap-up` at the end of every session; `/rm-merge` only with the owner's go-ahead.
 
-**Parallel workstreams:** one worktree per branch (`../CompetitorSpy-wt/<branch>`), one session each. Planning ahead: `/rm-kickoff`. Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their own work file.
+**Parallel workstreams:** one worktree per branch (`../CompetitorSpy-wt/<branch>`), one session each. Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their own work file.
 
 ### Lean plan format (overrides writing-plans' "complete code in every step")
 Plan header: Goal, Global constraints, Decisions, File structure, **Dependencies on in-flight work** (re-check), Review focus. Tasks aim ≤ 4 KB, plan ≤ 80 KB:
