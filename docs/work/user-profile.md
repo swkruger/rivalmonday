@@ -24,7 +24,7 @@ None.
 2. Editable: name and photo. Email is read-only (it is the sign-in key).
 3. Photo: PNG/JPEG/WebP up to 4 MB (not 512 KB; phone photos are bigger), no SVG, stored as a 256 px square PNG, private.
 4. Removing or replacing a photo deletes the object. A Google `user.image` URL is ignored (initials show).
-5. Summaries are read-only panels linking to the full pages (owner: Business profile, Usage, Billing while on; viewer: Business profile). Credits only, no dollars.
+5. Summaries are read-only panels linking to the full pages (owner: Business profile, Usage, Billing while on; viewer: Business profile). Usage is in credits only; the Billing panel shows the client's own charge in dollars, as the Billing page does.
 6. Avatar appears in the top bar and on the profile page only. Paused agency: remove is allowed, upload and rename are refused.
 
 ## New backlog (target → item)
@@ -32,6 +32,15 @@ None.
 - Polish → Avatar objects are not removed when a user is purged.
 - Polish → `/c/<id>/settings/profile` is reachable by guests by direct URL (read from code: the page only checks the `dashboard` feature; not run). Confirm and 404 guests.
 - Polish → The profile E2E shows the Billing summary only if billing is already on; add a seeded client with billing on to assert it every run.
+- Polish → `user-avatar.tsx:16`: a missing object renders an empty circle, not initials.
+- Polish → Logo route: same page-mode POST flaw as the avatar route had (a stale support cookie gets a 307 to a GET-only route, so a 405); use `getViewerForClient(null)`.
+- Polish → A user viewing `/c/B` who opens Profile sees summaries for the cookie membership.
+- Polish → Suspended agency users can't reach Remove (the page redirects), so the privacy intent of "remove stays allowed" holds only for read-only agencies.
+- Polish → No rate limit on `POST /settings/profile/avatar` (same as the logo route).
+
+## At merge
+- After deploy run `pnpm kb:seed` (precedent `docs/OPS.md`, 15b-3b): until it runs Profile has no Guide button and the old `page:account.settings.notifications` row stays.
+- The notification-settings points in BACKLOG lines 52-53 close: the read in support is now a registered `supportHidden` tool and the page 404s in support (the other points on those lines stay open).
 
 ## Owner verification steps
 1. Agency user: sign in, click the round avatar top right, choose Profile. Change Name, press Save, reload: the name stays. Click Upload photo, pick a JPEG or PNG: the top-bar circle shows the photo. Click Remove, then Remove photo: initials return.
@@ -41,4 +50,4 @@ None.
 5. Phone photo: on a phone, open Profile, tap Upload photo, take or choose a portrait photo straight from the camera (several MB, HEIC is refused with a message): it shows upright and square.
 
 ## Copy to sign
-Run `pnpm copy:review`: Profile page description and tips (`help/copy/account.ts`), avatar error lines (`AVATAR_ERROR_COPY`), the Remove-photo dialog, "Your business" summary labels, and guides `account.settings.profile.agency.md` / `.client.md`.
+Run `pnpm copy:review`: Profile page description and tips (`help/copy/account.ts`), avatar error lines (`AVATAR_ERROR_COPY`), the Remove-photo dialog, "Your business" summary labels, and guides `account.settings.profile.agency.md` / `.client.md`. Also: re-sign the tip copy (18 sign-offs under `…account.settings.notifications…` are orphaned by the key rename; text unchanged), the fallback `That photo couldn't be uploaded…` lines, and the refused-name lines (`Enter your name.`, `Enter a name without line breaks.`, `Use 80 characters or fewer.`).
