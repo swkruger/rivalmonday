@@ -52,6 +52,7 @@ describe('destinationPath', () => {
 describe('goGate (fix round 1: /go must not loop a member-less viewer through /sign-in)', () => {
   const userViewer: Viewer = {
     kind: 'user',
+    avatarUrl: null,
     userId: 'u1',
     email: 'p@e.co',
     name: 'Pat',
@@ -73,6 +74,7 @@ describe('goGate (fix round 1: /go must not loop a member-less viewer through /s
   it('lets a support viewer through (8b: /sign-in would bounce it straight back, looping forever)', () => {
     const supportViewer: Viewer = {
       kind: 'support',
+      avatarUrl: null,
       userId: 'op',
       email: 'op@e.co',
       name: 'Olive',

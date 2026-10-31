@@ -27,7 +27,7 @@ const switcher = (over: Record<string, unknown> = {}) => ({
 }) as never;
 const m = (id: string, role: string, agencyName: string, clientName: string | null = null) => ({ id, role, agencyName, clientName, agencyId: 'a', clientId: null, clientScope: null, contactId: null, createdAt: new Date() });
 const current = m('m1', 'agency_admin', 'Acme Agency');
-const user = (memberships: ReturnType<typeof m>[]) => ({ kind: 'user', userId: 'u', email: 'pat@acme.test', name: 'Pat Lee', ctx: {}, membership: current, memberships }) as never;
+const user = (memberships: ReturnType<typeof m>[], avatarUrl: string | null = null) => ({ kind: 'user', userId: 'u', email: 'pat@acme.test', name: 'Pat Lee', avatarUrl, ctx: {}, membership: current, memberships }) as never;
 
 function openMenu() {
   fireEvent.keyDown(screen.getByRole('button', { name: 'Account menu' }), { key: 'Enter' });
@@ -35,12 +35,13 @@ function openMenu() {
 }
 
 describe('AvatarMenu (spec §2.9)', () => {
-  it('shows the name, "{role} · {agency}", Notification settings and Sign out', () => {
+  it('shows the name, "{role} · {agency}", Profile and Sign out', () => {
     render(<AvatarMenu viewer={user([current])} switcher={switcher()} />);
     const menu = openMenu();
     expect(within(menu).getByText('Pat Lee')).toBeTruthy();
     expect(within(menu).getByText('Agency admin · Acme Agency')).toBeTruthy();
-    expect(within(menu).getByRole('menuitem', { name: 'Notification settings' }).getAttribute('href')).toBe('/settings/notifications');
+    expect(within(menu).getByRole('menuitem', { name: 'Profile' }).getAttribute('href')).toBe('/settings/profile');
+    expect(within(menu).queryByRole('menuitem', { name: 'Notification settings' })).toBeNull();
     expect(within(menu).getByRole('button', { name: 'Sign out' })).toBeTruthy();
     expect(within(menu).queryByText('Switch account')).toBeNull();
   });
@@ -56,13 +57,24 @@ describe('AvatarMenu (spec §2.9)', () => {
     expect(ids).toEqual(['m2', 'm3']);
   });
 
-  it('support viewer: "Support session · {agency}", no notification settings, no account switching', () => {
-    const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', ctx: {}, session: { agencyName: 'Target Agency' } } as never;
+  it('support viewer: "Support session · {agency}", no Profile link, no account switching', () => {
+    const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', avatarUrl: null, ctx: {}, session: { agencyName: 'Target Agency' } } as never;
     render(<AvatarMenu viewer={viewer} switcher={switcher()} />);
     const menu = openMenu();
     expect(within(menu).getByText('Support session · Target Agency')).toBeTruthy();
-    expect(within(menu).queryByRole('menuitem', { name: 'Notification settings' })).toBeNull();
+    expect(within(menu).queryByRole('menuitem', { name: 'Profile' })).toBeNull();
     expect(within(menu).getByRole('button', { name: 'Sign out' })).toBeTruthy();
+  });
+
+  it('the trigger shows the photo when there is one, initials otherwise', () => {
+    const { container, unmount } = render(<AvatarMenu viewer={user([current], '/files/avatar/u/abc.png')} switcher={switcher()} />);
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('/files/avatar/u/abc.png');
+    expect(img?.getAttribute('alt')).toBe('');
+    unmount();
+    const r = render(<AvatarMenu viewer={user([current])} switcher={switcher()} />);
+    expect(r.container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Account menu' }).textContent).toBe('PL');
   });
 
   it.each([
@@ -88,7 +100,7 @@ describe('AvatarMenu (spec §2.9)', () => {
     unmount();
     // A client role (even if an address were passed) and a support viewer never get it; nor does an agency role without one.
     const clientUser = { kind: 'user', userId: 'u', email: 'jo@x.test', name: 'Jo', ctx: {}, membership: m('m9', 'client_owner', 'Acme Agency', 'Brazos Plumbing'), memberships: [] } as never;
-    const support = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', ctx: {}, session: { agencyName: 'Target Agency' } } as never;
+    const support = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', avatarUrl: null, ctx: {}, session: { agencyName: 'Target Agency' } } as never;
     for (const [viewer, email] of [[clientUser, 'support@rivalmonday.app'], [support, 'support@rivalmonday.app'], [user([current]), null]] as const) {
       const r = render(<AvatarMenu viewer={viewer} switcher={switcher()} supportEmail={email} />);
       expect(within(openMenu()).queryByRole('menuitem', { name: 'Send feedback' })).toBeNull();
@@ -98,7 +110,7 @@ describe('AvatarMenu (spec §2.9)', () => {
 
   it('a support viewer also gets Help', () => {
     nav.path = '/agency';
-    const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', ctx: {}, session: { agencyName: 'Target Agency' } } as never;
+    const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', avatarUrl: null, ctx: {}, session: { agencyName: 'Target Agency' } } as never;
     render(<AvatarMenu viewer={viewer} switcher={switcher()} />);
     expect(within(openMenu()).getByRole('menuitem', { name: 'Help' }).getAttribute('href')).toBe('/agency/help');
   });

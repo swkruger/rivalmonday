@@ -36,7 +36,7 @@ type Mode = 'page' | 'api' | 'operator';
 async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer | null> {
   const [h, jar] = [await headers(), await cookies()];
   const s = await auth().api.getSession({ headers: h });
-  const session = s ? { userId: s.user.id, email: s.user.email, name: s.user.name } : null;
+  const session = s ? { userId: s.user.id, email: s.user.email, name: s.user.name, image: s.user.image ?? null } : null;
   const service = dbs().service;
   if (session && mode !== 'operator') {
     const sv = await resolveSupportViewer({ service, platformAdmins: platformAdmins(), session, supportCookie: jar.get(SUPPORT_COOKIE)?.value });

@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import Link from 'next/link';
 import { switchMembership } from '@/app/(app)/actions';
 import { SignOutButton } from '@/components/sign-out-button';
+import { UserAvatar } from '@/components/user-avatar';
 import type { SwitcherProps } from './context-switcher';
 import { HelpMenuItem } from './help-menu-item';
 import type { Viewer } from '@/server/viewer';
@@ -11,22 +12,16 @@ import type { Viewer } from '@/server/viewer';
 /** Spec §2.9 (ruling): the account menu's role names; the team page's "Admin" is scoped to one agency already. */
 const ROLE_LABELS: Record<Role, string> = { agency_admin: 'Agency admin', account_manager: 'Account manager', client_owner: 'Client owner', client_viewer: 'Client viewer' };
 
-function initials(label: string): string {
-  const parts = label.trim().split(/\s+/).filter(Boolean);
-  const value = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
-  return (value || label[0] || '?').toUpperCase();
-}
-
 /** "{role} · {agency}" for agency roles; "{role} · {client}" for client roles. */
 function roleLine(m: MembershipSummary): string {
   return `${ROLE_LABELS[m.role]} · ${m.clientName ?? m.agencyName}`;
 }
 
 /**
- * Spec §2.9: name, role line, Notification settings, Switch account (one `switchMembership` form per *other*
+ * Spec §2.9: name, role line, Profile (its notification settings live there), Switch account (one `switchMembership` form per *other*
  * membership — the action sets the cookie, no write tool; never rendered for support viewers, who have no
  * memberships here), Sign out. Help (15b-1) opens the live context's Help page. A support viewer is a signed-in operator, so it gets the real
- * sign-out (which also ends the session, Phase 8b M2); its own notification settings 404 there, so no link.
+ * sign-out (which also ends the session, Phase 8b M2); its own profile 404 there, so no link.
  * Guests never reach this (they keep `GuestSignOutButton`). 7c2: agency roles (signed in as themselves) get "Send feedback",
  * a `mailto:` to `supportEmail` (the shell passes it for agency roles only); support viewers and client roles never do.
  */
@@ -36,8 +31,8 @@ export function AvatarMenu({ viewer, switcher, supportEmail = null }: { viewer: 
   const line = viewer.kind === 'user' ? roleLine(viewer.membership) : `Support session · ${viewer.session.agencyName}`;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger aria-label="Account menu" className="grid h-[38px] w-[38px] flex-shrink-0 place-items-center rounded-full bg-secondary font-bold text-white">
-        {initials(viewer.name || viewer.email)}
+      <DropdownMenuTrigger aria-label="Account menu" className="flex flex-shrink-0 rounded-full">
+        <UserAvatar name={viewer.name} email={viewer.email} avatarUrl={viewer.avatarUrl} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex flex-col gap-0.5 font-normal">
@@ -47,7 +42,7 @@ export function AvatarMenu({ viewer, switcher, supportEmail = null }: { viewer: 
         <DropdownMenuSeparator />
         {viewer.kind === 'user' && (
           <DropdownMenuItem asChild>
-            <Link href="/settings/notifications">Notification settings</Link>
+            <Link href="/settings/profile">Profile</Link>
           </DropdownMenuItem>
         )}
         <HelpMenuItem {...switcher} />

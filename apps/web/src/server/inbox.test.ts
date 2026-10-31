@@ -9,7 +9,7 @@ const ctx = createAccessContext({ agencyId: '00000000-0000-4000-8000-00000000000
 describe('inboxOwnerFor', () => {
   it('uses the contact for guests and the user otherwise', () => {
     expect(inboxOwnerFor({ kind: 'guest', contactId: 'c1', ctx })).toEqual({ contactId: 'c1' });
-    expect(inboxOwnerFor({ kind: 'user', userId: 'u', email: 'e', name: 'n', ctx, membership: {} as MembershipSummary, memberships: [] })).toEqual({ userId: 'u' });
+    expect(inboxOwnerFor({ kind: 'user', userId: 'u', email: 'e', name: 'n', avatarUrl: null, ctx, membership: {} as MembershipSummary, memberships: [] })).toEqual({ userId: 'u' });
   });
 });
 

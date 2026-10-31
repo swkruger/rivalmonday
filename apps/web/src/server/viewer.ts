@@ -1,7 +1,7 @@
 import { type AccessContext, createAccessContext, FEATURES, isUuid } from '@cs/core';
 import { client, type Db } from '@cs/db';
 import {
-  accessContextFor, coversClient, guestAccessFor, listMemberships, type MembershipSummary, type OpenSupportSession, pickMembership, resolveSession,
+  accessContextFor, avatarUrlOf, coversClient, guestAccessFor, listMemberships, type MembershipSummary, type OpenSupportSession, pickMembership, resolveSession,
 } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { verifyGuest } from './guest';
@@ -10,13 +10,13 @@ import { verifySupportCookie } from './support-cookie';
 export const MEMBERSHIP_COOKIE = 'rm_membership';
 
 export type Viewer =
-  | { kind: 'user'; userId: string; email: string; name: string; ctx: AccessContext; membership: MembershipSummary; memberships: MembershipSummary[] }
+  | { kind: 'user'; userId: string; email: string; name: string; avatarUrl: string | null; ctx: AccessContext; membership: MembershipSummary; memberships: MembershipSummary[] }
   | { kind: 'member-less'; userId: string; email: string; name: string }
   | { kind: 'guest'; contactId: string; ctx: AccessContext }
   | SupportViewer;
 
 /** Phase 8b: a platform operator inside a read-only support session. `ctx` is synthetic (no membership row). */
-export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; ctx: AccessContext; session: OpenSupportSession };
+export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; avatarUrl: string | null; ctx: AccessContext; session: OpenSupportSession };
 /** An unusable `rm_support` cookie: `sessionId` is the verified id that failed, or null when the MAC didn't verify. */
 export type SupportEnd = { kind: 'end'; sessionId: string | null };
 
@@ -26,7 +26,7 @@ export type SupportEnd = { kind: 'end'; sessionId: string | null };
  */
 export async function resolveViewer(input: {
   service: Db;
-  session: { userId: string; email: string; name: string } | null;
+  session: { userId: string; email: string; name: string; image?: string | null } | null;
   membershipCookie?: string;
   guestCookie?: string;
   linkSecrets: readonly string[];
@@ -43,8 +43,9 @@ export async function resolveViewer(input: {
       const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, hint));
       if (c && !coversClient(m, hint, c.agencyId)) m = memberships.find((x) => coversClient(x, hint, c.agencyId)) ?? m;
     }
-    if (!m) return { kind: 'member-less', ...session };
-    return { kind: 'user', ...session, ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
+    if (!m) return { kind: 'member-less', userId: session.userId, email: session.email, name: session.name };
+    const { image, ...who } = session;
+    return { kind: 'user', ...who, avatarUrl: avatarUrlOf(image ?? null), ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
   }
   if (input.guestCookie) {
     // Review Focus 3: re-verifies the cookie's signature/TTL, then re-checks the contact is active and the cookie
@@ -68,7 +69,7 @@ export async function resolveViewer(input: {
 export async function resolveSupportViewer(input: {
   service: Db;
   platformAdmins: readonly string[];
-  session: { userId: string; email: string; name: string };
+  session: { userId: string; email: string; name: string; image?: string | null };
   supportCookie?: string;
   secret?: string;
   now?: Date;
@@ -76,7 +77,8 @@ export async function resolveSupportViewer(input: {
   if (!input.supportCookie) return null;
   const sessionId = verifySupportCookie(input.supportCookie, input.secret);
   if (!sessionId) return { kind: 'end', sessionId: null };
-  const { userId } = input.session;
+  const { image, ...who } = input.session;
+  const { userId } = who;
   const r = await resolveSession(
     { service: input.service, platformAdmins: input.platformAdmins },
     { sessionId, userId, endStale: false, ...(input.now ? { now: input.now } : {}) },
@@ -86,5 +88,5 @@ export async function resolveSupportViewer(input: {
     agencyId: r.session.agencyId, userId, role: 'agency_admin', clientScope: 'all', features: FEATURES,
     support: { sessionId: r.session.id, platformUserId: userId },
   });
-  return { kind: 'support', ...input.session, ctx, session: r.session };
+  return { kind: 'support', ...who, avatarUrl: avatarUrlOf(image ?? null), ctx, session: r.session };
 }
