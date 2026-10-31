@@ -51,7 +51,7 @@ describe('page registry', () => {
 
   it('nav entries follow the spec order', () => {
     const nav = PAGES.filter((p) => p.nav).sort((a, b) => a.nav!.order - b.nav!.order);
-    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/integrations', '/compare', '/pricing', '/partners', '/roadmap']);
+    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/compare', '/pricing', '/partners', '/roadmap']);
   });
 
   it('every page path has a page.tsx', () => {

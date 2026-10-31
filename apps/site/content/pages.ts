@@ -121,7 +121,6 @@ export const PAGES: readonly SitePage[] = [
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.6,
-    nav: { label: 'Integrations', order: 20 },
     crumb: 'Integrations',
     group: 'integrations',
   },

@@ -65,6 +65,13 @@ describe('site copy', () => {
     }
   });
 
+  it('the recommendations roadmap note says it is planned and may change', () => {
+    expect(home.RECOMMENDATIONS_ROADMAP.status).toBe('Coming soon');
+    expect(home.RECOMMENDATIONS_ROADMAP.notice).toMatch(/not yet available/i);
+    expect(home.RECOMMENDATIONS_ROADMAP.notice).toMatch(/may change/i);
+    expect(home.RECOMMENDATIONS_ROADMAP.link.href).toBe('/roadmap');
+  });
+
   it('every NAV_EXTRA /#id is in HOME_ANCHORS', () => {
     for (const n of NAV_EXTRA) {
       if (!n.href.startsWith('/#')) continue;

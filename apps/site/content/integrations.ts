@@ -194,7 +194,7 @@ export const listedIntegrations = (): Integration[] => INTEGRATIONS.filter((i) =
 
 export const INTEGRATIONS_PAGE = {
   eyebrow: 'Integrations',
-  h1: 'What Rival Monday runs on',
-  lead: 'The services Rival Monday runs on, and what each one does for your agency.',
+  h1: 'The services Rival Monday runs on',
+  lead: "Hosting, AI, email and billing from established providers, and what each one does for your agency. Your clients' data is stored in our database and evidence store.",
   disclaimer: "Listing a service doesn't mean it endorses Rival Monday. Names and logos are trademarks of their owners.",
 };

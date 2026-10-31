@@ -15,7 +15,7 @@ export const CLIENT_VIEW = {
     dashboard: [
       { title: 'The week in four numbers', body: 'Changes, price moves, rival ads and the rating against the area. Click one to go behind it.' },
       { title: 'Who is pressing hardest', body: 'Each rival is scored on what it did lately, with the reason underneath.' },
-      { title: 'Trends, not snapshots', body: 'Twelve weeks of rival ad activity, kept as evidence.' },
+      { title: 'Where you stand', body: 'Your numbers next to every rival, and how far you have come since your starting point.' },
     ],
     brief: [
       { title: 'Under your name', body: 'Your agency name and logo on every brief.' },
@@ -49,12 +49,43 @@ export const CLIENT_VIEW = {
   seeAll: 'See all',
   seeAds: 'See all ads',
   quietRival: 'Nothing new this week',
+  /** Mirrors the app's `overview-kpis.ts`: same titles and pill wording. `trace` = the last eight weeks (the ads one follows `ads` below). */
   kpis: [
-    { label: 'Changes this week', value: 4, decimals: 0, caption: 'across 3 rivals', open: { view: 'briefs' } },
-    { label: 'Competitor price moves', value: 1, decimals: 0, caption: 'Kestrel Mechanical', open: { evidence: 'e3' } },
-    { label: 'Active competitor ads', value: 5, decimals: 0, caption: '12-week high', open: { view: 'ads' } },
-    { label: 'Your rating vs area', value: 4.8, decimals: 1, caption: 'area average 4.5', open: { view: 'reviews' } },
-  ] satisfies { label: string; value: number; decimals: number; caption: string; open: DashboardOpen }[],
+    { label: 'Changes this week', value: 4, decimals: 0, suffix: '', pill: { text: '1 high', tone: 'warn' }, caption: 'Across websites, ads, reviews and profiles', trace: [1, 2, 1, 0, 2, 1, 3, 4], traceLabel: 'Changes per week, last 8 weeks', open: { view: 'briefs' } },
+    { label: 'Competitor price moves', value: 1, decimals: 0, suffix: '', pill: { text: '↓ 1 cut', tone: 'down' }, caption: 'On services you also offer', trace: [0, 0, 1, 0, 0, 0, 0, 1], traceLabel: 'Price moves per week, last 8 weeks', open: { evidence: 'e3' } },
+    { label: 'Active competitor ads', value: 5, decimals: 0, suffix: '', pill: { text: 'Same as last week', tone: 'info' }, caption: 'Meta and Google, where visible', trace: [3, 3, 2, 2, 4, 5, 5, 5], traceLabel: 'Active competitor ads, last 8 weeks', open: { view: 'ads' } },
+    { label: 'Your rating vs area', value: 4.8, decimals: 1, suffix: ' ★', pill: { text: '+0.3 above avg', tone: 'up' }, caption: 'Competitor average 4.5', trace: [4.6, 4.6, 4.7, 4.7, 4.7, 4.8, 4.8, 4.8], traceLabel: 'Your average stars per month', open: { view: 'reviews' } },
+  ] satisfies { label: string; value: number; decimals: number; suffix: string; pill: { text: string; tone: 'up' | 'down' | 'warn' | 'info' }; caption: string; trace: number[]; traceLabel: string; open: DashboardOpen }[],
+  overview: {
+    description: 'How Northwind Heating & Air compares with its competitors this week. Tracking 6 competitors across 2 ZIP codes.',
+    archive: 'Brief archive →',
+    summary: 'Four rival moves this week. Quillstone Climate Pros gained the most ground on the map, and Kestrel Mechanical cut its AC repair diagnostic to $69.',
+    ask: { title: 'Ask Friday', open: 'Open →', body: 'Questions about your competitors, answered from the monitored evidence.', placeholder: 'Ask Friday a question…', button: 'Ask' },
+    askAction: 'Ask Friday',
+  },
+  /** "Where you stand": the app's scorecard. Top-3 is the sample map's first and latest scans (1 and 42 of 49 points); rival medians come from `table`. */
+  standing: {
+    heading: 'Where you stand',
+    tiles: [
+      { label: 'Rating', value: '4.8', trend: '0.2 since start', up: true, sub: 'rivals 4.5 median' },
+      { label: 'New reviews · 90 d', value: '27', trend: '9 since start', up: true, sub: 'rivals 13 median' },
+      { label: 'Reply rate', value: '82%', trend: '6 pts since start', up: true, sub: 'rivals 61% median' },
+      { label: 'Top-3 in map pack', value: '86%', trend: '84 pts since start', up: true, sub: 'rivals 37% median' },
+    ],
+    headers: ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'],
+    self: { name: 'Northwind Heating & Air (you)', cells: ['4.8', '27', '82%', '86%', '1', '0'] },
+    /** Active ads add up to the KPI's 5 and match `ads` (Quillstone 2, Juniperwell 2, others 1). Minor rivals get the light watch, so most cells stay empty. */
+    table: [
+      { rivalId: 'r1', cells: ['4.6', '31', '64%', '63%', '0', '2'] },
+      { rivalId: 'r2', cells: ['4.5', '22', '71%', '41%', '1', '1'] },
+      { rivalId: 'r3', cells: ['4.4', '14', '58%', '33%', '1', '0'] },
+      { rivalId: 'r4', cells: ['4.5', '12', '40%', '18%', '0', '0'] },
+      { rivalId: 'r5', cells: ['4.6', '9', '—', '—', '—', '—'] },
+      { rivalId: 'r6', cells: ['4.4', '8', '—', '—', '—', '—'] },
+    ],
+    movesHeading: 'First moves still open',
+    moves: ['Text every customer a Google review link right after the job is done.', 'Add heat pump installation to your Google Business Profile services.'],
+  },
   pressure: [
     { name: 'Quillstone Climate Pros', score: 78, level: 'high', reason: 'Top 3 at 31 of 49 map points, up from 8', open: { evidence: 'e1' } },
     { name: 'Juniperwell Air Works', score: 52, level: 'elevated', reason: '2 active ads for the last 4 weeks', open: { view: 'ads' } },

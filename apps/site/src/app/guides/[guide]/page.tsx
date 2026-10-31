@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { GUIDES, type Guide } from '../../../../content/guides';
+import { GUIDES, guideReadMinutes } from '../../../../content/guides';
 import { CtaBand } from '../../../components/home/cta-band';
 import { RankMap, weekStats } from '../../../components/sample/rank-map';
 import { JsonLd } from '../../../components/seo/json-ld';
@@ -15,12 +15,6 @@ export const generateStaticParams = () => GUIDES.map((g) => ({ guide: g.slug }))
 export async function generateMetadata({ params }: { params: Promise<{ guide: string }> }) {
   const { guide } = await params;
   return pageMetadata(`/guides/${guide}`);
-}
-
-/** Reading time from the visible text, at about 220 words a minute. */
-function readMinutes(g: Guide): number {
-  const text = [g.lead, ...g.sections.flatMap((s) => [s.heading, ...s.paragraphs, ...(s.list ?? [])])].join(' ');
-  return Math.max(1, Math.round(text.split(/\s+/).length / 220));
 }
 
 /** The sample's first and latest map scans side by side: the guide's worked example (fictional data, labelled). */
@@ -67,8 +61,12 @@ export default async function GuidePage({ params }: { params: Promise<{ guide: s
         <div className="max-w-[720px]">
           <PageIntro path={path} eyebrow="Guide" h1={g.h1} lead={g.lead} />
           <p className="mt-4 text-13 text-muted-ink">
-            <time dateTime={g.updated}>Updated {formatDay(g.updated)}</time> · {readMinutes(g)} min read
+            <time dateTime={g.updated}>Updated {formatDay(g.updated)}</time> · {guideReadMinutes(g)} min read
           </p>
+          <figure className="mt-8">
+            <img src={g.image.src} alt={g.image.alt} width={g.image.width} height={g.image.height} decoding="async" className="aspect-[3/2] w-full rounded-lg border border-line bg-muted-surface object-cover [object-position:left_top]" />
+            {g.image.caption ? <figcaption className="mt-2 text-13 text-muted-ink">{g.image.caption}</figcaption> : null}
+          </figure>
           {g.sections.map((s, i) => (
             <section key={s.heading} className="mt-10">
               <h2 className="text-2xl font-semibold tracking-tight text-ink">{s.heading}</h2>

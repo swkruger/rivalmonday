@@ -56,6 +56,21 @@ describe('compare pages', { timeout: COLD_IMPORT_TIMEOUT }, () => {
     expect(r.container.textContent).toContain(off.compare.COMPARE_COPY.corrections);
   });
 
+  it('hub table keeps its header cells and table roles, and its pillar is decoration', async () => {
+    const m = await load('');
+    const { container } = render(<m.hub.default />);
+    const table = container.querySelector('table')!;
+    const { columns, rows } = m.compare.CATEGORY_TABLE;
+    expect(table.getAttribute('role')).toBe('table');
+    expect([...table.querySelectorAll('th[scope="col"]')].slice(1).map((th) => th.textContent)).toEqual(columns);
+    expect([...table.querySelectorAll('th[scope="row"]')].map((th) => th.textContent)).toEqual(rows.map((r) => r.label));
+    for (const [i, tr] of [...table.querySelectorAll('tbody tr')].entries()) {
+      expect(tr.querySelectorAll('td[role="cell"]')).toHaveLength(columns.length);
+      expect(tr.querySelector('td')!.textContent).toContain(rows[i]!.cells[0]);
+    }
+    expect(container.querySelector('[aria-hidden="true"] > img.night-map')!.getAttribute('alt')).toBe('');
+  });
+
   it('rival page shows facts checked date and trademark line', async () => {
     const m = await load('brightlocal');
     const r = m.compare.RIVALS.find((x) => x.slug === 'brightlocal')!;

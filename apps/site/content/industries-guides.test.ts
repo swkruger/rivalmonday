@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { footerColumns, navItems } from '../src/components/shell/nav-items';
 import sitemap from '../src/app/sitemap';
@@ -64,6 +66,14 @@ describe('industry and guide copy', () => {
   it('the announcement bar links every industry it names, and every industry is named', () => {
     for (const e of ANNOUNCEMENT.examples) expect(INDUSTRY_EXAMPLE_LINKS[e], e).toMatch(/^\/for\//);
     expect(new Set(Object.values(INDUSTRY_EXAMPLE_LINKS))).toEqual(new Set(INDUSTRIES.map((i) => `/for/${i.slug}`)));
+  });
+
+  it('every guide has its own committed image with alt text', () => {
+    for (const g of GUIDES) {
+      expect(existsSync(join(__dirname, '..', 'public', g.image.src)), g.image.src).toBe(true);
+      expect(g.image.alt.length, g.slug).toBeGreaterThan(20);
+    }
+    expect(new Set(GUIDES.map((g) => g.image.src)).size).toBe(GUIDES.length);
   });
 
   it('guides are substantial (at least ~600 words each)', () => {

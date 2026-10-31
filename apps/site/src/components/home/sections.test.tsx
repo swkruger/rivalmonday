@@ -7,8 +7,10 @@ const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
 import { CTA_BAND, CTA_BAND_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_HEADING_TRIAL, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
+import { HOW_FAQ, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { PRICING } from '../../../content/pricing';
 import { SOURCES } from '../../../content/sources';
+import HowItWorksPage from '../../app/how-it-works/page';
 import HomePage from '../../app/page';
 import { JoinProvider } from '../join/join-provider';
 import { PilotProvider } from '../shell/pilot-context';
@@ -44,6 +46,40 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('HowItWorksPage', () => {
+  it('has the home page sections, every question in the markup and JSON-LD, and no duplicate ids', async () => {
+    const { container } = await renderApp(<HowItWorksPage />, null);
+    for (const id of ['how-it-works', 'who-does-what', 'client-view', 'sample', 'recommendations', 'checks', 'faq']) expect(container.querySelector(`section#${id}`), id).toBeTruthy();
+    for (const l of JUMP_LINKS) expect(container.querySelector(l.href), l.href).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    const questions = HOW_FAQ.groups.flatMap((g) => g.items.map((f) => f.q));
+    expect([...container.querySelectorAll('#faq summary')].map((s) => s.firstChild!.textContent)).toEqual(questions);
+    const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent!) as { '@type': string; mainEntity?: { name: string }[] });
+    expect(ld.find((x) => x['@type'] === 'FAQPage')!.mainEntity!.map((q) => q.name)).toEqual(questions);
+    const ids = [...container.querySelectorAll('[id]')].map((el) => el.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  }, 20_000);
+
+  it('shows three guides as articles, each linking to its guide with an image', async () => {
+    const { container } = await renderApp(<HowItWorksPage />, null);
+    const articles = [...container.querySelectorAll('section#guides article')];
+    expect(articles).toHaveLength(3);
+    for (const a of articles) {
+      expect(a.querySelector('a')!.getAttribute('href')).toMatch(/^\/guides\//);
+      expect(a.querySelector('img')!.getAttribute('alt')).toBeTruthy();
+    }
+  }, 20_000);
+
+  it('the client view tabs switch on this page too', async () => {
+    await renderApp(<HowItWorksPage />, null);
+    const tablist = screen.getByRole('tablist', { name: 'Client view' });
+    const [, brief] = within(tablist).getAllByRole('tab');
+    fireEvent.mouseDown(brief!);
+    fireEvent.click(brief!);
+    expect(brief!.getAttribute('data-state')).toBe('active');
+  }, 20_000);
 });
 
 describe('LiveCounters', () => {

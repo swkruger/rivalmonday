@@ -25,7 +25,7 @@ export default async function VendorPage({ params }: { params: Promise<{ vendor:
         <div className="max-w-[720px]">
           <PageIntro path={`/integrations/${i.slug}`} eyebrow={INTEGRATIONS_PAGE.eyebrow} h1={`${i.name} at Rival Monday`} lead={i.oneLine} />
           <div className="mt-6">
-            <VendorMark integration={i} size="page" />
+            <VendorMark integration={i} />
           </div>
           <div className="mt-8">
             <h2 className="text-xl font-semibold text-ink">What it is</h2>

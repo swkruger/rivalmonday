@@ -10,13 +10,15 @@ export interface GuideSection {
 }
 
 export interface Guide {
-  slug: 'local-competitor-analysis' | 'map-rank-grid' | 'competitor-monitoring-checklist';
+  slug: 'local-competitor-analysis' | 'map-rank-grid' | 'competitor-monitoring-checklist' | 'read-competitor-reviews' | 'read-competitor-ads' | 'write-competitor-brief';
   h1: string;
   lead: string;
   /** ISO date first published (Article JSON-LD `datePublished`). */
   published: string;
   /** ISO date of the last substantive edit (`dateModified`). */
   updated: string;
+  /** Committed in `public/sample`; never generated at runtime. `caption` marks sample or fictional content. */
+  image: { src: `/sample/${string}`; alt: string; width: number; height: number; caption?: string };
   sections: readonly GuideSection[];
   /** Internal links shown under the guide: source pages and industry pages that go deeper. */
   related: readonly { label: string; href: string }[];
@@ -32,6 +34,12 @@ export const GUIDES: readonly Guide[] = [
     lead: 'A local competitor analysis answers one question for a business owner: who is taking the calls I should be getting, and how? Here is a method an agency can repeat for every local-service client, and keep up to date.',
     published: '2026-10-29',
     updated: '2026-10-29',
+    image: {
+      src: '/sample/home-street.webp',
+      alt: 'Local shops on a small-town main street with two plain white service vans parked outside',
+      width: 1200,
+      height: 800,
+    },
     sections: [
       {
         heading: 'Start with who actually competes',
@@ -113,6 +121,13 @@ export const GUIDES: readonly Guide[] = [
     lead: 'A single “we rank third” hides most of the story. Local map results change with where the searcher stands, so the useful question is where a business ranks across its service area. A rank grid answers that.',
     published: '2026-10-29',
     updated: '2026-10-29',
+    image: {
+      src: '/sample/hero-map.webp',
+      alt: 'Map rankings for a sample keyword: a grid of ranks over the service area, strongest around the business',
+      width: 960,
+      height: 1120,
+      caption: 'Sample data from a fictional business.',
+    },
     showSampleMap: true,
     sections: [
       {
@@ -185,6 +200,12 @@ export const GUIDES: readonly Guide[] = [
     lead: 'Most competitor changes that matter to a local business are visible in public, if someone looks every week. This checklist covers what to watch for each client, where to find it, and what each change usually means.',
     published: '2026-10-29',
     updated: '2026-10-29',
+    image: {
+      src: '/sample/home-counter.webp',
+      alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window',
+      width: 1200,
+      height: 800,
+    },
     sections: [
       {
         heading: 'Map rankings',
@@ -282,15 +303,257 @@ export const GUIDES: readonly Guide[] = [
       crumb: 'Monitoring checklist',
     },
   },
+  {
+    slug: 'read-competitor-reviews',
+    h1: 'How to read a rival’s Google reviews',
+    lead: 'A rival’s rating tells you very little. The words in its reviews tell you what customers in your client’s area value, what they are annoyed by, and where your client can win the next call. Here is how to read them with a purpose.',
+    published: '2026-10-31',
+    updated: '2026-10-31',
+    image: {
+      src: '/sample/site-heat-pump.webp',
+      alt: 'A heat pump on a concrete pad outside a house, the kind of finished job a customer writes a review about',
+      width: 960,
+      height: 640,
+    },
+    sections: [
+      {
+        heading: 'Start with the newest, not the best known',
+        paragraphs: [
+          'Sort each rival’s reviews by newest first. Old reviews describe a business that may no longer exist: a different owner, a different crew, a different price list. The last few months tell you what a customer would experience if they called today.',
+          'Read enough to see repetition, then stop. You are looking for what comes up again and again, not for every story. One angry review is an anecdote. The same complaint from several customers in a few months is a pattern.',
+        ],
+      },
+      {
+        heading: 'Sort what you read into themes',
+        paragraphs: ['Most reviews of a local-service business are about the same handful of things. Tally them per rival, so you can compare businesses rather than remember individual stories.'],
+        list: [
+          'Speed: how quickly someone answered, arrived or finished.',
+          'Price: whether the bill matched the quote, and whether it felt fair.',
+          'People: named staff, manners, how the problem was explained.',
+          'Quality: whether the fix lasted, and whether anyone had to come back.',
+          'Trust: pressure to buy, surprise add-ons, cleanliness in the home.',
+        ],
+      },
+      {
+        heading: 'Look at momentum as well as the rating',
+        paragraphs: [
+          'A rating moves slowly because it averages everything a business has ever collected. The pace of new reviews moves quickly. A rival that suddenly gathers far more reviews than usual has probably started asking for them, and that matters even if its rating has not changed.',
+          'Compare the same period for each rival and for your client. If a rival is gathering reviews faster, it will look more active to a customer comparing listings, and the gap will widen every month it continues.',
+        ],
+      },
+      {
+        heading: 'Read the replies too',
+        paragraphs: [
+          'How a business answers criticism is public, and customers read it. A calm reply that names the problem and offers a next step can be more reassuring than a clean record. A rival that argues with reviewers, or never replies at all, has left an opening.',
+          'Note how often each rival replies, how quickly, and whether the reply is written by a person or pasted from a template. Then look at your client’s replies with the same eyes.',
+        ],
+      },
+      {
+        heading: 'Turn themes into something to do',
+        paragraphs: ['A theme is only useful once it changes what the client does. Match each pattern you find with one concrete step, and keep it small enough to happen this month.'],
+        list: [
+          'Rivals are praised for fast response: if your client is quick too, say so on the profile and in the ads.',
+          'Rivals are criticized for surprise bills: lead with upfront pricing, if your client really offers it.',
+          'A rival’s named technician keeps getting praise: encourage your client’s customers to mention who helped them.',
+          'A rival is gathering reviews quickly: set up a simple way to ask every customer, as Google requires.',
+        ],
+      },
+      {
+        heading: 'What to stay away from',
+        paragraphs: [
+          'Reviews are written by real people, so treat them with care. Report what the pattern is, not who said it. Never contact a rival’s reviewers, and never suggest that your client pays for reviews, posts fake ones or asks only happy customers. All of those break Google’s rules and can damage the client far more than a rival’s good month.',
+          'Be careful with sensitive trades too. A dental or medical practice must not confirm that someone is a patient, even when replying to a public review.',
+        ],
+      },
+      {
+        heading: 'Keep doing it every week',
+        paragraphs: [
+          'Reviews are one of the few signals that change every week, which makes them easy to neglect and useful to track. Save what you read, with its date, so you can show when a complaint started or a rival’s pace changed.',
+          'Rival Monday collects rivals’ new Google reviews weekly. Reviewer names are pseudonymized and contact details removed before a review is stored, and any claim about reviews in a brief links to the evidence behind it.',
+        ],
+      },
+    ],
+    related: [
+      { label: 'Rivals’ Google reviews', href: '/sources/google-reviews' },
+      { label: 'Competitor monitoring for dental practices', href: '/for/dental' },
+      { label: 'A weekly competitor monitoring checklist', href: '/guides/competitor-monitoring-checklist' },
+      { label: 'How to run a local competitor analysis', href: '/guides/local-competitor-analysis' },
+    ],
+    seo: {
+      title: 'How to read a rival’s Google reviews',
+      description: 'How agencies can read competitors’ Google reviews for themes, momentum and replies, and turn what they find into action for a local client.',
+      crumb: 'Reading rivals’ reviews',
+    },
+  },
+  {
+    slug: 'read-competitor-ads',
+    h1: 'How to read a rival’s ads on Meta and Google',
+    lead: 'Every ad a local rival runs is a public statement of what it wants to sell, and to whom. You can see those ads for free. Here is where to find them, what to look for, and what they can and cannot tell you.',
+    published: '2026-10-31',
+    updated: '2026-10-31',
+    image: {
+      src: '/sample/ad-comfort-club.webp',
+      alt: 'A bright living room with a thermostat on the wall, the image from a fictional rival’s membership ad',
+      width: 720,
+      height: 480,
+      caption: 'From a fictional rival’s sample ad.',
+    },
+    sections: [
+      {
+        heading: 'Where to find them',
+        paragraphs: [
+          'Two free public libraries do most of the work. The Meta Ad Library lists ads running on Facebook and Instagram, and the Google Ads Transparency Center lists ads by advertiser. Search each by the rival’s business name, and check that the result really is that business, because local names are often shared.',
+          'You do not need an account with the rival to look. Save what you find, because an ad can be harder to find once it stops running.',
+        ],
+      },
+      {
+        heading: 'Start with the offer',
+        paragraphs: ['Ignore the design at first and write down what the ad promises. In local services, most offers fall into a few groups, and each one tells you something different about how the rival is trying to win.'],
+        list: [
+          'Discounts and low entry prices: competing on price, often for a service used to start the relationship.',
+          'Financing: going after bigger jobs, and buyers who worry about the upfront cost.',
+          'Free estimates or inspections: trying to get through the door first.',
+          'Memberships and maintenance plans: trying to keep customers rather than win one job.',
+          'Speed and availability: same-day, weekend or emergency service.',
+        ],
+      },
+      {
+        heading: 'Look at the pattern over time',
+        paragraphs: [
+          'One ad on its own says little. What matters is what changes. Several new ads in the same week usually mean a deliberate push. An ad that keeps running for months probably earns its place, since few businesses keep paying for something that does not bring in work. An ad that stops quickly may have failed, or may simply have reached the end of a season.',
+          'Compare with the time of year as well. A heating offer in the first cold week is normal. The same offer in early summer is a business trying something new.',
+        ],
+      },
+      {
+        heading: 'What ads cannot tell you',
+        paragraphs: [
+          'Be honest with a client about the limits. For a local business, these libraries generally do not show how much a rival spends, how many calls an ad brings in, or whether it makes money. A long-running ad is a hint that it works, not proof.',
+          'So avoid telling a client that a rival is “spending heavily” or “winning with” an ad unless you have evidence for it. Say what you can show: which ad, what it offers, and when you first saw it.',
+        ],
+      },
+      {
+        heading: 'Connect ads to the rest of the picture',
+        paragraphs: ['Ads are more useful alongside other signals. A rival advertising a service it has just added to its Google Business Profile is moving into that work. A rival advertising speed while its reviews complain about slow response has a gap your client can use. A push of ads followed by better map coverage is worth watching, although it does not show that one caused the other.'],
+      },
+      {
+        heading: 'Respond without starting a price war',
+        paragraphs: [
+          'The instinct is to match a rival’s discount. That is rarely the best move. Most local customers are not choosing on price alone, and a matched discount gives away margin on jobs your client would have won anyway.',
+          'Answer the worry behind the offer instead. If a rival leads with financing, the customer is worried about the upfront cost, and your client might offer payment options or a clear fixed price. If a rival leads with a low diagnostic fee, your client might explain what the visit includes. Only advise on what your client can actually deliver.',
+        ],
+      },
+      {
+        heading: 'Make it part of the week',
+        paragraphs: [
+          'Ads change often, and a client who hears about a rival’s offer from a customer has already lost a little ground. A short weekly check, with each new ad saved and dated, means you can tell them first.',
+          'Rival Monday collects rivals’ ads on Meta and Google weekly from the public libraries. It does not show what a rival spends. When a brief mentions an ad, the claim links to the ad behind it.',
+        ],
+      },
+    ],
+    related: [
+      { label: 'Watching rivals’ ads on Meta and Google', href: '/sources/ads' },
+      { label: 'Competitor monitoring for HVAC companies', href: '/for/hvac' },
+      { label: 'A weekly competitor monitoring checklist', href: '/guides/competitor-monitoring-checklist' },
+      { label: 'See the full sample brief', href: '/sample-brief' },
+    ],
+    seo: {
+      title: 'How to read a rival’s ads on Meta and Google',
+      description: 'Where to find a local rival’s ads, how to read the offer and the pattern over time, what ads cannot tell you, and how to respond.',
+      crumb: 'Reading rivals’ ads',
+    },
+  },
+  {
+    slug: 'write-competitor-brief',
+    h1: 'How to write a competitor brief a business owner will read',
+    lead: 'Most competitor reports are built to show how much work went into them. A good brief is built for an owner reading on a phone between jobs. Here is how to decide what goes in, how to word it, and how to keep it believable.',
+    published: '2026-10-31',
+    updated: '2026-10-31',
+    image: {
+      src: '/sample/hero-overview.webp',
+      alt: 'A client dashboard for a sample heating and air business, showing the week in four numbers, where it stands against its rivals and the Ask Friday card',
+      width: 1720,
+      height: 948,
+      caption: 'Sample data from a fictional business.',
+    },
+    sections: [
+      {
+        heading: 'Write for one reader',
+        paragraphs: [
+          'Picture the owner standing in a driveway with a few minutes before the next job. They want to know three things: did anything happen that matters, what does it mean for me, and what should I do about it? Everything in the brief should help answer one of those questions.',
+          'That rules out a lot. Charts of everything you tracked, summaries of quiet rivals and explanations of your method can all live elsewhere. The owner hired you so they would not have to read them.',
+        ],
+      },
+      {
+        heading: 'Choose the few things that matter',
+        paragraphs: [
+          'Most weeks, only a small number of changes deserve an owner’s time. A useful test for each one: would the owner do something differently if they knew? A rival’s new financing offer passes. A rival’s reworded About page does not.',
+          'Rank what is left by how close it sits to the client’s money. A change affecting their best-earning service, in the part of town they care about most, goes first.',
+        ],
+      },
+      {
+        heading: 'Use a simple shape for each item',
+        paragraphs: ['Give every item the same three parts, so the owner learns how to read it once. The example here comes from a fictional business.'],
+        list: [
+          'What happened: one sentence, with the rival’s name and the fact. “Kestrel cut its AC diagnostic fee to $69 (was $89).”',
+          'Why it matters: one sentence, about this business. “Price-sensitive customers compare this fee before they book.”',
+          'What to do: one action they could start this week. “Explain what your diagnostic visit includes on your AC repair page.”',
+        ],
+      },
+      {
+        heading: 'Back up every claim',
+        paragraphs: [
+          'An owner will test the first thing you tell them against what they know. If one claim turns out to be wrong or vague, they stop trusting the rest. So write only what you can show, and keep the source one click away: the ad, the review, the profile field, the map scan.',
+          'Be strict with yourself. If you cannot point to the evidence, take the sentence out rather than softening it with “seems” or “may”. A shorter brief that is all true is worth more than a longer one that is mostly true.',
+        ],
+      },
+      {
+        heading: 'Keep the wording plain',
+        paragraphs: [
+          'Use the words the owner would use. “Shows up in the top three on the map across most of your area” beats “improved local pack visibility”. Name rivals rather than saying “a competitor”. Use real numbers, and say what they were before, because a change means nothing without its starting point.',
+          'Avoid adjectives that claim more than you can show, such as “aggressive”, “dominant” or “massive”. Let the fact do the work.',
+        ],
+      },
+      {
+        heading: 'Say so when it was a quiet week',
+        paragraphs: ['Sometimes nothing important happens. Do not pad the brief to look busy, because an owner who reads a filler item learns to skip the next one. Say it was a quiet week, and use the space to show where the client stands against their rivals, so the brief still earns its place.'],
+      },
+      {
+        heading: 'Send it at the same time every week',
+        paragraphs: [
+          'A brief that arrives at a predictable moment becomes a habit. Monday morning suits most local businesses: the owner is planning the week, and there is still time to act on what they read. Put the most important item in the subject line, so the email is useful even before it is opened.',
+          'Rival Monday writes a brief like this for each client and sends it every Monday under your agency’s brand. Every claim links to its evidence, and your team can edit or approve each brief before it goes out.',
+        ],
+      },
+    ],
+    related: [
+      { label: 'See the full sample brief', href: '/sample-brief' },
+      { label: 'How evidence-backed briefs work', href: '/how-it-works' },
+      { label: 'How to run a local competitor analysis', href: '/guides/local-competitor-analysis' },
+      { label: 'Resell Rival Monday under your brand', href: '/partners' },
+    ],
+    seo: {
+      title: 'How to write a competitor brief owners read',
+      description: 'A simple format for competitor briefs: choose what matters, say what it means and what to do, back up every claim and keep the wording plain.',
+      crumb: 'Writing a competitor brief',
+    },
+  },
 ];
+
+/** Reading time from the visible text, at about 220 words a minute. */
+export function guideReadMinutes(g: Guide): number {
+  const text = [g.lead, ...g.sections.flatMap((s) => [s.heading, ...s.paragraphs, ...(s.list ?? [])])].join(' ');
+  return Math.max(1, Math.round(text.split(/\s+/).length / 220));
+}
+
+export const GUIDES_LINK = { label: 'All guides →', href: '/guides' } as const;
 
 export const GUIDES_PAGE = {
   eyebrow: 'Guides',
   h1: 'Guides for agencies watching local competitors',
-  lead: 'Practical methods for finding the rivals that matter, reading map rankings and keeping clients ahead every week.',
+  lead: 'Practical methods for finding the rivals that matter, reading their rankings, reviews and ads, and telling clients what it means every week.',
   seo: {
     title: 'Competitor analysis guides for agencies',
-    description: 'Practical guides for agencies: local competitor analysis, map rank grids and a weekly competitor monitoring checklist.',
+    description: 'Practical guides for agencies: local competitor analysis, map rank grids, rivals’ reviews and ads, client briefs and a weekly checklist.',
     crumb: 'Guides',
   },
 } as const;

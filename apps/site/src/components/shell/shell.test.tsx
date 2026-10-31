@@ -108,9 +108,11 @@ describe('site shell', () => {
   it('nav follows the spec order', async () => {
     await renderShell();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Integrations', 'Compare', 'Pricing', 'Partners', 'Roadmap']);
-    expect(within(nav).queryByText('Sample brief')).toBeNull();
-    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Sample brief' })).toBeTruthy();
+    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Compare', 'Pricing', 'Partners', 'Roadmap']);
+    for (const name of ['Sample brief', 'Integrations']) {
+      expect(within(nav).queryByText(name)).toBeNull();
+      expect(within(screen.getByRole('contentinfo')).getByRole('link', { name })).toBeTruthy();
+    }
   });
 
   it('footer compare column lists only enabled rivals', async () => {

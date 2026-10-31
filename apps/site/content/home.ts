@@ -22,7 +22,7 @@ export const ANNOUNCEMENT = {
 } as const;
 
 /** Final; owned here only. `join` is the closing pricing band (`PricingTeaser`), which also holds the `pricing` anchor. */
-export const HOME_ANCHORS = ['client-view', 'sample', 'recommendations', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'join'] as const;
+export const HOME_ANCHORS = ['client-view', 'sample', 'recommendations', 'live', 'how-it-works', 'checks', 'friday', 'real-sample', 'guides', 'join'] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
 type SectionId = Exclude<HomeAnchor, 'join'> | 'pricing';
 
@@ -78,17 +78,17 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
     heading: 'Ask about any rival. Every answer shows its sources.',
     body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client.",
   },
-  integrations: {
-    id: 'integrations',
-    eyebrow: 'Integrations',
-    heading: 'The services Rival Monday runs on',
-    body: "Hosting, AI, email and billing from established providers. Your clients' data is stored in our database and evidence store.",
-  },
   'real-sample': {
     id: 'real-sample',
     eyebrow: 'A real sample for your client',
     heading: 'See one of your own clients before you commit.',
     body: 'Tick "Send me a real sample brief" when you join. We build a starting-point brief for one of your clients from public information and email you a private link. Free during the pilot, a limited number each month.',
+  },
+  guides: {
+    id: 'guides',
+    eyebrow: 'Guides',
+    heading: 'Guides for agencies watching local rivals.',
+    body: 'Practical methods you can use with any client, whether or not you use Rival Monday.',
   },
   pricing: {
     id: 'pricing',
@@ -97,6 +97,15 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
     body: 'You set your own prices for your clients and bill them in your name.',
   },
 };
+
+/** Under the recommendations board. Planned work, not a claim: same rules as `roadmap.ts`, and it goes when that item ships. */
+export const RECOMMENDATIONS_ROADMAP = {
+  status: 'Coming soon',
+  heading: 'Act on a recommendation without leaving Rival Monday.',
+  body: 'Friday will draft the review reply, profile edit or post. Nothing is posted until a person says yes. Then we check the public profile for the change and track whether the gap to rivals closes.',
+  notice: 'Planned, not yet available. What it includes and when it ships may change.',
+  link: { label: 'See the roadmap →', href: '/roadmap' },
+} as const;
 
 /** The real-sample preview card (illustrative; figures are the fictional sample's). */
 export const REAL_SAMPLE_PREVIEW = {
@@ -121,7 +130,7 @@ export const FRIDAY_PERSONA = {
 export const HOME_IMAGES = {
   hero: {
     src: '/sample/hero-overview.webp',
-    alt: 'The client dashboard for a sample heating and air business: changes this week, the latest Monday brief and competitive pressure by rival',
+    alt: 'The client dashboard for a sample heating and air business: the week in four numbers, where it stands against its rivals and the Ask Friday card',
     caption: 'Sample data from a fictional business.',
   },
   heroMap: { src: '/sample/hero-map.webp', alt: 'Map rankings for "ac repair marlowemere": a grid of ranks over the service area, strongest around the business' },

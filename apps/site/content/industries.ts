@@ -45,7 +45,7 @@ export function watchList(live: boolean = WEBSITE_MONITORING_LIVE): { source: So
 }
 
 /** Shared answers, worded from the ledger (cap-weeklyBrief, cap-evidenceLinks, cap-whiteLabel, src-*). */
-const FAQ_EVIDENCE = {
+export const FAQ_EVIDENCE = {
   q: 'Where does the information come from?',
   a: 'Public information only: Google reviews and Business Profiles, public map results, the Meta Ad Library, the Google Ads Transparency Center and public job listings. We never log in to any site to collect, and every claim in a brief links to the evidence behind it.',
 };
@@ -53,7 +53,7 @@ const FAQ_BRAND = {
   q: 'Does my client see the Rival Monday name?',
   a: 'No. Briefs, emails and client pages carry your agency name, logo and colors, and the assistant runs under the name you choose.',
 };
-const FAQ_REVIEW = {
+export const FAQ_REVIEW = {
   q: 'Can we check a brief before it goes to the client?',
   a: 'Yes. A brief arrives every Monday, and your team can edit or approve it first.',
 };
@@ -61,11 +61,11 @@ const FAQ_PATIENT = {
   q: 'Does it read patient information?',
   a: 'No. It reads public information only. Reviewer names are pseudonymized and contact details are removed before anything is stored.',
 };
-const faqWatch = (trade: string) => ({
+export const faqWatch = (trade: string) => ({
   q: `Which ${trade} competitors does it watch?`,
   a: 'When you add a client, we search its service area and suggest the competitors that matter, ranked Top rival, Worth watching or Minor. You pick which ones to follow.',
 });
-const faqKeywords = (a: string, b: string) => ({
+export const faqKeywords = (a: string, b: string) => ({
   q: 'Which searches does the map scan cover?',
   a: `Up to five keywords per client, such as “${a}” or “${b}”, scanned weekly on a grid of points across the service area.`,
 });

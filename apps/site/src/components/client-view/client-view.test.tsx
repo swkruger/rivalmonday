@@ -19,6 +19,38 @@ describe('ClientView', () => {
     expect(within(panel()).getByRole('img', { name: /Active competitor ads per week/ })).toBeTruthy();
   });
 
+  it('the overview carries the scorecard, with figures that agree with the rest of the sample', () => {
+    render(<ClientView />);
+    const { tiles, table, self, moves } = CLIENT_VIEW.standing;
+    for (const t of tiles) expect(within(panel()).getByText(t.trend)).toBeTruthy();
+    const scorecard = within(panel()).getByRole('table', { name: 'Scorecard: you against the rivals you watch' });
+    expect(within(scorecard).getAllByRole('row')).toHaveLength(table.length + 2);
+    expect(within(scorecard).getByText(self.name)).toBeTruthy();
+    for (const r of SAMPLE.rivals) expect(within(scorecard).getByText(r.name)).toBeTruthy();
+    for (const m of moves) expect(within(panel()).getByText(m)).toBeTruthy();
+
+    // The map figures are the sample's own scans; the active ads add up to the KPI.
+    const scans = SAMPLE.rankGrid.weeks;
+    const top3 = (w: (typeof scans)[number]) => w.you.flat().filter((r) => r !== null && r <= 3).length;
+    const share = (w: (typeof scans)[number]) => Math.round((top3(w) / w.you.flat().length) * 100);
+    const [first, last] = [scans[0]!, scans[scans.length - 1]!];
+    const tile = tiles.find((t) => t.label === 'Top-3 in map pack')!;
+    expect(tile.value).toBe(`${share(last)}%`);
+    expect(tile.trend).toBe(`${share(last) - share(first)} pts since start`);
+    expect(self.cells[3]).toBe(`${share(last)}%`);
+    const ads = table.flatMap((r) => r.cells.slice(4)).filter((c) => c !== '—').reduce((sum, c) => sum + Number(c), 0);
+    expect(ads).toBe(CLIENT_VIEW.kpis.find((k) => k.label === 'Active competitor ads')!.value);
+    const lastWeekAds = CLIENT_VIEW.ads.reduce((sum, s) => sum + s.points[s.points.length - 1]!, 0);
+    expect(lastWeekAds).toBe(ads);
+  });
+
+  it('the Ask Friday card and its starter questions open the Friday tab', () => {
+    render(<ClientView />);
+    const card = within(panel()).getByRole('region', { name: 'Ask Friday' });
+    fireEvent.click(within(within(card).getByRole('list', { name: 'Starter questions' })).getAllByRole('button')[0]!);
+    expect(screen.getByRole('tab', { name: 'Friday' }).getAttribute('aria-selected')).toBe('true');
+  });
+
   it('the ad chart has a table view with one row per week', () => {
     render(<ClientView />);
     const table = within(panel()).getByRole('table', { name: 'Active competitor ads per week' });

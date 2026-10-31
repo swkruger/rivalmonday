@@ -46,7 +46,7 @@ What 17c pages may say about Rival Monday (code at `21622051`). Ids binding. `ga
 | int-postmark | Briefs, alerts, invites, sign-in mail; bounces | packages/email/src/transport.ts, apps/web/src/app/api/postmark/webhook/route.ts | shipped | as claim |
 | int-stripe | Billing (agencies), Connect Standard (clients) | packages/billing/src/stripe-gateway.ts, packages/billing/src/connect-fee.ts | shipped; "no platform fee" gated: connect_application_fee_percent = 0 | Only while global + every per-agency fee = 0. **Owner check** `/platform/billing` |
 | int-sentry | Errors from web, worker, site; scrubbed (`redactForLog`) | apps/worker/src/sentry.ts, apps/site/src/lib/sentry-options.ts, packages/core/src/server/log.ts | shipped | as claim |
-| int-data-stored | Home integrations body: data stored in our DB + evidence store; redacted model input reaches AI providers, errors Sentry | packages/storage/src/r2.ts, packages/collectors/src/evidence/model-privacy.ts | shipped | "is stored in our database and evidence store"; never "stays" |
+| int-data-stored | Integrations page lead: data stored in our DB + evidence store; redacted model input reaches AI providers, errors Sentry | packages/storage/src/r2.ts, packages/collectors/src/evidence/model-privacy.ts | shipped | "is stored in our database and evidence store"; never "stays" |
 
 ## Pricing feature rows (`feat-<slug>`)
 

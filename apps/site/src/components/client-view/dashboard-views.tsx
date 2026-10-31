@@ -13,12 +13,15 @@ import { AdActivityChart } from './ad-activity-chart';
 /** What the menu's other pages show: the same sample as the overview, and every claim still opens its evidence. */
 const firstEvidence = (rivalId: string) => SAMPLE.items.find((i) => i.rivalId === rivalId)?.evidenceIds[0];
 
-function Page({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
+export function Page({ title, sub, actions, children }: { title: string; sub: string; actions?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-5 p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-xl font-semibold text-ink">{title}</h3>
-        <p className="text-13 text-ink-secondary">{sub}</p>
+    <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex max-w-2xl flex-col gap-1">
+          <h3 className="text-2xl font-semibold tracking-tight text-ink">{title}</h3>
+          <p className="text-sm text-muted-ink">{sub}</p>
+        </div>
+        {actions}
       </div>
       {children}
     </div>
