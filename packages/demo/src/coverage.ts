@@ -154,6 +154,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       lsGuides,
       { tool: 'get_workspace_overview', input: (ids) => ({ clientId: ls(ids) }), path: 'pressure.*.pressure.score' },
       { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), weeks: 12 }), path: 'series.*.points' },
+      { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids), months: 12 }), path: 'businesses.*.monthly' },
       // The overview opens the newest brief in the list: the agency sees the ready one first.
       { tool: 'get_brief', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' },
       { tool: 'list_alerts', input: (ids) => ({ clientId: ls(ids) }), path: 'items' },
@@ -242,6 +243,8 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: lsComp(ids) }), path: 'top3' },
       { tool: 'get_competitor_signals', input: (ids) => ({ clientId: ls(ids) }), path: 'competitors' },
       { tool: 'get_competitor_ad_matches', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'pending' },
+      { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), weeks: 12 }), path: 'series.*.points' },
+      { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids), months: 12 }), path: 'businesses.*.monthly' },
       lsProfile,
     ],
   },

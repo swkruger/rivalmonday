@@ -37,7 +37,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/settings/team` | admin | `get_team`, `list_clients`, `list_help_guides` | — |
 | `/agency/settings/usage` | admin | `get_usage`, `list_help_guides` | — |
 | `/agency/settings/slack-teams` | admin | `list_webhooks`, `list_help_guides` | — |
-| `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
+| `/c/[clientId]` | admin | `get_client_profile`, `list_help_guides`, `get_workspace_overview`, `get_ad_activity`, `get_rating_trend`, `get_brief`, `list_alerts`, `list_briefs`, `list_moves`, `list_recommendations`, `list_trend_reports`, `get_starting_point_status`, `get_client_setup`, `get_ask_starters` | — |
 | `/c/[clientId] (client owner)` | ownerLoneStar | `get_starting_point_status`, `get_workspace_overview`, `list_briefs`, `get_brief` | — |
 | `/c/[clientId]/ads` | admin | `get_ad_activity`, `list_ads`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | `list_ads`: one competitor runs no ads |
 | `/c/[clientId]/alerts/[alertId]` | admin | `get_alert`, `get_evidence_refs`, `get_client_profile`, `list_alerts`, `list_help_guides` | — |
@@ -51,7 +51,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/briefs/[briefId] (quiet week)` | admin | `get_brief` | — |
 | `/c/[clientId]/changes` | admin | `search_events`, `get_event`, `compare_snapshots`, `compare_captures`, `list_client_competitors`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/competitors` | admin | `get_client_profile`, `list_client_competitors`, `list_competitor_suggestions`, `get_competitor_search_status`, `get_competitor_signals`, `list_help_guides` | — |
-| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_topic_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/competitors/[competitorId]` | admin | `get_competitor_profile`, `get_competitor_timeline`, `list_tracked_pages`, `get_price_matrix`, `list_ads`, `get_topic_benchmark`, `get_geogrid`, `get_competitor_signals`, `get_competitor_ad_matches`, `get_ad_activity`, `get_rating_trend`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/evidence/[evidenceId]` | admin | `get_evidence`, `compare_captures`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report`, `list_help_guides` | — |
