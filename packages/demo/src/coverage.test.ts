@@ -6,7 +6,7 @@ import { type AccessContext, isCurrentPdfKey, ToolError } from '@cs/core';
 import { databaseNameOf } from '@cs/db';
 import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { createFsStore } from '@cs/storage';
-import { accessContextFor, createToolRegistry, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, myNotificationSettings, seedKnowledge } from '@cs/tools';
+import { accessContextFor, createToolRegistry, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, seedKnowledge } from '@cs/tools';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { baseRoute, isNonEmpty, NO_DATA_ROUTES, pathExists, PUBLIC_SCREENS, README_MARKERS, renderCoverageTable, SCREENS, SHARED_READS, toolReadsOf, valueAt } from './coverage';
@@ -35,7 +35,6 @@ const FUNCTIONS: Record<string, Fn> = {
   'fn:listReviewableAskThreads': (ctx) => listReviewableAskThreads({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, {}),
   'fn:getReviewableAskThread': (ctx, _userId, input) => getReviewableAskThread({ service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL] }, ctx, String(input.threadId)),
   'fn:listInbox': (_ctx, userId) => listInbox(dbs.service, { userId }),
-  'fn:myNotificationSettings': (_ctx, userId) => myNotificationSettings(dbs.service, userId),
 };
 
 const softFail = (message: string) => expect.soft(true, message).toBe(false);

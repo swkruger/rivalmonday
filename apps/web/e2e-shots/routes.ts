@@ -26,7 +26,7 @@ export const SHOT_ROUTES: ShotRoute[] = [
   { label: 'agency-settings-usage', path: '/agency/settings/usage', as: 'agency', gate: true },
   { label: 'agency-settings-runbook', path: '/agency/settings/runbook', as: 'agency', gate: true },
   { label: 'inbox', path: '/inbox', as: 'agency', gate: true },
-  { label: 'settings-notifications', path: '/settings/notifications', as: 'agency', gate: true },
+  { label: 'settings-profile', path: '/settings/profile', as: 'agency', gate: true },
   // Client workspace
   { label: 'client-overview', path: c(''), as: 'agency', gate: true },
   { label: 'client-overview-ask', path: (fx) => `/c/${fx.askClientId}`, as: 'agency', gate: true },

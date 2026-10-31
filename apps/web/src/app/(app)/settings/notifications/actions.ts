@@ -16,7 +16,7 @@ export async function setPrefAction(input: { contactId: string; kind: string; ch
   const ctx = await userCtx();
   const r = await runTool(ctx, 'set_my_notification_pref', input);
   if (!r.ok) return r;
-  revalidatePath('/settings/notifications');
+  revalidatePath('/settings/profile');
   return { ok: true };
 }
 
@@ -34,6 +34,6 @@ export async function updateContactAction(_prev: FormResult, formData: FormData)
     quietHours: start && end ? { start, end } : null,
   });
   if (!r.ok) return r;
-  revalidatePath('/settings/notifications');
+  revalidatePath('/settings/profile');
   return { ok: true, message: 'Saved.' };
 }

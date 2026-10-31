@@ -90,7 +90,7 @@ describe('navFor agency', () => {
 
   it('has no Inbox, Notifications, Back to platform or settings pages in the menu', () => {
     const all = hrefs(navFor('agency', support, null));
-    for (const h of ['/inbox', '/settings/notifications', '/platform/agencies/x', '/agency/team', '/agency/usage']) expect(all).not.toContain(h);
+    for (const h of ['/inbox', '/settings/profile', '/platform/agencies/x', '/agency/team', '/agency/usage']) expect(all).not.toContain(h);
     expect(all.filter((h) => h.startsWith('/agency/settings'))).toHaveLength(1);
   });
 
@@ -308,7 +308,7 @@ describe('settingsAreaOf (16b drill-in)', () => {
   it('is null outside a settings area (partial segments, the personal settings)', () => {
     expect(settingsAreaOf('/agency/settingsx')).toBeNull();
     expect(settingsAreaOf(`${B}/settingsx`)).toBeNull();
-    expect(settingsAreaOf('/settings/notifications')).toBeNull();
+    expect(settingsAreaOf('/settings/profile')).toBeNull();
     expect(settingsAreaOf('/agency')).toBeNull();
     expect(settingsAreaOf(B)).toBeNull();
   });

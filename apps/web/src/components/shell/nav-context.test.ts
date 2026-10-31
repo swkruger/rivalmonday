@@ -31,7 +31,7 @@ describe('contextOf', () => {
   it('gives the fallback for non-contextual paths', () => {
     for (const f of FALLBACKS) {
       expect(contextOf('/inbox', f)).toBe(f);
-      expect(contextOf('/settings/notifications', f)).toBe(f);
+      expect(contextOf('/settings/profile', f)).toBe(f);
       expect(contextOf('/kb/getting-started', f)).toBe(f);
       expect(contextOf('/', f)).toBe(f);
     }

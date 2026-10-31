@@ -22,7 +22,7 @@ export const CRAWL_ROUTES: CrawlRoute[] = [
   ref('agency', 'agency-prospect-detail', (fx) => (fx.prospectId ? `/agency/prospects/${fx.prospectId}` : null)),
   ...['', '/ai', '/billing', '/branding', '/intake', '/intake/preview', '/platform-access', '/runbook', '/slack-teams', '/team', '/usage'].map((p) => at('agency', `agency-settings${slug(p)}`, `/agency/settings${p}`)),
   at('agency', 'inbox', '/inbox'),
-  at('agency', 'settings-notifications', '/settings/notifications'),
+  at('agency', 'settings-profile', '/settings/profile'),
   ref('agency', 'kb-article', (fx) => (fx.kbId ? `/kb/${fx.kbId}` : null)),
   // Client, agency view
   ...CLIENT_PAGES.map(([l, p, w]) => c('agency', `client-${l}`, p, w)),

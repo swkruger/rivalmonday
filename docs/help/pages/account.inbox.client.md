@@ -18,13 +18,13 @@ Each row shows the title, the time, the start of the message and a grey label fo
 
 1. **Open a notice.** Select a row. It is marked read and you land on the page it is about, such as the alert or the brief. A notice with nothing to open brings you back here.
 2. **Clear the bold.** **Mark all read** marks every notification you have as read, including any older than the 100 shown.
-3. **Choose what arrives.** If you have an account menu, open **Notification settings** there. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
+3. **Choose what arrives.** If you have an account menu, open **Profile** there and find **Notifications**. Each kind of notice has an **In-app** and an **Email** switch. Switching In-app off stops new notices of that kind appearing here; the ones already here stay.
 
 ## Common questions
 
 ### Why is it empty?
 
-Nothing has been sent to you yet, or In-app is switched off for the kinds you expected. Check Notification settings.
+Nothing has been sent to you yet, or In-app is switched off for the kinds you expected. Check Notifications on your Profile page.
 
 ### Can I delete a notification?
 
@@ -36,4 +36,4 @@ No. When both **In-app** and **Email** are on for a kind, you get it both ways. 
 
 ### Where do I change how I get my weekly brief?
 
-In Notification settings, on the **Weekly brief** row.
+On your Profile page, under Notifications, on the **Weekly brief** row.

@@ -49,7 +49,7 @@ const PLATFORM_KEYS = [
  * settings are reached by agency roles and client roles (inbox also by guests), so each has an agency and a client version; the
  * agency setup wizard is agency-admin only, so it has an agency guide and no client guide.
  */
-const ACCOUNT_SPLIT = ['page:account.inbox', 'page:account.settings.notifications'];
+const ACCOUNT_SPLIT = ['page:account.inbox', 'page:account.settings.profile'];
 const ACCOUNT_AGENCY_ONLY = ['page:account.onboarding'];
 const ACCOUNT_SEEDS = [...ACCOUNT_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`]), ...ACCOUNT_AGENCY_ONLY.map((k) => `${k}#agency`)];
 /** What an agency role / a client role reads of the account guides, in any context. */
@@ -452,9 +452,9 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     const inboxC = await agencyText(owner, 'page:account.inbox');
     for (const w of ['latest 100', 'Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report', 'Mark all read']) expect(inboxC, w).toContain(w);
     expect(inboxC).not.toMatch(/Client alerts|Brief (ready|failed|overdue)|Rank scan|cost cap|approval|account manager|Agency settings/i);
-    const setA = await agencyText(admin, 'page:account.settings.notifications');
+    const setA = await agencyText(admin, 'page:account.settings.profile');
     for (const w of ['Client alerts (agency)', 'Rank scan skipped', 'US Central time (America/Chicago)', '21:00 to 07:00', 'no Save button', 'held and sent when it ends']) expect(setA, w).toContain(w);
-    const setC = await agencyText(owner, 'page:account.settings.notifications');
+    const setC = await agencyText(owner, 'page:account.settings.profile');
     for (const w of ['Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report', '21:00 to 07:00', 'time zone saved for your business', 'invitation']) expect(setC, w).toContain(w);
     expect(setC).not.toMatch(/Client alerts|Rank scan|Central|Chicago|Slack|Teams|Agency settings|account manager/i);
     const wizard = await agencyText(admin, 'page:account.onboarding');

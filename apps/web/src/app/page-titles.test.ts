@@ -49,7 +49,7 @@ const otherPages: [file: string, label: string][] = [
   ['(app)/agency/help/page.tsx', 'Help'],
   ['(app)/c/[clientId]/help/page.tsx', 'Help'],
   ['(platform)/platform/help/page.tsx', 'Help'],
-  ['(app)/settings/notifications/page.tsx', 'Notification settings'],
+  ['(app)/settings/profile/page.tsx', 'Profile'],
   ['(app)/c/[clientId]/pitch-snapshot/page.tsx', 'Pitch snapshot'],
 ];
 

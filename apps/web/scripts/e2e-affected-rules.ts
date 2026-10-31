@@ -191,7 +191,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${APP}\\(platform\\)/platform/health/`), tags: ['@platform'], why: 'platform health page (operator tables)' },
   { pattern: re(`${APP}\\(platform\\)/platform/`), tags: ['@platform', '@reviews'], why: 'platform console, review/topic queues' },
   { pattern: re(`${APP}support/`), tags: ['@support'], why: 'support session Exit and end routes' },
-  { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications)/`), tags: [], why: 'no E2E covers this page' },
+  { pattern: re(`${APP}\\(app\\)/(?:inbox|settings/notifications|settings/profile)/`), tags: [], why: 'no E2E covers this page' },
 
   // --- Web components and server modules (by who renders/uses them) ---
   { pattern: re(`${WEB}src/dev-panel/`), tags: ['@dev-panel'], why: 'dev panel' },

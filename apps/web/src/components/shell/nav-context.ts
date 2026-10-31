@@ -5,7 +5,7 @@
 
 export type NavContext = 'platform' | 'agency' | 'client';
 
-/** Holds the last context for non-contextual pages (`/inbox`, `/settings/notifications`, `/kb/*`): `platform`, `agency` or `client:<uuid>`. No secrets. */
+/** Holds the last context for non-contextual pages (`/inbox`, `/settings/profile`, `/kb/*`): `platform`, `agency` or `client:<uuid>`. No secrets. */
 export const NAV_CTX_COOKIE = 'rm_nav_ctx';
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';

@@ -13,7 +13,7 @@ export function internalLink(link: string | null, appUrl: string): string {
   }
 }
 
-/** Shared by the inbox and settings/notifications pages — human labels for every NotificationKind (client + agency). */
+/** Shared by the inbox and the Profile page (settings/profile) — human labels for every NotificationKind (client + agency). */
 export const NOTIFICATION_KIND_LABELS: Record<string, string> = {
   alert: 'Instant alerts',
   alert_digest: 'Alert digest',

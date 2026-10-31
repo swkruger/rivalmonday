@@ -29,7 +29,7 @@ const CLIENT_ONLY_CLIENT_PAGES: readonly string[] = CLIENT_ONLY_CLIENT_ROUTES;
 /** Routes outside /c, /agency and /platform that show a PageHeader, with who reaches them. */
 const ACCOUNT_ROUTES: Record<string, Audience[]> = {
   '/inbox': ['agency', 'client'],
-  '/settings/notifications': ['agency', 'client'],
+  '/settings/profile': ['agency', 'client'],
   '/onboarding': ['agency'],
 };
 /** Components that render a page's PageHeader on its behalf (the route file only renders them), scanned explicitly. */

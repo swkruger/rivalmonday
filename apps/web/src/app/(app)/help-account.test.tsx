@@ -8,9 +8,9 @@ import { navFor, settingsNavFor } from '@/components/shell/nav-items';
 import { PAGE_COPY } from '@/help/copy';
 
 /**
- * 15b-2 Task 9b, account pages (Inbox, Notification settings, the agency setup wizard). They sit outside `/agency`, `/c/<id>`
+ * 15b-2 Task 9b, account pages (Inbox, Profile, the agency setup wizard). They sit outside `/agency`, `/c/<id>`
  * and `/platform`, so `PageGuide` derives the agency scope (`helpScopeOf`): every page reads `list_help_guides` for
- * `{ context: 'agency' }`, whoever the viewer is. Inbox and Notification settings are reached by agency roles and client
+ * `{ context: 'agency' }`, whoever the viewer is. Inbox and Profile are reached by agency roles and client
  * roles (the inbox also by guests), so tips and empty states carry the viewer's audience; the wizard is agency-admin only.
  */
 const A = '11111111-1111-4111-8111-111111111111';
@@ -29,7 +29,6 @@ vi.mock('@/server/current-viewer', () => ({
 }));
 vi.mock('@cs/tools', () => ({
   listInbox: async () => m.inbox,
-  myNotificationSettings: async () => m.settings,
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chicago' }));
@@ -39,6 +38,8 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
   m.calls.push([name, input]);
   switch (name) {
     case 'list_help_guides': return { guides: m.guides.map((helpKey) => ({ helpKey, title: 't', articleId: 'g' })) };
+    case 'get_my_profile': return { name: 'Pat Doe', email: 'pat@example.com', avatarUrl: null };
+    case 'get_my_notification_settings': return { lists: m.settings };
     case 'get_onboarding_status': return m.status;
     case 'get_agency_profile': return { name: 'Acme', contactName: '', contactEmail: '', phone: '' };
     case 'get_billing_summary': return { state: 'trialing' };
@@ -50,6 +51,7 @@ vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./inbox/actions', () => ({ markAllReadAction: vi.fn(), openNotification: vi.fn() }));
 vi.mock('./settings/notifications/actions', () => ({ setPrefAction: vi.fn(), updateContactAction: vi.fn() }));
+vi.mock('./settings/profile/actions', () => ({ updateNameAction: vi.fn(), removeAvatarAction: vi.fn() }));
 vi.mock('@/app/(onboarding)/onboarding/actions', () => ({
   saveBasicsAction: vi.fn(), inviteTeamAction: vi.fn(), skipStepAction: vi.fn(), saveBrandingStepAction: vi.fn(), finishAction: vi.fn(),
 }));
@@ -60,7 +62,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 const { default: Inbox } = await import('./inbox/page');
-const { default: Notifications } = await import('./settings/notifications/page');
+const { default: Notifications } = await import('./settings/profile/page');
 const { default: Onboarding } = await import('@/app/(onboarding)/onboarding/page');
 
 const ITEM = { id: 'n1', kind: 'alert', title: 'Competitor cut a price', body: 'Details', link: null, clientId: C, createdAt: new Date('2026-10-20T15:00:00Z'), readAt: null };
@@ -70,7 +72,7 @@ const SETTING = {
 };
 const PAGES = [
   ['account.inbox', () => Inbox()],
-  ['account.settings.notifications', () => Notifications()],
+  ['account.settings.profile', () => Notifications()],
   ['account.onboarding', () => Onboarding({ searchParams: Promise.resolve({}) })],
 ] as const;
 const page = (key: string) => PAGES.find(([k]) => k === key)![1];
@@ -108,9 +110,9 @@ describe('account pages: guide button and reach', () => {
     });
   }
 
-  it('Inbox and Notification settings also show the Guide button to a client owner, with the same agency scope; a guest reads the inbox', async () => {
-    m.guides = ['page:account.inbox', 'page:account.settings.notifications'];
-    for (const key of ['account.inbox', 'account.settings.notifications']) {
+  it('Inbox and Profile also show the Guide button to a client owner, with the same agency scope; a guest reads the inbox', async () => {
+    m.guides = ['page:account.inbox', 'page:account.settings.profile'];
+    for (const key of ['account.inbox', 'account.settings.profile']) {
       m.calls = [];
       await show(key, 'client');
       expect(await guideButton(), key).toBeTruthy();
@@ -122,7 +124,7 @@ describe('account pages: guide button and reach', () => {
     expect(await guideButton()).toBeTruthy();
   });
 
-  it('the setup wizard is a 404 for an account manager and for a client owner; Notification settings is a 404 for a guest', async () => {
+  it('the setup wizard is a 404 for an account manager and for a client owner; Profile is a 404 for a guest', async () => {
     for (const role of ['account_manager', 'client_owner']) {
       m.role = role;
       await expect(Onboarding({ searchParams: Promise.resolve({}) }), role).rejects.toThrow('NEXT_NOT_FOUND');
@@ -132,7 +134,7 @@ describe('account pages: guide button and reach', () => {
   });
 
   it('account guides list under "Your account" for the agency and the client menu', () => {
-    const guides = ['page:account.inbox', 'page:account.settings.notifications', 'page:account.onboarding'].map((helpKey) => ({ helpKey, title: 't', articleId: helpKey }));
+    const guides = ['page:account.inbox', 'page:account.settings.profile', 'page:account.onboarding'].map((helpKey) => ({ helpKey, title: 't', articleId: helpKey }));
     const flags = { isAgency: true, isAgencyAdmin: true, isUser: true, homePath: '/agency', dashboard: true, alertRules: true, mcp: true, ask: true };
     const agency = groupGuides('agency', navFor('agency', flags, null), settingsNavFor('agency', flags), guides);
     expect(agency.at(-1)).toMatchObject({ heading: 'Your account' });
@@ -154,7 +156,7 @@ describe('Inbox', () => {
   it('with no notifications: a teaching empty state; with some: no empty state', async () => {
     await show('account.inbox');
     expect(screen.getByText('Nothing here yet')).toBeTruthy();
-    expect(screen.getByText(/Notification settings/)).toBeTruthy();
+    expect(screen.getByText(/under Notifications on your Profile page/)).toBeTruthy();
     cleanup();
     m.inbox = [ITEM];
     await show('account.inbox');
@@ -178,22 +180,22 @@ describe('Inbox', () => {
   });
 });
 
-describe('Notification settings', () => {
+describe('Profile', () => {
   it('description and the always-shown tips; the several-lists tip only with more than one list', async () => {
     m.settings = [SETTING];
-    await show('account.settings.notifications');
-    expect(screen.getByText(/Choose which notices reach you in the app and by email/)).toBeTruthy();
+    await show('account.settings.profile');
+    expect(screen.getByText('Your name, photo and notifications.')).toBeTruthy();
     for (const t of ['In-app and email', 'Quiet hours', 'Time zone']) expect(hasTip(t), t).toBe(true);
     expect(hasTip('More than one list')).toBe(false);
     cleanup();
     m.settings = [SETTING, { ...SETTING, contactId: 'k2', clientName: 'Lone Star Cooling' }];
-    await show('account.settings.notifications');
+    await show('account.settings.profile');
     expect(hasTip('More than one list')).toBe(true);
   });
 
   it('quiet hours: email held until the window ends, in-app unaffected, both times needed, overnight allowed', async () => {
     m.settings = [SETTING];
-    await show('account.settings.notifications');
+    await show('account.settings.profile');
     const q = open('Quiet hours');
     expect(q).toMatch(/held/);
     expect(q).toMatch(/in-app/i);
@@ -203,10 +205,10 @@ describe('Notification settings', () => {
 
   it('the time zone tip differs by audience: US Central for agency staff, the business time zone for clients', async () => {
     m.settings = [SETTING];
-    await show('account.settings.notifications');
+    await show('account.settings.profile');
     expect(open('Time zone')).toMatch(/US Central/);
     cleanup();
-    await show('account.settings.notifications', 'client');
+    await show('account.settings.profile', 'client');
     const t = open('Time zone');
     expect(t).toMatch(/your business/);
     expect(t).not.toMatch(/Central/);
@@ -214,12 +216,12 @@ describe('Notification settings', () => {
 
   it('the notice tips: agency staff read the agency notices, clients the client ones, and neither sees the other', async () => {
     m.settings = [SETTING];
-    await show('account.settings.notifications');
+    await show('account.settings.profile');
     const a = open('Agency notices');
     for (const w of ['Client alerts (agency)', 'Brief ready for review', 'Brief failed', 'Brief overdue', 'Rank scan skipped']) expect(a, w).toContain(w);
     expect(hasTip('Notices about your business')).toBe(false);
     cleanup();
-    await show('account.settings.notifications', 'client');
+    await show('account.settings.profile', 'client');
     const c = open('Notices about your business');
     for (const w of ['Instant alerts', 'Alert digest', 'Weekly brief', 'Quarterly report']) expect(c, w).toContain(w);
     expect(hasTip('Agency notices')).toBe(false);
@@ -227,10 +229,10 @@ describe('Notification settings', () => {
   });
 
   it('with no lists: a teaching empty state for both audiences', async () => {
-    await show('account.settings.notifications');
+    await show('account.settings.profile');
     expect(screen.getByText('No notification settings yet')).toBeTruthy();
     cleanup();
-    await show('account.settings.notifications', 'client');
+    await show('account.settings.profile', 'client');
     expect(screen.getByText('No notification settings yet')).toBeTruthy();
   });
 });
@@ -250,7 +252,7 @@ describe('Set up your agency (wizard)', () => {
 
 describe('account copy: wording rules', () => {
   it('no account copy names the product, the assistant, or the setup wording a client must not read', () => {
-    for (const [k, c] of Object.entries({ 'account.inbox': PAGE_COPY['account.inbox'], 'account.settings.notifications': PAGE_COPY['account.settings.notifications'], 'account.onboarding': PAGE_COPY['account.onboarding'] })) {
+    for (const [k, c] of Object.entries({ 'account.inbox': PAGE_COPY['account.inbox'], 'account.settings.profile': PAGE_COPY['account.settings.profile'], 'account.onboarding': PAGE_COPY['account.onboarding'] })) {
       const text = JSON.stringify(c);
       expect(text, k).not.toMatch(/rival\s*monday|friday|\btheme/i);
     }

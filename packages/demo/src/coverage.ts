@@ -92,9 +92,9 @@ const setupStaffCalls = (clientId: (ids: DemoIds) => string): CoverageCall[] => 
 ];
 const setupPending = (ids: DemoIds) => ids.clients.setupPending;
 
-/** Pages that only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab): no seeded data to check. The two creation forms (`/agency/clients/new`, `/agency/prospects/new`) read only the page guide list (15b-2), added by `withGuideReads`. */
+/** Pages that only redirect (`/agency/settings` and `/c/[clientId]/settings` open their first tab; `/settings/notifications` moved into `/settings/profile`): no seeded data to check. The two creation forms (`/agency/clients/new`, `/agency/prospects/new`) read only the page guide list (15b-2), added by `withGuideReads`. */
 // '/e2e-throw' is an E2E-only page that throws on purpose (404 unless E2E_THROW_PAGE=1): no data to read.
-export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings', '/e2e-throw'] as const;
+export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings', '/settings/notifications', '/e2e-throw'] as const;
 
 /**
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
@@ -395,7 +395,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/help', as: 'admin', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
   { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
   { route: '/platform/help', as: 'operator', calls: [helpGuides(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
-  { route: '/settings/notifications', as: 'admin', calls: [{ tool: 'fn:myNotificationSettings', input: none }] },
+  { route: '/settings/profile', as: 'admin', calls: [{ tool: 'get_my_profile', input: none }, { tool: 'get_my_notification_settings', input: none }] },
 ];
 
 /**
@@ -408,7 +408,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/agency', '/agency/alerts', '/agency/approvals', '/agency/approvals/[briefId]', '/agency/clients/new', '/agency/leads', '/agency/prospects',
   '/agency/prospects/new', '/agency/prospects/[clientId]', '/agency/settings/ai', '/agency/settings/billing', '/agency/settings/branding',
   '/agency/settings/intake', '/agency/settings/intake/preview', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
-  '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/notifications',
+  '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/profile',
   '/c/[clientId]/ads', '/c/[clientId]/alerts/[alertId]', '/c/[clientId]/briefs', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/competitors',
   '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
   '/c/[clientId]/pricing', '/c/[clientId]/rankings', '/c/[clientId]/recommendations', '/c/[clientId]/reports/[reportId]', '/c/[clientId]/settings/ai',

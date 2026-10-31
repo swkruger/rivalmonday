@@ -91,8 +91,8 @@ describe('SidebarNav (15a grouped menus)', () => {
     expect(activeHrefOf()).toBe(`${B}/briefs`);
   });
 
-  it('falls back to the agency menu on /settings/notifications with nothing highlighted', () => {
-    pathname = '/settings/notifications';
+  it('falls back to the agency menu on /settings/profile with nothing highlighted', () => {
+    pathname = '/settings/profile';
     render(<Nav flags={agencyAdmin} />);
     expect(activeHrefOf()).toBeNull();
     expect(screen.getByRole('link', { name: 'Portfolio' })).toBeTruthy();
@@ -280,7 +280,7 @@ describe('SidebarNav sections (Task 4)', () => {
 
   it('a client role ignores a non-client fallback and keeps its own client menu', () => {
     document.cookie = 'rm_nav_ctx=agency; path=/';
-    pathname = '/settings/notifications';
+    pathname = '/settings/profile';
     render(<Nav flags={clientViewer} />);
     expect(linkNames()).toEqual(['Overview', 'Recommendations', 'Briefs & reports']);
   });

@@ -268,7 +268,7 @@ describe('help content a client can reach (15b-2)', () => {
     { label: 'display name set', agency: 'Cool Comfort', assistant: 'Sunny' },
   ];
   const clientPageKeys = (Object.keys(PAGE_COPY) as (keyof typeof PAGE_COPY)[]).filter((k) =>
-    (k.startsWith('client.') && !AGENCY_ONLY_KEYS.has(k)) || k === 'account.inbox' || k === 'account.settings.notifications');
+    (k.startsWith('client.') && !AGENCY_ONLY_KEYS.has(k)) || k === 'account.inbox' || k === 'account.settings.profile');
   const visibleToClient = (a?: string) => ['all', 'client'].includes(a ?? 'all');
 
   const check = (where: string, text: string, problems: string[]) => {

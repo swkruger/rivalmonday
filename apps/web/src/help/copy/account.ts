@@ -2,7 +2,7 @@ import type { PageCopy } from '.';
 
 /**
  * Short in-page help copy for account pages (`account.*`) shown in every context, 15b-2 Task 9b. Same rules as `client.ts`.
- * Who reaches what: Inbox and Notification settings are reached by agency roles and client roles (the inbox also by
+ * Who reaches what: Inbox and Profile are reached by agency roles and client roles (the inbox also by
  * guests; a support session gets a 404 on both), so each tip or empty state that only fits one of them carries an
  * `audience` (`agency` / `client`); a platform operator reads them through an own agency membership, so as agency staff.
  * The setup wizard is agency-admin only. Each page reads `helpGuides(ctx, 'agency')`, the scope `PageGuide` derives for
@@ -33,25 +33,25 @@ export const ACCOUNT_COPY = {
         audience: 'client',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: apps/web/src/components/shell/avatar-menu.tsx (Notification settings link); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created)
+      // source: apps/web/src/components/shell/avatar-menu.tsx (Profile link); settings/profile/page.tsx (Notifications section); packages/engine/src/delivery/contacts.ts:recipientsFor (a switched-off channel is skipped, so a notice is not created)
       choose: {
         title: 'Choosing what arrives',
-        body: 'If you have an account menu, Notification settings there has two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay.',
+        body: 'If you have an account menu, Profile there has Notifications with two switches for each kind of notice: In-app and Email. Switch In-app off and new notices of that kind stop appearing here; the ones already here stay.',
         guideAnchor: 'how-to-use-it',
       },
     },
     empty: {
       none: {
         title: 'Nothing here yet',
-        body: 'Alerts, briefs and reports you receive appear here, newest first. If you have an account menu, you can choose which ones in Notification settings.',
+        body: 'Alerts, briefs and reports you receive appear here, newest first. If you have an account menu, you can choose which ones under Notifications on your Profile page.',
       },
     },
   },
-  'account.settings.notifications': {
-    // source: apps/web/src/app/(app)/settings/notifications/page.tsx, contact-form.tsx; packages/tools/src/preferences.ts:myNotificationSettings
-    description: 'Choose which notices reach you in the app and by email, and set a time zone and quiet hours for email.',
+  'account.settings.profile': {
+    // source: apps/web/src/app/(app)/settings/profile/page.tsx (details, avatar, notifications); packages/tools/src/tools/my-profile.ts
+    description: 'Your name, photo and notifications.',
     tips: {
-      // source: apps/web/src/app/(app)/settings/notifications/pref-switch.tsx (saves at once, no Save button); packages/tools/src/preferences.ts:myNotificationSettings (default on); packages/engine/src/delivery/contacts.ts:recipientsFor (channels left on)
+      // source: apps/web/src/app/(app)/settings/notifications/pref-switch.tsx (saves at once, no Save button); packages/tools/src/tools/my-profile.ts:get_my_notification_settings (default on); packages/engine/src/delivery/contacts.ts:recipientsFor (channels left on)
       channels: {
         title: 'In-app and email',
         body: 'Each row has two switches. In-app puts the notice in your Inbox; Email sends it to the address on this list. Both start on. A switch saves the moment you change it, and only affects new notices. With both on, you get the same notice both ways.',
@@ -91,7 +91,7 @@ export const ACCOUNT_COPY = {
         audience: 'client',
         guideAnchor: 'what-this-page-tells-you',
       },
-      // source: packages/tools/src/preferences.ts:myNotificationSettings (one entry per active contact the person has: the agency list and each client list); page.tsx (card title = client name, else agency name)
+      // source: packages/tools/src/tools/my-profile.ts:get_my_notification_settings (one entry per active contact the person has: the agency list and each client list); notification-lists.tsx (card title = client name, else agency name)
       several: {
         title: 'More than one list',
         body: 'There is one card for each place you receive notices from, titled with its name. Switches, time zone and quiet hours are saved separately for each card.',
