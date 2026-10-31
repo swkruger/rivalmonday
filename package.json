@@ -16,6 +16,7 @@
     "db:restore": "pnpm --filter @cs/demo restore",
     "staging:evidence": "pnpm --filter @cs/demo staging:evidence",
     "staging:worker": "pnpm --filter @cs/demo staging:worker",
+    "staging:up": "node scripts/staging-up.mjs",
     "dev": "pnpm --filter @cs/web dev",
     "design:lint": "bash scripts/design-lint.sh",
     "dev:web": "pnpm --filter @cs/web dev",

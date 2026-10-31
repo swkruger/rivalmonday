@@ -9,7 +9,7 @@ on:
         description: Type "refresh staging". Everything on staging is replaced by a copy of cs_dev.
         required: true
       first_run:
-        description: First run only (STAGING.md § 1 step 12) — nothing is deployed to staging yet, so skip the web smoke test.
+        description: First run only (STAGING.md § 1 step 15) — nothing is deployed to staging yet, so skip the web smoke test.
         type: boolean
         default: false
 
