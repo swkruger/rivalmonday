@@ -17,11 +17,11 @@ export function monthLabel(key: string): string {
   return `${MONTH_NAMES[Number(m) - 1] ?? key} ${y}`;
 }
 
-/** A round upper bound (1, 2, 2.5, 5 x 10^n) so the three gridlines carry readable numbers. */
+/** A round upper bound (1, 2, 2.5, 3, 4, 5, 6, 8 x 10^n) so the three gridlines carry readable numbers. */
 function niceMax(v: number): number {
   if (v <= 0) return 10;
   const p = 10 ** Math.floor(Math.log10(v));
-  for (const f of [1, 2, 2.5, 5, 10]) if (v <= f * p) return f * p;
+  for (const f of [1, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (v <= f * p) return f * p;
   return 10 * p;
 }
 
@@ -34,6 +34,10 @@ export function MonthlyChart({ months }: { months: CostMonth[] }) {
   const ticks = [max, max / 2, 0];
   return (
     <div>
+      <ul className="mb-3 flex flex-wrap gap-4 text-xs text-muted-ink">
+        <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: API_COLOR }} />API usage</li>
+        <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border" style={{ background: MANUAL_COLOR, borderColor: MANUAL_EDGE }} />Manual costs</li>
+      </ul>
       <ChartPlot
         label="Monthly platform spend, API and manual, last six months"
         height={H}
@@ -54,10 +58,6 @@ export function MonthlyChart({ months }: { months: CostMonth[] }) {
           );
         })}
       </ChartPlot>
-      <ul className="mt-2 flex flex-wrap gap-4 text-xs text-muted-ink">
-        <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: API_COLOR }} />API usage</li>
-        <li className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border" style={{ background: MANUAL_COLOR, borderColor: MANUAL_EDGE }} />Manual costs</li>
-      </ul>
     </div>
   );
 }

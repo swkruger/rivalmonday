@@ -47,7 +47,7 @@ function AddInput({ id, label, disabled, onAdd }: { id: string; label: string; d
   };
   return (
     <div className="flex items-center gap-2">
-      <Input id={id} aria-label={label} value={v} disabled={disabled} maxLength={80} placeholder={label} className="h-8 w-48"
+      <Input id={id} aria-label={label} value={v} disabled={disabled} maxLength={80} placeholder={label} className="w-48"
         onChange={(e) => setV(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
       <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={add}>Add</Button>

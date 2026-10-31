@@ -91,6 +91,11 @@ export function gridLabelFont(size: number, onMap: boolean): { fontSize: number;
   return { fontSize, dy: fontSize * 0.38 };
 }
 
+/** Widest the figure draws, in px: a map frame 520; a plain lattice at most 1.1 × its own width so its 12–13 unit labels stay ~13 px. */
+export function gridMaxWidth(W: number, onMap: boolean): number {
+  return onMap ? 520 : Math.min(520, Math.round(W * 1.1));
+}
+
 /** The four compass letters around a plain (map-less) grid. */
 export function Compass({ W, H }: { W: number; H: number }) {
   return (
@@ -152,7 +157,7 @@ export function GeoGrid({ title, summary, cells, businessName, keyword, map = nu
   );
   return (
     <figure className="flex flex-col gap-2">
-      <div className="mx-auto w-full max-w-[520px]">{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
+      <div className="mx-auto w-full" style={{ maxWidth: gridMaxWidth(W, onMap) }}>{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
       {bg && <figcaption className="text-center text-xs text-muted-foreground">{bg.attribution}</figcaption>}
       <svg data-legend-defs aria-hidden width={0} height={0} style={{ position: 'absolute' }}>
         <defs>

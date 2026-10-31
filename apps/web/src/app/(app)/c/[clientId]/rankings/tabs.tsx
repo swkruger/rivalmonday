@@ -35,7 +35,7 @@ export function RankTabs({ tab, query }: { tab: RankTab; query: RankQuery }) {
     activate(TABS[to]!.key);
   };
   return (
-    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className={segmentedTrackClass}>
+    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className={`${segmentedTrackClass} self-start`}>
       {TABS.map((t, n) => {
         const on = t.key === tab;
         return (

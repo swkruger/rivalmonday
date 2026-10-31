@@ -288,7 +288,8 @@ describe('ReportView', () => {
 
   it('report moves read "Price war · … · Active", never price_war', () => {
     render(<ReportView report={withMoves} />);
-    expect(screen.getByText('Price war · Smith HVAC · Active · first detected Aug 14')).toBeTruthy();
+    const moves = within(screen.getByRole('table', { name: 'Moves' }));
+    for (const cell of ['Price war', 'Smith HVAC', 'Active', 'Aug 14']) expect(moves.getByText(cell)).toBeTruthy();
     expect(screen.queryByText(/price_war/)).toBeNull();
   });
 

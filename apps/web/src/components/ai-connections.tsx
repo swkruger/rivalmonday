@@ -109,7 +109,9 @@ export function ConnectorUrlCard({ url, displayName, help }: { url: string; disp
           </li>
           <li>
             <strong>Claude Code</strong>: create a token below, then run{' '}
-            <code className="break-all rounded bg-muted-surface px-1.5 py-0.5 font-mono text-sm">{`claude mcp add --transport http ${mcpServerName(displayName)} ${url} --header "Authorization: Bearer YOUR_TOKEN"`}</code>.
+            <span className="mt-1 flex items-baseline gap-0.5">
+              <code tabIndex={0} className="min-w-0 overflow-x-auto whitespace-nowrap rounded-sm bg-muted-surface px-2 py-1.5 font-mono text-13 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{`claude mcp add --transport http ${mcpServerName(displayName)} ${url} --header "Authorization: Bearer YOUR_TOKEN"`}</code>.
+            </span>
           </li>
         </ul>
       </div>

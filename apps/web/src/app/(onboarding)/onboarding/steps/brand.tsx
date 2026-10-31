@@ -1,7 +1,7 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Field, Input } from '@cs/ui';
+import { Field, Input, fileInputClass } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote, FormError } from '@/components/form-error';
 import { INPUT_CLASS } from '@/components/onboarding/input-class';
@@ -84,7 +84,7 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
                 id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={uploading}
                 onFocus={() => setFocus('logo')} onBlur={() => setFocus(null)}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ''; }}
-                className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
+                className={fileInputClass}
               />
               {uploading && <span className="text-13 text-muted-ink" role="status">Uploading…</span>}
             </div>
@@ -97,7 +97,7 @@ export function BrandStep({ initial, agencyName, guide }: { initial: AgencyBrand
                 <button
                   key={c} type="button" aria-label={`Use ${c}`} aria-pressed={draft.primary?.toLowerCase() === c.toLowerCase()}
                   onClick={() => set('primary')(c)} onFocus={() => setFocus('color')} onBlur={() => setFocus(null)}
-                  className="size-8 rounded-full ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-primary" style={{ background: c }}
+                  className="size-9 rounded-full outline-none ring-offset-2 aria-pressed:ring-2 aria-pressed:ring-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" style={{ background: c }}
                 />
               ))}
               <Input id="primaryHex" value={draft.primary ?? ''} placeholder="#47A8E7" className={`${INPUT_CLASS} ml-1.5 w-32`} onChange={(e) => set('primary')(e.target.value)} onFocus={() => setFocus('color')} onBlur={() => setFocus(null)} />

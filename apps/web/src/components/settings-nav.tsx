@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import { currentSettingsHref, type NavItem, type NavSection } from './shell/nav-items';
 
 const CHIP_CLASS = 'inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-line px-3 text-13 font-medium text-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -27,8 +28,16 @@ function ChipLink({ item, current }: { item: NavItem; current: boolean }) {
  */
 export function SettingsNav({ sections }: { sections: NavSection[] }) {
   const current = currentSettingsHref(sections, usePathname() ?? '');
+  const ref = useRef<HTMLElement>(null);
+  // The row scrolls sideways on a phone: bring the active chip into view (the row only, never the page).
+  useEffect(() => {
+    const row = ref.current;
+    const chip = row?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!row || !chip) return;
+    row.scrollLeft = Math.max(0, chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2);
+  }, [current]);
   return (
-    <nav aria-label="Settings" className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 lg:hidden">
+    <nav ref={ref} aria-label="Settings" className="relative -mx-4 flex gap-2 overflow-x-auto px-4 py-1 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1rem),transparent)] lg:hidden">
       {sections.flatMap((s) => s.items).map((item) => <ChipLink key={item.href} item={item} current={item.href === current} />)}
     </nav>
   );

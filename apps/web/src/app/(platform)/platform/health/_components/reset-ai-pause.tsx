@@ -1,5 +1,5 @@
 'use client';
-import { Button, ConfirmDialog } from '@cs/ui';
+import { Button, ConfirmDialog, textareaClass } from '@cs/ui';
 import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
@@ -29,7 +29,7 @@ export function ResetAiPause({ active }: { active: boolean }) {
                   required
                   maxLength={200}
                   rows={3}
-                  className="rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink"
+                  className={textareaClass}
                 />
               </div>
             }

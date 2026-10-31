@@ -14,7 +14,8 @@ import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { kbImportStatusAction, startKbImportAction } from './actions';
 import { ImportPanel } from './import-panel';
-import { KIND_OPTION, type KbTargets, LEVEL_OPTION } from './scope-fields';
+import { KIND_OPTION, LEVEL_OPTION } from './options';
+import type { KbTargets } from './scope-fields';
 import { SyncBadge } from './sync-badge';
 import type { KbListItem } from './sync-badge';
 

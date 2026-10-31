@@ -62,6 +62,7 @@ export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: P
           ))}
           {topics.map((tp, i) => (
             <g key={tp.id}>
+              {tp.name.length > 28 ? <title>{tp.name}</title> : null}
               <text x={LABEL_W - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(tp.name, 28)}</text>
               {businesses.map((b, j) => {
                 const c = cell(b, tp.id);

@@ -9,3 +9,6 @@ export const nativeInputClass = nativeSelectClass
 export const textareaClass = `min-h-22 w-full px-3 py-2 ${controlRecipe}`
 /** Filter-toolbar <select>/<input> (Changes, Ads, Reviews, Rankings): the same control as a form, so every field in the app is one height. */
 export const toolbarControlClass = `h-9 px-3 ${controlRecipe}`
+/** Native file <input>: the browser button looks like an outlined white button, one 36 px control height like every other field. */
+export const fileInputClass =
+  "text-sm text-ink file:mr-3 file:h-9 file:cursor-pointer file:rounded-sm file:border file:border-input file:bg-surface file:px-3 file:text-sm file:font-medium file:text-ink file:transition-colors hover:file:bg-canvas disabled:file:cursor-not-allowed"

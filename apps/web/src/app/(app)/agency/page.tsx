@@ -9,7 +9,7 @@ import { OnboardingChecklist, type ChecklistStatus } from '@/components/agency/o
 import { WriteGuard } from '@/components/read-only';
 import { dismissChecklistAction } from '@/app/(onboarding)/onboarding/actions';
 import { ClientBillingControls, type ClientBillingStatusRow } from '@/components/billing/client-billing-controls';
-import { PressureBadge } from '@/components/pressure-badge';
+import { PressureBadge, pressureText } from '@/components/pressure-badge';
 import { SetupBadge } from '@/components/setup-badge';
 import { SpendBadge } from '@/components/spend-badge';
 import { EmptyState } from '@/components/help/empty-state';
@@ -43,6 +43,9 @@ function sortRows(items: PortfolioRow[]): PortfolioRow[] {
     return a.name.localeCompare(b.name);
   });
 }
+
+/** Every portfolio cell: same padding, content starts at the top so multi-line cells don't push their neighbours around. */
+const CELL = 'py-3 align-top';
 
 export default async function AgencyPortfolioPage() {
   const { ctx } = await requireContext();
@@ -153,14 +156,14 @@ export default async function AgencyPortfolioPage() {
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.clientId}>
-                      <TableCell><ClientName row={row} labels={verticalLabels} /></TableCell>
-                      <TableCell className="whitespace-normal"><Pressure row={row} /></TableCell>
-                      <TableCell><SpendBadge credits={row.credits} /></TableCell>
-                      <TableCell><Alerts row={row} /></TableCell>
-                      <TableCell className="whitespace-normal"><Brief row={row} /></TableCell>
-                      <TableCell><OpenActions row={row} /></TableCell>
-                      <TableCell>{row.lastActivityAt ? formatRelative(row.lastActivityAt, now, { tz }) : 'No activity yet'}</TableCell>
-                      <TableCell className="whitespace-normal"><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></TableCell>
+                      <TableCell className={`${CELL} min-w-40`}><ClientName row={row} labels={verticalLabels} /></TableCell>
+                      <TableCell className={`${CELL} max-w-56 whitespace-normal`}><Pressure row={row} /></TableCell>
+                      <TableCell className={CELL}><SpendBadge credits={row.credits} /></TableCell>
+                      <TableCell className={CELL}><Alerts row={row} /></TableCell>
+                      <TableCell className={`${CELL} whitespace-normal`}><Brief row={row} /></TableCell>
+                      <TableCell className={CELL}><OpenActions row={row} /></TableCell>
+                      <TableCell className={`${CELL} whitespace-normal`}>{row.lastActivityAt ? formatRelative(row.lastActivityAt, now, { tz }) : 'No activity yet'}</TableCell>
+                      <TableCell className={`${CELL} whitespace-normal`}><Billing row={row} billing={billingBy.get(row.clientId)} role={billingRole} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -200,24 +203,28 @@ function ClientName({ row, labels }: { row: PortfolioRow; labels: Map<string, st
 }
 
 function Pressure({ row }: { row: PortfolioRow }) {
+  // A quiet row's only reason repeats the badge word: show it once.
+  const badgeText = pressureText(row.pressure.score, row.pressure.level).toLowerCase();
+  const reasons = row.pressure.reasons.filter((reason) => reason.trim().toLowerCase() !== badgeText);
   return (
-    <div>
-      <div className="flex items-center gap-2">
-        <PressureBadge score={row.pressure.score} level={row.pressure.level} />
-        {row.topCompetitor && <span>{row.topCompetitor}</span>}
-      </div>
-      {row.pressure.reasons.length > 0 && <div className="text-muted-ink">{row.pressure.reasons.join(' · ')}</div>}
+    <div className="flex flex-col items-start gap-1">
+      <PressureBadge score={row.pressure.score} level={row.pressure.level} />
+      {row.topCompetitor && <span>{row.topCompetitor}</span>}
+      {reasons.length > 0 && <div className="text-muted-ink">{reasons.join(' · ')}</div>}
     </div>
   );
 }
 
 function Billing({ row, billing, role }: { row: PortfolioRow; billing: ClientBillingStatusRow | undefined; role: 'agency_admin' | 'account_manager' }) {
   if (!billing) return '—';
+  // Chip above Actions in every row (the controls wrap them in a flex-wrap row; here it is a column).
   return (
-    <ClientBillingControls
-      clientId={row.clientId} clientName={row.name} role={role} pill={billing.pill} billing={{ state: billing.state, enabled: billing.enabled }}
-      nextPriceCents={billing.nextPriceCents}
-    />
+    <div className="[&>div>div:first-child]:flex-col [&>div>div:first-child]:items-start">
+      <ClientBillingControls
+        clientId={row.clientId} clientName={row.name} role={role} pill={billing.pill} billing={{ state: billing.state, enabled: billing.enabled }}
+        nextPriceCents={billing.nextPriceCents}
+      />
+    </div>
   );
 }
 

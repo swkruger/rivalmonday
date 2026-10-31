@@ -242,7 +242,7 @@ export function WaitlistTable({ rows, tab, tz, verticals, canWrite = false, agen
                 </span>
               ))}
               <Label htmlFor="waitlist-pilot-ends" className="text-white">Pilot ends</Label>
-              <Input id="waitlist-pilot-ends" name="pilotEndsAt" type="date" className="h-8 w-40 text-ink" />
+              <Input id="waitlist-pilot-ends" name="pilotEndsAt" type="date" className="w-40" />
               <Button type="submit" name="offer" value="pilot" size="sm" disabled={pending} className={bulkBarActionClass}>Send pilot invite</Button>
               <Button type="submit" name="offer" value="trial" size="sm" disabled={pending} className={bulkBarActionClass}>Send trial invite</Button>
             </BulkBar>

@@ -94,7 +94,7 @@ export default async function AdsPage({ params, searchParams }: {
             <option value="all">All</option>
           </select>
         </label>
-        <Button type="submit" variant="outline" size="sm">Apply</Button>
+        <Button type="submit" variant="outline">Apply</Button>
       </form>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">

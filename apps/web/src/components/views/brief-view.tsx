@@ -1,5 +1,5 @@
 import type { BriefDetail } from '@cs/tools';
-import { Band, Section, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
+import { Band, Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import { formatMetric, scorecardModel } from '@cs/engine';
 import Link from 'next/link';
 import { confidenceLabel } from '@/components/confidence-label';
@@ -14,6 +14,7 @@ const fmt = (n: number | null) => formatMetric('rating', n);
 /** Quiet weeks' numbers from stored data (the same snapshot the email shows). */
 function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
   return (
+    <TableFrame>
     <Table>
       <caption className="pb-2 text-left text-xs font-semibold text-muted-ink">Last {trend.windowDays} days</caption>
       <TableHeader>
@@ -35,6 +36,7 @@ function TrendTable({ trend }: { trend: NonNullable<BriefDetail['trend']> }) {
         ))}
       </TableBody>
     </Table>
+    </TableFrame>
   );
 }
 

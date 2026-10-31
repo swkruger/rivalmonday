@@ -2,7 +2,7 @@ import { changeTypeLabel } from '@cs/email';
 import { MOVE_LABELS } from '@cs/tools';
 import type { TrendReportData } from '@cs/db';
 import type { ReportDetail } from '@cs/tools';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { EmptyState } from '@/components/help/empty-state';
 import { PAGE_COPY } from '@/help/copy';
 import { formatDate } from '@/lib/format';
@@ -40,6 +40,7 @@ export function ReportView({ report, titled = true }: { report: ReportDetail; ti
         <EmptyState {...EMPTY} />
       ) : (
         <>
+          <TableFrame>
           <Table aria-label="Businesses">
             <TableHeader>
               <TableRow>
@@ -63,16 +64,28 @@ export function ReportView({ report, titled = true }: { report: ReportDetail; ti
               ))}
             </TableBody>
           </Table>
+          </TableFrame>
 
           <div>
             <h3 className="mb-1.5 text-base font-semibold">Changes detected</h3>
-            <ul className="flex flex-col gap-1">
-              {Object.entries(data.eventsByType).map(([type, count]) => (
-                <li key={type}>
-                  {changeTypeLabel(type)}: {count}
-                </li>
-              ))}
-            </ul>
+            <TableFrame>
+              <Table aria-label="Changes detected">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Change</TableHead>
+                    <TableHead scope="col" numeric>Detected</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(data.eventsByType).map(([type, count]) => (
+                    <TableRow key={type}>
+                      <TableCell>{changeTypeLabel(type)}</TableCell>
+                      <TableCell numeric>{count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableFrame>
           </div>
 
           <div>
@@ -80,13 +93,28 @@ export function ReportView({ report, titled = true }: { report: ReportDetail; ti
             {data.moves.length === 0 ? (
               <p className="text-muted-ink">No moves detected this quarter.</p>
             ) : (
-              <ul className="flex flex-col gap-1">
-                {data.moves.map((m, idx) => (
-                  <li key={idx}>
-                    {MOVE_LABELS[m.moveType] ?? sentenceCase(m.moveType)} &middot; {m.competitorName} &middot; {labelFor(MOVE_STATUS, m.status).label} &middot; first detected {formatDate(m.firstDetectedAt, { tz: 'UTC' })}
-                  </li>
-                ))}
-              </ul>
+              <TableFrame>
+                <Table aria-label="Moves">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Move</TableHead>
+                      <TableHead scope="col">Competitor</TableHead>
+                      <TableHead scope="col">Status</TableHead>
+                      <TableHead scope="col">First detected</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.moves.map((m, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{MOVE_LABELS[m.moveType] ?? sentenceCase(m.moveType)}</TableCell>
+                        <TableCell>{m.competitorName}</TableCell>
+                        <TableCell>{labelFor(MOVE_STATUS, m.status).label}</TableCell>
+                        <TableCell>{formatDate(m.firstDetectedAt, { tz: 'UTC' })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableFrame>
             )}
           </div>
 

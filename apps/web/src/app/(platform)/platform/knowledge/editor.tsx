@@ -26,7 +26,7 @@ export interface EditorArticle {
 }
 export interface EditorActions { save: Action; remove: Action; autoSync: Action }
 
-const inputClass = `${nativeInputClass} w-full`;
+const inputClass = `${nativeInputClass} w-full font-normal`;
 
 function Notice({ result }: { result: FormResult }) {
   if (!result.ok) return <ErrorNote focusKey={result}>{result.error}</ErrorNote>;

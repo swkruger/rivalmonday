@@ -1,5 +1,5 @@
 'use client';
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Input, Label } from '@cs/ui';
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, Input, Label, textareaClass } from '@cs/ui';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { ActionDialog, ResultLine } from './action-dialog';
@@ -13,7 +13,6 @@ export type PlanMove = { row: PlanAgencyRow; currentVersion: number };
 
 const REASON_MIN = 3;
 const REASON_MAX = 500;
-const textareaCls = 'w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /**
  * Spec §4.5 / mockup pages 2, 5, 6, 8: the header's Manage menu (platform staff and owners; the page renders none for
@@ -84,7 +83,7 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
       >
         <div className="grid gap-1.5">
           <Label htmlFor="hold-reason">Reason (staff only)</Label>
-          <textarea id="hold-reason" name="reason" rows={3} required minLength={REASON_MIN} maxLength={REASON_MAX} aria-describedby="hold-reason-hint" value={reason} onChange={(e) => setReason(e.target.value)} className={textareaCls} />
+          <textarea id="hold-reason" name="reason" rows={3} required minLength={REASON_MIN} maxLength={REASON_MAX} aria-describedby="hold-reason-hint" value={reason} onChange={(e) => setReason(e.target.value)} className={textareaClass} />
           <p id="hold-reason-hint" className="text-xs text-muted-ink">Never shown to the agency. 3–500 characters.</p>
         </div>
       </ActionDialog>

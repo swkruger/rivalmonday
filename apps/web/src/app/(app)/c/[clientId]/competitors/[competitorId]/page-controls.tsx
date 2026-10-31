@@ -1,14 +1,11 @@
 'use client';
 import type { TrackedPageView } from '@cs/tools';
-import { Button, Input, Label, Switch } from '@cs/ui';
+import { Button, Input, Label, Switch, nativeSelectClass } from '@cs/ui';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { addPageAction, setPinAction } from '../actions';
 import { ErrorNote } from '@/components/form-error';
-
-const selectClass =
-  'h-9 w-full max-w-sm rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 function Message({ state }: { state: FormResult }) {
   if (!state.ok && state.error) {
@@ -70,7 +67,7 @@ export function AddPageForm({ clientId, competitorId, pageTypes }: { clientId: s
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="page-type">Type</Label>
-          <select id="page-type" name="pageType" className={selectClass} defaultValue={pageTypes[0]?.value}>
+          <select id="page-type" name="pageType" className={`${nativeSelectClass} w-full max-w-sm`} defaultValue={pageTypes[0]?.value}>
             {pageTypes.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}

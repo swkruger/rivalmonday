@@ -65,7 +65,8 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           { label: 'About the status filters', tip: 'platform.agencies.status' },
         ]}
       />
-      <nav aria-label="Agency status" className={`${segmentedTrackClass} self-start`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <nav aria-label="Agency status" className={segmentedTrackClass}>
         {FILTERS.map((f) => {
           const n = f.key === 'on_hold' ? counts?.onHold : f.key === 'archived' ? counts?.archived : undefined;
           const current = f.key === status;
@@ -82,17 +83,16 @@ export default async function PlatformAgenciesPage({ searchParams }: { searchPar
           );
         })}
       </nav>
-      <form role="search" method="get" action="/platform/agencies" className="flex flex-wrap items-end gap-2">
+      <form role="search" method="get" action="/platform/agencies" className="flex flex-wrap items-center gap-2">
         {status !== 'active' && <input type="hidden" name="status" value={status} />}
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="agency-q">Search agencies</Label>
-          <Input id="agency-q" name="q" type="search" defaultValue={q} maxLength={100} className="w-72" />
-        </div>
+        <Label htmlFor="agency-q" className="sr-only">Search agencies</Label>
+        <Input id="agency-q" name="q" type="search" defaultValue={q} maxLength={100} className="w-full sm:w-72" />
         <Button type="submit" variant="outline">Search</Button>
         {q && <Link href={agenciesHref({ status, sort, dir })} className="py-2 text-sm font-medium text-primary-soft-text hover:underline">Clear</Link>}
       </form>
+      </div>
       <AgencyTable rows={rows} sort={sort} dir={dir} now={new Date()} tz={tz} query={q} status={status} canUnarchive={role === 'owner'} />
       <PrevNext
         previous={prevCursor ? agenciesHref({ q, status, sort, dir, cursor: prevCursor }) : null}

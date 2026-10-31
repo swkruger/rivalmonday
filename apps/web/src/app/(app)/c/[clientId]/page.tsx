@@ -229,7 +229,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
             <div className="flex flex-col gap-2">
               {reports.items.length === 0 && <EmptyState {...COPY.empty.noReports} />}
               {reports.items.map((r) => (
-                <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className="rounded-sm px-2 py-1 hover:bg-muted-surface">
+                <Link key={r.id} href={`/c/${clientId}/reports/${r.id}`} className={`${linkCls} rounded-sm px-2 py-1 hover:bg-muted-surface`}>
                   {r.quarter}
                 </Link>
               ))}

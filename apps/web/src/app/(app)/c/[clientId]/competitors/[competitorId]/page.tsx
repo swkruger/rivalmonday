@@ -1,7 +1,7 @@
 import { formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
+import type { AdActivityView, AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
 import { Card, CardContent, CardHeader, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { webEnv } from '@/server/env';
 import { helpGuides } from '@/server/help';
-import { callTool } from '@/server/tools';
+import { callTool, tryCallTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
 import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
 import { sourceStatusLabel } from './source-status';
@@ -72,7 +72,7 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides] = await Promise.all([
+  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides, adActivity, ratingTrend] = await Promise.all([
     loadCompetitor(ctx, clientId, competitorId),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
@@ -85,7 +85,12 @@ export default async function CompetitorProfilePage({
       : Promise.resolve(null),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     helpGuides(ctx, 'client', clientId),
+    // Sparkline traces for two KPIs: a refused read leaves the Kpi plain instead of 404-ing the page.
+    tryCallTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, competitorId, weeks: 12 }),
+    tryCallTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
   ]);
+  const adsTrace = adActivity?.series.find((x) => x.competitorId === competitorId)?.points;
+  const ratingTrace = ratingTrend?.businesses.find((b) => b.competitorId === competitorId)?.monthly.map((m) => m.avgRating);
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
   const tz = client.timezone;
@@ -143,6 +148,8 @@ export default async function CompetitorProfilePage({
               <Kpi
                 label={kpiLabel('Google rating')}
                 value={profile.gbp.rating === null ? '—' : `${profile.gbp.rating} ★`}
+                trace={ratingTrace}
+                traceLabel={ratingTrace ? 'Average stars per month, last 12 months' : undefined}
                 caption={
                   <>
                     {profile.gbp.rating === null && <span className="block">No rating yet</span>}
@@ -157,6 +164,8 @@ export default async function CompetitorProfilePage({
             <Kpi
               label={kpiLabel('Active ads')}
               value={profile.activeAds.google + profile.activeAds.meta}
+              trace={adsTrace}
+              traceLabel={adsTrace ? 'Active ads, last 12 weeks' : undefined}
               caption={`Google ${profile.activeAds.google} · Meta ${profile.activeAds.meta}`}
             />
             <Kpi

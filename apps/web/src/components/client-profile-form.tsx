@@ -7,8 +7,8 @@ import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import type { VerticalOption } from '@/server/verticals';
 
-const selectClass = `${nativeSelectClass} w-full max-w-sm`;
-const areaClass = `${textareaClass} max-w-xl`;
+const selectClass = `${nativeSelectClass} w-full max-w-md`;
+const areaClass = `${textareaClass} max-w-md`;
 
 interface Initial {
   name: string;
@@ -84,7 +84,7 @@ export function ClientProfileForm(props: Props) {
       <Section>
         <fieldset disabled={readOnly} className="contents">
           <Field label="Business name">
-            <Input id="name" name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className="max-w-sm" />
+            <Input id="name" name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className="max-w-md" />
           </Field>
 
           {props.mode === 'create' && (
@@ -116,9 +116,9 @@ export function ClientProfileForm(props: Props) {
 
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-1 text-sm font-semibold">Service area</legend>
-            <div className="flex flex-wrap gap-4">
+            <div className="grid max-w-md gap-4 sm:grid-cols-2">
               <Field label="Map centre (latitude, longitude)" help="In Google Maps, right-click the business location and click the coordinates to copy them.">
-                <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} className="w-64" />
+                <Input id="center" name="center" placeholder="33.95, -84.33" value={center} onChange={(e) => setCenter(e.target.value)} className="w-full" />
               </Field>
               <Field label="Service area radius">
                 <RadiusSelect id="radiusKm" name="radiusKm" storedKm={area?.radiusKm ?? null} value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />

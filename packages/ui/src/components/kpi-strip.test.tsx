@@ -59,8 +59,12 @@ describe('Kpi trace', () => {
     const [low, high] = kpiTraceRuns([1, 9])[0]!;
     expect(high![1]).toBeLessThan(low![1]);
   });
+  it('names what the trace covers only when one is drawn', () => {
+    const { container } = render(<Kpi label="A" value="1" trace={[5]} traceLabel="Last 3 weeks" />);
+    expect(container.querySelector('[data-slot=kpi]')!.getAttribute('title')).toBeNull();
+  });
   it('carries a status tone on the cell', () => {
     const { container } = render(<Kpi label="A" value="1" tone="warn" />);
-    expect(container.querySelector('[data-slot=kpi]')!.getAttribute('data-tone')).toBe('warn');
+    expect(container.querySelector('[data-slot=kpi]')!.getAttribute('data-kpi-tone')).toBe('warn');
   });
 });

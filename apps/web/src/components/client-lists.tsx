@@ -13,9 +13,9 @@ export function BriefLinkList({ clientId, items, empty, agency }: { clientId: st
     <div className="flex flex-col gap-2">
       {items.length === 0 && <p className="text-muted-foreground">{empty}</p>}
       {items.map((b) => (
-        <Link key={b.id} href={`/c/${clientId}/briefs/${b.id}`} className="flex items-center gap-3 rounded-md bg-muted-surface px-3 py-2 hover:bg-muted-surface-2">
+        <Link key={b.id} href={`/c/${clientId}/briefs/${b.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-muted-surface px-3 py-2 hover:bg-muted-surface-2">
           <span className="font-semibold">{b.kind === 'starting_point' ? 'Starting point' : formatWeekOf(b.deliveryDate, { tz: 'UTC' })}</span>
-          <span className="truncate text-muted-foreground">{b.summary}</span>
+          <span className="line-clamp-2 min-w-0 flex-1 basis-40 text-muted-foreground">{b.summary}</span>
           {agency && <BriefStatusChip status={b.status} />}
         </Link>
       ))}
@@ -26,7 +26,7 @@ export function BriefLinkList({ clientId, items, empty, agency }: { clientId: st
 function BriefStatusChip({ status }: { status: string }) {
   const s = labelFor(BRIEF_STATUS, status);
   return (
-    <span className="ml-auto">
+    <span className="basis-full sm:ml-auto sm:basis-auto">
       <StatusChip tone={s.tone}>{s.label}</StatusChip>
     </span>
   );

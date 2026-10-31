@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 export function ReviewItem({ review, timezone }: { review: ReviewView; timezone: string }) {
   const meta = ['Google reviewer', review.self ? 'on your profile' : review.name, ...(review.postedAt ? [formatDate(review.postedAt, { tz: timezone })] : [])].join(' · ');
   return (
-    <article className="flex flex-col gap-1.5 py-3">
+    <article className="flex flex-col gap-1.5 py-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {review.rating !== null && (
           <span aria-label={`${review.rating} of 5 stars`} className="tracking-tight text-accent-text">

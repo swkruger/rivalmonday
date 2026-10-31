@@ -129,11 +129,11 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
         <ul className="divide-y divide-line border-y border-line">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={r.href} className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-muted-surface">
+              <Link href={r.href} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-3 hover:bg-muted-surface">
                 <span className="w-28 shrink-0 font-semibold tabular-nums">{formatDate(r.date, { tz: profile.timezone })}</span>
                 {r.tag && <StatusChip tone="info" className="shrink-0">{r.tag}</StatusChip>}
-                <span className="min-w-0 flex-1 truncate text-muted-ink">{r.summary}</span>
-                {agency && <StatusChip tone={r.status.tone} className="shrink-0">{r.status.label}</StatusChip>}
+                <span className="line-clamp-2 min-w-0 flex-1 basis-40 text-muted-ink">{r.summary}</span>
+                {agency && <span className="basis-full sm:basis-auto"><StatusChip tone={r.status.tone} className="shrink-0">{r.status.label}</StatusChip></span>}
               </Link>
             </li>
           ))}

@@ -17,7 +17,7 @@ export default function BotPage() {
   return (
     <main style={themeVars(RIVAL_MONDAY_TOKENS) as React.CSSProperties} className="min-h-screen bg-surface px-4 py-12 text-ink">
       <div className="mx-auto max-w-[680px] space-y-5 leading-relaxed">
-        <Wordmark />
+        <Wordmark className="block" />
         <h1 className="text-2xl font-semibold">RivalMondayBot</h1>
         <p>
           RivalMondayBot is the web crawler for Rival Monday, a service that helps local businesses keep track of what&apos;s publicly

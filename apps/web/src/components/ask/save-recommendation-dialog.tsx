@@ -1,5 +1,5 @@
 'use client';
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label } from '@cs/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Input, Label, nativeSelectClass, textareaClass } from '@cs/ui';
 import Link from 'next/link';
 import { useId, useRef, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
@@ -18,8 +18,6 @@ export const RATIONALE_MIN = 10;
 export const RATIONALE_MAX = 1000;
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
-const textareaClass = 'min-h-28 w-full rounded-sm border border-input bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
-const selectClass = 'h-9 w-full rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
 
 /** The dialog's prefill from an answer: title = its first sentence, rationale = the whole answer, both without markers. */
 export function savePrefill(content: string): { title: string; rationale: string } {
@@ -33,7 +31,7 @@ export function savePrefill(content: string): { title: string; rationale: string
  * The success line lives outside the dialog so it survives the dialog closing.
  */
 export function SaveRecommendationDialog({
-  clientId, evidenceIds, defaultTitle, defaultRationale, saveAction, triggerLabel = 'Save as recommendation',
+  clientId, evidenceIds, defaultTitle, defaultRationale, saveAction, triggerLabel = 'Save as recommendation', triggerSize = 'sm',
 }: {
   clientId: string;
   evidenceIds: string[];
@@ -41,6 +39,8 @@ export function SaveRecommendationDialog({
   defaultRationale: string;
   saveAction: SaveRecommendationAction;
   triggerLabel?: string;
+  /** The trigger's button size: `sm` inside an answer, `default` beside other page-level controls. */
+  triggerSize?: 'sm' | 'default';
 }) {
   const uid = useId();
   const [open, setOpen] = useState(false);
@@ -82,7 +82,7 @@ export function SaveRecommendationDialog({
     <div className="flex flex-wrap items-center gap-2">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm">
+          <Button type="button" variant="outline" size={triggerSize}>
             {triggerLabel}
           </Button>
         </DialogTrigger>
@@ -108,7 +108,7 @@ export function SaveRecommendationDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor={`${uid}-effort`}>Effort</Label>
-                <select id={`${uid}-effort`} value={effort} onChange={(e) => setEffort(e.target.value as Level)} className={selectClass}>
+                <select id={`${uid}-effort`} value={effort} onChange={(e) => setEffort(e.target.value as Level)} className={`${nativeSelectClass} w-full`}>
                   <option value="L">Low</option>
                   <option value="M">Medium</option>
                   <option value="H">High</option>
@@ -116,7 +116,7 @@ export function SaveRecommendationDialog({
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor={`${uid}-impact`}>Impact</Label>
-                <select id={`${uid}-impact`} value={impact} onChange={(e) => setImpact(e.target.value as Level)} className={selectClass}>
+                <select id={`${uid}-impact`} value={impact} onChange={(e) => setImpact(e.target.value as Level)} className={`${nativeSelectClass} w-full`}>
                   <option value="L">Low</option>
                   <option value="M">Medium</option>
                   <option value="H">High</option>

@@ -7,7 +7,7 @@ import { ErrorNote } from '@/components/form-error';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { OffPageNotice } from '@/components/prev-next';
 
-const selectClass = `${nativeSelectClass} w-full max-w-md`;
+const selectClass = `${nativeSelectClass} w-full`;
 /** A review plus the card header's display text (computed on the server: labels, age in the viewer's zone). */
 export type ReviewCard = DecisionReviewView & { sourceText: string; kindText: string; age: string };
 type Action = (prev: FormResult, fd: FormData) => Promise<FormResult>;
@@ -34,6 +34,7 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
             <div><div className="mb-1 text-13 text-muted-ink">Before</div><Band tone="muted"><pre className="whitespace-pre-wrap text-sm">{item.beforeText ?? '—'}</pre></Band></div>
             <div><div className="mb-1 text-13 text-muted-ink">After</div><Band tone="muted"><pre className="whitespace-pre-wrap text-sm">{item.afterText ?? '—'}</pre></Band></div>
           </div>
+          <div className="grid gap-4 lg:grid-cols-2">
           {item.questions.map((q) => {
             const id = `${item.id}-${q.key}`;
             const said = q.options.find((o) => o.value === q.modelAnswer)?.label ?? q.modelAnswer;
@@ -48,7 +49,10 @@ export function ReviewQueue({ items, total, offPage = false, action }: { items: 
               </div>
             );
           })}
-          <Button type="submit" disabled={pending} className="self-start">Resolve</Button>
+          </div>
+          <div className="flex border-t border-line pt-4">
+            <Button type="submit" disabled={pending}>Resolve</Button>
+          </div>
         </form>
         </Card>
       ))}

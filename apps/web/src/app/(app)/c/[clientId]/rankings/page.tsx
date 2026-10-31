@@ -111,8 +111,10 @@ export default async function RankingsPage({ params, searchParams }: {
           controls ? (
             <div className="flex flex-wrap items-start gap-3">
               <RankSettingsSheet clientId={clientId} settings={controls} />
-              <ScanNowButton clientId={clientId} scan={controls.scan} />
-              <HelpTip tip="client.rankings.scanNow" />
+              <div className="flex items-start gap-1.5">
+                <ScanNowButton clientId={clientId} scan={controls.scan} />
+                {controls.scan.state !== 'not_ready' && <HelpTip tip="client.rankings.scanNow" />}
+              </div>
             </div>
           ) : undefined
         }
@@ -181,7 +183,7 @@ export default async function RankingsPage({ params, searchParams }: {
                   </label>
                 </>
               )}
-              <Button type="submit" variant="outline" size="sm">Show</Button>
+              <Button type="submit" variant="outline">Show</Button>
             </form>
 
             {tab === 'trend' ? (

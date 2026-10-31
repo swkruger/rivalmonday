@@ -34,7 +34,7 @@ function DetailRow({ label, value, tip }: { label: string; value: ReactNode; tip
         {label}
         {tip && <HelpTip tip={tip} />}
       </dt>
-      <dd className="break-all text-sm text-ink">{value}</dd>
+      <dd className="break-words text-sm text-ink">{value}</dd>
     </div>
   );
 }
@@ -106,6 +106,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
               defaultRationale={`Based on ${evidence.channelLabel} evidence for ${evidence.competitorName}, captured ${captured}.`.slice(0, RATIONALE_MAX)}
               saveAction={saveAskRecommendation}
               triggerLabel="Add recommendation"
+              triggerSize="default"
             />
           )}
         </div>

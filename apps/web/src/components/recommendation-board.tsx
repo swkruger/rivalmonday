@@ -35,7 +35,7 @@ function Message({ state }: { state: FormResult }) {
 function QuickActionsForm({ action, clientId, item, targets }: { action: SetStatusAction; clientId: string; item: RecommendationView; targets: Target[] }) {
   const [state, formAction, pending] = useActionState(action, { ok: true } as FormResult);
   return (
-    <form action={formAction} className="mt-3 flex flex-wrap items-center gap-2">
+    <form action={formAction} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="recommendationId" value={item.id} />
       <input type="hidden" name="clientId" value={clientId} />
       {targets.map((t) => (

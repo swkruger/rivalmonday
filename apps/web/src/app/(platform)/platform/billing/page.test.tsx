@@ -19,7 +19,7 @@ const { default: Page } = await import('./page');
 const { billingTab } = await import('./tabs');
 
 const answers: Record<string, unknown> = {
-  get_billing_overview: { mrrCents: 125000, paidSeats: 17, agenciesByState: { pilot: 2, trialing: 1, active: 3, past_due: 0, read_only: 0, suspended: 0, cancelled: 1 } },
+  get_billing_overview: { mrrCents: 125000, paidSeats: 17, agenciesByState: { pilot: 2, trialing: 1, active: 3, past_due: 0, read_only: 0, suspended: 0, cancelled: 1 }, history: [] },
   list_plans: { plans: [] },
   list_plan_agencies: { currentPlanId: 'p2', currentVersion: 2, agencies: [{}, {}] },
   list_discount_codes: { codes: [] },

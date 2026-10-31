@@ -123,7 +123,7 @@ export default async function UsagePage() {
       )}
       </Section>
 
-      <p className="text-13 text-muted-ink">
+      <p className="max-w-3xl text-13 text-muted-ink">
         Shared monitoring of a competitor (Google profile, reviews, ads, job posts) is split equally between the clients that track it. The intelligence engine’s own shared work is not split across clients, so it is not in these figures.
         {agencyLevelCredits !== null && <> Credits not tied to a client: {formatCredits(agencyLevelCredits)}.</>} Total this month: {formatCredits(totalCredits)}.
       </p>

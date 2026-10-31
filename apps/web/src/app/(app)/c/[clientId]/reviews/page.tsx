@@ -149,7 +149,7 @@ export default async function ReviewsPage({ params, searchParams }: {
             <span className={LABEL}>Contains</span>
             <input name="q" defaultValue={text ?? ''} maxLength={100} className={SELECT} />
           </label>
-          <Button type="submit" variant="outline" size="sm">Search</Button>
+          <Button type="submit" variant="outline">Search</Button>
         </form>
         {!reviews ? (
           <p className="rounded-md bg-muted-surface p-3 text-ink">

@@ -109,6 +109,7 @@
 ### KPI strip `.rm-kpis` / `.rm-kpi`
 - Frame with equal cells divided by 1px rules (`.is-bare` for no frame on a band). Cell: label 13px muted (+ ⓘ tooltip for definitions) → value 24/30 600 tabular + optional unit (13px muted) + delta → caption 12px muted (comparison or median). 3–5 cells; 2×2 below 768.
 - **Don't:** a tile per KPI; colour the value; show a delta without its comparison.
+- **Amendment (owner, 2026-10-30, branch ui-visual-review):** every cell carries a faint wash (`.rm-kpi`: 3 % of `--you`; `warn`/`bad` tone only for a figure needing attention), and a figure with real history carries a trace behind it (`trace`, 7 % area + 30 % line, in a band under the text, `aria-hidden`, hover label says what it covers). The value stays ink. Rules: real data only, NULL stays a gap, fewer than 2 known points draws nothing; no history = no trace, never a placeholder shape; the trace has no axis, so it never carries a claim the value and delta don't state. Frozen brief scorecards get no trace.
 
 ### Chart (SVG) · see D-13 and the dataviz skill
 - Sits in a section or hairline grid cell (`.rm-hairgrid`), never in a card. Head: 14px/600 title + 12px muted subtitle; right: segmented toggle or "View table". Footer (optional): "Updated 2 hours ago" + "View more →".

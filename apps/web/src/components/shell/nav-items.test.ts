@@ -262,8 +262,16 @@ describe('activeHref', () => {
 
   it('ignores query strings and does not match on partial segments', () => {
     expect(activeHref(s, `${B}/briefs?tab=alerts`)).toBe(`${B}/briefs`);
-    expect(activeHref(s, `${B}/briefsx`)).toBe(B);
+    expect(activeHref(s, `${B}/briefsx`)).toBeNull();
     expect(activeHref(s, '/inbox')).toBeNull();
+  });
+
+  it('lights Overview only on its own path, not on pages with no menu entry of their own', () => {
+    expect(activeHref(s, B)).toBe(B);
+    expect(activeHref(s, `${B}/evidence/e1`)).toBeNull();
+    expect(activeHref(s, `${B}/help`)).toBeNull();
+    expect(activeHref(navFor('platform', operator, null), '/platform')).toBe('/platform');
+    expect(activeHref(navFor('platform', operator, null), '/platform/health')).toBeNull();
   });
 });
 

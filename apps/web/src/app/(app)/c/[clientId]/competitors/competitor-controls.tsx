@@ -199,7 +199,7 @@ function SuggestionCard({ suggestion: s, selectable, checked, checkDisabled, onT
   );
   return (
     <li>
-    <Card variant={clickable ? 'interactive' : 'default'} selected={checked} className="flex items-start gap-3 p-4">
+    <Card variant={clickable ? 'interactive' : 'default'} selected={checked} className="flex h-full items-start gap-3 p-4">
       {selectable && <input id={checkboxId} type="checkbox" className="mt-1.5 size-4 accent-secondary" aria-label={`Track ${s.name}`} checked={checked} disabled={checkDisabled} onChange={onToggle} />}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {selectable ? (
@@ -349,7 +349,8 @@ export function SuggestionsPanel({
           </section>
         ))}
         {suggestions.length > 0 && !readOnly && (
-          <BulkBar label="Selected suggestions">
+          // In flow at the end of the list, not sticky: a floating bar covered the search button and headings.
+          <BulkBar label="Selected suggestions" className="static mx-0">
             <Button
               type="button"
               onClick={track}
@@ -505,7 +506,7 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                   <HelpTip tip="client.competitors.rated" />
                 </span>
               </TableHead>
-              <TableHead>
+              <TableHead className="min-w-80">
                 <span className="inline-flex items-center gap-1.5">
                   Signals
                   <HelpTip term="signal" />
@@ -523,7 +524,7 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
               return (
               <Fragment key={c.id}>
               <TableRow>
-                <TableCell>
+                <TableCell className="align-top">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Link href={`/c/${clientId}/competitors/${c.id}`} className="font-semibold text-primary-soft-text">
                       {c.name}
@@ -532,12 +533,12 @@ export function TrackedCompetitorsTable({ clientId, items, canRemove: canRemoveP
                   </div>
                   <p className="mt-0.5 text-11 text-muted-ink">{rated ? ratedLabel(rated.computedAt, timezone) : 'Not rated yet'}</p>
                 </TableCell>
-                <TableCell>{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
-                <TableCell>{c.domain ?? '—'}</TableCell>
-                <TableCell numeric>{c.activePages}</TableCell>
-                <TableCell>{formatDate(c.addedAt, { tz: timezone })}</TableCell>
+                <TableCell className="min-w-80 align-top">{rated ? <SignalPills signals={rated.signals} mode="tracked" /> : '—'}</TableCell>
+                <TableCell className="align-top">{c.domain ?? '—'}</TableCell>
+                <TableCell numeric className="align-top">{c.activePages}</TableCell>
+                <TableCell className="align-top">{formatDate(c.addedAt, { tz: timezone })}</TableCell>
                 {canRemove && (
-                  <TableCell>
+                  <TableCell className="align-top">
                     <RemoveCompetitorButton clientId={clientId} competitorId={c.id} name={c.name} action={action} onOpen={() => setResult({ ok: true })} />
                   </TableCell>
                 )}

@@ -1,7 +1,7 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Band, Button, Frame, Input, Label, SaveBar, Section, readableTextOn, themeVars } from '@cs/ui';
+import { Band, Button, Frame, Input, Label, SaveBar, Section, fileInputClass, readableTextOn, themeVars } from '@cs/ui';
 import { useActionState, useId, useRef, useState } from 'react';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -92,8 +92,8 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
         )}
         {state.ok && state.message && <Band tone="muted" className="text-ink">{state.message}</Band>}
         <fieldset disabled={readOnly} className="contents">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
+        <div className="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="displayName">Display name</Label>
             <Input id="displayName" name="displayName" value={draft.displayName ?? ''} onChange={(e) => set('displayName')(e.target.value)} placeholder={agencyName} />
           </div>
@@ -114,14 +114,14 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
                 if (f) void upload(f);
                 e.target.value = '';
               }}
-              className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
+              className={fileInputClass}
             />
             <p className="text-sm text-muted-ink">PNG, JPEG, WebP or SVG, up to 512 KB. It is resized to fit 512 × 512. {uploading ? 'Uploading…' : ''}</p>
             {uploadError && <ErrorNote>{uploadError}</ErrorNote>}
           </div>
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
           <ColorField label="Secondary colour" value={draft.secondary ?? ''} onChange={set('secondary')} />
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="fromName">Email from-name</Label>
             <Input id="fromName" name="fromName" value={draft.fromName ?? ''} onChange={(e) => set('fromName')(e.target.value)} placeholder={agencyName} />
           </div>

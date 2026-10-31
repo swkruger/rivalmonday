@@ -35,7 +35,7 @@ function Table({
     <div
       ref={ref}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring"
+      className="rm-scroll-x relative w-full overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring"
       {...(scrollName !== null
         ? { tabIndex: 0, role: "region", "aria-label": scrollName || undefined }
         : {})}
@@ -145,7 +145,7 @@ function TableFrame({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="table-frame"
       className={cn(
-        "overflow-clip rounded-md border border-line [&_:focus-visible]:-outline-offset-2! [&_thead_tr]:bg-canvas [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4",
+        "min-w-0 max-w-full overflow-clip rounded-md border border-line [&_:focus-visible]:-outline-offset-2! [&_thead_tr]:bg-canvas [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:first-child]:pl-4 [&_td:last-child]:pr-4",
         className
       )}
       {...props}

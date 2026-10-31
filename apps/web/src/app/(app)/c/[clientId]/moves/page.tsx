@@ -15,6 +15,7 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { formatDate } from '@/lib/format';
+import { moveFactLabel } from '@/lib/labels';
 import { changesHref } from '../changes/params';
 import { RoutePill } from '../changes/feed';
 import { MoveCard, movesHref } from './move-card';
@@ -81,7 +82,7 @@ function EvidenceChain({ clientId, move, timezone }: { clientId: string; move: M
               className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 hover:bg-muted-surface"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">
+                <p className="break-words text-sm font-semibold text-ink">
                   {e.typeLabel} · {e.summary}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-ink">{formatDate(e.occurredAt, { tz: timezone })}</p>
@@ -180,7 +181,7 @@ export default async function MovesPage({
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                   {detail.facts.map((f) => (
                     <div key={f.label}>
-                      <dt className="text-xs font-medium text-muted-ink">{f.label}</dt>
+                      <dt className="text-xs font-medium text-muted-ink">{moveFactLabel(f.label)}</dt>
                       <dd>{f.value}</dd>
                     </div>
                   ))}

@@ -262,8 +262,8 @@ function PlayEditor({ item, level, vars, businessAreas, run, onDone }: { item: R
       )}
       {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}
       <div className="flex gap-2">
-        <Button size="sm" disabled={pending} onClick={save}>Save</Button>
-        <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>
+        <Button disabled={pending} onClick={save}>Save</Button>
+        <Button variant="outline" disabled={pending} onClick={onDone}>Cancel</Button>
       </div>
     </div>
   );
@@ -285,7 +285,7 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
   const rule = item.kind === 'self_rule' ? (item.content as { weight?: number }) : null;
   const areaNames = (item.businessAreaIds ?? []).map((id) => businessAreas.find((a) => a.id === id)?.name ?? id);
   return (
-    <Card className="gap-3 p-6" data-item={item.key}>
+    <Card className="h-full gap-3 p-6" data-item={item.key}>
       <div className="flex flex-wrap items-center gap-2">
         {badge && <StatusChip tone={badge.tone}>{badge.label}</StatusChip>}
         {play && <StatusChip tone="neutral">{changeTypeLabel(play.trigger)}</StatusChip>}
@@ -304,7 +304,7 @@ export function ItemCard({ item, level, vars, businessAreas, canEdit, run }: {
               <p className="mt-1 whitespace-pre-wrap text-ink">{renderPreview(play.template)}</p>
             </details>
           )}
-          {canEdit && item.state !== 'new_upstream' && <div><Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button></div>}
+          {canEdit && item.state !== 'new_upstream' && <div className="mt-auto"><Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button></div>}
         </>
       )}
       {play && editing && <PlayEditor item={item} level={level} vars={vars} businessAreas={businessAreas} run={run} onDone={() => setEditing(false)} />}

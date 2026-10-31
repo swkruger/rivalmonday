@@ -6,7 +6,7 @@ vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: 
 vi.mock('@/server/tools', () => {
   const impl = async (_c: unknown, name: string) => {
     if (name === 'get_topic_benchmark') return { topics: [{ id: 'pricing', name: 'Pricing' }] };
-    if (name === 'get_rating_trend') return { months: [], businesses: [{ competitorId: 'self', name: 'Me', self: true, gbpRating: 4.5, reviews90d: 3, perMonth: 1, replyRate: 0.5, mix: [0, 0, 0, 1, 2] }], selfPending: false };
+    if (name === 'get_rating_trend') return { months: [], businesses: [{ competitorId: 'self', name: 'Me', self: true, gbpRating: 4.5, reviews90d: 3, perMonth: 1, replyRate: 0.5, mix: [0, 0, 0, 1, 2], monthly: [] }], selfPending: false };
     if (name === 'search_reviews') return { items: [], hasMore: false };
     return { name: 'Client', timezone: 'UTC' };
   };

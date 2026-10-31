@@ -28,16 +28,18 @@ export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
           → <span>{displayUrl(ad.landingUrl)}</span>
         </p>
       )}
+      <div className="mt-auto flex flex-col gap-2">
       <p className="text-xs text-muted-ink">
         First seen {fmt(ad.firstSeenAt)} · {ad.active ? `last seen ${fmt(ad.lastSeenAt)}` : `ended ${fmt(ad.endedAt ?? ad.lastSeenAt)}`}
       </p>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2 text-xs">
         <span className="text-muted-ink">Targeting not disclosed (US)</span>
         {ad.libraryUrl && (
           <a href={ad.libraryUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
             View in {ad.platform === 'meta' ? 'Meta Ad Library' : 'Google Ads Transparency'}
           </a>
         )}
+      </div>
       </div>
     </article>
   );

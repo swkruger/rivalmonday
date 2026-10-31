@@ -92,7 +92,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
             <Field id="rb-brief" label="Weekly brief from score" value={brief} onChange={setBrief} min={1} max={99} step={1} disabled={!canEdit} />
             <Field id="rb-alert" label="Instant alert from score" value={alert} onChange={setAlert} min={2} max={100} step={1} disabled={!canEdit} />
           </div>
-          {canEdit && <div><Button size="sm" disabled={pending} onClick={saveThresholds}>Save thresholds</Button></div>}
+          {canEdit && <div><Button disabled={pending} onClick={saveThresholds}>Save thresholds</Button></div>}
         </>
       )}
       {name === 'focus_areas' && (
@@ -109,7 +109,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
                 </label>
               ))}
             </div>
-            {canEdit && <div><Button size="sm" disabled={pending} onClick={() => save({ areaIds: areas })}>Save focus services</Button></div>}
+            {canEdit && <div><Button disabled={pending} onClick={() => save({ areaIds: areas })}>Save focus services</Button></div>}
           </>
         )
       )}
@@ -122,7 +122,7 @@ export function KnobCard({ name, item, level, businessAreas, canEdit, run }: {
             <Field id="rb-watch-overlap" label="Worth watching: overlap from" value={t.wo} onChange={(v) => setT({ ...t, wo: v })} min={0} max={1} step={0.05} disabled={!canEdit} />
             <Field id="rb-watch-activity" label="Worth watching: activity from" value={t.wa} onChange={(v) => setT({ ...t, wa: v })} min={0} max={1} step={0.05} disabled={!canEdit} />
           </div>
-          {canEdit && <div><Button size="sm" disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
+          {canEdit && <div><Button disabled={pending} onClick={saveTiers}>Save tier limits</Button></div>}
         </>
       )}
       {error && <ErrorNote compact focusKey={error}>{error}</ErrorNote>}

@@ -152,8 +152,8 @@ function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, ton
       <LinkAs
         href={href}
         data-slot="kpi"
-        data-tone={tone}
-        title={traceLabel}
+        data-kpi-tone={tone}
+        title={traced ? traceLabel : undefined}
         className={cn(
           cell,
           traced && "pb-10",
@@ -165,7 +165,7 @@ function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, ton
     )
   }
   return (
-    <div data-slot="kpi" data-tone={tone} title={traceLabel} className={cn(cell, traced && "pb-10")}>
+    <div data-slot="kpi" data-kpi-tone={tone} title={traced ? traceLabel : undefined} className={cn(cell, traced && "pb-10")}>
       {body}
     </div>
   )

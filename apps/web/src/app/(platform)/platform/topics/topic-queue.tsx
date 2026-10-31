@@ -33,11 +33,11 @@ export function TopicQueue({ pending, decided, action, tz, nowMs }: { pending: T
       {pending.map((p) => (
         <Card key={p.id}>
           <CardHeader>
+            <CardTitle className="text-lg">{p.name} <span className="font-mono text-xs font-normal text-muted-ink">{p.topicId}</span></CardTitle>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-ink">
               <Status status={p.status} />
               <span>{p.verticalName} · {p.otherCount} reviews with no topic · Proposed {formatRelative(p.createdAt, now, { tz })}</span>
             </div>
-            <CardTitle>{p.name} <span className="font-mono text-xs font-normal text-muted-ink">{p.topicId}</span></CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p>{p.description}</p>

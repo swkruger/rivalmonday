@@ -1,6 +1,6 @@
 import type { GeoGridView } from '@cs/tools';
 import { useId } from 'react';
-import { cellPaint, Compass, gridLabelFont, gridLayout, labelHalo, WHITE } from './geo-grid';
+import { cellPaint, Compass, gridLabelFont, gridLayout, gridMaxWidth, labelHalo, WHITE } from './geo-grid';
 import { MapZoom } from './map-zoom';
 
 const INK = 'var(--ink)';
@@ -99,7 +99,7 @@ export function ChangeGrid({ before, after, lats, lngs, map = null, title = 'Cha
   );
   return (
     <figure className="flex flex-col gap-2">
-      <div className="mx-auto w-full max-w-[520px]">{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
+      <div className="mx-auto w-full" style={{ maxWidth: gridMaxWidth(W, onMap) }}>{onMap ? <MapZoom>{chart}</MapZoom> : chart}</div>
       {bg && <figcaption className="text-center text-xs text-muted-foreground">{bg.attribution}</figcaption>}
       <svg data-legend-defs aria-hidden width={0} height={0} style={{ position: 'absolute' }}>
         <defs>

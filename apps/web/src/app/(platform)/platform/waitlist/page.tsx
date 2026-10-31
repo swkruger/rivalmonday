@@ -86,7 +86,8 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
         guide={guides.has(HELP_KEY)}
       />
       <TipRow items={[{ label: 'About the list', tip: 'platform.waitlist.about' }, { label: 'About sample briefs', tip: 'platform.waitlist.sample' }]} />
-      <TabsLinkList aria-label="Waitlist views">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line">
+      <TabsLinkList aria-label="Waitlist views" className="w-auto border-b-0">
         {TABS.map((t) => (
           <TabsLink key={t.key} asChild active={t.key === tab.key}>
             <Link href={hrefOf(t.key)}>
@@ -95,15 +96,14 @@ export default async function PlatformWaitlistPage({ searchParams }: { searchPar
           </TabsLink>
         ))}
       </TabsLinkList>
-      <form role="search" method="get" action="/platform/waitlist" className="flex flex-wrap items-end gap-2">
+      <form role="search" method="get" action="/platform/waitlist" className="flex flex-wrap items-center gap-2 pb-2 sm:pb-0">
         {tab.key !== 'agencies' && <input type="hidden" name="tab" value={tab.key} />}
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="waitlist-q">Search the waitlist</Label>
-          <Input id="waitlist-q" name="q" type="search" defaultValue={q} maxLength={120} className="w-72" />
-        </div>
+        <Label htmlFor="waitlist-q" className="sr-only">Search the waitlist</Label>
+        <Input id="waitlist-q" name="q" type="search" defaultValue={q} maxLength={120} className="w-full sm:w-72" />
         <Button type="submit" variant="outline">Search</Button>
         {q && <Link href={hrefOf(tab.key)} className="py-2 text-sm font-medium text-primary-soft-text hover:underline">Clear</Link>}
       </form>
+      </div>
       <Section title={`${tab.label} (${total})`}>
         {tab.key === 'samples' && (
           <div className="mb-3 flex flex-col gap-1 text-sm text-muted-ink">

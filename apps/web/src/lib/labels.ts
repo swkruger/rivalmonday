@@ -29,6 +29,12 @@ export function labelFor<T extends string>(map: LabelMap<T>, value: T | string |
   return (map as Record<string, LabelEntry>)[value] ?? e(sentenceCase(value));
 }
 
+/** A move's fact label arrives as its camelCase key ("PointsGained"): split into plain sentence case ("Points gained"). */
+export const moveFactLabel = (label: string): string => {
+  const words = label.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim().toLowerCase();
+  return words ? words[0]!.toUpperCase() + words.slice(1) : label;
+};
+
 // BILLING_STATES (packages/db/src/schema/billing.ts)
 export const BILLING_STATE: LabelMap<BillingState> = {
   pilot: e('Pilot', 'info'),

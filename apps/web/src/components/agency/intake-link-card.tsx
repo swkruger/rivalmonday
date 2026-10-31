@@ -2,6 +2,7 @@
 import { Button, nativeInputClass, readableTextOn, Section, Switch } from '@cs/ui';
 import Link from 'next/link';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
+import { StatStrip } from '@/components/stat-strip';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -103,10 +104,13 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
             {saved.ok && saved.message && <p role="status" className="basis-full text-sm text-ink">{saved.message}</p>}
           </form>
         )}
-        <dl className="grid grid-cols-2 gap-3 border-t border-line pt-3 text-sm">
-          <div><dt className="text-muted-ink">New this month</dt><dd className="text-lg font-semibold text-ink">{link.counts.newThisMonth}</dd></div>
-          <div><dt className="text-muted-ink">Accepted</dt><dd className="text-lg font-semibold text-ink">{link.counts.accepted}</dd></div>
-        </dl>
+        <StatStrip
+          headingLevel={3}
+          items={[
+            { title: 'New this month', value: String(link.counts.newThisMonth) },
+            { title: 'Accepted', value: String(link.counts.accepted) },
+          ]}
+        />
       </div>
     </Section>
   );

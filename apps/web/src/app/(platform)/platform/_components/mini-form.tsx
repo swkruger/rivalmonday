@@ -1,5 +1,5 @@
 'use client';
-import { Button } from '@cs/ui';
+import { Button, nativeInputClass } from '@cs/ui';
 import { type ReactNode, useActionState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
@@ -21,7 +21,8 @@ export function MiniForm({ action, submit, variant = 'default', className, child
   );
 }
 
-export const fieldCls = 'h-9 rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+/** Native input/select in a MiniForm: the shared 36 px control recipe. */
+export const fieldCls = nativeInputClass;
 
 /** Label + native control stacked; `children` is the control and must carry the matching `id`. */
 export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {

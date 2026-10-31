@@ -2,12 +2,11 @@
 import { KB_KINDS, KB_LEVELS, type KbKind, type KbLevel } from '@cs/core';
 import { nativeSelectClass } from '@cs/ui';
 import { useState } from 'react';
+import { KIND_OPTION, LEVEL_OPTION } from './options';
 
 export type KbTargets = { agencies: { id: string; name: string; clients: { id: string; name: string }[] }[] };
 
-export const selectClass = `${nativeSelectClass} w-full`;
-export const LEVEL_OPTION: Record<KbLevel, string> = { platform: 'Help (platform)', agency: 'Agency', client: 'Client' };
-export const KIND_OPTION: Record<KbKind, string> = { help: 'Help article', playbook: 'Playbook', qa: 'Q&A', blog: 'Blog post', fact: 'Fact' };
+export const selectClass = `${nativeSelectClass} w-full font-normal`;
 
 /** Level, agency and client pickers plus the kind select; the agency/client pickers appear only when the level needs them. */
 export function ScopeFields({

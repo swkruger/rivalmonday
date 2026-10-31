@@ -159,6 +159,20 @@
   }
   input[type="checkbox"], input[type="radio"] { accent-color: var(--secondary); }
   input[type="checkbox"]:not([class*="size-"]), input[type="radio"]:not([class*="size-"]) { width: 1rem; height: 1rem; }
+  /* A heading focused by script (tabindex="-1") is a focus move for screen readers, not a control: no box. */
+  h1[tabindex="-1"]:focus { outline: none; }
+}
+
+/* Scroll cue for a box that scrolls sideways (tables): a soft edge shadow appears on a side only while more content is
+   hidden there. `local` cover layers (box colour) hide the `scroll` shadow layers at the ends. Box colour: `--rm-scroll-bg`. */
+.rm-scroll-x {
+  --rm-scroll-cover: var(--rm-scroll-bg, var(--surface));
+  --rm-scroll-shade: color-mix(in srgb, var(--ink) 16%, transparent);
+  background:
+    linear-gradient(to right, var(--rm-scroll-cover) 30%, transparent) left center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--rm-scroll-cover) 30%, transparent) right center / 2rem 100% no-repeat local,
+    linear-gradient(to right, var(--rm-scroll-shade), transparent) left center / 0.75rem 100% no-repeat scroll,
+    linear-gradient(to left, var(--rm-scroll-shade), transparent) right center / 0.75rem 100% no-repeat scroll;
 }
 
 /* KPI cell: a faint wash and history trace in the cell's colour (`--kpi`, default the viewer's own colour). Mixed, not fixed,
@@ -169,9 +183,9 @@
   --muted-ink: #4F5F73;
   background: color-mix(in srgb, var(--kpi) 3%, var(--surface));
 }
-.rm-kpi[data-tone="warn"] { --kpi: var(--warning); }
-.rm-kpi[data-tone="bad"] { --kpi: var(--danger); }
-.rm-kpi[data-tone="good"] { --kpi: var(--success); }
+.rm-kpi[data-kpi-tone="warn"] { --kpi: var(--warning); }
+.rm-kpi[data-kpi-tone="bad"] { --kpi: var(--danger); }
+.rm-kpi[data-kpi-tone="good"] { --kpi: var(--success); }
 a.rm-kpi:hover { background: color-mix(in srgb, var(--kpi) 7%, var(--surface)); }
 .rm-kpi-trace-area { fill: color-mix(in srgb, var(--kpi) 7%, transparent); }
 .rm-kpi-trace-line { stroke: color-mix(in srgb, var(--kpi) 30%, transparent); }

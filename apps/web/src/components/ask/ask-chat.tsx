@@ -344,9 +344,9 @@ export function AskChat(props: AskChatProps) {
             }}
             className={cn(textareaClass, 'min-h-11 resize-none rounded-none border-0 bg-transparent p-0 focus-visible:outline-0')}
           />
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Tag className="max-w-40 shrink-0 truncate">{scopeLabel}</Tag>
-            <p className="min-w-0 flex-1 text-xs text-muted-ink">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
+            <p className="order-last w-full min-w-0 text-xs text-muted-ink sm:order-none sm:w-auto sm:flex-1">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
             <Button type="submit" size="icon-sm" aria-label="Ask" disabled={busy || !input.trim()}>
               <ArrowUp aria-hidden />
             </Button>

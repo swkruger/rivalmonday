@@ -274,10 +274,13 @@ Replace the per-KPI card (`rounded-[14px] bg-surface p-6 shadow-card`, value `te
 ```
 Cell `px-5 py-4 [&+&]:border-l border-line`; label `text-[13px] text-muted-ink`; value `mt-1 text-2xl font-semibold tabular-nums tracking-[-0.01em] text-ink` (**ink, not secondary [OD-2]**); delta pill `inline-flex h-5 items-center gap-0.5 rounded-xs px-1.5 text-xs font-semibold tabular-nums` (`good` → success tones, bad → danger tones, flat → neutral) with an arrow icon and an accessible name ("Up 0.1 since last week"). Keep `StatCard`'s `pill.srLabel` semantics. "Good" depends on the metric: a lower map rank is good.
 
+**Amendment 2026-10-30:** KPI wash and history trace, see 06 § KPI strip.
+
 ### 5.4 Charts (`components/charts/*.tsx`)
 
 | File | Change |
 |---|---|
+| `plot.tsx` (2026-10-30) | Line, rank and bar charts draw marks in a stretched 0-100 plot and axis labels as HTML (`ChartPlot`), so text is 12 px at every width. Never put `<text>` in a scaled `viewBox` chart. |
 | `line-chart.tsx` | `SERIES_COLORS` → `['var(--you)', 'var(--chart-rival-1)', 'var(--chart-rival-2)']`; `OTHER_COLOR` → `'var(--chart-context)'`; gridline `#E2E8F0` → `var(--chart-grid)`; axis text `#64748B` → `var(--chart-axis)`, `fontSize={12}`. Cap highlighted series at you + 2 rivals; fold the rest into context grey and keep the legend and table view. |
 | `rank-trend.tsx` | `MUTED` → `var(--chart-axis)`, `GRID` → `var(--chart-grid)`, `MARKER` → `var(--chart-context)` |
 | `change-grid.tsx`, `geo-grid.tsx`, `topic-heatmap.tsx` | **Keep their validated ramps** (diverging/sequential, validated 2026-10-17). Only replace `#64748B` → `var(--chart-axis)` and `#E2E8F0` → `var(--chart-grid)`. Do not touch the ramp hexes without re-running the dataviz validator. |

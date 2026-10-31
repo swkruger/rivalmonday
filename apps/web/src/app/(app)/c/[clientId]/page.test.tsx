@@ -41,6 +41,7 @@ describe('Client Overview (15c-2b-2)', () => {
       get_client_profile: { id: C, name: 'Cool Air' },
       get_workspace_overview: overview,
       get_ad_activity: { weeks: [], series: [] },
+      get_rating_trend: { months: [], businesses: [], selfPending: false },
     });
     callTool.mockImplementation(async (_c: unknown, name: string) => tools[name] ?? { items: [] });
   });

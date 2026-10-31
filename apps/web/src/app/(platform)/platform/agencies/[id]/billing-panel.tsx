@@ -55,7 +55,7 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
         <div><dt className="text-muted-ink">Attached coupon</dt><dd>{b.attachedCouponId ?? '—'}</dd></div>
       </dl>
       {staff && (
-        <div className="flex flex-col gap-3 border-t border-line pt-4">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-line pt-4">
           {b.state === 'pilot' ? (
             <ConfirmForm
               action={endPilotAction}

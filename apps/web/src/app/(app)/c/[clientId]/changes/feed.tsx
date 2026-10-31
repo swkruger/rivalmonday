@@ -24,7 +24,7 @@ export function RoutePill({ route, score }: { route: EventRow['route']; score: n
   );
 }
 
-const SELECT_CLASS = toolbarControlClass;
+const SELECT_CLASS = cn(toolbarControlClass, 'w-40');
 
 function SegmentLink({ clientId, params, route, label }: { clientId: string; params: ChangesParams; route: ChangesParams['route']; label: string }) {
   const active = params.route === route;
@@ -57,7 +57,7 @@ export function FilterBar({
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <form action={`/c/${clientId}/changes`} className="flex flex-1 flex-wrap items-center gap-2">
         <input type="hidden" name="route" value={params.route} />
-        <input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className={cn(toolbarControlClass, 'w-full max-w-[220px]')} />
+        <input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className={cn(toolbarControlClass, 'min-w-48 flex-1 basis-48')} />
         <select name="competitor" defaultValue={params.competitor ?? ''} aria-label="Competitor" className={SELECT_CLASS}>
           <option value="">All competitors</option>
           {competitors.map((c) => (
@@ -89,7 +89,7 @@ export function FilterBar({
             </option>
           ))}
         </select>
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="outline">
           Apply
         </Button>
       </form>
@@ -151,7 +151,7 @@ export function FeedList({
                     }
                   >
                     <div className="min-w-0">
-                      <h4 className={cn('truncate text-ink', selected ? 'font-semibold' : 'font-medium')}>
+                      <h4 className={cn('line-clamp-2 text-ink', selected ? 'font-semibold' : 'font-medium')}>
                         {row.competitorName} · {row.summary}
                       </h4>
                       {/* Selected (lg): ink text — the brand-derived primary-soft tint drops muted/secondary below 4.5:1 for some agency primaries. */}

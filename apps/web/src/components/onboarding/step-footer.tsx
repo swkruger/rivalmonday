@@ -13,15 +13,15 @@ export function StepFooter({ back, skip, primary }: {
   primary: { label: string; pending?: boolean; disabled?: boolean; form?: string };
 }) {
   return (
-    <div className="mt-auto flex max-w-[440px] items-center gap-4 pt-8">
+    <div className="mt-auto flex max-w-[440px] flex-wrap items-center gap-x-4 gap-y-3 pt-8">
       {typeof back === 'string' ? (
         <Button asChild variant="outline" size="lg"><Link href={back}>Back</Link></Button>
       ) : back ? (
         <Button type="button" variant="outline" size="lg" onClick={back}>Back</Button>
       ) : null}
-      <span className="flex-1" />
-      {skip && <button type="button" onClick={skip.onSkip} disabled={skip.disabled} className="text-sm font-medium text-muted-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50">{skip.label}</button>}
-      <Button type="submit" size="lg" form={primary.form} disabled={primary.disabled || primary.pending} aria-busy={primary.pending || undefined}>{primary.label}</Button>
+      <span className="hidden flex-1 sm:block" />
+      {skip && <button type="button" onClick={skip.onSkip} disabled={skip.disabled} className="whitespace-nowrap text-sm font-medium text-muted-ink max-sm:ml-auto hover:text-ink disabled:cursor-not-allowed disabled:opacity-50">{skip.label}</button>}
+      <Button type="submit" size="lg" className="max-sm:order-last max-sm:w-full whitespace-nowrap" form={primary.form} disabled={primary.disabled || primary.pending} aria-busy={primary.pending || undefined}>{primary.label}</Button>
     </div>
   );
 }

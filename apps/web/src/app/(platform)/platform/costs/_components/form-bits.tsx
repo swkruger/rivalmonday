@@ -1,10 +1,10 @@
 'use client';
-import { Band } from '@cs/ui';
+import { Band, nativeSelectClass } from '@cs/ui';
 import { useEffect, useState } from 'react';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
-export const selectClass = 'h-9 w-full rounded-sm border border-input bg-surface px-3 text-sm text-ink placeholder:text-muted-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-danger aria-invalid:ring-1 aria-invalid:ring-inset aria-invalid:ring-danger disabled:border-line-control disabled:bg-canvas disabled:text-muted-ink';
+export const selectClass = `${nativeSelectClass} w-full`;
 
 export function FormMessage({ state }: { state: FormResult }) {
   if (!state.ok) return <ErrorNote focusKey={state}>{state.error}</ErrorNote>;

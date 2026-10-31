@@ -1,5 +1,5 @@
 'use client';
-import { Button, Field, Input } from '@cs/ui';
+import { Button, Field, Input, fileInputClass } from '@cs/ui';
 import { useEffect, useState } from 'react';
 import { INPUT_CLASS } from '@/components/onboarding/input-class';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
@@ -109,7 +109,7 @@ export function DetailsStep({ kind, brand, agencyName, steps, draft, onChange, o
                 id="logoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
                 onFocus={() => setFocus('logo')} onBlur={() => setFocus(null)}
                 onChange={(e) => pickLogo(e.target.files?.[0])}
-                className="text-sm file:mr-3 file:h-9 file:rounded-md file:border file:border-line-strong file:bg-white file:px-3 file:text-sm file:font-medium"
+                className={fileInputClass}
               />
               {draft.logo && <Button type="button" variant="ghost" size="sm" onClick={() => { onChange({ logo: null }); setLogoError(null); }}>Remove</Button>}
             </div>

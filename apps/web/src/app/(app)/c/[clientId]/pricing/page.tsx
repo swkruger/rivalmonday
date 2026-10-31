@@ -87,7 +87,7 @@ export default async function PricingPage({ params, searchParams }: {
               <HelpTip tip="client.pricing.yourService" />
             </span>
           </div>
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid items-start gap-4 xl:grid-cols-2">
             {matrix.rows.map((row) => (
               <PriceCard
                 key={row.competitorId}

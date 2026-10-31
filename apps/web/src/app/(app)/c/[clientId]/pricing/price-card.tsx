@@ -42,7 +42,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                 >
                   <span className="min-w-0 flex-1 font-semibold text-ink">
                     {s?.name ?? cell.serviceId}
-                    {s?.offered && <Tag className="ml-2">Your service</Tag>}
+                    {s?.offered && <Tag className="ml-2 whitespace-nowrap">Your service</Tag>}
                   </span>
                   <span className="font-semibold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
                   {cell.prices.some((p) => p.promo) && <StatusChip tone="warning">Promo</StatusChip>}

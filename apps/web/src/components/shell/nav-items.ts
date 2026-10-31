@@ -26,6 +26,8 @@ export interface NavItem {
   count?: number;
   /** The path this item highlights under, when it differs from `href` (the settings entries link to their first tab). */
   match?: string;
+  /** Highlights only on `href` itself, never on a page beneath it (Overview, whose path is every client page's prefix). */
+  exact?: boolean;
 }
 
 /** A labelled group of the sidebar (or a settings sub-nav). `label: null` = no heading; `foot` is pinned to the bottom. */
@@ -81,7 +83,7 @@ export interface NavRoleFlags {
   backToPlatform?: string;
 }
 
-type Add = (href: string, label: string, icon: IconKey, extra?: { pill?: string; count?: number; match?: string }) => void;
+type Add = (href: string, label: string, icon: IconKey, extra?: { pill?: string; count?: number; match?: string; exact?: boolean }) => void;
 
 /** Builds one section; returns null when every item was gated out, so empty groups never render. */
 function section(id: string, label: string | null, fill: (add: Add) => void, placement?: 'top' | 'foot'): NavSection | null {
@@ -91,6 +93,7 @@ function section(id: string, label: string | null, fill: (add: Add) => void, pla
     if (extra?.pill) item.pill = extra.pill;
     if (extra?.count) item.count = extra.count;
     if (extra?.match && extra.match !== href) item.match = extra.match;
+    if (extra?.exact) item.exact = true;
     items.push(item);
   });
   if (!items.length) return null;
@@ -116,7 +119,7 @@ export function navFor(context: NavContext, flags: NavRoleFlags, clientId: strin
 function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
   // Health stays hidden until Phase 7.
   return compact([
-    section('top', null, (add) => add('/platform', 'Overview', 'platform'), 'top'),
+    section('top', null, (add) => add('/platform', 'Overview', 'platform', { exact: true }), 'top'),
     section('customers', 'Customers', (add) => {
       add('/platform/agencies', 'Agencies', 'agencies');
       add('/platform/leads', 'Lead pool', 'leads');
@@ -162,7 +165,7 @@ function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
   return compact([
     section('top', null, (add) => {
       if (flags.ask) add(`${base}/ask`, `Ask ${name}`, 'ask', { pill: name });
-      add(base, 'Overview', 'overview');
+      add(base, 'Overview', 'overview', { exact: true });
     }, 'top'),
     section('insights', 'Insights', (add) => {
       if (!flags.dashboard) return;
@@ -254,7 +257,7 @@ function isActive(href: string, path: string): boolean {
   return path === href || path.startsWith(`${href}/`);
 }
 
-/** The deepest (longest-href) matching item wins, so `/c/<id>` doesn't also light up `/c/<id>/briefs/<x>`. */
+/** The deepest (longest-href) matching item wins; an `exact` item (Overview) matches only its own path, so `/c/<id>` never lights up on `/c/<id>/evidence/<x>`. */
 export function activeHref(sections: NavSection[], pathname: string): string | null {
   const path = pathname.split(/[?#]/)[0]!;
   let best: string | null = null;
@@ -262,7 +265,7 @@ export function activeHref(sections: NavSection[], pathname: string): string | n
   for (const s of sections) {
     for (const i of s.items) {
       const match = i.match ?? i.href;
-      if (isActive(match, path) && match.length > bestLength) [best, bestLength] = [i.href, match.length];
+      if ((i.exact ? path === match : isActive(match, path)) && match.length > bestLength) [best, bestLength] = [i.href, match.length];
     }
   }
   return best;

@@ -42,8 +42,8 @@ export function OnboardingShell({ brand, step, label, exit, exitSlot, title, sub
   // The platform Wordmark keeps its default 24 px / 800 weight: its amber half is 2:1 on white, which axe only accepts as large bold text (as in the sidebar and AuthCard).
   const showGuide = Boolean(helpKey && guide);
   return (
-    <div className={`grid ${BANNER_FILL} bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
-      <main className={wide ? 'mx-auto flex w-full max-w-[760px] flex-col px-6 pb-12 pt-9' : 'mx-auto flex w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16'}>
+    <div className={`grid grid-cols-1 ${BANNER_FILL} bg-white ${wide ? '' : 'lg:grid-cols-[640px_1fr]'}`} style={brand.kind === 'agency' ? brand.style : undefined}>
+      <main className={wide ? 'mx-auto flex min-w-0 w-full max-w-[760px] flex-col px-6 pb-12 pt-9' : 'mx-auto flex min-w-0 w-full max-w-[560px] flex-col px-6 pb-8 pt-9 lg:mx-0 lg:max-w-none lg:pl-[72px] lg:pr-16'}>
         <div className="flex items-center justify-between gap-4">
           {brand.kind === 'platform' ? (
             <Wordmark />
@@ -52,12 +52,12 @@ export function OnboardingShell({ brand, step, label, exit, exitSlot, title, sub
               // eslint-disable-next-line @next/next/no-img-element
               <img src={brand.logoUrl} alt={brand.name} className="h-8 w-auto" />
             ) : (
-              <Wordmark name={brand.name} className="text-xl font-semibold" />
+              <Wordmark name={brand.name} className="block min-w-0 truncate text-xl font-semibold" />
             )
           ) : <span />}
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-4 whitespace-nowrap">
             {showGuide && <PageGuide helpKey={helpKey!} pageTitle={title} />}
-            {exitSlot ?? (exit && <Link href={exit.href} className="text-13 font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
+            {exitSlot ?? (exit && <Link href={exit.href} className="whitespace-nowrap text-13 font-medium text-muted-ink hover:text-ink">{exit.label}</Link>)}
           </div>
         </div>
         {step ? <div className="mt-14"><StepProgress {...step} /></div> : label && <p className="mt-14 text-13 font-medium text-muted-ink">{label}</p>}

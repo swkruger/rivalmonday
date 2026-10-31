@@ -12,11 +12,10 @@ describe('native control classes', () => {
     expect(cls).toContain('aria-invalid:border-danger');
   });
 
-  it('toolbarControlClass matches Button size="sm" height at 13 px text, with no competing size', () => {
+  it('toolbarControlClass is the one 36 px control at form text size, with no competing size', () => {
     const tokens = toolbarControlClass.split(/\s+/);
-    expect(tokens).toContain('h-7');
-    expect(tokens).toContain('text-13');
-    expect(tokens).not.toContain('h-9');
-    expect(tokens).not.toContain('text-sm');
+    expect(tokens).toContain('h-9');
+    expect(tokens).toContain('text-sm');
+    expect(tokens).not.toContain('text-13');
   });
 });

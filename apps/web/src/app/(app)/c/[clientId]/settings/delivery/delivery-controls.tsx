@@ -141,8 +141,8 @@ export function AddRecipientForm({ clientId }: { clientId: string }) {
         <Field label="Name" className="w-48">
           <Input id="recipient-name" name="name" />
         </Field>
-        <Field label="Role">
-          <select id="recipient-role" name="role" className={`${nativeSelectClass} w-full max-w-sm`} defaultValue="client_viewer">
+        <Field label="Role" className="w-48">
+          <select id="recipient-role" name="role" className={`${nativeSelectClass} w-full`} defaultValue="client_viewer">
             <option value="client_owner">{labelFor(MEMBERSHIP_ROLE, 'client_owner').label}</option>
             <option value="client_viewer">{labelFor(MEMBERSHIP_ROLE, 'client_viewer').label}</option>
           </select>

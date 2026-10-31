@@ -1,5 +1,5 @@
 'use client';
-import { Field, Input, SaveBar, Section } from '@cs/ui';
+import { Field, Input, SaveBar, Section, fileInputClass } from '@cs/ui';
 import { useActionState, useRef, useState } from 'react';
 import { FormError } from '@/components/form-error';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
@@ -47,7 +47,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
   };
   const text = (k: keyof typeof v, label: string, o: { type?: string; className?: string; inputMode?: 'numeric' } = {}) => (
     <Field label={label}>
-      <Input id={`details-${k}`} name={k} value={v[k]} onChange={set(k)} type={o.type} inputMode={o.inputMode} maxLength={200} className={o.className ?? 'max-w-sm'} />
+      <Input id={`details-${k}`} name={k} value={v[k]} onChange={set(k)} type={o.type} inputMode={o.inputMode} maxLength={200} className={o.className ?? 'max-w-md'} />
     </Field>
   );
 
@@ -59,15 +59,15 @@ export function ClientDetailsForm({ clientId, initial, action }: {
           {text('phone', 'Phone', { type: 'tel' })}
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-1 text-sm font-semibold">Address <span className="font-normal text-muted-ink">(optional)</span></legend>
-            {text('line1', 'Street address', { className: 'max-w-md' })}
-            {text('line2', 'Suite or unit (optional)', { className: 'max-w-md' })}
-            <div className="flex flex-wrap gap-3">
-              {text('city', 'City', { className: 'w-48' })}
-              {text('region', 'State', { className: 'w-24' })}
-              {text('postalCode', 'ZIP code', { className: 'w-28', inputMode: 'numeric' })}
+            {text('line1', 'Street address')}
+            {text('line2', 'Suite or unit (optional)')}
+            <div className="grid max-w-md grid-cols-6 gap-3">
+              <div className="col-span-3">{text('city', 'City', { className: 'w-full' })}</div>
+              <div className="col-span-1">{text('region', 'State', { className: 'w-full' })}</div>
+              <div className="col-span-2">{text('postalCode', 'ZIP code', { className: 'w-full', inputMode: 'numeric' })}</div>
             </div>
           </fieldset>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col gap-3">
             {text('contactName', 'Owner name')}
             {text('contactEmail', 'Owner email', { type: 'email' })}
           </div>
@@ -79,7 +79,7 @@ export function ClientDetailsForm({ clientId, initial, action }: {
             <Field label="Logo (optional)" help="PNG, JPG or SVG, square, up to 512 KB. Leave empty to keep the current logo.">
               <input
                 id="details-logo" ref={logoRef} name="logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={() => setDirty(true)}
-                className="text-sm file:mr-3 file:h-9 file:rounded-sm file:border file:border-input file:bg-surface file:px-3 file:text-sm file:font-medium"
+                className={fileInputClass}
               />
             </Field>
           </div>

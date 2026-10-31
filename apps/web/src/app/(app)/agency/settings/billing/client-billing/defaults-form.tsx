@@ -18,7 +18,7 @@ export function DefaultsForm({ priceCents, setupFeeCents, autoPauseAfterDays }: 
   if (useReadOnly()) return null;
   return (
     <form ref={formRef} action={formAction} onChange={() => setDirty(true)} className="flex flex-col gap-3">
-      <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
+      <div className="grid max-w-3xl items-start gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="cb-price">Monthly price ($)</Label>
           <Input id="cb-price" name="price" required aria-required="true" aria-describedby="cb-price-help" inputMode="decimal" defaultValue={centsToField(priceCents)} />

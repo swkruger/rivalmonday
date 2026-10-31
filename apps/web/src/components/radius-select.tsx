@@ -2,7 +2,7 @@ import { nativeSelectClass } from '@cs/ui';
 import type { SelectHTMLAttributes } from 'react';
 import { radiusKmFromMiles, radiusOptions } from '@/lib/format';
 
-const selectClass = `${nativeSelectClass} w-32`;
+const selectClass = `${nativeSelectClass} w-full`;
 
 /** The radius a new service area starts with: 10 mi, as stored km. */
 export const DEFAULT_RADIUS_KM = String(radiusKmFromMiles(10));

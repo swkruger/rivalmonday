@@ -70,7 +70,7 @@ export function InviteStep({ frame, clientName, agencyName, contact, invite, riv
           {!other && contact ? (
             <>
               <p className="text-sm font-medium">Send {first} an invite</p>
-              <div className="flex items-center gap-3 rounded-md border border-line px-3.5 py-3">
+              <div className="flex min-w-0 items-center gap-3 rounded-md border border-line px-3.5 py-3">
                 <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{initialsOf(contact.name ?? '')}</span>
                 <span className="min-w-0 text-sm"><b className="font-semibold">{contact.name}</b><span className="block truncate text-13 text-muted-ink">{contact.email} · from client details</span></span>
               </div>
