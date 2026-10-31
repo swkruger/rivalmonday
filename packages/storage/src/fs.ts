@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assertValidKey } from './keys';
@@ -39,6 +39,9 @@ export function createFsStore(rootDir: string): ObjectStore {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return false;
         throw err;
       }
+    },
+    async delete(key) {
+      await rm(pathFor(key), { force: true });
     },
     async signedUrl(key) {
       return pathToFileURL(pathFor(key)).href;

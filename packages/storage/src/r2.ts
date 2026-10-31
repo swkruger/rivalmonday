@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { assertValidKey } from './keys';
 import { ObjectExistsError, type ObjectStore } from './store';
@@ -62,6 +62,11 @@ export function createR2Store(cfg: R2Config, client?: S3Client): ObjectStore {
         if (isNotFound(err)) return false;
         throw err;
       }
+    },
+    async delete(key) {
+      assertValidKey(key);
+      // S3/R2 DeleteObject succeeds for a missing key.
+      await s3.send(new DeleteObjectCommand({ Bucket: cfg.bucket, Key: key }));
     },
     async signedUrl(key, expiresInSeconds) {
       assertValidKey(key);

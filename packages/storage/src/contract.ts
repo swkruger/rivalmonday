@@ -41,9 +41,24 @@ export function runStoreContract(name: string, make: () => Promise<ObjectStore> 
       expect(new TextDecoder().decode((await store.get(key)) ?? new Uint8Array())).toBe('two');
     });
 
+    it('delete removes an object', async () => {
+      const store = await make();
+      const key = `contract/${crypto.randomUUID()}/e.txt`;
+      await store.put(key, new Uint8Array([1]), 'application/octet-stream');
+      await store.delete(key);
+      expect(await store.exists(key)).toBe(false);
+      expect(await store.get(key)).toBeNull();
+    });
+
+    it('delete of a missing key resolves', async () => {
+      const store = await make();
+      await expect(store.delete(`contract/${crypto.randomUUID()}/missing.txt`)).resolves.toBeUndefined();
+    });
+
     it('rejects invalid keys', async () => {
       const store = await make();
       await expect(store.put('../escape.txt', new Uint8Array(), 'text/plain')).rejects.toThrow(/invalid object key/i);
+      await expect(store.delete('../escape.txt')).rejects.toThrow(/invalid object key/i);
     });
   });
 }

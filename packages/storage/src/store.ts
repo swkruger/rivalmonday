@@ -13,6 +13,8 @@ export interface ObjectStore {
   put(key: string, body: Uint8Array, contentType: string, opts?: { overwrite?: boolean }): Promise<void>;
   get(key: string): Promise<Uint8Array | null>;
   exists(key: string): Promise<boolean>;
+  /** Only avatars use this; evidence is never deleted. A missing key resolves quietly. */
+  delete(key: string): Promise<void>;
   /** Time-limited URL for reading the object (R2 presigned URL; file:// or memory:// in dev/test). */
   signedUrl(key: string, expiresInSeconds: number): Promise<string>;
 }

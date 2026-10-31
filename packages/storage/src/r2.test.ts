@@ -32,3 +32,17 @@ describe('r2 put (HEAD-then-put)', () => {
     expect(sent).toEqual(['PutObjectCommand']);
   });
 });
+
+describe('r2 delete', () => {
+  it('sends a DeleteObjectCommand for the key', async () => {
+    const calls: { name: string; input: unknown }[] = [];
+    const client = {
+      send: async (cmd: { constructor: { name: string }; input: unknown }) => {
+        calls.push({ name: cmd.constructor.name, input: cmd.input });
+        return {};
+      },
+    };
+    await createR2Store(cfg, client as never).delete('avatars/u1.png');
+    expect(calls).toEqual([{ name: 'DeleteObjectCommand', input: { Bucket: 'b', Key: 'avatars/u1.png' } }]);
+  });
+});

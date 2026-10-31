@@ -19,6 +19,10 @@ export function createMemoryStore(): ObjectStore {
       assertValidKey(key);
       return objects.has(key);
     },
+    async delete(key) {
+      assertValidKey(key);
+      objects.delete(key);
+    },
     async signedUrl(key, expiresInSeconds) {
       assertValidKey(key);
       return `memory://${key}?expires=${expiresInSeconds}`;
