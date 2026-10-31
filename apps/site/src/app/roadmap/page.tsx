@@ -30,12 +30,6 @@ export default function RoadmapPage() {
           ))}
         </dl>
       </section>
-      <section className="site-container border-t border-line py-16" aria-labelledby="google-heading">
-        <div className="max-w-[720px]">
-          <h2 id="google-heading" className="text-2xl font-semibold tracking-tight text-ink">{ROADMAP.google.heading}</h2>
-          <p className="mt-3 text-base leading-relaxed text-ink-secondary">{ROADMAP.google.body}</p>
-        </div>
-      </section>
       <CtaBand />
     </main>
   );

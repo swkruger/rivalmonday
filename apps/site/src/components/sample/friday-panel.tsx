@@ -1,6 +1,6 @@
 'use client';
 
-import { FridayBadge, useMediaQuery } from '@cs/ui';
+import { FridayAvatar, FridayBadge, useMediaQuery } from '@cs/ui';
 import { useEffect, useState } from 'react';
 import type { CannedAnswer } from '../../../content/sample-friday';
 import type { SampleBriefData } from '../../sample/schema';
@@ -41,6 +41,7 @@ export function FridayPanel({ answers, data, onOpen, initialId, label = 'Canned 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
+        <FridayAvatar />
         <FridayBadge />
         <span className="text-sm text-ink-secondary">{label}</span>
       </div>
@@ -61,7 +62,7 @@ export function FridayPanel({ answers, data, onOpen, initialId, label = 'Canned 
       <p data-testid="friday-live" aria-live="polite" className="sr-only">
         {answer ? answer.answer.map((p) => p.text).join('') : ''}
       </p>
-      <div data-testid="friday-answer" className="min-h-12 text-sm leading-relaxed text-ink">
+      <div data-testid="friday-answer" className={answer ? 'min-h-12 text-sm leading-relaxed text-ink' : 'text-sm leading-relaxed text-ink'}>
         {answer && (
           <p>
             {answer.answer.map((part, i) => {

@@ -1,3 +1,4 @@
+import { ANY_INDUSTRY, INDUSTRIES } from '../../../content/industries';
 import { NAV_EXTRA, PAGES } from '../../../content/pages';
 
 /**
@@ -8,11 +9,15 @@ import { NAV_EXTRA, PAGES } from '../../../content/pages';
 export interface NavLink {
   label: string;
   href: string;
+  /** Footer only: set apart at the end of a two-column list. */
+  highlight?: boolean;
 }
 
 export interface FooterColumn {
   heading: string;
   links: NavLink[];
+  /** A long list: the footer lays its links out in two columns. */
+  twoColumn?: boolean;
 }
 
 /** Registered pages with a `nav` entry plus the extra anchors, by order. */
@@ -35,11 +40,8 @@ const COLUMNS: FooterColumn[] = [
   },
   {
     heading: 'Industries',
-    links: [
-      { label: 'HVAC', href: '/for/hvac' },
-      { label: 'Plumbing', href: '/for/plumbing' },
-      { label: 'Dental', href: '/for/dental' },
-    ],
+    twoColumn: true,
+    links: [...INDUSTRIES.map((i) => ({ label: i.name, href: `/for/${i.slug}` })), { label: ANY_INDUSTRY.heading, href: '/for', highlight: true }],
   },
   {
     heading: 'Guides',

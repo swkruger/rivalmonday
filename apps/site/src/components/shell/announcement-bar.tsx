@@ -38,6 +38,8 @@ export function AnnouncementBar() {
   return (
     <div
       data-slot="announcement-bar"
+      role="region"
+      aria-label="Announcement"
       className="border-b border-line bg-muted-surface text-13 text-ink"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

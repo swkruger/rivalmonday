@@ -1,7 +1,6 @@
 import { SECTIONS } from '../../content/home';
 import { ClientView } from '../components/client-view/client-view';
 import { ChecksHub } from '../components/home/checks-hub';
-import { CtaBand } from '../components/home/cta-band';
 import { FounderNote } from '../components/home/founder-note';
 import { FridayRow } from '../components/home/friday-row';
 import { Hero } from '../components/home/hero';
@@ -16,6 +15,7 @@ import { IntegrationsStrip } from '../components/integrations/integrations-strip
 import { Reveal } from '../components/motion/in-view';
 import { JsonLd } from '../components/seo/json-ld';
 import { SampleBrief } from '../components/sample/sample-brief';
+import { SampleRecommendations } from '../components/sample/sample-recommendations';
 import { softwareApplicationLd } from '../lib/json-ld';
 import { sourceLinks } from '../lib/source-links';
 import { pageMetadata } from '../lib/metadata';
@@ -23,8 +23,8 @@ import { pageMetadata } from '../lib/metadata';
 export const metadata = pageMetadata('/');
 
 /**
- * Order: hero → what your clients see → sample → live → how it works → checks → Friday → integrations → real sample
- * → (quotes, once there are any) → founder → pricing → closing CTA. Phones also get a sticky join bar after the hero.
+ * Order: hero → what your clients see → sample → recommendations → live → how it works → checks → Friday → integrations → real sample
+ * → (quotes, once there are any) → founder → pricing + closing CTA (one band). Phones also get a sticky join bar after the hero.
  */
 export default function HomePage() {
   return (
@@ -41,6 +41,12 @@ export default function HomePage() {
           Open the sample brief on its own page →
         </a>
       </HomeSectionShell>
+      <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+        <SectionHeading section={SECTIONS.recommendations} />
+        <div className="mt-10">
+          <SampleRecommendations />
+        </div>
+      </HomeSectionShell>
       <LiveCounters />
       <Steps />
       <ChecksHub />
@@ -50,7 +56,6 @@ export default function HomePage() {
       <Testimonials />
       <FounderNote />
       <PricingTeaser />
-      <CtaBand id="join" />
       <MobileCta />
     </main>
   );

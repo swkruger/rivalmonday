@@ -1,6 +1,6 @@
 import type { AccessContext } from '@cs/core';
 import { hasChannel } from '@cs/core';
-import { Band, Button, Input } from '@cs/ui';
+import { Band, Button, FridayAvatar, Input } from '@cs/ui';
 import Link from 'next/link';
 import { assistantNameFor } from '@/server/ask';
 import { dbs } from '@/server/db';
@@ -27,7 +27,10 @@ export async function AskCard({ clientId, ctx }: { clientId: string; ctx: Access
     <section aria-label={`Ask ${assistantName}`} className="min-w-0">
       <Band tone="canvas">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-ink">{`Ask ${assistantName}`}</h2>
+          <div className="flex items-center gap-2">
+            <FridayAvatar />
+            <h2 className="text-base font-semibold text-ink">{`Ask ${assistantName}`}</h2>
+          </div>
           <Link href={`/c/${clientId}/ask`} className="font-semibold text-primary-soft-text">
             Open →
           </Link>

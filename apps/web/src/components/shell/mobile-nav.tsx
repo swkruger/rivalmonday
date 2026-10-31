@@ -1,9 +1,10 @@
 'use client';
 
-import { Sheet, SheetContent, SheetTitle, SheetTrigger, Wordmark } from '@cs/ui';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ShellBrand } from './shell-brand';
 import { ContextSwitcher, type SwitcherProps } from './context-switcher';
 import type { NavCounts, NavRoleFlags } from './nav-items';
 import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
@@ -46,14 +47,7 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
       </SheetTrigger>
       <SheetContent side="left" aria-describedby={undefined} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false); }}>
         <SheetTitle className="sr-only">Menu</SheetTitle>
-        <div className="flex h-12 items-center px-2">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={displayName} className="h-8 w-auto" />
-          ) : (
-            <Wordmark name={whiteLabel ? displayName : undefined} />
-          )}
-        </div>
+        <ShellBrand displayName={displayName} logoUrl={logoUrl} whiteLabel={whiteLabel} />
         <div className="pb-4">
           <ContextSwitcher {...switcher} modal />
         </div>

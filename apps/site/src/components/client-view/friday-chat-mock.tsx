@@ -1,4 +1,4 @@
-import { FridayBadge } from '@cs/ui';
+import { FridayAvatar, FridayBadge } from '@cs/ui';
 import { ArrowUp } from 'lucide-react';
 import { CLIENT_VIEW } from '../../../content/client-view';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
@@ -17,7 +17,7 @@ export function FridayChatMock() {
     <div className="flex flex-col gap-5 bg-surface p-4 md:p-6">
       <div className="ml-auto max-w-md rounded-lg rounded-br-xs bg-muted-surface px-4 py-2.5 text-sm text-ink">{ANSWER.question}</div>
       <div className="flex max-w-2xl flex-col gap-3">
-        <span className="flex items-center gap-2"><FridayBadge /> <NoteMark n={1} /></span>
+        <span className="flex items-center gap-2"><FridayAvatar /> <FridayBadge /> <NoteMark n={1} /></span>
         <p className="flex items-start gap-2 text-sm leading-relaxed text-ink">
           <NoteMark n={2} />
           <span>

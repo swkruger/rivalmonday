@@ -37,7 +37,7 @@ export function PageIntro({ path, eyebrow, h1, lead }: PageIntroProps) {
       </nav>
       <JsonLd data={breadcrumbLd(trail)} />
       <p className="mt-6 text-13 font-medium text-secondary">{eyebrow}</p>
-      <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink">{h1}</h1>
+      <h1 className="mt-2 text-section font-semibold text-ink">{h1}</h1>
       {lead ? <p className="mt-4 text-lg leading-relaxed text-ink-secondary">{lead}</p> : null}
     </>
   );

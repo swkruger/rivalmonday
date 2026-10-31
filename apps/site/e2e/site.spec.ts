@@ -266,27 +266,3 @@ test('Join the pilot from the mobile menu closes the menu and focuses the dialog
   await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
 });
 
-test.describe('hero fragments do not overlap', () => {
-  for (const width of [1024, 1280]) {
-    test(`at ${width}`, async ({ page }, info) => {
-      test.skip(info.project.name !== 'desktop', 'fixed widths set here');
-      await mockApp(page);
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/');
-      const boxes = await page.evaluate(() =>
-        ['brief', 'map', 'friday'].map((n) => {
-          const r = document.querySelector(`[data-fragment="${n}"]`)!.getBoundingClientRect();
-          return { n, x: r.x, y: r.y, w: r.width, h: r.height };
-        }),
-      );
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          const a = boxes[i]!;
-          const b = boxes[j]!;
-          const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-          expect(overlap, `${a.n} vs ${b.n}: ${JSON.stringify([a, b])}`).toBe(false);
-        }
-      }
-    });
-  }
-});

@@ -19,7 +19,6 @@ const DIGIT_ALLOWLIST = ['Last 7 days'];
 describe('site copy', () => {
   it('hero matches the decided copy', () => {
     expect(home.HERO.headline).toBe("Your clients' rivals, briefed every Monday, under your brand.");
-    expect(home.HERO.headline.endsWith(home.HERO.headlineAccent)).toBe(true);
     expect(home.HERO.sub).toBe(
       'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
     );

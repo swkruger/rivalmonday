@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ siteEnv: { appUrl: 'https://app.test', clientPriceUsd: 99, social: {}, comparePages: [] as string[], turnstileSiteKey: null as string | null } }));
@@ -8,6 +8,7 @@ vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import
 
 import { CTA_BAND, CTA_BAND_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_HEADING_TRIAL, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
 import { PRICING } from '../../../content/pricing';
+import { SOURCES } from '../../../content/sources';
 import HomePage from '../../app/page';
 import { JoinProvider } from '../join/join-provider';
 import { PilotProvider } from '../shell/pilot-context';
@@ -48,8 +49,8 @@ afterEach(() => {
 describe('LiveCounters', () => {
   it('counters hide a null value', async () => {
     await renderApp(<LiveCounters />, { pilotMode: true, counters: { ...ALL, claimsDropped: null } });
-    expect(screen.getByText('rivals watched')).toBeTruthy();
-    expect(screen.queryByText('claims dropped for lack of evidence')).toBeNull();
+    expect(screen.getByText('Rivals watched')).toBeTruthy();
+    expect(screen.queryByText('Claims dropped for lack of evidence')).toBeNull();
     expect(document.querySelectorAll('[data-slot="kpi"]')).toHaveLength(3);
   });
 
@@ -112,9 +113,10 @@ describe('PricingTeaser', () => {
     expect(text).toContain(`${PRICING.agency.seatsIncluded} client seats`);
     expect(text).toContain(`$${PRICING.agency.extraSeatUsd}`);
     expect(container.querySelector('[data-slot="pricing-business"]')!.textContent).toContain(`$${PRICING.business.monthlyUsd}`);
-    // The closing band right after it carries the call to action.
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(container.querySelector('section')!.id).toBe('pricing');
+    // Pricing and the closing call to action are one band: one button, and both anchors live in it.
+    expect(screen.getAllByRole('button', { name: CTA_BAND.button })).toHaveLength(1);
+    expect(container.querySelector('section')!.id).toBe('join');
+    expect(container.querySelector('section #pricing')).toBeTruthy();
   });
 });
 
@@ -130,16 +132,50 @@ describe('RealSample', () => {
 describe('ChecksHub and Steps', () => {
   it('checks hub has an accessible name', async () => {
     const { container } = await renderApp(<ChecksHub />, null);
-    const svg = container.querySelector('svg[role="img"]')!;
+    const svg = container.querySelector('svg[role="group"]')!;
     const name = svg.getAttribute('aria-label')!;
     for (const t of ['Competitor websites', 'Google reviews', 'Google Business Profile', 'Meta Ad Library', 'Google Ads Transparency Center', 'Local map rankings', 'Monday brief', 'No evidence, no claim']) {
       expect(name).toContain(t);
     }
   });
 
+  it('every diagram box opens its explanation, with the source wording from the sources page', async () => {
+    const { container } = await renderApp(<ChecksHub />, null);
+    const svg = container.querySelector('svg[role="group"]')!;
+    const boxes = [...svg.querySelectorAll('g[role="button"]')];
+    expect(boxes.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Competitor websites',
+      'Google reviews',
+      'Google Business Profile',
+      'Meta Ad Library and Google Ads Transparency Center',
+      'Local map rankings',
+      'Monday brief',
+      'No evidence, no claim',
+    ]);
+    fireEvent.click(boxes[1]!);
+    const reviews = SOURCES.find((s) => s.slug === 'google-reviews')!;
+    const dialog = screen.getByRole('dialog', { name: reviews.name });
+    expect(dialog.textContent).toContain(reviews.whatWeCollect[0]);
+    expect(dialog.textContent).toContain(reviews.howOften);
+    expect(within(dialog).getByRole('link').getAttribute('href')).toBe('/sources/google-reviews');
+  });
+
+  it('the boxes work from the keyboard and on the phone list', async () => {
+    const { container } = await renderApp(<ChecksHub />, null);
+    const brief = container.querySelector('svg g[aria-label="Monday brief"]')!;
+    fireEvent.keyDown(brief, { key: 'Enter' });
+    const dialog = screen.getByRole('dialog', { name: 'Monday brief' });
+    expect(dialog.textContent).toContain('A separate verifier compares each claim');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close explanation' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(container.querySelector('ol button')!);
+    expect(screen.getByRole('dialog', { name: 'Competitor websites' })).toBeTruthy();
+  });
+
   it('how it works renders four steps and no empty paragraph', async () => {
     const { container } = await renderApp(<Steps />, null);
     expect(container.querySelectorAll('ol > li')).toHaveLength(4);
+    expect(screen.getByText(SECTIONS['how-it-works'].body)).toBeTruthy();
     expect([...container.querySelectorAll('p')].filter((p) => !p.textContent)).toHaveLength(0);
   });
 });
@@ -165,11 +201,11 @@ describe('pilot-aware copy', () => {
     const { container } = await renderApp(<HomePage />, OFF);
     expect(container.textContent).not.toMatch(/pilot/i);
     expect(container.querySelector('#real-sample')).toBeNull();
-    // Hero and closing band both carry the fine print.
-    expect(screen.getAllByText(HERO.finePrintTrial)).toHaveLength(2);
-    expect(screen.getByRole('heading', { name: CTA_BAND_TRIAL.heading })).toBeTruthy();
-    expect(screen.getByText(CTA_BAND_TRIAL.body)).toBeTruthy();
-    expect(screen.getByText(PRICING_HEADING_TRIAL)).toBeTruthy();
+    // The closing band's plans already say it, so only the hero carries the fine print.
+    expect(screen.getAllByText(HERO.finePrintTrial)).toHaveLength(1);
+    // One closing ask, not two: the pricing heading stands alone.
+    expect(screen.queryByRole('heading', { name: CTA_BAND_TRIAL.heading })).toBeNull();
+    expect(screen.getByRole('heading', { name: PRICING_HEADING_TRIAL })).toBeTruthy();
     expect(container.querySelector('[data-slot="pricing-agency"]')!.textContent).toBe(PRICING_LINES_TRIAL.agency);
     for (const t of [HERO.finePrintTrial, CTA_BAND_TRIAL.body, PRICING_LINES_TRIAL.agency]) {
       expect(t).toContain(`$${PRICING.agency.monthlyUsd}`);
@@ -180,8 +216,7 @@ describe('pilot-aware copy', () => {
   it('pilot on: the pilot copy and the real-sample section show', async () => {
     const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
     expect(screen.getAllByText(HERO.finePrint)).toHaveLength(2);
-    expect(screen.getByText(CTA_BAND.body)).toBeTruthy();
-    expect(screen.getByText(SECTIONS.pricing.heading)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: SECTIONS.pricing.heading })).toBeTruthy();
     expect(container.querySelector('#real-sample')).toBeTruthy();
   });
 });

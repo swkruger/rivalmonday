@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { GUIDES } from '../../../../content/guides';
-import { INDUSTRIES, watchList } from '../../../../content/industries';
+import { ANY_INDUSTRY, INDUSTRIES, watchList } from '../../../../content/industries';
 import { SOURCES } from '../../../../content/sources';
 import { CtaBand } from '../../../components/home/cta-band';
 import { FaqBlock } from '../../../components/seo/faq-block';
@@ -25,9 +25,6 @@ export default async function IndustryPage({ params }: { params: Promise<{ indus
   if (!ind) notFound();
   const guides = GUIDES.filter((g) => ind.guides.includes(g.slug));
   const others = INDUSTRIES.filter((i) => i.slug !== ind.slug);
-  const rivals = ind.slug === 'dental' ? 'nearby practices' : `${ind.name} rivals`;
-  // "HVAC" stays an acronym; other trade names read in lower case mid-sentence.
-  const trade = ind.slug === 'hvac' ? ind.name : ind.name.toLowerCase();
   return (
     <main>
       <section className="site-container py-16 lg:py-20">
@@ -35,7 +32,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ indus
           <PageIntro path={`/for/${ind.slug}`} eyebrow="Industries" h1={ind.h1} lead={ind.lead} />
         </div>
 
-        <h2 className="mt-14 text-2xl font-semibold tracking-tight text-ink">What {rivals} change, and how you would know</h2>
+        <h2 className="mt-14 text-2xl font-semibold tracking-tight text-ink">What {ind.rivals} change, and how you would know</h2>
         <ul className="mt-6 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {ind.rivalMoves.map((m) => {
             const src = sourceOf(m.source);
@@ -66,7 +63,7 @@ export default async function IndustryPage({ params }: { params: Promise<{ indus
             </ul>
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-ink">Map keywords {ind.slug === 'hvac' ? 'an' : 'a'} {trade} client might track</h2>
+            <h2 className="text-xl font-semibold text-ink">Map keywords {ind.clientLabel} client might track</h2>
             <p className="mt-2 text-sm text-ink-secondary">Examples. Each client tracks up to five, scanned weekly across the service area.</p>
             <ul className="mt-4 flex flex-wrap gap-2">
               {ind.keywordExamples.map((k) => (
@@ -103,6 +100,9 @@ export default async function IndustryPage({ params }: { params: Promise<{ indus
                 <li key={o.slug}><a href={`/for/${o.slug}`} className="text-link hover:underline">{o.name}</a></li>
               ))}
             </ul>
+            <p className="mt-6 text-sm text-ink-secondary">
+              <b className="font-semibold text-ink">{ANY_INDUSTRY.heading}.</b> {ANY_INDUSTRY.body}
+            </p>
           </div>
         </div>
       </section>

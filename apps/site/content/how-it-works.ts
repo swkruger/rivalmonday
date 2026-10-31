@@ -1,5 +1,7 @@
 export const HOW_IT_WORKS = {
-  title: 'How we check every claim',
+  h1: 'How Rival Monday works',
+  lead: 'From adding a client to the brief that lands every Monday, and how every claim in it gets checked on the way.',
+  title: 'The checks, step by step',
   sections: [
     {
       heading: '1. We capture the evidence',

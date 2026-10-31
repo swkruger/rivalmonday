@@ -37,7 +37,7 @@ export const GUIDES: readonly Guide[] = [
         heading: 'Start with who actually competes',
         paragraphs: [
           'The competitors that matter are rarely the ones the owner names first. Owners remember the business across the street or the one that poached a technician. Customers see whoever shows up when they search.',
-          'So begin with the searches customers make. Pick the three to five services that bring in most of the revenue, search for each one from inside the service area, and note which businesses keep appearing in the map results and the ads. A business that appears for several services in several neighbourhoods is a real rival. One that appears once is background.',
+          'So begin with the searches customers make. Pick the three to five services that bring in most of the revenue, search for each one from inside the service area, and note which businesses keep appearing in the map results and the ads. A business that appears for several services in several neighborhoods is a real rival. One that appears once is background.',
         ],
         list: [
           'Top rivals: show up for most of the client’s main services across most of the area.',
@@ -125,7 +125,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'How to read a grid',
         paragraphs: [
-          'Start at the business’s own location. Most businesses rank best close to their address, so a strong centre is normal. What matters is how far that strength reaches.',
+          'Start at the business’s own location. Most businesses rank best close to their address, so a strong center is normal. What matters is how far that strength reaches.',
           'Then look for shapes. A dark patch that stops at a river or a highway often marks a real boundary in how customers search. A pale gap in the middle of good coverage usually points to a rival based right there.',
         ],
         list: [
@@ -145,7 +145,7 @@ export const GUIDES: readonly Guide[] = [
         heading: 'Patterns worth knowing',
         paragraphs: ['A few shapes come up again and again. Each one points to a different next step.'],
         list: [
-          'Strong centre, pale edges: normal for a business with one location. Growing reach usually comes from profile strength and reviews, not from the address.',
+          'Strong center, pale edges: normal for a business with one location. Growing reach usually comes from profile strength and reviews, not from the address.',
           'A pale hole inside good coverage: often a rival based in that pocket. Check its profile and recent reviews.',
           'Coverage that shrinks from one side: a rival on that side is gaining. Look at what it changed in the same weeks.',
           'Good coverage for one keyword, weak for another: the profile may not cover that service well. Check categories and services.',
@@ -192,7 +192,7 @@ export const GUIDES: readonly Guide[] = [
         list: [
           'Has a rival entered the top three anywhere it was not last week?',
           'Has the client’s top-3 coverage grown or shrunk?',
-          'Is a gap forming in one neighbourhood?',
+          'Is a gap forming in one neighborhood?',
         ],
       },
       {
@@ -258,7 +258,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Separate signal from noise',
         paragraphs: [
-          'Not every change deserves a client’s attention. A rival fixing a typo on its website or gaining one review is noise. A rival launching a financing offer, adding a category that matches your client’s best service, or climbing into the map top three across a neighbourhood is signal.',
+          'Not every change deserves a client’s attention. A rival fixing a typo on its website or gaining one review is noise. A rival launching a financing offer, adding a category that matches your client’s best service, or climbing into the map top three across a neighborhood is signal.',
           'A useful test: would the owner do something differently if they knew? If not, leave it out of the brief and keep it in your notes. Repeated small changes in the same direction, such as a steady run of reviews, can add up to signal over a few weeks.',
         ],
       },

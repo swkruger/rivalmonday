@@ -90,3 +90,9 @@ Shipped as written: listing lookup, rival tiers (packages/core/src/domain.ts), v
 
 ## Research § 2 RM column corrections
 Ads Meta + Google; social no; white-label partial (no own domain, 13a); public API no (MCP only); trial 30 d, 1 active client until a card; website changes gated in prod.
+
+## Industries (`ind-<topic>`)
+
+| id | claim | code path(s) | status | allowed wording |
+|---|---|---|---|---|
+| ind-any | Any local business can be added; collection isn't tied to a trade | packages/tools/src/tools/verticals.ts | shipped; dedicated plays only for trades with a runbook (Phase 14) | "Works well with any industry." "Any local business works the same way: we search its area, suggest the rivals that matter and watch them every week." |

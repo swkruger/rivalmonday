@@ -42,14 +42,14 @@ export const SOURCES: readonly Source[] = [
     oneLine: "Your rivals' new Google reviews, weekly.",
     whatWeCollect: [
       "New public Google reviews on your rivals' listings: the rating, the text and the date.",
-      'Reviewer names are pseudonymised and contact details are removed before a review is stored.',
+      'Reviewer names are pseudonymized and contact details are removed before a review is stored.',
     ],
     howOften: 'Weekly.',
-    whatWeDont: [NO_LOGINS, 'We show reviewer names only in pseudonymised form, and we never keep contact details.'],
+    whatWeDont: [NO_LOGINS, 'We show reviewer names only in pseudonymized form, and we never keep contact details.'],
     inTheBrief: 'A burst of complaints about a rival, or a theme in what its customers praise, with the reviews linked as evidence.',
     seo: {
       title: 'Competitor Google reviews',
-      description: "How Rival Monday collects your rivals' public Google reviews each week, with reviewer names pseudonymised.",
+      description: "How Rival Monday collects your rivals' public Google reviews each week, with reviewer names pseudonymized.",
       crumb: 'Google reviews',
     },
   },
@@ -152,7 +152,7 @@ export const SOURCE_DEPTH: Record<Source['slug'], { whyItMatters: readonly strin
       'Watching rivals’ new reviews each week shows momentum (a rival suddenly collecting reviews) and themes (repeated praise or complaints) that a client can answer in its own marketing.',
     ],
     faq: [
-      { q: 'Are reviewer names shown?', a: 'Only in pseudonymised form. Reviewer names are pseudonymised and contact details are removed before a review is stored.' },
+      { q: 'Are reviewer names shown?', a: 'Only in pseudonymized form. Reviewer names are pseudonymized and contact details are removed before a review is stored.' },
       { q: 'Does it reply to reviews?', a: 'No. It reads public reviews on rivals’ listings. It does not post or reply anywhere.' },
     ],
     guide: 'competitor-monitoring-checklist',

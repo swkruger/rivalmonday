@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { CLIENT_VIEW } from '../../../content/client-view';
+import { CLIENT_VIEW, type DashboardOpen } from '../../../content/client-view';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
 import { ClientView } from './client-view';
@@ -23,6 +23,43 @@ describe('ClientView', () => {
     render(<ClientView />);
     const table = within(panel()).getByRole('table', { name: 'Active competitor ads per week' });
     expect(within(table).getAllByRole('row')).toHaveLength(SAMPLE.rankGrid.weeks.length + 1);
+  });
+
+  it('the menu switches pages, the window title follows, and the notes step aside off the overview', () => {
+    render(<ClientView />);
+    const menu = within(panel()).getByRole('navigation', { name: 'Client menu (sample)' });
+    expect(within(menu).getByRole('button', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    for (const { id, label } of CLIENT_VIEW.nav) {
+      fireEvent.click(within(menu).getByRole('button', { name: label }));
+      expect(within(menu).getByRole('button', { name: label }).getAttribute('aria-current')).toBe('page');
+      expect(screen.getByText(`${label} · ${SAMPLE.business.name}`)).toBeTruthy();
+      if (id === 'overview') expect(screen.getByRole('list', { name: 'What to notice' })).toBeTruthy();
+      else {
+        expect(screen.queryByRole('list', { name: 'What to notice' })).toBeNull();
+        expect(screen.getByText(CLIENT_VIEW.viewNotes[id])).toBeTruthy();
+        expect(within(panel()).getAllByText(label).length).toBeGreaterThan(1);
+      }
+    }
+  });
+
+  it('every number, rival and alert leads to a real page or evidence sheet', () => {
+    const targets: DashboardOpen[] = [...CLIENT_VIEW.kpis, ...CLIENT_VIEW.pressure].map((x) => x.open);
+    for (const t of targets) {
+      if ('evidence' in t) expect(SAMPLE.evidence[t.evidence], t.evidence).toBeDefined();
+      else expect(CLIENT_VIEW.nav.some((n) => n.id === t.view), t.view).toBe(true);
+    }
+    for (const a of CLIENT_VIEW.alerts) expect(SAMPLE.evidence[a.evidence], a.title).toBeDefined();
+
+    render(<ClientView />);
+    fireEvent.click(within(panel()).getByRole('button', { name: /Competitor price moves/ }));
+    expect(screen.getByRole('dialog', { name: /kestrel-mechanical\.example/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+    fireEvent.click(within(panel()).getByRole('button', { name: new RegExp(CLIENT_VIEW.alerts[2].title) }));
+    expect(screen.getByRole('dialog', { name: /^Ad · Meta/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+    fireEvent.click(within(panel()).getByRole('button', { name: /Your rating vs area/ }));
+    expect(screen.getByText(`Reviews · ${SAMPLE.business.name}`)).toBeTruthy();
+    for (const r of CLIENT_VIEW.reviews.reviews) expect(within(panel()).getByText(r.text)).toBeTruthy();
   });
 
   it('the brief tab shows the email sent in the agency name with the first three items', () => {

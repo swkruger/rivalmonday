@@ -26,12 +26,12 @@ export const SAMPLE_MAP_SRC = '/sample/marlowemere-map.webp';
  * The scan points over the sample town's map: `size` × `size` cells, rows north → south, each printing its rank.
  * The centre point is the business itself (ringed). Decorative here: hosts give the text alternative.
  */
-export function RankMap({ ranks, size, compact, eager }: { ranks: (number | null)[]; size: number; compact?: boolean; eager?: boolean }) {
+export function RankMap({ ranks, size, compact }: { ranks: (number | null)[]; size: number; compact?: boolean }) {
   const centre = Math.floor((size * size) / 2);
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-md border border-line bg-canvas">
       {/* Fixed square box: no layout shift while the image loads. */}
-      <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} loading={eager ? 'eager' : 'lazy'} decoding="async" className="absolute inset-0 size-full object-cover" />
+      <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
       <div className={`absolute inset-0 grid ${compact ? 'gap-1 p-2' : 'gap-1.5 p-3 sm:gap-2 sm:p-4'}`} style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
         {ranks.map((rank, i) => (
           <span

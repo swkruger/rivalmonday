@@ -7,7 +7,7 @@ import { usePilot } from '../shell/pilot-context';
 
 /**
  * Phones only: once the hero's own button has scrolled away, a thumb-height bar keeps the one primary action in reach.
- * It steps aside while the closing CTA band (`#join`) is on screen, so the page never shows two at once.
+ * It steps aside while the closing pricing band (`#join`) is on screen, so the page never shows two at once.
  */
 export function MobileCta() {
   const { pilotMode } = usePilot();

@@ -1,7 +1,7 @@
 'use client';
 import type { AskEvent } from '@cs/ask';
 import type { AskActionView, AskMessageView } from '@cs/tools';
-import { Button, cn, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
+import { Button, cn, FridayAvatar, FridayBadge, SourcesList, Tag, textareaClass } from '@cs/ui';
 import { ArrowUp, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -166,7 +166,8 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, re
   const sources = m.status === 'ok' ? answerSources(answerMarkdown(m.content, m.citations).cites, refs, clientId) : [];
   return (
     <article data-slot="ask-answer" className="flex flex-col gap-2.5">
-      <div>
+      <div className="flex items-center gap-2">
+        <FridayAvatar />
         <FridayBadge name={assistantName} size="label" />
       </div>
       <div className={m.status === 'ok' ? 'text-ink' : 'text-muted-ink'}>
@@ -300,9 +301,12 @@ export function AskChat(props: AskChatProps) {
       <div className={cn('flex w-full flex-1 flex-col pb-4', panel ? 'min-h-0 gap-5 overflow-y-auto' : 'mx-auto max-w-[680px] gap-6')}>
         {empty && (
           <div className="flex flex-col gap-3">
-            <p className="text-muted-ink">
-              Ask <FridayBadge name={assistantName} size="label" /> about your competitors and market. Every answer links to its evidence.
-            </p>
+            <div className="flex items-start gap-3">
+              <FridayAvatar size="md" />
+              <p className="text-muted-ink">
+                Hi, I&apos;m <FridayBadge name={assistantName} size="label" />. Ask me about your competitors and market, and I&apos;ll show you the evidence behind every answer.
+              </p>
+            </div>
             <StarterChips questions={starters} onPick={(q) => void send(q)} disabled={busy} />
           </div>
         )}

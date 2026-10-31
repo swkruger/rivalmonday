@@ -3,7 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@cs/ui';
 import { LayoutDashboard, Mail, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
-import { CLIENT_VIEW } from '../../../content/client-view';
+import { CLIENT_VIEW, type DashboardView } from '../../../content/client-view';
 import { SECTIONS } from '../../../content/home';
 import { SAMPLE } from '../../sample/schema';
 import { HomeSectionShell, SectionHeading } from '../home/section-heading';
@@ -13,7 +13,7 @@ import { DashboardMock } from './dashboard-mock';
 import { FridayChatMock } from './friday-chat-mock';
 
 const TABS = [
-  { value: 'dashboard', label: CLIENT_VIEW.tabs.dashboard, Icon: LayoutDashboard, bar: `Overview · ${SAMPLE.business.name}` },
+  { value: 'dashboard', label: CLIENT_VIEW.tabs.dashboard, Icon: LayoutDashboard, bar: SAMPLE.business.name },
   { value: 'brief', label: CLIENT_VIEW.tabs.brief, Icon: Mail, bar: 'Inbox' },
   { value: 'friday', label: CLIENT_VIEW.tabs.friday, Icon: MessageSquare, bar: `Ask Friday · ${SAMPLE.business.name}` },
 ] as const;
@@ -25,9 +25,11 @@ type Tab = (typeof TABS)[number]['value'];
  */
 export function ClientView() {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const bar = TABS.find((t) => t.value === tab)!.bar;
+  const [view, setView] = useState<DashboardView>('overview');
+  const page = CLIENT_VIEW.nav.find((n) => n.id === view)!.label;
+  const bar = tab === 'dashboard' ? `${page} · ${SAMPLE.business.name}` : TABS.find((t) => t.value === tab)!.bar;
   return (
-    <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas py-16 lg:py-24">
+    <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas py-20 lg:py-28">
       <SectionHeading section={SECTIONS['client-view']} />
       <Reveal className="mt-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
@@ -51,7 +53,7 @@ export function ClientView() {
             </div>
             {/* Mounted once each, so a tab keeps its drawn charts when you come back to it. */}
             <TabsContent value="dashboard" forceMount className="data-[state=inactive]:hidden">
-              <DashboardMock />
+              <DashboardMock view={view} onView={setView} onAskFriday={() => setTab('friday')} />
             </TabsContent>
             <TabsContent value="brief" forceMount className="data-[state=inactive]:hidden">
               <BriefEmailMock />
@@ -60,18 +62,22 @@ export function ClientView() {
               <FridayChatMock />
             </TabsContent>
           </div>
-          {/* What to notice on the open tab; numbered so the eye can walk the window. */}
-          <ol key={tab} aria-label="What to notice" className="mt-2 grid gap-4 sm:grid-cols-3 sm:gap-6">
-            {CLIENT_VIEW.notes[tab].map((n, i) => (
-              <li key={n.title} className="reveal-quick flex gap-3" style={{ animationDelay: `${i * 80}ms` }}>
-                <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-surface">{i + 1}</span>
-                <span className="min-w-0 text-sm">
-                  <span className="block font-semibold text-ink">{n.title}</span>
-                  <span className="text-ink-secondary">{n.body}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
+          {tab === 'dashboard' && view !== 'overview' ? (
+            <p key={view} className="reveal-quick mt-2 text-sm text-ink-secondary">{CLIENT_VIEW.viewNotes[view]}</p>
+          ) : (
+            /* What to notice on the open tab; numbered so the eye can walk the window. */
+            <ol key={tab} aria-label="What to notice" className="mt-2 grid gap-4 sm:grid-cols-3 sm:gap-6">
+              {CLIENT_VIEW.notes[tab].map((n, i) => (
+                <li key={n.title} className="reveal-quick flex gap-3" style={{ animationDelay: `${i * 80}ms` }}>
+                  <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-surface">{i + 1}</span>
+                  <span className="min-w-0 text-sm">
+                    <span className="block font-semibold text-ink">{n.title}</span>
+                    <span className="text-ink-secondary">{n.body}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </Tabs>
       </Reveal>
     </HomeSectionShell>

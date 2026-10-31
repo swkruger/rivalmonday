@@ -4,8 +4,6 @@ export const HERO = {
   eyebrowPill: 'Pilot',
   eyebrow: 'White-label competitor intelligence for agencies',
   headline: "Your clients' rivals, briefed every Monday, under your brand.",
-  /** Rendered in the secondary colour. */
-  headlineAccent: 'under your brand.',
   sub: 'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
   primaryCta: 'Join the free pilot',
   secondaryCta: 'See what your clients get',
@@ -19,16 +17,17 @@ export const HERO = {
 export const ANNOUNCEMENT = {
   lead: 'Pilot now open for agencies serving local businesses',
   /** Kinds of business, not claims of customers. Rendered "— like {x}". */
-  examples: ['HVAC', 'plumbing', 'dental', 'roofing', 'med spas', 'law firms', 'landscaping', 'auto repair'],
+  examples: ['HVAC', 'plumbing', 'dental', 'roofing', 'electrical', 'med spas', 'law firms', 'landscaping', 'pest control', 'auto repair', 'cleaning', 'veterinary', 'salons'],
   link: 'Join the free pilot →',
 } as const;
 
-/** Final; owned here only. `join` is the CtaBand. */
-export const HOME_ANCHORS = ['client-view', 'sample', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'pricing', 'join'] as const;
+/** Final; owned here only. `join` is the closing pricing band (`PricingTeaser`), which also holds the `pricing` anchor. */
+export const HOME_ANCHORS = ['client-view', 'sample', 'recommendations', 'live', 'how-it-works', 'checks', 'friday', 'integrations', 'real-sample', 'join'] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
+type SectionId = Exclude<HomeAnchor, 'join'> | 'pricing';
 
 export interface HomeSection {
-  id: Exclude<HomeAnchor, 'join'>;
+  id: SectionId;
   eyebrow: string;
   heading: string;
   body: string;
@@ -36,7 +35,7 @@ export interface HomeSection {
 
 const { agency, business } = PRICING;
 
-export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
+export const SECTIONS: Record<SectionId, HomeSection> = {
   'client-view': {
     id: 'client-view',
     eyebrow: 'What your clients see',
@@ -49,6 +48,12 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     heading: 'Click any claim to see the evidence behind it.',
     body: 'This is a full Monday brief for a fictional heating and air business. Every line links to the snapshot, reviews or ads it came from. Press play to watch its map rankings spread out from its own street over twelve weeks, or ask Friday.',
   },
+  recommendations: {
+    id: 'recommendations',
+    eyebrow: 'Recommendations',
+    heading: 'Every move becomes something to do about it.',
+    body: 'Each recommendation comes from the brief, with its evidence attached and who it is for. This is the board your clients get, and it works: start one, finish one or dismiss one.',
+  },
   live: {
     id: 'live',
     eyebrow: 'This week on Rival Monday',
@@ -59,7 +64,7 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     id: 'how-it-works',
     eyebrow: 'How it works',
     heading: 'From client to Monday brief in four steps.',
-    body: '',
+    body: 'You add the client and pick the rivals. We do the watching and the writing, and the client hears it from you.',
   },
   checks: {
     id: 'checks',
@@ -71,7 +76,7 @@ export const SECTIONS: Record<Exclude<HomeAnchor, 'join'>, HomeSection> = {
     id: 'friday',
     eyebrow: "Friday, your clients' assistant",
     heading: 'Ask about any rival. Every answer shows its sources.',
-    body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client. MCP is separate: it lets a client's own AI tools read the evidence, also switched on per client.",
+    body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client.",
   },
   integrations: {
     id: 'integrations',
@@ -101,7 +106,45 @@ export const REAL_SAMPLE_PREVIEW = {
   note: 'Illustration with sample data',
 } as const;
 
+/** Friday's voice: docs/brand/friday.md. "Says so" is the assistant's rule 6 (`packages/ask/src/prompt.ts`). */
+export const FRIDAY_PERSONA = {
+  heading: 'Meet Friday.',
+  body: "Think of a colleague who has done the reading: calm, plain-spoken and always ready with the receipts. If the evidence isn't there, Friday says so instead of guessing.",
+  prompt: "Hi, I'm Friday. Pick a question and I'll bring the receipts.",
+  mcpNote: "Separate from Friday: a client's own AI tools that support MCP can read the same evidence, also switched on per client.",
+} as const;
+
+/**
+ * Hero: screenshots of the "What your clients see" tour, so retake them if that sample changes.
+ * Others: illustrative photos (generated once, no text, people or brands). All served from `public/sample`.
+ */
+export const HOME_IMAGES = {
+  hero: {
+    src: '/sample/hero-overview.webp',
+    alt: 'The client dashboard for a sample heating and air business: changes this week, the latest Monday brief and competitive pressure by rival',
+    caption: 'Sample data from a fictional business.',
+  },
+  heroMap: { src: '/sample/hero-map.webp', alt: 'Map rankings for "ac repair marlowemere": a grid of ranks over the service area, strongest around the business' },
+  heroFriday: { src: '/sample/hero-friday.webp', alt: 'Friday, the assistant, answering who is winning the map, with numbered sources for each figure' },
+  street: { src: '/sample/home-street.webp', alt: 'Local shops on a small-town main street with two plain white service vans parked outside' },
+  counter: { src: '/sample/home-counter.webp', alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window' },
+} as const;
+
 export const CHECKS_LINK = { label: 'Read how we check claims →', href: '/how-it-works' } as const;
+
+/** Labels of the diagram's explanation sheets; the wording inside them comes from `sources.ts` and `how-it-works.ts`. */
+export const CHECKS_DETAIL = {
+  hint: 'Open any box to see how it works.',
+  sourceEyebrow: 'Evidence source',
+  stepEyebrow: 'How we check',
+  collect: 'What we collect',
+  often: 'How often',
+  leaveAlone: 'What we leave alone',
+  example: 'In a brief, for example',
+  sourceLink: 'More about this source →',
+  briefTitle: 'Monday brief',
+  briefLink: { label: 'Open the sample brief →', href: '/sample-brief' },
+} as const;
 
 export const HOW_STEPS = [
   { title: 'Add a client', body: 'Enter the business and its service area. We find its Google listing.' },
@@ -120,15 +163,15 @@ export const HOW_STEPS = [
 ] as const;
 
 export const PRICING_LINES = {
-  agency: `Agencies: then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, with a ${agency.trialDays}-day trial.`,
-  business: `Local businesses: then $${business.monthlyUsd}/mo.`,
+  agency: `Then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, with a ${agency.trialDays}-day trial.`,
+  business: `Then $${business.monthlyUsd}/mo, through your agency, who sets up the rest.`,
 } as const;
 
 /** Pilot off (NEW, owner signs). */
 export const PRICING_HEADING_TRIAL = `Start with a ${agency.trialDays}-day free trial.`;
 export const PRICING_LINES_TRIAL = {
-  agency: `Agencies: $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, after a ${agency.trialDays}-day free trial.`,
-  business: `Local businesses: $${business.monthlyUsd}/mo.`,
+  agency: `$${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, after a ${agency.trialDays}-day free trial.`,
+  business: `$${business.monthlyUsd}/mo, through your agency, who sets up the rest.`,
 } as const;
 
 export const CTA_BAND = {
@@ -144,8 +187,8 @@ export const CTA_BAND_TRIAL = {
 } as const;
 
 export const COUNTER_LABELS = [
-  { key: 'rivalsWatched', label: 'rivals watched', caption: 'Right now' },
-  { key: 'snapshots', label: 'evidence captured', caption: 'Last 7 days' },
-  { key: 'claimsChecked', label: 'claims checked against evidence', caption: 'Last 7 days' },
-  { key: 'claimsDropped', label: 'claims dropped for lack of evidence', caption: 'Last 7 days' },
+  { key: 'rivalsWatched', label: 'Rivals watched', caption: 'Right now' },
+  { key: 'snapshots', label: 'Evidence captured', caption: 'Last 7 days' },
+  { key: 'claimsChecked', label: 'Claims checked against evidence', caption: 'Last 7 days' },
+  { key: 'claimsDropped', label: 'Claims dropped for lack of evidence', caption: 'Last 7 days' },
 ] as const;

@@ -5,7 +5,8 @@ import sitemap from '../src/app/sitemap';
 import { articleLd } from '../src/lib/json-ld';
 import { pageMetadata } from '../src/lib/metadata';
 import { GUIDES } from './guides';
-import { INDUSTRIES, watchList, websitesLine } from './industries';
+import { ANNOUNCEMENT } from './home';
+import { ANY_INDUSTRY, INDUSTRIES, INDUSTRY_EXAMPLE_LINKS, watchList, websitesLine } from './industries';
 import { PAGES } from './pages';
 import { SITE_URL } from './site';
 import { SOURCE_DEPTH, SOURCES } from './sources';
@@ -49,6 +50,22 @@ describe('industry and guide copy', () => {
     for (const i of INDUSTRIES) for (const g of i.guides) expect(registered.has(`/guides/${g}`), g).toBe(true);
   });
 
+  it('every industry is complete and names no product brand', () => {
+    expect(new Set(INDUSTRIES.map((i) => i.slug)).size).toBe(INDUSTRIES.length);
+    for (const i of INDUSTRIES) {
+      expect(i.rivalMoves.length, i.slug).toBe(6);
+      expect(i.keywordExamples.length, i.slug).toBeLessThanOrEqual(5);
+      expect(i.briefExamples.length, i.slug).toBe(3);
+      expect(i.clientLabel, i.slug).toMatch(/^an? /);
+      expect(JSON.stringify(i), i.slug).not.toMatch(/botox|invisalign|coolsculpting/i);
+    }
+  });
+
+  it('the announcement bar links every industry it names, and every industry is named', () => {
+    for (const e of ANNOUNCEMENT.examples) expect(INDUSTRY_EXAMPLE_LINKS[e], e).toMatch(/^\/for\//);
+    expect(new Set(Object.values(INDUSTRY_EXAMPLE_LINKS))).toEqual(new Set(INDUSTRIES.map((i) => `/for/${i.slug}`)));
+  });
+
   it('guides are substantial (at least ~600 words each)', () => {
     for (const g of GUIDES) {
       const words = strings([g.lead, g.sections]).join(' ').split(/\s+/).length;
@@ -71,6 +88,8 @@ describe('discoverability without the top nav', () => {
     const footer = footerColumns().flatMap((c) => c.links.map((l) => l.href));
     for (const i of INDUSTRIES) expect(footer).toContain(`/for/${i.slug}`);
     for (const g of GUIDES) expect(footer).toContain(`/guides/${g.slug}`);
+    expect(footerColumns().flatMap((c) => c.links).find((l) => l.label === ANY_INDUSTRY.heading)).toMatchObject({ href: '/for', highlight: true });
+    expect(footerColumns().find((c) => c.heading === 'Industries')?.twoColumn).toBe(true);
   });
 
   it('integration detail pages are served but noindex and kept out of the sitemap', () => {

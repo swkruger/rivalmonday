@@ -1,6 +1,5 @@
 'use client';
 
-import { Kpi, KpiStrip } from '@cs/ui';
 import { COUNTER_LABELS, SECTIONS } from '../../../content/home';
 import { usePilot } from '../shell/pilot-context';
 import { HomeSectionShell, SectionHeading } from './section-heading';
@@ -25,15 +24,19 @@ export function LiveCounters() {
   });
   if (shown.length === 0) return null;
   return (
-    <HomeSectionShell id="live" labelledBy="live-heading" className="py-12 lg:py-16">
+    <HomeSectionShell id="live" labelledBy="live-heading" className="py-20 lg:py-28">
       <SectionHeading section={SECTIONS.live} body={false} />
-      <KpiStrip aria-label="Live platform numbers" className="mt-8">
+      <div role="group" aria-label="Live platform numbers" className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
         {shown.map((c) => (
           // Figures are rounded down by the API, so "+" says "at least".
-          <Kpi key={c.key} label={c.label} value={`${number.format(c.value)}+`} caption={c.caption} />
+          <div key={c.key} data-slot="kpi" className="min-w-0">
+            <div className="text-numeral font-semibold tabular-nums text-ink">{number.format(c.value)}+</div>
+            <div className="mt-3 text-sm font-medium text-ink">{c.label}</div>
+            <div className="mt-0.5 text-13 text-muted-ink">{c.caption}</div>
+          </div>
         ))}
-      </KpiStrip>
-      <p className="mt-3 text-xs text-muted-ink">{SECTIONS.live.body}</p>
+      </div>
+      <p className="mt-8 text-xs text-muted-ink">{SECTIONS.live.body}</p>
     </HomeSectionShell>
   );
 }

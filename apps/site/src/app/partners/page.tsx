@@ -18,14 +18,16 @@ export default function PartnersPage() {
           </div>
         </div>
       </section>
-      {PARTNER_COPY.sections.map((s) => (
-        <section key={s.id} className="site-container border-t border-line py-12" aria-labelledby={`${s.id}-heading`}>
-          <div className="max-w-[720px]">
-            <h2 id={`${s.id}-heading`} className="text-2xl font-semibold tracking-tight text-ink">{s.heading}</h2>
-            <p className="mt-3 text-base leading-relaxed text-ink-secondary">{s.body}</p>
-          </div>
-        </section>
-      ))}
+      <section className="site-container border-t border-line py-12">
+        <div className="grid gap-8 md:grid-cols-3 md:gap-10">
+          {PARTNER_COPY.sections.map((s) => (
+            <div key={s.id}>
+              <h2 id={`${s.id}-heading`} className="text-xl font-semibold tracking-tight text-ink">{s.heading}</h2>
+              <p className="mt-2 text-base leading-relaxed text-ink-secondary">{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
       <section className="site-container border-t border-line py-12" aria-labelledby="example-heading">
         <h2 id="example-heading" className="text-2xl font-semibold tracking-tight text-ink">{PARTNER_COPY.exampleHeading}</h2>
         <div className="mt-4">

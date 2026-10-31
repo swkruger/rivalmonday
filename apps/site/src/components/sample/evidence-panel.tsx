@@ -205,7 +205,7 @@ export function EvidencePanel({ ev, data, onClose, returnFocus }: {
             </section>
           </div>
           <p className="mt-auto border-t border-line px-5 py-3 text-xs text-muted-ink">
-            Sample data · All businesses, people and places are fictional{ev.kind === 'ad' ? '; ad images are illustrations' : ''}.
+            Sample data · All businesses, people and places are fictional{ev.kind === 'ad' ? '; ad images are illustrations' : ev.kind === 'snapshot' ? '; page images are illustrations' : ''}.
           </p>
         </SheetContent>
       )}

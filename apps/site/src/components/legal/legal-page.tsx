@@ -36,7 +36,7 @@ export function LegalDocument({ title, markdown }: { title: string; markdown: st
   return (
     <main className="site-container py-16 lg:py-20">
       <article className="mx-auto max-w-[720px]">
-        <h1 className="text-4xl font-semibold tracking-tight text-ink">{title}</h1>
+        <h1 className="text-section font-semibold text-ink">{title}</h1>
         {updated && <p className="mt-2 text-sm text-ink-secondary">Last updated {updated}</p>}
         <div className="mt-6 flex flex-col gap-3 leading-relaxed text-ink [overflow-wrap:anywhere] [&_a]:text-link [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
           <Markdown skipHtml components={components}>

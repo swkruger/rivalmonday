@@ -1,7 +1,7 @@
 import type { Branding } from '@cs/email';
-import { Wordmark } from '@cs/ui';
 import { ContextSwitcher, type SwitcherProps } from './context-switcher';
 import type { NavCounts, NavRoleFlags } from './nav-items';
+import { ShellBrand } from './shell-brand';
 import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
 
 /**
@@ -23,14 +23,7 @@ export function Sidebar({ branding, flags, counts, zone, fallback, clients, swit
   const whiteLabel = branding.displayName !== 'Rival Monday';
   return (
     <aside className={`sticky ${offsetTop ? 'top-9 h-[calc(100vh-2.25rem)]' : 'top-0 h-screen'} hidden w-[240px] flex-shrink-0 flex-col gap-1 overflow-y-auto bg-canvas px-3 py-2 lg:flex`}>
-      <div className="flex h-12 items-center px-2">
-        {branding.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={branding.logoUrl} alt={branding.displayName} className="h-8 w-auto" />
-        ) : (
-          <Wordmark name={whiteLabel ? branding.displayName : undefined} />
-        )}
-      </div>
+      <ShellBrand displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={whiteLabel} />
       <div className="pb-4">
         <ContextSwitcher {...switcher} hotkey />
       </div>

@@ -36,7 +36,7 @@ export const INTEGRATIONS: readonly Integration[] = [
       'Every claim a brief makes still links back to its evidence.',
     ],
     vendorUrl: 'https://openrouter.ai',
-    brand: { guidelineUrl: 'https://openrouter.ai/brand', verdict: 'logo-ok', approved: false },
+    brand: { guidelineUrl: 'https://openrouter.ai/brand', verdict: 'logo-ok', approved: true },
     seo: {
       title: 'OpenRouter integration',
       description: 'How Rival Monday uses OpenRouter to route its AI calls, and what that means for your agency.',
@@ -73,7 +73,7 @@ export const INTEGRATIONS: readonly Integration[] = [
     howWeUseIt: ['Holds every agency, client, brief and alert.', 'Row-level security walls off each agency.'],
     forYourAgency: ['Your agency sees only its own clients and data.'],
     vendorUrl: 'https://neon.com',
-    brand: { guidelineUrl: 'https://neon.com/brand', verdict: 'logo-ok', approved: false },
+    brand: { guidelineUrl: 'https://neon.com/brand', verdict: 'logo-ok', approved: true },
     seo: {
       title: 'Neon integration',
       description: 'How Rival Monday uses Neon Postgres, with row-level security separating each agency.',
@@ -196,5 +196,5 @@ export const INTEGRATIONS_PAGE = {
   eyebrow: 'Integrations',
   h1: 'What Rival Monday runs on',
   lead: 'The services Rival Monday runs on, and what each one does for your agency.',
-  disclaimer: "Listing a service doesn't mean it endorses Rival Monday. Names are trademarks of their owners.",
+  disclaimer: "Listing a service doesn't mean it endorses Rival Monday. Names and logos are trademarks of their owners.",
 };

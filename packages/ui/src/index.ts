@@ -14,6 +14,7 @@ export * from './components/dialog';
 export * from './components/dropdown-menu';
 export * from './components/field';
 export * from './components/frame';
+export * from './components/friday-avatar';
 export * from './components/friday-badge';
 export * from './components/input';
 export * from './components/kpi-strip';

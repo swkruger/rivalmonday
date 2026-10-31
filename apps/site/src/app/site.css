@@ -10,10 +10,18 @@
 }
 
 @theme inline {
-  /* Display headings: 36 px on phones → 56 px on wide screens. */
-  --text-display: clamp(2.25rem, 1.5rem + 3.2vw, 3.5rem);
-  --text-display--line-height: 1.08;
-  --text-display--letter-spacing: -0.02em;
+  /* Display headings: 40 px on phones → 76 px on wide screens. */
+  --text-display: clamp(2.5rem, 1.6rem + 3.9vw, 4.75rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.032em;
+  /* Section headings: 30 → 48 px. */
+  --text-section: clamp(1.875rem, 1.45rem + 1.7vw, 3rem);
+  --text-section--line-height: 1.08;
+  --text-section--letter-spacing: -0.026em;
+  /* Large figures and step numbers: 40 → 64 px. */
+  --text-numeral: clamp(2.5rem, 2.1rem + 1.7vw, 4rem);
+  --text-numeral--line-height: 1;
+  --text-numeral--letter-spacing: -0.03em;
   /* Display sub-line: 18 → 20 px. */
   --text-display-sub: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
   --text-display-sub--line-height: 1.5;
@@ -43,24 +51,33 @@
     .site-container { padding-inline: 32px; }
   }
 
-  /* Faint vertical grid lines behind a hero: 1 px, 4 % ink, every 120 px. */
-  .bg-grid-lines {
-    background-image: linear-gradient(to right, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px);
-    background-size: 120px 100%;
+  /* The sample town at night: the signature of the page, used by the hero and the closing band. */
+  .night-map {
+    filter: invert(1) hue-rotate(180deg) saturate(.55) brightness(1.15);
+    opacity: .34;
+    object-fit: cover;
   }
-
-  /* The one soft blue wash per hero. Decorative only. */
-  .hero-wash {
+  /* Keeps text readable over the map: solid ink on the text side, opening up towards the ranking grid. */
+  .night-veil {
     pointer-events: none;
-    background: radial-gradient(60% 60% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0%, color-mix(in srgb, var(--secondary) 6%, transparent) 55%, transparent 100%);
+    background:
+      radial-gradient(52% 70% at 76% 42%, color-mix(in srgb, var(--primary) 26%, transparent) 0%, transparent 100%),
+      linear-gradient(to right, var(--ink) 22%, color-mix(in srgb, var(--ink) 55%, transparent) 58%, color-mix(in srgb, var(--ink) 15%, transparent) 100%),
+      linear-gradient(to top, var(--ink) 0%, transparent 24%);
+  }
+  @media (max-width: 1023px) {
+    .night-veil {
+      background: linear-gradient(to bottom, color-mix(in srgb, var(--ink) 88%, transparent) 0%, color-mix(in srgb, var(--ink) 62%, transparent) 100%);
+    }
+  }
+  .night-veil-even {
+    pointer-events: none;
+    background: radial-gradient(70% 90% at 50% 100%, color-mix(in srgb, var(--primary) 22%, transparent) 0%, transparent 100%);
   }
 
   /* Sample evidence sheet: a short slide in (the reduced-motion rule below removes it). */
   .sheet-in-right { animation: sheet-in-right 180ms ease-out; }
   .sheet-in-bottom { animation: sheet-in-bottom 180ms ease-out; }
-
-  /* Hero fragments float in once (<= 400 ms). The reduced-motion rule below removes it. */
-  .hero-float { animation: hero-float-in 350ms ease-out both; }
 
   .ring-change {
     outline: var(--ring-change);
@@ -86,10 +103,6 @@
 
   /* Map-rank cells change colour smoothly as the week changes. */
   .rank-cell { transition: background-color 450ms ease-out, color 450ms ease-out, opacity 300ms ease-out; }
-  /* Hero map replay: cells stay hidden until the first frame is set, so the end state never flashes first. */
-  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .hero-map:not([data-ready]) [data-rank-cell] { opacity: 0; }
-  }
 
   /* A short fade-up for content that swaps in place (tab notes). */
   .reveal-quick { animation: reveal-quick 300ms ease-out both; }
@@ -101,7 +114,6 @@
 
 @keyframes reveal-quick { from { opacity: 0; transform: translateY(6px); } }
 @keyframes flow-dash { to { stroke-dashoffset: -24; } }
-@keyframes hero-float-in { from { transform: translateY(12px); opacity: 0; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
 
@@ -118,8 +130,8 @@
 /* A page that ends on the ink CTA band runs straight into the footer (no white strip between them). */
 main:has(#join) ~ [data-slot="site-footer"] { margin-top: 0; }
 
-/* Printing never waits for a scroll: everything revealed, the hero map at its final state. */
+/* Printing never waits for a scroll: everything revealed. */
 @media print {
-  .reveal, .hero-map [data-rank-cell] { opacity: 1 !important; transform: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
   [data-slot="mobile-cta"] { display: none; }
 }

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { SAMPLE, type SampleEvidence } from '../../sample/schema';
 import { EvidencePanel } from './evidence-panel';
@@ -18,6 +18,17 @@ describe('EvidencePanel', () => {
     expect(within(dialog).getByText(ad.headline)).toBeTruthy();
     expect(within(dialog).getByRole('img', { name: /air conditioning unit/ }).getAttribute('src')).toBe('/sample/ad-financing.webp');
     expect(dialog.textContent).toContain('ad images are illustrations');
+  });
+
+  it('a website snapshot shows the page with its illustrative image, in both versions', () => {
+    const snap = find((e) => e.kind === 'snapshot' && e.url.includes('kestrel'));
+    if (snap.kind !== 'snapshot') throw new Error('fixture');
+    const dialog = open(snap);
+    const image = () => within(dialog).getByRole('img', { name: /air conditioning unit/ }).getAttribute('src');
+    expect(image()).toBe('/sample/site-ac-diagnostic.webp');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Before' }));
+    expect(image()).toBe('/sample/site-ac-diagnostic.webp');
+    expect(dialog.textContent).toContain('page images are illustrations');
   });
 
   it('a rival rank claim compares the earlier scan with this one', () => {

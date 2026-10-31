@@ -34,8 +34,4 @@ export const ROADMAP = {
       { name: 'Review requests', body: 'A review link, a QR code and message templates that ask every customer, as Google requires.' },
     ],
   },
-  google: {
-    heading: 'Why one-click publishing comes last',
-    body: 'Publishing straight to Google needs Google to approve our access to its Business Profile tools. The rest of version 2.0 does not depend on that: until then, publishing means copying the approved text and opening the right Google page in one step.',
-  },
 } as const;
