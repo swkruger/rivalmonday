@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { createDb, agency, client } from '@cs/db';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
 import { signIn } from './helpers';
 import { CB_CLIENT, CB_USERS } from './seed';
@@ -45,6 +45,16 @@ async function clientId(): Promise<string> {
   }
 }
 
+/** Through the database: a magic-link user starts with the name `''`, which the form rightly refuses to save. */
+async function setAdminName(name: string): Promise<void> {
+  const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
+  try {
+    await db.execute(sql`update auth."user" set name = ${name} where email = 'admin@e2e.test'`);
+  } finally {
+    await close();
+  }
+}
+
 test.describe.serial('profile page', () => {
   test.beforeAll(async ({ browser }, testInfo) => {
     await ensureAdminState(browser, testInfo);
@@ -58,9 +68,9 @@ test.describe.serial('profile page', () => {
     await page.getByRole('menuitem', { name: 'Profile' }).click();
     await expect(page).toHaveURL(/\/settings\/profile$/);
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
-    await expect(page.getByLabel('Email')).toHaveAttribute('readonly', '');
+    await expect(page.getByLabel('Email', { exact: true })).toHaveAttribute('readonly', '');
 
-    // Rename, then restore the seeded name so other specs that read it are unaffected.
+    // Rename, then restore the name so other specs that read it are unaffected.
     const name = page.getByLabel('Name', { exact: true });
     const original = await name.inputValue();
     try {
@@ -70,15 +80,13 @@ test.describe.serial('profile page', () => {
       await page.reload();
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Renamed E2E Admin');
     } finally {
-      await page.getByLabel('Name', { exact: true }).fill(original);
-      await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+      await setAdminName(original);
     }
 
     // Photo: upload, see it in the top bar, remove it again.
     try {
       await page.getByLabel('Photo file').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
-      await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+      await expect(page.getByRole('group', { name: 'Your photo' }).getByRole('status')).toHaveText('Saved.');
       await expect(page.getByRole('button', { name: 'Account menu' }).locator('img')).toHaveAttribute('src', /\/files\/avatar\//, { timeout: 15_000 });
     } finally {
       const remove = page.getByRole('button', { name: 'Remove', exact: true });
