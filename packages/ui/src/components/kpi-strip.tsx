@@ -100,7 +100,7 @@ function KpiTrace({ points }: { points: readonly (number | null)[] }) {
       data-slot="kpi-trace"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
-      className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-3/5 w-full"
+      className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-11 w-full"
     >
       {runs.map((r, i) => (
         <g key={i}>
@@ -143,6 +143,8 @@ function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, ton
       {caption ? <div className="mt-1 text-xs text-muted-ink">{caption}</div> : null}
     </>
   )
+  // Room under the text, so the trace's line never reads as a strikethrough on the caption.
+  const traced = trace !== undefined && kpiTraceRuns(trace).length > 0
   const cell =
     "rm-kpi relative isolate block min-w-0 border-line px-5 py-4 md:[&+&]:border-l max-md:even:border-l max-md:nth-[n+3]:border-t"
   if (href) {
@@ -154,6 +156,7 @@ function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, ton
         title={traceLabel}
         className={cn(
           cell,
+          traced && "pb-10",
           "transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         )}
       >
@@ -162,7 +165,7 @@ function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, ton
     )
   }
   return (
-    <div data-slot="kpi" data-tone={tone} title={traceLabel} className={cell}>
+    <div data-slot="kpi" data-tone={tone} title={traceLabel} className={cn(cell, traced && "pb-10")}>
       {body}
     </div>
   )
