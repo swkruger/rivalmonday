@@ -46,9 +46,9 @@ describe('LineChart', () => {
     ]} />);
     const svg = screen.getByRole('img', { name: /Active competitor ads/ });
     expect(svg.querySelectorAll('polyline[data-series="a"]')).toHaveLength(1);
-    const marker = svg.querySelector('circle[data-marker="a"]');
-    expect(marker?.getAttribute('fill')).toBe(RIVAL_COLORS[0]);
-    expect(marker?.getAttribute('r')).toBe('3');
+    const marker = svg.querySelector('[data-marker="a"]');
+    expect(marker?.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
+    expect(marker?.getAttribute('stroke-width')).toBe('6');
     expect(svg.querySelector('polyline[data-series="a"]')?.getAttribute('stroke')).toBe(RIVAL_COLORS[0]);
     expect(screen.getByText('Smith HVAC', { selector: 'li *' })).toBeTruthy();
     expect(screen.getAllByRole('row')).toHaveLength(5); // header + 4 weeks
@@ -76,7 +76,7 @@ describe('LineChart', () => {
 
   it('labels the y axis with exact integers for small maxima', () => {
     const { container } = render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'a', name: 'A', points: [1, 3, 5, 7] }]} />);
-    const ticks = [...container.querySelectorAll('svg > g > text')].map((n) => n.textContent);
+    const ticks = [...container.querySelectorAll('[data-y-tick]')].map((n) => n.textContent);
     expect(ticks).toEqual(['0', '4', '8']);
   });
 
@@ -107,7 +107,7 @@ describe('LineChart', () => {
     expect(table.querySelector('th[scope="col"]')!.textContent).toBe('Scan of');
     expect(table.querySelectorAll('th[scope="row"]')).toHaveLength(1);
     // the stray 9 must not stretch the axis (it would be 0/5/10) or draw a second point
-    expect([...container.querySelectorAll('svg > g > text')].map((n) => n.textContent)).toEqual(['0', '2', '4']);
+    expect([...container.querySelectorAll('[data-y-tick]')].map((n) => n.textContent)).toEqual(['0', '2', '4']);
     expect(container.querySelectorAll('svg title')).toHaveLength(1);
   });
 });
@@ -148,7 +148,7 @@ describe('foldSeries aggregates', () => {
 describe('LineChart robustness', () => {
   it('extends the axis when a value goes above yMax', () => {
     const { container } = render(<LineChart title="T" valueLabel="x" labels={labels} yMax={5} series={[{ key: 'a', name: 'A', points: [1, 2, 6, 3] }]} />);
-    const ticks = [...container.querySelectorAll('svg > g > text')].map((n) => n.textContent);
+    const ticks = [...container.querySelectorAll('[data-y-tick]')].map((n) => n.textContent);
     expect(ticks).toEqual(['0', '3', '6']);
   });
 
@@ -228,5 +228,20 @@ describe('You + <= 2 highlighted rivals (P8)', () => {
     const root = join(__dirname, '..', '..', 'app', '(app)', 'c', '[clientId]', '/');
     const files = [`${dir}line-chart.tsx`, `${dir}rank-trend.tsx`, `${dir}topic-heatmap.tsx`, `${root}rankings/page.tsx`, `${root}reviews/page.tsx`, `${root}reviews/review-item.tsx`];
     for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(/#2A6BAC|#47A8E7/i);
+  });
+});
+
+describe('LineChart axis labels', () => {
+  it('draws labels as HTML outside the stretched svg, with the end labels aligned to the plot edges', () => {
+    const { container } = render(<LineChart title="T" valueLabel="ads" labels={labels} series={[{ key: 'a', name: 'A', points: [1, 2, 3, 4] }]} />);
+    expect(container.querySelector('svg text')).toBeNull();
+    expect(container.querySelector('svg')!.getAttribute('preserveAspectRatio')).toBe('none');
+    const x = [...container.querySelectorAll('[data-x-tick]')];
+    expect(x[0]!.className).not.toMatch(/-translate-x/);
+    expect(x.at(-1)!.className).toMatch(/-translate-x-full/);
+  });
+  it('sizes the y gutter to the longest label, so "$1,250" is not cut off', () => {
+    const { container } = render(<LineChart title="T" valueLabel="usd" labels={labels} formatValue={(v) => `$${v.toLocaleString('en-US')}`} series={[{ key: 'a', name: 'A', points: [1000, 1250, 1500, 2000] }]} />);
+    expect((container.querySelector('[data-y-tick]')!.parentElement as HTMLElement).style.width).toBe('6ch');
   });
 });

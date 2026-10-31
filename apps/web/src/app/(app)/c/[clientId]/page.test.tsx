@@ -25,7 +25,7 @@ import ClientHome from './page';
 
 const C = '00000000-0000-4000-8000-0000000000c1';
 const overview = {
-  trackedCompetitors: 1, rating: { self: null, competitorAverage: null }, zips: 0, changes7d: 0, alerts7d: 0, pitchSnapshot: false,
+  weekly: { changes: [], priceMoves: [], activeAds: [] }, trackedCompetitors: 1, rating: { self: null, competitorAverage: null }, zips: 0, changes7d: 0, alerts7d: 0, pitchSnapshot: false,
   priceMoves7d: 0, priceCuts7d: 0, activeAds: null, activeAds7dAgo: null,
   pressure: [{ competitorId: 'k1', name: 'Smith HVAC', pressure: { score: 90, level: 'high', reasons: [] } }],
 };

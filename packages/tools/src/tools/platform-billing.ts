@@ -425,7 +425,11 @@ export const getBillingOverviewTool = defineTool({
   access: 'read',
   description: 'Platform operators: MRR and paid seats from the latest daily stats, and how many agencies are in each billing state.',
   input: z.object({}),
-  output: z.object({ mrrCents: z.number().int(), paidSeats: z.number().int(), agenciesByState: z.record(z.string(), z.number().int()) }),
+  output: z.object({
+    mrrCents: z.number().int(), paidSeats: z.number().int(), agenciesByState: z.record(z.string(), z.number().int()),
+    /** Daily totals, oldest first, latest 56 days with stats. */
+    history: z.array(z.object({ mrrCents: z.number().int(), paidSeats: z.number().int() })),
+  }),
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
@@ -435,6 +439,9 @@ export const getBillingOverviewTool = defineTool({
         .select({ mrr: sql<number>`coalesce(sum(${d.mrrCents}), 0)::int`, seats: sql<number>`coalesce(sum(${d.paidSeats}), 0)::int` })
         .from(d)
         .where(eq(d.day, sql`(select max(day) from agency_daily_stat)`));
+      const days = await deps.service
+        .select({ mrrCents: sql<number>`coalesce(sum(${d.mrrCents}), 0)::int`, paidSeats: sql<number>`coalesce(sum(${d.paidSeats}), 0)::int` })
+        .from(d).groupBy(d.day).orderBy(desc(d.day)).limit(56);
       const counted = await deps.service.select({ state: agencyBilling.state, n: sql<number>`count(*)::int` }).from(agencyBilling)
         .innerJoin(agency, eq(agency.id, agencyBilling.agencyId)).where(isNull(agency.archivedAt)).groupBy(agencyBilling.state);
       const [{ total } = { total: 0 }] = await deps.service.select({ total: sql<number>`count(*)::int` }).from(agency).where(isNull(agency.archivedAt));
@@ -442,7 +449,7 @@ export const getBillingOverviewTool = defineTool({
       let withRow = 0;
       for (const c of counted) { byState[c.state] = c.n; withRow += c.n; }
       byState.pilot = (byState.pilot ?? 0) + Math.max(0, total - withRow);
-      return { mrrCents: sums?.mrr ?? 0, paidSeats: sums?.seats ?? 0, agenciesByState: byState };
+      return { mrrCents: sums?.mrr ?? 0, paidSeats: sums?.seats ?? 0, agenciesByState: byState, history: days.reverse() };
     });
   },
 });

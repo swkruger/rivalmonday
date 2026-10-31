@@ -57,6 +57,13 @@ describe('get_portfolio', () => {
     expect(a2).toMatchObject({ pressure: { score: 0, level: 'low', reasons: ['Quiet'] }, briefToApprove: null, lastActivityAt: null });
   });
 
+  it('reports weekly trends for the visible clients only', async () => {
+    const { trends } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { trends: { clients: number[]; alerts: number[]; briefs: number[] } };
+    expect(trends.clients.at(-1)).toBe(1);
+    expect(trends.alerts).toHaveLength(8);
+    expect(trends.briefs).toHaveLength(8);
+  });
+
   it('respects scope and is agency-only', async () => {
     const { items } = (await registry.invoke(ctx('account_manager', [IDS.clientA1]), 'get_portfolio', {})) as { items: { clientId: string }[] };
     expect(items.map((i) => i.clientId)).toEqual([IDS.clientA1]);

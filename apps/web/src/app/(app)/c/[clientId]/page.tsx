@@ -4,6 +4,7 @@ import type {
   AlertSummary,
   BriefDetail,
   BriefSummary,
+  RatingTrendView,
   ClientProfile,
   MoveRow,
   RecommendationView,
@@ -60,10 +61,11 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const { clientId } = await params;
   const { viewer, ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} viewer={viewer} />;
-  const [profile, overview, ads, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
+  const [profile, overview, ads, rating, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
+    tryCallTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId }),
     callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
@@ -116,7 +118,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
 
       <StatStrip
         label="This week"
-        items={kpiCards(overview, { agency }).map((k) => {
+        items={kpiCards(overview, { agency, ratingMonthly: rating?.businesses.find((b) => b.self)?.monthly.map((m) => m.avgRating) }).map((k) => {
           const tip = KPI_TIPS[k.title];
           return { ...k, help: tip && <HelpTip tip={tip} /> };
         })}

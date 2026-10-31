@@ -92,7 +92,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
       <form id="area-form" onSubmit={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-5">
         <fieldset disabled={readOnly} className="contents">
           <Field htmlFor="keyword-add" label="Search keywords" required help={`${keywords.length} of ${maxKeywords}.${edited === null && fromGoogle ? ' Suggested from their Google listing.' : ''}`}>
-            <div role="group" aria-label="Search keywords" className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-line-strong bg-white p-1.5">
+            <div role="group" aria-label="Search keywords" className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-sm border border-input bg-white p-1.5">
               {keywords.map((k) => (
                 <span key={k} data-chip="" className="inline-flex h-[26px] items-center gap-1 rounded-full bg-muted-surface pl-2.5 pr-1.5 text-13">
                   {k}
@@ -119,7 +119,7 @@ export function AreaStep({ frame, view, profile, clientName, around, maxKeywords
             <legend id="radius-legend" className="mb-1.5 text-sm font-medium">Search radius<span aria-hidden="true" className="ml-0.5 text-destructive">*</span><span className="sr-only"> (required)</span></legend>
             <div role="radiogroup" aria-labelledby="radius-legend" className="inline-flex w-fit overflow-hidden rounded-md border border-input">
               {(custom ? [custom, ...choices] : choices).map((c) => (
-                <label key={c.stored} className="flex h-10 cursor-pointer items-center border-r border-line px-[18px] text-sm last:border-r-0 has-[:checked]:bg-primary-soft has-[:checked]:font-semibold has-[:checked]:text-primary-soft-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
+                <label key={c.stored} className="flex h-9 cursor-pointer items-center border-r border-line px-[18px] text-sm last:border-r-0 has-[:checked]:bg-primary-soft has-[:checked]:font-semibold has-[:checked]:text-primary-soft-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
                   <input type="radio" name="radius" value={c.stored} checked={radiusKm === c.stored} onChange={() => setRadiusKm(c.stored)} className="sr-only" />
                   {custom && c === custom ? `≈ ${c.mi} mi (custom)` : `${c.mi} mi`}
                 </label>

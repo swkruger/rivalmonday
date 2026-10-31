@@ -83,9 +83,9 @@ export default async function ReviewsPage({ params, searchParams }: {
       {self ? (
         <StatStrip
           items={[
-            { title: 'Your rating', value: self.gbpRating === null ? '—' : `${self.gbpRating.toFixed(1)} ★`, hint: 'Google rating' },
-            { title: 'New reviews (90 days)', value: String(self.reviews90d), hint: 'Reviews posted in the last 90 days', help: <HelpTip tip="client.reviews.newReviews" /> },
-            { title: 'Reviews per month', value: self.perMonth.toFixed(1), hint: 'Average over the last 6 months', help: <HelpTip term="review-velocity" /> },
+            { title: 'Your rating', value: self.gbpRating === null ? '—' : `${self.gbpRating.toFixed(1)} ★`, hint: 'Google rating', trace: self.monthly.map((m) => m.avgRating), traceLabel: 'Average stars per month, last 12 months' },
+            { title: 'New reviews (90 days)', value: String(self.reviews90d), hint: 'Reviews posted in the last 90 days', trace: self.monthly.map((m) => m.reviews), traceLabel: 'Reviews per month, last 12 months', help: <HelpTip tip="client.reviews.newReviews" /> },
+            { title: 'Reviews per month', value: self.perMonth.toFixed(1), hint: 'Average over the last 6 months', trace: self.monthly.map((m) => m.reviews), traceLabel: 'Reviews per month, last 12 months', help: <HelpTip term="review-velocity" /> },
             { title: 'Replies to reviews', value: self.replyRate === null ? '—' : `${Math.round(self.replyRate * 100)}%`, hint: 'Share of the last 90 days’ reviews you answered', help: <HelpTip term="reply-rate" /> },
           ]}
         />

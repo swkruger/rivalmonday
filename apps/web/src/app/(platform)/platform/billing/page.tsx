@@ -62,7 +62,7 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
 
   let body: React.ReactNode;
   if (tab === 'overview') {
-    const overview = await callTool<{ mrrCents: number; paidSeats: number; agenciesByState: Record<string, number> }>(ctx, 'get_billing_overview', {});
+    const overview = await callTool<{ mrrCents: number; paidSeats: number; agenciesByState: Record<string, number>; history: { mrrCents: number; paidSeats: number }[] }>(ctx, 'get_billing_overview', {});
     body = (
       <>
         <TipRow
@@ -73,8 +73,8 @@ export default async function PlatformBillingPage({ searchParams }: { searchPara
         />
         <StatStrip
           items={[
-            { title: 'MRR', value: formatMoney(overview.mrrCents, { unit: 'cents' }), hint: 'From the latest daily stats' },
-            { title: 'Paid seats', value: String(overview.paidSeats), hint: 'From the latest daily stats' },
+            { title: 'MRR', value: formatMoney(overview.mrrCents, { unit: 'cents' }), hint: 'From the latest daily stats', trace: overview.history.map((d) => d.mrrCents), traceLabel: 'Daily, last 56 days with stats' },
+            { title: 'Paid seats', value: String(overview.paidSeats), hint: 'From the latest daily stats', trace: overview.history.map((d) => d.paidSeats), traceLabel: 'Daily, last 56 days with stats' },
           ]}
         />
         <Section title="Agencies by state">

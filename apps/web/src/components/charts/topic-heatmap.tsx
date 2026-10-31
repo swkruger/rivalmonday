@@ -51,7 +51,7 @@ export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: P
   return (
     <figure className="flex flex-col gap-2">
       <div tabIndex={0} role="region" aria-label={title} className="overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${topics.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ minWidth: W }} className="w-full">
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${topics.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ width: W, minWidth: W }} className="max-w-none">
           {businesses.map((b, j) => (
             <g key={b.competitorId}>
               <title>{b.name}</title>

@@ -37,6 +37,7 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
     viewerTimeZone(),
   ]);
   const { tiles, series } = overview;
+  const traceLabel = range === '12m' ? 'Last 12 months' : 'Last 12 weeks';
   return (
     <>
       <PageHeader
@@ -55,11 +56,11 @@ export default async function PlatformOverviewPage({ searchParams }: { searchPar
       />
       <StatStrip
         items={[
-          { title: 'Agencies', value: String(tiles.agencies.value), pill: deltaPill(tiles.agencies), hint: 'Last 28 days' },
-          { title: 'Active clients', value: String(tiles.clientsActive.value), pill: deltaPill(tiles.clientsActive), hint: 'Last 28 days' },
-          { title: 'Seats', value: String(tiles.seats.value), pill: deltaPill(tiles.seats), hint: 'Last 28 days' },
-          { title: 'Weekly active users', value: String(tiles.wau.value), pill: deltaPill(tiles.wau), hint: 'Last 28 days' },
-          { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
+          { title: 'Agencies', value: String(tiles.agencies.value), pill: deltaPill(tiles.agencies), hint: 'Last 28 days', trace: series.map((p) => p.agencies), traceLabel },
+          { title: 'Active clients', value: String(tiles.clientsActive.value), pill: deltaPill(tiles.clientsActive), hint: 'Last 28 days', trace: series.map((p) => p.clientsActive), traceLabel },
+          { title: 'Seats', value: String(tiles.seats.value), pill: deltaPill(tiles.seats), hint: 'Last 28 days', trace: series.map((p) => p.seats), traceLabel },
+          { title: 'Weekly active users', value: String(tiles.wau.value), pill: deltaPill(tiles.wau), hint: 'Last 28 days', trace: series.map((p) => p.wau), traceLabel },
+          { title: 'Spend this month', value: formatMoney(tiles.spendMonthUsd.value, { cents: true }), pill: deltaPill(tiles.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: series.map((p) => p.spendUsd), traceLabel },
         ]}
       />
       <HairlineGrid cols={2}>

@@ -229,7 +229,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
         <Field htmlFor="location" label="City or ZIP" required>
           <div className="grid grid-cols-[1fr_auto] gap-2.5">
             <Input id="location" name="location" required minLength={2} maxLength={120} value={location} onChange={(e) => setLocation(e.target.value)} className={INPUT_CLASS} />
-            <Button type="submit" variant="outline" className="h-10" disabled={searching || preview} aria-disabled={preview || undefined}>{searching ? 'Searching…' : 'Search'}</Button>
+            <Button type="submit" variant="outline" disabled={searching || preview} aria-disabled={preview || undefined}>{searching ? 'Searching…' : 'Search'}</Button>
           </div>
         </Field>
         {preview && <span className="text-sm text-muted-ink">Disabled in preview</span>}

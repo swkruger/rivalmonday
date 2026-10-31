@@ -16,22 +16,47 @@ const asDate = (d: Date | string | null | undefined): Date | null => (d == null 
 const latest = (...ds: (Date | string | null | undefined)[]) =>
   ds.map(asDate).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
+const TREND_WEEKS = 8;
+const WEEK = 7 * 86_400_000;
+
 export const getPortfolio = defineTool({
   name: 'get_portfolio',
   access: 'read',
   description: 'Every client this agency user can see, with alerts waiting, a brief to approve, competitive pressure and last activity.',
   input: z.object({}),
-  output: z.object({ items: z.array(PortfolioRow) }),
+  output: z.object({
+    items: z.array(PortfolioRow),
+    /** Oldest first, 8 rolling 7-day windows ending now: clients that existed then, alerts raised and briefs generated. Only these clients. */
+    trends: z.object({ clients: z.array(z.number().int()), alerts: z.array(z.number().int()), briefs: z.array(z.number().int()) }).optional(),
+  }),
   permission: 'agency',
   async handler(ctx, _input, deps) {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
     const since = monthStart(now);
     return withTenant(deps.app, ctx, async (tx) => {
-      const clients = await tx.select({ id: client.id, name: client.name, verticalId: client.verticalId, cap: client.spendLimitUsd, spendPausedAt: client.spendPausedAt }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
+      const clients = await tx.select({ id: client.id, createdAt: client.createdAt, name: client.name, verticalId: client.verticalId, cap: client.spendLimitUsd, spendPausedAt: client.spendPausedAt }).from(client).where(eq(client.status, 'active')).orderBy(asc(client.name));
       const ids = clients.map((c) => c.id);
       if (ids.length === 0) return { items: [] };
       const settings = await readSpendGuardSettings(deps.service);
+      const trendSince = new Date(now.getTime() - TREND_WEEKS * WEEK);
+      const [alertTimes, briefTimes] = await Promise.all([
+        tx.select({ at: alert.createdAt }).from(alert).where(and(inArray(alert.clientId, ids), gte(alert.createdAt, trendSince))),
+        tx.select({ at: brief.createdAt }).from(brief).where(and(inArray(brief.clientId, ids), gte(brief.createdAt, trendSince))),
+      ]);
+      const weekly = (rows: { at: Date }[]) => {
+        const out = Array<number>(TREND_WEEKS).fill(0);
+        for (const { at } of rows) {
+          const i = TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / WEEK);
+          if (i >= 0) out[i]! += 1;
+        }
+        return out;
+      };
+      const trends = {
+        clients: Array.from({ length: TREND_WEEKS }, (_, i) => clients.filter((c) => c.createdAt.getTime() <= now.getTime() - (TREND_WEEKS - 1 - i) * WEEK).length),
+        alerts: weekly(alertTimes),
+        briefs: weekly(briefTimes),
+      };
       const [pending, delivered, ready, recs, lastScore, lastAlert, lastSent, pressure, spend, openSetups] = await Promise.all([
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'pending_review'))).groupBy(alert.clientId),
         tx.select({ id: alert.clientId, n: count() }).from(alert).where(and(inArray(alert.clientId, ids), eq(alert.status, 'delivered'), gte(alert.deliveredAt, weekAgo))).groupBy(alert.clientId),
@@ -61,6 +86,7 @@ export const getPortfolio = defineTool({
       const byId = <T extends { id: string }>(rows: T[]) => new Map(rows.map((r) => [r.id, r]));
       const [p, d, r, ls, la, lb] = [byId(pending), byId(delivered), byId(recs), byId(lastScore), byId(lastAlert), byId(lastSent)];
       return {
+        trends,
         items: clients.map((c) => {
           const comps = pressure.get(c.id) ?? [];
           const readyBrief = ready.find((b) => b.clientId === c.id);

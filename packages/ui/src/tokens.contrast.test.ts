@@ -22,6 +22,8 @@ const PAIRS: Array<[string, string, string, number]> = [
   ['ink on action.primary', INK, '#47A8E7', 4.5],
   ['line-strong on surface (UI)', '#8796AB', '#FFFFFF', 3.0],
   ['focus on surface (UI)', '#2A6BAC', '#FFFFFF', 3.0],
+  // KPI cell: 3 % wash + 7 % trace area, for a near-black agency colour (the worst case). `.rm-kpi` --muted-ink.
+  ['kpi caption on wash and trace', '#4F5F73', '#E6E6E6', 4.5],
 ];
 
 describe('approved contrast pairs (05 § 2)', () => {

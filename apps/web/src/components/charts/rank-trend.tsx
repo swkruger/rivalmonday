@@ -1,10 +1,9 @@
 import { formatDate } from '@/lib/format';
 import type { RankTrendView } from '@cs/tools';
 import { type ChartSeries, foldSeries, seriesColor } from './line-chart';
+import { ChartPlot, PLOT, PlotDot, PlotLine } from './plot';
 
 const NOT_IN_TOP = 21;
-const MUTED = 'var(--chart-axis)';
-const GRID = 'var(--chart-grid)';
 const MARKER = 'var(--chart-context)';
 
 const shortDate = (iso: string) => formatDate(iso, { tz: 'UTC', withYear: 'never' });
@@ -35,19 +34,13 @@ export function rankSeries(scans: RankTrendView['scans']): ChartSeries[] {
  * A dashed vertical marker sits at every scan whose settings changed, so a jump there is read with care.
  * Takes `get_rank_trend` scans oldest → newest. Colours follow `seriesColor` with `lowerIsBetter`: you, the two best-ranked rivals highlighted (up to 2 rivals keep their order), the rest grey.
  */
-export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendView['scans']; keyword: string; height?: number }) {
+export function RankTrend({ scans, keyword, height = 260 }: { scans: RankTrendView['scans']; keyword: string; height?: number }) {
   const series = rankSeries(scans);
   const title = `Average map rank for “${keyword}”`;
   if (scans.length === 0 || series.every((s) => s.points.every((v) => v === null))) return <p className="text-sm text-muted-foreground">No rank history yet.</p>;
-  const W = 600;
-  const H = height;
-  const L = 34;
-  const R = 12;
-  const T = 10;
-  const B = 22;
   const n = scans.length;
-  const x = (i: number) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
-  const y = (v: number) => T + ((v - 1) / (NOT_IN_TOP - 1)) * (H - T - B);
+  const x = (i: number) => (n === 1 ? PLOT / 2 : (i * PLOT) / (n - 1));
+  const y = (v: number) => ((v - 1) / (NOT_IN_TOP - 1)) * PLOT;
   const colorOf = (s: ChartSeries) => seriesColor(s, series, { lowerIsBetter: true });
   const latest = (s: ChartSeries) => { const v = [...s.points].reverse().find((p) => p !== null); return v == null ? 'no data' : fmt(v); };
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
@@ -63,20 +56,16 @@ export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendVi
   };
   return (
     <figure className="flex flex-col gap-2">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. Latest: ${summary}.`} className="w-full">
-        {[1, 5, 10, 15, NOT_IN_TOP].map((v) => (
-          <g key={v}>
-            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke={GRID} strokeWidth={1} />
-            <text x={L - 6} y={y(v) + 4} textAnchor="end" fontSize={11} fill={MUTED}>{fmt(v)}</text>
-          </g>
-        ))}
-        {[...new Set([0, Math.floor((n - 1) / 2), n - 1])].map((i) => (
-          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={11} fill={MUTED}>{shortDate(scans[i]!.finishedAt)}</text>
-        ))}
+      <ChartPlot
+        label={`${title}. Latest: ${summary}.`}
+        height={height}
+        yTicks={[1, 5, 10, 15, NOT_IN_TOP].map((v) => ({ at: y(v) / PLOT, label: fmt(v) }))}
+        xTicks={[...new Set([0, Math.floor((n - 1) / 2), n - 1])].map((i) => ({ at: x(i) / PLOT, label: shortDate(scans[i]!.finishedAt) }))}
+      >
         {changed.map((i) => (
           <g key={`m${i}`} data-settings-marker>
             <title>{`Settings changed (scan of ${shortDate(scans[i]!.finishedAt)})`}</title>
-            <line x1={x(i)} x2={x(i)} y1={T} y2={H - B} stroke={MARKER} strokeWidth={1.5} strokeDasharray="4 3" />
+            <PlotLine x1={x(i)} x2={x(i)} y1={0} y2={PLOT} stroke={MARKER} strokeWidth={1.5} strokeDasharray="4 3" />
           </g>
         ))}
         {series.map((s) => {
@@ -84,17 +73,17 @@ export function RankTrend({ scans, keyword, height = 200 }: { scans: RankTrendVi
           return (
             <g key={s.key}>
               {runs(s.points).map((r, k) => (r.length === 1
-                ? <circle key={k} data-marker={s.key} cx={r[0]![0]} cy={r[0]![1]} r={3} fill={color} />
-                : <polyline key={k} data-series={s.key} points={r.map(([a, b]) => `${a},${b}`).join(' ')} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />))}
+                ? <PlotDot key={k} data-marker={s.key} x={r[0]![0]} y={r[0]![1]} size={6} color={color} />
+                : <polyline key={k} data-series={s.key} points={r.map(([a, b]) => `${a},${b}`).join(' ')} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />))}
               {s.points.map((v, i) => (v === null ? null : (
-                <circle key={i} cx={x(i)} cy={y(v)} r={8} fill="transparent">
+                <PlotDot key={i} x={x(i)} y={y(v)} size={16} color="transparent" pointerEvents="stroke">
                   <title>{`${s.name}: average rank ${fmt(v)} (scan of ${shortDate(scans[i]!.finishedAt)})`}</title>
-                </circle>
+                </PlotDot>
               )))}
             </g>
           );
         })}
-      </svg>
+      </ChartPlot>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink">
         {series.map((s) => (
           <li key={s.key} className="flex items-center gap-1.5">

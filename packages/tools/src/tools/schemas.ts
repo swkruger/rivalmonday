@@ -319,6 +319,8 @@ export const WorkspaceOverview = z.object({
   clientId: uuid, trackedCompetitors: z.number().int(), zips: z.number().int(),
   changes7d: z.number().int(), alerts7d: z.number().int(), priceMoves7d: z.number().int(), priceCuts7d: z.number().int(),
   activeAds: z.number().int().nullable(), activeAds7dAgo: z.number().int().nullable(),
+  /** Oldest first, 8 rolling 7-day windows ending now; the last entry equals `changes7d` / `priceMoves7d` / `activeAds`. */
+  weekly: z.object({ changes: z.array(z.number().int()), priceMoves: z.array(z.number().int()), activeAds: z.array(z.number().int().nullable()) }),
   rating: z.object({ self: z.number().nullable(), competitorAverage: z.number().nullable() }),
   pressure: z.array(z.object({ competitorId: uuid, name: z.string(), pressure: PressureView })),
   pitchSnapshot: z.boolean(),

@@ -19,7 +19,7 @@ const tool = async (_ctx: unknown, name: string, input: unknown) => {
     case 'list_help_guides': return { guides: m.guides.map((helpKey) => ({ helpKey, title: 't', articleId: 'g' })) };
     case 'get_client_profile': return { id: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing', services: [] };
     case 'get_workspace_overview':
-      return { clientId: C, trackedCompetitors: 0, zips: 0, changes7d: 0, alerts7d: 0, priceMoves7d: 0, priceCuts7d: 0, activeAds: null, activeAds7dAgo: null, rating: { self: null, competitorAverage: null }, pressure: [], pitchSnapshot: false };
+      return { weekly: { changes: [], priceMoves: [], activeAds: [] }, clientId: C, trackedCompetitors: 0, zips: 0, changes7d: 0, alerts7d: 0, priceMoves7d: 0, priceCuts7d: 0, activeAds: null, activeAds7dAgo: null, rating: { self: null, competitorAverage: null }, pressure: [], pitchSnapshot: false };
     case 'get_ad_activity': return { weeks: [], series: [] };
     case 'get_starting_point_status': case 'get_client_setup': return null;
     case 'search_events': case 'search_reviews': return { items: [], hasMore: false };

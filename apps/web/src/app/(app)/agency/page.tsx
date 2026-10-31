@@ -48,8 +48,8 @@ export default async function AgencyPortfolioPage() {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
   // 7a1 D7: independent reads in one stage. Admins only: account managers get no checklist and no extra reads.
-  const [{ items }, billingRows, onboarding, guides] = await Promise.all([
-    callTool<{ items: PortfolioRow[] }>(ctx, 'get_portfolio', {}),
+  const [{ items, trends }, billingRows, onboarding, guides] = await Promise.all([
+    callTool<{ items: PortfolioRow[]; trends?: { clients: number[]; alerts: number[]; briefs: number[] } }>(ctx, 'get_portfolio', {}),
     callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}),
     ctx.role === 'agency_admin' ? callTool<ChecklistStatus & { source?: string }>(ctx, 'get_onboarding_status', {}) : null,
     helpGuides(ctx, 'agency'),
@@ -92,10 +92,10 @@ export default async function AgencyPortfolioPage() {
 
       <StatStrip
         items={[
-          { title: 'Clients', value: String(items.length) },
-          { title: 'Alerts waiting', value: String(alertsWaiting), href: '/agency/alerts' },
-          { title: 'Briefs to approve', value: String(briefsToApprove), href: '/agency/approvals' },
-          { title: 'High pressure', value: String(highPressure) },
+          { title: 'Clients', value: String(items.length), trace: trends?.clients, traceLabel: 'Clients, last 8 weeks' },
+          { title: 'Alerts waiting', value: String(alertsWaiting), href: '/agency/alerts', tone: alertsWaiting > 0 ? 'warn' : 'brand', trace: trends?.alerts, traceLabel: 'Alerts raised per week, last 8 weeks' },
+          { title: 'Briefs to approve', value: String(briefsToApprove), href: '/agency/approvals', tone: briefsToApprove > 0 ? 'warn' : 'brand', trace: trends?.briefs, traceLabel: 'Briefs generated per week, last 8 weeks' },
+          { title: 'High pressure', value: String(highPressure), tone: highPressure > 0 ? 'bad' : 'brand' },
         ]}
       />
 

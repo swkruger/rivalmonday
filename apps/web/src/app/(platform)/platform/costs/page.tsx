@@ -48,7 +48,7 @@ export default async function PlatformCostsPage() {
           { label: 'About low balance warnings', tip: 'platform.costs.low' },
         ]}
       />
-      <SummaryStrip summary={data.summary} />
+      <SummaryStrip summary={data.summary} months={data.months} />
       <Section title="Services" titleAside={<HelpTip tip="platform.costs.services" />}>
         <ServicesTable services={data.services} now={new Date()} />
       </Section>

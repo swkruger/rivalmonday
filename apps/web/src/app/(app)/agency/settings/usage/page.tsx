@@ -47,9 +47,9 @@ export default async function UsagePage() {
 
       <StatStrip
         items={[
-          { title: 'Near limit', value: String(count('near')) },
-          { title: 'Limit reached', value: String(count('reached')) },
-          { title: 'Paused', value: String(count('paused')) },
+          { title: 'Near limit', value: String(count('near')), tone: count('near') > 0 ? 'warn' : 'brand' },
+          { title: 'Limit reached', value: String(count('reached')), tone: count('reached') > 0 ? 'warn' : 'brand' },
+          { title: 'Paused', value: String(count('paused')), tone: count('paused') > 0 ? 'bad' : 'brand' },
         ]}
       />
 

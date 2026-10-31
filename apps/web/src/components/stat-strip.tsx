@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Kpi, KpiStrip } from '@cs/ui';
+import { Kpi, KpiStrip, type KpiTone } from '@cs/ui';
 
 export interface StatPill {
   text: string;
@@ -9,7 +9,7 @@ export interface StatPill {
   srLabel?: string;
 }
 
-export interface StatItem { title: string; value: string; pill?: StatPill | null; hint?: string; help?: React.ReactNode; href?: string }
+export interface StatItem { title: string; value: string; pill?: StatPill | null; hint?: string; help?: React.ReactNode; href?: string; trace?: readonly (number | null)[]; traceLabel?: string; tone?: KpiTone }
 
 const TONE: Record<StatPill['tone'], string> = {
   up: 'bg-chip-success-bg text-chip-success-text',
@@ -43,6 +43,9 @@ export function StatStrip({ items, label, headingLevel = 2 }: { items: StatItem[
           value={i.value}
           badge={i.pill ? <StatBadge pill={i.pill} /> : undefined}
           caption={i.hint}
+          trace={i.trace}
+          traceLabel={i.traceLabel}
+          tone={i.tone}
         />
       ))}
     </KpiStrip>

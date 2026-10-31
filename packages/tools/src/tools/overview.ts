@@ -12,6 +12,7 @@ import { AdActivityView, WorkspaceOverview } from './schemas';
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 const DAY = 86_400_000;
+const TREND_WEEKS = 8;
 
 export const getAdActivity = defineTool({
   name: 'get_ad_activity',
@@ -59,7 +60,9 @@ export const getWorkspaceOverview = defineTool({
     const now = new Date();
     const since = new Date(now.getTime() - 7 * DAY);
     const recent = and(clientEvents(c.id), gte(eventScore.scoredAt, since));
-    const { tracked, pressure, counts, priceRows, latestReport } = await withTenant(deps.app, ctx, async (tx) => {
+    const trendSince = new Date(now.getTime() - TREND_WEEKS * 7 * DAY);
+    const weekIndex = (at: Date) => TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / (7 * DAY));
+    const { tracked, pressure, counts, priceRows, routedRows, latestReport } = await withTenant(deps.app, ctx, async (tx) => {
       const trackedRows = await tx.select({ id: competitor.id, name: competitor.name }).from(clientCompetitor)
         .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId)).where(eq(clientCompetitor.clientId, c.id));
       const pressureMap = await pressureByClient(tx, [c.id], now);
@@ -68,24 +71,36 @@ export const getWorkspaceOverview = defineTool({
         alerts: sql<number>`count(*) FILTER (WHERE ${eventScore.route} = 'alert')::int`,
       }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).where(recent);
       // Decision 12: price moves count on every route.
-      const prices = await tx.select({ services: changeEvent.services, facts: changeEvent.facts }).from(eventScore).innerJoin(changeEvent, eventJoin.change)
-        .innerJoin(clientCompetitor, eventJoin.tracked).where(and(recent, eq(changeEvent.changeType, 'price_change')));
+      const prices = await tx.select({ scoredAt: eventScore.scoredAt, services: changeEvent.services, facts: changeEvent.facts }).from(eventScore).innerJoin(changeEvent, eventJoin.change)
+        .innerJoin(clientCompetitor, eventJoin.tracked).where(and(clientEvents(c.id), gte(eventScore.scoredAt, trendSince), eq(changeEvent.changeType, 'price_change')));
+      const routed = await tx.select({ scoredAt: eventScore.scoredAt }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+        .where(and(clientEvents(c.id), gte(eventScore.scoredAt, trendSince), inArray(eventScore.route, ['alert', 'brief'])));
       // Preflight F11: only the latest report counts, as `get_prospect_report` shows only that one.
       const [report] = isAgencyRole(ctx.role)
         ? await tx.select({ status: prospectReport.status }).from(prospectReport).where(eq(prospectReport.clientId, c.id)).orderBy(desc(prospectReport.createdAt)).limit(1)
         : [];
-      return { tracked: trackedRows, pressure: pressureMap.get(c.id) ?? [], counts: countRow, priceRows: prices, latestReport: report };
+      return { tracked: trackedRows, pressure: pressureMap.get(c.id) ?? [], counts: countRow, priceRows: prices, routedRows: routed, latestReport: report };
     });
 
-    const priceMoves = priceRows.filter((r) => {
+    const allPriceMoves = priceRows.filter((r) => {
       const service = r.services?.[c.verticalId];
       return !!service && c.services.includes(service);
     });
+    const priceMoves = allPriceMoves.filter((r) => r.scoredAt >= since);
+    const weeklyCounts = (rows: { scoredAt: Date }[]) => {
+      const out = Array<number>(TREND_WEEKS).fill(0);
+      for (const r of rows) {
+        const i = weekIndex(r.scoredAt);
+        if (i >= 0) out[i]! += 1;
+      }
+      return out;
+    };
 
     // Global rows (`ad`, `capture`, `observation`) — visibility proved by the RLS reads above (the self business through
     // `client.self_competitor_id`).
     const trackedIds = tracked.map((t) => t.id);
-    const ads = await adWeeklySeries(deps.service, trackedIds, now, 2);
+    const ads = await adWeeklySeries(deps.service, trackedIds, now, TREND_WEEKS);
+    const adTotals = Array.from({ length: TREND_WEEKS }, (_, w) => sumPoints(trackedIds.map((id) => ads.get(id)?.[w] ?? null)));
     const ratingIds = [...trackedIds, ...(c.selfCompetitorId ? [c.selfCompetitorId] : [])];
     const gbp = ratingIds.length === 0 ? [] : await deps.service.selectDistinctOn([observation.competitorId], { competitorId: observation.competitorId, data: observation.data })
       .from(observation).where(and(inArray(observation.competitorId, ratingIds), eq(observation.kind, 'gbp_profile'), eq(observation.key, 'profile')))
@@ -101,8 +116,9 @@ export const getWorkspaceOverview = defineTool({
       alerts7d: Number(counts?.alerts ?? 0),
       priceMoves7d: priceMoves.length,
       priceCuts7d: priceMoves.filter((r) => (r.facts ?? []).some(isPriceCut)).length,
-      activeAds: sumPoints(trackedIds.map((id) => ads.get(id)?.[1] ?? null)),
-      activeAds7dAgo: sumPoints(trackedIds.map((id) => ads.get(id)?.[0] ?? null)),
+      activeAds: adTotals[TREND_WEEKS - 1]!,
+      activeAds7dAgo: adTotals[TREND_WEEKS - 2]!,
+      weekly: { changes: weeklyCounts(routedRows), priceMoves: weeklyCounts(allPriceMoves), activeAds: adTotals },
       rating: {
         self: c.selfCompetitorId ? ratingOf(c.selfCompetitorId) : null,
         competitorAverage: ratings.length ? Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10) / 10 : null,

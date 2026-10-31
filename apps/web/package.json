@@ -14,6 +14,7 @@
     "e2e:affected": "tsx scripts/e2e-affected.ts",
     "e2e:panel": "playwright test -c playwright.panel.config.ts",
     "shots": "playwright test -c playwright.shots.config.ts",
+    "shots:crawl": "playwright test -c playwright.crawl.config.ts",
     "check:tracing": "tsx scripts/check-tracing.ts",
     "check:no-dev-panel": "tsx scripts/check-no-dev-panel.ts",
     "admin": "tsx scripts/admin.ts",

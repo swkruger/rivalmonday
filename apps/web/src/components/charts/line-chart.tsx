@@ -1,4 +1,5 @@
 import { formatDate, formatMonth } from '@/lib/format';
+import { ChartPlot, PLOT, PlotDot } from './plot';
 /** Design system v1 chart roles (09 § 5.4): you + at most two highlighted rivals + context grey. */
 export const YOU_COLOR = 'var(--you)';
 export const RIVAL_COLORS = ['var(--chart-rival-1)', 'var(--chart-rival-2)'] as const;
@@ -76,7 +77,7 @@ export function LineChart({
   labels,
   series: input,
   valueLabel,
-  height = 180,
+  height = 220,
   formatValue,
   yMax: yMaxProp,
   period = 'week',
@@ -97,16 +98,10 @@ export function LineChart({
   const when = (l: string) => (period === 'month' ? labelOf(l) : `${period === 'scan' ? 'scan of' : 'week of'} ${labelOf(l)}`);
   const all = series.flatMap((s) => s.points.filter((v): v is number => v !== null));
   if (all.length === 0) return <p className="text-sm text-muted-foreground">No data yet.</p>;
-  const W = 600;
-  const H = height;
-  const L = 32;
-  const R = 12;
-  const T = 10;
-  const B = 22;
   const dataMax = Math.max(...all);
   const yMax = yMaxProp === undefined ? niceMax(dataMax) : Math.max(yMaxProp, dataMax);
-  const x = (i: number) => L + (labels.length === 1 ? 0 : (i * (W - L - R)) / (labels.length - 1));
-  const y = (v: number) => T + (1 - v / yMax) * (H - T - B);
+  const x = (i: number) => (labels.length === 1 ? 0 : (i * PLOT) / (labels.length - 1));
+  const y = (v: number) => (1 - v / yMax) * PLOT;
   const colorOf = (s: ChartSeries) => seriesColor(s, series);
   const latest = (s: ChartSeries) => (last(s.points) === -Infinity ? 'no data' : fmt(last(s.points)));
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
@@ -128,20 +123,12 @@ export function LineChart({
   };
   return (
     <figure className="flex flex-col gap-2">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. Latest: ${summary}.`} className="w-full">
-        {[0, 0.5, 1].map((f) => (
-          <g key={f}>
-            <line x1={L} x2={W - R} y1={y(yMax * f)} y2={y(yMax * f)} stroke="var(--chart-grid)" strokeWidth={1} />
-            <text x={L - 6} y={y(yMax * f) + 4} textAnchor="end" fontSize={12} fill="var(--chart-axis)">
-              {tick(yMax * f)}
-            </text>
-          </g>
-        ))}
-        {[...new Set([0, Math.floor((labels.length - 1) / 2), labels.length - 1])].map((i) => (
-          <text key={i} x={x(i)} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--chart-axis)">
-            {labelOf(labels[i]!)}
-          </text>
-        ))}
+      <ChartPlot
+        label={`${title}. Latest: ${summary}.`}
+        height={height}
+        yTicks={[0, 0.5, 1].map((f) => ({ at: 1 - f, label: tick(yMax * f) }))}
+        xTicks={[...new Set([0, Math.floor((labels.length - 1) / 2), labels.length - 1])].map((i) => ({ at: x(i) / PLOT, label: labelOf(labels[i]!) }))}
+      >
         {[...series].sort((p, q) => Number(colorOf(q) === CONTEXT_COLOR) - Number(colorOf(p) === CONTEXT_COLOR)).map((s) => {
           const color = colorOf(s);
           const width = color === CONTEXT_COLOR ? 1.5 : 2;
@@ -150,7 +137,7 @@ export function LineChart({
             <g key={s.key}>
               {runs(s.points).map((r, k) =>
                 r.length === 1 ? (
-                  <circle key={k} data-marker={s.key} cx={r[0]![0]} cy={r[0]![1]} r={3} fill={color} />
+                  <PlotDot key={k} data-marker={s.key} x={r[0]![0]} y={r[0]![1]} size={6} color={color} />
                 ) : (
                 <polyline
                   key={k}
@@ -161,21 +148,27 @@ export function LineChart({
                   strokeWidth={width}
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
                 />
                 ),
               )}
-              {li >= 0 && <circle cx={x(li)} cy={y(s.points[li]!)} r={4} fill={color} stroke="var(--surface)" strokeWidth={2} />}
+              {li >= 0 && (
+                <>
+                  <PlotDot x={x(li)} y={y(s.points[li]!)} size={12} color="var(--surface)" />
+                  <PlotDot x={x(li)} y={y(s.points[li]!)} size={8} color={color} />
+                </>
+              )}
               {s.points.map((v, i) =>
                 v === null ? null : (
-                  <circle key={i} cx={x(i)} cy={y(v)} r={8} fill="transparent">
+                  <PlotDot key={i} x={x(i)} y={y(v)} size={16} color="transparent" pointerEvents="stroke">
                     <title>{`${s.name}: ${fmt(v)} ${valueLabel} (${when(labels[i]!)})`}</title>
-                  </circle>
+                  </PlotDot>
                 ),
               )}
             </g>
           );
         })}
-      </svg>
+      </ChartPlot>
       {series.length >= 2 && (
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink">
           {series.map((s) => (

@@ -149,4 +149,29 @@
   * { @apply border-border; }
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
   body { @apply bg-background text-foreground font-sans text-sm; }
+  /* One select look everywhere, however the class list was written: our chevron, inset from the edge. */
+  select:not([multiple]) {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235B6B80' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.625rem center;
+    background-repeat: no-repeat;
+    padding-inline-end: 2rem !important;
+  }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--secondary); }
+  input[type="checkbox"]:not([class*="size-"]), input[type="radio"]:not([class*="size-"]) { width: 1rem; height: 1rem; }
 }
+
+/* KPI cell: a faint wash and history trace in the cell's colour (`--kpi`, default the viewer's own colour). Mixed, not fixed,
+   so it follows white-label colours. Text stays ink; the darker muted ink keeps captions above 4.5:1 on the wash and trace
+   even for a near-black agency colour (tokens.contrast.test.ts). */
+.rm-kpi {
+  --kpi: var(--you);
+  --muted-ink: #4F5F73;
+  background: color-mix(in srgb, var(--kpi) 3%, var(--surface));
+}
+.rm-kpi[data-tone="warn"] { --kpi: var(--warning); }
+.rm-kpi[data-tone="bad"] { --kpi: var(--danger); }
+.rm-kpi[data-tone="good"] { --kpi: var(--success); }
+a.rm-kpi:hover { background: color-mix(in srgb, var(--kpi) 7%, var(--surface)); }
+.rm-kpi-trace-area { fill: color-mix(in srgb, var(--kpi) 7%, transparent); }
+.rm-kpi-trace-line { stroke: color-mix(in srgb, var(--kpi) 30%, transparent); }

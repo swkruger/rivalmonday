@@ -166,6 +166,8 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const health = agency.health ? labelFor(AGENCY_HEALTH, agency.health) : null;
   // The tool returns tiles and series for every agency that is not archived.
   const t = tiles as Tiles;
+  const trace = (k: 'clientsActive' | 'seats' | 'wau' | 'spendUsd') => (series ?? []).map((p) => p[k]);
+  const traceLabel = range === '12m' ? 'Last 12 months' : 'Last 12 weeks';
   return (
     <>
       {header(
@@ -198,10 +200,10 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       />
       <StatStrip
         items={[
-          { title: 'Active clients', value: String(t.clientsActive.value), pill: deltaPill(t.clientsActive), hint: 'Last 28 days' },
-          { title: 'Seats', value: String(t.seats.value), pill: deltaPill(t.seats), hint: 'Last 28 days' },
-          { title: 'Weekly active users', value: String(t.wau.value), pill: deltaPill(t.wau), hint: 'Last 28 days' },
-          { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days' },
+          { title: 'Active clients', value: String(t.clientsActive.value), pill: deltaPill(t.clientsActive), hint: 'Last 28 days', trace: trace('clientsActive'), traceLabel },
+          { title: 'Seats', value: String(t.seats.value), pill: deltaPill(t.seats), hint: 'Last 28 days', trace: trace('seats'), traceLabel },
+          { title: 'Weekly active users', value: String(t.wau.value), pill: deltaPill(t.wau), hint: 'Last 28 days', trace: trace('wau'), traceLabel },
+          { title: 'Spend this month', value: formatMoney(t.spendMonthUsd.value, { cents: true }), pill: deltaPill(t.spendMonthUsd, (n: number) => formatMoney(n, { cents: true })), hint: 'Last 28 days', trace: trace('spendUsd'), traceLabel },
         ]}
       />
       <HairlineGrid cols={2}>

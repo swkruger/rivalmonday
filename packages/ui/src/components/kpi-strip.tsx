@@ -16,7 +16,7 @@ function KpiStrip({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="kpi-strip"
       role={named ? "group" : undefined}
       className={cn(
-        "grid grid-cols-2 overflow-clip rounded-md border border-line md:auto-cols-fr md:grid-flow-col md:grid-cols-none",
+        "grid grid-cols-2 overflow-clip rounded-md border border-line md:auto-cols-fr md:grid-flow-col md:grid-cols-none *:data-[slot=kpi]:max-md:last:odd:col-span-2",
         className
       )}
       {...props}
@@ -67,6 +67,51 @@ function KpiDeltaPill({ delta }: { delta: KpiDelta }) {
   )
 }
 
+export type KpiTone = "brand" | "good" | "warn" | "bad"
+
+/** Runs of known points, oldest first, in a 0-100 box; the trace fills the cell's lower part. NULL stays a gap, never a guess. */
+export function kpiTraceRuns(points: readonly (number | null)[]): [number, number][][] {
+  const known = points.filter((p): p is number => p !== null)
+  if (known.length < 2) return []
+  const min = Math.min(...known)
+  const span = Math.max(...known) - min
+  const x = (i: number) => (i * 100) / (points.length - 1)
+  // A flat history draws a flat line part way up, not along the floor.
+  const y = (v: number) => (span === 0 ? 50 : 92 - ((v - min) / span) * 84)
+  const runs: [number, number][][] = []
+  let run: [number, number][] = []
+  points.forEach((p, i) => {
+    if (p === null) {
+      if (run.length) runs.push(run)
+      run = []
+    } else run.push([x(i), y(p)])
+  })
+  if (run.length) runs.push(run)
+  return runs
+}
+
+function KpiTrace({ points }: { points: readonly (number | null)[] }) {
+  const runs = kpiTraceRuns(points)
+  if (runs.length === 0) return null
+  const pts = (r: [number, number][]) => r.map(([a, b]) => `${a},${b}`).join(" ")
+  return (
+    <svg
+      aria-hidden
+      data-slot="kpi-trace"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-3/5 w-full"
+    >
+      {runs.map((r, i) => (
+        <g key={i}>
+          {r.length > 1 && <polygon className="rm-kpi-trace-area" points={`${r[0]![0]},100 ${pts(r)} ${r[r.length - 1]![0]},100`} />}
+          {r.length > 1 && <polyline className="rm-kpi-trace-line" points={pts(r)} fill="none" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+        </g>
+      ))}
+    </svg>
+  )
+}
+
 export interface KpiProps {
   linkAs?: React.ElementType
   label: React.ReactNode
@@ -75,11 +120,18 @@ export interface KpiProps {
   href?: string
   badge?: React.ReactNode
   caption?: React.ReactNode
+  /** Real history behind this figure, oldest first. Decoration only: the value and any delta still state the facts. */
+  trace?: readonly (number | null)[]
+  /** What the trace covers, shown on hover ("Last 8 weeks"). */
+  traceLabel?: string
+  /** Colour of the wash and trace. Status tones only for a figure that needs attention. */
+  tone?: KpiTone
 }
 
-function Kpi({ label, value, delta, href, badge, caption, linkAs: LinkAs = "a" }: KpiProps) {
+function Kpi({ label, value, delta, href, badge, caption, trace, traceLabel, tone = "brand", linkAs: LinkAs = "a" }: KpiProps) {
   const body = (
     <>
+      {trace ? <KpiTrace points={trace} /> : null}
       <div className="text-13 text-muted-ink">{label}</div>
       <div className="mt-1 flex flex-wrap items-baseline gap-2">
         <span className="text-2xl font-semibold tracking-[-0.01em] text-ink tabular-nums">
@@ -92,15 +144,17 @@ function Kpi({ label, value, delta, href, badge, caption, linkAs: LinkAs = "a" }
     </>
   )
   const cell =
-    "block min-w-0 border-line px-5 py-4 md:[&+&]:border-l max-md:even:border-l max-md:nth-[n+3]:border-t"
+    "rm-kpi relative isolate block min-w-0 border-line px-5 py-4 md:[&+&]:border-l max-md:even:border-l max-md:nth-[n+3]:border-t"
   if (href) {
     return (
       <LinkAs
         href={href}
         data-slot="kpi"
+        data-tone={tone}
+        title={traceLabel}
         className={cn(
           cell,
-          "transition-colors hover:bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          "transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         )}
       >
         {body}
@@ -108,7 +162,7 @@ function Kpi({ label, value, delta, href, badge, caption, linkAs: LinkAs = "a" }
     )
   }
   return (
-    <div data-slot="kpi" className={cell}>
+    <div data-slot="kpi" data-tone={tone} title={traceLabel} className={cell}>
       {body}
     </div>
   )

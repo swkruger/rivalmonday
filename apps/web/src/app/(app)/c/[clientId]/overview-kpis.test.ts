@@ -1,11 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { briefLabel, kpiCards, latestBrief } from './overview-kpis';
 
-const base = { clientId: 'c', trackedCompetitors: 5, zips: 12, changes7d: 14, alerts7d: 3, priceMoves7d: 2, priceCuts7d: 1, activeAds: 23, activeAds7dAgo: 14, rating: { self: 4.8, competitorAverage: 4.5 }, pressure: [], pitchSnapshot: false };
+const base = { weekly: { changes: [0, 0, 0, 0, 0, 0, 0, 14], priceMoves: [0, 0, 0, 0, 0, 0, 0, 2], activeAds: [null, null, null, null, null, null, 14, 23] }, clientId: 'c', trackedCompetitors: 5, zips: 12, changes7d: 14, alerts7d: 3, priceMoves7d: 2, priceCuts7d: 1, activeAds: 23, activeAds7dAgo: 14, rating: { self: 4.8, competitorAverage: 4.5 }, pressure: [], pitchSnapshot: false };
 
 describe('kpiCards', () => {
+  it('gives each card its real history and leaves the rating bare without one', () => {
+    const cards = kpiCards(base, { agency: true });
+    expect(cards[0]!.trace).toEqual(base.weekly.changes);
+    expect(cards[1]!.trace).toEqual(base.weekly.priceMoves);
+    expect(cards[2]!.trace).toEqual(base.weekly.activeAds);
+    expect(cards[3]!.trace).toBeUndefined();
+    expect(kpiCards(base, { agency: true, ratingMonthly: [4.1, null, 4.3] })[3]!.trace).toEqual([4.1, null, 4.3]);
+  });
+
   it('builds the four mockup cards', () => {
-    expect(kpiCards(base, { agency: true })).toEqual([
+    expect(kpiCards(base, { agency: true }).map(({ trace: _t, traceLabel: _l, ...card }) => card)).toEqual([
       { title: 'Changes this week', value: '14', pill: { text: '3 high', tone: 'warn' }, hint: 'Across websites, ads, reviews and profiles' },
       { title: 'Competitor price moves', value: '2', pill: { text: '↓ 1 cut', tone: 'down' }, hint: 'On services you also offer' },
       { title: 'Active competitor ads', value: '23', pill: { text: '+9 vs last week', tone: 'info' }, hint: 'Meta and Google, where visible' },

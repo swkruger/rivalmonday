@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Kpi, KpiStrip } from './kpi-strip';
+import { Kpi, kpiTraceRuns, KpiStrip } from './kpi-strip';
 
 afterEach(cleanup);
 
@@ -31,5 +31,36 @@ describe('Kpi badge and caption', () => {
   it('renders neither slot when absent', () => {
     const { container } = render(<Kpi label="A" value="1" />);
     expect(container.querySelector('[data-slot=kpi]')!.children).toHaveLength(2);
+  });
+});
+
+describe('Kpi trace', () => {
+  it('draws real points behind the figure, hidden from assistive tech', () => {
+    const { container } = render(<Kpi label="A" value="1" trace={[1, 2, 3]} traceLabel="Last 3 weeks" />);
+    const cell = container.querySelector('[data-slot=kpi]')!;
+    expect(cell.getAttribute('title')).toBe('Last 3 weeks');
+    expect(cell.querySelector('[data-slot=kpi-trace]')!.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('1')).toBeTruthy();
+  });
+  it('draws nothing with fewer than two known points, and never invents one', () => {
+    for (const trace of [[], [5], [null, 5, null]]) {
+      const { container } = render(<Kpi label="A" value="1" trace={trace} />);
+      expect(container.querySelector('[data-slot=kpi-trace]')).toBeNull();
+      cleanup();
+    }
+  });
+  it('keeps a NULL as a gap between runs', () => {
+    const runs = kpiTraceRuns([1, 2, null, 3, 4]);
+    expect(runs.map((r) => r.length)).toEqual([2, 2]);
+    expect(runs[1]![0]![0]).toBe(75);
+  });
+  it('draws a flat history part way up, and the highest value above the lowest', () => {
+    expect(kpiTraceRuns([2, 2])[0]!.map(([, y]) => y)).toEqual([50, 50]);
+    const [low, high] = kpiTraceRuns([1, 9])[0]!;
+    expect(high![1]).toBeLessThan(low![1]);
+  });
+  it('carries a status tone on the cell', () => {
+    const { container } = render(<Kpi label="A" value="1" tone="warn" />);
+    expect(container.querySelector('[data-slot=kpi]')!.getAttribute('data-tone')).toBe('warn');
   });
 });

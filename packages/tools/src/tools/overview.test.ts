@@ -61,6 +61,10 @@ describe('get_workspace_overview', () => {
     await dbs.owner.update(client).set({ services: ['ac_tune_up'] }).where(eq(client.id, IDS.clientA1));
     const o = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
     expect(o).toMatchObject({ clientId: IDS.clientA1, trackedCompetitors: 1, changes7d: 2, alerts7d: 1, priceMoves7d: 1, priceCuts7d: 1, activeAds: null, activeAds7dAgo: null, pitchSnapshot: false });
+    // The last window equals the headline figures; the 9-day-old price event lands in the window before.
+    expect(o.weekly.changes).toEqual([0, 0, 0, 0, 0, 0, 1, 2]);
+    expect(o.weekly.priceMoves).toEqual([0, 0, 0, 0, 0, 0, 1, 1]);
+    expect(o.weekly.activeAds).toHaveLength(8);
     expect(o.pressure[0]).toMatchObject({ competitorId: IDS.competitorX, name: 'Smith HVAC' });
   });
 
