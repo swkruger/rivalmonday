@@ -5,28 +5,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 
 const A = '11111111-1111-4111-8111-111111111111';
-const m = vi.hoisted(() => ({ kind: 'user' as string, calls: [] as string[] }));
+const m = vi.hoisted(() => ({ kind: 'user' as string, role: 'agency_admin' as string, calls: [] as string[] }));
 const SETTING = {
   contactId: 'k1', agencyName: 'Cool Comfort', clientName: null, email: 'a@b.co', timezone: null, quietHours: null,
   kinds: [{ kind: 'am_alert', channels: { in_app: true, email: true } }],
 };
 
 vi.mock('@/server/current-viewer', () => ({
-  requireContext: async () => ({ viewer: { kind: m.kind, userId: 'u' }, ctx: createAccessContext({ agencyId: A, userId: 'u', role: 'agency_admin', clientScope: 'all', features: ['dashboard'] as never }) }),
+  requireContext: async () => ({ viewer: { kind: m.kind, userId: 'u' }, ctx: createAccessContext({ agencyId: A, userId: 'u', role: m.role as never, clientScope: m.role === 'client_owner' ? ['00000000-0000-4000-8000-0000000000c1'] : 'all', features: ['dashboard'] as never }) }),
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
+vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => ({ paused: false, paymentNeeded: false, enabled: false }) }));
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['UTC'] }));
 const tool = async (_ctx: unknown, name: string) => {
   m.calls.push(name);
   switch (name) {
     case 'get_my_profile': return { name: 'Pat Doe', email: 'pat@example.com', avatarUrl: null };
     case 'get_my_notification_settings': return { lists: [SETTING] };
+    case 'get_client_profile': return { name: 'Lone Star HVAC', services: ['a'] };
+    case 'get_my_usage': return { credits: { used: 1, limit: 100, ratio: 0.01, level: 'ok' } };
     case 'list_help_guides': return { guides: [] };
     default: throw new Error(`unmocked tool ${name}`);
   }
 };
 vi.mock('@/server/tools', () => ({ callTool: tool, tryCallTool: tool }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
+// The real one is an async server component (tested in client-summaries.test.tsx); a stand-in shows the page's wiring.
+vi.mock('./client-summaries', () => ({ ClientSummaries: (p: { clientId: string; billingEnabled: boolean }) => <section><h2>Your business</h2><a href={`/c/${p.clientId}/settings/usage`}>View usage</a>{p.billingEnabled && <a href="#b">View billing</a>}</section> }));
 vi.mock('./actions', () => ({ updateNameAction: vi.fn(), removeAvatarAction: vi.fn() }));
 vi.mock('../notifications/actions', () => ({ setPrefAction: vi.fn(), updateContactAction: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -37,7 +43,7 @@ vi.mock('next/navigation', () => ({
 const { default: Profile, metadata } = await import('./page');
 const { default: OldNotifications } = await import('../notifications/page');
 
-beforeEach(() => { m.kind = 'user'; m.calls = []; });
+beforeEach(() => { m.kind = 'user'; m.role = 'agency_admin'; m.calls = []; });
 afterEach(cleanup);
 
 describe('/settings/profile', () => {
@@ -52,6 +58,18 @@ describe('/settings/profile', () => {
     expect(screen.getByRole('switch', { name: /in-app/i })).toBeTruthy();
     expect(document.getElementById('notifications')).toBeTruthy();
     expect(m.calls).toEqual(expect.arrayContaining(['get_my_profile', 'get_my_notification_settings']));
+  });
+
+  it('shows Your business between the details and the notifications for a client owner, none for an agency role', async () => {
+    render(<HelpProvider value={{ audience: 'agency', names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>{await Profile()}</HelpProvider>);
+    expect(screen.queryByRole('heading', { name: 'Your business' })).toBeNull();
+    cleanup();
+    m.role = 'client_owner';
+    render(<HelpProvider value={{ audience: 'agency', names: { agency: 'Cool Comfort', assistant: 'Sunny' } }}>{await Profile()}</HelpProvider>);
+    const heads = screen.getAllByRole('heading').map((h) => h.textContent);
+    expect(heads.indexOf('Your business')).toBeGreaterThan(heads.indexOf('Your details'));
+    expect(screen.getByRole('link', { name: 'View usage' }).getAttribute('href')).toBe('/c/00000000-0000-4000-8000-0000000000c1/settings/usage');
+    expect(screen.queryByRole('link', { name: 'View billing' })).toBeNull();
   });
 
   it.each(['guest', 'support'])('is a 404 for a %s viewer', async (kind) => {

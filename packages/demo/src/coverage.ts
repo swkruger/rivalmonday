@@ -396,6 +396,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/help (client owner)', as: 'ownerLoneStar', calls: [lsGuides, helpSearch((ids) => ({ clientId: ls(ids) })), lsProfile] },
   { route: '/platform/help', as: 'operator', calls: [helpGuides(() => ({ context: 'platform' })), helpSearch(() => ({ context: 'platform' }))] },
   { route: '/settings/profile', as: 'admin', calls: [{ tool: 'get_my_profile', input: none }, { tool: 'get_my_notification_settings', input: none }] },
+  { route: '/settings/profile (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_profile', input: none }, lsProfile, { tool: 'get_my_usage', input: (ids) => ({ clientId: ls(ids) }), path: 'credits.limit' }, { tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }] },
 ];
 
 /**

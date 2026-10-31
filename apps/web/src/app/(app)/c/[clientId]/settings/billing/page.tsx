@@ -9,6 +9,7 @@ import { clientSettingsCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
+import { clientPlanStatus, type MyBilling } from '@/lib/client-plan-status';
 import { CLIENT_PLAN_STATUS, labelFor } from '@/lib/labels';
 import { PAGE_COPY } from '@/help/copy';
 import { hasClientSettings } from '@/server/client-settings-nav';
@@ -24,35 +25,12 @@ export const metadata: Metadata = { title: 'Billing' };
 const HELP_KEY = 'page:client.settings.billing';
 const COPY = PAGE_COPY['client.settings.billing'];
 
-export interface MyBilling {
-  agencyName: string;
-  state: 'off' | 'invited' | 'active' | 'payment_needed' | 'cancelled' | 'disconnected';
-  paused: boolean;
-  enabled: boolean;
-  nextChargeDate: string | null;
-  nextChargeAmountCents: number | null;
-  endsOn: string | null;
-  canManagePayment: boolean;
-}
+export type { MyBilling };
 
 export const CHECKOUT_DONE_COPY = 'Thanks — your payment details are saved.';
 export const CHECKOUT_CANCELLED_COPY = 'Payment setup was cancelled.';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-
-type PlanStatus = keyof typeof CLIENT_PLAN_STATUS;
-
-function statusOf(b: MyBilling): { status: PlanStatus; detail: string | null } {
-  if (b.paused) return { status: 'paused', detail: `Monitoring is paused. Please contact ${b.agencyName}.` };
-  if (!b.enabled) return { status: 'not_set_up', detail: `Billing is not set up for this workspace. Please contact ${b.agencyName} with any questions.` };
-  switch (b.state) {
-    case 'active': return { status: 'active', detail: null };
-    case 'payment_needed': return { status: 'payment_needed', detail: 'Your last payment did not go through. Please update your payment method.' };
-    case 'invited': return { status: 'invited', detail: `Check your email for the payment link from ${b.agencyName}.` };
-    case 'cancelled': return { status: 'cancelled', detail: null };
-    default: return { status: 'unavailable', detail: `Please contact ${b.agencyName} about your billing.` };
-  }
-}
 
 /**
  * Phase 9b spec § UI: the client owner's billing page, agency-branded (the shell carries the agency's theme). Any other
@@ -69,7 +47,7 @@ export default async function ClientBillingPage({ params, searchParams }: { para
     hasClientSettings(clientId),
     helpGuides(ctx, 'client', clientId),
   ]);
-  const status = statusOf(b);
+  const status = clientPlanStatus(b);
   const chip = labelFor(CLIENT_PLAN_STATUS, status.status);
   const flash = one(checkout) === 'done' ? CHECKOUT_DONE_COPY : one(checkout) === 'cancelled' ? CHECKOUT_CANCELLED_COPY : null;
 

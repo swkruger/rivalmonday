@@ -103,6 +103,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/help (client owner)` | ownerLoneStar | `list_help_guides`, `search_knowledge`, `get_client_profile` | — |
 | `/platform/help` | operator | `list_help_guides`, `search_knowledge` | — |
 | `/settings/profile` | admin | `get_my_profile`, `get_my_notification_settings`, `list_help_guides` | — |
+| `/settings/profile (client owner)` | ownerLoneStar | `get_my_profile`, `get_client_profile`, `get_my_usage`, `get_my_billing` | — |
 | `/sign-up` | public | — | sign-up form (paused copy while sign-ups are paused) |
 | `/sign-up/problem` | public | — | needs a signed-in user whose invite-link sign-up failed |
 | `/join/[token]` | public | — | needs a fresh invite link (create one in /platform/billing) |

@@ -660,7 +660,7 @@ export const CLIENT_COPY = {
   'client.settings.billing': {
     description: 'The status of your plan, your next charge and your payment method.',
     tips: {
-      // source: apps/web/src/app/(app)/c/[clientId]/settings/billing/page.tsx:statusOf
+      // source: apps/web/src/lib/client-plan-status.ts:clientPlanStatus
       status: {
         title: 'Billing status',
         body: 'Active: your plan is running. Payment needed: the last payment did not go through, so update your payment method. Awaiting payment setup: {agency} has emailed you a payment link. Cancelled: the plan is cancelled; if an end date is shown, that is the last day covered and there are no further charges. Paused: monitoring is paused, so contact {agency}. Not set up: billing has not been turned on for this workspace, so contact {agency}. Not available: your agency has not shared the billing details here; contact them.',

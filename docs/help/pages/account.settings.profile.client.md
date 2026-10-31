@@ -9,6 +9,8 @@ Your own details and which notices reach you. This page is about you only: nothi
 
 **Your details** are your name, your photo and the email address you sign in with. Your name and photo appear in the account menu at the top of every page. The email address cannot be changed here.
 
+**Your business** is a short read-only summary of your business with a link to each full page: **Business profile** (the business name and how many services are listed), **Usage** (the credits used this month) and, for the owner, **Billing** (your plan status and next charge, when billing is on). Viewers see only the business profile. Nothing on this page changes your business: use the links to open the full pages.
+
 **Notifications** are the notices you receive, in the app and by email, plus a time zone and quiet hours for email. There is one card for each business you receive notices about, titled with its name. Each card has a row per kind of notice with two switches:
 
 - **In-app** puts the notice in your Inbox.
