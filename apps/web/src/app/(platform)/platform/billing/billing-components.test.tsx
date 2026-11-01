@@ -141,15 +141,21 @@ describe('Codes', () => {
 
 describe('InviteLinks', () => {
   it('lists prefix, offer, uses/max, expiry, note and a Revoke button; never a full URL', () => {
-    render(<InviteLinks links={[link()]} codes={[]} tz="UTC" />);
-    const row = screen.getByText('abc123…').closest('tr')!;
-    expect(within(row).getByText('Pilot')).toBeTruthy();
-    expect(within(row).getByText('1 / 3')).toBeTruthy();
-    expect(within(row).getByText('Nov 1')).toBeTruthy();
-    expect(within(row).getByText('For Acme')).toBeTruthy();
-    expect(within(row).getByText('Active')).toBeTruthy();
-    expect(within(row).getByRole('button', { name: 'Revoke' })).toBeTruthy();
-    expect(screen.queryByText(/won't be shown again/)).toBeNull();
+    // The fixture's expiry is a fixed date, so "Active" needs a clock before it.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-15T00:00:00Z') });
+    try {
+      render(<InviteLinks links={[link()]} codes={[]} tz="UTC" />);
+      const row = screen.getByText('abc123…').closest('tr')!;
+      expect(within(row).getByText('Pilot')).toBeTruthy();
+      expect(within(row).getByText('1 / 3')).toBeTruthy();
+      expect(within(row).getByText('Nov 1')).toBeTruthy();
+      expect(within(row).getByText('For Acme')).toBeTruthy();
+      expect(within(row).getByText('Active')).toBeTruthy();
+      expect(within(row).getByRole('button', { name: 'Revoke' })).toBeTruthy();
+      expect(screen.queryByText(/won't be shown again/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows the new link once, in a copy box with the one-time warning', async () => {
