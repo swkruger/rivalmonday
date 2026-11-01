@@ -35,12 +35,9 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Global setup resets once:** it wipes + migrates only when the migration files' fingerprint changed (stored in schema `cs_test_meta`); otherwise it empties the tables. Force a rebuild with `TEST_DB_FULL_RESET=1`.
 - **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
 - **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>` (in `@cs/engine`/`@cs/demo` it can fail "vitest not found": run `npx vitest run <pattern>` from the package dir). `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
-- **Keep going past failures:** `npx turbo run test --concurrency=1 --continue`.
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
-- **Subagents:** run focused tests in the foreground (`timeout: 600000`); **never hand back while a test run is still running**. On API timeouts, resume rather than restart.
 
-- In a fresh worktree `pnpm --filter @cs/web exec vitest` can say "not found": run `apps/web/node_modules/.bin/vitest`.
-- **CI has no `.env`, and its clock is real:** a test that passes locally can fail in CI if it reads a key or URL from the root `.env`, assumes a row order without `ORDER BY`, or uses a fixed future date that later passes. Stub or mock the setting, compare as sets, and pin the clock (`vi.useFakeTimers({ toFake: ['Date'] })`). Check `gh run list --branch main` before calling a suite green.
+- **Passes locally, fails in CI:** CI has no `.env` (stub or mock settings); its clock is real (pin it for fixed dates); row order needs `ORDER BY` or a set compare; poll for async state (`vi.waitFor`), never check once. Check `gh run list --branch main` before calling a suite green.
 
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.

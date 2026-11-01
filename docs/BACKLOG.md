@@ -31,6 +31,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Captures: limiter cursor/last maps never pruned; captures queued before deploy lack the `capture:` singleton key (one-time duplicate); fixture `task_get` ledger rows carry `fx_` ids ($0); fixture-fetch abort listener not removed — *7c2 T3/T9b*
 
 ### Deployment
+- [ ] Production `deploy` job has no page check; give it the staging job's `/health` + `/sign-in` smoke before `DEPLOY_ENABLED` — *staging 2026-11-01*
+- [ ] Set `OPENROUTER_API_KEY` for `evals-live`: empty, so all suites stop at start (PR runs seen 10-31 and 11-01; schedule red daily since at least 10-25) — *staging 2026-11-01*
+- [ ] Owner: decide on making the repo private; CI then uses Actions minutes (~35 min+/run; Free plan 2,000/month) — *staging 2026-11-01*
 - [ ] Deploy note: migration `0025`'s `client_score_thresholds_check` fails on any existing malformed row — check before applying to a DB with real clients — *from 3d final review*
 - [ ] Deploy note: `magicLink({ storeToken: 'hashed' })` invalidates links issued before the cutover (15-min window) — expect a few "expired" reports — *from 5b-2 final review Minor 7*
 - [ ] Set `"agentGuidance": false` in `turbo.json` if AGENTS.md churns — *from Phase 1 review*
@@ -56,6 +59,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
 ### 7c1 follow-ups (quality gates, evals)
+- [ ] One-off CI misses, causes unknown, re-run cleared both: `eval:replay` `No recorded reply for ask_assistant (193437be)` (run 41266260249; 9 local Ask replays passed); site `next/font/google queries have exactly one entry` (run 41273513740). Log the case id on a replay miss — *staging 2026-11-01*
 - [ ] Ask evals: run cases with bounded concurrency (~1 h sequential) and prompt-cache the system prompt + tool definitions (~12k prompt tokens per Sonnet 5 call) — *jev-openrouter*
 - [ ] Evals: `record --case <id>` single-case merge or `--keep-only-green` (`record --fill` covers most of it; `eval record` saves a take with blocking failures); flush cassette on budget stop; omit `topic.*`/`sentiment.mae` when n=0; validate baseline JSON; cassette `version` guard; rebuild `changes` once real web changes exist (R15) and re-baseline after the owner confirms labels — *phase-7c1*
 - [ ] Ask: citation-repair follow-up for thinner answers (guard runs after `supportCheck`; misses spelled-out numbers/relative dates); eval B2 splitter vs guard `splitUnits` divergence; ~2 % invalid-JSON turns (likely per-call `AbortSignal.timeout` firing during `res.json()`, mislabelled) — *phase-7c1*

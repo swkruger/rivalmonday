@@ -215,7 +215,7 @@ These settings come first, because the same project will also host production la
 
    Don't add `WORKER_DATABASE_URL`, `SERVICE_DATABASE_POOLED_URL`, `VENDOR_FAKE_MODE`, or anything in the GitHub section of the file.
 7. Get the IDs:
-   - **Account Settings → Tokens → Create:** save as `VERCEL_TOKEN`.
+   - **Account Settings → Tokens → Create:** give it the whole team as its scope, not specific projects, and save it as `VERCEL_TOKEN`.
    - **Team Settings → General → Team ID:** save as `VERCEL_ORG_ID`.
    - **Project Settings → General → Project ID:** save as `VERCEL_PROJECT_ID`.
 
@@ -446,6 +446,8 @@ Run through this after the first deploy, and again whenever you change the setup
 | `deploy-staging` skipped, with `test` or `site` red | The tests failed, so nothing deploys | Fix the failing tests on `main` |
 | `deploy-staging` skipped, with tests green | Staging is switched off | Set `STAGING_DEPLOY_ENABLED=true` as a repository variable (step 18) |
 | Fails at "Check the target" | `MIGRATION_DATABASE_URL` isn't the staging branch's direct owner address, or the `NEON_*` values are wrong | Compare them with step 2 and step 14 |
+| `Project not found` at "Vercel pull" | The token can't see that project, even if the ID is right. A token limited to one project does this | Create a token for the whole team (step 7 of step 11), then update `.env.staging` and GitHub |
+| Smoke check fails with **500** on `/sign-in` | A page fails on Vercel though `/health` works | Read the error in the project's **Logs** in Vercel |
 | Smoke check fails with **401** | Vercel is asking visitors to log in | Turn Vercel Authentication off (step 11) |
 | Postmark test: **HTTP 0** or a socket error | The address doesn't exist yet | Finish steps 11 and 13 |
 | Postmark test: **401** | The webhook has the wrong secret | Use `POSTMARK_WEBHOOK_SECRET`, not the server token, and make sure it matches Vercel |
