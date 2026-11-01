@@ -33,16 +33,38 @@ export function cellText(c: HeatCell): string {
   return `${pct(c.share)} · ${sentimentWord(c.sentiment)}${d}`;
 }
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const short = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
+/** Room for one header line in a 128 px column. */
+const NAME_LINE_W = 122;
+/** Rough width at 12 px semibold (measured against Inter): SVG text can't wrap itself, and all-caps names are far wider than mixed case. */
+const nameW = (s: string) => [...s].reduce((w, c) => w + (/[MW]/.test(c) ? 12 : /[A-Z0-9&]/.test(c) ? 8.8 : c === ' ' ? 3.5 : /[iljt.,']/.test(c) ? 4 : 6.8), 0);
+const fitName = (s: string) => {
+  if (nameW(s) <= NAME_LINE_W) return s;
+  let cut = s;
+  while (cut && nameW(`${cut}…`) > NAME_LINE_W) cut = cut.slice(0, -1);
+  return `${cut.trimEnd()}…`;
+};
+/** A column header on at most two lines, broken between words; only what still doesn't fit gets an ellipsis. */
+function nameLines(name: string): string[] {
+  const words = name.trim().split(/\s+/);
+  let first = words[0] ?? '';
+  let i = 1;
+  while (i < words.length && nameW(`${first} ${words[i]}`) <= NAME_LINE_W) first = `${first} ${words[i++]}`;
+  const rest = words.slice(i).join(' ');
+  return rest ? [fitName(first), fitName(rest)] : [fitName(first)];
+}
 
 /** Module 6 heatmap: rows = topics, columns = businesses (you first). Colour = sentiment of mentions, number = mention share. */
 export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: Pick<TopicBenchmarkView, 'topics' | 'businesses'> }) {
   const { topics, businesses } = benchmark;
   if (topics.length === 0 || businesses.length === 0) return <p className="text-sm text-muted-foreground">No reviews analysed yet.</p>;
   const LABEL_W = 200;
-  const COL_W = 104;
+  const COL_W = 128;
+  const CARD_W = 102;
   const ROW_H = 34;
-  const HEAD_H = 40;
+  const HEAD_H = 48;
+  const HEAD_LINE_H = 15;
   const GAP = 2;
   const W = LABEL_W + businesses.length * COL_W;
   const H = HEAD_H + topics.length * ROW_H;
@@ -52,18 +74,23 @@ export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: P
     <figure className="flex flex-col gap-2">
       <div tabIndex={0} role="region" aria-label={title} className="overflow-x-auto focus-visible:outline-2 outline-offset-2 outline-ring">
         <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${topics.length} topics for ${businesses.length} businesses; colour shows how positive mentions are, the number how often the topic comes up.`} style={{ width: W, minWidth: W }} className="max-w-none">
-          {businesses.map((b, j) => (
-            <g key={b.competitorId}>
-              <title>{b.name}</title>
-              <text data-head x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H - 14} textAnchor="middle" fontSize={12} fontWeight={600} fill={b.self ? 'var(--you)' : INK}>
-                {short(colName(b))}
-              </text>
-            </g>
-          ))}
+          {businesses.map((b, j) => {
+            const lines = nameLines(colName(b));
+            const x = LABEL_W + j * COL_W + COL_W / 2;
+            return (
+              <g key={b.competitorId}>
+                <title>{b.name}</title>
+                <text data-head textAnchor="middle" fontSize={12} fontWeight={600} fill={b.self ? 'var(--you)' : INK}>
+                  {/* Bottom-aligned: a one-line name sits right above its cells, level with the last line of a two-line one. */}
+                  {lines.map((line, k) => <tspan key={k} x={x} y={HEAD_H - 10 - (lines.length - 1 - k) * HEAD_LINE_H}>{line}</tspan>)}
+                </text>
+              </g>
+            );
+          })}
           {topics.map((tp, i) => (
             <g key={tp.id}>
               {tp.name.length > 28 ? <title>{tp.name}</title> : null}
-              <text x={LABEL_W - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(tp.name, 28)}</text>
+              <text x={LABEL_W + (COL_W - CARD_W) / 2 - 10} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="end" fontSize={12} fill={INK}>{short(tp.name, 28)}</text>
               {businesses.map((b, j) => {
                 const c = cell(b, tp.id);
                 const share = c?.share ?? null;
@@ -73,7 +100,7 @@ export function TopicHeatmap({ title, benchmark }: { title: string; benchmark: P
                 const tip = `${b.name}, ${tp.name}: ${cellText(c)}${share === null ? ' (not enough reviews)' : ''}`;
                 return (
                   <g key={b.competitorId}>
-                    <rect x={LABEL_W + j * COL_W + GAP / 2} y={HEAD_H + i * ROW_H + GAP / 2} width={COL_W - GAP} height={ROW_H - GAP} rx={4} fill={f.fill} stroke={f.stroke ?? 'none'} strokeWidth={f.stroke ? 1 : 0}>
+                    <rect x={LABEL_W + j * COL_W + (COL_W - CARD_W) / 2} y={HEAD_H + i * ROW_H + GAP / 2} width={CARD_W} height={ROW_H - GAP} rx={4} fill={f.fill} stroke={f.stroke ?? 'none'} strokeWidth={f.stroke ? 1 : 0}>
                       <title>{tip}</title>
                     </rect>
                     <text data-cell={`${tp.id}|${b.competitorId}`} x={LABEL_W + j * COL_W + COL_W / 2} y={HEAD_H + i * ROW_H + ROW_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={f.text} pointerEvents="none">

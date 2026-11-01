@@ -83,7 +83,56 @@ describe('TopicHeatmap', () => {
 
   it('svg keeps its natural width (minWidth)', () => {
     render(<TopicHeatmap title="T" benchmark={benchmark} />);
-    expect(screen.getByRole('img').getAttribute('style')).toContain('min-width: 408px');
+    expect(screen.getByRole('img').getAttribute('style')).toContain('min-width: 456px');
+  });
+
+  const withNames = (...names: string[]) => ({
+    topics: benchmark.topics,
+    businesses: names.map((name, i) => ({ ...benchmark.businesses[1]!, competitorId: `c${i}`, name })),
+  });
+  const headLines = (container: HTMLElement) => [...container.querySelectorAll('text[data-head]')].map((h) => [...h.querySelectorAll('tspan')].map((l) => l.textContent));
+
+  it('wraps a long business name onto two lines instead of cutting it', () => {
+    const { container } = render(<TopicHeatmap title="T" benchmark={withNames('Cleburne Rooter & Plumbing', 'Smith HVAC')} />);
+    expect(headLines(container)).toEqual([['Cleburne Rooter &', 'Plumbing'], ['Smith HVAC']]);
+  });
+
+  it('cuts only what does not fit on two lines, and keeps the full name in the tooltip', () => {
+    const name = 'Stockton Bend Water Heater and Drain Specialists Inc';
+    const { container } = render(<TopicHeatmap title="T" benchmark={withNames(name)} />);
+    const [[first, second]] = headLines(container) as [[string, string]];
+    expect(first).toBe('Stockton Bend');
+    expect(second!.endsWith('…')).toBe(true);
+    expect(second!.length).toBeLessThanOrEqual(22);
+    expect(container.querySelector('text[data-head]')!.closest('g')!.querySelector('title')!.textContent).toBe(name);
+  });
+
+  it('gives all-caps names less room per line, since capitals are wider', () => {
+    const { container } = render(<TopicHeatmap title="T" benchmark={withNames('ACME ROOTER PLUMBING SERVICES')} />);
+    const [lines] = headLines(container) as [string[]];
+    expect(lines[0]).toBe('ACME ROOTER');
+    expect(lines[1]!.endsWith('…')).toBe(true);
+    expect(lines[1]!.length).toBeLessThanOrEqual(14);
+  });
+
+  it('cuts one very long word to the line width', () => {
+    const { container } = render(<TopicHeatmap title="T" benchmark={withNames('Supercalifragilisticexpialidocious')} />);
+    const [[first, second]] = headLines(container) as [[string, string?]];
+    expect(first!.endsWith('…')).toBe(true);
+    expect(first!.length).toBeLessThanOrEqual(22);
+    expect(second).toBeUndefined();
+  });
+
+  it('keeps the coloured cells 102 x 32, centred in their wider columns', () => {
+    const { container } = render(<TopicHeatmap title="T" benchmark={benchmark} />);
+    const rects = [...container.querySelectorAll('svg rect')];
+    expect(rects.length).toBe(4);
+    for (const r of rects) {
+      expect(r.getAttribute('width')).toBe('102');
+      expect(r.getAttribute('height')).toBe('32');
+    }
+    const cx = (r: Element) => Number(r.getAttribute('x')) + 51;
+    expect(cx(rects[0]!)).toBe(Number(container.querySelector('[data-cell="response_time|s"]')!.getAttribute('x')));
   });
 
   it('says so when there is nothing to show', () => {

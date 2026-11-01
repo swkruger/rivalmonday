@@ -29,8 +29,29 @@ export function rankSeries(scans: RankTrendView['scans']): ChartSeries[] {
   return foldSeries(series.map(neg), 5, { pin: ['self'], aggregate: 'mean' }).map(neg);
 }
 
+/** The narrowest axis: a tiny wobble between scans must not read as a big swing. */
+const MIN_SPAN = 4;
+const scaleStep = (span: number) => (span <= 6 ? 1 : span <= 12 ? 2 : 5);
+
+/** The y axis fitted to the plotted ranks: whole-rank ends with room around the lines, ticks on multiples of the step. */
+export function rankScale(values: number[]): { lo: number; hi: number; ticks: number[] } {
+  let lo = Math.max(1, Math.floor(Math.min(...values) - 0.25));
+  let hi = Math.min(NOT_IN_TOP, Math.ceil(Math.max(...values) + 0.25));
+  while (hi - lo < MIN_SPAN) {
+    if (hi < NOT_IN_TOP) hi++;
+    if (hi - lo < MIN_SPAN && lo > 1) lo--;
+  }
+  const step = scaleStep(hi - lo);
+  lo = Math.max(1, Math.floor(lo / step) * step);
+  if (hi < NOT_IN_TOP) hi = Math.min(NOT_IN_TOP, Math.ceil(hi / step) * step);
+  const inner: number[] = [];
+  for (let v = (Math.floor(lo / step) + 1) * step; v < hi; v += step) if (hi < NOT_IN_TOP || NOT_IN_TOP - v >= step) inner.push(v);
+  return { lo, hi, ticks: [lo, ...inner, hi] };
+}
+
 /**
- * Trend tab (Phase 13b D8): average map rank per scan for one keyword, y inverted (1 at the top, 21 = "20+").
+ * Trend tab (Phase 13b D8): average map rank per scan for one keyword, y inverted (best rank at the top, 21 = "20+"), the
+ * axis fitted to the data and labelled as zoomed when it doesn't show every rank.
  * A dashed vertical marker sits at every scan whose settings changed, so a jump there is read with care.
  * Takes `get_rank_trend` scans oldest → newest. Colours follow `seriesColor` with `lowerIsBetter`: you, the two best-ranked rivals highlighted (up to 2 rivals keep their order), the rest grey.
  */
@@ -40,7 +61,9 @@ export function RankTrend({ scans, keyword, height = 260 }: { scans: RankTrendVi
   if (scans.length === 0 || series.every((s) => s.points.every((v) => v === null))) return <p className="text-sm text-muted-foreground">No rank history yet.</p>;
   const n = scans.length;
   const x = (i: number) => (n === 1 ? PLOT / 2 : (i * PLOT) / (n - 1));
-  const y = (v: number) => ((v - 1) / (NOT_IN_TOP - 1)) * PLOT;
+  const scale = rankScale(series.flatMap((s) => s.points.filter((v) => v !== null)));
+  const y = (v: number) => ((v - scale.lo) / (scale.hi - scale.lo)) * PLOT;
+  const zoomNote = scale.lo > 1 || scale.hi < NOT_IN_TOP ? `Scale zoomed to ranks ${fmt(scale.lo)} to ${fmt(scale.hi)} to show small moves.` : null;
   const colorOf = (s: ChartSeries) => seriesColor(s, series, { lowerIsBetter: true });
   const latest = (s: ChartSeries) => { const v = [...s.points].reverse().find((p) => p !== null); return v == null ? 'no data' : fmt(v); };
   const summary = series.map((s) => `${s.name} ${latest(s)}`).join(', ');
@@ -57,9 +80,9 @@ export function RankTrend({ scans, keyword, height = 260 }: { scans: RankTrendVi
   return (
     <figure className="flex flex-col gap-2">
       <ChartPlot
-        label={`${title}. Latest: ${summary}.`}
+        label={`${title}. Latest: ${summary}.${zoomNote ? ` ${zoomNote}` : ''}`}
         height={height}
-        yTicks={[1, 5, 10, 15, NOT_IN_TOP].map((v) => ({ at: y(v) / PLOT, label: fmt(v) }))}
+        yTicks={scale.ticks.map((v) => ({ at: y(v) / PLOT, label: fmt(v) }))}
         xTicks={[...new Set([0, Math.floor((n - 1) / 2), n - 1])].map((i) => ({ at: x(i) / PLOT, label: shortDate(scans[i]!.finishedAt) }))}
       >
         {changed.map((i) => (
@@ -98,6 +121,7 @@ export function RankTrend({ scans, keyword, height = 260 }: { scans: RankTrendVi
           </li>
         )}
       </ul>
+      {zoomNote && <p data-testid="rank-scale" className="text-xs text-muted-ink">{zoomNote}</p>}
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground">Show as table</summary>
         <div className="overflow-x-auto">

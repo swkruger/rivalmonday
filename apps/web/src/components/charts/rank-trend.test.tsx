@@ -2,7 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CONTEXT_COLOR, RIVAL_COLORS } from './line-chart';
-import { RankTrend, rankSeries } from './rank-trend';
+import { RankTrend, rankScale, rankSeries } from './rank-trend';
 
 const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 const scan = (n: number, settingsChanged: boolean, self: number | null, rival: number) => ({
@@ -52,6 +52,43 @@ describe('RankTrend', () => {
     expect(stroke(3)).toBe(RIVAL_COLORS[1]); // rank 5
     expect(stroke(0)).toBe(CONTEXT_COLOR);
     expect(stroke(2)).toBe(CONTEXT_COLOR);
+  });
+
+  it('fits the axis to the data, so ranks 5 to 7.5 fill the plot', () => {
+    const { container } = render(<RankTrend keyword="ac repair" scans={[scan(1, false, 5, 7.5), scan(2, false, 5.5, 7)]} />);
+    expect([...container.querySelectorAll('[data-y-tick]')].map((t) => t.textContent)).toEqual(['4', '5', '6', '7', '8']);
+    const ys = (key: string) => container.querySelector(`polyline[data-series="${key}"]`)!.getAttribute('points')!.split(' ').map((p) => Number(p.split(',')[1]));
+    expect(ys('self')[0]).toBe(25); // rank 5 on a 4 to 8 axis
+    expect(ys(id(9))[0]).toBe(87.5); // rank 7.5
+  });
+
+  it('says when the axis is zoomed, and not when it shows the full range', () => {
+    const { unmount } = render(<RankTrend keyword="ac repair" scans={[scan(1, false, 5, 7), scan(2, false, 5, 7)]} />);
+    expect(screen.getByTestId('rank-scale').textContent).toBe('Scale zoomed to ranks 4 to 8 to show small moves.');
+    expect(screen.getByRole('img').getAttribute('aria-label')).toContain('Scale zoomed to ranks 4 to 8');
+    unmount();
+    render(<RankTrend keyword="ac repair" scans={[scan(1, false, 1, 21), scan(2, false, 1, 21)]} />);
+    expect(screen.queryByTestId('rank-scale')).toBeNull();
+  });
+
+  describe('rankScale', () => {
+    it('never zooms in past 4 ranks, so a tiny wobble does not look like a big swing', () => {
+      expect(rankScale([6, 6.1])).toMatchObject({ lo: 4, hi: 8 });
+    });
+
+    it('stays inside rank 1 and 20+', () => {
+      expect(rankScale([1, 1])).toMatchObject({ lo: 1, hi: 5, ticks: [1, 2, 3, 4, 5] });
+      expect(rankScale([21, 21])).toMatchObject({ lo: 17, hi: 21, ticks: [17, 18, 19, 20, 21] });
+    });
+
+    it('uses wider tick steps as the range grows, on whole ranks', () => {
+      expect(rankScale([3, 12])).toMatchObject({ lo: 2, hi: 14, ticks: [2, 4, 6, 8, 10, 12, 14] });
+      expect(rankScale([2, 18]).ticks).toEqual([1, 5, 10, 15, 20]);
+    });
+
+    it('keeps the full axis when the data spans it, with no 20 crowding 20+', () => {
+      expect(rankScale([1, 21])).toEqual({ lo: 1, hi: 21, ticks: [1, 5, 10, 15, 21] });
+    });
   });
 
   it('says so when there is no history', () => {
