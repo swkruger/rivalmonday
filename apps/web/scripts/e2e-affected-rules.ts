@@ -72,6 +72,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
+  { pattern: re(`${APP}(?:favicon\\.ico|icon\\.svg)$`), tags: [], why: 'static tab icons, no browser flow' },
   { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
   { pattern: re(`${COMP}shell/spend-banner`), tags: ['@usage', '@navigation'], why: 'spend pause banner in the shell' },
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },

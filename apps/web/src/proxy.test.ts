@@ -68,4 +68,9 @@ describe('proxy', () => {
     for (const p of ['/bot', '/robots.txt']) expect(run(p).headers.get('location'), p).toBeNull();
     for (const p of ['/bots', '/botx', '/bot-admin', '/bot/x', '/robots.txt/x']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
   });
+
+  it('lets the tab icon through without cookies, so signed-out pages show it too', () => {
+    expect(run('/icon.svg').headers.get('location')).toBeNull();
+    for (const p of ['/icon.svg/x', '/icons.svg', '/icon']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  });
 });
