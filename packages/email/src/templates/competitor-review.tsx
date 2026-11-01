@@ -3,6 +3,7 @@
 import { Button, Text } from 'react-email';
 import { button, Layout } from '../layout';
 import type { CompetitorReviewProps } from '../types';
+import { AgencyContactBlock } from './agency-contact';
 
 /** Phase 11b Task 18 (copy is binding, spec §6). Names only; capped at 5. No "Rival Monday". */
 export const COMPETITOR_REVIEW_MAX_NAMES = 5;
@@ -15,6 +16,7 @@ export function CompetitorReviewEmail(p: CompetitorReviewProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Sent by ${p.branding.displayName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`This is ${p.branding.displayName}. We're setting up competitor monitoring for ${p.businessName} and need your help to get the list right.`}</Text>
       <Text>We found these businesses competing with you:</Text>
       <ul>
         {names.map((n, i) => (
@@ -25,6 +27,7 @@ export function CompetitorReviewEmail(p: CompetitorReviewProps) {
       <Button href={p.reviewUrl} style={button(p.branding)}>
         Review competitors
       </Button>
+      <AgencyContactBlock branding={p.branding} />
     </Layout>
   );
 }

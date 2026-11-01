@@ -31,6 +31,7 @@ export function AgencyPlanChangeEmail(p: AgencyPlanChangeProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject}>
       <Text>{greeting(p.recipientName)}</Text>
+      <Text>{`This is Rival Monday with a change to the ${p.agencyName} plan.`}</Text>
       {effective.kind === 'next_billing' ? (
         <Text>
           {`From ${effective.date ? dateText(effective.date) : 'your next billing date'}, your plan is ${terms(after)} (was ${money(before.basePriceCents)} with ${before.includedSeats} seats, ${money(before.seatPriceCents)} each).`}
@@ -40,7 +41,7 @@ export function AgencyPlanChangeEmail(p: AgencyPlanChangeProps) {
       )}
       {p.featuresAdded.length > 0 && <Text>{`Now included: ${names(p.featuresAdded)}.`}</Text>}
       {p.featuresRemoved.length > 0 && <Text>{`No longer included: ${names(p.featuresRemoved)}. This applies straight away.`}</Text>}
-      <Text>Questions? Reply to this email.</Text>
+      <Text>You don't need to do anything. Questions? Reply to this email.</Text>
     </Layout>
   );
 }

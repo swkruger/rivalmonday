@@ -3,6 +3,7 @@
 import { Text } from 'react-email';
 import { Layout, panel } from '../layout';
 import type { LeadConfirmationProps } from '../types';
+import { AgencyContactBlock } from './agency-contact';
 
 /** Phase 11c Task 30 (copy is binding, spec §9). The preview facts and summary are inline: raw view tokens are never stored, so there is no preview link. */
 export const leadConfirmationSubject = (p: Pick<LeadConfirmationProps, 'businessName'>) => `Your competitor snapshot for ${p.businessName}`;
@@ -19,6 +20,7 @@ export function LeadConfirmationEmail(p: LeadConfirmationProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Sent by ${p.branding.displayName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`You're getting this from ${p.branding.displayName} because you asked for a competitor snapshot for ${p.businessName}.${ready ? ' Here is what we found from public information.' : ''}`}</Text>
       {ready ? (
         <>
           <div style={panel(p.branding)}>
@@ -34,6 +36,8 @@ export function LeadConfirmationEmail(p: LeadConfirmationProps) {
         <Text>{leadConfirmationFailed(p)}</Text>
       ) : null}
       <Text>{leadConfirmationClosing(p)}</Text>
+      <Text>You don't need to do anything right now.</Text>
+      <AgencyContactBlock branding={p.branding} />
     </Layout>
   );
 }

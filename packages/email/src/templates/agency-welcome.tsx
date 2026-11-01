@@ -11,6 +11,7 @@ export function AgencyWelcomeEmail(p: AgencyWelcomeProps) {
   const subject = agencyWelcomeSubject();
   return (
     <Layout branding={p.branding} title={subject} preview={subject}>
+      <Text>This is the Rival Monday team. Thanks for signing up.</Text>
       <Text>{`${p.agencyName} is set up. Next: tell us about your agency, invite your team and add your first client. It takes about 10 minutes, and you can stop anytime.`}</Text>
       <Button href={p.url} style={button(p.branding)}>
         Continue setup

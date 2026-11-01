@@ -3,11 +3,20 @@
 import { Button, Heading, Link, Section, Text } from 'react-email';
 import { button, greeting, Layout, panel } from '../layout';
 import type { BriefEmailProps } from '../types';
+import { AgencyContactBlock } from './agency-contact';
 import { FeedbackLine } from './feedback-line';
 import { Scorecard } from './scorecard';
 import { TrendTable } from './trend-table';
 
 const LEVEL = { L: 'low', M: 'medium', H: 'high' } as const;
+
+/** Email only: who it is from, what it is and what to do. The PDF keeps its own layout. */
+const briefIntro = (p: BriefEmailProps) => {
+  const agency = p.branding.displayName;
+  if (p.kind === 'starting_point') return `This is ${agency} with ${p.clientName}'s starting point: where you stand today against the competitors we now watch. Read it below to see where to focus first. From here on, you'll get a brief from us every week.`;
+  if (p.kind === 'quiet') return `This is ${agency} with ${p.clientName}'s weekly competitor brief. There's nothing you need to do this week.`;
+  return `This is ${agency} with ${p.clientName}'s weekly competitor brief: what your competitors changed and what we suggest you do about it. Read it below and pick the actions you want to take.`;
+};
 
 /** Items arrive already filtered to active ones and sorted by ord (the caller's job — Task 15); no upsell field exists. */
 export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document' }) {
@@ -15,6 +24,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
   return (
     <Layout branding={p.branding} variant={p.variant} title={briefSubject(p)} preview={p.summary} footer={`${p.kind === 'starting_point' ? 'Your starting point for' : 'Weekly competitor brief for'} ${p.clientName} · ${p.deliveryDate}`}>
       {doc ? null : <Text>{greeting(p.recipientName)}</Text>}
+      {doc ? null : <Text>{briefIntro(p)}</Text>}
       <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.kind === 'quiet' ? 'A quiet week' : p.kind === 'starting_point' ? 'Your starting point' : 'This week'}</Heading>
       <Text>{p.summary}</Text>
       {p.scorecard && p.kind !== 'quiet' ? <Scorecard branding={p.branding} model={p.scorecard} /> : null}
@@ -34,6 +44,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
       {p.link && !doc ? <Button href={p.link} style={button(p.branding)}>Open in your dashboard</Button> : null}
       {p.pdfLink && !doc ? <Text><Link href={p.pdfLink}>Download as PDF</Link></Text> : null}
       {doc ? null : <FeedbackLine feedback={p.feedback} subject={briefSubject(p)} />}
+      {doc ? null : <AgencyContactBlock branding={p.branding} />}
     </Layout>
   );
 }

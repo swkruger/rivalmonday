@@ -15,6 +15,7 @@ export function TeamInviteEmail(p: TeamInviteProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Invitation from ${p.branding.displayName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`${p.agencyName} uses this workspace to monitor its clients' competitors and send them weekly briefs.`}</Text>
       <Text>{teamInviteBody(p)}</Text>
       <Button href={p.signInUrl} style={button(p.branding)}>
         Sign in

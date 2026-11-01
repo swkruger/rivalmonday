@@ -16,6 +16,7 @@ export function AgencyHoldEmail(p: AgencyHoldProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject}>
       <Text>{greeting(p.recipientName)}</Text>
+      <Text>{`This is Rival Monday with an update about your ${p.agencyName} account.`}</Text>
       {p.kind === 'started' ? (
         <>
           <Text>
@@ -24,9 +25,12 @@ export function AgencyHoldEmail(p: AgencyHoldProps) {
           <Text>To restore it, reply to this email or contact {p.supportEmail}.</Text>
         </>
       ) : (
-        <Text>
-          The hold on your {p.agencyName} account has been lifted. Your team can make changes again, and scheduled work and billing resume today.
-        </Text>
+        <>
+          <Text>
+            The hold on your {p.agencyName} account has been lifted. Your team can make changes again, and scheduled work and billing resume today.
+          </Text>
+          <Text>You don't need to do anything.</Text>
+        </>
       )}
     </Layout>
   );

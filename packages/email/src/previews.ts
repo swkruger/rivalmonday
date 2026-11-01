@@ -14,7 +14,7 @@ import type {
 export interface EmailPreview { id: string; label: string; payload: EmailPayload }
 export interface DocumentPreview { id: string; label: string; render: () => Promise<string> }
 
-const agency = resolveBranding('Northwind Marketing', null);
+const agency = { ...resolveBranding('Northwind Marketing', null), contact: { name: 'Sam Lee', phone: '555-0100', email: 'sam@example.com', address: '100 Main St, Austin, TX 78701' } };
 const platform = resolveBranding('Rival Monday', null);
 const CLIENT = 'Bright Smile Dental';
 const AGENCY = 'Northwind Marketing';

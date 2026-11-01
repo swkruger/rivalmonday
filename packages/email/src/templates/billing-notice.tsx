@@ -5,16 +5,16 @@ import { button, Layout } from '../layout';
 import type { BillingNoticeKind, BillingNoticeProps } from '../types';
 
 /** Phase 9a Task 7 (copy is binding). Always Rival Monday branded: the platform, not the agency, writes about the agency's subscription. */
-const COPY: Record<BillingNoticeKind, { subject: string; body: (date: string) => string }> = {
-  trial_started: { subject: 'Your Rival Monday trial has started', body: (d) => `Your 30-day trial runs until ${d}. Up to 3 clients are included.` },
+const COPY: Record<BillingNoticeKind, { subject: string; body: (date: string) => string; next?: string }> = {
+  trial_started: { subject: 'Your Rival Monday trial has started', body: (d) => `Your 30-day trial runs until ${d}. Up to 3 clients are included.`, next: "You don't need to do anything yet. Add a payment method any time before the trial ends." },
   trial_ending_7: { subject: 'Your trial ends in 7 days', body: () => 'Add a payment method to keep your clients monitored without interruption.' },
   trial_ending_1: { subject: 'Your trial ends in 1 day', body: () => 'Add a payment method to keep your clients monitored without interruption.' },
   trial_ended: { subject: 'Your trial has ended', body: (d) => `Add a payment method to keep going. Service pauses on ${d}.` },
   payment_failed: { subject: 'Payment failed', body: (d) => `We couldn't charge your card. Service pauses on ${d} unless payment succeeds.` },
   service_paused: { subject: 'Service is paused', body: () => 'Monitoring, briefs and alerts are paused. Update your payment method to resume.' },
   account_suspended: { subject: 'Your account is suspended', body: () => 'Your data is kept. Update your payment method to restore access.' },
-  account_reactivated: { subject: "You're all set", body: () => 'Payment received — everything is running again.' },
-  pilot_ending_7: { subject: 'Your pilot ends in 7 days', body: (d) => `After ${d} your agency moves to a 30-day trial.` },
+  account_reactivated: { subject: "You're all set", body: () => 'Payment received — everything is running again.', next: "You don't need to do anything." },
+  pilot_ending_7: { subject: 'Your pilot ends in 7 days', body: (d) => `After ${d} your agency moves to a 30-day trial.`, next: 'Add a payment method any time to keep going once the trial ends.' },
 };
 
 export const billingNoticeSubject = (kind: BillingNoticeKind) => COPY[kind].subject;
@@ -33,7 +33,9 @@ export function BillingNoticeEmail(p: BillingNoticeProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Billing notice for ${p.agencyName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`This is Rival Monday with a billing update for ${p.agencyName}.`}</Text>
       <Text>{billingNoticeBody(p)}</Text>
+      {COPY[p.kind].next ? <Text>{COPY[p.kind].next}</Text> : null}
       <Button href={p.billingUrl} style={button(p.branding)}>
         Open billing
       </Button>

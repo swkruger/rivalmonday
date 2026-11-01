@@ -27,6 +27,7 @@ export function OnboardingTipEmail(p: OnboardingTipProps) {
       preview={onboardingTipBody(p.nextStep)}
       footer={<>{`You're getting this because you started setting up ${p.agencyName}. Unsubscribe from setup tips: `}<a href={p.unsubscribeUrl} style={{ color: '#5B6B7F' }}>{p.unsubscribeUrl}</a></>}
     >
+      <Text>{`This is Rival Monday with a quick reminder about setting up ${p.agencyName}.`}</Text>
       <Text>{onboardingTipBody(p.nextStep)}</Text>
       <Button href={p.url} style={button(p.branding)}>
         Pick up where you left off

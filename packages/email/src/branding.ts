@@ -15,6 +15,15 @@ export interface Branding {
   fromName: string;
   fromEmail: string | null;
   signOff: string | null;
+  /** How clients reach the agency (`agency_profile`): only `loadBranding` fills it, and client-facing emails show it. Absent on platform branding. */
+  contact?: AgencyContact | null;
+}
+
+export interface AgencyContact {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -28,6 +37,19 @@ function httpsUrl(s: string | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+/** The profile's contact fields made safe to print; null when they give a client no way to get in touch. */
+export function resolveAgencyContact(p: { contactName?: string | null; contactEmail?: string | null; phone?: string | null; line1?: string | null; line2?: string | null; city?: string | null; region?: string | null; postalCode?: string | null } | null | undefined): AgencyContact | null {
+  if (!p) return null;
+  const part = (s: string | null | undefined) => text(s ?? undefined, 120);
+  const email = part(p.contactEmail);
+  const place = [part(p.city), [part(p.region), part(p.postalCode)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const contact = {
+    name: part(p.contactName), phone: part(p.phone), email: email && EMAIL.test(email) ? email : null,
+    address: [part(p.line1), part(p.line2), place].filter(Boolean).join(', ') || null,
+  };
+  return contact.phone || contact.email || contact.address ? contact : null;
 }
 
 /** Phase 4b decision 14: stored agency settings with every unsafe or missing value replaced by a default. */

@@ -3,6 +3,7 @@
 import { Text } from 'react-email';
 import { Layout } from '../layout';
 import type { LeadDeclinedProps } from '../types';
+import { AgencyContactBlock } from './agency-contact';
 
 /** Phase 11c Task 30 (copy is binding, spec §5/§9). Agency-branded, platform-free. */
 export const leadDeclinedSubject = (p: Pick<LeadDeclinedProps, 'businessName'>) => `About your request, ${p.businessName}`;
@@ -15,7 +16,10 @@ export function LeadDeclinedEmail(p: LeadDeclinedProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Sent by ${p.branding.displayName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`This is ${p.agencyName}, replying to your request for competitor reports for ${p.businessName}.`}</Text>
       <Text>{leadDeclinedBody(p)}</Text>
+      <Text>You don't need to do anything.</Text>
+      <AgencyContactBlock branding={p.branding} />
     </Layout>
   );
 }

@@ -35,12 +35,20 @@ export const agencyClientBillingNoticeBody = (p: Pick<AgencyClientBillingNoticeP
   }
 };
 
+const NEXT: Partial<Record<AgencyClientBillingNoticeProps['kind'], string>> = {
+  'client-payment-failed': "You don't need to do anything yet, but you may want to check in with them.",
+  'client-paid': "You don't need to do anything.",
+  'client-auto-paused': 'Check in with them, and open client billing to see where things stand.',
+};
+
 export function AgencyClientBillingNoticeEmail(p: AgencyClientBillingNoticeProps) {
   const subject = agencyClientBillingNoticeSubject(p);
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer="Client billing notice">
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`This is Rival Monday with a billing update about your client ${p.clientName}.`}</Text>
       <Text>{agencyClientBillingNoticeBody(p)}</Text>
+      {NEXT[p.kind] ? <Text>{NEXT[p.kind]}</Text> : null}
       <Button href={p.billingUrl} style={button(p.branding)}>
         {p.kind === 'client_spend_paused' ? 'Open usage' : 'Open client billing'}
       </Button>

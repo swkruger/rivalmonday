@@ -13,7 +13,7 @@ import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
-  notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
+  loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
@@ -627,7 +627,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       sendClient: async (to, agencyId, clientId, ag, props) => {
         const from = delivery?.fromAddress ?? env.EMAIL_FROM;
         if (!from) throw new Error('EMAIL_FROM is required');
-        const branding = resolveBranding(ag.agencyName, ag.branding);
+        const branding = { ...resolveBranding(ag.agencyName, ag.branding), contact: await loadAgencyContact(getDb(), agencyId) };
         const r = await renderEmail({ template: 'client_billing_notice', props: { ...props, agencyName: branding.displayName, branding } });
         const replyTo = (await replyToFor(getDb(), agencyId, clientId))?.email ?? null;
         // Display name is the agency's; the sending address is the configured platform one until per-agency domains (decision 13).

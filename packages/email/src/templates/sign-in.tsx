@@ -11,6 +11,7 @@ export function SignInEmail(props: SignInEmailProps) {
   const { branding, url, signup } = props;
   return (
     <Layout branding={branding} title={signInSubject(props)} preview={signup ? `Confirm your email for ${signup.agencyName}` : `Sign in to ${branding.displayName}`}>
+      <Text>{signup ? `You're getting this from Rival Monday because you started creating ${signup.agencyName} with this email address.` : `You're getting this from ${branding.displayName} because a sign-in link was requested for this email address.`}</Text>
       {signup ? (
         <Text>Click below to confirm your email and set up {signup.agencyName} on Rival Monday.</Text>
       ) : (

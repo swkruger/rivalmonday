@@ -17,9 +17,11 @@ export function AgencyInviteEmail(p: AgencyInviteProps) {
   const subject = agencyInviteSubject();
   return (
     <Layout branding={p.branding} title={subject} preview={subject}>
+      <Text>This invitation is from the Rival Monday team.</Text>
       <Text>
         {`Rival Monday watches your clients' local competitors and sends a weekly brief with evidence for every claim. ${agencyInviteOffer(p)} This link works until ${formatBillingDate(p.expiresAt)}.`}
       </Text>
+      <Text>To accept, click the button below and create your agency's account.</Text>
       <Button href={p.url} style={button(p.branding)}>
         Create your agency
       </Button>

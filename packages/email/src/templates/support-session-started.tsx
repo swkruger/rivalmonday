@@ -11,6 +11,7 @@ export function SupportSessionStartedEmail(p: SupportSessionStartedProps) {
   return (
     <Layout branding={p.branding} title={supportSessionStartedSubject()} preview={supportSessionStartedSubject()} footer="Platform access notice">
       <Text>{greeting(p.recipientName)}</Text>
+      <Text>This is a security notice from Rival Monday: a member of our support team is looking at your account. You don't need to do anything.</Text>
       <Text>
         {p.platformAdminName} opened a read-only session on {p.date}. Reason: {p.reason}. They can't change anything. Questions? Reply to this email.
       </Text>

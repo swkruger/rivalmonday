@@ -1,7 +1,7 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
-import { agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
-import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
+import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
+import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
 import { quietUntil } from './time';
@@ -32,7 +32,12 @@ export const plainLink = (cfg: DeliveryConfig, t: LinkTarget, id: string) => `${
 export async function loadBranding(db: Conn, agencyId: string): Promise<Branding> {
   const [a] = await db.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
   if (!a) throw new Error(`agency ${agencyId} not found`);
-  return resolveBranding(a.name, a.branding ?? null);
+  return { ...resolveBranding(a.name, a.branding ?? null), contact: await loadAgencyContact(db, agencyId) };
+}
+
+export async function loadAgencyContact(db: Conn, agencyId: string): Promise<AgencyContact | null> {
+  const [p] = await db.select().from(agencyProfile).where(eq(agencyProfile.agencyId, agencyId));
+  return resolveAgencyContact(p);
 }
 
 /** 11b: the only kinds that may be delivered to an inactive contact (the setup invite and the competitor review). */

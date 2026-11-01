@@ -3,6 +3,7 @@
 import { Button, Text } from 'react-email';
 import { button, Layout } from '../layout';
 import type { ClientBillingNoticeProps } from '../types';
+import { AgencyContactBlock } from './agency-contact';
 
 /** Phase 9b Task 8 (copy is binding). Agency-branded and platform-free: no "Rival Monday" anywhere (f13). */
 export const clientBillingNoticeSubject = (p: Pick<ClientBillingNoticeProps, 'kind' | 'agencyName'>) =>
@@ -18,10 +19,13 @@ export function ClientBillingNoticeEmail(p: ClientBillingNoticeProps) {
   return (
     <Layout branding={p.branding} title={subject} preview={subject} footer={`Billing notice from ${p.branding.displayName}`}>
       <Text style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{subject}</Text>
+      <Text>{`This is a billing message from ${p.agencyName}, who run your competitor reports.`}</Text>
       <Text>{clientBillingNoticeBody(p)}</Text>
+      {p.kind === 'client-payment-link' ? <Text>Use the button below to set it up.</Text> : null}
       <Button href={p.actionUrl} style={button(p.branding)}>
         {p.kind === 'client-payment-link' ? 'Set up payment' : 'Update payment'}
       </Button>
+      <AgencyContactBlock branding={p.branding} />
     </Layout>
   );
 }
