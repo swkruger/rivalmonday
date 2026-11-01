@@ -137,7 +137,10 @@ jobs:
         run: npx --yes vercel@62.4.0 deploy --prebuilt --target=staging --token="$VERCEL_TOKEN"
       - name: Smoke (staging app answers signed-out)
         # A 401 here means Vercel Deployment Protection covers the staging domain (docs/STAGING.md § 7).
-        run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
+        # /sign-in as well: /health renders no page, so it stays green when pages fail to load.
+        run: |
+          curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
+          curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/sign-in"
 
   # Staging marketing site. No placeholder or facts gate here (staging is noindex); production keeps both.
   deploy-staging-site:

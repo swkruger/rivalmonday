@@ -1,4 +1,4 @@
-import { type APIResponse, type Browser, type BrowserContext, chromium, errors, type Page, type Route } from 'playwright';
+import type { APIResponse, Browser, BrowserContext, Page, Route } from 'playwright';
 import sharp from 'sharp';
 import { assertPublicUrl, SsrfBlockedError } from '../net/guard';
 import { detectBlocked } from './blocked';
@@ -196,7 +196,7 @@ export function createPlaywrightRenderer(
   const renderDeadlineMs = opts.renderDeadlineMs ?? timeoutMs * 2;
   const maxHeight = opts.maxScreenshotHeight ?? 8000;
   const assertUrl = opts.assertUrl ?? ((u: string) => assertPublicUrl(u));
-  const browserCache = createBrowserCache(opts.launch ?? (() => chromium.launch({ headless: true })));
+  const browserCache = createBrowserCache(opts.launch ?? (async () => (await import('playwright')).chromium.launch({ headless: true })));
 
   return {
     async render(url) {
@@ -282,7 +282,7 @@ export function createPlaywrightRenderer(
       } catch (err) {
         await context?.close().catch(() => {});
         if (state.blocked) return emptyPage(url, 'error', 'ssrf_blocked');
-        if (err instanceof errors.TimeoutError) return emptyPage(url, 'timeout', err.message);
+        if (err instanceof (await import('playwright')).errors.TimeoutError) return emptyPage(url, 'timeout', err.message);
         if (err instanceof Error && err.message === RENDER_DEADLINE_MESSAGE) return emptyPage(url, 'timeout', err.message);
         return emptyPage(url, 'error', err instanceof Error ? err.message : String(err));
       }
