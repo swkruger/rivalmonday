@@ -379,7 +379,8 @@ describe('listBriefDueClients set-based scan (7c2 T4)', () => {
       await seedBriefs(now);
       const want = await legacyListBriefDueClients(dbs.service, now);
       const got = await listBriefDueClients(dbs.service, now);
-      expect(got, now.toISOString()).toEqual(want);
+      // Same clients; neither scan sets an order, and the worker just enqueues each one.
+      expect([...got].sort(), now.toISOString()).toEqual([...want].sort());
       if (want.length) nonEmpty++;
     }
     expect(nonEmpty).toBeGreaterThan(20); // the comparison is not vacuous

@@ -19,6 +19,8 @@ vi.mock('@cs/tools', async (orig) => ({
 }));
 const dbsMock = vi.hoisted(() => vi.fn((name?: string) => ({ app: { name } as never, service: { name } as never })));
 vi.mock('./db', () => ({ dbs: dbsMock }));
+// The real store reads the evidence settings from the root .env, which CI doesn't have.
+vi.mock('./store', () => ({ webStore: () => ({ get: vi.fn(), put: vi.fn() }) }));
 vi.mock('./env', () => ({ webEnv: () => ({ webMonitoring: undefined, platformAdmins: ['owner@example.com'], queueDatabaseUrl: 'postgres://fake' }) }));
 const boss = vi.hoisted(() => ({ on: vi.fn(), start: vi.fn(async () => {}), send: vi.fn(async () => 'id'), stop: vi.fn(async () => {}) }));
 vi.mock('pg-boss', () => ({ default: vi.fn(() => boss) }));
