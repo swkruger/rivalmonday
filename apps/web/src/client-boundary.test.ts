@@ -82,4 +82,25 @@ describe('client boundary', () => {
     }
     expect(bad).toEqual([]);
   });
+
+  // A class-name constant from a `'use client'` module stringifies to the reference's source: `${fieldCls} w-32` rendered
+  // `class="function() { throw new Error(…"`, leaving inputs with no border or background that looked like empty space.
+  it('server modules never import a non-component value from a "use client" module', () => {
+    const files = walk(SRC);
+    const bad: string[] = [];
+    for (const file of files) {
+      const sf = parse(file);
+      if (isClient(sf)) continue;
+      for (const st of sf.statements) {
+        if (!ts.isImportDeclaration(st) || !ts.isStringLiteral(st.moduleSpecifier)) continue;
+        const clause = st.importClause;
+        const named = clause?.namedBindings;
+        if (!clause || clause.isTypeOnly || !named || !ts.isNamedImports(named)) continue;
+        const target = resolveLocal(file, st.moduleSpecifier.text);
+        if (!target || !isClient(parse(target))) continue;
+        for (const el of named.elements) if (!el.isTypeOnly && !componentLike(el.name.text)) bad.push(`${relative(SRC, file)}: imports ${el.name.text} from ${st.moduleSpecifier.text}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
 });

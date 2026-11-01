@@ -9,7 +9,7 @@ vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Friday' }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@cs/core', async (orig) => ({ ...(await orig<typeof import('@cs/core')>()), hasChannel: () => m.ask, hasFeature: () => m.dash, hasPermission: () => false }));
 vi.mock('react', async (orig) => ({ ...(await orig<typeof import('react')>()), cache: <T,>(f: T) => f }));
-vi.mock('@/components/ask/save-recommendation-dialog', () => ({ RATIONALE_MAX: 10, TITLE_MAX: 10, SaveRecommendationDialog: () => null }));
+vi.mock('@/components/ask/save-recommendation-dialog', () => ({ SaveRecommendationDialog: () => null }));
 vi.mock('../../ask/actions', () => ({ saveAskRecommendation: vi.fn() }));
 
 const { default: EvidencePage } = await import('./page');

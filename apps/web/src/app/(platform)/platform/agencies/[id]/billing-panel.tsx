@@ -1,9 +1,9 @@
 import type { BillingState } from '@cs/db';
-import { StatusChip } from '@cs/ui';
+import { nativeInputClass, StatusChip } from '@cs/ui';
 import { ConfirmForm } from '@/components/confirm-form';
 import { formatDate, formatMoney } from '@/lib/format';
 import { BILLING_STATE, billingReasonLabel, INVOICE_STATUS, labelFor } from '@/lib/labels';
-import { Field, fieldCls } from '../../_components/mini-form';
+import { Field } from '../../_components/mini-form';
 import { attachDiscountAction, endPilotAction, extendTrialAction, grantPilotAction, setSeatCapExemptAction } from './billing-actions';
 
 export interface AgencyBilling {
@@ -75,7 +75,7 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
               confirmLabel="Grant pilot"
             >
               {hidden}
-              <Field label="Pilot ends (optional)" htmlFor="gp-end"><input id="gp-end" name="endsAt" type="date" className={fieldCls} /></Field>
+              <Field label="Pilot ends (optional)" htmlFor="gp-end"><input id="gp-end" name="endsAt" type="date" className={nativeInputClass} /></Field>
             </ConfirmForm>
           )}
           {b.state === 'trialing' && (
@@ -88,7 +88,7 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
               confirmLabel="Extend trial"
             >
               {hidden}
-              <Field label="New trial end" htmlFor="et-until"><input id="et-until" name="until" type="date" required className={fieldCls} /></Field>
+              <Field label="New trial end" htmlFor="et-until"><input id="et-until" name="until" type="date" required className={nativeInputClass} /></Field>
             </ConfirmForm>
           )}
           <ConfirmForm
@@ -101,7 +101,7 @@ export function BillingPanel({ billing: b, role, codes, tz, behind = null }: { b
           >
             {hidden}
             <Field label="Discount code" htmlFor="ad-code">
-              <select id="ad-code" name="discountCodeId" defaultValue="" className={fieldCls}>
+              <select id="ad-code" name="discountCodeId" defaultValue="" className={nativeInputClass}>
                 <option value="">Choose…</option>
                 {codes.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
               </select>

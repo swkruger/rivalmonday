@@ -1,6 +1,6 @@
-import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { nativeInputClass, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDate, formatMoney } from '@/lib/format';
-import { Field, fieldCls, MiniForm } from '../_components/mini-form';
+import { Field, MiniForm } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
 import { createDiscountCodeAction, revokeDiscountCodeAction } from './actions';
 
@@ -78,32 +78,32 @@ export function Codes({ codes, canManage, tz }: { codes: CodeRow[]; canManage: b
       </p>
       {canManage && (
         <MiniForm action={createDiscountCodeAction} submit="Create code" className="flex flex-wrap items-end gap-3 border-t border-line pt-4">
-          <Field label="Code" htmlFor="dc-code"><input id="dc-code" name="code" required minLength={3} maxLength={64} autoComplete="off" className={`${fieldCls} w-40`} /></Field>
+          <Field label="Code" htmlFor="dc-code"><input id="dc-code" name="code" required minLength={3} maxLength={64} autoComplete="off" className={`${nativeInputClass} w-40`} /></Field>
           <Field label="Type" htmlFor="dc-kind">
-            <select id="dc-kind" name="kind" defaultValue="percent" className={fieldCls}>
+            <select id="dc-kind" name="kind" defaultValue="percent" className={nativeInputClass}>
               <option value="percent">Percent off</option>
               <option value="amount">Dollars off</option>
             </select>
           </Field>
-          <Field label="Amount (% or $)" htmlFor="dc-amount"><input id="dc-amount" name="amount" required inputMode="decimal" className={`${fieldCls} w-28`} /></Field>
+          <Field label="Amount (% or $)" htmlFor="dc-amount"><input id="dc-amount" name="amount" required inputMode="decimal" className={`${nativeInputClass} w-28`} /></Field>
           <Field label="Applies to" htmlFor="dc-applies">
-            <select id="dc-applies" name="appliesTo" defaultValue="both" className={fieldCls}>
+            <select id="dc-applies" name="appliesTo" defaultValue="both" className={nativeInputClass}>
               <option value="both">Base and seats</option>
               <option value="base">Base price</option>
               <option value="seats">Seats</option>
             </select>
           </Field>
           <Field label="Duration" htmlFor="dc-duration">
-            <select id="dc-duration" name="duration" defaultValue="once" className={fieldCls}>
+            <select id="dc-duration" name="duration" defaultValue="once" className={nativeInputClass}>
               <option value="once">First invoice</option>
               <option value="repeating">Repeating</option>
               <option value="forever">Forever</option>
             </select>
           </Field>
-          <Field label="Months (repeating)" htmlFor="dc-months"><input id="dc-months" name="durationMonths" inputMode="numeric" className={`${fieldCls} w-24`} /></Field>
-          <Field label="Expires" htmlFor="dc-expires"><input id="dc-expires" name="expires" type="date" className={fieldCls} /></Field>
-          <Field label="Max uses" htmlFor="dc-max"><input id="dc-max" name="maxRedemptions" inputMode="numeric" className={`${fieldCls} w-24`} /></Field>
-          <Field label="Restrict to agency ids (optional)" htmlFor="dc-restrict"><input id="dc-restrict" name="restrictedAgencyIds" placeholder="comma-separated" className={`${fieldCls} w-64`} /></Field>
+          <Field label="Months (repeating)" htmlFor="dc-months"><input id="dc-months" name="durationMonths" inputMode="numeric" className={`${nativeInputClass} w-24`} /></Field>
+          <Field label="Expires" htmlFor="dc-expires"><input id="dc-expires" name="expires" type="date" className={nativeInputClass} /></Field>
+          <Field label="Max uses" htmlFor="dc-max"><input id="dc-max" name="maxRedemptions" inputMode="numeric" className={`${nativeInputClass} w-24`} /></Field>
+          <Field label="Restrict to agency ids (optional)" htmlFor="dc-restrict"><input id="dc-restrict" name="restrictedAgencyIds" placeholder="comma-separated" className={`${nativeInputClass} w-64`} /></Field>
         </MiniForm>
       )}
     </div>

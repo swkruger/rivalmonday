@@ -1,7 +1,7 @@
 import { PLAN_FEATURES } from '@cs/core';
-import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { nativeInputClass, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDate, formatMoney } from '@/lib/format';
-import { Field, fieldCls } from '../_components/mini-form';
+import { Field } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
 import { PLAN_FEATURE_LABEL } from '@/lib/labels';
 import { createPlanVersionAction } from './actions';
@@ -64,11 +64,11 @@ export function PlanEditor({ plans, canEdit, tz }: { plans: PlanRow[]; canEdit: 
           confirmLabel="Publish version"
           className="flex flex-wrap items-end gap-3 border-t border-line pt-4"
         >
-          <Field label="Name" htmlFor="plan-name"><input id="plan-name" name="name" required maxLength={80} defaultValue="Standard" className={fieldCls} /></Field>
-          <Field label="Base price ($/month)" htmlFor="plan-base"><input id="plan-base" name="basePrice" required inputMode="decimal" className={`${fieldCls} w-32`} /></Field>
-          <Field label="Included seats" htmlFor="plan-seats"><input id="plan-seats" name="includedSeats" required inputMode="numeric" className={`${fieldCls} w-28`} /></Field>
-          <Field label="Extra seat ($/month)" htmlFor="plan-seat-price"><input id="plan-seat-price" name="seatPrice" required inputMode="decimal" className={`${fieldCls} w-32`} /></Field>
-          <Field label="Trial days" htmlFor="plan-trial"><input id="plan-trial" name="trialDays" required inputMode="numeric" className={`${fieldCls} w-24`} /></Field>
+          <Field label="Name" htmlFor="plan-name"><input id="plan-name" name="name" required maxLength={80} defaultValue="Standard" className={nativeInputClass} /></Field>
+          <Field label="Base price ($/month)" htmlFor="plan-base"><input id="plan-base" name="basePrice" required inputMode="decimal" className={`${nativeInputClass} w-32`} /></Field>
+          <Field label="Included seats" htmlFor="plan-seats"><input id="plan-seats" name="includedSeats" required inputMode="numeric" className={`${nativeInputClass} w-28`} /></Field>
+          <Field label="Extra seat ($/month)" htmlFor="plan-seat-price"><input id="plan-seat-price" name="seatPrice" required inputMode="decimal" className={`${nativeInputClass} w-32`} /></Field>
+          <Field label="Trial days" htmlFor="plan-trial"><input id="plan-trial" name="trialDays" required inputMode="numeric" className={`${nativeInputClass} w-24`} /></Field>
           <fieldset className="flex flex-col gap-1">
             <legend className="mb-1 text-sm font-medium">Includes</legend>
             <div className="flex gap-4 text-sm">

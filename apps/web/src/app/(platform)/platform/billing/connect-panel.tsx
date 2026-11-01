@@ -1,7 +1,7 @@
-import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { nativeInputClass, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { StatStrip } from '@/components/stat-strip';
 import { formatMoney } from '@/lib/format';
-import { Field, fieldCls } from '../_components/mini-form';
+import { Field } from '../_components/mini-form';
 import { ConfirmForm } from '@/components/confirm-form';
 import { setConnectFeeAction } from './actions';
 
@@ -75,7 +75,7 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
             confirmLabel="Save fee"
             fields={{ agencyId: '' }}
           >
-            <Field label="Default fee (%)" htmlFor="cf-global"><input id="cf-global" name="percent" inputMode="decimal" required defaultValue={String(o.globalFeePercent)} className={fieldCls} /></Field>
+            <Field label="Default fee (%)" htmlFor="cf-global"><input id="cf-global" name="percent" inputMode="decimal" required defaultValue={String(o.globalFeePercent)} className={nativeInputClass} /></Field>
           </ConfirmForm>
           {o.agencies.length > 0 && (
             <ConfirmForm
@@ -87,12 +87,12 @@ export function ConnectPanel({ overview: o, canEdit }: { overview: ConnectOvervi
               confirmLabel="Save fee"
             >
               <Field label="Agency" htmlFor="cf-agency">
-                <select id="cf-agency" name="agencyId" required defaultValue="" className={fieldCls}>
+                <select id="cf-agency" name="agencyId" required defaultValue="" className={nativeInputClass}>
                   <option value="" disabled>Choose…</option>
                   {o.agencies.map((a) => <option key={a.agencyId} value={a.agencyId}>{a.name}</option>)}
                 </select>
               </Field>
-              <Field label="Fee (%), blank for default" htmlFor="cf-pct"><input id="cf-pct" name="percent" inputMode="decimal" className={fieldCls} /></Field>
+              <Field label="Fee (%), blank for default" htmlFor="cf-pct"><input id="cf-pct" name="percent" inputMode="decimal" className={nativeInputClass} /></Field>
             </ConfirmForm>
           )}
         </div>

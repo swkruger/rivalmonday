@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, Section, StatusChip } from '@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cache, type ReactNode, Suspense } from 'react';
-import { RATIONALE_MAX, SaveRecommendationDialog, TITLE_MAX } from '@/components/ask/save-recommendation-dialog';
+import { RATIONALE_MAX, TITLE_MAX } from '@/components/ask/recommendation-limits';
+import { SaveRecommendationDialog } from '@/components/ask/save-recommendation-dialog';
 import { EvidenceImage } from '@/components/evidence-image';
 import { clientCrumbs } from '@/components/client-crumbs';
 import { HelpText } from '@/components/help/help-context';

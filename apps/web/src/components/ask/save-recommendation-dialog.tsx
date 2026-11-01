@@ -5,17 +5,12 @@ import { useId, useRef, useState, useTransition } from 'react';
 import { useReadOnly } from '@/components/read-only';
 import type { ToolResult } from '@/server/run-tool';
 import { plainAnswer } from './answer';
+import { RATIONALE_MAX, RATIONALE_MIN, TITLE_MAX, TITLE_MIN } from './recommendation-limits';
 import { ErrorNote } from '@/components/form-error';
 
 type Level = 'L' | 'M' | 'H';
 export type SaveRecommendationInput = { clientId: string; title: string; rationale: string; effort: Level; impact?: Level; evidenceIds: string[] };
 export type SaveRecommendationAction = (input: SaveRecommendationInput) => Promise<ToolResult<{ id: string }>>;
-
-/** `add_recommendation`'s limits (the server action re-checks them). */
-export const TITLE_MIN = 3;
-export const TITLE_MAX = 120;
-export const RATIONALE_MIN = 10;
-export const RATIONALE_MAX = 1000;
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
