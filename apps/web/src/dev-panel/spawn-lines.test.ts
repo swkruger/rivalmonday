@@ -32,8 +32,8 @@ describe('spawnLines', () => {
       break;
     }
     expect(pid).toBeGreaterThan(0);
-    // The generator's cleanup waits for the child to exit, so it is gone once the loop has returned.
-    expect(alive(pid)).toBe(false);
+    // The pid is node's, a grandchild under the shell: the shell's exit can reach cleanup just before node has gone.
+    expect(await until(() => !alive(pid))).toBe(true);
   });
 
   it('kills the child when the signal aborts, then reports its exit (final-review M1)', async () => {

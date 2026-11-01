@@ -303,7 +303,8 @@ describe('local concurrency (Phase 7c2)', () => {
     await boss.send(job.name, { id: 'ok1' });
     await waitFor(() => s.ran.includes('ok1'));
     await waitFor(() => s.finished === 2);
-    expect((await boss.getJobById(job.name, failId))?.state).toBe('failed');
+    // The handler has finished, but pg-boss records the failure a moment later.
+    await vi.waitFor(async () => expect((await boss.getJobById(job.name, failId))?.state).toBe('failed'), { timeout: 15_000, interval: 200 });
     // Both pollers still pick up work: two blocked jobs run at the same time.
     reset();
     await boss.send(job.name, { id: 'x' });
