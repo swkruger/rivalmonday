@@ -40,6 +40,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Subagents:** run focused tests in the foreground (`timeout: 600000`); **never hand back while a test run is still running**. On API timeouts, resume rather than restart.
 
 - In a fresh worktree `pnpm --filter @cs/web exec vitest` can say "not found": run `apps/web/node_modules/.bin/vitest`.
+- **CI has no `.env`, and its clock is real:** a test that passes locally can fail in CI if it reads a key or URL from the root `.env`, assumes a row order without `ORDER BY`, or uses a fixed future date that later passes. Stub or mock the setting, compare as sets, and pin the clock (`vi.useFakeTimers({ toFake: ['Date'] })`). Check `gh run list --branch main` before calling a suite green.
 
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
