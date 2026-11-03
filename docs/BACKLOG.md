@@ -32,8 +32,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### Deployment
 - [ ] Production `deploy` job has no page check; give it the staging job's `/health` + `/sign-in` smoke before `DEPLOY_ENABLED` — *staging 2026-11-01*
-- [ ] Set `OPENROUTER_API_KEY` for `evals-live`: empty, so all suites stop at start (PR runs seen 10-31 and 11-01; schedule red daily since at least 10-25) — *staging 2026-11-01*
-- [ ] Owner: decide on making the repo private; CI then uses Actions minutes (~35 min+/run; Free plan 2,000/month) — *staging 2026-11-01*
+- [ ] Repo private: owner deferred (2026-11-02); CI then uses Actions minutes (~35 min+/run; Free plan 2,000/month) — *staging 2026-11-01*
 - [ ] Deploy note: migration `0025`'s `client_score_thresholds_check` fails on any existing malformed row — check before applying to a DB with real clients — *from 3d final review*
 - [ ] Deploy note: `magicLink({ storeToken: 'hashed' })` invalidates links issued before the cutover (15-min window) — expect a few "expired" reports — *from 5b-2 final review Minor 7*
 - [ ] Set `"agentGuidance": false` in `turbo.json` if AGENTS.md churns — *from Phase 1 review*
@@ -76,7 +75,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Model ops
 
 ### Pilot
-- [ ] Copy gate: make `copy:status --strict emails,site,site-legal,app-client` block `deploy`/`deploy-site` before the first pilot invite (owner decision; today the CI step only fails on a malformed `docs/copy/signoff.json`) — *copy-signoff-tool*
+- [ ] Copy gate: make `copy:status --strict emails,site,site-legal,app-client` block `deploy`/`deploy-site` (production only, never the staging jobs: owner 2026-11-02) before the first pilot invite (today the CI step only fails on a malformed `docs/copy/signoff.json`) — *copy-signoff-tool*
 - [ ] Copy tool gaps: scan `packages/verticals/packs/*.yaml` playbook titles/bodies (reach clients as recommendations) and labels passed to local helpers (`chart(…)`, `input(…)`, `adMatchAction(…)`); exclude dev-only strings (`apps/web/src/server/env.ts`, `tools/src/kb/seed.ts`); split JSX sentences show as fragments ("First seen {…}"); an edit whose old text still appears elsewhere in the file shows "unsigned", not "changed" — *copy-signoff-tool*
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*
 - [ ] Exercise `/link-other-account` live (never run live) — *from 5a* (7c2 Task 13, owner)
@@ -158,7 +157,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 **Soon**
 - [ ] Shell: top-bar search trigger + Ask pill (Frame 2); sidebar collapse-to-rail — *phase-16*
 - [ ] Phones (16f P1 deferred): canvas bands; 44 px touch targets; dropdown menus as bottom sheets; swipe-to-close on sheets; `ResponsivePopover` beyond HelpTip. OD-5 bottom tab bar < 768 waits for 3–5 pilot-owner phone tests (D12) — *phase-16*
-- [ ] design-lint gaps: skips `.ts`, 3-digit hex, `shadow-[…]`, `font-bold`; narrow `ALLOW_HEX`/`ALLOW_AMBER` (chart files incl. topic-heatmap fills → tokens); design-lint in CI awaits owner (D17) — *phase-16*
+- [ ] design-lint gaps: skips `.ts`, 3-digit hex, `shadow-[…]`, `font-bold`; narrow `ALLOW_HEX`/`ALLOW_AMBER` (chart files incl. topic-heatmap fills → tokens); add design-lint to CI (owner said yes 2026-11-02, D17) — *phase-16*
 - [ ] Friday panel: feedback icons, follow-ups after answers, conversation title, toast (Frame 12); composer draft survives panel close/resize; stale proposed-write link after confirming on the full page; dock reads repeat on every Ask-page refresh (request-cache starters/profile); `refsAction` in page mode duplicates `router.refresh` — *phase-16 (16d)*
 - [ ] Client pages: applied-filter chips with ✕; bulk bar Select all/clear; client + agency settings danger zones; `rounded-[5px]` on Moves rows; thin tests (AI page sections, Rankings compare form, history-period nav) — *phase-16 (16c)*
 - [ ] Rulings to confirm: "≤ 1 primary per view" vs one primary per queue card; `kb/article-view` date not in viewer tz (behaviour change) — *phase-16 (16e)*
