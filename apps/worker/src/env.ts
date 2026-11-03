@@ -1,3 +1,5 @@
+import { EMAIL_FROM_PROBLEM, isBareEmailAddress } from '@cs/email/branding';
+
 /** 7c2: `SERVICE_DATABASE_POOLED_URL` too — the daemon sizes its app pool from the concurrency table (~33), too many for the direct URL. */
 export const REQUIRED_PROD_ENV: readonly string[] = [
   'DATABASE_URL', 'SERVICE_DATABASE_URL', 'SERVICE_DATABASE_POOLED_URL', 'APP_URL', 'LINK_SIGNING_SECRET', 'EMAIL_FROM', 'POSTMARK_SERVER_TOKEN',
@@ -8,6 +10,12 @@ export const REQUIRED_PROD_ENV: readonly string[] = [
 export function missingProdEnv(env: NodeJS.ProcessEnv): string[] {
   if (env.NODE_ENV !== 'production') return [];
   return REQUIRED_PROD_ENV.filter((k) => !env[k]?.trim());
+}
+
+/** `EMAIL_FROM` must be a bare address (templates add the display name); unset is fine here (`missingProdEnv` covers production). */
+export function emailFromErrors(env: NodeJS.ProcessEnv): string[] {
+  const from = env.EMAIL_FROM?.trim();
+  return from && !isBareEmailAddress(from) ? [EMAIL_FROM_PROBLEM] : [];
 }
 
 /** Rehearsal switches (7c2 spec §4): they only work on staging or outside production. */

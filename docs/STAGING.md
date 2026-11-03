@@ -214,6 +214,8 @@ These settings come first, because the same project will also host production la
    | Optional | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
    Don't add `WORKER_DATABASE_URL`, `SERVICE_DATABASE_POOLED_URL`, `VENDOR_FAKE_MODE`, or anything in the GitHub section of the file.
+
+   `EMAIL_FROM` is a bare address, for example `support@mail.rivalmonday.app`, with no name in front. The app adds the name itself, and both the app and the worker refuse to start with a name in it.
 7. Get the IDs:
    - **Account Settings → Tokens → Create:** give it the whole team as its scope, not specific projects, and save it as `VERCEL_TOKEN`.
    - **Team Settings → General → Team ID:** save as `VERCEL_ORG_ID`.

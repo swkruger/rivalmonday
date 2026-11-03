@@ -54,6 +54,11 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV: '' } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBe('1');
   });
 
+  it('refuses an EMAIL_FROM with a display name (templates wrap it as "Name <EMAIL_FROM>")', () => {
+    expect(parseWebEnv({ ...ok, EMAIL_FROM: 'support@mail.rivalmonday.app' } as unknown as NodeJS.ProcessEnv).emailFrom).toBe('support@mail.rivalmonday.app');
+    expect(() => parseWebEnv({ ...ok, EMAIL_FROM: 'Rival Monday Staging <support@mail.rivalmonday.app>' } as unknown as NodeJS.ProcessEnv)).toThrow(/EMAIL_FROM must be a bare address/);
+  });
+
   it('reads SETUP_FAKE_LOOKUP and refuses it in production', () => {
     expect(parseWebEnv({ ...ok } as unknown as NodeJS.ProcessEnv).setupFakeLookup).toBe(false);
     expect(parseWebEnv({ ...ok, SETUP_FAKE_LOOKUP: '1' } as unknown as NodeJS.ProcessEnv).setupFakeLookup).toBe(true);

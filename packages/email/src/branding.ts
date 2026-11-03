@@ -3,6 +3,13 @@ import type { AgencyBranding } from '@cs/db';
 /** docs/brand/brand.md tokens: the defaults for any agency that has not set its own. */
 export const RIVAL_MONDAY_TOKENS = { primary: '#47A8E7', secondary: '#2A6BAC', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6' } as const;
 
+/**
+ * `EMAIL_FROM` is a bare address: templates send as `"<brand>" <EMAIL_FROM>`, so a display name in the variable makes
+ * a From Postmark refuses ("Error parsing 'From'"; staging, 2026-11-02). Web and worker refuse to start with one.
+ */
+export const isBareEmailAddress = (s: string) => /^[^\s<>"(),;:@]+@[^\s<>"(),;:@]+\.[^\s<>"(),;:@]+$/.test(s);
+export const EMAIL_FROM_PROBLEM = 'EMAIL_FROM must be a bare address such as briefs@mail.example.com, without a display name';
+
 const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
 const luminance = (hex: string) => {

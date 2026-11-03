@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { REHEARSAL_ENV, REQUIRED_PROD_ENV, missingProdEnv, rehearsalEnvErrors } from './env';
+import { REHEARSAL_ENV, REQUIRED_PROD_ENV, emailFromErrors, missingProdEnv, rehearsalEnvErrors } from './env';
+
+describe('emailFromErrors', () => {
+  it('accepts a bare address or unset', () => {
+    expect(emailFromErrors({ EMAIL_FROM: 'support@mail.rivalmonday.app' })).toEqual([]);
+    expect(emailFromErrors({ EMAIL_FROM: '  briefs@x.example ' })).toEqual([]);
+    expect(emailFromErrors({})).toEqual([]);
+  });
+  it('refuses a display name: templates add "Name <EMAIL_FROM>" themselves and Postmark rejects the double wrap', () => {
+    expect(emailFromErrors({ EMAIL_FROM: 'Rival Monday Staging <support@mail.rivalmonday.app>' })).toEqual(['EMAIL_FROM must be a bare address such as briefs@mail.example.com, without a display name']);
+    expect(emailFromErrors({ EMAIL_FROM: '<support@x.example>' })).toHaveLength(1);
+    expect(emailFromErrors({ EMAIL_FROM: 'not-an-address' })).toHaveLength(1);
+  });
+});
 
 describe('missingProdEnv', () => {
   it('is empty outside production', () => {

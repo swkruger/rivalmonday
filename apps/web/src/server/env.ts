@@ -1,5 +1,6 @@
 import 'server-only';
 import { isUuid, MIN_LINK_SECRET_LENGTH, normalizeAdminEmails } from '@cs/core';
+import { EMAIL_FROM_PROBLEM, isBareEmailAddress } from '@cs/email/branding';
 
 export interface WebEnv {
   appUrl: string;
@@ -68,6 +69,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (setupFake && env.VERCEL_ENV?.trim() === 'production') problems.push('SETUP_FAKE_LOOKUP must not be set in production');
   const webhookFake = env.WEBHOOK_FAKE_SEND?.trim() ?? '';
   if (webhookFake && env.VERCEL_ENV?.trim() === 'production') problems.push('WEBHOOK_FAKE_SEND must not be set in production');
+  const emailFrom = env.EMAIL_FROM?.trim();
+  if (emailFrom && !isBareEmailAddress(emailFrom)) problems.push(EMAIL_FROM_PROBLEM);
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
   if (billingFake && env.VERCEL_ENV?.trim()) problems.push('BILLING_FAKE_GATEWAY must not be set on Vercel (any VERCEL_ENV)');
   const siteOrigins = [env.SITE_ORIGIN, ...(env.SITE_ORIGIN_EXTRA?.split(',') ?? [])]
@@ -77,7 +80,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     appUrl, authSecret,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),
     linkSecrets: [link, ...(previous && previous.length >= MIN_LINK_SECRET_LENGTH ? [previous] : [])],
-    emailFrom: env.EMAIL_FROM?.trim() || (appUrl ? `briefs@${safeHost(appUrl)}` : ''),
+    emailFrom: emailFrom || (appUrl ? `briefs@${safeHost(appUrl)}` : ''),
     google: env.GOOGLE_CLIENT_ID?.trim() && env.GOOGLE_CLIENT_SECRET?.trim() ? { clientId: env.GOOGLE_CLIENT_ID.trim(), clientSecret: env.GOOGLE_CLIENT_SECRET.trim() } : null,
     defaultAgencyId,
     webMonitoring: env.WEB_MONITORING_ENABLED?.trim() === 'true',
