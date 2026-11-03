@@ -4,10 +4,10 @@
 **Plan/spec:** none (five small decided fixes, owner said start 2026-11-02; source list: the "Agent to-do" section of the owner guide)
 
 ## Status (overwrite)
-Started 2026-11-02.
+All five items done 2026-11-02 (commits 41d06559..6270fb17). `test:affected --base main`: 18/18 tasks green (60 min); `e2e:affected`: 153/153 (6.9 min). Item 4 is a GitHub setting, applied 2026-11-02: branch protection on `main` requires `evals-live`; admins may bypass (so `/rm-merge`'s direct push works); force pushes off.
 
 ## Next (overwrite)
-Agent: implement the items below test-first, then `pnpm test:affected --base main`.
+Owner: confirm `EMAIL_FROM` is a bare address in the Vercel `staging` environment (`.env.staging` already is): after this merges, the web app and the worker refuse a display name. Then `/rm-merge owner-fixes`.
 
 ## Scope
 1. Emails: body text 16 px / 24 px line height (one `Text` default for every template), secondary lines 14 px, button label 16 px with more padding, button label colour via `readableTextOn` (CLAUDE.md 15c-2a; was white on #47A8E7). Layout only, no wording.
