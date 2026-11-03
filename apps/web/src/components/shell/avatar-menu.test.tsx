@@ -57,6 +57,17 @@ describe('AvatarMenu (spec §2.9)', () => {
     expect(ids).toEqual(['m2', 'm3']);
   });
 
+  it('two-line Switch account entries grow instead of keeping the fixed h-8 (no overlap)', () => {
+    render(<AvatarMenu viewer={user([current, m('m2', 'client_owner', 'Other Agency', 'Brazos Plumbing')])} switcher={switcher()} />);
+    const menu = openMenu();
+    const [item] = within(menu).getAllByRole('menuitem').filter((i) => i.tagName === 'BUTTON');
+    const classes = item!.className.split(/\s+/);
+    expect(classes).toContain('h-auto');
+    expect(classes).not.toContain('h-8');
+    // Single-line items keep the standard height.
+    expect(within(menu).getByRole('menuitem', { name: 'Profile' }).className.split(/\s+/)).toContain('h-8');
+  });
+
   it('support viewer: "Support session · {agency}", no Profile link, no account switching', () => {
     const viewer = { kind: 'support', userId: 'u', email: 'op@rm.test', name: 'Op Erator', avatarUrl: null, ctx: {}, session: { agencyName: 'Target Agency' } } as never;
     render(<AvatarMenu viewer={viewer} switcher={switcher()} />);

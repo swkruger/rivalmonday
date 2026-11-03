@@ -58,7 +58,8 @@ export function AvatarMenu({ viewer, switcher, supportEmail = null }: { viewer: 
             {others.map((m) => (
               <form key={m.id} action={switchMembership}>
                 <input type="hidden" name="membershipId" value={m.id} />
-                <DropdownMenuItem asChild>
+                {/* Two lines (name + role): `h-auto` on the item (cn drops its fixed h-8; Slot would keep both) so they don't overlap the next entry. */}
+                <DropdownMenuItem asChild className="h-auto py-1.5">
                   <button type="submit" className="flex w-full flex-col items-start gap-0 text-left">
                     <span className="truncate">{m.clientName ?? m.agencyName}</span>
                     <span className="truncate text-xs text-muted-ink">{m.clientName ? roleLine({ ...m, clientName: null }) : ROLE_LABELS[m.role]}</span>
