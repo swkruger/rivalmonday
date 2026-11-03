@@ -5,9 +5,9 @@ import type { CSSProperties } from 'react';
 import { Section, Text } from '../rx';
 import type { Branding } from '../branding';
 import type { ScorecardModel } from '../types';
+import { num, td, th } from './table-cells';
 
-const cell: CSSProperties = { fontSize: 14, margin: 0, padding: '4px 6px' };
-const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
+const label: CSSProperties = { fontSize: 14, lineHeight: '20px', color: '#5B6B7F' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */
@@ -15,16 +15,16 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
   const { model, branding } = props;
   return (
     <Section>
-      {props.heading ? <Text style={{ ...cell, fontWeight: 700, fontSize: 16, padding: '8px 0' }}>{props.heading}</Text> : null}
+      {props.heading ? <Text style={{ margin: 0, fontWeight: 700, padding: '8px 0' }}>{props.heading}</Text> : null}
       <table role="presentation" width="100%" cellPadding={0} cellSpacing={6} border={0} style={{ width: '100%', borderCollapse: 'separate' }}>
         <tbody>
           <tr>
             {model.tiles.map((t) => (
               <td key={t.label} style={{ width: '25%', verticalAlign: 'top', backgroundColor: branding.panel, borderRadius: 8, padding: 10 }}>
-                <div style={{ fontSize: 14, color: '#5B6B7F' }}>{t.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 800 }}>{t.value}</div>
-                <div style={{ fontSize: 14, color: '#5B6B7F' }}>{t.sub}</div>
-                {t.trendText ? <div style={{ fontSize: 14, fontWeight: 600, color: t.trend ? TREND_COLOUR[t.trend] : '#5B6B7F' }}>{t.trendText}</div> : null}
+                <div style={label}>{t.label}</div>
+                <div style={{ fontSize: 22, lineHeight: '30px', fontWeight: 800 }}>{t.value}</div>
+                <div style={label}>{t.sub}</div>
+                {t.trendText ? <div style={{ ...label, fontWeight: 600, color: t.trend ? TREND_COLOUR[t.trend] : '#5B6B7F' }}>{t.trendText}</div> : null}
               </td>
             ))}
           </tr>
@@ -37,16 +37,16 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
         </colgroup>
         <thead>
           <tr>
-            {model.table.headers.map((h, i) => <th key={h} style={{ ...cell, fontWeight: 600, verticalAlign: 'bottom', ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
+            {model.table.headers.map((h, i) => <th key={h} style={{ ...th, ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {model.table.rows.map((r, ri) => (
             <tr key={ri} style={r.self ? { backgroundColor: branding.panel, fontWeight: 700 } : undefined}>
               {r.cells.map((c, i) => (
-                <td key={i} style={{ ...cell, verticalAlign: 'top', ...(i === 0 ? {} : num) }}>
+                <td key={i} style={{ ...td, ...(i === 0 ? {} : num) }}>
                   {c}
-                  {i === 0 && r.tier ? <span style={{ display: 'block', fontSize: 14, fontWeight: 400, color: '#5B6B7F' }}>{TIER_LABELS[r.tier]}</span> : null}
+                  {i === 0 && r.tier ? <span style={{ ...label, display: 'block', fontWeight: 400 }}>{TIER_LABELS[r.tier]}</span> : null}
                 </td>
               ))}
             </tr>
@@ -55,8 +55,8 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
       </table>
       {model.openFirstMoves.length > 0 ? (
         <>
-          <Text style={{ ...cell, fontWeight: 700, fontSize: 16, padding: '12px 0 4px' }}>First moves still open</Text>
-          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>{model.openFirstMoves.map((m, i) => <li key={i}>{m}</li>)}</ul>
+          <Text style={{ margin: 0, fontWeight: 700, padding: '12px 0 4px' }}>First moves still open</Text>
+          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 16, lineHeight: '24px' }}>{model.openFirstMoves.map((m, i) => <li key={i}>{m}</li>)}</ul>
         </>
       ) : null}
     </Section>

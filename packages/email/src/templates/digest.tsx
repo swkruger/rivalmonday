@@ -7,7 +7,7 @@ import { AgencyContactBlock } from './agency-contact';
 
 export function DigestEmail(p: DigestEmailProps) {
   return (
-    <Layout branding={p.branding} title={digestSubject(p)} preview={p.alerts.map((a) => a.headline).join(' · ')} footer={`Daily alert digest for ${p.clientName} · ${p.date}`}>
+    <Layout branding={p.branding} wide title={digestSubject(p)} preview={p.alerts.map((a) => a.headline).join(' · ')} footer={`Daily alert digest for ${p.clientName} · ${p.date}`}>
       <Text>{greeting(p.recipientName)}</Text>
       <Text>{`This is ${p.branding.displayName} with today's other competitor ${p.alerts.length === 1 ? 'alert' : 'alerts'} for ${p.clientName}. Read below and open the evidence for anything you want to check. You don't need to reply.`}</Text>
       {p.alerts.map((a, i) => (

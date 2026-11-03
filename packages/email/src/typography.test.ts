@@ -33,6 +33,44 @@ describe('email typography', () => {
     expect(a.toLowerCase()).toMatch(/color:#ffffff/);
   });
 
+  // Owner, 2026-11-03: a delivered quiet-week brief still read small and narrow; 6-column scorecard headers ran together.
+  const preview = (id: string) => EMAIL_PREVIEWS.find((p) => p.id === id)!.payload;
+  const maxWidth = (html: string) => html.match(/max-width:\s*(\d+)px/)?.[1];
+
+  it.each(['brief', 'brief.quiet_scorecard', 'brief.starting_point', 'alert_digest', 'trend_report'])('%s: wide 760 px container', async (id) => {
+    expect(maxWidth((await renderEmail(preview(id))).html)).toBe('760');
+  });
+
+  it.each(['sign_in', 'agency_invite.pilot', 'client_invite'])('%s: transactional email keeps the 640 px container', async (id) => {
+    expect(maxWidth((await renderEmail(preview(id))).html)).toBe('640');
+  });
+
+  it.each(['brief', 'brief.quiet_scorecard', 'brief.starting_point'])('%s: table data cells are 16 px', async (id) => {
+    const html = (await renderEmail(preview(id))).html;
+    // Data tables are the ones with a header row (react-email's Section is a table too, without one).
+    const rows = [...html.matchAll(/<\/thead><tbody[^>]*>([\s\S]*?)<\/tbody>/g)].map((m) => m[1]!);
+    const tds = rows.flatMap((b) => [...b.matchAll(/<td[^>]*style="([^"]*)"/g)].map((m) => m[1]!));
+    expect(tds.length).toBeGreaterThan(0);
+    for (const style of tds) expect(style).toMatch(/font-size:16px/);
+  });
+
+  it('scorecard headers wrap inside their cell and numeric columns keep a gap', async () => {
+    const p = preview('brief.quiet_scorecard');
+    if (p.template !== 'brief') throw new Error('fixture');
+    const headers = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'];
+    const scorecard = { ...p.props.scorecard!, table: { headers, rows: [{ cells: ['Bright Smile Dental (you)', '4.6', '12', '50%', '31%', '2', '—'], self: true, tier: null }] } };
+    const html = (await renderEmail({ template: 'brief', props: { ...p.props, scorecard } })).html;
+    const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
+    const ths = [...table.matchAll(/<th[^>]*style="([^"]*)"/g)].map((m) => m[1]!);
+    expect(ths).toHaveLength(headers.length);
+    for (const style of ths) {
+      expect(style).not.toMatch(/white-space:nowrap/);
+      expect(style).toMatch(/white-space:normal/);
+      expect(style).toMatch(/padding-left:\d+px|padding:\d+px \d+px/);
+    }
+    expect(table).toMatch(/table-layout:fixed/);
+  });
+
   it('readableTextOn picks the higher-contrast label', () => {
     expect(readableTextOn('#47A8E7')).toBe('#0B2540');
     expect(readableTextOn('#000000')).toBe('#FFFFFF');

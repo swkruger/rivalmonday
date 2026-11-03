@@ -1,15 +1,11 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import type { CSSProperties } from 'react';
 import { Section, Text } from '../rx';
 import type { TrendBusiness } from '@cs/db';
 import type { Branding } from '../branding';
+import { num, td, th } from './table-cells';
 
 const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(1));
-const cell = { fontSize: 14, margin: 0, padding: '4px 6px' };
-const th: CSSProperties = { ...cell, fontWeight: 600, verticalAlign: 'bottom' };
-const td: CSSProperties = { ...cell, verticalAlign: 'top' };
-const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
 
 /**
  * Deterministic numbers from stored data (spec §9.1.5): reviews, rating then → now, active ads.
@@ -19,7 +15,7 @@ const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
 export function TrendTable(props: { branding: Branding; windowDays: number; businesses: TrendBusiness[] }) {
   return (
     <Section style={{ backgroundColor: props.branding.panel, borderRadius: 8, padding: 12 }}>
-      <Text style={{ ...cell, fontWeight: 700 }}>Last {props.windowDays} days</Text>
+      <Text style={{ margin: 0, padding: '4px 8px', fontWeight: 700 }}>Last {props.windowDays} days</Text>
       <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0} style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '49%' }} />

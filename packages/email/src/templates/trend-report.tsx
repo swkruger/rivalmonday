@@ -14,7 +14,7 @@ export function TrendReportEmail(p: TrendReportEmailProps & { variant?: 'email' 
   const doc = p.variant === 'document';
   const r = d.recommendations;
   return (
-    <Layout branding={p.branding} variant={p.variant} title={trendReportSubject(p)} preview={`Your competitor trends for ${p.quarter}`} footer={`Quarterly trend report for ${p.clientName} · ${p.quarter}`}>
+    <Layout branding={p.branding} variant={p.variant} wide title={trendReportSubject(p)} preview={`Your competitor trends for ${p.quarter}`} footer={`Quarterly trend report for ${p.clientName} · ${p.quarter}`}>
       {doc ? null : <Text>{greeting(p.recipientName)}</Text>}
       {doc ? null : <Text>{`This is ${p.branding.displayName} with the quarterly competitor report for ${p.clientName}. It shows how ${p.clientName} compared with its competitors in ${p.quarter} and what changed. You don't need to do anything; open the dashboard if you want to go through it in more detail.`}</Text>}
       <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{`Competitor trends, ${p.quarter}`}</Heading>
