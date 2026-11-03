@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Text } from 'react-email';
+import { Button, Text } from '../rx';
 import { button, Layout } from '../layout';
 import type { WaitlistConfirmationProps } from '../types';
 

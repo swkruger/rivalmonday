@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Text } from 'react-email';
+import { Text } from '../rx';
 import { greeting, Layout } from '../layout';
 import type { SupportSessionStartedProps } from '../types';
 

@@ -4,9 +4,9 @@
 // tsx (the production worker's loader) only applies jsx: "react-jsx" to files matched by the one tsconfig
 // nearest its own cwd, so a file reached from another workspace package's cwd would otherwise silently
 // fall back to the classic React.createElement transform and crash with "React is not defined".
-import { Body, Container, Head, Html, Img, Preview, Section, Text } from 'react-email';
+import { Body, Container, Head, Html, Img, Preview, Section, Text } from './rx';
 import type { ReactNode } from 'react';
-import type { Branding } from './branding';
+import { type Branding, readableTextOn } from './branding';
 
 export const FONT = "Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 /** Print rules for the PDF variant (Task 16): Letter pages, no shadows, keep a card on one page where possible. */
@@ -28,7 +28,7 @@ export function Layout(props: { branding: Branding; title: string; preview: stri
             {b.logoUrl ? <Img src={b.logoUrl} alt={b.displayName} height="32" /> : <Text style={{ margin: 0, fontSize: 20, fontWeight: 700, color: b.secondary }}>{b.displayName}</Text>}
           </Section>
           <Section style={{ backgroundColor: '#FFFFFF', borderRadius: 12, padding: doc ? 0 : 24 }}>{props.children}</Section>
-          {props.footer ? <Text style={{ fontSize: 12, color: '#5B6B7F', marginTop: 16 }}>{props.footer}</Text> : null}
+          {props.footer ? <Text style={{ fontSize: 14, color: '#5B6B7F', marginTop: 16 }}>{props.footer}</Text> : null}
         </Container>
       </Body>
     </Html>
@@ -36,5 +36,6 @@ export function Layout(props: { branding: Branding; title: string; preview: stri
 }
 
 export const greeting = (name: string | null) => (name ? `Hi ${name.split(' ')[0]},` : 'Hi,');
-export const button = (b: Branding) => ({ backgroundColor: b.primary, color: '#FFFFFF', borderRadius: 8, padding: '10px 16px', fontWeight: 600, textDecoration: 'none' });
+/** Label colour per CLAUDE.md 15c-2a (`readableTextOn`): ink on the default #47A8E7, white on a dark agency colour. */
+export const button = (b: Branding) => ({ backgroundColor: b.primary, color: readableTextOn(b.primary), borderRadius: 8, padding: '12px 20px', fontSize: 16, lineHeight: '24px', fontWeight: 600, textDecoration: 'none' });
 export const panel = (b: Branding) => ({ backgroundColor: b.panel, borderRadius: 8, padding: 16, marginBottom: 12 });

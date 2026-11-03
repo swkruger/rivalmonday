@@ -2,11 +2,11 @@
 /** @jsxImportSource react */
 import { TIER_LABELS } from '@cs/core';
 import type { CSSProperties } from 'react';
-import { Section, Text } from 'react-email';
+import { Section, Text } from '../rx';
 import type { Branding } from '../branding';
 import type { ScorecardModel } from '../types';
 
-const cell: CSSProperties = { fontSize: 13, margin: 0, padding: '4px 6px' };
+const cell: CSSProperties = { fontSize: 14, margin: 0, padding: '4px 6px' };
 const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
 
@@ -21,10 +21,10 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
           <tr>
             {model.tiles.map((t) => (
               <td key={t.label} style={{ width: '25%', verticalAlign: 'top', backgroundColor: branding.panel, borderRadius: 8, padding: 10 }}>
-                <div style={{ fontSize: 11, color: '#5B6B7F' }}>{t.label}</div>
+                <div style={{ fontSize: 14, color: '#5B6B7F' }}>{t.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800 }}>{t.value}</div>
-                <div style={{ fontSize: 11, color: '#5B6B7F' }}>{t.sub}</div>
-                {t.trendText ? <div style={{ fontSize: 11, fontWeight: 600, color: t.trend ? TREND_COLOUR[t.trend] : '#5B6B7F' }}>{t.trendText}</div> : null}
+                <div style={{ fontSize: 14, color: '#5B6B7F' }}>{t.sub}</div>
+                {t.trendText ? <div style={{ fontSize: 14, fontWeight: 600, color: t.trend ? TREND_COLOUR[t.trend] : '#5B6B7F' }}>{t.trendText}</div> : null}
               </td>
             ))}
           </tr>
@@ -46,7 +46,7 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
               {r.cells.map((c, i) => (
                 <td key={i} style={{ ...cell, verticalAlign: 'top', ...(i === 0 ? {} : num) }}>
                   {c}
-                  {i === 0 && r.tier ? <span style={{ display: 'block', fontSize: 10, fontWeight: 400, color: '#5B6B7F' }}>{TIER_LABELS[r.tier]}</span> : null}
+                  {i === 0 && r.tier ? <span style={{ display: 'block', fontSize: 14, fontWeight: 400, color: '#5B6B7F' }}>{TIER_LABELS[r.tier]}</span> : null}
                 </td>
               ))}
             </tr>

@@ -1,4 +1,7 @@
-import { type Branding, RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
+import { type Branding, contrastRatio, readableTextOn, RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
+
+// One implementation, shared with the emails' button labels.
+export { contrastRatio, readableTextOn };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const safe = (v: string, fallback: string) => (HEX.test(v) ? v : fallback);
@@ -8,23 +11,6 @@ const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 export function mixHex(a: string, b: string, t: number): string {
   const [ca, cb] = [channels(a), channels(b)];
   return `#${ca.map((x, i) => Math.round(x + (cb[i]! - x) * t).toString(16).padStart(2, '0')).join('')}`;
-}
-
-const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
-const luminance = (hex: string) => {
-  const [r, g, b] = channels(hex);
-  return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
-};
-
-/** WCAG 2.x contrast ratio between two #rrggbb colours (1 to 21). */
-export function contrastRatio(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi! + 0.05) / (lo! + 0.05);
-}
-
-/** Whichever of white / ink (#0B2540) has the higher contrast on `bg` (ties go to ink); design system v1 puts an ink label on the default #47A8E7. */
-export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
-  return contrastRatio('#FFFFFF', bg) > contrastRatio('#0B2540', bg) ? '#FFFFFF' : '#0B2540';
 }
 
 const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };

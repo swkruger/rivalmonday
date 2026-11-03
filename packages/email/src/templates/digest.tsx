@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Button, Heading, Link, Section, Text } from '../rx';
 import { button, greeting, Layout, panel } from '../layout';
 import type { DigestEmailProps } from '../types';
 import { AgencyContactBlock } from './agency-contact';

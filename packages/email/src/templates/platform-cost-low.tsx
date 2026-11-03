@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Text } from 'react-email';
+import { Text } from '../rx';
 import { Layout } from '../layout';
 import { approxDaysText } from '../labels';
 import type { PlatformCostLowProps } from '../types';

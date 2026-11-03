@@ -3,6 +3,24 @@ import type { AgencyBranding } from '@cs/db';
 /** docs/brand/brand.md tokens: the defaults for any agency that has not set its own. */
 export const RIVAL_MONDAY_TOKENS = { primary: '#47A8E7', secondary: '#2A6BAC', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6' } as const;
 
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const lin = (c: number) => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+const luminance = (hex: string) => {
+  const [r, g, b] = channels(hex);
+  return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+};
+
+/** WCAG 2.x contrast ratio between two #rrggbb colours (1 to 21). */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi! + 0.05) / (lo! + 0.05);
+}
+
+/** Whichever of white / ink (#0B2540) has the higher contrast on `bg` (ties go to ink); design system v1 puts an ink label on the default #47A8E7. */
+export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
+  return contrastRatio('#FFFFFF', bg) > contrastRatio('#0B2540', bg) ? '#FFFFFF' : '#0B2540';
+}
+
 export interface Branding {
   displayName: string;
   logoUrl: string | null;

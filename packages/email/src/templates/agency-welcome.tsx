@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Link, Text } from 'react-email';
+import { Button, Link, Text } from '../rx';
 import { button, Layout } from '../layout';
 import type { AgencyWelcomeProps } from '../types';
 

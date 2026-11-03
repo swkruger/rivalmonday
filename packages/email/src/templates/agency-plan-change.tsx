@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
 import type { PlanFeature } from '@cs/core';
-import { Text } from 'react-email';
+import { Text } from '../rx';
 import { greeting, Layout } from '../layout';
 import type { AgencyPlanChangeProps, PlanTerms } from '../types';
 

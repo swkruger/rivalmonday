@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Button, Heading, Link, Section, Text } from '../rx';
 import { button, greeting, Layout, panel } from '../layout';
 import { changeTypeLabel } from '../labels';
 import type { TrendReportEmailProps } from '../types';

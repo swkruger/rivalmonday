@@ -1,9 +1,9 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Link, Section, Text } from 'react-email';
+import { Link, Section, Text } from '../rx';
 import type { Branding } from '../branding';
 
-const LINE = { margin: 0, fontSize: 13, color: '#5B6B7F' };
+const LINE = { margin: 0, fontSize: 14, color: '#5B6B7F' };
 
 /**
  * How a client reaches their agency, in the shape onboarding previews ("how you appear at the bottom of every client

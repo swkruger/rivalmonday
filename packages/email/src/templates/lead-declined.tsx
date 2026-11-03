@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Text } from 'react-email';
+import { Text } from '../rx';
 import { Layout } from '../layout';
 import type { LeadDeclinedProps } from '../types';
 import { AgencyContactBlock } from './agency-contact';

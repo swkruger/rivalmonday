@@ -1,6 +1,6 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Button, Heading, Link, Section, Text } from '../rx';
 import { button, greeting, Layout, panel } from '../layout';
 import type { BriefEmailProps } from '../types';
 import { AgencyContactBlock } from './agency-contact';
@@ -34,7 +34,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
           <Text style={{ margin: '0 0 6px' }}><strong>What changed:</strong> {it.whatChanged}</Text>
           {it.whyItMatters ? <Text style={{ margin: '0 0 6px' }}><strong>Why it matters:</strong> {it.whyItMatters}</Text> : null}
           {it.recommendedAction ? <Text style={{ margin: '0 0 6px' }}><strong>What to do:</strong> {it.recommendedAction}</Text> : null}
-          <Text style={{ margin: 0, fontSize: 12, color: '#5B6B7F' }}>{`${it.subject === 'self' ? '' : `${it.competitorName} · `}effort ${LEVEL[it.effort]} · impact ${LEVEL[it.impact]}`}</Text>
+          <Text style={{ margin: 0, fontSize: 14, color: '#5B6B7F' }}>{`${it.subject === 'self' ? '' : `${it.competitorName} · `}effort ${LEVEL[it.effort]} · impact ${LEVEL[it.impact]}`}</Text>
           {it.link && !doc ? <Link href={it.link}>See the evidence</Link> : null}
         </Section>
       ))}

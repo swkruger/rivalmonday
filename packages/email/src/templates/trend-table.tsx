@@ -1,12 +1,12 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
 import type { CSSProperties } from 'react';
-import { Section, Text } from 'react-email';
+import { Section, Text } from '../rx';
 import type { TrendBusiness } from '@cs/db';
 import type { Branding } from '../branding';
 
 const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(1));
-const cell = { fontSize: 13, margin: 0, padding: '4px 6px' };
+const cell = { fontSize: 14, margin: 0, padding: '4px 6px' };
 const th: CSSProperties = { ...cell, fontWeight: 600, verticalAlign: 'bottom' };
 const td: CSSProperties = { ...cell, verticalAlign: 'top' };
 const num: CSSProperties = { textAlign: 'right', whiteSpace: 'nowrap' };
