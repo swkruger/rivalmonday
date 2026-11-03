@@ -10,6 +10,8 @@ try {
 export default defineConfig({
   test: {
     env: { LOG_LEVEL: 'silent' },
+    // Migrate/empty the test DB like every other DB package; without it the worker only passed when turbo ran one of them first.
+    globalSetup: ['../../packages/db/test/global-setup.ts'],
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,
