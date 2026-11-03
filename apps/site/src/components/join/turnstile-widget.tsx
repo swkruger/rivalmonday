@@ -8,7 +8,7 @@ export const NO_WIDGET_TOKEN = 'no-widget';
 
 /**
  * Cloudflare Turnstile, explicit rendering (P8). Tokens are single-use: the parent bumps `resetKey` after every
- * attempt, which resets the widget and clears the token. `onUnavailable` fires when the script cannot load or `render` throws.
+ * attempt, which resets the widget and clears the token. `onUnavailable` fires when the script cannot load, `render` throws or the widget reports an error.
  */
 export function TurnstileWidget({ siteKey, onToken, resetKey, onUnavailable }: {
   siteKey: string | null;
@@ -40,7 +40,12 @@ export function TurnstileWidget({ siteKey, onToken, resetKey, onUnavailable }: {
             appearance: 'interaction-only',
             callback: (token: string) => cb.current.onToken(token),
             'expired-callback': () => cb.current.onToken(null),
-            'error-callback': () => cb.current.onToken(null),
+            // A widget error (bad hostname, network) never yields a token by itself: report it, or the form says
+            // "Still checking" forever. A later successful retry still delivers a token through `callback`.
+            'error-callback': () => {
+              cb.current.onToken(null);
+              cb.current.onUnavailable?.();
+            },
           });
         } catch {
           // A bad site key or a broken script throws here: treat it like a failed load.

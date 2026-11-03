@@ -55,6 +55,17 @@ describe('TurnstileWidget', () => {
     expect(onToken).toHaveBeenLastCalledWith(null);
   });
 
+  it('a widget error → onUnavailable, so the form stops saying "Still checking" (e.g. hostname not allowed, 110200)', async () => {
+    const api = stubTurnstile();
+    const onToken = vi.fn();
+    const onUnavailable = vi.fn();
+    render(<TurnstileWidget siteKey="k" onToken={onToken} resetKey={0} onUnavailable={onUnavailable} />);
+    await act(async () => {});
+    act(() => optsOf(api)['error-callback']!());
+    expect(onToken).toHaveBeenLastCalledWith(null);
+    expect(onUnavailable).toHaveBeenCalledOnce();
+  });
+
   it('reset on resetKey change', async () => {
     const api = stubTurnstile();
     const onToken = vi.fn();
