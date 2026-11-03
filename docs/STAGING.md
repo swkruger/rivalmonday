@@ -24,7 +24,7 @@ Menu names below were correct when written. If a website has moved something, lo
 - **Website updates are automatic.** After setup, every push to `main` that passes its tests updates the app and the site.
 - **The worker updates when you restart it.** It runs on your computer, so GitHub can't update it (§ 4).
 - **Data only changes when you ask.** The `staging-refresh` action replaces all staging data with a fresh copy of `cs_dev` (§ 5). Anything you did on staging since the last refresh is lost.
-- **Vendors cost nothing.** Calls to DataForSEO, Apify, ScrapeCreators and Stadia get fake sample answers ("fixtures"). The history copied from `cs_dev` is real, but new collected data is sample data.
+- **Vendors cost nothing, except rank scans if you switch them on.** Calls to DataForSEO, Apify, ScrapeCreators and Stadia get fake sample answers ("fixtures"). The history copied from `cs_dev` is real, but new collected data is sample data. With `VENDOR_LIVE_RANK_SCANS=true` (§ 2), local-ranking scans and their map backgrounds are real and cost money.
 - **No competitor websites are crawled.** `WEB_MONITORING_ENABLED` stays unset.
 - **AI is real and costs money,** limited by the monthly cap you set in step 6.
 - **Email is really sent,** so check who could receive it in step 1. Dev's unsent emails, webhooks and queued jobs are switched off on every refresh.
@@ -221,7 +221,7 @@ These settings come first, because the same project will also host production la
    - **Team Settings → General → Team ID:** save as `VERCEL_ORG_ID`.
    - **Project Settings → General → Project ID:** save as `VERCEL_PROJECT_ID`.
 
-**Never set these on staging:** `WEB_MONITORING_ENABLED`, `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY`, `PROFILE_TOOLS`. Leave `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` unset too. The setup wizard's business lookup then says it's unavailable, which is expected. Add them only to test that lookup, because each one is a small real charge.
+**Never set these on staging:** `WEB_MONITORING_ENABLED`, `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY`, `PROFILE_TOOLS`. Leave `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` unset in Vercel too. The setup wizard's business lookup then says it's unavailable, which is expected. Add them only to test that lookup, because each one is a small real charge. Real rank scans (§ 2) put the keys in `.env.staging` for the worker only, not in Vercel.
 
 ### Step 12: Create the site project (Vercel)
 
@@ -323,6 +323,15 @@ Go through § 6.
 - `STRIPE_SECRET_KEY`, the same test key.
 - The Turnstile keys, the same widget.
 
+**Real rank scans (optional):** add these worker lines to `.env.staging`, with real keys:
+```
+VENDOR_LIVE_RANK_SCANS=true
+DATAFORSEO_LOGIN=
+DATAFORSEO_PASSWORD=
+STADIA_API_KEY=
+```
+Then local-ranking scans (weekly and **Scan now**) and their map backgrounds use the real DataForSEO and Stadia. Everything else stays fake, including the prospect snapshot's small scan. The usual limits still apply: client spend caps, paused clients, one **Scan now** per client a week. Cost: about $0.10 per keyword per 7×7 scan, so about $2-3 a week for 5 clients, plus $0.06 per new map background. The worker won't start if a key is missing or `fixture`. Remove the lines to go back to all-fake.
+
 Everything else is staging's own. If you add a new environment variable to the code later, it also needs adding to `globalPassThroughEnv` in `turbo.json`.
 
 ## 3. Evidence
@@ -409,7 +418,7 @@ The action does the following, stopping at the first failure:
 | Neon staging | a few dollars, more if the worker runs all day |
 | OpenRouter | up to your limit |
 | R2, Postmark, Sentry | about $0 at this volume on their entry plans |
-| Vendors | $0, because they're faked |
+| Vendors | $0, because they're faked; about $10 a month with real rank scans (§ 2) |
 
 Pages are a little slower than production will be, because this database is in `us-east-2`. Don't use staging speeds to judge performance.
 

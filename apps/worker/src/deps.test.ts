@@ -9,6 +9,10 @@ const vendorMocks = vi.hoisted(() => ({
   runRivalSearch: vi.fn(async (_deps: unknown, _id: string) => ({ status: 'done' as const })),
   collectMetaAds: vi.fn(async () => ({ status: 'ok' })),
   claimDueSources: vi.fn(),
+  scanRankings: vi.fn(async (_deps: unknown, _id: string, _opts: unknown) => ({ status: 'done' as const })),
+  runProspectSnapshot: vi.fn(async (_deps: unknown, _id: string, _report: string) => ({ status: 'ready' as const })),
+  // Tags the ledgers fixture mode zeroes, so tests can tell them apart from the plain (real-cost) ledger.
+  zeroFixtureVendorCosts: vi.fn((l: object) => ({ ...l, zeroed: true })),
 }));
 const rehearsal = vi.hoisted(() => ({ createRehearsalAi: vi.fn((_o: unknown) => ({ rehearsal: true })), loadRehearsalLatency: vi.fn(async () => ({ brief_writer: { p50: 1, p90: 2, p99: 3 } })) }));
 vi.mock('@cs/engine', async (orig) => ({ ...(await orig<typeof import('@cs/engine')>()), ...rehearsal }));
@@ -178,6 +182,85 @@ describe('VENDOR_FAKE_MODE=fixtures (7c2)', () => {
   it('without the switch nothing is faked and missing keys stay missing', () => {
     const deps = createWorkerDeps({ SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv);
     expect(deps.vendorsConfigured()).toBe(false);
+  });
+});
+
+describe('VENDOR_LIVE_RANK_SCANS (staging live rank scans)', () => {
+  const env = {
+    NODE_ENV: 'development', VENDOR_FAKE_MODE: 'fixtures', VENDOR_LIVE_RANK_SCANS: 'true', SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x', EVIDENCE_FS_DIR: './.evidence-test',
+    DATAFORSEO_LOGIN: 'dfs-login', DATAFORSEO_PASSWORD: 'dfs-pw', STADIA_API_KEY: 'stadia-key',
+  } as NodeJS.ProcessEnv;
+  const last = (m: { mock: { calls: unknown[][] } }) => m.mock.calls.at(-1)![0] as Record<string, unknown>;
+  type DfsOpts = { login: string; password: string; fetch: typeof fetch; ledger: { zeroed?: boolean } };
+
+  it('rank scans and the rank map go to the network (through the limiter) with real keys and unzeroed ledgers; other vendor paths stay on fixtures', async () => {
+    const net = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('real', { status: 200 }));
+    try {
+      vendorMocks.createDataForSeo.mockClear();
+      const deps = createWorkerDeps(env);
+      await deps.scanRankings('c1', { trigger: 'scheduled' });
+      const rankDfs = last(vendorMocks.createDataForSeo) as DfsOpts;
+      expect(last(vendorMocks.scanRankings).dfs).toBe(vendorMocks.createDataForSeo.mock.results.at(-1)!.value);
+      expect(rankDfs).toMatchObject({ login: 'dfs-login', password: 'dfs-pw' });
+      expect(rankDfs.ledger.zeroed).toBeUndefined();
+      expect(await (await rankDfs.fetch('https://api.dataforseo.com/v3/serp/google/maps/live/advanced')).text()).toBe('real');
+      // One rank client per deps.
+      await deps.scanRankings('c2', { trigger: 'manual' });
+      expect(vendorMocks.createDataForSeo).toHaveBeenCalledTimes(1);
+
+      await deps.refreshRankMap('c1').catch(() => undefined);
+      const stadia = last(vendorMocks.createStadiaStaticClient) as { apiKey: string; fetch: typeof fetch; ledger: { zeroed?: boolean } };
+      expect(stadia.apiKey).toBe('stadia-key');
+      expect(stadia.ledger.zeroed).toBeUndefined();
+      expect((await stadia.fetch('https://tiles.stadiamaps.com/static/x.png')).status).toBe(200);
+
+      // Everything else keeps the fixture fetch and the zeroed ledger.
+      net.mockClear();
+      await deps.runRivalSearch('run1');
+      const rival = last(vendorMocks.runRivalSearch) as { dfs: unknown; meta: { fetch: typeof fetch; apifyFetch: typeof fetch; ledger: { zeroed?: boolean } } };
+      void rival.dfs;
+      const fixtureDfs = last(vendorMocks.createDataForSeo) as DfsOpts;
+      expect(fixtureDfs).not.toBe(rankDfs);
+      expect(fixtureDfs.ledger.zeroed).toBe(true);
+      expect(rival.meta.ledger.zeroed).toBe(true);
+      expect((await fixtureDfs.fetch('https://example.invalid/x')).status).toBe(599);
+      expect((await rival.meta.fetch('https://example.invalid/x')).status).toBe(599);
+      expect((await rival.meta.apifyFetch('https://example.invalid/x')).status).toBe(599);
+      // The prospect snapshot's 3×3 scan has no client spend cap, so it stays on fixtures.
+      await deps.runProspectSnapshot('c1', 'r1');
+      const prospect = last(vendorMocks.runProspectSnapshot) as { scanRankings: (id: string, p: unknown) => Promise<unknown> };
+      await prospect.scanRankings('c1', { gridSize: 3, maxKeywords: 1 });
+      expect(last(vendorMocks.scanRankings).dfs).toBe(vendorMocks.createDataForSeo.mock.results.at(-1)!.value);
+      expect(vendorMocks.createDataForSeo.mock.results.at(-1)!.value).not.toBe(vendorMocks.createDataForSeo.mock.results[0]!.value);
+      expect(net).not.toHaveBeenCalled();
+    } finally {
+      net.mockRestore();
+    }
+  });
+
+  it('the cost snapshot gets the real DataForSEO keys; other faked-vendor keys stay out', () => {
+    const deps = createWorkerDeps({ ...env, OPENROUTER_API_KEY: 'or-real', APIFY_TOKEN: 'fixture' });
+    expect(deps.platformCosts().env).toEqual({ OPENROUTER_API_KEY: 'or-real', DATAFORSEO_LOGIN: 'dfs-login', DATAFORSEO_PASSWORD: 'dfs-pw' });
+  });
+
+  it('refuses to build deps with a dummy key or without fixture mode', () => {
+    expect(() => createWorkerDeps({ ...env, STADIA_API_KEY: 'fixture' })).toThrow(/VENDOR_LIVE_RANK_SCANS needs real STADIA_API_KEY/);
+    expect(() => createWorkerDeps({ ...env, DATAFORSEO_PASSWORD: undefined })).toThrow(/VENDOR_LIVE_RANK_SCANS needs real DATAFORSEO_PASSWORD/);
+    expect(() => createWorkerDeps({ ...env, VENDOR_FAKE_MODE: undefined })).toThrow(/needs VENDOR_FAKE_MODE=fixtures/);
+    expect(() => createWorkerDeps({ ...env, NODE_ENV: 'production' })).toThrow(/refusing rehearsal settings outside staging: VENDOR_FAKE_MODE, VENDOR_LIVE_RANK_SCANS/);
+  });
+
+  it('without the switch rank scans use the fixture client', async () => {
+    vendorMocks.createDataForSeo.mockClear();
+    const { VENDOR_LIVE_RANK_SCANS: _off, ...rest } = env;
+    const deps = createWorkerDeps(rest);
+    await deps.scanRankings('c1', { trigger: 'scheduled' });
+    const opts = last(vendorMocks.createDataForSeo) as DfsOpts;
+    expect(opts.ledger.zeroed).toBe(true);
+    expect((await opts.fetch('https://example.invalid/x')).status).toBe(599);
+    await deps.runRivalSearch('run1');
+    void (last(vendorMocks.runRivalSearch) as { dfs: unknown }).dfs;
+    expect(vendorMocks.createDataForSeo).toHaveBeenCalledTimes(1);
   });
 });
 

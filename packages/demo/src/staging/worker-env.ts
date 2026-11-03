@@ -7,12 +7,15 @@ const REQUIRED = [
 /** Copied from the file to the worker: everything required except the file-only names. */
 const PASSED = REQUIRED.filter((k) => !['STAGING_DB_DIRECT_HOST', 'STAGING_DB_POOLED_HOST', 'WORKER_DATABASE_URL'].includes(k));
 
-/** Never inherited from the shell (STAGING.md § 2): staging crawls nothing, pays no vendor and has no dev panel. */
+/** Never inherited from the shell (STAGING.md § 2): staging crawls nothing, pays no vendor (except opt-in rank scans, from the file) and has no dev panel. */
 const DROPPED_FROM_SHELL = [
-  'WEB_MONITORING_ENABLED', 'AI_PROVIDER_MODE', 'REHEARSAL_LIVE_CLIENT_IDS', 'CRAWL_HOST_ALLOWLIST',
+  'WEB_MONITORING_ENABLED', 'AI_PROVIDER_MODE', 'REHEARSAL_LIVE_CLIENT_IDS', 'CRAWL_HOST_ALLOWLIST', 'VENDOR_LIVE_RANK_SCANS',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'APIFY_TOKEN', 'SCRAPECREATORS_API_KEY', 'STADIA_API_KEY',
   'DEV_PANEL', 'RM_DEV_ENV_FILE', 'EVIDENCE_FS_DIR',
 ];
+
+/** Copied from the file only when it sets `VENDOR_LIVE_RANK_SCANS`: real rank scans + rank maps (STAGING.md § 2); the worker refuses missing or dummy keys. */
+const LIVE_RANK_PASSED = ['VENDOR_LIVE_RANK_SCANS', 'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'STADIA_API_KEY'] as const;
 
 /** Errors name the variable only: these URLs carry passwords. */
 function assertDbUrl(key: string, value: string, role: string, host: string): void {
@@ -47,6 +50,7 @@ export function stagingWorkerEnv(file: Record<string, string | undefined>, shell
   const env: NodeJS.ProcessEnv = { ...shell };
   for (const k of DROPPED_FROM_SHELL) delete env[k];
   for (const k of PASSED) env[k] = file[k];
+  if (file.VENDOR_LIVE_RANK_SCANS?.trim()) for (const k of LIVE_RANK_PASSED) if (file[k] !== undefined) env[k] = file[k];
   env.DATABASE_URL = file.WORKER_DATABASE_URL;
   env.NODE_ENV = 'production';
   // 8080 is the dev worker's default; both can run side by side.

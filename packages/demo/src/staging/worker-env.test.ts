@@ -89,4 +89,19 @@ describe('stagingWorkerEnv', () => {
     expect(() => stagingWorkerEnv({ ...FILE, SENTRY_ENVIRONMENT: 'production' }, {})).toThrow(/SENTRY_ENVIRONMENT/);
     expect(() => stagingWorkerEnv({ ...FILE, VENDOR_FAKE_MODE: '' }, {})).toThrow(/VENDOR_FAKE_MODE/);
   });
+
+  it('passes the live-rank switch and only its keys from the file; the worker validates them', () => {
+    const live = { ...FILE, VENDOR_LIVE_RANK_SCANS: 'true', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p', STADIA_API_KEY: 's', APIFY_TOKEN: 'a', SCRAPECREATORS_API_KEY: 'c' };
+    const env = stagingWorkerEnv(live, {});
+    expect(env).toMatchObject({ VENDOR_LIVE_RANK_SCANS: 'true', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p', STADIA_API_KEY: 's' });
+    expect(env.APIFY_TOKEN).toBeUndefined();
+    expect(env.SCRAPECREATORS_API_KEY).toBeUndefined();
+  });
+
+  it('without the switch no vendor key reaches the worker, from the file or the shell', () => {
+    const env = stagingWorkerEnv({ ...FILE, DATAFORSEO_LOGIN: 'l', STADIA_API_KEY: 's' }, { VENDOR_LIVE_RANK_SCANS: 'true', STADIA_API_KEY: 'shell' });
+    expect(env.VENDOR_LIVE_RANK_SCANS).toBeUndefined();
+    expect(env.DATAFORSEO_LOGIN).toBeUndefined();
+    expect(env.STADIA_API_KEY).toBeUndefined();
+  });
 });

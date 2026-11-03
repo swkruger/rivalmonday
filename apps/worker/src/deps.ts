@@ -28,7 +28,7 @@ import { lookup } from 'node:dns/promises';
 import { runLeadPreview } from './jobs/leads';
 import { runRunbookTailor } from './jobs/runbooks';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
-import { rehearsalEnvErrors } from './env';
+import { LIVE_RANK_KEYS, rehearsalEnvErrors } from './env';
 import { createPdfRenderer } from './pdf';
 import { workerLog } from './log';
 
@@ -230,9 +230,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   // (still through the vendor limiter, never the network), ledgers them at $0, and fills unset vendor keys with a dummy so the
   // presence checks pass. OpenRouter/Jev are not faked here (AI_PROVIDER_MODE).
   const fakeVendors = env.VENDOR_FAKE_MODE === 'fixtures';
+  // Staging: VENDOR_LIVE_RANK_SCANS=true exempts the rank-scan DataForSEO client and the rank-map Stadia client from the
+  // fixtures (real network through the limiter, real keys, real ledgered cost). rehearsalEnvErrors (above) has already
+  // refused it without fixture mode, outside staging, or with a missing/dummy LIVE_RANK_KEYS key.
+  const liveRanks = fakeVendors && env.VENDOR_LIVE_RANK_SCANS?.trim() === 'true';
+  const liveKeys: readonly string[] = liveRanks ? LIVE_RANK_KEYS : [];
   // The dummies are for the vendor clients only. The platform cost snapshot gets no faked-vendor keys at all in this mode
   // (a dummy, ours or an operator's `fixture`, would make it call the vendors' real balance APIs; nothing real is spent there).
-  const costEnv = fakeVendors ? Object.fromEntries(Object.entries(env).filter(([k]) => !(FIXTURE_VENDOR_KEYS as readonly string[]).includes(k))) : env;
+  // Live rank keys are real, so their balance is real spend and the snapshot keeps them.
+  const fakedKeys = FIXTURE_VENDOR_KEYS.filter((k) => !liveKeys.includes(k)) as readonly string[];
+  const costEnv = fakeVendors ? Object.fromEntries(Object.entries(env).filter(([k]) => !fakedKeys.includes(k))) : env;
   if (fakeVendors) env = { ...env, ...Object.fromEntries(FIXTURE_VENDOR_KEYS.filter((k) => !env[k]?.trim()).map((k) => [k, 'fixture'])) };
   const fixtureFetch = fakeVendors ? createFixtureFetch() : undefined;
   let db: { db: Db; close(): Promise<void> } | null = null;
@@ -244,6 +251,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const vendors = createVendorLimiter(undefined, undefined, (vendor, ms) => workerLog.debug({ vendor, waitedMs: ms }, '[vendor-limiter] waited for a slot'));
   const vendorFetch = (v: 'dataforseo' | 'apify' | 'scrapecreators' | 'stadia') => vendors.limitedFetch(v, fixtureFetch);
   const vendorLedger = () => (fakeVendors ? zeroFixtureVendorCosts(createLedgerSink(getDb())) : createLedgerSink(getDb()));
+  /** Rank scans and the rank map: the network and the plain ledger under VENDOR_LIVE_RANK_SCANS, else as every vendor call. */
+  const rankFetch = (v: 'dataforseo' | 'stadia') => (liveRanks ? vendors.limitedFetch(v) : vendorFetch(v));
+  const rankLedger = () => (liveRanks ? createLedgerSink(getDb()) : vendorLedger());
   // In-process rate limiting: per-host politeness (spec §4.2) only holds with exactly one worker
   // replica. The deployment is a single always-on worker container by design; scaling out to
   // multiple replicas would need a shared (e.g. DB- or Redis-backed) limiter instead of this one.
@@ -280,6 +290,13 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       dfs = createDataForSeo({ login: env.DATAFORSEO_LOGIN, password: env.DATAFORSEO_PASSWORD, baseUrl: env.DATAFORSEO_BASE_URL || DFS_BASE_URL, ledger: vendorLedger(), fetch: vendorFetch('dataforseo') });
     }
     return dfs;
+  };
+  let rankDfs: DataForSeoClient | null = null;
+  /** The DataForSEO client of scheduled and Scan-now rank scans (not the prospect snapshot's: it has no client spend cap). */
+  const getRankDfs = () => {
+    if (!liveRanks) return getDfs();
+    rankDfs ??= createDataForSeo({ login: env.DATAFORSEO_LOGIN!, password: env.DATAFORSEO_PASSWORD!, baseUrl: env.DATAFORSEO_BASE_URL || DFS_BASE_URL, ledger: rankLedger(), fetch: rankFetch('dataforseo') });
+    return rankDfs;
   };
   const loadCompetitors = (ids: string[]) => getDb().select().from(competitor).where(inArray(competitor.id, ids));
   const delivery = deliveryConfigFromEnv(env);
@@ -499,7 +516,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     scanRankings: (clientId, opts) =>
       scanRankings(
         {
-          db: getDb(), store: getStore(), dfs: getDfs(),
+          db: getDb(), store: getStore(), dfs: getRankDfs(),
           onSkipped: async (s) => {
             if (!delivery) {
               workerLog.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);
@@ -514,7 +531,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     failStaleRankScans: () => failStaleScans(getDb()),
     clientsNeedingRankMap: (ids) => rankClientsNeedingMap(getDb(), ids),
     refreshRankMap: (clientId) =>
-      refreshMap({ db: getDb(), store: getStore(), maps: env.STADIA_API_KEY ? createStadiaStaticClient({ apiKey: env.STADIA_API_KEY, ledger: vendorLedger(), fetch: vendorFetch('stadia') }) : null }, clientId),
+      refreshMap({ db: getDb(), store: getStore(), maps: env.STADIA_API_KEY ? createStadiaStaticClient({ apiKey: env.STADIA_API_KEY, ledger: rankLedger(), fetch: rankFetch('stadia') }) : null }, clientId),
     async runProspectSnapshot(clientId, reportId) {
       if (!vendorsConfigured()) {
         await failProspectReport(getDb(), reportId, 'Vendor APIs are not configured (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD)');
