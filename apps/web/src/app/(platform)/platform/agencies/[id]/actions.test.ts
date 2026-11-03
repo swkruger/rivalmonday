@@ -77,6 +77,53 @@ describe('result messages', () => {
   });
 });
 
+describe('saveClientLimitsAction (one Save for the Client limits table)', () => {
+  const C1 = '11111111-1111-4111-8111-111111111111';
+  const C2 = '33333333-3333-4333-8333-333333333333';
+  const row = (clientId: string, name: string, over: Record<string, string> = {}) => ({ clientId, name, spendLimitUsd: '', competitorLimit: '10', askMonthlyQuota: '100', ...over });
+  const post = (rows: unknown) => {
+    const fd = new FormData();
+    fd.set('rows', JSON.stringify(rows));
+    return a.saveClientLimitsAction(ok, fd);
+  };
+
+  it('saves each posted row through set_client_limits and revalidates once', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { lifted: false } });
+    expect(await post([row(C1, 'Acme HVAC'), row(C2, 'Bright Dental', { spendLimitUsd: '20.5', competitorLimit: '8', askMonthlyQuota: '0' })])).toEqual({ ok: true, message: 'Saved.' });
+    expect(m.runTool.mock.calls).toEqual([
+      [CTX, 'set_client_limits', { clientId: C1, spendLimitUsd: null, competitorLimit: 10, askMonthlyQuota: 100 }],
+      [CTX, 'set_client_limits', { clientId: C2, spendLimitUsd: 20.5, competitorLimit: 8, askMonthlyQuota: 0 }],
+    ]);
+    expect(m.revalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the clients whose spend pause was lifted', async () => {
+    m.runTool.mockResolvedValueOnce({ ok: true, data: { lifted: true } }).mockResolvedValueOnce({ ok: true, data: { lifted: false } });
+    expect(await post([row(C1, 'Acme HVAC'), row(C2, 'Bright Dental')])).toEqual({ ok: true, message: 'Saved. Pause lifted for Acme HVAC.' });
+  });
+
+  it('per-field validation is unchanged; the first error names its client, the other rows still save', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { lifted: false } });
+    expect(await post([row(C1, 'Acme HVAC', { competitorLimit: '2.5' }), row(C2, 'Bright Dental', { spendLimitUsd: 'abc' })])).toEqual({
+      ok: false, error: 'Acme HVAC: Competitor limit and Ask quota must be whole numbers.',
+    });
+    expect(m.runTool).not.toHaveBeenCalled();
+    expect(m.revalidate).not.toHaveBeenCalled();
+    expect(await post([row(C1, 'Acme HVAC', { spendLimitUsd: 'abc' })])).toEqual({ ok: false, error: 'Acme HVAC: Enter the limit in dollars, or leave it blank for the default.' });
+    m.runTool.mockResolvedValueOnce({ ok: false, error: 'Not found' }).mockResolvedValueOnce({ ok: true, data: { lifted: false } });
+    expect(await post([row(C1, 'Acme HVAC'), row(C2, 'Bright Dental')])).toEqual({ ok: false, error: 'Acme HVAC: Not found' });
+    expect(m.runTool).toHaveBeenCalledTimes(2);
+    expect(m.revalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('a malformed post is refused before any tool call', async () => {
+    const fd = new FormData();
+    fd.set('rows', '{nope');
+    expect(await a.saveClientLimitsAction(ok, fd)).toMatchObject({ ok: false });
+    expect(m.runTool).not.toHaveBeenCalled();
+  });
+});
+
 describe('moveAgencyToCurrentPlanAction', () => {
   it('calls move_agencies_to_current_plan with the one id, revalidates and returns the result', async () => {
     const data = { targetPlanId: 'p2', targetVersion: 2, results: [{ agencyId: AG, outcome: 'moved', emailed: true }] };

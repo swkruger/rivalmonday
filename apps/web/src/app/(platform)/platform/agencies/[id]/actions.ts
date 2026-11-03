@@ -1,4 +1,5 @@
 'use server';
+import type { AccessContext } from '@cs/core';
 import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -31,23 +32,54 @@ export async function startSupportSessionAction(_prev: FormResult, fd: FormData)
   redirect('/agency');
 }
 
-/**
- * Row save on the Client limits table (platform staff+, enforced by the tool). A blank override clears it (null); the other
- * two fields are always sent. A save that raises the limit above spend lifts a spend pause.
- */
-export async function setClientLimitsAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
-  const { ctx } = await requireOperatorContext();
-  const clientId = String(fd.get('clientId') ?? '').slice(0, 64);
-  const raw = String(fd.get('spendLimitUsd') ?? '').trim();
+/** One changed row of the Client limits table, as the browser posts it (raw field text; `name` is only for the result line). */
+export interface ClientLimitsRow { clientId: string; name: string; spendLimitUsd: string; competitorLimit: string; askMonthlyQuota: string }
+
+/** Parses and saves one row through `set_client_limits`; refusals come back as the error text. */
+async function saveLimitsRow(ctx: AccessContext, row: ClientLimitsRow): Promise<{ ok: true; lifted: boolean } | { ok: false; error: string }> {
+  const clientId = String(row.clientId ?? '').slice(0, 64);
+  const raw = String(row.spendLimitUsd ?? '').trim();
   const limit = raw === '' ? null : Number(raw);
-  const competitorLimit = Number(String(fd.get('competitorLimit') ?? '').trim());
-  const askMonthlyQuota = Number(String(fd.get('askMonthlyQuota') ?? '').trim());
+  const competitorLimit = Number(String(row.competitorLimit ?? '').trim());
+  const askMonthlyQuota = Number(String(row.askMonthlyQuota ?? '').trim());
   if (limit !== null && !Number.isFinite(limit)) return { ok: false, error: 'Enter the limit in dollars, or leave it blank for the default.' };
   if (!Number.isInteger(competitorLimit) || !Number.isInteger(askMonthlyQuota)) return { ok: false, error: 'Competitor limit and Ask quota must be whole numbers.' };
   const r = await runTool<{ lifted: boolean }>(ctx, 'set_client_limits', { clientId, spendLimitUsd: limit, competitorLimit, askMonthlyQuota });
-  if (!r.ok) return r;
-  revalidatePath('/platform/agencies/[id]', 'page');
-  return { ok: true, message: r.data.lifted ? 'Pause lifted.' : 'Saved.' };
+  return r.ok ? { ok: true, lifted: r.data.lifted } : { ok: false, error: r.error };
+}
+
+/**
+ * The Client limits table's one Save (platform staff+, enforced by the tool). `rows` is the JSON list of changed rows; each is
+ * saved on its own `set_client_limits` call (a blank override clears it to null; the other two fields are always sent). Every
+ * row is tried; the result is "Saved." (naming any client whose spend pause was lifted) or the first refusal with its client's
+ * name. Rows that saved stay saved, so the page revalidates whenever at least one did.
+ */
+export async function saveClientLimitsAction(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  let rows: ClientLimitsRow[];
+  try {
+    const parsed: unknown = JSON.parse(String(fd.get('rows') ?? '[]'));
+    if (!Array.isArray(parsed)) throw new Error('rows');
+    rows = parsed.slice(0, 500) as ClientLimitsRow[];
+  } catch {
+    return { ok: false, error: 'Something went wrong. Reload the page and try again.' };
+  }
+  let firstError: string | null = null;
+  let saved = 0;
+  const lifted: string[] = [];
+  for (const row of rows) {
+    const name = String(row?.name ?? '').slice(0, 120);
+    const r = await saveLimitsRow(ctx, row);
+    if (!r.ok) {
+      firstError ??= `${name}: ${r.error}`;
+      continue;
+    }
+    saved++;
+    if (r.lifted) lifted.push(name);
+  }
+  if (saved > 0) revalidatePath('/platform/agencies/[id]', 'page');
+  if (firstError) return { ok: false, error: firstError };
+  return { ok: true, message: lifted.length ? `Saved. Pause lifted for ${lifted.join(', ')}.` : 'Saved.' };
 }
 
 // ---- Phase 15c-3a agency management (Manage menu, People, hold, archive) ----
