@@ -110,6 +110,12 @@ describe('intakeLookup', () => {
     expect(r.places[0]!.sig).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('refuses with a user-facing message when no lookup is configured (the visitor needs a listing to continue)', async () => {
+    delete deps.setupLookup;
+    const e = await look('agency-a').then(() => null, (x: { code?: string; message: string; userFacing?: boolean }) => x);
+    expect([e?.code, e?.userFacing, e?.message]).toEqual(['internal', true, "Business search isn't available right now. Try again later."]);
+  });
+
   it('lookup refused after 5 per IP per hour', async () => {
     for (let i = 0; i < 5; i++) expect(await look('agency-a')).toHaveProperty('places');
     expect(await look('agency-a')).toEqual({ refused: 'rate' });

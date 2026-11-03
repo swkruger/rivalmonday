@@ -34,6 +34,11 @@ describe('FindStep (client step 2)', () => {
     expect((screen.getByLabelText(/City or ZIP/) as HTMLInputElement).value).toBe('Round Rock, TX');
   });
 
+  it('a hint under the search says what to do when there is no listing', () => {
+    show();
+    expect(screen.getByText('Search Google for the listing, or pick a business type and continue without one.')).toBeTruthy();
+  });
+
   it('the search box stays editable', async () => {
     const p = show();
     fireEvent.change(screen.getByLabelText(/Business name/), { target: { value: 'Breeze Air' } });

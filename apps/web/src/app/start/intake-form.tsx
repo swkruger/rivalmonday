@@ -232,6 +232,7 @@ function FindStep({ platform, name, location, setName, setLocation, places, pick
             <Button type="submit" variant="outline" disabled={searching || preview} aria-disabled={preview || undefined}>{searching ? 'Searching…' : 'Search'}</Button>
           </div>
         </Field>
+        <p className="text-sm text-muted-ink">Search Google for your business, then pick it from the list to continue.</p>
         {preview && <span className="text-sm text-muted-ink">Disabled in preview</span>}
       </form>
 

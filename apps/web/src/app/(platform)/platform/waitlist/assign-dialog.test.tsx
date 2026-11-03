@@ -71,4 +71,9 @@ describe('AssignDialog', () => {
     open(vi.fn(), 'elsewhere');
     expect((screen.getByLabelText('Agency') as HTMLSelectElement).value).toBe('');
   });
+
+  it('the listing search carries a hint that a listing is needed', () => {
+    open();
+    expect(screen.getByText("Search Google for the business's listing. You need it to continue.")).toBeTruthy();
+  });
 });

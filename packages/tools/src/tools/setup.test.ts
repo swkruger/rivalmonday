@@ -115,7 +115,7 @@ describe('find_business', () => {
     registry = createToolRegistry({ app: dbs.app, service: dbs.service }, { audit: { record: async () => {} } });
     const e = await fails(find());
     expect(e.code).toBe('internal');
-    expect(e.message).toBe('Business search is not configured');
+    expect(e.message).toBe("Business search isn't available right now. Choose a business type and continue without a listing.");
     expect(e.userFacing).toBe(true);
   });
 });

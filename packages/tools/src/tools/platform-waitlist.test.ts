@@ -341,6 +341,12 @@ describe('platform_find_business and assign_waitlist_business', () => {
     expect(calls).toHaveLength(1);
     expect((await fails(reg.invoke(viewer, 'platform_find_business', { name: 'Smile', location: 'Austin, TX' }))).code).toBe('permission_denied');
   });
+
+  it('platform_find_business without a configured lookup refuses with plain copy (the dialogs need a listing)', async () => {
+    const bare = createToolRegistry({ app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'] }, { audit: { record: async () => {} } });
+    const e = await fails(bare.invoke(op, 'platform_find_business', { name: 'Smile', location: 'Austin, TX' }));
+    expect([e.code, e.userFacing, e.message]).toEqual(['internal', true, "Business search isn't available right now. Try again later."]);
+  });
 });
 
 describe('decide_sample_brief', () => {

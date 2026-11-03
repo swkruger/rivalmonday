@@ -10,7 +10,7 @@ import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { catalogPacks } from '../catalog/access';
 import { intakeLookupSchema } from '../intake/signed';
 import { hitRate } from '../intake/rate';
-import { collapseSameListing, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
+import { collapseSameListing, possibleDuplicates, preselectVertical, SEARCH_UNAVAILABLE, toSetupLookup } from '../setup/lookup';
 import { sendAfterCommit } from './leads';
 import { insertInviteLink, operate } from './platform-billing';
 import { assignPoolLeadTx } from './platform-leads';
@@ -279,7 +279,7 @@ export const platformFindBusinessTool = defineTool({
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'staff', 'platform_find_business', input, undefined, async () => {
       if (ctx.support) throw new ToolError('permission_denied', 'Not available in a support session');
-      if (!deps.setupLookup) throw new ToolError('internal', 'Business search is not configured', { userFacing: true });
+      if (!deps.setupLookup) throw new ToolError('internal', SEARCH_UNAVAILABLE.tryLater, { userFacing: true });
       if (!(await hitRate(deps.service, `platform-lookup:${ctx.userId}`, 'day', PLATFORM_LOOKUP_DAILY_CAP, new Date()))) {
         throw new ToolError('rate_limited', `You've reached today's limit of ${PLATFORM_LOOKUP_DAILY_CAP} business searches.`, { userFacing: true });
       }

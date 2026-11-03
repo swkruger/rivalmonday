@@ -13,7 +13,7 @@ export const fixtureSetupLookup: SetupLookup = async (q) => (/distiller/i.test(q
 /**
  * Phase 11a Task 10: `find_business`'s search. Fixture under `SETUP_FAKE_LOOKUP` and in the DEMO/TEST environments
  * (R5: demo never spends); otherwise DataForSEO on the service connection with the cost-ledger sink. No credentials
- * means absent, and the tool then refuses with "Business search is not configured". The client is built lazily.
+ * means absent, and the tool then refuses with `SEARCH_UNAVAILABLE` ("Business search isn't available right now. …"). The client is built lazily.
  */
 export function setupLookupFor(name: EnvName, service: Db, env: { fake: boolean; processEnv: NodeJS.ProcessEnv }): SetupLookup | undefined {
   if (env.fake || name === 'demo' || name === 'test') return fixtureSetupLookup;

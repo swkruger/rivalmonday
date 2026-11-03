@@ -5,6 +5,16 @@ import type { VerticalPack } from '@cs/verticals';
 /** Phase 11a §5: business searches per agency per UTC day (counted from `vendor_call`). */
 export const FIND_BUSINESS_DAILY_CAP = 30;
 
+/**
+ * The refusal when no business search is set up (`deps.setupLookup` absent, e.g. staging without DataForSEO keys). The second
+ * sentence follows what the surface offers: the new-client wizard can continue without a listing; `/start` and the waitlist
+ * dialogs need one.
+ */
+export const SEARCH_UNAVAILABLE = {
+  withoutListing: "Business search isn't available right now. Choose a business type and continue without a listing.",
+  tryLater: "Business search isn't available right now. Try again later.",
+} as const;
+
 /** First pack (in the given order) whose `discovery.categories` match a GBP category, else the first whose `related_categories` do; case-insensitive exact match. */
 export function preselectVertical(packs: VerticalPack[], categories: string[]): string | null {
   const wanted = new Set(categories.map((c) => c.trim().toLowerCase()));

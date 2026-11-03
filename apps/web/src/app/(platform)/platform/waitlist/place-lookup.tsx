@@ -79,6 +79,7 @@ export function PlaceLookup({ initialName, initialLocation, find, fieldName = 'l
         </div>
         <Button type="button" variant="outline" onClick={search} disabled={disabled || searching || !ready}>{searching ? 'Searching…' : 'Search'}</Button>
       </div>
+      <p className="text-sm text-muted-ink">Search Google for the business&apos;s listing. You need it to continue.</p>
       {error && <ErrorNote compact focusKey={attempt}>{error}</ErrorNote>}
       {places && places.length === 0 && <p role="status" className="text-sm text-muted-ink">No businesses found. Check the spelling or try a ZIP code.</p>}
       {places && places.length > 0 && (

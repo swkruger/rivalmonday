@@ -4,7 +4,7 @@ import { resolveBranding } from '@cs/email';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
-import { collapseSameListing, possibleDuplicates, toSetupLookup } from '../setup/lookup';
+import { collapseSameListing, possibleDuplicates, SEARCH_UNAVAILABLE, toSetupLookup } from '../setup/lookup';
 import { hitRate, INTAKE_LIMITS } from './rate';
 import { intakeLookupSchema, type SignedIntakePlace, signedIntakePlaceSchema, signIntakePlace, verifyIntakePlace } from './signed';
 import { hashToken, newToken } from './tokens';
@@ -55,7 +55,7 @@ export async function intakeLookup(
   if (!q.success) throw new ToolError('invalid_input', 'Enter a business name and a city or ZIP code.', { userFacing: true });
   const target = await resolveIntake(deps.service, input.slug);
   if (!target) throw new ToolError('not_found', 'Not found');
-  if (!deps.setupLookup) throw new ToolError('internal', 'Business search is not configured', { userFacing: true });
+  if (!deps.setupLookup) throw new ToolError('internal', SEARCH_UNAVAILABLE.tryLater, { userFacing: true });
 
   if (!(await hitRate(deps.service, ipKey(input.ipHash), 'hour', INTAKE_LIMITS.ipPerHour, now))) return { refused: 'rate' };
   const dayLimit = target.agencyId ? INTAKE_LIMITS.linkPerDay : INTAKE_LIMITS.platformPerDay;

@@ -8,7 +8,7 @@ import { catalogOf, catalogPacks, packsOf } from '../catalog/access';
 import type { ToolDeps } from '../deps';
 import { enqueueOf } from '../deps';
 import { startCompetitorSearch } from '../rival-search';
-import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, toSetupLookup } from '../setup/lookup';
+import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, preselectVertical, SEARCH_UNAVAILABLE, toSetupLookup } from '../setup/lookup';
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { completeIfDone, getSetupState, loadSetupInvite, ownerPickOpen, type SetupState } from '../setup/state';
@@ -34,7 +34,7 @@ export const findBusiness = defineTool({
   async handler(ctx, input, deps) {
     if (ctx.clientScope !== 'all') throw new ToolError('permission_denied', 'Only agency-wide staff can look up businesses');
     if (ctx.support) throw new ToolError('permission_denied', 'Not available in a support session');
-    if (!deps.setupLookup) throw new ToolError('internal', 'Business search is not configured', { userFacing: true });
+    if (!deps.setupLookup) throw new ToolError('internal', SEARCH_UNAVAILABLE.withoutListing, { userFacing: true });
 
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
