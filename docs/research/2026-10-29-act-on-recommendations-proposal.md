@@ -321,15 +321,23 @@ Ship the loop copy-first in three sub-phases that need nothing from Google, and 
 | Gap metrics move slowly | "Nothing happened" perception | Report action-level verification weekly; gap status monthly |
 | Token theft | Write access to client profiles | Encrypted tokens, service-only column, no tokens in logs, disconnect on archive |
 
-**Open decisions for the owner**
+**Open decisions for the owner** (all eight decided by the owner on 2026-11-03; input for the 2.0 brainstorm)
 
-- [ ] Approve copy-first order (18a → 18b → 18c, 18d when Google approves).
-- [ ] Default approval mode: *Agency publishes* (proposed) or *Owner approves*.
-- [ ] Are drafts charged in credits from day one, or included in the plan up to a cap?
-- [ ] Citations: audit-only at first (proposed), or budget a submission partner now?
-- [ ] Review request sending: kit + CRM webhook only (proposed), or own SMS/email sending later with consent capture?
-- [ ] Is 18d gated on 13a2, or may pilot agencies accept a consent screen that names the platform?
-- [ ] Does Action stay inside the `standard` plan, or become a plan feature like Ask/MCP (`hasChannel`)?
-- [ ] Marketing site: when may we claim "reply to reviews" and "fix citations" (only after 18a / 18c ship, per the claims ledger)?
+- [x] Approve copy-first order (18a → 18b → 18c, 18d when Google approves).
+  **Decided: yes, copy-first.** Also apply for Google Basic API Access early (needs a GBP verified for 60+ days), since approval is slow.
+- [x] Default approval mode: *Agency publishes* (proposed) or *Owner approves*.
+  **Decided: *Agency publishes*.** Fits the agencies' managed-service offer and keeps drafts from waiting on owners; switch individual clients to *Owner approves* as needed.
+- [x] Are drafts charged in credits from day one, or included in the plan up to a cap?
+  **Decided: included up to a monthly cap per client, credits beyond the cap.** Keeps the pitch against RivalMappd's 10 replies a month while the spend guard still covers cost. Set the cap from the per-draft cost 18a measures. (This replaces "Unlimited drafted replies" in the comparison table and "Drafts cost credits" under Safety and cost.)
+- [x] Citations: audit-only at first (proposed), or budget a submission partner now?
+  **Decided: audit + guided fixes first.** A submission partner comes later, priced in credits.
+- [x] Review request sending: kit + CRM webhook only (proposed), or own SMS/email sending later with consent capture?
+  **Decided: kit + CRM webhook only.** Avoids TCPA / CAN-SPAM consent exposure; agencies already have CRMs.
+- [x] Is 18d gated on 13a2, or may pilot agencies accept a consent screen that names the platform?
+  **Decided: gated on 13a2, no pilot exception.** The billing rule forbids naming the platform to clients, and Google approval is slow anyway, so the wait costs little.
+- [x] Does Action stay inside the `standard` plan, or become a plan feature like Ask/MCP (`hasChannel`)?
+  **Decided: build it as a plan feature (`hasChannel`), switched on in the `standard` plan at launch.** The gap-closing story stays in the core plan, and it can still be priced separately later.
+- [x] Marketing site: when may we claim "reply to reviews" and "fix citations" (only after 18a / 18c ship, per the claims ledger)?
+  **Decided: only after 18a / 18c ship, per the claims ledger.** Until then `/roadmap` stays labelled as a 2.0 preview.
 
 Next step when 2.0 planning starts: `/rm-kickoff`, then brainstorm the open questions above into a lean spec.
