@@ -48,7 +48,7 @@ describe('/platform/knowledge', () => {
   it('passes valid filters to the tool and ignores junk', async () => {
     h.invoke.mockImplementation(answer([]));
     await KnowledgePage({ searchParams: Promise.resolve({ level: 'client', status: 'bogus', q: ' alerts ' }) });
-    expect(h.invoke).toHaveBeenCalledWith(expect.anything(), 'list_kb_articles', { level: 'client', q: 'alerts', limit: 25 });
+    expect(h.invoke).toHaveBeenCalledWith(expect.anything(), 'list_kb_articles', { level: 'client', q: 'alerts', limit: 25 }, expect.objectContaining({ channel: 'web' }));
   });
 
   it('renders source and sync badges', async () => {

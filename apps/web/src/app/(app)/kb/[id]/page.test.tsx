@@ -28,7 +28,7 @@ describe('/kb/[id]', () => {
     h.invoke.mockRejectedValue(new ToolError('not_found', 'Article not found'));
     await expect(KbArticlePage(params())).rejects.toThrow('NEXT_NOT_FOUND');
     expect(h.notFound).toHaveBeenCalledTimes(1);
-    expect(h.invoke).toHaveBeenCalledWith(expect.anything(), 'get_kb_article', { kbId: ID });
+    expect(h.invoke).toHaveBeenCalledWith(expect.anything(), 'get_kb_article', { kbId: ID }, expect.objectContaining({ channel: 'web' }));
   });
 
   it('renders the article title on success', async () => {
