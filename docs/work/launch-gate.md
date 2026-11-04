@@ -4,10 +4,10 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-11-04-launch-gate-design.md) · [plan](../superpowers/plans/2026-11-04-launch-gate.md)
 
 ## Status (overwrite)
-2026-11-04: Tasks 0-7 done. **Gate passes:** `bash apps/web/scripts/profile-gate.sh --seed` → exit 0, 71/71 routes, max 7 dbStages (baseline: 58 of 68 over 8, max 23). Neon dev latency measured (§ Results): agency/workspace p75 **1476 ms** (≤ 1.5 s, by 24 ms), max **3188 ms**; 2 pages over 3 s (New backlog). The staging run is an owner step. Gates 7a1 Task 12 (live deploy).
+2026-11-04: Tasks 0-7 + final review + fix wave done (final review CLEAN). **Gate passes:** `bash apps/web/scripts/profile-gate.sh --seed` → exit 0, 71/71 routes, max 7 dbStages (baseline: 58 of 68 over 8, max 23). Neon dev latency (§ Results): agency/workspace p75 **1476 ms**, max **3188 ms**; 2 pages over 3 s (New backlog). Verification: `test:affected --base main` green after a test-only fix (2 web tests asserted exact `invoke` args) and focused re-runs of 2 Windows socket-exhaustion failures (ENOBUFS / ERR_ADDRESS_IN_USE); `e2e:affected` 151 passed + `platform-costs.spec` re-run alone 4/4. Full unit + E2E (incl. `signup.spec`, Ask now on E2E HVAC) not yet run: do it in `/rm-merge`.
 
 ## Next (overwrite)
-Final whole-branch review (`pnpm test:affected` + `e2e:affected`, `--base main`) and one fix wave; the owner runs the staging crawl (Owner verification steps); `/rm-merge` on the owner's go-ahead.
+Owner: staging crawl (Owner verification steps) and go-ahead for `/rm-merge launch-gate`. At merge fold: gotchas — deferred audit rows' `created_at` is insert time (order vs later awaited writes can invert); Windows WSAENOBUFS/ERR_ADDRESS_IN_USE on long local runs (re-run alone); fix the Task 7 mean (1288 → ~1213, two 404 rows counted) and the DEPLOY.md pointer to this file (→ STATE).
 
 ## Interfaces this branch adds or changes
 - `apps/web/scripts/profile-gate.sh [--db local|neon-dev] [--seed] [--skip-build] [-- <profile:pages args>]` (recipe: `apps/web/CLAUDE.md` § Page profiler).
