@@ -237,7 +237,7 @@ These settings come first, because the same project will also host production la
    | `NEXT_PUBLIC_APP_URL` | `https://staging.rivalmonday.app` |
    | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | same as `TURNSTILE_SITE_KEY` |
    | `NEXT_PUBLIC_SENTRY_DSN` | **`SITE_SENTRY_DSN`** |
-   | `NEXT_PUBLIC_CLIENT_PRICE_USD` | the client price to show, if you want it shown |
+   | `NEXT_PUBLIC_CLIENT_PRICE_USD` | the direct client price; default is 249, so leave it unset (or set 249) |
    | `NEXT_PUBLIC_COMPARE_PAGES` | optional: rival names separated by commas, to review compare pages |
 
 7. Save this project's ID as `VERCEL_SITE_PROJECT_ID`.

@@ -4,7 +4,7 @@
  * The site holds no secrets: nothing here may be anything but public (import-boundary test).
  */
 export const DEFAULT_APP_URL = 'https://rivalmonday.app';
-export const DEFAULT_CLIENT_PRICE_USD = 99;
+export const DEFAULT_CLIENT_PRICE_USD = 249;
 
 export type SocialNetwork = 'linkedin' | 'x' | 'youtube' | 'facebook' | 'instagram';
 

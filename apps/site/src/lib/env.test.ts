@@ -13,9 +13,9 @@ describe('parseSiteEnv', () => {
     expect(parseSiteEnv({ appUrl: 'http://localhost.evil.com' }).appUrl).toBe('https://rivalmonday.app');
   });
 
-  it('clientPriceUsd defaults to 99', () => {
-    expect(parseSiteEnv({}).clientPriceUsd).toBe(99);
-    for (const bad of ['', '0', '-5', '12.5', 'abc', '99usd']) expect(parseSiteEnv({ clientPriceUsd: bad }).clientPriceUsd).toBe(99);
+  it('clientPriceUsd defaults to 249', () => {
+    expect(parseSiteEnv({}).clientPriceUsd).toBe(249);
+    for (const bad of ['', '0', '-5', '12.5', 'abc', '99usd']) expect(parseSiteEnv({ clientPriceUsd: bad }).clientPriceUsd).toBe(249);
     expect(parseSiteEnv({ clientPriceUsd: '149' }).clientPriceUsd).toBe(149);
   });
 
