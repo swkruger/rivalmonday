@@ -43,7 +43,6 @@ describe('site copy', () => {
     }
     // the pricing lines really render PRICING
     expect(home.PRICING_LINES.agency).toContain(`$${PRICING.agency.monthlyUsd}/mo`);
-    expect(home.PRICING_LINES.business).toContain(`$${PRICING.business.monthlyUsd}/mo`);
   });
 
   it('headlines are at most 90 characters', () => {

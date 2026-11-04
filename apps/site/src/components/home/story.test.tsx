@@ -126,7 +126,6 @@ describe('Commercial', () => {
     }
     expect(screen.getByText(PRICING_LINES.agency)).toBeTruthy();
     expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}/mo`);
-    expect(container.textContent).not.toContain(PRICING_LINES.business);
     expect(container.querySelector('input[type="range"]')).toBeTruthy();
     expect(screen.getByText(COMMERCIAL.roadmapLine.text)).toBeTruthy();
     expect(screen.getByRole('link', { name: COMMERCIAL.roadmapLine.link.label }).getAttribute('href')).toBe('/roadmap');

@@ -23,6 +23,12 @@ test('home renders the decided headline', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your competitors are making moves. Are you watching?');
 });
 
+test('the /#join deep link opens the join dialog', async ({ page }) => {
+  await mockApp(page);
+  await page.goto('/#join');
+  await expect(dialog(page).getByRole('heading', { name: 'Join the Rival Monday pilot' })).toBeVisible();
+});
+
 test.describe('no horizontal overflow', () => {
   for (const path of ['/', '/sample-brief', '/how-it-works', '/privacy', '/terms', '/no-such-page']) {
     test(`page ${path}`, async ({ page }) => {

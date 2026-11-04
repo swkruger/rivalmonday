@@ -49,8 +49,8 @@ export const HOME_ANCHORS = [
   'join',
 ] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
-/** `pricing`, `real-sample` and `guides` are the retired sections; a later site-story task deletes them. */
-type SectionId = Exclude<HomeAnchor, 'join'> | 'close' | 'pricing' | 'real-sample' | 'guides';
+/** `guides` is only used by `/how-it-works`. */
+type SectionId = Exclude<HomeAnchor, 'join'> | 'close' | 'guides';
 
 export interface HomeSection {
   id: SectionId;
@@ -61,7 +61,7 @@ export interface HomeSection {
   homeHeading?: string;
 }
 
-const { agency, business } = PRICING;
+const { agency } = PRICING;
 
 export const SECTIONS: Record<SectionId, HomeSection> = {
   'client-view': {
@@ -149,23 +149,11 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
     heading: 'Ask about any rival. Every answer shows its sources.',
     body: "Friday answers from the same evidence as the brief, with the sources inline. It's the in-app assistant, under the name you choose, and your agency switches it on for each client.",
   },
-  'real-sample': {
-    id: 'real-sample',
-    eyebrow: 'A real sample for your client',
-    heading: 'See one of your own clients before you commit.',
-    body: 'Tick "Send me a real sample brief" when you join. We build a starting-point brief for one of your clients from public information and email you a private link. Free during the pilot, a limited number each month.',
-  },
   guides: {
     id: 'guides',
     eyebrow: 'Guides',
     heading: 'Guides for agencies watching local rivals.',
     body: 'Practical methods you can use with any client, whether or not you use Rival Monday.',
-  },
-  pricing: {
-    id: 'pricing',
-    eyebrow: 'Pricing',
-    heading: 'Free during the pilot.',
-    body: 'You set your own prices for your clients and bill them in your name.',
   },
 };
 
@@ -244,14 +232,11 @@ export const HOW_STEPS = [
 
 export const PRICING_LINES = {
   agency: `Then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, with a ${agency.trialDays}-day trial.`,
-  business: `Then $${business.monthlyUsd}/mo, through your agency, who sets up the rest.`,
 } as const;
 
 /** Pilot off (NEW, owner signs). */
-export const PRICING_HEADING_TRIAL = `Start with a ${agency.trialDays}-day free trial.`;
 export const PRICING_LINES_TRIAL = {
   agency: `$${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, after a ${agency.trialDays}-day free trial.`,
-  business: `$${business.monthlyUsd}/mo, through your agency, who sets up the rest.`,
 } as const;
 
 export const CTA_BAND = {

@@ -6,7 +6,7 @@ vi.mock('../../lib/env', () => env);
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
-import { CTA_BAND, CTA_BAND_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_HEADING_TRIAL, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
+import { CLOSE, CLOSE_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_LINES, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
 import { HOW_FAQ, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { PRICING } from '../../../content/pricing';
 import { SOURCES } from '../../../content/sources';
@@ -193,8 +193,7 @@ describe('ChecksHub and Steps', () => {
 describe('HomePage', () => {
   const ids = (c: HTMLElement) => [...c.querySelectorAll('main > section[id]')].map((s) => s.id).filter((id) => id !== 'founder');
 
-  // site-story Task 7 reassembles the page
-  it.skip('section ids match HOME_ANCHORS', async () => {
+  it('section ids match HOME_ANCHORS', async () => {
     const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
     expect(new Set(ids(container))).toEqual(new Set(HOME_ANCHORS));
     expect(ids(container)).toEqual([...HOME_ANCHORS]);
@@ -202,5 +201,39 @@ describe('HomePage', () => {
     cleanup();
     const out = await renderApp(<HomePage />, { pilotMode: true, counters: null });
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
-  });
+  }, 20_000);
+
+  it('pilot off: trial wording everywhere, no pilot wording', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: false, counters: ALL });
+    const text = container.textContent!;
+    expect(text).toContain(CLOSE_TRIAL.heading);
+    expect(text).toContain(HERO.finePrintTrial);
+    expect(text).toContain(PRICING_LINES_TRIAL.agency);
+    expect(text).not.toContain(PRICING_LINES.agency);
+    expect(text.match(/pilot/gi) ?? []).toEqual([]);
+  }, 20_000);
+
+  it('pilot on: pilot wording and the pilot plan line', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const text = container.textContent!;
+    expect(text).toContain(CLOSE.heading);
+    expect(text).toContain(PRICING_LINES.agency);
+    expect(text).toContain(HERO.finePrint);
+  }, 20_000);
+
+  it('never shows the local-business price', async () => {
+    for (const pilotMode of [true, false]) {
+      const { container } = await renderApp(<HomePage />, { pilotMode, counters: ALL });
+      expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}/mo`);
+      expect(container.textContent).not.toContain('$249');
+      cleanup();
+    }
+  }, 20_000);
+
+  it('has one h1 and no duplicate ids', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    expect(container.querySelectorAll('h1')).toHaveLength(1);
+    const all = [...container.querySelectorAll('[id]')].map((el) => el.id);
+    expect(all.filter((id, i) => all.indexOf(id) !== i)).toEqual([]);
+  }, 20_000);
 });
