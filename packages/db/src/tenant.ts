@@ -19,10 +19,14 @@ export async function withTenant<T>(db: Db, scope: TenantScope, fn: (tx: Tx) => 
   }
   return db.transaction(async (tx) => {
     // Launch-gate 6a: the settings are pipelined with fn's first query instead of costing their own round trip.
-    // `.then` dispatches the statement synchronously, so it is queued on the transaction's one connection before any
-    // query fn issues; postgres-js sends a connection's queries in call order and Postgres runs them in order, so every
-    // query in fn still sees the settings. Fails closed: a query that somehow ran first would see no tenant (RLS: no
-    // rows, writes refused), and a failed settings statement aborts the transaction, so fn's queries fail too.
+    // Dispatch is not synchronous: `.then` runs drizzle's async execute, and postgres-js `Query.handle()` hands the
+    // statement to the connection only after its own `await 1`. The settings still enter the connection queue first
+    // because they reach `Query.then` before fn runs, and every drizzle path inside fn (select/insert/update/delete,
+    // `.for('update')`, `execute`, `tx.transaction` savepoints) reaches `Query.then` at the same or a greater microtask
+    // depth. postgres-js sends a connection's queries in queue order and Postgres runs them in order.
+    // Invariant: drizzle-only inside fn. A raw postgres-js `Query.execute()`/`.forEach()`/`.cursor()` inside fn would
+    // overtake the settings; that fails closed (RLS sees no tenant: no rows, writes refused). A failed settings
+    // statement aborts the transaction, so fn's queries fail too. Tests: tenant.test.ts "launch-gate 6a".
     const settings = tx
       .execute(
         sql`select set_config('app.agency_id', ${scope.agencyId}, true), set_config('app.client_scope', ${clientScope}, true), set_config('app.user_id', ${scope.userId ?? ''}, true), set_config('app.role', ${scope.role ?? ''}, true)`,

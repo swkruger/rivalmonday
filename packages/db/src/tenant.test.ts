@@ -96,6 +96,42 @@ describe('row-level security', () => {
     expect(await dbs.app.select().from(client)).toEqual([]);
   });
 
+  it('launch-gate 6a: an INSERT admitted only by RLS WITH CHECK as fn\'s first statement sees the settings', async () => {
+    // Own tenant: the policy's WITH CHECK reads app_agency_id(); without the settings it would refuse this insert.
+    await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+      tx.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorY }),
+    );
+    const linked = await dbs.owner.select().from(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1));
+    expect(linked.map((r) => r.competitorId).sort()).toEqual([IDS.competitorX, IDS.competitorY].sort());
+    // Another tenant's row (valid FK: clientB1 belongs to agencyB) is refused by the same WITH CHECK.
+    const text = await errorText(
+      withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+        tx.insert(clientCompetitor).values({ agencyId: IDS.agencyB, clientId: IDS.clientB1, competitorId: IDS.competitorY }),
+      ),
+    );
+    expect(text).toMatch(/row-level security/i);
+  });
+
+  it('launch-gate 6a: a savepoint (tx.transaction) as fn\'s first statement sees the settings inside', async () => {
+    const rows = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) =>
+      tx.transaction(async (sp) => {
+        const [setting] = (await sp.execute(sql`select current_setting('app.agency_id', true) as v`)) as unknown as { v: string }[];
+        expect(setting?.v).toBe(IDS.agencyA);
+        return sp.select({ id: client.id }).from(client);
+      }),
+    );
+    expect(ids(rows)).toEqual([IDS.clientA1, IDS.clientA2].sort());
+  });
+
+  it('launch-gate 6a: select … for update as fn\'s first statement sees the settings', async () => {
+    const lock = (agencyId: string) =>
+      withTenant(dbs.app, { agencyId, clientScope: 'all' }, (tx) =>
+        tx.select({ id: client.id }).from(client).where(eq(client.id, IDS.clientA1)).for('update'),
+      );
+    expect(ids(await lock(IDS.agencyA))).toEqual([IDS.clientA1]);
+    expect(await lock(IDS.agencyB)).toEqual([]);
+  });
+
   it('service role bypasses RLS for system jobs', async () => {
     expect(await dbs.service.select().from(client)).toHaveLength(3);
   });
