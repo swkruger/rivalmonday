@@ -294,3 +294,84 @@ No `/platform/**` route is over 8. Still over 8 (all `(app)`, Task 6): `/c/[clie
 | /c/[clientId]/settings/alerts | 7 → **3** |
 | /c/[clientId]/settings/runbook | 7 → **4** |
 | /c/[clientId]/briefs/[briefId] | 5 → **5** |
+
+## Task 6c / gate
+2026-11-04, HEAD before the docs commit `1371acaf`. Command (worktree root): `bash apps/web/scripts/profile-gate.sh --seed` (full build, local 5444, median of 3 warm visits) → **`profile-gate: exit 0`**. 71 of 71 routes profiled, `--strict-routes`, no unresolved routes; max **7** dbStages, median 4.
+- **Seed (E2E `seed.ts`, `seedProfileRows`):** E2E HVAC gets `ask`; the admin's auth user is pre-created as a magic-link sign-up would (name '', verified; membership still from the pending invitation on first sign-in) and owns one Ask thread with a cited answer; one `sent` 2026-Q3 `trend_report`. `--params-from-seed` adds the evidence id (newest web screenshot of a competitor the client tracks).
+- **Evidence page 13 → 6:** `get_evidence` and `compare_captures` start the client check beside the main row (`allInOrder`), then the link check beside `citedBy` / the previous capture; `competitorLinked` is one `EXISTS … OR …` statement (was up to 4 in a row); the page starts the assistant name with its reads. Parity snapshot recorded on the old code.
+- Param routes: ask/[threadId] 7 (first run) → **6** (`get_evidence_refs` uses the one-statement `competitorLinked`), reports/[reportId] **4**, evidence/[evidenceId] **6**, /platform/ask/[threadId] **1**, /kb/[id] **5**.
+
+Full after table (db · auth · tx · ms · status · route):
+```
+  7 db   4 auth   4 tx      61 ms  404  /c/[clientId]/settings/billing
+  6 db   2 auth   4 tx     121 ms  200  /agency
+  6 db   2 auth   7 tx      60 ms  200  /agency/approvals/[briefId]
+  6 db   2 auth   8 tx      85 ms  200  /c/[clientId]/ask/[threadId]
+  6 db   2 auth   8 tx      95 ms  200  /c/[clientId]/changes
+  6 db   2 auth   8 tx      96 ms  200  /c/[clientId]/evidence/[evidenceId]
+  6 db   4 auth   5 tx      65 ms  404  /c/[clientId]/pitch-snapshot
+  6 db   2 auth   4 tx      77 ms  200  /c/[clientId]/pricing
+  6 db   2 auth   8 tx     109 ms  200  /c/[clientId]/rankings
+  6 db   4 auth   0 tx      31 ms  307  /paused
+  5 db   2 auth   5 tx      58 ms  200  /agency/settings/intake
+  5 db   2 auth   3 tx      61 ms  200  /agency/settings/slack-teams
+  5 db   2 auth   6 tx      57 ms  200  /agency/settings/usage
+  5 db   2 auth  10 tx     148 ms  200  /c/[clientId]
+  5 db   2 auth   8 tx      71 ms  200  /c/[clientId]/briefs/[briefId]
+  5 db   2 auth   7 tx      82 ms  200  /c/[clientId]/settings/ai
+  5 db   2 auth   3 tx      81 ms  200  /c/[clientId]/settings/runbook
+  4 db   2 auth   4 tx      60 ms  200  /agency/approvals
+  4 db   2 auth   3 tx      43 ms  200  /agency/help
+  4 db   2 auth   3 tx      45 ms  200  /agency/settings/ai
+  4 db   2 auth   3 tx      47 ms  200  /agency/settings/branding
+  4 db   2 auth   3 tx      57 ms  200  /agency/settings/platform-access
+  4 db   2 auth   3 tx      62 ms  200  /agency/settings/runbook
+  4 db   2 auth   3 tx      62 ms  200  /agency/settings/team
+  4 db   2 auth   7 tx      69 ms  200  /c/[clientId]/alerts/[alertId]
+  4 db   2 auth   3 tx      70 ms  200  /c/[clientId]/ask
+  4 db   2 auth   7 tx     153 ms  200  /c/[clientId]/competitors/[competitorId]
+  4 db   2 auth   8 tx      86 ms  200  /c/[clientId]/moves
+  4 db   2 auth   4 tx      67 ms  200  /c/[clientId]/recommendations
+  4 db   2 auth   6 tx      79 ms  200  /c/[clientId]/reports/[reportId]
+  4 db   2 auth   3 tx      97 ms  200  /c/[clientId]/reviews
+  4 db   2 auth   3 tx      59 ms  200  /c/[clientId]/setup
+  4 db   2 auth   3 tx      48 ms  200  /inbox
+  4 db   2 auth   3 tx      49 ms  200  /kb/[id]
+  4 db   1 auth   4 tx      64 ms  200  /platform/billing
+  4 db   2 auth   3 tx      80 ms  200  /settings/profile
+  3 db   2 auth   4 tx      54 ms  200  /agency/alerts
+  3 db   2 auth   2 tx      41 ms  200  /agency/clients/new
+  3 db   2 auth   3 tx      49 ms  200  /agency/leads
+  3 db   2 auth   3 tx      52 ms  200  /agency/prospects
+  3 db   2 auth   4 tx      60 ms  200  /agency/prospects/[clientId]
+  3 db   2 auth   2 tx      32 ms  200  /agency/prospects/new
+  3 db   2 auth   3 tx      48 ms  200  /agency/settings/billing
+  3 db   2 auth   5 tx      52 ms  200  /agency/settings/intake/preview
+  3 db   2 auth   4 tx      91 ms  200  /c/[clientId]/ads
+  3 db   2 auth   5 tx      76 ms  200  /c/[clientId]/briefs
+  3 db   2 auth   2 tx      79 ms  200  /c/[clientId]/competitors
+  3 db   2 auth   4 tx      57 ms  200  /c/[clientId]/help
+  3 db   2 auth   3 tx      63 ms  200  /c/[clientId]/settings/alerts
+  3 db   2 auth   3 tx      93 ms  200  /c/[clientId]/settings/delivery
+  3 db   2 auth   2 tx      67 ms  200  /c/[clientId]/settings/profile
+  3 db   2 auth   4 tx      60 ms  200  /c/[clientId]/settings/usage
+  3 db   2 auth   2 tx      39 ms  307  /c/[clientId]/setup/competitors
+  3 db   2 auth   0 tx      31 ms  307  /onboarding
+  3 db   1 auth   2 tx      75 ms  200  /platform
+  3 db   1 auth   2 tx      69 ms  200  /platform/agencies
+  3 db   1 auth   4 tx     113 ms  200  /platform/agencies/[id]
+  3 db   1 auth   2 tx      76 ms  200  /platform/costs
+  3 db   1 auth   2 tx     101 ms  200  /platform/health
+  3 db   1 auth   2 tx      85 ms  200  /platform/knowledge/new
+  3 db   1 auth   2 tx      68 ms  200  /platform/reviews
+  3 db   1 auth   2 tx      64 ms  200  /platform/runbook
+  3 db   1 auth   2 tx      53 ms  200  /platform/topics
+  2 db   1 auth   4 tx      62 ms  200  /platform/help
+  2 db   1 auth   2 tx      62 ms  200  /platform/knowledge/[id]
+  2 db   1 auth   2 tx      64 ms  200  /platform/verticals
+  2 db   1 auth   2 tx      62 ms  200  /platform/waitlist
+  1 db   1 auth   2 tx      60 ms  200  /platform/ask
+  1 db   1 auth   4 tx      71 ms  200  /platform/ask/[threadId]
+  1 db   1 auth   4 tx      63 ms  200  /platform/knowledge
+  1 db   1 auth   2 tx      68 ms  200  /platform/leads
+```
