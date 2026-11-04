@@ -18,7 +18,7 @@ type SourceLinks = Partial<Record<SampleItem['kind'], string>>;
  * JSON, entirely in the browser. `compact` (hero/teaser use) shows the first 3 items and no rank grid. From `lg` the
  * brief keeps a readable line length and the map rankings sit beside it.
  */
-export function SampleBrief({ compact, sourceLinks }: { compact?: boolean; sourceLinks?: SourceLinks }) {
+export function SampleBrief({ compact, sourceLinks, autoplayMap = true }: { compact?: boolean; sourceLinks?: SourceLinks; /** Passed to `RankGrid` `autoplay`. */ autoplayMap?: boolean }) {
   const data = SAMPLE;
   const [openId, setOpenId] = useState<string | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
@@ -44,7 +44,7 @@ export function SampleBrief({ compact, sourceLinks }: { compact?: boolean; sourc
         {!compact && (
           <section aria-label="Map rankings" className="min-w-0 border-t border-line pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
             <div className="lg:sticky lg:top-24">
-              <RankGrid data={data} onOpen={open} howHref={sourceLinks?.rank} />
+              <RankGrid data={data} onOpen={open} howHref={sourceLinks?.rank} autoplay={autoplayMap} />
             </div>
           </section>
         )}

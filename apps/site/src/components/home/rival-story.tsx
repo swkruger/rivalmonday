@@ -31,14 +31,17 @@ export function RivalStory() {
   const section = SECTIONS['rival-story'];
   return (
     <HomeSectionShell id="rival-story" labelledBy="rival-story-heading" className="bg-surface py-20 lg:py-28">
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
-        <div className="min-w-0">
-          <RankGrid data={SAMPLE} onOpen={open} howHref="/sources/local-map-rankings" />
-        </div>
-        <div className="min-w-0">
+      {/* Phones read heading → replay → log; from `lg` the replay spans both rows on the left. */}
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-8">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <SectionHeading section={section} body={false} />
           <p className="mt-4 max-w-2xl text-lg text-ink-secondary">{live ? section.body : RIVAL_STORY.bodyNoWeb}</p>
-          <h3 id="rival-story-log" className="mt-8 text-base font-semibold text-ink">{RIVAL_STORY.logHeading}</h3>
+        </div>
+        <div className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <RankGrid data={SAMPLE} onOpen={open} howHref="/sources/local-map-rankings" />
+        </div>
+        <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+          <h3 id="rival-story-log" className="text-base font-semibold text-ink">{RIVAL_STORY.logHeading}</h3>
           <ol aria-labelledby="rival-story-log" className="mt-3 divide-y divide-line border-y border-line">
             {rivalStoryMoves(live).map((m) => (
               <li key={m.evidence} className="flex items-baseline gap-4 py-3">

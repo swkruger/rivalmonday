@@ -41,8 +41,8 @@ export default function HomePage() {
       <RecommendationsSection roadmap={false} />
       <FridayRow />
       <BeforeAfter />
-      <ChecksHub heading={SECTIONS.checks.homeHeading} />
-      <SampleSection />
+      <ChecksHub heading={SECTIONS.checks.homeHeading} divided />
+      <SampleSection autoplayMap={false} />
       <LiveCounters />
       <Steps industries={false} afterSteps={HOW_STEPS_NOTE} />
       <Commercial />

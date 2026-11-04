@@ -28,7 +28,7 @@ const STEP_MS = 650;
  * reader watches the business climb from its own street outwards; the slider and the weekly bars step through it.
  * Text alternative: the caption, the img label and a table.
  */
-export function RankGrid({ data, onOpen, howHref }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string }) {
+export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string; /** `false`: plays only when asked (a page whose showpiece replay is elsewhere). */ autoplay?: boolean }) {
   const { keyword, size, weeks } = data.rankGrid;
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)') === true;
   const [index, setIndex] = useState(0);
@@ -38,12 +38,12 @@ export function RankGrid({ data, onOpen, howHref }: { data: SampleBriefData; onO
   const sliderId = useId();
   const last = weeks.length - 1;
 
-  // Autoplay once, the first time the grid is in view (never under reduced motion).
+  // Autoplay once, the first time the grid is in view (never under reduced motion, never with `autoplay={false}`).
   useEffect(() => {
-    if (!seen || reduced || autoplayed) return;
+    if (!autoplay || !seen || reduced || autoplayed) return;
     setAutoplayed(true);
     setPlaying(true);
-  }, [seen, reduced, autoplayed]);
+  }, [autoplay, seen, reduced, autoplayed]);
 
   useEffect(() => {
     if (!playing) return;

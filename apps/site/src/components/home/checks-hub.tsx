@@ -49,10 +49,10 @@ const NODES: Record<CheckNode, CheckNodeDetail> = {
 };
 
 /** Hub diagram: five sources → the Monday brief (verifying) → "No evidence, no claim"; every box opens its explanation. */
-export function ChecksHub({ hideLink = false, heading }: { hideLink?: boolean; heading?: string } = {}) {
+export function ChecksHub({ hideLink = false, heading, divided = false }: { hideLink?: boolean; heading?: string; /** Hairline on top (home: follows another white section). */ divided?: boolean } = {}) {
   const nodes = hideLink ? { ...NODES, result: { ...NODES.result, link: CHECKS_DETAIL.briefLink } } : NODES;
   return (
-    <HomeSectionShell id="checks" labelledBy="checks-heading">
+    <HomeSectionShell id="checks" labelledBy="checks-heading" className={divided ? 'border-t border-line py-20 lg:py-28' : undefined}>
       <SectionHeading section={heading ? { ...SECTIONS.checks, heading } : SECTIONS.checks} />
       <ChecksDiagram nodes={nodes} hint={CHECKS_DETAIL.hint} />
       {!hideLink && (

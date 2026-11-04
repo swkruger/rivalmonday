@@ -112,6 +112,12 @@ describe('BeforeAfter', () => {
     expect(screen.getAllByRole('columnheader').map((r) => r.textContent)).toEqual([...BEFORE_AFTER.columns]);
     expect(screen.getByText(BEFORE_AFTER.rows[0]!.after).className).toContain('font-medium');
     expect(screen.getByText(BEFORE_AFTER.rows[0]!.before).className).toContain('text-ink-secondary');
+    // Phones: every row shows its own visible Before/After labels, hidden from screen readers (the column headers name them).
+    for (const col of BEFORE_AFTER.columns) {
+      const labels = container.querySelectorAll(`[role="cell"] > [aria-hidden="true"]`);
+      expect([...labels].filter((l) => l.textContent === col)).toHaveLength(BEFORE_AFTER.rows.length);
+    }
+    expect(screen.getAllByRole('cell').filter((c) => c.textContent)).toHaveLength(BEFORE_AFTER.rows.length * 2);
   });
 });
 
