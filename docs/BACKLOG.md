@@ -9,7 +9,9 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 > 7b/7c planned 2026-10-23: items below are owned by the plans `2026-10-23-phase-7b1|7c1|7c2` (7b2 merged) (each plan's docs task lists the lines it closes). Not folded: Launch gate (standalone before the live deploy), ANN index (when pilot volume shows slow search).
 
 ### Launch gate (before 7a1 Task 12, the live deploy)
-- [ ] **HIGH - gates 7a1 Task 12:** shell DB stages: (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id] — *from 7a*
+Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/71 routes ≤ 8; numbers [archive/launch-gate-results.md](archive/launch-gate-results.md)).
+- [ ] **HIGH - before or with 7a1 Task 12:** two pages over 3 s on Neon dev: `/c/[clientId]/competitors/[competitorId]` 3188 ms (113 queries), `/c/[clientId]` 3073 ms (110 queries). Wall time tracks *query count* (pool max 5 → queueing), not dbStages: cut queries per page (duplicate reads across ~18 parallel tools, e.g. `get_client_profile` ×2, `get_ask_starters` ×2) or size the pool per request. Re-measure from staging first (this box adds ~95 ms/query); also re-measure `/c/[clientId]/recommendations` (`linkedCompetitors` fix) — *launch-gate*
+- [ ] Watch: workspace `/c/` p75 alone is 1679 ms on Neon dev (agency pages 918 ms); the combined D7 p75 passes by 24 ms — *launch-gate*
 
 ### Security & data
 - [ ] 7b: `email_resend` retention (purge rows older than 1 h); decide the webhook host allow-list `.logic.azure.com` / `.environment.api.powerplatform.com` (any Azure tenant can get one, so a tester can make us POST to their endpoint; not internal SSRF; same policy as the real sender); webhook test limit is per webhook (add a per-agency cap) — *phase-15c2a*
@@ -19,6 +21,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Billed-but-unparseable 200 (Jev and LLM) is ledgered with `costUsd` null, counted as 0: carry the parsed `usage.cost`/estimate on the thrown `AiProviderError` and ledger it (`ai.ts` `recording()`) — *jev-openrouter*
 
 ### Scale & performance
+- [ ] Rankings `before` cursor as a keyset `(finished_at, id)` — *launch-gate 6b review*
+- [ ] If pool queueing shows on staging: `spendByClient` as one CTE — *launch-gate 6b review*
 - [ ] Re-ask sweep hashes 180 d of review text per idle sweep; a stored `review.text_sha` column would remove it — *from 15b-3b*
 - [ ] Multiple worker replicas / autoscaling on queue depth: move per-host crawl politeness (`collectors/src/web/rate-limit.ts`) and vendor limits (`createVendorLimiter`) into Postgres, check every cron job tolerates a second runner; then lift the one-replica rule in root CLAUDE.md — *from owner Q 2026-10-15; shrunk by phase-7c2*
 - [ ] Page latency on the remote Neon DB: pages took 28–36 s in E2E (Playwright timeouts raised to 90 s/test, 15 s/expect in `playwright.config.ts`) — look before launch — *from 5c-2*
@@ -75,6 +79,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ### Model ops
 
 ### Pilot
+- [ ] CI job for the page gate (launch-gate spec D6): `next start` + `PROFILE_TOOLS=1` + `--assert-db-stages 8 --strict-routes` on the E2E seed — *launch-gate*
 - [ ] Copy gate: make `copy:status --strict emails,site,site-legal,app-client` block `deploy`/`deploy-site` (production only, never the staging jobs: owner 2026-11-02) before the first pilot invite (today the CI step only fails on a malformed `docs/copy/signoff.json`) — *copy-signoff-tool*
 - [ ] Copy tool gaps: scan `packages/verticals/packs/*.yaml` playbook titles/bodies (reach clients as recommendations) and labels passed to local helpers (`chart(…)`, `input(…)`, `adMatchAction(…)`); exclude dev-only strings (`apps/web/src/server/env.ts`, `tools/src/kb/seed.ts`); split JSX sentences show as fragments ("First seen {…}"); an edit whose old text still appears elsewhere in the file shows "unsigned", not "changed" — *copy-signoff-tool*
 - [ ] Phase 7c: `search_reviews` input is not `.strict()`: an old MCP client sending `themeId` gets unfiltered results silently. Decide whether tool inputs become strict — *from 15b-3b*

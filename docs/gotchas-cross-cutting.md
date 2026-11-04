@@ -36,12 +36,14 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
 - **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>` (in `@cs/engine`/`@cs/demo` it can fail "vitest not found": run `npx vitest run <pattern>` from the package dir). `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
+- **Windows socket exhaustion on long local runs:** `No buffer space available` (WSAENOBUFS 10055) on a fresh 5444 connection, or Playwright `net::ERR_ADDRESS_IN_USE`, after many back-to-back runs. Environmental: re-run that test/spec alone. Inside one tool call it surfaces as a single `internal` refusal.
 
 - **Passes locally, fails in CI:** CI has no `.env` (stub or mock settings); its clock is real (pin it for fixed dates); row order needs `ORDER BY` or a set compare; poll for async state (`vi.waitFor`), never check once. Check `gh run list --branch main` before calling a suite green.
 
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
 - **Pool fan-out:** one heavy page can hold up to ~5 service connections at once (pool `max 5` per role/env, `packages/db/src/client.ts`); on Neon its wall time then tracks query count / 5, not DB stages (launch-gate: 110 queries ≈ 3 s). Fewer queries per page beats more parallelism.
+- **Deferred read audits** (web reads, `after()`): the audit row's `created_at` is insert time, after the response, so it can sort after a later awaited write's row. Order audit timelines with that in mind; writes and support-session calls are never deferred.
 
 ## Data & privacy invariants
 - **`redactForModel`** (`@cs/collectors`), never a bare `redactContactInfo`, on every text entering a decision state, chat message or embedding input, with the business's own name(s) as `businessNames` where known (adds `compromise` NER person-name and serious-health-condition redaction). A lone `redactContactInfo` at a new model-input site is a privacy regression.
