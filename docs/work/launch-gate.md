@@ -1,13 +1,13 @@
 # launch-gate — cut shell + page sequential DB stages to ≤ 8 before the live deploy
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/launch-gate   **Base:** main @ 42e9ddbe
-**Plan/spec:** none yet
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/launch-gate   **Base:** main @ 42e9ddbe
+**Plan/spec:** [spec](../superpowers/specs/2026-11-04-launch-gate-design.md) · [plan](../superpowers/plans/2026-11-04-launch-gate.md)
 
 ## Status (overwrite)
-Kickoff brief written; nothing built. Gates 7a1 Task 12 (live deploy).
+Spec + lean plan written 2026-11-04; awaiting owner approval. Gates 7a1 Task 12 (live deploy).
 
 ## Next (overwrite)
-Owner answers § 6; then brainstorming, spec, lean plan.
+Owner approves the plan; then subagent-driven development (Task 0 pre-flight first).
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration: **0097** (probably not needed).
@@ -16,7 +16,7 @@ None yet. Next free migration: **0097** (probably not needed).
 None (`git branch --no-merged main` is empty).
 
 ## Decisions (owner-approved)
-None yet.
+1. Owner, 2026-11-04: skipped the questions; the brief's recommendations stand (spec D1-D8).
 
 ## New backlog (target → item)
 —
