@@ -101,13 +101,21 @@ async function seedParams(): Promise<{ params: Record<string, string>; missing: 
     const reportId = clientId
       ? await one(sql<{ id: string }[]>`select id from trend_report where client_id = ${clientId} order by period_start desc, id limit 1`)
       : undefined;
+    // The newest web snapshot of a competitor the client tracks (`get_evidence` opens evidence of linked competitors only).
+    const evidenceId = clientId
+      ? await one(sql<{ id: string }[]>`
+          select e.id from evidence e join capture cap on cap.id = e.capture_id
+            join client_competitor cc on cc.competitor_id = cap.competitor_id and cc.client_id = ${clientId}
+          where e.kind = 'screenshot' and cap.source = 'web'
+          order by cap.captured_at desc, e.id limit 1`)
+      : undefined;
     // A published platform article an agency admin may read (the audience rule of `get_kb_article`).
     const kbId = await one(sql<{ id: string }[]>`
       select id from kb_article where level = 'platform' and status = 'published' and audience in ('all', 'agency')
       order by seed_key nulls last, id limit 1`);
     const found: Record<string, string | undefined> = {
       clientId, '/c/[clientId]/ask/[threadId]': clientThread, '/platform/ask/[threadId]': platformThread,
-      '/c/[clientId]/reports/[reportId]': reportId, '/kb/[id]': kbId,
+      '/c/[clientId]/reports/[reportId]': reportId, '/c/[clientId]/evidence/[evidenceId]': evidenceId, '/kb/[id]': kbId,
     };
     const params = Object.fromEntries(Object.entries(found).filter((e): e is [string, string] => e[1] !== undefined));
     return { params, missing: Object.keys(found).filter((k) => found[k] === undefined), client: best ? { name: best.name, missingFeatures } : null };

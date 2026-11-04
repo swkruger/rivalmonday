@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core/server';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, vertical, waitlistEntry } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, trendReport, type TrendReportData, vertical, waitlistEntry } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
@@ -23,7 +23,7 @@ export async function seed(): Promise<void> {
     const agencyId = a!.id;
     await ensureExemptPilot(db, agencyId);
 
-    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'alert_rules', 'manage_competitors'], keywords: ['ac repair'], serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-self-place' }).returning();
+    const [c] = await db.insert(client).values({ agencyId, name: 'E2E HVAC', verticalId: 'hvac_plumbing', features: ['dashboard', 'ask', 'alert_rules', 'manage_competitors'], keywords: ['ac repair'], serviceArea: { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] }, placeId: 'e2e-self-place' }).returning();
     const clientId = c!.id;
 
     const [comp] = await db.insert(competitor).values({ name: 'Smith HVAC', placeId: 'e2e-smith-place' }).returning();
@@ -116,6 +116,7 @@ export async function seed(): Promise<void> {
     });
 
     await createInvitation(db, { agencyId, email: 'admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
+    await seedProfileRows(db, { agencyId, clientId, competitorId: comp!.id, evidenceId: workspace.evidenceId });
 
     // Phase 8b: two platform operators (staff, viewer) who need an agency membership to reach /platform (R7; their
     // platform_admin rows are written by support.spec.ts after their first sign-in creates the auth user), and a
@@ -386,6 +387,49 @@ async function seedWorkspace(
 
   await db.update(briefItem).set({ evidenceIds: [after.shot] }).where(eq(briefItem.id, o.sentItemId));
   return { eventId: ev!.id, evidenceId: after.shot };
+}
+
+export const ADMIN_EMAIL = 'admin@e2e.test';
+const ADMIN_USER_ID = 'e2e-admin-user';
+export const ADMIN_THREAD_TITLE = 'Admin question about Smith prices';
+
+/**
+ * Launch gate (page profiler, `profile:pages --params-from-seed`): rows that give E2E HVAC's parameterised pages an id.
+ * - The admin's auth user, created as a magic-link sign-up would (name '', verified), so the admin can own a thread; the
+ *   membership still comes from the pending invitation on first sign-in (the session hook accepts it).
+ * - One Ask thread by the admin on E2E HVAC (`ask` on; threads are author-only, so only the admin's own thread opens).
+ * - One sent quarterly trend report (2026-Q3) with deterministic numbers.
+ * The evidence page uses `seedWorkspace`'s screenshot (`evidenceId`).
+ */
+async function seedProfileRows(
+  db: ReturnType<typeof createDb>['db'],
+  o: { agencyId: string; clientId: string; competitorId: string; evidenceId: string },
+): Promise<void> {
+  const { agencyId, clientId } = o;
+  await db.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values (${ADMIN_USER_ID}, '', ${ADMIN_EMAIL}, true)`);
+  const [t] = await db.insert(askThread).values({ agencyId, clientId, userId: ADMIN_USER_ID, title: ADMIN_THREAD_TITLE }).returning({ id: askThread.id });
+  const m = { threadId: t!.id, agencyId, clientId, userId: ADMIN_USER_ID };
+  await db.insert(askMessage).values({ ...m, role: 'user', content: ADMIN_THREAD_TITLE, countsTowardQuota: true });
+  await db.insert(askMessage).values({
+    ...m, role: 'assistant', content: `Smith HVAC cut its AC tune-up to $79 [ev:${o.evidenceId}].`, citations: [`ev:${o.evidenceId}`],
+    trace: { model: 'e2e/scripted', guard: 'in_scope', removedSentences: 0, deadlineHit: false, costUsd: 0, steps: [{ tool: 'search_events', args: { clientId, route: 'all', days: 365 }, rows: 1 }] },
+  });
+
+  const [self] = await db.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, clientId));
+  const data: TrendReportData = {
+    quarter: '2026-Q3', windowDays: 92,
+    businesses: [
+      { competitorId: o.competitorId, name: 'Smith HVAC', self: false, reviews: 1, avgRating: 2, prevAvgRating: null, activeAds: 2 },
+      ...(self?.id ? [{ competitorId: self.id, name: 'E2E HVAC', self: true, reviews: 1, avgRating: 5, prevAvgRating: null, activeAds: null }] : []),
+    ],
+    eventsByType: { price_change: 1, promo: 1 },
+    moves: [{ moveType: 'price_war', competitorName: 'Smith HVAC', status: 'active', firstDetectedAt: '2026-09-20T00:00:00.000Z' }],
+    briefsSent: 1, alertsDelivered: 0, recommendations: { created: 0, done: 0, inProgress: 0, dismissed: 0 },
+  };
+  await db.insert(trendReport).values({
+    agencyId, clientId, quarter: data.quarter, periodStart: new Date('2026-07-01T00:00:00Z'), periodEnd: new Date('2026-10-01T00:00:00Z'),
+    data, status: 'sent', createdAt: new Date('2026-10-02T08:00:00Z'), sentAt: new Date('2026-10-02T08:00:00Z'),
+  });
 }
 
 /** 6b: what `ask.spec.ts` reads from `ASK_FIXTURE_FILE`. */
