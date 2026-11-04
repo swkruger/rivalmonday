@@ -192,6 +192,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] 13a: brand-aware chart check (`--you` = agency secondary may clash with rival orange #E05A2B); neutral chart-series alias for the platform costs chart (manual series borrows `--chart-rival-2`); checked Switch `bg-secondary` + white thumb (~1.4:1 on #FFD400) — *phase-16*
 
 ## Polish (small UI/UX fixes, any time)
+- [ ] Guest views: the sidebar's bottom edge sits below the viewport until the guest banner scrolls away (sticky top bar + scrolling banner) — *stage3-fixes*
 - [ ] Phones: table-to-card for leads, waitlist, agencies, team, usage (scroll cue added meanwhile) — *ui-visual-review*
 - [ ] Several stacked "?" tips per heading; sign-in layout; long help and runbook pages; activity feed timezone; duplicated title/body sentences ("Hill Country Air & Heat — Hill Country Air & Heat cut…"); raw `{{tokens}}` in runbook text — *ui-visual-review*
 - [ ] Trace maths: flow traces end in a partial period, so they dip early in each period; y scale is min-max, so tiny moves fill the band (acceptable as decoration) — *ui-visual-review*
@@ -285,7 +286,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Verify phase-11-fixes re-test: pilot-link refusal on `/platform/billing`; duplicate-listing cards on `/agency/clients/new` and `/start`; copy in [archive/phase-11-fixes-copy-signoff.md](archive/phase-11-fixes-copy-signoff.md). — *moved from STATE at phase-16 merge*
 - [ ] Verify Phase 11 verification: 11a lookup -> suggestions -> search (<= $3) -> starting point in 48 h; 11b Postmark Cc, invite -> accept -> first brief, Stripe test billing; 11c real Turnstile, dental preview, `/start` branding. Clean up CS Dev Verification Agency/Client first. Copy: [archive/phase-11-copy-signoff.md](archive/phase-11-copy-signoff.md). — *moved from STATE at phase-16 merge*
 - [ ] Verify Phase 10 verification: `.env` `TURNSTILE_*`, `SUPPORT_REPLY_TO`, `POSTMARK_BROADCAST_STREAM`; incognito sign-up -> wizard; pilot invite; second open-trial client refused until Checkout. — *moved from STATE at phase-16 merge*
-- [ ] Prod accounts (O17: Vercel, Railway, Neon prod, Sentry, R2) before 7a1 Task 12; steps in `docs/DEPLOY.md` — *7a*
+- [ ] Worker host (Railway closed to sign-ups; deferred by the owner 2026-11-03) before 7a1 Task 12; Neon prod, R2, Sentry, support@ done; steps in `docs/DEPLOY.md` — *7a*
 - [ ] Sign off the `/platform/health` help copy (description, 4 status tips, operator guide) — *7a1*
 - [ ] Sign off copy marked in the 7b1/7c2 plans before each task builds it (credit notices, pause/heavy-load banners, credit refusals, staff emails, feedback links) — *phase-7-planning*
 - [ ] Permanent staging setup per `docs/STAGING.md` § 1 (staging.rivalmonday.app/.com, Neon `staging` branch of cs_dev; then `STAGING_DEPLOY_ENABLED=true`) — *staging-env*
@@ -295,10 +296,8 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 - [ ] Scope-`all` roles still see an archived client's `llm_call`/`vendor_call`/`audit_log` rows (0006 policies): accept or hide — *7a2*
 - [ ] Postmark broadcast stream (`POSTMARK_BROADCAST_STREAM`) must use unsubscribe handling **"None"** (else Postmark suppresses without setting `unsubscribed_at` and tips 406-retry) — *phase-10*
 - [ ] Support-session email says "Reply to this email" but `replyTo` is null (replies go to `EMAIL_FROM`) — needs a reply-to address/env var — *from 8b*
-- [ ] Register **rivalmonday.com** / **.ai**; trademark knockout search — *from HANDOVER §7*
-- [ ] Phase 0 validation before the Phase 7 pilot: GoHighLevel/Vendasta marketplace check, 5 agency letters of intent, US counsel review (crawling, review privacy, AI claims about named competitors) — *from roadmap Phase 0, HANDOVER §7*
-- [ ] Create an **R2** bucket + token before production (dev stores evidence on local disk) — *from HANDOVER §7*
-- [ ] Postmark before the pilot: request account approval (to deliver outside `@nofingers.ai`), add SPF/DMARC if not done, put the **live** server token back in `.env` — *from HANDOVER §7*
+- [ ] Later (deferred by the owner 2026-11-03): GoHighLevel/Vendasta marketplace check, 5 agency letters of intent (US counsel review done; confirm it covered `/compare` before turning those pages on) — *from roadmap Phase 0*
+- [ ] Later (deferred 2026-11-03): owner content — founder note + photo, privacy/terms OWNER-PLACEHOLDERs (the site deploy refuses until done) — *OWNER-GUIDE Stage 4*
 - [ ] On deploy at `rm.nofingers.ai`, set `APP_URL=https://rm.nofingers.ai` (deep links; still `http://localhost:3000`) — *from HANDOVER §7*
 - [ ] Review a few rendered template alerts before real clients (fallback reads the raw event summary, unedited for tone) — *from HANDOVER §7, 4b*
 - [ ] Label `verifier_decisions` samples (5 unlabelled in `cs_dev` as of 2026-10-04; `decisions export --task verifier_decisions`) before changing τ or routing — *from HANDOVER §5 item 3/§7*
