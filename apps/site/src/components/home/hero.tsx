@@ -1,5 +1,6 @@
 import { ArrowDown, BadgeCheck, Globe, Palette } from 'lucide-react';
 import { HERO, HOME_IMAGES } from '../../../content/home';
+import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
 import { JoinButton } from '../join/join-button';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { HeroFinePrint } from './hero-fine-print';
@@ -21,9 +22,9 @@ export function Hero() {
             <span>{HERO.eyebrow}</span>
           </div>
           <h1 className="mt-6 text-balance text-display font-semibold text-surface">{HERO.headline}</h1>
-          <p className="mt-6 max-w-xl text-display-sub text-muted-surface">{HERO.sub}</p>
+          <p className="mt-6 max-w-xl text-display-sub text-muted-surface">{WEBSITE_MONITORING_LIVE ? HERO.sub : HERO.subNoWeb}</p>
           <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <JoinButton>{HERO.primaryCta}</JoinButton>
+            <JoinButton start={HERO.primaryStart}>{HERO.heroCta}</JoinButton>
             {/* One primary action per screen: the tour is a quiet text link, not a second button. */}
             <a href="#client-view" className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-surface hover:underline">
               {HERO.secondaryCta}

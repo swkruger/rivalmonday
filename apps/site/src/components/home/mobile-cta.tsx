@@ -42,7 +42,7 @@ export function MobileCta() {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 text-13 text-ink-secondary">{(pilotMode ? HERO.finePrint : HERO.finePrintTrial).split(' · ')[0]}</p>
-        <JoinButton>{HERO.primaryCta}</JoinButton>
+        <JoinButton start={HERO.primaryStart} className="h-auto min-h-9 max-w-[60%] shrink whitespace-normal py-1.5 text-center leading-tight">{HERO.heroCta}</JoinButton>
       </div>
     </div>
   );

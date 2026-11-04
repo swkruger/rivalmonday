@@ -11,7 +11,7 @@ import { useJoin, type JoinStart } from './join-provider';
  * CTAs become a link to the app's sign-up (the only place that switch lives). The business path
  * always uses the waitlist.
  */
-export function JoinButton({ start, children, variant = 'primary' }: { start?: JoinStart; children?: React.ReactNode; variant?: 'primary' | 'ghost' }) {
+export function JoinButton({ start, children, variant = 'primary', className }: { start?: JoinStart; children?: React.ReactNode; variant?: 'primary' | 'ghost'; className?: string }) {
   const { pilotMode } = usePilot();
   const { open } = useJoin();
   const buttonVariant = variant === 'primary' ? 'default' : 'ghost';
@@ -24,7 +24,7 @@ export function JoinButton({ start, children, variant = 'primary' }: { start?: J
     );
   }
   return (
-    <Button type="button" variant={buttonVariant} onClick={() => open(start)}>
+    <Button type="button" variant={buttonVariant} className={className} onClick={() => open(start)}>
       {children ?? HERO.primaryCta}
     </Button>
   );

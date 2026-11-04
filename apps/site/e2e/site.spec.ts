@@ -20,7 +20,7 @@ const firstClaim = (page: Page) => page.locator('[data-item] button[aria-haspopu
 test('home renders the decided headline', async ({ page }) => {
   await mockApp(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText("Your clients' rivals, briefed every Monday, under your brand.");
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your competitors are making moves. Are you watching?');
 });
 
 test.describe('no horizontal overflow', () => {

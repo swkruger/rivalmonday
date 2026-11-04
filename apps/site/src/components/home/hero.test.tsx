@@ -1,16 +1,19 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pilot = vi.hoisted(() => ({ pilotMode: true }));
 vi.mock('../shell/pilot-context', () => ({ usePilot: () => ({ pilotMode: pilot.pilotMode, status: null, loaded: true }) }));
-vi.mock('../join/join-provider', () => ({ useJoin: () => ({ open: () => {} }) }));
+const join = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
 import { HERO, HOME_IMAGES } from '../../../content/home';
+import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
 import { Hero } from './hero';
 
 beforeEach(() => {
   pilot.pilotMode = true;
+  join.open.mockClear();
 });
 
 describe('Hero', () => {
@@ -20,9 +23,25 @@ describe('Hero', () => {
     expect(h1.textContent).toBe(HERO.headline);
     expect(screen.getByText(HERO.eyebrow)).toBeTruthy();
     expect(screen.getByText(HERO.eyebrowPill)).toBeTruthy();
-    expect(screen.getByText(HERO.sub)).toBeTruthy();
+    expect(screen.getByText(WEBSITE_MONITORING_LIVE ? HERO.sub : HERO.subNoWeb)).toBeTruthy();
     expect(screen.getByText(HERO.finePrint)).toBeTruthy();
-    expect(screen.getByRole('button', { name: HERO.primaryCta })).toBeTruthy();
+    expect(screen.getByRole('button', { name: HERO.heroCta })).toBeTruthy();
+  });
+
+  it('headline is the D1 line', () => {
+    expect(HERO.headline).toBe('Your competitors are making moves. Are you watching?');
+  });
+
+  it('sub does not mention changing prices while website monitoring is not live', () => {
+    expect(WEBSITE_MONITORING_LIVE).toBe(false);
+    const { container } = render(<Hero />);
+    expect(container.querySelector('h1 + p')!.textContent).not.toMatch(/changing prices/i);
+  });
+
+  it('primary button opens the join dialog on the sample start', () => {
+    render(<Hero />);
+    fireEvent.click(screen.getByRole('button', { name: HERO.heroCta }));
+    expect(join.open).toHaveBeenCalledWith('agency-sample');
   });
 
   it('the hero image is described and loads first', () => {
