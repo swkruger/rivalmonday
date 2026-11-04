@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   calls: [] as string[],
   // Launch gate Task 4: `shell` marks when the shell's batch started, `status-done` when the onboarding read resolved.
   order: [] as string[],
+  readsFail: false,
   run: vi.fn(),
 }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: m.kind }, ctx: m.ctx }) }));
@@ -17,7 +18,7 @@ vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => ({ sta
 vi.mock('@/server/billing-redirect', () => ({ billingRedirectFor: () => null }));
 vi.mock('@/components/shell/app-shell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => children,
-  startShellReads: () => { m.order.push('shell'); return Promise.resolve({}); },
+  startShellReads: () => { m.order.push('shell'); return m.readsFail ? Promise.reject(new Error('shell batch refused')) : Promise.resolve({}); },
 }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-rm-path': m.path }), cookies: async () => ({ get: () => undefined }) }));
 vi.mock('@/server/tools', () => ({ callTool: async (_c: unknown, name: string) => { m.calls.push(name); await Promise.resolve(); m.order.push(`${name}-done`); return m.status; } }));
@@ -26,6 +27,7 @@ vi.mock('next/navigation', () => ({ redirect: (to: string) => { throw new Error(
 const { default: AppLayout } = await import('./layout');
 
 beforeEach(() => {
+  m.readsFail = false;
   m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.billingState = 'active'; m.path = '/agency'; m.calls = []; m.order = [];
   m.status = { dismissed: false, completed: false, redirected: false }; m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } });
 });
@@ -85,6 +87,22 @@ describe('(app) layout first-session redirect', () => {
     const el = (await AppLayout({ children: null })) as { props: { reads?: unknown } };
     expect(m.order).toEqual(['shell', 'get_onboarding_status-done']);
     expect(el.props.reads).toBeInstanceOf(Promise);
+  });
+
+  it('launch gate: the onboarding redirect still fires while the shell batch rejects, with no unhandled rejection', async () => {
+    m.readsFail = true;
+    const unhandled: unknown[] = [];
+    const onUnhandled = (e: unknown) => { unhandled.push(e); };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      await expect(AppLayout({ children: null })).rejects.toThrow('NEXT_REDIRECT:/onboarding');
+      expect(m.order[0]).toBe('shell');
+      expect(m.calls).toEqual(['get_onboarding_status', 'mark_onboarding_redirected']);
+      await new Promise((r) => setTimeout(r, 0)); // let any unhandled rejection surface
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 
   it('launch gate: a suspended agency member (no shell) starts no shell reads', async () => {

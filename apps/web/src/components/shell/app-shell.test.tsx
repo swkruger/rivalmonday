@@ -7,7 +7,7 @@ import { BANNER_HEIGHT, SHELL_OFFSET } from '@/components/shell/banner-height';
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
   // Task 4 (launch gate): every read records its start and, while `gate` is set, waits on it (parallel-start test).
-  started: [] as string[], gate: null as Promise<void> | null, spendFails: false, verticalsFail: false,
+  started: [] as string[], gate: null as Promise<void> | null, spendFails: false, verticalsFail: false, listClientsFails: false,
   hold: async (name: string) => { m.started.push(name); if (m.gate) await m.gate; },
   logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], paused: [] as { clientId: string; name: string; until: string }[], spendCalls: [] as unknown[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
@@ -26,6 +26,7 @@ vi.mock('@/server/tools', () => ({
   callTool: async (_ctx: unknown, name: string, input: unknown) => {
     await m.hold(name);
     if (name === 'get_spend_status') { m.spendCalls.push(input); if (m.spendFails) throw new Error('spend read failed'); return { paused: m.paused }; }
+    if (name === 'list_clients' && m.listClientsFails) throw new Error('list_clients refused');
     return { items: m.clients };
   },
 }));
@@ -78,6 +79,7 @@ beforeEach(() => {
   m.gate = null;
   m.spendFails = false;
   m.verticalsFail = false;
+  m.listClientsFails = false;
   m.themed.length = 0;
   m.notice = null;
   m.unread.mockClear();
@@ -437,6 +439,14 @@ describe('AppShell parallel reads (launch gate Task 4)', () => {
     render(await AppShell({ viewer: admin as never, ctx: own as never, reads, children: <p>page</p> }));
     expect(m.started).toEqual([]);
     expect(screen.getByTestId('sidebar').dataset.leads).toBe('2');
+  });
+
+  it('a preloaded batch whose list_clients rejects still makes AppShell throw (the refusal stays a 404, never a degraded shell)', async () => {
+    const { startShellReads } = await import('./app-shell');
+    m.listClientsFails = true;
+    const reads = startShellReads(admin as never, own as never);
+    reads.catch(() => {}); // as the (app) layout does: no unhandled rejection before the shell awaits it
+    await expect(AppShell({ viewer: admin as never, ctx: own as never, reads, children: <p>page</p> })).rejects.toThrow('list_clients refused');
   });
 
   it('decorative reads degrade, not fail: a failed spend status or vertical catalogue renders the same props as an empty one', async () => {
