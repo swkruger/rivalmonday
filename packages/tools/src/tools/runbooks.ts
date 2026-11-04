@@ -11,7 +11,7 @@ import { enqueueOf, type ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
 import { setClientThresholdsColumn, validateThresholds } from './alert-rules';
-import { workspaceClient, type WorkspaceClient } from '../workspace/scope';
+import { allInOrder, workspaceClient, type WorkspaceClient } from '../workspace/scope';
 import { RunbookItemRow, RunbookItemView, RunbookOwner, RunbookTailoring } from './schemas';
 
 /**
@@ -93,8 +93,8 @@ async function resolve(deps: ToolDeps, ctx: AccessContext, owner: RunbookOwner, 
     return { level: 'agency', runbookId: a.id, items: a.items, parent: p.items, tailorStatus: null };
   }
   const c = await workspaceClient(deps, ctx, owner.clientId);
-  const agency = await itemsOf(deps, ctx, 'agency');
-  const own = await findRunbook(deps, 'client', { clientId: c.id });
+  // Launch-gate 6b: the client's own runbook is looked up beside the agency runbook (both after the client check).
+  const [agency, own] = await Promise.all([itemsOf(deps, ctx, 'agency'), findRunbook(deps, 'client', { clientId: c.id })]);
   if (own) return { level: 'client', runbookId: own.id, items: await readRunbookItems(deps.service, own.id), parent: agency.items, source: 'client', tailorStatus: own.tailorStatus, client: c };
   const base = await clientBase(deps, ctx, c, agency.items);
   return { level: 'client', runbookId: null, items: base.items, parent: agency.items, source: base.source, tailorStatus: null, client: c };
@@ -190,14 +190,17 @@ export const getRunbook = defineTool({
   }),
   permission: 'agency',
   async handler(ctx, { owner }, deps) {
-    const t = await resolve(deps, ctx, owner, false);
+    // Launch-gate 6b: a client's thresholds column (RLS, by the input id) is read beside `resolve`, which still refuses first.
+    const [t, custom] = await allInOrder([
+      resolve(deps, ctx, owner, false),
+      owner.level === 'client' && isAgencyRole(ctx.role) ? columnThresholds(deps, ctx, owner.clientId) : null,
+    ]);
     let items = t.items;
     let businessAreas: { id: string; name: string }[] = [];
     if (t.client) {
       const c = t.client;
       const pack = await packsOf(deps)(c.verticalId);
       businessAreas = pack.services.filter((s) => c.services.includes(s.id)).map((s) => ({ id: s.id, name: s.name }));
-      const custom = await columnThresholds(deps, ctx, c.id);
       const knob = items.find((i) => i.key === 'knob:thresholds');
       const up = t.parent?.find((i) => i.key === 'knob:thresholds');
       if (custom && knob?.enabled && knob.customised) items = items.map((i) => (i === knob ? { ...i, content: { alert: custom.alert, brief: custom.brief } } : i));

@@ -4,7 +4,9 @@
  * same output, same refusal (code + message) for every case. Ids and timestamps are normalised (seeded per run).
  */
 import type { AccessContext } from '@cs/core';
-import { askStarter, brief, briefItem, client, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot } from '@cs/db';
+import { askStarter, brief, briefItem, client, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot, runbook } from '@cs/db';
+import { ensureAgencyRunbook, writeItem } from '@cs/engine';
+import { loadVerticalPack } from '@cs/verticals';
 import { IDS } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -300,6 +302,48 @@ describe('launch-gate 6b output parity (snapshot recorded before the change)', (
     out.spendPaused = await settings(am);
     await dbs.owner.update(client).set({ pausedAt: ago(0) }).where(eq(client.id, A1));
     out.paused = await settings(am);
+    expect(out).toMatchSnapshot();
+  });
+});
+
+describe('launch-gate 6b output parity: alert rules (snapshot recorded before the change)', () => {
+  it('get_alert_rules', async () => {
+    const rules = ctx('client_owner', [IDS.clientA1], ['dashboard', 'alert_rules']);
+    const amRules = ctx('account_manager', 'all', ['alert_rules']);
+    const otherRules = ctx('agency_admin', 'all', ['alert_rules'], IDS.agencyB);
+    const out: Record<string, unknown> = {
+      packDefault: await outcome(rules, 'get_alert_rules', { clientId: A1 }),
+      otherClientInScope: await outcome(amRules, 'get_alert_rules', { clientId: IDS.clientA2 }),
+      outOfScope: await outcome(rules, 'get_alert_rules', { clientId: IDS.clientA2 }),
+      otherAgency: await outcome(otherRules, 'get_alert_rules', { clientId: A1 }),
+      unknown: await outcome(amRules, 'get_alert_rules', { clientId: UNKNOWN }),
+    };
+    const agencyRb = await ensureAgencyRunbook(dbs.service, IDS.agencyA, await loadVerticalPack('generic'));
+    const knob = (alert: number, brief: number) => ({ key: 'knob:thresholds', kind: 'knob' as const, content: { alert, brief }, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false });
+    const [platformRb] = await dbs.owner.select({ id: runbook.id }).from(runbook).where(eq(runbook.level, 'platform'));
+    await writeItem(dbs.service, platformRb!.id, knob(90, 60), 'u1');
+    out.platformKnob = await outcome(rules, 'get_alert_rules', { clientId: A1 });
+    await writeItem(dbs.service, agencyRb, knob(80, 50), 'u1');
+    out.agencyKnob = await outcome(rules, 'get_alert_rules', { clientId: A1 });
+    await dbs.owner.update(client).set({ scoreThresholds: { alert: 65, brief: 35 } }).where(eq(client.id, A1));
+    out.custom = await outcome(rules, 'get_alert_rules', { clientId: A1 });
+    await dbs.owner.delete(runbook);
+    expect(out).toMatchSnapshot();
+  });
+});
+
+describe('launch-gate 6b output parity: client runbook (snapshot recorded before the change)', () => {
+  it('get_runbook (client level)', async () => {
+    const amAll = ctx('account_manager', 'all');
+    const out: Record<string, unknown> = {
+      admin: await outcome(admin, 'get_runbook', { owner: { level: 'client', clientId: A1 } }),
+      outOfScope: await outcome(ctx('account_manager', [IDS.clientA2]), 'get_runbook', { owner: { level: 'client', clientId: A1 } }),
+      clientRole: await outcome(owner, 'get_runbook', { owner: { level: 'client', clientId: A1 } }),
+      otherAgency: await outcome(otherAgency, 'get_runbook', { owner: { level: 'client', clientId: A1 } }),
+    };
+    await dbs.owner.update(client).set({ scoreThresholds: { alert: 65, brief: 35 } }).where(eq(client.id, A1));
+    out.custom = await outcome(amAll, 'get_runbook', { owner: { level: 'client', clientId: A1 } });
+    await dbs.owner.delete(runbook);
     expect(out).toMatchSnapshot();
   });
 });

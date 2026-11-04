@@ -4,20 +4,25 @@ import { defaultThresholds, readRunbookItems, type RunbookItem, validThresholds,
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { type ToolDeps, packsOf } from '../deps';
-import { workspaceClient } from '../workspace/scope';
+import { allInOrder, workspaceClient } from '../workspace/scope';
 import { AlertRulesView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 
+const viewOf = (t: ScoreThresholds | null, defaults: { alert: number; brief: number }): AlertRulesView =>
+  (validThresholds(t) ? { alert: t.alert, brief: t.brief, custom: true, defaults } : { ...defaults, custom: false, defaults });
+
 async function view(deps: ToolDeps, agencyId: string, verticalId: string, t: ScoreThresholds | null): Promise<AlertRulesView> {
-  const defaults = await defaultThresholds(deps.service, agencyId, await packsOf(deps)(verticalId));
-  return validThresholds(t) ? { alert: t.alert, brief: t.brief, custom: true, defaults } : { ...defaults, custom: false, defaults };
+  return viewOf(t, await defaultThresholds(deps.service, agencyId, packsOf(deps)(verticalId)));
 }
 
+/** Launch-gate 6b: the thresholds column (RLS, by the input id) is read beside the client check, which still refuses first. */
 async function thresholdsOf(deps: ToolDeps, ctx: AccessContext, clientId: string) {
-  const c = await workspaceClient(deps, ctx, clientId);
-  const [row] = await withTenant(deps.app, ctx, (tx) => tx.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, c.id)));
+  const [c, [row]] = await allInOrder([
+    workspaceClient(deps, ctx, clientId),
+    withTenant(deps.app, ctx, (tx) => tx.select({ t: client.scoreThresholds }).from(client).where(eq(client.id, clientId))),
+  ]);
   return { c, t: row?.t ?? null };
 }
 
@@ -30,8 +35,11 @@ export const getAlertRules = defineTool({
   permission: 'read',
   feature: 'alert_rules',
   async handler(ctx, { clientId }, deps) {
-    const { c, t } = await thresholdsOf(deps, ctx, clientId);
-    return view(deps, ctx.agencyId, c.verticalId, t);
+    // Launch-gate 6b: the default thresholds are the caller's own agency's and the platform's runbook knobs, so they are
+    // read beside the client check (only the pack fallback waits for the client's vertical); a refusal still comes first.
+    const checked = thresholdsOf(deps, ctx, clientId);
+    const [{ t }, defaults] = await allInOrder([checked, defaultThresholds(deps.service, ctx.agencyId, checked.then(({ c }) => packsOf(deps)(c.verticalId)))]);
+    return viewOf(t, defaults);
   },
 });
 

@@ -66,7 +66,7 @@ export function brandingProblems(input: AgencyBranding, appUrl?: string): string
   return problems;
 }
 
-export async function getAgencyBranding(service: Db, ctx: AccessContext): Promise<{ stored: AgencyBranding; resolved: Branding }> {
+export async function getAgencyBranding(service: Db, ctx: Pick<AccessContext, 'agencyId'>): Promise<{ stored: AgencyBranding; resolved: Branding }> {
   const [a] = await service.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, ctx.agencyId));
   if (!a) throw new ToolError('not_found', 'Agency not found');
   return { stored: a.branding ?? {}, resolved: resolveBranding(a.name, a.branding ?? null) };

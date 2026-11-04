@@ -127,10 +127,14 @@ const tierLimitsOf = (items: RunbookItem[] | null) =>
   (items?.find((i) => i.key === 'knob:tier_limits' && i.enabled)?.content as EffectiveRunbook['tierLimits'] | undefined) ?? null;
 
 /** R3 default thresholds without the client column: agency knob, then platform knob, then the pack's routing (what the engine uses for a client with no custom thresholds). */
-export async function defaultThresholds(db: Db, agencyId: string, pack: VerticalPack): Promise<{ alert: number; brief: number }> {
-  const agencyItems = await itemsWhere(db, and(eq(runbook.level, 'agency'), eq(runbook.agencyId, agencyId)));
-  const platformItems = await itemsWhere(db, eq(runbook.level, 'platform'));
-  return thresholdOf(agencyItems) ?? thresholdOf(platformItems) ?? { alert: pack.scoring.routing.alert, brief: pack.scoring.routing.brief };
+export async function defaultThresholds(db: Db, agencyId: string, pack: VerticalPack | PromiseLike<VerticalPack>): Promise<{ alert: number; brief: number }> {
+  // Launch-gate 6b: both levels (and a pack still loading) are read together; the precedence is unchanged.
+  const [agencyItems, platformItems, p] = await Promise.all([
+    itemsWhere(db, and(eq(runbook.level, 'agency'), eq(runbook.agencyId, agencyId))),
+    itemsWhere(db, eq(runbook.level, 'platform')),
+    pack,
+  ]);
+  return thresholdOf(agencyItems) ?? thresholdOf(platformItems) ?? { alert: p.scoring.routing.alert, brief: p.scoring.routing.brief };
 }
 
 /** Resolution order (R2): client runbook, legacy when the agency has overrides for the vertical, agency runbook for generic-play packs, else legacy. */
