@@ -1,2 +1,7 @@
 @import "@cs/ui/styles.css";
 @source "../../../../packages/ui/src";
+
+/* 2026-11-03: the shell's top bar is sticky, so anchor jumps and focus scrolling keep targets clear of it (48px bar + 16px;
+   a support session adds its fixed banner, worst case the two-line 56px one). */
+html:has([data-slot="top-bar"]) { scroll-padding-top: 4rem; }
+html:has([data-slot="top-bar"]):has([aria-label="Support session"]) { scroll-padding-top: 7.5rem; }

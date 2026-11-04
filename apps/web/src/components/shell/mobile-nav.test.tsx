@@ -30,7 +30,7 @@ const flags: NavRoleFlags = {
 
 describe('MobileNav (decision 14)', () => {
   it('opens a drawer with the same nav items and closes when a link is tapped', () => {
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
+    render(<MobileNav flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
@@ -40,14 +40,14 @@ describe('MobileNav (decision 14)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('platform zone: the drawer shows the Rival Monday wordmark and the platform sections', () => {
+  it('platform zone: the drawer shows the platform sections and no brand (it lives in the top bar)', () => {
     pathname = '/platform/agencies';
     const operator: NavRoleFlags = { ...flags, isAgency: true, isAgencyAdmin: true, homePath: '/agency', isPlatformOperator: true };
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={operator} counts={{}} zone="platform" fallback={null} clients={[]} switcher={switcherFor(operator, 'platform')} />);
+    render(<MobileNav flags={operator} counts={{}} zone="platform" fallback={null} clients={[]} switcher={switcherFor(operator, 'platform')} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
-    expect(within(dialog).getByText('rival')).toBeTruthy();
-    expect(within(dialog).getByText('monday')).toBeTruthy();
+    expect(within(dialog).queryByText('rival')).toBeNull();
+    expect(dialog.querySelector('[data-slot="shell-brand"]')).toBeNull();
     expect(within(dialog).getByRole('group', { name: 'Customers' })).toBeTruthy();
     expect(within(dialog).getByRole('link', { name: 'Agencies' }).getAttribute('aria-current')).toBe('page');
     pathname = '/c/11111111-1111-1111-1111-111111111111';
@@ -56,7 +56,7 @@ describe('MobileNav (decision 14)', () => {
   it('on a settings path the drawer shows the drill-in; tapping Back closes it', () => {
     pathname = '/agency/settings/team';
     const agency: NavRoleFlags = { ...flags, isAgency: true, isAgencyAdmin: true, homePath: '/agency' };
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
+    render(<MobileNav flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
     const nav = within(dialog).getByRole('navigation', { name: 'Settings' });
@@ -70,14 +70,14 @@ describe('MobileNav (decision 14)', () => {
   });
 
   it('closes on Escape', () => {
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
+    render(<MobileNav flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('renders the context switcher first in the drawer (static client name for a one-client owner)', () => {
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
+    render(<MobileNav flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = screen.getByRole('dialog', { name: 'Menu' });
     expect(within(dialog).getByText('A1 HVAC')).toBeTruthy();
@@ -87,7 +87,7 @@ describe('MobileNav (decision 14)', () => {
     globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
     Element.prototype.scrollIntoView ??= () => {};
     const agency: NavRoleFlags = { ...flags, isAgency: true, isAgencyAdmin: true, homePath: '/agency' };
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
+    render(<MobileNav flags={agency} counts={{}} fallback={null} clients={[]} switcher={switcherFor(agency)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     const sheet = screen.getByRole('dialog', { name: 'Menu' });
     fireEvent.click(within(sheet).getByRole('button', { name: /A1 HVAC/ }));
@@ -103,7 +103,7 @@ describe('MobileNav (decision 14)', () => {
       addEventListener: (_t: string, l: (e: { matches: boolean }) => void) => listeners.push(l),
       removeEventListener: (_t: string, l: (e: { matches: boolean }) => void) => listeners.splice(listeners.indexOf(l), 1),
     }));
-    render(<MobileNav displayName="Rival Monday" logoUrl={null} whiteLabel={false} flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
+    render(<MobileNav flags={flags} counts={{}} fallback={null} clients={[]} switcher={switcherFor(flags)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
     expect(screen.getByRole('dialog', { name: 'Menu' })).toBeTruthy();
     act(() => { for (const l of [...listeners]) l({ matches: false }); });

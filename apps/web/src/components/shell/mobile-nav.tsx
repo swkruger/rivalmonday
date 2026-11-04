@@ -4,7 +4,6 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
 import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ShellBrand } from './shell-brand';
 import { ContextSwitcher, type SwitcherProps } from './context-switcher';
 import type { NavCounts, NavRoleFlags } from './nav-items';
 import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
@@ -14,13 +13,10 @@ import { type NavClient, type NavFallback, SidebarNav } from './sidebar-nav';
  * the same `SidebarNav` in a drawer. Any link tap closes it (including a tap on the current page, where the pathname
  * doesn't change); so do a route change (a switcher pick navigates with the router, not a link) and the viewport
  * growing to `lg` (BACKLOG 5c-2 T18), where the drawer has no trigger any more.
- * Plain props only — no `@cs/email` import in a client file (HANDOVER §6). In the platform zone `AppShell` passes the
- * Rival Monday name and no logo. `clients` (the viewer's own clients) validates a remembered client.
+ * Plain props only — no `@cs/email` import in a client file (HANDOVER §6). The brand is not repeated here: it sits in the
+ * top bar at every width (2026-11-03). `clients` (the viewer's own clients) validates a remembered client.
  */
-export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zone, fallback, clients, switcher }: {
-  displayName: string;
-  logoUrl: string | null;
-  whiteLabel: boolean;
+export function MobileNav({ flags, counts, zone, fallback, clients, switcher }: {
   flags: NavRoleFlags;
   counts: NavCounts;
   zone?: 'platform';
@@ -47,7 +43,6 @@ export function MobileNav({ displayName, logoUrl, whiteLabel, flags, counts, zon
       </SheetTrigger>
       <SheetContent side="left" aria-describedby={undefined} onClick={(e) => { if ((e.target as HTMLElement).closest('a')) setOpen(false); }}>
         <SheetTitle className="sr-only">Menu</SheetTitle>
-        <ShellBrand displayName={displayName} logoUrl={logoUrl} whiteLabel={whiteLabel} />
         <div className="pb-4">
           <ContextSwitcher {...switcher} modal />
         </div>

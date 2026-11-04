@@ -6,12 +6,13 @@ import { themeVars } from '@cs/ui';
 import { eq } from 'drizzle-orm';
 import type { SwitcherProps } from '@/components/shell/context-switcher';
 import { ClientBillingBanner } from '@/components/shell/client-billing-banner';
-import { BANNER_HEIGHT } from '@/components/shell/banner-height';
+import { BANNER_HEIGHT, SHELL_OFFSET } from '@/components/shell/banner-height';
 import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { showsClientBilling } from '@/components/shell/nav-items';
 import { Sidebar } from '@/components/shell/sidebar';
 import type { NavFallback } from '@/components/shell/sidebar-nav';
+import { ShellBrand } from '@/components/shell/shell-brand';
 import { ShellNotices, ShellProviders } from '@/components/shell/shell-providers';
 import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
@@ -111,24 +112,28 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
     audience: viewerAudience(viewer.kind === 'guest' ? 'guest' : ctx.role, zone === 'platform' ? 'platform' : isAgencyRole(ctx.role) ? 'agency' : 'client'),
     names: { agency: helpAgency, assistant: assistantName, ...(clientName ? { client: clientName } : {}) },
   };
-  const menu = (
-    <MobileNav displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
-  );
+  const menu = <MobileNav flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />;
+  const brand = <ShellBrand displayName={branding.displayName} logoUrl={branding.logoUrl} whiteLabel={branding.displayName !== 'Rival Monday'} />;
+  // 2026-11-03 (owner): the top bar spans the frame and sticks (under the fixed support banner, which never scrolls away);
+  // the sidebar and sheet sit below it. The guest banner scrolls with the page above the bar; the billing / spend / hold
+  // notices stay above the sheet. `SHELL_OFFSET` sets the sticky offsets for the bar, the sidebar and sticky page content.
   return (
     <ShellProviders readOnly={support !== null || billing?.onHold === true} help={help} style={style as Record<string, string>} support={support}>
-      <div className={`flex min-h-screen bg-canvas${support ? ` ${BANNER_HEIGHT.offset}` : ''}`}>
-        <Sidebar branding={branding} flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} offsetTop={support !== null} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          {viewer.kind === 'guest' && <GuestBanner />}
-          <TopBar viewer={viewer} switcher={switcher} unread={unread} menu={menu} supportEmail={viewer.kind === 'user' && isAgencyRole(ctx.role) ? supportEmail() : null} />
-          {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
-            <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
-          )}
-          <ShellNotices spend={spendAudience ? { audience: spendAudience, items: spendPaused } : null} billing={billing} role={ctx.role} userViewer={viewer.kind === 'user'} agencyName={branding.displayName} />
-          {/* 16b (D-02, P2): one white sheet in the canvas frame. No overflow utility: sticky SaveBar / page headers need the viewport as scroll root. */}
-          <main data-slot="sheet" className="min-w-0 flex-1 bg-surface lg:mr-2 lg:mb-2 lg:rounded-md lg:border lg:border-line">
-            <div data-slot="sheet-inner" className="mx-auto flex w-full max-w-[1560px] flex-col gap-10 px-4 pt-6 pb-10 md:px-6 lg:px-8">{children}</div>
-          </main>
+      <div data-slot="shell" className={`flex min-h-screen flex-col bg-canvas ${support ? `${SHELL_OFFSET.support} ${BANNER_HEIGHT.offset}` : SHELL_OFFSET.plain}`}>
+        {viewer.kind === 'guest' && <GuestBanner />}
+        <TopBar viewer={viewer} switcher={switcher} unread={unread} brand={brand} menu={menu} supportEmail={viewer.kind === 'user' && isAgencyRole(ctx.role) ? supportEmail() : null} />
+        <div className="flex min-w-0 flex-1">
+          <Sidebar flags={flags} counts={counts} zone={zone} fallback={fallback} clients={navClients} switcher={switcher} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            {clientBilling && singleClientId && (clientBilling.paused || clientBilling.paymentNeeded) && (
+              <ClientBillingBanner role={ctx.role} clientId={singleClientId} agencyName={branding.displayName} paused={clientBilling.paused} paymentNeeded={viewer.kind === 'user' && clientBilling.paymentNeeded} />
+            )}
+            <ShellNotices spend={spendAudience ? { audience: spendAudience, items: spendPaused } : null} billing={billing} role={ctx.role} userViewer={viewer.kind === 'user'} agencyName={branding.displayName} />
+            {/* 16b (D-02, P2): one white sheet in the canvas frame. No overflow utility: sticky SaveBar / page headers need the viewport as scroll root. */}
+            <main data-slot="sheet" className="min-w-0 flex-1 bg-surface lg:mr-2 lg:mb-2 lg:rounded-md lg:border lg:border-line">
+              <div data-slot="sheet-inner" className="mx-auto flex w-full max-w-[1560px] flex-col gap-10 px-4 pt-6 pb-10 md:px-6 lg:px-8">{children}</div>
+            </main>
+          </div>
         </div>
       </div>
     </ShellProviders>

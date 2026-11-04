@@ -160,7 +160,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
       {footer}
       </div>
 
-      <Frame style={vars} className="sticky top-4 flex flex-col gap-3">
+      <Frame style={vars} className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex flex-col gap-3">
         <h2 className="text-base font-semibold">Live preview</h2>
         <p className="text-xs font-semibold text-muted-ink">Dashboard</p>
         <div className="overflow-hidden rounded-md border border-line">

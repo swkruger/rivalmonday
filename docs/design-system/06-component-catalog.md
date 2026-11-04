@@ -10,6 +10,7 @@
 
 ### App shell `.rm-app` · existing: app layout in `apps/web`
 - **Use:** every signed-in page. **Structure:** grid `[sidebar 240 | sheet]` under a 48px top bar; frame `background.app`; the sheet is white with a 1px `border.default`, `radius.md`, 8px gutter right and bottom.
+- **Top bar placement (owner, 2026-11-03):** the top bar spans the full viewport width and is sticky (below the fixed support banner, `z-40` under dialogs and popovers); the agency mark + name sit at its left end in a 240px slot aligned with the sidebar, and the sidebar starts below the bar (sticky, scrolls on its own). Below 1024 the bar shows the menu button, the mark only and the current context name.
 - **Variants:** expanded · rail (56px, icons with tooltips) · with Friday panel (third column, 400px) · with peek panel (440px).
 - **Responsive:** < 1024 the sidebar becomes a drawer and the sheet goes full-bleed with radius 0; < 768 a bottom tab bar appears (D-23).
 - **A11y:** landmarks `header`, `nav[aria-label="Main"]`, `main`; "Skip to content" link first in tab order.

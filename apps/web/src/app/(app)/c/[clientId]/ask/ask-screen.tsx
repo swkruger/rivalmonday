@@ -79,7 +79,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
       />
       <TipRow items={[...tipsFor(threadId)]} />
       <div className="flex items-start gap-5">
-        <div className="hidden w-64 flex-shrink-0 lg:sticky lg:top-6 lg:block">
+        <div className="hidden w-64 flex-shrink-0 lg:sticky lg:top-[calc(var(--rm-shell-top,0px)+1.5rem)] lg:block">
           <Section className="border-r border-line pr-5">
             <ThreadList {...list} />
           </Section>

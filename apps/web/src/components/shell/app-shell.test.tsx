@@ -2,6 +2,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WriteGuard } from '@/components/read-only';
+import { BANNER_HEIGHT, SHELL_OFFSET } from '@/components/shell/banner-height';
 
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
@@ -160,17 +161,19 @@ describe('AppShell', () => {
     expect(m.counts).toHaveBeenCalledWith(own, { agency: true, operator: false, leads: true });
   });
 
-  it('platform zone: Rival Monday wordmark, default theme and "Platform" footer even for a white-label operator agency', async () => {
+  it('platform zone: Rival Monday wordmark in the top bar and the default theme, even for a white-label operator agency', async () => {
     m.realSidebar = true;
     m.logoUrl = 'https://acme.example/logo.png';
     pathname = '/platform/agencies';
     const { container } = render(await AppShell({ viewer: userViewer as never, ctx: own as never, platformRole: 'owner', zone: 'platform', children: <p>page</p> }));
+    const bar = screen.getByRole('banner');
+    expect(within(bar).getByText('rival')).toBeTruthy();
+    expect(within(bar).getByText('monday')).toBeTruthy();
+    expect(within(bar).queryByRole('img')).toBeNull();
+    expect(within(bar).queryByText('Acme Agency')).toBeNull();
     const aside = screen.getByRole('complementary');
-    expect(within(aside).getByText('rival')).toBeTruthy();
-    expect(within(aside).getByText('monday')).toBeTruthy();
-    expect(within(aside).queryByRole('img')).toBeNull();
-    expect(within(aside).queryByText('Acme Agency')).toBeNull();
-    expect(within(aside).getByText('Platform', { selector: 'div' })).toBeTruthy();
+    expect(within(aside).queryByText('rival')).toBeNull();
+    expect(aside.querySelector('[data-slot="shell-brand"]')).toBeNull();
     // 15a Task 5: the context switcher card at the top of the sidebar names the platform view.
     expect(within(aside).getByRole('button', { name: /Platform\s*Operator console/ }).getAttribute('aria-haspopup')).toBe('dialog');
     expect(within(aside).getByRole('link', { name: 'Agencies' })).toBeTruthy();
@@ -210,14 +213,35 @@ describe('AppShell', () => {
     expect(JSON.parse(screen.getByTestId('sidebar').dataset.accounts!)).toEqual([]);
   });
 
-  it('agency view keeps the agency logo and its name in the footer', async () => {
+  it('agency view: the agency logo and name sit at the left of the top bar, not in the sidebar (2026-11-03)', async () => {
     m.realSidebar = true;
     m.logoUrl = 'https://acme.example/logo.png';
     render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    const bar = screen.getByRole('banner');
+    const brandSlot = bar.querySelector('[data-slot="top-bar-brand"]') as HTMLElement;
+    expect(brandSlot.className).toContain('lg:w-[240px]');
+    expect(within(brandSlot).getByRole('img', { name: 'Acme Agency' }).getAttribute('src')).toBe('https://acme.example/logo.png');
+    expect(within(brandSlot).getByText('Acme Agency')).toBeTruthy();
     const aside = screen.getByRole('complementary');
-    expect(within(aside).getByRole('img', { name: 'Acme Agency' }).getAttribute('src')).toBe('https://acme.example/logo.png');
-    expect(within(aside).getByText('Acme Agency', { selector: 'div' })).toBeTruthy();
+    expect(within(aside).queryByRole('img')).toBeNull();
+    expect(within(aside).queryByText('Acme Agency', { selector: 'div' })).toBeNull();
     expect(within(aside).getByRole('link', { name: 'Portfolio' })).toBeTruthy();
+  });
+
+  it('top bar: full width above the sidebar and sticky under any banner, below dialogs (z-40)', async () => {
+    m.realSidebar = true;
+    const { container } = render(await AppShell({ viewer: userViewer as never, ctx: own as never, children: <p>page</p> }));
+    const root = container.querySelector('[data-slot="shell"]') as HTMLElement;
+    const bar = screen.getByRole('banner');
+    expect(bar.parentElement).toBe(root);
+    expect(bar.className).toMatch(/(^|\s)sticky(\s|$)/);
+    expect(bar.className).toContain('top-(--rm-banner-h)');
+    expect(bar.className).toContain('z-40');
+    expect(bar.className).toContain('h-12');
+    expect(bar.className).toContain('w-full');
+    expect(root.className).toContain(SHELL_OFFSET.plain);
+    expect(bar.compareDocumentPosition(screen.getByRole('complementary')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('complementary').className).toContain('top-(--rm-shell-top)');
   });
 
   it('(platform) layout passes the role: no second lookup', async () => {
@@ -333,11 +357,18 @@ describe('AppShell frame (16b)', () => {
     expect(screen.getAllByRole('complementary')).toHaveLength(1);
   });
 
-  it('guard: in a support session the sidebar is offset below the fixed banner (top-9)', async () => {
+  it('guard: in a support session the bar sticks below the fixed banner and the sidebar below both', async () => {
     m.realSidebar = true;
-    render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
+    const { container } = render(await AppShell({ viewer: supportViewer as never, ctx: ctx as never, children: <p>page</p> }));
     expect(screen.getByRole('region', { name: 'Support session' })).toBeTruthy();
-    expect(screen.getByRole('complementary').className).toContain('top-9');
+    const root = container.querySelector('[data-slot="shell"]') as HTMLElement;
+    expect(root.className).toContain(SHELL_OFFSET.support);
+    expect(root.className).toContain(BANNER_HEIGHT.offset);
+    expect(SHELL_OFFSET.support).toContain('[--rm-banner-h:3.5rem]');
+    expect(SHELL_OFFSET.support).toContain('sm:[--rm-banner-h:2.25rem]');
+    expect(SHELL_OFFSET.support).toContain('sm:[--rm-shell-top:5.25rem]');
+    expect(screen.getByRole('banner').className).toContain('top-(--rm-banner-h)');
+    expect(screen.getByRole('complementary').className).toContain('top-(--rm-shell-top)');
   });
 
   it('hold, guest and client-billing banners render before the sheet', async () => {

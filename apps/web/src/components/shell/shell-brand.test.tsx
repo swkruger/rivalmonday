@@ -4,14 +4,17 @@ import { describe, expect, it } from 'vitest';
 import { brandInitials, ShellBrand } from './shell-brand';
 
 describe('ShellBrand', () => {
-  it('no logo: initials tile and the whole name, in a row that can grow', () => {
+  it('no logo: initials tile and the name, clamped to two lines in the 48px bar (full name as the title)', () => {
     const { container } = render(<ShellBrand displayName="CS Dev Verification Agency" logoUrl={null} whiteLabel />);
-    expect(screen.getByText('CS Dev Verification Agency')).toBeTruthy();
+    const name = screen.getByText('CS Dev Verification Agency');
     expect(screen.getByText('CD').getAttribute('aria-hidden')).toBe('true');
     const row = container.querySelector('[data-slot="shell-brand"]')!;
-    expect(row.className).toContain('min-h-12');
-    expect(row.className).not.toMatch(/(^|\s)h-12(\s|$)/);
-    expect(row.className).not.toContain('truncate');
+    expect(row.className).toMatch(/(^|\s)h-12(\s|$)/);
+    expect(row.getAttribute('title')).toBe('CS Dev Verification Agency');
+    expect(name.className).toContain('line-clamp-2');
+    expect(name.className).not.toContain('truncate');
+    // Phones show only the mark; the name stays for screen readers.
+    expect(name.className).toContain('max-lg:sr-only');
   });
 
   it('logo: the logo and the whole name, no initials', () => {
@@ -22,7 +25,8 @@ describe('ShellBrand', () => {
   });
 
   it('Rival Monday keeps its wordmark', () => {
-    render(<ShellBrand displayName="Rival Monday" logoUrl={null} whiteLabel={false} />);
+    const { container } = render(<ShellBrand displayName="Rival Monday" logoUrl={null} whiteLabel={false} />);
+    expect(container.querySelector('[data-slot="shell-brand"]')).toBeTruthy();
     expect(screen.getByText('rival')).toBeTruthy();
     expect(screen.getByText('monday')).toBeTruthy();
     expect(screen.queryByText('Rival Monday')).toBeNull();
