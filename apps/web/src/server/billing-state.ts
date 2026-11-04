@@ -21,12 +21,15 @@ export interface BillingSnapshot {
 
 /** One cheap read for the shell (redirects and banners); the full summary also calls Stripe, so it is not used here. A missing row is a pilot. Cached per request so the layout, requireContext and pages share one query. */
 export const billingSnapshotOf = cache(async (agencyId: string): Promise<BillingSnapshot> => {
-  const [row] = await dbs().service
-    .select({ state: agencyBilling.state, trialEndsAt: agencyBilling.trialEndsAt, pastDueSince: agencyBilling.pastDueSince })
-    .from(agencyBilling)
-    .where(eq(agencyBilling.agencyId, agencyId));
+  // One stage: the billing row and the hold flag are independent reads, both on the service role.
+  const [[row], onHold] = await Promise.all([
+    dbs().service
+      .select({ state: agencyBilling.state, trialEndsAt: agencyBilling.trialEndsAt, pastDueSince: agencyBilling.pastDueSince })
+      .from(agencyBilling)
+      .where(eq(agencyBilling.agencyId, agencyId)),
+    isOnHold(dbs().service, agencyId),
+  ]);
   const state = row?.state ?? 'pilot';
-  const onHold = await isOnHold(dbs().service, agencyId);
   return {
     state,
     trialEndsAt: row?.trialEndsAt?.toISOString() ?? null,
