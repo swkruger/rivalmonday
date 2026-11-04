@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), getViewer: vi.fn(), themeForViewer: vi.fn(), platformRole: vi.fn(), callTool: vi.fn(), navCookie: undefined as string | undefined }));
+const m = vi.hoisted(() => ({ requireContext: vi.fn(), requireOperatorContext: vi.fn(), getViewer: vi.fn(), themeForViewer: vi.fn(), platformRole: vi.fn(), callTool: vi.fn(), startShellReads: vi.fn(), navCookie: undefined as string | undefined }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => ({ get: (n: string) => (n === 'rm_nav_ctx' && m.navCookie !== undefined ? { name: n, value: m.navCookie } : undefined) }) }));
 vi.mock('@cs/tools', () => ({ platformRole: m.platformRole }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
@@ -17,8 +17,8 @@ vi.mock('@/components/shell/app-shell', () => ({
       {children}
     </div>
   ),
-  // The (app) layout starts the shell batch itself (launch gate Task 4); the shell is mocked, so the batch is empty.
-  startShellReads: () => Promise.resolve({}),
+  // Both layouts start the shell batch themselves (launch gate Tasks 4-5); the shell is mocked, so the batch is empty.
+  startShellReads: m.startShellReads,
 }));
 const { default: PlatformLayout, metadata: platformMetadata } = await import('./layout');
 const { default: AppLayout, generateMetadata: appMetadata } = await import('../(app)/layout');
@@ -29,6 +29,7 @@ beforeEach(() => {
   m.requireOperatorContext.mockReset().mockResolvedValue({ viewer: { kind: 'user' }, ctx: {} });
   m.platformRole.mockReset().mockResolvedValue('owner');
   m.callTool.mockReset().mockResolvedValue({ services: [] });
+  m.startShellReads.mockReset().mockImplementation(() => Promise.resolve({}));
 });
 
 describe('route-group layouts (Phase 8b M5)', () => {
@@ -80,6 +81,47 @@ describe('route-group layouts (Phase 8b M5)', () => {
     render(await PlatformLayout({ children: <p>page still renders</p> }));
     expect(screen.getByText('page still renders')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Low balance warning' })).toBeNull();
+  });
+});
+
+describe('platform layout stages (launch gate Task 5)', () => {
+  it('starts the shell batch with the resolved role, and runs costs and guard together, after the access check', async () => {
+    const order: string[] = [];
+    m.requireOperatorContext.mockImplementation(async () => (order.push('access'), { viewer: { kind: 'user' }, ctx: {} }));
+    m.platformRole.mockImplementation(async () => (order.push('role'), 'owner'));
+    m.startShellReads.mockImplementation(() => (order.push('shell'), Promise.resolve({})));
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const started: string[] = [];
+    m.callTool.mockImplementation(async (_c: unknown, name: string) => {
+      started.push(name);
+      order.push(name);
+      await gate;
+      return name === 'get_ai_guard_state' ? { state: 'ok' } : { services: [] };
+    });
+    const pending = PlatformLayout({ children: <p>page</p> });
+    await vi.waitFor(() => expect(started).toHaveLength(2));
+    release();
+    render(await pending);
+    expect(order.slice(0, 3)).toEqual(['access', 'role', 'shell']);
+    expect(started.sort()).toEqual(['get_ai_guard_state', 'list_platform_costs']);
+    expect(m.startShellReads).toHaveBeenCalledWith({ kind: 'user' }, {}, { zone: 'platform', platformRole: 'owner' });
+  });
+
+  it('a non-operator 404s before any read starts', async () => {
+    m.requireOperatorContext.mockRejectedValue(new Error('NEXT_NOT_FOUND'));
+    await expect(PlatformLayout({ children: <p>page</p> })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(m.platformRole).not.toHaveBeenCalled();
+    expect(m.startShellReads).not.toHaveBeenCalled();
+    expect(m.callTool).not.toHaveBeenCalled();
+  });
+
+  it('a staff viewer gets the guard read and the shell batch, never the cost read', async () => {
+    m.platformRole.mockResolvedValue('staff');
+    render(await PlatformLayout({ children: <p>page</p> }));
+    expect(m.callTool).toHaveBeenCalledTimes(1);
+    expect(m.callTool).toHaveBeenCalledWith(expect.anything(), 'get_ai_guard_state', {});
+    expect(m.startShellReads).toHaveBeenCalledWith(expect.anything(), expect.anything(), { zone: 'platform', platformRole: 'staff' });
   });
 });
 

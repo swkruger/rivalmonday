@@ -229,3 +229,31 @@ Task 1 (fix round 1), 2026-11-03: `bash apps/web/scripts/profile-gate.sh --seed`
 | /settings/profile | 200 | 12 → **4** | 2 | 6 → 3 | 79 → 81 |
 
 (platform) rows, for Task 5 (same AppShell batch; platform reads untouched): `/platform` 23 → 18, most other pages 22 → 18, `/platform/costs` 13 → 8, `/platform/agencies/[id]` 9 → 8.
+
+## Task 5 (platform)
+2026-11-04: `(platform)/layout.tsx` resolves the operator context and platform role, then starts `startShellReads` (zone `platform`, the resolved role) together with the owner-only `list_platform_costs` and `get_ai_guard_state` — one stage. `loadCostState` (`@cs/tools` `platform/costs/read.ts`) is now 3 queries in one `Promise.all` (configs, `DISTINCT ON (service)` newest, everything since `since`) instead of 1 + 2 × 6 sequential; output unchanged (`read.test.ts` compares with the old implementation).
+
+dbStages, baseline (before the branch) → after Task 5; all 200:
+
+| route | dbStages | authStages | txStages | wallMs |
+|---|---|---|---|---|
+| /platform | 23 → **2** | 2 | 2 | 78 |
+| /platform/reviews | 23 → **3** | 1 | 2 | 59 |
+| /platform/agencies | 22 → **2** | 1 | 2 | 63 |
+| /platform/help | 22 → **2** | 1 | 3 | 59 |
+| /platform/knowledge/[id] | 22 → **2** | 1 | 2 | 63 |
+| /platform/knowledge/new | 22 → **2** | 1 | 2 | 59 |
+| /platform/runbook | 22 → **2** | 1 | 2 | 77 |
+| /platform/topics | 22 → **3** | 1 | 2 | 61 |
+| /platform/waitlist | 22 → **2** | 1 | 2 | 61 |
+| /platform/leads | 21 → **2** | 1 | 2 | 63 |
+| /platform/verticals | 21 → **2** | 1 | 2 | 63 |
+| /platform/ask | 18 → **1** | 1 | 2 | 67 |
+| /platform/ask/[threadId] | 18 → **4** | 1 | 4 | 66 |
+| /platform/health | 18 → **3** | 1 | 2 | 90 |
+| /platform/knowledge | 18 → **1** | 1 | 3 | 59 |
+| /platform/billing | 16 → **6** | 1 | 4 | 57 |
+| /platform/costs | 14 → **3** | 1 | 2 | 78 |
+| /platform/agencies/[id] | 10 → **4** | 1 | 4 | 109 |
+
+No `/platform/**` route is over 8. Still over 8 (all `(app)`, Task 6): `/c/[clientId]/changes` 20, `/c/[clientId]` 18, `/c/[clientId]/setup` 16, `/c/[clientId]/competitors/[competitorId]` 15, `/c/[clientId]/reviews` 13, `/c/[clientId]/settings/profile` 13, `/agency/approvals/[briefId]` 12, `/c/[clientId]/rankings` 11, `/c/[clientId]/ads` 11, `/c/[clientId]/briefs/[briefId]` 11, `/c/[clientId]/settings/billing` 10, `/c/[clientId]/moves` 9, `/c/[clientId]/settings/runbook` 9, `/c/[clientId]/pitch-snapshot` 9, `/c/[clientId]/alerts/[alertId]` 9; 3 routes still unprofiled (Task 6).

@@ -1,5 +1,5 @@
 import { type Db, type PlatformCostServiceRow, type PlatformCostSnapshotRow, platformCostService, platformCostSnapshot } from '@cs/db';
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, desc, gte, inArray } from 'drizzle-orm';
 import type { SnapPoint } from './math';
 import { type ServiceKey, SERVICES } from './types';
 
@@ -17,18 +17,32 @@ export interface ServiceState {
   points: SnapPoint[];
 }
 
-/** Config + newest snapshot + the snapshots since `since` for each of the six services (read model for the costs tools). */
+/**
+ * Config + newest snapshot + the snapshots since `since` for each of the six services (read model for the costs tools).
+ *
+ * Launch gate (Task 5): three queries, run together, whatever the number of services — the configs, the newest snapshot
+ * per service (`DISTINCT ON`) and every snapshot since `since` — grouped here. A service with no rows keeps
+ * `config: null` / `latest: null` / `points: []`.
+ */
 export async function loadCostState(db: Db, since: Date): Promise<ServiceState[]> {
-  const configs = await db.select().from(platformCostService);
-  const out: ServiceState[] = [];
-  for (const service of Object.keys(SERVICES) as ServiceKey[]) {
-    const [latest] = await db.select().from(platformCostSnapshot).where(eq(platformCostSnapshot.service, service)).orderBy(desc(platformCostSnapshot.takenAt)).limit(1);
-    const rows = await db
+  const services = Object.keys(SERVICES) as ServiceKey[];
+  const [configs, latestRows, recent] = await Promise.all([
+    db.select().from(platformCostService),
+    db
+      .selectDistinctOn([platformCostSnapshot.service])
+      .from(platformCostSnapshot)
+      .where(inArray(platformCostSnapshot.service, services))
+      .orderBy(platformCostSnapshot.service, desc(platformCostSnapshot.takenAt)),
+    db
       .select()
       .from(platformCostSnapshot)
-      .where(and(eq(platformCostSnapshot.service, service), gte(platformCostSnapshot.takenAt, since)))
-      .orderBy(platformCostSnapshot.takenAt);
-    out.push({ service, config: configs.find((c) => c.service === service) ?? null, latest: latest ?? null, points: rows.map(toSnapPoint) });
-  }
-  return out;
+      .where(and(inArray(platformCostSnapshot.service, services), gte(platformCostSnapshot.takenAt, since)))
+      .orderBy(platformCostSnapshot.takenAt),
+  ]);
+  return services.map((service) => ({
+    service,
+    config: configs.find((c) => c.service === service) ?? null,
+    latest: latestRows.find((r) => r.service === service) ?? null,
+    points: recent.filter((r) => r.service === service).map(toSnapPoint),
+  }));
 }

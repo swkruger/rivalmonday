@@ -1,6 +1,6 @@
 import { platformRole } from '@cs/tools';
 import type { Metadata } from 'next';
-import { AppShell } from '@/components/shell/app-shell';
+import { AppShell, startShellReads } from '@/components/shell/app-shell';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { platformAdmins } from '@/server/runtime-env';
@@ -24,27 +24,32 @@ export const metadata: Metadata = { title: { default: 'Rival Monday', template: 
  *
  * 8c: the platform role is resolved once here. Owners get the Costs nav item and, when a service is low on balance, the
  * warning strip; the strip read must never break a page, so any failure shows no strip.
+ *
+ * Launch gate (Task 5): after the operator context and the platform role, the shell batch, costs (owners) and the guard read run as one stage.
  */
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
+  // Access first: a non-operator 404s here, before any read below starts.
   const { viewer, ctx } = await requireOperatorContext();
   const role = viewer.kind === 'user' ? await platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx) : null;
-  let low: CostService[] = [];
-  if (role === 'owner') {
-    try {
-      const costs = await callTool<{ services: CostService[] }>(ctx, 'list_platform_costs', {});
-      low = costs.services.filter((s) => s.status === 'low');
-    } catch {
-      low = [];
-    }
-  }
-  let guard: AiGuardBannerState | null = null;
-  try {
-    guard = await callTool<AiGuardBannerState>(ctx, 'get_ai_guard_state', {});
-  } catch {
-    guard = null;
-  }
+  // Launch gate (Task 5): the shell batch, the owner-only cost strip read and the guard banner read depend only on the
+  // context and role above, so they run together — one stage. The no-op catch only keeps an unawaited rejection quiet;
+  // AppShell still sees any failure when it awaits the batch.
+  const reads = startShellReads(viewer, ctx, { zone: 'platform', platformRole: role });
+  reads.catch(() => {});
+  const [low, guard] = await Promise.all([
+    role === 'owner'
+      ? callTool<{ services: CostService[] }>(ctx, 'list_platform_costs', {}).then(
+          (costs) => costs.services.filter((s) => s.status === 'low'),
+          (): CostService[] => [],
+        )
+      : Promise.resolve<CostService[]>([]),
+    callTool<AiGuardBannerState>(ctx, 'get_ai_guard_state', {}).then(
+      (g): AiGuardBannerState | null => g,
+      () => null,
+    ),
+  ]);
   return (
-    <AppShell viewer={viewer} ctx={ctx} platformRole={role} zone="platform">
+    <AppShell viewer={viewer} ctx={ctx} platformRole={role} zone="platform" reads={reads}>
       <AiGuardBanner state={guard} />
       <CostWarningStrip low={low} />
       {children}
