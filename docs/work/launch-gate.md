@@ -257,3 +257,20 @@ dbStages, baseline (before the branch) → after Task 5; all 200:
 | /platform/agencies/[id] | 10 → **4** | 1 | 4 | 109 |
 
 No `/platform/**` route is over 8. Still over 8 (all `(app)`, Task 6): `/c/[clientId]/changes` 20, `/c/[clientId]` 18, `/c/[clientId]/setup` 16, `/c/[clientId]/competitors/[competitorId]` 15, `/c/[clientId]/reviews` 13, `/c/[clientId]/settings/profile` 13, `/agency/approvals/[briefId]` 12, `/c/[clientId]/rankings` 11, `/c/[clientId]/ads` 11, `/c/[clientId]/briefs/[briefId]` 11, `/c/[clientId]/settings/billing` 10, `/c/[clientId]/moves` 9, `/c/[clientId]/settings/runbook` 9, `/c/[clientId]/pitch-snapshot` 9, `/c/[clientId]/alerts/[alertId]` 9; 3 routes still unprofiled (Task 6).
+
+## Task 6a
+2026-11-04: `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the Task 5 gate at `0de0f53f`.
+- **Shared levers:** `withTenant` pipelines its `set_config` with fn's first query (one round trip less per tenant read, fails closed); viewer resolution starts the billing snapshot beside the plan read (`onMembership`), so the prelude is 2 stages, not 3.
+- **Tools:** client check beside the RLS reads (`allInOrder` keeps the old refusal order), independent queries pipelined in one transaction: `get_event`, `compare_snapshots` (visibility via `firstVisibleEventOfChange`, one RLS query; `snapshotSide` one join), `search_events`, `get_move`, `get_workspace_overview`, `get_brief`, `get_ask_starters`, `get_client_setup` (reuses the actor's state read), `search_reviews`, `get_competitor_profile`/`_timeline`, `list_help_guides`/`get_page_guide`; suggestion run sets as subqueries. Output parity: `packages/tools/src/tools/launch-gate-parity.test.ts` (snapshot recorded on the old code).
+- **Pages:** changes (event on the first feed row, compare on its change), overview (brief on the list), setup (theme + guides in the batch), reviews (search waits for the benchmark only with a topic).
+- Gate still exits 1: `/c/[clientId]/rankings` 9 (6b) and the 3 unprofiled param routes (6c).
+
+| route | dbStages before → after |
+|---|---|
+| /c/[clientId]/changes | 20 → **6** |
+| /c/[clientId] | 18 → **5** |
+| /c/[clientId]/setup | 16 → **4** |
+| /c/[clientId]/competitors/[competitorId] | 15 → **5** |
+| /c/[clientId]/reviews | 13 → **4** |
+| /c/[clientId]/alerts/[alertId] | 9 → **4** |
+| /c/[clientId]/moves | 9 → **5** |
