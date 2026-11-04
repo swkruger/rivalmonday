@@ -10,16 +10,20 @@ import { defaultBranding } from './branding';
 import { processGuardOn } from './dev-guard';
 import { devHooks } from './dev-hooks';
 import { dbs } from './db';
+import { instrumentPgPool } from './db-timing';
 import { webEmailTransport } from './email-transport';
 import { perEnv } from './env-cache';
 import { webEnv } from './env';
 import { envUrls } from './runtime-env';
+import { profilingOn } from './tool-timing';
 
 function create(name: EnvName) {
   const env = webEnv();
   const { service } = dbs(name);
   const transport = webEmailTransport(processGuardOn(), process.env, createLedgerSink(service));
-  const pool = new Pool({ connectionString: envUrls(name).service, max: 5 });
+  const raw = new Pool({ connectionString: envUrls(name).service, max: 5 });
+  // Launch-gate: `PROFILE_TOOLS=1` only (never in a deployed env) — Better Auth's queries become `auth` db spans.
+  const pool = profilingOn() ? instrumentPgPool(raw) : raw;
   const options = buildAuthOptions({
     env, service, pool,
     onMagicLink: (email, url) => devHooks.onMagicLink?.(email, url),

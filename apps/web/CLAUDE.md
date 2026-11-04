@@ -62,6 +62,10 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 - **Enqueue is refused in DEMO and TEST** (else `cs_demo` ids reach the real worker and paid vendors): throws "Background jobs are switched off while browsing DEMO or TEST data."; job status reads "no job"; un-rendered PDFs show "PDF rendering is off…".
 - **Running the panel:** `next dev` binds `127.0.0.1` unless `-H`; panel POSTs need `x-rm-dev-panel: 1` and `Origin` = `Host`; demo sign-in via `/dev-panel/sign-in/<token>`. Use `localhost` (session cookie lost on `127.0.0.1`).
 
+### Page profiler (DB-stage gate)
+- **Gate (≤ 8 app DB stages/page):** `bash apps/web/scripts/profile-gate.sh --seed` (local test DB; `--seed` = E2E global setup + drops the stale admin state; `--skip-build`; `--db neon-dev` swaps in cs_dev URLs, then pass `PROFILE_SEED_ADMIN_EMAIL` and `-- --cookie FILE`). It builds with the E2E server env, starts `PROFILE_TOOLS=1 next start -p 3100`, runs `profile:pages --params-from-seed --strict-routes --assert-db-stages 8 --json .profile/gate.json`, stops the server; exit = the crawler's. Never with an E2E run (same port, same DB).
+- **Columns:** only `dbStages` (drizzle `unsafe` spans) is asserted; `authStages` (Better Auth `pg` pool, `instrumentPgPool`) and `txStages` (BEGIN/COMMIT, tagged `sql`) are reported (launch-gate D5). Spans live in `.profile/tools.ndjson`, per-query detail in `.profile/report.json`.
+
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (env from `playwright.config.ts`), runs as its own CI job, and never concurrently with another `cs_test` run.
 - **Reuse signed-in sessions; never add a magic-link sign-in:** Better Auth allows 5 magic-link requests/IP/60 s; full runs already hit it (`smoke.spec` :6/:41 fail in full suites only). Specs reuse storage states. `latestMagicLink()`/`newMagicLink()` filter by recipient after an outbox snapshot.

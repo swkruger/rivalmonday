@@ -71,3 +71,77 @@ None (`git branch --no-merged main` is empty).
 6. **Enforce in CI?** (a) a manual pre-deploy run, pasted here; (b) a CI job (`next start` + `PROFILE_TOOLS=1` + `--assert-db-stages 8 --strict-routes` on the E2E seed); (c) (a) now, (b) to backlog. **Rec (c):** the count doesn't depend on the DB, but CI minutes are a concern (repo going private).
 7. **Which DB?** (a) local cluster 5444 (same count, deterministic); (b) Neon dev (D7's wording; real ~50 ms per stage); (c) count on local, latency on Neon dev + staging. **Rec (c).**
 8. **Bar for `/platform/**` and the 3 pages:** (a) ≤ 8 everywhere; (b) ≤ 10 for operator pages; (c) measure only. **Rec (a)** + `--strict-routes`.
+
+## Baseline (before)
+Task 1, 2026-11-03: `bash apps/web/scripts/profile-gate.sh` (local cluster 5444, E2E seed, warm visit, `--params-from-seed`), sorted by `dbStages`. Gate FAILS as expected: 59 of 68 pages > 8; max 23 (`/platform`, `/platform/runbook`), median 15. Not profiled (strict-routes fail): `/c/[clientId]/ask/[threadId]` (the admin has no own thread in the seed; Ask threads are author-only), `/c/[clientId]/reports/[reportId]` (no `trend_report` in the seed), `/c/[clientId]/evidence/[evidenceId]` (no crawlable link). Back-to-back runs differ by about ±1 stage on a few pages (span overlap is timing-dependent).
+
+| route | path | status | dbStages | authStages | txStages | wallMs |
+|---|---|---|---|---|---|---|
+| /platform | `/platform` | 200 | 23 | 1 | 4 | 77 |
+| /platform/runbook | `/platform/runbook` | 200 | 23 | 1 | 4 | 72 |
+| /platform/agencies | `/platform/agencies` | 200 | 22 | 1 | 4 | 81 |
+| /platform/help | `/platform/help` | 200 | 22 | 1 | 4 | 69 |
+| /platform/knowledge/[id] | `/platform/knowledge/new` | 200 | 22 | 1 | 4 | 65 |
+| /platform/knowledge/new | `/platform/knowledge/new` | 200 | 22 | 1 | 4 | 76 |
+| /platform/reviews | `/platform/reviews` | 200 | 22 | 1 | 4 | 76 |
+| /platform/topics | `/platform/topics` | 200 | 22 | 1 | 4 | 83 |
+| /platform/waitlist | `/platform/waitlist` | 200 | 22 | 1 | 4 | 81 |
+| /c/[clientId] | `/c/fa0688ac…` | 200 | 21 | 2 | 16 | 182 |
+| /c/[clientId]/changes | `/c/fa0688ac…/changes` | 200 | 21 | 2 | 16 | 102 |
+| /platform/ask | `/platform/ask` | 200 | 21 | 1 | 4 | 83 |
+| /platform/leads | `/platform/leads` | 200 | 21 | 1 | 4 | 74 |
+| /platform/verticals | `/platform/verticals` | 200 | 21 | 1 | 4 | 83 |
+| /c/[clientId]/competitors/[competitorId] | `/c/fa0688ac…/competitors/58c9f21e…` | 200 | 19 | 2 | 13 | 181 |
+| /platform/health | `/platform/health` | 200 | 18 | 1 | 4 | 95 |
+| /platform/knowledge | `/platform/knowledge` | 200 | 18 | 1 | 4 | 91 |
+| /c/[clientId]/settings/billing | `/c/fa0688ac…/settings/billing` | 404 | 17 | 4 | 7 | 69 |
+| /c/[clientId]/setup | `/c/fa0688ac…/setup` | 200 | 17 | 2 | 8 | 61 |
+| /agency/help | `/agency/help` | 200 | 16 | 2 | 5 | 58 |
+| /agency/leads | `/agency/leads` | 200 | 16 | 2 | 5 | 54 |
+| /agency/settings/branding | `/agency/settings/branding` | 200 | 16 | 2 | 5 | 52 |
+| /c/[clientId]/pitch-snapshot | `/c/fa0688ac…/pitch-snapshot` | 404 | 16 | 4 | 6 | 89 |
+| /inbox | `/inbox` | 200 | 16 | 2 | 5 | 70 |
+| /kb/[id] | `/kb/d72aa9d4…` | 200 | 16 | 2 | 5 | 81 |
+| /platform/billing | `/platform/billing` | 200 | 16 | 1 | 4 | 71 |
+| /settings/profile | `/settings/profile` | 200 | 16 | 2 | 5 | 95 |
+| /agency/alerts | `/agency/alerts` | 200 | 15 | 2 | 6 | 91 |
+| /agency/settings/ai | `/agency/settings/ai` | 200 | 15 | 2 | 6 | 71 |
+| /agency/settings/billing | `/agency/settings/billing` | 200 | 15 | 2 | 5 | 67 |
+| /agency/settings/platform-access | `/agency/settings/platform-access` | 200 | 15 | 2 | 5 | 80 |
+| /agency/settings/runbook | `/agency/settings/runbook` | 200 | 15 | 2 | 5 | 89 |
+| /agency/settings/slack-teams | `/agency/settings/slack-teams` | 200 | 15 | 2 | 5 | 62 |
+| /agency/settings/team | `/agency/settings/team` | 200 | 15 | 2 | 5 | 65 |
+| /platform/ask/[threadId] | `/platform/ask/2ae1e639…` | 200 | 15 | 1 | 4 | 69 |
+| /agency/prospects | `/agency/prospects` | 200 | 14 | 2 | 5 | 64 |
+| /agency/settings/intake | `/agency/settings/intake` | 200 | 14 | 2 | 7 | 63 |
+| /c/[clientId]/briefs | `/c/fa0688ac…/briefs` | 200 | 14 | 2 | 6 | 76 |
+| /c/[clientId]/reviews | `/c/fa0688ac…/reviews` | 200 | 14 | 2 | 10 | 101 |
+| /c/[clientId]/settings/profile | `/c/fa0688ac…/settings/profile` | 200 | 14 | 2 | 9 | 79 |
+| /agency/settings/intake/preview | `/agency/settings/intake/preview` | 200 | 13 | 2 | 7 | 50 |
+| /c/[clientId]/recommendations | `/c/fa0688ac…/recommendations` | 200 | 13 | 2 | 6 | 79 |
+| /platform/costs | `/platform/costs` | 200 | 13 | 1 | 4 | 80 |
+| /c/[clientId]/help | `/c/fa0688ac…/help` | 200 | 12 | 2 | 6 | 68 |
+| /c/[clientId]/pricing | `/c/fa0688ac…/pricing` | 200 | 12 | 2 | 6 | 67 |
+| /c/[clientId]/settings/delivery | `/c/fa0688ac…/settings/delivery` | 200 | 12 | 2 | 7 | 126 |
+| /agency/approvals/[briefId] | `/agency/approvals/85a8bda9…` | 200 | 11 | 2 | 8 | 67 |
+| /c/[clientId]/ask | `/c/fa0688ac…/ask` | 200 | 11 | 2 | 6 | 73 |
+| /c/[clientId]/settings/alerts | `/c/fa0688ac…/settings/alerts` | 200 | 11 | 2 | 6 | 72 |
+| /c/[clientId]/settings/usage | `/c/fa0688ac…/settings/usage` | 200 | 11 | 2 | 7 | 84 |
+| /agency/approvals | `/agency/approvals` | 200 | 10 | 2 | 6 | 58 |
+| /agency/settings/usage | `/agency/settings/usage` | 200 | 10 | 2 | 8 | 58 |
+| /c/[clientId]/ads | `/c/fa0688ac…/ads` | 200 | 10 | 2 | 8 | 96 |
+| /c/[clientId]/competitors | `/c/fa0688ac…/competitors` | 200 | 10 | 2 | 6 | 104 |
+| /c/[clientId]/rankings | `/c/fa0688ac…/rankings` | 200 | 10 | 2 | 16 | 123 |
+| /platform/agencies/[id] | `/platform/agencies/2e0737ee…` | 200 | 10 | 1 | 4 | 116 |
+| /c/[clientId]/alerts/[alertId] | `/c/fa0688ac…/alerts/b088021f…` | 200 | 9 | 2 | 10 | 90 |
+| /c/[clientId]/settings/ai | `/c/fa0688ac…/settings/ai` | 200 | 9 | 2 | 9 | 72 |
+| /c/[clientId]/settings/runbook | `/c/fa0688ac…/settings/runbook` | 200 | 9 | 2 | 8 | 81 |
+| /agency | `/agency` | 200 | 8 | 2 | 6 | 104 |
+| /c/[clientId]/briefs/[briefId] | `/c/fa0688ac…/briefs/85a8bda9…` | 200 | 8 | 2 | 11 | 90 |
+| /c/[clientId]/moves | `/c/fa0688ac…/moves` | 200 | 8 | 2 | 9 | 87 |
+| /agency/clients/new | `/agency/clients/new` | 200 | 7 | 2 | 2 | 55 |
+| /agency/prospects/[clientId] | `/agency/prospects/new` | 200 | 7 | 2 | 2 | 35 |
+| /agency/prospects/new | `/agency/prospects/new` | 200 | 7 | 2 | 2 | 65 |
+| /paused | `/paused` | 307 | 7 | 4 | 0 | 29 |
+| /c/[clientId]/setup/competitors | `/c/fa0688ac…/setup/competitors` | 307 | 6 | 2 | 2 | 34 |
+| /onboarding | `/onboarding` | 307 | 5 | 2 | 0 | 52 |

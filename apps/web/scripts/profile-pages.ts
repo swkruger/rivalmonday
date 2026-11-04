@@ -3,18 +3,22 @@
  *
  *   PROFILE_TOOLS=1 next start …   (see the work file for the local recipe)
  *   pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages 4] [--param clientId=<uuid>]
+ *   bash apps/web/scripts/profile-gate.sh   (launch gate: build, start, --params-from-seed --assert-db-stages 8)
  *
  * Routes come from `@cs/demo` `SCREENS` (one visit per base route). Route params are resolved by crawling as the
- * signed-in user: a route's first matching link on an already-visited page gives its ids (or `--param` overrides),
- * so the same run works on the E2E seed, the demo set or production. Each page is visited once to discover links
- * and once more, warm, to measure (request → full HTML). With a local server running `PROFILE_TOOLS=1`, the tool
- * timings in `.profile/tools.ndjson` are joined to each measured request by `x-rm-path` and time window.
+ * signed-in user: a route's first matching link on an already-visited page gives its ids (or `--param` overrides,
+ * or `--params-from-seed`), so the same run works on the E2E seed, the demo set or production. Each page is visited
+ * once to discover links and once more, warm, to measure (request → full HTML). With a local server running
+ * `PROFILE_TOOLS=1`, the timings in `.profile/tools.ndjson` are joined to each measured request by `x-rm-path` and
+ * time window. Launch-gate D5: `dbStages` counts app (drizzle) spans only; Better Auth (`authStages`) and
+ * BEGIN/COMMIT or tagged `sql` (`txStages`) spans are reported in their own columns, never asserted.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { baseRoute, SCREENS } from '@cs/demo';
-import { nowMs, sequentialStages, type ToolTiming } from '../src/server/tool-timing';
-import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, routePattern } from './profile-args';
+import postgres from 'postgres';
+import { dbStageCounts, nowMs, sequentialStages, type ToolTiming } from '../src/server/tool-timing';
+import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, type ReportRow, routePattern } from './profile-args';
 
 const parsed = parseProfileArgs(process.argv.slice(2), process.env);
 if ('error' in parsed) {
@@ -43,6 +47,68 @@ async function cookieHeader(): Promise<string> {
   return cookieHeaderFrom(readFileSync(ADMIN_STATE, 'utf8'), host);
 }
 
+/** The E2E admin (`e2e/seed.ts`); `PROFILE_SEED_ADMIN_EMAIL` overrides it for another seed. */
+const SEED_ADMIN = process.env.PROFILE_SEED_ADMIN_EMAIL?.trim() || 'admin@e2e.test';
+
+/**
+ * `--params-from-seed`: deterministic ids for the routes no crawl reaches, keyed like `--param` (`clientId` for every
+ * `/c/` route; other params by their route prefix). Read-only, on the service URL. A param with no reachable row stays
+ * unset, so its route is listed as not profiled.
+ */
+async function seedParams(): Promise<{ params: Record<string, string>; missing: string[] }> {
+  try {
+    process.loadEnvFile(resolve(import.meta.dirname, '../../../.env'));
+  } catch {
+    // optional: the gate passes the URLs in the environment
+  }
+  const url = process.env.PROFILE_SEED_DATABASE_URL?.trim() || process.env.TEST_SERVICE_DATABASE_URL?.trim();
+  if (!url) throw new Error('--params-from-seed needs TEST_SERVICE_DATABASE_URL (or PROFILE_SEED_DATABASE_URL)');
+  const sql = postgres(url, { max: 1, onnotice: () => {} });
+  try {
+    const one = async (q: Promise<{ id: string }[]>) => (await q)[0]?.id;
+    // The admin's agency: its own membership once it has signed in, else the seed's invitation.
+    const agencyId = await one(sql<{ id: string }[]>`
+      select agency_id as id from (
+        select m.agency_id, 0 as pri, m.created_at from membership m join auth."user" u on u.id = m.user_id
+          where lower(u.email) = lower(${SEED_ADMIN}) and m.client_id is null
+        union all
+        select i.agency_id, 1, i.created_at from invitation i
+          where lower(i.email) = lower(${SEED_ADMIN}) and i.client_id is null and i.revoked_at is null
+      ) x order by pri, created_at limit 1`);
+    const userId = await one(sql<{ id: string }[]>`select id from auth."user" where lower(email) = lower(${SEED_ADMIN}) limit 1`);
+    // The agency's first active client (the E2E seed's `E2E HVAC`, which carries most of the workspace data).
+    const clientId = agencyId
+      ? await one(sql<{ id: string }[]>`select id from client where agency_id = ${agencyId} and status = 'active' and archived_at is null order by created_at, id limit 1`)
+      : undefined;
+    // Client Ask threads are author-only (`get_my_ask_thread`): only the admin's own thread on that client opens.
+    const clientThread = clientId && userId
+      ? await one(sql<{ id: string }[]>`select id from ask_thread where client_id = ${clientId} and user_id = ${userId} and deleted_at is null order by created_at, id limit 1`)
+      : undefined;
+    // `/platform/ask` lists reviewable threads newest first (`listReviewableAskThreads`): its first row.
+    const platformThread = await one(sql<{ id: string }[]>`
+      select t.id from ask_thread t
+        join client c on c.id = t.client_id and c.agency_id = t.agency_id
+        join agency a on a.id = t.agency_id
+      where c.ask_review_allowed and c.archived_at is null and a.archived_at is null
+      order by t.created_at desc, t.id limit 1`);
+    const reportId = clientId
+      ? await one(sql<{ id: string }[]>`select id from trend_report where client_id = ${clientId} order by period_start desc, id limit 1`)
+      : undefined;
+    // A published platform article an agency admin may read (the audience rule of `get_kb_article`).
+    const kbId = await one(sql<{ id: string }[]>`
+      select id from kb_article where level = 'platform' and status = 'published' and audience in ('all', 'agency')
+      order by seed_key nulls last, id limit 1`);
+    const found: Record<string, string | undefined> = {
+      clientId, '/c/[clientId]/ask/[threadId]': clientThread, '/platform/ask/[threadId]': platformThread,
+      '/c/[clientId]/reports/[reportId]': reportId, '/kb/[id]': kbId,
+    };
+    const params = Object.fromEntries(Object.entries(found).filter((e): e is [string, string] => e[1] !== undefined));
+    return { params, missing: Object.keys(found).filter((k) => found[k] === undefined) };
+  } finally {
+    await sql.end();
+  }
+}
+
 interface Visit { path: string; status: number; ms: number; startMs: number; endMs: number; html: string; location: string | null }
 
 async function visit(path: string, cookie: string): Promise<Visit> {
@@ -66,6 +132,14 @@ async function main(): Promise<number> {
     console.error(`No cookie for ${host}: pass --cookie FILE (a storage state or a raw Cookie header).`);
     return 2;
   }
+  // After the cookie: signing in turns the seed's invitation into the admin's membership.
+  let seeded: Record<string, string> = {};
+  if (args.paramsFromSeed) {
+    const s = await seedParams();
+    seeded = s.params;
+    console.log(`Seed params (${SEED_ADMIN}): ${Object.entries(seeded).map(([k, v]) => `${k}=${v}`).join(', ') || 'none'}`);
+    if (s.missing.length) console.log(`  not in the seed (left to the crawl): ${s.missing.join(', ')}`);
+  }
 
   // --- Discovery: visit what can be visited, learn ids from links, repeat until nothing new resolves. ---
   const routes = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
@@ -79,7 +153,9 @@ async function main(): Promise<number> {
   const paramsFor = (route: string) => {
     const out: Record<string, string> = {};
     for (const [, name] of route.matchAll(/\[(\w+)\]/g)) {
-      const v = args.params[keyOf(route, name!)] ?? args.params[name!] ?? known[keyOf(route, name!)];
+      // Seed ids are keyed per route ('clientId' = the /c/ routes only), so a prospect never borrows the workspace client.
+      const key = keyOf(route, name!);
+      const v = args.params[key] ?? args.params[name!] ?? seeded[key] ?? known[key];
       if (v !== undefined) out[name!] = v;
     }
     return out;
@@ -133,32 +209,49 @@ async function main(): Promise<number> {
     const mine = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
     const tools = mine.filter((t) => t.kind !== 'db');
     const queries = mine.filter((t) => t.kind === 'db');
+    const counts = dbStageCounts(mine);
     return {
-      route: v.route, path: v.path, status: v.status, ms: Math.round(v.ms),
+      route: v.route, path: v.path, status: v.status, wallMs: Math.round(v.ms),
       /** Spec D7 as asserted: sequential tool stages (layout + page tool calls). */
       stages: sequentialStages(tools),
-      /** Sequential DB round-trip stages on the web pools, shell and direct reads included (not Better Auth's pool). */
-      dbStages: sequentialStages(queries),
-      queries: queries.length,
+      /** Launch-gate D5 (asserted): sequential app (drizzle) DB stages on the web pools, shell and direct reads included. */
+      dbStages: counts.dbStages,
+      /** Reported only: Better Auth's pool; BEGIN/COMMIT (savepoint/release) and tagged `sql` round trips. */
+      authStages: counts.authStages,
+      txStages: counts.txStages,
+      queries: counts.queries,
       tools: tools.map((t) => ({ tool: t.tool, ms: Math.round(t.endMs - t.startMs), atMs: Math.round(t.startMs - v.startMs) })),
       /** report.json only: each query's label (`select client`), duration and start offset. */
-      db: queries.map((t) => ({ query: t.tool, ms: Math.round((t.endMs - t.startMs) * 10) / 10, atMs: Math.round(t.startMs - v.startMs) })),
+      db: queries.map((t) => ({ query: t.tool, source: t.source ?? 'app', ms: Math.round((t.endMs - t.startMs) * 10) / 10, atMs: Math.round(t.startMs - v.startMs) })),
     };
-  }).sort((a, b) => b.ms - a.ms);
+  }).sort((a, b) => b.wallMs - a.wallMs);
 
   const p75 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.75) - 1]! : 0);
   const max = (xs: number[]) => Math.max(0, ...xs);
   const workspace = rows.filter((r) => r.route.startsWith('/agency') || r.route.startsWith('/c/'));
   mkdirSync(PROFILE_DIR, { recursive: true });
   writeFileSync(join(PROFILE_DIR, 'report.json'), JSON.stringify({ base: args.base, at: new Date().toISOString(), rows, unresolved }, null, 2));
+  if (args.json) {
+    const out: ReportRow[] = [...rows]
+      .sort((a, b) => b.dbStages - a.dbStages || a.route.localeCompare(b.route))
+      .map((r) => ({ route: r.route, path: r.path, status: r.status, wallMs: r.wallMs, dbStages: r.dbStages, authStages: r.authStages, txStages: r.txStages }));
+    mkdirSync(dirname(resolve(args.json)), { recursive: true });
+    writeFileSync(resolve(args.json), JSON.stringify({ base: args.base, at: new Date().toISOString(), assertDbStages: args.assertDbStages, rows: out, unresolved }, null, 2));
+  }
 
   console.log(`Profiled ${rows.length} of ${routes.length} routes on ${args.base} (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
-  console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.ms))} ms; slowest page ${rows[0]?.ms ?? 0} ms`);
-  console.log(`Max sequential tool stages ${max(rows.map((r) => r.stages))}; max sequential DB stages (incl. shell) ${max(rows.map((r) => r.dbStages))}, median ${[...rows.map((r) => r.dbStages)].sort((a, b) => a - b)[Math.floor(rows.length / 2)] ?? 0}\n`);
-  console.log('Slowest 15 (ms · tool stages · DB stages/queries · status · tools as name:ms@start):');
+  console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.wallMs))} ms; slowest page ${rows[0]?.wallMs ?? 0} ms`);
+  console.log(`Max sequential tool stages ${max(rows.map((r) => r.stages))}; max sequential DB stages (incl. shell) ${max(rows.map((r) => r.dbStages))}, median ${[...rows.map((r) => r.dbStages)].sort((a, b) => a - b)[Math.floor(rows.length / 2)] ?? 0}; max auth stages ${max(rows.map((r) => r.authStages))}, max tx stages ${max(rows.map((r) => r.txStages))} (reported, not asserted)\n`);
+  console.log('Slowest 15 (ms · tool stages · DB stages/queries · auth stages · tx stages · status · tools as name:ms@start):');
   for (const r of rows.slice(0, 15)) {
-    console.log(`${String(r.ms).padStart(6)} ms  ${String(r.stages).padStart(2)} tool st  ${String(r.dbStages).padStart(3)} db st/${r.queries} q  ${r.status}  ${r.route}`);
+    console.log(`${String(r.wallMs).padStart(6)} ms  ${String(r.stages).padStart(2)} tool st  ${String(r.dbStages).padStart(3)} db st/${r.queries} q  ${String(r.authStages).padStart(2)} auth  ${String(r.txStages).padStart(2)} tx  ${r.status}  ${r.route}`);
     if (r.tools.length) console.log(`        ${r.tools.map((t) => `${t.tool}:${t.ms}@${t.atMs}`).join('  ')}`);
+  }
+  if (args.json) {
+    console.log('\nEvery page by DB stages (db · auth · tx · ms · status · route):');
+    for (const r of [...rows].sort((a, b) => b.dbStages - a.dbStages || a.route.localeCompare(b.route))) {
+      console.log(`${String(r.dbStages).padStart(3)} db  ${String(r.authStages).padStart(2)} auth  ${String(r.txStages).padStart(2)} tx  ${String(r.wallMs).padStart(6)} ms  ${r.status}  ${r.route}`);
+    }
   }
   if (unresolved.length) console.log(`\nWARN ${unresolved.length} route(s) not profiled (no link found; pass --param): ${unresolved.join(', ')}`);
   const bad = rows.filter((r) => r.status >= 500);

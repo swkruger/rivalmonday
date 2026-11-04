@@ -20,6 +20,12 @@ export interface ToolTiming {
   endMs: number;
   /** Absent = 'tool'. 'db' = one postgres round trip on the web's drizzle pools (`db-timing.ts`). */
   kind?: 'tool' | 'db';
+  /**
+   * `kind: 'db'` only; absent (or unknown) = 'app'. 'app' = a drizzle query on the web pools (the gated count, spec
+   * launch-gate D5); 'auth' = Better Auth's `pg` pool; 'tx' = a postgres-js BEGIN/COMMIT (savepoint/release, rollback)
+   * or tagged-template `sql` round trip. Auth and tx are reported, never asserted.
+   */
+  source?: 'app' | 'auth' | 'tx';
 }
 
 /** Appends one NDJSON line. A no-op unless `PROFILE_TOOLS=1`; never throws into the request it measures. */
@@ -28,7 +34,7 @@ export function recordToolTiming(e: ToolTiming): void {
   try {
     const dir = join(process.cwd(), '.profile');
     mkdirSync(dir, { recursive: true });
-    appendFileSync(join(dir, 'tools.ndjson'), `${JSON.stringify({ path: e.path, tool: e.tool, startMs: e.startMs, endMs: e.endMs, kind: e.kind ?? 'tool' })}\n`);
+    appendFileSync(join(dir, 'tools.ndjson'), `${JSON.stringify({ path: e.path, tool: e.tool, startMs: e.startMs, endMs: e.endMs, kind: e.kind ?? 'tool', ...(e.source ? { source: e.source } : {}) })}\n`);
   } catch {
     // profiling must never break a page
   }
@@ -47,4 +53,18 @@ export function sequentialStages(spans: readonly { startMs: number; endMs: numbe
     groupEnd = Math.max(groupEnd, s.endMs);
   }
   return stages;
+}
+
+/** A db span's source; absent or unknown = 'app'. */
+export const spanSource = (t: Pick<ToolTiming, 'source'>): 'app' | 'auth' | 'tx' => (t.source === 'auth' || t.source === 'tx' ? t.source : 'app');
+
+/**
+ * Launch-gate D5: `dbStages` = `sequentialStages` of the app (drizzle) db spans only, exactly as 7a counted them;
+ * Better Auth and transaction-control spans get their own columns. Tool spans are ignored; `queries` counts app spans.
+ */
+export function dbStageCounts(spans: readonly ToolTiming[]): { dbStages: number; authStages: number; txStages: number; queries: number } {
+  const db = spans.filter((t) => t.kind === 'db');
+  const of = (src: 'app' | 'auth' | 'tx') => db.filter((t) => spanSource(t) === src);
+  const app = of('app');
+  return { dbStages: sequentialStages(app), authStages: sequentialStages(of('auth')), txStages: sequentialStages(of('tx')), queries: app.length };
 }

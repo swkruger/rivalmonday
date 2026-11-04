@@ -13,25 +13,44 @@ export interface ProfileArgs {
   strictRoutes: boolean;
   /** Route-param overrides (`--param clientId=<uuid>`, or one route's param: `--param /kb/[id]=<uuid>`), used instead of ids found by crawling. */
   params: Record<string, string>;
+  /** Fill the four uncrawlable route params from the E2E seed (`TEST_SERVICE_DATABASE_URL`); `--param` still wins. */
+  paramsFromSeed: boolean;
+  /** Also write the per-page rows (`ReportRow[]`) to this JSON file. */
+  json: string | null;
 }
 
-export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--assert-db-stages N] [--strict-routes] [--param name=value]...
+/** One measured page in `--json` output (launch-gate D5: only `dbStages` is asserted). */
+export interface ReportRow {
+  route: string;
+  path: string;
+  status: number;
+  wallMs: number;
+  dbStages: number;
+  authStages: number;
+  txStages: number;
+}
+
+export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--assert-db-stages N] [--strict-routes] [--param name=value]... [--params-from-seed] [--json FILE]
   --base URL           server to profile (default http://localhost:$E2E_PORT, port 3100 when unset); it must run with PROFILE_TOOLS=1
                        for per-tool timings (a server without it gives page times only)
   --cookie FILE        Playwright storage-state JSON or a raw Cookie header (default: the E2E admin's storage state,
                        signing in once if it is missing)
   --assert-stages N    exit 1 when any page renders with more than N sequential tool stages (spec D7: 4)
-  --assert-db-stages N exit 1 when any page makes more than N sequential DB round-trip stages (shell included)
+  --assert-db-stages N exit 1 when any page makes more than N sequential app (drizzle) DB stages (shell included;
+                       Better Auth and BEGIN/COMMIT stages are reported, never asserted)
   --strict-routes      exit 1 when any coverage route could not be resolved (and so was not profiled)
   --param name=value   use this id for a route param (e.g. clientId, or /kb/[id] for one route's param) instead of the
-                       first one found by crawling`;
+                       first one found by crawling
+  --params-from-seed   take clientId, the Ask thread ids, reportId and the kb article id from the E2E seed (read via
+                       TEST_SERVICE_DATABASE_URL, or PROFILE_SEED_DATABASE_URL); --param still overrides
+  --json FILE          also write the per-page rows (route, path, status, wallMs, dbStages, authStages, txStages)`;
 
 export function parseProfileArgs(argv: string[], env: Record<string, string | undefined>): ProfileArgs | { error: string } {
-  let values: { base?: string; cookie?: string; 'assert-stages'?: string; 'assert-db-stages'?: string; 'strict-routes'?: boolean; param?: string[] };
+  let values: { base?: string; cookie?: string; 'assert-stages'?: string; 'assert-db-stages'?: string; 'strict-routes'?: boolean; param?: string[]; 'params-from-seed'?: boolean; json?: string };
   try {
     ({ values } = parseArgs({
       args: argv, strict: true, allowPositionals: false,
-      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, 'assert-db-stages': { type: 'string' }, 'strict-routes': { type: 'boolean' }, param: { type: 'string', multiple: true } },
+      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, 'assert-db-stages': { type: 'string' }, 'strict-routes': { type: 'boolean' }, param: { type: 'string', multiple: true }, 'params-from-seed': { type: 'boolean' }, json: { type: 'string' } },
     }));
   } catch (e) {
     return { error: (e as Error).message };
@@ -53,7 +72,7 @@ export function parseProfileArgs(argv: string[], env: Record<string, string | un
     if (!m) return { error: `--param must be name=value (got "${p}")` };
     params[m[1]!] = m[2]!;
   }
-  return { base, cookie: values.cookie ?? null, assertStages, assertDbStages, strictRoutes: values['strict-routes'] === true, params };
+  return { base, cookie: values.cookie ?? null, assertStages, assertDbStages, strictRoutes: values['strict-routes'] === true, params, paramsFromSeed: values['params-from-seed'] === true, json: values.json ?? null };
 }
 
 /** `/c/[clientId]/briefs/[briefId]` → a whole-path regex with one named group per param. */

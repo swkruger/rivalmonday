@@ -1,9 +1,10 @@
 import { createDb } from '@cs/db';
 import { testUrls } from '@cs/db/test-helpers';
 import { sql as dsql } from 'drizzle-orm';
-import type postgres from 'postgres';
+import type { Pool } from 'pg';
+import postgres from 'postgres';
 import { describe, expect, it, vi } from 'vitest';
-import { instrumentSql, sqlLabel } from './db-timing';
+import { instrumentPgPool, instrumentSql, sqlLabel } from './db-timing';
 import type { ToolTiming } from './tool-timing';
 
 describe('sqlLabel', () => {
@@ -69,7 +70,26 @@ describe('instrumentSql', () => {
       await (tx as typeof sql).unsafe('select 1 from "client"');
       await (tx as typeof sql).savepoint(async (sp) => (sp as typeof sql).unsafe('select 1 from "event"'));
     });
-    await vi.waitFor(() => expect(records.map((r) => r.tool)).toEqual(['select client', 'select event']));
+    await vi.waitFor(() => expect(records.filter((r) => !r.source).map((r) => r.tool)).toEqual(['select client', 'select event']));
+    await vi.waitFor(() => expect(records.filter((r) => r.source === 'tx').map((r) => r.tool).sort()).toEqual(['begin', 'commit', 'release', 'savepoint']));
+  });
+
+  it('records begin and commit round trips as tx spans around the app spans of the callback', async () => {
+    const { sql, records } = setup();
+    await sql.begin(async (tx) => { await (tx as typeof sql).unsafe('select 1 from "client"'); });
+    await vi.waitFor(() => expect(records).toHaveLength(3));
+    const byTool = Object.fromEntries(records.map((r) => [r.tool, r]));
+    expect(byTool.begin).toMatchObject({ kind: 'db', source: 'tx' });
+    expect(byTool.commit).toMatchObject({ kind: 'db', source: 'tx' });
+    expect(byTool['select client']!.source).toBeUndefined(); // app
+    expect(byTool.begin!.endMs).toBeLessThanOrEqual(byTool['select client']!.startMs);
+    expect(byTool.commit!.startMs).toBeGreaterThanOrEqual(byTool['select client']!.endMs);
+  });
+
+  it('records a rolled-back transaction as begin + rollback and still rejects', async () => {
+    const { sql, records } = setup();
+    await expect(sql.begin(async () => { throw new Error('nope'); })).rejects.toThrow('nope');
+    await vi.waitFor(() => expect(records.map((r) => r.tool).sort()).toEqual(['begin', 'rollback']));
   });
 
   it('passes everything else through (drizzle sets parsers on options)', () => {
@@ -87,6 +107,71 @@ describe('instrumentSql', () => {
   });
 });
 
+/** A stand-in for `pg`'s Pool: `query` and pooled clients' `query` resolve `{ rows }` (or call back). */
+function fakePool() {
+  const result = { rows: [{ ok: 1 }], rowCount: 1 };
+  const client = {
+    query: vi.fn((_text: unknown, _values?: unknown, cb?: unknown) => {
+      const done = typeof _values === 'function' ? _values : cb;
+      if (typeof done === 'function') { setTimeout(() => (done as (e: unknown, r: unknown) => void)(null, result), 0); return undefined; }
+      return Promise.resolve(result);
+    }),
+    release: vi.fn(),
+  };
+  const pool = {
+    query: vi.fn(async (_text: unknown, _values?: unknown) => result),
+    connect: vi.fn(async () => client),
+    end: vi.fn(),
+    options: { max: 5 },
+  };
+  return { pool, client, result };
+}
+
+describe('instrumentPgPool', () => {
+  const setup = (on = true) => {
+    const records: ToolTiming[] = [];
+    const raw = fakePool();
+    const queryMock = raw.pool.query; // the wrapper replaces pool.query in place
+    const pool = instrumentPgPool(raw.pool as unknown as Pool, { record: (e) => records.push(e), path: async () => '/agency', on: () => on }) as unknown as ReturnType<typeof fakePool>['pool'];
+    return { ...raw, queryMock, wrapped: pool, records };
+  };
+
+  it('records one auth span per pool.query and passes the result through unchanged', async () => {
+    const { wrapped, records, result } = setup();
+    await expect(wrapped.query('select * from "auth"."session" where token = $1', ['secret-token'])).resolves.toBe(result);
+    await wrapped.query({ text: 'update "auth"."session" set x = $1', values: ['secret'] });
+    await vi.waitFor(() => expect(records).toHaveLength(2));
+    expect(records.map((r) => [r.kind, r.source, r.tool, r.path])).toEqual([['db', 'auth', 'select session', '/agency'], ['db', 'auth', 'update session', '/agency']]);
+    expect(JSON.stringify(records)).not.toContain('secret');
+  });
+
+  it('records one auth span per query on a client from pool.connect (the Kysely path), callback form included', async () => {
+    const { wrapped, records, result } = setup();
+    const c = await wrapped.connect();
+    await expect(c.query('select 1 from "auth"."user"')).resolves.toBe(result);
+    const viaCb = await new Promise((resolve, reject) => c.query('select 1 from "auth"."account"', [], (e: unknown, r: unknown) => (e ? reject(e) : resolve(r))));
+    expect(viaCb).toBe(result);
+    const again = await wrapped.connect(); // pg hands the same client back: never double-wrapped
+    await again.query('select 1 from "auth"."verification"');
+    await vi.waitFor(() => expect(records.map((r) => r.tool)).toEqual(['select user', 'select account', 'select verification']));
+    expect(records.every((r) => r.source === 'auth' && r.kind === 'db')).toBe(true);
+  });
+
+  it('returns the pool untouched when profiling is off', () => {
+    const { pool, wrapped } = setup(false);
+    expect(wrapped).toBe(pool);
+    expect(pool.query).toBe(wrapped.query);
+    expect(pool.connect).toBe(wrapped.connect);
+  });
+
+  it('rejects a failed query as before and records it', async () => {
+    const { wrapped, records, queryMock } = setup();
+    queryMock.mockRejectedValueOnce(new Error('db down'));
+    await expect(wrapped.query('select 1')).rejects.toThrow('db down');
+    await vi.waitFor(() => expect(records).toHaveLength(1));
+  });
+});
+
 describe('instrumentSql on a real drizzle pool (createDb instrument option)', () => {
   it('keeps drizzle working (parsers, transactions) and times each round trip', async () => {
     const records: ToolTiming[] = [];
@@ -99,11 +184,28 @@ describe('instrumentSql on a real drizzle pool (createDb instrument option)', ()
         return [...(await tx.execute<{ v: string }>(dsql`select current_setting('app.x') as v`))][0]!.v;
       });
       expect(inTx).toBe('secret-value');
-      await vi.waitFor(() => expect(records).toHaveLength(3));
+      await vi.waitFor(() => expect(records).toHaveLength(5));
       expect(records.every((r) => r.kind === 'db' && r.path === '/p')).toBe(true);
+      expect(records.filter((r) => !r.source)).toHaveLength(3); // drizzle's queries are app spans
+      expect(records.filter((r) => r.source === 'tx').map((r) => r.tool).sort()).toEqual(['begin', 'commit']);
       expect(JSON.stringify(records)).not.toContain('secret-value');
     } finally {
       await close();
+    }
+  });
+
+  it('times a tagged-template sql call as one tx span (helpers like sql(obj) are not queries)', async () => {
+    const records: ToolTiming[] = [];
+    const raw = postgres(testUrls.service, { max: 1 });
+    const sql = instrumentSql(raw, { record: (e) => records.push(e), path: async () => '/p' });
+    try {
+      const rows = await sql`select ${'secret-value'}::text as v from pg_class limit 1`;
+      expect(rows[0]).toEqual({ v: 'secret-value' });
+      await vi.waitFor(() => expect(records).toHaveLength(1));
+      expect(records[0]).toMatchObject({ kind: 'db', source: 'tx', tool: 'select pg_class' });
+      expect(JSON.stringify(records)).not.toContain('secret-value');
+    } finally {
+      await raw.end();
     }
   });
 });

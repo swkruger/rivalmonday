@@ -3,16 +3,21 @@ import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, routePattern } fro
 
 describe('parseProfileArgs', () => {
   it('defaults to the local E2E server on E2E_PORT (3100 when unset), no cookie file, no assertion', () => {
-    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, assertDbStages: null, strictRoutes: false, params: {} });
+    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null });
     expect(parseProfileArgs([], { E2E_PORT: '3107' })).toMatchObject({ base: 'http://localhost:3107' });
   });
   it('takes --base (trailing slash dropped), --cookie and --assert-stages', () => {
     expect(parseProfileArgs(['--base', 'https://rivalmonday.app/', '--cookie', 'c.json', '--assert-stages', '4'], {}))
-      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, assertDbStages: null, strictRoutes: false, params: {} });
+      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null });
     expect(parseProfileArgs(['--assert-stages=4'], {})).toMatchObject({ assertStages: 4 });
   });
   it('takes --assert-db-stages and --strict-routes (both off by default)', () => {
     expect(parseProfileArgs(['--assert-db-stages', '12', '--strict-routes'], {})).toMatchObject({ assertDbStages: 12, strictRoutes: true, assertStages: null });
+  });
+  it('takes --params-from-seed and --json FILE (off by default)', () => {
+    expect(parseProfileArgs(['--params-from-seed', '--json', '.profile/gate.json'], {})).toMatchObject({ paramsFromSeed: true, json: '.profile/gate.json' });
+    expect(parseProfileArgs(['--json=out.json'], {})).toMatchObject({ paramsFromSeed: false, json: 'out.json' });
+    expect(parseProfileArgs(['--json'], {})).toHaveProperty('error');
   });
   it('collects repeated --param name=value overrides', () => {
     expect(parseProfileArgs(['--param', 'clientId=abc', '--param', 'briefId=def'], {})).toMatchObject({ params: { clientId: 'abc', briefId: 'def' } });
