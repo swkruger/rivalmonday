@@ -16,7 +16,7 @@ export function InkBand({ id, labelledBy, children }: { id?: string; labelledBy?
   );
 }
 
-/** The closing call to action on sub-pages; the home page closes with `PricingTeaser` instead. */
+/** The closing call to action on sub-pages; the home page closes with `CloseBand` instead. */
 export function CtaBand() {
   const { pilotMode } = usePilot();
   const copy = pilotMode ? CTA_BAND : CTA_BAND_TRIAL;
