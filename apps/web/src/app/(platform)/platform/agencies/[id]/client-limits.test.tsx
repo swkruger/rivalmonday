@@ -54,6 +54,19 @@ describe('ClientLimitsTable', () => {
     expect(await screen.findByText('Saved.')).toBeTruthy();
   });
 
+  it('locks the inputs while a save is pending, so edits made meanwhile cannot be wiped', async () => {
+    let done: (v: unknown) => void = () => {};
+    m.save.mockReturnValue(new Promise((r) => { done = r; }));
+    render(<ClientLimitsTable data={DATA} canEdit />);
+    fireEvent.change(screen.getByLabelText('Ask quota for Acme HVAC'), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(screen.getByLabelText('Ask quota for Acme HVAC').matches(':disabled')).toBe(true));
+    expect(screen.getByLabelText('Limit override for Bright Dental').matches(':disabled')).toBe(true);
+    done({ ok: true, message: 'Saved.' });
+    expect(await screen.findByText('Saved.')).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText('Ask quota for Acme HVAC').matches(':disabled')).toBe(false));
+  });
+
   it('posts every changed row in one save', async () => {
     m.save.mockResolvedValue({ ok: true, message: 'Saved.' });
     render(<ClientLimitsTable data={DATA} canEdit />);

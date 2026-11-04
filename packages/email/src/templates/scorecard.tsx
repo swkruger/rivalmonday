@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react';
 import { Section, Text } from '../rx';
 import type { Branding } from '../branding';
 import type { ScorecardModel } from '../types';
-import { num, td, th } from './table-cells';
+import { num, numCell, td, th } from './table-cells';
 
 const label: CSSProperties = { fontSize: 14, lineHeight: '20px', color: '#5B6B7F' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
@@ -32,19 +32,19 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
       </table>
       <table width="100%" cellPadding={0} cellSpacing={0} border={0} aria-label="Scorecard: you against the rivals we watch" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 8 }}>
         <colgroup>
-          <col style={{ width: '28%' }} />
-          {model.table.headers.slice(1).map((h) => <col key={h} style={{ width: `${72 / (model.table.headers.length - 1)}%` }} />)}
+          <col style={{ width: '24%' }} />
+          {model.table.headers.slice(1).map((h) => <col key={h} style={{ width: `${76 / (model.table.headers.length - 1)}%` }} />)}
         </colgroup>
         <thead>
           <tr>
-            {model.table.headers.map((h, i) => <th key={h} style={{ ...th, ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
+            {model.table.headers.map((h, i) => <th key={h} style={{ ...th, padding: '6px 3px', ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {model.table.rows.map((r, ri) => (
             <tr key={ri} style={r.self ? { backgroundColor: branding.panel, fontWeight: 700 } : undefined}>
               {r.cells.map((c, i) => (
-                <td key={i} style={{ ...td, ...(i === 0 ? {} : num) }}>
+                <td key={i} style={{ ...td, padding: '6px 3px', ...(i === 0 ? {} : numCell) }}>
                   {c}
                   {i === 0 && r.tier ? <span style={{ ...label, display: 'block', fontWeight: 400 }}>{TIER_LABELS[r.tier]}</span> : null}
                 </td>

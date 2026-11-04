@@ -74,6 +74,6 @@ describe('AssignDialog', () => {
 
   it('the listing search carries a hint that a listing is needed', () => {
     open();
-    expect(screen.getByText("Search Google for the business's listing. You need it to continue.")).toBeTruthy();
+    expect(screen.getByText("Search for the business's Google listing. You need it to continue.")).toBeTruthy();
   });
 });

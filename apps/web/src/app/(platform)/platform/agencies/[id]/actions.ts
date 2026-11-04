@@ -59,8 +59,9 @@ export async function saveClientLimitsAction(_prev: FormResult, fd: FormData): P
   let rows: ClientLimitsRow[];
   try {
     const parsed: unknown = JSON.parse(String(fd.get('rows') ?? '[]'));
-    if (!Array.isArray(parsed)) throw new Error('rows');
-    rows = parsed.slice(0, 500) as ClientLimitsRow[];
+    if (!Array.isArray(parsed) || parsed.length > 500) throw new Error('rows');
+    if (parsed.some((r) => r === null || typeof r !== 'object' || Array.isArray(r))) throw new Error('row');
+    rows = parsed as ClientLimitsRow[];
   } catch {
     return { ok: false, error: 'Something went wrong. Reload the page and try again.' };
   }

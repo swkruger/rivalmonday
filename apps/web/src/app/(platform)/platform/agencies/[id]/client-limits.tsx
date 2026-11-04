@@ -143,7 +143,7 @@ export function ClientLimitsTable({ data, canEdit }: { data: ClientLimits; canEd
   if (!editable) return table;
   return (
     <form action={submit} onReset={(e) => e.preventDefault()} className="flex flex-col gap-4">
-      {table}
+      <fieldset disabled={pending} className="m-0 min-w-0 border-0 p-0">{table}</fieldset>
       {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
       {state.ok && state.message && <p role="status" className="text-sm text-ink">{state.message}</p>}
       <SaveBar dirty={dirtyRows.length > 0} pending={pending} onReset={() => setEdits({})} />

@@ -98,6 +98,12 @@ describe('stagingWorkerEnv', () => {
     expect(env.SCRAPECREATORS_API_KEY).toBeUndefined();
   });
 
+  it('any other non-blank switch value is refused, and nothing is passed', () => {
+    for (const v of ['false', '1', 'TRUE', 'yes']) {
+      expect(() => stagingWorkerEnv({ ...FILE, VENDOR_LIVE_RANK_SCANS: v, DATAFORSEO_LOGIN: 'l', STADIA_API_KEY: 's' }, {})).toThrow('VENDOR_LIVE_RANK_SCANS must be true; remove the line to turn it off');
+    }
+  });
+
   it('without the switch no vendor key reaches the worker, from the file or the shell', () => {
     const env = stagingWorkerEnv({ ...FILE, DATAFORSEO_LOGIN: 'l', STADIA_API_KEY: 's' }, { VENDOR_LIVE_RANK_SCANS: 'true', STADIA_API_KEY: 'shell' });
     expect(env.VENDOR_LIVE_RANK_SCANS).toBeUndefined();

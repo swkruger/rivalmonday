@@ -122,6 +122,15 @@ describe('saveClientLimitsAction (one Save for the Client limits table)', () => 
     expect(await a.saveClientLimitsAction(ok, fd)).toMatchObject({ ok: false });
     expect(m.runTool).not.toHaveBeenCalled();
   });
+
+  it('refuses a null or non-object row, and more than 500 rows, before any tool call', async () => {
+    const bad = { ok: false, error: 'Something went wrong. Reload the page and try again.' };
+    expect(await post([row(C1, 'Acme HVAC'), null])).toEqual(bad);
+    expect(await post(['x'])).toEqual(bad);
+    expect(await post(Array.from({ length: 501 }, () => row(C1, 'Acme HVAC')))).toEqual(bad);
+    expect(m.runTool).not.toHaveBeenCalled();
+    expect(m.revalidate).not.toHaveBeenCalled();
+  });
 });
 
 describe('moveAgencyToCurrentPlanAction', () => {

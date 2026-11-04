@@ -71,6 +71,19 @@ describe('email typography', () => {
     expect(table).toMatch(/table-layout:fixed/);
   });
 
+  it('scorecard numbers never split mid-number and headers only wrap at spaces', async () => {
+    const p = preview('brief.quiet_scorecard');
+    if (p.template !== 'brief') throw new Error('fixture');
+    const headers = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'];
+    const scorecard = { ...p.props.scorecard!, table: { headers, rows: [{ cells: ['Bright Smile Dental (you)', '4.6', '12', '50%', '31%', '2', '—'], self: true, tier: null }] } };
+    const html = (await renderEmail({ template: 'brief', props: { ...p.props, scorecard } })).html;
+    const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
+    const tds = [...table.matchAll(/<td[^>]*style="([^"]*)"/g)].map((m) => m[1]!);
+    expect(tds).toHaveLength(headers.length);
+    for (const style of tds.slice(1)) expect(style).toMatch(/white-space:nowrap/);
+    for (const m of table.matchAll(/<th[^>]*style="([^"]*)"/g)) expect(m[1]).not.toMatch(/break-word/);
+  });
+
   it('readableTextOn picks the higher-contrast label', () => {
     expect(readableTextOn('#47A8E7')).toBe('#0B2540');
     expect(readableTextOn('#000000')).toBe('#FFFFFF');

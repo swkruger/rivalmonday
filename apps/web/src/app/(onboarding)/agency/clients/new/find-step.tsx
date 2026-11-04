@@ -103,7 +103,7 @@ export function FindStep({ kind, brand, steps, initialName, initialLocation, fin
           </Field>
           <Button type="submit" variant="outline" className="self-start" disabled={!name.trim() || location.trim().length < 2}>{searching ? 'Searching…' : places ? 'Search again' : 'Find business'}</Button>
         </fieldset>
-        <p className="text-sm text-muted-ink">Search Google for the listing, or pick a business type and continue without one.</p>
+        <p className="text-sm text-muted-ink">Search for the business&apos;s Google listing, or pick a business type and continue without one.</p>
       </form>
       {error && <ErrorNote focusKey={attempt}>{error}</ErrorNote>}
       {places && places.length === 0 && <p role="status" className="rounded-lg bg-muted-surface p-3 text-sm text-ink">No businesses found. Check the spelling or try a ZIP code.</p>}

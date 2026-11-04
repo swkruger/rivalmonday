@@ -47,7 +47,7 @@ describe('/start (platform)', () => {
     expect(screen.getByText("We'll match you with a local marketing partner.")).toBeTruthy();
     expect(container.querySelector('[data-part="rival"]')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
-    expect(screen.getByText('Search Google for your business, then pick it from the list to continue.')).toBeTruthy();
+    expect(screen.getByText("Search for your business's Google listing, then pick it from the list to continue.")).toBeTruthy();
     expect(screen.getByText('Step 1 of 3 · Find your business')).toBeTruthy();
     expect(platformMeta.robots).toEqual({ index: false, follow: false });
   });

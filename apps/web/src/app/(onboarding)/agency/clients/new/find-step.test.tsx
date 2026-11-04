@@ -36,7 +36,7 @@ describe('FindStep (client step 2)', () => {
 
   it('a hint under the search says what to do when there is no listing', () => {
     show();
-    expect(screen.getByText('Search Google for the listing, or pick a business type and continue without one.')).toBeTruthy();
+    expect(screen.getByText("Search for the business's Google listing, or pick a business type and continue without one.")).toBeTruthy();
   });
 
   it('the search box stays editable', async () => {

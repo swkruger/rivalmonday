@@ -50,7 +50,9 @@ export function stagingWorkerEnv(file: Record<string, string | undefined>, shell
   const env: NodeJS.ProcessEnv = { ...shell };
   for (const k of DROPPED_FROM_SHELL) delete env[k];
   for (const k of PASSED) env[k] = file[k];
-  if (file.VENDOR_LIVE_RANK_SCANS?.trim()) for (const k of LIVE_RANK_PASSED) if (file[k] !== undefined) env[k] = file[k];
+  const live = file.VENDOR_LIVE_RANK_SCANS?.trim();
+  if (live && live !== 'true') throw new Error('VENDOR_LIVE_RANK_SCANS must be true; remove the line to turn it off');
+  if (live) for (const k of LIVE_RANK_PASSED) if (file[k] !== undefined) env[k] = file[k];
   env.DATABASE_URL = file.WORKER_DATABASE_URL;
   env.NODE_ENV = 'production';
   // 8080 is the dev worker's default; both can run side by side.
