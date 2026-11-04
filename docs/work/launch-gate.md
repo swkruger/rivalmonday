@@ -4,25 +4,129 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-11-04-launch-gate-design.md) · [plan](../superpowers/plans/2026-11-04-launch-gate.md)
 
 ## Status (overwrite)
-Spec + lean plan written 2026-11-04; awaiting owner approval. Gates 7a1 Task 12 (live deploy).
+2026-11-04: Tasks 0-7 done. **Gate passes:** `bash apps/web/scripts/profile-gate.sh --seed` → exit 0, 71/71 routes, max 7 dbStages (baseline: 58 of 68 over 8, max 23). Neon dev latency measured (§ Results): agency/workspace p75 **1476 ms** (≤ 1.5 s, by 24 ms), max **3188 ms**; 2 pages over 3 s (New backlog). The staging run is an owner step. Gates 7a1 Task 12 (live deploy).
 
 ## Next (overwrite)
-Owner approves the plan; then subagent-driven development (Task 0 pre-flight first).
+Final whole-branch review (`pnpm test:affected` + `e2e:affected`, `--base main`) and one fix wave; the owner runs the staging crawl (Owner verification steps); `/rm-merge` on the owner's go-ahead.
 
 ## Interfaces this branch adds or changes
-None yet. Next free migration: **0097** (probably not needed).
+- `apps/web/scripts/profile-gate.sh [--db local|neon-dev] [--seed] [--skip-build] [-- <profile:pages args>]` (recipe: `apps/web/CLAUDE.md` § Page profiler).
+- `profile:pages` flags `--assert-db-stages N`, `--strict-routes`, `--params-from-seed`, `--json FILE`; columns `dbStages`/`authStages`/`txStages` (median of 3 warm visits).
+- `@cs/core` `ToolRegistry.invoke`: `CallOptions.deferAudit` (web read, no support session, outcome ok → `after()`); `ToolRegistryOptions.onDeferredAuditError`.
+- `apps/web` `startShellReads(viewer, ctx, { zone, platformRole })` → `AppShell` `reads`; `@cs/tools` `allInOrder` (parallel reads, old refusal order); `@cs/db` `withTenant` pipelines `set_config` with the first query.
+- E2E seed `seedProfileRows` (admin auth user + Ask thread, one `sent` quarterly `trend_report`). No migration (next free **0097**).
 
 ## Assumes from other branches
-None (`git branch --no-merged main` is empty).
+None.
 
 ## Decisions (owner-approved)
 1. Owner, 2026-11-04: skipped the questions; the brief's recommendations stand (spec D1-D8).
+2. Controller, Task 7: the staging crawl needs an owner-provided signed-in cookie, so it is an owner step.
 
 ## New backlog (target → item)
-—
+- **7a1 Task 12 (before or with the live deploy) → two pages over 3 s on Neon dev:** `/c/[clientId]/competitors/[competitorId]` 3188 ms (113 queries), `/c/[clientId]` 3073 ms (110 queries). Wall time tracks *query count* (pool max 5 → queueing), not dbStages: cut queries per page (duplicate reads across ~18 parallel tools, e.g. `get_client_profile` ×2, `get_ask_starters` ×2) or size the pool per request. Re-measure from Vercel iad1 (staging) first: this box adds ~95 ms per query.
+- **Next perf pass → `get_evidence_refs` per-competitor loop** (`packages/tools/src/tools/evidence.ts:78`, `for … await competitorLinked`): one transaction per distinct competitor, so `/c/[clientId]/recommendations` is **10 dbStages / 2785 ms on cs_dev** (4 on the E2E seed). Batch the link check. The E2E-seed gate cannot see data-dependent loops.
+- **Pilot hardening → CI job for the gate** (spec D6): `next start` + `PROFILE_TOOLS=1` + `--assert-db-stages 8 --strict-routes` on the E2E seed.
+- **Next perf pass → rankings `before` cursor as a keyset `(finished_at, id)`** (6b review).
+- **If pool queueing shows on staging → `spendByClient` as one CTE** (6b review).
+- **Watch → workspace `/c/` p75 alone is 1679 ms** (agency pages 918 ms); the combined D7 p75 passes by 24 ms.
 
 ## Owner verification steps
-—
+1. **Staging latency (wall time only, D7):** sign in to `https://staging.rivalmonday.app` as an agency admin in a browser; copy the request `Cookie` header (DevTools → Network → any page request) into a file outside the repo, e.g. `$TEMP/rm-staging-cookie.txt`. From the worktree root (Git Bash):
+   `pnpm --filter @cs/web profile:pages --base https://staging.rivalmonday.app --cookie "$TEMP/rm-staging-cookie.txt" --strict-routes --json .profile/staging.json`
+   Add `--param clientId=<staging client id>` if a `/c/` route is unresolved. Pass = agency/workspace pages p75 ≤ 1.5 s and every page ≤ 3 s. Paste p75/max here, then delete the cookie file.
+2. Optional: `bash apps/web/scripts/profile-gate.sh --seed` → `profile-gate: exit 0`.
+
+## Results
+### Gate (local cluster 5444, E2E seed)
+- **Baseline** (Task 1, 2026-11-03): 58 of 68 pages over 8, max 23 (`/platform`, `/platform/reviews`), median 14; 3 param routes unprofiled. (app) shell ~12 stages per page, (platform) 18-23.
+- **Final** (Task 6c, `1371acaf`): exit 0, 71/71 profiled, max **7**, median 4.
+- **What moved it:** Tasks 2-3 web-read audit inserts deferred with `after()` (D2), billing row + hold state in one stage; Task 4 `startShellReads` (shell-only pages ~12 → 4); Task 5 platform layout in one stage, `loadCostState` 3 queries instead of 1 + 2 × 6 (platform 18-23 → 1-6); Task 6a `withTenant` pipelining, billing snapshot beside the plan read, tool reads overlapped (`allInOrder`, parity snapshots recorded on the old code); 6b rank/alert/runbook tools, branding on the membership, page reads started with their inputs; 6c evidence/compare tools, one-statement `competitorLinked`, seeded param rows.
+- **Reading the numbers:** removing the shell waterfall made some page chains *look* longer (overlapping spans had hidden them); 404/307 rows are ±1-2 noisy (the previous visit's tail spans). `dbStages` is a lower bound on depth: it counts gaps in the union of overlapping spans, and the page and its layouts run twin access chains concurrently, so wall time on Neon is the real check.
+
+### Latency (Neon dev `cs_dev`, Task 7, 2026-11-04)
+`bash apps/web/scripts/profile-gate.sh --db neon-dev --skip-build -- --cookie FILE` with `PROFILE_SEED_ADMIN_EMAIL` = the admin of `CS Dev Verification Agency` (client `CS Dev Verification Client`, every feature on). Local `next start` with the E2E server env + cs_dev URLs; signed in once by magic link through the file outbox (`POSTMARK_SERVER_TOKEN` blank). Exit 1: `/c/[clientId]/recommendations` 10 dbStages (data-dependent, backlog) and 5 param routes with no cs_dev row/link (`alerts/[alertId]`, `reports/[reportId]`, `agency/prospects/[clientId]`, `platform/agencies/[id]`, `platform/knowledge/[id]`). `/platform/*` 404s (that admin is not in the E2E `PLATFORM_ADMIN_EMAILS`), so it is out of the budget.
+- **wallMs (median of 3), 45 agency/workspace 200 pages:** p50 1158, **p75 1476**, mean 1288, **max 3188**. Agency + account pages (22): p75 918, max 1906 (`/agency`). Workspace `/c/` pages (23): p75 1679, max 3188.
+- **Per stage:** mean wall ≈ **198 ms per (db + auth) stage**; app query median 97 ms (p90 200), auth query median 43 ms. This box → Neon is about twice the ~50 ms the 7a numbers assumed.
+- **Pool fan-out shows:** median query time barely moves (93 → 109 ms), but mean wall climbs with queries per page: < 30 q 753 ms, 30-50 q 1413 ms, 50-80 q 2007 ms, ≥ 80 q 3131 ms. One request holds up to 5 service connections (pool max 5): ~110 queries × ~130 ms / 5 ≈ 2.9 s. Rankings (67 q) 2348 ms; settings pages 0.8-1.6 s (no spike).
+- **D7:** p75 passes (1476 ≤ 1500); "every page ≤ 3 s" fails on 2 pages → New backlog.
+
+<details><summary>Per-route table (71 routes): dbStages baseline → final (local), local ms, Neon dev dbStages and ms; sorted by Neon ms</summary>
+
+| route | db base → local | local ms | Neon db | Neon ms |
+|---|---|---|---|---|
+| /c/[clientId]/competitors/[competitorId] | 20 → 4 | 153 | 7 | **3188** |
+| /c/[clientId] | 20 → 5 | 148 | 5 | **3073** |
+| /c/[clientId]/recommendations | 13 → 4 | 67 | 10 | 2785 |
+| /c/[clientId]/rankings | 10 → 6 | 109 | 7 | 2348 |
+| /c/[clientId]/changes | 22 → 6 | 95 | 7 | 1963 |
+| /agency | 8 → 6 | 121 | 3 | 1906 |
+| /c/[clientId]/reviews | 13 → 4 | 97 | 4 | 1710 |
+| /c/[clientId]/moves | 7 → 4 | 86 | 5 | 1647 |
+| /c/[clientId]/pitch-snapshot (404) | 18 → 6 | 65 | 7 | 1622 (404) |
+| /c/[clientId]/settings/ai | 8 → 5 | 82 | 6 | 1608 |
+| /c/[clientId]/ads | 8 → 3 | 91 | 4 | 1554 |
+| /c/[clientId]/briefs/[briefId] | 8 → 5 | 71 | 5 | 1484 |
+| /c/[clientId]/competitors | 10 → 3 | 79 | 4 | 1476 |
+| /c/[clientId]/ask/[threadId] | — → 6 | 85 | 5 | 1468 |
+| /agency/approvals | 11 → 4 | 60 | 8 | 1386 |
+| /c/[clientId]/setup | 17 → 4 | 59 | 5 | 1385 |
+| /c/[clientId]/pricing | 13 → 6 | 77 | 7 | 1382 |
+| /c/[clientId]/ask | 11 → 4 | 70 | 5 | 1355 |
+| /c/[clientId]/briefs | 13 → 3 | 76 | 4 | 1268 |
+| /c/[clientId]/settings/billing (404) | 19 → 7 | 61 | 8 | 1254 (404) |
+| /c/[clientId]/evidence/[evidenceId] | — → 6 | 96 | 4 | 1229 |
+| /c/[clientId]/settings/profile | 13 → 3 | 67 | 4 | 1190 |
+| /c/[clientId]/settings/alerts | 11 → 3 | 63 | 4 | 1173 |
+| /c/[clientId]/settings/runbook | 9 → 5 | 81 | 4 | 1173 |
+| /agency/settings/billing | 15 → 3 | 48 | 7 | 1158 |
+| /agency/settings/usage | 11 → 5 | 57 | 4 | 1114 |
+| /c/[clientId]/settings/delivery | 12 → 3 | 93 | 4 | 1098 |
+| /c/[clientId]/settings/usage | 12 → 3 | 60 | 4 | 1087 |
+| /c/[clientId]/help | 13 → 3 | 57 | 4 | 1082 |
+| /agency/approvals/[briefId] | 10 → 6 | 60 | 5 | 1063 |
+| /agency/leads | 16 → 3 | 49 | 3 | 923 |
+| /agency/settings/intake/preview | 14 → 3 | 52 | 4 | 901 |
+| /settings/profile | 15 → 4 | 80 | 4 | 879 |
+| /agency/settings/intake | 13 → 5 | 58 | 3 | 856 |
+| /agency/settings/runbook | 14 → 4 | 62 | 4 | 853 |
+| /agency/settings/slack-teams | 16 → 5 | 61 | 3 | 847 |
+| /agency/settings/team | 15 → 4 | 62 | 4 | 803 |
+| /agency/settings/branding | 16 → 4 | 47 | 3 | 802 |
+| /agency/alerts | 15 → 3 | 54 | 2 | 791 |
+| /agency/settings/ai | 15 → 4 | 45 | 3 | 790 |
+| /kb/[id] | 16 → 4 | 49 | 3 | 787 |
+| /inbox | 16 → 4 | 48 | 3 | 777 |
+| /agency/settings/platform-access | 15 → 4 | 57 | 3 | 767 |
+| /agency/help | 16 → 4 | 43 | 4 | 752 |
+| /agency/prospects | 14 → 3 | 52 | 2 | 741 |
+| /platform/knowledge/new | 22 → 3 | 85 | 2 | 720 (404) |
+| /platform/ask/[threadId] | 18 → 1 | 71 | 2 | 707 (404) |
+| /platform/knowledge | 18 → 1 | 63 | 1 | 706 (404) |
+| /platform/waitlist | 22 → 2 | 62 | 2 | 706 (404) |
+| /platform/verticals | 21 → 2 | 64 | 2 | 699 (404) |
+| /platform/reviews | 23 → 3 | 68 | 1 | 698 (404) |
+| /platform/costs | 14 → 3 | 76 | 1 | 691 (404) |
+| /platform/billing | 16 → 4 | 64 | 2 | 684 (404) |
+| /agency/clients/new | 7 → 3 | 41 | 3 | 678 |
+| /platform/health | 18 → 3 | 101 | 1 | 678 (404) |
+| /platform/topics | 22 → 3 | 53 | 2 | 675 (404) |
+| /platform/ask | 18 → 1 | 60 | 1 | 673 (404) |
+| /platform/runbook | 22 → 3 | 64 | 2 | 667 (404) |
+| /platform/help | 22 → 2 | 62 | 1 | 663 (404) |
+| /platform/agencies | 22 → 3 | 69 | 2 | 662 (404) |
+| /agency/prospects/new | 7 → 3 | 32 | 3 | 661 |
+| /c/[clientId]/setup/competitors (307) | 6 → 3 | 39 | 4 | 659 (307) |
+| /platform/leads | 21 → 1 | 68 | 1 | 654 (404) |
+| /platform | 23 → 3 | 75 | 2 | 646 (404) |
+| /paused (307) | 10 → 6 | 31 | 4 | 570 (307) |
+| /onboarding (307) | 5 → 3 | 31 | 3 | 397 (307) |
+| /agency/prospects/[clientId] | 14 → 3 | 60 | — | — |
+| /c/[clientId]/alerts/[alertId] | 8 → 4 | 69 | — | — |
+| /c/[clientId]/reports/[reportId] | — → 4 | 79 | — | — |
+| /platform/agencies/[id] | 10 → 3 | 113 | — | — |
+| /platform/knowledge/[id] | 22 → 2 | 62 | — | — |
+</details>
 
 ## Brief
 
@@ -53,325 +157,3 @@ None (`git branch --no-merged main` is empty).
 - Self-hosted Better Auth (schema `auth`); access comes from our `membership` table.
 - No route `loading.tsx` (use `Suspense`). A new tool needs an `ISOLATION_FIXTURES` entry; a new table needs a `TABLE_CLASS` entry.
 - Support sessions: every call is audited (8b). `PROFILE_TOOLS` stays local-only. Prod: Vercel iad1 + Neon, `cs_web`.
-
-### 4. Backlog to fold in (verbatim)
-- [ ] **HIGH - gates 7a1 Task 12:** shell DB stages: (app) shell ~12 sequential stages/page (max 22), (platform) 19-20 (`list_platform_costs` per-snapshot-row queries); target `--assert-db-stages 8`; also time the Better Auth pg pool and profile ask/[threadId], reports/[reportId], kb/[id] — *from 7a*
-- [ ] Page latency on the remote Neon DB: pages took 28–36 s in E2E (Playwright timeouts raised to 90 s/test, 15 s/expect in `playwright.config.ts`) — look before launch — *from 5c-2*
-- [ ] Flaky Neon connections in tests (`ECONNRESET`/`connect ETIMEDOUT` in `db` RLS tests, `collectors` `suggest.test.ts`, E2E seed); one un-bisected `@cs/collectors` full-suite failure (passed 249/249 on re-run) — add retry/pool settings or bisect — *from 5c-2 / demo runs* (optional)
-
-### 5. In-flight workstreams
-`git branch --no-merged main` is empty. Next free migration: **0097** (STATE). Shared docs change only at merge.
-
-### 6. Open questions for the owner (ordered by design impact)
-1. **Split?** (a) One branch: shell → platform + `list_platform_costs` → 3 pages + Better Auth timing; (b) lg-1 shell + platform, lg-2 pages; (c) 3 branches. **Rec (a):** a small, linked change set; one baseline and one final run.
-2. **Read audit inserts:** (a) keep them awaited (+1 stage per tool); (b) defer successful web-channel *reads* with `after()` (never writes or support sessions); (c) mark more badge reads `skip-web`. **Rec (b)+(c).**
-3. **Session lookup:** (a) leave it and only count it; (b) Better Auth `cookieCache` (~5 min; a revoked session lives that long); (c) share one pool with `service`. **Rec (a)**; (b) only if the numbers need it.
-4. **Collapse the shell:** (a) `Promise.all` over the existing reads; (b) one `get_shell_context` tool (needs an isolation fixture); (c) (a), then (b) only if still over 8. **Rec (c).**
-5. **Does the gate count Better Auth and BEGIN/COMMIT?** (a) yes, and 8 still applies; (b) count them but report only; (c) no change. **Rec (b):** 8 stays comparable with 7a.
-6. **Enforce in CI?** (a) a manual pre-deploy run, pasted here; (b) a CI job (`next start` + `PROFILE_TOOLS=1` + `--assert-db-stages 8 --strict-routes` on the E2E seed); (c) (a) now, (b) to backlog. **Rec (c):** the count doesn't depend on the DB, but CI minutes are a concern (repo going private).
-7. **Which DB?** (a) local cluster 5444 (same count, deterministic); (b) Neon dev (D7's wording; real ~50 ms per stage); (c) count on local, latency on Neon dev + staging. **Rec (c).**
-8. **Bar for `/platform/**` and the 3 pages:** (a) ≤ 8 everywhere; (b) ≤ 10 for operator pages; (c) measure only. **Rec (a)** + `--strict-routes`.
-
-## Baseline (before)
-Task 1 (fix round 1), 2026-11-03: `bash apps/web/scripts/profile-gate.sh --seed` (local cluster 5444, E2E seed, `--params-from-seed`). Each value is the **median of 3 warm visits**. Rows are sorted by `dbStages`. The gate FAILS, as expected: 58 of 68 pages are over 8, max 23 (`/platform`, `/platform/reviews`), median 14.
-
-- **Seed client:** E2E HVAC. It has the most features of any seeded client, but it lacks `ask` and `mcp`; no seeded client has all five. Its two 404s are not feature gates: `settings/billing` is client_owner-only, and `pitch-snapshot` needs a ready prospect report.
-- **Not profiled** (strict-routes fails on these; Task 6 owns them):
-  - `/c/[clientId]/ask/[threadId]`: there is no admin-authored thread.
-  - `/c/[clientId]/reports/[reportId]`: there is no `trend_report`.
-  - `/c/[clientId]/evidence/[evidenceId]`: no crawlable link.
-
-| route | path | status | dbStages | authStages | txStages | wallMs |
-|---|---|---|---|---|---|---|
-| /platform | `/platform` | 200 | 23 | 1 | 4 | 81 |
-| /platform/reviews | `/platform/reviews` | 200 | 23 | 1 | 4 | 79 |
-| /c/[clientId]/changes | `/c/6555332e…/changes` | 200 | 22 | 2 | 16 | 122 |
-| /platform/agencies | `/platform/agencies` | 200 | 22 | 1 | 4 | 78 |
-| /platform/help | `/platform/help` | 200 | 22 | 1 | 4 | 86 |
-| /platform/knowledge/[id] | `/platform/knowledge/1e298ba4…` | 200 | 22 | 1 | 4 | 79 |
-| /platform/knowledge/new | `/platform/knowledge/new` | 200 | 22 | 1 | 4 | 79 |
-| /platform/runbook | `/platform/runbook` | 200 | 22 | 1 | 4 | 78 |
-| /platform/topics | `/platform/topics` | 200 | 22 | 1 | 4 | 81 |
-| /platform/waitlist | `/platform/waitlist` | 200 | 22 | 2 | 4 | 64 |
-| /platform/leads | `/platform/leads` | 200 | 21 | 1 | 4 | 84 |
-| /platform/verticals | `/platform/verticals` | 200 | 21 | 1 | 4 | 86 |
-| /c/[clientId] | `/c/6555332e…` | 200 | 20 | 2 | 15 | 174 |
-| /c/[clientId]/competitors/[competitorId] | `/c/6555332e…/competitors/4bf020a9…` | 200 | 20 | 2 | 12 | 170 |
-| /c/[clientId]/settings/billing | `/c/6555332e…/settings/billing` | 404 | 19 | 4 | 6 | 75 |
-| /c/[clientId]/pitch-snapshot | `/c/6555332e…/pitch-snapshot` | 404 | 18 | 4 | 6 | 78 |
-| /platform/ask | `/platform/ask` | 200 | 18 | 1 | 4 | 88 |
-| /platform/ask/[threadId] | `/platform/ask/6ee1b99b…` | 200 | 18 | 1 | 4 | 84 |
-| /platform/health | `/platform/health` | 200 | 18 | 1 | 4 | 115 |
-| /platform/knowledge | `/platform/knowledge` | 200 | 18 | 1 | 4 | 81 |
-| /c/[clientId]/setup | `/c/6555332e…/setup` | 200 | 17 | 2 | 8 | 64 |
-| /agency/help | `/agency/help` | 200 | 16 | 2 | 5 | 52 |
-| /agency/leads | `/agency/leads` | 200 | 16 | 2 | 5 | 68 |
-| /agency/settings/branding | `/agency/settings/branding` | 200 | 16 | 2 | 5 | 63 |
-| /agency/settings/slack-teams | `/agency/settings/slack-teams` | 200 | 16 | 2 | 5 | 64 |
-| /inbox | `/inbox` | 200 | 16 | 2 | 5 | 50 |
-| /kb/[id] | `/kb/9f9b0872…` | 200 | 16 | 2 | 5 | 50 |
-| /platform/billing | `/platform/billing` | 200 | 16 | 1 | 4 | 72 |
-| /agency/alerts | `/agency/alerts` | 200 | 15 | 2 | 6 | 78 |
-| /agency/settings/ai | `/agency/settings/ai` | 200 | 15 | 2 | 5 | 73 |
-| /agency/settings/billing | `/agency/settings/billing` | 200 | 15 | 2 | 5 | 63 |
-| /agency/settings/platform-access | `/agency/settings/platform-access` | 200 | 15 | 2 | 5 | 54 |
-| /agency/settings/team | `/agency/settings/team` | 200 | 15 | 2 | 5 | 81 |
-| /settings/profile | `/settings/profile` | 200 | 15 | 2 | 5 | 95 |
-| /agency/prospects | `/agency/prospects` | 200 | 14 | 2 | 5 | 58 |
-| /agency/prospects/[clientId] | `/agency/prospects/33874490…` | 200 | 14 | 2 | 6 | 69 |
-| /agency/settings/intake/preview | `/agency/settings/intake/preview` | 200 | 14 | 2 | 6 | 65 |
-| /agency/settings/runbook | `/agency/settings/runbook` | 200 | 14 | 2 | 5 | 57 |
-| /platform/costs | `/platform/costs` | 200 | 14 | 1 | 4 | 101 |
-| /agency/settings/intake | `/agency/settings/intake` | 200 | 13 | 2 | 7 | 58 |
-| /c/[clientId]/briefs | `/c/6555332e…/briefs` | 200 | 13 | 2 | 6 | 90 |
-| /c/[clientId]/help | `/c/6555332e…/help` | 200 | 13 | 2 | 7 | 74 |
-| /c/[clientId]/pricing | `/c/6555332e…/pricing` | 200 | 13 | 2 | 6 | 75 |
-| /c/[clientId]/recommendations | `/c/6555332e…/recommendations` | 200 | 13 | 2 | 6 | 79 |
-| /c/[clientId]/reviews | `/c/6555332e…/reviews` | 200 | 13 | 2 | 10 | 102 |
-| /c/[clientId]/settings/profile | `/c/6555332e…/settings/profile` | 200 | 13 | 2 | 9 | 81 |
-| /c/[clientId]/settings/delivery | `/c/6555332e…/settings/delivery` | 200 | 12 | 2 | 7 | 109 |
-| /c/[clientId]/settings/usage | `/c/6555332e…/settings/usage` | 200 | 12 | 2 | 6 | 86 |
-| /agency/approvals | `/agency/approvals` | 200 | 11 | 2 | 5 | 59 |
-| /agency/settings/usage | `/agency/settings/usage` | 200 | 11 | 2 | 8 | 78 |
-| /c/[clientId]/ask | `/c/6555332e…/ask` | 200 | 11 | 2 | 5 | 74 |
-| /c/[clientId]/settings/alerts | `/c/6555332e…/settings/alerts` | 200 | 11 | 2 | 6 | 79 |
-| /agency/approvals/[briefId] | `/agency/approvals/f33a572d…` | 200 | 10 | 2 | 11 | 66 |
-| /c/[clientId]/competitors | `/c/6555332e…/competitors` | 200 | 10 | 2 | 5 | 104 |
-| /c/[clientId]/rankings | `/c/6555332e…/rankings` | 200 | 10 | 2 | 13 | 117 |
-| /paused | `/paused` | 307 | 10 | 4 | 0 | 31 |
-| /platform/agencies/[id] | `/platform/agencies/f9ef9187…` | 200 | 10 | 1 | 4 | 108 |
-| /c/[clientId]/settings/runbook | `/c/6555332e…/settings/runbook` | 200 | 9 | 2 | 8 | 83 |
-| /agency | `/agency` | 200 | 8 | 2 | 6 | 97 |
-| /c/[clientId]/ads | `/c/6555332e…/ads` | 200 | 8 | 2 | 8 | 92 |
-| /c/[clientId]/alerts/[alertId] | `/c/6555332e…/alerts/906537f6…` | 200 | 8 | 2 | 10 | 83 |
-| /c/[clientId]/briefs/[briefId] | `/c/6555332e…/briefs/f33a572d…` | 200 | 8 | 2 | 10 | 91 |
-| /c/[clientId]/settings/ai | `/c/6555332e…/settings/ai` | 200 | 8 | 2 | 10 | 67 |
-| /agency/clients/new | `/agency/clients/new` | 200 | 7 | 2 | 2 | 30 |
-| /agency/prospects/new | `/agency/prospects/new` | 200 | 7 | 2 | 2 | 33 |
-| /c/[clientId]/moves | `/c/6555332e…/moves` | 200 | 7 | 2 | 9 | 87 |
-| /c/[clientId]/setup/competitors | `/c/6555332e…/setup/competitors` | 307 | 6 | 2 | 2 | 32 |
-| /onboarding | `/onboarding` | 307 | 5 | 2 | 0 | 28 |
-
-## Task 4 (app shell)
-2026-11-04: `startShellReads` (`components/shell/app-shell.tsx`) starts all of the shell's reads together after `requireContext`. The `(app)` layout starts the batch before `get_onboarding_status`, so that read joins it, and hands it to `AppShell` (`reads`). `(platform)` is unchanged: its `AppShell` starts its own batch.
-- **Run:** `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the same gate at `0b6e9d15` (Tasks 1-3, so the audit deferral and the one-stage billing snapshot are already in), measured just before this change.
-- **Result:** pages that are only the shell went from about 12 to **4** dbStages. **16 (app) routes are still over 8.** Each is a page-level waterfall: one tool with a long internal chain, or a page tool that only starts after an earlier page await. They are not the shell, so `get_shell_context` would not help and was not built (Task 6 decides).
-- **Why some pages went up** (for example `briefs/[briefId]` 7 → 11, `settings/profile` 10 → 14): `sequentialStages` merges spans that overlap. Before, the long shell waterfall overlapped the page's own chain and hid part of it; now the shell finishes early and the page chain is counted in full. The page code did not change.
-- **Still over 8, and what drives each** (the tool spanning the most stage groups; "@ms" = a page tool that starts late):
-  - `/c/[clientId]` 20 (get_brief @117 after get_workspace_overview)
-  - `/c/[clientId]/changes` 20 (get_event 9, compare_snapshots @90)
-  - `/c/[clientId]/setup` 16 (get_client_setup 7)
-  - `/c/[clientId]/competitors/[competitorId]` 15 (get_competitor_timeline @149, get_competitor_profile 6)
-  - `/c/[clientId]/settings/profile` 14 (get_ask_starters, get_client_details, list_client_billing_status @77-87)
-  - `/agency/approvals/[briefId]` 13 (get_brief_review 7)
-  - `/c/[clientId]/reviews` 12 (search_reviews 7)
-  - `/c/[clientId]/briefs/[briefId]` 11 (list_help_guides @60)
-  - `/c/[clientId]/settings/billing` 11 (404, refusal path)
-  - `/c/[clientId]/ads` 10 (list_ads 6)
-  - `/c/[clientId]/rankings` 10 (get_geogrid 5; 3 tools @87)
-  - `/c/[clientId]/alerts/[alertId]` 9 (list_help_guides @50)
-  - `/c/[clientId]/moves` 9 (get_move 5)
-  - `/c/[clientId]/pitch-snapshot` 9 (404)
-  - `/c/[clientId]/settings/runbook` 9 (get_runbook 6)
-  - `/paused` 9 (307; no tools: viewer resolution and redirect only)
-
-| route | status | dbStages before → after | authStages | txStages before → after | wallMs before → after |
-|---|---|---|---|---|---|
-| /c/[clientId] | 200 | 20 → **20** | 2 | 15 → 14 | 170 → 150 |
-| /c/[clientId]/changes | 200 | 19 → **20** | 2 | 15 → 16 | 96 → 122 |
-| /c/[clientId]/setup | 200 | 16 → **16** | 2 | 8 → 8 | 73 → 61 |
-| /c/[clientId]/competitors/[competitorId] | 200 | 15 → **15** | 2 | 13 → 13 | 150 → 160 |
-| /c/[clientId]/settings/profile | 200 | 10 → **14** | 2 | 10 → 8 | 77 → 77 |
-| /agency/approvals/[briefId] | 200 | 10 → **13** | 2 | 13 → 10 | 57 → 65 |
-| /c/[clientId]/reviews | 200 | 11 → **12** | 2 | 10 → 8 | 94 → 94 |
-| /c/[clientId]/briefs/[briefId] | 200 | 7 → **11** | 2 | 10 → 9 | 75 → 76 |
-| /c/[clientId]/settings/billing | 404 | 16 → **11** | 4 | 7 → 4 | 70 → 62 |
-| /c/[clientId]/ads | 200 | 7 → **10** | 2 | 8 → 8 | 91 → 104 |
-| /c/[clientId]/rankings | 200 | 10 → **10** | 2 | 14 → 11 | 109 → 120 |
-| /c/[clientId]/alerts/[alertId] | 200 | 8 → **9** | 2 | 9 → 7 | 75 → 70 |
-| /c/[clientId]/moves | 200 | 6 → **9** | 2 | 9 → 9 | 79 → 96 |
-| /c/[clientId]/pitch-snapshot | 404 | 17 → **9** | 4 | 6 → 5 | 70 → 67 |
-| /c/[clientId]/settings/runbook | 200 | 6 → **9** | 2 | 8 → 6 | 74 → 90 |
-| /paused | 307 | 9 → **9** | 4 | 0 → 0 | 26 → 30 |
-| /agency/settings/usage | 200 | 8 → **8** | 2 | 8 → 5 | 69 → 65 |
-| /c/[clientId]/settings/alerts | 200 | 9 → **8** | 2 | 6 → 3 | 79 → 69 |
-| /agency | 200 | 6 → **7** | 2 | 7 → 4 | 104 → 124 |
-| /c/[clientId]/settings/ai | 200 | 5 → **7** | 2 | 11 → 8 | 70 → 76 |
-| /agency/clients/new | 200 | 5 → **6** | 2 | 2 → 2 | 32 → 35 |
-| /c/[clientId]/ask | 200 | 8 → **6** | 2 | 6 → 5 | 71 → 68 |
-| /c/[clientId]/pricing | 200 | 10 → **6** | 2 | 6 → 4 | 66 → 72 |
-| /inbox | 200 | 11 → **6** | 2 | 6 → 3 | 41 → 50 |
-| /agency/approvals | 200 | 8 → **5** | 2 | 7 → 4 | 73 → 63 |
-| /agency/help | 200 | 11 → **5** | 2 | 6 → 3 | 45 → 60 |
-| /agency/prospects/new | 200 | 5 → **5** | 2 | 2 → 2 | 30 → 37 |
-| /agency/settings/intake | 200 | 10 → **5** | 2 | 7 → 5 | 71 → 56 |
-| /agency/settings/intake/preview | 200 | 10 → **5** | 2 | 7 → 5 | 60 → 75 |
-| /agency/settings/platform-access | 200 | 13 → **5** | 2 | 6 → 3 | 60 → 74 |
-| /kb/[id] | 200 | 12 → **5** | 2 | 6 → 3 | 54 → 48 |
-| /agency/alerts | 200 | 11 → **4** | 2 | 7 → 4 | 44 → 47 |
-| /agency/leads | 200 | 12 → **4** | 2 | 6 → 2 | 50 → 52 |
-| /agency/prospects | 200 | 12 → **4** | 2 | 6 → 3 | 47 → 47 |
-| /agency/prospects/[clientId] | 200 | 10 → **4** | 2 | 7 → 3 | 66 → 58 |
-| /agency/settings/ai | 200 | 12 → **4** | 2 | 6 → 3 | 63 → 55 |
-| /agency/settings/billing | 200 | 12 → **4** | 2 | 6 → 3 | 57 → 47 |
-| /agency/settings/branding | 200 | 12 → **4** | 2 | 6 → 3 | 48 → 50 |
-| /agency/settings/runbook | 200 | 11 → **4** | 2 | 6 → 3 | 73 → 48 |
-| /agency/settings/slack-teams | 200 | 12 → **4** | 2 | 6 → 3 | 47 → 58 |
-| /agency/settings/team | 200 | 12 → **4** | 2 | 6 → 3 | 63 → 61 |
-| /c/[clientId]/briefs | 200 | 11 → **4** | 2 | 6 → 5 | 66 → 79 |
-| /c/[clientId]/competitors | 200 | 8 → **4** | 2 | 5 → 3 | 77 → 79 |
-| /c/[clientId]/help | 200 | 9 → **4** | 2 | 7 → 5 | 58 → 95 |
-| /c/[clientId]/recommendations | 200 | 11 → **4** | 2 | 6 → 5 | 60 → 59 |
-| /c/[clientId]/settings/delivery | 200 | 10 → **4** | 2 | 7 → 4 | 98 → 91 |
-| /c/[clientId]/settings/usage | 200 | 10 → **4** | 2 | 8 → 4 | 63 → 67 |
-| /c/[clientId]/setup/competitors | 307 | 4 → **4** | 2 | 2 → 2 | 46 → 57 |
-| /onboarding | 307 | 4 → **4** | 2 | 0 → 0 | 33 → 28 |
-| /settings/profile | 200 | 12 → **4** | 2 | 6 → 3 | 79 → 81 |
-
-(platform) rows, for Task 5 (same AppShell batch; platform reads untouched): `/platform` 23 → 18, most other pages 22 → 18, `/platform/costs` 13 → 8, `/platform/agencies/[id]` 9 → 8.
-
-## Task 5 (platform)
-2026-11-04: `(platform)/layout.tsx` resolves the operator context and platform role, then starts `startShellReads` (zone `platform`, the resolved role) together with the owner-only `list_platform_costs` and `get_ai_guard_state` — one stage. `loadCostState` (`@cs/tools` `platform/costs/read.ts`) is now 3 queries in one `Promise.all` (configs, `DISTINCT ON (service)` newest, everything since `since`) instead of 1 + 2 × 6 sequential; output unchanged (`read.test.ts` compares with the old implementation).
-
-dbStages, baseline (before the branch) → after Task 5; all 200:
-
-| route | dbStages | authStages | txStages | wallMs |
-|---|---|---|---|---|
-| /platform | 23 → **2** | 2 | 2 | 78 |
-| /platform/reviews | 23 → **3** | 1 | 2 | 59 |
-| /platform/agencies | 22 → **2** | 1 | 2 | 63 |
-| /platform/help | 22 → **2** | 1 | 3 | 59 |
-| /platform/knowledge/[id] | 22 → **2** | 1 | 2 | 63 |
-| /platform/knowledge/new | 22 → **2** | 1 | 2 | 59 |
-| /platform/runbook | 22 → **2** | 1 | 2 | 77 |
-| /platform/topics | 22 → **3** | 1 | 2 | 61 |
-| /platform/waitlist | 22 → **2** | 1 | 2 | 61 |
-| /platform/leads | 21 → **2** | 1 | 2 | 63 |
-| /platform/verticals | 21 → **2** | 1 | 2 | 63 |
-| /platform/ask | 18 → **1** | 1 | 2 | 67 |
-| /platform/ask/[threadId] | 18 → **4** | 1 | 4 | 66 |
-| /platform/health | 18 → **3** | 1 | 2 | 90 |
-| /platform/knowledge | 18 → **1** | 1 | 3 | 59 |
-| /platform/billing | 16 → **6** | 1 | 4 | 57 |
-| /platform/costs | 14 → **3** | 1 | 2 | 78 |
-| /platform/agencies/[id] | 10 → **4** | 1 | 4 | 109 |
-
-No `/platform/**` route is over 8. Still over 8 (all `(app)`, Task 6): `/c/[clientId]/changes` 20, `/c/[clientId]` 18, `/c/[clientId]/setup` 16, `/c/[clientId]/competitors/[competitorId]` 15, `/c/[clientId]/reviews` 13, `/c/[clientId]/settings/profile` 13, `/agency/approvals/[briefId]` 12, `/c/[clientId]/rankings` 11, `/c/[clientId]/ads` 11, `/c/[clientId]/briefs/[briefId]` 11, `/c/[clientId]/settings/billing` 10, `/c/[clientId]/moves` 9, `/c/[clientId]/settings/runbook` 9, `/c/[clientId]/pitch-snapshot` 9, `/c/[clientId]/alerts/[alertId]` 9; 3 routes still unprofiled (Task 6).
-
-## Task 6a
-2026-11-04: `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the Task 5 gate at `0de0f53f`.
-- **Shared levers:** `withTenant` pipelines its `set_config` with fn's first query (one round trip less per tenant read, fails closed); viewer resolution starts the billing snapshot beside the plan read (`onMembership`), so the prelude is 2 stages, not 3.
-- **Tools:** client check beside the RLS reads (`allInOrder` keeps the old refusal order), independent queries pipelined in one transaction: `get_event`, `compare_snapshots` (visibility via `firstVisibleEventOfChange`, one RLS query; `snapshotSide` one join), `search_events`, `get_move`, `get_workspace_overview`, `get_brief`, `get_ask_starters`, `get_client_setup` (reuses the actor's state read), `search_reviews`, `get_competitor_profile`/`_timeline`, `list_help_guides`/`get_page_guide`; suggestion run sets as subqueries. Output parity: `packages/tools/src/tools/launch-gate-parity.test.ts` (snapshot recorded on the old code).
-- **Pages:** changes (event on the first feed row, compare on its change), overview (brief on the list), setup (theme + guides in the batch), reviews (search waits for the benchmark only with a topic).
-- Gate still exits 1: `/c/[clientId]/rankings` 9 (6b) and the 3 unprofiled param routes (6c).
-
-| route | dbStages before → after |
-|---|---|
-| /c/[clientId]/changes | 20 → **6** |
-| /c/[clientId] | 18 → **5** |
-| /c/[clientId]/setup | 16 → **4** |
-| /c/[clientId]/competitors/[competitorId] | 15 → **5** |
-| /c/[clientId]/reviews | 13 → **4** |
-| /c/[clientId]/alerts/[alertId] | 9 → **4** |
-| /c/[clientId]/moves | 9 → **5** |
-
-## Task 6b
-2026-11-04: `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the 6a final gate. All 68 profiled routes ≤ 8 (max 7); exit 1 only for the 3 unprofiled param routes (6c).
-- **Tools:** `get_geogrid`/`get_rank_trend`/`get_share_of_voice` start the client check beside one transaction (tracked list, scans, the listed scans' snapshots via the same newest-first subquery with an id tie-break, map, tiers; a scan finished between statements re-reads by id). `get_rank_settings` runs `rankScanAvailability` (four reads together, all own-agency) beside its client check; the rank budget and `spendByClient` read their parts together. `get_alert_rules`: thresholds column and the agency/platform knobs (`defaultThresholds`, both levels together) beside the client check. `get_runbook` (client): thresholds column beside `resolve`; client runbook beside the agency one. Parity snapshots recorded on the old code.
-- **Shell:** the root layout's branding read (`agencyBrandingOf`, request-cached) starts on the membership: the error/redirect second layout pass is one stage shorter.
-- **Pages:** client profile (staff reads with the profile; billing after its status), ads (`list_ads` in the batch), approval review (guides beside the brief, after the role check).
-- 404/307 rows are noisy (+1–2): the previous visit's last spans fall inside the next visit's ±5 ms window.
-
-| route | dbStages before → after |
-|---|---|
-| /c/[clientId]/rankings | 9 → **6** |
-| /c/[clientId]/settings/profile | 8 → **3** |
-| /c/[clientId]/settings/billing (404) | 8 → **7** (visits 5, 7, 7) |
-| /c/[clientId]/pitch-snapshot (404) | 8 → **6** |
-| /paused (307) | 8 → **5** |
-| /agency/approvals/[briefId] | 7 → **6** |
-| /c/[clientId]/ads | 7 → **3** |
-| /c/[clientId]/settings/alerts | 7 → **3** |
-| /c/[clientId]/settings/runbook | 7 → **4** |
-| /c/[clientId]/briefs/[briefId] | 5 → **5** |
-
-## Task 6c / gate
-2026-11-04, HEAD before the docs commit `1371acaf`. Command (worktree root): `bash apps/web/scripts/profile-gate.sh --seed` (full build, local 5444, median of 3 warm visits) → **`profile-gate: exit 0`**. 71 of 71 routes profiled, `--strict-routes`, no unresolved routes; max **7** dbStages, median 4.
-- **Seed (E2E `seed.ts`, `seedProfileRows`):** E2E HVAC gets `ask`; the admin's auth user is pre-created as a magic-link sign-up would (name '', verified; membership still from the pending invitation on first sign-in) and owns one Ask thread with a cited answer; one `sent` 2026-Q3 `trend_report`. `--params-from-seed` adds the evidence id (newest web screenshot of a competitor the client tracks).
-- **Evidence page 13 → 6:** `get_evidence` and `compare_captures` start the client check beside the main row (`allInOrder`), then the link check beside `citedBy` / the previous capture; `competitorLinked` is one `EXISTS … OR …` statement (was up to 4 in a row); the page starts the assistant name with its reads. Parity snapshot recorded on the old code.
-- Param routes: ask/[threadId] 7 (first run) → **6** (`get_evidence_refs` uses the one-statement `competitorLinked`), reports/[reportId] **4**, evidence/[evidenceId] **6**, /platform/ask/[threadId] **1**, /kb/[id] **5**.
-
-Full after table (db · auth · tx · ms · status · route):
-```
-  7 db   4 auth   4 tx      61 ms  404  /c/[clientId]/settings/billing
-  6 db   2 auth   4 tx     121 ms  200  /agency
-  6 db   2 auth   7 tx      60 ms  200  /agency/approvals/[briefId]
-  6 db   2 auth   8 tx      85 ms  200  /c/[clientId]/ask/[threadId]
-  6 db   2 auth   8 tx      95 ms  200  /c/[clientId]/changes
-  6 db   2 auth   8 tx      96 ms  200  /c/[clientId]/evidence/[evidenceId]
-  6 db   4 auth   5 tx      65 ms  404  /c/[clientId]/pitch-snapshot
-  6 db   2 auth   4 tx      77 ms  200  /c/[clientId]/pricing
-  6 db   2 auth   8 tx     109 ms  200  /c/[clientId]/rankings
-  6 db   4 auth   0 tx      31 ms  307  /paused
-  5 db   2 auth   5 tx      58 ms  200  /agency/settings/intake
-  5 db   2 auth   3 tx      61 ms  200  /agency/settings/slack-teams
-  5 db   2 auth   6 tx      57 ms  200  /agency/settings/usage
-  5 db   2 auth  10 tx     148 ms  200  /c/[clientId]
-  5 db   2 auth   8 tx      71 ms  200  /c/[clientId]/briefs/[briefId]
-  5 db   2 auth   7 tx      82 ms  200  /c/[clientId]/settings/ai
-  5 db   2 auth   3 tx      81 ms  200  /c/[clientId]/settings/runbook
-  4 db   2 auth   4 tx      60 ms  200  /agency/approvals
-  4 db   2 auth   3 tx      43 ms  200  /agency/help
-  4 db   2 auth   3 tx      45 ms  200  /agency/settings/ai
-  4 db   2 auth   3 tx      47 ms  200  /agency/settings/branding
-  4 db   2 auth   3 tx      57 ms  200  /agency/settings/platform-access
-  4 db   2 auth   3 tx      62 ms  200  /agency/settings/runbook
-  4 db   2 auth   3 tx      62 ms  200  /agency/settings/team
-  4 db   2 auth   7 tx      69 ms  200  /c/[clientId]/alerts/[alertId]
-  4 db   2 auth   3 tx      70 ms  200  /c/[clientId]/ask
-  4 db   2 auth   7 tx     153 ms  200  /c/[clientId]/competitors/[competitorId]
-  4 db   2 auth   8 tx      86 ms  200  /c/[clientId]/moves
-  4 db   2 auth   4 tx      67 ms  200  /c/[clientId]/recommendations
-  4 db   2 auth   6 tx      79 ms  200  /c/[clientId]/reports/[reportId]
-  4 db   2 auth   3 tx      97 ms  200  /c/[clientId]/reviews
-  4 db   2 auth   3 tx      59 ms  200  /c/[clientId]/setup
-  4 db   2 auth   3 tx      48 ms  200  /inbox
-  4 db   2 auth   3 tx      49 ms  200  /kb/[id]
-  4 db   1 auth   4 tx      64 ms  200  /platform/billing
-  4 db   2 auth   3 tx      80 ms  200  /settings/profile
-  3 db   2 auth   4 tx      54 ms  200  /agency/alerts
-  3 db   2 auth   2 tx      41 ms  200  /agency/clients/new
-  3 db   2 auth   3 tx      49 ms  200  /agency/leads
-  3 db   2 auth   3 tx      52 ms  200  /agency/prospects
-  3 db   2 auth   4 tx      60 ms  200  /agency/prospects/[clientId]
-  3 db   2 auth   2 tx      32 ms  200  /agency/prospects/new
-  3 db   2 auth   3 tx      48 ms  200  /agency/settings/billing
-  3 db   2 auth   5 tx      52 ms  200  /agency/settings/intake/preview
-  3 db   2 auth   4 tx      91 ms  200  /c/[clientId]/ads
-  3 db   2 auth   5 tx      76 ms  200  /c/[clientId]/briefs
-  3 db   2 auth   2 tx      79 ms  200  /c/[clientId]/competitors
-  3 db   2 auth   4 tx      57 ms  200  /c/[clientId]/help
-  3 db   2 auth   3 tx      63 ms  200  /c/[clientId]/settings/alerts
-  3 db   2 auth   3 tx      93 ms  200  /c/[clientId]/settings/delivery
-  3 db   2 auth   2 tx      67 ms  200  /c/[clientId]/settings/profile
-  3 db   2 auth   4 tx      60 ms  200  /c/[clientId]/settings/usage
-  3 db   2 auth   2 tx      39 ms  307  /c/[clientId]/setup/competitors
-  3 db   2 auth   0 tx      31 ms  307  /onboarding
-  3 db   1 auth   2 tx      75 ms  200  /platform
-  3 db   1 auth   2 tx      69 ms  200  /platform/agencies
-  3 db   1 auth   4 tx     113 ms  200  /platform/agencies/[id]
-  3 db   1 auth   2 tx      76 ms  200  /platform/costs
-  3 db   1 auth   2 tx     101 ms  200  /platform/health
-  3 db   1 auth   2 tx      85 ms  200  /platform/knowledge/new
-  3 db   1 auth   2 tx      68 ms  200  /platform/reviews
-  3 db   1 auth   2 tx      64 ms  200  /platform/runbook
-  3 db   1 auth   2 tx      53 ms  200  /platform/topics
-  2 db   1 auth   4 tx      62 ms  200  /platform/help
-  2 db   1 auth   2 tx      62 ms  200  /platform/knowledge/[id]
-  2 db   1 auth   2 tx      64 ms  200  /platform/verticals
-  2 db   1 auth   2 tx      62 ms  200  /platform/waitlist
-  1 db   1 auth   2 tx      60 ms  200  /platform/ask
-  1 db   1 auth   4 tx      71 ms  200  /platform/ask/[threadId]
-  1 db   1 auth   4 tx      63 ms  200  /platform/knowledge
-  1 db   1 auth   2 tx      68 ms  200  /platform/leads
-```

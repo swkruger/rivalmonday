@@ -52,7 +52,8 @@ The owner URL lives **only** in the GitHub secret `MIGRATION_DATABASE_URL` (dire
 - Sentry test event from web and worker (worker release = commit SHA, not `dev`).
 - Railway marks the new deployment **Active** (`railway up --ci` may only wait for the build); `/healthz` 200 and its body shows `queueGrants: ok` (the `cs_web` enqueue grants; `failed` makes it 503 and web enqueues are refused); `/platform/health` all green after one hour.
 - `/bot` and `/robots.txt` load signed-out.
-- Latency: `pnpm --filter @cs/web profile:pages --base https://rivalmonday.app --cookie FILE` (a signed-in storage state or Cookie header): agency/workspace pages p75 ≤ 1.5 s, every page ≤ 3 s; misses → backlog. Per-tool timings: `PROFILE_TOOLS=1` is **local-only** — never set it on Vercel. The shell's sequential DB stages are a backlog gate, so this p75 is a measurement only.
+- Latency: `pnpm --filter @cs/web profile:pages --base https://rivalmonday.app --cookie FILE` (a signed-in storage state or Cookie header): agency/workspace pages p75 ≤ 1.5 s, every page ≤ 3 s; misses → backlog. Per-tool timings: `PROFILE_TOOLS=1` is **local-only** — never set it on Vercel. Before Task 12: `bash apps/web/scripts/profile-gate.sh --seed` exits 0 (every page ≤ 8 sequential app DB stages, local test DB).
+  Recipe and caveats: `apps/web/CLAUDE.md` § Page profiler; last numbers: the launch-gate work file (folded into `docs/STATE.md` at merge).
 
 ## Notes
 - **0025 pre-check:** runs every deploy; on the fresh prod DB it passes trivially. If it fails it prints `client` ids — fix those rows, re-run the job.

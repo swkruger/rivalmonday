@@ -41,6 +41,7 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
+- **Pool fan-out:** one heavy page can hold up to ~5 service connections at once (pool `max 5` per role/env, `packages/db/src/client.ts`); on Neon its wall time then tracks query count / 5, not DB stages (launch-gate: 110 queries ≈ 3 s). Fewer queries per page beats more parallelism.
 
 ## Data & privacy invariants
 - **`redactForModel`** (`@cs/collectors`), never a bare `redactContactInfo`, on every text entering a decision state, chat message or embedding input, with the business's own name(s) as `businessNames` where known (adds `compromise` NER person-name and serious-health-condition redaction). A lone `redactContactInfo` at a new model-input site is a privacy regression.
