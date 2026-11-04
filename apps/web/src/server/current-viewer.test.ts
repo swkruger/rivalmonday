@@ -12,6 +12,7 @@ const m = vi.hoisted(() => ({
   cookies: {} as Record<string, string>,
   path: '/agency',
   admins: [] as string[],
+  branding: null as unknown as ReturnType<typeof vi.fn>,
 }));
 const SECRET = 'c'.repeat(40);
 
@@ -28,6 +29,8 @@ vi.mock('@/server/auth', () => ({ auth: () => ({ api: { getSession: async () => 
 vi.mock('@/server/db', () => ({ dbs: () => m.dbs }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: SECRET, linkSecrets: ['l'.repeat(40)], appUrl: 'http://localhost:3000' }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => m.admins }));
+m.branding = vi.fn(async () => ({}));
+vi.mock('@/server/theme', () => ({ agencyBrandingOf: (id: string) => m.branding(id) }));
 
 const dbs = openTestDbs();
 m.dbs = dbs;
@@ -338,5 +341,20 @@ describe('requireContext on a suspended agency (billing, ruling R20)', () => {
     m.cookies = { rm_support: signSupportCookie(s.id) };
     m.path = '/agency';
     expect((await requireContext()).viewer.kind).toBe('support');
+  });
+});
+
+describe('launch-gate 6b: branding prefetch', () => {
+  it('page mode starts the agency branding read on the membership; operator mode and support sessions never do', async () => {
+    m.branding.mockClear();
+    await requireContext();
+    expect(m.branding.mock.calls).toEqual([[IDS.agencyA]]);
+    m.branding.mockClear();
+    await requireOperatorContext();
+    expect(m.branding).not.toHaveBeenCalled();
+    const s = await open();
+    m.cookies = { rm_support: signSupportCookie(s.id) };
+    await requireContext();
+    expect(m.branding).not.toHaveBeenCalled();
   });
 });

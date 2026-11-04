@@ -38,10 +38,28 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   const { ctx } = await requireContext();
   const agency = isAgencyRole(ctx.role);
   if (!agency && !hasFeature(ctx, 'dashboard')) notFound();
-  const [p, settingsLinked, guides] = await Promise.all([callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), hasClientSettings(clientId), helpGuides(ctx, 'client', clientId)]);
+  // Phase 8b: `get_ask_starters` is hidden in a support session and the session is read-only, so the Ask-review toggle (an agency-admin write control) is omitted there rather than shown with a guessed value.
+  const showReviewToggle = ctx.role === 'agency_admin' && !ctx.support;
+  // Launch-gate 6b: the staff reads need only the client id (the billing row also the profile's status), so they start
+  // with the profile; each tool refuses an out-of-scope client itself, and any refusal 404s the page as before.
+  const profileRead = callTool<ClientProfile>(ctx, 'get_client_profile', { clientId });
+  const [p, settingsLinked, guides, verticals, reviewAllowed, details, billing] = await Promise.all([
+    profileRead,
+    hasClientSettings(clientId),
+    helpGuides(ctx, 'client', clientId),
+    verticalOptions(),
+    agency && showReviewToggle ? callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId }).then((r) => r.reviewAllowed) : true,
+    // Final fix I3: phone, address, owner contact and logo after setup (staff only; `update_client_details` refuses others).
+    agency ? callTool<ClientDetailsInitial>(ctx, 'get_client_details', { clientId }) : null,
+    agency
+      ? profileRead.then(async (prof) => (prof.status === 'active'
+        ? (await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}))?.clients?.find((b) => b.clientId === clientId)
+        : undefined))
+      : undefined,
+  ]);
   const header = { description: <HelpText text={COPY.description} />, helpKey: HELP_KEY, guide: guides.has(HELP_KEY) };
   if (!agency) {
-    const names = Object.fromEntries((await verticalOptions()).flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
+    const names = Object.fromEntries(verticals.flatMap((v) => v.services.map((s) => [s.id, s.name] as const)));
     return (
       <>
         <PageHeader title="Business profile" breadcrumb={clientSettingsCrumbs({ id: clientId, name: p.name }, 'Business profile', settingsLinked)} {...header} />
@@ -53,12 +71,6 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       </>
     );
   }
-  // Phase 8b: `get_ask_starters` is hidden in a support session and the session is read-only, so the Ask-review toggle (an agency-admin write control) is omitted there rather than shown with a guessed value.
-  const showReviewToggle = ctx.role === 'agency_admin' && !ctx.support;
-  const reviewAllowed = showReviewToggle ? (await callTool<{ reviewAllowed: boolean }>(ctx, 'get_ask_starters', { clientId })).reviewAllowed : true;
-  // Final fix I3: phone, address, owner contact and logo after setup (staff only; `update_client_details` refuses others).
-  const details = await callTool<ClientDetailsInitial>(ctx, 'get_client_details', { clientId });
-  const billing = p.status === 'active' ? (await callTool<{ clients: ClientBillingStatusRow[] }>(ctx, 'list_client_billing_status', {}))?.clients?.find((b) => b.clientId === clientId) : undefined;
   return (
     <>
       {p.status === 'prospect' && (
@@ -81,9 +93,9 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         <p className="text-muted-ink">
           Time zone and delivery live under <Link href={`/c/${clientId}/settings/delivery`} className="font-semibold text-primary-soft-text">Delivery</Link>.
         </p>
-        <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details.phone, address: details.address, logoUrl: details.logoUrl, contactName: details.contactName, contactEmail: details.contactEmail }} />
+        <ClientDetailsForm clientId={clientId} action={updateDetailsAction} initial={{ phone: details!.phone, address: details!.address, logoUrl: details!.logoUrl, contactName: details!.contactName, contactEmail: details!.contactEmail }} />
         <ClientProfileForm
-          mode="edit" action={updateProfileAction} verticals={await verticalOptions()} clientId={clientId}
+          mode="edit" action={updateProfileAction} verticals={verticals} clientId={clientId}
           initial={{ name: p.name, verticalId: p.verticalId, services: p.services, keywords: p.keywords, placeId: p.placeId, serviceArea: p.serviceArea }}
         />
         <ClientFeaturesForm clientId={clientId} features={p.features} action={saveFeaturesAction} role={showReviewToggle ? ctx.role : undefined} reviewAllowed={reviewAllowed} />

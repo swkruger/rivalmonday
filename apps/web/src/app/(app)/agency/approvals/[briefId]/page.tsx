@@ -39,18 +39,18 @@ export async function generateMetadata({ params }: { params: Promise<{ briefId: 
 }
 
 export default async function ApprovalReviewPage({ params }: { params: Promise<{ briefId: string }> }) {
-  const brief = await loadBrief((await params).briefId);
+  const { briefId } = await params;
   const { ctx } = await requireContext();
+  if (!isAgencyRole(ctx.role)) notFound();
+  // Launch-gate 6b: the agency help guides do not depend on the brief, so they start beside it (after the role check).
+  const [brief, guides] = await Promise.all([loadBrief(briefId), helpGuides(ctx, 'agency')]);
   const active = brief.items.filter((i) => i.status === 'active').sort((a, b) => a.ord - b.ord);
   const dropped = brief.items.filter((i) => i.status !== 'active').sort((a, b) => a.ord - b.ord);
   const sorted = [...active, ...dropped];
   const editable = brief.status === 'ready';
   const fixed = brief.factCheck.sentences > 0 || brief.factCheck.items > 0;
   const startingPoint = brief.kind === 'starting_point';
-  const [guides, refs] = await Promise.all([
-    helpGuides(ctx, 'agency'),
-    evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone),
-  ]);
+  const refs = await evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone);
 
   return (
     <>

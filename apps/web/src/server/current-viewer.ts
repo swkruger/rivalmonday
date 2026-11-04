@@ -13,6 +13,7 @@ import { GUEST_COOKIE } from './guest';
 import { platformAdmins } from './runtime-env';
 import { safeNext } from './safe-next';
 import { SUPPORT_COOKIE } from './support-cookie';
+import { agencyBrandingOf } from './theme';
 import { MEMBERSHIP_COOKIE, resolveSupportViewer, resolveViewer, type Viewer } from './viewer';
 
 /** Where an unusable `rm_support` cookie is sent: Server Components can't clear cookies, the route handler can. */
@@ -55,7 +56,13 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
     clientHint,
     // Launch-gate 6a: `requireContext` reads the billing snapshot next; it needs only the agency id, so start it (request-
     // cached) beside `accessContextFor`. Page mode only (operator/api resolutions never read it); errors surface there.
-    onMembership: mode === 'page' ? (m) => void billingSnapshotOf(m.agencyId).catch(() => undefined) : undefined,
+    // 6b: the root layout's theme (the agency's branding row, request-cached by agency id) likewise.
+    onMembership: mode === 'page'
+      ? (m) => {
+        void billingSnapshotOf(m.agencyId).catch(() => undefined);
+        void agencyBrandingOf(m.agencyId).catch(() => undefined);
+      }
+      : undefined,
   });
 }
 

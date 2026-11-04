@@ -40,15 +40,16 @@ export default async function AdsPage({ params, searchParams }: {
   const status = pick(one(sp.status), ['active', 'ended', 'all'] as const, 'active');
   const offset = offsetParam(sp);
 
-  const [profile, activity, tracked, guides] = await Promise.all([
+  // Launch-gate 6b: the ad list needs only the URL filters, so it starts with the other reads.
+  const [profile, activity, tracked, guides, list] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
     callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
     helpGuides(ctx, 'client', clientId),
+    tryCallTool<AdList>(ctx, 'list_ads', {
+      clientId, ...(competitorId ? { competitorId } : {}), ...(platform !== 'all' ? { platform } : {}), status, offset, limit: PAGE,
+    }),
   ]);
-  const list = await tryCallTool<AdList>(ctx, 'list_ads', {
-    clientId, ...(competitorId ? { competitorId } : {}), ...(platform !== 'all' ? { platform } : {}), status, offset, limit: PAGE,
-  });
   const more = new URLSearchParams({ ...(competitorId ? { competitor: competitorId } : {}), platform, status, offset: String(offset + PAGE) });
 
   return (
