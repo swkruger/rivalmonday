@@ -8,7 +8,7 @@ import { detailOf, pageOf, pageResult } from '../paging';
 import { citableEvidenceKinds, eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel, summaryForChannel } from '../workspace/model-text';
-import { clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
+import { allInOrder, clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
 import { EventDetail, EventRow, FEEDBACK_VERDICTS, pageFields, pagedItems } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -37,24 +37,32 @@ export const searchEvents = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps, meta) {
-    const c = await workspaceClient(deps, ctx, input.clientId);
     const paged = pageOf(input, meta, 50);
     const limit = paged.limit;
     const offset = input.cursor ? paged.offset : input.offset;
+    const since = new Date(Date.now() - input.days * DAY);
+    const read = (verticalId: string | null) => {
+      const conds = [clientEvents(input.clientId), gte(changeEvent.occurredAt, since)];
+      if (input.competitorId) conds.push(eq(changeEvent.competitorId, input.competitorId));
+      if (input.changeType) conds.push(eq(changeEvent.changeType, input.changeType));
+      if (input.serviceId) conds.push(sql`${changeEvent.services} ->> ${verticalId} = ${input.serviceId}`);
+      if (input.route === 'flagged') conds.push(inArray(eventScore.route, ['alert', 'brief']));
+      if (input.route === 'archive') conds.push(eq(eventScore.route, 'archive'));
+      if (input.minScore !== undefined) conds.push(gte(eventScore.score, input.minScore));
+      if (input.query) conds.push(ilike(changeEvent.summary, `%${escapeLike(input.query)}%`));
+      return withTenant(deps.app, ctx, (tx) =>
+        tx.select(eventRowSelect).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+          .innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
+          .where(and(...conds)).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(limit + 1).offset(offset));
+    };
+    // Launch-gate 6a: without a service filter the RLS read needs only the client id (= the checked client's), so it starts
+    // beside the client check (the client refusal still comes first); a service filter needs the client's vertical first.
+    const clientRead = workspaceClient(deps, ctx, input.clientId);
+    const [c, rows] = input.serviceId
+      ? await clientRead.then(async (w) => [w, await read(w.verticalId)] as const)
+      : await allInOrder([clientRead, read(null)]);
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
-    const conds = [clientEvents(c.id), gte(changeEvent.occurredAt, new Date(Date.now() - input.days * DAY))];
-    if (input.competitorId) conds.push(eq(changeEvent.competitorId, input.competitorId));
-    if (input.changeType) conds.push(eq(changeEvent.changeType, input.changeType));
-    if (input.serviceId) conds.push(sql`${changeEvent.services} ->> ${c.verticalId} = ${input.serviceId}`);
-    if (input.route === 'flagged') conds.push(inArray(eventScore.route, ['alert', 'brief']));
-    if (input.route === 'archive') conds.push(eq(eventScore.route, 'archive'));
-    if (input.minScore !== undefined) conds.push(gte(eventScore.score, input.minScore));
-    if (input.query) conds.push(ilike(changeEvent.summary, `%${escapeLike(input.query)}%`));
-    const rows = await withTenant(deps.app, ctx, (tx) =>
-      tx.select(eventRowSelect).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
-        .innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
-        .where(and(...conds)).orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(limit + 1).offset(offset));
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
       const evidence = await eventEvidenceIds(deps, page.rows.map((r) => r.eventId), citableEvidenceKinds(meta)); // visibility proved by the query above
@@ -80,14 +88,24 @@ export const getEvent = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId, eventId }, deps, meta) {
-    const c = await workspaceClient(deps, ctx, clientId);
+    // Launch-gate 6a: the client check and the three RLS reads (event, its moves, the caller's feedback) start together;
+    // the reads are pipelined in one transaction. `clientId` is the checked client's id (`workspaceClient` reads it by id).
+    const [c, [[r], moves, [fb]]] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      withTenant(deps.app, ctx, (tx) => Promise.all([
+        tx.select({ ...eventRowSelect, facts: changeEvent.facts, details: changeEvent.details, factors: eventScore.factors })
+          .from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+          .innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
+          .where(and(clientEvents(clientId), eq(changeEvent.id, eventId))),
+        tx.select({ id: move.id, moveType: move.moveType, status: move.status, closedAt: move.closedAt }).from(moveEvent).innerJoin(move, eq(move.id, moveEvent.moveId))
+          .where(and(eq(moveEvent.eventId, eventId), eq(move.clientId, clientId))),
+        tx.select({ after: feedback.after }).from(feedback)
+          .where(and(eq(feedback.clientId, clientId), eq(feedback.subjectType, 'event'), eq(feedback.subjectId, eventId), eq(feedback.actor, ctx.userId)))
+          .orderBy(desc(feedback.createdAt)).limit(1),
+      ])),
+    ]);
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
-    const [r] = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ ...eventRowSelect, facts: changeEvent.facts, details: changeEvent.details, factors: eventScore.factors })
-        .from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
-        .innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
-        .where(and(clientEvents(c.id), eq(changeEvent.id, eventId))));
     if (!r) throw new ToolError('not_found', 'Change not found');
     // Visibility proved above — global change rows are read with the service Db (Global Constraints).
     const changes = await deps.service
@@ -95,13 +113,6 @@ export const getEvent = defineTool({
         afterCaptureId: detectedChange.afterCaptureId, detectedAt: detectedChange.detectedAt, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText })
       .from(eventChange).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId)).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
       .where(and(eq(eventChange.eventId, eventId), eq(detectedChange.status, 'event'))).orderBy(asc(detectedChange.detectedAt));
-    const moves = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ id: move.id, moveType: move.moveType, status: move.status, closedAt: move.closedAt }).from(moveEvent).innerJoin(move, eq(move.id, moveEvent.moveId))
-        .where(and(eq(moveEvent.eventId, eventId), eq(move.clientId, c.id))));
-    const [fb] = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ after: feedback.after }).from(feedback)
-        .where(and(eq(feedback.clientId, c.id), eq(feedback.subjectType, 'event'), eq(feedback.subjectId, eventId), eq(feedback.actor, ctx.userId)))
-        .orderBy(desc(feedback.createdAt)).limit(1));
     const verdict = fb?.after?.verdict;
     const f = r.factors;
     return {

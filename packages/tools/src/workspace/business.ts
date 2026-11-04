@@ -23,14 +23,15 @@ export interface Business {
  */
 export async function workspaceBusinesses(deps: ToolDeps, ctx: AccessContext, c: WorkspaceClient): Promise<Business[]> {
   const cols = { id: competitor.id, name: competitor.name, placeId: competitor.placeId, cid: competitor.cid, domain: competitor.domain };
-  const tracked = await withTenant(deps.app, ctx, (tx) =>
-    tx.select(cols).from(clientCompetitor).innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
-      .where(eq(clientCompetitor.clientId, c.id)).orderBy(asc(competitor.name)));
+  // Launch-gate 6a: the tracked list (RLS) and the self business (service; `c` is already the checked client) together.
+  const [tracked, [s]] = await Promise.all([
+    withTenant(deps.app, ctx, (tx) =>
+      tx.select(cols).from(clientCompetitor).innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
+        .where(eq(clientCompetitor.clientId, c.id)).orderBy(asc(competitor.name))),
+    c.selfCompetitorId ? deps.service.select(cols).from(competitor).where(eq(competitor.id, c.selfCompetitorId)) : Promise.resolve([]),
+  ]);
   let self: Business | null = null;
-  if (c.selfCompetitorId) {
-    const [s] = await deps.service.select(cols).from(competitor).where(eq(competitor.id, c.selfCompetitorId));
-    if (s) self = { key: 'self', competitorId: s.id, name: c.name, self: true, placeId: s.placeId ?? c.placeId, cid: s.cid, domain: s.domain };
-  }
+  if (s) self = { key: 'self', competitorId: s.id, name: c.name, self: true, placeId: s.placeId ?? c.placeId, cid: s.cid, domain: s.domain };
   if (!self && c.placeId) self = { key: 'self', competitorId: null, name: c.name, self: true, placeId: c.placeId, cid: null, domain: null };
   const others = tracked.filter((t) => t.id !== c.selfCompetitorId)
     .map((t) => ({ key: t.id, competitorId: t.id, name: t.name, self: false, placeId: t.placeId, cid: t.cid, domain: t.domain }));

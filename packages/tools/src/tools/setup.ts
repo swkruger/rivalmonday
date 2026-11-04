@@ -12,6 +12,7 @@ import { collapseSameListing, FIND_BUSINESS_DAILY_CAP, possibleDuplicates, prese
 import { applyClientProfileChange } from '../setup/profile-change';
 import { queueCompetitorReview } from '../setup/review-email';
 import { completeIfDone, getSetupState, loadSetupInvite, ownerPickOpen, type SetupState } from '../setup/state';
+import { allInOrder, requireVisibleClient } from '../workspace/scope';
 import { refuseSampleContacts } from '../waitlist/sample';
 import { normaliseName } from '@cs/verticals';
 import { addBusinessAreaCore, lockCatalogue, refuseClientData } from './verticals';
@@ -177,23 +178,31 @@ export const getClientSetup = defineTool({
   audit: 'skip-web',
   supportMask: ['invite.email', 'invite.name'],
   async handler(ctx, { clientId }, deps) {
-    // Agency staff; the client's owner only while asked to pick (O12, P8), for the pick screen.
-    await assertSetupActor(ctx, deps, clientId, 'read');
-    const r = await withTenant(deps.app, ctx, async (tx) => {
-      const [c] = await tx.select({ verticalId: client.verticalId, limit: client.competitorLimit }).from(client).where(eq(client.id, clientId));
-      if (!c) return null;
-      const [row] = await tx.select({ lookup: clientSetup.lookup, suggestions: clientSetup.suggestions, createdAt: clientSetup.createdAt }).from(clientSetup).where(eq(clientSetup.clientId, clientId));
-      const [tracked] = await tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
-      const { rows } = await runSuggestionRows(tx, clientId, ['suggested', 'accepted']);
-      const [run] = await tx.select({ status: discoveryRun.status, progress: discoveryRun.progress, kept: discoveryRun.kept, finishedAt: discoveryRun.finishedAt })
-        .from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1);
-      return { c, row: row ?? null, tracked: tracked?.n ?? 0, rows, run: run ?? null };
-    });
-    if (!r) throw new ToolError('not_found', 'Client not found');
-    // Tenant visibility proven above; the state's contact/invite/billing reads need the service connection.
-    const state = await getSetupState(deps.service, clientId);
+    // Agency staff; the client's owner only while asked to pick (O12, P8), for the pick screen. The actor check returns
+    // the setup state (the same service read this tool made again after it).
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
     const staff = isAgencyRole(ctx.role);
-    const invite = await loadSetupInvite(deps.service, clientId);
+    const actor = assertSetupActor(ctx, deps, clientId, 'read');
+    // Launch-gate 6a: the RLS reads start beside the actor check (pipelined in one transaction; refusals keep their order
+    // via `allInOrder`). The service invite read (contact name/email) still waits for proof: for staff an RLS visibility
+    // check of its own (so it overlaps the actor's state read instead of following the RLS reads), for the owner the
+    // actor check (the pick window is open).
+    const [state, r, invite] = await allInOrder([
+      actor,
+      withTenant(deps.app, ctx, async (tx) => {
+        const [[c], [row], [tracked], { rows }, [run]] = await Promise.all([
+          tx.select({ verticalId: client.verticalId, limit: client.competitorLimit }).from(client).where(eq(client.id, clientId)),
+          tx.select({ lookup: clientSetup.lookup, suggestions: clientSetup.suggestions, createdAt: clientSetup.createdAt }).from(clientSetup).where(eq(clientSetup.clientId, clientId)),
+          tx.select({ n: count() }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId)),
+          runSuggestionRows(tx, clientId, ['suggested', 'accepted']),
+          tx.select({ status: discoveryRun.status, progress: discoveryRun.progress, kept: discoveryRun.kept, finishedAt: discoveryRun.finishedAt })
+            .from(discoveryRun).where(eq(discoveryRun.clientId, clientId)).orderBy(desc(discoveryRun.startedAt)).limit(1),
+        ]);
+        return c ? { c, row: row ?? null, tracked: tracked?.n ?? 0, rows, run: run ?? null } : null;
+      }),
+      (staff ? requireVisibleClient(deps, ctx, clientId) : actor).then(() => loadSetupInvite(deps.service, clientId)),
+    ]);
+    if (!r) throw new ToolError('not_found', 'Client not found');
 
     const pack = await packsOf(deps)(r.c.verticalId);
     const ticked = preTickTop(r.rows.filter((s) => s.status === 'suggested'), r.c.limit, r.tracked);

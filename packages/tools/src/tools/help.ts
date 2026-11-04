@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { helpAudienceFor } from '../kb/audience';
 import { kbNamesFor } from '../kb/names';
+import { allInOrder } from '../workspace/scope';
 
 // Phase 15b-1: page guides for the in-app guide drawer and Help pages. These two tools and the audience filter in
 // `search_knowledge` are the boundary for help content: a client viewer never gets an agency or operator row, an agency
@@ -20,14 +21,33 @@ export const PAGE_HELP_KEY = /^page:[a-z0-9.-]+$/;
 interface GuideRow { id: string; helpKey: string; title: string; bodyMd: string; level: string; audience: string }
 
 /** Resolves the caller's audience and checks the context: platform → operators only; any `clientId` → `canAccessClient`; client context needs one. */
-async function guideScope(deps: ToolDeps, ctx: AccessContext, input: { context: HelpContextName; clientId?: string | undefined }): Promise<{ audience: ViewerAudience; clientName?: string }> {
+async function guideAudience(deps: ToolDeps, ctx: AccessContext, input: { context: HelpContextName; clientId?: string | undefined }): Promise<ViewerAudience> {
   const audience = await helpAudienceFor(deps, ctx, input.context);
   if (input.context === 'client' && !input.clientId) throw new ToolError('not_found', 'Client not found');
-  if (!input.clientId) return { audience };
-  if (!canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
-  const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, input.clientId!)));
+  if (input.clientId && !canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
+  return audience;
+}
+
+/** The named client's name through RLS (`not_found` when it isn't visible); undefined without a `clientId`. */
+async function guideClientName(deps: ToolDeps, ctx: AccessContext, clientId: string | undefined): Promise<string | undefined> {
+  if (!clientId) return undefined;
+  const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, clientId)));
   if (!c) throw new ToolError('not_found', 'Client not found');
-  return { audience, clientName: c.name };
+  return c.name;
+}
+
+/**
+ * Launch-gate 6a: after the audience and context checks, the client check, the guide rows and the agency's names start
+ * together (one stage); `allInOrder` keeps the client refusal first, as when they ran one after another.
+ */
+async function guideReads(deps: ToolDeps, ctx: AccessContext, input: { context: HelpContextName; clientId?: string | undefined }, key: { helpKey: string } | { context: HelpContextName }) {
+  const audience = await guideAudience(deps, ctx, input);
+  const [clientName, rows, names] = await allInOrder([
+    guideClientName(deps, ctx, input.clientId),
+    guideRows(deps, ctx, audience, key),
+    kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' }),
+  ]);
+  return { audience, rows, names: clientName ? { ...names, clientName } : names };
 }
 
 /**
@@ -80,11 +100,6 @@ export function guideSections(body: string): { heading: string; markdown: string
   return out.map((s) => ({ heading: s.heading, markdown: s.lines.join('\n').trim() }));
 }
 
-async function namesFor(deps: ToolDeps, ctx: AccessContext, audience: ViewerAudience, clientName?: string) {
-  const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
-  return clientName ? { ...names, clientName } : names;
-}
-
 const contextInput = { context: z.enum(HELP_CONTEXTS), clientId: z.string().uuid().optional() };
 
 export const getPageGuide = defineTool({
@@ -95,10 +110,9 @@ export const getPageGuide = defineTool({
   output: z.object({ id: z.string(), title: z.string(), sections: z.array(z.object({ heading: z.string(), markdown: z.string() })) }).nullable(),
   permission: 'read',
   async handler(ctx, input, deps) {
-    const { audience, clientName } = await guideScope(deps, ctx, input);
-    const row = preferred(await guideRows(deps, ctx, audience, { helpKey: input.helpKey }), audience).get(input.helpKey);
+    const { audience, rows, names } = await guideReads(deps, ctx, input, { helpKey: input.helpKey });
+    const row = preferred(rows, audience).get(input.helpKey);
     if (!row) return null;
-    const names = await namesFor(deps, ctx, audience, clientName);
     return {
       id: row.id, title: renderKbText(row.title, names),
       sections: guideSections(row.bodyMd).map((s) => ({ heading: renderKbText(s.heading, names), markdown: renderKbText(s.markdown, names) })),
@@ -114,9 +128,8 @@ export const listHelpGuides = defineTool({
   output: z.object({ guides: z.array(z.object({ helpKey: z.string(), title: z.string(), articleId: z.string() })) }),
   permission: 'read',
   async handler(ctx, input, deps) {
-    const { audience, clientName } = await guideScope(deps, ctx, input);
-    const best = preferred(await guideRows(deps, ctx, audience, { context: input.context }), audience);
-    const names = await namesFor(deps, ctx, audience, clientName);
+    const { audience, rows, names } = await guideReads(deps, ctx, input, { context: input.context });
+    const best = preferred(rows, audience);
     return {
       guides: [...best.values()].sort((a, b) => a.helpKey.localeCompare(b.helpKey)).map((r) => ({ helpKey: r.helpKey, title: renderKbText(r.title, names), articleId: r.id })),
     };

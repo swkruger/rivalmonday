@@ -160,9 +160,10 @@ export async function ownerPickOpen(db: Pick<Tx, 'select'>, clientId: string): P
 async function hasPending(db: Db, clientId: string): Promise<boolean> {
   const run = await latestDoneRun(db, clientId);
   if (!run) return false;
-  const newer = (await db.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)))).map((x) => x.id);
+  // Launch-gate 6a: the newer runs are a subquery (one round trip, same set as `runSuggestionRows`).
+  const newer = db.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)));
   const [row] = await db.select({ id: competitorSuggestion.id }).from(competitorSuggestion)
-    .where(and(eq(competitorSuggestion.clientId, clientId), inArray(competitorSuggestion.runId, [run.id, ...newer]), eq(competitorSuggestion.status, 'suggested')))
+    .where(and(eq(competitorSuggestion.clientId, clientId), or(eq(competitorSuggestion.runId, run.id), inArray(competitorSuggestion.runId, newer)), eq(competitorSuggestion.status, 'suggested')))
     .limit(1);
   return !!row;
 }

@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { pressureByClient } from '../pressure';
 import { adWeeklySeries } from '../workspace/ads';
-import { clientEvents, eventJoin, workspaceClient } from '../workspace/scope';
+import { allInOrder, clientEvents, eventJoin, workspaceClient } from '../workspace/scope';
 import { AdActivityView, WorkspaceOverview } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -56,32 +56,38 @@ export const getWorkspaceOverview = defineTool({
   permission: 'read',
   feature: 'dashboard',
   async handler(ctx, { clientId }, deps) {
-    const c = await workspaceClient(deps, ctx, clientId);
     const now = new Date();
     const since = new Date(now.getTime() - 7 * DAY);
-    const recent = and(clientEvents(c.id), gte(eventScore.scoredAt, since));
+    const recent = and(clientEvents(clientId), gte(eventScore.scoredAt, since));
     const trendSince = new Date(now.getTime() - TREND_WEEKS * 7 * DAY);
     // A row stamped after `now` (database clock, or written mid-request) belongs in the latest window.
     const weekIndex = (at: Date) => Math.min(TREND_WEEKS - 1, TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / (7 * DAY)));
-    const { tracked, pressure, counts, priceRows, routedRows, latestReport } = await withTenant(deps.app, ctx, async (tx) => {
-      const trackedRows = await tx.select({ id: competitor.id, name: competitor.name }).from(clientCompetitor)
-        .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId)).where(eq(clientCompetitor.clientId, c.id));
-      const pressureMap = await pressureByClient(tx, [c.id], now);
-      const [countRow] = await tx.select({
-        changes: sql<number>`count(*) FILTER (WHERE ${eventScore.route} IN ('alert', 'brief'))::int`,
-        alerts: sql<number>`count(*) FILTER (WHERE ${eventScore.route} = 'alert')::int`,
-      }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).where(recent);
-      // Decision 12: price moves count on every route.
-      const prices = await tx.select({ scoredAt: eventScore.scoredAt, services: changeEvent.services, facts: changeEvent.facts }).from(eventScore).innerJoin(changeEvent, eventJoin.change)
-        .innerJoin(clientCompetitor, eventJoin.tracked).where(and(clientEvents(c.id), gte(eventScore.scoredAt, trendSince), eq(changeEvent.changeType, 'price_change')));
-      const routed = await tx.select({ scoredAt: eventScore.scoredAt }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
-        .where(and(clientEvents(c.id), gte(eventScore.scoredAt, trendSince), inArray(eventScore.route, ['alert', 'brief'])));
-      // Preflight F11: only the latest report counts, as `get_prospect_report` shows only that one.
-      const [report] = isAgencyRole(ctx.role)
-        ? await tx.select({ status: prospectReport.status }).from(prospectReport).where(eq(prospectReport.clientId, c.id)).orderBy(desc(prospectReport.createdAt)).limit(1)
-        : [];
-      return { tracked: trackedRows, pressure: pressureMap.get(c.id) ?? [], counts: countRow, priceRows: prices, routedRows: routed, latestReport: report };
-    });
+    // Launch-gate 6a: the client check and every RLS read start together; the reads are pipelined in one transaction
+    // (none needs another's result). `clientId` is the checked client's id; the client's refusal still comes first.
+    const [c, { tracked, pressure, counts, priceRows, routedRows, latestReport }] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      withTenant(deps.app, ctx, async (tx) => {
+        const [trackedRows, pressureMap, [countRow], prices, routed, [report]] = await Promise.all([
+          tx.select({ id: competitor.id, name: competitor.name }).from(clientCompetitor)
+            .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId)).where(eq(clientCompetitor.clientId, clientId)),
+          pressureByClient(tx, [clientId], now),
+          tx.select({
+            changes: sql<number>`count(*) FILTER (WHERE ${eventScore.route} IN ('alert', 'brief'))::int`,
+            alerts: sql<number>`count(*) FILTER (WHERE ${eventScore.route} = 'alert')::int`,
+          }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).where(recent),
+          // Decision 12: price moves count on every route.
+          tx.select({ scoredAt: eventScore.scoredAt, services: changeEvent.services, facts: changeEvent.facts }).from(eventScore).innerJoin(changeEvent, eventJoin.change)
+            .innerJoin(clientCompetitor, eventJoin.tracked).where(and(clientEvents(clientId), gte(eventScore.scoredAt, trendSince), eq(changeEvent.changeType, 'price_change'))),
+          tx.select({ scoredAt: eventScore.scoredAt }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+            .where(and(clientEvents(clientId), gte(eventScore.scoredAt, trendSince), inArray(eventScore.route, ['alert', 'brief']))),
+          // Preflight F11: only the latest report counts, as `get_prospect_report` shows only that one.
+          isAgencyRole(ctx.role)
+            ? tx.select({ status: prospectReport.status }).from(prospectReport).where(eq(prospectReport.clientId, clientId)).orderBy(desc(prospectReport.createdAt)).limit(1)
+            : Promise.resolve([]),
+        ]);
+        return { tracked: trackedRows, pressure: pressureMap.get(clientId) ?? [], counts: countRow, priceRows: prices, routedRows: routed, latestReport: report };
+      }),
+    ]);
 
     const allPriceMoves = priceRows.filter((r) => {
       const service = r.services?.[c.verticalId];
@@ -100,12 +106,15 @@ export const getWorkspaceOverview = defineTool({
     // Global rows (`ad`, `capture`, `observation`) — visibility proved by the RLS reads above (the self business through
     // `client.self_competitor_id`).
     const trackedIds = tracked.map((t) => t.id);
-    const ads = await adWeeklySeries(deps.service, trackedIds, now, TREND_WEEKS);
-    const adTotals = Array.from({ length: TREND_WEEKS }, (_, w) => sumPoints(trackedIds.map((id) => ads.get(id)?.[w] ?? null)));
     const ratingIds = [...trackedIds, ...(c.selfCompetitorId ? [c.selfCompetitorId] : [])];
-    const gbp = ratingIds.length === 0 ? [] : await deps.service.selectDistinctOn([observation.competitorId], { competitorId: observation.competitorId, data: observation.data })
-      .from(observation).where(and(inArray(observation.competitorId, ratingIds), eq(observation.kind, 'gbp_profile'), eq(observation.key, 'profile')))
-      .orderBy(observation.competitorId, desc(observation.observedAt));
+    // Launch-gate 6a: the two global reads are independent; one stage.
+    const [ads, gbp] = await Promise.all([
+      adWeeklySeries(deps.service, trackedIds, now, TREND_WEEKS),
+      ratingIds.length === 0 ? Promise.resolve([]) : deps.service.selectDistinctOn([observation.competitorId], { competitorId: observation.competitorId, data: observation.data })
+        .from(observation).where(and(inArray(observation.competitorId, ratingIds), eq(observation.kind, 'gbp_profile'), eq(observation.key, 'profile')))
+        .orderBy(observation.competitorId, desc(observation.observedAt)),
+    ]);
+    const adTotals = Array.from({ length: TREND_WEEKS }, (_, w) => sumPoints(trackedIds.map((id) => ads.get(id)?.[w] ?? null)));
     const ratingOf = (id: string) => gbpSummary(gbp.find((g) => g.competitorId === id)?.data ?? null)?.rating ?? null;
     const ratings = trackedIds.map(ratingOf).filter((r): r is number => r !== null);
 

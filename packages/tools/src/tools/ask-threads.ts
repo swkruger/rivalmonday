@@ -4,7 +4,7 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { GENERIC_STARTERS } from '../ask-tools';
 import type { ToolDeps } from '../deps';
-import { workspaceClient } from '../workspace/scope';
+import { allInOrder, workspaceClient } from '../workspace/scope';
 
 /**
  * Phase 6b Q13: the web's reads (and the soft delete) of a user's own Ask threads and a client's starter questions.
@@ -158,12 +158,16 @@ export const getAskStarters = defineTool({
   channels: WEB_ONLY,
   async handler(ctx, input, deps) {
     refuseGuest(ctx);
-    const c = await workspaceClient(deps, ctx, input.clientId);
-    return withTenant(deps.app, ctx, async (tx) => {
-      const [s] = await tx.select({ questions: askStarter.questions }).from(askStarter).where(eq(askStarter.clientId, c.id));
-      const [flag] = await tx.select({ reviewAllowed: client.askReviewAllowed }).from(client).where(eq(client.id, c.id));
-      return { questions: s && s.questions.length > 0 ? s.questions : [...GENERIC_STARTERS], reviewAllowed: flag?.reviewAllowed ?? false };
-    });
+    // Launch-gate 6a: the client check and both RLS reads (pipelined in one transaction) start together; the client
+    // refusal still comes first (`allInOrder`). `input.clientId` is the checked client's id.
+    const [, [[s], [flag]]] = await allInOrder([
+      workspaceClient(deps, ctx, input.clientId),
+      withTenant(deps.app, ctx, (tx) => Promise.all([
+        tx.select({ questions: askStarter.questions }).from(askStarter).where(eq(askStarter.clientId, input.clientId)),
+        tx.select({ reviewAllowed: client.askReviewAllowed }).from(client).where(eq(client.id, input.clientId)),
+      ])),
+    ]);
+    return { questions: s && s.questions.length > 0 ? s.questions : [...GENERIC_STARTERS], reviewAllowed: flag?.reviewAllowed ?? false };
   },
 });
 

@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, ToolError } from '@cs/core';
-import { changeEvent, client, clientCompetitor, eventScore, move, withTenant } from '@cs/db';
+import { changeEvent, client, clientCompetitor, eventChange, eventScore, move, withTenant } from '@cs/db';
 import { and, desc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 
@@ -58,6 +58,31 @@ export async function firstVisibleEvent(deps: ToolDeps, ctx: AccessContext, clie
       .where(and(clientEvents(clientId), inArray(changeEvent.id, eventIds)))
       .orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(1));
   return e?.id ?? null;
+}
+
+/**
+ * Launch-gate 6a: `firstVisibleEvent` over the events linked to one change, in one RLS query (the link rows are read
+ * through RLS too: `event_change` is visible exactly when its event is, and the join already requires the event to be
+ * visible to this client). Same answer as reading the links with the service Db and then calling `firstVisibleEvent`.
+ */
+export async function firstVisibleEventOfChange(deps: ToolDeps, ctx: AccessContext, clientId: string, changeId: string): Promise<string | null> {
+  const [e] = await withTenant(deps.app, ctx, (tx) =>
+    tx.select({ id: changeEvent.id }).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+      .where(and(clientEvents(clientId), inArray(changeEvent.id, tx.select({ id: eventChange.eventId }).from(eventChange).where(eq(eventChange.changeId, changeId)))))
+      .orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id)).limit(1));
+  return e?.id ?? null;
+}
+
+/**
+ * Launch-gate 6a: awaits every read (started together by the caller) and rejects with the first failure in **argument**
+ * order, not time order, so a tool that now runs its client check beside its main read keeps the refusal it gave when the
+ * reads ran one after another (e.g. `Client not found` before anything the main read would say). Every promise is
+ * settled first, so none is left rejecting unhandled.
+ */
+export async function allInOrder<T extends readonly unknown[] | []>(reads: T): Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }> {
+  const settled: PromiseSettledResult<unknown>[] = await Promise.allSettled(reads as readonly unknown[]);
+  for (const r of settled) if (r.status === 'rejected') throw r.reason;
+  return settled.map((r) => (r as PromiseFulfilledResult<unknown>).value) as { -readonly [K in keyof T]: Awaited<T[K]> };
 }
 
 export async function requireVisibleEvent(deps: ToolDeps, ctx: AccessContext, clientId: string, eventId: string): Promise<void> {

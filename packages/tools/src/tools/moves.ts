@@ -8,7 +8,7 @@ import { detailOf, pageOf, pageResult } from '../paging';
 import { citableEvidenceKinds, eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
 import { humanise } from '../workspace/labels';
 import { summaryForChannel } from '../workspace/model-text';
-import { clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
+import { allInOrder, clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
 import { MoveDetail, MoveRow, pageFields, pagedItems, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -89,19 +89,23 @@ export const getMove = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId, moveId }, deps, meta) {
-    const c = await workspaceClient(deps, ctx, clientId);
+    // Launch-gate 6a: the client check and both RLS reads (the move and its events, pipelined in one transaction) start
+    // together; refusals keep their order (client, then move). `clientId` is the checked client's id.
+    const [c, [[m], events]] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      withTenant(deps.app, ctx, (tx) => Promise.all([
+        tx.select(moveSelect).from(move).innerJoin(clientCompetitor, trackedMove).innerJoin(competitor, eq(competitor.id, move.competitorId))
+          .where(and(eq(move.clientId, clientId), eq(move.id, moveId))),
+        tx.select(eventRowSelect).from(moveEvent).innerJoin(eventScore, and(eq(eventScore.eventId, moveEvent.eventId), eq(eventScore.clientId, clientId)))
+          .innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
+          .where(and(eq(moveEvent.moveId, moveId), clientEvents(clientId))).orderBy(desc(changeEvent.occurredAt)),
+      ])),
+    ]);
     const pack = await packsOf(deps)(c.verticalId);
     const names = new Map(pack.services.map((s) => [s.id, s.name]));
-    return withTenant(deps.app, ctx, async (tx) => {
-      const [m] = await tx.select(moveSelect).from(move).innerJoin(clientCompetitor, trackedMove).innerJoin(competitor, eq(competitor.id, move.competitorId))
-        .where(and(eq(move.clientId, c.id), eq(move.id, moveId)));
-      if (!m || Number(m.eventCount) === 0) throw new ToolError('not_found', 'Move not found');
-      const events = await tx.select(eventRowSelect).from(moveEvent).innerJoin(eventScore, and(eq(eventScore.eventId, moveEvent.eventId), eq(eventScore.clientId, c.id)))
-        .innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
-        .where(and(eq(moveEvent.moveId, moveId), clientEvents(c.id))).orderBy(desc(changeEvent.occurredAt));
-      const facts = Object.entries(m.details?.facts ?? {}).map(([k, v]) => ({ label: humanise(k), value: String(v) }));
-      return { ...toMoveRow(summaryForChannel(meta, m)), facts, events: events.map((e) => toEventRow(summaryForChannel(meta, e), c.verticalId, names)) };
-    });
+    if (!m || Number(m.eventCount) === 0) throw new ToolError('not_found', 'Move not found');
+    const facts = Object.entries(m.details?.facts ?? {}).map(([k, v]) => ({ label: humanise(k), value: String(v) }));
+    return { ...toMoveRow(summaryForChannel(meta, m)), facts, events: events.map((e) => toEventRow(summaryForChannel(meta, e), c.verticalId, names)) };
   },
 });
 

@@ -43,9 +43,13 @@ export async function competitorLinked(deps: ToolDeps, ctx: AccessContext, clien
 /** Decision 5: the capture's own screenshot, else the newest earlier screenshot of the same tracked page (`fallback`). Call only after access is proved. */
 export async function snapshotSide(db: Db, captureId: string | null): Promise<SnapshotSide | null> {
   if (!captureId) return null;
-  const [cap] = await db.select().from(capture).where(eq(capture.id, captureId));
+  // Launch-gate 6a: the capture and its evidence rows in one round trip (at most one evidence row per kind, unique).
+  const rows = await db.select({ id: capture.id, capturedAt: capture.capturedAt, status: capture.status, trackedPageId: capture.trackedPageId,
+    evId: evidence.id, evKind: evidence.kind, evSha256: evidence.sha256 })
+    .from(capture).leftJoin(evidence, eq(evidence.captureId, capture.id)).where(eq(capture.id, captureId));
+  const cap = rows[0];
   if (!cap) return null;
-  const ev = await db.select({ id: evidence.id, kind: evidence.kind, sha256: evidence.sha256 }).from(evidence).where(eq(evidence.captureId, cap.id));
+  const ev = rows.flatMap((r) => (r.evId !== null && r.evKind !== null && r.evSha256 !== null ? [{ id: r.evId, kind: r.evKind, sha256: r.evSha256 }] : []));
   const own = ev.find((e) => e.kind === 'screenshot');
   let screenshot: SnapshotSide['screenshot'] = own ? { evidenceId: own.id, capturedAt: cap.capturedAt.toISOString(), fallback: false } : null;
   if (!screenshot && cap.trackedPageId) {

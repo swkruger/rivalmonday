@@ -96,9 +96,13 @@ export const searchReviews = defineTool({
     const limit = paged.limit;
     const offset = input.cursor ? paged.offset : input.offset;
     // A self business known only by place id has no review rows, so it is not searchable (pickBusiness -> not_found).
+    // Launch-gate 6a: the vertical's topics need only the client, so they load beside the businesses (one stage); they are
+    // awaited after the business pick, so refusals keep their order.
+    const topicsRead = packsOf(deps)(c.verticalId).then((pack) => topicsForVertical(deps.service, pack));
+    topicsRead.catch(() => undefined); // awaited below; never an unhandled rejection if the business pick refuses first
     const all = (await workspaceBusinesses(deps, ctx, c)).filter((b) => b.competitorId !== null);
     const scope = input.business ? [pickBusiness(all, input.business)] : all;
-    const topics = await topicsForVertical(deps.service, await packsOf(deps)(c.verticalId));
+    const topics = await topicsRead;
     const topicId = input.topicId;
     if (topicId && !topics.some((t) => t.id === topicId)) throw new ToolError('invalid_input', 'Unknown topic');
     if (scope.length === 0) return { items: [], hasMore: false };

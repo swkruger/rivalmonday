@@ -1,0 +1,1326 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > compare_snapshots 1`] = `
+{
+  "noEvidence": {
+    "after": {
+      "captureId": "<id:3>",
+      "capturedAt": "<ts>",
+      "hash": null,
+      "screenshot": null,
+      "status": "ok",
+      "textEvidenceId": null,
+    },
+    "before": {
+      "captureId": "<id:2>",
+      "capturedAt": "<ts>",
+      "hash": null,
+      "screenshot": null,
+      "status": "ok",
+      "textEvidenceId": null,
+    },
+    "changeId": "<id:0>",
+    "channel": "web",
+    "channelLabel": "Website",
+    "details": [],
+    "diff": [
+      {
+        "op": "equal",
+        "text": "AC tune-up ",
+      },
+      {
+        "op": "delete",
+        "text": "$99",
+      },
+      {
+        "op": "insert",
+        "text": "$79",
+      },
+    ],
+    "eventId": "<id:1>",
+    "facts": [],
+    "kind": "modified",
+    "pageUrl": "https://smithhvac.example/pricing",
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "unknownChange": {
+    "message": "Change not found",
+    "refused": "not_found",
+  },
+  "withEvidence": {
+    "after": {
+      "captureId": "<id:5>",
+      "capturedAt": "<ts>",
+      "hash": "html-sha-<cap>",
+      "screenshot": {
+        "capturedAt": "<ts>",
+        "evidenceId": "<id:3>",
+        "fallback": true,
+      },
+      "status": "ok",
+      "textEvidenceId": "<id:6>",
+    },
+    "before": {
+      "captureId": "<id:2>",
+      "capturedAt": "<ts>",
+      "hash": "html-sha-<cap>",
+      "screenshot": {
+        "capturedAt": "<ts>",
+        "evidenceId": "<id:3>",
+        "fallback": false,
+      },
+      "status": "ok",
+      "textEvidenceId": "<id:4>",
+    },
+    "changeId": "<id:0>",
+    "channel": "web",
+    "channelLabel": "Website",
+    "details": [],
+    "diff": [
+      {
+        "op": "equal",
+        "text": "AC tune-up ",
+      },
+      {
+        "op": "delete",
+        "text": "$99",
+      },
+      {
+        "op": "insert",
+        "text": "$79",
+      },
+    ],
+    "eventId": "<id:1>",
+    "facts": [],
+    "kind": "modified",
+    "pageUrl": "https://smithhvac.example/pricing",
+  },
+  "wrongClient": {
+    "message": "Change not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_ask_starters 1`] = `
+{
+  "genericA2": {
+    "questions": [
+      "What changed at my competitors this week?",
+      "Which competitor is most active this month?",
+      "How do our reviews compare with competitors'?",
+      "Have any competitors changed their prices recently?",
+    ],
+    "reviewAllowed": true,
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "owner": {
+    "questions": [
+      "Who cut prices?",
+      "What changed?",
+    ],
+    "reviewAllowed": true,
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_brief 1`] = `
+{
+  "admin": {
+    "approvedAt": null,
+    "clientId": "<id:1>",
+    "deliveryDate": "2026-11-04",
+    "generatedAt": "<ts>",
+    "hasPdf": false,
+    "id": "<id:0>",
+    "items": [
+      {
+        "competitorId": null,
+        "competitorName": "A1 HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h1",
+        "id": "<id:2>",
+        "impact": "H",
+        "ord": 1,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "self",
+        "upsellTag": "ppc_audit",
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+      {
+        "competitorId": "<id:4>",
+        "competitorName": "Smith HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h2",
+        "id": "<id:3>",
+        "impact": "H",
+        "ord": 2,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "competitor",
+        "upsellTag": "ppc_audit",
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+      {
+        "competitorId": "<id:4>",
+        "competitorName": "Smith HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h3",
+        "id": "<id:5>",
+        "impact": "H",
+        "ord": 3,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "competitor",
+        "upsellTag": "ppc_audit",
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+    ],
+    "kind": "standard",
+    "periodEnd": "<ts>",
+    "periodStart": "<ts>",
+    "scorecard": null,
+    "sentAt": "<ts>",
+    "status": "sent",
+    "summary": "Sent",
+    "trend": null,
+  },
+  "otherAgency": {
+    "message": "Brief not found",
+    "refused": "not_found",
+  },
+  "owner": {
+    "approvedAt": null,
+    "clientId": "<id:1>",
+    "deliveryDate": "2026-11-04",
+    "generatedAt": "<ts>",
+    "hasPdf": false,
+    "id": "<id:0>",
+    "items": [
+      {
+        "competitorId": null,
+        "competitorName": "A1 HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h1",
+        "id": "<id:2>",
+        "impact": "H",
+        "ord": 1,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "self",
+        "upsellTag": null,
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+      {
+        "competitorId": "<id:4>",
+        "competitorName": "Smith HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h2",
+        "id": "<id:3>",
+        "impact": "H",
+        "ord": 2,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "competitor",
+        "upsellTag": null,
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+      {
+        "competitorId": "<id:4>",
+        "competitorName": "Smith HVAC",
+        "confidence": 0.9,
+        "effort": "L",
+        "evidenceIds": [],
+        "headline": "h3",
+        "id": "<id:5>",
+        "impact": "H",
+        "ord": 3,
+        "recommendedAction": "r",
+        "status": "active",
+        "subject": "competitor",
+        "upsellTag": null,
+        "whatChanged": "w",
+        "whyItMatters": "y",
+      },
+    ],
+    "kind": "standard",
+    "periodEnd": "<ts>",
+    "periodStart": "<ts>",
+    "scorecard": null,
+    "sentAt": "<ts>",
+    "status": "sent",
+    "summary": "Sent",
+    "trend": null,
+  },
+  "unknown": {
+    "message": "Brief not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_client_setup and list_competitor_suggestions 1`] = `
+{
+  "admin": {
+    "competitorSuggestions": [
+      {
+        "distanceKm": 3,
+        "id": "<id:0>",
+        "name": "alpha",
+        "preTicked": true,
+        "rating": 4.5,
+        "status": "suggested",
+        "tier": "top",
+        "votes": 40,
+      },
+      {
+        "distanceKm": 3,
+        "id": "<id:1>",
+        "name": "beta",
+        "preTicked": false,
+        "rating": 4.5,
+        "status": "accepted",
+        "tier": "watch",
+        "votes": 40,
+      },
+      {
+        "distanceKm": 3,
+        "id": "<id:2>",
+        "name": "gamma",
+        "preTicked": false,
+        "rating": 4.5,
+        "status": "suggested",
+        "tier": "minor",
+        "votes": 40,
+      },
+    ],
+    "invite": {
+      "email": "pat@x.co",
+      "name": "Pat Owner",
+      "status": "pending",
+    },
+    "lookup": null,
+    "search": {
+      "finishedAt": null,
+      "kept": null,
+      "progress": {
+        "checksDone": 0,
+        "checksTotal": 0,
+        "searchesDone": 0,
+        "searchesTotal": 0,
+      },
+      "status": "searching",
+    },
+    "state": {
+      "competitors": "waiting_owner",
+      "completedAt": null,
+      "dismissedAt": null,
+      "exists": true,
+      "needsLocation": true,
+      "open": true,
+      "searchRefusal": null,
+      "steps": {
+        "billing": "skipped",
+        "competitors": "waiting_owner",
+        "details": "todo",
+        "invite": "done",
+        "lookup": "done",
+        "profile": "todo",
+      },
+      "totalSteps": 6,
+      "waitingOn": "agency",
+    },
+    "suggestions": {
+      "status": "none",
+    },
+    "vertical": {
+      "name": "HVAC & Plumbing",
+      "seedKeywords": [
+        "hvac contractor",
+        "ac repair",
+        "plumber",
+      ],
+      "services": [
+        {
+          "id": "emergency_service",
+          "name": "24/7 emergency service",
+        },
+        {
+          "id": "ac_install",
+          "name": "AC installation",
+        },
+        {
+          "id": "ac_repair",
+          "name": "AC repair",
+        },
+        {
+          "id": "ac_tune_up",
+          "name": "AC tune-up",
+        },
+        {
+          "id": "drain_cleaning",
+          "name": "Drain cleaning",
+        },
+        {
+          "id": "duct_cleaning",
+          "name": "Duct cleaning",
+        },
+        {
+          "id": "financing",
+          "name": "Financing offer",
+        },
+        {
+          "id": "furnace_install",
+          "name": "Furnace installation",
+        },
+        {
+          "id": "furnace_repair",
+          "name": "Furnace repair",
+        },
+        {
+          "id": "furnace_tune_up",
+          "name": "Furnace tune-up",
+        },
+        {
+          "id": "heat_pump",
+          "name": "Heat pump install & repair",
+        },
+        {
+          "id": "leak_repair",
+          "name": "Leak repair",
+        },
+        {
+          "id": "maintenance_plan",
+          "name": "Maintenance plan / membership",
+        },
+        {
+          "id": "sewer_line",
+          "name": "Sewer line service",
+        },
+        {
+          "id": "water_heater",
+          "name": "Water heater repair & install",
+        },
+      ],
+    },
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "ownerClosed": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "ownerPicking": {
+    "competitorSuggestions": [
+      {
+        "distanceKm": 3,
+        "id": "<id:0>",
+        "name": "alpha",
+        "preTicked": true,
+        "rating": 4.5,
+        "status": "suggested",
+        "tier": "top",
+        "votes": 40,
+      },
+      {
+        "distanceKm": 3,
+        "id": "<id:1>",
+        "name": "beta",
+        "preTicked": false,
+        "rating": 4.5,
+        "status": "accepted",
+        "tier": "watch",
+        "votes": 40,
+      },
+      {
+        "distanceKm": 3,
+        "id": "<id:2>",
+        "name": "gamma",
+        "preTicked": false,
+        "rating": 4.5,
+        "status": "suggested",
+        "tier": "minor",
+        "votes": 40,
+      },
+    ],
+    "invite": {
+      "email": null,
+      "name": null,
+      "status": "pending",
+    },
+    "lookup": null,
+    "search": {
+      "finishedAt": null,
+      "kept": null,
+      "progress": {
+        "checksDone": 0,
+        "checksTotal": 0,
+        "searchesDone": 0,
+        "searchesTotal": 0,
+      },
+      "status": "searching",
+    },
+    "state": {
+      "competitors": "waiting_owner",
+      "completedAt": null,
+      "dismissedAt": null,
+      "exists": true,
+      "needsLocation": true,
+      "open": true,
+      "searchRefusal": null,
+      "steps": {
+        "billing": "skipped",
+        "competitors": "waiting_owner",
+        "details": "todo",
+        "invite": "done",
+        "lookup": "done",
+        "profile": "todo",
+      },
+      "totalSteps": 6,
+      "waitingOn": "agency",
+    },
+    "suggestions": {
+      "status": "none",
+    },
+    "vertical": {
+      "name": "HVAC & Plumbing",
+      "seedKeywords": [
+        "hvac contractor",
+        "ac repair",
+        "plumber",
+      ],
+      "services": [
+        {
+          "id": "emergency_service",
+          "name": "24/7 emergency service",
+        },
+        {
+          "id": "ac_install",
+          "name": "AC installation",
+        },
+        {
+          "id": "ac_repair",
+          "name": "AC repair",
+        },
+        {
+          "id": "ac_tune_up",
+          "name": "AC tune-up",
+        },
+        {
+          "id": "drain_cleaning",
+          "name": "Drain cleaning",
+        },
+        {
+          "id": "duct_cleaning",
+          "name": "Duct cleaning",
+        },
+        {
+          "id": "financing",
+          "name": "Financing offer",
+        },
+        {
+          "id": "furnace_install",
+          "name": "Furnace installation",
+        },
+        {
+          "id": "furnace_repair",
+          "name": "Furnace repair",
+        },
+        {
+          "id": "furnace_tune_up",
+          "name": "Furnace tune-up",
+        },
+        {
+          "id": "heat_pump",
+          "name": "Heat pump install & repair",
+        },
+        {
+          "id": "leak_repair",
+          "name": "Leak repair",
+        },
+        {
+          "id": "maintenance_plan",
+          "name": "Maintenance plan / membership",
+        },
+        {
+          "id": "sewer_line",
+          "name": "Sewer line service",
+        },
+        {
+          "id": "water_heater",
+          "name": "Water heater repair & install",
+        },
+      ],
+    },
+  },
+  "suggestions": {
+    "hidden": {
+      "closed": 0,
+      "outside_area": 0,
+      "self": 0,
+      "thin": 0,
+      "wrong_category": 0,
+    },
+    "hiddenList": [],
+    "suggestions": [
+      {
+        "adMatches": [],
+        "appearances": 3,
+        "bestRank": null,
+        "category": null,
+        "distanceKm": 3,
+        "domain": null,
+        "id": "<id:0>",
+        "name": "alpha",
+        "overlapScore": 0.6,
+        "placeId": "pl-alpha",
+        "preselected": true,
+        "rating": 4.5,
+        "signals": {
+          "categoryMatch": null,
+          "chain": null,
+          "claimed": null,
+          "distanceKm": null,
+          "googleAccount": null,
+          "googleAdsActive": null,
+          "googleAdsNew30d": null,
+          "metaAdsActive": null,
+          "metaPage": null,
+          "presence": null,
+          "rating": null,
+          "replyRate": null,
+          "reviews30d": null,
+          "reviews90d": null,
+          "votes": null,
+        },
+        "tier": "top",
+        "votes": 40,
+      },
+      {
+        "adMatches": [],
+        "appearances": 3,
+        "bestRank": null,
+        "category": null,
+        "distanceKm": 3,
+        "domain": null,
+        "id": "<id:1>",
+        "name": "gamma",
+        "overlapScore": 0.6,
+        "placeId": "pl-gamma",
+        "preselected": false,
+        "rating": 4.5,
+        "signals": {
+          "categoryMatch": null,
+          "chain": null,
+          "claimed": null,
+          "distanceKm": null,
+          "googleAccount": null,
+          "googleAdsActive": null,
+          "googleAdsNew30d": null,
+          "metaAdsActive": null,
+          "metaPage": null,
+          "presence": null,
+          "rating": null,
+          "replyRate": null,
+          "reviews30d": null,
+          "reviews90d": null,
+          "votes": null,
+        },
+        "tier": "minor",
+        "votes": 40,
+      },
+    ],
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_competitor_profile and get_competitor_timeline 1`] = `
+{
+  "profile": {
+    "activeAds": {
+      "google": 1,
+      "meta": 0,
+    },
+    "addedAt": "<ts>",
+    "competitorId": "<id:0>",
+    "domain": "smithhvac.example",
+    "gbp": {
+      "category": null,
+      "rating": 4.4,
+      "reviews": 10,
+    },
+    "gbpAsOf": "<ts>",
+    "name": "Smith HVAC",
+    "openMoves": 1,
+    "pages": {
+      "active": 1,
+      "blocked": 0,
+    },
+    "placeId": null,
+    "pressure": {
+      "level": "high",
+      "reasons": [
+        "Price change",
+        "Price war",
+      ],
+      "score": 97,
+    },
+    "sources": [],
+  },
+  "profileOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "profileUntracked": {
+    "message": "Competitor not found",
+    "refused": "not_found",
+  },
+  "timeline": {
+    "items": [
+      {
+        "at": "<ts>",
+        "id": "<id:0>",
+        "kind": "move",
+        "label": "Price war",
+        "route": null,
+        "score": null,
+        "status": "active",
+        "title": "Price war",
+      },
+      {
+        "at": "<ts>",
+        "id": "<id:1>",
+        "kind": "event",
+        "label": "Price change",
+        "route": "alert",
+        "score": 86,
+        "status": null,
+        "title": "Smith HVAC cut its AC tune-up to $79",
+      },
+      {
+        "at": "<ts>",
+        "id": "<id:2>",
+        "kind": "event",
+        "label": "Promotion",
+        "route": "brief",
+        "score": 55,
+        "status": null,
+        "title": "Smith HVAC started a spring promo",
+      },
+    ],
+  },
+  "timelineOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "timelineUntracked": {
+    "message": "Competitor not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_event 1`] = `
+{
+  "admin": {
+    "changeType": "price_change",
+    "changes": [
+      {
+        "afterCaptureId": "<id:4>",
+        "beforeCaptureId": "<id:3>",
+        "changeId": "<id:2>",
+        "channel": "web",
+        "channelLabel": "Website",
+        "detectedAt": "<ts>",
+        "hasTextDiff": true,
+        "kind": "modified",
+        "pageUrl": "https://smithhvac.example/pricing",
+      },
+    ],
+    "channels": [
+      "web",
+    ],
+    "competitorId": "<id:1>",
+    "competitorName": "Smith HVAC",
+    "details": [],
+    "eventId": "<id:0>",
+    "evidenceCount": 1,
+    "factors": {
+      "novelty": 0.9,
+      "relevance": 1,
+      "serviceOverlap": 1,
+      "size": 0.95,
+      "territoryOverlap": 1,
+      "thresholds": {
+        "alert": 70,
+        "brief": 40,
+      },
+      "typeWeight": 1,
+    },
+    "facts": [],
+    "moves": [
+      {
+        "id": "<id:5>",
+        "label": "Price war",
+        "status": "active",
+      },
+    ],
+    "myFeedback": null,
+    "occurredAt": "<ts>",
+    "route": "alert",
+    "score": 86,
+    "scoredAt": "<ts>",
+    "serviceId": "ac_tune_up",
+    "serviceName": "AC tune-up",
+    "summary": "Smith HVAC cut its AC tune-up to $79",
+    "typeLabel": "Price change",
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "otherClient": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "owner": {
+    "changeType": "promotion",
+    "changes": [
+      {
+        "afterCaptureId": "<id:4>",
+        "beforeCaptureId": "<id:3>",
+        "changeId": "<id:2>",
+        "channel": "web",
+        "channelLabel": "Website",
+        "detectedAt": "<ts>",
+        "hasTextDiff": true,
+        "kind": "modified",
+        "pageUrl": "https://smithhvac.example/pricing",
+      },
+    ],
+    "channels": [
+      "web",
+    ],
+    "competitorId": "<id:1>",
+    "competitorName": "Smith HVAC",
+    "details": [],
+    "eventId": "<id:0>",
+    "evidenceCount": 1,
+    "factors": {
+      "novelty": 0.9,
+      "relevance": 1,
+      "serviceOverlap": 1,
+      "size": 0.95,
+      "territoryOverlap": 1,
+      "thresholds": {
+        "alert": 70,
+        "brief": 40,
+      },
+      "typeWeight": 1,
+    },
+    "facts": [],
+    "moves": [
+      {
+        "id": "<id:5>",
+        "label": "Price war",
+        "status": "active",
+      },
+    ],
+    "myFeedback": null,
+    "occurredAt": "<ts>",
+    "route": "brief",
+    "score": 55,
+    "scoredAt": "<ts>",
+    "serviceId": "ac_tune_up",
+    "serviceName": "AC tune-up",
+    "summary": "Smith HVAC started a spring promo",
+    "typeLabel": "Promotion",
+  },
+  "unknownEvent": {
+    "message": "Change not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_move 1`] = `
+{
+  "admin": {
+    "channels": [],
+    "closedAt": null,
+    "competitorId": "<id:1>",
+    "competitorName": "Smith HVAC",
+    "confidence": 0.7,
+    "eventCount": 2,
+    "events": [
+      {
+        "changeType": "price_change",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:2>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "alert",
+        "score": 86,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC cut its AC tune-up to $79",
+        "typeLabel": "Price change",
+      },
+      {
+        "changeType": "promotion",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:3>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "brief",
+        "score": 55,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC started a spring promo",
+        "typeLabel": "Promotion",
+      },
+    ],
+    "facts": [],
+    "firstDetectedAt": "<ts>",
+    "id": "<id:0>",
+    "label": "Price war",
+    "lastEvidenceAt": "<ts>",
+    "moveType": "price_war",
+    "status": "active",
+    "summary": "Price war",
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "unknown": {
+    "message": "Move not found",
+    "refused": "not_found",
+  },
+  "wrongClient": {
+    "message": "Move not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > get_workspace_overview 1`] = `
+{
+  "admin": {
+    "activeAds": 1,
+    "activeAds7dAgo": 1,
+    "alerts7d": 1,
+    "changes7d": 2,
+    "clientId": "<id:0>",
+    "pitchSnapshot": false,
+    "pressure": [
+      {
+        "competitorId": "<id:1>",
+        "name": "Smith HVAC",
+        "pressure": {
+          "level": "high",
+          "reasons": [
+            "Price change",
+            "Price war",
+          ],
+          "score": 97,
+        },
+      },
+    ],
+    "priceCuts7d": 0,
+    "priceMoves7d": 0,
+    "rating": {
+      "competitorAverage": 4.4,
+      "self": null,
+    },
+    "trackedCompetitors": 1,
+    "weekly": {
+      "activeAds": [
+        null,
+        null,
+        null,
+        0,
+        0,
+        1,
+        1,
+        1,
+      ],
+      "changes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+      ],
+      "priceMoves": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ],
+    },
+    "zips": 0,
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "owner": {
+    "activeAds": 1,
+    "activeAds7dAgo": 1,
+    "alerts7d": 1,
+    "changes7d": 2,
+    "clientId": "<id:0>",
+    "pitchSnapshot": false,
+    "pressure": [
+      {
+        "competitorId": "<id:1>",
+        "name": "Smith HVAC",
+        "pressure": {
+          "level": "high",
+          "reasons": [
+            "Price change",
+            "Price war",
+          ],
+          "score": 97,
+        },
+      },
+    ],
+    "priceCuts7d": 0,
+    "priceMoves7d": 0,
+    "rating": {
+      "competitorAverage": 4.4,
+      "self": null,
+    },
+    "trackedCompetitors": 1,
+    "weekly": {
+      "activeAds": [
+        null,
+        null,
+        null,
+        0,
+        0,
+        1,
+        1,
+        1,
+      ],
+      "changes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+      ],
+      "priceMoves": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ],
+    },
+    "zips": 0,
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > list_help_guides and get_page_guide 1`] = `
+{
+  "listAdmin": {
+    "guides": [
+      {
+        "articleId": "<id:0>",
+        "helpKey": "page:account.profile",
+        "title": "Profile guide",
+      },
+      {
+        "articleId": "<id:1>",
+        "helpKey": "page:client.overview",
+        "title": "Agency overview guide",
+      },
+    ],
+  },
+  "listAgency": {
+    "guides": [
+      {
+        "articleId": "<id:0>",
+        "helpKey": "page:account.profile",
+        "title": "Profile guide",
+      },
+      {
+        "articleId": "<id:1>",
+        "helpKey": "page:agency.home",
+        "title": "Agency home guide",
+      },
+    ],
+  },
+  "listNoClient": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "listOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "listOwner": {
+    "guides": [
+      {
+        "articleId": "<id:0>",
+        "helpKey": "page:account.profile",
+        "title": "Profile guide",
+      },
+      {
+        "articleId": "<id:1>",
+        "helpKey": "page:client.changes",
+        "title": "Changes guide",
+      },
+      {
+        "articleId": "<id:2>",
+        "helpKey": "page:client.overview",
+        "title": "Overview guide",
+      },
+    ],
+  },
+  "pageAdmin": {
+    "id": "<id:0>",
+    "sections": [
+      {
+        "heading": "What this page tells you",
+        "markdown": "Agency overview guide for A1 HVAC on Rival Monday.",
+      },
+    ],
+    "title": "Agency overview guide",
+  },
+  "pageMissing": null,
+  "pageOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "pageOwner": {
+    "id": "<id:0>",
+    "sections": [
+      {
+        "heading": "What this page tells you",
+        "markdown": "Overview guide for A1 HVAC on your agency.",
+      },
+    ],
+    "title": "Overview guide",
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > search_events 1`] = `
+{
+  "flagged": {
+    "hasMore": false,
+    "items": [
+      {
+        "changeType": "price_change",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:0>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "alert",
+        "score": 86,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC cut its AC tune-up to $79",
+        "typeLabel": "Price change",
+      },
+      {
+        "changeType": "promotion",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:2>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "brief",
+        "score": 55,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC started a spring promo",
+        "typeLabel": "Promotion",
+      },
+    ],
+    "nextCursor": null,
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "query": {
+    "hasMore": false,
+    "items": [
+      {
+        "changeType": "promotion",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:0>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "brief",
+        "score": 55,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC started a spring promo",
+        "typeLabel": "Promotion",
+      },
+    ],
+    "nextCursor": null,
+  },
+  "service": {
+    "hasMore": false,
+    "items": [
+      {
+        "changeType": "price_change",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:0>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "alert",
+        "score": 86,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC cut its AC tune-up to $79",
+        "typeLabel": "Price change",
+      },
+      {
+        "changeType": "promotion",
+        "channels": [
+          "web",
+        ],
+        "competitorId": "<id:1>",
+        "competitorName": "Smith HVAC",
+        "eventId": "<id:2>",
+        "evidenceCount": 1,
+        "occurredAt": "<ts>",
+        "route": "brief",
+        "score": 55,
+        "scoredAt": "<ts>",
+        "serviceId": "ac_tune_up",
+        "serviceName": "AC tune-up",
+        "summary": "Smith HVAC started a spring promo",
+        "typeLabel": "Promotion",
+      },
+    ],
+    "nextCursor": null,
+  },
+}
+`;
+
+exports[`launch-gate 6a output parity (snapshot recorded before the change) > search_reviews 1`] = `
+{
+  "all": {
+    "hasMore": false,
+    "items": [
+      {
+        "competitorId": "<id:1>",
+        "name": "Smith HVAC",
+        "ownerAnswer": null,
+        "postedAt": "<ts>",
+        "rating": 5,
+        "reviewId": "<id:0>",
+        "self": false,
+        "sentiment": null,
+        "text": "Great tune-up, fast and fair",
+        "topics": [],
+      },
+      {
+        "competitorId": "<id:1>",
+        "name": "Smith HVAC",
+        "ownerAnswer": "Sorry about that",
+        "postedAt": "<ts>",
+        "rating": 2,
+        "reviewId": "<id:2>",
+        "self": false,
+        "sentiment": null,
+        "text": "Late again",
+        "topics": [],
+      },
+    ],
+    "nextCursor": null,
+  },
+  "badBusiness": {
+    "message": "Competitor not found",
+    "refused": "not_found",
+  },
+  "badTopic": {
+    "message": "Unknown topic",
+    "refused": "invalid_input",
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "self": {
+    "hasMore": false,
+    "items": [],
+    "nextCursor": null,
+  },
+}
+`;

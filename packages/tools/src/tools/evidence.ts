@@ -8,7 +8,7 @@ import type { ToolDeps } from '../deps';
 import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel } from '../workspace/model-text';
-import { clientEvents, eventJoin, firstVisibleEvent, workspaceClient } from '../workspace/scope';
+import { allInOrder, clientEvents, eventJoin, firstVisibleEventOfChange, workspaceClient } from '../workspace/scope';
 import { type DiffSegment, diffCells, MAX_DIFF_CELLS, wordDiff } from '../workspace/word-diff';
 import { CaptureCompareView, CompareView, EvidenceRefsView, EvidenceView } from './schemas';
 
@@ -86,18 +86,20 @@ export const compareSnapshots = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, { clientId, changeId }, deps, meta) {
-    const c = await workspaceClient(deps, ctx, clientId);
-    const [ch] = await deps.service
-      .select({ id: detectedChange.id, competitorName: competitor.name, source: detectedChange.source, kind: detectedChange.kind, pageUrl: trackedPage.url,
-        beforeCaptureId: detectedChange.beforeCaptureId, afterCaptureId: detectedChange.afterCaptureId, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText,
-        numericChanges: detectedChange.numericChanges, details: detectedChange.details })
-      .from(detectedChange).innerJoin(competitor, eq(competitor.id, detectedChange.competitorId)).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
-      .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'event')));
-    if (!ch) throw new ToolError('not_found', 'Change not found');
-    // F8: a change may be linked to several events (merges) — it is visible when any of them is.
-    const linked = await deps.service.select({ eventId: eventChange.eventId }).from(eventChange).where(eq(eventChange.changeId, ch.id));
-    const eventId = await firstVisibleEvent(deps, ctx, c.id, linked.map((l) => l.eventId));
-    if (!eventId) throw new ToolError('not_found', 'Change not found');
+    // Launch-gate 6a: the client check, the change row and its visibility start together (one stage); refusals keep
+    // their order (client first, then the change). F8: a change may be linked to several events (merges) — it is
+    // visible when any of them is (`firstVisibleEventOfChange`, one RLS query).
+    const [, [ch], eventId] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      deps.service
+        .select({ id: detectedChange.id, competitorName: competitor.name, source: detectedChange.source, kind: detectedChange.kind, pageUrl: trackedPage.url,
+          beforeCaptureId: detectedChange.beforeCaptureId, afterCaptureId: detectedChange.afterCaptureId, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText,
+          numericChanges: detectedChange.numericChanges, details: detectedChange.details })
+        .from(detectedChange).innerJoin(competitor, eq(competitor.id, detectedChange.competitorId)).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
+        .where(and(eq(detectedChange.id, changeId), eq(detectedChange.status, 'event'))),
+      firstVisibleEventOfChange(deps, ctx, clientId, changeId),
+    ]);
+    if (!ch || !eventId) throw new ToolError('not_found', 'Change not found');
     const [before, after] = await Promise.all([snapshotSide(deps.service, ch.beforeCaptureId), snapshotSide(deps.service, ch.afterCaptureId)]);
     const hasText = ch.beforeText !== null || ch.afterText !== null;
     return {

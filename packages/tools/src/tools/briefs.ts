@@ -52,14 +52,17 @@ export const listBriefs = defineTool({
 export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: string): Promise<BriefDetail> {
   const view = await getBrief({ app: deps.app }, ctx, briefId); // 4a: visibility, status gate and upsell stripping
   const competitorIds = [...new Set(view.items.flatMap((i) => (i.competitorId ? [i.competitorId] : [])))];
-  const names = competitorIds.length
-    ? await withTenant(deps.app, ctx, (tx) => tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)))
-    : [];
+  // Launch-gate 6a: both name reads need only the brief view; one transaction, pipelined. Self items (Phase 12b) have no
+  // competitor: their name is the client's (the web hides it; the scorecard model uses it for "(you)").
+  const needClient = view.items.some((i) => !i.competitorId);
+  const [names, clientRows] = competitorIds.length || needClient
+    ? await withTenant(deps.app, ctx, (tx) => Promise.all([
+      competitorIds.length ? tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)) : Promise.resolve([]),
+      needClient ? tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId)) : Promise.resolve([]),
+    ]))
+    : [[], []];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
-  // Self items (Phase 12b) have no competitor: their name is the client's (the web hides it; the scorecard model uses it for "(you)").
-  const clientName = view.items.some((i) => !i.competitorId)
-    ? (await withTenant(deps.app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId))))[0]?.name
-    : undefined;
+  const clientName = needClient ? clientRows[0]?.name : undefined;
   const agency = isAgencyRole(ctx.role);
   return {
     ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),

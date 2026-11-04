@@ -1,7 +1,7 @@
 import { type AccessContext, appLinkFor, canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
 import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, type DiscoveryRunRow, trackedPage, type Tx, withTenant } from '@cs/db';
-import { and, asc, count, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { latestDoneRun, nextManualSearchAt, type SearchRefusal, type SearchStart, startCompetitorSearch, weeklyLimitMessage } from '../rival-search';
@@ -74,9 +74,10 @@ type SuggestionStatus = 'suggested' | 'accepted' | 'dismissed';
 export async function runSuggestionRows(tx: Pick<Tx, 'select'>, clientId: string, statuses: readonly SuggestionStatus[]): Promise<{ run: DiscoveryRunRow | null; rows: SuggestionRow[] }> {
   const run = await latestDoneRun(tx, clientId);
   if (!run) return { run: null, rows: [] };
-  const newer = (await tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)))).map((x) => x.id);
+  // Launch-gate 6a: the runs started after it are a subquery (one round trip, same set as reading them first).
+  const newer = tx.select({ id: discoveryRun.id }).from(discoveryRun).where(and(eq(discoveryRun.clientId, clientId), gt(discoveryRun.startedAt, run.startedAt)));
   const rows = await tx.select().from(competitorSuggestion)
-    .where(and(eq(competitorSuggestion.clientId, clientId), inArray(competitorSuggestion.runId, [run.id, ...newer]), inArray(competitorSuggestion.status, [...statuses])))
+    .where(and(eq(competitorSuggestion.clientId, clientId), or(eq(competitorSuggestion.runId, run.id), inArray(competitorSuggestion.runId, newer)), inArray(competitorSuggestion.status, [...statuses])))
     .orderBy(TIER_ORDER, sql`${competitorSuggestion.overlap} DESC NULLS LAST`, desc(competitorSuggestion.overlapScore), desc(competitorSuggestion.appearances), asc(competitorSuggestion.id))
     .limit(100);
   return { run, rows };

@@ -51,10 +51,15 @@ async function lockReadyBrief(tx: Tx, briefId: string): Promise<typeof brief.$in
 }
 
 export async function getBrief(deps: Pick<ReviewDeps, 'app'>, ctx: AccessContext, briefId: string): Promise<BriefView> {
-  const b = await visibleBrief(deps.app, ctx, briefId);
+  // Launch-gate 6a: the brief and its items in one transaction, pipelined (one round trip); the same checks as
+  // `visibleBrief` run on the brief row before any item is used.
+  const [[b], items] = await withTenant(deps.app, ctx, (tx) => Promise.all([
+    tx.select().from(brief).where(eq(brief.id, briefId)).limit(1),
+    tx.select().from(briefItem).where(eq(briefItem.briefId, briefId)).orderBy(asc(briefItem.ord)),
+  ]));
+  if (!b || !canAccessClient(ctx, b.clientId)) throw new ToolError('not_found', 'Brief not found');
   const agency = isAgencyRole(ctx.role);
   if (!agency && b.status !== 'approved' && b.status !== 'sent') throw new ToolError('not_found', 'Brief not found');
-  const items = await withTenant(deps.app, ctx, (tx) => tx.select().from(briefItem).where(eq(briefItem.briefId, briefId)).orderBy(asc(briefItem.ord)));
   return { brief: b, items: agency ? items : items.filter((i) => i.status === 'active').map((i) => ({ ...i, upsellTag: null })) };
 }
 
