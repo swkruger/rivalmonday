@@ -25,7 +25,8 @@ describe('site copy', () => {
     expect(home.HERO.primaryStart).toBe('agency-sample');
     expect(home.HERO.eyebrow).toBe('White-label competitor intelligence for agencies');
     expect(home.HERO.eyebrowPill).toBe('Pilot');
-    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Get a free brief for one of your clients', 'See what your clients get']);
+    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Join the free pilot', 'See what your clients get']);
+    expect(home.HERO.heroCta).toBe('Get a free brief for one of your clients');
     expect(home.HERO.finePrint).toBe('Free during the pilot · No card needed · Limited places');
   });
 

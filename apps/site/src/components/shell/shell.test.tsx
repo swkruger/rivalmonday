@@ -20,7 +20,6 @@ vi.mock('../join/join-provider', async (orig) => {
   return { ...real, useJoin: () => ({ ...real.useJoin(), open: openSpy }) };
 });
 
-import { HERO } from '../../../content/home';
 import { PAGES } from '../../../content/pages';
 const realPages = [...PAGES];
 import { JoinProvider } from '../join/join-provider';
@@ -84,7 +83,7 @@ describe('site shell', () => {
     const mobile = screen.getByRole('navigation', { name: 'Mobile' });
     expect(mobile).toBeTruthy();
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: HERO.primaryCta }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Join the free pilot' }));
     expect(openSpy).toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -148,7 +147,7 @@ describe('site shell', () => {
     fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: null });
     await renderShell();
     expect(screen.queryByRole('link', { name: 'Start your free trial' })).toBeNull();
-    expect(screen.getAllByRole('button', { name: HERO.primaryCta }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Join the free pilot' }).length).toBeGreaterThan(0);
     expect(screen.getByText('Join the free pilot →')).toBeTruthy();
   });
 

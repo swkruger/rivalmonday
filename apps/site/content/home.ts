@@ -12,7 +12,9 @@ export const HERO = {
   sub: "Your clients' rivals are climbing the map, collecting reviews, launching ads and changing prices. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
   subNoWeb:
     "Your clients' rivals are climbing the map, collecting reviews and launching ads. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
-  primaryCta: 'Get a free brief for one of your clients',
+  primaryCta: 'Join the free pilot',
+  /** Home hero, home mobile bar and close band (D1). `primaryCta` stays the shared `JoinButton` default. */
+  heroCta: 'Get a free brief for one of your clients',
   primaryStart: 'agency-sample' as const satisfies JoinStart,
   secondaryCta: 'See what your clients get',
   finePrint: 'Free during the pilot · No card needed · Limited places',
@@ -375,7 +377,7 @@ export const COMMERCIAL = {
 export const CLOSE = {
   heading: "Pick one client. We'll show you what their rivals are doing.",
   body: "Tell us about one client. We'll build a starting-point brief from public information and email you a private link. Free during the pilot, a limited number each month.",
-  button: 'Get a free brief for one of your clients',
+  button: HERO.heroCta,
 } as const;
 
 /** Pilot off (NEW, owner signs). */
