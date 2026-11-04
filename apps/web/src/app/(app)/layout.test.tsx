@@ -8,20 +8,25 @@ const m = vi.hoisted(() => ({
   path: '/agency',
   status: { dismissed: false, completed: false, redirected: false } as Record<string, unknown>,
   calls: [] as string[],
+  // Launch gate Task 4: `shell` marks when the shell's batch started, `status-done` when the onboarding read resolved.
+  order: [] as string[],
   run: vi.fn(),
 }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: { kind: m.kind }, ctx: m.ctx }) }));
 vi.mock('@/server/billing-state', () => ({ billingSnapshotOf: async () => ({ state: m.billingState }) }));
 vi.mock('@/server/billing-redirect', () => ({ billingRedirectFor: () => null }));
-vi.mock('@/components/shell/app-shell', () => ({ AppShell: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock('@/components/shell/app-shell', () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => children,
+  startShellReads: () => { m.order.push('shell'); return Promise.resolve({}); },
+}));
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-rm-path': m.path }), cookies: async () => ({ get: () => undefined }) }));
-vi.mock('@/server/tools', () => ({ callTool: async (_c: unknown, name: string) => { m.calls.push(name); return m.status; } }));
+vi.mock('@/server/tools', () => ({ callTool: async (_c: unknown, name: string) => { m.calls.push(name); await Promise.resolve(); m.order.push(`${name}-done`); return m.status; } }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => { m.calls.push(String(a[1])); return m.run(...a); } }));
 vi.mock('next/navigation', () => ({ redirect: (to: string) => { throw new Error(`NEXT_REDIRECT:${to}`); } }));
 const { default: AppLayout } = await import('./layout');
 
 beforeEach(() => {
-  m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.billingState = 'active'; m.path = '/agency'; m.calls = [];
+  m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'user'; m.billingState = 'active'; m.path = '/agency'; m.calls = []; m.order = [];
   m.status = { dismissed: false, completed: false, redirected: false }; m.run.mockReset().mockResolvedValue({ ok: true, data: { ok: true } });
 });
 
@@ -73,5 +78,18 @@ describe('(app) layout first-session redirect', () => {
     m.ctx = { role: 'agency_admin', agencyId: 'a1' }; m.kind = 'support';
     await expect(AppLayout({ children: null })).resolves.toBeDefined();
     expect(m.calls).toEqual([]);
+  });
+
+  it('launch gate: the shell batch starts before the onboarding read resolves (one stage), and is handed to the shell', async () => {
+    m.status = { dismissed: false, completed: true, redirected: false };
+    const el = (await AppLayout({ children: null })) as { props: { reads?: unknown } };
+    expect(m.order).toEqual(['shell', 'get_onboarding_status-done']);
+    expect(el.props.reads).toBeInstanceOf(Promise);
+  });
+
+  it('launch gate: a suspended agency member (no shell) starts no shell reads', async () => {
+    m.billingState = 'suspended'; m.ctx = { role: 'client_viewer', agencyId: 'a1' };
+    await expect(AppLayout({ children: null })).resolves.toBeDefined();
+    expect(m.order).toEqual([]);
   });
 });

@@ -6,6 +6,9 @@ import { BANNER_HEIGHT, SHELL_OFFSET } from '@/components/shell/banner-height';
 
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
+  // Task 4 (launch gate): every read records its start and, while `gate` is set, waits on it (parallel-start test).
+  started: [] as string[], gate: null as Promise<void> | null, spendFails: false, verticalsFail: false,
+  hold: async (name: string) => { m.started.push(name); if (m.gate) await m.gate; },
   logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], paused: [] as { clientId: string; name: string; until: string }[], spendCalls: [] as unknown[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
 let pathname = '/agency';
@@ -14,23 +17,27 @@ vi.mock('next/navigation', () => ({ usePathname: () => pathname, useRouter: () =
 vi.mock('@/server/theme', () => ({
   themeForViewer: async (v: { kind: string }) => {
     m.themed.push(v.kind);
+    await m.hold('theme');
     const primary = v.kind === 'support' ? '#aa0000' : '#0000aa';
     return { branding: { displayName: 'Acme Agency', logoUrl: m.logoUrl }, style: { '--primary': primary }, assistantName: 'Friday' };
   },
 }));
 vi.mock('@/server/tools', () => ({
   callTool: async (_ctx: unknown, name: string, input: unknown) => {
-    if (name === 'get_spend_status') { m.spendCalls.push(input); return { paused: m.paused }; }
+    await m.hold(name);
+    if (name === 'get_spend_status') { m.spendCalls.push(input); if (m.spendFails) throw new Error('spend read failed'); return { paused: m.paused }; }
     return { items: m.clients };
   },
 }));
-vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => m.notice }));
+vi.mock('@/server/client-billing-state', () => ({ clientBillingNoticeOf: async () => { await m.hold('client_billing'); return m.notice; } }));
 // A guest's client name is read through `withTenant` (RLS); the shell test has no database.
-vi.mock('@cs/db', async (importOriginal) => ({ ...(await importOriginal<typeof import('@cs/db')>()), withTenant: async () => [{ name: 'A1 HVAC' }] }));
+vi.mock('@cs/db', async (importOriginal) => ({ ...(await importOriginal<typeof import('@cs/db')>()), withTenant: async () => { await m.hold('client_name'); return [{ name: 'A1 HVAC' }]; } }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [], supportEmail: () => 'support@rivalmonday.app' }));
 // Phase 14a: vertical names come from the DB catalogue (`verticalOptions`), not the YAML packs.
-vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & Plumbing', services: [] }] }));
+vi.mock('@/server/verticals', () => ({
+  verticalOptions: async () => { await m.hold('verticals'); if (m.verticalsFail) throw new Error('catalogue down'); return [{ id: 'hvac_plumbing', name: 'HVAC & Plumbing', services: [] }]; },
+}));
 vi.mock('@cs/tools', () => ({ unreadCount: m.unread, platformRole: m.role }));
 vi.mock('@/server/nav', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/server/nav')>()), navCounts: m.counts }));
 vi.mock('./sidebar', async (importOriginal) => {
@@ -67,6 +74,10 @@ beforeEach(() => {
   m.spendCalls = [];
   m.logoUrl = null;
   m.counts.mockClear();
+  m.started = [];
+  m.gate = null;
+  m.spendFails = false;
+  m.verticalsFail = false;
   m.themed.length = 0;
   m.notice = null;
   m.unread.mockClear();
@@ -382,5 +393,72 @@ describe('AppShell frame (16b)', () => {
     expect(billing.length).toBeGreaterThan(0);
     expect(before(guestBanner, sheet)).toBe(true);
     for (const b of billing) expect(before(b, sheet)).toBe(true);
+  });
+});
+
+describe('AppShell parallel reads (launch gate Task 4)', () => {
+  const own = (() => { const { support: _s, ...o } = ctx; return o; })();
+  const admin = { kind: 'user', userId: 'op', email: 'op@example.com', name: 'Op Erator', ctx: own, membership: { id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }, memberships: [{ id: 'm', agencyName: 'Acme Agency', role: 'agency_admin' }] };
+  const C = '33333333-3333-4333-8333-333333333333';
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  // Holds every read open, then checks they all started before any finished (one stage, not a waterfall).
+  const gated = async (render: () => Promise<unknown>) => {
+    let release!: () => void;
+    m.gate = new Promise<void>((r) => { release = r; });
+    m.unread.mockImplementation(async () => { await m.hold('unread'); return 3; });
+    m.role.mockImplementation(async () => { await m.hold('platform_role'); return 'owner'; });
+    m.counts.mockImplementation(async () => { await m.hold('nav_counts'); return { leads: 2 }; });
+    const done = render();
+    await flush();
+    const started = [...m.started].sort();
+    release();
+    await done;
+    return started;
+  };
+
+  it('agency admin: theme, list_clients, unread, platform role, client billing, spend, nav counts and verticals all start before any resolves', async () => {
+    m.clients = [{ id: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing' }];
+    const started = await gated(() => AppShell({ viewer: admin as never, ctx: own as never, children: <p>page</p> }));
+    expect(started).toEqual(['client_billing', 'get_spend_status', 'list_clients', 'nav_counts', 'platform_role', 'theme', 'unread', 'verticals']);
+  });
+
+  it('guest: the RLS client-name read joins the same batch as the rest', async () => {
+    const c = { agencyId: AG, userId: 'contact:c1', role: 'client_viewer', clientScope: [C], features: new Set(), planFeatures: new Set(['ask', 'mcp']) };
+    const guest = { kind: 'guest', contactId: 'c1', ctx: c };
+    const started = await gated(() => AppShell({ viewer: guest as never, ctx: c as never, children: <p>page</p> }));
+    expect(started).toEqual(['client_billing', 'client_name', 'get_spend_status', 'nav_counts', 'theme', 'unread']);
+  });
+
+  it('a preloaded batch (the (app) layout) is used as is: the shell starts no second set of reads', async () => {
+    const { startShellReads } = await import('./app-shell');
+    const reads = startShellReads(admin as never, own as never);
+    await reads;
+    m.started = [];
+    render(await AppShell({ viewer: admin as never, ctx: own as never, reads, children: <p>page</p> }));
+    expect(m.started).toEqual([]);
+    expect(screen.getByTestId('sidebar').dataset.leads).toBe('2');
+  });
+
+  it('decorative reads degrade, not fail: a failed spend status or vertical catalogue renders the same props as an empty one', async () => {
+    m.realSidebar = true;
+    m.clients = [{ id: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing' }];
+    m.verticalsFail = true;
+    m.spendFails = true;
+    pathname = `/c/${C}/pricing`;
+    const failed = render(await AppShell({ viewer: admin as never, ctx: own as never, children: <p>page</p> }));
+    // React ids (useId) differ between two renders; everything else must match.
+    const markup = (el: HTMLElement) => el.innerHTML.replace(/_r_[0-9a-z]+_/g, 'ID');
+    const failedHtml = markup(failed.container);
+    // The switcher shows the client without the vertical sub-line, and no Usage banner.
+    expect(within(screen.getByRole('complementary')).getByRole('button', { name: /Lone Star Cooling/ }).textContent).not.toContain('HVAC');
+    expect(screen.queryByRole('region', { name: 'Usage' })).toBeNull();
+    failed.unmount();
+    m.verticalsFail = false;
+    m.spendFails = false;
+    m.paused = [];
+    // The same shell with both reads succeeding but holding nothing for this client: identical markup.
+    m.clients = [{ id: C, name: 'Lone Star Cooling', verticalId: 'no_such_vertical' }];
+    const ok = render(await AppShell({ viewer: admin as never, ctx: own as never, children: <p>page</p> }));
+    expect(markup(ok.container)).toBe(failedHtml);
   });
 });

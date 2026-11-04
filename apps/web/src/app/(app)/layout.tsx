@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { AppShell } from '@/components/shell/app-shell';
+import { AppShell, startShellReads } from '@/components/shell/app-shell';
 import { NAV_CTX_COOKIE, parseNavCookie } from '@/components/shell/nav-context';
 import { billingRedirectFor } from '@/server/billing-redirect';
 import { billingSnapshotOf } from '@/server/billing-state';
@@ -43,6 +43,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (to) redirect(to);
     if (billing.state === 'suspended' && ctx.role !== 'agency_admin') return <>{children}</>;
   }
+  // Launch gate (Task 4): the shell's reads depend only on the viewer and ctx resolved (and access-checked) above, so they
+  // start now, alongside the onboarding status read below — one stage, not two. A redirect below leaves the batch unused;
+  // the no-op catch only keeps that from being an unhandled rejection (AppShell still sees any failure when it awaits).
+  const reads = startShellReads(viewer, ctx);
+  reads.catch(() => {});
   // Phase 10 first-session redirect: one status read, admins in a normal session only (never support, never `/onboarding`).
   // Legacy agencies are backfilled `completed`, so they are never sent. `redirected_at` makes it happen once.
   if (firstSession && billing?.state !== 'suspended' && !pathname.startsWith('/onboarding')) {
@@ -55,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   const fallback = parseNavCookie((await cookies()).get(NAV_CTX_COOKIE)?.value);
   return (
-    <AppShell viewer={viewer} ctx={ctx} billing={billing} fallback={fallback}>
+    <AppShell viewer={viewer} ctx={ctx} billing={billing} fallback={fallback} reads={reads}>
       {children}
     </AppShell>
   );

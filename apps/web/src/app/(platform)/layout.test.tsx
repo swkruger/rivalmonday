@@ -17,6 +17,8 @@ vi.mock('@/components/shell/app-shell', () => ({
       {children}
     </div>
   ),
+  // The (app) layout starts the shell batch itself (launch gate Task 4); the shell is mocked, so the batch is empty.
+  startShellReads: () => Promise.resolve({}),
 }));
 const { default: PlatformLayout, metadata: platformMetadata } = await import('./layout');
 const { default: AppLayout, generateMetadata: appMetadata } = await import('../(app)/layout');

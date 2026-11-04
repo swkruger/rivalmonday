@@ -11,12 +11,13 @@ import { GuestBanner } from '@/components/shell/guest-banner';
 import { MobileNav } from '@/components/shell/mobile-nav';
 import { showsClientBilling } from '@/components/shell/nav-items';
 import { Sidebar } from '@/components/shell/sidebar';
+import type { NavCounts } from '@/components/shell/nav-items';
 import type { NavFallback } from '@/components/shell/sidebar-nav';
 import { ShellBrand } from '@/components/shell/shell-brand';
 import { ShellNotices, ShellProviders } from '@/components/shell/shell-providers';
 import { TopBar } from '@/components/shell/top-bar';
 import type { BillingSnapshot } from '@/server/billing-state';
-import { clientBillingNoticeOf } from '@/server/client-billing-state';
+import { type ClientBillingNotice, clientBillingNoticeOf } from '@/server/client-billing-state';
 import { dbs } from '@/server/db';
 import { helpAgencyName } from '@/server/help';
 import { navCounts, navFlagsFor } from '@/server/nav';
@@ -44,51 +45,97 @@ function platformTheme() {
   return { branding, style: themeVars(branding), assistantName: 'Friday' };
 }
 
+type ShellTheme = { branding: ReturnType<typeof resolveBranding>; style: Record<string, string>; assistantName: string };
+
+/** Everything the shell reads, resolved by `startShellReads` in one batch. */
+export interface ShellReads {
+  theme: ShellTheme;
+  clients: ClientSummary[];
+  clientName: string | null | undefined;
+  unread: number;
+  role: PlatformRole | null;
+  clientBilling: ClientBillingNotice | null;
+  spendPaused: { clientId: string; name: string; until: string }[];
+  counts: NavCounts;
+  verticals: { id: string; name: string }[];
+}
+
 /**
- * `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once.
- * `zone="platform"` (15a, the `(platform)` layout): the platform menu with Rival Monday branding. `fallback` (the `(app)` layout): the `rm_nav_ctx` cookie, the menu for neutral pages.
+ * Launch gate (Task 4): the shell's reads, all started together (one DB stage group, not a nine-read waterfall). Each
+ * depends only on the already-resolved viewer and context — the access check ran in `requireContext` /
+ * `requireOperatorContext` before any caller gets here — never on another read: the client id comes from the context,
+ * the role from `platformRole` when the caller resolved it. The one exception: the platform zone without a passed role
+ * waits for the role before its platform badge counts (no caller does that today).
+ * Decorative reads degrade exactly as before: a failed spend status drops the banner, a failed vertical catalogue the
+ * switcher sub-line, and nav counts never throw. A failed `list_clients`, client name, unread, role or billing read still
+ * fails the shell. The `(app)` layout starts this before its onboarding check so that read joins the batch.
  */
-export async function AppShell({ viewer, ctx, children, platformRole, billing = null, zone, fallback = null }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null; zone?: 'platform'; fallback?: NavFallback | null }) {
-  // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8). 15a: the platform zone
-  // is always Rival Monday (no agency logo, colours or name). The root layout's `<html>` vars are never the session's.
-  const { branding, style, assistantName } = zone === 'platform' ? platformTheme() : await themeForViewer(viewer);
-  const clients = isAgencyRole(ctx.role) ? (await callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {})).items : [];
+export function startShellReads(viewer: Exclude<Viewer, { kind: 'member-less' }>, ctx: AccessContext, { zone, platformRole }: { zone?: 'platform'; platformRole?: PlatformRole | null } = {}): Promise<ShellReads> {
+  const platformZone = zone === 'platform';
+  const agencyView = isAgencyRole(ctx.role);
   // Client/guest roles always have exactly one client (Review Focus — createAccessContext enforces it), so their
   // switcher name isn't path-dependent: it's always "their" client, not whichever `/c/<id>` page they're currently on.
   const singleClientId = ctx.clientScope === 'all' ? null : ctx.clientScope[0];
-  const clientName =
-    !isAgencyRole(ctx.role) && singleClientId
+  // 8b M1: the shell's own viewer themes it — the support agency in `(app)` during a session (g8). 15a: the platform zone
+  // is always Rival Monday (no agency logo, colours or name). The root layout's `<html>` vars are never the session's.
+  const theme: Promise<ShellTheme> = platformZone ? Promise.resolve(platformTheme()) : themeForViewer(viewer);
+  const clients = agencyView ? callTool<{ items: ClientSummary[] }>(ctx, 'list_clients', {}).then((r) => r.items) : Promise.resolve([]);
+  const clientName: Promise<string | null | undefined> =
+    !agencyView && singleClientId
       ? viewer.kind === 'user'
-        ? viewer.membership.clientName
-        : ((await withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))))[0]?.name ?? null)
-      : null;
+        ? Promise.resolve(viewer.membership.clientName)
+        : withTenant(dbs().app, ctx, (tx) => tx.select({ name: client.name }).from(client).where(eq(client.id, singleClientId))).then((rows) => rows[0]?.name ?? null)
+      : Promise.resolve(null);
   // Phase 8b M2: no inbox in a support session, so the operator's own unread count is never read there.
-  const unread = viewer.kind === 'support' ? 0 : await unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
-  const role = viewer.kind !== 'user' ? null : platformRole !== undefined ? platformRole : await resolvePlatformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx);
-  const operator = role !== null;
-  const support = viewer.kind === 'support' ? viewer.session : null;
+  const unread = viewer.kind === 'support' ? Promise.resolve(0) : unreadCount(dbs().service, viewer.kind === 'guest' ? { contactId: viewer.contactId } : { userId: viewer.userId });
+  const role: Promise<PlatformRole | null> =
+    viewer.kind !== 'user' ? Promise.resolve(null) : platformRole !== undefined ? Promise.resolve(platformRole) : resolvePlatformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx);
   // Phase 9b: client roles' billing banners and the owner's Billing entry (only while billing is on for the client).
-  const clientBilling = viewer.kind === 'support' ? null : await clientBillingNoticeOf(ctx);
+  const clientBilling = viewer.kind === 'support' ? Promise.resolve(null) : clientBillingNoticeOf(ctx);
   // 7b1: calm pause notice. Agency admins (not account managers) see their paused clients, client roles their own client;
   // never in the platform zone. Cosmetic, so a failed read only drops the banner (the shell must render).
-  const spendAudience = zone === 'platform' ? null : ctx.role === 'agency_admin' ? 'agency' : ctx.role === 'client_owner' || ctx.role === 'client_viewer' ? 'client' : null;
+  const spendAudience = spendAudienceOf(ctx, zone);
   const spendPaused =
     spendAudience && (spendAudience === 'agency' || singleClientId)
-      ? await callTool<{ paused: { clientId: string; name: string; until: string }[] }>(ctx, 'get_spend_status', spendAudience === 'agency' ? {} : { clientId: singleClientId }).then((r) => r.paused ?? [], () => [])
-      : [];
-  const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
+      ? callTool<{ paused: { clientId: string; name: string; until: string }[] }>(ctx, 'get_spend_status', spendAudience === 'agency' ? {} : { clientId: singleClientId }).then((r) => r.paused ?? [], () => [])
+      : Promise.resolve([]);
   // Each zone reads only the badges it can show: agency counts outside the platform zone, platform counts inside it (P1:
-  // `(app)` never shows the platform menu).
-  const platformZone = zone === 'platform';
-  const counts = await navCounts(ctx, { agency: navBase.isAgency && !platformZone, operator: operator && platformZone, leads: navBase.leads === true });
+  // `(app)` never shows the platform menu). Only the platform badges depend on the role.
+  const base = navFlagsFor(viewer);
+  const countsFor = (operator: boolean) => navCounts(ctx, { agency: base.isAgency && !platformZone, operator: operator && platformZone, leads: base.leads === true });
+  const counts = platformZone && viewer.kind === 'user' && platformRole === undefined ? role.then((r) => countsFor(r !== null)) : countsFor(viewer.kind === 'user' && platformRole != null);
+  // The switcher's sub-line is cosmetic: an unreadable catalogue only drops it (the shell must render). Read only where a
+  // client list can show (agency roles); with no clients the names go unused.
+  const verticals = agencyView ? verticalOptions().catch(() => []) : Promise.resolve([]);
+  return Promise.all([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals]).then(
+    ([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals]) => ({ theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals }),
+  );
+}
+
+function spendAudienceOf(ctx: AccessContext, zone?: 'platform'): 'agency' | 'client' | null {
+  return zone === 'platform' ? null : ctx.role === 'agency_admin' ? 'agency' : ctx.role === 'client_owner' || ctx.role === 'client_viewer' ? 'client' : null;
+}
+
+/**
+ * `platformRole` (8c): a caller that already resolved the viewer's platform role (the `(platform)` layout) passes it so it is looked up once; omitted (the `(app)` layout), the shell resolves the role itself, once.
+ * `zone="platform"` (15a, the `(platform)` layout): the platform menu with Rival Monday branding. `fallback` (the `(app)` layout): the `rm_nav_ctx` cookie, the menu for neutral pages.
+ * `reads` (launch gate): a batch the caller already started with `startShellReads` for this same viewer, ctx, zone and role; omitted, the shell starts its own.
+ */
+export async function AppShell({ viewer, ctx, children, platformRole, billing = null, zone, fallback = null, reads }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null; zone?: 'platform'; fallback?: NavFallback | null; reads?: Promise<ShellReads> }) {
+  const { theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals } = await (reads ?? startShellReads(viewer, ctx, { zone, platformRole }));
+  const { branding, style, assistantName } = theme;
+  const singleClientId = ctx.clientScope === 'all' ? null : ctx.clientScope[0];
+  const operator = role !== null;
+  const support = viewer.kind === 'support' ? viewer.session : null;
+  const spendAudience = spendAudienceOf(ctx, zone);
+  const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
   const flags = {
     ...navBase,
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
     ...(viewer.kind === 'user' && showsClientBilling(ctx.role, clientBilling) ? { clientBilling: true } : {}),
   };
   const navClients = clients.map(({ id, name }) => ({ id, name }));
-  // The switcher's sub-line is cosmetic: an unreadable pack only drops it (the shell must render).
-  const verticalName = new Map(clients.length ? (await verticalOptions().catch(() => [])).map((v) => [v.id, v.name]) : []);
+  const verticalName = new Map(clients.length ? verticals.map((v) => [v.id, v.name]) : []);
   // Spec §2.4: navigation only (D3) — every list is the viewer's own clients/memberships; a support session shows the
   // supported agency's clients (its ctx) and "Back to platform", never the operator's memberships.
   const switcher: SwitcherProps = {

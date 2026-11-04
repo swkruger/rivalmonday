@@ -151,3 +151,81 @@ Task 1 (fix round 1), 2026-11-03: `bash apps/web/scripts/profile-gate.sh --seed`
 | /c/[clientId]/moves | `/c/6555332e…/moves` | 200 | 7 | 2 | 9 | 87 |
 | /c/[clientId]/setup/competitors | `/c/6555332e…/setup/competitors` | 307 | 6 | 2 | 2 | 32 |
 | /onboarding | `/onboarding` | 307 | 5 | 2 | 0 | 28 |
+
+## Task 4 (app shell)
+2026-11-04: `startShellReads` (`components/shell/app-shell.tsx`) starts all of the shell's reads together after `requireContext`. The `(app)` layout starts the batch before `get_onboarding_status`, so that read joins it, and hands it to `AppShell` (`reads`). `(platform)` is unchanged: its `AppShell` starts its own batch.
+- **Run:** `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the same gate at `0b6e9d15` (Tasks 1-3, so the audit deferral and the one-stage billing snapshot are already in), measured just before this change.
+- **Result:** pages that are only the shell went from about 12 to **4** dbStages. **16 (app) routes are still over 8.** Each is a page-level waterfall: one tool with a long internal chain, or a page tool that only starts after an earlier page await. They are not the shell, so `get_shell_context` would not help and was not built (Task 6 decides).
+- **Why some pages went up** (for example `briefs/[briefId]` 7 → 11, `settings/profile` 10 → 14): `sequentialStages` merges spans that overlap. Before, the long shell waterfall overlapped the page's own chain and hid part of it; now the shell finishes early and the page chain is counted in full. The page code did not change.
+- **Still over 8, and what drives each** (the tool spanning the most stage groups; "@ms" = a page tool that starts late):
+  - `/c/[clientId]` 20 (get_brief @117 after get_workspace_overview)
+  - `/c/[clientId]/changes` 20 (get_event 9, compare_snapshots @90)
+  - `/c/[clientId]/setup` 16 (get_client_setup 7)
+  - `/c/[clientId]/competitors/[competitorId]` 15 (get_competitor_timeline @149, get_competitor_profile 6)
+  - `/c/[clientId]/settings/profile` 14 (get_ask_starters, get_client_details, list_client_billing_status @77-87)
+  - `/agency/approvals/[briefId]` 13 (get_brief_review 7)
+  - `/c/[clientId]/reviews` 12 (search_reviews 7)
+  - `/c/[clientId]/briefs/[briefId]` 11 (list_help_guides @60)
+  - `/c/[clientId]/settings/billing` 11 (404, refusal path)
+  - `/c/[clientId]/ads` 10 (list_ads 6)
+  - `/c/[clientId]/rankings` 10 (get_geogrid 5; 3 tools @87)
+  - `/c/[clientId]/alerts/[alertId]` 9 (list_help_guides @50)
+  - `/c/[clientId]/moves` 9 (get_move 5)
+  - `/c/[clientId]/pitch-snapshot` 9 (404)
+  - `/c/[clientId]/settings/runbook` 9 (get_runbook 6)
+  - `/paused` 9 (307; no tools: viewer resolution and redirect only)
+
+| route | status | dbStages before → after | authStages | txStages before → after | wallMs before → after |
+|---|---|---|---|---|---|
+| /c/[clientId] | 200 | 20 → **20** | 2 | 15 → 14 | 170 → 150 |
+| /c/[clientId]/changes | 200 | 19 → **20** | 2 | 15 → 16 | 96 → 122 |
+| /c/[clientId]/setup | 200 | 16 → **16** | 2 | 8 → 8 | 73 → 61 |
+| /c/[clientId]/competitors/[competitorId] | 200 | 15 → **15** | 2 | 13 → 13 | 150 → 160 |
+| /c/[clientId]/settings/profile | 200 | 10 → **14** | 2 | 10 → 8 | 77 → 77 |
+| /agency/approvals/[briefId] | 200 | 10 → **13** | 2 | 13 → 10 | 57 → 65 |
+| /c/[clientId]/reviews | 200 | 11 → **12** | 2 | 10 → 8 | 94 → 94 |
+| /c/[clientId]/briefs/[briefId] | 200 | 7 → **11** | 2 | 10 → 9 | 75 → 76 |
+| /c/[clientId]/settings/billing | 404 | 16 → **11** | 4 | 7 → 4 | 70 → 62 |
+| /c/[clientId]/ads | 200 | 7 → **10** | 2 | 8 → 8 | 91 → 104 |
+| /c/[clientId]/rankings | 200 | 10 → **10** | 2 | 14 → 11 | 109 → 120 |
+| /c/[clientId]/alerts/[alertId] | 200 | 8 → **9** | 2 | 9 → 7 | 75 → 70 |
+| /c/[clientId]/moves | 200 | 6 → **9** | 2 | 9 → 9 | 79 → 96 |
+| /c/[clientId]/pitch-snapshot | 404 | 17 → **9** | 4 | 6 → 5 | 70 → 67 |
+| /c/[clientId]/settings/runbook | 200 | 6 → **9** | 2 | 8 → 6 | 74 → 90 |
+| /paused | 307 | 9 → **9** | 4 | 0 → 0 | 26 → 30 |
+| /agency/settings/usage | 200 | 8 → **8** | 2 | 8 → 5 | 69 → 65 |
+| /c/[clientId]/settings/alerts | 200 | 9 → **8** | 2 | 6 → 3 | 79 → 69 |
+| /agency | 200 | 6 → **7** | 2 | 7 → 4 | 104 → 124 |
+| /c/[clientId]/settings/ai | 200 | 5 → **7** | 2 | 11 → 8 | 70 → 76 |
+| /agency/clients/new | 200 | 5 → **6** | 2 | 2 → 2 | 32 → 35 |
+| /c/[clientId]/ask | 200 | 8 → **6** | 2 | 6 → 5 | 71 → 68 |
+| /c/[clientId]/pricing | 200 | 10 → **6** | 2 | 6 → 4 | 66 → 72 |
+| /inbox | 200 | 11 → **6** | 2 | 6 → 3 | 41 → 50 |
+| /agency/approvals | 200 | 8 → **5** | 2 | 7 → 4 | 73 → 63 |
+| /agency/help | 200 | 11 → **5** | 2 | 6 → 3 | 45 → 60 |
+| /agency/prospects/new | 200 | 5 → **5** | 2 | 2 → 2 | 30 → 37 |
+| /agency/settings/intake | 200 | 10 → **5** | 2 | 7 → 5 | 71 → 56 |
+| /agency/settings/intake/preview | 200 | 10 → **5** | 2 | 7 → 5 | 60 → 75 |
+| /agency/settings/platform-access | 200 | 13 → **5** | 2 | 6 → 3 | 60 → 74 |
+| /kb/[id] | 200 | 12 → **5** | 2 | 6 → 3 | 54 → 48 |
+| /agency/alerts | 200 | 11 → **4** | 2 | 7 → 4 | 44 → 47 |
+| /agency/leads | 200 | 12 → **4** | 2 | 6 → 2 | 50 → 52 |
+| /agency/prospects | 200 | 12 → **4** | 2 | 6 → 3 | 47 → 47 |
+| /agency/prospects/[clientId] | 200 | 10 → **4** | 2 | 7 → 3 | 66 → 58 |
+| /agency/settings/ai | 200 | 12 → **4** | 2 | 6 → 3 | 63 → 55 |
+| /agency/settings/billing | 200 | 12 → **4** | 2 | 6 → 3 | 57 → 47 |
+| /agency/settings/branding | 200 | 12 → **4** | 2 | 6 → 3 | 48 → 50 |
+| /agency/settings/runbook | 200 | 11 → **4** | 2 | 6 → 3 | 73 → 48 |
+| /agency/settings/slack-teams | 200 | 12 → **4** | 2 | 6 → 3 | 47 → 58 |
+| /agency/settings/team | 200 | 12 → **4** | 2 | 6 → 3 | 63 → 61 |
+| /c/[clientId]/briefs | 200 | 11 → **4** | 2 | 6 → 5 | 66 → 79 |
+| /c/[clientId]/competitors | 200 | 8 → **4** | 2 | 5 → 3 | 77 → 79 |
+| /c/[clientId]/help | 200 | 9 → **4** | 2 | 7 → 5 | 58 → 95 |
+| /c/[clientId]/recommendations | 200 | 11 → **4** | 2 | 6 → 5 | 60 → 59 |
+| /c/[clientId]/settings/delivery | 200 | 10 → **4** | 2 | 7 → 4 | 98 → 91 |
+| /c/[clientId]/settings/usage | 200 | 10 → **4** | 2 | 8 → 4 | 63 → 67 |
+| /c/[clientId]/setup/competitors | 307 | 4 → **4** | 2 | 2 → 2 | 46 → 57 |
+| /onboarding | 307 | 4 → **4** | 2 | 0 → 0 | 33 → 28 |
+| /settings/profile | 200 | 12 → **4** | 2 | 6 → 3 | 79 → 81 |
+
+(platform) rows, for Task 5 (same AppShell batch; platform reads untouched): `/platform` 23 → 18, most other pages 22 → 18, `/platform/costs` 13 → 8, `/platform/agencies/[id]` 9 → 8.
