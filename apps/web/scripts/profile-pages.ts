@@ -13,12 +13,13 @@
  * time window. Launch-gate D5: `dbStages` counts app (drizzle) spans only; Better Auth (`authStages`) and
  * BEGIN/COMMIT or tagged `sql` (`txStages`) spans are reported in their own columns, never asserted.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { FEATURES } from '@cs/core';
 import { baseRoute, SCREENS } from '@cs/demo';
 import postgres from 'postgres';
 import { dbStageCounts, nowMs, sequentialStages, type ToolTiming } from '../src/server/tool-timing';
-import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, type ReportRow, routePattern } from './profile-args';
+import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, medianOf, medianVisit, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, type ReportRow, routeOfPageDir, routePattern, WARM_VISITS } from './profile-args';
 
 const parsed = parseProfileArgs(process.argv.slice(2), process.env);
 if ('error' in parsed) {
@@ -55,7 +56,7 @@ const SEED_ADMIN = process.env.PROFILE_SEED_ADMIN_EMAIL?.trim() || 'admin@e2e.te
  * `/c/` route; other params by their route prefix). Read-only, on the service URL. A param with no reachable row stays
  * unset, so its route is listed as not profiled.
  */
-async function seedParams(): Promise<{ params: Record<string, string>; missing: string[] }> {
+async function seedParams(): Promise<{ params: Record<string, string>; missing: string[]; client: { name: string; missingFeatures: string[] } | null }> {
   try {
     process.loadEnvFile(resolve(import.meta.dirname, '../../../.env'));
   } catch {
@@ -76,10 +77,16 @@ async function seedParams(): Promise<{ params: Record<string, string>; missing: 
           where lower(i.email) = lower(${SEED_ADMIN}) and i.client_id is null and i.revoked_at is null
       ) x order by pri, created_at limit 1`);
     const userId = await one(sql<{ id: string }[]>`select id from auth."user" where lower(email) = lower(${SEED_ADMIN}) limit 1`);
-    // The agency's first active client (the E2E seed's `E2E HVAC`, which carries most of the workspace data).
-    const clientId = agencyId
-      ? await one(sql<{ id: string }[]>`select id from client where agency_id = ${agencyId} and status = 'active' and archived_at is null order by created_at, id limit 1`)
-      : undefined;
+    // The agency's active client with the most of `FEATURES` enabled (ideally all, so feature-gated pages render), the
+    // oldest on a tie. Any feature it still lacks is reported, never patched into the seed.
+    const all = [...FEATURES] as string[];
+    const [best] = agencyId
+      ? await sql<{ id: string; name: string; features: string[] }[]>`
+          select id, name, features from client where agency_id = ${agencyId} and status = 'active' and archived_at is null
+          order by (select count(*) from jsonb_array_elements_text(features) f where f = any(${all}::text[])) desc, created_at, id limit 1`
+      : [];
+    const clientId = best?.id;
+    const missingFeatures = best ? all.filter((f) => !best.features.includes(f)) : [];
     // Client Ask threads are author-only (`get_my_ask_thread`): only the admin's own thread on that client opens.
     const clientThread = clientId && userId
       ? await one(sql<{ id: string }[]>`select id from ask_thread where client_id = ${clientId} and user_id = ${userId} and deleted_at is null order by created_at, id limit 1`)
@@ -103,10 +110,26 @@ async function seedParams(): Promise<{ params: Record<string, string>; missing: 
       '/c/[clientId]/reports/[reportId]': reportId, '/kb/[id]': kbId,
     };
     const params = Object.fromEntries(Object.entries(found).filter((e): e is [string, string] => e[1] !== undefined));
-    return { params, missing: Object.keys(found).filter((k) => found[k] === undefined) };
+    return { params, missing: Object.keys(found).filter((k) => found[k] === undefined), client: best ? { name: best.name, missingFeatures } : null };
   } finally {
     await sql.end();
   }
+}
+
+/** Every page route in `src/app` (groups dropped), so literal siblings such as `/agency/prospects/new` are known. */
+function appRoutes(): string[] {
+  const appDir = resolve(import.meta.dirname, '../src/app');
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    const entries = readdirSync(join(appDir, rel), { withFileTypes: true });
+    if (entries.some((e) => e.isFile() && /^page\.(tsx|ts|jsx|js)$/.test(e.name))) {
+      const r = routeOfPageDir(rel);
+      if (r) out.push(r);
+    }
+    for (const e of entries) if (e.isDirectory()) walk(rel ? `${rel}/${e.name}` : e.name);
+  };
+  if (existsSync(appDir)) walk('');
+  return out;
 }
 
 interface Visit { path: string; status: number; ms: number; startMs: number; endMs: number; html: string; location: string | null }
@@ -139,10 +162,12 @@ async function main(): Promise<number> {
     seeded = s.params;
     console.log(`Seed params (${SEED_ADMIN}): ${Object.entries(seeded).map(([k, v]) => `${k}=${v}`).join(', ') || 'none'}`);
     if (s.missing.length) console.log(`  not in the seed (left to the crawl): ${s.missing.join(', ')}`);
+    if (s.client) console.log(`  client: ${s.client.name}${s.client.missingFeatures.length ? ` — no seeded client of the agency has every feature; this one lacks: ${s.client.missingFeatures.join(', ')}` : ' (every feature on)'}`);
   }
 
   // --- Discovery: visit what can be visited, learn ids from links, repeat until nothing new resolves. ---
   const routes = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
+  const allRoutes = [...new Set([...routes, ...appRoutes()])];
   /**
    * Chosen ids, keyed by param: `clientId` is one id for every `/c/` route (one client throughout); any other param is
    * keyed by the route prefix that owns it (`/platform/agencies/[id]` and `/kb/[id]` are different things; a prospect
@@ -170,7 +195,10 @@ async function main(): Promise<number> {
         const have = paramsFor(route);
         // Only adopt a link that agrees with the ids already chosen.
         if (Object.entries(m.groups).some(([k, v]) => have[k] !== undefined && have[k] !== decodeURIComponent(v))) continue;
-        for (const [k, v] of Object.entries(m.groups)) known[keyOf(route, k)] ??= decodeURIComponent(v);
+        const ids = Object.fromEntries(Object.entries(m.groups).map(([k, v]) => [k, decodeURIComponent(v)]));
+        // `/platform/knowledge/new` is its own page, never the `[id]` of `/platform/knowledge/[id]`.
+        if (fillsStaticSibling(route, ids, allRoutes)) continue;
+        for (const [k, v] of Object.entries(ids)) known[keyOf(route, k)] ??= v;
       }
     }
   };
@@ -193,11 +221,12 @@ async function main(): Promise<number> {
   }
   const unresolved = routes.filter((r) => !resolved.has(r));
 
-  // --- Measurement: one warm visit per resolved route. The visits MUST stay sequential: spans are joined to a visit by
+  // --- Measurement: WARM_VISITS warm visits per resolved route, reported as the median of each metric (span overlap is
+  // timing-dependent, so one visit is noisy by about one stage). The visits MUST stay sequential: spans are joined to a visit by
   // path and by its time window (±SLACK_MS), so two overlapping visits of one path would share spans. ---
   const measuredFrom = nowMs();
   const visits: (Visit & { route: string })[] = [];
-  for (const [route, path] of resolved) visits.push({ ...(await visit(path, cookie)), route });
+  for (const [route, path] of resolved) for (let i = 0; i < WARM_VISITS; i++) visits.push({ ...(await visit(path, cookie)), route });
 
   const timings: ToolTiming[] = existsSync(TOOLS_FILE)
     ? readFileSync(TOOLS_FILE, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as ToolTiming).filter((t) => t.startMs >= measuredFrom - 1)
@@ -205,7 +234,7 @@ async function main(): Promise<number> {
   const toolCount = timings.filter((t) => t.kind !== 'db').length;
   const dbCount = timings.length - toolCount;
   const SLACK_MS = 5; // the server's clock reading and ours differ by microseconds; allow a little either side
-  const rows = visits.map((v) => {
+  const perVisit = visits.map((v) => {
     const mine = timings.filter((t) => t.path === v.path && t.startMs >= v.startMs - SLACK_MS && t.endMs <= v.endMs + SLACK_MS).sort((a, b) => a.startMs - b.startMs);
     const tools = mine.filter((t) => t.kind !== 'db');
     const queries = mine.filter((t) => t.kind === 'db');
@@ -224,6 +253,12 @@ async function main(): Promise<number> {
       /** report.json only: each query's label (`select client`), duration and start offset. */
       db: queries.map((t) => ({ query: t.tool, source: t.source ?? 'app', ms: Math.round((t.endMs - t.startMs) * 10) / 10, atMs: Math.round(t.startMs - v.startMs) })),
     };
+  });
+  const rows = [...resolved.keys()].map((route) => {
+    const mine = perVisit.filter((r) => r.route === route);
+    const m = medianVisit(mine);
+    // Median of each metric; tools/db detail (and status) come from the visit at the median dbStages.
+    return { ...m.detail, dbStages: m.dbStages, authStages: m.authStages, txStages: m.txStages, wallMs: m.wallMs, stages: medianOf(mine.map((r) => r.stages)), visitDbStages: mine.map((r) => r.dbStages) };
   }).sort((a, b) => b.wallMs - a.wallMs);
 
   const p75 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(xs.length * 0.75) - 1]! : 0);
@@ -239,7 +274,7 @@ async function main(): Promise<number> {
     writeFileSync(resolve(args.json), JSON.stringify({ base: args.base, at: new Date().toISOString(), assertDbStages: args.assertDbStages, rows: out, unresolved }, null, 2));
   }
 
-  console.log(`Profiled ${rows.length} of ${routes.length} routes on ${args.base} (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
+  console.log(`Profiled ${rows.length} of ${routes.length} routes on ${args.base}, ${WARM_VISITS} warm visits each, medians reported (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
   console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.wallMs))} ms; slowest page ${rows[0]?.wallMs ?? 0} ms`);
   console.log(`Max sequential tool stages ${max(rows.map((r) => r.stages))}; max sequential DB stages (incl. shell) ${max(rows.map((r) => r.dbStages))}, median ${[...rows.map((r) => r.dbStages)].sort((a, b) => a - b)[Math.floor(rows.length / 2)] ?? 0}; max auth stages ${max(rows.map((r) => r.authStages))}, max tx stages ${max(rows.map((r) => r.txStages))} (reported, not asserted)\n`);
   console.log('Slowest 15 (ms · tool stages · DB stages/queries · auth stages · tx stages · status · tools as name:ms@start):');

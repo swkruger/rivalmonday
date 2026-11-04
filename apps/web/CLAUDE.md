@@ -64,7 +64,7 @@ Next.js 16 App Router web app (agency/client UI, Better Auth sign-in, guest link
 
 ### Page profiler (DB-stage gate)
 - **Gate (≤ 8 app DB stages/page):** `bash apps/web/scripts/profile-gate.sh --seed` (local test DB; `--seed` = E2E global setup + drops the stale admin state; `--skip-build`; `--db neon-dev` swaps in cs_dev URLs, then pass `PROFILE_SEED_ADMIN_EMAIL` and `-- --cookie FILE`). It builds with the E2E server env, starts `PROFILE_TOOLS=1 next start -p 3100`, runs `profile:pages --params-from-seed --strict-routes --assert-db-stages 8 --json .profile/gate.json`, stops the server; exit = the crawler's. Never with an E2E run (same port, same DB).
-- **Columns:** only `dbStages` (drizzle `unsafe` spans) is asserted; `authStages` (Better Auth `pg` pool, `instrumentPgPool`) and `txStages` (BEGIN/COMMIT, tagged `sql`) are reported (launch-gate D5). Spans live in `.profile/tools.ndjson`, per-query detail in `.profile/report.json`.
+- **Columns:** each the median of 3 warm visits; only `dbStages` (drizzle `unsafe` spans) is asserted; `authStages` (Better Auth `pg` pool, `instrumentPgPool`) and `txStages` (BEGIN/COMMIT, tagged `sql`) are reported (launch-gate D5). Spans live in `.profile/tools.ndjson`, per-query detail in `.profile/report.json`.
 
 ### E2E
 - **`pnpm --filter @cs/web e2e`** (Playwright) is not part of `pnpm test`: it builds and starts a production server against `cs_test` (env from `playwright.config.ts`), runs as its own CI job, and never concurrently with another `cs_test` run.

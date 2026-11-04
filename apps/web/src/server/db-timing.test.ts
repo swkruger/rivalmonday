@@ -1,7 +1,7 @@
 import { createDb } from '@cs/db';
 import { testUrls } from '@cs/db/test-helpers';
 import { sql as dsql } from 'drizzle-orm';
-import type { Pool } from 'pg';
+import { Pool as PgPool, type Pool } from 'pg';
 import postgres from 'postgres';
 import { describe, expect, it, vi } from 'vitest';
 import { instrumentPgPool, instrumentSql, sqlLabel } from './db-timing';
@@ -107,36 +107,55 @@ describe('instrumentSql', () => {
   });
 });
 
-/** A stand-in for `pg`'s Pool: `query` and pooled clients' `query` resolve `{ rows }` (or call back). */
+/**
+ * A stand-in for `pg`'s Pool shaped like pg-pool: `pool.query` runs through `this.connect(cb)` and the pooled client's
+ * callback `query`, exactly as pg-pool does, so a pool-level query also reaches the client layer.
+ */
+type FakeClient = { query: (...a: unknown[]) => unknown; release: () => void };
+type ConnectCb = (e: unknown, c?: FakeClient, release?: () => void) => void;
+
 function fakePool() {
   const result = { rows: [{ ok: 1 }], rowCount: 1 };
+  const state = { fail: false };
   const client = {
     query: vi.fn((_text: unknown, _values?: unknown, cb?: unknown) => {
       const done = typeof _values === 'function' ? _values : cb;
-      if (typeof done === 'function') { setTimeout(() => (done as (e: unknown, r: unknown) => void)(null, result), 0); return undefined; }
-      return Promise.resolve(result);
+      const err = state.fail ? new Error('db down') : null;
+      state.fail = false;
+      if (typeof done === 'function') { setTimeout(() => (done as (e: unknown, r: unknown) => void)(err, err ? undefined : result), 0); return undefined; }
+      return err ? Promise.reject(err) : Promise.resolve(result);
     }),
     release: vi.fn(),
   };
   const pool = {
-    query: vi.fn(async (_text: unknown, _values?: unknown) => result),
-    connect: vi.fn(async () => client),
+    connect(cb?: ConnectCb): Promise<typeof client> | undefined {
+      if (cb) { setTimeout(() => cb(null, client, () => client.release()), 0); return undefined; }
+      return Promise.resolve(client);
+    },
+    query(this: { connect: (cb: ConnectCb) => unknown }, text: unknown, values?: unknown): Promise<unknown> {
+      return new Promise((resolve, reject) => {
+        this.connect((e, c, release) => {
+          if (e || !c) return reject(e);
+          c.query(text, values, (qe: unknown, r: unknown) => { release!(); if (qe) reject(qe); else resolve(r); });
+        });
+      });
+    },
     end: vi.fn(),
     options: { max: 5 },
   };
-  return { pool, client, result };
+  return { pool, client, result, state };
 }
 
 describe('instrumentPgPool', () => {
   const setup = (on = true) => {
     const records: ToolTiming[] = [];
     const raw = fakePool();
-    const queryMock = raw.pool.query; // the wrapper replaces pool.query in place
+    const original = { query: raw.pool.query, connect: raw.pool.connect };
     const pool = instrumentPgPool(raw.pool as unknown as Pool, { record: (e) => records.push(e), path: async () => '/agency', on: () => on }) as unknown as ReturnType<typeof fakePool>['pool'];
-    return { ...raw, queryMock, wrapped: pool, records };
+    return { ...raw, original, wrapped: pool, records };
   };
 
-  it('records one auth span per pool.query and passes the result through unchanged', async () => {
+  it('records exactly one auth span per pool.query (pg-pool runs it through connect) and passes the result through unchanged', async () => {
     const { wrapped, records, result } = setup();
     await expect(wrapped.query('select * from "auth"."session" where token = $1', ['secret-token'])).resolves.toBe(result);
     await wrapped.query({ text: 'update "auth"."session" set x = $1', values: ['secret'] });
@@ -147,28 +166,51 @@ describe('instrumentPgPool', () => {
 
   it('records one auth span per query on a client from pool.connect (the Kysely path), callback form included', async () => {
     const { wrapped, records, result } = setup();
-    const c = await wrapped.connect();
+    const c = (await wrapped.connect())!;
     await expect(c.query('select 1 from "auth"."user"')).resolves.toBe(result);
     const viaCb = await new Promise((resolve, reject) => c.query('select 1 from "auth"."account"', [], (e: unknown, r: unknown) => (e ? reject(e) : resolve(r))));
     expect(viaCb).toBe(result);
-    const again = await wrapped.connect(); // pg hands the same client back: never double-wrapped
+    const again = (await wrapped.connect())!; // pg hands the same client back: never double-wrapped
     await again.query('select 1 from "auth"."verification"');
     await vi.waitFor(() => expect(records.map((r) => r.tool)).toEqual(['select user', 'select account', 'select verification']));
     expect(records.every((r) => r.source === 'auth' && r.kind === 'db')).toBe(true);
   });
 
   it('returns the pool untouched when profiling is off', () => {
-    const { pool, wrapped } = setup(false);
+    const { pool, wrapped, original } = setup(false);
     expect(wrapped).toBe(pool);
-    expect(pool.query).toBe(wrapped.query);
-    expect(pool.connect).toBe(wrapped.connect);
+    expect(pool.query).toBe(original.query);
+    expect(pool.connect).toBe(original.connect);
   });
 
   it('rejects a failed query as before and records it', async () => {
-    const { wrapped, records, queryMock } = setup();
-    queryMock.mockRejectedValueOnce(new Error('db down'));
+    const { wrapped, records, state } = setup();
+    state.fail = true;
     await expect(wrapped.query('select 1')).rejects.toThrow('db down');
     await vi.waitFor(() => expect(records).toHaveLength(1));
+  });
+});
+
+describe('instrumentPgPool on a real pg Pool', () => {
+  it('records one auth span per query, pool-level or on a checked-out client', async () => {
+    const records: ToolTiming[] = [];
+    const pool = instrumentPgPool(new PgPool({ connectionString: testUrls.service, max: 1 }), { record: (e) => records.push(e), path: async () => '/p', on: () => true });
+    try {
+      const r = await pool.query('select 1::int as n from pg_class limit 1');
+      expect(r.rows).toEqual([{ n: 1 }]);
+      const c = await pool.connect();
+      try {
+        await c.query('select 2::int as n from pg_namespace limit 1');
+      } finally {
+        c.release();
+      }
+      await pool.query('select 3::int as n from pg_class limit 1');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(records.map((x) => x.tool)).toEqual(['select pg_class', 'select pg_namespace', 'select pg_class']);
+      expect(records.every((x) => x.source === 'auth')).toBe(true);
+    } finally {
+      await pool.end();
+    }
   });
 });
 

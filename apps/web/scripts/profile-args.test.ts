@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cookieHeaderFrom, fillKnownParams, parseProfileArgs, routePattern } from './profile-args';
+import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, medianOf, medianVisit, parseProfileArgs, routePattern, routeOfPageDir } from './profile-args';
 
 describe('parseProfileArgs', () => {
   it('defaults to the local E2E server on E2E_PORT (3100 when unset), no cookie file, no assertion', () => {
@@ -68,5 +68,46 @@ describe('cookieHeaderFrom', () => {
   it('passes a raw Cookie header through (trimmed, optional "Cookie:" prefix dropped)', () => {
     expect(cookieHeaderFrom('  a=1; b=2\n', 'x')).toBe('a=1; b=2');
     expect(cookieHeaderFrom('Cookie: a=1', 'x')).toBe('a=1');
+  });
+});
+
+describe('fillsStaticSibling', () => {
+  const all = ['/platform/knowledge', '/platform/knowledge/new', '/platform/knowledge/[id]', '/agency/prospects/[clientId]', '/agency/prospects/new', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/settings/ai'];
+  it('refuses an id that is a literal route beside the dynamic one (new, …)', () => {
+    expect(fillsStaticSibling('/platform/knowledge/[id]', { id: 'new' }, all)).toBe(true);
+    expect(fillsStaticSibling('/agency/prospects/[clientId]', { clientId: 'new' }, all)).toBe(true);
+  });
+  it('matches the prefix with any dynamic segment standing for any other (param names may differ)', () => {
+    expect(fillsStaticSibling('/c/[clientId]/briefs/[briefId]', { clientId: 'c1', briefId: 'b1' }, [...all, '/c/[id]/briefs/archive'])).toBe(false);
+    expect(fillsStaticSibling('/c/[clientId]/briefs/[briefId]', { clientId: 'c1', briefId: 'archive' }, [...all, '/c/[id]/briefs/archive'])).toBe(true);
+  });
+  it('accepts a real id', () => {
+    expect(fillsStaticSibling('/platform/knowledge/[id]', { id: 'd72aa9d4-7943-4df9-b68f-94bf8f3fc398' }, all)).toBe(false);
+    expect(fillsStaticSibling('/c/[clientId]/settings/ai', { clientId: 'settings' }, all)).toBe(false); // no literal at /c/<x>
+  });
+});
+
+describe('routeOfPageDir', () => {
+  it('drops route groups and keeps dynamic segments; private and parallel folders are not routes', () => {
+    expect(routeOfPageDir('(platform)/platform/knowledge/new')).toBe('/platform/knowledge/new');
+    expect(routeOfPageDir('(app)/c/[clientId]/ask/[threadId]')).toBe('/c/[clientId]/ask/[threadId]');
+    expect(routeOfPageDir('')).toBe('/');
+    expect(routeOfPageDir('(app)/_parts/x')).toBeNull();
+    expect(routeOfPageDir('(app)/@modal/x')).toBeNull();
+  });
+});
+
+describe('medianOf / medianVisit (3 warm visits per page)', () => {
+  it('takes the middle value (lower middle for an even count, 0 for none)', () => {
+    expect(medianOf([9, 7, 8])).toBe(8);
+    expect(medianOf([12, 8, 30])).toBe(12);
+    expect(medianOf([4, 1, 3, 2])).toBe(2);
+    expect(medianOf([])).toBe(0);
+  });
+  it('reports each metric\u2019s own median and keeps the visit at the median dbStages for detail', () => {
+    const v = (dbStages: number, authStages: number, txStages: number, wallMs: number) => ({ dbStages, authStages, txStages, wallMs });
+    const m = medianVisit([v(10, 1, 4, 90), v(9, 3, 4, 300), v(11, 1, 5, 80)]);
+    expect(m).toMatchObject({ dbStages: 10, authStages: 1, txStages: 4, wallMs: 90 });
+    expect(m.detail).toEqual(v(10, 1, 4, 90));
   });
 });

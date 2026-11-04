@@ -108,3 +108,46 @@ export function cookieHeaderFrom(text: string, host: string): string {
   }
   return trimmed.replace(/^cookie:\s*/i, '');
 }
+
+const isDynamic = (seg: string) => /^\[\w+\]$/.test(seg);
+
+/**
+ * True when a captured id is really a literal route beside the dynamic one (`/platform/knowledge/new` for
+ * `/platform/knowledge/[id]`): such a link must never fill the id. Prefixes match segment by segment, any dynamic
+ * segment standing for any other (`[clientId]` ≡ `[id]`).
+ */
+export function fillsStaticSibling(route: string, values: Record<string, string>, allRoutes: readonly string[]): boolean {
+  const segs = route.split('/');
+  const others = allRoutes.map((r) => r.split('/'));
+  return segs.some((seg, i) => {
+    const name = /^\[(\w+)\]$/.exec(seg)?.[1];
+    if (!name || values[name] === undefined) return false;
+    return others.some((rs) => rs.length > i && rs[i] === values[name] && !isDynamic(rs[i]!)
+      && rs.slice(0, i).every((s, j) => s === segs[j] || (isDynamic(s) && isDynamic(segs[j]!))));
+  });
+}
+
+/** An `src/app` folder holding a `page.tsx` → its route (groups dropped); null for private (`_x`) or parallel (`@x`) folders. */
+export function routeOfPageDir(dir: string): string | null {
+  const segs = dir.split(/[\/]/).filter(Boolean);
+  if (segs.some((s) => s.startsWith('_') || s.startsWith('@'))) return null;
+  return `/${segs.filter((s) => !/^\(.*\)$/.test(s)).join('/')}`;
+}
+
+/** Warm visits measured per page; the report takes the median of each metric (launch-gate fix round 1: timing noise). */
+export const WARM_VISITS = 3;
+
+/** The middle value (lower middle for an even count), 0 for none. */
+export function medianOf(xs: readonly number[]): number {
+  if (!xs.length) return 0;
+  return [...xs].sort((a, b) => a - b)[Math.floor((xs.length - 1) / 2)]!;
+}
+
+type VisitMetrics = { dbStages: number; authStages: number; txStages: number; wallMs: number };
+
+/** Each metric's own median over a page's warm visits, plus the visit at the median `dbStages` (for per-query detail). */
+export function medianVisit<V extends VisitMetrics>(visits: readonly V[]): VisitMetrics & { detail: V } {
+  const pick = (k: keyof VisitMetrics) => medianOf(visits.map((v) => v[k]));
+  const dbStages = pick('dbStages');
+  return { dbStages, authStages: pick('authStages'), txStages: pick('txStages'), wallMs: pick('wallMs'), detail: visits.find((v) => v.dbStages === dbStages)! };
+}

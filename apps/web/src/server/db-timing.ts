@@ -180,14 +180,15 @@ function wrapPgQuery(target: Queryable, rec: Rec): void {
 }
 
 /**
- * Launch-gate (spec § Profiler): Better Auth's `pg` pool emits one `source: 'auth'` db span per query, on `pool.query`
- * and on every client `pool.connect` hands out (Kysely's path). Labels as `sqlLabel` (no text or params). Unless
- * profiling is on (`PROFILE_TOOLS=1`) the pool is returned untouched. Never changes a result or an error.
+ * Launch-gate (spec § Profiler): Better Auth's `pg` pool emits one `source: 'auth'` db span per query. Recorded at one
+ * layer only, the clients `pool.connect` hands out (Kysely's path): pg-pool's `pool.query` itself runs through
+ * `this.connect` and the client's `query`, so also timing `pool.query` would count each pool-level query twice. Labels
+ * as `sqlLabel` (no text or params). Unless profiling is on (`PROFILE_TOOLS=1`) the pool is returned untouched. Never
+ * changes a result or an error.
  */
 export function instrumentPgPool(pool: Pool, deps: Partial<TimingDeps> & { on?: () => boolean } = {}): Pool {
   if (!(deps.on ?? profilingOn)()) return pool;
   const rec = recorder(deps);
-  wrapPgQuery(pool as unknown as Queryable, rec);
   const connect = pool.connect.bind(pool) as (...a: unknown[]) => unknown;
   (pool as unknown as { connect: (...a: unknown[]) => unknown }).connect = (...args: unknown[]) => {
     if (typeof args[0] === 'function') {
