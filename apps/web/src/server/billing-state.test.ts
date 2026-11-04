@@ -65,8 +65,7 @@ describe('billingSnapshotOf', () => {
     m.rowGate = new Promise<void>((r) => (openRow = r));
     m.holdGate = new Promise<void>((r) => (openHold = r));
     const pending = load();
-    await new Promise((r) => setTimeout(r, 10));
-    expect([...m.started].sort()).toEqual(['hold', 'row']);
+    await vi.waitFor(() => expect([...m.started].sort()).toEqual(['hold', 'row']));
     openRow();
     openHold();
     await pending;
