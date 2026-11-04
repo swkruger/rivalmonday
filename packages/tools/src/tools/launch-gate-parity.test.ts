@@ -2,9 +2,11 @@
  * Launch-gate 6a: output parity for the tools whose reads now start together (and for `withTenant`'s pipelined
  * settings). The snapshot was recorded on the code *before* the change (sequential reads) and must stay byte-equal:
  * same output, same refusal (code + message) for every case. Ids and timestamps are normalised (seeded per run).
+ * Provenance (final fix wave): this whole file was replayed on the pre-branch commit 42e9ddbe in a separate worktree and
+ * DB; the snapshot it wrote is byte-identical to this one (every 6a/6b/6c case and the review-gap cases).
  */
 import type { AccessContext } from '@cs/core';
-import { askStarter, brief, briefItem, capture, captureBlock, client, detectedChange, evidence, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot, runbook } from '@cs/db';
+import { askStarter, brief, briefItem, capture, captureBlock, client, detectedChange, eventChange, evidence, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot, runbook } from '@cs/db';
 import { ensureAgencyRunbook, writeItem } from '@cs/engine';
 import { loadVerticalPack } from '@cs/verticals';
 import { IDS } from '@cs/db/test-helpers';
@@ -17,11 +19,13 @@ const owner = ctx('client_owner', [IDS.clientA1], ['dashboard', 'ask']);
 const otherAgency = ctx('agency_admin', 'all', [], IDS.agencyB);
 const UNKNOWN = '00000000-0000-4000-8000-00000000dead';
 
-/** Seeded ids (and timestamps, hashes) differ per run: ids become `<id:N>` by first appearance, ISO timestamps `<ts>`. */
+/** Seeded ids (and timestamps, dates, hashes) differ per run: ids become `<id:N>` by first appearance, ISO timestamps `<ts>`, dates `<date>`. */
 function normalise(v: unknown): unknown {
   const ids = new Map<string, string>();
   const text = JSON.stringify(v ?? null)
     .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z/g, '<ts>')
+    // Bare dates (a brief's delivery date is seeded as today): without this the snapshot only passes on the day it was recorded.
+    .replace(/"\d{4}-\d{2}-\d{2}"/g, '"<date>"')
     // Seeded evidence hashes are `<kind>-sha-<first 4 chars of the capture id>`: keep the kind (which hash was picked).
     .replace(/-sha-[0-9a-f]{4}/g, '-sha-<cap>')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (id) => {
@@ -36,8 +40,10 @@ async function outcome(c: AccessContext, tool: string, input: Record<string, unk
   try {
     return normalise(await registry.invoke(c, tool, input));
   } catch (e) {
-    const err = e as { code?: string; message?: string };
-    return { refused: err.code ?? 'error', message: err.message };
+    const err = e as { code?: string; message?: string; cause?: { message?: string; cause?: { message?: string } } };
+    // An `internal` refusal never belongs in the snapshot: keep its cause so a failing run says what broke (I4).
+    if (err.code === 'internal' || err.code === undefined) return { refused: err.code ?? 'error', message: err.message, cause: err.cause?.cause?.message ?? err.cause?.message };
+    return { refused: err.code, message: err.message };
   }
 }
 
@@ -215,6 +221,53 @@ describe('launch-gate 6a output parity (snapshot recorded before the change)', (
       pageMissing: await outcome(admin, 'get_page_guide', { helpKey: 'page:client.nothing', context: 'client', clientId: A1 }),
       pageOtherAgency: await outcome(otherAgency, 'get_page_guide', { helpKey: 'page:client.overview', context: 'client', clientId: A1 }),
     }).toMatchSnapshot();
+  });
+});
+
+/**
+ * Final fix wave (I3): the 6a cases the whole-branch review found missing, recorded on the pre-branch code (42e9ddbe).
+ * `event_change.change_id` is unique (migration 0015, F8), so one change can never be linked to a hidden *and* a visible
+ * event; the merge cases are the shapes the schema allows: two changes merged into one visible event, the change of a
+ * retracted event, and the change of an event scored only for another client.
+ */
+describe('launch-gate 6a output parity: review gaps (snapshot recorded on 42e9ddbe)', () => {
+  it('merged changes, a retracted event, the owner on a ready brief, an archived client', async () => {
+    const merged = await seedEvent({ score: 60, route: 'brief', ageDays: 2, summary: 'Smith HVAC reworded its pricing page' });
+    await dbs.owner.update(eventChange).set({ eventId: w.e1 }).where(eq(eventChange.changeId, merged.changeId));
+    const hidden = await seedEvent({ score: 90, route: 'alert', ageDays: 2, retracted: true, summary: 'Retracted move' });
+    const foreign = await seedEvent({ score: 70, route: 'alert', ageDays: 1, competitorId: IDS.competitorY, clientId: IDS.clientA2 });
+    const out: Record<string, unknown> = {
+      mergedEvent: await outcome(admin, 'get_event', { clientId: A1, eventId: w.e1 }),
+      mergedFirstChange: await outcome(admin, 'compare_snapshots', { clientId: A1, changeId: w.change1 }),
+      mergedSecondChange: await outcome(admin, 'compare_snapshots', { clientId: A1, changeId: merged.changeId }),
+      mergedSecondChangeOwner: await outcome(owner, 'compare_snapshots', { clientId: A1, changeId: merged.changeId }),
+      hiddenEventChange: await outcome(admin, 'compare_snapshots', { clientId: A1, changeId: hidden.changeId }),
+      foreignEventChange: await outcome(admin, 'compare_snapshots', { clientId: A1, changeId: foreign.changeId }),
+      retractedEventAdmin: await outcome(admin, 'get_event', { clientId: A1, eventId: hidden.eventId }),
+      retractedEventOwner: await outcome(owner, 'get_event', { clientId: A1, eventId: hidden.eventId }),
+      moveAfterMerge: await outcome(admin, 'get_move', { clientId: A1, moveId: w.moveId }),
+    };
+    await dbs.owner.update(brief).set({ status: 'ready', sentAt: null, approvedAt: null }).where(eq(brief.id, w.briefId));
+    out.readyBriefAdmin = await outcome(admin, 'get_brief', { briefId: w.briefId });
+    out.readyBriefOwner = await outcome(owner, 'get_brief', { briefId: w.briefId });
+    out.readyBriefOverviewOwner = await outcome(owner, 'get_workspace_overview', { clientId: A1 });
+    await dbs.owner.update(client).set({ archivedAt: ago(0) }).where(eq(client.id, A1));
+    out.archived = {
+      getEvent: await outcome(admin, 'get_event', { clientId: A1, eventId: w.e1 }),
+      compare: await outcome(admin, 'compare_snapshots', { clientId: A1, changeId: w.change1 }),
+      searchEvents: await outcome(admin, 'search_events', { clientId: A1 }),
+      getMove: await outcome(admin, 'get_move', { clientId: A1, moveId: w.moveId }),
+      overview: await outcome(admin, 'get_workspace_overview', { clientId: A1 }),
+      overviewOwner: await outcome(owner, 'get_workspace_overview', { clientId: A1 }),
+      getBrief: await outcome(admin, 'get_brief', { briefId: w.briefId }),
+      starters: await outcome(owner, 'get_ask_starters', { clientId: A1 }),
+      setup: await outcome(admin, 'get_client_setup', { clientId: A1 }),
+      reviews: await outcome(admin, 'search_reviews', { clientId: A1 }),
+      profile: await outcome(admin, 'get_competitor_profile', { clientId: A1, competitorId: IDS.competitorX }),
+      timeline: await outcome(admin, 'get_competitor_timeline', { clientId: A1, competitorId: IDS.competitorX }),
+      guides: await outcome(admin, 'list_help_guides', { context: 'client', clientId: A1 }),
+    };
+    expect(out).toMatchSnapshot();
   });
 });
 
