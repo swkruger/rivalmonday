@@ -11,6 +11,24 @@ export const CELL: Record<Bucket, string> = {
   nodata: 'border border-dashed border-line-control bg-surface text-muted-ink',
 };
 
+/**
+ * The same ordinal buckets in the rival tone (homepage §2, spec D13): the chart rival-1 role, one hue, darker = better.
+ * Shades lay ink over rival-1, tints lay rival-1 over the surface (a gradient layer, so cells stay opaque over the map;
+ * no hex). Numerals per bucket, checked with the dataviz validator (WCAG 2 / APCA Lc): top 3 white 6.5:1 / 86.9,
+ * 4–10 white 4.7:1 / 77.3, 11–20 ink 7.6:1 / 60.7; ordinal ramp monotone, light end 2.0:1 on the surface.
+ */
+export const RIVAL_CELL: Record<Bucket, string> = {
+  top3: 'bg-chart-rival-1 bg-linear-to-r from-ink/35 to-ink/35 text-surface',
+  top10: 'bg-chart-rival-1 bg-linear-to-r from-ink/15 to-ink/15 text-surface',
+  top20: 'bg-surface bg-linear-to-r from-chart-rival-1/55 to-chart-rival-1/55 text-ink',
+  none: CELL.none,
+  nodata: CELL.nodata,
+};
+
+/** Cell classes for a tone: `you` (default) is the client's own ramp, `rival` the rival-1 ramp. */
+export type RankTone = 'you' | 'rival';
+export const cellsFor = (tone: RankTone = 'you') => (tone === 'rival' ? RIVAL_CELL : CELL);
+
 export const bucketOf = (rank: number | null): Bucket => (rank === null ? 'nodata' : rank > 20 ? 'none' : rank <= 3 ? 'top3' : rank <= 10 ? 'top10' : 'top20');
 export const labelOf = (rank: number | null) => (rank === null ? '–' : rank > 20 ? '20+' : String(rank));
 
@@ -26,8 +44,9 @@ export const SAMPLE_MAP_SRC = '/sample/marlowemere-map.webp';
  * The scan points over the sample town's map: `size` × `size` cells, rows north → south, each printing its rank.
  * The centre point is the business itself (ringed). Decorative here: hosts give the text alternative.
  */
-export function RankMap({ ranks, size, compact }: { ranks: (number | null)[]; size: number; compact?: boolean }) {
+export function RankMap({ ranks, size, compact, tone }: { ranks: (number | null)[]; size: number; compact?: boolean; /** Colour ramp; default the client's own. */ tone?: RankTone }) {
   const centre = Math.floor((size * size) / 2);
+  const cells = cellsFor(tone);
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-md border border-line bg-canvas">
       {/* Fixed square box: no layout shift while the image loads. */}
@@ -37,7 +56,7 @@ export function RankMap({ ranks, size, compact }: { ranks: (number | null)[]; si
           <span
             key={i}
             data-rank-cell
-            className={`rank-cell flex aspect-square items-center justify-center rounded-full font-semibold tabular-nums ${compact ? 'text-[0.625rem]' : 'text-xs sm:text-13'} ${CELL[bucketOf(rank)]} ${i === centre ? 'outline-2 outline-offset-2 outline-ink' : ''}`}
+            className={`rank-cell flex aspect-square items-center justify-center rounded-full font-semibold tabular-nums ${compact ? 'text-[0.625rem]' : 'text-xs sm:text-13'} ${cells[bucketOf(rank)]} ${i === centre ? 'outline-2 outline-offset-2 outline-ink' : ''}`}
           >
             {labelOf(rank)}
           </span>

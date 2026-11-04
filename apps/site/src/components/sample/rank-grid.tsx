@@ -7,7 +7,7 @@ import { formatDay } from '../../sample/format';
 import type { SampleBriefData } from '../../sample/schema';
 import { useInView } from '../motion/in-view';
 import { EvidencePills, type OpenEvidence } from './brief-items';
-import { CELL, labelOf, RankMap, weekStats, type Bucket } from './rank-map';
+import { cellsFor, labelOf, RankMap, weekStats, type Bucket } from './rank-map';
 
 export { weekStats };
 
@@ -19,6 +19,16 @@ const LEGEND: { bucket: Bucket; label: string }[] = [
   { bucket: 'nodata', label: 'No data' },
 ];
 
+/**
+ * Whose ranks the grid replays instead of the client's own (homepage §2: the rival's map, spec D13). The ring still
+ * marks the client; the client's rank evidence and leader lines are hidden, since they describe the client's scans.
+ */
+export interface RankGridSubject {
+  title: string;
+  ranks: (weekOf: string) => (number | null)[];
+  tone: 'rival';
+}
+
 /** One step of the "play" animation. */
 const STEP_MS = 650;
 
@@ -28,7 +38,7 @@ const STEP_MS = 650;
  * reader watches the business climb from its own street outwards; the slider and the weekly bars step through it.
  * Text alternative: the caption, the img label and a table.
  */
-export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string; /** `false`: plays only when asked (a page whose showpiece replay is elsewhere). */ autoplay?: boolean }) {
+export function RankGrid({ data, onOpen, howHref, autoplay = true, subject }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string; /** `false`: plays only when asked (a page whose showpiece replay is elsewhere). */ autoplay?: boolean; /** Replay someone else's ranks (default: the client's own). */ subject?: RankGridSubject }) {
   const { keyword, size, weeks } = data.rankGrid;
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)') === true;
   const [index, setIndex] = useState(0);
@@ -57,19 +67,23 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: Sam
 
   const week = weeks[index];
   if (!week) return null;
-  const first = weekStats(weeks[0]!.you);
-  const { top3, points } = weekStats(week.you);
+  const ranksOf = (w: (typeof weeks)[number]) => (subject ? subject.ranks(w.weekOf) : w.you);
+  const ranks = ranksOf(week);
+  const cells = cellsFor(subject?.tone);
+  const first = weekStats(ranksOf(weeks[0]!));
+  const { top3, points } = weekStats(ranks);
   const caption = `Top 3 in ${top3} of ${points} points`;
   const weekLabel = `Week ${index + 1} of ${weeks.length} · ${formatDay(week.weekOf)}`;
-  const rankEvidence = Object.values(data.evidence).filter((e) => e.kind === 'rank' && e.weekOf === week.weekOf && e.keyword === keyword);
+  const rankEvidence = subject ? [] : Object.values(data.evidence).filter((e) => e.kind === 'rank' && e.weekOf === week.weekOf && e.keyword === keyword);
   const evidenceId = rankEvidence.find((e) => e.kind === 'rank' && e.summary.startsWith('You:'))?.id;
   // Rival lines only where that week has the rival's own rank evidence ("no evidence, no claim"), leader first.
-  const leader = week.leaderRivalId ? data.rivals.find((r) => r.id === week.leaderRivalId)?.name : undefined;
+  const leader = !subject && week.leaderRivalId ? data.rivals.find((r) => r.id === week.leaderRivalId)?.name : undefined;
   const rivalLines = rankEvidence
     .flatMap((e) => (e.kind === 'rank' && !e.summary.startsWith('You:') ? [{ id: e.id, summary: e.summary }] : []))
     .sort((a, b) => Number(!!leader && b.summary.startsWith(`${leader}:`)) - Number(!!leader && a.summary.startsWith(`${leader}:`)));
-  const rows = Array.from({ length: size }, (_, r) => week.you.slice(r * size, r * size + size));
-  const trend = weeks.map((w) => weekStats(w.you));
+  const rows = Array.from({ length: size }, (_, r) => ranks.slice(r * size, r * size + size));
+  const trend = weeks.map((w) => weekStats(ranksOf(w)));
+  const bar = subject ? { now: 'bg-chart-rival-1', past: 'bg-chart-rival-1/40' } : { now: 'bg-secondary', past: 'bg-secondary/40' };
   const max = Math.max(1, ...trend.map((t) => t.points));
 
   const select = (i: number) => {
@@ -87,13 +101,13 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: Sam
   return (
     <figure ref={ref} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-ink">Your map rankings for &ldquo;{keyword}&rdquo;</p>
+        <p className="text-sm font-semibold text-ink">{subject ? subject.title : <>Your map rankings for &ldquo;{keyword}&rdquo;</>}</p>
         <p className="text-sm text-ink-secondary">
           {size} × {size} points across the service area. The ringed point is {data.business.name}.
         </p>
       </div>
-      <div role="img" aria-label={`Map rankings for "${keyword}", week of ${formatDay(week.weekOf)}: ${caption.toLowerCase()}.`} className="mx-auto w-full max-w-md">
-        <RankMap ranks={week.you} size={size} />
+      <div role="img" aria-label={`${subject ? subject.title : `Map rankings for "${keyword}"`}, week of ${formatDay(week.weekOf)}: ${caption.toLowerCase()}.`} className="mx-auto w-full max-w-md">
+        <RankMap ranks={ranks} size={size} tone={subject?.tone} />
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3 text-sm">
@@ -126,7 +140,7 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: Sam
           {trend.map((t, i) => (
             <button key={i} type="button" tabIndex={-1} title={`Week ${i + 1}: top 3 in ${t.top3} of ${t.points}`} onClick={() => select(i)} className="flex h-full flex-1 items-end">
               <span
-                className={`w-full rounded-t-xs transition-colors duration-300 ${i === index ? 'bg-secondary' : i < index ? 'bg-secondary/40' : 'bg-muted-surface-2'}`}
+                className={`w-full rounded-t-xs transition-colors duration-300 ${i === index ? bar.now : i < index ? bar.past : 'bg-muted-surface-2'}`}
                 style={{ height: `${Math.max(6, (t.top3 / max) * 100)}%` }}
               />
             </button>
@@ -136,7 +150,7 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: Sam
       <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-ink">
         {LEGEND.map((l) => (
           <li key={l.bucket} className="flex items-center gap-1.5">
-            <span aria-hidden="true" className={`size-3 rounded-full ${CELL[l.bucket]}`} />
+            <span aria-hidden="true" className={`size-3 rounded-full ${cells[l.bucket]}`} />
             {l.label}
           </li>
         ))}
@@ -163,7 +177,7 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true }: { data: Sam
         <summary className="cursor-pointer py-2 text-muted-ink">Show as table</summary>
         <div className="overflow-x-auto">
           <table className="mt-2 w-full text-left">
-            <caption className="sr-only">{`Your rank at each point, week of ${formatDay(week.weekOf)}`}</caption>
+            <caption className="sr-only">{`${subject ? `${subject.title}: rank` : 'Your rank'} at each point, week of ${formatDay(week.weekOf)}`}</caption>
             <thead>
               <tr>
                 <th scope="col">Row</th>

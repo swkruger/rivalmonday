@@ -3,10 +3,11 @@
 import { useRef, useState } from 'react';
 import { RIVAL_STORY, rivalStoryMoves, SECTIONS } from '../../../content/home';
 import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
+import { rivalRanks } from '../../sample/rival-grid';
 import { SAMPLE } from '../../sample/schema';
 import { type OpenEvidence } from '../sample/brief-items';
 import { EvidencePanel } from '../sample/evidence-panel';
-import { RankGrid } from '../sample/rank-grid';
+import { RankGrid, type RankGridSubject } from '../sample/rank-grid';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
 const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -16,8 +17,11 @@ function shortDay(iso: string): string {
   return DAY.format(new Date(`${iso}T00:00:00Z`));
 }
 
+/** The replay shows the rival's own map (spec D13): fictional sample data, the client's point stays ringed. */
+const RIVAL_SUBJECT: RankGridSubject = { title: RIVAL_STORY.gridTitle, ranks: rivalRanks, tone: 'rival' };
+
 /**
- * §2, the page's one showpiece: the sample map-rank replay beside a dated log of the rival's moves.
+ * §2, the page's one showpiece: the sample rival's map-rank replay beside a dated log of the rival's moves.
  * Every log row opens the same evidence sheet the grid does.
  */
 export function RivalStory() {
@@ -38,7 +42,7 @@ export function RivalStory() {
           <p className="mt-4 max-w-2xl text-lg text-ink-secondary">{live ? section.body : RIVAL_STORY.bodyNoWeb}</p>
         </div>
         <div className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-          <RankGrid data={SAMPLE} onOpen={open} howHref="/sources/local-map-rankings" />
+          <RankGrid data={SAMPLE} onOpen={open} howHref="/sources/local-map-rankings" subject={RIVAL_SUBJECT} />
         </div>
         <div className="min-w-0 lg:col-start-2 lg:row-start-2">
           <h3 id="rival-story-log" className="text-base font-semibold text-ink">{RIVAL_STORY.logHeading}</h3>

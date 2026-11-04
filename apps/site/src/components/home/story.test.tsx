@@ -37,6 +37,19 @@ describe('RivalStory', () => {
     expect(screen.getByText(RIVAL_STORY.closing)).toBeTruthy();
   });
 
+  it("replays the rival's own map: its title, 8 -> 31 top-3 points, the client's ring kept, no rank chips", () => {
+    render(<RivalStory />);
+    expect(RIVAL_STORY.gridTitle).toBe(`Quillstone Climate Pros' map rankings for “${SAMPLE.rankGrid.keyword}”`);
+    expect(screen.getByText(RIVAL_STORY.gridTitle)).toBeTruthy();
+    expect(screen.queryByText(/Your map rankings for/)).toBeNull();
+    expect(screen.getByText(new RegExp(`The ringed point is ${SAMPLE.business.name}\\.`))).toBeTruthy();
+    expect(screen.getByText('Top 3 in 8 of 49 points')).toBeTruthy();
+    fireEvent.change(screen.getByRole('slider', { name: 'Week' }), { target: { value: String(SAMPLE.rankGrid.weeks.length - 1) } });
+    expect(screen.getByText('Top 3 in 31 of 49 points')).toBeTruthy();
+    expect(screen.getByText('up from 8 in week 1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Evidence \d+: Map scan/ })).toBeNull();
+  });
+
   it('lists 2 dated moves while website monitoring is off', () => {
     render(<RivalStory />);
     const items = within(screen.getByRole('list', { name: RIVAL_STORY.logHeading })).getAllByRole('listitem');

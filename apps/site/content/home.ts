@@ -265,6 +265,8 @@ export const HOW_STEPS_NOTE = 'The first brief shows where your client stands to
 export const RIVAL_STORY = {
   bodyNoWeb:
     "Twelve weeks ago, Quillstone Climate Pros was in the top three at 8 of 49 points across Northwind's service area. Now it's 31. In the same weeks it started two Meta ads. Every move was public. Nobody told Northwind.",
+  /** NEW (D13, owner signs in Task 9): §2's replay is the rival's own map. */
+  gridTitle: `Quillstone Climate Pros' map rankings for “${SAMPLE.rankGrid.keyword}”`,
   logHeading: 'What happened, week by week',
   caption: 'Sample data from a fictional business.',
   closing: "Your client won't catch this on their own. A monthly rankings report won't either.",
