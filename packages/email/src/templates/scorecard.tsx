@@ -9,10 +9,22 @@ import { num, numCell, td, th } from './table-cells';
 
 const label: CSSProperties = { fontSize: 14, lineHeight: '20px', color: '#5B6B7F' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
+// Owner, 2026-11-03: seven 14 px headers don't fit a 375 px phone, so the email shows short labels and a key under the table.
+// Keys are `scorecardModel`'s headers (@cs/engine); an unknown header shows as is.
+const SHORT: Record<string, { short: string; key: string }> = {
+  Rating: { short: 'Stars', key: '' },
+  'Reviews 90 d': { short: 'New', key: 'New: reviews in the last 90 days' },
+  'Reply rate': { short: 'Reply', key: 'Reply: reply rate' },
+  'Map top-3': { short: 'Top 3', key: 'Top 3: share of top-3 map spots' },
+  'Google ads': { short: 'G ads', key: 'G ads / M ads: active Google and Meta ads' },
+  'Meta ads': { short: 'M ads', key: 'G ads / M ads: active Google and Meta ads' },
+};
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */
 export function Scorecard(props: { branding: Branding; model: ScorecardModel; heading?: string }) {
   const { model, branding } = props;
+  const headers = model.table.headers.map((h) => SHORT[h]?.short ?? h);
+  const keyLine = [...new Set(model.table.headers.flatMap((h) => (SHORT[h]?.key ? [SHORT[h].key] : [])))].join(' · ');
   return (
     <Section>
       {props.heading ? <Text style={{ margin: 0, fontWeight: 700, padding: '8px 0' }}>{props.heading}</Text> : null}
@@ -37,7 +49,7 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
         </colgroup>
         <thead>
           <tr>
-            {model.table.headers.map((h, i) => <th key={h} style={{ ...th, padding: '6px 3px', ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
+            {headers.map((h, i) => <th key={h} style={{ ...th, padding: '6px 3px', ...(i === 0 ? { textAlign: 'left' } : num) }}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -53,6 +65,7 @@ export function Scorecard(props: { branding: Branding; model: ScorecardModel; he
           ))}
         </tbody>
       </table>
+      {keyLine ? <div style={{ ...label, paddingTop: 6 }}>{keyLine}</div> : null}
       {model.openFirstMoves.length > 0 ? (
         <>
           <Text style={{ margin: 0, fontWeight: 700, padding: '12px 0 4px' }}>First moves still open</Text>

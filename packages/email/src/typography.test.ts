@@ -75,13 +75,25 @@ describe('email typography', () => {
     const p = preview('brief.quiet_scorecard');
     if (p.template !== 'brief') throw new Error('fixture');
     const headers = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'];
-    const scorecard = { ...p.props.scorecard!, table: { headers, rows: [{ cells: ['Bright Smile Dental (you)', '4.6', '12', '50%', '31%', '2', '�'], self: true, tier: null }] } };
+    const scorecard = { ...p.props.scorecard!, table: { headers, rows: [{ cells: ['Bright Smile Dental (you)', '4.6', '12', '50%', '31%', '2', '—'], self: true, tier: null }] } };
     const html = (await renderEmail({ template: 'brief', props: { ...p.props, scorecard } })).html;
     const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
     const tds = [...table.matchAll(/<td[^>]*style="([^"]*)"/g)].map((m) => m[1]!);
     expect(tds).toHaveLength(headers.length);
     for (const style of tds.slice(1)) expect(style).toMatch(/white-space:nowrap/);
     for (const m of table.matchAll(/<th[^>]*style="([^"]*)"/g)) expect(m[1]).not.toMatch(/break-word/);
+  });
+
+  it('the scorecard shows short headers that fit a phone, with a key under the table', async () => {
+    const p = preview('brief.quiet_scorecard');
+    if (p.template !== 'brief') throw new Error('fixture');
+    const headers = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'];
+    const scorecard = { ...p.props.scorecard!, table: { headers, rows: [{ cells: ['Bright Smile Dental (you)', '4.6', '12', '50%', '31%', '2', '—'], self: true, tier: null }] } };
+    const html = (await renderEmail({ template: 'brief', props: { ...p.props, scorecard } })).html;
+    const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
+    const ths = [...table.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1]);
+    expect(ths).toEqual(['Business', 'Stars', 'New', 'Reply', 'Top 3', 'G ads', 'M ads']);
+    expect(html).toContain('New: reviews in the last 90 days · Reply: reply rate · Top 3: share of top-3 map spots · G ads / M ads: active Google and Meta ads');
   });
 
   it('readableTextOn picks the higher-contrast label', () => {
