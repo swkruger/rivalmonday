@@ -10,8 +10,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 
 ### Launch gate (before 7a1 Task 12, the live deploy)
 Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/71 routes ≤ 8; numbers [archive/launch-gate-results.md](archive/launch-gate-results.md)).
-- [ ] **HIGH - before or with 7a1 Task 12:** two pages over 3 s on Neon dev: `/c/[clientId]/competitors/[competitorId]` 3188 ms (113 queries), `/c/[clientId]` 3073 ms (110 queries). Wall time tracks *query count* (pool max 5 → queueing), not dbStages: cut queries per page (duplicate reads across ~18 parallel tools, e.g. `get_client_profile` ×2, `get_ask_starters` ×2) or size the pool per request. Re-measure from staging first (this box adds ~95 ms/query); also re-measure `/c/[clientId]/recommendations` (`linkedCompetitors` fix) — *launch-gate*
-- [ ] Watch: workspace `/c/` p75 alone is 1679 ms on Neon dev (agency pages 918 ms); the combined D7 p75 passes by 24 ms — *launch-gate*
+- [ ] Watch: `/c/[clientId]` and `/c/[clientId]/competitors/[competitorId]` run ~110 queries (3.1-3.2 s on Neon dev from the owner PC, **~1.0 s on staging**): trim duplicate tool reads if pilot pages feel slow — *launch-gate*
 
 ### Security & data
 - [ ] 7b: `email_resend` retention (purge rows older than 1 h); decide the webhook host allow-list `.logic.azure.com` / `.environment.api.powerplatform.com` (any Azure tenant can get one, so a tester can make us POST to their endpoint; not internal SSRF; same policy as the real sender); webhook test limit is per webhook (add a per-agency cap) — *phase-15c2a*

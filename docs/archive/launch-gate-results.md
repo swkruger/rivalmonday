@@ -92,3 +92,6 @@ From the launch-gate work file at merge. Recipe: `apps/web/CLAUDE.md` § Page pr
 | /platform/knowledge/[id] | 22 → 2 | 62 | — | — |
 </details>
 
+
+### Latency (staging, Vercel iad1 + Neon pooled, 2026-11-04 owner crawl)
+`profile:pages --base https://staging.rivalmonday.app --cookie FILE --strict-routes` (wall time only): agency/workspace 200 pages (43) p50 **509 ms**, **p75 648 ms**, **max 1259 ms** (`/agency/settings/billing`); `/c/[clientId]` 1031, `/c/[clientId]/competitors/[competitorId]` 1020; platform max 775. 404s all by design (`settings/billing`, `pitch-snapshot`, both `settings/ai`: staging plan has no MCP). Unprofiled (no staging rows): `agency/prospects/[clientId]`, `alerts/[alertId]`, `reports/[reportId]`. D7 passes.

@@ -16,7 +16,7 @@
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbooks: [OPS.md](OPS.md), [DEPLOY.md](DEPLOY.md), [STAGING.md](STAGING.md).
 
 ## Next up
-**Owner - launch-gate** (merged 2026-11-04; no migration): staging latency crawl. Sign in to `https://staging.rivalmonday.app` as an agency admin, save the request `Cookie` header to a file outside the repo, then `pnpm --filter @cs/web profile:pages --base https://staging.rivalmonday.app --cookie FILE --strict-routes --json .profile/staging.json` (add `--param clientId=<id>` if a `/c/` route is unresolved). Pass = p75 ≤ 1.5 s, every page ≤ 3 s, every route 200 bar by-design 404s, no `internal`/`DrizzleQueryError` in staging Sentry (first run of `withTenant` pipelining behind the pooled URL). Delete the cookie file after. Numbers: [archive/launch-gate-results.md](archive/launch-gate-results.md).
+**Owner - launch-gate** (merged 2026-11-04; no migration): staging crawl done 2026-11-04 (agency/workspace p75 648 ms, max 1259 ms, all routes 200 or by-design 404; [archive/launch-gate-results.md](archive/launch-gate-results.md)). Left: check staging Sentry shows no `internal`/`DrizzleQueryError` around 2026-11-04 22:00 UTC (first `withTenant` pipelining behind the pooled URL).
 
 **Owner - user-profile** (merged 2026-10-31; no migration; `kb:seed` on `cs_dev` done, run it after each deploy): try `/settings/profile` as agency user, client owner and client viewer, a real phone photo, and sign the new copy; agent's decisions to overrule: [archive/user-profile-owner-verification.md](archive/user-profile-owner-verification.md). The billing form fix, favicon and chart changes merged with it.
 
