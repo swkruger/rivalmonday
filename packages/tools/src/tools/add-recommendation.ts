@@ -3,7 +3,7 @@ import { capture, client, evidence, feedback, recommendation, withTenant } from 
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { competitorLinked } from '../workspace/evidence-access';
+import { linkedCompetitors } from '../workspace/evidence-access';
 import { requireVisibleEvent, workspaceClient } from '../workspace/scope';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -40,9 +40,9 @@ export const addRecommendation = defineTool({
     const rows = await deps.service.select({ id: evidence.id, competitorId: capture.competitorId })
       .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).where(inArray(evidence.id, evidenceIds));
     if (rows.length !== evidenceIds.length) throw new ToolError('invalid_input', UNSEEN);
-    for (const competitorId of new Set(rows.map((r) => r.competitorId))) {
-      if (!(await competitorLinked(deps, ctx, c.id, competitorId))) throw new ToolError('invalid_input', UNSEEN);
-    }
+    const competitorIds = [...new Set(rows.map((r) => r.competitorId))];
+    const linked = await linkedCompetitors(deps, ctx, c.id, competitorIds);
+    if (!competitorIds.every((id) => linked.has(id))) throw new ToolError('invalid_input', UNSEEN);
     for (const eventId of eventIds) {
       try { await requireVisibleEvent(deps, ctx, c.id, eventId); } catch (e) {
         if (e instanceof ToolError && e.code === 'not_found') throw new ToolError('invalid_input', UNSEEN);

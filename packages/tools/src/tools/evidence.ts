@@ -5,7 +5,7 @@ import { alignBlocks, maskedBlockKeys } from '@cs/engine';
 import { and, asc, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { competitorLinked, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
+import { competitorLinked, linkedCompetitors, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
 import { channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel } from '../workspace/model-text';
 import { allInOrder, clientEvents, eventJoin, firstVisibleEventOfChange, workspaceClient } from '../workspace/scope';
@@ -74,11 +74,11 @@ export const getEvidenceRefs = defineTool({
       .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
       .where(inArray(evidence.id, ids));
     const byId = new Map(rows.map((r) => [r.id, r]));
-    const linked = new Map<string, boolean>();
-    for (const competitorId of new Set(rows.map((r) => r.competitorId))) linked.set(competitorId, await competitorLinked(deps, ctx, c.id, competitorId));
+    // One RLS statement for every competitor the rows name (was one transaction per competitor).
+    const linked = await linkedCompetitors(deps, ctx, c.id, rows.map((r) => r.competitorId));
     const items = ids.flatMap((id) => {
       const r = byId.get(id);
-      return r && linked.get(r.competitorId) ? [{ evidenceId: r.id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString() }] : [];
+      return r && linked.has(r.competitorId) ? [{ evidenceId: r.id, competitorName: r.competitorName, channelLabel: channelLabel(r.source), capturedAt: r.capturedAt.toISOString() }] : [];
     });
     if (items.length === 0) throw new ToolError('not_found', 'Evidence not found');
     return { items };

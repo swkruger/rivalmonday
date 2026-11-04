@@ -20,26 +20,34 @@ export const evidenceContentType = (kind: string): (typeof EVIDENCE_CONTENT_TYPE
 /**
  * Decision 7: the client's own business, tracked now, or cited by this client's alert / active brief item — for client roles only a delivered alert
  * or an item of an approved/sent brief counts (the 5a client-facing status rule). Tenant tables, so it runs through RLS.
+ * Returns the subset of `competitorIds` that is linked. Launch-gate final wave: ONE statement in ONE `withTenant`
+ * transaction for any number of competitors (the four rules are a UNION, each narrowed by `competitor_id IN ids`), so a
+ * caller with N competitors costs one round trip, never N transactions or connections.
  */
-export async function competitorLinked(deps: ToolDeps, ctx: AccessContext, clientId: string, competitorId: string): Promise<boolean> {
+export async function linkedCompetitors(deps: ToolDeps, ctx: AccessContext, clientId: string, competitorIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(competitorIds)];
+  if (ids.length === 0) return new Set();
   const agency = isAgencyRole(ctx.role);
-  // Launch-gate 6c: the four rules are one `EXISTS … OR …` statement (one round trip, not up to four in a row); same
-  // predicates, same RLS scope (one transaction), true as soon as any rule holds.
   // The client's own business (rank snapshots, own profile and reviews) is always visible to that client.
-  const own = (tx: Tx) => tx.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.selfCompetitorId, competitorId)));
+  const own = (tx: Tx) => tx.select({ id: client.selfCompetitorId }).from(client).where(and(eq(client.id, clientId), inArray(client.selfCompetitorId, ids)));
   const tracked = (tx: Tx) => tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
-    .where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId)));
-  const alerted = (tx: Tx) => tx.select({ id: alert.id }).from(alert)
-    .where(and(eq(alert.clientId, clientId), eq(alert.competitorId, competitorId), ...(agency ? [] : [eq(alert.status, 'delivered')])));
-  const briefed = (tx: Tx) => tx.select({ id: briefItem.id }).from(briefItem).innerJoin(brief, eq(brief.id, briefItem.briefId))
-    .where(and(eq(brief.clientId, clientId), eq(briefItem.competitorId, competitorId), eq(briefItem.status, 'active'),
+    .where(and(eq(clientCompetitor.clientId, clientId), inArray(clientCompetitor.competitorId, ids)));
+  const alerted = (tx: Tx) => tx.select({ id: alert.competitorId }).from(alert)
+    .where(and(eq(alert.clientId, clientId), inArray(alert.competitorId, ids), ...(agency ? [] : [eq(alert.status, 'delivered')])));
+  const briefed = (tx: Tx) => tx.select({ id: briefItem.competitorId }).from(briefItem).innerJoin(brief, eq(brief.id, briefItem.briefId))
+    .where(and(eq(brief.clientId, clientId), inArray(briefItem.competitorId, ids), eq(briefItem.status, 'active'),
       ...(agency ? [] : [inArray(brief.status, ['approved', 'sent'])])));
   return withTenant(deps.app, ctx, async (tx) => {
-    const [row] = await tx.execute<{ linked: boolean }>(
-      sql`select (exists (${own(tx)}) or exists (${tracked(tx)}) or exists (${alerted(tx)}) or exists (${briefed(tx)})) as linked`,
+    const rows = await tx.execute<{ id: string | null }>(
+      sql`select linked.id::text as id from ((${own(tx)}) union (${tracked(tx)}) union (${alerted(tx)}) union (${briefed(tx)})) as linked(id)`,
     );
-    return row?.linked === true;
+    return new Set(rows.flatMap((r) => (r.id ? [r.id] : [])));
   });
+}
+
+/** Decision 7 for one competitor: `linkedCompetitors` with a single id. */
+export async function competitorLinked(deps: ToolDeps, ctx: AccessContext, clientId: string, competitorId: string): Promise<boolean> {
+  return (await linkedCompetitors(deps, ctx, clientId, [competitorId])).has(competitorId);
 }
 
 /** Decision 5: the capture's own screenshot, else the newest earlier screenshot of the same tracked page (`fallback`). Call only after access is proved. */
