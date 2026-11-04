@@ -74,6 +74,28 @@ describe('row-level security', () => {
     expect(await read({ agencyId: IDS.agencyA, clientScope: 'all' })).toEqual({ u: null, r: null });
   });
 
+  it('launch-gate 6a: settings are pipelined, yet every query fn issues at once sees them', async () => {
+    const probe = (agencyId: string) =>
+      withTenant(dbs.app, { agencyId, clientScope: 'all' }, (tx) =>
+        Promise.all([
+          tx.execute(sql`select current_setting('app.agency_id', true) as v`),
+          tx.select({ id: client.id }).from(client),
+          tx.execute(sql`select current_setting('app.client_scope', true) as v`),
+        ]));
+    const agencyOf = (i: number) => (i % 2 ? IDS.agencyA : IDS.agencyB);
+    const runs = await Promise.all(Array.from({ length: 12 }, (_, i) => probe(agencyOf(i))));
+    runs.forEach(([a, rows, s], i) => {
+      expect((a as unknown as { v: string }[])[0]?.v).toBe(agencyOf(i));
+      expect((s as unknown as { v: string }[])[0]?.v).toBe('all');
+      expect(ids(rows)).toEqual(agencyOf(i) === IDS.agencyA ? [IDS.clientA1, IDS.clientA2].sort() : [IDS.clientB1]);
+    });
+  });
+
+  it('launch-gate 6a: a synchronous throw in fn rejects, rolls back and leaves the pool clean', async () => {
+    await expect(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, () => { throw new Error('boom'); })).rejects.toThrow('boom');
+    expect(await dbs.app.select().from(client)).toEqual([]);
+  });
+
   it('service role bypasses RLS for system jobs', async () => {
     expect(await dbs.service.select().from(client)).toHaveLength(3);
   });
