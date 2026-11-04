@@ -274,3 +274,23 @@ No `/platform/**` route is over 8. Still over 8 (all `(app)`, Task 6): `/c/[clie
 | /c/[clientId]/reviews | 13 → **4** |
 | /c/[clientId]/alerts/[alertId] | 9 → **4** |
 | /c/[clientId]/moves | 9 → **5** |
+
+## Task 6b
+2026-11-04: `bash apps/web/scripts/profile-gate.sh --seed` (local 5444, median of 3 warm visits). "Before" = the 6a final gate. All 68 profiled routes ≤ 8 (max 7); exit 1 only for the 3 unprofiled param routes (6c).
+- **Tools:** `get_geogrid`/`get_rank_trend`/`get_share_of_voice` start the client check beside one transaction (tracked list, scans, the listed scans' snapshots via the same newest-first subquery with an id tie-break, map, tiers; a scan finished between statements re-reads by id). `get_rank_settings` runs `rankScanAvailability` (four reads together, all own-agency) beside its client check; the rank budget and `spendByClient` read their parts together. `get_alert_rules`: thresholds column and the agency/platform knobs (`defaultThresholds`, both levels together) beside the client check. `get_runbook` (client): thresholds column beside `resolve`; client runbook beside the agency one. Parity snapshots recorded on the old code.
+- **Shell:** the root layout's branding read (`agencyBrandingOf`, request-cached) starts on the membership: the error/redirect second layout pass is one stage shorter.
+- **Pages:** client profile (staff reads with the profile; billing after its status), ads (`list_ads` in the batch), approval review (guides beside the brief, after the role check).
+- 404/307 rows are noisy (+1–2): the previous visit's last spans fall inside the next visit's ±5 ms window.
+
+| route | dbStages before → after |
+|---|---|
+| /c/[clientId]/rankings | 9 → **6** |
+| /c/[clientId]/settings/profile | 8 → **3** |
+| /c/[clientId]/settings/billing (404) | 8 → **7** (visits 5, 7, 7) |
+| /c/[clientId]/pitch-snapshot (404) | 8 → **6** |
+| /paused (307) | 8 → **5** |
+| /agency/approvals/[briefId] | 7 → **6** |
+| /c/[clientId]/ads | 7 → **3** |
+| /c/[clientId]/settings/alerts | 7 → **3** |
+| /c/[clientId]/settings/runbook | 7 → **4** |
+| /c/[clientId]/briefs/[briefId] | 5 → **5** |
