@@ -1,11 +1,19 @@
+import type { JoinStart } from '../src/components/join/join-provider';
+import { CLIENT_VIEW } from './client-view';
+import { partnerExample, type PartnerExample } from './partners';
 import { PRICING } from './pricing';
+import { SAMPLE } from '../src/sample/schema';
 
 export const HERO = {
   eyebrowPill: 'Pilot',
   eyebrow: 'White-label competitor intelligence for agencies',
-  headline: "Your clients' rivals, briefed every Monday, under your brand.",
-  sub: 'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
-  primaryCta: 'Join the free pilot',
+  headline: 'Your competitors are making moves. Are you watching?',
+  /** Website wording is gated (D5): the page picks `sub` or `subNoWeb` by `WEBSITE_MONITORING_LIVE`. */
+  sub: "Your clients' rivals are climbing the map, collecting reviews, launching ads and changing prices. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
+  subNoWeb:
+    "Your clients' rivals are climbing the map, collecting reviews and launching ads. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
+  primaryCta: 'Get a free brief for one of your clients',
+  primaryStart: 'agency-sample' as const satisfies JoinStart,
   secondaryCta: 'See what your clients get',
   finePrint: 'Free during the pilot · No card needed · Limited places',
   /** Three short proofs under the CTA; each restates a claim the site already makes (pages.ts, checks, white label). */
@@ -21,16 +29,34 @@ export const ANNOUNCEMENT = {
   link: 'Join the free pilot →',
 } as const;
 
-/** Final; owned here only. `join` is the closing pricing band (`PricingTeaser`), which also holds the `pricing` anchor. */
-export const HOME_ANCHORS = ['client-view', 'sample', 'recommendations', 'live', 'how-it-works', 'checks', 'friday', 'real-sample', 'guides', 'join'] as const;
+/** Final; owned here only, in page order. `join` is the closing band (`close`). */
+export const HOME_ANCHORS = [
+  'rival-story',
+  'ceiling',
+  'opportunity',
+  'cast',
+  'client-view',
+  'recommendations',
+  'friday',
+  'before-after',
+  'checks',
+  'sample',
+  'live',
+  'how-it-works',
+  'commercial',
+  'join',
+] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
-type SectionId = Exclude<HomeAnchor, 'join'> | 'pricing';
+/** `pricing`, `real-sample` and `guides` are the retired sections; a later site-story task deletes them. */
+type SectionId = Exclude<HomeAnchor, 'join'> | 'close' | 'pricing' | 'real-sample' | 'guides';
 
 export interface HomeSection {
   id: SectionId;
   eyebrow: string;
   heading: string;
   body: string;
+  /** `checks` only: the home page's own heading; `heading` stays the diagram's "No evidence, no claim." title. */
+  homeHeading?: string;
 }
 
 const { agency, business } = PRICING;
@@ -39,8 +65,50 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
   'client-view': {
     id: 'client-view',
     eyebrow: 'What your clients see',
-    heading: 'A dashboard, a Monday brief and an assistant, all under your brand.',
+    heading: 'What your client opens on Monday morning.',
     body: 'This is what a client gets: their rivals on one page, a short brief in their inbox every Monday, and Friday to answer questions. Every number links back to the evidence it came from.',
+  },
+  'rival-story': {
+    id: 'rival-story',
+    eyebrow: 'A rival on the move',
+    heading: 'While your client was busy running the business, a rival took the map.',
+    body: "Twelve weeks ago, Quillstone Climate Pros was in the top three at 8 of 49 points across Northwind's service area. Now it's 31. In the same weeks it started two Meta ads, and Kestrel Mechanical cut its AC repair diagnostic to $69. Every move was public. Nobody told Northwind.",
+  },
+  ceiling: {
+    id: 'ceiling',
+    eyebrow: 'Your agency',
+    heading: "You've already won the client. Why is the retainer the only thing you sell them?",
+    body: "You've done the hard part: you've won the clients and earned their trust. Here's what to build on it.",
+  },
+  opportunity: {
+    id: 'opportunity',
+    eyebrow: 'A new service to sell',
+    heading: 'Your clients have competitors. You have a new service to sell.',
+    body: "Offer a weekly competitor intelligence service under your agency's name. Rival Monday does the watching, the research and the first draft. Your team can edit or approve each brief before it goes out, and your agency gets the credit.",
+  },
+  cast: {
+    id: 'cast',
+    eyebrow: 'Meet the team',
+    heading: 'Two colleagues your clients will look forward to.',
+    body: '',
+  },
+  'before-after': {
+    id: 'before-after',
+    eyebrow: 'Before and after',
+    heading: 'What changes when Monday arrives.',
+    body: '',
+  },
+  commercial: {
+    id: 'commercial',
+    eyebrow: 'Your business model',
+    heading: 'Your brand. Your price. Your billing.',
+    body: '',
+  },
+  close: {
+    id: 'close',
+    eyebrow: 'Get started',
+    heading: "Pick one client. We'll show you what their rivals are doing.",
+    body: "Tell us about one client. We'll build a starting-point brief from public information and email you a private link. Free during the pilot, a limited number each month.",
   },
   sample: {
     id: 'sample',
@@ -70,6 +138,7 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
     id: 'checks',
     eyebrow: 'How we check every claim',
     heading: 'No evidence, no claim.',
+    homeHeading: 'Your name is on every brief, so we check every sentence.',
     body: "Every sentence in a brief starts from something we captured: a page snapshot, a review, an ad, a ranking. Before a brief goes out, a separate check compares each claim with its evidence. Anything it can't back up is dropped, not softened.",
   },
   friday: {
@@ -201,3 +270,117 @@ export const COUNTER_LABELS = [
   { key: 'claimsChecked', label: 'Claims checked against evidence', caption: 'Last 7 days' },
   { key: 'claimsDropped', label: 'Claims dropped for lack of evidence', caption: 'Last 7 days' },
 ] as const;
+
+/** Under the "How it works" steps (§9). */
+export const HOW_STEPS_NOTE = 'The first brief shows where your client stands today against every rival. From then on, every brief shows how far they\'ve come.';
+
+/** The rival story (§2). `SECTIONS['rival-story'].body` is the live body; the website-free body drops the Kestrel price cut (D5). */
+export const RIVAL_STORY = {
+  bodyNoWeb:
+    "Twelve weeks ago, Quillstone Climate Pros was in the top three at 8 of 49 points across Northwind's service area. Now it's 31. In the same weeks it started two Meta ads. Every move was public. Nobody told Northwind.",
+  logHeading: 'What happened, week by week',
+  caption: 'Sample data from a fictional business.',
+  closing: "Your client won't catch this on their own. A monthly rankings report won't either.",
+} as const;
+
+export interface RivalStoryMove {
+  title: string;
+  date: string;
+  evidence: string;
+}
+
+/** The sample's alerts, oldest first. Website captures (kind `snapshot`) are dropped unless website monitoring is live. */
+export function rivalStoryMoves(live: boolean): RivalStoryMove[] {
+  return [...CLIENT_VIEW.alerts]
+    .filter((a) => live || SAMPLE.evidence[a.evidence]?.kind !== 'snapshot')
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export const CEILING_LINES: { lead: string; body: string }[] = [
+  { lead: 'Your report looks like everyone else\'s.', body: "Rankings, traffic, a few charts. Your clients' other agencies send the same thing." },
+  { lead: 'The retainer gets questioned every month.', body: '"What did we get for it?" is a hard question when the work is invisible.' },
+  {
+    lead: "The research clients value most doesn't pay for itself.",
+    body: "Watching every rival by hand takes hours you can't bill, and another analyst means another salary.",
+  },
+];
+
+export const OPPORTUNITY = {
+  outcomes: [
+    { lead: 'A new recurring line item.', body: 'Your price, on your invoice, billed through your own Stripe account.' },
+    { lead: 'A reason to talk to every client, every week.', body: 'News about their market, not just another report on their own numbers.' },
+    {
+      lead: 'Upsell conversations with evidence attached.',
+      body: '"Your top rival just started running Meta ads" opens a conversation about your Meta ads service.',
+    },
+  ],
+  /** Figures are computed by `opportunityExample()` from `PRICING`; only these two inputs are typed. */
+  example: { clients: 20, clientPriceUsd: 199 },
+  exampleNote: "An example, not a forecast. Before your team's time; your prices are up to you.",
+  link: { label: 'Work out your numbers →', href: '/partners' },
+} as const;
+
+export function opportunityExample(): PartnerExample {
+  return partnerExample(OPPORTUNITY.example.clients, OPPORTUNITY.example.clientPriceUsd);
+}
+
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+/** "For example: 20 clients at $199/mo is $3,980 revenue against $1,912 in platform cost, a margin of $2,068 a month." */
+export function opportunityLine(e: Pick<PartnerExample, 'clients' | 'clientPriceUsd' | 'revenueUsd' | 'costUsd' | 'marginUsd'> = opportunityExample()): string {
+  return `For example: ${e.clients} clients at ${usd.format(e.clientPriceUsd)}/mo is ${usd.format(e.revenueUsd)} revenue against ${usd.format(e.costUsd)} in platform cost, a margin of ${usd.format(e.marginUsd)} a month.`;
+}
+
+export const CAST: { name: 'Monday' | 'Friday' | 'Rival Monday'; body: string }[] = [
+  { name: 'Monday', body: 'The brief that lands every Monday morning: what each rival did, why it matters and what to do about it.' },
+  {
+    name: 'Friday',
+    body: "The colleague who has done the reading. Ask about any rival and get an answer with the sources attached. If the evidence isn't there, Friday says so. You can rename Friday.",
+  },
+  { name: 'Rival Monday', body: 'The engine behind both. Your clients see your name, not ours.' },
+];
+
+export const BEFORE_AFTER = {
+  columns: ['Before', 'After'],
+  rows: [
+    {
+      who: 'Your client',
+      before: '"I think Quillstone\'s been busier lately."',
+      after: '"Quillstone moved into the top three at 31 of 49 map points, started two Meta ads on October 7, and we have two moves open to answer it."',
+    },
+    {
+      who: 'Your agency',
+      before: "A monthly report about your client's own numbers.",
+      after: 'A weekly brief about their whole market, under your name, with next steps your team can sell.',
+    },
+  ],
+} as const;
+
+export const COMMERCIAL = {
+  points: [
+    {
+      heading: 'Your brand',
+      body: 'Your name, logo and colours on every client page and email, plus your own sender name and assistant name. Logins on your own web address are on the roadmap.',
+    },
+    { heading: 'Your price', body: 'You set what your clients pay.' },
+    {
+      heading: 'Your billing',
+      body: 'Clients pay you directly through your own Stripe account. We add no platform fee on what your clients pay you.',
+    },
+  ],
+  /** Planned work, not a claim (same rules as `roadmap.ts`). The plan line is `PRICING_LINES.agency` / `PRICING_LINES_TRIAL.agency`. */
+  roadmapLine: { text: 'Coming next: act on a recommendation without leaving Rival Monday.', link: { label: 'See the roadmap →', href: '/roadmap' } },
+} as const;
+
+export const CLOSE = {
+  heading: "Pick one client. We'll show you what their rivals are doing.",
+  body: "Tell us about one client. We'll build a starting-point brief from public information and email you a private link. Free during the pilot, a limited number each month.",
+  button: 'Get a free brief for one of your clients',
+} as const;
+
+/** Pilot off (NEW, owner signs). */
+export const CLOSE_TRIAL = {
+  heading: CLOSE.heading,
+  body: "Tell us about one client and we'll build a starting-point brief from public information, then email you a private link.",
+  button: CLOSE.button,
+} as const;

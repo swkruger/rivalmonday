@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { SECTIONS } from '../../../content/home';
 import { CLIENT_VIEW, type DashboardOpen } from '../../../content/client-view';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
@@ -11,7 +12,7 @@ const panel = (name = 'Dashboard') => screen.getByRole('tabpanel', { name });
 describe('ClientView', () => {
   it('opens on the dashboard with the KPIs, pressure and alerts from the sample', () => {
     render(<ClientView />);
-    expect(screen.getByRole('heading', { name: 'A dashboard, a Monday brief and an assistant, all under your brand.' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: SECTIONS['client-view'].heading })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Dashboard' }).getAttribute('aria-selected')).toBe('true');
     for (const k of CLIENT_VIEW.kpis) expect(within(panel()).getByText(k.label)).toBeTruthy();
     for (const p of CLIENT_VIEW.pressure) expect(within(panel()).getByRole('img', { name: `Competitive pressure ${p.score} of 100, ${p.level}` })).toBeTruthy();

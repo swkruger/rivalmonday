@@ -6,6 +6,7 @@ vi.mock('../shell/pilot-context', () => ({ usePilot: () => ({ pilotMode: pilot.p
 vi.mock('../join/join-provider', () => ({ useJoin: () => ({ open: () => {} }) }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
+import { HERO } from '../../../content/home';
 import { FEATURE_ROWS, PLAN_CARDS, PRICING_FAQ } from '../../../content/pricing-page';
 import { faqPageLd } from '../../lib/json-ld';
 import { Faq } from './faq';
@@ -21,7 +22,7 @@ describe('PlanCards', () => {
     render(<PlanCards />);
     expect(screen.getAllByText('Free during the pilot')).toHaveLength(2);
     expect(screen.getByText(PLAN_CARDS.pilot.agency.note)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Join the free pilot' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: HERO.primaryCta })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Join the waitlist' })).toBeTruthy();
   });
 

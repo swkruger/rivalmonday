@@ -14,17 +14,18 @@ function strings(v: unknown, out: string[] = []): string[] {
 const allCopy = strings({ ...home, ...how });
 
 // Literals allowed to carry digits: 17a's counter window.
-const DIGIT_ALLOWLIST = ['Last 7 days'];
+// plus the fictional sample's own figures in the story copy.
+const DIGIT_ALLOWLIST = ['Last 7 days', '8 of 49 points', "Now it's 31", '$69', '31 of 49', 'October 7'];
 
 describe('site copy', () => {
   it('hero matches the decided copy', () => {
-    expect(home.HERO.headline).toBe("Your clients' rivals, briefed every Monday, under your brand.");
-    expect(home.HERO.sub).toBe(
-      'Rival Monday watches their websites, Google reviews, ads and map rankings, and turns every move into an evidence-backed brief, dashboard and AI assistant you sell as your own.',
-    );
+    expect(home.HERO.headline).toBe('Your competitors are making moves. Are you watching?');
+    expect(home.HERO.sub).toContain('launching ads and changing prices.');
+    expect(home.HERO.subNoWeb).toContain('collecting reviews and launching ads.');
+    expect(home.HERO.primaryStart).toBe('agency-sample');
     expect(home.HERO.eyebrow).toBe('White-label competitor intelligence for agencies');
     expect(home.HERO.eyebrowPill).toBe('Pilot');
-    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Join the free pilot', 'See what your clients get']);
+    expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Get a free brief for one of your clients', 'See what your clients get']);
     expect(home.HERO.finePrint).toBe('Free during the pilot · No card needed · Limited places');
   });
 
@@ -77,5 +78,46 @@ describe('site copy', () => {
       if (!n.href.startsWith('/#')) continue;
       expect(home.HOME_ANCHORS as readonly string[], n.href).toContain(n.href.slice(2));
     }
+  });
+
+  it('rival story moves: website capture only when live, oldest first', () => {
+    const off = home.rivalStoryMoves(false);
+    expect(off).toHaveLength(2);
+    expect(off.map((m) => m.evidence)).not.toContain('e3');
+    const on = home.rivalStoryMoves(true);
+    expect(on).toHaveLength(3);
+    expect(on.map((m) => m.date)).toEqual([...on.map((m) => m.date)].sort());
+  });
+
+  it('opportunity example is computed from PRICING and rendered in dollars', () => {
+    expect(home.opportunityExample()).toMatchObject({ revenueUsd: 3980, costUsd: 1912, marginUsd: 2068 });
+    const line = home.opportunityLine(home.opportunityExample());
+    expect(line).toContain('$2,068');
+    expect(line).toBe('For example: 20 clients at $199/mo is $3,980 revenue against $1,912 in platform cost, a margin of $2,068 a month.');
+  });
+
+  it('website-free copy never mentions price, websites or snapshots', () => {
+    expect(home.HERO.subNoWeb).not.toMatch(/changing prices|price cut|\$69|website|snapshot/i);
+    expect(home.RIVAL_STORY.bodyNoWeb).not.toMatch(/changing prices|price cut|\$69|website|snapshot/i);
+  });
+
+  it('HOME_ANCHORS has no duplicates, ends with join, and every non-join anchor has a section', () => {
+    expect(new Set(home.HOME_ANCHORS).size).toBe(home.HOME_ANCHORS.length);
+    expect(home.HOME_ANCHORS[home.HOME_ANCHORS.length - 1]).toBe('join');
+    for (const a of home.HOME_ANCHORS) if (a !== 'join') expect(home.SECTIONS[a], a).toBeDefined();
+    expect(home.SECTIONS['client-view'].heading).toBe('What your client opens on Monday morning.');
+    expect(home.SECTIONS.checks.homeHeading).toBe('Your name is on every brief, so we check every sentence.');
+    expect(home.SECTIONS.checks.heading).toBe('No evidence, no claim.');
+  });
+
+  it('lists and cast have the decided sizes', () => {
+    expect(home.CEILING_LINES).toHaveLength(3);
+    expect(home.OPPORTUNITY.outcomes).toHaveLength(3);
+    expect(home.CAST.map((c) => c.name)).toEqual(['Monday', 'Friday', 'Rival Monday']);
+    expect(home.BEFORE_AFTER.rows).toHaveLength(2);
+    expect(home.COMMERCIAL.points).toHaveLength(3);
+    expect(home.COMMERCIAL.roadmapLine.link.href).toBe('/roadmap');
+    expect(home.OPPORTUNITY.link.href).toBe('/partners');
+    expect(home.CLOSE_TRIAL.body).not.toMatch(/pilot/i);
   });
 });
