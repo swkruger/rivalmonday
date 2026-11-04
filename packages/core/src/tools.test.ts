@@ -380,3 +380,106 @@ describe('ToolRegistry AiPausedError mapping', () => {
     await expect(pausing('client').invoke(admin, 'ai_thing', {})).rejects.toMatchObject({ code: 'spend_paused', message: SPEND_PAUSED_COPY, userFacing: true });
   });
 });
+
+describe('deferred web read audits (launch-gate D2)', () => {
+  const everywhere = defineTool({
+    name: 'everywhere', access: 'read', description: 'read on every channel', input: z.object({}), output: z.object({ ok: z.boolean() }),
+    permission: 'read', channels: ['web', 'mcp', 'ask'], handler: async () => ({ ok: true }),
+  });
+  const supportAdmin = createAccessContext({ agencyId: A, userId: 'admin', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: 's1', platformUserId: 'op' } });
+
+  let recorded: AuditEvent[];
+  let deferred: (() => Promise<void>)[];
+  let onDeferredAuditError: ReturnType<typeof vi.fn>;
+  let sink: (e: AuditEvent) => Promise<void>;
+  let reg: ToolRegistry<Deps>;
+  const deferAudit = (task: () => Promise<void>) => { deferred.push(task); };
+  const flush = async () => { for (const t of deferred.splice(0)) await t(); };
+
+  beforeEach(() => {
+    recorded = [];
+    deferred = [];
+    onDeferredAuditError = vi.fn();
+    sink = async (e) => { recorded.push(e); };
+    let t = 1000;
+    reg = new ToolRegistry<Deps>({ greeting: 'hi' }, { record: (e) => sink(e) }, () => (t += 5), { hashInput, onDeferredAuditError });
+    reg.register(echo, manage, broken, everywhere);
+  });
+
+  it('defers a successful web read outside a support session until the task is flushed', async () => {
+    await expect(reg.invoke(viewer, 'echo', { message: 'x' }, { channel: 'web', deferAudit })).resolves.toEqual({ items: ['hi x'] });
+    expect(recorded).toHaveLength(0);
+    expect(deferred).toHaveLength(1);
+    await flush();
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({ tool: 'echo', channel: 'web', outcome: 'ok', rowCount: 1, durationMs: 5, supportSessionId: null });
+  });
+
+  it('awaits the audit for a write tool', async () => {
+    await reg.invoke(admin, 'add_thing', {}, { channel: 'web', deferAudit });
+    expect(deferred).toHaveLength(0);
+    expect(recorded).toMatchObject([{ tool: 'add_thing', outcome: 'ok' }]);
+  });
+
+  it('awaits the audit inside a support session', async () => {
+    await reg.invoke(supportAdmin, 'echo', { message: 'x' }, { channel: 'web', deferAudit });
+    expect(deferred).toHaveLength(0);
+    expect(recorded).toMatchObject([{ tool: 'echo', role: 'platform_support', supportSessionId: 's1' }]);
+  });
+
+  it('awaits the audit on the mcp and ask channels', async () => {
+    await reg.invoke(admin, 'everywhere', {}, { channel: 'mcp', tokenScope: 'read', tokenId: 't1', deferAudit });
+    await reg.invoke(admin, 'everywhere', {}, { channel: 'ask', deferAudit });
+    expect(deferred).toHaveLength(0);
+    expect(recorded.map((e) => e.channel)).toEqual(['mcp', 'ask']);
+  });
+
+  it('awaits the audit for a failed read', async () => {
+    await expect(reg.invoke(viewer, 'broken', {}, { channel: 'web', deferAudit })).rejects.toMatchObject({ code: 'internal' });
+    await expect(reg.invoke(viewer, 'echo', { message: '' }, { channel: 'web', deferAudit })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(deferred).toHaveLength(0);
+    expect(recorded.map((e) => e.outcome)).toEqual(['internal', 'invalid_input']);
+  });
+
+  it('awaits the audit when deferAudit is absent', async () => {
+    await reg.invoke(viewer, 'echo', { message: 'x' }, { channel: 'web' });
+    expect(deferred).toHaveLength(0);
+    expect(recorded).toHaveLength(1);
+  });
+
+  it('an awaited audit failure still fails closed with internal', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      sink = async () => { throw new Error('audit sink down'); };
+      await expect(reg.invoke(admin, 'add_thing', {}, { channel: 'web', deferAudit })).rejects.toMatchObject({ code: 'internal', message: 'Audit logging failed' });
+      expect(onDeferredAuditError).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('falls back to the awaited audit when the deferral hook throws', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const refuse = () => { throw new Error('after() outside a request scope'); };
+      await expect(reg.invoke(viewer, 'echo', { message: 'x' }, { channel: 'web', deferAudit: refuse })).resolves.toEqual({ items: ['hi x'] });
+      expect(recorded).toMatchObject([{ tool: 'echo', outcome: 'ok' }]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a deferred audit failure is reported and never rejects', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const boom = new Error('audit sink down');
+      sink = async () => { throw boom; };
+      await expect(reg.invoke(viewer, 'echo', { message: 'x' }, { channel: 'web', deferAudit })).resolves.toEqual({ items: ['hi x'] });
+      await expect(flush()).resolves.toBeUndefined();
+      expect(onDeferredAuditError).toHaveBeenCalledWith(boom);
+      expect(spy).toHaveBeenCalledWith('[tools] deferred audit write failed', boom);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

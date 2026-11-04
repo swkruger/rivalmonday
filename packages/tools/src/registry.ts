@@ -7,6 +7,11 @@ import { allTools } from './tools/all';
 
 export type { ToolDeps } from './deps';
 
-export function createToolRegistry(deps: ToolDeps, opts: { audit?: AuditSink } = {}): ToolRegistry<ToolDeps> {
-  return new ToolRegistry<ToolDeps>(deps, opts.audit ?? createAuditSink(deps.service), Date.now, { hashInput, writeGuard: billingWriteGuard(deps) }).register(...allTools);
+/** `onDeferredAuditError`: launch-gate D2 — reports an after-response (web read) audit insert that failed. */
+export function createToolRegistry(deps: ToolDeps, opts: { audit?: AuditSink; onDeferredAuditError?: (err: unknown) => void } = {}): ToolRegistry<ToolDeps> {
+  return new ToolRegistry<ToolDeps>(deps, opts.audit ?? createAuditSink(deps.service), Date.now, {
+    hashInput,
+    writeGuard: billingWriteGuard(deps),
+    ...(opts.onDeferredAuditError ? { onDeferredAuditError: opts.onDeferredAuditError } : {}),
+  }).register(...allTools);
 }

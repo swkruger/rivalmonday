@@ -10,7 +10,8 @@ import { waitlistCounts } from './platform-waitlist';
 import { countBriefsAwaitingReview } from './review';
 import { countPendingTopicProposals } from './topics';
 
-// Phase 15a P2: the sidebar's badge counts, one audited web call per shell render each (never a `list_*` per queue).
+// Phase 15a P2: the sidebar's badge counts, one web call per shell render each (never a `list_*` per queue). Launch-gate D2:
+// counts only, no tenant rows, so `skip-web` (MCP/Ask never see them; support-session calls are still audited).
 // Every count reuses the WHERE helper of the list its page shows, so a badge never disagrees with the page. Ask reviews
 // has no badge (threads have no reviewed state, so there is no queue to count).
 
@@ -24,6 +25,7 @@ export const getNavCounts = defineTool({
   input: z.object({}),
   output: z.object({ approvals: n, alerts: n, leads: n }),
   permission: 'agency',
+  audit: 'skip-web',
   async handler(ctx, _input, deps) {
     // RLS scopes briefs and alerts to the caller's clients (an AM scoped to some clients counts only theirs); inside a
     // support session `ctx` is the supported agency's.
@@ -42,6 +44,7 @@ export const getPlatformNavCounts = defineTool({
   input: z.object({}),
   output: z.object({ modelReviews: n, topics: n, waitlist: n }),
   permission: 'agency',
+  audit: 'skip-web',
   async handler(ctx, _input, deps) {
     try {
       await requirePlatformOperator(deps, ctx);

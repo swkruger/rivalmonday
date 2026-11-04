@@ -1,12 +1,14 @@
 import 'server-only';
 import { gatewayFor } from '@cs/billing';
 import { createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile, type Ai } from '@cs/ai';
-import { type AccessContext, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type CallOptions, ToolError, type ToolRegistry } from '@cs/core';
 import { catalogRows, createAiGuard, createLedgerSink, type Db, type EnvName } from '@cs/db';
 import { deliveryConfigFromEnv } from '@cs/engine';
 import { createToolRegistry, type ToolDeps } from '@cs/tools';
 import { createCatalog } from '@cs/verticals';
+import * as Sentry from '@sentry/nextjs';
 import { notFound } from 'next/navigation';
+import { after } from 'next/server';
 import { dbs } from './db';
 import { requestPath } from './db-timing';
 import { processGuardOn } from './dev-guard';
@@ -89,7 +91,19 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
   };
 });
 
-const registries = perEnv((name: EnvName) => createToolRegistry(toolDeps(name)));
+/**
+ * Launch-gate D2: a deferred web-read audit insert that fails after the response is captured to Sentry (the server
+ * analogue of `reportError`, whose boundary-only signature is frozen); the registry already logged it to the console.
+ */
+export function reportDeferredAuditError(err: unknown): void {
+  try {
+    Sentry.captureException(err, { tags: { where: 'deferred_audit' } });
+  } catch {
+    // reporting must never break the request
+  }
+}
+
+const registries = perEnv((name: EnvName) => createToolRegistry(toolDeps(name), { onDeferredAuditError: reportDeferredAuditError }));
 /** The live environment's registry, or the named environment's when `name` is given. */
 export const registry = (name?: EnvName) => registries(name);
 
@@ -107,15 +121,22 @@ export function isHiddenToolError(e: unknown): boolean {
 }
 
 /**
+ * Launch-gate D2: page reads (`callTool` / `tryCallTool`) let the registry write a successful read's audit row after the
+ * response via Next `after()`; the registry alone decides when that applies (web, read, ok, no support session).
+ * `runTool` (writes) never passes this.
+ */
+const WEB_READ: CallOptions = { channel: 'web', deferAudit: (task) => after(task) };
+
+/**
  * Task 9 (spec D7): `registry.invoke`, timed into `.profile/tools.ndjson` when the server runs with `PROFILE_TOOLS=1`
  * (see `tool-timing.ts`); otherwise exactly `invoke`.
  */
 async function invokeTimed(reg: () => Pick<ToolRegistry<ToolDeps>, 'invoke'>, ctx: AccessContext, name: string, input: unknown): Promise<unknown> {
-  if (!profilingOn()) return reg().invoke(ctx, name, input);
+  if (!profilingOn()) return reg().invoke(ctx, name, input, WEB_READ);
   const path = await requestPath();
   const startMs = nowMs();
   try {
-    return await reg().invoke(ctx, name, input);
+    return await reg().invoke(ctx, name, input, WEB_READ);
   } finally {
     recordToolTiming({ path, tool: name, startMs, endMs: nowMs() });
   }

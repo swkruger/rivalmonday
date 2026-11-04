@@ -84,6 +84,7 @@ export const getOnboardingStatus = defineTool({
   input: z.object({}),
   output: OnboardingStatus,
   permission: 'agency',
+  audit: 'skip-web', // launch-gate D2: the caller's own agency's step flags only, no tenant rows
   async handler(ctx, _input, deps): Promise<OnboardingStatus> {
     requireReader(ctx);
     const [r] = await deps.service.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, ctx.agencyId));

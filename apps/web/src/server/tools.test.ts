@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ToolError } from '@cs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { createTryCallTool, isHiddenToolError } from './tools';
+import { createTryCallTool, isHiddenToolError, reportDeferredAuditError } from './tools';
+
+const afterMock = vi.hoisted(() => vi.fn());
+vi.mock('next/server', () => ({ after: afterMock }));
+const captureMock = vi.hoisted(() => vi.fn());
+vi.mock('@sentry/nextjs', () => ({ captureException: captureMock }));
 
 describe('isHiddenToolError', () => {
   it('hides not_found, permission_denied and invalid_input behind a 404', () => {
@@ -65,5 +70,47 @@ describe('tool timing hook (Task 9)', () => {
       await createTryCallTool(reg(async () => ({ id: 'x' })))(ctx, 'get_move', {});
       expect(existsSync(file)).toBe(false);
     });
+  });
+});
+
+describe('deferred read audits (launch-gate D2)', () => {
+  const ctx = {} as never;
+  type Opts = { channel: string; deferAudit?: (t: () => Promise<void>) => void };
+  const capture = (seen: (Opts | undefined)[]) => () => ({ invoke: async (_c: unknown, _n: string, _i: unknown, opts?: Opts) => { seen.push(opts); return { ok: true }; } }) as never;
+
+  it('reads pass the web channel and a deferAudit hook that hands the task to next/server after()', async () => {
+    afterMock.mockClear();
+    const seen: (Opts | undefined)[] = [];
+    await createTryCallTool(capture(seen))(ctx, 'get_move', {});
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.channel).toBe('web');
+    const task = async () => {};
+    seen[0]!.deferAudit!(task);
+    expect(afterMock).toHaveBeenCalledWith(task);
+  });
+
+  it('keeps the hook under PROFILE_TOOLS timing', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tools-defer-'));
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
+    vi.stubEnv('PROFILE_TOOLS', '1');
+    try {
+      const seen: (Opts | undefined)[] = [];
+      await createTryCallTool(capture(seen))(ctx, 'get_move', {});
+      expect(seen[0]).toMatchObject({ channel: 'web', deferAudit: expect.any(Function) });
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('reportDeferredAuditError', () => {
+  it('captures to Sentry with a deferred_audit tag and never throws', () => {
+    const err = new Error('audit sink down');
+    reportDeferredAuditError(err);
+    expect(captureMock).toHaveBeenCalledWith(err, { tags: { where: 'deferred_audit' } });
+    captureMock.mockImplementationOnce(() => { throw new Error('sentry down'); });
+    expect(() => reportDeferredAuditError(err)).not.toThrow();
   });
 });

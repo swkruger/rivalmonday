@@ -23,7 +23,13 @@ export class ToolError extends Error {
 }
 
 export type ToolChannel = 'web' | 'mcp' | 'ask';
-export interface CallOptions { channel: ToolChannel; tokenId?: string; tokenScope?: TokenScope }
+export interface CallOptions {
+  channel: ToolChannel;
+  tokenId?: string;
+  tokenScope?: TokenScope;
+  /** Web reads only: run the audit insert after the response (Next `after`). Ignored unless the rule in `invoke` holds. */
+  deferAudit?: (task: () => Promise<void>) => void;
+}
 export interface CallMeta { channel: ToolChannel; tokenId: string | null }
 
 export interface ToolDefinition<I extends z.ZodType, O extends z.ZodType, D> {
@@ -134,6 +140,8 @@ export interface ToolRegistryOptions {
   writeGuard?: WriteGuard;
   /** Audit input hash (`hashInput` from `@cs/core/server`); injected so the main entry stays Edge-safe. */
   hashInput: (value: unknown) => string;
+  /** Launch-gate D2: called when a deferred (after-response) audit insert fails; the caller never sees it. */
+  onDeferredAuditError?: (err: unknown) => void;
 }
 
 export class ToolRegistry<D> {
@@ -224,8 +232,8 @@ export class ToolRegistry<D> {
       throw err;
     } finally {
       // Phase 8b: every call inside a support session is audited, skip-web included.
-      if (!(tool?.audit === 'skip-web' && opts.channel === 'web' && !ctx.support)) try {
-        await this.audit.record({
+      if (!(tool?.audit === 'skip-web' && opts.channel === 'web' && !ctx.support)) {
+        const event: AuditEvent = {
           agencyId: ctx.agencyId,
           userId: ctx.support ? ctx.support.platformUserId : ctx.userId,
           role: ctx.support ? 'platform_support' : ctx.role,
@@ -237,15 +245,42 @@ export class ToolRegistry<D> {
           outcome,
           rowCount,
           durationMs: this.now() - started,
-        });
-      } catch (err) {
-        if (failure !== undefined) {
-          // eslint-disable-next-line no-console -- the original tool error must not be lost behind the audit failure
-          console.error('[tools] tool error before audit failure', failure);
+        };
+        // Launch-gate D2 (security-sensitive, exact): only a successful web read outside a support session may write its
+        // audit row after the response. Writes, failures, MCP/Ask and every support-session call stay awaited and fail closed.
+        const defer = opts.deferAudit && opts.channel === 'web' && !ctx.support && tool?.access !== 'write' && outcome === 'ok';
+        let deferred = false;
+        if (defer && opts.deferAudit) {
+          try {
+            opts.deferAudit(async () => {
+              try {
+                await this.audit.record(event);
+              } catch (err) {
+                // eslint-disable-next-line no-console -- the response is already sent; the failure must still be visible
+                console.error('[tools] deferred audit write failed', err);
+                this.options.onDeferredAuditError?.(err);
+              }
+            });
+            deferred = true;
+          } catch (err) {
+            // e.g. Next `after()` outside a request scope: never lose the row — fall back to the awaited insert below.
+            // eslint-disable-next-line no-console -- a broken deferral hook must be visible
+            console.error('[tools] audit deferral refused; writing inline', err);
+          }
         }
-        // eslint-disable-next-line no-console -- audit failures must be visible even though we fail closed below
-        console.error('[tools] audit write failed', err);
-        throw new ToolError('internal', 'Audit logging failed', { cause: err });
+        if (!deferred) {
+          try {
+            await this.audit.record(event);
+          } catch (err) {
+            if (failure !== undefined) {
+              // eslint-disable-next-line no-console -- the original tool error must not be lost behind the audit failure
+              console.error('[tools] tool error before audit failure', failure);
+            }
+            // eslint-disable-next-line no-console -- audit failures must be visible even though we fail closed below
+            console.error('[tools] audit write failed', err);
+            throw new ToolError('internal', 'Audit logging failed', { cause: err });
+          }
+        }
       }
     }
   }
