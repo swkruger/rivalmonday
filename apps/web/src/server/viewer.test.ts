@@ -40,6 +40,18 @@ describe('resolveViewer', () => {
     expect(second?.kind === 'user' && second.ctx.clientScope).toEqual([IDS.clientB1]);
   });
 
+  it('launch-gate 6a: tells onMembership the chosen membership (once) and never for a member-less user or a guest', async () => {
+    const seen: string[] = [];
+    const onMembership = (m: { id: string }) => { seen.push(m.id); };
+    expect(await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'member-less' });
+    expect(seen).toEqual([]);
+    const [a] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't', createdAt: new Date('2026-10-01T00:00:00Z') }).returning();
+    const [b] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyB, role: 'client_owner', clientId: IDS.clientB1, createdBy: 't' }).returning();
+    expect(await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: a!.id } });
+    expect(await resolveViewer({ service: dbs.service, session, membershipCookie: b!.id, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: b!.id } });
+    expect(seen).toEqual([a!.id, b!.id]);
+  });
+
   it('avatarUrl counts only an uploaded photo: a Google image is null, as is none', async () => {
     await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't' });
     const withImage = async (image: string | null) => resolveViewer({ service: dbs.service, session: { ...session, image }, linkSecrets: S, now: NOW });

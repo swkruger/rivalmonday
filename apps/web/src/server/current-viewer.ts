@@ -6,7 +6,7 @@ import { cache } from 'react';
 import { clientIdFromPath } from '@/components/shell/nav-items';
 import { auth } from './auth';
 import { billingRedirectFor } from './billing-redirect';
-import { billingStateOf } from './billing-state';
+import { billingSnapshotOf, billingStateOf } from './billing-state';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { GUEST_COOKIE } from './guest';
@@ -53,6 +53,9 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
     guestCookie: jar.get(GUEST_COOKIE)?.value,
     linkSecrets: webEnv().linkSecrets,
     clientHint,
+    // Launch-gate 6a: `requireContext` reads the billing snapshot next; it needs only the agency id, so start it (request-
+    // cached) beside `accessContextFor`. Page mode only (operator/api resolutions never read it); errors surface there.
+    onMembership: mode === 'page' ? (m) => void billingSnapshotOf(m.agencyId).catch(() => undefined) : undefined,
   });
 }
 

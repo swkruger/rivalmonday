@@ -32,6 +32,11 @@ export async function resolveViewer(input: {
   linkSecrets: readonly string[];
   clientHint?: string | null;
   now?: Date;
+  /**
+   * Launch-gate 6a: told the chosen membership as soon as it is known, before `accessContextFor` reads the plan, so the
+   * caller can start a read that needs only the agency id (the page's billing snapshot) in the same stage. Never awaited.
+   */
+  onMembership?: (m: MembershipSummary) => void;
 }): Promise<Viewer | null> {
   const { service, session } = input;
   if (session) {
@@ -44,6 +49,7 @@ export async function resolveViewer(input: {
       if (c && !coversClient(m, hint, c.agencyId)) m = memberships.find((x) => coversClient(x, hint, c.agencyId)) ?? m;
     }
     if (!m) return { kind: 'member-less', userId: session.userId, email: session.email, name: session.name };
+    input.onMembership?.(m);
     const { image, ...who } = session;
     return { kind: 'user', ...who, avatarUrl: avatarUrlOf(image ?? null), ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
   }
