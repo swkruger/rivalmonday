@@ -276,3 +276,25 @@ describe('get_share_of_voice', () => {
     await expect(registry.invoke(ownerNoDash, 'get_share_of_voice', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
   });
 });
+
+describe('launch-gate 6b: scan lists and their snapshots agree', () => {
+  it('scans finished at the same instant: the grid, trend and share of voice read the snapshots of the scans they list', async () => {
+    await setupClient();
+    const at = ago(3);
+    // Same finish time: the id breaks the tie, in the list and in the snapshot subquery alike.
+    const x = await seedRankScan({ finishedAt: at, snapshots: gridSnapshots('ac repair', 1, () => [rr(1, 'self-place')]) });
+    const y = await seedRankScan({ finishedAt: at, snapshots: gridSnapshots('ac repair', 1, () => [rr(7, 'self-place')]) });
+    const first = [x, y].sort().reverse()[0]!;
+    const rankOf = (id: string) => (id === x ? 1 : 7);
+    const geo = (await registry.invoke(am, 'get_geogrid', { clientId: IDS.clientA1 })) as GeoGridView;
+    expect([geo.scan?.id, geo.cells]).toEqual([first, [[rankOf(first)]]]);
+    const trend = (await registry.invoke(am, 'get_rank_trend', { clientId: IDS.clientA1, keyword: 'ac repair', limit: 1 })) as RankTrendView;
+    expect([trend.scans.map((s) => s.scanId), trend.scans[0]!.self?.avgRank, trend.nextCursor]).toEqual([[first], rankOf(first), first]);
+    const page2 = (await registry.invoke(am, 'get_rank_trend', { clientId: IDS.clientA1, keyword: 'ac repair', before: first })) as RankTrendView;
+    // `before` is strict on the finish time, so the tied scan is not on the next page (unchanged behaviour).
+    expect(page2.scans).toEqual([]);
+    // One result per point: the self share is 1 when it is in the top 3, else no top-3 slot was taken (null).
+    const sov = (await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, scans: 1 })) as ShareOfVoiceView;
+    expect([sov.scans.map((s) => s.id), sov.series[0]!.points]).toEqual([[first], [rankOf(first) <= 3 ? 1 : null]]);
+  });
+});

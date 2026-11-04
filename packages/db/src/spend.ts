@@ -54,20 +54,20 @@ export async function competitorTrackers(db: Db | Tx, competitorIds: string[]): 
 export async function spendByClient(db: Db | Tx, clientIds: string[], since: Date): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (clientIds.length === 0) return out;
-  for (const table of [llmCall, vendorCall]) {
+  const direct = (table: typeof llmCall | typeof vendorCall) => {
     const where = [inArray(table.clientId, clientIds), gte(table.createdAt, since)];
     const counted = table === llmCall ? llmProviderCounted() : undefined;
     if (counted) where.push(counted);
-    const rows = await db
+    return db
       .select({ id: table.clientId, usd: sql<number>`coalesce(sum(${table.costUsd}), 0)::float8` })
       .from(table)
       .where(and(...where))
       .groupBy(table.clientId);
-    for (const r of rows) if (r.id) out.set(r.id, (out.get(r.id) ?? 0) + Number(r.usd));
-  }
+  };
   const sinceTs = sql`${since.toISOString()}::timestamptz`;
   const excluded = sqlArray(SPEND_GUARD_EXCLUDED_PROVIDERS, 'text');
-  const shares = await rowsOf<{ client_id: string; usd: number }>(
+  // Launch-gate 6b: the three reads start together; the sums are still added in the same order (llm, vendor, shares).
+  const [llmRows, vendorRows, shares] = await Promise.all([direct(llmCall), direct(vendorCall), rowsOf<{ client_id: string; usd: number }>(
     db,
     sql`WITH trackers AS (${TRACKERS_CTE}),
 n AS (SELECT competitor_id, count(*)::numeric AS k FROM trackers GROUP BY competitor_id),
@@ -80,7 +80,8 @@ shared AS (
 SELECT t.client_id, coalesce(sum(s.usd / n.k), 0)::float8 AS usd
   FROM shared s JOIN n USING (competitor_id) JOIN trackers t USING (competitor_id)
  WHERE t.client_id = ANY(${sqlArray(clientIds, 'uuid')}) GROUP BY t.client_id`,
-  );
+  )]);
+  for (const rows of [llmRows, vendorRows]) for (const r of rows) if (r.id) out.set(r.id, (out.get(r.id) ?? 0) + Number(r.usd));
   for (const r of shares) out.set(r.client_id, (out.get(r.client_id) ?? 0) + Number(r.usd));
   return out;
 }

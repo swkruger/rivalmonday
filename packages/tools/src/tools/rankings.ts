@@ -2,12 +2,12 @@ import { rankKeywordsFor, STADIA_ATTRIBUTION } from '@cs/collectors';
 import { canAccessClient, insideBounds, toolkit, ToolError } from '@cs/core';
 import { client, competitorSignal, evidence, type RankResult, rankMapImage, rankScan, rankSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
 import { competitorMatcher, NOT_FOUND_RANK, rankMetrics, rankSettingsKey } from '@cs/engine';
-import { and, desc, eq, inArray, isNotNull, lt } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { enqueueMapRefresh, rankScanAvailability, rankScanLabel, requestRankScan } from '../rank-scan';
-import { pickBusiness, workspaceBusinesses } from '../workspace/business';
-import { workspaceClient } from '../workspace/scope';
+import { pickBusiness, trackedRows, workspaceBusinesses } from '../workspace/business';
+import { allInOrder, workspaceClient } from '../workspace/scope';
 import { BusinessKey, GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -18,12 +18,44 @@ const byWord = (a: string, b: string) => a.localeCompare(b, 'en');
 type ScanRow = { id: string; finishedAt: Date | null; gridSize: number | null; radiusKm: number | null; keywords: string[] | null };
 const isDone = (clientId: string) => and(eq(rankScan.clientId, clientId), eq(rankScan.status, 'done'), isNotNull(rankScan.finishedAt));
 const scanCols = { id: rankScan.id, finishedAt: rankScan.finishedAt, gridSize: rankScan.gridSize, radiusKm: rankScan.radiusKm, keywords: rankScan.keywords };
+const snapCols = { scanId: rankSnapshot.scanId, keyword: rankSnapshot.keyword, lat: rankSnapshot.lat, lng: rankSnapshot.lng, results: rankSnapshot.results, captureId: rankSnapshot.captureId };
+
+/** Newest first; the id breaks a tie so a list and its id subquery (`doneScanIds`) always pick the same scans. */
+const newestFirst = [desc(rankScan.finishedAt), desc(rankScan.id)] as const;
+
+/** The finish time of the client's finished scan `id` (a scalar subquery; NULL when there is none, so `<` matches nothing). */
+const finishedAtOf = (tx: Tx, clientId: string, id: string) =>
+  tx.select({ finishedAt: rankScan.finishedAt }).from(rankScan).where(and(eq(rankScan.id, id), isDone(clientId)));
+
+/** `before`: a Date, or the id of a finished scan of the client (its finish time, read in the same query). */
+const doneWhere = (tx: Tx, clientId: string, before?: Date | { scanId: string }): SQL =>
+  (before === undefined ? isDone(clientId)
+    : and(isDone(clientId), lt(rankScan.finishedAt, before instanceof Date ? before : finishedAtOf(tx, clientId, before.scanId))))!;
 
 /** The client's finished scans, newest first. Takes a tenant transaction: `rank_scan` is only ever read through `withTenant`. */
-export async function doneScans(tx: Tx, clientId: string, limit: number, before?: Date): Promise<ScanRow[]> {
-  return tx.select(scanCols).from(rankScan)
-    .where(before ? and(isDone(clientId), lt(rankScan.finishedAt, before)) : isDone(clientId)).orderBy(desc(rankScan.finishedAt)).limit(limit);
+export async function doneScans(tx: Tx, clientId: string, limit: number, before?: Date | { scanId: string }): Promise<ScanRow[]> {
+  return tx.select(scanCols).from(rankScan).where(doneWhere(tx, clientId, before)).orderBy(...newestFirst).limit(limit);
 }
+
+type SnapRow = { scanId: string | null; keyword: string; lat: number; lng: number; results: RankResult[]; captureId: string | null };
+
+/**
+ * Launch-gate 6b: the snapshots of the scans `doneScans(tx, clientId, limit, before)` lists, read in the same round trip
+ * as that list (a subquery picks the scans), plus the ids the subquery picked, also of a scan without snapshots. Each
+ * statement has its own snapshot, so the caller compares `picked` with its list and re-reads by id on a mismatch (a scan
+ * finished in between).
+ */
+async function doneSnapshots(tx: Tx, clientId: string, limit: number, o: { before?: { scanId: string }; keyword?: string } = {}): Promise<{ picked: Set<string>; rows: SnapRow[] }> {
+  const s = tx.select({ id: rankScan.id }).from(rankScan).where(doneWhere(tx, clientId, o.before)).orderBy(...newestFirst).limit(limit).as('picked');
+  const on = o.keyword ? and(eq(rankSnapshot.scanId, s.id), eq(rankSnapshot.keyword, o.keyword))! : eq(rankSnapshot.scanId, s.id);
+  const out = await tx.select({ picked: s.id, ...snapCols }).from(s).leftJoin(rankSnapshot, on);
+  const rows: SnapRow[] = [];
+  for (const r of out) if (r.scanId !== null) rows.push({ scanId: r.scanId, keyword: r.keyword!, lat: r.lat!, lng: r.lng!, results: r.results!, captureId: r.captureId });
+  return { picked: new Set(out.map((r) => r.picked)), rows };
+}
+
+/** Whether the subquery picked exactly the listed scans. */
+const pickedAll = (picked: Set<string>, ids: string[]) => picked.size === ids.length && ids.every((id) => picked.has(id));
 
 /** One finished scan of the client by id, or `undefined`. Same tenant-transaction rule as `doneScans`. */
 export async function doneScan(tx: Tx, clientId: string, id: string): Promise<ScanRow | undefined> {
@@ -43,8 +75,25 @@ export const getGeogrid = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
-    const c = await workspaceClient(deps, ctx, input.clientId);
-    const list = await workspaceBusinesses(deps, ctx, c);
+    // Launch-gate 6b: the client check and every tenant read (tracked list, scans, the chosen scan's snapshots, the map)
+    // start together; refusals keep their order (client, business, scan). The snapshots of the default scan come from
+    // the same "newest finished scan" subquery as `recent[0]`. Tenant tables only ever through withTenant (Review Focus 1).
+    const [c, reads] = await allInOrder([
+      workspaceClient(deps, ctx, input.clientId),
+      withTenant(deps.app, ctx, async (tx) => {
+        const [tracked, recent, byId, rows, [image]] = await Promise.all([
+          trackedRows(tx, input.clientId),
+          doneScans(tx, input.clientId, 12),
+          input.scanId ? doneScan(tx, input.clientId, input.scanId) : undefined,
+          // By id: discarded below unless `byId` proves it is a finished scan of this client.
+          input.scanId ? tx.select(snapCols).from(rankSnapshot).where(eq(rankSnapshot.scanId, input.scanId)) : doneSnapshots(tx, input.clientId, 1),
+          tx.select({ settingsHash: rankMapImage.settingsHash, bounds: rankMapImage.bounds, width: rankMapImage.width, height: rankMapImage.height })
+            .from(rankMapImage).where(eq(rankMapImage.clientId, input.clientId)),
+        ]);
+        return { tracked, recent, byId, rows, image };
+      }),
+    ]);
+    const list = await workspaceBusinesses(deps, ctx, c, reads.tracked);
     const business = input.business ? pickBusiness(list, input.business) : (list[0] ?? null);
     const base = {
       scan: null, scans: [], keywords: [], keyword: null, size: 0, cells: [], top3: 0, points: 0, avgRank: null, keywordSummaries: [], radiusKm: c.radiusKm, lats: [] as number[], lngs: [] as number[], map: null as GeoGridView['map'],
@@ -52,27 +101,22 @@ export const getGeogrid = defineTool({
     };
     if (c.keywords.length === 0 || c.radiusKm === null) return { ...base, setup: 'no_keywords' as const };
 
-    // Tenant tables: only ever through withTenant (Review Focus 1).
-    const { scans, scan, snaps, image } = await withTenant(deps.app, ctx, async (tx) => {
-      const recent = await doneScans(tx, c.id, 12);
-      let chosen: ScanRow | undefined = recent[0];
-      if (input.scanId) {
-        chosen = await doneScan(tx, c.id, input.scanId);
-        if (!chosen) throw new ToolError('not_found', 'Scan not found');
-      }
-      const rows = chosen
-        ? await tx.select({ keyword: rankSnapshot.keyword, lat: rankSnapshot.lat, lng: rankSnapshot.lng, results: rankSnapshot.results, captureId: rankSnapshot.captureId }).from(rankSnapshot).where(eq(rankSnapshot.scanId, chosen.id))
-        : [];
-      // An older scan opened by id is merged into the list so the picker can show it.
-      const scans = chosen && !recent.some((s) => s.id === chosen!.id)
-        ? [...recent, chosen].sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
-        : recent;
-      const [image] = chosen
-        ? await tx.select({ settingsHash: rankMapImage.settingsHash, bounds: rankMapImage.bounds, width: rankMapImage.width, height: rankMapImage.height })
-          .from(rankMapImage).where(eq(rankMapImage.clientId, c.id))
-        : [];
-      return { scans, scan: chosen ?? null, snaps: rows, image };
-    });
+    const { recent } = reads;
+    const chosen: ScanRow | undefined = input.scanId ? reads.byId : recent[0];
+    if (input.scanId && !chosen) throw new ToolError('not_found', 'Scan not found');
+    // The default scan's snapshots came by the same newest-first subquery: if it picked another scan (one finished in
+    // between), the chosen scan's snapshots are read again, as before.
+    const { rows } = reads;
+    const snaps: SnapRow[] = !chosen ? []
+      : Array.isArray(rows) ? rows
+        : pickedAll(rows.picked, [chosen.id]) ? rows.rows
+          : await withTenant(deps.app, ctx, (tx) => tx.select(snapCols).from(rankSnapshot).where(eq(rankSnapshot.scanId, chosen.id)));
+    // An older scan opened by id is merged into the list so the picker can show it.
+    const scans = chosen && !recent.some((s) => s.id === chosen.id)
+      ? [...recent, chosen].sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
+      : recent;
+    const scan = chosen ?? null;
+    const image = chosen ? reads.image : undefined;
     const scanList = scans.map((s) => ({ id: s.id, finishedAt: s.finishedAt!.toISOString() }));
     if (!scan) return { ...base, scans: scanList, setup: 'no_scan' as const };
 
@@ -129,27 +173,31 @@ export const getRankTrend = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
-    const c = await workspaceClient(deps, ctx, input.clientId);
-    const businesses = await workspaceBusinesses(deps, ctx, c);
-    const { page, older, snaps, tiers } = await withTenant(deps.app, ctx, async (tx) => {
-      let beforeAt: Date | undefined;
-      if (input.before) {
-        const cursor = await doneScan(tx, c.id, input.before);
-        if (!cursor) throw new ToolError('not_found', 'Scan not found');
-        beforeAt = cursor.finishedAt!;
-      }
-      // One extra row: it tells whether another page exists and supplies the settings to compare the last scan with.
-      const rows = await doneScans(tx, c.id, input.limit + 1, beforeAt);
-      const shown = rows.slice(0, input.limit);
-      const [snapRows, tierRows] = await Promise.all([
-        shown.length
-          ? tx.select({ scanId: rankSnapshot.scanId, results: rankSnapshot.results }).from(rankSnapshot)
-            .where(and(inArray(rankSnapshot.scanId, shown.map((s) => s.id)), eq(rankSnapshot.keyword, input.keyword)))
-          : [],
-        tx.select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier }).from(competitorSignal).where(eq(competitorSignal.clientId, c.id)),
-      ]);
-      return { page: shown, older: rows[input.limit], snaps: snapRows, tiers: new Map<string, Tier>(tierRows.map((t) => [t.competitorId, t.tier])) };
-    });
+    // Launch-gate 6b: the client check and every tenant read start together. The cursor's finish time and the shown
+    // scans' ids are subqueries of the same statements, so the snapshots no longer wait for the scan list; a scan that
+    // finished between the statements (each has its own snapshot) only re-reads the snapshots of the scans shown.
+    const before = input.before ? { scanId: input.before } : undefined;
+    const [c, reads] = await allInOrder([
+      workspaceClient(deps, ctx, input.clientId),
+      withTenant(deps.app, ctx, (tx) => Promise.all([
+        trackedRows(tx, input.clientId),
+        input.before ? doneScan(tx, input.clientId, input.before) : undefined,
+        // One extra row: it tells whether another page exists and supplies the settings to compare the last scan with.
+        doneScans(tx, input.clientId, input.limit + 1, before),
+        doneSnapshots(tx, input.clientId, input.limit, { before, keyword: input.keyword }),
+        tx.select({ competitorId: competitorSignal.competitorId, tier: competitorSignal.tier }).from(competitorSignal).where(eq(competitorSignal.clientId, input.clientId)),
+      ])),
+    ]);
+    const [tracked, cursor, rows, shownSnaps, tierRows] = reads;
+    if (input.before && !cursor) throw new ToolError('not_found', 'Scan not found');
+    const businesses = await workspaceBusinesses(deps, ctx, c, tracked);
+    const page = rows.slice(0, input.limit);
+    const older = rows[input.limit];
+    const shownIds = page.map((s) => s.id);
+    const snaps = pickedAll(shownSnaps.picked, shownIds) ? shownSnaps.rows
+      : await withTenant(deps.app, ctx, (tx) => tx.select({ scanId: rankSnapshot.scanId, results: rankSnapshot.results }).from(rankSnapshot)
+        .where(and(inArray(rankSnapshot.scanId, shownIds), eq(rankSnapshot.keyword, input.keyword))));
+    const tiers = new Map<string, Tier>(tierRows.map((t) => [t.competitorId, t.tier]));
     const self = businesses.find((b) => b.self);
     const rivals = businesses.filter((b) => !b.self).sort((a, b) => byWord(a.name, b.name));
     const scans = page.map((scan, i) => {
@@ -187,16 +235,23 @@ export const getShareOfVoice = defineTool({
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
   async handler(ctx, input, deps) {
-    const c = await workspaceClient(deps, ctx, input.clientId);
-    const businesses = await workspaceBusinesses(deps, ctx, c);
-    // Tenant tables: only ever through withTenant (Review Focus 1).
-    const { scans, snaps } = await withTenant(deps.app, ctx, async (tx) => {
-      const recent = await doneScans(tx, c.id, input.scans);
-      const rows = recent.length
-        ? await tx.select({ scanId: rankSnapshot.scanId, keyword: rankSnapshot.keyword, results: rankSnapshot.results }).from(rankSnapshot).where(inArray(rankSnapshot.scanId, recent.map((s) => s.id)))
-        : [];
-      return { scans: recent.reverse(), snaps: rows };
-    });
+    // Launch-gate 6b: the client check and the tenant reads start together (tenant tables only through withTenant,
+    // Review Focus 1); the snapshots select the scans by the same newest-first subquery as the list.
+    const [c, [tracked, recent, listedSnaps]] = await allInOrder([
+      workspaceClient(deps, ctx, input.clientId),
+      withTenant(deps.app, ctx, (tx) => Promise.all([
+        trackedRows(tx, input.clientId),
+        doneScans(tx, input.clientId, input.scans),
+        doneSnapshots(tx, input.clientId, input.scans),
+      ])),
+    ]);
+    const businesses = await workspaceBusinesses(deps, ctx, c, tracked);
+    // A scan that finished between the two statements: re-read the snapshots of the listed scans, as before.
+    const listed = recent.map((s) => s.id);
+    const snaps = pickedAll(listedSnaps.picked, listed) ? listedSnaps.rows
+      : listed.length === 0 ? []
+        : await withTenant(deps.app, ctx, (tx) => tx.select(snapCols).from(rankSnapshot).where(inArray(rankSnapshot.scanId, listed)));
+    const scans = recent.reverse();
     const keywords = [...new Set(snaps.map((s) => s.keyword))].sort(byWord);
     const keyword = input.keyword && keywords.includes(input.keyword) ? input.keyword : null;
     const matchers = businesses.map((b) => ({ key: b.key, match: competitorMatcher(b) }));
@@ -248,8 +303,10 @@ export const getRankSettings = defineTool({
   }),
   permission: 'agency',
   async handler(ctx, { clientId }, deps) {
-    const c = await agencyClient(deps, ctx, clientId);
-    const a = await rankScanAvailability(deps.service, { id: c.id, agencyId: c.agencyId }, new Date());
+    // Launch-gate 6b: the availability reads start beside the client check. Every one of them is limited to the caller's
+    // own agency (`rankScanAvailability` filters by `agencyId`), and the result is used only once the check passes.
+    if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
+    const [c, a] = await allInOrder([agencyClient(deps, ctx, clientId), rankScanAvailability(deps.service, { id: clientId, agencyId: ctx.agencyId }, new Date())]);
     return {
       keywords: rankKeywordsFor(c), allKeywords: c.keywords, gridSize: (c.rankGridSize === 5 ? 5 : 7) as 5 | 7, radiusKm: c.serviceArea?.radiusKm ?? null,
       scan: { state: a.state, nextAvailableAt: a.nextAvailableAt ?? null, label: rankScanLabel(a, c) },

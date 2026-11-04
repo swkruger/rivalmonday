@@ -1324,3 +1324,870 @@ exports[`launch-gate 6a output parity (snapshot recorded before the change) > se
   },
 }
 `;
+
+exports[`launch-gate 6b output parity (snapshot recorded before the change) > get_geogrid > no scan 1`] = `
+{
+  "avgRank": null,
+  "business": "self",
+  "businesses": [
+    {
+      "key": "self",
+      "name": "A1 HVAC",
+      "self": true,
+    },
+    {
+      "key": "<id:0>",
+      "name": "Smith HVAC",
+      "self": false,
+    },
+  ],
+  "cells": [],
+  "keyword": null,
+  "keywordSummaries": [],
+  "keywords": [],
+  "lats": [],
+  "lngs": [],
+  "map": null,
+  "points": 0,
+  "radiusKm": 25,
+  "scan": null,
+  "scans": [],
+  "setup": "no_scan",
+  "size": 0,
+  "top3": 0,
+}
+`;
+
+exports[`launch-gate 6b output parity (snapshot recorded before the change) > get_geogrid 1`] = `
+{
+  "badBusiness": {
+    "message": "Competitor not found",
+    "refused": "not_found",
+  },
+  "middle": {
+    "avgRank": 2.9,
+    "business": "self",
+    "businesses": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "self": false,
+      },
+    ],
+    "cells": [
+      [
+        1,
+        1,
+        1,
+      ],
+      [
+        4,
+        4,
+        4,
+      ],
+      [
+        4,
+        4,
+        null,
+      ],
+    ],
+    "keyword": "ac repair",
+    "keywordSummaries": [
+      {
+        "avgRank": 2.9,
+        "evidenceIds": [],
+        "keyword": "ac repair",
+        "points": 8,
+        "top3": 3,
+      },
+      {
+        "avgRank": 21,
+        "evidenceIds": [],
+        "keyword": "plumber",
+        "points": 9,
+        "top3": 0,
+      },
+    ],
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "lats": [
+      32,
+      31.99,
+      31.98,
+    ],
+    "lngs": [
+      -97,
+      -96.99,
+      -96.98,
+    ],
+    "map": {
+      "attribution": "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
+      "bounds": {
+        "east": -96.97,
+        "north": 32.01,
+        "south": 31.97,
+        "west": -97.01,
+      },
+      "height": 800,
+      "url": "/files/rank-map/<id:4>?v=abcdef012345",
+      "width": 800,
+    },
+    "points": 8,
+    "radiusKm": 25,
+    "scan": {
+      "finishedAt": "<ts>",
+      "id": "<id:0>",
+    },
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+    ],
+    "setup": "ready",
+    "size": 3,
+    "top3": 3,
+  },
+  "noKeywords": {
+    "avgRank": null,
+    "business": "<id:0>",
+    "businesses": [
+      {
+        "key": "<id:0>",
+        "name": "Bright Smiles",
+        "self": false,
+      },
+    ],
+    "cells": [],
+    "keyword": null,
+    "keywordSummaries": [],
+    "keywords": [],
+    "lats": [],
+    "lngs": [],
+    "map": null,
+    "points": 0,
+    "radiusKm": null,
+    "scan": null,
+    "scans": [],
+    "setup": "no_keywords",
+    "size": 0,
+    "top3": 0,
+  },
+  "oldest": {
+    "avgRank": 9,
+    "business": "self",
+    "businesses": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "self": false,
+      },
+    ],
+    "cells": [
+      [
+        9,
+      ],
+    ],
+    "keyword": "ac repair",
+    "keywordSummaries": [
+      {
+        "avgRank": 9,
+        "evidenceIds": [],
+        "keyword": "ac repair",
+        "points": 1,
+        "top3": 0,
+      },
+    ],
+    "keywords": [
+      "ac repair",
+    ],
+    "lats": [
+      32,
+    ],
+    "lngs": [
+      -97,
+    ],
+    "map": {
+      "attribution": "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
+      "bounds": {
+        "east": -96.97,
+        "north": 32.01,
+        "south": 31.97,
+        "west": -97.01,
+      },
+      "height": 800,
+      "url": "/files/rank-map/<id:4>?v=abcdef012345",
+      "width": 800,
+    },
+    "points": 1,
+    "radiusKm": 25,
+    "scan": {
+      "finishedAt": "<ts>",
+      "id": "<id:0>",
+    },
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+    ],
+    "setup": "ready",
+    "size": 1,
+    "top3": 0,
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "owner": {
+    "avgRank": 2.3,
+    "business": "self",
+    "businesses": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "self": false,
+      },
+    ],
+    "cells": [
+      [
+        1,
+        1,
+        1,
+      ],
+      [
+        3,
+        3,
+        3,
+      ],
+      [
+        3,
+        3,
+        null,
+      ],
+    ],
+    "keyword": "ac repair",
+    "keywordSummaries": [
+      {
+        "avgRank": 2.3,
+        "evidenceIds": [
+          "<id:4>",
+        ],
+        "keyword": "ac repair",
+        "points": 8,
+        "top3": 8,
+      },
+      {
+        "avgRank": 21,
+        "evidenceIds": [],
+        "keyword": "plumber",
+        "points": 9,
+        "top3": 0,
+      },
+    ],
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "lats": [
+      32,
+      31.99,
+      31.98,
+    ],
+    "lngs": [
+      -97,
+      -96.99,
+      -96.98,
+    ],
+    "map": {
+      "attribution": "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
+      "bounds": {
+        "east": -96.97,
+        "north": 32.01,
+        "south": 31.97,
+        "west": -97.01,
+      },
+      "height": 800,
+      "url": "/files/rank-map/<id:5>?v=abcdef012345",
+      "width": 800,
+    },
+    "points": 8,
+    "radiusKm": 25,
+    "scan": {
+      "finishedAt": "<ts>",
+      "id": "<id:0>",
+    },
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+    ],
+    "setup": "ready",
+    "size": 3,
+    "top3": 8,
+  },
+  "rival": {
+    "avgRank": 3,
+    "business": "<id:3>",
+    "businesses": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "self": false,
+      },
+    ],
+    "cells": [
+      [
+        3,
+        3,
+        3,
+      ],
+      [
+        3,
+        3,
+        3,
+      ],
+      [
+        3,
+        3,
+        3,
+      ],
+    ],
+    "keyword": "plumber",
+    "keywordSummaries": [
+      {
+        "avgRank": 1.8,
+        "evidenceIds": [
+          "<id:4>",
+        ],
+        "keyword": "ac repair",
+        "points": 8,
+        "top3": 8,
+      },
+      {
+        "avgRank": 3,
+        "evidenceIds": [],
+        "keyword": "plumber",
+        "points": 9,
+        "top3": 9,
+      },
+    ],
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "lats": [
+      32,
+      31.99,
+      31.98,
+    ],
+    "lngs": [
+      -97,
+      -96.99,
+      -96.98,
+    ],
+    "map": {
+      "attribution": "© Stadia Maps © OpenMapTiles © OpenStreetMap contributors",
+      "bounds": {
+        "east": -96.97,
+        "north": 32.01,
+        "south": 31.97,
+        "west": -97.01,
+      },
+      "height": 800,
+      "url": "/files/rank-map/<id:5>?v=abcdef012345",
+      "width": 800,
+    },
+    "points": 9,
+    "radiusKm": 25,
+    "scan": {
+      "finishedAt": "<ts>",
+      "id": "<id:0>",
+    },
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+    ],
+    "setup": "ready",
+    "size": 3,
+    "top3": 9,
+  },
+  "unknownScan": {
+    "message": "Scan not found",
+    "refused": "not_found",
+  },
+}
+`;
+
+exports[`launch-gate 6b output parity (snapshot recorded before the change) > get_rank_settings 1`] = `
+{
+  "available": {
+    "allKeywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "gridSize": 7,
+    "keywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "radiusKm": 25,
+    "scan": {
+      "label": null,
+      "nextAvailableAt": null,
+      "state": "available",
+    },
+  },
+  "clientRole": {
+    "message": "Unknown tool: get_rank_settings",
+    "refused": "not_found",
+  },
+  "noKeywords": {
+    "allKeywords": [],
+    "gridSize": 7,
+    "keywords": [],
+    "radiusKm": null,
+    "scan": {
+      "label": null,
+      "nextAvailableAt": null,
+      "state": "not_ready",
+    },
+  },
+  "otherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "paused": {
+    "allKeywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "gridSize": 7,
+    "keywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "radiusKm": 25,
+    "scan": {
+      "label": null,
+      "nextAvailableAt": null,
+      "state": "not_ready",
+    },
+  },
+  "running": {
+    "allKeywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "gridSize": 7,
+    "keywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "radiusKm": 25,
+    "scan": {
+      "label": "<label>",
+      "nextAvailableAt": null,
+      "state": "running",
+    },
+  },
+  "spendPaused": {
+    "allKeywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "gridSize": 7,
+    "keywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "radiusKm": 25,
+    "scan": {
+      "label": "<label>",
+      "nextAvailableAt": null,
+      "state": "spend_paused",
+    },
+  },
+  "unknown": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "weeklyLimit": {
+    "allKeywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "gridSize": 7,
+    "keywords": [
+      "plumber",
+      "ac repair",
+    ],
+    "radiusKm": 25,
+    "scan": {
+      "label": "<label>",
+      "nextAvailableAt": "<ts>",
+      "state": "weekly_limit",
+    },
+  },
+}
+`;
+
+exports[`launch-gate 6b output parity (snapshot recorded before the change) > get_rank_trend and get_share_of_voice 1`] = `
+{
+  "sov": {
+    "keyword": null,
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+    ],
+    "series": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "points": [
+          null,
+          0.088,
+          0.19,
+        ],
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "points": [
+          null,
+          0.412,
+          0.405,
+        ],
+        "self": false,
+      },
+      {
+        "key": "other_businesses",
+        "name": "Other businesses",
+        "points": [
+          null,
+          0.5,
+          0.405,
+        ],
+        "self": false,
+      },
+    ],
+  },
+  "sovKeyword": {
+    "keyword": "plumber",
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+    ],
+    "series": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "points": [
+          0,
+          0,
+        ],
+        "self": true,
+      },
+      {
+        "key": "<id:2>",
+        "name": "Smith HVAC",
+        "points": [
+          0.5,
+          0.5,
+        ],
+        "self": false,
+      },
+      {
+        "key": "other_businesses",
+        "name": "Other businesses",
+        "points": [
+          0.5,
+          0.5,
+        ],
+        "self": false,
+      },
+    ],
+  },
+  "sovNoScans": {
+    "keyword": null,
+    "keywords": [],
+    "scans": [],
+    "series": [
+      {
+        "key": "<id:0>",
+        "name": "Bright Smiles",
+        "points": [],
+        "self": false,
+      },
+      {
+        "key": "other_businesses",
+        "name": "Other businesses",
+        "points": [],
+        "self": false,
+      },
+    ],
+  },
+  "sovOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "sovUnknownKeyword": {
+    "keyword": null,
+    "keywords": [
+      "ac repair",
+      "plumber",
+    ],
+    "scans": [
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:0>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:1>",
+      },
+      {
+        "finishedAt": "<ts>",
+        "id": "<id:2>",
+      },
+    ],
+    "series": [
+      {
+        "key": "self",
+        "name": "A1 HVAC",
+        "points": [
+          null,
+          0.088,
+          0.19,
+        ],
+        "self": true,
+      },
+      {
+        "key": "<id:3>",
+        "name": "Smith HVAC",
+        "points": [
+          null,
+          0.412,
+          0.405,
+        ],
+        "self": false,
+      },
+      {
+        "key": "other_businesses",
+        "name": "Other businesses",
+        "points": [
+          null,
+          0.5,
+          0.405,
+        ],
+        "self": false,
+      },
+    ],
+  },
+  "trend": {
+    "nextCursor": null,
+    "scans": [
+      {
+        "competitors": [
+          {
+            "avgRank": 1.75,
+            "competitorId": "<id:1>",
+            "name": "Smith HVAC",
+            "tier": "top",
+            "top3Share": 1,
+          },
+        ],
+        "finishedAt": "<ts>",
+        "scanId": "<id:0>",
+        "self": {
+          "avgRank": 2.25,
+          "points": 8,
+          "top3Share": 1,
+        },
+        "settingsChanged": false,
+        "settingsKey": "70334571436ac104",
+      },
+      {
+        "competitors": [
+          {
+            "avgRank": 2.13,
+            "competitorId": "<id:1>",
+            "name": "Smith HVAC",
+            "tier": "top",
+            "top3Share": 0.63,
+          },
+        ],
+        "finishedAt": "<ts>",
+        "scanId": "<id:2>",
+        "self": {
+          "avgRank": 2.88,
+          "points": 8,
+          "top3Share": 0.38,
+        },
+        "settingsChanged": true,
+        "settingsKey": "70334571436ac104",
+      },
+      {
+        "competitors": [
+          {
+            "avgRank": 21,
+            "competitorId": "<id:1>",
+            "name": "Smith HVAC",
+            "tier": "top",
+            "top3Share": 0,
+          },
+        ],
+        "finishedAt": "<ts>",
+        "scanId": "<id:3>",
+        "self": {
+          "avgRank": 9,
+          "points": 1,
+          "top3Share": 0,
+        },
+        "settingsChanged": false,
+        "settingsKey": "legacy",
+      },
+    ],
+  },
+  "trendBefore": {
+    "nextCursor": null,
+    "scans": [
+      {
+        "competitors": [
+          {
+            "avgRank": 21,
+            "competitorId": "<id:1>",
+            "name": "Smith HVAC",
+            "tier": "top",
+            "top3Share": 0,
+          },
+        ],
+        "finishedAt": "<ts>",
+        "scanId": "<id:0>",
+        "self": {
+          "avgRank": 9,
+          "points": 1,
+          "top3Share": 0,
+        },
+        "settingsChanged": false,
+        "settingsKey": "legacy",
+      },
+    ],
+  },
+  "trendOtherAgency": {
+    "message": "Client not found",
+    "refused": "not_found",
+  },
+  "trendPage": {
+    "nextCursor": "<id:0>",
+    "scans": [
+      {
+        "competitors": [
+          {
+            "avgRank": 3,
+            "competitorId": "<id:1>",
+            "name": "Smith HVAC",
+            "tier": "top",
+            "top3Share": 1,
+          },
+        ],
+        "finishedAt": "<ts>",
+        "scanId": "<id:0>",
+        "self": {
+          "avgRank": 21,
+          "points": 9,
+          "top3Share": 0,
+        },
+        "settingsChanged": false,
+        "settingsKey": "70334571436ac104",
+      },
+    ],
+  },
+  "trendUnknownCursor": {
+    "message": "Scan not found",
+    "refused": "not_found",
+  },
+}
+`;

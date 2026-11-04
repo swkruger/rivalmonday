@@ -15,12 +15,16 @@ export async function checkRankScanBudget(
   estimateUsd: number,
   now: Date = new Date(),
 ): Promise<{ ok: true } | { ok: false; reason: 'cap' }> {
-  const [row] = await db.select({ limit: client.spendLimitUsd }).from(client).where(eq(client.id, clientId));
+  // Launch-gate 6b: the limit, the guard settings and this month's spend are read together.
+  const [[row], settings, spend] = await Promise.all([
+    db.select({ limit: client.spendLimitUsd }).from(client).where(eq(client.id, clientId)),
+    readSpendGuardSettings(db),
+    spendByClient(db, [clientId], monthStart(now)),
+  ]);
   if (!row) return { ok: true };
-  const settings = await readSpendGuardSettings(db);
   // A scan may run until it would cross the pause threshold (limit x pause percent), not the limit itself (spec d15).
   const threshold = pauseThresholdUsd(effectiveLimitUsd(row.limit, settings), settings);
-  const spentUsd = (await spendByClient(db, [clientId], monthStart(now))).get(clientId) ?? 0;
+  const spentUsd = spend.get(clientId) ?? 0;
   // Compare in micro-dollars so float noise cannot refuse a scan that lands exactly on the threshold.
   if (Math.round((spentUsd + estimateUsd) * 1e6) <= Math.round(threshold * 1e6)) return { ok: true };
   return { ok: false, reason: 'cap' };

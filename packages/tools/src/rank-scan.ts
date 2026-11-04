@@ -28,30 +28,34 @@ function isRunningUnique(err: unknown): boolean {
   return false;
 }
 
-/** The first state that blocks a manual scan, in the decided order. Pass the service Db or a service transaction. */
+/**
+ * The first state that blocks a manual scan, in the decided order. Pass the service Db or a service transaction.
+ * Launch-gate 6b: the four reads start together (pipelined on a transaction) and are judged in the same order; each one
+ * is limited to `c.agencyId`, so a caller may start this before its own client check and use it only once that passes.
+ */
 export async function rankScanAvailability(db: Db | Tx, c: { id: string; agencyId: string }, now: Date): Promise<RankScanAvailability> {
-  const [row] = await db.select({
-    keywords: client.keywords, rankKeywords: client.rankKeywords, rankGridSize: client.rankGridSize, serviceArea: client.serviceArea,
-    ok: sql<boolean>`${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`,
-    spendPaused: sql<boolean>`${client.spendPausedAt} IS NOT NULL`,
-  }).from(client).where(and(eq(client.id, c.id), eq(client.agencyId, c.agencyId)));
+  const staleBefore = new Date(now.getTime() - RANK_SCAN_STALE_HOURS * 3_600_000);
+  const dayStart = utcMidnight(now);
+  const ofClient = and(eq(rankScan.clientId, c.id), eq(rankScan.agencyId, c.agencyId));
+  const [[row], [running], [last], [today]] = await Promise.all([
+    db.select({
+      keywords: client.keywords, rankKeywords: client.rankKeywords, rankGridSize: client.rankGridSize, serviceArea: client.serviceArea,
+      ok: sql<boolean>`${clientServiceable(client)} AND ${agencyServiceable(client.agencyId)}`,
+      spendPaused: sql<boolean>`${client.spendPausedAt} IS NOT NULL`,
+    }).from(client).where(and(eq(client.id, c.id), eq(client.agencyId, c.agencyId))),
+    db.select({ id: rankScan.id }).from(rankScan)
+      .where(and(ofClient, eq(rankScan.status, 'running'), gt(rankScan.startedAt, staleBefore))).limit(1),
+    db.select({ startedAt: rankScan.startedAt }).from(rankScan)
+      .where(and(ofClient, eq(rankScan.trigger, 'manual'), ne(rankScan.status, 'skipped'), gt(rankScan.startedAt, new Date(now.getTime() - RANK_MANUAL_PER_CLIENT_DAYS * DAY_MS))))
+      .orderBy(desc(rankScan.startedAt)).limit(1),
+    db.select({ n: count() }).from(rankScan)
+      .where(and(eq(rankScan.agencyId, c.agencyId), eq(rankScan.trigger, 'manual'), ne(rankScan.status, 'skipped'), gte(rankScan.startedAt, dayStart))),
+  ]);
   if (!row || !row.ok || !row.serviceArea || rankKeywordsFor(row).length === 0) return { state: 'not_ready' };
   // 7b1: a spend-paused client is told so (S1) before any other limit or the budget check.
   if (row.spendPaused) return { state: 'spend_paused' };
-
-  const staleBefore = new Date(now.getTime() - RANK_SCAN_STALE_HOURS * 3_600_000);
-  const [running] = await db.select({ id: rankScan.id }).from(rankScan)
-    .where(and(eq(rankScan.clientId, c.id), eq(rankScan.status, 'running'), gt(rankScan.startedAt, staleBefore))).limit(1);
   if (running) return { state: 'running' };
-
-  const [last] = await db.select({ startedAt: rankScan.startedAt }).from(rankScan)
-    .where(and(eq(rankScan.clientId, c.id), eq(rankScan.trigger, 'manual'), ne(rankScan.status, 'skipped'), gt(rankScan.startedAt, new Date(now.getTime() - RANK_MANUAL_PER_CLIENT_DAYS * DAY_MS))))
-    .orderBy(desc(rankScan.startedAt)).limit(1);
   if (last) return { state: 'weekly_limit', nextAvailableAt: new Date(last.startedAt.getTime() + RANK_MANUAL_PER_CLIENT_DAYS * DAY_MS).toISOString() };
-
-  const dayStart = utcMidnight(now);
-  const [today] = await db.select({ n: count() }).from(rankScan)
-    .where(and(eq(rankScan.agencyId, c.agencyId), eq(rankScan.trigger, 'manual'), ne(rankScan.status, 'skipped'), gte(rankScan.startedAt, dayStart)));
   if ((today?.n ?? 0) >= RANK_MANUAL_PER_AGENCY_DAY) return { state: 'agency_daily_limit', nextAvailableAt: new Date(dayStart.getTime() + DAY_MS).toISOString() };
 
   const budget = await checkRankScanBudget(db, c.id, estimateRankScanUsd(row).usd, now);
