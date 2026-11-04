@@ -1,11 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BEFORE_AFTER, CAST, CEILING_LINES, OPPORTUNITY, opportunityLine, RIVAL_STORY, rivalStoryMoves, SECTIONS } from '../../../content/home';
+import { BEFORE_AFTER, CAST, CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, rivalStoryMoves, SECTIONS } from '../../../content/home';
+import { ANY_INDUSTRY } from '../../../content/industries';
+import { PRICING } from '../../../content/pricing';
+import { SAMPLE } from '../../sample/schema';
+import { JoinProvider } from '../join/join-provider';
+import { weekStats } from '../sample/rank-map';
 import { AgencyCeiling } from './agency-ceiling';
 import { BeforeAfter } from './before-after';
 import { Cast } from './cast';
+import { ChecksHub } from './checks-hub';
+import { CloseBand } from './close-band';
+import { Commercial } from './commercial';
 import { Opportunity } from './opportunity';
+import { RecommendationsSection } from './recommendations-section';
 import { RivalStory } from './rival-story';
+import { Steps } from './steps';
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
@@ -102,5 +112,83 @@ describe('BeforeAfter', () => {
     expect(screen.getAllByRole('columnheader').map((r) => r.textContent)).toEqual([...BEFORE_AFTER.columns]);
     expect(screen.getByText(BEFORE_AFTER.rows[0]!.after).className).toContain('font-medium');
     expect(screen.getByText(BEFORE_AFTER.rows[0]!.before).className).toContain('text-ink-secondary');
+  });
+});
+
+describe('Commercial', () => {
+  it('renders the H2, three points, the agency plan line, the calculator and the roadmap link', () => {
+    const { container } = render(<Commercial />);
+    expect(screen.getByRole('heading', { level: 2, name: SECTIONS.commercial.heading })).toBeTruthy();
+    expect(container.querySelector('section#commercial')).toBeTruthy();
+    for (const p of COMMERCIAL.points) {
+      expect(screen.getByRole('heading', { level: 3, name: p.heading })).toBeTruthy();
+      expect(screen.getByText(p.body)).toBeTruthy();
+    }
+    expect(screen.getByText(PRICING_LINES.agency)).toBeTruthy();
+    expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}/mo`);
+    expect(container.textContent).not.toContain(PRICING_LINES.business);
+    expect(container.querySelector('input[type="range"]')).toBeTruthy();
+    expect(screen.getByText(COMMERCIAL.roadmapLine.text)).toBeTruthy();
+    expect(screen.getByRole('link', { name: COMMERCIAL.roadmapLine.link.label }).getAttribute('href')).toBe('/roadmap');
+  });
+});
+
+describe('CloseBand', () => {
+  it('has #join once, the close copy, one button and the fine print', () => {
+    const { container } = render(<JoinProvider><CloseBand /></JoinProvider>);
+    expect(container.querySelectorAll('#join')).toHaveLength(1);
+    expect(container.querySelector('section#join')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(CLOSE.heading);
+    expect(screen.getByText(CLOSE.body)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: CLOSE.button })).toHaveLength(1);
+    expect(screen.getByText(HERO.finePrint)).toBeTruthy();
+    expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}`);
+  });
+
+  it('the button opens the agency step with the sample ticked', () => {
+    render(<JoinProvider><CloseBand /></JoinProvider>);
+    fireEvent.click(screen.getByRole('button', { name: CLOSE.button }));
+    expect(screen.getByText('About your agency')).toBeTruthy();
+    expect((screen.getByLabelText('Send me a real sample brief for one of my clients') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('the preview is a decorative illustration whose scorecard matches the sample', () => {
+    const { container } = render(<JoinProvider><CloseBand /></JoinProvider>);
+    const fig = container.querySelector('figure')!;
+    expect(fig.getAttribute('aria-hidden')).toBe('true');
+    const { top3, points } = weekStats(SAMPLE.rankGrid.weeks.at(-1)!.you);
+    expect(fig.textContent).toContain(`${top3} of ${points} points`);
+    expect(fig.textContent).toContain(`${SAMPLE.rivals.length}, ${SAMPLE.rivals.filter((r) => r.tier === 'top').length} of them top rivals`);
+    expect(fig.textContent).toContain(REAL_SAMPLE_PREVIEW.note);
+  });
+});
+
+describe('shared opt-outs', () => {
+  it('Steps hides the industries block and prints afterSteps, and keeps both by default', () => {
+    const { container } = render(<Steps industries={false} afterSteps={HOW_STEPS_NOTE} />);
+    expect(container.querySelector('[data-slot="any-industry"]')).toBeNull();
+    expect(screen.queryByText(ANY_INDUSTRY.heading)).toBeNull();
+    expect(screen.getByText(HOW_STEPS_NOTE)).toBeTruthy();
+    cleanup();
+    const def = render(<Steps />);
+    expect(def.container.querySelector('[data-slot="any-industry"]')).toBeTruthy();
+    expect(screen.queryByText(HOW_STEPS_NOTE)).toBeNull();
+  });
+
+  it('RecommendationsSection drops the roadmap block only when asked', () => {
+    render(<RecommendationsSection roadmap={false} />);
+    expect(screen.queryByText(RECOMMENDATIONS_ROADMAP.heading)).toBeNull();
+    cleanup();
+    render(<RecommendationsSection />);
+    expect(screen.getByText(RECOMMENDATIONS_ROADMAP.heading)).toBeTruthy();
+  });
+
+  it('ChecksHub heading overrides the visible H2 only; the diagram title stays', () => {
+    const { container } = render(<ChecksHub hideLink heading={SECTIONS.checks.homeHeading} />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS.checks.homeHeading);
+    expect(container.querySelector('svg[role="group"]')!.getAttribute('aria-label')).toContain(SECTIONS.checks.heading.replace(/\.$/, ''));
+    cleanup();
+    render(<ChecksHub />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS.checks.heading);
   });
 });

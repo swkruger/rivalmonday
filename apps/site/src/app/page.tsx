@@ -1,13 +1,12 @@
 import { ClientView } from '../components/client-view/client-view';
 import { GuideArticles } from '../components/guides/guide-articles';
+import { CloseBand } from '../components/home/close-band';
 import { ChecksHub } from '../components/home/checks-hub';
 import { FounderNote } from '../components/home/founder-note';
 import { FridayRow } from '../components/home/friday-row';
 import { Hero } from '../components/home/hero';
 import { LiveCounters } from '../components/home/live-counters';
 import { MobileCta } from '../components/home/mobile-cta';
-import { PricingTeaser } from '../components/home/pricing-teaser';
-import { RealSample } from '../components/home/real-sample';
 import { RecommendationsSection } from '../components/home/recommendations-section';
 import { SampleSection } from '../components/home/sample-section';
 import { Steps } from '../components/home/steps';
@@ -34,11 +33,10 @@ export default function HomePage() {
       <Steps />
       <ChecksHub />
       <FridayRow />
-      <RealSample />
       <Testimonials />
       <FounderNote />
       <GuideArticles slugs={['local-competitor-analysis', 'map-rank-grid', 'competitor-monitoring-checklist']} />
-      <PricingTeaser />
+      <CloseBand />
       <MobileCta />
     </main>
   );

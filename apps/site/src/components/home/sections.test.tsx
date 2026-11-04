@@ -17,8 +17,6 @@ import { PilotProvider } from '../shell/pilot-context';
 import { ChecksHub } from './checks-hub';
 import { FounderNote } from './founder-note';
 import { LiveCounters } from './live-counters';
-import { PricingTeaser } from './pricing-teaser';
-import { RealSample } from './real-sample';
 import { Steps } from './steps';
 
 const ALL = { rivalSitesWatched: 1200, snapshotsThisWeek: 340, claimsChecked: 90, claimsDropped: 7 };
@@ -141,30 +139,6 @@ describe('FounderNote', () => {
   });
 });
 
-describe('PricingTeaser', () => {
-  it('pricing teaser shows 229, 3 seats, 99 from PRICING', async () => {
-    const { container } = await renderApp(<PricingTeaser />, null);
-    const text = container.querySelector('[data-slot="pricing-agency"]')!.textContent!;
-    expect(text).toContain(`$${PRICING.agency.monthlyUsd}`);
-    expect(text).toContain(`${PRICING.agency.seatsIncluded} client seats`);
-    expect(text).toContain(`$${PRICING.agency.extraSeatUsd}`);
-    expect(container.querySelector('[data-slot="pricing-business"]')!.textContent).toContain(`$${PRICING.business.monthlyUsd}`);
-    // Pricing and the closing call to action are one band: one button, and both anchors live in it.
-    expect(screen.getAllByRole('button', { name: CTA_BAND.button })).toHaveLength(1);
-    expect(container.querySelector('section')!.id).toBe('join');
-    expect(container.querySelector('section #pricing')).toBeTruthy();
-  });
-});
-
-describe('RealSample', () => {
-  it('real sample button opens the popup with the sample ticked', async () => {
-    await renderApp(<RealSample />, null);
-    fireEvent.click(screen.getByRole('button', { name: 'Get a real brief for one client' }));
-    expect(screen.getByText('About your agency')).toBeTruthy();
-    expect((screen.getByLabelText('Send me a real sample brief for one of my clients') as HTMLInputElement).checked).toBe(true);
-  });
-});
-
 describe('ChecksHub and Steps', () => {
   it('checks hub has an accessible name', async () => {
     const { container } = await renderApp(<ChecksHub />, null);
@@ -228,32 +202,5 @@ describe('HomePage', () => {
     cleanup();
     const out = await renderApp(<HomePage />, { pilotMode: true, counters: null });
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
-  });
-});
-
-describe('pilot-aware copy', () => {
-  const OFF = { pilotMode: false, counters: ALL };
-
-  it('pilot off: no pilot wording on the home page, real sample hidden, trial copy from PRICING', async () => {
-    const { container } = await renderApp(<HomePage />, OFF);
-    expect(container.textContent).not.toMatch(/pilot/i);
-    expect(container.querySelector('#real-sample')).toBeNull();
-    // The closing band's plans already say it, so only the hero carries the fine print.
-    expect(screen.getAllByText(HERO.finePrintTrial)).toHaveLength(1);
-    // One closing ask, not two: the pricing heading stands alone.
-    expect(screen.queryByRole('heading', { name: CTA_BAND_TRIAL.heading })).toBeNull();
-    expect(screen.getByRole('heading', { name: PRICING_HEADING_TRIAL })).toBeTruthy();
-    expect(container.querySelector('[data-slot="pricing-agency"]')!.textContent).toBe(PRICING_LINES_TRIAL.agency);
-    for (const t of [HERO.finePrintTrial, CTA_BAND_TRIAL.body, PRICING_LINES_TRIAL.agency]) {
-      expect(t).toContain(`$${PRICING.agency.monthlyUsd}`);
-      expect(t).toContain(`${PRICING.agency.trialDays}`);
-    }
-  });
-
-  it('pilot on: the pilot copy and the real-sample section show', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
-    expect(screen.getAllByText(HERO.finePrint)).toHaveLength(2);
-    expect(screen.getByRole('heading', { name: SECTIONS.pricing.heading })).toBeTruthy();
-    expect(container.querySelector('#real-sample')).toBeTruthy();
   });
 });

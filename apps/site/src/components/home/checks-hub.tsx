@@ -49,11 +49,11 @@ const NODES: Record<CheckNode, CheckNodeDetail> = {
 };
 
 /** Hub diagram: five sources → the Monday brief (verifying) → "No evidence, no claim"; every box opens its explanation. */
-export function ChecksHub({ hideLink = false }: { hideLink?: boolean } = {}) {
+export function ChecksHub({ hideLink = false, heading }: { hideLink?: boolean; heading?: string } = {}) {
   const nodes = hideLink ? { ...NODES, result: { ...NODES.result, link: CHECKS_DETAIL.briefLink } } : NODES;
   return (
     <HomeSectionShell id="checks" labelledBy="checks-heading">
-      <SectionHeading section={SECTIONS.checks} />
+      <SectionHeading section={heading ? { ...SECTIONS.checks, heading } : SECTIONS.checks} />
       <ChecksDiagram nodes={nodes} hint={CHECKS_DETAIL.hint} />
       {!hideLink && (
         <a href={CHECKS_LINK.href} className="mt-6 inline-flex text-sm font-medium text-link hover:underline">

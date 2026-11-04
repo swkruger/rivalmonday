@@ -3,13 +3,14 @@ import { SampleRecommendations } from '../sample/sample-recommendations';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
 /** The working recommendations board, then what is planned next. On the home page and /how-it-works. */
-export function RecommendationsSection() {
+export function RecommendationsSection({ roadmap = true }: { roadmap?: boolean } = {}) {
   return (
     <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
       <SectionHeading section={SECTIONS.recommendations} />
       <div className="mt-10">
         <SampleRecommendations />
       </div>
+      {roadmap && (
       <div className="mt-10 max-w-[720px] border-t border-line pt-8">
         <span className="inline-block rounded-full border border-secondary px-3 py-1 text-sm font-medium text-secondary">{RECOMMENDATIONS_ROADMAP.status}</span>
         <h3 className="mt-4 text-lg font-semibold text-ink">{RECOMMENDATIONS_ROADMAP.heading}</h3>
@@ -19,6 +20,7 @@ export function RecommendationsSection() {
           {RECOMMENDATIONS_ROADMAP.link.label}
         </a>
       </div>
+      )}
     </HomeSectionShell>
   );
 }

@@ -4,7 +4,7 @@ import { Reveal } from '../motion/in-view';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
 /** Four numbered steps: a row from `lg`, stacked below; the numbers carry the section. */
-export function Steps() {
+export function Steps({ industries = true, afterSteps }: { industries?: boolean; afterSteps?: string } = {}) {
   return (
     <HomeSectionShell id="how-it-works" labelledBy="how-it-works-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
       <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-16">
@@ -22,6 +22,8 @@ export function Steps() {
           ))}
         </ol>
       </Reveal>
+      {afterSteps && <p className="mt-10 max-w-3xl text-lg text-ink-secondary">{afterSteps}</p>}
+      {industries && (
       <div data-slot="any-industry" className="mt-16 border-t border-line pt-8">
         <h3 className="text-xl font-semibold text-ink">{ANY_INDUSTRY.heading}</h3>
         <p className="mt-2 max-w-2xl text-base text-ink-secondary">{ANY_INDUSTRY.body}</p>
@@ -34,6 +36,7 @@ export function Steps() {
         </ul>
         <a href="/for" className="mt-4 inline-flex text-sm font-medium text-link hover:underline">{ANY_INDUSTRY.link}</a>
       </div>
+      )}
     </HomeSectionShell>
   );
 }
