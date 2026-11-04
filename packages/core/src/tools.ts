@@ -258,7 +258,13 @@ export class ToolRegistry<D> {
               } catch (err) {
                 // eslint-disable-next-line no-console -- the response is already sent; the failure must still be visible
                 console.error('[tools] deferred audit write failed', err);
-                this.options.onDeferredAuditError?.(err);
+                try {
+                  this.options.onDeferredAuditError?.(err);
+                } catch (handlerErr) {
+                  // A throwing handler must never reject the deferred task (nothing awaits it after the response).
+                  // eslint-disable-next-line no-console -- the handler failure must still be visible
+                  console.error('[tools] onDeferredAuditError handler failed', handlerErr);
+                }
               }
             });
             deferred = true;

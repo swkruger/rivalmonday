@@ -482,4 +482,20 @@ describe('deferred web read audits (launch-gate D2)', () => {
       spy.mockRestore();
     }
   });
+
+  it('a throwing onDeferredAuditError handler never rejects the deferred task', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const boom = new Error('audit sink down');
+      const handlerBoom = new Error('reporter down');
+      sink = async () => { throw boom; };
+      onDeferredAuditError.mockImplementation(() => { throw handlerBoom; });
+      await expect(reg.invoke(viewer, 'echo', { message: 'x' }, { channel: 'web', deferAudit })).resolves.toEqual({ items: ['hi x'] });
+      await expect(flush()).resolves.toBeUndefined();
+      expect(onDeferredAuditError).toHaveBeenCalledWith(boom);
+      expect(spy).toHaveBeenCalledWith('[tools] onDeferredAuditError handler failed', handlerBoom);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
