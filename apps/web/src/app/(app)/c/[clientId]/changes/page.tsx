@@ -51,40 +51,41 @@ export default async function ChangesPage({
   // only when it's one of the real change types (brief: "avoid that").
   const changeType = p.type && types.some((t) => t.id === p.type) ? p.type : undefined;
 
-  const [profile, feed, tracked, guides] = await Promise.all([
+  const feedRead = callTool<{ items: EventRow[]; hasMore: boolean }>(ctx, 'search_events', {
+    clientId,
+    competitorId: p.competitor,
+    changeType,
+    serviceId: p.service,
+    route: p.route,
+    days: p.days,
+    query: p.q,
+    offset: p.offset,
+    limit: 50,
+  });
+  // Launch-gate 6a: the viewer's event read starts as soon as its id is known — at once for a `?event=` link, else when
+  // the feed (its first row) arrives — and the snapshot comparison as soon as the event is in; neither waits for the
+  // page's other reads. A bookmarked `?event=` may be retracted, removed or not this client's: the feed still renders
+  // and the viewer says so (same text for every case — no existence leak). The page-level reads below still 404.
+  const detailRead: Promise<EventDetail | null> = p.event
+    ? tryCallTool<EventDetail>(ctx, 'get_event', { clientId, eventId: p.event })
+    : feedRead.then((feed) => (feed.items[0] ? callTool<EventDetail>(ctx, 'get_event', { clientId, eventId: feed.items[0].eventId }) : null));
+  const compareRead: Promise<CompareView | null> = detailRead.then((detail) => {
+    const changeId = detail ? (p.change && detail.changes.some((c) => c.changeId === p.change) ? p.change : detail.changes[0]?.changeId) : undefined;
+    return changeId ? callTool<CompareView>(ctx, 'compare_snapshots', { clientId, changeId }) : null;
+  });
+
+  const [profile, feed, tracked, guides, detail, compare] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    callTool<{ items: EventRow[]; hasMore: boolean }>(ctx, 'search_events', {
-      clientId,
-      competitorId: p.competitor,
-      changeType,
-      serviceId: p.service,
-      route: p.route,
-      days: p.days,
-      query: p.q,
-      offset: p.offset,
-      limit: 50,
-    }),
+    feedRead,
     callTool<{ items: TrackedCompetitor[] }>(ctx, 'list_client_competitors', { clientId }),
     helpGuides(ctx, 'client', clientId),
+    detailRead,
+    compareRead,
   ]);
   const services = (await verticalOptions()).find((v) => v.id === profile.verticalId)?.services.filter((s) => profile.services.includes(s.id)) ?? [];
   const rows = feed.items;
   const selectedId = p.event ?? rows[0]?.eventId ?? null;
   const groups = groupByWeek(rows, new Date());
-
-  let detail: EventDetail | null = null;
-  let compare: CompareView | null = null;
-  if (selectedId) {
-    // A bookmarked `?event=` may be retracted, removed or not this client's: the feed still renders and the viewer
-    // says so (same text for every case — no existence leak). The page-level gates above still 404.
-    detail = p.event
-      ? await tryCallTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId })
-      : await callTool<EventDetail>(ctx, 'get_event', { clientId, eventId: selectedId });
-  }
-  if (detail) {
-    const changeId = p.change && detail.changes.some((c) => c.changeId === p.change) ? p.change : detail.changes[0]?.changeId;
-    compare = changeId ? await callTool<CompareView>(ctx, 'compare_snapshots', { clientId, changeId }) : null;
-  }
 
   let wholePage: CaptureCompareView | null = null;
   if (compare?.after && effectiveTab(p.tab, compare) === 'page') {

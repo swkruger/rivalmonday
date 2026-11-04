@@ -52,17 +52,22 @@ export default async function ReviewsPage({ params, searchParams }: {
   const days = [30, 90, 365].includes(daysN) ? daysN : 90;
   const offset = offsetParam(sp);
 
-  const [profile, benchmark, trend, guides] = await Promise.all([
-    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
-    callTool<TopicBenchmarkView>(ctx, 'get_topic_benchmark', { clientId }),
-    callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
-    helpGuides(ctx, 'client', clientId),
-  ]);
+  const benchmarkRead = callTool<TopicBenchmarkView>(ctx, 'get_topic_benchmark', { clientId });
   // An unknown topic id (hand-edited URL, retired topic) is dropped rather than hiding the whole list.
-  const topicId = topicRaw && benchmark.topics.some((t) => t.id === topicRaw) ? topicRaw : undefined;
-  const reviews = await tryCallTool<ReviewList>(ctx, 'search_reviews', {
+  const topicOf = (benchmark: TopicBenchmarkView) => (topicRaw && benchmark.topics.some((t) => t.id === topicRaw) ? topicRaw : undefined);
+  const search = (topicId: string | undefined) => tryCallTool<ReviewList>(ctx, 'search_reviews', {
     clientId, ...(business ? { business } : {}), ...(topicId ? { topicId } : {}), ...(stars ? { stars } : {}), ...(text ? { text } : {}), days, offset,
   });
+  // Launch-gate 6a: the review search waits for the benchmark only when a topic must be checked against it.
+  const reviewsRead = topicRaw ? benchmarkRead.then((b) => search(topicOf(b))) : search(undefined);
+  const [profile, benchmark, trend, guides, reviews] = await Promise.all([
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    benchmarkRead,
+    callTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
+    helpGuides(ctx, 'client', clientId),
+    reviewsRead,
+  ]);
+  const topicId = topicOf(benchmark);
   const self = trend.businesses.find((b) => b.self) ?? null;
   const more = new URLSearchParams({
     ...(business ? { business } : {}), ...(topicId ? { topic: topicId } : {}), ...(stars ? { stars: String(stars) } : {}), ...(text ? { q: text } : {}),

@@ -61,13 +61,19 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   const { clientId } = await params;
   const { viewer, ctx } = await requireContext();
   if (!hasFeature(ctx, 'dashboard')) return <ClientHomeBasic clientId={clientId} ctx={ctx} viewer={viewer} />;
-  const [profile, overview, ads, rating, moves, briefs, alerts, recs, reports, starting, setup, guides] = await Promise.all([
+  // Launch-gate 6a: the latest brief's read starts as soon as the brief list is in, instead of after every read of the batch.
+  const briefsRead = callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 });
+  const latestRead = briefsRead.then(({ items }) => {
+    const first = latestBrief(items).latest;
+    return first ? callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
+  });
+  const [profile, overview, ads, rating, moves, briefs, alerts, recs, reports, starting, setup, guides, latest] = await Promise.all([
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<WorkspaceOverview>(ctx, 'get_workspace_overview', { clientId }),
     callTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, weeks: 12 }),
     tryCallTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     callTool<{ items: MoveRow[] }>(ctx, 'list_moves', { clientId }),
-    callTool<{ items: BriefSummary[] }>(ctx, 'list_briefs', { clientId, limit: 10 }),
+    briefsRead,
     callTool<{ items: AlertSummary[] }>(ctx, 'list_alerts', { clientId, limit: 10 }),
     callTool<{ items: RecommendationView[] }>(ctx, 'list_recommendations', { clientId }),
     callTool<{ items: ReportSummary[] }>(ctx, 'list_trend_reports', { clientId }),
@@ -76,12 +82,12 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
     tryCallTool<{ state: SetupState; invite: { name: string | null } } & NonNullable<OwnerSetupRead>>(ctx, 'get_client_setup', { clientId }),
     // Same scope `PageGuide` derives from `/c/<id>`: client context for this client.
     helpGuides(ctx, 'client', clientId),
+    latestRead,
   ]);
   const setupSteps = openSetupSteps(setup, isAgencyRole(ctx.role));
   const preparing = pendingStartingPoint(starting, briefs.items);
   const startingBrief = briefs.items.find((b) => b.kind === 'starting_point');
-  const { latest: first, rest: pastBriefs } = latestBrief(briefs.items);
-  const latest = first ? await callTool<BriefDetail>(ctx, 'get_brief', { briefId: first.id }) : null;
+  const { rest: pastBriefs } = latestBrief(briefs.items);
   const delivered = latest && (latest.status === 'approved' || latest.status === 'sent') ? latest : null;
   const openRecs = recs.items.filter((r) => r.status === 'todo' || r.status === 'in_progress');
   const n = overview.trackedCompetitors;

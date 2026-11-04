@@ -45,12 +45,15 @@ async function billingPrefill(ctx: Ctx, clientId: string): Promise<{ prefill: Bi
 const loadSetup = cache(async (clientId: string) => {
   const { ctx, viewer } = await requireContext();
   if (!isAgencyRole(ctx.role)) redirect(`/c/${clientId}`);
-  const [view, profile, details] = await Promise.all([
+  // Launch-gate 6a: the page's theme and guide reads join this batch (they need only the viewer), so nothing waits on it.
+  const [view, profile, details, theme, guides] = await Promise.all([
     callTool<ClientSetupView>(ctx, 'get_client_setup', { clientId }),
     callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
     callTool<ClientDetailsView>(ctx, 'get_client_details', { clientId }),
+    themeForViewer(viewer),
+    helpGuides(ctx, 'client', clientId),
   ]);
-  return { ctx, viewer, view, profile, details };
+  return { ctx, viewer, view, profile, details, theme, guides };
 });
 
 const titleOf = (profile: ClientProfile) => `Set up ${profile.name}`;
@@ -67,13 +70,13 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export default async function SetupPage({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<{ step?: string }> }) {
   const { clientId } = await params;
   const { step: requested } = await searchParams;
-  const { ctx, viewer, view, profile, details } = await loadSetup(clientId);
+  const { ctx, view, profile, details, theme, guides } = await loadSetup(clientId);
   const { state } = view;
   const admin = ctx.role === 'agency_admin';
   const prospect = state.totalSteps === 5;
   const steps = wizardSteps(admin, state.totalSteps);
-  const { branding } = await themeForViewer(viewer);
-  const guide = (await helpGuides(ctx, 'client', clientId)).has('page:client.setup');
+  const { branding } = theme;
+  const guide = guides.has('page:client.setup');
   const brand = { kind: 'agency' as const, name: branding.displayName, logoUrl: branding.logoUrl, style: {} };
   const exitHref = prospect ? '/agency/prospects' : '/agency';
 
