@@ -69,14 +69,19 @@ export async function generateMetadata({ params }: { params: Promise<{ clientId:
 export default async function EvidencePage({ params }: { params: Promise<{ clientId: string; evidenceId: string }> }) {
   const { clientId, evidenceId } = await params;
   const { viewer, ctx } = await requireContext();
-  const [evidence, profile, guides] = await Promise.all([loadEvidence(ctx, clientId, evidenceId), callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }), helpGuides(ctx, 'client', clientId)]);
-  const captured = formatDateTime(evidence.capturedAt, { tz: profile.timezone, zoneLabel: true });
-  const status = labelFor(CAPTURE_STATUS, evidence.captureStatus);
   // Ask entry points: signed-in users with the `ask` feature (never guests, Q2). "Add recommendation" mirrors
   // `add_recommendation` itself: `feedback` permission and the `dashboard` feature.
   const canAsk = viewer.kind === 'user' && !ctx.userId.startsWith('contact:') && hasChannel(ctx, 'ask');
   const canRecommend = canAsk && hasPermission(ctx, 'feedback') && hasFeature(ctx, 'dashboard');
-  const assistantName = canAsk ? await assistantNameFor(dbs().service, ctx.agencyId) : null;
+  // Launch-gate 6c: the assistant's name (the agency's own setting) starts with the page's reads, not after them.
+  const [evidence, profile, guides, assistantName] = await Promise.all([
+    loadEvidence(ctx, clientId, evidenceId),
+    callTool<ClientProfile>(ctx, 'get_client_profile', { clientId }),
+    helpGuides(ctx, 'client', clientId),
+    canAsk ? assistantNameFor(dbs().service, ctx.agencyId) : null,
+  ]);
+  const captured = formatDateTime(evidence.capturedAt, { tz: profile.timezone, zoneLabel: true });
+  const status = labelFor(CAPTURE_STATUS, evidence.captureStatus);
   const fileHref = `/files/evidence/${clientId}/${evidenceId}`;
 
   return (

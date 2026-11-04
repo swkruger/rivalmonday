@@ -4,7 +4,7 @@
  * same output, same refusal (code + message) for every case. Ids and timestamps are normalised (seeded per run).
  */
 import type { AccessContext } from '@cs/core';
-import { askStarter, brief, briefItem, client, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot, runbook } from '@cs/db';
+import { askStarter, brief, briefItem, capture, captureBlock, client, detectedChange, evidence, clientSetup, competitorSignal, competitorSuggestion, contact, discoveryRun, invitation, kbArticle, rankMapImage, rankScan, rankSnapshot, runbook } from '@cs/db';
 import { ensureAgencyRunbook, writeItem } from '@cs/engine';
 import { loadVerticalPack } from '@cs/verticals';
 import { IDS } from '@cs/db/test-helpers';
@@ -344,6 +344,67 @@ describe('launch-gate 6b output parity: client runbook (snapshot recorded before
     await dbs.owner.update(client).set({ scoreThresholds: { alert: 65, brief: 35 } }).where(eq(client.id, A1));
     out.custom = await outcome(amAll, 'get_runbook', { owner: { level: 'client', clientId: A1 } });
     await dbs.owner.delete(runbook);
+    expect(out).toMatchSnapshot();
+  });
+});
+
+describe('launch-gate 6c output parity: evidence (snapshot recorded before the change)', () => {
+  it('get_evidence, get_evidence_refs and compare_captures', async () => {
+    const briefsOnly = ctx('client_owner', [IDS.clientA1], []);
+    const [self] = await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, A1));
+    const block = (captureId: string, competitorId: string, trackedPageId: string, ord: number, text: string) =>
+      ({ captureId, competitorId, trackedPageId, ord, blockKey: `k${ord}`, path: 'main/p', text, textSha: `sha-${text.length}-${ord}` });
+    // A tracked competitor's page: an older and a newer web capture with blocks, a vendor capture, an own-business capture,
+    // competitor Y (tracked by A2 only) and a Y capture cited by A1's sent brief.
+    const old = await seedCapture({ at: ago(10), kinds: ['screenshot'] });
+    const newer = await seedCapture({ at: ago(9), kinds: ['screenshot', 'text'] });
+    // The world's e1 cites this screenshot (its change's before capture).
+    const [cited] = await dbs.owner.select({ id: evidence.id }).from(evidence).innerJoin(detectedChange, eq(detectedChange.beforeCaptureId, evidence.captureId))
+      .where(and(eq(detectedChange.id, w.change1), eq(evidence.kind, 'screenshot')));
+    const [cap] = await dbs.owner.select({ trackedPageId: capture.trackedPageId }).from(capture).where(eq(capture.id, old.captureId));
+    await dbs.owner.insert(captureBlock).values([
+      block(old.captureId, IDS.competitorX, cap!.trackedPageId!, 0, 'AC tune-up $99'), block(old.captureId, IDS.competitorX, cap!.trackedPageId!, 1, 'Call today'),
+      block(newer.captureId, IDS.competitorX, cap!.trackedPageId!, 0, 'AC tune-up $79'), block(newer.captureId, IDS.competitorX, cap!.trackedPageId!, 1, 'Call today'),
+    ]);
+    const vendor = await seedCapture({ at: ago(3), kinds: ['vendor_json'], source: 'google_ads' });
+    const own = await seedCapture({ at: ago(2), kinds: ['screenshot'], competitorId: self!.id! });
+    const yCap = await seedCapture({ at: ago(2), kinds: ['screenshot'], competitorId: IDS.competitorY });
+    const [b] = await dbs.owner.select({ id: brief.id }).from(brief).where(eq(brief.id, w.briefId));
+    const ev = (c: AccessContext, evidenceId: string, clientId: string = A1) => outcome(c, 'get_evidence', { clientId, evidenceId });
+    const cmp = (c: AccessContext, captureId: string, clientId: string = A1) => outcome(c, 'compare_captures', { clientId, captureId });
+    const out: Record<string, unknown> = {
+      evCitedAdmin: await ev(admin, cited!.id),
+      evCitedOwner: await ev(owner, cited!.id),
+      evCitedBriefsOnly: await ev(briefsOnly, cited!.id),
+      evAdmin: await ev(admin, newer.ids.screenshot!),
+      evOwner: await ev(owner, newer.ids.text!),
+      evBriefsOnly: await ev(briefsOnly, newer.ids.screenshot!),
+      evVendor: await ev(admin, vendor.ids.vendor_json!),
+      evOwnBusiness: await ev(owner, own.ids.screenshot!),
+      evUntracked: await ev(admin, yCap.ids.screenshot!),
+      evUnknown: await ev(admin, UNKNOWN),
+      evOtherClient: await ev(admin, newer.ids.screenshot!, IDS.clientA2),
+      evOutOfScope: await ev(owner, newer.ids.screenshot!, IDS.clientA2),
+      evOtherAgency: await ev(otherAgency, newer.ids.screenshot!),
+      refs: await outcome(owner, 'get_evidence_refs', { clientId: A1, evidenceIds: [newer.ids.screenshot!, yCap.ids.screenshot!, UNKNOWN, own.ids.screenshot!] }),
+      refsNone: await outcome(owner, 'get_evidence_refs', { clientId: A1, evidenceIds: [yCap.ids.screenshot!] }),
+      cmpOk: await cmp(admin, newer.captureId),
+      cmpOwner: await cmp(owner, newer.captureId),
+      cmpFirst: await cmp(admin, old.captureId),
+      cmpNoBlocks: await cmp(admin, own.captureId),
+      cmpNotWeb: await cmp(admin, vendor.captureId),
+      cmpUntracked: await cmp(admin, yCap.captureId),
+      cmpUnknown: await cmp(admin, UNKNOWN),
+      cmpOtherClient: await cmp(admin, newer.captureId, IDS.clientA2),
+      cmpOtherAgency: await cmp(otherAgency, newer.captureId),
+    };
+    // Competitor Y becomes linked to A1 through an item of A1's sent brief (decision 7).
+    await dbs.owner.insert(briefItem).values({
+      agencyId: IDS.agencyA, clientId: A1, briefId: b!.id, ord: 9, competitorId: IDS.competitorY, subject: 'competitor', headline: 'y', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r',
+      confidence: 0.9, effort: 'L', impact: 'H',
+    });
+    out.evBriefLinked = await ev(owner, yCap.ids.screenshot!);
+    out.cmpBriefLinked = await cmp(owner, yCap.captureId);
     expect(out).toMatchSnapshot();
   });
 });

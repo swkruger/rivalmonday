@@ -1,6 +1,6 @@
 import { type AccessContext, isAgencyRole } from '@cs/core';
-import { alert, brief, briefItem, capture, client, clientCompetitor, type Db, evidence, withTenant } from '@cs/db';
-import { and, desc, eq, inArray, lt } from 'drizzle-orm';
+import { alert, brief, briefItem, capture, client, clientCompetitor, type Db, evidence, type Tx, withTenant } from '@cs/db';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import type { SnapshotSide } from '../tools/schemas';
 
@@ -23,20 +23,22 @@ export const evidenceContentType = (kind: string): (typeof EVIDENCE_CONTENT_TYPE
  */
 export async function competitorLinked(deps: ToolDeps, ctx: AccessContext, clientId: string, competitorId: string): Promise<boolean> {
   const agency = isAgencyRole(ctx.role);
+  // Launch-gate 6c: the four rules are one `EXISTS … OR …` statement (one round trip, not up to four in a row); same
+  // predicates, same RLS scope (one transaction), true as soon as any rule holds.
+  // The client's own business (rank snapshots, own profile and reviews) is always visible to that client.
+  const own = (tx: Tx) => tx.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.selfCompetitorId, competitorId)));
+  const tracked = (tx: Tx) => tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
+    .where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId)));
+  const alerted = (tx: Tx) => tx.select({ id: alert.id }).from(alert)
+    .where(and(eq(alert.clientId, clientId), eq(alert.competitorId, competitorId), ...(agency ? [] : [eq(alert.status, 'delivered')])));
+  const briefed = (tx: Tx) => tx.select({ id: briefItem.id }).from(briefItem).innerJoin(brief, eq(brief.id, briefItem.briefId))
+    .where(and(eq(brief.clientId, clientId), eq(briefItem.competitorId, competitorId), eq(briefItem.status, 'active'),
+      ...(agency ? [] : [inArray(brief.status, ['approved', 'sent'])])));
   return withTenant(deps.app, ctx, async (tx) => {
-    // The client's own business (rank snapshots, own profile and reviews) is always visible to that client.
-    const [own] = await tx.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), eq(client.selfCompetitorId, competitorId))).limit(1);
-    if (own) return true;
-    const [t] = await tx.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
-      .where(and(eq(clientCompetitor.clientId, clientId), eq(clientCompetitor.competitorId, competitorId))).limit(1);
-    if (t) return true;
-    const [a] = await tx.select({ id: alert.id }).from(alert)
-      .where(and(eq(alert.clientId, clientId), eq(alert.competitorId, competitorId), ...(agency ? [] : [eq(alert.status, 'delivered')]))).limit(1);
-    if (a) return true;
-    const [b] = await tx.select({ id: briefItem.id }).from(briefItem).innerJoin(brief, eq(brief.id, briefItem.briefId))
-      .where(and(eq(brief.clientId, clientId), eq(briefItem.competitorId, competitorId), eq(briefItem.status, 'active'),
-        ...(agency ? [] : [inArray(brief.status, ['approved', 'sent'])]))).limit(1);
-    return !!b;
+    const [row] = await tx.execute<{ linked: boolean }>(
+      sql`select (exists (${own(tx)}) or exists (${tracked(tx)}) or exists (${alerted(tx)}) or exists (${briefed(tx)})) as linked`,
+    );
+    return row?.linked === true;
   });
 }
 

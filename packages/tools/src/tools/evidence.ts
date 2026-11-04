@@ -24,22 +24,31 @@ export const getEvidence = defineTool({
   permission: 'read', // decision 2: no dashboard flag — brief/alert chips must work for briefs-only clients
   channels: ['web', 'mcp', 'ask'],
   async handler(ctx, { clientId, evidenceId }, deps, meta) {
-    const c = await workspaceClient(deps, ctx, clientId);
-    const [row] = await deps.service
-      .select({ id: evidence.id, kind: evidence.kind, sha256: evidence.sha256, bytes: evidence.bytes, contentType: evidence.contentType, captureId: capture.id,
-        capturedAt: capture.capturedAt, status: capture.status, source: capture.source, url: capture.url, collectorVersion: capture.collectorVersion, legalHold: capture.legalHold,
-        competitorId: capture.competitorId, competitorName: competitor.name })
-      .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
-      .where(eq(evidence.id, evidenceId));
-    if (!row || !(await competitorLinked(deps, ctx, c.id, row.competitorId))) throw new ToolError('not_found', 'Evidence not found');
+    // Launch-gate 6c: the client check and the evidence row start together; refusals keep their order (client first).
+    const [c, [row]] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      deps.service
+        .select({ id: evidence.id, kind: evidence.kind, sha256: evidence.sha256, bytes: evidence.bytes, contentType: evidence.contentType, captureId: capture.id,
+          capturedAt: capture.capturedAt, status: capture.status, source: capture.source, url: capture.url, collectorVersion: capture.collectorVersion, legalHold: capture.legalHold,
+          competitorId: capture.competitorId, competitorName: competitor.name })
+        .from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId)).innerJoin(competitor, eq(competitor.id, capture.competitorId))
+        .where(eq(evidence.id, evidenceId)),
+    ]);
+    if (!row) throw new ToolError('not_found', 'Evidence not found');
     // Decision 7: "part of these changes" only for users with `dashboard`, through decision 3's rule, and only live changes.
-    const cited = !hasFeature(ctx, 'dashboard') ? [] : await withTenant(deps.app, ctx, (tx) =>
-      tx.selectDistinct({ eventId: changeEvent.id, summary: changeEvent.summary, changeType: changeEvent.changeType, occurredAt: changeEvent.occurredAt })
-        .from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
-        .innerJoin(eventChange, eq(eventChange.eventId, changeEvent.id)).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
-        .where(and(clientEvents(c.id), eq(detectedChange.status, 'event'), or(eq(detectedChange.afterCaptureId, row.captureId), eq(detectedChange.beforeCaptureId, row.captureId))))
-        .orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id))
-        .limit(20));
+    // It is an RLS read of the (already checked) client's own events, started beside the link check and dropped when
+    // the competitor is not linked.
+    const [linked, cited] = await allInOrder([
+      competitorLinked(deps, ctx, c.id, row.competitorId),
+      !hasFeature(ctx, 'dashboard') ? Promise.resolve([]) : withTenant(deps.app, ctx, (tx) =>
+        tx.selectDistinct({ eventId: changeEvent.id, summary: changeEvent.summary, changeType: changeEvent.changeType, occurredAt: changeEvent.occurredAt })
+          .from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked)
+          .innerJoin(eventChange, eq(eventChange.eventId, changeEvent.id)).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
+          .where(and(clientEvents(c.id), eq(detectedChange.status, 'event'), or(eq(detectedChange.afterCaptureId, row.captureId), eq(detectedChange.beforeCaptureId, row.captureId))))
+          .orderBy(desc(changeEvent.occurredAt), desc(changeEvent.id))
+          .limit(20)),
+    ]);
+    if (!linked) throw new ToolError('not_found', 'Evidence not found');
     return {
       evidenceId: row.id, kind: row.kind, sha256: row.sha256, bytes: Number(row.bytes), contentType: row.contentType, captureId: row.captureId,
       capturedAt: row.capturedAt.toISOString(), captureStatus: row.status, channel: row.source, channelLabel: channelLabel(row.source), url: row.url ?? null,
@@ -127,18 +136,29 @@ export const compareCaptures = defineTool({
   output: CaptureCompareView,
   // Web-only (no channels): block text is shown as stored (P9). Read-only: never extracts blocks (no ensureBlocks).
   async handler(ctx, { clientId, captureId }, deps) {
-    const c = await workspaceClient(deps, ctx, clientId);
-    const [cap] = await deps.service.select({ id: capture.id, competitorId: capture.competitorId, trackedPageId: capture.trackedPageId, source: capture.source,
-      status: capture.status, capturedAt: capture.capturedAt, url: capture.url }).from(capture).where(eq(capture.id, captureId));
-    if (!cap || !(await competitorLinked(deps, ctx, c.id, cap.competitorId))) throw new ToolError('not_found', 'Capture not found');
+    // Launch-gate 6c: the client check and the capture start together (client refusal first); the previous capture of
+    // the same page (a service read of its id and time only) starts beside the link check and is dropped on a refusal.
+    const [c, [cap]] = await allInOrder([
+      workspaceClient(deps, ctx, clientId),
+      deps.service.select({ id: capture.id, competitorId: capture.competitorId, trackedPageId: capture.trackedPageId, source: capture.source,
+        status: capture.status, capturedAt: capture.capturedAt, url: capture.url }).from(capture).where(eq(capture.id, captureId)),
+    ]);
+    if (!cap) throw new ToolError('not_found', 'Capture not found');
+    const web = cap.source === 'web' && cap.trackedPageId !== null;
+    const [linked, [prev]] = await allInOrder([
+      competitorLinked(deps, ctx, c.id, cap.competitorId),
+      web
+        ? deps.service.select({ id: capture.id, capturedAt: capture.capturedAt }).from(capture)
+          .where(and(eq(capture.trackedPageId, cap.trackedPageId!), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
+          .orderBy(desc(capture.capturedAt), desc(capture.id)).limit(1)
+        : Promise.resolve([]),
+    ]);
+    if (!linked) throw new ToolError('not_found', 'Capture not found');
     const after = { captureId: cap.id, capturedAt: cap.capturedAt.toISOString() };
     const empty = (state: 'first' | 'no_blocks' | 'not_web', before: { captureId: string; capturedAt: string } | null = null) =>
       ({ state, before, after, pageUrl: cap.url ?? null, blocks: [], truncated: false, blocksCapped: false, maskedCount: 0 });
-    if (cap.source !== 'web' || !cap.trackedPageId) return empty('not_web');
-    const [prev] = await deps.service.select({ id: capture.id, capturedAt: capture.capturedAt }).from(capture)
-      .where(and(eq(capture.trackedPageId, cap.trackedPageId), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
-      .orderBy(desc(capture.capturedAt), desc(capture.id)).limit(1);
-    const [afterBlocks, beforeBlocks, masked] = await Promise.all([loadCompareBlocks(deps, cap.id), prev ? loadCompareBlocks(deps, prev.id) : [], maskedBlockKeys(deps.service, cap.trackedPageId)]);
+    if (!web) return empty('not_web');
+    const [afterBlocks, beforeBlocks, masked] = await Promise.all([loadCompareBlocks(deps, cap.id), prev ? loadCompareBlocks(deps, prev.id) : [], maskedBlockKeys(deps.service, cap.trackedPageId!)]);
     // Order matters: a capture without stored blocks (failed, or never extracted) is no_blocks before it can be first.
     if (cap.status !== 'ok' || afterBlocks.length === 0) return empty('no_blocks', prev ? { captureId: prev.id, capturedAt: prev.capturedAt.toISOString() } : null);
     if (!prev) return empty('first');
