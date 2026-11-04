@@ -25,7 +25,7 @@ None.
 
 ## New backlog (target → item)
 - **7a1 Task 12 (before or with the live deploy) → two pages over 3 s on Neon dev:** `/c/[clientId]/competitors/[competitorId]` 3188 ms (113 queries), `/c/[clientId]` 3073 ms (110 queries). Wall time tracks *query count* (pool max 5 → queueing), not dbStages: cut queries per page (duplicate reads across ~18 parallel tools, e.g. `get_client_profile` ×2, `get_ask_starters` ×2) or size the pool per request. Re-measure from Vercel iad1 (staging) first: this box adds ~95 ms per query.
-- **Next perf pass → `get_evidence_refs` per-competitor loop** (`packages/tools/src/tools/evidence.ts:78`, `for … await competitorLinked`): one transaction per distinct competitor, so `/c/[clientId]/recommendations` is **10 dbStages / 2785 ms on cs_dev** (4 on the E2E seed). Batch the link check. The E2E-seed gate cannot see data-dependent loops.
+- ~~`get_evidence_refs` per-competitor loop~~ fixed in the final fix wave: `linkedCompetitors` (one RLS statement for N competitors; `add_recommendation` uses it too). Re-measure `/c/[clientId]/recommendations` on cs_dev/staging.
 - **Pilot hardening → CI job for the gate** (spec D6): `next start` + `PROFILE_TOOLS=1` + `--assert-db-stages 8 --strict-routes` on the E2E seed.
 - **Next perf pass → rankings `before` cursor as a keyset `(finished_at, id)`** (6b review).
 - **If pool queueing shows on staging → `spendByClient` as one CTE** (6b review).
@@ -34,8 +34,11 @@ None.
 ## Owner verification steps
 1. **Staging latency (wall time only, D7):** sign in to `https://staging.rivalmonday.app` as an agency admin in a browser; copy the request `Cookie` header (DevTools → Network → any page request) into a file outside the repo, e.g. `$TEMP/rm-staging-cookie.txt`. From the worktree root (Git Bash):
    `pnpm --filter @cs/web profile:pages --base https://staging.rivalmonday.app --cookie "$TEMP/rm-staging-cookie.txt" --strict-routes --json .profile/staging.json`
-   Add `--param clientId=<staging client id>` if a `/c/` route is unresolved. Pass = agency/workspace pages p75 ≤ 1.5 s and every page ≤ 3 s. Paste p75/max here, then delete the cookie file.
+   Add `--param clientId=<staging client id>` if a `/c/` route is unresolved. Pass = agency/workspace pages p75 ≤ 1.5 s and every page ≤ 3 s, every route 200 (bar the by-design 404s), and Sentry (staging) shows no `internal`/`DrizzleQueryError` in that window (first run of in-transaction pipelining behind the pooled URL; `docs/DEPLOY.md`). Paste p75/max here, then delete the cookie file.
 2. Optional: `bash apps/web/scripts/profile-gate.sh --seed` → `profile-gate: exit 0`.
+
+## Concerns
+- **One-off `internal` during 6c parity recording (I4): not reproduced; bounded, not a code defect.** It came from `get_evidence` (admin) on the *old* code, first recording run only. Registry `internal` means the handler threw a non-`ToolError` or its output failed `EvidenceView`; the output is deterministic for the seeded world, so it was a thrown DB/driver error, and the test's `outcome()` kept only code + message, so the cause was lost. Final wave: 6 sequential runs on 42e9ddbe (the first with `TEST_DB_FULL_RESET=1` on a brand-new DB) were byte-equal; runs with a second vitest process resetting the same DB fail loudly in seeding (FK, duplicate key, deadlock `40P01`), never as a lone `internal`. Best explanation: a transient driver/connection error on the shared `cs_launch_gate_test` (that session also ran 9 E2E specs and the gate on it), on code this branch replaced. `outcome()` now records the cause of an `internal` refusal, so a repeat names what broke.
 
 ## Results
 ### Gate (local cluster 5444, E2E seed)
