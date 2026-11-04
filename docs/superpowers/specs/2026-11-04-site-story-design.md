@@ -8,6 +8,7 @@
 - **D9** $249 via `DEFAULT_CLIENT_PRICE_USD = 249` in `apps/site/src/lib/env.ts`; owner confirms Vercel `NEXT_PUBLIC_CLIENT_PRICE_USD` is unset or 249 (staging + prod).
 - **D10** Copy is signed once, at the end: owner runs `pnpm copy:review` (site surface) then `copy:status --prune`, after main's uncommitted `docs/copy/signoff.json` lines are committed.
 - **D11** Removed home-only code is deleted (`PricingTeaser`, home guide slugs); shared components used by `/how-it-works` stay and get opt-out props instead (that page is unchanged).
+- **D13** (owner, 2026-11-04) §2's replay shows the rival's own map (Quillstone, fictional sample data, 8 → 31 top-3 points) with the rival-1 chart colour; Northwind's ring stays. Plan Task 10.
 - **D12** Pre-existing ungated website wording outside the new copy (`SECTIONS.checks.body` "a page snapshot", `HOW_STEPS[2]` "Websites, …") is not touched here: backlog item, fixed when the owner flips `WEBSITE_MONITORING_LIVE`.
 
 ## 2. Design plan (binding for this branch; `docs/design-system/` still wins)

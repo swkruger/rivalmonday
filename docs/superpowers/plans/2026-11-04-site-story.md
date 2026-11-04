@@ -99,3 +99,18 @@ None (no unmerged branches; `staging-worker` is an ancestor of main). Re-check i
 - Commit main's pending `docs/copy/signoff.json` lines, then on this branch: `pnpm copy:review` (site surface) → sign the changed/new home strings → `copy:status --prune`.
 - Vercel (staging + prod `@cs/site`): `NEXT_PUBLIC_CLIENT_PRICE_USD` unset or 249.
 - Founder note (D8) when ready; the prod site deploy waits for it.
+
+### Task 10 — §2 shows the rival's own map (owner decision 2026-11-04, spec D13)
+**Goal:** §2's replay shows **Quillstone Climate Pros'** map rankings climbing from 8 to 31 top-3 points, not Northwind's own grid (which contradicts the copy).
+**Files:** create `apps/site/scripts/rival-rank-story.mjs`, `apps/site/content/rival-grid.json`, a pinning test (next to `src/sample/rank-story.test.ts`); modify `src/components/sample/rank-grid.tsx` (+ `rank-map` if colours live there), `rival-story.tsx`, `content/home.ts` (`RIVAL_STORY.gridTitle`), `story.test.tsx`.
+**Interfaces:**
+- `rival-grid.json`: `{ rivalId: 'r1', weeks: { weekOf: string; ranks: (number | null)[] }[] }` — same 12 `weekOf`s as `sample-brief.json` `rankGrid.weeks`, 49 cells each.
+- `RankGrid` gains optional `subject?: { title: string; ranks: (weekOf: string) => (number | null)[]; tone: 'rival' }`. Default (absent) = today's behaviour byte-for-byte (every other caller unchanged).
+- `RIVAL_STORY.gridTitle` = `Quillstone Climate Pros' map rankings for “{keyword}”` (keyword from the sample; new string, owner signs in Task 9).
+**Behaviour:**
+- Script mirrors `scripts/sample-rank-story.mjs` (seeded, deterministic): the rival's strength spreads from its own base (an off-centre point, e.g. row 1 col 5) towards Northwind's ringed centre; top-3 counts per week: week 1 (2026-08-04) = 8, monotone non-decreasing (±1), weeks 2026-10-13 and 2026-10-20 = 31. Output committed; never generated at runtime.
+- With `subject`: heading = `subject.title`; the "ringed point is Northwind…" line stays (the ring = the client being squeezed); the summary line computes from the rival's ranks ("Top 3 in 31 of 49 points, up from 8 in week 1"); per-week leader text and the rank-evidence chips (they describe Northwind's scans) are hidden; table alternative uses the rival ranks.
+- Colour: rival tone uses the chart rival-1 role (`--chart-rival-1` token, via existing `@cs/ui` colour classes; tints by opacity utilities, no hex) for the rank buckets, legend matching; check contrast of the rank numerals with the dataviz skill's rules (numerals readable on every bucket). Ring stays as today.
+- Reduced motion and autoplay unchanged.
+**Tests (first):** script output pinned (week1 top3 = 8, 10-13 and 10-20 = 31, monotone ±1, 49 cells × 12 weeks); `RankGrid` without `subject` renders as before (existing tests green); with `subject` shows the title, "31 of 49" on the last week, no leader/evidence chips; `RivalStory` uses it.
+**Done when:** `vitest run src/components/sample src/components/home src/sample content`, `tsc`, `design-lint` clean; one 1440 + 390 screenshot of §2 reviewed (scratchpad).
