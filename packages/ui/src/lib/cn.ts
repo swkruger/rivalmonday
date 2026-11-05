@@ -8,7 +8,7 @@ import { extendTailwindMerge } from 'tailwind-merge';
  * colour (never conflicting with `shadow-none`). Radii xs–lg are built-in.
  */
 const twMerge = extendTailwindMerge({
-  extend: { theme: { text: ['11', '13'], shadow: ['overlay', 'dialog', 'card'] } },
+  extend: { theme: { text: ['11', '13'], shadow: ['overlay', 'dialog', 'card', 'raised'] } },
 });
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));

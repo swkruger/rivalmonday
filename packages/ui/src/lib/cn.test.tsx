@@ -21,6 +21,12 @@ describe('cn knows the custom theme keys', () => {
     expect(cn('shadow-overlay shadow-none')).toBe('shadow-none');
     expect(cn('shadow-sm shadow-dialog')).toBe('shadow-dialog');
   });
+  it('keeps shadow-raised next to text-13 and a text colour', () => {
+    expect(cn('shadow-raised', 'text-13', 'text-ink')).toBe('shadow-raised text-13 text-ink');
+  });
+  it('shadow-none overrides shadow-raised', () => {
+    expect(cn('shadow-raised', 'shadow-none')).toBe('shadow-none');
+  });
   it('the default Button keeps text-13', () => {
     render(<Button>Go</Button>);
     expect(screen.getByRole('button').className.split(' ')).toContain('text-13');

@@ -49,6 +49,16 @@
   --chart-axis: #5B6B80;
   --shadow-overlay-value: 0 1px 2px rgba(11,37,64,.06), 0 6px 20px rgba(11,37,64,.12);
   --shadow-dialog-value: 0 2px 6px rgba(11,37,64,.08), 0 16px 40px rgba(11,37,64,.18);
+  --shadow-raised-value: 0 1px 2px rgba(11,37,64,.06), 0 6px 20px rgba(11,37,64,.06);
+  /* app-style stage A (docs/superpowers/specs/2026-11-04-app-style-design.md § 2). --primary-band-ring is per agency (themeVars). */
+  --chrome: #FBFCFE;
+  --ink-hover: #2D435B;
+  --success-strong: #15803D;
+  --success-strong-hover: #166534;
+  --on-ink: #FFFFFF;
+  --on-ink-muted: #B7C7DA;
+  --on-ink-link: #7FC3F0;
+  --primary-band-ring: var(--primary);
   /* Status chip tones (P2); keep in sync with CHIP_COLOURS in status-chip.tsx. */
   --chip-neutral-bg: #EEF2F6;
   --chip-neutral-text: #334155;
@@ -139,6 +149,11 @@
   --radius-xl: 12px;
   --shadow-overlay: var(--shadow-overlay-value);
   --shadow-dialog: var(--shadow-dialog-value);
+  --shadow-raised: var(--shadow-raised-value);
+  --color-chrome: var(--chrome);
+  --color-ink-hover: var(--ink-hover);
+  --color-success-strong: var(--success-strong);
+  --color-success-strong-hover: var(--success-strong-hover);
   --text-13: 0.8125rem;
   --text-13--line-height: 1.125rem;
   --text-11: 0.6875rem;
@@ -189,3 +204,11 @@
 a.rm-kpi:hover { background: color-mix(in srgb, var(--kpi) 7%, var(--surface)); }
 .rm-kpi-trace-area { fill: color-mix(in srgb, var(--kpi) 7%, transparent); }
 .rm-kpi-trace-line { stroke: color-mix(in srgb, var(--kpi) 30%, transparent); }
+
+/* Ink page-header band (D-30): re-scopes the text tokens so every child reads on ink; white-surface parts keep their own greys. */
+.rm-ink-band { background: var(--ink); color: var(--on-ink);
+  --muted-ink: var(--on-ink-muted); --ink-secondary: var(--on-ink-muted); --link: var(--on-ink-link); --focus: var(--on-ink); }
+.rm-ink-band [data-slot="breadcrumb-page"], .rm-ink-band [data-slot="breadcrumb-link"]:hover { color: var(--on-ink); }
+/* White-surface parts keep their own greys. */
+.rm-ink-band [data-slot="button"][data-variant="outline"], .rm-ink-band [data-slot="status-chip"], .rm-ink-band [data-slot="tag"] { --muted-ink: #5B6B80; --ink-secondary: #334155; }
+.rm-ink-band [data-slot="button"][data-variant="default"] { box-shadow: 0 0 0 1px var(--primary-band-ring); }

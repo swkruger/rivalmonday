@@ -13,7 +13,7 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb', '--primary-band-ring': '#47A8E7',
     });
   });
 
@@ -21,6 +21,15 @@ describe('themeVars', () => {
     const v = themeVars({ primary: '#123ABC', secondary: '#000000' });
     expect(v['--primary-soft']).toBe(mixHex('#123ABC', '#ffffff', 0.86));
     expect(v['--primary-soft-text']).toBe(mixHex('#123ABC', '#0B2540', 0.45));
+  });
+
+  it('band ring: primary when it stands out on ink, else the light fallback', () => {
+    expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })['--primary-band-ring']).toBe('#47A8E7');
+    expect(themeVars({ primary: '#102A43', secondary: '#2A6BAC' })['--primary-band-ring']).toBe('#B7C7DA');
+  });
+
+  it('every value is a lowercase-or-upper 6-digit hex', () => {
+    expect(Object.values(themeVars({ primary: '#102A43', secondary: '#2A6BAC' })).every((x) => /^#[0-9a-f]{6}$/i.test(x))).toBe(true);
   });
 
   it('never emits a non-hex value (Review Focus 5)', () => {

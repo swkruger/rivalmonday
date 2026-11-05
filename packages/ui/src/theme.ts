@@ -49,6 +49,7 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
     '--primary-hover': stateShade(primary, primaryFg, 0.08),
     '--primary-active': stateShade(primary, primaryFg, 0.16),
     '--secondary-foreground': readableTextOn(secondary),
+    '--primary-band-ring': contrastRatio(primary, RIVAL_MONDAY_TOKENS.ink) >= 3 ? primary : '#B7C7DA',
     '--primary-soft': isDefault ? DEFAULT_SOFT.soft : mixHex(primary, '#ffffff', 0.86),
     '--primary-soft-text': isDefault ? DEFAULT_SOFT.text : mixHex(primary, RIVAL_MONDAY_TOKENS.ink, 0.45),
   };

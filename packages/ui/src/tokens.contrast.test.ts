@@ -22,6 +22,17 @@ const PAIRS: Array<[string, string, string, number]> = [
   ['ink on action.primary', INK, '#47A8E7', 4.5],
   ['line-strong on surface (UI)', '#8796AB', '#FFFFFF', 3.0],
   ['focus on surface (UI)', '#2A6BAC', '#FFFFFF', 3.0],
+  ['white on ink-hover', '#FFFFFF', '#2D435B', 4.5],
+  ['white on success-strong', '#FFFFFF', '#15803D', 4.5],
+  ['white on success-strong-hover', '#FFFFFF', '#166534', 4.5],
+  ['on-ink-muted on ink', '#B7C7DA', INK, 4.5],
+  ['on-ink-link on ink', '#7FC3F0', INK, 4.5],
+  ['muted on chrome', MUTED, '#FBFCFE', 4.5],
+  ['chip-info-text on chip-info-bg', '#1F5F8F', '#E3F2FC', 4.5],
+  ['amber-text on amber', '#3B2300', '#F5A524', 4.5],
+  ['muted on lane info', MUTED, '#E3F2FC', 4.5],
+  ['muted on lane success', MUTED, '#E7F6EC', 4.5],
+  ['focus(on-ink) on ink (UI)', '#FFFFFF', INK, 3.0],
   // KPI cell: 3 % wash + 7 % trace area, for a near-black agency colour (the worst case). `.rm-kpi` --muted-ink.
   ['kpi caption on wash and trace', '#4F5F73', '#E6E6E6', 4.5],
 ];
@@ -39,6 +50,7 @@ describe('styles.css v1 tokens', () => {
     '--text-13: 0.8125rem', '--text-11: 0.6875rem', '--chip-warning-bg: #FFF7E6',
     '--color-input: var(--line-strong)', '--color-ring: var(--focus)',
     '--secondary-foreground: #FFFFFF', '--color-secondary-foreground: var(--secondary-foreground)',
+    '--chrome: #FBFCFE', '--success-strong: #15803D', '--on-ink-muted: #B7C7DA', '--primary-band-ring: var(--primary)', '.rm-ink-band',
   ])('contains %s', (s) => {
     expect(css).toContain(s);
   });
