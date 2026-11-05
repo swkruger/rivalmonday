@@ -43,6 +43,15 @@ const tight = defineTool({
   },
 });
 
+// An agency-level tool that always answers `conflict`; the message either is clean or carries an A1 canary (foreign to adminB).
+const conflictTool = (name: string, leak: boolean) => defineTool({
+  name, access: 'read', description: 'test', permission: 'read',
+  input: z.object({}), output: z.object({ ok: z.boolean() }),
+  async handler() { throw new ToolError('conflict', leak ? `Not available ${w.canaries('A1')[0]!}` : 'Not available for this plan.'); },
+});
+const conflictClean = conflictTool('planted_conflict_clean', false);
+const conflictLeaky = conflictTool('planted_conflict_leaky', true);
+
 const ownsClient = (ctx: AccessContext, clientId: string): boolean => {
   const agencyOf: Record<string, string> = { [w.ids.clientA1]: w.ids.agencyA, [w.ids.clientA2]: w.ids.agencyA, [w.ids.clientB1]: w.ids.agencyB };
   return agencyOf[clientId] === ctx.agencyId && (ctx.clientScope === 'all' || ctx.clientScope.includes(clientId));
@@ -86,7 +95,19 @@ beforeAll(async () => {
   const iso = isolationDeps(w);
   probe = { owner: dbs.owner, enqueued: iso.enqueued, gateway: iso.gateway };
   registry = new ToolRegistry<ToolDeps>(iso.deps, { record: async () => {} }, Date.now, { hashInput })
-    .register(leaky, wrongReason, tight, writeThenRefuse, sideEffectThenRefuse, tightWrite);
+    .register(leaky, wrongReason, tight, writeThenRefuse, sideEffectThenRefuse, tightWrite, conflictClean, conflictLeaky);
+});
+
+describe('isolation harness: allowConflict', () => {
+  const fx: IsolationFixture = { kind: 'agency', input: () => ({}), allowConflict: 'state-dependent refusal', skipPositive: 'needs a special state' };
+  it('a clean own-state conflict on an allowed call is ok', async () => {
+    const results = await runToolCases(registry, w, conflictClean, fx);
+    expect(results.filter((r) => r.scenario === 'adminB→A').map((r) => r.outcome)).toEqual(['ok']);
+  });
+  it('a conflict message carrying a foreign id is a leak', async () => {
+    const results = await runToolCases(registry, w, conflictLeaky, fx);
+    expect(results.find((r) => r.scenario === 'adminB→A')).toMatchObject({ outcome: 'leak' });
+  });
 });
 
 describe('isolation harness', () => {

@@ -2,7 +2,7 @@ import { describeTiers } from '@cs/billing';
 import { DEFAULT_SUPPORT_EMAIL, type PlanFeature } from '@cs/core';
 import { membership } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createMemoryTransport } from '@cs/email';
+import { createMemoryTransport, type PlanTerms } from '@cs/email';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
@@ -14,8 +14,8 @@ afterAll(() => dbs.closeAll());
 
 const A = IDS.agencyA;
 const props = {
-  before: { basePriceCents: 22900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }] },
-  after: { basePriceCents: 22900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] },
+  before: { basePriceCents: 22900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], tiers: [{ fromClient: 4, toClient: null, unitCents: 9900 }] },
+  after: { basePriceCents: 22900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }], tiers: describeTiers(3, [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }]) },
   featuresAdded: [] as PlanFeature[],
   featuresRemoved: ['mcp'] as PlanFeature[],
   effective: { kind: 'next_billing' as const, date: '2026-11-03' },
@@ -51,9 +51,7 @@ describe('sendAgencyPlanChangeEmail', () => {
     for (const m of transport.sent) {
       expect(m).toMatchObject({ from: '"Rival Monday" <team@app.test>', replyTo: DEFAULT_SUPPORT_EMAIL, subject: 'Your Rival Monday plan is changing', tag: 'agency_plan_change' });
       expect(m.text).toContain('No longer included: MCP access.');
-      // Price lines carry the graduated tiers (ranges agree with `describeTiers`).
-      const tiers = describeTiers(3, props.after.seatTiers);
-      expect(tiers).toEqual([{ fromClient: 4, toClient: 10, unitCents: 7900 }, { fromClient: 11, toClient: null, unitCents: 5900 }]);
+      // Price lines carry the graduated tiers.
       expect(m.text).toContain('$229/mo (or $2,290/yr) · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each');
     }
     expect(transport.sent.find((m) => m.to === 'ann@example.com')!.text).toContain('Hi Ann,');
@@ -70,7 +68,7 @@ describe('sendAgencyPlanChangeEmail', () => {
 });
 
 describe('planChangeWorthEmailing', () => {
-  const t = { basePriceCents: 22900, basePriceYearCents: 229000 as number | null, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null as number | null, unitCents: 5900 }], features: ['ask', 'mcp'] as PlanFeature[] };
+  const t = { basePriceCents: 22900, basePriceYearCents: 229000 as number | null, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null as number | null, unitCents: 5900 }], tiers: [] as PlanTerms['tiers'], features: ['ask', 'mcp'] as PlanFeature[] };
   it('false when nothing differs (feature order ignored)', () => {
     expect(planChangeWorthEmailing(t, { ...t, features: ['mcp', 'ask'] })).toBe(false);
   });

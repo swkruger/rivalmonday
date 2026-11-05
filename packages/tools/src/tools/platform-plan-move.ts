@@ -1,4 +1,4 @@
-import { countActiveClients, currentStandardPlan, isReducedTrial, monthlyEquivalentCents, planCents, planFor, syncPlanToStripe, type BillingInterval } from '@cs/billing';
+import { countActiveClients, currentStandardPlan, describeTiers, isReducedTrial, monthlyEquivalentCents, planCents, planFor, syncPlanToStripe, type BillingInterval } from '@cs/billing';
 import { type AccessContext, PLAN_FEATURES, type PlanFeature, ToolError, toolkit } from '@cs/core';
 import { type AgencyBillingRow, agency, agencyBilling, agencyBillingEvent, BILLING_STATES, type BillingState, type PlanRow, plan } from '@cs/db';
 import type { PlanTerms } from '@cs/email';
@@ -23,7 +23,7 @@ const ALL: readonly PlanFeature[] = PLAN_FEATURES;
 const swapsStripe = (row: Pick<AgencyBillingRow, 'state' | 'stripeSubscriptionId'>) => !!row.stripeSubscriptionId && row.state !== 'cancelled';
 const errName = (e: unknown): string => (e instanceof Error ? e.name : 'unknown');
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
-const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, basePriceYearCents: p.basePriceYearCents, includedSeats: p.includedSeats, seatTiers: p.seatTiers });
+const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, basePriceYearCents: p.basePriceYearCents, includedSeats: p.includedSeats, seatTiers: p.seatTiers, tiers: describeTiers(p.includedSeats, p.seatTiers) });
 const NO_YEARLY_PRICE = 'This plan has no yearly price.';
 const hasYearlyIds = (p: PlanRow) => !!(p.stripeBasePriceYearId && p.stripeSeatPriceYearId);
 /** Monthly-equivalent cents on `p` for an agency on `interval`. A yearly agency on a plan without a yearly price has no such figure: callers mark that row refused. */

@@ -19,22 +19,13 @@ function dateText(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : iso;
 }
-/** Client ranges of the graduated tiers; mirrors `describeTiers` in `@cs/billing` (this package does not depend on it; a tools test pins both). */
-function tierRanges(includedSeats: number, tiers: PlanTerms['seatTiers']) {
-  let prev = 0;
-  return tiers.map((t) => {
-    const row = { from: includedSeats + prev + 1, to: t.upTo === null ? null : includedSeats + t.upTo, unitCents: t.unitCents };
-    prev = t.upTo ?? prev;
-    return row;
-  });
-}
 /** Billing-card wording (spec § Copy): "{base}/mo · {included} clients included · clients {from}–{to}: {price} each · clients {from}+: {price} each". */
 const terms = (t: PlanTerms) =>
   [
     `${money(t.basePriceCents)}/mo${t.basePriceYearCents == null ? '' : ` (or ${money(t.basePriceYearCents)}/yr)`}`,
     `${t.includedSeats} clients included`,
-    ...tierRanges(t.includedSeats, t.seatTiers).map((r) =>
-      r.to === null ? `clients ${r.from}+: ${money(r.unitCents)} each` : `clients ${r.from}${r.to === r.from ? '' : `–${r.to}`}: ${money(r.unitCents)} each`),
+    ...t.tiers.map((r) =>
+      r.toClient === null ? `clients ${r.fromClient}+: ${money(r.unitCents)} each` : `clients ${r.fromClient}${r.toClient === r.fromClient ? '' : `–${r.toClient}`}: ${money(r.unitCents)} each`),
   ].join(' · ');
 
 /**

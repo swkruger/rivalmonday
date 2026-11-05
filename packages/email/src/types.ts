@@ -105,6 +105,8 @@ export type PlanTerms = {
   includedSeats: number;
   /** Graduated extra-client price: `upTo` = cumulative extra clients, last tier null (same shape as `@cs/db` `SeatTier`). */
   seatTiers: { upTo: number | null; unitCents: number }[];
+  /** `describeTiers` rows of the version (client ranges with their per-client price); the email only formats these. */
+  tiers: { fromClient: number; toClient: number | null; unitCents: number }[];
 };
 /** 15c-3b: the platform tells an agency's admins its plan is changing (moved to the current standard version). */
 export interface AgencyPlanChangeProps {

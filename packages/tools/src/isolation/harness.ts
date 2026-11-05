@@ -365,7 +365,10 @@ export async function runToolCases(registry: ToolRegistry<ToolDeps>, w: Isolatio
           continue;
         }
         if (s.expect === 'allow' && code === 'conflict' && 'allowConflict' in fx && fx.allowConflict) {
-          results.push({ ...base, outcome: 'ok', detail: `allowed call refused for its own state: ${message}` });
+          const leaked = findForeign(message, w, forbidden, inputIds(s.input));
+          results.push(leaked
+            ? { ...base, outcome: 'leak', detail: `conflict message carries ${leaked}` }
+            : { ...base, outcome: 'ok', detail: `allowed call refused for its own state: ${message}` });
           continue;
         }
         if (!REFUSAL_CODES.has(code)) {

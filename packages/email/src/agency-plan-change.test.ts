@@ -6,8 +6,8 @@ import type { AgencyPlanChangeProps } from './types';
 const branding = resolveBranding('Rival Monday', null);
 const base: AgencyPlanChangeProps = {
   branding, recipientName: 'Ann', agencyName: 'Peak Digital',
-  before: { basePriceCents: 22900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }] },
-  after: { basePriceCents: 22900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] },
+  before: { basePriceCents: 22900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], tiers: [{ fromClient: 4, toClient: null, unitCents: 9900 }] },
+  after: { basePriceCents: 22900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }], tiers: [{ fromClient: 4, toClient: 10, unitCents: 7900 }, { fromClient: 11, toClient: null, unitCents: 5900 }] },
   featuresAdded: [], featuresRemoved: [], effective: { kind: 'next_billing', date: '2026-11-03' },
 };
 const render = (o: Partial<AgencyPlanChangeProps>) => renderEmail({ template: 'agency_plan_change', props: { ...base, ...o } });
