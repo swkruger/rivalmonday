@@ -272,23 +272,39 @@ describe('runBillingDaily: yearly seat decreases at renewal (final fix I4)', () 
     await withSub(gw, { billableSeatsSynced: 2, billingInterval: 'year' }, { seatQuantity: 2, interval: 'year', ...sub });
   };
 
-  it('in the last 24 h before the period end it lowers the quantity with proration none', async () => {
+  const defer = (at: Date) => dbs.owner.update(agencyBilling).set({ seatDecreaseDeferredAt: at }).where(eq(agencyBilling.agencyId, AGENCY));
+
+  it('3 days before the period end a deferral is applied with proration none and cleared', async () => {
     const gw = fakeGateway();
-    await yearly(gw, { currentPeriodEnd: new Date(NOW.getTime() + 12 * HOUR) });
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 362 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 3 * 24 * HOUR) });
+    await defer(new Date(NOW.getTime() - 20 * 24 * HOUR));
     await runBillingDaily(dbs.service, gw, NOW);
     expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: false, seatPriceId: null, invoiceNow: false }]]);
-    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false, seatDecreaseDeferredAt: null });
   });
 
-  it('right after a renewal (period started under 24 h ago) it lowers the quantity too', async () => {
+  it('missed window: a deferral older than the current period is applied with a credit on the next run', async () => {
     const gw = fakeGateway();
-    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 3 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 365 * 24 * HOUR) });
+    // The subscription renewed 3 days ago at the old quantity; the deferral was recorded months before.
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 3 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 362 * 24 * HOUR) });
+    await defer(new Date(NOW.getTime() - 100 * 24 * HOUR));
     await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: true, seatPriceId: null, invoiceNow: true }]]);
     expect(gw.subscriptions.get('sub_1')!.seatQuantity).toBe(1);
-    expect((await row()).billableSeatsSynced).toBe(1);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatDecreaseDeferredAt: null });
   });
 
-  it('mid-term it keeps the paid quantity and leaves nothing pending', async () => {
+  it('30 days before the period end a deferral stays held back', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 335 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 30 * 24 * HOUR) });
+    const at = new Date(NOW.getTime() - 20 * 24 * HOUR);
+    await defer(at);
+    expect(await runBillingDaily(dbs.service, gw, NOW)).toMatchObject({ drift: 0, seatRetries: 0 });
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false, seatDecreaseDeferredAt: at });
+  });
+
+  it('mid-term with no deferral it keeps the paid quantity and leaves nothing pending', async () => {
     const gw = fakeGateway();
     await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 100 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 30 * 24 * HOUR) });
     expect(await runBillingDaily(dbs.service, gw, NOW)).toMatchObject({ drift: 0, seatRetries: 0 });

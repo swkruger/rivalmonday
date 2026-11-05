@@ -65,6 +65,8 @@ export const agencyBilling = pgTable(
     reviewFlaggedAt: ts('review_flagged_at'),
     billableSeatsSynced: integer('billable_seats_synced'),
     seatSyncPending: boolean('seat_sync_pending').notNull().default(false),
+    /** Yearly only: when a seat decrease was first held back for renewal; null when Stripe's quantity matches the active clients. */
+    seatDecreaseDeferredAt: ts('seat_decrease_deferred_at'),
     attachedCouponId: text('attached_coupon_id'),
     seatCapExempt: boolean('seat_cap_exempt').notNull().default(false),
     billingInterval: text('billing_interval').$type<'month' | 'year'>().notNull().default('month'),

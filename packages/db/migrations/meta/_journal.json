@@ -687,6 +687,13 @@
       "when": 1793853089192,
       "tag": "0097_pricing_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1793904982798,
+      "tag": "0098_seat_decrease_deferred",
+      "breakpoints": true
     }
   ]
 }

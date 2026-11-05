@@ -11,7 +11,7 @@ function row(state: BillingState, over: Partial<AgencyBillingRow> = {}): AgencyB
   return {
     agencyId: 'a', state, planId: null, stripeCustomerId: null, stripeSubscriptionId: null, trialEndsAt: null,
     pilotEndsAt: null, pastDueSince: null, cancelAt: null, reviewFlaggedAt: null, billableSeatsSynced: null,
-    seatSyncPending: false, billingInterval: 'month', attachedCouponId: null, seatCapExempt: false, lastStripeEventAt: null,
+    seatSyncPending: false, seatDecreaseDeferredAt: null, billingInterval: 'month', attachedCouponId: null, seatCapExempt: false, lastStripeEventAt: null,
     stateChangedAt: ago(DAY), updatedAt: ago(DAY), ...over,
   };
 }
@@ -91,7 +91,7 @@ describe('payment_failed / subscription_ended / cancel', () => {
   it.each(['past_due', 'read_only', 'suspended'] as const)('subscription_ended in %s keeps the state but still forgets the subscription', (state) => {
     const t = nextBillingState(row(state, { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 1 }), signals.subscription_ended!);
     expect(t?.state).toBe(state);
-    expect(t?.patch).toEqual({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, billingInterval: 'month' });
+    expect(t?.patch).toEqual({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, seatDecreaseDeferredAt: null, billingInterval: 'month' });
     expect(t?.reason).toBe(REASONS.subscriptionEnded);
   });
   it('grant_pilot and extend_trial drop a (non-live, checked by the tool) subscription id', () => {

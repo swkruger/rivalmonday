@@ -52,10 +52,10 @@ const addDays = (d: Date, days: number) => new Date(d.getTime() + days * DAY_MS)
  * `month` (pricing v2): a new subscription starts from Checkout, which records its own interval.
  */
 export const FORGET_SUBSCRIPTION = {
-  stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, billingInterval: 'month',
+  stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, seatDecreaseDeferredAt: null, billingInterval: 'month',
 } as const satisfies Partial<AgencyBillingRow>;
 const holdsSubscription = (row: AgencyBillingRow) =>
-  row.stripeSubscriptionId !== null || row.billableSeatsSynced !== null || row.seatSyncPending || row.billingInterval !== 'month';
+  row.stripeSubscriptionId !== null || row.billableSeatsSynced !== null || row.seatSyncPending || row.seatDecreaseDeferredAt !== null || row.billingInterval !== 'month';
 
 /** Build a transition; `stateChangedAt` is set only when the state changes and a clock is available. */
 function step(row: AgencyBillingRow, state: BillingState, reason: BillingReason, patch: Partial<AgencyBillingRow>, now?: Date): BillingTransition {

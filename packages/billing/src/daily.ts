@@ -3,7 +3,7 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
 import { clientMrrCents, runConnectDaily } from './connect-daily';
-import { inYearlyRenewalWindow, syncSeats } from './seats';
+import { syncSeats, yearlyDecreaseMode } from './seats';
 import type { BillingSignal } from './state';
 import type { BillingGateway } from './types';
 import { monthlyEquivalentCents, planCents } from './pricing';
@@ -60,8 +60,13 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
     drift++;
     await syncSeats(db, gw, row.agencyId);
   }
-  // Final fix I4: a yearly seat decrease waits for renewal; inside the renewal window lower the quantity (proration none).
-  if (sub.interval === 'year' && inYearlyRenewalWindow(sub, now)) await syncSeats(db, gw, row.agencyId, { applyYearlyDecrease: true });
+  // Final fix I4: a yearly seat decrease is held back (seat_decrease_deferred_at); lower the quantity within 7 days before
+  // renewal (proration none), or with a credit if a renewal passed first. Re-read: the sync above may have set or cleared it.
+  if (sub.interval === 'year') {
+    const [cur] = await db.select({ at: agencyBilling.seatDecreaseDeferredAt }).from(agencyBilling).where(eq(agencyBilling.agencyId, row.agencyId));
+    const mode = yearlyDecreaseMode(sub, cur?.at ?? null, now);
+    if (mode) await syncSeats(db, gw, row.agencyId, { yearlyDecrease: mode });
+  }
   // 15c-3b: the subscription should carry the prices of the plan version the agency is on. Report only; never auto-fix.
   if (row.planId) {
     const [p] = await db.select().from(plan).where(eq(plan.id, row.planId));

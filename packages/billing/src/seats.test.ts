@@ -3,7 +3,7 @@ import { openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGateway } from './fake-gateway';
-import { syncSeats } from './seats';
+import { syncSeats, yearlyDecreaseMode } from './seats';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
 afterEach(() => vi.restoreAllMocks());
@@ -125,12 +125,48 @@ describe('syncSeats', () => {
       expect(await row()).toMatchObject({ billableSeatsSynced: 3, seatSyncPending: false });
     });
 
-    it('applyYearlyDecrease (the renewal window) lowers the quantity without proration', async () => {
+    it("yearlyDecrease 'at_renewal' lowers the quantity without proration and clears the deferral", async () => {
       const gw = await yearly(2);
       await addClients(dbs.owner, 2); // 4 active -> 1 extra
-      expect(await syncSeats(dbs.service, gw, AGENCY, { applyYearlyDecrease: true })).toBe('synced');
+      await dbs.owner.update(agencyBilling).set({ seatDecreaseDeferredAt: new Date('2026-01-01T00:00:00Z') }).where(eq(agencyBilling.agencyId, AGENCY));
+      expect(await syncSeats(dbs.service, gw, AGENCY, { yearlyDecrease: 'at_renewal' })).toBe('synced');
       expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: false, seatPriceId: 'price_seat_year', invoiceNow: false }]]);
-      expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+      expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false, seatDecreaseDeferredAt: null });
+    });
+
+    it("yearlyDecrease 'with_credit' prorates and invoices now", async () => {
+      const gw = await yearly(2);
+      await addClients(dbs.owner, 2);
+      expect(await syncSeats(dbs.service, gw, AGENCY, { yearlyDecrease: 'with_credit' })).toBe('synced');
+      expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: true, seatPriceId: 'price_seat_year', invoiceNow: true }]]);
+    });
+
+    it('a deferral records the time, keeps the first one, and re-adding the client clears it without a Stripe call', async () => {
+      const gw = await yearly(2);
+      const [extra] = await addClients(dbs.owner, 3);
+      await setStatus(extra!, 'prospect');
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('deferred');
+      const first = (await row()).seatDecreaseDeferredAt;
+      expect(first).toBeInstanceOf(Date);
+      expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+      await new Promise((r) => setTimeout(r, 15));
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('deferred');
+      expect((await row()).seatDecreaseDeferredAt).toEqual(first);
+      await setStatus(extra!, 'active');
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
+      expect((await row()).seatDecreaseDeferredAt).toBeNull();
+      expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+    });
+
+    it('a gateway failure leaves the deferral unchanged', async () => {
+      const gw = await yearly(2);
+      const at = new Date('2026-01-01T00:00:00Z');
+      await addClients(dbs.owner, 2);
+      await dbs.owner.update(agencyBilling).set({ seatDecreaseDeferredAt: at }).where(eq(agencyBilling.agencyId, AGENCY));
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      gw.failNext();
+      expect(await syncSeats(dbs.service, gw, AGENCY, { yearlyDecrease: 'at_renewal' })).toBe('pending');
+      expect(await row()).toMatchObject({ seatSyncPending: true, seatDecreaseDeferredAt: at });
     });
   });
 
@@ -147,4 +183,22 @@ describe('syncSeats', () => {
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
     expect(await row()).toMatchObject({ seatSyncPending: false, billableSeatsSynced: 1 });
   });
+});
+
+describe('yearlyDecreaseMode', () => {
+  const NOW = new Date('2026-10-14T02:30:00Z');
+  const D = 86_400_000;
+  const at = (days: number) => new Date(NOW.getTime() + days * D);
+  const def = at(-10);
+
+  it('no deferral -> null', () => expect(yearlyDecreaseMode({ currentPeriodEnd: at(2) }, null, NOW)).toBeNull());
+  it('30 days before the end -> null', () => expect(yearlyDecreaseMode({ currentPeriodStart: at(-335), currentPeriodEnd: at(30) }, def, NOW)).toBeNull());
+  it('7 days before the end -> at_renewal', () => expect(yearlyDecreaseMode({ currentPeriodStart: at(-358), currentPeriodEnd: at(7) }, def, NOW)).toBe('at_renewal'));
+  it('2-3 days before the end -> at_renewal', () => {
+    expect(yearlyDecreaseMode({ currentPeriodEnd: at(3) }, def, NOW)).toBe('at_renewal');
+    expect(yearlyDecreaseMode({ currentPeriodEnd: at(2) }, def, NOW)).toBe('at_renewal');
+  });
+  it('past the end (Stripe not rolled) -> at_renewal', () => expect(yearlyDecreaseMode({ currentPeriodEnd: at(-1) }, def, NOW)).toBe('at_renewal'));
+  it('deferral before the current period start -> with_credit, even mid-period', () =>
+    expect(yearlyDecreaseMode({ currentPeriodStart: at(-40), currentPeriodEnd: at(325) }, at(-60), NOW)).toBe('with_credit'));
 });
