@@ -197,6 +197,9 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] 15c-3b: move `billing/plan-move-parts.tsx` to `platform/_components/`; web hard-codes `['ask','mcp']` instead of `PLAN_FEATURES` — *phase-15c3b*
 - [ ] `--color-secondary-foreground` is still a literal (15c-2a made `--primary-foreground` a runtime var via `readableTextOn`) — *phase-15c2a*
 - [ ] 13a: brand-aware chart check (`--you` = agency secondary may clash with rival orange #E05A2B); neutral chart-series alias for the platform costs chart (manual series borrows `--chart-rival-2`); checked Switch `bg-secondary` + white thumb (~1.4:1 on #FFD400) — *phase-16*
+- [ ] Platform (operator) pages adopt the `ink` primary (still default `Button`); `ConfirmDialog` confirm button gets the ink tier on agency pages — *app-style*
+- [ ] Lead cards: one ink Accept per card vs outline (owner's call; ties to "≤ 1 primary per view" ruling above) — *app-style*
+- [ ] M5: data attributes for the Friday bubble / segmented tab classes (styled by class composition only) — *app-style*
 
 ## Polish (small UI/UX fixes, any time)
 - [ ] Guest views: the sidebar's bottom edge sits below the viewport until the guest banner scrolls away (sticky top bar + scrolling banner) — *stage3-fixes*
