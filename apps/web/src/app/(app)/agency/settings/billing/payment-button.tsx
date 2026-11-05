@@ -19,8 +19,8 @@ export function PaymentButton({ action, label, variant = 'default' }: { action: 
 
 /** Checkout with a Monthly / Yearly choice (only rendered when the plan has a yearly base). */
 export function CheckoutForm({ action, label, monthlyLabel, yearlyLabel }: { action: (interval: 'month' | 'year') => Promise<FormResult>; label: string; monthlyLabel: string; yearlyLabel: string }) {
-  const [interval, setInterval] = useState<'month' | 'year'>('month');
-  const [state, formAction, pending] = useActionState<FormResult>(() => action(interval), { ok: true });
+  const [choice, setChoice] = useState<'month' | 'year'>('month');
+  const [state, formAction, pending] = useActionState<FormResult>(() => action(choice), { ok: true });
   if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-2">
@@ -28,7 +28,7 @@ export function CheckoutForm({ action, label, monthlyLabel, yearlyLabel }: { act
         <legend className="sr-only">Billing interval</legend>
         {([['month', monthlyLabel], ['year', yearlyLabel]] as const).map(([v, text]) => (
           <label key={v} className="flex items-center gap-2 text-sm">
-            <input type="radio" name="interval" value={v} checked={interval === v} onChange={() => setInterval(v)} className="h-4 w-4" /> {text}
+            <input type="radio" name="interval" value={v} checked={choice === v} onChange={() => setChoice(v)} className="h-4 w-4" /> {text}
           </label>
         ))}
       </fieldset>
@@ -40,10 +40,16 @@ export function CheckoutForm({ action, label, monthlyLabel, yearlyLabel }: { act
 
 /** "Switch to yearly" behind a confirm. A refusal shows in the dialog; success refreshes the page via the action's revalidate. */
 export function SwitchToYearly({ action, yearBase }: { action: () => Promise<FormResult>; yearBase: string }) {
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (useReadOnly()) return null;
   return (
     <ConfirmDialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setError(null);
+      }}
       trigger={<Button type="button" variant="outline" className="self-start">Switch to yearly</Button>}
       title="Switch to yearly billing?"
       body={`You'll pay ${yearBase} for the year, less what's left of this month, today. Extra clients are billed yearly too.`}
@@ -51,7 +57,8 @@ export function SwitchToYearly({ action, yearBase }: { action: () => Promise<For
       error={error}
       action={async () => {
         const r = await action();
-        setError(r.ok ? null : r.error);
+        if (r.ok) setOpen(false);
+        else setError(r.error);
       }}
     />
   );

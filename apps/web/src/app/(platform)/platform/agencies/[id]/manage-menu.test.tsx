@@ -58,6 +58,15 @@ describe('ManageMenu: Move to current plan', () => {
     expect(screen.queryByRole('menuitem', { name: 'Move to current plan' }) !== null).toBe(shown);
   });
 
+  it('a yearly agency whose target has no yearly price is not offered the move; the line says why', async () => {
+    const blocked = { ...planMove, row: { ...planMove.row, interval: 'year' as const, moveBlocked: 'no_yearly_price' as const } };
+    render(<ManageMenu agency={agency} role="owner" held={false} archiveRefusal={null} planMove={blocked} />);
+    open();
+    await item('Rename agency');
+    expect(screen.queryByRole('menuitem', { name: 'Move to current plan' })).toBeNull();
+    expect(screen.getByText('No yearly price')).toBeTruthy();
+  });
+
   it('the dialog shows now to after and the warning, and confirming posts the agency id', async () => {
     m.move.mockResolvedValue({ ok: true, data: { targetPlanId: 'p3', targetVersion: 3, results: [{ agencyId: AG, outcome: 'moved', emailed: true }] } });
     render(<ManageMenu agency={agency} role="owner" held={false} archiveRefusal={null} planMove={planMove} />);

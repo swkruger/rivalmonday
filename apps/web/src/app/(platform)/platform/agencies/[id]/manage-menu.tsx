@@ -3,7 +3,7 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { ActionDialog, ResultLine } from './action-dialog';
-import { MoveLines, moveSummary, type PlanAgencyRow } from '../../_components/plan-move-parts';
+import { MoveLines, moveSummary, NO_YEARLY_PRICE, type PlanAgencyRow } from '../../_components/plan-move-parts';
 import { archiveAgencyAction, moveAgencyToCurrentPlanAction, renameAgencyAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
 
 type Agency = { id: string; name: string };
@@ -44,7 +44,8 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
           {held
             ? <DropdownMenuItem onSelect={() => show('lift')}>Lift hold</DropdownMenuItem>
             : <DropdownMenuItem onSelect={() => show('hold')}>Put on hold</DropdownMenuItem>}
-          {role === 'owner' && planMove && <DropdownMenuItem onSelect={() => show('move')}>Move to current plan</DropdownMenuItem>}
+          {role === 'owner' && planMove && !planMove.row.moveBlocked && <DropdownMenuItem onSelect={() => show('move')}>Move to current plan</DropdownMenuItem>}
+          {role === 'owner' && planMove?.row.moveBlocked && <DropdownMenuItem disabled>{NO_YEARLY_PRICE}</DropdownMenuItem>}
           {role === 'owner' && (
             <>
               <DropdownMenuSeparator />

@@ -35,5 +35,5 @@ export async function switchToYearlyAction(): Promise<FormResult> {
   const r = await runTool<{ interval: 'year' }>(ctx, 'switch_billing_to_yearly', {});
   if (!r.ok) return r;
   revalidatePath('/agency/settings/billing');
-  return { ok: true, message: 'Switched to yearly billing.' };
+  return { ok: true };
 }

@@ -54,7 +54,7 @@ describe('/agency/settings/billing', () => {
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_billing_summary', {});
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_connect_status', {});
     expect(screen.getByText('Standard')).toBeTruthy();
-    expect(screen.getByText('$229/mo (or $2,290/yr) · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each')).toBeTruthy();
+    expect(screen.getByText('$229/mo · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each')).toBeTruthy();
     expect(screen.getByText('Free trial')).toBeTruthy();
     expect(screen.getByText(/Trial ends Nov 13/)).toBeTruthy();
     expect(screen.getByText(/4 of 3 included/)).toBeTruthy();
@@ -193,6 +193,16 @@ describe('/agency/settings/billing: yearly', () => {
     render(await page());
     expect(screen.queryByRole('button', { name: 'Switch to yearly' })).toBeNull();
   });
+  it('a refused switch keeps the dialog open and shows the message', async () => {
+    m.summary = summary(active);
+    m.runTool.mockResolvedValue({ ok: false, error: "Only an active monthly plan can switch to yearly." });
+    render(await page());
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to yearly' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch to yearly' }));
+    expect(await within(await screen.findByRole('dialog')).findByText('Only an active monthly plan can switch to yearly.')).toBeTruthy();
+    expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'switch_billing_to_yearly', {});
+  });
   it('Checkout offers Monthly / Yearly (2 months free) only with a yearly base', async () => {
     render(await page());
     expect(screen.getByRole('radio', { name: 'Monthly — $229/mo' })).toBeTruthy();
@@ -211,7 +221,7 @@ describe('/agency/settings/billing: yearly', () => {
 describe('billing actions', () => {
   it('switch calls switch_billing_to_yearly and passes a refusal back', async () => {
     m.runTool.mockResolvedValue({ ok: true, data: { interval: 'year', currentPeriodEnd: null } });
-    expect(await switchToYearlyAction()).toMatchObject({ ok: true });
+    expect(await switchToYearlyAction()).toEqual({ ok: true });
     expect(m.runTool).toHaveBeenCalledWith(m.ctx, 'switch_billing_to_yearly', {});
     m.runTool.mockResolvedValue({ ok: false, error: "Yearly billing isn't available on this plan." });
     expect(await switchToYearlyAction()).toEqual({ ok: false, error: "Yearly billing isn't available on this plan." });

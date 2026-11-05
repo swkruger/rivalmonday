@@ -161,7 +161,7 @@ describe('agency batch B: Billing', () => {
     const p = open('Your plan and clients');
     for (const w of ['active', 'paused', 'prospect', 'plan card']) expect(p, w).toContain(w);
     expect(p).not.toMatch(/\$\d/);
-    expect(screen.getByText("$229/mo (or $2,290/yr) · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each")).toBeTruthy();
+    expect(screen.getByText("$229/mo · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each")).toBeTruthy();
   });
 
   it('the status tip uses the page labels and the 7 day pause', async () => {
