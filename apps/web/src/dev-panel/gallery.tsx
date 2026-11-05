@@ -141,7 +141,7 @@ function ThemeSheet({ name, style }: { name: string; style: Record<string, strin
         </div>
       </Block>
 
-      <Block title="Friday bubbles">
+      <Block title="Assistant bubbles">
         <div className="flex max-w-xl flex-col gap-3">
           <p className={userBubbleClass}>What changed at my top rival this week?</p>
           <div className={answerBubbleClass}>
