@@ -12,12 +12,20 @@ const panel = (name = 'Dashboard') => screen.getByRole('tabpanel', { name });
 describe('ClientView', () => {
   it('opens on the dashboard with the KPIs, pressure and alerts from the sample', () => {
     render(<ClientView />);
-    expect(screen.getByRole('heading', { name: SECTIONS['client-view'].heading })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'A dashboard, a Monday brief and an assistant, all under your brand.' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Dashboard' }).getAttribute('aria-selected')).toBe('true');
     for (const k of CLIENT_VIEW.kpis) expect(within(panel()).getByText(k.label)).toBeTruthy();
     for (const p of CLIENT_VIEW.pressure) expect(within(panel()).getByRole('img', { name: `Competitive pressure ${p.score} of 100, ${p.level}` })).toBeTruthy();
     for (const a of CLIENT_VIEW.alerts) expect(within(panel()).getByText(a.title)).toBeTruthy();
     expect(within(panel()).getByRole('img', { name: /Active competitor ads per week/ })).toBeTruthy();
+  });
+
+  it('the heading is overridable: /how-it-works keeps the shared one, the home page passes its own', () => {
+    const { unmount } = render(<ClientView />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS['client-view'].heading);
+    unmount();
+    render(<ClientView heading={SECTIONS['client-view'].homeHeading} />);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('What your client opens on Monday morning.');
   });
 
   it('the overview carries the scorecard, with figures that agree with the rest of the sample', () => {

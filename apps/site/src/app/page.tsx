@@ -37,7 +37,7 @@ export default function HomePage() {
       <AgencyCeiling />
       <Opportunity />
       <Cast />
-      <ClientView />
+      <ClientView heading={SECTIONS['client-view'].homeHeading} />
       <RecommendationsSection roadmap={false} />
       <FridayRow />
       <BeforeAfter />

@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { RIVAL_STORY, rivalStoryMoves, SECTIONS } from '../../../content/home';
+import { RIVAL_STORY, SECTIONS } from '../../../content/home';
+import { rivalStoryMoves } from '../../../content/rival-story';
 import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
 import { rivalRanks } from '../../sample/rival-grid';
 import { SAMPLE } from '../../sample/schema';
@@ -18,7 +19,7 @@ function shortDay(iso: string): string {
 }
 
 /** The replay shows the rival's own map (spec D13): fictional sample data, the client's point stays ringed. */
-const RIVAL_SUBJECT: RankGridSubject = { title: RIVAL_STORY.gridTitle, ranks: rivalRanks, tone: 'rival' };
+const RIVAL_SUBJECT: RankGridSubject = { title: RIVAL_STORY.gridTitle(SAMPLE.rankGrid.keyword), ranks: rivalRanks, tone: 'rival' };
 
 /**
  * §2, the page's one showpiece: the sample rival's map-rank replay beside a dated log of the rival's moves.

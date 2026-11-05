@@ -1,9 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { weekStats } from '../src/components/sample/rank-map';
+import { rivalRanks } from '../src/sample/rival-grid';
+import { SAMPLE } from '../src/sample/schema';
 import * as home from './home';
 import * as how from './how-it-works';
 import { NAV_EXTRA } from './pages';
 import { PRICING } from './pricing';
+import * as story from './rival-story';
 
 function strings(v: unknown, out: string[] = []): string[] {
   if (typeof v === 'string') out.push(v);
@@ -81,10 +85,10 @@ describe('site copy', () => {
   });
 
   it('rival story moves: website capture only when live, oldest first', () => {
-    const off = home.rivalStoryMoves(false);
+    const off = story.rivalStoryMoves(false);
     expect(off).toHaveLength(2);
     expect(off.map((m) => m.evidence)).not.toContain('e3');
-    const on = home.rivalStoryMoves(true);
+    const on = story.rivalStoryMoves(true);
     expect(on).toHaveLength(3);
     expect(on.map((m) => m.date)).toEqual([...on.map((m) => m.date)].sort());
   });
@@ -105,9 +109,26 @@ describe('site copy', () => {
     expect(new Set(home.HOME_ANCHORS).size).toBe(home.HOME_ANCHORS.length);
     expect(home.HOME_ANCHORS[home.HOME_ANCHORS.length - 1]).toBe('join');
     for (const a of home.HOME_ANCHORS) if (a !== 'join') expect(home.SECTIONS[a], a).toBeDefined();
-    expect(home.SECTIONS['client-view'].heading).toBe('What your client opens on Monday morning.');
+    expect(home.SECTIONS['client-view'].heading).toBe('A dashboard, a Monday brief and an assistant, all under your brand.');
+    expect(home.SECTIONS['client-view'].homeHeading).toBe('What your client opens on Monday morning.');
     expect(home.SECTIONS.checks.homeHeading).toBe('Your name is on every brief, so we check every sentence.');
     expect(home.SECTIONS.checks.heading).toBe('No evidence, no claim.');
+  });
+
+  it('typed story figures agree with the sample they come from', () => {
+    const weeks = SAMPLE.rankGrid.weeks;
+    const first = weekStats(rivalRanks(weeks[0]!.weekOf));
+    const last = weekStats(rivalRanks(weeks[weeks.length - 1]!.weekOf));
+    expect([first.top3, last.top3]).toEqual([8, 31]);
+    expect(home.SECTIONS['rival-story'].body).toContain(`${first.top3} of ${first.points} points`);
+    expect(home.SECTIONS['rival-story'].body).toContain(`Now it's ${last.top3}`);
+    const e4 = story.rivalStoryMoves(true).find((m) => m.evidence === 'e4')!;
+    const day = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${e4.date}T00:00:00Z`));
+    expect(day).toBe('October 7');
+    expect(home.BEFORE_AFTER.rows[0]!.after).toContain(day);
+    const e3 = story.rivalStoryMoves(true).find((m) => m.evidence === 'e3')!;
+    expect(e3.title).toContain('$69');
+    expect(home.SECTIONS['rival-story'].body).toContain('$69');
   });
 
   it('lists and cast have the decided sizes', () => {
@@ -118,6 +139,7 @@ describe('site copy', () => {
     expect(home.COMMERCIAL.points).toHaveLength(3);
     expect(home.COMMERCIAL.roadmapLine.link.href).toBe('/roadmap');
     expect(home.OPPORTUNITY.link.href).toBe('/partners');
-    expect(home.CLOSE_TRIAL.body).not.toMatch(/pilot/i);
+    expect(home.CLOSE_TRIAL.body).not.toMatch(/pilot|private link/i);
+    expect(home.CLOSE_TRIAL.body).toBe('Start a free trial, add one client and see their starting-point brief: where they stand today against every rival.');
   });
 });

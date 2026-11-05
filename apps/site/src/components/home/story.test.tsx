@@ -1,6 +1,14 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BEFORE_AFTER, CAST, CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, rivalStoryMoves, SECTIONS } from '../../../content/home';
+const web = vi.hoisted(() => ({ live: false }));
+vi.mock('../../../content/website-monitoring', () => ({
+  get WEBSITE_MONITORING_LIVE() {
+    return web.live;
+  },
+}));
+
+import { BEFORE_AFTER, CAST, CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
+import { rivalStoryMoves } from '../../../content/rival-story';
 import { ANY_INDUSTRY } from '../../../content/industries';
 import { PRICING } from '../../../content/pricing';
 import { SAMPLE } from '../../sample/schema';
@@ -18,6 +26,7 @@ import { RivalStory } from './rival-story';
 import { Steps } from './steps';
 
 beforeEach(() => {
+  web.live = false;
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
   vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} });
 });
@@ -39,8 +48,9 @@ describe('RivalStory', () => {
 
   it("replays the rival's own map: its title, 8 -> 31 top-3 points, the client's ring kept, no rank chips", () => {
     render(<RivalStory />);
-    expect(RIVAL_STORY.gridTitle).toBe(`Quillstone Climate Pros' map rankings for “${SAMPLE.rankGrid.keyword}”`);
-    expect(screen.getByText(RIVAL_STORY.gridTitle)).toBeTruthy();
+    const title = `Quillstone Climate Pros' map rankings for “${SAMPLE.rankGrid.keyword}”`;
+    expect(RIVAL_STORY.gridTitle(SAMPLE.rankGrid.keyword)).toBe(title);
+    expect(screen.getByText(title)).toBeTruthy();
     expect(screen.queryByText(/Your map rankings for/)).toBeNull();
     expect(screen.getByText(new RegExp(`The ringed point is ${SAMPLE.business.name}\\.`))).toBeTruthy();
     expect(screen.getByText('Top 3 in 8 of 49 points')).toBeTruthy();
@@ -58,6 +68,16 @@ describe('RivalStory', () => {
     const t = items[0]!.querySelector('time')!;
     expect(t.getAttribute('datetime')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(t.textContent).toMatch(/^[A-Z][a-z]{2} \d{1,2}$/);
+  });
+
+  it('website monitoring live: the Kestrel price cut joins the log and the live body is used', () => {
+    web.live = true;
+    render(<RivalStory />);
+    const items = within(screen.getByRole('list', { name: RIVAL_STORY.logHeading })).getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(rivalStoryMoves(true).length);
+    expect(screen.getByText(SECTIONS['rival-story'].body)).toBeTruthy();
+    expect(screen.queryByText(RIVAL_STORY.bodyNoWeb)).toBeNull();
   });
 
   it('opens the evidence dialog from a move and Escape returns focus', async () => {

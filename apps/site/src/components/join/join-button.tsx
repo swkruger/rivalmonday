@@ -18,7 +18,7 @@ export function JoinButton({ start, children, variant = 'primary', className }: 
 
   if (!pilotMode && start !== 'business') {
     return (
-      <Button asChild variant={buttonVariant}>
+      <Button asChild variant={buttonVariant} className={className}>
         <a href={`${siteEnv.appUrl}/sign-up`}>Start your free trial</a>
       </Button>
     );

@@ -7,11 +7,18 @@ const join = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
+const web = vi.hoisted(() => ({ live: false }));
+vi.mock('../../../content/website-monitoring', () => ({
+  get WEBSITE_MONITORING_LIVE() {
+    return web.live;
+  },
+}));
+
 import { HERO, HOME_IMAGES } from '../../../content/home';
-import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
 import { Hero } from './hero';
 
 beforeEach(() => {
+  web.live = false;
   pilot.pilotMode = true;
   join.open.mockClear();
 });
@@ -23,7 +30,7 @@ describe('Hero', () => {
     expect(h1.textContent).toBe(HERO.headline);
     expect(screen.getByText(HERO.eyebrow)).toBeTruthy();
     expect(screen.getByText(HERO.eyebrowPill)).toBeTruthy();
-    expect(screen.getByText(WEBSITE_MONITORING_LIVE ? HERO.sub : HERO.subNoWeb)).toBeTruthy();
+    expect(screen.getByText(HERO.subNoWeb)).toBeTruthy();
     expect(screen.getByText(HERO.finePrint)).toBeTruthy();
     expect(screen.getByRole('button', { name: HERO.heroCta })).toBeTruthy();
   });
@@ -33,9 +40,16 @@ describe('Hero', () => {
   });
 
   it('sub does not mention changing prices while website monitoring is not live', () => {
-    expect(WEBSITE_MONITORING_LIVE).toBe(false);
     const { container } = render(<Hero />);
+    expect(container.querySelector('h1 + p')!.textContent).toBe(HERO.subNoWeb);
     expect(container.querySelector('h1 + p')!.textContent).not.toMatch(/changing prices/i);
+  });
+
+  it('sub names changing prices once website monitoring is live', () => {
+    web.live = true;
+    const { container } = render(<Hero />);
+    expect(container.querySelector('h1 + p')!.textContent).toBe(HERO.sub);
+    expect(container.querySelector('h1 + p')!.textContent).toMatch(/changing prices/i);
   });
 
   it('primary button opens the join dialog on the sample start', () => {

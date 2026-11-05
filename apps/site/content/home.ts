@@ -1,8 +1,6 @@
 import type { JoinStart } from '../src/components/join/join-provider';
-import { CLIENT_VIEW } from './client-view';
 import { partnerExample, type PartnerExample } from './partners';
 import { PRICING } from './pricing';
-import { SAMPLE } from '../src/sample/schema';
 
 export const HERO = {
   eyebrowPill: 'Pilot',
@@ -50,14 +48,14 @@ export const HOME_ANCHORS = [
 ] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
 /** `guides` is only used by `/how-it-works`. */
-type SectionId = Exclude<HomeAnchor, 'join'> | 'close' | 'guides';
+type SectionId = Exclude<HomeAnchor, 'join'> | 'guides';
 
 export interface HomeSection {
   id: SectionId;
   eyebrow: string;
   heading: string;
   body: string;
-  /** `checks` only: the home page's own heading; `heading` stays the diagram's "No evidence, no claim." title. */
+  /** `checks`, `client-view`: the home page's own heading; `heading` stays what the other page (diagram / `/how-it-works`) shows. */
   homeHeading?: string;
 }
 
@@ -67,50 +65,46 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
   'client-view': {
     id: 'client-view',
     eyebrow: 'What your clients see',
-    heading: 'What your client opens on Monday morning.',
+    heading: 'A dashboard, a Monday brief and an assistant, all under your brand.',
+    /** The home page's own heading; `heading` stays what `/how-it-works` shows. */
+    homeHeading: 'What your client opens on Monday morning.',
     body: 'This is what a client gets: their rivals on one page, a short brief in their inbox every Monday, and Friday to answer questions. Every number links back to the evidence it came from.',
   },
   'rival-story': {
     id: 'rival-story',
-    eyebrow: 'A rival on the move',
+    eyebrow: '',
     heading: 'While your client was busy running the business, a rival took the map.',
     body: "Twelve weeks ago, Quillstone Climate Pros was in the top three at 8 of 49 points across Northwind's service area. Now it's 31. In the same weeks it started two Meta ads, and Kestrel Mechanical cut its AC repair diagnostic to $69. Every move was public. Nobody told Northwind.",
   },
   ceiling: {
     id: 'ceiling',
-    eyebrow: 'Your agency',
+    eyebrow: '',
     heading: "You've already won the client. Why is the retainer the only thing you sell them?",
     body: "You've done the hard part: you've won the clients and earned their trust. Here's what to build on it.",
   },
   opportunity: {
     id: 'opportunity',
-    eyebrow: 'A new service to sell',
+    eyebrow: '',
     heading: 'Your clients have competitors. You have a new service to sell.',
     body: "Offer a weekly competitor intelligence service under your agency's name. Rival Monday does the watching, the research and the first draft. Your team can edit or approve each brief before it goes out, and your agency gets the credit.",
   },
   cast: {
     id: 'cast',
-    eyebrow: 'Meet the team',
+    eyebrow: '',
     heading: 'Two colleagues your clients will look forward to.',
     body: '',
   },
   'before-after': {
     id: 'before-after',
-    eyebrow: 'Before and after',
+    eyebrow: '',
     heading: 'What changes when Monday arrives.',
     body: '',
   },
   commercial: {
     id: 'commercial',
-    eyebrow: 'Your business model',
+    eyebrow: '',
     heading: 'Your brand. Your price. Your billing.',
     body: '',
-  },
-  close: {
-    id: 'close',
-    eyebrow: 'Get started',
-    heading: "Pick one client. We'll show you what their rivals are doing.",
-    body: "Tell us about one client. We'll build a starting-point brief from public information and email you a private link. Free during the pilot, a limited number each month.",
   },
   sample: {
     id: 'sample',
@@ -266,24 +260,11 @@ export const RIVAL_STORY = {
   bodyNoWeb:
     "Twelve weeks ago, Quillstone Climate Pros was in the top three at 8 of 49 points across Northwind's service area. Now it's 31. In the same weeks it started two Meta ads. Every move was public. Nobody told Northwind.",
   /** NEW (D13, owner signs in Task 9): §2's replay is the rival's own map. */
-  gridTitle: `Quillstone Climate Pros' map rankings for “${SAMPLE.rankGrid.keyword}”`,
+  gridTitle: (keyword: string) => `Quillstone Climate Pros' map rankings for “${keyword}”`,
   logHeading: 'What happened, week by week',
   caption: 'Sample data from a fictional business.',
   closing: "Your client won't catch this on their own. A monthly rankings report won't either.",
 } as const;
-
-export interface RivalStoryMove {
-  title: string;
-  date: string;
-  evidence: string;
-}
-
-/** The sample's alerts, oldest first. Website captures (kind `snapshot`) are dropped unless website monitoring is live. */
-export function rivalStoryMoves(live: boolean): RivalStoryMove[] {
-  return [...CLIENT_VIEW.alerts]
-    .filter((a) => live || SAMPLE.evidence[a.evidence]?.kind !== 'snapshot')
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
 
 export const CEILING_LINES: { lead: string; body: string }[] = [
   { lead: 'Your report looks like everyone else\'s.', body: "Rankings, traffic, a few charts. Your clients' other agencies send the same thing." },
@@ -370,6 +351,6 @@ export const CLOSE = {
 /** Pilot off (NEW, owner signs). */
 export const CLOSE_TRIAL = {
   heading: CLOSE.heading,
-  body: "Tell us about one client and we'll build a starting-point brief from public information, then email you a private link.",
+  body: 'Start a free trial, add one client and see their starting-point brief: where they stand today against every rival.',
   button: CLOSE.button,
 } as const;

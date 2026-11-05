@@ -23,14 +23,14 @@ type Tab = (typeof TABS)[number]['value'];
  * "What your clients see": the client's dashboard, Monday brief email and Friday, as one tabbed window built from
  * the sample data (no screenshots, so it stays in step with the sample brief). Agency branding is shown as slots.
  */
-export function ClientView() {
+export function ClientView({ heading }: { heading?: string } = {}) {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [view, setView] = useState<DashboardView>('overview');
   const page = CLIENT_VIEW.nav.find((n) => n.id === view)!.label;
   const bar = tab === 'dashboard' ? `${page} · ${SAMPLE.business.name}` : TABS.find((t) => t.value === tab)!.bar;
   return (
     <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas py-20 lg:py-28">
-      <SectionHeading section={SECTIONS['client-view']} />
+      <SectionHeading section={heading ? { ...SECTIONS['client-view'], heading } : SECTIONS['client-view']} />
       <Reveal className="mt-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
           <TabsList aria-label="Client view" className="self-start">

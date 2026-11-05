@@ -50,6 +50,7 @@ describe('HowItWorksPage', () => {
   it('has the home page sections, every question in the markup and JSON-LD, and no duplicate ids', async () => {
     const { container } = await renderApp(<HowItWorksPage />, null);
     for (const id of ['how-it-works', 'who-does-what', 'client-view', 'sample', 'recommendations', 'checks', 'faq']) expect(container.querySelector(`section#${id}`), id).toBeTruthy();
+    expect(container.querySelector('#client-view-heading')!.textContent).toBe(SECTIONS['client-view'].heading);
     for (const l of JUMP_LINKS) expect(container.querySelector(l.href), l.href).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const questions = HOW_FAQ.groups.flatMap((g) => g.items.map((f) => f.q));
@@ -201,6 +202,12 @@ describe('HomePage', () => {
     cleanup();
     const out = await renderApp(<HomePage />, { pilotMode: true, counters: null });
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
+  }, 20_000);
+
+  it('the home page opens the client view with its own heading', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    expect(container.querySelector('#client-view-heading')!.textContent).toBe(SECTIONS['client-view'].homeHeading);
+    expect(SECTIONS['client-view'].homeHeading).not.toBe(SECTIONS['client-view'].heading);
   }, 20_000);
 
   it('pilot off: trial wording everywhere, no pilot wording', async () => {
