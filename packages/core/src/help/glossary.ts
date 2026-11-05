@@ -121,12 +121,12 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['move', 'evidence'],
   },
   {
-    // source: packages/billing/src/access.ts:countActiveClients (clientServiceable: status active, not paused); plan numbers: packages/billing/src/seed.ts (standard plan: basePriceCents 22900, includedSeats 3, graduated seatTiers 7900 then 5900 (v2))
+    // source: packages/billing/src/access.ts:countActiveClients (clientServiceable: status active, not paused); plan numbers: packages/billing/src/seed.ts (standard v2: basePriceCents 22900, includedSeats 3, graduated seatTiers 7900 then 5900; pinned by packages/billing/src/glossary-pin.test.ts)
     id: 'seat',
     term: 'Seat',
     audience: 'agency',
     short: "One active client on your agency's plan. Paused clients and prospects don't use a seat.",
-    long: 'The plan costs $229 a month and includes 3 seats; each extra active client is billed as one more seat at $99 a month.',
+    long: 'The plan includes 3 active clients. Clients 4–10 cost $79 a month each and clients 11 and up $59 each; the plan is also available yearly.',
     seeAlso: ['paused'],
   },
   {

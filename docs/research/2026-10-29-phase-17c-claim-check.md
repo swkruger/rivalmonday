@@ -19,7 +19,7 @@ What 17c pages may say about Rival Monday (code at `21622051`). Ids binding. `ga
 | cap-api | Public REST API | apps/web/src/app/api (internal routes only) | not built | none; cell `no` |
 | cap-whiteLabel | Name, logo, colours, sender, sign-off, assistant name; no product name on client pages | packages/email/src/branding.ts, apps/web/src/app/white-label-leak.test.tsx | shipped, partial (own domain not built, 13a) | P15 wording; cell `partial` |
 | cap-reseller | Bill clients in your name (Connect, direct charges) | packages/tools/src/tools/client-billing.ts | shipped | "Bill clients through your own Stripe account." |
-| cap-publicPricing | $229/mo incl. 3 seats, $99/seat, 30-day trial | apps/site/content/pricing.ts, packages/billing/src/seed.ts | shipped | figures from `PRICING` only |
+| cap-publicPricing | $229/mo or $2,290/yr incl. 3 clients; clients 4–10 $79, 11+ $59; 30-day trial | apps/site/content/pricing.ts, packages/billing/src/pricing.ts | shipped | figures from `PRICING` only |
 | cap-trial | 30-day trial; 1 active client until a card is added (open sign-ups only, not invites) | packages/billing/src/access.ts | shipped | "30-day free trial; one active client until you add a card." |
 
 ## Sources (`src-<slug>`)
