@@ -64,4 +64,34 @@ describe('RecommendationBoard', () => {
     expect(within(screen.getByRole('region', { name: 'Done' })).getByText('Nothing here yet.')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: 'To do' })).queryByText('Nothing here yet.')).toBeNull();
   });
+
+  it('lanes carry data-lane and fixed tints', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
+    expect([...container.querySelectorAll('section[data-lane]')].map((e) => e.getAttribute('data-lane'))).toEqual(['todo', 'in_progress', 'done']);
+    expect(container.querySelector('[data-lane=todo]')!.className).toContain('bg-muted-surface');
+    expect(container.querySelector('[data-lane=in_progress]')!.className).toContain('bg-chip-info-bg');
+    expect(container.querySelector('[data-lane=done]')!.className).toContain('bg-chip-success-bg');
+  });
+
+  it('cards are raised and buttons use ink / done / outline', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency canEdit items={[rec('a', 'todo'), rec('b', 'in_progress'), rec('c', 'done')]} />);
+    expect(container.querySelector('[data-slot=card]')!.getAttribute('data-variant')).toBe('raised');
+    expect(screen.getByRole('button', { name: 'Start Rec a' }).getAttribute('data-variant')).toBe('ink');
+    const done = screen.getByRole('button', { name: 'Mark Rec b done' });
+    expect(done.getAttribute('data-variant')).toBe('done');
+    expect(done.querySelector('svg')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reopen Rec c' }).getAttribute('data-variant')).toBe('outline');
+    expect(screen.getByRole('button', { name: 'Mark Rec a done' }).getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('impact and owner chips are toned', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo', { owner: 'agency' })]} />);
+    expect(container.querySelector('[data-slot="tag"][data-tone="danger"]')!.textContent).toBe('Impact: High');
+    expect(container.querySelector('[data-slot="tag"][data-tone="info"]')!.textContent).toBe('Agency');
+  });
+
+  it('evidence pills are info-toned', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
+    expect(container.querySelector('[data-slot="citation-pill"]')!.className).toContain('bg-chip-info-bg');
+  });
 });

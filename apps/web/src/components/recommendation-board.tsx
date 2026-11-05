@@ -1,16 +1,30 @@
 'use client';
 import type { RecommendationView } from '@cs/tools';
-import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, Tag, textareaClass } from '@cs/ui';
+import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, Tag, textareaClass } from '@cs/ui';
+import { Check } from 'lucide-react';
 import { useActionState } from 'react';
 import { EvidenceChips } from '@/components/evidence-chips';
 import type { EvidenceRefs } from '@/server/evidence-refs';
-import { LEVEL, labelFor } from '@/lib/labels';
+import { IMPACT_TONE, LEVEL, labelFor } from '@/lib/labels';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
 type SetStatusAction = (prev: FormResult, fd: FormData) => Promise<FormResult>;
 type Status = RecommendationView['status'];
+
+/** Forward moves get the filled buttons (Start = ink, Done = green with a check); everything else is outline. */
+export function variantFor(from: Status, to: Status): 'ink' | 'done' | 'outline' {
+  if (from === 'todo' && to === 'in_progress') return 'ink';
+  if (from === 'in_progress' && to === 'done') return 'done';
+  return 'outline';
+}
+
+const LANES: { status: 'todo' | 'in_progress' | 'done'; label: string; tint: string; dot: string }[] = [
+  { status: 'todo', label: 'To do', tint: 'bg-muted-surface', dot: 'bg-muted-ink' },
+  { status: 'in_progress', label: 'In progress', tint: 'bg-chip-info-bg', dot: 'bg-chip-info-text' },
+  { status: 'done', label: 'Done', tint: 'bg-chip-success-bg', dot: 'bg-success-strong' },
+];
 
 const SOURCE_LABEL: Record<string, string> = { brief: 'From weekly brief', move: 'From a detected move', ask: 'From Ask' };
 
@@ -39,7 +53,8 @@ function QuickActionsForm({ action, clientId, item, targets }: { action: SetStat
       <input type="hidden" name="recommendationId" value={item.id} />
       <input type="hidden" name="clientId" value={clientId} />
       {targets.map((t) => (
-        <Button key={t.status} type="submit" name="status" value={t.status} variant="outline" size="sm" aria-label={t.aria} disabled={pending}>
+        <Button key={t.status} type="submit" name="status" value={t.status} variant={variantFor(item.status, t.status)} aria-label={t.aria} disabled={pending}>
+          {variantFor(item.status, t.status) === 'done' && <Check aria-hidden />}
           {t.label}
         </Button>
       ))}
@@ -53,7 +68,7 @@ function DismissDialog({ action, clientId, item }: { action: SetStatusAction; cl
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" aria-label={`Dismiss ${item.title}`}>
+        <Button type="button" variant="ghost" aria-label={`Dismiss ${item.title}`}>
           Dismiss
         </Button>
       </DialogTrigger>
@@ -90,7 +105,7 @@ function ReopenForm({ action, clientId, item, target }: { action: SetStatusActio
       <input type="hidden" name="recommendationId" value={item.id} />
       <input type="hidden" name="clientId" value={clientId} />
       <input type="hidden" name="status" value={target} />
-      <Button type="submit" variant="outline" size="sm" aria-label={`Reopen ${item.title}`} disabled={pending}>
+      <Button type="submit" variant="outline" aria-label={`Reopen ${item.title}`} disabled={pending}>
         Reopen
       </Button>
       <Message state={state} />
@@ -116,16 +131,16 @@ function targetsFor(status: Status, title: string): Target[] {
 
 function RecommendationCard({ item, clientId, canEdit, agency, action, refs }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction; refs?: EvidenceRefs }) {
   return (
-    <Card role="article" className="p-4">
+    <Card variant="raised" role="article" className="p-4.5">
       <p className="font-semibold">{item.title}</p>
       <p className="mt-1 text-ink-secondary">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <StatusChip tone="neutral">Effort: {labelFor(LEVEL, item.effort).label}</StatusChip>
-        <StatusChip tone="neutral">Impact: {labelFor(LEVEL, item.impact).label}</StatusChip>
-        <StatusChip tone="neutral">{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</StatusChip>
-        <StatusChip tone="neutral">{SOURCE_LABEL[item.source] ?? item.source}</StatusChip>
+        <Tag>Effort: {labelFor(LEVEL, item.effort).label}</Tag>
+        <Tag tone={IMPACT_TONE[item.impact as 'L' | 'M' | 'H'] ?? 'neutral'}>Impact: {labelFor(LEVEL, item.impact).label}</Tag>
+        <Tag tone={item.owner === 'client' ? 'neutral' : 'info'}>{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</Tag>
+        <Tag>{SOURCE_LABEL[item.source] ?? item.source}</Tag>
         {agency && item.upsellTag && <Tag>Upsell: {item.upsellTag}</Tag>}
-        <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />
+        <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} tone="info" />
       </div>
       {canEdit &&
         (item.status === 'done' ? (
@@ -173,27 +188,21 @@ export function RecommendationBoard({ clientId, items, canEdit: canEditProp, age
   return (
     <>
       <div className="grid gap-5 lg:grid-cols-3">
-        <section aria-label="To do" className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold">To do ({todo.length})</h2>
-          {todo.length === 0 && <EmptyColumn />}
-          {todo.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
-          ))}
-        </section>
-        <section aria-label="In progress" className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold">In progress ({inProgress.length})</h2>
-          {inProgress.length === 0 && <EmptyColumn />}
-          {inProgress.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
-          ))}
-        </section>
-        <section aria-label="Done" className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold">Done ({done.length})</h2>
-          {done.length === 0 && <EmptyColumn />}
-          {done.map((item) => (
-            <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
-          ))}
-        </section>
+        {LANES.map((lane) => {
+          const list = lane.status === 'todo' ? todo : lane.status === 'in_progress' ? inProgress : done;
+          return (
+            <section key={lane.status} aria-label={lane.label} data-lane={lane.status} className={`flex flex-col gap-3 self-start rounded-lg p-3.5 ${lane.tint}`}>
+              <h2 className="flex items-center gap-2 text-base font-semibold">
+                <span aria-hidden className={`size-2 rounded-full ${lane.dot}`} />
+                {lane.label} ({list.length})
+              </h2>
+              {list.length === 0 && <EmptyColumn />}
+              {list.map((item) => (
+                <RecommendationCard key={item.id} item={item} clientId={clientId} canEdit={canEdit} agency={agency} action={action} refs={refs} />
+              ))}
+            </section>
+          );
+        })}
       </div>
       <details className="mt-5 border-t border-line pt-4">
         <summary className="cursor-pointer font-semibold">{dismissed.length} dismissed</summary>

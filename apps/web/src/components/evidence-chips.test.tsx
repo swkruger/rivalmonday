@@ -43,4 +43,8 @@ describe('EvidenceChips', () => {
     const { container } = render(<EvidenceChips clientId={C} ids={[]} />);
     expect(container.innerHTML).toBe('');
   });
+  it('passes tone to the pills', () => {
+    const { container } = render(<EvidenceChips clientId={C} ids={ids.slice(0, 1)} tone="info" />);
+    expect(container.querySelector('[data-slot="citation-pill"]')!.className).toContain('bg-chip-info-bg');
+  });
 });
