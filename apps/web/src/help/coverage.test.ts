@@ -22,7 +22,7 @@ const GUIDES = join(ROOT, 'docs', 'help', 'pages');
 type Audience = 'agency' | 'client' | 'operator';
 
 /** Help/KB hubs that list guides rather than being one, and the public sign-up and intake pages (logged out: no guide drawer to open). */
-const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]', '/sign-up', '/join/[token]', '/start', '/start/verify', '/start/v/[leadId]'];
+const EXEMPT = ['/platform/help', '/agency/help', '/c/[clientId]/help', '/kb/[id]', '/sign-up', '/join/[token]', '/start', '/start/verify', '/start/v/[leadId]', '/dev-panel/gallery' /* dev-only gallery: no guide */];
 /** `/c/[clientId]` pages that 404 client roles (agency guide only) or agency staff (client guide only); one source, `./reach`. */
 const AGENCY_ONLY_CLIENT_PAGES: readonly string[] = AGENCY_ONLY_CLIENT_ROUTES;
 const CLIENT_ONLY_CLIENT_PAGES: readonly string[] = CLIENT_ONLY_CLIENT_ROUTES;
@@ -34,6 +34,8 @@ const ACCOUNT_ROUTES: Record<string, Audience[]> = {
 };
 /** Components that render a page's PageHeader on its behalf (the route file only renders them), scanned explicitly. */
 const DELEGATED_HEADERS: { file: string; route: string; keys?: string[] }[] = [
+  // app-style 3.8: the dev-only gallery renders sample PageHeaders; exempt (no guide).
+  { file: join(SRC, 'dev-panel', 'gallery.tsx'), route: '/dev-panel/gallery' },
   { file: join(APP, '(app)', 'c', '[clientId]', 'ask', 'ask-screen.tsx'), route: '/c/[clientId]/ask' },
   // The briefs-only home (no `dashboard` feature), rendered by /c/[clientId]/page.tsx.
   { file: join(SRC, 'components', 'client-home-basic.tsx'), route: '/c/[clientId]' },
