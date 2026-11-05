@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/plans/2026-11-05-brand-band.md` · `docs/superpowers/specs/2026-11-05-brand-band-design.md`
 
 ## Status (overwrite)
-Spec + plan written 2026-11-05 from the owner's "option 2" go-ahead; SDD starting.
+Done pending owner review (2026-11-05). Tasks 1–2 built and reviewed; final review (opus) clean, its 4 minors fixed (tests, spec wording, backlog line). Verification: `test:affected` ui 253 / web 3144 / site 368 (before the 2 added theme tests; theme 40/40 after), `e2e:affected` 153 passed, design-lint 0, typecheck 19/19. Gallery shots `apps/web/.shots/gallery/` (git-ignored): bands default #0B2540, Purple → teal #0b554f, Near-ink → #102a43, Pale → #0B2540; no overflow at 390.
 
 ## Next (overwrite)
-Agent: Task 1 (`@cs/ui` brandInk), Task 2 (bubble + DS docs), Task 3 verification; then owner looks at the gallery shots.
+Owner looks at the gallery shots; on go-ahead `/rm-merge brand-band`.
 
 ## Interfaces this branch adds or changes
 - `@cs/ui` `brandInk(primary, secondary)`, `brandInkHover(base)`; `themeVars` adds `--brand-ink`, `--brand-ink-hover`; `--primary-band-ring` now measured against `--brand-ink`.
