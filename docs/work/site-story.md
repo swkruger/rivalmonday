@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/plans/2026-11-04-site-story.md` · `docs/superpowers/specs/2026-11-04-site-story-design.md`
 
 ## Status (overwrite)
-Spec + lean plan written 2026-11-04; awaiting owner plan approval. No code.
+Plan Tasks 0–8 + 10 done (SDD, per-task reviews clean; final review clean after one fix wave, 2026-11-04). test:affected 363 passed; site e2e 102 passed / 4 skipped (run before the fix wave; CI re-runs). Home LCP 2.39 s (phone).
 
 ## Next (overwrite)
-Owner approves the plan → SDD from Task 0.
+Owner: Task 9 — commit main's pending `docs/copy/signoff.json`, then `pnpm copy:review` (site) + `copy:status --prune` here (new: home story strings, `RIVAL_STORY.gridTitle`, `CLOSE_TRIAL.body`); Vercel `NEXT_PUBLIC_CLIENT_PRICE_USD` unset or 249; founder note later (prod site deploy waits, D8). Then `/rm-merge site-story`.
 
 ## Interfaces this branch adds or changes
 - `apps/site/src/lib/env.ts` `DEFAULT_CLIENT_PRICE_USD` 99 → 249 (D4). `content/home.ts` `HOME_ANCHORS`/`SECTIONS` reshaped (D2); `RECOMMENDATIONS_ROADMAP` teaser becomes one §10 line (D3).
@@ -60,7 +60,16 @@ None besides this branch; no `apps/site` overlap.
 4. **Removed content.** (a) Delete unused exports/tests (`RECOMMENDATIONS_ROADMAP` teaser, home guide slugs) — **recommended**; (b) keep them.
 
 ## New backlog (target → item)
-- (none yet)
+- site → Pre-existing ungated website wording outside the story copy: `SECTIONS.checks.body` ("a page snapshot"), `HOW_STEPS[2]` ("Websites, …") — gate or reword when `WEBSITE_MONITORING_LIVE` flips (D12)
+- site → Close band left-aligned from `lg` with `Reveal` on the preview card (carried from RealSample; spec § 2 said centred) — centre if the owner prefers
+- site → Test hygiene minors from site-story reviews: rival-grid test pins properties not bytes; no RankGrid autoplay test; loose avatar/className selectors; redundant h1 assertion; `ids` helper filters 'founder'
+## Rulings (SDD, 2026-11-04)
+- `HERO.primaryCta` stays "Join the free pilot" (site-wide JoinButton default); hero/mobile bar/close use new `HERO.heroCta`.
+- §2 keeps RankGrid autoplay-on-scroll (the one moment); home sample-brief grid `autoplay={false}`.
+- D13 rival grid follows existing sample evidence: 8 top-3 points through 2026-10-06, 31 on 10-13/10-20 (a jump, not a climb); rival-1 buckets darkened with an ink layer for ≥ 4.5:1 numerals.
+- `/how-it-works` keeps its client-view heading (home uses `homeHeading`).
+- `CLOSE_TRIAL.body` reworded to what a trial delivers (no emailed private link).
+- Sample-dependent helpers live in `content/rival-story.ts`, keeping sample data out of every page's client JS.
 
 ## Owner verification steps
 - Vercel `NEXT_PUBLIC_CLIENT_PRICE_USD` (Q2); sign changed copy.
