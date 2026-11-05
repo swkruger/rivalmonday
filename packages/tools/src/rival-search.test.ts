@@ -7,7 +7,7 @@ import type { EnqueueJob, ToolDeps } from './deps';
 import { createToolRegistry } from './registry';
 import { listMonthlyRivalClients, manualSearchWeek, nextManualSearchAt, searchDayLabel, searchInputsReady, startCompetitorSearch } from './rival-search';
 
-const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 10, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const enqueue = vi.fn<EnqueueJob>(async () => {});

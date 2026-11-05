@@ -72,7 +72,7 @@ describe('accessContextFor', () => {
 describe('plan features on access contexts (7a2 decision 1)', () => {
   async function agencyOnPlan(features: ('ask' | 'mcp')[]) {
     const [p] = await dbs.owner.insert(plan).values({
-      code: 'np', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatPriceCents: 0, trialDays: 30, features, createdBy: 'test',
+      code: 'np', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 0 }], trialDays: 30, features, createdBy: 'test',
     }).returning({ id: plan.id });
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'active', planId: p!.id });
   }

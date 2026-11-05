@@ -12,7 +12,7 @@ beforeEach(async () => {
 
 async function planWith(features: ('ask' | 'mcp')[]): Promise<string> {
   const [p] = await dbs.owner.insert(plan).values({
-    code: `p${features.join('')}`, version: 1, name: 'P', basePriceCents: 0, includedSeats: 3, seatPriceCents: 0, trialDays: 30, features, createdBy: 'test',
+    code: `p${features.join('')}`, version: 1, name: 'P', basePriceCents: 0, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 0 }], trialDays: 30, features, createdBy: 'test',
   }).returning({ id: plan.id });
   return p!.id;
 }

@@ -1,7 +1,7 @@
 import { type Db, agencyBilling, client, plan } from '@cs/db';
 import { IDS, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 
-export const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+export const STD_PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
 export const AGENCY = IDS.agencyA;
 
 /** Reset the test DB: tenancy (agency A has 2 active clients) + the current standard plan. Returns the plan id. */

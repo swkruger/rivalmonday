@@ -9,6 +9,9 @@ export const BILLING_STATES = ['pilot', 'trialing', 'active', 'past_due', 'read_
 export type BillingState = (typeof BILLING_STATES)[number];
 
 /** Phase 9a: versioned platform plans. Service role only (forced RLS, no policy, nothing for app_user). */
+/** Re-declared here (not imported from @cs/billing) to avoid a package cycle. */
+export type SeatTier = { upTo: number | null; unitCents: number };
+
 export const plan = pgTable(
   'plan',
   {
@@ -18,12 +21,16 @@ export const plan = pgTable(
     name: text('name').notNull(),
     basePriceCents: integer('base_price_cents').notNull(),
     includedSeats: integer('included_seats').notNull(),
-    seatPriceCents: integer('seat_price_cents').notNull(),
+    /** Pricing v2: graduated extra-client tiers (cumulative extra clients; last upTo null). */
+    seatTiers: jsonb('seat_tiers').$type<SeatTier[]>().notNull(),
+    basePriceYearCents: integer('base_price_year_cents'),
     trialDays: integer('trial_days').notNull(),
     stripeProductId: text('stripe_product_id'),
     stripeSeatProductId: text('stripe_seat_product_id'),
     stripeBasePriceId: text('stripe_base_price_id'),
     stripeSeatPriceId: text('stripe_seat_price_id'),
+    stripeBasePriceYearId: text('stripe_base_price_year_id'),
+    stripeSeatPriceYearId: text('stripe_seat_price_year_id'),
     isCurrent: boolean('is_current').notNull().default(false),
     /** Phase 7a2: channels this plan includes (spec D13); the CHECK admits only known values. */
     features: jsonb('features').$type<PlanFeature[]>().notNull().default(sql`'["ask","mcp"]'::jsonb`),
@@ -35,7 +42,8 @@ export const plan = pgTable(
     uniqueIndex('plan_current_uq').on(t.code).where(sql`${t.isCurrent}`),
     check('plan_base_price_cents_check', sql`${t.basePriceCents} >= 0`),
     check('plan_included_seats_check', sql`${t.includedSeats} >= 0`),
-    check('plan_seat_price_cents_check', sql`${t.seatPriceCents} >= 0`),
+    check('plan_base_price_year_cents_check', sql`${t.basePriceYearCents} IS NULL OR ${t.basePriceYearCents} >= 0`),
+    check('plan_seat_tiers_check', sql`jsonb_typeof(${t.seatTiers}) = 'array' AND jsonb_array_length(${t.seatTiers}) BETWEEN 1 AND 5`),
     check('plan_trial_days_check', sql`${t.trialDays} BETWEEN 0 AND 90`),
     check('plan_features_check', sql`jsonb_typeof(features) = 'array' AND features <@ '["ask","mcp"]'::jsonb`),
   ],
@@ -59,12 +67,16 @@ export const agencyBilling = pgTable(
     seatSyncPending: boolean('seat_sync_pending').notNull().default(false),
     attachedCouponId: text('attached_coupon_id'),
     seatCapExempt: boolean('seat_cap_exempt').notNull().default(false),
+    billingInterval: text('billing_interval').$type<'month' | 'year'>().notNull().default('month'),
     /** Newest Stripe event timestamp applied to this row (guards against out-of-order webhooks). */
     lastStripeEventAt: ts('last_stripe_event_at'),
     stateChangedAt: ts('state_changed_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
-  (t) => [check('agency_billing_state_check', sql`${t.state} IN ('pilot','trialing','active','past_due','read_only','suspended','cancelled')`)],
+  (t) => [
+    check('agency_billing_state_check', sql`${t.state} IN ('pilot','trialing','active','past_due','read_only','suspended','cancelled')`),
+    check('agency_billing_billing_interval_check', sql`${t.billingInterval} IN ('month','year')`),
+  ],
 );
 
 /** Phase 9a: append-only log of billing state transitions. */

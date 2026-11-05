@@ -32,7 +32,7 @@ describe('handleStripeEvent', () => {
     await dbs.owner.update(plan).set({ stripeBasePriceId: 'price_other', isCurrent: false }).where(eq(plan.id, planId));
     const [v2] = await dbs.owner
       .insert(plan)
-      .values({ code: 'standard', version: 2, name: 'S2', basePriceCents: 1, includedSeats: 3, seatPriceCents: 1, trialDays: 30, createdBy: 't', isCurrent: true, stripeBasePriceId: 'price_base' })
+      .values({ code: 'standard', version: 2, name: 'S2', basePriceCents: 1, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 1 }], trialDays: 30, createdBy: 't', isCurrent: true, stripeBasePriceId: 'price_base' })
       .returning({ id: plan.id });
     await seed('trialing');
     gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 5, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }, { id: 'i2', priceId: 'price_seat', quantity: 5 }] });

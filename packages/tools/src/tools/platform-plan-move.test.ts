@@ -228,7 +228,7 @@ describe('move_agencies_to_current_plan', () => {
     expect(transport.sent.find((m) => m.to === 'adm3@example.com')!.text).toContain('These prices apply when you subscribe.');
 
     // Nothing changes: the agency's version has the target's terms and features.
-    await dbs.owner.update(plan).set({ basePriceCents: V2.basePriceCents, seatPriceCents: V2.seatPriceCents, features: ['ask'] }).where(eq(plan.id, v1));
+    await dbs.owner.update(plan).set({ basePriceCents: V2.basePriceCents, seatTiers: V2.seatTiers, features: ['ask'] }).where(eq(plan.id, v1));
     const same = await mk('Same', { billing: { state: 'active' }, sub: 'sub_same' });
     const again = await move([same]);
     expect(again.results[0]).toMatchObject({ outcome: 'moved', emailed: false });

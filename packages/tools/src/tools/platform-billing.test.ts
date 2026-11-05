@@ -12,7 +12,7 @@ afterAll(() => dbs.closeAll());
 
 const APP = 'https://app.test';
 const DAY = 86_400_000;
-const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
 const ctxOf = (userId: string) => createAccessContext({ agencyId: IDS.agencyA, userId, role: 'agency_admin', clientScope: 'all', features: [] });
 const owner = ctxOf('op'); // env-listed platform owner
 const staff = ctxOf('staff');
@@ -50,7 +50,7 @@ beforeEach(async () => {
 const A = IDS.agencyA;
 const CODE = { code: 'WELCOME20', percentOff: 20, appliesTo: 'both', duration: 'once' };
 const INVITE = { offer: 'trial' };
-const PLAN_IN = { name: 'Standard v2', basePriceCents: 29900, includedSeats: 5, seatPriceCents: 7900, trialDays: 14 };
+const PLAN_IN = { name: 'Standard v2', basePriceCents: 29900, includedSeats: 5, seatTiers: [{ upTo: null, unitCents: 7900 }], trialDays: 14 };
 
 /** [tool, input, minimum role]. Write tools get a valid-enough input; refusal happens before any work. */
 const MATRIX: [string, unknown, 'viewer' | 'staff' | 'owner'][] = [

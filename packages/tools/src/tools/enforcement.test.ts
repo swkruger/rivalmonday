@@ -14,7 +14,7 @@ const gw = fakeGateway();
 const registry = createToolRegistry({ app: dbs.app, service: dbs.service, billing: gw }, { audit: { record: async () => {} } });
 const ctx = (role: AccessContext['role']) => createAccessContext({ agencyId: IDS.agencyA, userId: `u-${role}`, role, clientScope: 'all', features: [] });
 const admin = ctx('agency_admin');
-const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
 const newClient = (name: string, status?: 'active' | 'prospect') => ({ name, verticalId: 'hvac_plumbing', services: [], keywords: [], serviceArea: null, placeId: null, ...(status ? { status } : {}) });
 const SEAT_MSG = "You've used your 3 included clients. Upgrade to add more.";
 let planId: string;

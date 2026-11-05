@@ -14,7 +14,7 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
 });
 
-const std = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, createdBy: 'test' };
+const std = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, createdBy: 'test' };
 
 describe('billing tables', () => {
   it('are invisible to app_user and forced-RLS', async () => {
@@ -63,14 +63,15 @@ describe('billing tables', () => {
 
   it('migration 0058 backfill gives every existing agency a pilot row on the standard v1 plan', async () => {
     const stmts = readFileSync(join(__dirname, '../migrations/0058_billing_rls.sql'), 'utf8').split('--> statement-breakpoint').slice(-2);
-    for (const s of stmts) await dbs.owner.execute(sql.raw(s));
+    // 0097 replaced seat_price_cents with seat_tiers: adapt the old plan INSERT to the current shape.
+    for (const s of stmts) await dbs.owner.execute(sql.raw(s.replace('seat_price_cents', 'seat_tiers').replace(' 9900,', ` '[{"upTo":null,"unitCents":9900}]'::jsonb,`)));
     const agencies = await dbs.owner.select().from(agency);
     const rows = await dbs.service.select().from(agencyBilling);
     expect(agencies.length).toBeGreaterThan(0);
     expect(rows).toHaveLength(agencies.length);
     expect(rows.every((r) => r.state === 'pilot' && r.pilotEndsAt === null && r.planId !== null)).toBe(true);
     const [p] = await dbs.service.select().from(plan).where(eq(plan.id, rows[0]!.planId!));
-    expect([p?.code, p?.version, p?.basePriceCents, p?.includedSeats, p?.seatPriceCents, p?.trialDays, p?.isCurrent]).toEqual(['standard', 1, 22900, 3, 9900, 30, true]);
+    expect([p?.code, p?.version, p?.basePriceCents, p?.includedSeats, p?.seatTiers, p?.trialDays, p?.isCurrent]).toEqual(['standard', 1, 22900, 3, [{ upTo: null, unitCents: 9900 }], 30, true]);
   });
 });
 
@@ -134,5 +135,36 @@ describe('agencyReducedTrial (phase 10 f12)', () => {
     await dbs.service.insert(agencyBilling).values({ agencyId: IDS.agencyA, state, seatCapExempt });
     await dbs.owner.insert(agencyOnboarding).values({ agencyId: IDS.agencyA, source });
     expect(await reduced()).toEqual(ok ? [IDS.agencyA] : []);
+  });
+});
+
+describe('pricing v2 constraints', () => {
+  const tiers = (n: number) => Array.from({ length: n }, (_, i) => ({ upTo: i === n - 1 ? null : i + 1, unitCents: 100 }));
+
+  it('plan_seat_tiers_check rejects {}, [] and 6 tiers; accepts 1 and 5', async () => {
+    for (const bad of ['{}', '[]', JSON.stringify(tiers(6))]) {
+      expect(await errorText(dbs.owner.execute(sql`INSERT INTO plan (code, version, name, base_price_cents, included_seats, seat_tiers, trial_days, created_by)
+        VALUES ('bad', 1, 'Bad', 0, 0, ${bad}::jsonb, 0, 't')`))).toMatch(/plan_seat_tiers_check/);
+    }
+    await dbs.owner.insert(plan).values({ ...std, version: 7, seatTiers: tiers(1) });
+    await dbs.owner.insert(plan).values({ ...std, version: 8, seatTiers: tiers(5), basePriceYearCents: 229000 });
+  });
+
+  it('base_price_year_cents rejects a negative value', async () => {
+    expect(await errorText(dbs.owner.insert(plan).values({ ...std, version: 9, basePriceYearCents: -1 }))).toMatch(/base_price_year_cents/);
+  });
+
+  it('agency_billing.billing_interval defaults to month and rejects week', async () => {
+    await dbs.service.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'trialing' });
+    const [row] = await dbs.service.select().from(agencyBilling);
+    expect(row?.billingInterval).toBe('month');
+    expect(await errorText(dbs.owner.execute(sql`UPDATE agency_billing SET billing_interval = 'week'`))).toMatch(/billing_interval/);
+  });
+
+  it('clients_served rejects many on pending_signup and agency_onboarding', async () => {
+    expect(await errorText(dbs.owner.execute(sql`INSERT INTO pending_signup (email, agency_name, source, ip_hash, expires_at, clients_served)
+      VALUES ('a@b.example', 'A', 'open', 'h', now() + interval '1 day', 'many')`))).toMatch(/clients_served/);
+    expect(await errorText(dbs.owner.execute(sql`INSERT INTO agency_onboarding (agency_id, source, clients_served) VALUES (${IDS.agencyA}, 'open', 'many')`))).toMatch(/clients_served/);
+    await dbs.owner.execute(sql`INSERT INTO agency_onboarding (agency_id, source, clients_served) VALUES (${IDS.agencyA}, 'open', '21+')`);
   });
 });

@@ -13,7 +13,7 @@ const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
 const APP = 'https://app.test';
-const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+const STD = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
 const mk = (role: AccessContext['role'], scope: AccessContext['clientScope'] = 'all', agencyId: string = IDS.agencyA) =>
   createAccessContext({ agencyId, userId: `u-${role}`, role, clientScope: scope, features: [] });
 const admin = mk('agency_admin');

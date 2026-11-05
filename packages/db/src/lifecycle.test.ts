@@ -41,14 +41,14 @@ describe('7a2 lifecycle (migration 0082)', () => {
   });
 
   it('plan.features defaults to ask+mcp and rejects "sms"', async () => {
-    const base = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, createdBy: 'test' };
+    const base = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, createdBy: 'test' };
     const [p] = await dbs.service.insert(plan).values(base).returning({ features: plan.features });
     expect(p?.features).toEqual(['ask', 'mcp']);
     await dbs.service.insert(plan).values({ ...base, version: 2, features: [] });
     await dbs.service.insert(plan).values({ ...base, version: 3, features: ['mcp'] });
     expect(await errorText(dbs.service.insert(plan).values({ ...base, version: 4, features: ['sms'] as never }))).toMatch(/plan_features_check/);
-    expect(await errorText(dbs.owner.execute(sql`INSERT INTO plan (code, version, name, base_price_cents, included_seats, seat_price_cents, trial_days, created_by, features)
-      VALUES ('x', 1, 'X', 0, 0, 0, 0, 't', '{"ask": true}'::jsonb)`))).toMatch(/plan_features_check/);
+    expect(await errorText(dbs.owner.execute(sql`INSERT INTO plan (code, version, name, base_price_cents, included_seats, seat_tiers, trial_days, created_by, features)
+      VALUES ('x', 1, 'X', 0, 0, '[{"upTo":null,"unitCents":0}]'::jsonb, 0, 't', '{"ask": true}'::jsonb)`))).toMatch(/plan_features_check/);
   });
 
   it('notification accepts skipped', async () => {

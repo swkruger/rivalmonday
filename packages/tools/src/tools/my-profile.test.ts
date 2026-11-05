@@ -186,7 +186,7 @@ describe('personal profile tools', () => {
   });
 
   it('paused agency: update and upload refused, remove allowed', async () => {
-    const [{ id: planId }] = (await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' }).returning({ id: plan.id })) as [{ id: string }];
+    const [{ id: planId }] = (await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' }).returning({ id: plan.id })) as [{ id: string }];
     await upload(1);
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'read_only', planId });
     await expect(registry.invoke(me, 'update_my_profile', { name: 'X' })).rejects.toMatchObject({ code: 'service_paused' });

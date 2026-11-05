@@ -527,7 +527,7 @@ export async function seedIsolationWorld(owner: Db): Promise<IsolationWorld> {
   await b.loadPrimaryKeys();
   await seedUsers(b, owner);
   const plan = await b.ins('plan', null, {
-    id: hashUuid('plan:world'), code: 'standard', version: 1, name: 'World plan', base_price_cents: 22900, included_seats: 3, seat_price_cents: 9900, trial_days: 30,
+    id: hashUuid('plan:world'), code: 'standard', version: 1, name: 'World plan', base_price_cents: 22900, included_seats: 3, seat_tiers: [{ upTo: null, unitCents: 9900 }], trial_days: 30,
     is_current: true, created_by: 'world', features: [...PLAN_FEATURES],
   });
 

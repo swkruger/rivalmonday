@@ -15,7 +15,7 @@ beforeEach(async () => {
   await seedTenancy(dbs.owner);
   const [p] = await dbs.owner
     .insert(plan)
-    .values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' })
+    .values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' })
     .returning({ id: plan.id });
   await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'active', planId: p!.id });
   await dbs.owner.update(agency).set({ suspendedAt: new Date(), suspendedReason: 'unpaid invoice', suspendedBy: 'staff-1' }).where(eq(agency.id, IDS.agencyA));

@@ -12,6 +12,8 @@ export type OnboardingSource = 'open' | 'invite' | 'legacy';
  * Phase 10: an agency sign-up awaiting email verification. Service role only (forced RLS, no policy, nothing for
  * app_user). `ip_hash` is HMAC-SHA256(ip, auth secret); the raw IP is never stored.
  */
+export type ClientsServed = '0' | '1-5' | '6-20' | '21+';
+
 export const pendingSignup = pgTable(
   'pending_signup',
   {
@@ -22,6 +24,8 @@ export const pendingSignup = pgTable(
     inviteLinkId: uuid('invite_link_id').references(() => agencyInviteLink.id),
     source: text('source').$type<'open' | 'invite'>().notNull(),
     ipHash: text('ip_hash').notNull(),
+    website: text('website'),
+    clientsServed: text('clients_served').$type<ClientsServed>(),
     createdAt: ts('created_at').notNull().defaultNow(),
     expiresAt: ts('expires_at').notNull(),
     completedAgencyId: uuid('completed_agency_id').references(() => agency.id, { onDelete: 'set null' }),
@@ -31,6 +35,7 @@ export const pendingSignup = pgTable(
     check('pending_signup_agency_name_check', sql`length(${t.agencyName}) BETWEEN 1 AND 120`),
     check('pending_signup_contact_name_check', sql`length(${t.contactName}) <= 120`),
     check('pending_signup_source_check', sql`${t.source} IN ('open','invite')`),
+    check('pending_signup_clients_served_check', sql`${t.clientsServed} IS NULL OR ${t.clientsServed} IN ('0','1-5','6-20','21+')`),
     uniqueIndex('pending_signup_open_email_uq').on(t.email).where(sql`${t.completedAt} IS NULL`),
     index('pending_signup_ip_idx').on(t.ipHash, t.createdAt),
   ],
@@ -88,9 +93,11 @@ export const agencyOnboarding = pgTable(
     redirectedAt: ts('redirected_at'),
     nudgesSent: smallint('nudges_sent').notNull().default(0),
     unsubscribedAt: ts('unsubscribed_at'),
+    clientsServed: text('clients_served').$type<ClientsServed>(),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   (t) => [
+    check('agency_onboarding_clients_served_check', sql`${t.clientsServed} IS NULL OR ${t.clientsServed} IN ('0','1-5','6-20','21+')`),
     check('agency_onboarding_source_check', sql`${t.source} IN ('open','invite','legacy')`),
     check('agency_onboarding_nudges_sent_check', sql`${t.nudgesSent} BETWEEN 0 AND 3`),
   ],

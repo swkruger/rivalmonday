@@ -71,7 +71,7 @@ describe('resolveIntake', () => {
   });
 
   it('suspended agency link resolves null', async () => {
-    const [p] = await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' }).returning({ id: plan.id });
+    const [p] = await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' }).returning({ id: plan.id });
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'suspended', planId: p!.id });
     expect(await resolveIntake(dbs.service, 'agency-a')).toBeNull();
     await dbs.owner.update(agencyBilling).set({ state: 'read_only' }).where(eq(agencyBilling.agencyId, IDS.agencyA));

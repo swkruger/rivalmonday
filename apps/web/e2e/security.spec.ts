@@ -62,8 +62,8 @@ test.describe('as the agency admin', () => {
     const [{ agency_id }] = await rows<{ agency_id: string }>(sql`select agency_id from client where id = ${toggleCo.id}`) as [{ agency_id: string }];
     const [old] = await rows<{ state: string; plan_id: string | null }>(sql`select state, plan_id from agency_billing where agency_id = ${agency_id}`);
     const [{ id: planId }] = await rows<{ id: string }>(sql`
-      insert into plan (code, version, name, base_price_cents, included_seats, seat_price_cents, trial_days, features, created_by)
-      values ('e2e_no_ask', 1, 'E2E no Ask', 0, 3, 0, 0, '["mcp"]'::jsonb, 'e2e') returning id`) as [{ id: string }];
+      insert into plan (code, version, name, base_price_cents, included_seats, seat_tiers, trial_days, features, created_by)
+      values ('e2e_no_ask', 1, 'E2E no Ask', 0, 3, '[{"upTo":null,"unitCents":0}]'::jsonb, 0, '["mcp"]'::jsonb, 'e2e') returning id`) as [{ id: string }];
     try {
       await withDb((db) => db.execute(sql`
         insert into agency_billing (agency_id, state, plan_id) values (${agency_id}, 'active', ${planId})

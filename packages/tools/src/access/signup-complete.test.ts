@@ -18,7 +18,7 @@ beforeEach(async () => {
   await truncateAll(dbs.owner);
   await truncateAuth(dbs.owner);
   await seedTenancy(dbs.owner);
-  await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' });
+  await dbs.owner.insert(plan).values({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' });
   await seedUser(dbs.owner, USER.id, USER.email);
 });
 
