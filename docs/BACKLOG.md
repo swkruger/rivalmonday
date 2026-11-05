@@ -94,6 +94,10 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 **Soon**
 - [ ] Client billing page after "turn off" (cancel at period end): shows "Not set up" next to "Your plan ends on …", Billing nav disappears while still paying; same for disconnected rows; amounts ignore `agency_connect.currency` — *9b M4*
 - [ ] Billing pages auto-refresh after **every** Stripe round trip, not only Checkout/Portal returns: Connect onboarding return (`?connect=done`/`retry`), client billing actions (enable/disable, price change, resend, pause/resume) whose webhooks land later — reuse `RefreshUntilChanged` — *owner, 2026-10-16*
+- [ ] Soon: harden runbook E2E flake `apps/web/e2e/runbook.spec.ts:72` (wait for the agency save before navigating) — *pricing-v2*
+- [ ] Soon: plan-sync partial resync recreates all four prices; worker `billing-sync-plan` pending query checks monthly ids only; agency-triggered `syncPlanToStripe` (switch to yearly) recreates monthly ids => drift reports for other agencies; concurrent `syncPlanToStripe` may mint duplicate prices (pre-existing) — *pricing-v2*
+- [ ] Soon: yearly seat-add notice where a client is activated/resumed (only the billing card shows it now) — *pricing-v2*
+- [ ] Soon: a declined month → year switch leaves Stripe's open invoice + `pending_update` (expires 23 h); if later paid Stripe applies the switch and reconcile adopts `year`, with no notice to the agency — *pricing-v2*
 
 **Later**
 - [ ] `attach_agency_discount` ignores `max_redemptions` (staff override, Decision 9) — owner call — *phase-7b2*
@@ -105,6 +109,10 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Re-adopt subscriptions on `disconnected` client rows after a reconnect to the same account; `open_billing_portal` for a customer of a forgotten account — *9b re-review*
 - [ ] Missed `account.application.deauthorized` → reconnect reuses a dead account id; admin only sees the generic Stripe-failure copy — *9b R24*
 - [ ] Per-agency browser-tab titles on client pages (root title "Rival Monday" leaks; only `/c/[id]/settings/billing` fixed) — *9b R18*
+- [ ] Yearly Connect client billing, then show $2,490/yr on the site (D8) — *pricing-v2*
+- [ ] Self-serve yearly → monthly (scheduled switch at renewal; today via support) — *pricing-v2*
+- [ ] Hard review gate on agency sign-ups (fence is soft today) — *pricing-v2*
+- [ ] Yearly trial window fragility (checkout yearly with `trial_end`) — *pricing-v2*
 - [ ] Review an annual billing option for agency → client subscriptions (9b ships monthly only) — *9b brainstorm*
 - [ ] 9a: `syncSeats` unlocked (out-of-order syncs leave Stripe < DB until nightly reconcile); `applyBillingSignal` inserts a default pilot row on a null transition → `startAgencyTrial` returns early (Phase 10 sign-up sidesteps it, R3); `billing_notice.last_error` may hold a recipient address; rows at max attempts abandoned silently (a `client-payment-link` keeps `params.checkoutUrl`); stale digest/outbox items delivered after reactivation (no age cap — owner call) — *9a ledger*
 - [ ] 9a: grant/extend live-subscription check outside the `adminSignal` tx (TOCTOU); daily seat-retry step lacks its own try; percentOff > 2 decimals rounded vs raw to Stripe; promo code left active in Stripe if the DB insert fails — *9a ledger*
@@ -285,6 +293,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Publish v3 with the $49 tier (extra clients 23+) once cost per client < $10 (pricing-v2 D4) — *pricing-v2*
 - [ ] Sign in `pnpm copy:review`: `traceLabel` hover strings, `moveFactLabel` output, chart and toolbar labels — *ui-visual-review*
 - [ ] Copy sign-off now happens in `pnpm copy:review` (ledger `docs/copy/signoff.json`): the per-phase sign-off items below (archive `*copy-signoff*.md` docs) close once their surfaces are signed in the tool; decide whether tool `.describe()` parameter text stays in the scan — *copy-signoff-tool*
 - [ ] Verify 15c-2a: slack-teams settings; Team Resend (4th/24 h refused); intake Preview with link off; check-email Resend countdown; `/platform/billing` tabs; Alert review client filter; Branding buttons — *moved from STATE at jev-openrouter merge*

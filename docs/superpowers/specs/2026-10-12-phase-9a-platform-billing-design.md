@@ -6,6 +6,8 @@ New decisions and interfaces only. Core spec (`2026-09-29-core-platform-design.m
 ## Goal
 Rival Monday charges agencies: free pilot or 30-day trial, then a monthly plan (current: $229 incl. 3 client seats, $99 per extra seat), with discount codes, manageable prices, a clear non-payment ladder, and platform-console controls. Agencies bill their own clients outside the system (seat report + CSV).
 
+> Superseded by pricing-v2 (2026-11-04 spec): graduated tiers + yearly. The seat price below is historical.
+
 ## Decisions (owner-approved 2026-10-12)
 - **e1 Split.** 9a = platform → agency billing + seat report/CSV. 9b = agency → client billing via Stripe Connect, **parked until pilot-agency feedback**.
 - **e2 Provider.** Stripe Billing + Stripe Tax. Owner creates the Stripe account (test mode first). USD, monthly only.
