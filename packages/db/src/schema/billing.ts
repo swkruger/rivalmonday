@@ -8,10 +8,10 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 export const BILLING_STATES = ['pilot', 'trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled'] as const;
 export type BillingState = (typeof BILLING_STATES)[number];
 
-/** Phase 9a: versioned platform plans. Service role only (forced RLS, no policy, nothing for app_user). */
 /** Re-declared here (not imported from @cs/billing) to avoid a package cycle. */
 export type SeatTier = { upTo: number | null; unitCents: number };
 
+/** Phase 9a: versioned platform plans. Service role only (forced RLS, no policy, nothing for app_user). */
 export const plan = pgTable(
   'plan',
   {

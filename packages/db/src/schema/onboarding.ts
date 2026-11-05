@@ -8,12 +8,12 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 export type OnboardingStep = 'profile' | 'team' | 'plan' | 'branding';
 export type OnboardingSource = 'open' | 'invite' | 'legacy';
 
+export type ClientsServed = '0' | '1-5' | '6-20' | '21+';
+
 /**
  * Phase 10: an agency sign-up awaiting email verification. Service role only (forced RLS, no policy, nothing for
  * app_user). `ip_hash` is HMAC-SHA256(ip, auth secret); the raw IP is never stored.
  */
-export type ClientsServed = '0' | '1-5' | '6-20' | '21+';
-
 export const pendingSignup = pgTable(
   'pending_signup',
   {
