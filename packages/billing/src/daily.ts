@@ -86,12 +86,9 @@ async function mrrFor(gw: BillingGateway | null, row: AgencyBillingRow, p: PlanR
     }
   }
   const interval = row.billingInterval;
-  let cents: number;
-  try {
-    cents = monthlyEquivalentCents(planCents(p, p.includedSeats + paidSeats, interval), interval);
-  } catch {
-    cents = planCents(p, p.includedSeats + paidSeats, 'month'); // a yearly agency on a plan without a yearly price: report list price
-  }
+  // A yearly agency on a plan without a yearly price: report the monthly list price.
+  const eff = interval === 'year' && p.basePriceYearCents == null ? 'month' : interval;
+  const cents = monthlyEquivalentCents(planCents(p, p.includedSeats + paidSeats, eff), eff);
   return Math.max(0, cents - discount);
 }
 

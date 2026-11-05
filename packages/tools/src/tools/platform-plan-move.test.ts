@@ -310,11 +310,18 @@ describe('list_plan_agencies', () => {
     expect(r).toMatchObject({ agencyId: a, activeClients: 5, extraSeatsAfter: 2, monthlyNowCents: 22900 + 2 * 9900, monthlyAfterCents: 19900 + 2 * 7900, seatWarning: 'extra_seats' });
   });
 
-  it('yearly agencies are previewed in yearly cents', async () => {
+  it('yearly agencies are previewed in monthly-equivalent cents', async () => {
     const a = await mk('Yearly', { billing: { state: 'active', billingInterval: 'year' }, sub: 'sub_y', clients: 5 });
     await dbs.owner.update(plan).set({ basePriceYearCents: 229000 }).where(eq(plan.id, v1));
     const [r] = (await list()).agencies;
-    expect(r).toMatchObject({ agencyId: a, interval: 'year', monthlyNowCents: 229000 + 12 * 2 * 9900, monthlyAfterCents: 199000 + 12 * 2 * 7900 });
+    expect(r).toMatchObject({ agencyId: a, interval: 'year', monthlyNowCents: Math.round((229000 + 12 * 2 * 9900) / 12), monthlyAfterCents: Math.round((199000 + 12 * 2 * 7900) / 12), moveBlocked: null });
+  });
+
+  it('a yearly agency with 4 clients on v2 shows 26983 a month; no yearly price on the target marks the row blocked', async () => {
+    const a = await mk('Yearly', { billing: { state: 'active', billingInterval: 'year' }, sub: 'sub_y', clients: 4 });
+    expect((await list()).agencies[0]).toMatchObject({ agencyId: a, monthlyAfterCents: 26983, moveBlocked: null });
+    await dbs.owner.update(plan).set({ basePriceYearCents: null, stripeBasePriceYearId: null, stripeSeatPriceYearId: null }).where(eq(plan.id, v2));
+    expect((await list()).agencies[0]).toMatchObject({ moveBlocked: 'no_yearly_price' });
   });
 
   it('seatWarning per state incl. reduced trial and exempt pilot', async () => {

@@ -1,4 +1,4 @@
-import { countActiveClients, currentStandardPlan, isReducedTrial, planCents, planFor, syncPlanToStripe, type BillingInterval } from '@cs/billing';
+import { countActiveClients, currentStandardPlan, isReducedTrial, monthlyEquivalentCents, planCents, planFor, syncPlanToStripe, type BillingInterval } from '@cs/billing';
 import { type AccessContext, PLAN_FEATURES, type PlanFeature, ToolError, toolkit } from '@cs/core';
 import { type AgencyBillingRow, agency, agencyBilling, agencyBillingEvent, BILLING_STATES, type BillingState, type PlanRow, plan } from '@cs/db';
 import type { PlanTerms } from '@cs/email';
@@ -27,18 +27,14 @@ const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0,
 const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatTiers[0]?.unitCents ?? 0 });
 const NO_YEARLY_PRICE = 'This plan has no yearly price.';
 const hasYearlyIds = (p: PlanRow) => !!(p.stripeBasePriceYearId && p.stripeSeatPriceYearId);
-/** What the agency pays per its own interval (cents per month, or per year); a yearly agency on a plan with no yearly price is shown at the monthly price. */
+/** Monthly-equivalent cents on `p` for an agency on `interval`. A yearly agency on a plan without a yearly price has no such figure: callers mark that row refused. */
 function priceFor(p: PlanRow, activeClients: number, interval: BillingInterval): number {
-  return planCents(p, activeClients, interval === 'year' && p.basePriceYearCents == null ? 'month' : interval);
+  const y = interval === 'year' && p.basePriceYearCents != null;
+  return monthlyEquivalentCents(planCents(p, activeClients, y ? 'year' : 'month'), y ? 'year' : 'month');
 }
 /** P11 / 7a2 D13: no `plan_id` ⇒ every feature (what `planFeaturesFor` gives them until moved). */
 const featuresOf = (row: Pick<AgencyBillingRow, 'planId'>, p: PlanRow | null): PlanFeature[] =>
   row.planId === null || !p ? [...ALL] : ALL.filter((f) => p.features.includes(f));
-
-/** Base + max(0, active − included) × seat price, in cents. */
-export function monthlyCents(t: PlanTerms, activeClients: number): number {
-  return t.basePriceCents + Math.max(0, activeClients - t.includedSeats) * t.seatPriceCents;
-}
 
 /**
  * P7: the per-agency warning when the target includes fewer seats than the agency has active clients. Exempt / reduced
@@ -65,7 +61,7 @@ async function requireCurrentPlan(deps: ToolDeps): Promise<PlanRow> {
 const AgencyRow = z.object({
   agencyId: z.string(), name: z.string(), state: z.enum(BILLING_STATES), planId: z.string().nullable(), version: z.number().int().nullable(),
   basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)),
-  interval: z.enum(['month', 'year']), activeClients: z.number().int(), swapsStripe: z.boolean(), onHold: z.boolean(), seatWarning: z.enum(['extra_seats', 'over_cap']).nullable(),
+  interval: z.enum(['month', 'year']), moveBlocked: z.enum(['no_yearly_price']).nullable(), activeClients: z.number().int(), swapsStripe: z.boolean(), onHold: z.boolean(), seatWarning: z.enum(['extra_seats', 'over_cap']).nullable(),
   extraSeatsAfter: z.number().int(), monthlyNowCents: z.number().int(), monthlyAfterCents: z.number().int(),
 });
 
@@ -95,7 +91,7 @@ export const listPlanAgenciesTool = defineTool({
         const now = p ? termsOf(p) : targetTerms;
         agencies.push({
           agencyId: row.agencyId, name: r.name, state: row.state, planId: row.planId, version: row.planId ? r.version : null,
-          ...now, features: featuresOf(row, p), interval: row.billingInterval, activeClients, swapsStripe: swapsStripe(row), onHold: r.suspendedAt !== null,
+          ...now, features: featuresOf(row, p), interval: row.billingInterval, moveBlocked: row.billingInterval === 'year' && !hasYearlyIds(target) ? ('no_yearly_price' as const) : null, activeClients, swapsStripe: swapsStripe(row), onHold: r.suspendedAt !== null,
           seatWarning: seatWarningFor({ state: row.state, seatCapExempt: row.seatCapExempt, reducedTrial }, activeClients, targetTerms),
           extraSeatsAfter: Math.max(0, activeClients - target.includedSeats),
           monthlyNowCents: priceFor(p ?? target, activeClients, row.billingInterval), monthlyAfterCents: priceFor(target, activeClients, row.billingInterval),
