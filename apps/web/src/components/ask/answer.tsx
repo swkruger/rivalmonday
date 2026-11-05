@@ -1,4 +1,4 @@
-import { CitationPill, citationPillClass, type SourceItem } from '@cs/ui';
+import { CitationPill, citationPillClass, citationPillInfoClass, type SourceItem } from '@cs/ui';
 import Link from 'next/link';
 import Markdown from 'react-markdown';
 import { evidenceHref } from '@/components/evidence-chips';
@@ -87,7 +87,7 @@ function Cite({ cite, clientId, refs }: { cite: AnswerCite; clientId: string; re
       return <ArticleSheet kbId={cite.id} />;
     case 'app':
       return (
-        <Link href={cite.path} aria-label="Open in the app" data-slot="citation-pill" className={`mx-0.5 ${citationPillClass}`}>
+        <Link href={cite.path} aria-label="Open in the app" data-slot="citation-pill" className={`mx-0.5 ${citationPillClass} ${citationPillInfoClass}`}>
           Data
         </Link>
       );
@@ -95,11 +95,11 @@ function Cite({ cite, clientId, refs }: { cite: AnswerCite; clientId: string; re
       const ref = refs?.[cite.id];
       const link = <Link href={evidenceHref(clientId, cite.id)} />;
       return ref ? (
-        <CitationPill asChild n={cite.n} source={ref.source} date={ref.date} className="mx-0.5">
+        <CitationPill asChild tone="info" n={cite.n} source={ref.source} date={ref.date} className="mx-0.5">
           {link}
         </CitationPill>
       ) : (
-        <CitationPill asChild n={cite.n} className="mx-0.5">
+        <CitationPill asChild tone="info" n={cite.n} className="mx-0.5">
           {link}
         </CitationPill>
       );

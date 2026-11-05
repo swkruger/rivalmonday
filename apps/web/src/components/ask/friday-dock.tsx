@@ -83,7 +83,7 @@ function Dock({ config, children }: { config: FridayDockConfig; children: React.
               // Keys from a portalled layer (the save dialog) bubble here through React; that layer handles its own Esc.
               if (e.key === 'Escape' && !e.defaultPrevented && e.currentTarget.contains(e.target as Node)) closeColumn();
             }}
-            className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex h-[calc(100dvh-var(--rm-shell-top,0px)-2rem)] flex-col gap-3 self-start border-l border-line pl-6"
+            className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex h-[calc(100dvh-var(--rm-shell-top,0px)-2rem)] flex-col gap-3 self-start overflow-hidden rounded-lg border border-line bg-chrome"
           >
             <PanelBody config={config} chat={chat} title={<h2 className={TITLE_CLASS}>Ask <FridayBadge name={config.assistantName} size="label" /></h2>}
               close={<CloseButton name={config.assistantName} onClick={closeColumn} />} autoFocus />
@@ -92,7 +92,7 @@ function Dock({ config, children }: { config: FridayDockConfig; children: React.
       </div>
       {!wide && (
         <Sheet open={open} onOpenChange={(o) => { if (!o) setOpenState(false); }}>
-          <SheetContent side="right" id={panelId} aria-describedby={undefined} className="w-full gap-3 sm:max-w-[400px] overflow-hidden px-4 py-4">
+          <SheetContent side="right" id={panelId} aria-describedby={undefined} className="w-full gap-3 overflow-hidden bg-chrome p-0 sm:max-w-[400px]">
             <PanelBody config={config} chat={chat} title={<SheetTitle className={TITLE_CLASS}>Ask <FridayBadge name={config.assistantName} size="label" /></SheetTitle>}
               close={<SheetClose asChild><CloseButton name={config.assistantName} /></SheetClose>} />
           </SheetContent>
@@ -120,7 +120,7 @@ function PanelBody({ config, chat, title, close, autoFocus = false }: { config: 
   }, [autoFocus]);
   return (
     <div ref={ref} className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-2 border-b border-line pb-3">
+      <div className="flex items-center gap-2 border-b border-line bg-surface px-4 py-3">
         {title}
         <div className="flex-1" />
         {chat.threadId && (
@@ -133,22 +133,24 @@ function PanelBody({ config, chat, title, close, autoFocus = false }: { config: 
         )}
         {close}
       </div>
-      <AskChat
-        mode="panel"
-        state={chat}
-        clientId={config.clientId}
-        threadId={null}
-        assistantName={config.assistantName}
-        productName={config.productName}
-        reviewAllowed={config.reviewAllowed}
-        messages={[]}
-        starters={config.starters}
-        confirmAction={noConfirm}
-        saveAction={config.saveAction}
-        refs={{}}
-        scopeLabel={config.scopeLabel}
-        refsAction={config.refsAction}
-      />
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <AskChat
+          mode="panel"
+          state={chat}
+          clientId={config.clientId}
+          threadId={null}
+          assistantName={config.assistantName}
+          productName={config.productName}
+          reviewAllowed={config.reviewAllowed}
+          messages={[]}
+          starters={config.starters}
+          confirmAction={noConfirm}
+          saveAction={config.saveAction}
+          refs={{}}
+          scopeLabel={config.scopeLabel}
+          refsAction={config.refsAction}
+        />
+      </div>
     </div>
   );
 }

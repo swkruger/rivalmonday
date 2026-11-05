@@ -10,6 +10,7 @@ import type { EvidenceRefs } from '@/server/evidence-refs';
 import { AskAnswer, answerMarkdown, answerSources, citedEvidenceIds, evidenceIdsOf } from './answer';
 import { type ConfirmAskAction, ConfirmCard } from './confirm-card';
 import { type SaveRecommendationAction, SaveRecommendationDialog, savePrefill } from './save-recommendation-dialog';
+import { answerBubbleClass, userBubbleClass } from './bubble-classes';
 import { StarterChips } from './starter-chips';
 
 /** Q7: the label before the first tool runs (unknown tools also read "Working…"). */
@@ -132,7 +133,7 @@ export interface AskChatProps {
 function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, refs, size, threadHref }: { m: ChatMessage; clientId: string; assistantName: string; confirmAction: ConfirmAskAction; saveAction: SaveRecommendationAction; refs: EvidenceRefs; size: 'page' | 'panel'; threadHref: string }) {
   if (m.role === 'user') {
     return (
-      <div data-slot="ask-user-message" className="max-w-[85%] self-end whitespace-pre-line rounded-lg bg-muted-surface px-3 py-2 text-sm text-ink [overflow-wrap:anywhere]">
+      <div data-slot="ask-user-message" className={userBubbleClass}>
         {m.content}
       </div>
     );
@@ -170,11 +171,13 @@ function MessageItem({ m, clientId, assistantName, confirmAction, saveAction, re
         <FridayAvatar />
         <FridayBadge name={assistantName} size="label" />
       </div>
-      <div className={m.status === 'ok' ? 'text-ink' : 'text-muted-ink'}>
-        <AskAnswer clientId={clientId} content={m.content} citations={m.citations} refs={refs} size={size} />
+      <div data-slot="ask-answer-body" className={answerBubbleClass}>
+        <div className={m.status === 'ok' ? 'text-ink' : 'text-muted-ink'}>
+          <AskAnswer clientId={clientId} content={m.content} citations={m.citations} refs={refs} size={size} />
+        </div>
+        {sources.length > 0 && <SourcesList items={sources} />}
+        {prefill && <SaveRecommendationDialog clientId={clientId} evidenceIds={evidenceIds} defaultTitle={prefill.title} defaultRationale={prefill.rationale} saveAction={saveAction} />}
       </div>
-      {sources.length > 0 && <SourcesList items={sources} />}
-      {prefill && <SaveRecommendationDialog clientId={clientId} evidenceIds={evidenceIds} defaultTitle={prefill.title} defaultRationale={prefill.rationale} saveAction={saveAction} />}
     </article>
   );
 }
@@ -307,7 +310,7 @@ export function AskChat(props: AskChatProps) {
                 Hi, I&apos;m <FridayBadge name={assistantName} size="label" />. Ask me about your competitors and market, and I&apos;ll show you the evidence behind every answer.
               </p>
             </div>
-            <StarterChips questions={starters} onPick={(q) => void send(q)} disabled={busy} />
+            <StarterChips variant="chips" questions={starters} onPick={(q) => void send(q)} disabled={busy} />
           </div>
         )}
         {messages.map((m) => (
@@ -327,8 +330,8 @@ export function AskChat(props: AskChatProps) {
         )}
         <div ref={endRef} />
       </div>
-      <form onSubmit={submit} className={cn('w-full bg-surface pb-1 pt-3', !panel && 'sticky bottom-0 mx-auto max-w-[680px]')}>
-        <div className="rounded-md border border-input p-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+      <form onSubmit={submit} className={cn('w-full pb-1 pt-3', panel ? 'bg-chrome' : 'bg-surface', !panel && 'sticky bottom-0 mx-auto max-w-[680px]')}>
+        <div className="rounded-lg border border-input p-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
           <textarea
             aria-label={`Ask ${assistantName} a question`}
             placeholder={`Ask ${assistantName} a question…`}
@@ -347,7 +350,7 @@ export function AskChat(props: AskChatProps) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Tag className="max-w-40 shrink-0 truncate">{scopeLabel}</Tag>
             <p className="order-last w-full min-w-0 text-xs text-muted-ink sm:order-none sm:w-auto sm:flex-1">{reviewAllowed ? disclosureCopy(productName) : 'Only you can see your conversations.'}</p>
-            <Button type="submit" size="icon-sm" aria-label="Ask" disabled={busy || !input.trim()}>
+            <Button type="submit" size="icon" aria-label="Ask" disabled={busy || !input.trim()}>
               <ArrowUp aria-hidden />
             </Button>
           </div>

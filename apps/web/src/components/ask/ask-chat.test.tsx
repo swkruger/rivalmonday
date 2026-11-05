@@ -184,6 +184,15 @@ describe('AskChat page restyle', () => {
     const answer = container.querySelector('[data-slot="ask-answer"]')!;
     expect(answer.querySelector('[data-slot="friday-badge"]')!.getAttribute('data-size')).toBe('label');
   });
+  it('user bubble is ink; the answer body wraps the sources list', () => {
+    const { container } = render(
+      <AskChat {...base} reviewAllowed={false} messages={[msg({ id: '33333333-3333-4333-8333-000000000009', role: 'user', content: 'Hi' }), ev(E1)]} refs={{ [E1]: REF }} />,
+    );
+    expect(container.querySelector('[data-slot="ask-user-message"]')!.className).toContain('bg-ink');
+    const body = container.querySelector('[data-slot="ask-answer"] [data-slot="ask-answer-body"]')!;
+    expect(body.querySelector('[data-slot="sources-list"]')).toBeTruthy();
+    expect(body.className).toContain('bg-surface');
+  });
   it('shows a SourcesList only for resolved refs', () => {
     const { container, rerender } = render(<AskChat {...base} reviewAllowed={false} messages={[ev(E1)]} />);
     expect(container.querySelector('[data-slot="sources-list"]')).toBeNull();

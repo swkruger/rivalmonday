@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { starterChipClass } from './bubble-classes';
 
 const rowClass = 'flex w-full items-baseline gap-2 text-left hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 const arrow = <span aria-hidden>↳</span>;
@@ -7,13 +8,34 @@ const arrow = <span aria-hidden>↳</span>;
  * Starter questions (`get_ask_starters`). In the chat a chip sends its question (`onPick`); elsewhere (Overview card,
  * Task 10) it links to the Ask page (`hrefFor`). No `'use client'` — the link form renders on the server.
  */
-export function StarterChips({ questions, onPick, hrefFor, disabled = false }: {
+export function StarterChips({ questions, onPick, hrefFor, disabled = false, variant = 'rows' }: {
   questions: readonly string[];
   onPick?: (question: string) => void;
   hrefFor?: (question: string) => string;
   disabled?: boolean;
+  /** `rows` (default, Overview card) or `chips` (the chat empty state). */
+  variant?: 'rows' | 'chips';
 }) {
   if (questions.length === 0) return null;
+  if (variant === 'chips') {
+    return (
+      <ul aria-label="Starter questions" className="m-0 flex list-none flex-wrap gap-2 p-0">
+        {questions.map((q) => (
+          <li key={q}>
+            {hrefFor ? (
+              <Link href={hrefFor(q)} className={starterChipClass}>
+                {q}
+              </Link>
+            ) : (
+              <button type="button" className={`${starterChipClass} disabled:opacity-50`} disabled={disabled} onClick={() => onPick?.(q)}>
+                {q}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <ul aria-label="Starter questions" className="m-0 flex list-none flex-col p-0">
       {questions.map((q) => (

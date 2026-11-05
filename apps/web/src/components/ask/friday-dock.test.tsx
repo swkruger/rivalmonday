@@ -87,6 +87,15 @@ describe('FridayDock (16d D-14)', () => {
     expect(screen.getByTestId('probe').textContent).toBe('true|true');
   });
 
+  it('the docked column is a bordered chrome panel with a surface header; the composer has focus', () => {
+    render(<FridayDock config={config}>{page()}</FridayDock>);
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Friday' }));
+    const panel = screen.getByRole('complementary', { name: 'Ask Friday' });
+    expect(panel.className).toContain('bg-chrome');
+    expect(panel.className).not.toMatch(/\bborder-l\b/);
+    expect(document.activeElement).toBe(screen.getByLabelText('Ask Friday a question'));
+  });
+
   it('< 1280: the trigger opens a right sheet (dialog) named "Ask Friday"', () => {
     viewport(false);
     render(<FridayDock config={config}>{page()}</FridayDock>);

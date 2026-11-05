@@ -50,6 +50,11 @@ describe('citation pills and sources', () => {
     expect(links[0]!.getAttribute('data-slot')).toBe('citation-pill');
     expect(links[0]!.getAttribute('href')).toBe(`/c/${C}/evidence/${E1}`);
   });
+  it('evidence and Data pills use the info tone', () => {
+    const P = '44444444-4444-4444-8444-444444444444';
+    render(<AskAnswer clientId={C} content={`A [ev:${E1}] x [app:${P}]`} citations={[`ev:${E1}`, `app:${P}@/c/${C}/competitors/${P}`]} refs={refs} />);
+    for (const a of screen.getAllByRole('link')) expect(a.className).toContain('bg-chip-info-bg');
+  });
   it('the Data chip keeps its name and shares the pill look', () => {
     const P = '44444444-4444-4444-8444-444444444444';
     render(<AskAnswer clientId={C} content={`x [app:${P}]`} citations={[`app:${P}@/c/${C}/competitors/${P}`]} />);
