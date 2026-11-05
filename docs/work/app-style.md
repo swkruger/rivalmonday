@@ -4,10 +4,14 @@
 **Plan/spec:** `docs/superpowers/plans/2026-11-04-app-style.md` · `docs/superpowers/specs/2026-11-04-app-style-design.md` (no roadmap row)
 
 ## Status (overwrite)
-Spec + plan written, awaiting owner approval (2026-11-04). No product code yet. Site twin (unmerged `site-story`, D14 / Task 11) already restyled apps/site.
+Done pending owner review of the shots (2026-11-05). Stages A and B built; final fix wave applied; Task 13 verification green (below). Not merged.
+
+Shots: `apps/web/.shots/index.html` (before | after, 8 labels x 1440/390; axe unchanged: 0 serious/critical, overflowX 0) and `apps/web/.shots/gallery/` (`gallery-1440.png`, `gallery-390.png`). Both git-ignored.
+
+Verification: design-lint 0; typecheck 19/19 (forced); `test:affected` found one branch bug (gallery block title hard-coded the assistant name; fixed in 6d614228, terminology + gallery tests re-run green); `@cs/ui` 241 passed; E2E 153 passed.
 
 ## Next (overwrite)
-Owner approves the plan → `superpowers:subagent-driven-development` from Task 0 (pre-flight + "before" shots), stage A Tasks 1–8, stage B Tasks 9–12, Task 13 visual check + suites.
+Owner opens the shots and the gallery; on go-ahead run `/rm-merge app-style` (full unit + E2E there, after asking).
 
 ## Interfaces this branch adds or changes
 - `packages/ui/src/styles.css` tokens:
@@ -48,11 +52,16 @@ Derived (spec AS9–AS17):
 - The gallery is dev-only.
 - No copy changes.
 
-## New backlog (target → item)
-None yet (candidates in plan Task 13: platform pages adopting `ink`; ConfirmDialog primary tone).
+## New backlog (target -> item)
+- Platform (operator) pages adopt the `ink` primary (they still use the default Button) - polish.
+- `ConfirmDialog` primary tone: the confirm button stays default primary; give it the ink tier like other agency pages.
+- M5: data-attributes for the new bubble/tab classes (styling is by class composition only) - parked minor.
 
 ## Owner verification steps
-Open `apps/web/.shots/index.html` (before | after, 9 labels × 1440/390) and `apps/web/.shots/gallery/` after Task 13.
+1. Open `apps/web/.shots/index.html`: compare the 8 before | after pairs at 1440 and 390 (ink band on client titles, ink primary buttons, tinted chips, segmented tabs, Friday bubbles, recommendation lanes).
+2. Open `apps/web/.shots/gallery/gallery-1440.png` and `gallery-390.png` (four themes incl. Pale and Near-ink: button text and focus ring stay readable).
+3. Optional live look: `pnpm dev:web`, `/dev-panel/gallery`.
+4. Say go for `/rm-merge app-style`.
 
 ## Brief
 
