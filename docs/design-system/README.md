@@ -1,6 +1,6 @@
 # Rival Monday design system v1: research and specification
 
-*UI and theme research from Mobbin (2026-10-23). **Status: adopted — the owner's mandate for all UI (2026-10-23); OD-1…OD-5 resolved as recommended. Application code has not been migrated yet: follow [09](09-ai-implementation-playbook.md).** Start with this page; the numbered documents hold the detail.*
+*UI and theme research from Mobbin (2026-10-23). **Status: adopted — the owner's mandate for all UI (2026-10-23); OD-1…OD-5 resolved as recommended. Application code has not been migrated yet: follow [09](09-ai-implementation-playbook.md).** **Amended 2026-11-04 (app-style, D-27…D-34): opt-in canvas variants; see [04](04-design-decisions.md).** Start with this page; the numbered documents hold the detail.*
 
 ## Deliverables
 
@@ -37,7 +37,7 @@
 - Hairline tables with no zebra striping and tabular numbers.
 - Assistant answers as flat prose with inline evidence.
 
-**2. The unified look and feel.** Calm, neutral and evidence-first, like Plain or Stripe on a quiet day. The #F6F9FC frame holds the top bar and sidebar, and one white sheet holds the work. Inter at 13–16px with semibold (not extra-bold) headings in ink. Colour appears only when it means something: the primary colour for the next action, primary-soft for "you are here", four muted status tints, the chart roles (you / two rivals / grey) and Friday's orange. The result reads as a professional tool an agency can put its own brand on.
+**2. The unified look and feel.** Calm, neutral and evidence-first, like Plain or Stripe on a quiet day. The #F6F9FC frame holds the top bar and sidebar, and one white sheet holds the work. Inter at 13–16px with semibold (not extra-bold) headings in ink. Colour appears only when it means something: the primary colour for the next action, primary-soft for "you are here", four muted status tints, the chart roles (you / two rivals / grey), Friday's orange and numbered markers (D-33). Since 2026-11-04 the product adds opt-in canvas variants (D-27…D-34): an ink title band, the `ink` primary on staff pages, segmented tabs, strong chips and Friday bubbles. The result reads as a professional tool an agency can put its own brand on.
 
 **3. Cards: why sparingly, and when.** Cards multiply borders and shadows, make every block look equally important, and hide hierarchy (Klaviyo A07, Shopify B14). Stripe's own dashboard drops its cards except in edit mode (A01/A02). The owner's newer saves moved the same way. A card is justified only for an **independent object**: something selectable, removable or individually actionable, such as suggested competitors, an integration catalogue or editable records. Use a frame when a table, grouped rows or a preview needs an edge. Use a band for a summary. Use plain sections for everything else. Never nest them (D-01).
 
@@ -47,8 +47,8 @@
 - **Colour:** frame #F6F9FC, sheet #FFFFFF, ink #0B2540, muted text **#5B6B80**, borders #E2E8F0 / #EDF1F5 / #CBD5E1 / inputs **#8796AB**; primary #47A8E7, secondary #2A6BAC, Friday #F5A524; focus ring **#2A6BAC**; charts #2A6BAC / #E05A2B / #14936A / #A3B1C2.
 - **Type:** Inter 12 / 13 / 14 / 16 / 18 / 24 / 30, weights 400 / 500 / 600.
 - **Spacing:** a 4px grid, with 16px between fields, 40px between sections and 32px page padding.
-- **Radii:** 4 / **6 (controls)** / **8 (containers and overlays)** / 12 / full.
-- **Shadows:** two, overlay and dialog.
+- **Radii:** 4 / **6 (controls)** / **8 (containers and overlays)** / 12 / full. `strong` chips and info citation pills use 6; bubbles, board lanes and the ink band use 12 (D-34).
+- **Shadows:** two for overlays (overlay, dialog), plus `raised` for recommendations-board cards only (D-29).
 
 **6. Conventions to standardise.**
 - Four button variants plus link, in three sizes.
@@ -109,7 +109,7 @@ Then review it with the owner at 100% zoom on a laptop and on one phone before t
 [ ] Sections first; frame only for table / grouped rows / preview / KPI strip; card only for independent objects; nothing nested
 [ ] No shadow on static surfaces (overlay/dialog shadows only)
 [ ] Only token colours, radii (4/6/8/12/full), type sizes (12–30) — no new hex in the diff
-[ ] Colour only for action, selection, status, data, Friday; orange only for Friday/priority/stars
+[ ] Colour only for action, selection, status, data, Friday; orange only for Friday/priority/stars/numbered markers
 [ ] Status = dot+text | badge+glyph | pill filter chip | neutral tag | tier mark — never colour alone
 [ ] Tables: 40px rows, hairlines, no zebra, numbers right + tabular, empty + filtered-empty states
 [ ] Forms: label above, 36px inputs with #8796AB border, inline errors, 640px column, one save model

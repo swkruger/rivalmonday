@@ -13,7 +13,7 @@
 | P1 | **Hierarchy comes from type and space first, colour and boxes last.** | Before adding a border, try a heading, a 40px gap or a rule. A page should read correctly in greyscale. |
 | P2 | **One sheet, many sections.** | The shell draws one white sheet. Inside it, a section is the default container. Frames are functional; cards are for independent objects only (D-01). Never nest containers. |
 | P3 | **Separate regions with surfaces, not lines.** | Frame #F6F9FC against the white sheet; a `surfaceSubtle` band inside the sheet. A 1px border only where an edge must be exact (sheet, frame, table header). |
-| P4 | **Colour is a signal, never decoration.** | The primary colour = "do this". Primary-soft = "you are here". Four status tints = state. Chart tokens = entities. Orange = Friday. Anything else is ink or grey. |
+| P4 | **Colour is a signal, never decoration.** | The primary colour = "do this". Primary-soft = "you are here". Four status tints = state. Chart tokens = entities. Orange = Friday, the priority bar and numbered markers (D-33). Anything else is ink or grey. Primary tiers (D-28): staff pages use the `ink` button for the page's primary action; client-facing pages keep the agency-primary fill, with `ink` as a second tier. |
 | P5 | **No evidence, no claim, visibly.** | Every Friday or brief statement carries a citation pill with a source and date, and every pill opens the evidence. Freshness ("Updated 2 hours ago") appears on monitoring pages. |
 | P6 | **Dense where people work, roomy where people read.** | Tables, lists and nav at 13px with 40px rows; briefs and Friday answers at 16px/26 in a 680px column. |
 | P7 | **One obvious next step.** | At most one primary button per view. Secondary actions are outline or ghost. Destructive actions are red only at the moment of confirmation. |
@@ -40,6 +40,11 @@ Source key: **brand** = decided in brand.md / CLAUDE.md · **existing** = alread
 | `color.background.selected` | #E3F2FC | brand (primary-soft) | Active nav, selected row, applied filter chip |
 | `color.background.inverse` | #0B2540 | brand (ink) | Toast, bulk bar, tooltip |
 | `color.background.scrim` | #0B2540 @ 32% | new | Dialog and sheet backdrop |
+| `color.background.chrome` (`--chrome`) | #FBFCFE | new (app-style) | Near-white body of the Friday panel and sheet (D-32); muted text on it 5.3:1 |
+| `color.background.onInk` (`--on-ink`) | #FFFFFF | new (app-style) | Text on the ink title band (D-30); 15.5:1 |
+| `color.background.onInkMuted` (`--on-ink-muted`) | #B7C7DA | new (app-style) | Secondary text on ink; 9.0:1 |
+| `color.background.onInkLink` (`--on-ink-link`) | #7FC3F0 | new (app-style) | Links on ink; 8.1:1 |
+| `color.background.primaryBandRing` (`--primary-band-ring`) | agency primary | new (app-style) · **per agency** | 1 px ring on a `default` button inside the band; `themeVars` falls back to #B7C7DA when the primary is under 3:1 on ink |
 
 ### Text
 
@@ -79,6 +84,10 @@ Source key: **brand** = decided in brand.md / CLAUDE.md · **existing** = alread
 | `color.action.ghostHover` | #EEF2F6 | new | |
 | `color.action.danger` | #DC2626 | brand | White text 4.83 · only inside confirmation dialogs |
 | `color.action.dangerHover` | #B91C1C | existing | White text 6.47 |
+| `color.action.ink` (`--ink`) | #0B2540 | brand (app-style) | `ink` button fill, white label (D-28) |
+| `color.action.inkHover` (`--ink-hover`) | #2D435B | new (app-style) | Ink 86 % + white; white on it 10:1 |
+| `color.action.successStrong` (`--success-strong`) | #15803D | new (app-style) | `done` button fill; white 5.0:1 (`--success` #16A34A is only 3.3:1) |
+| `color.action.successStrongHover` (`--success-strong-hover`) | #166534 | new (app-style) | White 7.1:1 |
 
 ### Status (always with a glyph and text; never colour alone)
 
@@ -123,6 +132,16 @@ Validation (dataviz skill, `validate_palette.js --mode light --pairs all`): **yo
 | white | action.danger | 4.83 | Destructive button |
 | white | brand.secondary | 5.53 | Checkbox, switch, OD-1 alternative |
 | ink | action.primary | 5.93 | Primary button label (OD-1) |
+| white | action.inkHover | 10.0 | `ink` button hover |
+| white | action.successStrong | 5.0 | `done` button |
+| white | action.successStrongHover | 7.1 | `done` hover |
+| on-ink-muted | ink | 9.0 | Secondary text in the title band |
+| on-ink-link | ink | 8.1 | Links in the title band |
+| text.muted | chrome | 5.3 | Friday panel secondary text |
+| chip-info-text #1F5F8F | chip-info-bg #E3F2FC | 6.1 | Info `Tag`, info `CitationPill` |
+| amber-text #3B2300 | amber #F5A524 | 8.0 | `NumberMarker` |
+| text.muted | lane info #E3F2FC / lane success #E7F6EC | ≥ 4.7 | Board lane text |
+| white (focus on ink) | ink | 15.5 (UI ≥ 3) | Focus ring inside the band (`--focus` = `--on-ink`) |
 | ~~white~~ | ~~action.primary~~ | ~~2.62~~ | Retired by OD-1 |
 | ~~text #64748B~~ | ~~muted~~ | ~~4.23~~ | Retired (use text.muted) |
 
@@ -201,9 +220,9 @@ Rules: sentence case everywhere (no uppercase labels); 12px is the minimum (11px
 |---|---|---|
 | `radius.none` | 0 | Table cells, mobile full-bleed sections |
 | `radius.xs` | 4 | Badges, tags, citation pills, count, checkbox, tooltip, business avatar, segmented inner thumb |
-| `radius.sm` | 6 | **All controls:** buttons, inputs, selects, nav items, menu items, alerts |
+| `radius.sm` | 6 | **All controls:** buttons, inputs, selects, nav items, menu items, alerts; `strong` chips and info citation pills (D-34); segmented tab items |
 | `radius.md` | 8 | **All containers and overlays:** sheet, frame, card, menu, popover, dialog, toast, composer, bulk bar |
-| `radius.lg` | 12 | User chat bubble, mobile bottom-sheet top corners |
+| `radius.lg` | 12 | Chat bubbles, board lanes, ink title band, mobile bottom-sheet top corners |
 | `radius.full` | 9999 | Filter chips, Friday pill, switch, person avatar, status dots, notification bubble |
 
 **Default container radius: 8. Default control radius: 6.** Square: table cells and full-bleed mobile sections. Fully round: only the listed pill-shaped items.
@@ -223,6 +242,7 @@ Rules: sentence case everywhere (no uppercase labels); 12px is the minimum (11px
 | base | none | 0 | Sheet, sections, frames, cards, tables |
 | sticky | none (border) | 10 | Sticky table header, sticky save bar on mobile |
 | panel | none (border) | 20 | Friday and peek panels when overlaying (< 1280: plus scrim) |
+| raised | `shadow.raised` (`--shadow-raised-value`: 0 1px 2px + 0 6px 20px at 6 % ink) | 0 | **Recommendations board cards only** (D-29); resting, no hover lift |
 | popover | `shadow.overlay` | 30 | Menu, popover, select list, tooltip, command palette, save bar, bulk bar |
 | dialog | `shadow.dialog` + scrim | 40 | Dialog, mobile bottom sheet |
 | toast | `shadow.overlay` | 50 | Toast |
@@ -244,7 +264,7 @@ Summarised here; the full catalogue with every variant, state and anti-pattern i
 | **Hover** | Fill `background.interactive` (#EEF2F6) for nav, menu items, ghost buttons and rows on white (rows use `surfaceSubtle`); primary darkens one step; links underline. 120ms. Never the only signal of interactivity. |
 | **Focus** | `:focus-visible` → 2px `focus.ring` #2A6BAC + 2px offset on every interactive element, including table rows that open panels. Never removed. Inside the inverse bulk bar and toasts the ring is white. |
 | **Active / pressed** | Primary `primaryActive`; others keep the hover fill. No scale or translate effects. |
-| **Selected** | `background.selected` + `primarySoftText` + 600 (nav, chips); checked checkbox (rows); 2px ink underline (tabs); white thumb (segmented); 2px secondary border (tiles). |
+| **Selected** | `background.selected` + `primarySoftText` + 600 (nav, chips); checked checkbox (rows); 2px ink underline (tabs); white thumb (segmented range switch); primary fill + `primary-foreground` + 600 (segmented tabs, D-31); 2px secondary border (tiles). |
 | **Disabled** | 45% opacity, `cursor: not-allowed`, no hover; keep it in the tab order only if a tooltip explains why. Disabled inputs use `surfaceSubtle` and muted text. Prefer explaining over disabling. |
 | **Loading** | Content: skeleton bars (`muted`) in place of rows and KPIs, without layout shift. Buttons: inline 14px spinner replaces the icon, label stays, width fixed, `aria-busy`. Long jobs (discovery, scans): inline progress row + toast when done. |
 | **Success** | Background saves → toast "Saved" (4s). Inline success only when it changes what the user sees. |
