@@ -25,6 +25,7 @@ Agent's calls (spec B2/B5): secondary first, primary second, ≤ 50 % darkening 
 
 ## New backlog (target -> item)
 - 13a -> see 13a spec addendum 2026-11-05.
+- 13a -> `--ink-hover` / `--color-ink-hover` now unused (only its contrast test): remove or reuse at 13a.
 
 ## Owner verification steps
 1. Gallery shots `apps/web/.shots/gallery/` (four themes): band, ink buttons and Friday bubble in each agency colour; Rival Monday theme unchanged.

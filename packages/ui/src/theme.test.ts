@@ -28,6 +28,14 @@ describe('brandInk', () => {
   it('yellow secondary + RM primary falls back to ink', () => expect(brandInk('#47A8E7', '#FFD400')).toBe('#0B2540'));
   it('yellow secondary + teal primary uses the primary', () => expect(brandInk('#0F766E', '#FFD400')).toBe('#0b554f'));
   it('RM secondary + custom violet primary uses the primary', () => expect(brandInk('#7C3AED', RM_S)).toBe('#5c2baf'));
+  it('lower-case RM defaults still give #0B2540', () => expect(brandInk('#47a8e7', '#2a6bac')).toBe('#0B2540'));
+  it('hover is lighter than its base', () => {
+    for (const base of ['#0B2540', '#0b554f', '#921d22', '#5c2baf']) {
+      const hover = brandInkHover(base);
+      expect(hover).not.toBe(base);
+      expect(contrastRatio('#FFFFFF', hover)).toBeLessThan(contrastRatio('#FFFFFF', base));
+    }
+  });
   it('invalid hex falls back like themeVars', () => {
     expect(brandInk('nope', 'url(x)')).toBe('#0B2540');
   });

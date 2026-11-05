@@ -16,7 +16,7 @@ app-style painted the client title band, the `ink` button tier and Friday's user
 - **B3 — hover.** `brandInkHover(base)`: `#2D435B` when base is `#0B2540`; otherwise `mixHex(base, '#FFFFFF', 0.14)`, stepping back 1 % at a time while white text would drop below 4.5:1.
 - **B4 — ring.** `--primary-band-ring` = primary when `contrastRatio(primary, brandInk) ≥ 3`, else #B7C7DA (was: against fixed ink).
 - **B5 — what follows the brand:** `.rm-ink-band` background, `Button variant="ink"` (bg + hover), Friday `userBubbleClass`. **What stays neutral ink:** all `text-ink`, toasts, tooltips, `BulkBar`, pressed `FilterChip`, tab underlines, chart ink. These are system chrome / text, not brand surfaces.
-- **B6 — no new setting, no migration, no copy.** The branding editor already previews `themeVars`; an explicit header-colour override and the wider branding work are recorded in the 13a spec addendum.
+- **B6 — no new setting, no migration, no copy.** The branding editor preview gets the new vars but does not yet show a band, `ink` button or user bubble (13a addendum item 2); an explicit header-colour override and the wider branding work are recorded in the 13a spec addendum.
 
 ## Interfaces
 - `@cs/ui` `theme.ts`: `export function brandInk(primary: string, secondary: string): string`, `export function brandInkHover(base: string): string` (inputs validated `#rrggbb`; outputs lower-case `#rrggbb` except the two literal defaults); `themeVars` adds `'--brand-ink'`, `'--brand-ink-hover'`.
