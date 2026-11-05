@@ -7,7 +7,7 @@ describe('fakeGateway', () => {
     const gw = fakeGateway();
     const { id: customerId } = await gw.createCustomer({ agencyId: 'a1', name: 'Acme' });
     const { url } = await gw.createCheckoutSession({
-      customerId, basePriceId: 'pb', seatPriceId: 'ps', seatQty: 2, allowPromotionCodes: true,
+      customerId, basePriceId: 'pb', seatPriceId: 'ps', seatQty: 2, interval: 'month', allowPromotionCodes: true,
       successUrl: 'https://x/ok', cancelUrl: 'https://x/no',
     });
     const subId = url.split('fake_checkout=')[1]!;
@@ -44,7 +44,7 @@ describe('fakeGateway', () => {
 
   it('checkout with no billable seats has no seat line; a later seat update adds it', async () => {
     const gw = fakeGateway();
-    const { url } = await gw.createCheckoutSession({ customerId: 'c', basePriceId: 'pb', seatPriceId: 'ps', seatQty: 0, allowPromotionCodes: true, successUrl: 'https://x/ok', cancelUrl: 'https://x/no' });
+    const { url } = await gw.createCheckoutSession({ customerId: 'c', basePriceId: 'pb', seatPriceId: 'ps', seatQty: 0, interval: 'month', allowPromotionCodes: true, successUrl: 'https://x/ok', cancelUrl: 'https://x/no' });
     const subId = url.split('fake_checkout=')[1]!;
     expect((await gw.getSubscription(subId)).items.map((i) => i.priceId)).toEqual(['pb']);
     await gw.updateSeatQuantity(subId, 2, { prorate: true, seatPriceId: 'ps' });
@@ -111,10 +111,51 @@ describe('fakeGateway', () => {
 
   it('createPrices reuses passed base and seat product ids', async () => {
     const gw = fakeGateway();
-    const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s' });
-    expect(p).toMatchObject({ baseProductId: 'prod_b', seatProductId: 'prod_s' });
-    const fresh = await gw.createPrices({ code: 's', version: 1, name: 'S', basePriceCents: 1, seatPriceCents: 1 });
+    const tiers = [{ upTo: null, unitCents: 1 }];
+    const p = await gw.createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, basePriceYearCents: null, seatTiers: tiers, stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s' });
+    expect(p).toMatchObject({ baseProductId: 'prod_b', seatProductId: 'prod_s', basePriceYearId: null, seatPriceYearId: null });
+    const fresh = await gw.createPrices({ code: 's', version: 1, name: 'S', basePriceCents: 1, basePriceYearCents: null, seatTiers: tiers });
     expect(fresh.baseProductId).not.toBe(fresh.seatProductId);
+  });
+
+  const V2 = { code: 'standard', version: 2, name: 'Standard', basePriceCents: 22900, basePriceYearCents: 229000, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] };
+  const co = (gw: ReturnType<typeof fakeGateway>, interval: 'month' | 'year', base: string, seat: string, seatQty: number) =>
+    gw.createCheckoutSession({ customerId: 'c', basePriceId: base, seatPriceId: seat, seatQty, interval, allowPromotionCodes: true, successUrl: 'https://x/ok', cancelUrl: 'https://x/no' });
+
+  it('createPrices mints four prices for a yearly plan and records tiers and interval', async () => {
+    const gw = fakeGateway();
+    const p = await gw.createPrices(V2);
+    expect([p.basePriceYearId, p.seatPriceYearId].every((x) => x && x !== p.basePriceId)).toBe(true);
+    expect(gw.prices.get(p.seatPriceYearId!)).toMatchObject({ role: 'seat', interval: 'year' });
+    expect(gw.prices.get(p.seatPriceId)!.plan.seatTiers).toEqual(V2.seatTiers);
+  });
+
+  it('checkout stores the interval; upcomingInvoice prices via planCents (graduated, yearly = 12 x seats)', async () => {
+    const gw = fakeGateway();
+    const p = await gw.createPrices(V2);
+    const m = (await co(gw, 'month', p.basePriceId, p.seatPriceId, 9)).url.split('fake_checkout=')[1]!; // 9 extra: 7 x 79 + 2 x 59
+    const y = (await co(gw, 'year', p.basePriceYearId!, p.seatPriceYearId!, 9)).url.split('fake_checkout=')[1]!;
+    expect((await gw.getSubscription(m)).interval).toBe('month');
+    expect((await gw.getSubscription(y)).interval).toBe('year');
+    expect((await gw.upcomingInvoice(m))!.amountDueCents).toBe(22900 + 7 * 7900 + 2 * 5900);
+    expect((await gw.upcomingInvoice(y))!.amountDueCents).toBe(229000 + 12 * (7 * 7900 + 2 * 5900));
+    gw.seedUpcoming(m, null);
+    expect(await gw.upcomingInvoice(m)).toBeNull();
+  });
+
+  it('switchSubscriptionInterval moves to the yearly prices, records the call and flips the interval', async () => {
+    const gw = fakeGateway();
+    const p = await gw.createPrices(V2);
+    const id = (await co(gw, 'month', p.basePriceId, p.seatPriceId, 2)).url.split('fake_checkout=')[1]!;
+    const i = { basePriceId: p.basePriceYearId!, seatPriceId: p.seatPriceYearId!, seatQuantity: 2 };
+    await gw.switchSubscriptionInterval(id, i);
+    const s = await gw.getSubscription(id);
+    expect(s.interval).toBe('year');
+    expect(s.items.map((x) => x.priceId).sort()).toEqual([i.basePriceId, i.seatPriceId].sort());
+    expect(gw.switches).toEqual([{ subscriptionId: id, ...i }]);
+    expect(gw.swaps).toEqual([]);
+    gw.failNext();
+    await expect(gw.switchSubscriptionInterval(id, i)).rejects.toThrow(/fake gateway failure/);
   });
 
   it('verifyWebhook accepts only the fake signature', () => {

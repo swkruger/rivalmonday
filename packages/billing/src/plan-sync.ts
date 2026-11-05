@@ -9,7 +9,8 @@ import type { BillingGateway } from './types';
 export async function syncPlanToStripe(db: Db | Tx, gw: BillingGateway, planId: string): Promise<PlanRow> {
   const [p] = await db.select().from(plan).where(eq(plan.id, planId));
   if (!p) throw new Error(`plan not found: ${planId}`);
-  if (p.stripeBasePriceId && p.stripeSeatPriceId) return p;
+  const yearlyDone = p.basePriceYearCents == null || (p.stripeBasePriceYearId && p.stripeSeatPriceYearId);
+  if (p.stripeBasePriceId && p.stripeSeatPriceId && yearlyDone) return p;
 
   const siblings = await db.select().from(plan).where(and(eq(plan.code, p.code), isNotNull(plan.stripeProductId)));
   const stripeProductId = p.stripeProductId ?? siblings.find((s) => s.stripeProductId)?.stripeProductId ?? null;
@@ -20,13 +21,14 @@ export async function syncPlanToStripe(db: Db | Tx, gw: BillingGateway, planId: 
     version: p.version,
     name: p.name,
     basePriceCents: p.basePriceCents,
-    seatPriceCents: p.seatPriceCents,
+    seatTiers: p.seatTiers,
+    basePriceYearCents: p.basePriceYearCents,
     stripeProductId,
     stripeSeatProductId,
   });
   const [updated] = await db
     .update(plan)
-    .set({ stripeProductId: ids.baseProductId, stripeSeatProductId: ids.seatProductId, stripeBasePriceId: ids.basePriceId, stripeSeatPriceId: ids.seatPriceId })
+    .set({ stripeProductId: ids.baseProductId, stripeSeatProductId: ids.seatProductId, stripeBasePriceId: ids.basePriceId, stripeSeatPriceId: ids.seatPriceId, stripeBasePriceYearId: ids.basePriceYearId, stripeSeatPriceYearId: ids.seatPriceYearId })
     .where(eq(plan.id, planId))
     .returning();
   return updated!;

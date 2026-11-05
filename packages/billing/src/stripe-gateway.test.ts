@@ -26,7 +26,7 @@ function mockClient() {
     },
     invoices: { createPreview: vi.fn(), list: vi.fn() },
     products: { create: vi.fn().mockResolvedValueOnce({ id: 'prod_base' }).mockResolvedValueOnce({ id: 'prod_seat' }) },
-    prices: { create: vi.fn(async (p: { unit_amount: number }) => ({ id: `price_${p.unit_amount}` })) },
+    prices: { create: vi.fn(async (p: { unit_amount?: number; metadata: { rm_role: string; interval: string } }) => ({ id: `price_${p.metadata.rm_role}_${p.metadata.interval}_${p.unit_amount ?? 'tiered'}` })) },
     coupons: { create: vi.fn(async () => ({ id: 'co_1' })) },
     promotionCodes: { create: vi.fn(async () => ({ id: 'promo_1' })), update: vi.fn(async () => ({})) },
     webhooks: { constructEvent: vi.fn() },
@@ -36,7 +36,7 @@ type Mock = ReturnType<typeof mockClient>;
 const gw = (c: Mock, o: { taxEnabled?: boolean; webhookSecret?: string } = {}) =>
   stripeGateway('sk_test', { client: c as unknown as Stripe, ...o });
 
-const checkout = { customerId: 'cus_1', basePriceId: 'price_b', seatPriceId: 'price_s', seatQty: 3, allowPromotionCodes: true, successUrl: 's', cancelUrl: 'c' };
+const checkout = { customerId: 'cus_1', basePriceId: 'price_b', seatPriceId: 'price_s', seatQty: 3, interval: 'month' as const, allowPromotionCodes: true, successUrl: 's', cancelUrl: 'c' };
 const firstArg = (fn: { mock: { calls: unknown[][] } }, n = 0) => fn.mock.calls[n]![0] as Record<string, unknown>;
 
 describe('stripeGateway', () => {
@@ -166,6 +166,40 @@ describe('stripeGateway', () => {
     expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { items: [{ id: 'si_s', quantity: 8 }], proration_behavior: 'create_prorations' });
   });
 
+  it('updateSeatQuantity with invoiceNow invoices the proration immediately; only when prorating', async () => {
+    const c = mockClient();
+    await gw(c).updateSeatQuantity('sub_1', 8, { prorate: true, invoiceNow: true });
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { items: [{ id: 'si_s', quantity: 8 }], proration_behavior: 'always_invoice' });
+    await gw(c).updateSeatQuantity('sub_1', 7, { prorate: false, invoiceNow: true });
+    expect(c.subscriptions.update).toHaveBeenLastCalledWith('sub_1', { items: [{ id: 'si_s', quantity: 7 }], proration_behavior: 'none' });
+  });
+
+  it('switchSubscriptionInterval swaps the lines with proration always_invoice', async () => {
+    const c = mockClient();
+    c.subscriptions.update.mockResolvedValueOnce({ items: { data: [{ current_period_end: 1_900_000_000 }] } } as never);
+    const r = await gw(c).switchSubscriptionInterval('sub_1', { basePriceId: 'pby', seatPriceId: 'psy', seatQuantity: 3 });
+    expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+      items: [{ id: 'si_b', price: 'pby' }, { id: 'si_s', price: 'psy', quantity: 3 }],
+      proration_behavior: 'always_invoice',
+    });
+    expect(r.currentPeriodEnd).toEqual(new Date(1_900_000_000_000));
+    c.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_1', items: { data: [] } } as never);
+    await expect(gw(c).switchSubscriptionInterval('sub_1', { basePriceId: 'a', seatPriceId: 'b', seatQuantity: 1 })).rejects.toThrow(/base/);
+  });
+
+  it('getSubscription interval comes from the base line recurring interval', async () => {
+    const c = mockClient();
+    expect((await gw(c).getSubscription('sub_1')).interval).toBe('month');
+    c.subscriptions.retrieve.mockResolvedValueOnce({
+      id: 'sub_1', status: 'active', customer: 'cus_1', cancel_at_period_end: false, trial_end: null, default_payment_method: null,
+      items: { data: [
+        { id: 'si_b', quantity: 1, price: { id: 'pby', recurring: { interval: 'year' }, metadata: { [PRICE_ROLE_KEY]: 'base' } } },
+        { id: 'si_s', quantity: 4, price: { id: 'psy', recurring: { interval: 'year' }, unit_amount: null, metadata: { [PRICE_ROLE_KEY]: 'seat' } } },
+      ] },
+    } as never);
+    expect((await gw(c).getSubscription('sub_1')).interval).toBe('year');
+  });
+
   it('getSubscription maps seat quantity, payment method and dates', async () => {
     const s = await gw(mockClient()).getSubscription('sub_1');
     expect(s).toMatchObject({ id: 'sub_1', status: 'trialing', customerId: 'cus_1', seatQuantity: 4, hasDefaultPaymentMethod: true, cancelAtPeriodEnd: false });
@@ -181,17 +215,45 @@ describe('stripeGateway', () => {
     expect(await gw(c).upcomingInvoice('sub_1')).toBeNull();
   });
 
-  it('createPrices creates a base and a seat product once, then reuses both ids', async () => {
+  const v2 = {
+    code: 'standard', version: 2, name: 'Standard', basePriceCents: 22900, basePriceYearCents: 229000,
+    seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }],
+  };
+
+  it('createPrices makes graduated seat prices and yearly prices (12 x each tier) with interval metadata', async () => {
     const c = mockClient();
-    const r = await gw(c).createPrices({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, seatPriceCents: 9900 });
-    expect(r).toEqual({ baseProductId: 'prod_base', seatProductId: 'prod_seat', basePriceId: 'price_22900', seatPriceId: 'price_9900' });
+    const r = await gw(c).createPrices(v2);
+    expect(r).toEqual({
+      baseProductId: 'prod_base', seatProductId: 'prod_seat',
+      basePriceId: 'price_base_month_22900', seatPriceId: 'price_seat_month_tiered',
+      basePriceYearId: 'price_base_year_229000', seatPriceYearId: 'price_seat_year_tiered',
+    });
     expect(c.products.create).toHaveBeenCalledTimes(2);
-    expect(firstArg(c.prices.create, 0)).toMatchObject({ product: 'prod_base', tax_behavior: 'exclusive', metadata: { [PRICE_ROLE_KEY]: 'base' } });
-    expect(firstArg(c.prices.create, 1)).toMatchObject({ product: 'prod_seat', currency: 'usd', unit_amount: 9900, recurring: { interval: 'month' }, tax_behavior: 'exclusive', metadata: { [PRICE_ROLE_KEY]: 'seat' } });
-    c.products.create.mockClear();
-    const r2 = await gw(c).createPrices({ code: 'standard', version: 2, name: 'Standard', basePriceCents: 1, seatPriceCents: 1, stripeProductId: 'prod_base', stripeSeatProductId: 'prod_seat' });
+    expect(c.prices.create).toHaveBeenCalledTimes(4);
+    expect(firstArg(c.prices.create, 0)).toMatchObject({ product: 'prod_base', unit_amount: 22900, recurring: { interval: 'month' }, tax_behavior: 'exclusive', metadata: { [PRICE_ROLE_KEY]: 'base', interval: 'month', plan_code: 'standard', plan_version: '2' } });
+    const seat = firstArg(c.prices.create, 1);
+    expect(seat).toMatchObject({
+      product: 'prod_seat', currency: 'usd', recurring: { interval: 'month' }, tax_behavior: 'exclusive',
+      billing_scheme: 'tiered', tiers_mode: 'graduated',
+      tiers: [{ up_to: 7, unit_amount: 7900 }, { up_to: 'inf', unit_amount: 5900 }],
+      metadata: { [PRICE_ROLE_KEY]: 'seat', interval: 'month' },
+    });
+    expect(seat.unit_amount).toBeUndefined();
+    expect(firstArg(c.prices.create, 2)).toMatchObject({ product: 'prod_base', unit_amount: 229000, recurring: { interval: 'year' }, metadata: { [PRICE_ROLE_KEY]: 'base', interval: 'year' } });
+    expect(firstArg(c.prices.create, 3)).toMatchObject({
+      product: 'prod_seat', recurring: { interval: 'year' }, billing_scheme: 'tiered', tiers_mode: 'graduated',
+      tiers: [{ up_to: 7, unit_amount: 94800 }, { up_to: 'inf', unit_amount: 70800 }],
+      metadata: { [PRICE_ROLE_KEY]: 'seat', interval: 'year' },
+    });
+  });
+
+  it('createPrices makes no yearly prices without a yearly base, and reuses given products', async () => {
+    const c = mockClient();
+    const r = await gw(c).createPrices({ ...v2, version: 1, basePriceYearCents: null, seatTiers: [{ upTo: null, unitCents: 9900 }], stripeProductId: 'prod_base', stripeSeatProductId: 'prod_seat' });
     expect(c.products.create).not.toHaveBeenCalled();
-    expect(r2).toMatchObject({ baseProductId: 'prod_base', seatProductId: 'prod_seat' });
+    expect(c.prices.create).toHaveBeenCalledTimes(2);
+    expect(firstArg(c.prices.create, 1)).toMatchObject({ tiers: [{ up_to: 'inf', unit_amount: 9900 }] });
+    expect(r).toMatchObject({ baseProductId: 'prod_base', seatProductId: 'prod_seat', basePriceYearId: null, seatPriceYearId: null });
   });
 
   it('coupon appliesTo resolves to base, seat or both product lists', async () => {

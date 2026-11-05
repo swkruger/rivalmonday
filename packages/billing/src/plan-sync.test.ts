@@ -4,6 +4,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { fakeGateway } from './fake-gateway';
 import { syncPlanToStripe } from './plan-sync';
+import { STANDARD_V2 } from './pricing';
 import { STD_PLAN, resetBilling } from './test-util';
 
 const dbs = openTestDbs();
@@ -41,6 +42,24 @@ describe('syncPlanToStripe', () => {
     expect(second!.args[0]).toMatchObject({ version: 2, basePriceCents: 25900, stripeProductId: v1.stripeProductId, stripeSeatProductId: v1.stripeSeatProductId });
     const rows = await dbs.owner.select().from(plan).orderBy(asc(plan.version));
     expect(rows.every((r) => r.stripeBasePriceId && r.stripeSeatPriceId)).toBe(true);
+  });
+
+  it('v2 fills all four price ids; v1 (no yearly base) leaves the yearly ids null; resync is a no-op', async () => {
+    const gw = fakeGateway();
+    const v1 = await syncPlanToStripe(dbs.service, gw, planId);
+    expect(v1.stripeBasePriceYearId).toBeNull();
+    expect(v1.stripeSeatPriceYearId).toBeNull();
+    expect(await syncPlanToStripe(dbs.service, gw, planId)).toEqual(v1);
+    expect(gw.callsTo('createPrices')).toHaveLength(1);
+    await dbs.owner.update(plan).set({ isCurrent: false }).where(eq(plan.id, planId));
+    const [row] = await dbs.owner.insert(plan).values(STANDARD_V2).returning({ id: plan.id });
+    const v2 = await syncPlanToStripe(dbs.service, gw, row!.id);
+    expect(v2.stripeBasePriceYearId).toMatch(/^price_base_year_fake/);
+    expect(v2.stripeSeatPriceYearId).toMatch(/^price_seat_year_fake/);
+    expect(v2.stripeBasePriceId && v2.stripeSeatPriceId).toBeTruthy();
+    expect(gw.callsTo('createPrices')[1]!.args[0]).toMatchObject({ basePriceYearCents: 229000, seatTiers: STANDARD_V2.seatTiers });
+    expect(await syncPlanToStripe(dbs.service, gw, row!.id)).toEqual(v2);
+    expect(gw.callsTo('createPrices')).toHaveLength(2);
   });
 
   it('throws for an unknown plan id', async () => {

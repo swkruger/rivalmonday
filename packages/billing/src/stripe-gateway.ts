@@ -4,6 +4,7 @@ import {
   type BillingGateway, type GatewayInvoice, type GatewaySubscription, type StripeEventLike, type SubscriptionStatus,
   InvalidSignature, normalizeUsEin, trialEndUsable,
 } from './types';
+import type { BillingInterval } from './pricing';
 
 /** Metadata on each Stripe price so a subscription's seat line can be found without storing price ids per agency. */
 export const PRICE_ROLE_KEY = 'rm_role';
@@ -28,6 +29,23 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
 
   const seatItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'seat');
   const baseItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'base');
+
+  /** Base line -> new base price; seat line -> new seat price at the quantity (added when absent, removed at 0). */
+  const swap = async (
+    subscriptionId: string,
+    i: { basePriceId: string; seatPriceId: string; seatQuantity: number },
+    proration: 'none' | 'always_invoice',
+  ): Promise<{ currentPeriodEnd: Date | null }> => {
+    const s = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
+    const base = baseItem(s);
+    if (!base) throw new Error(`Subscription ${subscriptionId} has no base line`);
+    const seat = seatItem(s);
+    const items: Stripe.SubscriptionUpdateParams.Item[] = [{ id: base.id, price: i.basePriceId }];
+    if (seat) items.push(i.seatQuantity > 0 ? { id: seat.id, price: i.seatPriceId, quantity: i.seatQuantity } : { id: seat.id, deleted: true });
+    else if (i.seatQuantity > 0) items.push({ price: i.seatPriceId, quantity: i.seatQuantity });
+    const updated = await stripe.subscriptions.update(subscriptionId, { items, proration_behavior: proration });
+    return { currentPeriodEnd: date(updated.items.data[0]?.current_period_end) };
+  };
 
   return {
     async createCustomer(i) {
@@ -84,19 +102,14 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       if (!line && !o.seatPriceId) throw new Error(`Subscription ${subscriptionId} has no seat line and no seat price was given`);
       await stripe.subscriptions.update(subscriptionId, {
         items: [line ? { id: line.id, quantity: qty } : { price: o.seatPriceId!, quantity: qty }],
-        proration_behavior: o.prorate ? 'create_prorations' : 'none',
+        proration_behavior: o.prorate ? (o.invoiceNow ? 'always_invoice' : 'create_prorations') : 'none',
       });
     },
     async swapSubscriptionPlan(subscriptionId, i) {
-      const s = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
-      const base = baseItem(s);
-      if (!base) throw new Error(`Subscription ${subscriptionId} has no base line`);
-      const seat = seatItem(s);
-      const items: Stripe.SubscriptionUpdateParams.Item[] = [{ id: base.id, price: i.basePriceId }];
-      if (seat) items.push(i.seatQuantity > 0 ? { id: seat.id, price: i.seatPriceId, quantity: i.seatQuantity } : { id: seat.id, deleted: true });
-      else if (i.seatQuantity > 0) items.push({ price: i.seatPriceId, quantity: i.seatQuantity });
-      const updated = await stripe.subscriptions.update(subscriptionId, { items, proration_behavior: 'none' });
-      return { currentPeriodEnd: date(updated.items.data[0]?.current_period_end) };
+      return swap(subscriptionId, i, 'none');
+    },
+    async switchSubscriptionInterval(subscriptionId, i) {
+      return swap(subscriptionId, i, 'always_invoice');
     },
     async getSubscription(id): Promise<GatewaySubscription> {
       const s = await stripe.subscriptions.retrieve(id, { expand: ['items.data.price', 'default_payment_method'] });
@@ -112,6 +125,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         currentPeriodEnd: date(s.items.data[0]?.current_period_end),
         trialEnd: date(s.trial_end),
         seatQuantity: seatItem(s)?.quantity ?? 0,
+        interval: baseItem(s)?.price.recurring?.interval === 'year' ? 'year' : 'month',
         hasDefaultPaymentMethod: !!s.default_payment_method || customerPm,
         items,
       };
@@ -142,14 +156,29 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         existing ?? (await stripe.products.create({ name, metadata: { plan_code: plan.code, [PRICE_ROLE_KEY]: role } })).id;
       const baseProductId = await product(plan.stripeProductId, `${plan.name} base`, 'base');
       const seatProductId = await product(plan.stripeSeatProductId, `${plan.name} seat`, 'seat');
-      const price = (productId: string, cents: number, role: 'base' | 'seat', nickname: string) =>
+      const meta = (role: 'base' | 'seat', interval: BillingInterval) =>
+        ({ [PRICE_ROLE_KEY]: role, plan_code: plan.code, plan_version: String(plan.version), interval });
+      const basePrice = (interval: BillingInterval, cents: number) =>
         stripe.prices.create({
-          product: productId, currency: 'usd', unit_amount: cents, recurring: { interval: 'month' }, tax_behavior: 'exclusive',
-          nickname, metadata: { [PRICE_ROLE_KEY]: role, plan_code: plan.code, plan_version: String(plan.version) },
+          product: baseProductId, currency: 'usd', unit_amount: cents, recurring: { interval }, tax_behavior: 'exclusive',
+          nickname: `${plan.name} v${plan.version} base${interval === 'year' ? ' yearly' : ''}`, metadata: meta('base', interval),
         });
-      const base = await price(baseProductId, plan.basePriceCents, 'base', `${plan.name} v${plan.version} base`);
-      const seat = await price(seatProductId, plan.seatPriceCents, 'seat', `${plan.name} v${plan.version} seat`);
-      return { baseProductId, seatProductId, basePriceId: base.id, seatPriceId: seat.id };
+      // Graduated: tier `up_to` = cumulative extra clients; a yearly tier charges 12 x the monthly amount per client.
+      const seatPrice = (interval: BillingInterval) => {
+        const factor = interval === 'year' ? 12 : 1;
+        return stripe.prices.create({
+          product: seatProductId, currency: 'usd', recurring: { interval }, tax_behavior: 'exclusive',
+          billing_scheme: 'tiered', tiers_mode: 'graduated',
+          tiers: plan.seatTiers.map((t) => ({ up_to: t.upTo ?? ('inf' as const), unit_amount: t.unitCents * factor })),
+          nickname: `${plan.name} v${plan.version} seat${interval === 'year' ? ' yearly' : ''}`, metadata: meta('seat', interval),
+        });
+      };
+      const base = await basePrice('month', plan.basePriceCents);
+      const seat = await seatPrice('month');
+      const yearly = plan.basePriceYearCents != null;
+      const baseYear = yearly ? await basePrice('year', plan.basePriceYearCents!) : null;
+      const seatYear = yearly ? await seatPrice('year') : null;
+      return { baseProductId, seatProductId, basePriceId: base.id, seatPriceId: seat.id, basePriceYearId: baseYear?.id ?? null, seatPriceYearId: seatYear?.id ?? null };
     },
     async createCoupon(i) {
       if ((i.percentOff == null) === (i.amountOffCents == null)) throw new Error('Coupon needs exactly one of percentOff / amountOffCents');

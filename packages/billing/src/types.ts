@@ -1,4 +1,5 @@
 import type { ConnectGateway } from './connect-gateway-types';
+import type { BillingInterval, SeatTier } from './pricing';
 
 /** Gateway contract for platform → agency billing. All money is integer cents (USD). */
 
@@ -35,6 +36,8 @@ export interface GatewaySubscription {
   trialEnd: Date | null;
   /** Quantity of the per-seat price line (0 when the seat line is absent). */
   seatQuantity: number;
+  /** Billing interval of the base line (`price.recurring.interval`). */
+  interval: BillingInterval;
   hasDefaultPaymentMethod: boolean;
   items: SubscriptionItem[];
 }
@@ -64,6 +67,8 @@ export interface CheckoutSessionInput {
   seatPriceId: string;
   /** 0 = no seat line on the subscription (Stripe would bill a zero line; `updateSeatQuantity` adds it later). */
   seatQty: number;
+  /** Billing interval the passed price ids belong to (callers pick the matching ids). */
+  interval: BillingInterval;
   /** Dropped unless at least `MIN_TRIAL_END_LEAD_MS` ahead (Stripe requires 48 h). */
   trialEnd?: Date;
   couponId?: string;
@@ -77,7 +82,10 @@ export interface PlanPriceInput {
   version: number;
   name: string;
   basePriceCents: number;
-  seatPriceCents: number;
+  /** Graduated seat price: `upTo` = cumulative extra clients, last tier null. */
+  seatTiers: SeatTier[];
+  /** Yearly base price; null = the plan has no yearly prices. Yearly seat tiers are 12 x the monthly tiers. */
+  basePriceYearCents: number | null;
   /** Existing base product (reused across plan versions); created only when missing. */
   stripeProductId?: string | null;
   /** Existing seat product (reused across plan versions); created only when missing. */
@@ -89,6 +97,9 @@ export interface CreatedPrices {
   seatProductId: string;
   basePriceId: string;
   seatPriceId: string;
+  /** null when the plan has no yearly base. */
+  basePriceYearId: string | null;
+  seatPriceYearId: string | null;
 }
 
 export interface CreateCouponInput {
@@ -141,14 +152,19 @@ export interface BillingGateway extends ConnectGateway {
   updateCustomer(customerId: string, d: CustomerDetails): Promise<void>;
   createCheckoutSession(i: CheckoutSessionInput): Promise<{ url: string }>;
   createPortalSession(i: { customerId: string; returnUrl: string }): Promise<{ url: string }>;
-  /** Sets the seat line's quantity; adds the line (price `seatPriceId`) when the subscription has none and `qty > 0`. */
-  updateSeatQuantity(subscriptionId: string, qty: number, opts: { prorate: boolean; seatPriceId?: string | null }): Promise<void>;
+  /** Sets the seat line's quantity (`invoiceNow` + `prorate`: `always_invoice`); adds the line (price `seatPriceId`) when the subscription has none and `qty > 0`. */
+  updateSeatQuantity(subscriptionId: string, qty: number, opts: { prorate: boolean; seatPriceId?: string | null; invoiceNow?: boolean }): Promise<void>;
   /**
    * Moves the subscription to another plan version's prices: base line -> `basePriceId`, seat line -> `seatPriceId` at
    * `seatQuantity` (added when absent and > 0, removed at 0). No proration: the new prices apply from the next billing date.
    * Throws when the subscription has no base line.
    */
   swapSubscriptionPlan(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<{ currentPeriodEnd: Date | null }>;
+  /**
+   * Moves a monthly subscription to the same plan's yearly prices (swap semantics) with `proration_behavior: 'always_invoice'`:
+   * the prorated difference is invoiced immediately. Throws when the subscription has no base line.
+   */
+  switchSubscriptionInterval(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<{ currentPeriodEnd: Date | null }>;
   getSubscription(subscriptionId: string): Promise<GatewaySubscription>;
   upcomingInvoice(subscriptionId: string): Promise<UpcomingInvoice | null>;
   listInvoices(customerId: string, limit?: number): Promise<GatewayInvoice[]>;
