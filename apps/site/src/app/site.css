@@ -180,6 +180,13 @@
   }
   /* A faint static ring, so it reads as a blip even without the pulse. */
   .live-ping::after { content: ""; position: absolute; inset: -7px; border-radius: inherit; border: 1.5px solid color-mix(in srgb, var(--amber) 45%, transparent); }
+
+  /* Photos: a thin primary-blue hairline with a very soft blue glow, like the lit edge of a radar screen. Product
+     screenshots keep their browser frames instead. */
+  .photo-glow {
+    border-color: color-mix(in srgb, var(--primary) 75%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent), 0 8px 28px -8px color-mix(in srgb, var(--primary) 50%, transparent);
+  }
 }
 
 /* D14 product frame and segmented tabs. Unlayered on purpose: they restyle `@cs/ui` primitives (`Frame`, `TabsList`)

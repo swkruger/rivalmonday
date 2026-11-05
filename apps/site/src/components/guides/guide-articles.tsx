@@ -2,7 +2,7 @@ import { GUIDES, GUIDES_LINK, guideReadMinutes, type Guide } from '../../../cont
 import { SECTIONS } from '../../../content/home';
 import { HomeSectionShell, SectionHeading } from '../home/section-heading';
 
-const IMAGE = 'w-full rounded-lg border border-line bg-muted-surface object-cover [object-position:left_top]';
+const IMAGE = 'w-full rounded-lg border photo-glow bg-muted-surface object-cover [object-position:left_top]';
 
 function GuideImage({ guide, className }: { guide: Guide; className: string }) {
   const { src, alt, width, height } = guide.image;
