@@ -1,28 +1,58 @@
 # app-style — owner canvas "subtle component styling" in the product app
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/app-style   **Base:** main @ 8e3b86a6
-**Plan/spec:** none yet (no roadmap row)
+**Kind:** UI workstream (2 stages)   **Worktree:** ../CompetitorSpy-wt/app-style   **Base:** main @ 8e3b86a6
+**Plan/spec:** `docs/superpowers/plans/2026-11-04-app-style.md` · `docs/superpowers/specs/2026-11-04-app-style-design.md` (no roadmap row)
 
 ## Status (overwrite)
-Kicked off 2026-11-04; brief written, nothing brainstormed. Site twin (unmerged `site-story`, D14 / plan Task 11) already restyled apps/site.
+Spec + plan written, awaiting owner approval (2026-11-04). No product code yet. Site twin (unmerged `site-story`, D14 / Task 11) already restyled apps/site.
 
 ## Next (overwrite)
-Owner answers the open questions (Brief § 6); then `superpowers:brainstorming`, spec, lean plan.
+Owner approves the plan → `superpowers:subagent-driven-development` from Task 0 (pre-flight + "before" shots), stage A Tasks 1–8, stage B Tasks 9–12, Task 13 visual check + suites.
 
 ## Interfaces this branch adds or changes
-None yet. Likely: `@cs/ui` chip/button/tabs variants, new tint tokens in `packages/ui/src/styles.css`, `scripts/design-lint.sh` ALLOW_AMBER entries. No migration (next free is 0097 if ever needed).
+- `packages/ui/src/styles.css` tokens:
+  - `--chrome`, `--ink-hover`, `--success-strong(-hover)`.
+  - `--on-ink`, `--on-ink-muted`, `--on-ink-link`.
+  - `--primary-band-ring` (per agency, from `themeVars`).
+  - `--shadow-raised-value` (`shadow-raised`, registered in `cn.ts`).
+  - `.rm-ink-band`.
+- `@cs/ui` additions:
+  - `Button` `ink` | `done`; `Card` `raised`.
+  - `Tag` `tone` + `emphasis`; `StatusChip` `emphasis`; `CitationPill` `tone` (+ `citationPillInfoClass`); `chipToneClass`.
+  - `NumberMarker`.
+  - Segmented tabs: `tabsSegmented*Class`, `variant` on `TabsList`/`TabsLinkList`/`TabsLink`.
+- apps/web:
+  - `PageHeader` `tone="ink"`.
+  - `IMPACT_TONE` (`lib/labels.ts`); `EvidenceChips` `tone`; `StarterChips` `variant`; `components/ask/bubble-classes.ts`.
+  - Dev-only `/dev-panel/gallery`.
+- `scripts/design-lint.sh`: one `ALLOW_AMBER` entry (`number-marker.tsx`). No migration (next free 0097).
 
 ## Assumes from other branches
 Independent of `site-story` (apps/site, docs, `scripts/design-lint.sh` only; zero `apps/web` or `packages/` files). Expect a textual conflict in design-lint ALLOW_AMBER (both append); resolve by hand at the later merge.
 
-## Decisions (owner-approved)
-None yet.
+## Decisions (owner-approved 2026-11-04, "go as recommended"; spec AS1–AS8)
+1. Two stages in one branch: A = `@cs/ui` primitives, tokens, design-system doc amendments, gallery; B = page adoption, recommendations board, Friday.
+2. Opt-in variants adopted page by page; existing defaults unchanged.
+3. Orange = Friday + priority bar + numbered markers (no amber tints).
+4. Chip/lane tints fixed neutral/semantic; agency primary only for the active (segmented) tab and selected states.
+5. Primary: `ink` on staff/agency pages. Client-facing pages keep the agency-primary fill (`readableTextOn`), with `ink` as a second tier. This amends "primary colour = do this" (D-28).
+6. Recommendations board: canvas cards in tinted lanes (amends D-01/D-06 for this board only).
+7. Before/after shots of 9 labels at 1440/390 (shots harness) plus a dev-only gallery.
+8. Ink band only behind the client page title; top bar unchanged.
+
+Derived (spec AS9–AS17):
+- Canvas radii are mapped onto the 4/6/8/12 scale; weights max 600; 36 px controls.
+- Tinted category chips are `Tag`s; `done` needs label + check.
+- Friday answers sit in bubbles (amends D-14).
+- The band re-scopes tokens (white focus).
+- The gallery is dev-only.
+- No copy changes.
 
 ## New backlog (target → item)
-None yet.
+None yet (candidates in plan Task 13: platform pages adopting `ink`; ConfirmDialog primary tone).
 
 ## Owner verification steps
-Before/after screenshots of the key pages (Q7).
+Open `apps/web/.shots/index.html` (before | after, 9 labels × 1440/390) and `apps/web/.shots/gallery/` after Task 13.
 
 ## Brief
 
@@ -63,12 +93,5 @@ Code: `packages/ui` primitives + `styles.css` tokens, apps/web recommendations b
 ### 5. In-flight workstreams
 Only `site-story` (work file: homepage story rewrite; Tasks 0–8 + 10 done, Task 9 owner sign-off pending). Diff vs main: 61 files, all apps/site, docs and `scripts/design-lint.sh` (+14 ALLOW_AMBER lines); nothing in apps/web or packages. Overlap: design-lint ALLOW_AMBER only. D14 widens amber for the site home page only, not the app. Next free migration: 0097 (none expected).
 
-### 6. Open questions for the owner (most design-changing first)
-1. Split into sub-phases? (a) one phase; (b) two: A = `@cs/ui` primitives + tokens + design-system docs, B = page adoption + recommendations board + Friday; (c) three: tokens/docs, primitives, per-area pages. Recommend (b).
-2. Where does the styling live? (a) change `@cs/ui` primitives (every page, one change, higher regression risk); (b) opt-in variants (e.g. Button `ink`, `done`) adopted page by page; (c) app-local CSS override like the site. Recommend (b).
-3. Orange scope in the app (P4 today: Friday + priority bar). (a) keep; (b) add numbered markers only; (c) markers + amber-tint "for you"/recommended chips. Recommend (b).
-4. White-label: canvas tints derive from Rival Monday blue. (a) fixed neutral/semantic tints (success/warn/info/neutral), independent of agency brand; (b) derive from agency primary; (c) fixed tints plus agency primary only for the active tab/primary action. Recommend (a), with (c) for tabs.
-5. Primary action look. (a) ink-filled primary everywhere (agency primary then only on active/selected states); (b) keep agency-primary fill, add ink as a second tier. Recommend (a) on staff pages, (b) where agency branding shows (client-facing).
-6. Recommendations board: cards in tinted lanes, yes or no? (a) yes, canvas-style cards in tinted lanes (amends D-01); (b) tinted lanes with flat rows, no cards. Recommend (a).
-7. Visual check method. (a) before/after screenshots of ~8 key pages (client overview, recommendations, Ask page + Friday dock, competitors, agency clients, settings, brief, sign-in) at desktop + phone, reviewed by you; (b) the above plus a gallery page of the new primitives; (c) tests only. Recommend (b).
-8. Ink header/title bars: (a) only the page-title band on client pages; (b) also the top bar; (c) skip. Recommend (a).
+### 6. Open questions
+Answered 2026-11-04 ("go as recommended"): see Decisions above.
