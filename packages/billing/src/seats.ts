@@ -22,7 +22,8 @@ export interface SyncSeatsOptions {
  *   returns `'deferred'` with `seat_sync_pending = false` (nothing failed, nothing to retry) and records the first
  *   deferral time in `seat_decrease_deferred_at`. The daily job applies it within 7 days before renewal (proration none)
  *   or, if a renewal passed first, with a credit (`yearlyDecreaseMode`). So pausing then resuming a client never
- *   double-charges. Any sync that leaves Stripe at the wanted quantity clears the deferral.
+ *   double-charges. (Accepted: a decrease applied up to 7 days early, then a client re-added before renewal, is charged
+ *   a small prorated increase.) Any sync that leaves Stripe at the wanted quantity clears the deferral.
  *
  * Gateway failure marks `seat_sync_pending` (the daily job retries) and never throws.
  */

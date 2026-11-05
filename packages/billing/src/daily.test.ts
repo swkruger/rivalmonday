@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { runConnectDaily } from './connect-daily';
 import { runBillingDaily } from './daily';
 import { fakeGateway } from './fake-gateway';
+import { syncSeats } from './seats';
 import { AGENCY, addClients, resetBilling, setBilling } from './test-util';
 
 vi.mock('./connect-daily', async (orig) => {
@@ -310,6 +311,49 @@ describe('runBillingDaily: yearly seat decreases at renewal (final fix I4)', () 
     expect(await runBillingDaily(dbs.service, gw, NOW)).toMatchObject({ drift: 0, seatRetries: 0 });
     expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
     expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false });
+  });
+
+  it('a drop in active clients with no syncSeats call: the first run records the deferral, a run in the window lowers', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 362 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 30 * 24 * HOUR) });
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+    expect((await row()).seatDecreaseDeferredAt).toBeInstanceOf(Date);
+    gw.subscriptions.get('sub_1')!.currentPeriodEnd = new Date(NOW.getTime() + 3 * 24 * HOUR);
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: false, seatPriceId: null, invoiceNow: false }]]);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatDecreaseDeferredAt: null });
+  });
+
+  it('end to end: syncSeats defers, the subscription renews, the next run credits and clears', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 200 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 165 * 24 * HOUR) });
+    expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('deferred');
+    const s = gw.subscriptions.get('sub_1')!;
+    s.currentPeriodStart = new Date(Date.now() + 60_000); // renewed after the deferral, old quantity
+    s.currentPeriodEnd = new Date(Date.now() + 365 * 24 * HOUR);
+    await runBillingDaily(dbs.service, gw, new Date(Date.now() + 2 * 60_000));
+    expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: true, seatPriceId: null, invoiceNow: true }]]);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatDecreaseDeferredAt: null });
+  });
+
+  it('a failed credit is retried and applied exactly once', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 3 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 362 * 24 * HOUR) });
+    await defer(new Date(NOW.getTime() - 100 * 24 * HOUR));
+    const origUpdate = gw.updateSeatQuantity.bind(gw);
+    let failed = false;
+    gw.updateSeatQuantity = async (...a: Parameters<typeof origUpdate>) => {
+      if (!failed) { failed = true; throw new Error('boom'); }
+      return origUpdate(...a);
+    };
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(await row()).toMatchObject({ seatSyncPending: true });
+    await runBillingDaily(dbs.service, gw, NOW);
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.subscriptions.get('sub_1')!.seatQuantity).toBe(1);
+    expect(gw.callsTo('updateSeatQuantity').filter((c) => (c.args[2] as { prorate: boolean }).prorate)).toHaveLength(1); // the failed attempt is not recorded by the fake; exactly one credit applied
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false, seatDecreaseDeferredAt: null });
   });
 
   it('a monthly agency is untouched by the renewal window', async () => {

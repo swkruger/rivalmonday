@@ -176,6 +176,7 @@ async function moveOne(deps: ToolDeps, ctx: AccessContext, agencyId: string, tar
       await tx.update(agencyBilling).set({
         planId: target.id,
         billableSeatsSynced: swaps ? qty : row.billableSeatsSynced,
+        ...(swaps ? { seatDecreaseDeferredAt: null } : {}),
         seatSyncPending: swaps ? false : row.seatSyncPending,
         updatedAt: new Date(),
       }).where(eq(agencyBilling.agencyId, agencyId));

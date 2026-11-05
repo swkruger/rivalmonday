@@ -54,15 +54,19 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
     await db.update(agencyBilling).set({ billingInterval: sub.interval, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
     drift++;
   }
+  let synced = false;
   if (sub.seatQuantity !== (row.billableSeatsSynced ?? 0)) {
     // Stripe wins for the recorded quantity; syncSeats then pushes our active-client count if it differs.
     await db.update(agencyBilling).set({ billableSeatsSynced: sub.seatQuantity, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
     drift++;
     await syncSeats(db, gw, row.agencyId);
+    synced = true;
   }
   // Final fix I4: a yearly seat decrease is held back (seat_decrease_deferred_at); lower the quantity within 7 days before
-  // renewal (proration none), or with a credit if a renewal passed first. Re-read: the sync above may have set or cleared it.
+  // renewal (proration none), or with a credit if a renewal passed first. Re-read: a sync may have set or cleared it.
   if (sub.interval === 'year') {
+    // Records a deferral when the active count dropped without a sync (operator archive, checkout race).
+    if (!synced) await syncSeats(db, gw, row.agencyId);
     const [cur] = await db.select({ at: agencyBilling.seatDecreaseDeferredAt }).from(agencyBilling).where(eq(agencyBilling.agencyId, row.agencyId));
     const mode = yearlyDecreaseMode(sub, cur?.at ?? null, now);
     if (mode) await syncSeats(db, gw, row.agencyId, { yearlyDecrease: mode });
