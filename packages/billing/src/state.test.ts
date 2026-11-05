@@ -82,10 +82,16 @@ describe('payment_failed / subscription_ended / cancel', () => {
     expect(t?.state).toBe('past_due');
     expect(t?.patch).toMatchObject({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
   });
+  it('subscription_ended resets a yearly interval to month (pricing v2)', () => {
+    const t = nextBillingState(row('active', { stripeSubscriptionId: 'sub_1', billingInterval: 'year' }), signals.subscription_ended!);
+    expect(t?.patch).toMatchObject({ stripeSubscriptionId: null, billingInterval: 'month' });
+    const stale = nextBillingState(row('past_due', { billingInterval: 'year' }), signals.subscription_ended!);
+    expect(stale?.patch).toMatchObject({ billingInterval: 'month' });
+  });
   it.each(['past_due', 'read_only', 'suspended'] as const)('subscription_ended in %s keeps the state but still forgets the subscription', (state) => {
     const t = nextBillingState(row(state, { stripeSubscriptionId: 'sub_1', billableSeatsSynced: 1 }), signals.subscription_ended!);
     expect(t?.state).toBe(state);
-    expect(t?.patch).toEqual({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false });
+    expect(t?.patch).toEqual({ stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, billingInterval: 'month' });
     expect(t?.reason).toBe(REASONS.subscriptionEnded);
   });
   it('grant_pilot and extend_trial drop a (non-live, checked by the tool) subscription id', () => {

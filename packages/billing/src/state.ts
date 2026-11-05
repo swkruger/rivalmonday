@@ -48,10 +48,14 @@ const addDays = (d: Date, days: number) => new Date(d.getTime() + days * DAY_MS)
 /**
  * R26: an ended subscription is forgotten in the same transaction that records the end, so reconcile, seat sync, the
  * trial timer and the checkout live-subscription check (R22) never act on it again. Also applied by the staff
- * grant-pilot / extend-trial signals, whose tools first verify the stored subscription is not live.
+ * grant-pilot / extend-trial signals, whose tools first verify the stored subscription is not live. The interval goes back to
+ * `month` (pricing v2): a new subscription starts from Checkout, which records its own interval.
  */
-export const FORGET_SUBSCRIPTION = { stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false } as const satisfies Partial<AgencyBillingRow>;
-const holdsSubscription = (row: AgencyBillingRow) => row.stripeSubscriptionId !== null || row.billableSeatsSynced !== null || row.seatSyncPending;
+export const FORGET_SUBSCRIPTION = {
+  stripeSubscriptionId: null, billableSeatsSynced: null, seatSyncPending: false, billingInterval: 'month',
+} as const satisfies Partial<AgencyBillingRow>;
+const holdsSubscription = (row: AgencyBillingRow) =>
+  row.stripeSubscriptionId !== null || row.billableSeatsSynced !== null || row.seatSyncPending || row.billingInterval !== 'month';
 
 /** Build a transition; `stateChangedAt` is set only when the state changes and a clock is available. */
 function step(row: AgencyBillingRow, state: BillingState, reason: BillingReason, patch: Partial<AgencyBillingRow>, now?: Date): BillingTransition {
