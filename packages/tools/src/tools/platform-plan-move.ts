@@ -1,4 +1,4 @@
-import { countActiveClients, currentStandardPlan, isReducedTrial, planFor, syncPlanToStripe } from '@cs/billing';
+import { countActiveClients, currentStandardPlan, isReducedTrial, planCents, planFor, syncPlanToStripe, type BillingInterval } from '@cs/billing';
 import { type AccessContext, PLAN_FEATURES, type PlanFeature, ToolError, toolkit } from '@cs/core';
 import { type AgencyBillingRow, agency, agencyBilling, agencyBillingEvent, BILLING_STATES, type BillingState, type PlanRow, plan } from '@cs/db';
 import type { PlanTerms } from '@cs/email';
@@ -23,7 +23,14 @@ const ALL: readonly PlanFeature[] = PLAN_FEATURES;
 const swapsStripe = (row: Pick<AgencyBillingRow, 'state' | 'stripeSubscriptionId'>) => !!row.stripeSubscriptionId && row.state !== 'cancelled';
 const errName = (e: unknown): string => (e instanceof Error ? e.name : 'unknown');
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
-const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatPriceCents });
+/** The email's `PlanTerms` still carries one seat price: the first graduated tier (the email is reshaped separately). */
+const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatTiers[0]?.unitCents ?? 0 });
+const NO_YEARLY_PRICE = 'This plan has no yearly price.';
+const hasYearlyIds = (p: PlanRow) => !!(p.stripeBasePriceYearId && p.stripeSeatPriceYearId);
+/** What the agency pays per its own interval (cents per month, or per year); a yearly agency on a plan with no yearly price is shown at the monthly price. */
+function priceFor(p: PlanRow, activeClients: number, interval: BillingInterval): number {
+  return planCents(p, activeClients, interval === 'year' && p.basePriceYearCents == null ? 'month' : interval);
+}
 /** P11 / 7a2 D13: no `plan_id` ⇒ every feature (what `planFeaturesFor` gives them until moved). */
 const featuresOf = (row: Pick<AgencyBillingRow, 'planId'>, p: PlanRow | null): PlanFeature[] =>
   row.planId === null || !p ? [...ALL] : ALL.filter((f) => p.features.includes(f));
@@ -58,7 +65,7 @@ async function requireCurrentPlan(deps: ToolDeps): Promise<PlanRow> {
 const AgencyRow = z.object({
   agencyId: z.string(), name: z.string(), state: z.enum(BILLING_STATES), planId: z.string().nullable(), version: z.number().int().nullable(),
   basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)),
-  activeClients: z.number().int(), swapsStripe: z.boolean(), onHold: z.boolean(), seatWarning: z.enum(['extra_seats', 'over_cap']).nullable(),
+  interval: z.enum(['month', 'year']), activeClients: z.number().int(), swapsStripe: z.boolean(), onHold: z.boolean(), seatWarning: z.enum(['extra_seats', 'over_cap']).nullable(),
   extraSeatsAfter: z.number().int(), monthlyNowCents: z.number().int(), monthlyAfterCents: z.number().int(),
 });
 
@@ -88,10 +95,10 @@ export const listPlanAgenciesTool = defineTool({
         const now = p ? termsOf(p) : targetTerms;
         agencies.push({
           agencyId: row.agencyId, name: r.name, state: row.state, planId: row.planId, version: row.planId ? r.version : null,
-          ...now, features: featuresOf(row, p), activeClients, swapsStripe: swapsStripe(row), onHold: r.suspendedAt !== null,
+          ...now, features: featuresOf(row, p), interval: row.billingInterval, activeClients, swapsStripe: swapsStripe(row), onHold: r.suspendedAt !== null,
           seatWarning: seatWarningFor({ state: row.state, seatCapExempt: row.seatCapExempt, reducedTrial }, activeClients, targetTerms),
           extraSeatsAfter: Math.max(0, activeClients - target.includedSeats),
-          monthlyNowCents: monthlyCents(now, activeClients), monthlyAfterCents: monthlyCents(targetTerms, activeClients),
+          monthlyNowCents: priceFor(p ?? target, activeClients, row.billingInterval), monthlyAfterCents: priceFor(target, activeClients, row.billingInterval),
         });
       }
       return { currentPlanId: target.id, currentVersion: target.version, agencies };
@@ -102,8 +109,8 @@ export const listPlanAgenciesTool = defineTool({
 // ---- move ----
 
 type Outcome = 'moved' | 'already_current' | 'refused' | 'failed';
-type Reason = 'on_hold' | 'cancelled' | 'not_found' | 'stripe_error' | 'db_error';
-interface MoveResult { agencyId: string; outcome: Outcome; reason?: Reason; emailed: boolean }
+type Reason = 'on_hold' | 'cancelled' | 'not_found' | 'stripe_error' | 'db_error' | 'no_yearly_price';
+interface MoveResult { agencyId: string; outcome: Outcome; reason?: Reason; message?: string; emailed: boolean }
 
 /** The first transaction's verdict: a refusal / no-op, or the committed move plus what the later steps need. */
 type Prepared =
@@ -122,7 +129,7 @@ export const moveAgenciesToCurrentPlanTool = defineTool({
     targetPlanId: z.string(), targetVersion: z.number().int(),
     results: z.array(z.object({
       agencyId: z.string(), outcome: z.enum(['moved', 'already_current', 'refused', 'failed']),
-      reason: z.enum(['on_hold', 'cancelled', 'not_found', 'stripe_error', 'db_error']).optional(), emailed: z.boolean(),
+      reason: z.enum(['on_hold', 'cancelled', 'not_found', 'stripe_error', 'db_error', 'no_yearly_price']).optional(), message: z.string().optional(), emailed: z.boolean(),
     })),
   }),
   permission: 'agency',
@@ -133,7 +140,7 @@ export const moveAgenciesToCurrentPlanTool = defineTool({
     let target = await requireCurrentPlan(deps);
     const gw = deps.billing ?? null;
     // A version published by `create_plan_version` is synced already; a seeded/legacy one gets its prices once, up front.
-    if (gw && !(target.stripeBasePriceId && target.stripeSeatPriceId)) target = await syncPlanToStripe(deps.service, gw, target.id);
+    if (gw && !(target.stripeBasePriceId && target.stripeSeatPriceId && (target.basePriceYearCents == null || hasYearlyIds(target)))) target = await syncPlanToStripe(deps.service, gw, target.id);
     const t = target;
     const results: MoveResult[] = [];
     for (const id of [...new Set(input.agencyIds)]) {
@@ -165,6 +172,8 @@ async function moveOne(deps: ToolDeps, ctx: AccessContext, agencyId: string, tar
       if (a?.suspendedAt) return { done: result('refused', 'on_hold') };
       if (row.state === 'cancelled') return { done: result('refused', 'cancelled') };
       if (row.planId === target.id) return { done: result('already_current') };
+      // D5: a yearly subscription can only move to a version that has yearly prices; the others in the batch still move.
+      if (row.billingInterval === 'year' && !hasYearlyIds(target)) return { done: { ...result('refused', 'no_yearly_price'), message: NO_YEARLY_PRICE } };
       const swaps = swapsStripe(row);
       if (swaps && !gw) throw new NoGateway();
       const old = await planFor(tx, row);
@@ -186,11 +195,14 @@ async function moveOne(deps: ToolDeps, ctx: AccessContext, agencyId: string, tar
   const { row, old, qty, swaps } = prepared;
 
   let periodEnd: Date | null = null;
+  const yearly = row.billingInterval === 'year';
   if (swaps) {
     try {
       // No Stripe call inside a DB transaction: the swap runs after the commit, and a failure is compensated.
       ({ currentPeriodEnd: periodEnd } = await gw!.swapSubscriptionPlan(row.stripeSubscriptionId!, {
-        basePriceId: target.stripeBasePriceId!, seatPriceId: target.stripeSeatPriceId!, seatQuantity: qty,
+        basePriceId: (yearly ? target.stripeBasePriceYearId : target.stripeBasePriceId)!,
+        seatPriceId: (yearly ? target.stripeSeatPriceYearId : target.stripeSeatPriceId)!,
+        seatQuantity: qty,
       }));
     } catch (e) {
       console.error('[plan-move] stripe swap failed', { agencyId, error: errName(e) });

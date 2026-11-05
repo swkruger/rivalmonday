@@ -6,6 +6,7 @@ import { clientMrrCents, runConnectDaily } from './connect-daily';
 import { syncSeats } from './seats';
 import type { BillingSignal } from './state';
 import type { BillingGateway } from './types';
+import { monthlyEquivalentCents, planCents } from './pricing';
 import { signalForSubscription } from './webhook';
 
 export interface BillingDailyResult {
@@ -49,6 +50,10 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
   );
   if (signal && (await apply(db, row.agencyId, signal)).changed) drift++;
   if (signal?.kind === 'subscription_ended') return drift; // R26: the id is now forgotten; nothing to sync seats against
+  if (sub.interval !== row.billingInterval) {
+    await db.update(agencyBilling).set({ billingInterval: sub.interval, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
+    drift++;
+  }
   if (sub.seatQuantity !== (row.billableSeatsSynced ?? 0)) {
     // Stripe wins for the recorded quantity; syncSeats then pushes our active-client count if it differs.
     await db.update(agencyBilling).set({ billableSeatsSynced: sub.seatQuantity, updatedAt: new Date() }).where(eq(agencyBilling.agencyId, row.agencyId));
@@ -59,7 +64,10 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
   if (row.planId) {
     const [p] = await db.select().from(plan).where(eq(plan.id, row.planId));
     const has = (priceId: string) => sub.items.some((i) => i.priceId === priceId);
-    if (p && ((p.stripeBasePriceId && !has(p.stripeBasePriceId)) || (sub.seatQuantity > 0 && p.stripeSeatPriceId && !has(p.stripeSeatPriceId)))) {
+    const yearly = sub.interval === 'year';
+    const baseId = p && (yearly ? p.stripeBasePriceYearId : p.stripeBasePriceId);
+    const seatId = p && (yearly ? p.stripeSeatPriceYearId : p.stripeSeatPriceId);
+    if (p && ((baseId && !has(baseId)) || (sub.seatQuantity > 0 && seatId && !has(seatId)))) {
       drift++;
       console.error('[billing-daily] plan price drift', { agencyId: row.agencyId });
     }
@@ -77,7 +85,14 @@ async function mrrFor(gw: BillingGateway | null, row: AgencyBillingRow, p: PlanR
       discount = 0; // no discount knowledge: report list price rather than fail the stat
     }
   }
-  return Math.max(0, p.basePriceCents + paidSeats * p.seatPriceCents - discount);
+  const interval = row.billingInterval;
+  let cents: number;
+  try {
+    cents = monthlyEquivalentCents(planCents(p, p.includedSeats + paidSeats, interval), interval);
+  } catch {
+    cents = planCents(p, p.includedSeats + paidSeats, 'month'); // a yearly agency on a plan without a yearly price: report list price
+  }
+  return Math.max(0, cents - discount);
 }
 
 const logFailure = (step: string, agencyId: string, e: unknown) =>

@@ -8,13 +8,13 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { planFeaturesFor } from '../access/plan-features';
 import { createToolRegistry } from '../registry';
-import { monthlyCents, seatWarningFor } from './platform-plan-move';
+import { seatWarningFor } from './platform-plan-move';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
-const V1 = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: false, createdBy: 'test', features: ['ask', 'mcp'] as ('ask' | 'mcp')[], stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s', stripeBasePriceId: 'price_b1', stripeSeatPriceId: 'price_s1' };
-const V2 = { ...V1, version: 2, name: 'Standard v2', basePriceCents: 19900, seatPriceCents: 7900, isCurrent: true, features: ['ask'] as ('ask' | 'mcp')[], stripeBasePriceId: 'price_b2', stripeSeatPriceId: 'price_s2' };
+const V1 = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], basePriceYearCents: null, trialDays: 30, isCurrent: false, createdBy: 'test', features: ['ask', 'mcp'] as ('ask' | 'mcp')[], stripeProductId: 'prod_b', stripeSeatProductId: 'prod_s', stripeBasePriceId: 'price_b1', stripeSeatPriceId: 'price_s1' };
+const V2 = { ...V1, version: 2, name: 'Standard v2', basePriceCents: 19900, basePriceYearCents: 199000, seatTiers: [{ upTo: null, unitCents: 7900 }], isCurrent: true, features: ['ask'] as ('ask' | 'mcp')[], stripeBasePriceId: 'price_b2', stripeSeatPriceId: 'price_s2', stripeBasePriceYearId: 'price_by2', stripeSeatPriceYearId: 'price_sy2' };
 const PERIOD_END = new Date('2026-11-03T12:00:00Z');
 
 const ctxOf = (userId: string) => createAccessContext({ agencyId: IDS.agencyA, userId, role: 'agency_admin', clientScope: 'all', features: [] });
@@ -99,11 +99,6 @@ beforeEach(async () => {
 
 describe('helpers', () => {
   const t = { basePriceCents: 19900, includedSeats: 3, seatPriceCents: 7900 };
-  it('monthlyCents', () => {
-    expect(monthlyCents(t, 0)).toBe(19900);
-    expect(monthlyCents(t, 3)).toBe(19900);
-    expect(monthlyCents(t, 5)).toBe(19900 + 2 * 7900);
-  });
   it('seatWarningFor per state', () => {
     const w = (state: 'pilot' | 'trialing' | 'active' | 'past_due' | 'read_only', active: number, x: { seatCapExempt?: boolean; reducedTrial?: boolean } = {}) =>
       seatWarningFor({ state, seatCapExempt: x.seatCapExempt ?? false, reducedTrial: x.reducedTrial ?? false }, active, t);
@@ -179,6 +174,28 @@ describe('move_agencies_to_current_plan', () => {
     }
     const listed = Object.fromEntries((await list()).agencies.map((a) => [a.agencyId, a.swapsStripe]));
     expect(listed).toEqual({}); // both moved off the list
+  });
+
+  it('a yearly agency swaps to the target yearly prices; one whose target has no yearly ids is refused and the rest still move', async () => {
+    const yearly = await mk('Yearly', { billing: { state: 'active', billingInterval: 'year' }, sub: 'sub_y', clients: 5 });
+    gw.subscriptions.get('sub_y')!.interval = 'year';
+    const monthly = await mk('Monthly', { billing: { state: 'active' }, sub: 'sub_m', clients: 5 });
+    const ok = await move([yearly, monthly]);
+    expect(ok.results.map((r) => r.outcome)).toEqual(['moved', 'moved']);
+    expect(gw.swaps).toEqual([
+      { subscriptionId: 'sub_y', basePriceId: 'price_by2', seatPriceId: 'price_sy2', seatQuantity: 2 },
+      { subscriptionId: 'sub_m', basePriceId: 'price_b2', seatPriceId: 'price_s2', seatQuantity: 2 },
+    ]);
+    await dbs.owner.update(agencyBilling).set({ planId: v1 });
+    await dbs.owner.update(plan).set({ basePriceYearCents: null, stripeBasePriceYearId: null, stripeSeatPriceYearId: null }).where(eq(plan.id, v2));
+    gw.swaps.length = 0;
+    const out = await move([yearly, monthly]);
+    expect(out.results).toEqual([
+      { agencyId: yearly, outcome: 'refused', reason: 'no_yearly_price', message: 'This plan has no yearly price.', emailed: false },
+      { agencyId: monthly, outcome: 'moved', emailed: expect.any(Boolean) },
+    ]);
+    expect((await row(yearly)).planId).toBe(v1);
+    expect(gw.swaps.map((s) => s.subscriptionId)).toEqual(['sub_m']);
   });
 
   it('pilot and no-card trial: no gateway call, plan_id set', async () => {
@@ -272,7 +289,7 @@ describe('list_plan_agencies', () => {
     expect(out.agencies.map((a) => a.agencyId)).toEqual([nullPlan, held, old]); // version asc nulls first, then name
     const byId = Object.fromEntries(out.agencies.map((a) => [a.agencyId, a]));
     // P11: a null plan reports what planFor resolves (the current version's prices) and every feature.
-    expect(byId[nullPlan]).toMatchObject({ planId: null, version: null, basePriceCents: 19900, includedSeats: 3, seatPriceCents: 7900, features: ['ask', 'mcp'], swapsStripe: false, onHold: false });
+    expect(byId[nullPlan]).toMatchObject({ planId: null, version: null, interval: 'month', basePriceCents: 19900, includedSeats: 3, features: ['ask', 'mcp'], swapsStripe: false, onHold: false });
     expect(byId[held]).toMatchObject({ planId: v1, version: 1, onHold: true, swapsStripe: false, features: ['ask', 'mcp'] });
     expect(byId[old]).toMatchObject({ state: 'active', swapsStripe: true, onHold: false });
     expect(gw.calls).toEqual([]);
@@ -291,6 +308,13 @@ describe('list_plan_agencies', () => {
     const a = await mk('Five', { billing: { state: 'active' }, sub: 'sub_five', clients: 5 });
     const [r] = (await list()).agencies;
     expect(r).toMatchObject({ agencyId: a, activeClients: 5, extraSeatsAfter: 2, monthlyNowCents: 22900 + 2 * 9900, monthlyAfterCents: 19900 + 2 * 7900, seatWarning: 'extra_seats' });
+  });
+
+  it('yearly agencies are previewed in yearly cents', async () => {
+    const a = await mk('Yearly', { billing: { state: 'active', billingInterval: 'year' }, sub: 'sub_y', clients: 5 });
+    await dbs.owner.update(plan).set({ basePriceYearCents: 229000 }).where(eq(plan.id, v1));
+    const [r] = (await list()).agencies;
+    expect(r).toMatchObject({ agencyId: a, interval: 'year', monthlyNowCents: 229000 + 12 * 2 * 9900, monthlyAfterCents: 199000 + 12 * 2 * 7900 });
   });
 
   it('seatWarning per state incl. reduced trial and exempt pilot', async () => {

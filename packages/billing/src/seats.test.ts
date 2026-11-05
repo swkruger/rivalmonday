@@ -54,7 +54,7 @@ describe('syncSeats', () => {
     await withSub(gw);
     await addClients(dbs.owner, 3); // 5 active -> 2 extra
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
-    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: true, seatPriceId: null }]);
+    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: true, seatPriceId: null, invoiceNow: false }]);
     expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false });
   });
 
@@ -63,7 +63,7 @@ describe('syncSeats', () => {
     await withSub(gw, { billableSeatsSynced: 4 });
     await addClients(dbs.owner, 3); // qty 2
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
-    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: false, seatPriceId: null }]);
+    expect(gw.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 2, { prorate: false, seatPriceId: null, invoiceNow: false }]);
     expect((await row()).billableSeatsSynced).toBe(2);
   });
 
@@ -76,6 +76,20 @@ describe('syncSeats', () => {
     expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
     expect(gw.subscriptions.get('sub_1')!.items.find((i) => i.priceId === 'price_seat')?.quantity).toBe(1);
     expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+  });
+
+  it('a yearly agency going 3 -> 4 clients is invoiced at once with the yearly seat price; a monthly one is not', async () => {
+    await dbs.owner.update(plan).set({ stripeSeatPriceId: 'price_seat', stripeSeatPriceYearId: 'price_seat_year' }).where(eq(plan.id, planId));
+    await addClients(dbs.owner, 2); // 4 active -> 1 extra
+    const yearly = fakeGateway();
+    await withSub(yearly, { billingInterval: 'year' });
+    expect(await syncSeats(dbs.service, yearly, AGENCY)).toBe('synced');
+    expect(yearly.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 1, { prorate: true, seatPriceId: 'price_seat_year', invoiceNow: true }]);
+    await dbs.owner.update(agencyBilling).set({ billingInterval: 'month', billableSeatsSynced: 0 });
+    const monthly = fakeGateway();
+    monthly.seedSubscription({ id: 'sub_1', customerId: 'cus_1' });
+    expect(await syncSeats(dbs.service, monthly, AGENCY)).toBe('synced');
+    expect(monthly.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 1, { prorate: true, seatPriceId: 'price_seat', invoiceNow: false }]);
   });
 
   it('gateway failure sets seat_sync_pending, never throws, and a retry clears it', async () => {

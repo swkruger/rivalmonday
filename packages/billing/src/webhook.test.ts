@@ -41,6 +41,21 @@ describe('handleStripeEvent', () => {
     expect((await record('evt_1'))?.processedAt).not.toBeNull();
   });
 
+  it('a yearly checkout stores billing_interval year and matches the yearly base price (P3)', async () => {
+    await dbs.owner.update(plan).set({ stripeBasePriceYearId: 'price_base_year' }).where(eq(plan.id, planId));
+    await seed('trialing');
+    gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 0, interval: 'year', items: [{ id: 'i1', priceId: 'price_base_year', quantity: 1 }] });
+    expect(await handle(ev('evt_y', 'checkout.session.completed', { subscription: 'sub_1' }))).toBe('processed');
+    expect(await row()).toMatchObject({ state: 'active', billingInterval: 'year', planId });
+  });
+
+  it('customer.subscription.updated follows an interval switch', async () => {
+    await seed('active', { stripeSubscriptionId: 'sub_1', billingInterval: 'month' });
+    gw.seedSubscription({ id: 'sub_1', customerId: CUS, interval: 'year' });
+    await handle(ev('evt_u', 'customer.subscription.updated', { id: 'sub_1', status: 'active' }));
+    expect((await row()).billingInterval).toBe('year');
+  });
+
   it('checkout on a held agency pauses the new subscription after commit; unheld does not (15c3a)', async () => {
     await seed('trialing');
     gw.seedSubscription({ id: 'sub_1', customerId: CUS, seatQuantity: 1, items: [{ id: 'i1', priceId: 'price_base', quantity: 1 }] });

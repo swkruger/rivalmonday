@@ -11,7 +11,7 @@ function row(state: BillingState, over: Partial<AgencyBillingRow> = {}): AgencyB
   return {
     agencyId: 'a', state, planId: null, stripeCustomerId: null, stripeSubscriptionId: null, trialEndsAt: null,
     pilotEndsAt: null, pastDueSince: null, cancelAt: null, reviewFlaggedAt: null, billableSeatsSynced: null,
-    seatSyncPending: false, attachedCouponId: null, seatCapExempt: false, lastStripeEventAt: null,
+    seatSyncPending: false, billingInterval: 'month', attachedCouponId: null, seatCapExempt: false, lastStripeEventAt: null,
     stateChangedAt: ago(DAY), updatedAt: ago(DAY), ...over,
   };
 }

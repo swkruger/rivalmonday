@@ -1,5 +1,5 @@
 import { type AgencyBillingRow, type Db, type Tx, agencyBilling, plan, stripeEvent } from '@cs/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, or } from 'drizzle-orm';
 import { applyBillingSignal, lockBillingRow } from './apply';
 import { pauseIfHeld } from './hold';
 import type { BillingSignal } from './state';
@@ -60,10 +60,10 @@ async function recordCheckoutFacts(tx: Tx, gw: BillingGateway, row: AgencyBillin
   const sub = await gw.getSubscription(subscriptionId);
   if (!isLive(sub.status)) return false;
   const priceIds = sub.items.map((i) => i.priceId);
-  const [matched] = priceIds.length ? await tx.select({ id: plan.id }).from(plan).where(inArray(plan.stripeBasePriceId, priceIds)).limit(1) : [];
+  const [matched] = priceIds.length ? await tx.select({ id: plan.id }).from(plan).where(or(inArray(plan.stripeBasePriceId, priceIds), inArray(plan.stripeBasePriceYearId, priceIds))).limit(1) : [];
   await tx
     .update(agencyBilling)
-    .set({ stripeSubscriptionId: subscriptionId, billableSeatsSynced: sub.seatQuantity, ...(matched && { planId: matched.id }) })
+    .set({ stripeSubscriptionId: subscriptionId, billableSeatsSynced: sub.seatQuantity, billingInterval: sub.interval, ...(matched && { planId: matched.id }) })
     .where(eq(agencyBilling.agencyId, row.agencyId));
   return true;
 }
@@ -133,6 +133,15 @@ async function dispatch(tx: Tx, gw: BillingGateway, event: StripeEventLike, post
   }
   else if (isSubscriptionEvent && !row.stripeSubscriptionId && str(obj.id) && isLive(str(obj.status))) {
     await tx.update(agencyBilling).set({ stripeSubscriptionId: str(obj.id) }).where(eq(agencyBilling.agencyId, agencyId));
+  }
+  // P3: the interval is read from Stripe, never inferred (best effort here; the daily reconcile repairs a miss).
+  if (event.type === 'customer.subscription.updated' && isLive(str(obj.status)) && str(obj.id)) {
+    try {
+      const { interval } = await gw.getSubscription(str(obj.id)!);
+      await tx.update(agencyBilling).set({ billingInterval: interval }).where(eq(agencyBilling.agencyId, agencyId));
+    } catch (e) {
+      console.error('stripe webhook: interval read failed', { eventId: event.id, error: e instanceof Error ? e.name : 'Error' });
+    }
   }
   // R3 ordering guard: a delivery older than the newest applied event must not overwrite newer state.
   if (row.lastStripeEventAt && event.created * 1000 < row.lastStripeEventAt.getTime()) return 'ignored';

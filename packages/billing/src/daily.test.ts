@@ -205,6 +205,23 @@ describe('runBillingDaily stats', () => {
     expect((await stat('2026-10-12'))!.billingState).toBeNull();
   });
 
+  it('a yearly agency reports monthly-equivalent mrr', async () => {
+    const gw = fakeGateway();
+    await dbs.owner.update(plan).set({ basePriceYearCents: 229000, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] }).where(eq(plan.id, planId));
+    await addClients(dbs.owner, 2); // 4 active -> 1 extra
+    await withSub(gw, { billableSeatsSynced: 1, billingInterval: 'year' }, { seatQuantity: 1, interval: 'year' });
+    await seedStat();
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(await stat()).toMatchObject({ paidSeats: 1, mrrCents: 19083 + 7900 });
+  });
+
+  it('reconcile adopts the interval Stripe reports', async () => {
+    const gw = fakeGateway();
+    await withSub(gw, { billingInterval: 'month' }, { interval: 'year' });
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect((await row()).billingInterval).toBe('year');
+  });
+
   it('subtracts the upcoming-invoice discount, never below zero', async () => {
     const gw = fakeGateway();
     await withSub(gw);
