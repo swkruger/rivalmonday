@@ -26,7 +26,7 @@ export default async function ComparePage({ params }: { params: Promise<{ rival:
     <main>
       <section className="site-container py-16 lg:py-20">
         <div className="max-w-[960px]">
-          <PageIntro path={`/compare/${r.slug}`} eyebrow="Compare" h1={`Rival Monday vs ${r.name}`} />
+          <PageIntro path={`/compare/${r.slug}`} eyebrow="Compare" h1={`Rival Monday vs ${r.name}`} radar={false} />
           <p className="mt-3 text-sm font-medium text-ink-secondary">Facts checked {formatFactDate(r.factsCheckedOn)}</p>
           <p className="mt-4 text-lg leading-relaxed text-ink-secondary">{r.summary}</p>
 

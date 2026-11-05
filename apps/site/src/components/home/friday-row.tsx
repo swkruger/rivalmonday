@@ -27,7 +27,14 @@ export function FridayRow() {
         <div>
           <SectionHeading section={SECTIONS.friday} />
           <div data-slot="friday-persona" className="mt-6 flex max-w-3xl items-center gap-4">
-            <FridayAvatar size="lg" />
+            <span className="relative shrink-0">
+              <FridayAvatar size="lg" />
+              {/* Two static signal arcs off the robot's dish (radar motif); decorative. */}
+              <svg aria-hidden="true" viewBox="0 0 32 32" fill="none" strokeWidth="2.5" strokeLinecap="round" className="pointer-events-none absolute -top-4 left-15 size-8 stroke-amber">
+                <path d="M2 18a12 12 0 0 1 12 12" strokeOpacity=".9" />
+                <path d="M2 8a22 22 0 0 1 22 22" strokeOpacity=".55" />
+              </svg>
+            </span>
             <p className="text-base text-ink-secondary">
               <b className="font-semibold text-ink">{FRIDAY_PERSONA.heading}</b> {FRIDAY_PERSONA.body}
             </p>

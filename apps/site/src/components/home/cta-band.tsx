@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import { CTA_BAND, CTA_BAND_TRIAL, HERO } from '../../../content/home';
 import { JoinButton } from '../join/join-button';
 import { JOIN_INK_CLASS } from '../join/join-classes';
+import { RadarRings } from '../motion/radar-rings';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { usePilot } from '../shell/pilot-context';
 
@@ -13,6 +14,8 @@ export function InkBand({ id, labelledBy, children }: { id?: string; labelledBy?
     <section id={id} aria-labelledby={labelledBy} className="relative scroll-mt-20 overflow-hidden bg-ink py-24 lg:py-32">
       <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} loading="lazy" decoding="async" className="night-map pointer-events-none absolute inset-0 size-full" />
       <div aria-hidden="true" className="night-veil-even absolute inset-0" />
+      {/* The hero's radar, still: the page opens and closes on it (bottom-left here, top-right in the hero). */}
+      <RadarRings className="absolute -bottom-30 -left-64 size-275 stroke-primary max-lg:-left-150 max-lg:opacity-60" />
       <div className="site-container relative text-center">{children}</div>
     </section>
   );

@@ -167,6 +167,19 @@
     background: var(--amber);
     animation: radar-blip 2.4s ease-out infinite;
   }
+  /* The live band's one blip: same pulse as the hero blips, slower; the dot stays under reduced motion. */
+  .live-ping {
+    display: inline-block;
+    position: relative;
+    top: -.12em;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--amber);
+    animation: radar-blip 3.2s ease-out infinite;
+  }
+  /* A faint static ring, so it reads as a blip even without the pulse. */
+  .live-ping::after { content: ""; position: absolute; inset: -7px; border-radius: inherit; border: 1.5px solid color-mix(in srgb, var(--amber) 45%, transparent); }
 }
 
 /* D14 product frame and segmented tabs. Unlayered on purpose: they restyle `@cs/ui` primitives (`Frame`, `TabsList`)
