@@ -9,6 +9,7 @@
 - **D10** Copy is signed once, at the end: owner runs `pnpm copy:review` (site surface) then `copy:status --prune`, after main's uncommitted `docs/copy/signoff.json` lines are committed.
 - **D11** Removed home-only code is deleted (`PricingTeaser`, home guide slugs); shared components used by `/how-it-works` stay and get opt-out props instead (that page is unchanged).
 - **D13** (owner, 2026-11-04) §2's replay shows the rival's own map (Quillstone, fictional sample data, 8 → 31 top-3 points) with the rival-1 chart colour; Northwind's ring stays. Plan Task 10.
+- **D14** (owner, 2026-11-04) Component styling follows the owner's design canvas "Rival Monday — homepage redesign" (claude.ai artifact BpL5EaXr66f9Yvw8Bg8f7o): styling only, no section/layout/copy change; orange used as the canvas does (hero underline, numbered markers, Recommended callouts), widening the site's Friday + Pilot rule; subtle hero-only autoplay motion (radar sweep + blips, off under reduced motion); no eyebrow labels; ink bands keep the night map. Supersedes § 2 "no new motion" and the amber limit for the home page. Plan Task 11.
 - **D12** Pre-existing ungated website wording outside the new copy (`SECTIONS.checks.body` "a page snapshot", `HOW_STEPS[2]` "Websites, …") is not touched here: backlog item, fixed when the owner flips `WEBSITE_MONITORING_LIVE`.
 
 ## 2. Design plan (binding for this branch; `docs/design-system/` still wins)
