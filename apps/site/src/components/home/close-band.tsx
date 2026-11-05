@@ -4,7 +4,8 @@ import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { CLIENT_VIEW } from '../../../content/client-view';
 import { CLOSE, CLOSE_TRIAL, HERO, REAL_SAMPLE_PREVIEW } from '../../../content/home';
 import { SAMPLE } from '../../sample/schema';
-import { JOIN_INK_CLASS, JoinButton } from '../join/join-button';
+import { JoinButton } from '../join/join-button';
+import { JOIN_INK_CLASS } from '../join/join-classes';
 import { Reveal } from '../motion/in-view';
 import { weekStats } from '../sample/rank-map';
 import { usePilot } from '../shell/pilot-context';
@@ -60,7 +61,7 @@ export function CloseBand() {
                 </div>
               </div>
               <p className="mt-4 text-13 font-semibold text-ink">{REAL_SAMPLE_PREVIEW.scorecardTitle}</p>
-              <dl className="mt-2 flex flex-col divide-y divide-line rounded-md border border-line">
+              <dl className="mt-2 flex flex-col divide-y divide-line rounded-lg bg-canvas">
                 {scorecard().map((row) => (
                   <div key={row.label} className="flex items-baseline justify-between gap-3 px-3 py-2 text-13">
                     <dt className="text-ink-secondary">{row.label}</dt>
@@ -68,7 +69,7 @@ export function CloseBand() {
                   </div>
                 ))}
               </dl>
-              <p className="mt-4 flex items-center gap-1.5 text-13 font-medium text-link">
+              <p className="mt-4 flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-ink">
                 <Lock className="size-3.5" />
                 {REAL_SAMPLE_PREVIEW.link}
               </p>

@@ -29,18 +29,14 @@ export function SampleBrief({ compact, sourceLinks, autoplayMap = true }: { comp
   const items = compact ? data.items.slice(0, 3) : data.items;
   return (
     <Frame className="product-frame flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div aria-hidden="true" className="frame-chrome -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
-        <span className="frame-chrome-dot" />
-        <span className="frame-chrome-dot" />
-        <span className="frame-chrome-dot" />
-      </div>
-      <header className="flex flex-col gap-2">
+      {/* D14: the brief's header is the canvas's solid ink band (white title, light week line, outline chips). */}
+      <header className="-mx-4 -mt-4 flex flex-col gap-2 bg-ink px-4 py-5 md:-mx-6 md:-mt-6 md:px-6 md:py-6 lg:-mx-8 lg:-mt-8 lg:px-8">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusChip tone="info">{data.label}</StatusChip>
-          <Tag>Week of {formatDay(data.weekOf)}</Tag>
+          <StatusChip tone="info" className="bg-transparent text-muted-surface ring-1 ring-surface/20">{data.label}</StatusChip>
+          <Tag className="bg-transparent text-muted-surface ring-1 ring-surface/20">Week of {formatDay(data.weekOf)}</Tag>
         </div>
-        <h3 className="text-xl font-semibold text-ink">Monday brief · {data.business.name}</h3>
-        <p className="text-xs text-muted-ink">All businesses, people and places are fictional.</p>
+        <h3 className="text-xl font-bold text-surface">Monday brief · {data.business.name}</h3>
+        <p className="text-xs text-muted-surface">All businesses, people and places are fictional.</p>
       </header>
       <div className={compact ? '' : 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-10'}>
         <div className="min-w-0 max-w-3xl">
@@ -54,7 +50,8 @@ export function SampleBrief({ compact, sourceLinks, autoplayMap = true }: { comp
           </section>
         )}
       </div>
-      <section aria-label="Ask Friday" className="border-t border-line pt-6">
+      {/* D14: the canvas's dark Friday card, here as the frame's closing band. */}
+      <section aria-label="Ask Friday" className="friday-ink -mx-4 -mb-4 px-4 py-6 md:-mx-6 md:-mb-6 md:px-6 lg:-mx-8 lg:-mb-8 lg:px-8">
         <FridayPanel answers={FRIDAY_ANSWERS} data={data} onOpen={open} />
       </section>
       <EvidencePanel

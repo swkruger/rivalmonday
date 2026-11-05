@@ -119,7 +119,7 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true, subject }: { 
             type="button"
             onClick={toggle}
             aria-label={playing ? 'Pause' : 'Play all 12 weeks'}
-            className="press flex size-11 shrink-0 items-center justify-center rounded-full border border-line-control bg-surface text-secondary hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="press flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-surface hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {playing ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
           </button>

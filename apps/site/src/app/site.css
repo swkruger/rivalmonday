@@ -10,6 +10,10 @@
   /* Owner's canvas (spec D14): the primary CTA's glow on ink, the product frames' large floating shadow. */
   --shadow-glow-value: 0 10px 30px rgba(71,168,231,.35);
   --shadow-frame-value: 0 2px 6px rgba(11,37,64,.08), 0 40px 80px rgba(2,12,24,.22);
+  /* D14 round 2: resting card, lifted card (hover) and the in-progress card's primary ring. */
+  --shadow-soft-value: 0 1px 2px rgba(11,37,64,.06), 0 6px 20px rgba(11,37,64,.06);
+  --shadow-lift-value: 0 2px 6px rgba(11,37,64,.06), 0 24px 48px rgba(11,37,64,.12);
+  --shadow-ring-primary-value: 0 0 0 2px var(--primary), 0 12px 30px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 @theme inline {
@@ -36,6 +40,13 @@
   /* D14 radii: content cards 14 px, product frames 20 px (`rounded-card`, `rounded-frame`). */
   --radius-card: 14px;
   --radius-frame: 20px;
+  /* D14 round 2 colours. `amber-tint`: the "For you" chip and the result box (amber-text on it is 11.9:1).
+     `success-strong`: filled Done button (white on it 5.0:1; `--success` #16A34A is only 3.3:1). `chrome`: near-white
+     title bars and the Friday dock body. */
+  --color-amber-tint: #FDE7BF;
+  --color-success-strong: #15803D;
+  --color-success-strong-hover: #166534;
+  --color-chrome: #FBFCFE;
   /* Map-rank buckets for the sample grid (P11): the app's single-hue ordinal ramp from
      apps/web/src/components/charts/geo-grid.tsx (validated 2026-10-08), darker = better. Each cell also prints its
      rank, so colour is never the only signal. `-ink` is the label colour on that fill (all >= 4.5:1). */
@@ -172,7 +183,7 @@
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--canvas) 60%, var(--surface));
+  background: var(--color-chrome);
   padding: 12px 18px;
 }
 .frame-chrome-dot { width: 11px; height: 11px; flex: none; border-radius: 9999px; background: var(--line-control); }
@@ -205,6 +216,39 @@
   .seg-tabs { gap: 2px; }
   .seg-tabs [role="tab"] { padding: 10px 10px; }
 }
+
+/* D14 round 2: evidence citations everywhere use the info tint (#1F5F8F on #E3F2FC, 6.1:1). */
+[data-slot="citation-pill"] { border-radius: 6px; background: var(--chip-info-bg); color: var(--chip-info-text); font-weight: 600; }
+[data-slot="citation-pill"]:hover { background: color-mix(in srgb, var(--primary) 22%, var(--surface)); }
+
+/* D14 round 2 recommendations board: white cards with a soft shadow that lift on hover (user-triggered only). */
+.rec-card { border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-soft-value); transition: transform 200ms ease, box-shadow 200ms ease; }
+.rec-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift-value); }
+.rec-card[data-lane="in_progress"], .rec-card[data-lane="in_progress"]:hover { box-shadow: var(--shadow-ring-primary-value); }
+@media (prefers-reduced-motion: reduce) { .rec-card:hover { transform: none; } }
+/* Board buttons: 36 px, 9 px corners, 13 px semibold. They restyle `@cs/ui` `Button`, so they sit outside the layers. */
+.rec-btn { height: auto; min-height: 36px; padding: 0 14px; border-radius: 9px; font-size: 0.8125rem; font-weight: 600; border: 1px solid var(--line-control); background: var(--surface); color: var(--ink-secondary); }
+.rec-btn:hover { background: var(--canvas); color: var(--ink); }
+.rec-btn-ink { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.rec-btn-ink:hover { background: color-mix(in srgb, var(--ink) 86%, var(--surface)); color: var(--surface); }
+.rec-btn-success { border-color: var(--color-success-strong); background: var(--color-success-strong); color: var(--surface); }
+.rec-btn-success:hover { border-color: var(--color-success-strong-hover); background: var(--color-success-strong-hover); color: var(--surface); }
+.rec-btn-quiet { border-color: transparent; background: transparent; padding: 0 10px; font-weight: 500; color: var(--muted-ink); }
+.rec-btn-quiet:hover { background: var(--muted-surface); color: var(--ink); }
+
+/* D14 round 2 Friday on ink (the sample brief's Friday band): canvas's dark Friday card. */
+.friday-ink { background: var(--ink); color: var(--surface); }
+.friday-ink [data-slot="friday-label"] { color: var(--muted-surface); }
+.friday-ink [data-slot="friday-q"] { border-color: color-mix(in srgb, var(--surface) 14%, transparent); background: color-mix(in srgb, var(--surface) 4%, transparent); color: var(--muted-surface); }
+.friday-ink [data-slot="friday-q"]:hover { background: color-mix(in srgb, var(--surface) 10%, transparent); }
+.friday-ink [data-slot="friday-q"][aria-pressed="true"] { border-color: var(--primary); background: var(--primary); color: var(--ink); }
+.friday-ink [data-testid="friday-answer"] { color: var(--surface); }
+
+/* D14 round 2 Friday dock (home Friday row): white header band over a near-white body, answers in a bubble. */
+.friday-dock { overflow: clip; background: var(--color-chrome); }
+.friday-dock [data-slot="friday-head"] { margin: -20px -20px 0; padding: 16px 20px; background: var(--surface); border-bottom: 1px solid var(--line-subtle); }
+@media (min-width: 768px) { .friday-dock [data-slot="friday-head"] { margin: -32px -32px 0; padding: 16px 32px; } }
+.friday-dock [data-testid="friday-answer"]:not(:empty) { align-self: flex-start; max-width: 92%; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; background: var(--surface); }
 
 /* D14 chips: 6 px corners (tinted fills stay the `@cs/ui` chip palette). */
 [data-slot="status-chip"], [data-slot="tag"] { border-radius: 6px; }

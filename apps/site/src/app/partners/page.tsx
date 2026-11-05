@@ -1,7 +1,9 @@
+import { ArrowRight } from 'lucide-react';
 import { HERO } from '../../../content/home';
 import { PARTNER_COPY } from '../../../content/partners';
 import { CtaBand } from '../../components/home/cta-band';
 import { JoinButton } from '../../components/join/join-button';
+import { JOIN_INK_CLASS } from '../../components/join/join-classes';
 import { MarginExample } from '../../components/partners/margin-example';
 import { SAMPLE_MAP_SRC } from '../../components/sample/rank-map';
 import { PageIntro } from '../../components/seo/page-intro';
@@ -20,7 +22,10 @@ export default function PartnersPage() {
           <div>
             <PageIntro path="/partners" eyebrow={PARTNER_COPY.eyebrow} h1={PARTNER_COPY.h1} lead={PARTNER_COPY.lead} tone="night" />
             <div className="mt-7">
-              <JoinButton>{HERO.primaryCta}</JoinButton>
+              <JoinButton className={JOIN_INK_CLASS}>
+                {HERO.primaryCta}
+                <ArrowRight aria-hidden="true" className="size-4.5" />
+              </JoinButton>
             </div>
           </div>
           <MarginExample />

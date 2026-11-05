@@ -1,7 +1,8 @@
 import { ArrowDown, ArrowRight, BadgeCheck, Globe, Palette } from 'lucide-react';
 import { HERO, HOME_IMAGES } from '../../../content/home';
 import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
-import { JOIN_INK_CLASS, JoinButton } from '../join/join-button';
+import { JoinButton } from '../join/join-button';
+import { JOIN_INK_CLASS } from '../join/join-classes';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { HeroFinePrint } from './hero-fine-print';
 import { PilotPill } from './pilot-pill';

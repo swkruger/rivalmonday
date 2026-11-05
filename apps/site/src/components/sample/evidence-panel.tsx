@@ -145,9 +145,9 @@ export function EvidencePanel({ ev, data, onClose, returnFocus }: {
           onCloseAutoFocus={(e) => { e.preventDefault(); returnFocus()?.focus(); }}
           className={side === 'right' ? 'sheet-in-right w-[480px] max-w-[94vw] gap-0 overflow-y-auto p-0' : 'sheet-in-bottom max-h-[88vh] gap-0 overflow-y-auto p-0'}
         >
-          <div className="flex items-start justify-between gap-3 border-b border-line bg-canvas px-5 py-4">
+          <div className="flex items-start justify-between gap-3 border-b border-line bg-chrome px-5 py-4">
             <div className="flex min-w-0 gap-3">
-              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-secondary">
+              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-chip-info-bg text-chip-info-text">
                 <kind.Icon className="size-5" />
               </span>
               <div className="flex min-w-0 flex-col gap-1">
@@ -174,7 +174,7 @@ export function EvidencePanel({ ev, data, onClose, returnFocus }: {
                   <h3 className="text-13 font-semibold text-ink">The claim this backs</h3>
                   <StatusChip tone="success">Matches the evidence</StatusChip>
                 </div>
-                <blockquote className="border-l-2 border-secondary pl-3 text-sm text-ink">{claim}</blockquote>
+                <blockquote className="rounded-r-lg border-l-2 border-primary bg-canvas py-2 pl-3 pr-3 text-sm text-ink">{claim}</blockquote>
               </section>
             )}
 
@@ -192,7 +192,7 @@ export function EvidencePanel({ ev, data, onClose, returnFocus }: {
                 {trail(ev, data).map((s, i, all) => (
                   <li key={s.title} className="relative flex gap-3 pb-4 last:pb-0">
                     {i < all.length - 1 && <span aria-hidden="true" className="absolute left-[0.6875rem] top-6 bottom-0 w-px bg-line" />}
-                    <span aria-hidden="true" className="relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-secondary bg-surface text-xs font-semibold text-secondary">
+                    <span aria-hidden="true" className="relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-amber text-xs font-bold text-amber-text">
                       {i + 1}
                     </span>
                     <div className="min-w-0 text-sm">

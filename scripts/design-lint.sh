@@ -46,6 +46,14 @@ ALLOW_AMBER=(
   ':(exclude,glob)apps/site/src/components/client-view/client-view.tsx'
   # Spec D14: the in-window note markers match the orange "What to notice" numbers.
   ':(exclude,glob)apps/site/src/components/client-view/note-mark.tsx'
+  # Spec D14 round 2: the "For you" chip uses the canvas's amber tint (bg-amber-tint) with amber-text.
+  ':(exclude,glob)apps/site/src/components/sample/sample-recommendations.tsx'
+  # Spec D14 round 2: amber sheet step markers and the amber-tinted "No evidence, no claim" result box.
+  ':(exclude,glob)apps/site/src/components/home/checks-diagram.tsx'
+  # Spec D14 round 2: numbered brief items in the client-view email are orange markers.
+  ':(exclude,glob)apps/site/src/components/client-view/brief-email-mock.tsx'
+  # Spec D14 round 2: numbered evidence-trail steps in the evidence sheet are orange markers.
+  ':(exclude,glob)apps/site/src/components/sample/evidence-panel.tsx'
 )
 
 NOTEST=':(exclude,glob)**/*.test.*'

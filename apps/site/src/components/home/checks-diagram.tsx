@@ -75,7 +75,7 @@ function CheckSheet({ detail, onClose, returnFocus, Icon }: { detail: CheckNodeD
                 {detail.steps.map((s, i, all) => (
                   <li key={s.title} className="relative flex gap-3 pb-4 last:pb-0">
                     {i < all.length - 1 && <span aria-hidden="true" className="absolute left-[0.6875rem] top-6 bottom-0 w-px bg-line" />}
-                    <span aria-hidden="true" className="relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-secondary bg-surface text-xs font-semibold text-secondary">
+                    <span aria-hidden="true" className="relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-amber text-xs font-bold text-amber-text">
                       {i + 1}
                     </span>
                     <div className="min-w-0 text-sm">
@@ -137,7 +137,7 @@ export function ChecksDiagram({ nodes, hint }: { nodes: Record<CheckNode, CheckN
                 {/* Evidence flowing into the brief (static under reduced motion). */}
                 <path d={flow} fill="none" className="flow-dash stroke-secondary" strokeOpacity="0.55" strokeWidth="2" strokeLinecap="round" />
                 <g {...box(s.id, s.label)}>
-                  <rect x="0" y={y} width={TILE_W} height={TILE_H} rx="8" className={`fill-surface stroke-line ${BOX}`} />
+                  <rect x="0" y={y} width={TILE_W} height={TILE_H} rx="14" className={`fill-surface stroke-line ${BOX}`} />
                   <s.Icon x="16" y={y + 16} width="24" height="24" className="stroke-secondary" aria-hidden="true" />
                   {s.lines ? (
                     <text x="52" y={y + 26} className="fill-ink text-sm font-medium">
@@ -153,27 +153,31 @@ export function ChecksDiagram({ nodes, hint }: { nodes: Record<CheckNode, CheckN
             );
           })}
           <g {...box('brief', nodes.brief.title)}>
-            <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="12" strokeWidth="2" className="fill-canvas stroke-secondary transition-colors group-hover:fill-muted-surface" />
+            {/* D14: the canvas's hub card, white with a soft primary halo. */}
+            <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" fill="none" strokeWidth="12" strokeOpacity="0.14" className="stroke-primary" aria-hidden="true" />
+            <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" strokeWidth="2" className="fill-surface stroke-primary transition-colors group-hover:fill-canvas" />
             <text x={HUB.x + HUB.w / 2} y={HUB.y + 38} textAnchor="middle" className="fill-ink text-lg font-semibold">Monday brief</text>
-            <rect x={HUB.x + 40} y={HUB.y + 54} width="120" height="26" rx="13" className="fill-surface stroke-line" />
-            <circle cx={HUB.x + 56} cy={HUB.y + 67} r="4" className="animate-pulse fill-secondary" />
-            <text x={HUB.x + 66} y={HUB.y + 72} className="fill-ink-secondary text-xs">Verifying…</text>
+            <rect x={HUB.x + 40} y={HUB.y + 54} width="120" height="26" rx="6" className="fill-chip-info-bg" />
+            <circle cx={HUB.x + 56} cy={HUB.y + 67} r="4" className="animate-pulse fill-primary" />
+            <text x={HUB.x + 66} y={HUB.y + 72} className="fill-chip-info-text text-xs font-semibold">Verifying…</text>
             <ChevronRight x={HUB.x + HUB.w - 26} y={MID_Y - 8} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
           </g>
-          <path d={`M ${HUB.x + HUB.w} ${MID_Y} L ${OUT.x - 16} ${MID_Y}`} fill="none" className="stroke-secondary" strokeWidth="2" />
-          <path d={`M ${OUT.x - 24} ${MID_Y - 7} L ${OUT.x - 12} ${MID_Y} L ${OUT.x - 24} ${MID_Y + 7}`} fill="none" className="stroke-secondary" strokeWidth="2" />
+          {/* D14: the canvas's orange arrow into the result. */}
+          <path d={`M ${HUB.x + HUB.w} ${MID_Y} L ${OUT.x - 16} ${MID_Y}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" />
+          <path d={`M ${OUT.x - 24} ${MID_Y - 7} L ${OUT.x - 12} ${MID_Y} L ${OUT.x - 24} ${MID_Y + 7}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           <g {...box('result', nodes.result.title)}>
-            <rect x={OUT.x} y={HUB.y} width={OUT.w} height={HUB.h} rx="12" className={`fill-surface stroke-line ${BOX}`} />
-            <BadgeCheck x={OUT.x + 14} y={MID_Y - 14} width="28" height="28" className="stroke-secondary" aria-hidden="true" />
-            <text x={OUT.x + 48} y={MID_Y + 6} className="fill-ink text-base font-semibold">No evidence, no claim</text>
-            <ChevronRight x={OUT.x + OUT.w - 24} y={MID_Y - 8} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
+            {/* D14: the canvas's amber result box (amber-text on the amber tint, 11.9:1). */}
+            <rect x={OUT.x} y={HUB.y} width={OUT.w} height={HUB.h} rx="14" className="fill-amber-tint stroke-amber transition-colors group-hover:fill-warning-surface group-focus-visible:stroke-amber-text" />
+            <BadgeCheck x={OUT.x + 14} y={MID_Y - 14} width="28" height="28" className="stroke-accent-text" aria-hidden="true" />
+            <text x={OUT.x + 48} y={MID_Y + 6} className="fill-amber-text text-base font-semibold">No evidence, no claim</text>
+            <ChevronRight x={OUT.x + OUT.w - 24} y={MID_Y - 8} width="16" height="16" className="stroke-amber-text" aria-hidden="true" />
           </g>
         </svg>
       </Reveal>
       <ol className="mt-8 flex flex-col gap-2 md:hidden">
         {SOURCES.map((s) => (
           <li key={s.id}>
-            <button type="button" onClick={(e) => open(s.id, e.currentTarget)} className="flex w-full items-center gap-3 rounded-md border border-line px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas">
+            <button type="button" onClick={(e) => open(s.id, e.currentTarget)} className="flex min-h-11 w-full items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 text-left text-sm font-medium text-ink hover:bg-canvas">
               <s.Icon aria-hidden="true" className="size-5 shrink-0 text-secondary" />
               <span className="min-w-0 flex-1">{s.lines ? s.lines.join(' and ') : s.label}</span>
               <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-ink" />
@@ -181,18 +185,18 @@ export function ChecksDiagram({ nodes, hint }: { nodes: Record<CheckNode, CheckN
           </li>
         ))}
         <li>
-          <button type="button" onClick={(e) => open('brief', e.currentTarget)} className="flex w-full items-center gap-2 rounded-md border border-secondary bg-canvas px-3 py-3 text-left text-sm font-semibold text-ink">
+          <button type="button" onClick={(e) => open('brief', e.currentTarget)} className="flex min-h-11 w-full items-center gap-2 rounded-frame border-2 border-primary bg-surface px-4 py-3 text-left text-sm font-semibold text-ink ring-4 ring-primary/15">
             <span className="min-w-0 flex-1">
-              Monday brief <span className="ml-1 rounded-full border border-line bg-surface px-2 py-0.5 text-xs font-normal text-ink-secondary">Verifying…</span>
+              Monday brief <span className="ml-1 rounded-sm bg-chip-info-bg px-2 py-0.5 text-xs font-semibold text-chip-info-text">Verifying…</span>
             </span>
             <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-ink" />
           </button>
         </li>
         <li>
-          <button type="button" onClick={(e) => open('result', e.currentTarget)} className="flex w-full items-center gap-2 rounded-md border border-line px-3 py-3 text-left text-sm font-semibold text-ink hover:bg-canvas">
-            <BadgeCheck aria-hidden="true" className="size-5 shrink-0 text-secondary" />
+          <button type="button" onClick={(e) => open('result', e.currentTarget)} className="flex min-h-11 w-full items-center gap-2 rounded-card border border-amber bg-amber-tint px-4 py-3 text-left text-sm font-semibold text-amber-text hover:bg-warning-surface">
+            <BadgeCheck aria-hidden="true" className="size-5 shrink-0 text-accent-text" />
             <span className="min-w-0 flex-1">No evidence, no claim</span>
-            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-ink" />
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-amber-text" />
           </button>
         </li>
       </ol>

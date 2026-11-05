@@ -111,8 +111,8 @@ function AskCard({ onAsk }: { onAsk: () => void }) {
             onAsk();
           }}
         >
-          <Input name="q" autoComplete="off" aria-label={placeholder} placeholder={placeholder} className="min-w-0 flex-1" />
-          <Button type="submit">{button}</Button>
+          <Input name="q" autoComplete="off" aria-label={placeholder} placeholder={placeholder} className="h-11 min-w-0 flex-1 rounded-lg border-line-control bg-surface px-3.5 text-sm" />
+          <Button type="submit" className="h-11 rounded-lg px-4.5 text-sm font-semibold">{button}</Button>
         </form>
         <ul aria-label="Starter questions" className="mt-3 flex flex-col">
           {FRIDAY_ANSWERS.slice(0, 4).map((a) => (

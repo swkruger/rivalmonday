@@ -83,11 +83,12 @@ describe('Hero', () => {
     expect(HERO.finePrintTrial).not.toMatch(/pilot/i);
   });
 
-  it('secondary CTA is a text link to the client tour', () => {
+  it('secondary CTA is the outlined ghost button (D14) linking to the client tour, not a second filled button', () => {
     render(<Hero />);
     const link = screen.getByRole('link', { name: HERO.secondaryCta });
     expect(link.getAttribute('href')).toBe('#client-view');
-    expect(link.className).not.toContain('border');
+    expect(link.className).toContain('btn-ink-ghost');
+    expect(link.className).not.toContain('bg-primary');
   });
 
   it('exactly one h1', () => {
@@ -111,9 +112,10 @@ describe('Hero', () => {
     expect(container.querySelectorAll('.night-veil')).toHaveLength(1);
   });
 
-  it('shows no orange other than the pilot pill', () => {
+  it('the pilot pill is the only orange fill; the other orange (underline, radar blips) is decorative and aria-hidden (D14)', () => {
     const { container } = render(<Hero />);
     const amber = [...container.querySelectorAll('[class*="bg-amber"]')];
     expect(amber.map((e) => e.getAttribute('data-slot') ?? e.textContent)).toEqual(['Pilot']);
+    for (const el of container.querySelectorAll('.radar, h1 svg')) expect(el.closest('[aria-hidden="true"]')).toBeTruthy();
   });
 });

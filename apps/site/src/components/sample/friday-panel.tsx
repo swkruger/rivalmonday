@@ -40,10 +40,10 @@ export function FridayPanel({ answers, data, onOpen, initialId, label = 'Canned 
   let pillNo = 0;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-slot="friday-head" className="flex flex-wrap items-center gap-2">
         <FridayAvatar />
         <FridayBadge />
-        <span className="text-sm text-ink-secondary">{label}</span>
+        <span data-slot="friday-label" className="text-sm text-ink-secondary">{label}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {answers.map((a) => (
@@ -52,7 +52,8 @@ export function FridayPanel({ answers, data, onOpen, initialId, label = 'Canned 
             type="button"
             aria-pressed={active?.id === a.id}
             onClick={() => ask(a)}
-            className="press min-h-11 rounded-sm border border-line-control bg-surface px-3 py-1.5 text-left text-sm text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:border-secondary aria-pressed:font-medium"
+            data-slot="friday-q"
+            className="press min-h-11 rounded-lg border border-primary bg-primary-soft px-3.5 py-2 text-left text-sm text-chip-info-text hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-pressed:bg-primary aria-pressed:font-semibold aria-pressed:text-ink"
           >
             {a.question}
           </button>

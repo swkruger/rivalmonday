@@ -2,7 +2,8 @@
 
 import { ArrowRight } from 'lucide-react';
 import { CTA_BAND, CTA_BAND_TRIAL, HERO } from '../../../content/home';
-import { JOIN_INK_CLASS, JoinButton } from '../join/join-button';
+import { JoinButton } from '../join/join-button';
+import { JOIN_INK_CLASS } from '../join/join-classes';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { usePilot } from '../shell/pilot-context';
 

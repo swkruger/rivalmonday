@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react';
 import { HERO } from '../../../content/home';
 import { HOW_IT_WORKS } from '../../../content/how-it-works';
 import { HOW_FAQ, JUMP_LINKS, ROLES, WEEK } from '../../../content/how-it-works-page';
@@ -10,6 +11,7 @@ import { SampleSection } from '../../components/home/sample-section';
 import { HomeSectionShell } from '../../components/home/section-heading';
 import { Steps } from '../../components/home/steps';
 import { JoinButton } from '../../components/join/join-button';
+import { JOIN_INK_CLASS } from '../../components/join/join-classes';
 import { SAMPLE_MAP_SRC } from '../../components/sample/rank-map';
 import { FaqRows } from '../../components/seo/faq-block';
 import { JsonLd } from '../../components/seo/json-ld';
@@ -37,7 +39,10 @@ export default function HowItWorksPage() {
           <div className="max-w-3xl">
             <PageIntro path="/how-it-works" eyebrow="How it works" h1={HOW_IT_WORKS.h1} lead={HOW_IT_WORKS.lead} tone="night" />
             <div className="mt-7">
-              <JoinButton>{HERO.primaryCta}</JoinButton>
+              <JoinButton className={JOIN_INK_CLASS}>
+                {HERO.primaryCta}
+                <ArrowRight aria-hidden="true" className="size-4.5" />
+              </JoinButton>
             </div>
           </div>
           <div className="mt-12 lg:mt-16">

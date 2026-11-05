@@ -1,6 +1,7 @@
 'use client';
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, Label, StatusChip, textareaClass } from '@cs/ui';
+import { Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { REC_COPY, SAMPLE_REC_META, type RecStatus } from '../../../content/sample-recommendations';
 import { SAMPLE } from '../../sample/schema';
@@ -17,6 +18,27 @@ const initialRecs = (): Rec[] =>
 
 const COLUMNS = ['todo', 'in_progress', 'done'] as const;
 
+/** D14 canvas styling: each lane a tinted panel with a coloured dot; chips tinted by meaning (all text pairs >= 4.5:1). */
+const LANE: Record<(typeof COLUMNS)[number], { panel: string; dot: string }> = {
+  todo: { panel: 'bg-muted-surface', dot: 'bg-line-strong' },
+  in_progress: { panel: 'bg-chip-info-bg', dot: 'bg-primary' },
+  done: { panel: 'bg-chip-success-bg', dot: 'bg-success' },
+};
+const CHIP = 'px-2 font-semibold';
+const IMPACT: Record<string, string> = {
+  High: 'bg-chip-danger-bg text-chip-danger-text',
+  Medium: 'bg-chip-warning-bg text-chip-warning-text',
+  Low: 'bg-chip-neutral-bg text-chip-neutral-text',
+};
+const OWNER: Record<'client' | 'agency', string> = { agency: 'bg-chip-info-bg text-chip-info-text', client: 'bg-amber-tint text-amber-text' };
+
+/** Button look per move: Start is the filled ink step; Done is filled green where it is the next step (In progress). */
+function moveClass(from: RecStatus, to: RecStatus): string {
+  if (from === 'todo' && to === 'in_progress') return 'rec-btn rec-btn-ink';
+  if (from === 'in_progress' && to === 'done') return 'rec-btn rec-btn-success';
+  return 'rec-btn';
+}
+
 /** The same quick actions as the app's board for each column. */
 function targetsFor(status: RecStatus, title: string): { status: RecStatus; label: string; aria: string }[] {
   if (status === 'todo') return [{ status: 'in_progress', label: 'Start', aria: `Start ${title}` }, { status: 'done', label: 'Done', aria: `Mark ${title} done` }];
@@ -30,7 +52,7 @@ function DismissDialog({ rec, onDismiss }: { rec: Rec; onDismiss: (reason: strin
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" aria-label={`Dismiss ${rec.title}`}>Dismiss</Button>
+        <Button type="button" variant="outline" className="rec-btn rec-btn-quiet" aria-label={`Dismiss ${rec.title}`}>Dismiss</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -93,29 +115,35 @@ export function SampleRecommendations() {
         {COLUMNS.map((status) => {
           const items = recs.filter((r) => r.status === status);
           return (
-            <section key={status} aria-label={REC_COPY.columns[status]} className="flex flex-col gap-3">
-              <h3 className="text-base font-semibold text-ink">{REC_COPY.columns[status]} ({items.length})</h3>
+            <section key={status} aria-label={REC_COPY.columns[status]} className={`flex flex-col gap-3 self-start rounded-frame p-3.5 ${LANE[status].panel}`}>
+              <h3 className="flex items-center gap-2 px-2 py-1.5 text-sm font-bold text-ink">
+                <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${LANE[status].dot}`} />
+                {REC_COPY.columns[status]} ({items.length})
+              </h3>
               {items.length === 0 && <p className="text-sm text-muted-ink">{REC_COPY.empty}</p>}
               {items.map((rec) => {
                 const meta = SAMPLE_REC_META[rec.id]!;
                 return (
-                  <article key={`${rec.id}-${rec.status}`} data-rec={rec.id} tabIndex={-1} className="reveal-quick rounded-card border border-line bg-surface p-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                    <p className="text-sm font-semibold text-ink">{rec.title}</p>
-                    <p className="mt-1 text-sm text-ink-secondary">{rec.rationale}</p>
+                  <article key={`${rec.id}-${rec.status}`} data-rec={rec.id} tabIndex={-1} data-lane={rec.status} className="rec-card reveal-quick p-4.5 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                    <p className="flex gap-2 text-sm font-semibold text-ink">
+                      {rec.status === 'done' && <Check aria-hidden="true" strokeWidth={2.6} className="mt-0.5 size-4.5 shrink-0 text-success" />}
+                      {rec.title}
+                    </p>
+                    <p className="mt-1 text-13 text-muted-ink">{rec.rationale}</p>
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <StatusChip tone="neutral">Effort: {meta.effort}</StatusChip>
-                      <StatusChip tone="neutral">Impact: {meta.impact}</StatusChip>
-                      <StatusChip tone="neutral">{REC_COPY.owner[meta.owner]}</StatusChip>
-                      <StatusChip tone="neutral">{REC_COPY.source}</StatusChip>
+                      <StatusChip tone="neutral" className={CHIP}>Effort: {meta.effort}</StatusChip>
+                      <StatusChip tone="neutral" className={`${CHIP} ${IMPACT[meta.impact]}`}>Impact: {meta.impact}</StatusChip>
+                      <StatusChip tone="neutral" className={`${CHIP} ${OWNER[meta.owner]}`}>{REC_COPY.owner[meta.owner]}</StatusChip>
+                      <StatusChip tone="neutral" className={`${CHIP} bg-chip-info-bg text-chip-info-text`}>{REC_COPY.source}</StatusChip>
                       <EvidencePills ids={rec.evidenceIds} data={SAMPLE} onOpen={openEvidence} />
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="mt-3.5 flex flex-wrap items-center gap-2">
                       {rec.status === 'done' ? (
-                        <Button type="button" variant="outline" size="sm" aria-label={`Reopen ${rec.title}`} onClick={() => move(rec, 'in_progress')}>Reopen</Button>
+                        <Button type="button" variant="outline" className="rec-btn" aria-label={`Reopen ${rec.title}`} onClick={() => move(rec, 'in_progress')}>Reopen</Button>
                       ) : (
                         <>
                           {targetsFor(rec.status, rec.title).map((t) => (
-                            <Button key={t.status} type="button" variant="outline" size="sm" aria-label={t.aria} onClick={() => move(rec, t.status)}>{t.label}</Button>
+                            <Button key={t.status} type="button" variant="outline" className={moveClass(rec.status, t.status)} aria-label={t.aria} onClick={() => move(rec, t.status)}>{t.label}</Button>
                           ))}
                           <DismissDialog rec={rec} onDismiss={(reason) => move(rec, 'dismissed', reason)} />
                         </>
@@ -136,7 +164,7 @@ export function SampleRecommendations() {
               <li key={rec.id} data-rec={rec.id} tabIndex={-1} className="flex flex-wrap items-center gap-2 text-sm outline-none">
                 <span className="font-semibold text-ink">{rec.title}</span>
                 <span className="text-muted-ink">{rec.reason}</span>
-                <Button type="button" variant="outline" size="sm" aria-label={`Reopen ${rec.title}`} onClick={() => move(rec, 'todo')}>Reopen</Button>
+                <Button type="button" variant="outline" className="rec-btn" aria-label={`Reopen ${rec.title}`} onClick={() => move(rec, 'todo')}>Reopen</Button>
               </li>
             ))}
           </ul>
