@@ -42,7 +42,7 @@ export function brandInkHover(base: string): string {
   return base;
 }
 
-const DEFAULT_SOFT ={ soft: '#E3F2FC', text: '#1F6FA8' };
+const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
 
 /**
  * Hover/active state of a filled `primary` button: mix away from the label
