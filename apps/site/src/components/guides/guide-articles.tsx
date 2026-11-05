@@ -6,7 +6,11 @@ const IMAGE = 'w-full rounded-lg border border-line bg-muted-surface object-cove
 
 function GuideImage({ guide, className }: { guide: Guide; className: string }) {
   const { src, alt, width, height } = guide.image;
-  return <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" className={`${IMAGE} ${className}`} />;
+  return (
+    <span className="scope">
+      <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" className={`${IMAGE} ${className}`} />
+    </span>
+  );
 }
 
 const meta = (g: Guide) => `${guideReadMinutes(g)} min read`;

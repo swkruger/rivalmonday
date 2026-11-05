@@ -180,6 +180,30 @@
   }
   /* A faint static ring, so it reads as a blip even without the pulse. */
   .live-ping::after { content: ""; position: absolute; inset: -7px; border-radius: inherit; border: 1.5px solid color-mix(in srgb, var(--amber) 45%, transparent); }
+
+  /* Scope corners on photos: four thin L marks just inside the image, a radar/viewfinder "locked on". Wrap the <img>
+     (replaced elements take no pseudo-elements); decorative only. Product screenshots keep their browser frames instead. */
+  .scope { position: relative; display: block; }
+  .scope::after {
+    --c: var(--primary);
+    --l: 20px;
+    --w: 2px;
+    content: "";
+    position: absolute;
+    inset: 12px;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--c), var(--c)) left top / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) left top / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) right top / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) right top / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) left bottom / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) left bottom / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) right bottom / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) right bottom / var(--w) var(--l);
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 0 1px color-mix(in srgb, var(--ink) 35%, transparent));
+  }
 }
 
 /* D14 product frame and segmented tabs. Unlayered on purpose: they restyle `@cs/ui` primitives (`Frame`, `TabsList`)

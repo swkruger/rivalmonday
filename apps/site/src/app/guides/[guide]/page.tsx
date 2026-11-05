@@ -64,7 +64,9 @@ export default async function GuidePage({ params }: { params: Promise<{ guide: s
             <time dateTime={g.updated}>Updated {formatDay(g.updated)}</time> · {guideReadMinutes(g)} min read
           </p>
           <figure className="mt-8">
-            <img src={g.image.src} alt={g.image.alt} width={g.image.width} height={g.image.height} decoding="async" className="aspect-[3/2] w-full rounded-lg border border-line bg-muted-surface object-cover [object-position:left_top]" />
+            <span className="scope">
+              <img src={g.image.src} alt={g.image.alt} width={g.image.width} height={g.image.height} decoding="async" className="aspect-[3/2] w-full rounded-lg border border-line bg-muted-surface object-cover [object-position:left_top]" />
+            </span>
             {g.image.caption ? <figcaption className="mt-2 text-13 text-muted-ink">{g.image.caption}</figcaption> : null}
           </figure>
           {g.sections.map((s, i) => (
