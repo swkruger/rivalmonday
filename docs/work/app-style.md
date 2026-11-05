@@ -95,3 +95,10 @@ Only `site-story` (work file: homepage story rewrite; Tasks 0–8 + 10 done, Tas
 
 ### 6. Open questions
 Answered 2026-11-04 ("go as recommended"): see Decisions above.
+
+## Pre-flight (Task 0)
+- Rebase onto main: ok. `site-story` is merged (no overlap); `pricing-v2` is now unmerged but has no `apps/web` diff vs main.
+- Spec 4 files: all 4 exist.
+- Default `<Button` sites in `(app)/agency` + `components/agency`: 40 (line-mode grep, multi-line aware via `<Button$`); 42 incl. 2 in `(onboarding)/agency`.
+- Before shots: 16 PNGs (8 labels x 2 widths) + `axe.json` in `apps/web/.shots/before/`, not 18: no `client-overview-ask` label exists in `e2e-shots/shots.spec.ts`. Run also picked up crawl.spec (32 tests passed).
+- `E2E_PORT` not set in worktree `.env`; default 3100 used (no other E2E running).
