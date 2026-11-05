@@ -14,6 +14,12 @@
 - Inter ExtraBold (800), letter-spacing ≈ −1.5px at display sizes.
 - "Friday" appears as a pill badge: background **#F5A524**, text **#3B2300**, weight 700.
 
+## Radar mark (owner pick 2026-11-05)
+- Original drawing (not a stock icon): three rings in **#2A6BAC** broken by an amber **#F5A524** sweep wedge (25°–60° from 12 o'clock) and a centre dot. Same blue/amber split as the wordmark. Geometry: `@cs/ui` `brand-mark.ts`; component `RadarMark`.
+- **Logo:** `Wordmark` = mark + `rivalmonday`, mark sized 1.1 em with a 0.3 em gap. Also on the site's OG cards.
+- **Favicon / app icon:** the tile, two light rings (**#7FC3F0**) and the sweep on an ink **#0B2540** rounded square (fewer rings so it reads at 16 px): `radarTileSvg()` drives web `app/icon.svg` + `favicon.ico` (16/32/48) and the site's `icon` / `apple-icon` (square, unrounded, for iOS). Regenerate the web files when the geometry changes.
+- **White-label:** never shown for an agency; `Wordmark name=…` renders the agency name alone.
+
 ## Colour tokens
 | Token | Hex | Use | White-label overridable |
 |---|---|---|---|

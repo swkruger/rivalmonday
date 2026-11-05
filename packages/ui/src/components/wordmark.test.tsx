@@ -10,9 +10,16 @@ describe('Wordmark', () => {
     expect(container.textContent).toBe('rivalmonday');
     expect(container.querySelector('[data-part="rival"]')).not.toBeNull();
   });
-  it('renders an agency display name instead when given', () => {
-    render(<Wordmark name="Acme Marketing" />);
+  it('leads with the decorative radar mark', () => {
+    const { container } = render(<Wordmark />);
+    const mark = container.querySelector('[data-slot="radar-mark"]')!;
+    expect(mark.getAttribute('aria-hidden')).toBe('true');
+    expect(container.firstElementChild!.firstElementChild).toBe(mark);
+  });
+  it('renders an agency display name instead when given, with no radar mark', () => {
+    const { container } = render(<Wordmark name="Acme Marketing" />);
     expect(screen.getByText('Acme Marketing')).toBeTruthy();
+    expect(container.querySelector('[data-slot="radar-mark"]')).toBeNull();
   });
 });
 

@@ -27,6 +27,8 @@ export * from './components/section';
 export * from './components/select';
 export * from './components/separator';
 export * from './components/segmented';
+export * from './brand-mark';
+export * from './components/radar-mark';
 export * from './components/sheet';
 export * from './components/skeleton';
 export * from './components/status-chip';
