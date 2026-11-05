@@ -332,11 +332,11 @@ Cell `px-5 py-4 [&+&]:border-l border-line`; label `text-[13px] text-muted-ink`;
 
 ### 5.5 Friday (Ask) and briefs
 
-- Ask page: thread column `max-w-[680px]`; user message `self-end max-w-[85%] rounded-lg bg-muted-surface px-3 py-2 text-sm`; assistant message flat, `text-base leading-[26px]` on the full page (`text-sm leading-[22px]` in the docked panel) with a `FridayBadge size="label"` header row; claims render `CitationPill`; `SourcesList` under each answer; suggestions as `↳` rows (`border-t border-line py-2.5 text-[13px] text-ink-secondary`); composer `rounded-md border border-input p-3` with a scope chip and a `size-7 rounded-sm bg-primary` send button.
+- (Superseded by the 2026-11-04 D-32 amendment below.) Ask page: thread column `max-w-[680px]`; user message `self-end max-w-[85%] rounded-lg bg-muted-surface px-3 py-2 text-sm`; assistant message flat, `text-base leading-[26px]` on the full page (`text-sm leading-[22px]` in the docked panel) with a `FridayBadge size="label"` header row; claims render `CitationPill`; `SourcesList` under each answer; suggestions as `↳` rows (`border-t border-line py-2.5 text-[13px] text-ink-secondary`); composer `rounded-md border border-input p-3` with a scope chip and a `size-7 rounded-sm bg-primary` send button.
 - Docked panel (D-14) is new UI. Build it after the Overview slice, as `components/ask/friday-panel.tsx`: a third grid column at ≥ 1280, a `Sheet side="right"` below that.
 - Brief reading view: `mx-auto max-w-[680px]`, title `text-[30px] font-semibold leading-9 tracking-[-0.02em]`, sections `border-t border-line py-6 first:border-0`, H2 `text-lg font-semibold`, body `text-base leading-[26px]`, "Why it matters" = Band `bg-muted-surface rounded-md px-4 py-3 text-sm leading-[22px]`.
 
-**Amendment 2026-11-04 (D-32), Ask page and panel:** user turns `userBubbleClass`; answers in `answerBubbleClass` (avatar + badge row outside; info-tone citations); empty state `StarterChips variant="chips"`; composer `rounded-lg`. Panel: `rounded-lg border border-line bg-chrome` (drops `border-l pl-6`); sheet body and composer wrapper `bg-chrome`.
+**Amendment 2026-11-04 (D-32), Ask page and panel:** user turns `userBubbleClass`; answers in `answerBubbleClass` (avatar + badge row outside; info-tone citations); empty state `StarterChips variant="chips"`; composer `rounded-lg`. Panel: `rounded-lg border border-line bg-chrome` (drops `border-l pl-6`); sheet body `bg-chrome`; composer wrapper `bg-chrome` in panel mode, `bg-surface` on the page.
 
 ## 6. Migration rules
 
@@ -498,7 +498,7 @@ Scope: every shadcn `<Card>` and every `shadow-card` element in `apps/web/src` +
 4. `rounded-lg border bg-card p-4` / `rounded-lg border p-4` (`platform/ask/[threadId]/page.tsx:60`, `knowledge/editor.tsx:90,126`) → Frame.
 5. Previews `overflow-hidden rounded-xl border border-line` (`branding-editor.tsx:140,168`), snapshot `rounded-lg border` (`changes/viewer.tsx:52`), image `rounded-lg border` (`evidence/[evidenceId]/page.tsx:122`) → `rounded-md`.
 6. `rounded-lg border border-line bg-muted-surface p-4` (`ai-connections.tsx:128`) mixes types → Band (drop the border).
-7. Chat bubble `rounded-2xl rounded-bl-md border …` (`ask-chat.tsx:104`) → user bubble `rounded-lg bg-muted-surface` / Friday flat (D-14). `ask/confirm-card.tsx:42` `rounded-xl` → Frame `rounded-md`.
+7. Chat bubble `rounded-2xl rounded-bl-md border …` (`ask-chat.tsx:104`) → user bubble `userBubbleClass` (ink) / answer in a hairline `answerBubbleClass` bubble (D-32). `ask/confirm-card.tsx:42` `rounded-xl` → Frame `rounded-md`.
 8. Shared EmptyState `rounded-lg border border-dashed p-6` (`help/empty-state.tsx:27`) → no border, centred (`.rm-empty`), kept inside the table/frame it belongs to.
 9. Sub-panels `rounded-lg bg-muted-surface p-4` (`catalog-queue.tsx:219,258,322`, `revenue-card.tsx:13`, `start/intake-form.tsx:34`) → Band `rounded-md`.
 10. Segmented tracks `rounded-lg bg-muted-surface p-1` (`changes/feed.tsx:101`, `changes/viewer.tsx:198`, `moves/page.tsx:143`) + their active pills (Control rows above) → `Segmented`.

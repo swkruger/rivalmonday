@@ -83,7 +83,7 @@ function Dock({ config, children }: { config: FridayDockConfig; children: React.
               // Keys from a portalled layer (the save dialog) bubble here through React; that layer handles its own Esc.
               if (e.key === 'Escape' && !e.defaultPrevented && e.currentTarget.contains(e.target as Node)) closeColumn();
             }}
-            className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex h-[calc(100dvh-var(--rm-shell-top,0px)-2rem)] flex-col gap-3 self-start overflow-hidden rounded-lg border border-line bg-chrome"
+            className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex h-[calc(100dvh-var(--rm-shell-top,0px)-2rem)] flex-col self-start overflow-hidden rounded-lg border border-line bg-chrome"
           >
             <PanelBody config={config} chat={chat} title={<h2 className={TITLE_CLASS}>Ask <FridayBadge name={config.assistantName} size="label" /></h2>}
               close={<CloseButton name={config.assistantName} onClick={closeColumn} />} autoFocus />

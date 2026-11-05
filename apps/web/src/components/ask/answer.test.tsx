@@ -53,7 +53,10 @@ describe('citation pills and sources', () => {
   it('evidence and Data pills use the info tone', () => {
     const P = '44444444-4444-4444-8444-444444444444';
     render(<AskAnswer clientId={C} content={`A [ev:${E1}] x [app:${P}]`} citations={[`ev:${E1}`, `app:${P}@/c/${C}/competitors/${P}`]} refs={refs} />);
-    for (const a of screen.getAllByRole('link')) expect(a.className).toContain('bg-chip-info-bg');
+    for (const a of screen.getAllByRole('link')) {
+      expect(a.className).toContain('bg-chip-info-bg');
+      expect(a.className).not.toContain('bg-muted-surface');
+    }
   });
   it('the Data chip keeps its name and shares the pill look', () => {
     const P = '44444444-4444-4444-8444-444444444444';

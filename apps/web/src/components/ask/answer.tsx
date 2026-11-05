@@ -1,4 +1,4 @@
-import { CitationPill, citationPillClass, citationPillInfoClass, type SourceItem } from '@cs/ui';
+import { CitationPill, cn, citationPillClass, citationPillInfoClass, type SourceItem } from '@cs/ui';
 import Link from 'next/link';
 import Markdown from 'react-markdown';
 import { evidenceHref } from '@/components/evidence-chips';
@@ -87,7 +87,7 @@ function Cite({ cite, clientId, refs }: { cite: AnswerCite; clientId: string; re
       return <ArticleSheet kbId={cite.id} />;
     case 'app':
       return (
-        <Link href={cite.path} aria-label="Open in the app" data-slot="citation-pill" className={`mx-0.5 ${citationPillClass} ${citationPillInfoClass}`}>
+        <Link href={cite.path} aria-label="Open in the app" data-slot="citation-pill" className={cn('mx-0.5', citationPillClass, citationPillInfoClass)}>
           Data
         </Link>
       );

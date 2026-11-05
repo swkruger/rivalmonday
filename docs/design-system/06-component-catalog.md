@@ -176,14 +176,14 @@
 
 | Part | Class | Spec |
 |---|---|---|
-| Docked panel | `.rm-friday-panel` | 400px, border-left, white; header 52px: Friday label, scope chip, history, expand-to-page, close |
-| User message | `.rm-msg-user` | **Amended 2026-11-04 → D-32:** ink bubble, `userBubbleClass`: `max-w-[85%] self-end rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white`. (Was: right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20.) |
+| Docked panel | `.rm-friday-panel` | 400px, `rounded-lg border border-line bg-chrome` (no border-left), header strip `bg-surface px-4 py-3`: Friday label, scope chip, history, expand-to-page, close |
+| User message | `.rm-msg-user` | **Amended 2026-11-04 → D-32:** ink bubble, `userBubbleClass`: `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]`. (Was: right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20.) |
 | Friday message | `.rm-msg-friday` | **Amended → D-32:** content, sources and save action sit in a hairline bubble, `answerBubbleClass`: `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`; the avatar + badge row stays outside; citations use the info tone. Otherwise flat; `.who` row = Friday label + "Answered from 6 sources · just now"; 14/22 (16/26 on the full page); lists, bold entity names; citation pills after each claim; tools row (copy, 👍, 👎) ghost icons |
 | Sources | `.rm-sources` | Rule above; rows: source icon · title · date right; "Show all 6 sources" |
 | Starter chips | `.rm-starter` | `StarterChips variant="chips"` (empty state; default `rows`): `starterChipClass` = `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink` |
-| Chrome panel | `.rm-friday-panel` | **Amended → D-32:** wide column = `rounded-lg border border-line bg-chrome` (no `border-l pl-6`), `bg-surface` header strip; sheet body and composer wrapper `bg-chrome`; composer box `rounded-lg`, border stays `border-input`, send `size="icon"` (36px) |
+| Chrome panel | `.rm-friday-panel` | **Amended → D-32:** wide column = `rounded-lg border border-line bg-chrome` (no `border-l pl-6`), `bg-surface` header strip; sheet body `bg-chrome`; composer wrapper `bg-chrome` in panel mode, `bg-surface` on the page; composer box `rounded-lg`, border stays `border-input`, send `size="icon"` (36px) |
 | Suggestions | `.rm-suggest` | ↳ rows with hairlines, 13px `text.secondary`; 4–6 on empty state, 2–3 after an answer |
-| Composer | `.rm-composer` | `border.strong`, `radius.md`; placeholder "Ask about your competitors…"; bar: scope chip (`muted` rect) · attach (later) · send (36px primary square, `radius.sm`, `aria-label="Send"`; **amended → D-32**) |
+| Composer | `.rm-composer` | `border.strong`, `rounded-lg`; placeholder "Ask {name} a question…"; bar: scope chip (`muted` rect) · attach (later) · send (36px primary square, `radius.sm`, `aria-label="Ask"`; **amended → D-32**) |
 | Disclaimer | `.rm-disclaimer` | 11px muted centred: "Friday answers only from captured evidence. Check sources before acting." |
 | States | — | Thinking: "Reading 12 captures…" with a muted step list (collapsible); refusal/no evidence: "I couldn't find evidence for that" + suggested searches; error: inline danger alert + Retry |
 
