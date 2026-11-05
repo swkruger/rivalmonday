@@ -1,7 +1,8 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
 import { CTA_BAND, CTA_BAND_TRIAL, HERO } from '../../../content/home';
-import { JoinButton } from '../join/join-button';
+import { JOIN_INK_CLASS, JoinButton } from '../join/join-button';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { usePilot } from '../shell/pilot-context';
 
@@ -25,7 +26,10 @@ export function CtaBand() {
       <h2 className="text-section font-semibold text-surface">{copy.heading}</h2>
       <p className="mx-auto mt-4 max-w-xl text-lg text-muted-surface">{copy.body}</p>
       <div className="mt-7 flex justify-center">
-        <JoinButton>{CTA_BAND.button}</JoinButton>
+        <JoinButton className={JOIN_INK_CLASS}>
+          {CTA_BAND.button}
+          <ArrowRight aria-hidden="true" className="size-4.5" />
+        </JoinButton>
       </div>
       <p className="mt-4 text-13 text-surface">{pilotMode ? HERO.finePrint : HERO.finePrintTrial}</p>
     </InkBand>

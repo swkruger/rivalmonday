@@ -1,10 +1,10 @@
 'use client';
 
-import { Lock, Mail } from 'lucide-react';
+import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { CLIENT_VIEW } from '../../../content/client-view';
 import { CLOSE, CLOSE_TRIAL, HERO, REAL_SAMPLE_PREVIEW } from '../../../content/home';
 import { SAMPLE } from '../../sample/schema';
-import { JoinButton } from '../join/join-button';
+import { JOIN_INK_CLASS, JoinButton } from '../join/join-button';
 import { Reveal } from '../motion/in-view';
 import { weekStats } from '../sample/rank-map';
 import { usePilot } from '../shell/pilot-context';
@@ -35,13 +35,21 @@ export function CloseBand() {
             <h2 id="close-heading" className="text-section font-semibold text-surface">{copy.heading}</h2>
             <p className="mt-4 max-w-xl text-lg text-muted-surface">{copy.body}</p>
             <div className="mt-7">
-              <JoinButton start={HERO.primaryStart}>{copy.button}</JoinButton>
+              <JoinButton start={HERO.primaryStart} className={JOIN_INK_CLASS}>
+                {copy.button}
+                <ArrowRight aria-hidden="true" className="size-4.5" />
+              </JoinButton>
             </div>
             <p className="mt-4 text-13 text-surface">{pilotMode ? HERO.finePrint : HERO.finePrintTrial}</p>
           </div>
           <Reveal>
             {/* Illustrative: what lands in the inbox when the sample is ready. Decorative; the copy beside it says it all. */}
-            <figure aria-hidden="true" className="rounded-lg border border-line bg-surface p-5 text-left shadow-float transition-transform duration-300 lg:rotate-1 lg:hover:rotate-0">
+            <figure aria-hidden="true" className="product-frame border border-line bg-surface p-5 text-left transition-transform duration-300 lg:rotate-1 lg:hover:rotate-0">
+              <div className="frame-chrome -mx-5 -mt-5 mb-5">
+                <span className="frame-chrome-dot" />
+                <span className="frame-chrome-dot" />
+                <span className="frame-chrome-dot" />
+              </div>
               <div className="flex items-start gap-3 border-b border-line pb-4">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-soft-text">
                   <Mail className="size-4" />

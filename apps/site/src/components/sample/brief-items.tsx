@@ -74,8 +74,8 @@ export function BriefItems({ items, data, onOpen, sourceLinks = {} }: {
               </>
             )}
             <Band tone="muted" className="text-sm text-ink">{item.whyItMatters}</Band>
-            <p className="text-sm text-ink">
-              <b className="font-semibold">Recommended:</b> {item.recommendedAction}
+            <p className="rounded-lg bg-warning-surface px-3.5 py-3 text-sm text-amber-text">
+              <b className="font-bold">Recommended:</b> {item.recommendedAction}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
               <EvidencePills ids={item.evidenceIds} data={data} onOpen={onOpen} />

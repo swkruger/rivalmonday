@@ -34,9 +34,9 @@ export function FridayRow() {
           </div>
           <p className="mt-4 max-w-3xl text-13 text-muted-ink">{FRIDAY_PERSONA.mcpNote}</p>
           {/* Desktop only: on phones it would push the live Friday further down the page. */}
-          <img src={HOME_IMAGES.counter.src} alt={HOME_IMAGES.counter.alt} width={1200} height={800} loading="lazy" decoding="async" className="mt-8 hidden aspect-[16/9] w-full rounded-lg border border-line bg-muted-surface object-cover lg:block" />
+          <img src={HOME_IMAGES.counter.src} alt={HOME_IMAGES.counter.alt} width={1200} height={800} loading="lazy" decoding="async" className="mt-8 hidden aspect-[16/9] w-full rounded-card border border-line bg-muted-surface object-cover lg:block" />
         </div>
-        <div data-slot="ask-dock" className="min-w-0 rounded-lg border border-line bg-surface p-5 shadow-float md:p-8">
+        <div data-slot="ask-dock" className="min-w-0 rounded-frame border border-line bg-surface p-5 shadow-frame md:p-8">
             <FridayPanel answers={FRIDAY_ANSWERS} data={SAMPLE} onOpen={open} initialId={FRIDAY_ANSWERS[1]!.id} label={FRIDAY_PERSONA.prompt} />
           </div>
       </div>

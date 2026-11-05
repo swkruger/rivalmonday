@@ -15,7 +15,7 @@ export function Opportunity() {
           </div>
         ))}
       </div>
-      <div className="mt-12 max-w-3xl rounded-lg bg-muted-surface p-6">
+      <div className="mt-12 max-w-3xl rounded-card bg-muted-surface p-6">
         <p className="text-base tabular-nums text-ink">{opportunityLine()}</p>
         <p className="mt-2 text-sm text-ink-secondary">{OPPORTUNITY.exampleNote}</p>
         <a href={OPPORTUNITY.link.href} className="mt-4 inline-flex text-sm font-medium text-link hover:underline">{OPPORTUNITY.link.label}</a>

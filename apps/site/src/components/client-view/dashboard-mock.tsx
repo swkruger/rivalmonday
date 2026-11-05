@@ -16,7 +16,7 @@ import { NoteMark } from './note-mark';
 /** The app's pressure bars: red, then the warning step (amber stays Friday's on this site), then primary. */
 const BAR = { high: 'bg-danger', elevated: 'bg-warning', low: 'bg-primary' } as const;
 const PILL = { up: 'bg-chip-success-bg text-chip-success-text', down: 'bg-chip-danger-bg text-chip-danger-text', warn: 'bg-chip-warning-bg text-chip-warning-text', info: 'bg-chip-neutral-bg text-chip-neutral-text' } as const;
-const pillClass = 'inline-flex min-h-5 items-center gap-0.5 rounded-xs px-1.5 text-xs font-semibold tabular-nums';
+const pillClass = 'inline-flex min-h-5 items-center gap-0.5 rounded-sm px-1.5 text-xs font-semibold tabular-nums';
 
 type Follow = (to: DashboardOpen, el: HTMLElement) => void;
 

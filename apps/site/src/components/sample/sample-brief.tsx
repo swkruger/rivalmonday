@@ -28,7 +28,12 @@ export function SampleBrief({ compact, sourceLinks, autoplayMap = true }: { comp
   };
   const items = compact ? data.items.slice(0, 3) : data.items;
   return (
-    <Frame className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <Frame className="product-frame flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div aria-hidden="true" className="frame-chrome -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
+        <span className="frame-chrome-dot" />
+        <span className="frame-chrome-dot" />
+        <span className="frame-chrome-dot" />
+      </div>
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="info">{data.label}</StatusChip>

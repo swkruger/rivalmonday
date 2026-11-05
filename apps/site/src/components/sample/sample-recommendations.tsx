@@ -99,7 +99,7 @@ export function SampleRecommendations() {
               {items.map((rec) => {
                 const meta = SAMPLE_REC_META[rec.id]!;
                 return (
-                  <article key={`${rec.id}-${rec.status}`} data-rec={rec.id} tabIndex={-1} className="reveal-quick rounded-md border border-line bg-surface p-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                  <article key={`${rec.id}-${rec.status}`} data-rec={rec.id} tabIndex={-1} className="reveal-quick rounded-card border border-line bg-surface p-4 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                     <p className="text-sm font-semibold text-ink">{rec.title}</p>
                     <p className="mt-1 text-sm text-ink-secondary">{rec.rationale}</p>
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">

@@ -40,6 +40,12 @@ ALLOW_AMBER=(
   ':(exclude,glob)apps/site/src/components/**/friday-*.tsx'
   # Pilot pill: the screen's one orange highlight, spec § 7.8.
   ':(exclude,glob)apps/site/src/components/home/pilot-pill.tsx'
+  # Spec D14 (owner canvas): numbered markers are orange circles (How it works steps).
+  ':(exclude,glob)apps/site/src/components/home/steps.tsx'
+  # Spec D14: numbered "What to notice" markers in the client view are orange circles.
+  ':(exclude,glob)apps/site/src/components/client-view/client-view.tsx'
+  # Spec D14: the in-window note markers match the orange "What to notice" numbers.
+  ':(exclude,glob)apps/site/src/components/client-view/note-mark.tsx'
 )
 
 NOTEST=':(exclude,glob)**/*.test.*'

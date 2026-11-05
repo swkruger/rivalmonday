@@ -7,17 +7,20 @@
   --shadow-float-value: 0 2px 4px rgba(11,37,64,.06), 0 12px 32px rgba(11,37,64,.12);
   /* Outline for a changed block in a snapshot fragment (`.ring-change`). */
   --ring-change: 2px solid color-mix(in srgb, var(--secondary) 45%, transparent);
+  /* Owner's canvas (spec D14): the primary CTA's glow on ink, the product frames' large floating shadow. */
+  --shadow-glow-value: 0 10px 30px rgba(71,168,231,.35);
+  --shadow-frame-value: 0 2px 6px rgba(11,37,64,.08), 0 40px 80px rgba(2,12,24,.22);
 }
 
 @theme inline {
-  /* Display headings: 40 px on phones → 76 px on wide screens. */
-  --text-display: clamp(2.5rem, 1.6rem + 3.9vw, 4.75rem);
-  --text-display--line-height: 1.02;
-  --text-display--letter-spacing: -0.032em;
-  /* Section headings: 30 → 48 px. */
-  --text-section: clamp(1.875rem, 1.45rem + 1.7vw, 3rem);
-  --text-section--line-height: 1.08;
-  --text-section--letter-spacing: -0.026em;
+  /* Display headings (spec D14 canvas): 48 px on phones → 82 px at 1440 → 96 px from ~1740 px. */
+  --text-display: clamp(3rem, 1rem + 4.6vw, 6rem);
+  --text-display--line-height: .96;
+  --text-display--letter-spacing: -0.045em;
+  /* Section headings (D14): 34 → 56 px. */
+  --text-section: clamp(2.125rem, 4.4vw, 3.5rem);
+  --text-section--line-height: 1.04;
+  --text-section--letter-spacing: -0.035em;
   /* Large figures and step numbers: 40 → 64 px. */
   --text-numeral: clamp(2.5rem, 2.1rem + 1.7vw, 4rem);
   --text-numeral--line-height: 1;
@@ -27,6 +30,12 @@
   --text-display-sub--line-height: 1.5;
   /* Floating hero fragments only (the one shadow a static site surface may carry). */
   --shadow-float: var(--shadow-float-value);
+  /* D14: primary CTA glow on ink; product frames (client view, sample brief, close preview, hero shots). */
+  --shadow-glow: var(--shadow-glow-value);
+  --shadow-frame: var(--shadow-frame-value);
+  /* D14 radii: content cards 14 px, product frames 20 px (`rounded-card`, `rounded-frame`). */
+  --radius-card: 14px;
+  --radius-frame: 20px;
   /* Map-rank buckets for the sample grid (P11): the app's single-hue ordinal ramp from
      apps/web/src/components/charts/geo-grid.tsx (validated 2026-10-08), darker = better. Each cell also prints its
      rank, so colour is never the only signal. `-ink` is the label colour on that fill (all >= 4.5:1). */
@@ -110,9 +119,99 @@
   /* Pressable feedback for site buttons and tabs. */
   .press { transition: transform 120ms ease-out; }
   .press:active { transform: scale(.97); }
+
+  /* D14 secondary CTA on ink: a quiet outlined button (white 18 % hairline, white/8 % on hover). */
+  .btn-ink-ghost {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px;
+    border: 1px solid color-mix(in srgb, var(--surface) 18%, transparent);
+    border-radius: 12px;
+    color: var(--surface);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 150ms ease-out;
+  }
+  .btn-ink-ghost:hover { background: color-mix(in srgb, var(--surface) 8%, transparent); }
+  .btn-ink-ghost:focus-visible { outline: 2px solid var(--surface); outline-offset: 2px; }
+
+  /* D14 hero radar: slow sweep, faint rings, a few pulsing amber blips. Decorative (`aria-hidden`), never clickable. */
+  .radar { position: absolute; pointer-events: none; }
+  .radar-sweep {
+    position: absolute;
+    inset: 50px;
+    border-radius: 9999px;
+    background: conic-gradient(from 0deg, color-mix(in srgb, var(--primary) 30%, transparent), transparent 75deg, transparent 360deg);
+    opacity: .8;
+    animation: radar-sweep 9s linear infinite;
+  }
+  .radar-blip {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 9999px;
+    background: var(--amber);
+    animation: radar-blip 2.4s ease-out infinite;
+  }
 }
 
+/* D14 product frame and segmented tabs. Unlayered on purpose: they restyle `@cs/ui` primitives (`Frame`, `TabsList`)
+   whose own utilities come through `cn()`, which cannot drop them (site keys are unknown to tailwind-merge). */
+.product-frame {
+  /* `clip`, not `hidden`: keeps the sample brief's sticky map working inside the frame. */
+  overflow: clip;
+  border-radius: var(--radius-frame);
+  box-shadow: var(--shadow-frame-value);
+}
+/* Browser chrome strip at the top of a product frame (three dots, optional centred title pill). */
+.frame-chrome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--canvas) 60%, var(--surface));
+  padding: 12px 18px;
+}
+.frame-chrome-dot { width: 11px; height: 11px; flex: none; border-radius: 9999px; background: var(--line-control); }
+
+.seg-tabs {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  align-items: stretch;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow-x: auto;
+}
+.seg-tabs [role="tab"] {
+  height: auto;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: var(--muted-ink);
+}
+.seg-tabs [role="tab"]:hover { background: var(--muted-surface); color: var(--ink); }
+.seg-tabs [role="tab"][data-state="active"] { background: var(--primary); color: var(--ink); }
+.seg-tabs [role="tab"][data-state="active"]::after { display: none; }
+@media (max-width: 639px) {
+  .seg-tabs { gap: 2px; }
+  .seg-tabs [role="tab"] { padding: 10px 10px; }
+}
+
+/* D14 chips: 6 px corners (tinted fills stay the `@cs/ui` chip palette). */
+[data-slot="status-chip"], [data-slot="tag"] { border-radius: 6px; }
+
 @keyframes reveal-quick { from { opacity: 0; transform: translateY(6px); } }
+@keyframes radar-sweep { to { transform: rotate(360deg); } }
+@keyframes radar-blip { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--amber) 60%, transparent); } 100% { box-shadow: 0 0 0 22px transparent; } }
 @keyframes flow-dash { to { stroke-dashoffset: -24; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
@@ -122,6 +221,8 @@
     animation: none !important;
     transition: none !important;
   }
+  /* The hero radar's motion is gone altogether (rings stay). */
+  .radar-sweep, .radar-blip { display: none; }
   /* Draw-in charts show their final state at once. */
   .draw-line { stroke-dashoffset: 0; }
   .grow-bar, .grow-col { transform: none; }

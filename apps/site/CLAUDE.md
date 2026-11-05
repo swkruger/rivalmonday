@@ -12,9 +12,10 @@ The rivalmonday.com marketing site: a separate Next.js 16 deployable (port 3001 
 
 ## Styling
 - Design system v1 with marketing latitude (spec § 7.8): `@cs/ui` tokens and primitives, compose in `src/components/`; never edit `@cs/ui`.
-- Site-local tokens live only in `src/app/site.css` (`text-display`, `text-display-sub`, `text-section`, `text-numeral`, `shadow-float`, `--ring-change`/`.ring-change`, `.night-map`, `.night-veil`, `.night-veil-even`, `.site-container`). No hex, `rounded-[…]`, `text-[…px]` or shadow literals in components; `bash scripts/design-lint.sh` covers `apps/site/src`.
+- Site-local tokens live only in `src/app/site.css` (`text-display`, `text-display-sub`, `text-section`, `text-numeral`, `shadow-float`, `shadow-glow`, `shadow-frame`, `rounded-card`, `rounded-frame`, `--ring-change`/`.ring-change`, `.night-map`, `.night-veil`, `.night-veil-even`, `.site-container`). No hex, `rounded-[…]`, `text-[…px]` or shadow literals in components; `bash scripts/design-lint.sh` covers `apps/site/src`.
 - **`cn()` from `@cs/ui` doesn't know the site keys:** tailwind-merge reads `text-display`/`text-display-sub`/`text-section`/`text-numeral` as a text colour (dropped next to `text-ink`) and `shadow-float` as a shadow colour. Keep site-key classes out of `cn()` merges with a colour/shadow class (plain `className` strings), since `@cs/ui`'s `lib/cn.ts` can't change here.
-- Orange (`amber`) only for Friday and the one Pilot pill (`ALLOW_AMBER` in `design-lint.sh`).
+- Orange (`amber`) only for Friday, the Pilot pill and the owner canvas's uses (spec D14: hero underline + radar blips, numbered markers, `Recommended:` callouts in `amber-text`). Each `bg-amber` file needs an `ALLOW_AMBER` entry with a reason in `design-lint.sh`.
+- D14 component styling lives in `site.css`: `shadow-glow`/`shadow-frame`, `rounded-card` (14 px)/`rounded-frame` (20 px), `.btn-ink-ghost`, `.radar*` (hero only, removed under reduced motion), and unlayered `.product-frame`/`.frame-chrome`/`.seg-tabs` (they restyle `@cs/ui` `Frame`/`TabsList`, whose `cn()` can't drop the defaults). Ink primary CTAs use `JOIN_INK_CLASS` (`join/join-button.tsx`).
 
 ## Build
 - Pages must prerender (no `cookies()`/`headers()`/dynamic APIs in pages); no `output: 'export'` because security headers need the Next runtime.

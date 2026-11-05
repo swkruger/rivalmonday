@@ -33,7 +33,7 @@ export function ClientView({ heading }: { heading?: string } = {}) {
       <SectionHeading section={heading ? { ...SECTIONS['client-view'], heading } : SECTIONS['client-view']} />
       <Reveal className="mt-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
-          <TabsList aria-label="Client view" className="self-start">
+          <TabsList aria-label="Client view" className="seg-tabs self-start">
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="press gap-1.5">
                 <t.Icon aria-hidden="true" className="size-4" />
@@ -41,15 +41,17 @@ export function ClientView({ heading }: { heading?: string } = {}) {
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-float">
-            <div aria-hidden="true" className="flex items-center gap-3 border-b border-line bg-muted-surface px-3 py-2">
-              <span className="flex gap-1.5">
-                <span className="size-2.5 rounded-full bg-line-control" />
-                <span className="size-2.5 rounded-full bg-line-control" />
-                <span className="size-2.5 rounded-full bg-line-control" />
+          <div className="product-frame border border-line bg-surface">
+            <div aria-hidden="true" className="frame-chrome">
+              <span className="flex gap-2">
+                <span className="frame-chrome-dot" />
+                <span className="frame-chrome-dot" />
+                <span className="frame-chrome-dot" />
               </span>
-              <span className="min-w-0 flex-1 truncate rounded-sm bg-surface px-3 py-1 text-center text-xs text-ink-secondary">{bar}</span>
-              <span className="w-10" />
+              <span className="flex min-w-0 flex-1 justify-center">
+                <span className="min-w-0 truncate rounded-md bg-muted-surface px-4 py-1.5 text-13 text-ink-secondary">{bar}</span>
+              </span>
+              <span className="w-12" />
             </div>
             {/* Mounted once each, so a tab keeps its drawn charts when you come back to it. */}
             <TabsContent value="dashboard" forceMount className="data-[state=inactive]:hidden">
@@ -69,7 +71,7 @@ export function ClientView({ heading }: { heading?: string } = {}) {
             <ol key={tab} aria-label="What to notice" className="mt-2 grid gap-4 sm:grid-cols-3 sm:gap-6">
               {CLIENT_VIEW.notes[tab].map((n, i) => (
                 <li key={n.title} className="reveal-quick flex gap-3" style={{ animationDelay: `${i * 80}ms` }}>
-                  <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-surface">{i + 1}</span>
+                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber text-sm font-bold tabular-nums text-amber-text">{i + 1}</span>
                   <span className="min-w-0 text-sm">
                     <span className="block font-semibold text-ink">{n.title}</span>
                     <span className="text-ink-secondary">{n.body}</span>
