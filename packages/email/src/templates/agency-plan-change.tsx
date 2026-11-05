@@ -9,7 +9,7 @@ export const agencyPlanChangeSubject = () => 'Your Rival Monday plan is changing
 
 const money = (cents: number) => {
   const d = cents / 100;
-  return `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
+  return `$${d.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(d) ? 0 : 2, maximumFractionDigits: 2 })}`;
 };
 const FEATURE_NAMES: Record<PlanFeature, string> = { ask: 'Ask', mcp: 'MCP access' };
 const names = (fs: PlanFeature[]) => fs.map((f) => FEATURE_NAMES[f]).join(', ');
@@ -19,7 +19,23 @@ function dateText(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : iso;
 }
-const terms = (t: PlanTerms) => `${money(t.basePriceCents)}/month including ${t.includedSeats} client seats, then ${money(t.seatPriceCents)} per extra seat`;
+/** Client ranges of the graduated tiers; mirrors `describeTiers` in `@cs/billing` (this package does not depend on it; a tools test pins both). */
+function tierRanges(includedSeats: number, tiers: PlanTerms['seatTiers']) {
+  let prev = 0;
+  return tiers.map((t) => {
+    const row = { from: includedSeats + prev + 1, to: t.upTo === null ? null : includedSeats + t.upTo, unitCents: t.unitCents };
+    prev = t.upTo ?? prev;
+    return row;
+  });
+}
+/** Billing-card wording (spec § Copy): "{base}/mo · {included} clients included · clients {from}–{to}: {price} each · clients {from}+: {price} each". */
+const terms = (t: PlanTerms) =>
+  [
+    `${money(t.basePriceCents)}/mo${t.basePriceYearCents == null ? '' : ` (or ${money(t.basePriceYearCents)}/yr)`}`,
+    `${t.includedSeats} clients included`,
+    ...tierRanges(t.includedSeats, t.seatTiers).map((r) =>
+      r.to === null ? `clients ${r.from}+: ${money(r.unitCents)} each` : `clients ${r.from}${r.to === r.from ? '' : `–${r.to}`}: ${money(r.unitCents)} each`),
+  ].join(' · ');
 
 /**
  * Phase 15c-3b spec §3.5 (copy is decided): the platform tells an agency's admins its plan moved to the current
@@ -34,7 +50,7 @@ export function AgencyPlanChangeEmail(p: AgencyPlanChangeProps) {
       <Text>{`This is Rival Monday with a change to the ${p.agencyName} plan.`}</Text>
       {effective.kind === 'next_billing' ? (
         <Text>
-          {`From ${effective.date ? dateText(effective.date) : 'your next billing date'}, your plan is ${terms(after)} (was ${money(before.basePriceCents)} with ${before.includedSeats} seats, ${money(before.seatPriceCents)} each).`}
+          {`From ${effective.date ? dateText(effective.date) : 'your next billing date'}, your plan is ${terms(after)} (was ${terms(before)}).`}
         </Text>
       ) : (
         <Text>{`Your plan is now ${terms(after)}. These prices apply when you subscribe.`}</Text>

@@ -121,7 +121,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['move', 'evidence'],
   },
   {
-    // source: packages/billing/src/access.ts:countActiveClients (clientServiceable: status active, not paused); plan numbers: packages/billing/src/seed.ts (standard plan: basePriceCents 22900, includedSeats 3, seatPriceCents 9900)
+    // source: packages/billing/src/access.ts:countActiveClients (clientServiceable: status active, not paused); plan numbers: packages/billing/src/seed.ts (standard plan: basePriceCents 22900, includedSeats 3, graduated seatTiers 7900 then 5900 (v2))
     id: 'seat',
     term: 'Seat',
     audience: 'agency',

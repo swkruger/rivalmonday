@@ -844,6 +844,14 @@ describe('per-client billing tools (Task 5)', () => {
       const r = await call(admin, 'get_client_revenue');
       expect(r).toEqual({ currency: 'usd', mrrCents: 29900, payingCount: 2, paymentNeededCount: 1, invitedCount: 1, ourCostCents: 22900 + 9900, marginCents: 29900 - 32800 });
     });
+    it('revenue: graduated tiers via planCents; a yearly agency costs its yearly invoice as a monthly equivalent', async () => {
+      await seedRows(); // 4 active clients -> 1 extra over the 3 included
+      const [cur] = await dbs.owner.select().from(plan).where(eq(plan.isCurrent, true));
+      await dbs.owner.update(plan).set({ basePriceYearCents: 229000, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] }).where(eq(plan.id, cur!.id));
+      expect(await call(admin, 'get_client_revenue')).toMatchObject({ ourCostCents: 22900 + 7900 });
+      await dbs.owner.update(agencyBilling).set({ billingInterval: 'year' }).where(eq(agencyBilling.agencyId, IDS.agencyA));
+      expect(await call(admin, 'get_client_revenue')).toMatchObject({ ourCostCents: Math.round((229000 + 12 * 7900) / 12) });
+    });
     it('revenue is zero with no client billing and ignores disabled billing', async () => {
       expect(await call(admin, 'get_client_revenue')).toMatchObject({ mrrCents: 0, payingCount: 0, paymentNeededCount: 0, ourCostCents: 22900 });
       await dbs.owner.insert(clientBilling).values({ clientId: A1, agencyId: IDS.agencyA, state: 'active', enabled: false, priceCents: 9900, billedPriceCents: 9900, stripeSubscriptionId: 's1' });

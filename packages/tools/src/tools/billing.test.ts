@@ -41,7 +41,7 @@ beforeEach(async () => {
 });
 
 const TOOLS: [string, unknown][] = [
-  ['get_billing_summary', {}], ['create_checkout_session', {}], ['create_portal_session', {}], ['redeem_discount_code', { code: 'x' }], ['get_seat_report', {}],
+  ['get_billing_summary', {}], ['create_checkout_session', {}], ['switch_billing_to_yearly', {}], ['create_portal_session', {}], ['redeem_discount_code', { code: 'x' }], ['get_seat_report', {}],
 ];
 
 describe('roles', () => {
@@ -63,7 +63,9 @@ describe('get_billing_summary', () => {
   it('defaults to pilot with no billing row', async () => {
     const r = (await call(admin, 'get_billing_summary')) as Record<string, any>;
     expect(r.state).toBe('pilot');
-    expect(r.plan).toEqual({ name: 'Standard', version: 1, basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900 });
+    expect(r.plan).toEqual({ name: 'Standard', version: 1, basePriceCents: 22900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }] });
+    expect(r.interval).toBe('month');
+    expect(r.tiers).toEqual([{ fromClient: 4, toClient: null, unitCents: 9900 }]);
     expect(r.dates).toEqual({ trialEndsAt: null, pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null });
     expect(r.seats).toEqual({ used: 2, included: 3, extra: 0 });
     expect(r.nextInvoice).toBeNull();
@@ -119,6 +121,91 @@ describe('get_billing_summary', () => {
     gw.listInvoices = async () => { throw new Error('boom'); };
     const r2 = (await call(admin, 'get_billing_summary')) as Record<string, any>;
     expect(r2.recentInvoices).toEqual([]);
+  });
+});
+
+const V2 = {
+  ...STD, version: 2, basePriceYearCents: 229000, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }],
+  stripeBasePriceId: 'price_base2', stripeSeatPriceId: 'price_seat2', stripeBasePriceYearId: 'price_base2y', stripeSeatPriceYearId: 'price_seat2y',
+};
+const useV2 = async () => {
+  await dbs.owner.update(plan).set({ isCurrent: false }).where(eq(plan.id, planId));
+  planId = (await dbs.owner.insert(plan).values(V2).returning({ id: plan.id }))[0]!.id;
+};
+
+describe('pricing v2: summary tiers and yearly', () => {
+  it('returns seatTiers, basePriceYearCents, interval and describeTiers rows', async () => {
+    await useV2();
+    await setBilling({ state: 'active', billingInterval: 'year' });
+    const r = (await call(admin, 'get_billing_summary')) as Record<string, any>;
+    expect(r.plan).toMatchObject({ basePriceYearCents: 229000, seatTiers: V2.seatTiers });
+    expect(r.interval).toBe('year');
+    expect(r.tiers).toEqual([{ fromClient: 4, toClient: 10, unitCents: 7900 }, { fromClient: 11, toClient: null, unitCents: 5900 }]);
+  });
+});
+
+describe('create_checkout_session: interval', () => {
+  it('year on a plan without a yearly base -> conflict with the decided copy', async () => {
+    await setBilling({ state: 'pilot' });
+    const e = await fails(call(admin, 'create_checkout_session', { interval: 'year' }));
+    expect(e).toMatchObject({ code: 'conflict', message: "Yearly billing isn't available on this plan." });
+    expect(gw.callsTo('createCheckoutSession')).toEqual([]);
+  });
+  it('year passes the yearly price ids and interval; month stays the default', async () => {
+    await useV2();
+    await setBilling({ state: 'pilot' });
+    await call(admin, 'create_checkout_session', { interval: 'year' });
+    expect(gw.callsTo('createCheckoutSession')[0]!.args[0]).toMatchObject({ basePriceId: 'price_base2y', seatPriceId: 'price_seat2y', interval: 'year' });
+    await call(admin, 'create_checkout_session');
+    expect(gw.callsTo('createCheckoutSession')[1]!.args[0]).toMatchObject({ basePriceId: 'price_base2', seatPriceId: 'price_seat2', interval: 'month' });
+  });
+});
+
+describe('switch_billing_to_yearly', () => {
+  const live = async (v: Partial<typeof agencyBilling.$inferInsert> = {}) => {
+    await setBilling({ state: 'active', billingInterval: 'month', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', ...v });
+    gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', seatQuantity: 1, items: [{ id: 'si_base', priceId: 'price_base2', quantity: 1 }, { id: 'si_seat_1', priceId: 'price_seat2', quantity: 1 }] });
+  };
+  it('switches in Stripe with the yearly ids and only then stores year', async () => {
+    await useV2();
+    await live();
+    const r = (await call(admin, 'switch_billing_to_yearly')) as { interval: string; currentPeriodEnd: string | null };
+    expect(r.interval).toBe('year');
+    expect(gw.switches).toHaveLength(1);
+    expect(gw.callsTo('switchSubscriptionInterval')[0]!.args[1]).toMatchObject({ basePriceId: 'price_base2y', seatPriceId: 'price_seat2y' });
+    expect((await billingRow())!.billingInterval).toBe('year');
+  });
+  it('a Stripe failure leaves the row monthly', async () => {
+    await useV2();
+    await live();
+    vi.spyOn(gw, 'switchSubscriptionInterval').mockRejectedValue(new Error('stripe down'));
+    await fails(call(admin, 'switch_billing_to_yearly'));
+    expect((await billingRow())!.billingInterval).toBe('month');
+  });
+  it.each(['trialing', 'past_due', 'pilot'] as const)('refuses state %s', async (state) => {
+    await useV2();
+    await live({ state });
+    expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: 'Only an active monthly plan can switch to yearly.' });
+    expect(gw.switches).toEqual([]);
+  });
+  it('refuses when already yearly', async () => {
+    await useV2();
+    await live({ billingInterval: 'year' });
+    expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: 'Only an active monthly plan can switch to yearly.' });
+  });
+  it('refuses a plan without a yearly base', async () => {
+    await live();
+    expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: "Yearly billing isn't available on this plan." });
+    expect(gw.switches).toEqual([]);
+  });
+  it('refuses under a support session and for other roles', async () => {
+    await useV2();
+    await live();
+    const support = createAccessContext({ agencyId: IDS.agencyA, userId: 'u-agency_admin', role: 'agency_admin', clientScope: 'all', features: [], support: { sessionId: '00000000-0000-4000-8000-0000000005e5', platformUserId: 'op' } });
+    await fails(call(support, 'switch_billing_to_yearly'));
+    await fails(call(am, 'switch_billing_to_yearly'));
+    expect(gw.switches).toEqual([]);
+    expect((await billingRow())!.billingInterval).toBe('month');
   });
 });
 

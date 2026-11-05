@@ -1,5 +1,5 @@
 import {
-  type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, generateInviteToken, globalConnectFeePercent, planFor, syncPlanToStripe,
+  type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, describeTiers, generateInviteToken, globalConnectFeePercent, planFor, seatTiersSchema, syncPlanToStripe,
 } from '@cs/billing';
 import { type AccessContext, PLAN_FEATURES, type PlanFeature, pilotLinkRefusal, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyConnect, agencyDailyStat, agencyInviteLink, BILLING_STATES, client, clientBilling, discountCode, plan, platformSetting } from '@cs/db';
@@ -62,7 +62,8 @@ export async function operate<T>(
 
 const PlanOut = z.object({
   id: z.string(), code: z.string(), version: z.number().int(), name: z.string(), basePriceCents: z.number().int(), includedSeats: z.number().int(),
-  seatPriceCents: z.number().int(), trialDays: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)), isCurrent: z.boolean(), synced: z.boolean(), createdAt: z.string(), createdBy: z.string(),
+  basePriceYearCents: z.number().int().nullable(), seatTiers: z.array(z.object({ upTo: z.number().int().nullable(), unitCents: z.number().int() })), tiers: z.array(z.object({ fromClient: z.number().int(), toClient: z.number().int().nullable(), unitCents: z.number().int() })),
+  trialDays: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)), isCurrent: z.boolean(), synced: z.boolean(), createdAt: z.string(), createdBy: z.string(),
 });
 
 export const listPlansTool = defineTool({
@@ -79,7 +80,8 @@ export const listPlansTool = defineTool({
       return {
         plans: rows.map((p) => ({
           id: p.id, code: p.code, version: p.version, name: p.name, basePriceCents: p.basePriceCents, includedSeats: p.includedSeats,
-          seatPriceCents: p.seatPriceCents, trialDays: p.trialDays, features: p.features, isCurrent: p.isCurrent, synced: !!(p.stripeBasePriceId && p.stripeSeatPriceId),
+          basePriceYearCents: p.basePriceYearCents, seatTiers: p.seatTiers, tiers: describeTiers(p.includedSeats, p.seatTiers), trialDays: p.trialDays, features: p.features, isCurrent: p.isCurrent,
+          synced: !!(p.stripeBasePriceId && p.stripeSeatPriceId && (p.basePriceYearCents == null || (p.stripeBasePriceYearId && p.stripeSeatPriceYearId))),
           createdAt: p.createdAt.toISOString(), createdBy: p.createdBy,
         })),
       };
@@ -95,7 +97,8 @@ export const createPlanVersionTool = defineTool({
     name: z.string().trim().min(1).max(80),
     basePriceCents: z.number().int().min(0).max(10_000_000),
     includedSeats: z.number().int().min(0).max(10_000),
-    seatPriceCents: z.number().int().min(0).max(10_000_000),
+    seatTiers: seatTiersSchema,
+    basePriceYearCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
     trialDays: z.number().int().min(0).max(90),
     features: z.array(z.enum(PLAN_FEATURES)).max(8).optional(),
   }),

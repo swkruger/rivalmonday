@@ -1,5 +1,5 @@
 import {
-  type BillingGateway, billingAccess, countActiveClients, currentStandardPlan, type CustomerDetails, discountExhausted, discountRedemptions, LIVE_SUBSCRIPTION_STATUSES, planFor,
+  type BillingGateway, billingAccess, countActiveClients, currentStandardPlan, type CustomerDetails, describeTiers, discountExhausted, discountRedemptions, LIVE_SUBSCRIPTION_STATUSES, planFor,
   syncPlanToStripe, trialEndUsable,
 } from '@cs/billing';
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
@@ -113,7 +113,13 @@ async function assertNoLiveSubscription(gw: BillingGateway, agencyId: string, su
   if (await hasLiveSubscription(gw, agencyId, subscriptionId)) throw new ToolError('conflict', 'This agency already has a subscription. Manage it from the billing portal.');
 }
 
-const Plan = z.object({ name: z.string(), version: z.number().int(), basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int() });
+const SeatTierOut = z.object({ upTo: z.number().int().nullable(), unitCents: z.number().int() });
+const Plan = z.object({
+  name: z.string(), version: z.number().int(), basePriceCents: z.number().int(), basePriceYearCents: z.number().int().nullable(), includedSeats: z.number().int(), seatTiers: z.array(SeatTierOut),
+});
+const BillingIntervalOut = z.enum(['month', 'year']);
+export const YEARLY_UNAVAILABLE_MESSAGE = "Yearly billing isn't available on this plan.";
+export const YEARLY_SWITCH_STATE_MESSAGE = 'Only an active monthly plan can switch to yearly.';
 const IsoOrNull = z.string().nullable();
 
 export const getBillingSummaryTool = defineTool({
@@ -124,6 +130,10 @@ export const getBillingSummaryTool = defineTool({
   output: z.object({
     state: z.enum(['pilot', 'trialing', 'active', 'past_due', 'read_only', 'suspended', 'cancelled']),
     plan: Plan.nullable(),
+    /** Billing interval of the subscription (monthly until Stripe says otherwise). */
+    interval: BillingIntervalOut,
+    /** `describeTiers` of the plan: client ranges with their per-client price. */
+    tiers: z.array(z.object({ fromClient: z.number().int(), toClient: z.number().int().nullable(), unitCents: z.number().int() })),
     dates: z.object({ trialEndsAt: IsoOrNull, pilotEndsAt: IsoOrNull, pastDueSince: IsoOrNull, pausesOn: IsoOrNull, cancelAt: IsoOrNull }),
     seats: z.object({ used: z.number().int(), included: z.number().int(), extra: z.number().int() }),
     /** Phase 10 f12 (R10): open sign-up still trialing => `maxActiveClients` = 1. */
@@ -171,7 +181,9 @@ export const getBillingSummaryTool = defineTool({
 
     return {
       state,
-      plan: p ? { name: p.name, version: p.version, basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatPriceCents } : null,
+      plan: p ? { name: p.name, version: p.version, basePriceCents: p.basePriceCents, basePriceYearCents: p.basePriceYearCents, includedSeats: p.includedSeats, seatTiers: p.seatTiers } : null,
+      interval: row?.billingInterval ?? 'month',
+      tiers: p ? describeTiers(p.includedSeats, p.seatTiers) : [],
       dates: {
         trialEndsAt: iso(row?.trialEndsAt),
         pilotEndsAt: iso(row?.pilotEndsAt),
@@ -195,7 +207,7 @@ export const createCheckoutSessionTool = defineTool({
   access: 'write',
   description: 'Start Stripe Checkout to subscribe the agency to its plan (agency admins).',
   // R10: `onboarding` returns to the wizard's plan step (success and cancel); default the billing settings page.
-  input: z.object({ returnTo: z.enum(['billing', 'onboarding']).default('billing') }),
+  input: z.object({ returnTo: z.enum(['billing', 'onboarding']).default('billing'), interval: BillingIntervalOut.default('month') }),
   output: z.object({ url: z.string() }),
   permission: 'agency',
   async handler(ctx, input, deps) {
@@ -210,7 +222,12 @@ export const createCheckoutSessionTool = defineTool({
     let p = await planFor(deps.service, before);
     if (!p) p = await currentStandardPlan(deps.service);
     if (!p) throw new ToolError('internal', 'No billing plan is configured');
-    if (!p.stripeBasePriceId || !p.stripeSeatPriceId) p = await syncPlanToStripe(deps.service, gw, p.id);
+    const yearly = input.interval === 'year';
+    if (yearly && p.basePriceYearCents == null) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
+    if (!p.stripeBasePriceId || !p.stripeSeatPriceId || (p.basePriceYearCents != null && (!p.stripeBasePriceYearId || !p.stripeSeatPriceYearId))) p = await syncPlanToStripe(deps.service, gw, p.id);
+    const basePriceId = yearly ? p.stripeBasePriceYearId : p.stripeBasePriceId;
+    const seatPriceId = yearly ? p.stripeSeatPriceYearId : p.stripeSeatPriceId;
+    if (!basePriceId || !seatPriceId) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
 
     const customerId = await ensureCustomer(deps, ctx.agencyId);
     // f7: copy the profile's billing details to the customer first; best effort (never blocks Checkout, no PII logged).
@@ -224,15 +241,43 @@ export const createCheckoutSessionTool = defineTool({
     const trialEnd = row.state === 'trialing' && row.trialEndsAt && trialEndUsable(row.trialEndsAt) ? row.trialEndsAt : undefined;
     return gw.createCheckoutSession({
       customerId,
-      basePriceId: p.stripeBasePriceId!,
-      seatPriceId: p.stripeSeatPriceId!,
+      basePriceId,
+      seatPriceId,
       seatQty: Math.max(0, active - p.includedSeats),
+      interval: input.interval,
       ...(trialEnd ? { trialEnd } : {}),
       ...(row.attachedCouponId ? { couponId: row.attachedCouponId } : {}),
       allowPromotionCodes: !row.attachedCouponId,
       successUrl: success,
       cancelUrl: cancel,
     }).then((s) => ({ url: s.url }));
+  },
+});
+
+export const switchBillingToYearlyTool = defineTool({
+  name: 'switch_billing_to_yearly',
+  access: 'write',
+  description: 'Switch the agency’s active monthly subscription to yearly billing; Stripe charges the prorated difference today (agency admins).',
+  input: z.object({}),
+  output: z.object({ interval: z.literal('year'), currentPeriodEnd: z.string().nullable() }),
+  permission: 'agency',
+  async handler(ctx, _input, deps) {
+    requireAdmin(ctx);
+    // Under `ctx.support` the registry already refuses writes (8b); the guard stays so the tool is safe on its own.
+    if (ctx.support) throw new ToolError('permission_denied', 'Only the agency admin can manage billing');
+    const gw = gatewayOf(deps);
+    const row = await billingRowOf(deps, ctx.agencyId);
+    const p = await planFor(deps.service, row);
+    if (!p || p.basePriceYearCents == null || !p.stripeBasePriceYearId || !p.stripeSeatPriceYearId) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
+    if (!row || row.state !== 'active' || row.billingInterval !== 'month' || !row.stripeSubscriptionId) throw new ToolError('conflict', YEARLY_SWITCH_STATE_MESSAGE, { userFacing: true });
+    const sub = await gw.getSubscription(row.stripeSubscriptionId);
+    const switched = await gw.switchSubscriptionInterval(row.stripeSubscriptionId, {
+      basePriceId: p.stripeBasePriceYearId,
+      seatPriceId: p.stripeSeatPriceYearId,
+      seatQuantity: sub.seatQuantity,
+    });
+    await deps.service.update(agencyBilling).set({ billingInterval: 'year', updatedAt: new Date() }).where(eq(agencyBilling.agencyId, ctx.agencyId));
+    return { interval: 'year' as const, currentPeriodEnd: iso(switched.currentPeriodEnd) };
   },
 });
 
@@ -316,4 +361,4 @@ export const getSeatReportTool = defineTool({
   },
 });
 
-export const billingTools = [getBillingSummaryTool, createCheckoutSessionTool, createPortalSessionTool, redeemDiscountCodeTool, getSeatReportTool];
+export const billingTools = [getBillingSummaryTool, createCheckoutSessionTool, switchBillingToYearlyTool, createPortalSessionTool, redeemDiscountCodeTool, getSeatReportTool];

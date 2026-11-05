@@ -98,8 +98,8 @@ const tip = (day: 1 | 3 | 7, nextStep: OnboardingTipProps['nextStep']): EmailPre
   payload: { template: 'onboarding_tip', props: { branding: platform, agencyName: AGENCY, day, nextStep, url: `${APP}/agency`, unsubscribeUrl: `${APP}/unsubscribe/abc` } },
 });
 
-const terms = (basePriceCents: number, includedSeats: number, seatPriceCents: number): PlanTerms => ({ basePriceCents, includedSeats, seatPriceCents });
-const planBase = { branding: platform, recipientName: 'Ann', agencyName: AGENCY, before: terms(22900, 3, 9900), after: terms(19900, 5, 7900), featuresAdded: [] as ('ask' | 'mcp')[], featuresRemoved: [] as ('ask' | 'mcp')[] };
+const terms = (basePriceCents: number, basePriceYearCents: number | null, includedSeats: number, seatTiers: PlanTerms['seatTiers']): PlanTerms => ({ basePriceCents, basePriceYearCents, includedSeats, seatTiers });
+const planBase = { branding: platform, recipientName: 'Ann', agencyName: AGENCY, before: terms(22900, null, 3, [{ upTo: null, unitCents: 9900 }]), after: terms(22900, 229000, 3, [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }]), featuresAdded: [] as ('ask' | 'mcp')[], featuresRemoved: [] as ('ask' | 'mcp')[] };
 
 const readyPreview: LeadPreview = {
   status: 'ready', self: { name: CLIENT, rating: 4.5, votes: 40 }, nearby: [{ name: 'Harbor Dental', rating: 4.8, votes: 120, distanceKm: 1.2 }],

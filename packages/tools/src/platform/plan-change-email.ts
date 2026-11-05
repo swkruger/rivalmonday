@@ -13,7 +13,8 @@ type Terms = PlanTerms & { features: PlanFeature[] };
 
 /** True when any price term or the feature set differs (the caller still skips pilots). */
 export function planChangeWorthEmailing(before: Terms, after: Terms): boolean {
-  if (before.basePriceCents !== after.basePriceCents || before.includedSeats !== after.includedSeats || before.seatPriceCents !== after.seatPriceCents) return true;
+  if (before.basePriceCents !== after.basePriceCents || before.basePriceYearCents !== after.basePriceYearCents || before.includedSeats !== after.includedSeats) return true;
+  if (before.seatTiers.length !== after.seatTiers.length || before.seatTiers.some((t, i) => t.upTo !== after.seatTiers[i]!.upTo || t.unitCents !== after.seatTiers[i]!.unitCents)) return true;
   const b = new Set(before.features);
   const a = new Set(after.features);
   return b.size !== a.size || [...b].some((f) => !a.has(f));

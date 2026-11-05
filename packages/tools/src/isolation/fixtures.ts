@@ -20,7 +20,8 @@ export interface IsolationTarget { tenant: 'A1' | 'A2' | 'B1'; agencyId: string;
 export type PositiveUser = Exclude<WorldUser, 'operator'>;
 export type IsolationFixture =
   | { kind: 'client' | 'object'; input: (w: IsolationWorld, t: IsolationTarget) => unknown; skipPositive?: string; positiveAs?: PositiveUser }
-  | { kind: 'agency'; input: (w: IsolationWorld) => unknown; skipPositive?: string }
+  // `allowConflict`: the tool refuses `conflict` for an agency not in the required billing state; an allowed own-tenant call may end that way (the world's B is trialing)
+  | { kind: 'agency'; input: (w: IsolationWorld) => unknown; skipPositive?: string; allowConflict?: string }
   | { kind: 'platform'; input?: (w: IsolationWorld) => unknown; skipPositive?: string }
   // `user` (Task 4): the scenario's caller, so a global-catalogue write can name a distinct row per caller
   | { kind: 'caller'; reason: string; input?: (w: IsolationWorld, user?: WorldUser) => unknown };
@@ -300,6 +301,10 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   add_webhook: agency({ kind: 'slack', url: 'https://hooks.slack.com/services/T000/B000/world' }),
   set_support_access_notify: agency({ enabled: true }),
   create_checkout_session: agency(),
+  switch_billing_to_yearly: {
+    kind: 'agency', input: () => ({}), allowConflict: 'refuses a conflict unless the agency is active, monthly and on a plan with yearly prices (the world has A active/monthly, B trialing, no yearly price); covered in billing.test.ts',
+    skipPositive: 'needs an active monthly subscription on a plan with yearly Stripe prices: the world plan has no yearly price; covered in billing.test.ts',
+  },
   create_portal_session: agency(),
   redeem_discount_code: agency({ code: 'WORLD10' }),
   start_stripe_connect: agency(),

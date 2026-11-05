@@ -98,7 +98,7 @@ beforeEach(async () => {
 });
 
 describe('helpers', () => {
-  const t = { basePriceCents: 19900, includedSeats: 3, seatPriceCents: 7900 };
+  const t = { basePriceCents: 19900, basePriceYearCents: null, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 7900 }] };
   it('seatWarningFor per state', () => {
     const w = (state: 'pilot' | 'trialing' | 'active' | 'past_due' | 'read_only', active: number, x: { seatCapExempt?: boolean; reducedTrial?: boolean } = {}) =>
       seatWarningFor({ state, seatCapExempt: x.seatCapExempt ?? false, reducedTrial: x.reducedTrial ?? false }, active, t);
@@ -169,7 +169,7 @@ describe('move_agencies_to_current_plan', () => {
     expect(await row(su)).toMatchObject({ planId: v2, billableSeatsSynced: 2, seatSyncPending: false, state: 'suspended' });
     for (const to of ['adm1@example.com', 'adm2@example.com']) {
       const mail = transport.sent.find((m) => m.to === to)!;
-      expect(mail.text).toContain('From November 3, 2026, your plan is $199/month');
+      expect(mail.text).toContain('From November 3, 2026, your plan is $199/mo (or $1,990/yr) · 3 clients included · clients 4+: $79 each');
       expect(mail.text).not.toContain('These prices apply when you subscribe.');
     }
     const listed = Object.fromEntries((await list()).agencies.map((a) => [a.agencyId, a.swapsStripe]));
@@ -240,12 +240,12 @@ describe('move_agencies_to_current_plan', () => {
     expect(out.results.map((r) => r.emailed)).toEqual([true, false, true]);
     expect(transport.sent.map((m) => m.to).sort()).toEqual(['adm1@example.com', 'adm3@example.com']);
     const liveMail = transport.sent.find((m) => m.to === 'adm1@example.com')!;
-    expect(liveMail.text).toContain('From November 3, 2026, your plan is $199/month including 3 client seats, then $79 per extra seat (was $229 with 3 seats, $99 each).');
+    expect(liveMail.text).toContain('From November 3, 2026, your plan is $199/mo (or $1,990/yr) · 3 clients included · clients 4+: $79 each (was $229/mo · 3 clients included · clients 4+: $99 each).');
     expect(liveMail.text).toContain('No longer included: MCP access.');
     expect(transport.sent.find((m) => m.to === 'adm3@example.com')!.text).toContain('These prices apply when you subscribe.');
 
     // Nothing changes: the agency's version has the target's terms and features.
-    await dbs.owner.update(plan).set({ basePriceCents: V2.basePriceCents, seatTiers: V2.seatTiers, features: ['ask'] }).where(eq(plan.id, v1));
+    await dbs.owner.update(plan).set({ basePriceCents: V2.basePriceCents, basePriceYearCents: V2.basePriceYearCents, seatTiers: V2.seatTiers, features: ['ask'] }).where(eq(plan.id, v1));
     const same = await mk('Same', { billing: { state: 'active' }, sub: 'sub_same' });
     const again = await move([same]);
     expect(again.results[0]).toMatchObject({ outcome: 'moved', emailed: false });

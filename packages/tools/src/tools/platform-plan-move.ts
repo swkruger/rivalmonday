@@ -23,8 +23,7 @@ const ALL: readonly PlanFeature[] = PLAN_FEATURES;
 const swapsStripe = (row: Pick<AgencyBillingRow, 'state' | 'stripeSubscriptionId'>) => !!row.stripeSubscriptionId && row.state !== 'cancelled';
 const errName = (e: unknown): string => (e instanceof Error ? e.name : 'unknown');
 const isoDate = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
-/** The email's `PlanTerms` still carries one seat price: the first graduated tier (the email is reshaped separately). */
-const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, includedSeats: p.includedSeats, seatPriceCents: p.seatTiers[0]?.unitCents ?? 0 });
+const termsOf = (p: PlanRow): PlanTerms => ({ basePriceCents: p.basePriceCents, basePriceYearCents: p.basePriceYearCents, includedSeats: p.includedSeats, seatTiers: p.seatTiers });
 const NO_YEARLY_PRICE = 'This plan has no yearly price.';
 const hasYearlyIds = (p: PlanRow) => !!(p.stripeBasePriceYearId && p.stripeSeatPriceYearId);
 /** Monthly-equivalent cents on `p` for an agency on `interval`. A yearly agency on a plan without a yearly price has no such figure: callers mark that row refused. */
@@ -41,7 +40,7 @@ const featuresOf = (row: Pick<AgencyBillingRow, 'planId'>, p: PlanRow | null): P
  * trial come from the same sources `billingAccess` uses (`seat_cap_exempt`, `isReducedTrial`).
  */
 export function seatWarningFor(
-  row: { state: BillingState; seatCapExempt: boolean; reducedTrial: boolean }, activeClients: number, target: PlanTerms,
+  row: { state: BillingState; seatCapExempt: boolean; reducedTrial: boolean }, activeClients: number, target: Pick<PlanTerms, 'includedSeats'>,
 ): 'extra_seats' | 'over_cap' | null {
   if (activeClients <= target.includedSeats) return null;
   if (row.state === 'active' || row.state === 'past_due') return 'extra_seats';
@@ -60,7 +59,7 @@ async function requireCurrentPlan(deps: ToolDeps): Promise<PlanRow> {
 
 const AgencyRow = z.object({
   agencyId: z.string(), name: z.string(), state: z.enum(BILLING_STATES), planId: z.string().nullable(), version: z.number().int().nullable(),
-  basePriceCents: z.number().int(), includedSeats: z.number().int(), seatPriceCents: z.number().int(), features: z.array(z.enum(PLAN_FEATURES)),
+  basePriceCents: z.number().int(), basePriceYearCents: z.number().int().nullable(), includedSeats: z.number().int(), seatTiers: z.array(z.object({ upTo: z.number().int().nullable(), unitCents: z.number().int() })), features: z.array(z.enum(PLAN_FEATURES)),
   interval: z.enum(['month', 'year']), moveBlocked: z.enum(['no_yearly_price']).nullable(), activeClients: z.number().int(), swapsStripe: z.boolean(), onHold: z.boolean(), seatWarning: z.enum(['extra_seats', 'over_cap']).nullable(),
   extraSeatsAfter: z.number().int(), monthlyNowCents: z.number().int(), monthlyAfterCents: z.number().int(),
 });

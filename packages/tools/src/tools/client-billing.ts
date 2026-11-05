@@ -1,6 +1,6 @@
 import {
   type ClientBillingSignal, effectiveConnectFeePercent, LIVE_SUBSCRIPTION_STATUSES, applyClientBillingSignal, connectStatusFor, clientBillingPill, countActiveClients,
-  disconnectAgencyConnect, isPaymentProcessing, isSubscribed, planFor,
+  disconnectAgencyConnect, isPaymentProcessing, isSubscribed, monthlyEquivalentCents, planCents, planFor,
 } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError, type ToolErrorCode } from '@cs/core';
 import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling } from '@cs/db';
@@ -772,7 +772,9 @@ export const getClientRevenueTool = defineTool({
     // Our cost is the 9a invoice before discounts: plan base + seats beyond the included ones; a pilot agency pays nothing.
     const [ab] = await deps.service.select().from(agencyBilling).where(eq(agencyBilling.agencyId, ctx.agencyId));
     const [p, used] = await Promise.all([planFor(deps.service, ab ?? null), countActiveClients(deps.service, ctx.agencyId)]);
-    const ourCostCents = !p || (ab?.state ?? 'pilot') === 'pilot' ? 0 : p.basePriceCents + Math.max(0, used - p.includedSeats) * p.seatPriceCents;
+    // A yearly agency's cost is its yearly invoice as a monthly equivalent (a plan without a yearly price falls back to monthly).
+    const interval = ab?.billingInterval === 'year' && p?.basePriceYearCents != null ? 'year' : 'month';
+    const ourCostCents = !p || (ab?.state ?? 'pilot') === 'pilot' ? 0 : monthlyEquivalentCents(planCents(p, used, interval), interval);
     const connect = await connectRowOf(deps, ctx.agencyId);
     return {
       currency: connect?.currency ?? 'usd', mrrCents, payingCount: active.length,

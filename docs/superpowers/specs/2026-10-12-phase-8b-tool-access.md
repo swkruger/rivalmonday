@@ -147,6 +147,7 @@ assign_lead (platform-leads.ts) | write | updates lead (agency, assigned_*, clea
 get_billing_summary (billing.ts) | read | gateway reads only
 get_seat_report (billing.ts) | read | read
 create_checkout_session (billing.ts) | write | creates Stripe customer/session
+switch_billing_to_yearly (billing.ts) | write | switches the Stripe subscription to yearly prices (prorated invoice today), then sets billing_interval
 create_portal_session (billing.ts) | write | creates Stripe portal session
 redeem_discount_code (billing.ts) | write | stores/attaches coupon
 pause_client (client-pause.ts) | write | sets client.paused_at

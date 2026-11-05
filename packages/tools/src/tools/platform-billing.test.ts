@@ -306,12 +306,37 @@ describe('invite links', () => {
   });
 });
 
+describe('create_plan_version / list_plans: v2 tiers and yearly', () => {
+  it('accepts graduated tiers + yearly base; list_plans returns them with describeTiers rows; synced covers yearly ids', async () => {
+    const tiers = [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }];
+    await call(owner, 'create_plan_version', { ...PLAN_IN, seatTiers: tiers, basePriceYearCents: 299000 });
+    const listed = (await call(viewer, 'list_plans', {})) as { plans: Record<string, any>[] };
+    expect(listed.plans[0]).toMatchObject({
+      version: 2, seatTiers: tiers, basePriceYearCents: 299000, synced: true,
+      tiers: [{ fromClient: 6, toClient: 12, unitCents: 7900 }, { fromClient: 13, toClient: null, unitCents: 5900 }],
+    });
+    const row = (await dbs.owner.select().from(plan).where(eq(plan.version, 2)))[0]!;
+    expect(row.stripeBasePriceYearId).toBeTruthy();
+    expect(row.stripeSeatPriceYearId).toBeTruthy();
+  });
+  it.each([
+    ['last tier capped', [{ upTo: 7, unitCents: 7900 }]],
+    ['non-ascending', [{ upTo: 7, unitCents: 1 }, { upTo: 7, unitCents: 1 }, { upTo: null, unitCents: 1 }]],
+    ['null before the end', [{ upTo: null, unitCents: 1 }, { upTo: null, unitCents: 1 }]],
+    ['more than five', Array.from({ length: 6 }, (_, i) => ({ upTo: i === 5 ? null : i + 1, unitCents: 1 }))],
+    ['empty', []],
+  ])('rejects bad tiers: %s', async (_n, seatTiers) => {
+    expect((await fails(call(owner, 'create_plan_version', { ...PLAN_IN, seatTiers }))).code).toBe('invalid_input');
+    expect(await dbs.owner.select().from(plan).where(eq(plan.version, 2))).toEqual([]);
+  });
+});
+
 describe('create_plan_version / list_plans', () => {
   it('creates version max+1, syncs, flips is_current', async () => {
     await call(owner, 'create_plan_version', PLAN_IN);
     const rows = (await dbs.owner.select().from(plan).where(eq(plan.code, 'standard'))).sort((a, b) => a.version - b.version);
     expect(rows.map((r) => [r.version, r.isCurrent])).toEqual([[1, false], [2, true]]);
-    expect(rows[1]).toMatchObject({ name: 'Standard v2', basePriceCents: 29900, includedSeats: 5, seatPriceCents: 7900, trialDays: 14, createdBy: 'op' });
+    expect(rows[1]).toMatchObject({ name: 'Standard v2', basePriceCents: 29900, includedSeats: 5, seatTiers: [{ upTo: null, unitCents: 7900 }], basePriceYearCents: null, trialDays: 14, createdBy: 'op' });
     expect(rows[1]!.stripeBasePriceId).toBeTruthy();
     expect(rows[1]!.stripeSeatPriceId).toBeTruthy();
     const listed = (await call(viewer, 'list_plans', {})) as { plans: { version: number; isCurrent: boolean }[] };

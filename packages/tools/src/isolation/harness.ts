@@ -364,6 +364,10 @@ export async function runToolCases(registry: ToolRegistry<ToolDeps>, w: Isolatio
           results.push({ ...base, outcome: 'leak', detail: `${code}: ${effects}` });
           continue;
         }
+        if (s.expect === 'allow' && code === 'conflict' && 'allowConflict' in fx && fx.allowConflict) {
+          results.push({ ...base, outcome: 'ok', detail: `allowed call refused for its own state: ${message}` });
+          continue;
+        }
         if (!REFUSAL_CODES.has(code)) {
           results.push({ ...base, outcome: 'wrong_error', detail: `${code}: ${message}` });
           continue;

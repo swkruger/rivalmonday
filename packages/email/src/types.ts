@@ -98,7 +98,14 @@ export interface AgencyHoldProps {
   supportEmail: string;
 }
 /** 15c-3b: one plan version's price terms (cents). */
-export type PlanTerms = { basePriceCents: number; includedSeats: number; seatPriceCents: number };
+export type PlanTerms = {
+  basePriceCents: number;
+  /** null = the version has no yearly price. */
+  basePriceYearCents: number | null;
+  includedSeats: number;
+  /** Graduated extra-client price: `upTo` = cumulative extra clients, last tier null (same shape as `@cs/db` `SeatTier`). */
+  seatTiers: { upTo: number | null; unitCents: number }[];
+};
 /** 15c-3b: the platform tells an agency's admins its plan is changing (moved to the current standard version). */
 export interface AgencyPlanChangeProps {
   branding: Branding;
