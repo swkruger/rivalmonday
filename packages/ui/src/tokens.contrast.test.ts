@@ -45,6 +45,18 @@ describe('approved contrast pairs (05 § 2)', () => {
 
 describe('styles.css v1 tokens', () => {
   const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8');
+  it(':root --brand-ink passes the band floor', () => {
+    const m = css.match(/:root\s*\{[^}]*--brand-ink:\s*(#[0-9a-fA-F]{6});/);
+    expect(m).not.toBeNull();
+    for (const [fg, min] of [['#FFFFFF', 7], ['#B7C7DA', 4.5], ['#7FC3F0', 4.5]] as const) {
+      expect(contrastRatio(fg, m![1]!)).toBeGreaterThanOrEqual(min);
+    }
+  });
+  it('wires --color-brand-ink and the ink band to --brand-ink', () => {
+    expect(css).toContain('--color-brand-ink: var(--brand-ink);');
+    expect(css).toContain('--color-brand-ink-hover: var(--brand-ink-hover);');
+    expect(css).toMatch(/\.rm-ink-band\s*\{\s*background:\s*var\(--brand-ink\)/);
+  });
   it.each([
     '--radius-md: 8px', '--muted-ink: #5B6B80', '--focus: #2A6BAC', '--radius: 0.5rem',
     '--text-13: 0.8125rem', '--text-11: 0.6875rem', '--chip-warning-bg: #FFF7E6',

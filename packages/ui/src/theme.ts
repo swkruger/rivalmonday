@@ -13,7 +13,36 @@ export function mixHex(a: string, b: string, t: number): string {
   return `#${ca.map((x, i) => Math.round(x + (cb[i]! - x) * t).toString(16).padStart(2, '0')).join('')}`;
 }
 
-const DEFAULT_SOFT = { soft: '#E3F2FC', text: '#1F6FA8' };
+const BAND_FLOOR: ReadonlyArray<readonly [string, number]> = [['#FFFFFF', 7], ['#B7C7DA', 4.5], ['#7FC3F0', 4.5]];
+const passesFloor = (c: string) => BAND_FLOOR.every(([fg, min]) => contrastRatio(fg, c) >= min);
+
+/** Deep shade of the agency colour for the title band / ink buttons (spec B2). */
+export function brandInk(primary: string, secondary: string): string {
+  const candidates = [
+    [safe(secondary, RIVAL_MONDAY_TOKENS.secondary), RIVAL_MONDAY_TOKENS.secondary],
+    [safe(primary, RIVAL_MONDAY_TOKENS.primary), RIVAL_MONDAY_TOKENS.primary],
+  ] as const;
+  for (const [c, rmDefault] of candidates) {
+    if (c.toLowerCase() === rmDefault.toLowerCase()) continue;
+    for (let k = 0; k <= 50; k++) {
+      const shade = mixHex(c, '#000000', k / 100);
+      if (passesFloor(shade)) return shade;
+    }
+  }
+  return RIVAL_MONDAY_TOKENS.ink;
+}
+
+/** Hover of a brand-ink fill (spec B3): lighter, white label kept >= 4.5:1. */
+export function brandInkHover(base: string): string {
+  if (base.toLowerCase() === RIVAL_MONDAY_TOKENS.ink.toLowerCase()) return '#2D435B';
+  for (let step = 14; step > 0; step--) {
+    const c = mixHex(base, '#FFFFFF', step / 100);
+    if (contrastRatio('#FFFFFF', c) >= 4.5) return c;
+  }
+  return base;
+}
+
+const DEFAULT_SOFT ={ soft: '#E3F2FC', text: '#1F6FA8' };
 
 /**
  * Hover/active state of a filled `primary` button: mix away from the label
@@ -42,6 +71,7 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
   const secondary = safe(b.secondary, RIVAL_MONDAY_TOKENS.secondary);
   const isDefault = primary.toLowerCase() === RIVAL_MONDAY_TOKENS.primary.toLowerCase();
   const primaryFg = readableTextOn(primary);
+  const ink = brandInk(primary, secondary);
   return {
     '--primary': primary,
     '--secondary': secondary,
@@ -49,7 +79,9 @@ export function themeVars(b: Pick<Branding, 'primary' | 'secondary'>): Record<st
     '--primary-hover': stateShade(primary, primaryFg, 0.08),
     '--primary-active': stateShade(primary, primaryFg, 0.16),
     '--secondary-foreground': readableTextOn(secondary),
-    '--primary-band-ring': contrastRatio(primary, RIVAL_MONDAY_TOKENS.ink) >= 3 ? primary : '#B7C7DA',
+    '--brand-ink': ink,
+    '--brand-ink-hover': brandInkHover(ink),
+    '--primary-band-ring': contrastRatio(primary, ink) >= 3 ? primary : '#B7C7DA',
     '--primary-soft': isDefault ? DEFAULT_SOFT.soft : mixHex(primary, '#ffffff', 0.86),
     '--primary-soft-text': isDefault ? DEFAULT_SOFT.text : mixHex(primary, RIVAL_MONDAY_TOKENS.ink, 0.45),
   };

@@ -53,6 +53,9 @@
   /* app-style stage A (docs/superpowers/specs/2026-11-04-app-style-design.md § 2). --primary-band-ring is per agency (themeVars). */
   --chrome: #FBFCFE;
   --ink-hover: #2D435B;
+  /* Per agency (themeVars brandInk); RM defaults here. */
+  --brand-ink: #0B2540;
+  --brand-ink-hover: #2D435B;
   --success-strong: #15803D;
   --success-strong-hover: #166534;
   --on-ink: #FFFFFF;
@@ -152,6 +155,8 @@
   --shadow-raised: var(--shadow-raised-value);
   --color-chrome: var(--chrome);
   --color-ink-hover: var(--ink-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-hover: var(--brand-ink-hover);
   --color-success-strong: var(--success-strong);
   --color-success-strong-hover: var(--success-strong-hover);
   --text-13: 0.8125rem;
@@ -206,7 +211,7 @@ a.rm-kpi:hover { background: color-mix(in srgb, var(--kpi) 7%, var(--surface)); 
 .rm-kpi-trace-line { stroke: color-mix(in srgb, var(--kpi) 30%, transparent); }
 
 /* Ink page-header band (D-30): re-scopes the text tokens so every child reads on ink; white-surface parts keep their own greys. */
-.rm-ink-band { background: var(--ink); color: var(--on-ink);
+.rm-ink-band { background: var(--brand-ink); color: var(--on-ink);
   --muted-ink: var(--on-ink-muted); --ink-secondary: var(--on-ink-muted); --link: var(--on-ink-link); --focus: var(--on-ink); }
 .rm-ink-band [data-slot="breadcrumb-page"], .rm-ink-band [data-slot="breadcrumb-link"]:hover { color: var(--on-ink); }
 /* White-surface parts keep their own greys. */

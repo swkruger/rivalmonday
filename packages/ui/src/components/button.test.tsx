@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { cn } from '../lib/cn';
 import { Button, buttonVariants } from './button';
 
 const DEFAULT_BUTTON =
@@ -21,8 +22,11 @@ describe('Button', () => {
     render(<Button variant="ink">Go</Button>);
     const ink = screen.getByRole('button');
     expect(ink.getAttribute('data-variant')).toBe('ink');
-    expect(ink.className).toContain('bg-ink');
+    expect(ink.className).toContain('bg-brand-ink');
     expect(ink.className).toContain('text-white');
+    expect(cn('bg-surface', buttonVariants({ variant: 'ink' }))).toContain('bg-brand-ink');
+    expect(cn('bg-surface', buttonVariants({ variant: 'ink' }))).toContain('hover:bg-brand-ink-hover');
+    expect(cn('bg-surface', buttonVariants({ variant: 'ink' }))).not.toContain('bg-surface');
     cleanup();
     render(<Button variant="done">Done</Button>);
     const done = screen.getByRole('button');

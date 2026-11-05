@@ -1,7 +1,47 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, mixHex, readableTextOn, themeVars } from './theme';
+import { brandInk, brandInkHover, contrastRatio, mixHex, readableTextOn, themeVars } from './theme';
+
+const RM_P = '#47A8E7';
+const RM_S = '#2A6BAC';
+const FLOOR: ReadonlyArray<readonly [string, number]> = [['#FFFFFF', 7], ['#B7C7DA', 4.5], ['#7FC3F0', 4.5]];
+const passesFloor = (c: string) => FLOOR.every(([fg, min]) => contrastRatio(fg, c) >= min);
+
+function mulberry32(seed: number) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe('brandInk', () => {
+  it('RM defaults give #0B2540 and its hover #2D435B', () => {
+    expect(brandInk(RM_P, RM_S)).toBe('#0B2540');
+    expect(brandInkHover('#0B2540')).toBe('#2D435B');
+  });
+  it('teal secondary', () => expect(brandInk(RM_P, '#0F766E')).toBe('#0b554f'));
+  it('red secondary', () => expect(brandInk(RM_P, '#C0262D')).toBe('#921d22'));
+  it('yellow secondary + RM primary falls back to ink', () => expect(brandInk('#47A8E7', '#FFD400')).toBe('#0B2540'));
+  it('yellow secondary + teal primary uses the primary', () => expect(brandInk('#0F766E', '#FFD400')).toBe('#0b554f'));
+  it('RM secondary + custom violet primary uses the primary', () => expect(brandInk('#7C3AED', RM_S)).toBe('#5c2baf'));
+  it('invalid hex falls back like themeVars', () => {
+    expect(brandInk('nope', 'url(x)')).toBe('#0B2540');
+  });
+  it('property: every output passes the floor and every hover keeps white >= 4.5', () => {
+    const rnd = mulberry32(20261105);
+    const hexes = ['#0F766E', '#C0262D', '#FFD400', '#7C3AED', '#000000', '#FFFFFF', '#111111', '#9CA3AF', RM_P, RM_S];
+    for (let i = 0; i < 200; i++) hexes.push(`#${Math.floor(rnd() * 0x1000000).toString(16).padStart(6, '0')}`);
+    for (const s of hexes) for (const p of [RM_P, '#0F766E', s]) {
+      const ink = brandInk(p, s);
+      expect(passesFloor(ink), `${p}/${s} -> ${ink}`).toBe(true);
+      expect(contrastRatio('#FFFFFF', brandInkHover(ink))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
 
 describe('mixHex', () => {
   it('mixes channel-wise and rounds', () => {
@@ -13,8 +53,23 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb', '--primary-band-ring': '#47A8E7',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb', '--primary-band-ring': '#47A8E7', '--brand-ink': '#0B2540', '--brand-ink-hover': '#2D435B',
     });
+  });
+
+  it('emits --brand-ink / --brand-ink-hover derived from the agency colours', () => {
+    const v = themeVars({ primary: '#47A8E7', secondary: '#0F766E' });
+    expect(v['--brand-ink']).toBe('#0b554f');
+    expect(v['--brand-ink-hover']).toBe(brandInkHover('#0b554f'));
+  });
+
+  it('ring falls back to #B7C7DA when primary is within 3:1 of brandInk', () => {
+    const v = themeVars({ primary: '#47A8E7', secondary: '#0F766E' });
+    expect(contrastRatio(v['--primary']!, v['--brand-ink']!)).toBeGreaterThanOrEqual(3);
+    expect(v['--primary-band-ring']).toBe('#47A8E7');
+    const dark = themeVars({ primary: '#0d5a54', secondary: '#0F766E' });
+    expect(contrastRatio('#0d5a54', dark['--brand-ink']!)).toBeLessThan(3);
+    expect(dark['--primary-band-ring']).toBe('#B7C7DA');
   });
 
   it('derives soft colours for an agency primary', () => {
