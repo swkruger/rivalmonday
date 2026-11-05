@@ -329,6 +329,15 @@ describe('create_plan_version / list_plans: v2 tiers and yearly', () => {
     expect((await fails(call(owner, 'create_plan_version', { ...PLAN_IN, seatTiers }))).code).toBe('invalid_input');
     expect(await dbs.owner.select().from(plan).where(eq(plan.version, 2))).toEqual([]);
   });
+  it('caps a tier at 8,333,333 cents and the yearly base at 99,999,999 (Stripe unit_amount limit, yearly tier = 12 x)', async () => {
+    for (const bad of [
+      { seatTiers: [{ upTo: null, unitCents: 8_333_334 }] },
+      { basePriceYearCents: 100_000_000 },
+    ]) expect((await fails(call(owner, 'create_plan_version', { ...PLAN_IN, ...bad }))).code).toBe('invalid_input');
+    expect(await dbs.owner.select().from(plan).where(eq(plan.version, 2))).toEqual([]);
+    await call(owner, 'create_plan_version', { ...PLAN_IN, seatTiers: [{ upTo: null, unitCents: 8_333_333 }], basePriceYearCents: 99_999_999 });
+    expect((await dbs.owner.select().from(plan).where(eq(plan.version, 2)))[0]).toMatchObject({ basePriceYearCents: 99_999_999, seatTiers: [{ upTo: null, unitCents: 8_333_333 }] });
+  });
 });
 
 describe('create_plan_version / list_plans', () => {

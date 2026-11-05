@@ -120,6 +120,7 @@ const Plan = z.object({
 const BillingIntervalOut = z.enum(['month', 'year']);
 export const YEARLY_UNAVAILABLE_MESSAGE = "Yearly billing isn't available on this plan.";
 export const YEARLY_SWITCH_STATE_MESSAGE = 'Only an active monthly plan can switch to yearly.';
+export const YEARLY_SWITCH_DECLINED_MESSAGE = "Your card was declined, so you're still on monthly billing.";
 const IsoOrNull = z.string().nullable();
 
 export const getBillingSummaryTool = defineTool({
@@ -267,15 +268,23 @@ export const switchBillingToYearlyTool = defineTool({
     if (ctx.support) throw new ToolError('permission_denied', 'Only the agency admin can manage billing');
     const gw = gatewayOf(deps);
     const row = await billingRowOf(deps, ctx.agencyId);
-    const p = await planFor(deps.service, row);
-    if (!p || p.basePriceYearCents == null || !p.stripeBasePriceYearId || !p.stripeSeatPriceYearId) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
-    if (!row || row.state !== 'active' || row.billingInterval !== 'month' || !row.stripeSubscriptionId) throw new ToolError('conflict', YEARLY_SWITCH_STATE_MESSAGE, { userFacing: true });
+    let p = await planFor(deps.service, row);
+    if (!p || p.basePriceYearCents == null) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
+    // A plan cancelled at period end (`cancel_at`) is not switched: the switch would bill a year the agency is leaving.
+    if (!row || row.state !== 'active' || row.billingInterval !== 'month' || !row.stripeSubscriptionId || row.cancelAt) {
+      throw new ToolError('conflict', YEARLY_SWITCH_STATE_MESSAGE, { userFacing: true });
+    }
+    // Like Checkout: a yearly plan whose yearly prices are not in Stripe yet is synced first.
+    if (!p.stripeBasePriceYearId || !p.stripeSeatPriceYearId) p = await syncPlanToStripe(deps.service, gw, p.id);
+    if (!p.stripeBasePriceYearId || !p.stripeSeatPriceYearId) throw new ToolError('conflict', YEARLY_UNAVAILABLE_MESSAGE, { userFacing: true });
     const sub = await gw.getSubscription(row.stripeSubscriptionId);
     const switched = await gw.switchSubscriptionInterval(row.stripeSubscriptionId, {
       basePriceId: p.stripeBasePriceYearId,
       seatPriceId: p.stripeSeatPriceYearId,
       seatQuantity: sub.seatQuantity,
     });
+    // Final fix I6: `pending_if_incomplete` - a failed charge keeps the monthly prices, so the row must stay monthly too.
+    if (!switched.switched) throw new ToolError('conflict', YEARLY_SWITCH_DECLINED_MESSAGE, { userFacing: true });
     await deps.service.update(agencyBilling).set({ billingInterval: 'year', updatedAt: new Date() }).where(eq(agencyBilling.agencyId, ctx.agencyId));
     return { interval: 'year' as const, currentPeriodEnd: iso(switched.currentPeriodEnd) };
   },

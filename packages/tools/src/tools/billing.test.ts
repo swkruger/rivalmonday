@@ -193,6 +193,29 @@ describe('switch_billing_to_yearly', () => {
     await live({ billingInterval: 'year' });
     expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: 'Only an active monthly plan can switch to yearly.' });
   });
+  it('a declined charge refuses with the decided copy and leaves the row monthly (final fix I6)', async () => {
+    await useV2();
+    await live();
+    gw.declineNextSwitch();
+    expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: "Your card was declined, so you're still on monthly billing." });
+    expect((await billingRow())!.billingInterval).toBe('month');
+    expect(gw.subscriptions.get('sub_1')!.interval).toBe('month');
+  });
+  it('refuses a plan cancelled at period end', async () => {
+    await useV2();
+    await live({ cancelAt: new Date(Date.now() + 10 * day) });
+    expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: 'Only an active monthly plan can switch to yearly.' });
+    expect(gw.switches).toEqual([]);
+  });
+  it('syncs a yearly plan that has no yearly Stripe prices yet, then switches', async () => {
+    await useV2();
+    await dbs.owner.update(plan).set({ stripeBasePriceYearId: null, stripeSeatPriceYearId: null }).where(eq(plan.id, planId));
+    await live();
+    expect(((await call(admin, 'switch_billing_to_yearly')) as { interval: string }).interval).toBe('year');
+    const [p] = await dbs.owner.select().from(plan).where(eq(plan.id, planId));
+    expect(p!.stripeBasePriceYearId).toBeTruthy();
+    expect(gw.callsTo('switchSubscriptionInterval')[0]!.args[1]).toMatchObject({ basePriceId: p!.stripeBasePriceYearId, seatPriceId: p!.stripeSeatPriceYearId });
+  });
   it('refuses a plan without a yearly base', async () => {
     await live();
     expect(await fails(call(admin, 'switch_billing_to_yearly'))).toMatchObject({ code: 'conflict', message: "Yearly billing isn't available on this plan." });

@@ -1,5 +1,5 @@
 import {
-  type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, describeTiers, generateInviteToken, globalConnectFeePercent, planFor, seatTiersSchema, syncPlanToStripe,
+  type BillingGateway, type BillingSignal, CONNECT_FEE_KEY, applyBillingSignal, clientMrrCents, currentStandardPlan, describeTiers, generateInviteToken, globalConnectFeePercent, MAX_UNIT_AMOUNT_CENTS, planFor, seatTiersSchema, syncPlanToStripe,
 } from '@cs/billing';
 import { type AccessContext, PLAN_FEATURES, type PlanFeature, pilotLinkRefusal, ToolError, toolkit } from '@cs/core';
 import { agency, agencyBilling, agencyBillingEvent, agencyConnect, agencyDailyStat, agencyInviteLink, BILLING_STATES, client, clientBilling, discountCode, plan, platformSetting } from '@cs/db';
@@ -98,7 +98,7 @@ export const createPlanVersionTool = defineTool({
     basePriceCents: z.number().int().min(0).max(10_000_000),
     includedSeats: z.number().int().min(0).max(10_000),
     seatTiers: seatTiersSchema,
-    basePriceYearCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
+    basePriceYearCents: z.number().int().min(0).max(MAX_UNIT_AMOUNT_CENTS).nullable().default(null),
     trialDays: z.number().int().min(0).max(90),
     features: z.array(z.enum(PLAN_FEATURES)).max(8).optional(),
   }),

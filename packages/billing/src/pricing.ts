@@ -5,8 +5,12 @@ export type { SeatTier };
 export type BillingInterval = 'month' | 'year';
 
 /** `upTo` = cumulative EXTRA clients; 1–5 tiers, ascending, only the last is null. */
+/** Stripe's `unit_amount` limit is 99,999,999 cents; a yearly seat tier is 12 x the monthly one, so a tier is capped at 8,333,333. */
+export const MAX_SEAT_TIER_CENTS = 8_333_333;
+export const MAX_UNIT_AMOUNT_CENTS = 99_999_999;
+
 export const seatTiersSchema: z.ZodType<SeatTier[]> = z
-  .array(z.object({ upTo: z.number().int().positive().nullable(), unitCents: z.number().int().min(0).max(10_000_000) }))
+  .array(z.object({ upTo: z.number().int().positive().nullable(), unitCents: z.number().int().min(0).max(MAX_SEAT_TIER_CENTS) }))
   .min(1)
   .max(5)
   .superRefine((tiers, ctx) => {

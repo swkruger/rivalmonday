@@ -46,6 +46,10 @@ describe('describeTiers', () => {
 
 describe('seatTiersSchema', () => {
   it('accepts v2', () => expect(seatTiersSchema.safeParse(v2.seatTiers).success).toBe(true));
+  it('caps a tier at 8,333,333 cents (12 x stays within Stripe 99,999,999)', () => {
+    expect(seatTiersSchema.safeParse([{ upTo: null, unitCents: 8_333_333 }]).success).toBe(true);
+    expect(seatTiersSchema.safeParse([{ upTo: null, unitCents: 8_333_334 }]).success).toBe(false);
+  });
   it('rejects bad lists', () => {
     expect(seatTiersSchema.safeParse([{ upTo: 7, unitCents: 1 }, { upTo: 5, unitCents: 1 }, { upTo: null, unitCents: 1 }]).success).toBe(false);
     expect(seatTiersSchema.safeParse([{ upTo: null, unitCents: 1 }, { upTo: null, unitCents: 1 }]).success).toBe(false);
