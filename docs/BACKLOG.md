@@ -187,6 +187,9 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Testimonials: add real pilot quotes (with permission) to `content/testimonials.ts`; the section stays hidden while empty — *site-showcase*
 - [ ] Friday's live voice: add the drafted prompt line (`docs/brand/friday.md`) and re-record the Ask cassettes (~$1.60/run, stop at $5, owner's call first); the personality is site + brand doc only until then — *site-polish*
 - [ ] Retake the hero collage (`public/sample/hero-{overview,map,friday}.webp`) when the tour sample in `content/client-view.ts` changes: static screenshots, no script — *site-polish*
+- [ ] Pre-existing ungated website wording outside the story copy: `SECTIONS.checks.body` ("a page snapshot"), `HOW_STEPS[2]` ("Websites, …") — gate or reword when `WEBSITE_MONITORING_LIVE` flips — *site-story D12*
+- [ ] Home close band is left-aligned from `lg` with `Reveal` on the preview card (spec § 2 said centred) — centre if the owner prefers — *site-story*
+- [ ] Test hygiene minors: rival-grid test pins properties not bytes; no RankGrid autoplay test; loose avatar/className selectors; redundant h1 assertion; `ids` helper filters 'founder' — *site-story*
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
 - [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
