@@ -187,6 +187,28 @@
     border-color: color-mix(in srgb, var(--primary) 75%, transparent);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent), 0 8px 28px -8px color-mix(in srgb, var(--primary) 50%, transparent);
   }
+  /* Scope corners just outside a glowing photo: four thin L marks, a viewfinder "locked on". Wrap the <img> (replaced
+     elements take no pseudo-elements); 10 px out, inside the 16 px page gutter, so nothing overflows on phones. */
+  .scope { position: relative; display: block; }
+  .scope::after {
+    --c: var(--primary);
+    --l: 18px;
+    --w: 2px;
+    content: "";
+    position: absolute;
+    inset: -10px;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--c), var(--c)) left top / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) left top / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) right top / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) right top / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) left bottom / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) left bottom / var(--w) var(--l),
+      linear-gradient(var(--c), var(--c)) right bottom / var(--l) var(--w),
+      linear-gradient(var(--c), var(--c)) right bottom / var(--w) var(--l);
+    background-repeat: no-repeat;
+  }
 }
 
 /* D14 product frame and segmented tabs. Unlayered on purpose: they restyle `@cs/ui` primitives (`Frame`, `TabsList`)
