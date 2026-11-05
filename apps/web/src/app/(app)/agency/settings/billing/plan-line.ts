@@ -9,7 +9,9 @@ export function planLine(plan: { basePriceCents: number; basePriceYearCents: num
     interval === 'year' && plan.basePriceYearCents !== null ? `${money(plan.basePriceYearCents)}/yr`
     : `${money(plan.basePriceCents)}/mo`;
   const included = `${plan.includedSeats} ${plan.includedSeats === 1 ? 'client' : 'clients'} included`;
-  const rows = tiers.map((t) => `clients ${t.toClient === null ? `${t.fromClient}+` : `${t.fromClient}–${t.toClient}`}: ${money(t.unitCents)} each`);
+  // A one-client tier reads "clients 4", like the plan-change email.
+  const range = (t: PlanTier) => (t.toClient === null ? `${t.fromClient}+` : t.toClient === t.fromClient ? `${t.fromClient}` : `${t.fromClient}–${t.toClient}`);
+  const rows = tiers.map((t) => `clients ${range(t)}: ${money(t.unitCents)} each`);
   return [base, included, ...rows].join(' · ');
 }
 

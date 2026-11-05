@@ -174,7 +174,17 @@ describe('/agency/settings/billing: yearly', () => {
     render(await page());
     expect(screen.getByText('$2,290/yr · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each')).toBeTruthy();
     expect(screen.getByText('To go back to monthly billing, contact support before your renewal date.')).toBeTruthy();
+    expect(screen.getByText('On yearly billing, a new client is charged for the rest of your year today.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Switch to yearly' })).toBeNull();
+  });
+  it('the yearly seat-add notice shows only on a yearly subscription', async () => {
+    m.summary = summary(active);
+    render(await page());
+    expect(screen.queryByText(/a new client is charged for the rest of your year/)).toBeNull();
+    cleanup();
+    m.summary = summary({ ...active, interval: 'year', hasSubscription: false });
+    render(await page());
+    expect(screen.queryByText(/a new client is charged for the rest of your year/)).toBeNull();
   });
   it('an active monthly plan with a yearly base offers Switch to yearly, behind a confirm', async () => {
     m.summary = summary(active);

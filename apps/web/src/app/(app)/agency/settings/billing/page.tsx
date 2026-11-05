@@ -145,7 +145,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <SwitchToYearly action={switchToYearlyAction} yearBase={formatMoney(s.plan!.basePriceYearCents!, { unit: 'cents' })} />
             </div>
           )}
-          {s.interval === 'year' && s.hasSubscription && <p className="text-sm text-muted-ink">To go back to monthly billing, contact support before your renewal date.</p>}
+          {s.interval === 'year' && s.hasSubscription && (
+            <>
+              <p className="text-sm text-muted-ink">On yearly billing, a new client is charged for the rest of your year today.</p>
+              <p className="text-sm text-muted-ink">To go back to monthly billing, contact support before your renewal date.</p>
+            </>
+          )}
         </div>
       </Section>
       <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} help={<HelpTip tip="agency.settings.billing.clientBilling" />} />

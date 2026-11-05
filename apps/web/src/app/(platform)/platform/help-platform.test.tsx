@@ -98,7 +98,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
   list_plan_agencies: { currentPlanId: 'p2', currentVersion: 2, agencies: [] },
   list_invite_links: { links: [] },
   get_signups_paused: { paused: false },
-  get_signup_funnel: { open: funnel, invite: funnel },
+  get_signup_funnel: { open: funnel, invite: funnel, recent: [] },
   get_connect_overview: connect,
   list_pool_leads: { leads: [], agencies: [], recentAssignments: [], nextCursor: null, prevCursor: null, total: 0 },
   get_pilot_settings: { pilotMode: false, sampleBriefMonthlyLimit: 10 },
