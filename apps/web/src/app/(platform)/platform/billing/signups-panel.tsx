@@ -1,10 +1,18 @@
-import { segmentedItemClass, segmentedTrackClass, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
+import { segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import Link from 'next/link';
 import { ConfirmForm } from '@/components/confirm-form';
 import { setSignupsPausedAction } from './actions';
 
 export interface FunnelCounts { signups: number; profileDone: number; firstClient: number; cardAdded: number }
-export interface SignupFunnel { open: FunnelCounts; invite: FunnelCounts }
+export interface SignupRow {
+  agencyId: string; agencyName: string; source: 'open' | 'invite'; createdAt: string;
+  website: string | null; clientsServed: '0' | '1-5' | '6-20' | '21+' | null; check: boolean;
+}
+export interface SignupFunnel { open: FunnelCounts; invite: FunnelCounts; recent: SignupRow[] }
+
+const SERVED_LABEL = { '0': 'None yet', '1-5': '1–5', '6-20': '6–20', '21+': '21 or more' } as const;
+/** D9: shown on the Check chip. Staff read it; it never blocks anything. */
+export const CHECK_TIP = "No clients yet, or the agency's first client shares its website.";
 export type FunnelDays = 30 | 90;
 
 export const parseDays = (v: string | string[] | undefined): FunnelDays => (v === '90' ? 90 : 30);
@@ -70,6 +78,33 @@ export function SignupsPanel({ paused, canEdit, days, funnel }: { paused: boolea
           </TableBody>
         </Table>
       </TableFrame>
+      {funnel.recent.length > 0 && (
+        <>
+          <h3 className="text-sm font-semibold text-ink">Newest sign-ups</h3>
+          <TableFrame>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agency</TableHead>
+                  <TableHead>Website</TableHead>
+                  <TableHead>Clients today</TableHead>
+                  <TableHead>Check</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {funnel.recent.map((r) => (
+                  <TableRow key={r.agencyId}>
+                    <TableHead scope="row" className="font-medium text-ink">{r.agencyName}</TableHead>
+                    <TableCell>{r.website ?? '—'}</TableCell>
+                    <TableCell>{r.clientsServed ? SERVED_LABEL[r.clientsServed] : '—'}</TableCell>
+                    <TableCell>{r.check && <StatusChip tone="warning" title={CHECK_TIP}>Check</StatusChip>}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableFrame>
+        </>
+      )}
     </div>
   );
 }

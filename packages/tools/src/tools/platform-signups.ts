@@ -2,7 +2,7 @@ import { type AccessContext, toolkit } from '@cs/core';
 import { platformSetting } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { SIGNUPS_PAUSED_KEY, signupsPaused } from '../access/signup';
+import { CLIENTS_SERVED, hostKey, SIGNUPS_PAUSED_KEY, signupsPaused } from '../access/signup';
 import type { ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
@@ -56,13 +56,20 @@ export const setSignupsPausedTool = defineTool({
 
 const Counts = z.object({ signups: z.number().int(), profileDone: z.number().int(), firstClient: z.number().int(), cardAdded: z.number().int() });
 export type FunnelCounts = z.infer<typeof Counts>;
+/** D9 fence: staff-only per-agency sign-up row. `check` is a flag for staff to read, never a block. */
+const Recent = z.object({
+  agencyId: z.string(), agencyName: z.string(), source: z.enum(['open', 'invite']), createdAt: z.string(),
+  website: z.string().nullable(), clientsServed: z.enum(CLIENTS_SERVED).nullable(), check: z.boolean(),
+});
+export type SignupRow = z.infer<typeof Recent>;
+const RECENT_LIMIT = 100;
 
 export const getSignupFunnelTool = defineTool({
   name: 'get_signup_funnel',
   access: 'read',
-  description: 'Platform operators: agencies created in the last 30 or 90 days by sign-up source (open or invite) and how far they got: profile done, first client, card added.',
+  description: 'Platform operators: agencies created in the last 30 or 90 days by sign-up source (open or invite) and how far they got: profile done, first client, card added; plus the newest sign-ups with website, clients served and the Check flag.',
   input: z.object({ days: z.union([z.literal(30), z.literal(90)]) }),
-  output: z.object({ open: Counts, invite: Counts }),
+  output: z.object({ open: Counts, invite: Counts, recent: z.array(Recent) }),
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
@@ -82,7 +89,30 @@ export const getSignupFunnelTool = defineTool({
         const r = [...rows].find((x) => x.source === source);
         return { signups: r?.signups ?? 0, profileDone: r?.profile_done ?? 0, firstClient: r?.first_client ?? 0, cardAdded: r?.card_added ?? 0 };
       };
-      return { open: of('open'), invite: of('invite') };
+      // D9: the website of the agency's earliest client is its own competitor row's domain.
+      const recentRows = await deps.service.execute<{
+        agency_id: string; name: string; source: 'open' | 'invite'; created_at: Date | string; clients_served: (typeof CLIENTS_SERVED)[number] | null;
+        website: string | null; first_client_site: string | null;
+      }>(sql`
+        select o.agency_id, a.name, o.source, o.created_at, o.clients_served, p.website,
+          (select comp.domain from client c left join competitor comp on comp.id = c.self_competitor_id
+            where c.agency_id = o.agency_id order by c.created_at asc, c.id asc limit 1) as first_client_site
+        from agency_onboarding o
+        join agency a on a.id = o.agency_id
+        left join agency_profile p on p.agency_id = o.agency_id
+        where o.created_at >= ${since.toISOString()}::timestamptz and o.source in ('open', 'invite')
+        order by o.created_at desc
+        limit ${RECENT_LIMIT}`);
+      const recent = [...recentRows].map((r): SignupRow => {
+        const agencyHost = hostKey(r.website);
+        const clientHost = hostKey(r.first_client_site);
+        return {
+          agencyId: r.agency_id, agencyName: r.name, source: r.source, createdAt: new Date(r.created_at).toISOString(),
+          website: r.website, clientsServed: r.clients_served,
+          check: r.clients_served === '0' || (agencyHost !== null && agencyHost === clientHost),
+        };
+      });
+      return { open: of('open'), invite: of('invite'), recent };
     });
   },
 });

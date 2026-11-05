@@ -23,6 +23,20 @@ describe('SignUpForm', () => {
     expect(g.value).toBe('google');
   });
 
+  it('asks the D9 fence questions with the decided copy and the fine print', () => {
+    render(<SignUpForm googleEnabled={false} siteKey={null} />);
+    const site = screen.getByLabelText(/^Your agency's website/) as HTMLInputElement;
+    expect(site.name).toBe('website');
+    expect(document.querySelector('label[for="website"]')!.textContent).toBe("Your agency's website(optional)");
+    const served = screen.getByLabelText(/^How many clients do you look after today\?/) as HTMLSelectElement;
+    expect(served.name).toBe('clientsServed');
+    expect(served.required).toBe(true);
+    const opts = [...served.options].filter((o) => o.value !== '');
+    expect(opts.map((o) => [o.value, o.textContent])).toEqual([['0', 'None yet'], ['1-5', '1–5'], ['6-20', '6–20'], ['21+', '21 or more']]);
+    expect(served.value).toBe('');
+    expect(screen.getByText("Rival Monday's agency plan is for businesses that market other businesses.")).toBeTruthy();
+  });
+
   it('loads the Turnstile script and widget only with a site key', () => {
     const { container, rerender } = render(<SignUpForm googleEnabled={false} siteKey={null} />);
     expect(screen.queryByTestId('script')).toBeNull();

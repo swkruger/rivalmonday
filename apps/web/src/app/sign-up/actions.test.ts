@@ -29,7 +29,7 @@ const { PENDING_EMAIL_COOKIE, verifyPendingEmail } = await import('@/server/pend
 
 const form = (o: Record<string, string> = {}) => {
   const f = new FormData();
-  for (const [k, v] of Object.entries({ email: 'Pat@Acme.com', agencyName: 'Acme HVAC', contactName: 'Pat', ...o })) f.set(k, v);
+  for (const [k, v] of Object.entries({ email: 'Pat@Acme.com', agencyName: 'Acme HVAC', contactName: 'Pat', clientsServed: '1-5', ...o })) f.set(k, v);
   return f;
 };
 const empty = { error: null, googleUrl: null };
@@ -98,6 +98,31 @@ describe('startSignup', () => {
     expect(await startSignup(empty, form())).toEqual({ error: 'Please complete the check and try again.', googleUrl: null });
     expect(m.start).not.toHaveBeenCalled();
     expect(m.magic).not.toHaveBeenCalled();
+  });
+
+  it('passes website (normalised) and clients served to startAgencySignup; a blank website is null', async () => {
+    await redirectOf(startSignup(empty, form({ website: ' acme.com ', clientsServed: '21+' })));
+    expect(m.start.mock.calls[0]![1]).toMatchObject({ website: 'https://acme.com', clientsServed: '21+' });
+    m.start.mockClear();
+    await redirectOf(startSignup(empty, form({ website: '  ' })));
+    expect(m.start.mock.calls[0]![1]).toMatchObject({ website: null, clientsServed: '1-5' });
+  });
+
+  it('refuses a javascript: or 201-char website with the field error, before any check or send', async () => {
+    for (const website of ['javascript:alert(1)', `https://acme.com/${'a'.repeat(184)}`]) {
+      expect((await startSignup(empty, form({ website }))).error).toMatch(/website/i);
+    }
+    expect(m.turnstile).not.toHaveBeenCalled();
+    expect(m.start).not.toHaveBeenCalled();
+  });
+
+  it('refuses a missing or unknown clientsServed', async () => {
+    const f = form();
+    f.delete('clientsServed');
+    expect((await startSignup(empty, f)).error).toMatch(/how many clients/i);
+    expect((await startSignup(empty, form({ clientsServed: '7' }))).error).toMatch(/how many clients/i);
+    expect(m.turnstile).not.toHaveBeenCalled();
+    expect(m.start).not.toHaveBeenCalled();
   });
 
   it('form-field errors re-render (empty agency name, bad email) without calling anything', async () => {

@@ -68,11 +68,44 @@ export async function inviteProblemForLink(db: Db, linkId: string, email: string
 
 export const SIGNUP_LINK_TTL_MS = 7 * 86_400_000;
 
+export const CLIENTS_SERVED = ['0', '1-5', '6-20', '21+'] as const;
+
+/**
+ * D9 fence: optional agency website. Trimmed; empty = null; a bare host gets `https://`; only http(s) after that; <= 200 chars.
+ * A value that is not a valid URL (e.g. `javascript:alert(1)`) is refused.
+ */
+export const signupWebsite = z.preprocess(
+  (v) => {
+    if (typeof v !== 'string') return v ?? null;
+    const t = v.trim();
+    if (t === '') return null;
+    return /^[a-z][a-z0-9+.-]*:/i.test(t) && !/^[^/:]+:\d+(\/|$)/.test(t) ? t : `https://${t}`;
+  },
+  z.string().max(200).refine((u) => {
+    try {
+      const p = new URL(u);
+      return (p.protocol === 'http:' || p.protocol === 'https:') && p.hostname.includes('.');
+    } catch { return false; }
+  }, 'not a web address').nullable(),
+);
+
+/** Lowercase host without a leading `www.`; accepts a URL or a bare domain. Null when there is no usable host. */
+export function hostKey(site: string | null | undefined): string | null {
+  const t = site?.trim();
+  if (!t) return null;
+  try {
+    const h = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `https://${t}`).hostname.toLowerCase().replace(/^www\./, '');
+    return h || null;
+  } catch { return null; }
+}
+
 export const startAgencySignupInput = z.object({
   email: z.string().trim().email().max(254),
   agencyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().max(120).optional(),
   inviteToken: z.string().startsWith('rm_inv_').max(80).optional(),
+  website: signupWebsite.default(null),
+  clientsServed: z.enum(CLIENTS_SERVED),
   ipHash: z.string().length(64), // set by the server action, never by the browser
 });
 export type StartAgencySignupInput = z.input<typeof startAgencySignupInput>;
@@ -102,6 +135,7 @@ export async function startAgencySignup(service: Db, input: StartAgencySignupInp
   if (await signupRateLimited(service, i.ipHash, now)) return refuse('rate_limited');
   const values = {
     agencyName: i.agencyName, contactName: i.contactName ?? null, inviteLinkId, source: inviteLinkId ? ('invite' as const) : ('open' as const),
+    website: i.website, clientsServed: i.clientsServed,
     ipHash: i.ipHash, createdAt: now, expiresAt: new Date(now.getTime() + SIGNUP_LINK_TTL_MS),
   };
   await service.insert(pendingSignup).values({ email, ...values }).onConflictDoUpdate({

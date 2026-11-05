@@ -1,10 +1,13 @@
 'use client';
-import { Button, Field, Input } from '@cs/ui';
+import { Button, Field, Input, nativeSelectClass } from '@cs/ui';
 import Script from 'next/script';
 import { useActionState, useEffect } from 'react';
 import { type SignupState, startSignup } from './actions';
 import { ErrorNote } from '@/components/form-error';
 import { INPUT_CLASS } from '@/components/onboarding/input-class';
+
+/** D9: stored values for the "clients you look after today" question (labels are the decided copy). */
+const CLIENTS_SERVED_OPTIONS = [['0', 'None yet'], ['1-5', '1–5'], ['6-20', '6–20'], ['21+', '21 or more']] as const;
 
 const REASONS: Record<string, string> = {
   link: 'That link expired or was already used. Fill in the form to get a new one.',
@@ -38,6 +41,16 @@ export function SignUpForm({
       <Field label="Agency name" required>
         <Input id="agencyName" name="agencyName" autoComplete="organization" required maxLength={120} className={INPUT_CLASS} />
       </Field>
+      <Field label="Your agency's website" optional>
+        <Input id="website" name="website" type="text" inputMode="url" autoComplete="url" maxLength={200} className={INPUT_CLASS} />
+      </Field>
+      <Field label="How many clients do you look after today?" required>
+        <select id="clientsServed" name="clientsServed" required defaultValue="" className={`${nativeSelectClass} w-full`}>
+          <option value="" disabled>Choose one</option>
+          {CLIENTS_SERVED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </Field>
+      <p className="text-xs text-muted-ink">Rival Monday's agency plan is for businesses that market other businesses.</p>
       {siteKey && (
         <>
           <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" />

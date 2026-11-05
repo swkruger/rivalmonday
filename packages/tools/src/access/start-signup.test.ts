@@ -12,7 +12,7 @@ beforeEach(async () => {
 const NOW = new Date('2026-10-15T12:00:00Z');
 const DAY = 86_400_000;
 const IP = 'a'.repeat(64);
-const base = { email: 'Pat@Acme.com', agencyName: 'Acme Marketing', ipHash: IP };
+const base = { email: 'Pat@Acme.com', agencyName: 'Acme Marketing', ipHash: IP, clientsServed: '1-5' as const };
 const rows = () => dbs.service.select().from(pendingSignup);
 
 async function link(o: Partial<typeof agencyInviteLink.$inferInsert> = {}) {
@@ -29,6 +29,25 @@ describe('startAgencySignupInput', () => {
     expect(() => startAgencySignupInput.parse({ ...base, ipHash: 'short' })).toThrow();
     expect(() => startAgencySignupInput.parse({ ...base, inviteToken: 'bad_tok' })).toThrow();
   });
+
+  it('clientsServed is required and one of the four values', () => {
+    const { clientsServed: _c, ...noServed } = base;
+    expect(() => startAgencySignupInput.parse(noServed)).toThrow();
+    expect(() => startAgencySignupInput.parse({ ...base, clientsServed: '7' })).toThrow();
+    for (const v of ['0', '1-5', '6-20', '21+']) expect(startAgencySignupInput.parse({ ...base, clientsServed: v }).clientsServed).toBe(v);
+  });
+
+  it('website: optional, trimmed, empty is null, bare host gets https://, http(s) only, <= 200 chars', () => {
+    const w = (website?: string) => startAgencySignupInput.parse({ ...base, website }).website;
+    expect(w(undefined)).toBeNull();
+    expect(w('   ')).toBeNull();
+    expect(w(' acme.com ')).toBe('https://acme.com');
+    expect(w('http://acme.com/x')).toBe('http://acme.com/x');
+    expect(() => w('javascript:alert(1)')).toThrow();
+    expect(() => w('ftp://acme.com')).toThrow();
+    expect(() => w(`https://acme.com/${'a'.repeat(184)}`)).toThrow();
+    expect(w(`https://acme.com/${'a'.repeat(183)}`)).toHaveLength(200);
+  });
 });
 
 describe('startAgencySignup', () => {
@@ -38,6 +57,11 @@ describe('startAgencySignup', () => {
     expect(rest).toHaveLength(0);
     expect(r).toMatchObject({ email: 'pat@acme.com', agencyName: 'Acme Marketing', contactName: 'Pat', source: 'open', inviteLinkId: null, ipHash: IP });
     expect(r!.expiresAt.getTime()).toBe(NOW.getTime() + 7 * DAY);
+  });
+
+  it('stores website and clients served on the pending row', async () => {
+    await startAgencySignup(dbs.service, { ...base, website: 'acme.com', clientsServed: '0' }, NOW);
+    expect((await rows())[0]).toMatchObject({ website: 'https://acme.com', clientsServed: '0' });
   });
 
   it('a second submit overwrites rather than duplicates', async () => {

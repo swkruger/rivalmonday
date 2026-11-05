@@ -1,6 +1,6 @@
 'use server';
 import { randomUUID } from 'node:crypto';
-import { hashIp, startAgencySignup, startAgencySignupInput } from '@cs/tools';
+import { CLIENTS_SERVED, hashIp, signupWebsite, startAgencySignup, startAgencySignupInput } from '@cs/tools';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -45,6 +45,11 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
     const emailBad = fields.error.issues.some((i) => i.path[0] === 'email');
     return { error: emailBad ? 'Enter a valid work email.' : 'Enter your agency name.', googleUrl: null };
   }
+  // D9 fence: both answers are checked here (server-side) before anything is sent; nothing else blocks.
+  const website = signupWebsite.safeParse(text(formData, 'website'));
+  if (!website.success) return { error: 'Enter your agency website as a web address like https://example.com, or leave it blank.', googleUrl: null };
+  const clientsServed = z.enum(CLIENTS_SERVED).safeParse(text(formData, 'clientsServed'));
+  if (!clientsServed.success) return { error: 'Choose how many clients you look after today.', googleUrl: null };
   if (wantsGoogle && !env.google) return { error: 'Google sign-up is not available.', googleUrl: null };
 
   const hdrs = await headers();
@@ -62,7 +67,7 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
   const inviteToken = text(formData, 'inviteToken') || undefined;
   const parsed = startAgencySignupInput.safeParse({
     email, agencyName: text(formData, 'agencyName'), contactName: text(formData, 'contactName') || undefined,
-    inviteToken, ipHash: hashIp(ip ?? 'unknown', env.authSecret),
+    inviteToken, website: website.data, clientsServed: clientsServed.data, ipHash: hashIp(ip ?? 'unknown', env.authSecret),
   });
   // Malformed input (e.g. a token that is not an invite token) is treated as a refusal, not an error.
   const sendLink = parsed.success ? (await startAgencySignup(service, parsed.data, now)).sendLink : false;

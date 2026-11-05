@@ -52,6 +52,23 @@ describe('completePendingSignups', () => {
     expect((await dbs.owner.select().from(runbook).where(eq(runbook.level, 'platform')))).toHaveLength(1);
   });
 
+  it('copies website to agency_profile and clients served to agency_onboarding', async () => {
+    await pending({ website: 'https://newagency.co', clientsServed: '6-20' });
+    const r = await completePendingSignups(dbs.service, USER, NOW);
+    const id = r.agencyIds[0]!;
+    const [prof] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, id));
+    const [onb] = await dbs.owner.select().from(agencyOnboarding).where(eq(agencyOnboarding.agencyId, id));
+    expect(prof!.website).toBe('https://newagency.co');
+    expect(onb!.clientsServed).toBe('6-20');
+  });
+
+  it('no website on the pending row leaves the profile website empty', async () => {
+    await pending({ clientsServed: '0' });
+    const r = await completePendingSignups(dbs.service, USER, NOW);
+    const [prof] = await dbs.owner.select().from(agencyProfile).where(eq(agencyProfile.agencyId, r.agencyIds[0]!));
+    expect(prof!.website).toBeNull();
+  });
+
   it('uses the sign-up contact name for the admin contact when the user has no name (magic link)', async () => {
     await pending();
     const r = await completePendingSignups(dbs.service, { ...USER, name: '' }, NOW);

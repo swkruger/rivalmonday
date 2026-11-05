@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agency, agencyBilling, agencyOnboarding, platformAdmin, platformAuditLog, platformSetting } from '@cs/db';
+import { agency, agencyBilling, agencyOnboarding, agencyProfile, client, competitor, platformAdmin, platformAuditLog, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -81,13 +81,57 @@ describe('get_signup_funnel', () => {
     await mk('00000000-0000-4000-8000-0000000000a4', 'invite', 2, { profile: true, client: true });
     await mk('00000000-0000-4000-8000-0000000000a5', 'legacy', 2, { profile: true });
     const z = { signups: 0, profileDone: 0, firstClient: 0, cardAdded: 0 };
-    expect(await call(viewer, 'get_signup_funnel', { days: 30 })).toEqual({
+    expect(await call(viewer, 'get_signup_funnel', { days: 30 })).toMatchObject({
       open: { signups: 2, profileDone: 2, firstClient: 1, cardAdded: 1 },
       invite: { signups: 1, profileDone: 1, firstClient: 1, cardAdded: 0 },
     });
     expect(((await call(viewer, 'get_signup_funnel', { days: 90 })) as { open: { signups: number } }).open.signups).toBe(3);
     await dbs.owner.delete(agencyOnboarding);
-    expect(await call(viewer, 'get_signup_funnel', { days: 30 })).toEqual({ open: z, invite: z });
+    expect(await call(viewer, 'get_signup_funnel', { days: 30 })).toEqual({ open: z, invite: z, recent: [] });
+  });
+
+  describe('Check flag (D9)', () => {
+    type Recent = { agencyId: string; website: string | null; clientsServed: string | null; check: boolean };
+    const A = (n: number) => `00000000-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`;
+    const mk = async (n: number, o: { website?: string | null; served?: '0' | '1-5' | '6-20' | '21+' | null; clientSite?: string | null; laterClientSite?: string } = {}) => {
+      await dbs.owner.insert(agency).values({ id: A(n), name: `Fence ${n}` });
+      await dbs.owner.insert(agencyOnboarding).values({ agencyId: A(n), source: 'open', createdAt: new Date(), clientsServed: o.served ?? null });
+      if (o.website !== undefined) await dbs.owner.insert(agencyProfile).values({ agencyId: A(n), website: o.website });
+      const addClient = async (k: number, site: string | null, ageMs: number) => {
+        let selfId: string | null = null;
+        if (site) {
+          const [c] = await dbs.owner.insert(competitor).values({ name: `c${n}${k}`, domain: site }).returning({ id: competitor.id });
+          selfId = c!.id;
+        }
+        await dbs.owner.insert(client).values({ agencyId: A(n), name: `Client ${n}-${k}`, verticalId: 'hvac', selfCompetitorId: selfId, createdAt: new Date(Date.now() - ageMs) });
+      };
+      if (o.clientSite !== undefined) await addClient(1, o.clientSite, 5000);
+      if (o.laterClientSite) await addClient(2, o.laterClientSite, 1000);
+    };
+    const rowOf = async (n: number) => ((await call(viewer, 'get_signup_funnel', { days: 30 })) as { recent: Recent[] }).recent.find((r) => r.agencyId === A(n))!;
+
+    it("'0' clients served is flagged, with no website or client at all", async () => {
+      await mk(1, { served: '0' });
+      expect(await rowOf(1)).toMatchObject({ website: null, clientsServed: '0', check: true });
+    });
+    it('first client sharing the agency host (case and www. ignored) is flagged', async () => {
+      await mk(2, { served: '1-5', website: 'https://WWW.Acme-HVAC.com/about', clientSite: 'acme-hvac.com' });
+      expect(await rowOf(2)).toMatchObject({ website: 'https://WWW.Acme-HVAC.com/about', clientsServed: '1-5', check: true });
+    });
+    it('a different host is not flagged; only the EARLIEST client counts', async () => {
+      await mk(3, { served: '6-20', website: 'https://agency.example', clientSite: 'someclient.com' });
+      await mk(4, { served: '6-20', website: 'https://agency.example', clientSite: 'other.com', laterClientSite: 'agency.example' });
+      expect((await rowOf(3)).check).toBe(false);
+      expect((await rowOf(4)).check).toBe(false);
+    });
+    it('without a website or client website only the 0 rule applies', async () => {
+      await mk(5, { served: '21+', website: null, clientSite: 'x.com' });
+      await mk(6, { served: '1-5', website: 'https://y.com', clientSite: null });
+      await mk(7, { served: null });
+      expect((await rowOf(5)).check).toBe(false);
+      expect((await rowOf(6)).check).toBe(false);
+      expect(await rowOf(7)).toMatchObject({ clientsServed: null, check: false });
+    });
   });
 
   it('days must be 30 or 90', async () => {

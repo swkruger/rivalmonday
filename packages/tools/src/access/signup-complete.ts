@@ -84,11 +84,11 @@ export async function completePendingSignups(
       const agencyId = a!.id;
       // Phase 14b: the agency's runbook (a copy of the platform one), atomic with the agency.
       await ensureAgencyRunbook(tx, agencyId, await catalogOf({ service } as ToolDeps).generic());
-      await tx.insert(agencyProfile).values({ agencyId, contactName: p.contactName, contactEmail: p.email });
+      await tx.insert(agencyProfile).values({ agencyId, contactName: p.contactName, contactEmail: p.email, website: p.website });
       // Mirrors acceptInvitations: the admin's notification contact, then the membership pointing at it.
       const contactId = await addContact(tx, { agencyId, clientId: null, role: 'agency_admin', email: p.email, name: user.name || p.contactName || null, clientScope: null, userId: user.id });
       await tx.insert(membership).values({ userId: user.id, agencyId, role: 'agency_admin', clientId: null, clientScope: null, contactId, createdBy: user.id, createdAt: now });
-      await tx.insert(agencyOnboarding).values({ agencyId, source: p.source, inviteLinkId: p.inviteLinkId, createdAt: now });
+      await tx.insert(agencyOnboarding).values({ agencyId, source: p.source, inviteLinkId: p.inviteLinkId, clientsServed: p.clientsServed, createdAt: now });
       const couponId = link ? await couponFor(tx, link, now) : undefined;
       await startAgencyTrial(tx, null, agencyId, link?.offer === 'pilot'
         ? { offer: 'pilot', pilotEndsAt: link.pilotEndsAt ?? undefined, couponId, now, notice: false }
