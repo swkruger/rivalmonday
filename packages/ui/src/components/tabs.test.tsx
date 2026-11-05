@@ -60,3 +60,31 @@ describe('tabsTriggerClass focus', () => {
     expect(cls).not.toContain('focus-visible:outline-offset-2');
   });
 });
+
+describe('Tabs segmented variant (app-style § 3.6)', () => {
+  it('marks list and triggers segmented, fills the active one, keeps arrow keys', async () => {
+    render(
+      <Tabs defaultValue="a">
+        <TabsList aria-label="S" variant="segmented">
+          <TabsTrigger value="a">A</TabsTrigger>
+          <TabsTrigger value="b">B</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    );
+    const [a, b] = screen.getAllByRole('tab');
+    expect(screen.getByRole('tablist').getAttribute('data-variant')).toBe('segmented');
+    expect(a!.getAttribute('data-state')).toBe('active');
+    expect(a!.getAttribute('data-variant')).toBe('segmented');
+    expect(a!.className).toContain('data-[state=active]:bg-primary');
+    act(() => a!.focus());
+    fireEvent.keyDown(a!, { key: 'ArrowRight' });
+    await waitFor(() => expect(document.activeElement).toBe(b));
+    expect(b!.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('default TabsList class equals tabsListClass', async () => {
+    const { tabsListClass } = await import('./tabs-classes');
+    render(<Tabs defaultValue="a"><TabsList aria-label="D"><TabsTrigger value="a">A</TabsTrigger></TabsList></Tabs>);
+    expect(screen.getByRole('tablist').className).toBe(tabsListClass);
+  });
+});

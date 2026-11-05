@@ -3,7 +3,9 @@
 import * as React from "react"
 import { cn } from "../lib/cn"
 import { Tabs as TabsPrimitive } from "radix-ui"
-import { tabsListClass, tabsTriggerActiveClass, tabsTriggerClass } from "./tabs-classes"
+import { tabsListClass, tabsSegmentedItemClass, tabsSegmentedListClass, tabsTriggerActiveClass, tabsTriggerClass, type TabsVariant } from "./tabs-classes"
+
+const TabsVariantContext = React.createContext<TabsVariant>("underline")
 
 function Tabs({
   className,
@@ -20,14 +22,18 @@ function Tabs({
 
 function TabsList({
   className,
+  variant = "underline",
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List>) {
+}: React.ComponentProps<typeof TabsPrimitive.List> & { variant?: TabsVariant }) {
   return (
-    <TabsPrimitive.List
-      data-slot="tabs-list"
-      className={cn(tabsListClass, className)}
-      {...props}
-    />
+    <TabsVariantContext.Provider value={variant}>
+      <TabsPrimitive.List
+        data-slot="tabs-list"
+        data-variant={variant}
+        className={cn(variant === "segmented" ? tabsSegmentedListClass : tabsListClass, className)}
+        {...props}
+      />
+    </TabsVariantContext.Provider>
   )
 }
 
@@ -35,12 +41,13 @@ function TabsTrigger({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+  const variant = React.useContext(TabsVariantContext)
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
+      data-variant={variant}
       className={cn(
-        tabsTriggerClass,
-        tabsTriggerActiveClass,
+        variant === "segmented" ? tabsSegmentedItemClass : cn(tabsTriggerClass, tabsTriggerActiveClass),
         className
       )}
       {...props}

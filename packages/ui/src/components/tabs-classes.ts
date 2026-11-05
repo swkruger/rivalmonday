@@ -18,3 +18,14 @@ export const tabsLinkActiveClass =
 /** Count badge inside a tab label. */
 export const tabsCountClass =
   "inline-grid h-[18px] min-w-[18px] place-items-center rounded-xs bg-muted-surface px-1 text-11 font-semibold tabular-nums text-ink-secondary"
+
+/** Segmented variant (app-style § 3.6): a primary-filled pill track for one page-level switch of <= 4 views. Never `overflow-x-auto` (clips the outline); it wraps. */
+export const tabsSegmentedListClass = "inline-flex h-9 max-w-full flex-wrap items-stretch gap-0.5 rounded-md border border-line bg-surface p-0.5"
+
+export const tabsSegmentedItemClass =
+  "inline-flex items-center rounded-sm px-3 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:bg-muted-surface hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 " +
+  "data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary-hover data-[state=active]:hover:text-primary-foreground " +
+  "aria-[current=page]:bg-primary aria-[current=page]:font-semibold aria-[current=page]:text-primary-foreground aria-[current=page]:hover:bg-primary-hover aria-[current=page]:hover:text-primary-foreground " +
+  "aria-selected:bg-primary aria-selected:font-semibold aria-selected:text-primary-foreground aria-selected:hover:bg-primary-hover aria-selected:hover:text-primary-foreground"
+
+export type TabsVariant = "underline" | "segmented"

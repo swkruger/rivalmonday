@@ -35,3 +35,18 @@ describe('TabsLinkList / TabsLink (URL-driven tabs styled like Tabs)', () => {
     expect(screen.getByRole('tab').getAttribute('aria-selected')).toBe('true');
   });
 });
+
+describe('TabsLink segmented variant', () => {
+  it('current link carries aria-current and the segmented classes', () => {
+    render(
+      <TabsLinkList aria-label="Seg" variant="segmented">
+        <TabsLink href="?a" active variant="segmented">A</TabsLink>
+      </TabsLinkList>,
+    );
+    const a = screen.getByRole('link', { name: 'A' });
+    expect(a.getAttribute('aria-current')).toBe('page');
+    expect(a.getAttribute('data-variant')).toBe('segmented');
+    expect(a.className).toContain('aria-[current=page]:bg-primary');
+    expect(screen.getByRole('navigation', { name: 'Seg' }).getAttribute('data-variant')).toBe('segmented');
+  });
+});
