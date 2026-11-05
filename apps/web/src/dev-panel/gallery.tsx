@@ -18,6 +18,7 @@ const THEMES: { name: string; style: Record<string, string> | undefined }[] = [
   { name: 'Default', style: undefined },
   { name: 'Purple', style: themeVars({ primary: '#7A1FA2', secondary: '#0F766E' }) },
   { name: 'Near-ink', style: themeVars({ primary: '#102A43', secondary: '#2A6BAC' }) },
+  { name: 'Pale', style: themeVars({ primary: '#BFE3F7', secondary: '#2A6BAC' }) },
 ];
 const TONES: ChipTone[] = ['neutral', 'info', 'success', 'warning', 'danger'];
 const VARIANTS = ['default', 'destructive', 'destructive-outline', 'outline', 'ghost', 'ink', 'done', 'link'] as const;

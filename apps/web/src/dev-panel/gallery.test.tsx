@@ -15,23 +15,24 @@ afterEach(() => {
 });
 
 describe('DevGallery (app-style § 3.8)', () => {
-  it('carries the dev-panel marker, three theme wrappers, an ink button and the ink band', () => {
+  it('carries the dev-panel marker, four theme wrappers, an ink button and the ink band', () => {
     const { container } = render(<DevGallery />);
     expect(container.querySelector('[data-rm-dev-panel="gallery"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-gallery-theme]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-gallery-theme]')).toHaveLength(4);
     expect(container.querySelectorAll('[data-variant="ink"]').length).toBeGreaterThanOrEqual(1);
     expect(container.querySelector('[data-slot="page-header-band"]')).not.toBeNull();
   });
 
-  it('themes the wrappers (default none, purple, near-ink) and shows both page headers', () => {
+  it('themes the wrappers (default none, purple, near-ink, pale) and shows both page headers', () => {
     const { container } = render(<DevGallery />);
-    const [a, b, c] = Array.from(container.querySelectorAll<HTMLElement>('[data-gallery-theme]'));
+    const [a, b, c, d] = Array.from(container.querySelectorAll<HTMLElement>('[data-gallery-theme]'));
     expect(a!.getAttribute('style')).toBeNull();
     expect(b!.getAttribute('style')).toContain('--primary');
     expect(c!.getAttribute('style')).toContain('--primary');
+    expect(d!.getAttribute('style')).toContain('#BFE3F7');
     expect(b!.getAttribute('style')).not.toBe(c!.getAttribute('style'));
-    expect(container.querySelectorAll('[data-slot="page-title"]')).toHaveLength(6);
-    expect(container.querySelectorAll('[data-slot="page-header-band"]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-slot="page-title"]')).toHaveLength(8);
+    expect(container.querySelectorAll('[data-slot="page-header-band"]')).toHaveLength(4);
   });
 });
 

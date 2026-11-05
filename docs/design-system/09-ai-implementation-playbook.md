@@ -197,8 +197,8 @@ Counts in a tab: `<span class="inline-grid h-[18px] min-w-[18px] place-items-cen
 
 **Amendment 2026-11-04 (D-31), segmented tabs.** `TabsList variant?: 'underline' | 'segmented'` (default `underline`; reaches `TabsTrigger` by context); `TabsLinkList`/`TabsLink` take `variant` explicitly (server-safe). Items carry `data-variant`.
 ```ts
-tabsSegmentedListClass = "inline-flex h-9 max-w-full flex-wrap items-stretch gap-0.5 rounded-md border border-line bg-surface p-0.5"
-tabsSegmentedItemClass = "inline-flex items-center rounded-sm px-3 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:bg-muted-surface hover:text-ink " + /* focus + svg as underline */
+tabsSegmentedListClass = "inline-flex min-h-9 max-w-full flex-wrap items-stretch gap-0.5 rounded-md border border-line bg-surface p-0.5"
+tabsSegmentedItemClass = "inline-flex min-h-[30px] items-center rounded-sm px-3 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:bg-muted-surface hover:text-ink " + /* svg as underline; focus offset 2 (outside), as Segmented */
   "data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary-hover …" /* + aria-[current=page]: and aria-selected: */
 ```
 The track wraps (no `overflow-x-auto`).
@@ -305,7 +305,7 @@ The track wraps (no `overflow-x-auto`).
 - `tabs` render after the band.
 - `countPrimaryActions` (`page-header-guard.ts`) counts `default` and `ink`.
 
-`.rm-ink-band` (`styles.css`) re-scopes `--muted-ink`, `--ink-secondary`, `--link`, `--focus`.
+`.rm-ink-band` (`styles.css`) re-scopes `--muted-ink`, `--ink-secondary`, `--link`, `--focus`. White-surface children reset to their own greys: outline `button`, `status-chip`, `tag`, `pressure-badge`, `business-avatar` (and `help-tip` on hover).
 
 ### 5.3 KPI (`components/stat-card.tsx` → `kpi-strip.tsx`)
 

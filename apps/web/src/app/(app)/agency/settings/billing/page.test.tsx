@@ -148,6 +148,7 @@ describe('/agency/settings/billing: client billing section', () => {
   it('shows Connect Stripe when not connected and does not read revenue', async () => {
     render(await page());
     expect(screen.getByRole('button', { name: 'Connect Stripe' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Connect Stripe' }).getAttribute('data-variant')).toBe('ink');
     expect(m.callTool).not.toHaveBeenCalledWith(m.ctx, 'get_client_revenue', {});
   });
   it('connected: revenue card with amounts and the connected notice for ?connect=done', async () => {

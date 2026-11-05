@@ -6,12 +6,12 @@ import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
 /** Runs a checkout/portal action; on success the action redirects to Stripe, on refusal the message shows here. */
-export function PaymentButton({ action, label }: { action: () => Promise<FormResult>; label: string }) {
+export function PaymentButton({ action, label, variant = 'default' }: { action: () => Promise<FormResult>; label: string; variant?: 'default' | 'ink' }) {
   const [state, formAction, pending] = useActionState<FormResult>(() => action(), { ok: true });
   if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-2">
-      <Button type="submit" variant="ink" disabled={pending} className="self-start">{label}</Button>
+      <Button type="submit" variant={variant} disabled={pending} className="self-start">{label}</Button>
       {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
     </form>
   );

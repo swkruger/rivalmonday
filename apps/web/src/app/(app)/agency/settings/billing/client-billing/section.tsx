@@ -42,12 +42,12 @@ export function ClientBillingSection({ status, revenue, connect, help }: { statu
             ) : s === 'pending' || s === 'restricted' ? (
               <>
                 <p>{s === 'restricted' ? 'Stripe needs more information before you can take payments.' : 'Finish setting up Stripe so your clients can pay you.'}</p>
-                <PaymentButton action={connectAction} label="Finish Stripe setup" />
+                <PaymentButton action={connectAction} label="Finish Stripe setup" variant="ink" />
               </>
             ) : (
               <>
                 <p>Connect your Stripe account to bill your clients for monitoring. Payments go straight to you.</p>
-                <PaymentButton action={connectAction} label="Connect Stripe" />
+                <PaymentButton action={connectAction} label="Connect Stripe" variant="ink" />
               </>
             )}
           </>

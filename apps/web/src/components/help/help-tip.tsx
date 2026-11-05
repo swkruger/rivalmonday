@@ -99,7 +99,7 @@ export function HelpTip(props: Props) {
               hovered.current = false;
             }
           }}
-          className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-11 font-semibold leading-none text-muted-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          data-slot="help-tip" className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-11 font-semibold leading-none text-muted-ink hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           ?
         </button>

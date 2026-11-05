@@ -100,7 +100,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         {TABS.map((t) => (
           <TabsLink variant="segmented" key={t.key} asChild active={t.key === tab.key}>
             <Link href={t.key === 'new' ? '/agency/leads' : `/agency/leads?tab=${t.key}`}>
-              {t.label} <span className="text-muted-ink">({counts[t.status]})</span>
+              {t.label} <span>({counts[t.status]})</span>
             </Link>
           </TabsLink>
         ))}

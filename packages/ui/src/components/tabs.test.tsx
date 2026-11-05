@@ -88,3 +88,13 @@ describe('Tabs segmented variant (app-style § 3.6)', () => {
     expect(screen.getByRole('tablist').className).toBe(tabsListClass);
   });
 });
+
+describe('segmented classes', () => {
+  it('draws the focus ring outside the item (3:1 on the white track) and the track grows when it wraps', async () => {
+    const { tabsSegmentedItemClass, tabsSegmentedListClass } = await import('./tabs-classes');
+    expect(tabsSegmentedItemClass).toContain('focus-visible:outline-offset-2');
+    expect(tabsSegmentedItemClass).not.toContain('-outline-offset-2');
+    expect(tabsSegmentedListClass).toContain('min-h-9');
+    expect(tabsSegmentedListClass).not.toContain(' h-9');
+  });
+});

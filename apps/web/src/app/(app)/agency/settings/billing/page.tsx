@@ -125,7 +125,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           )}
           {s.discount && <p>Discount: {s.discount.code ?? 'applied'}</p>}
           <div className="mt-2">
-            <PaymentButton action={pay.action} label={pay.label} />
+            <PaymentButton action={pay.action} label={pay.label} variant="ink" />
           </div>
         </div>
       </Section>

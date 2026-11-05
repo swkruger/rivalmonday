@@ -51,6 +51,7 @@ describe('styles.css v1 tokens', () => {
     '--color-input: var(--line-strong)', '--color-ring: var(--focus)',
     '--secondary-foreground: #FFFFFF', '--color-secondary-foreground: var(--secondary-foreground)',
     '--chrome: #FBFCFE', '--success-strong: #15803D', '--on-ink-muted: #B7C7DA', '--primary-band-ring: var(--primary)', '.rm-ink-band',
+    '.rm-ink-band [data-slot="pressure-badge"]', '.rm-ink-band [data-slot="business-avatar"]', '.rm-ink-band [data-slot="help-tip"]:hover',
   ])('contains %s', (s) => {
     expect(css).toContain(s);
   });
