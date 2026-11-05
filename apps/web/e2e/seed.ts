@@ -2,11 +2,11 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core/server';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, trendReport, type TrendReportData, vertical, waitlistEntry } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, plan, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, trendReport, type TrendReportData, vertical, waitlistEntry } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation, seedKnowledge } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
 import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, SETUP_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
@@ -132,8 +132,10 @@ export async function seed(): Promise<void> {
     // (with an admin and an account manager) and a suspended agency (with an admin and a client owner).
     const stdPlan = (await currentStandardPlan(db))!;
     const hvac = { verticalId: 'hvac_plumbing', features: ['dashboard'], keywords: ['hvac'], serviceArea: { center: { lat: 32.7, lng: -97.1 }, radiusKm: 20, zips: ['76010'] } };
+    // Pricing v2: the trial agency stays on the v1 (history) row, so `platform-plan-move.spec.ts` moves it from an old version.
+    const [planV1] = await db.select().from(plan).where(and(eq(plan.code, 'standard'), eq(plan.version, 1)));
     const [trialAgency] = await db.insert(agency).values({ name: 'Trial Agency E2E' }).returning();
-    await db.insert(agencyBilling).values({ agencyId: trialAgency!.id, state: 'trialing', planId: stdPlan.id, trialEndsAt: new Date(Date.now() + 20 * 86_400_000) });
+    await db.insert(agencyBilling).values({ agencyId: trialAgency!.id, state: 'trialing', planId: (planV1 ?? stdPlan).id, trialEndsAt: new Date(Date.now() + 20 * 86_400_000) });
     await db.insert(client).values(['Trial Heating One', 'Trial Heating Two', 'Trial Heating Three'].map((name) => ({ agencyId: trialAgency!.id, name, ...hvac })));
     await createInvitation(db, { agencyId: trialAgency!.id, email: 'trial-admin@e2e.test', role: 'agency_admin', invitedBy: 'e2e-seed' });
     await createInvitation(db, { agencyId: trialAgency!.id, email: 'trial-am@e2e.test', role: 'account_manager', invitedBy: 'e2e-seed' });

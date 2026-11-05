@@ -33,6 +33,7 @@ async function withDb<T>(fn: (db: ReturnType<typeof createDb>['db']) => Promise<
 async function submitSignUp(page: Page, email: string, agencyName: string): Promise<void> {
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel('Agency name').fill(agencyName);
+  await page.getByLabel('How many clients do you look after today?').selectOption('1-5');
   await page.getByRole('button', { name: 'Create my agency' }).click();
   await expect(page).toHaveURL(CHECK_EMAIL);
   await expect(page.getByText(CHECK_EMAIL_COPY)).toBeVisible();
