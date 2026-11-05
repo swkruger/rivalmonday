@@ -32,7 +32,7 @@
 | Status: dot+text (lifecycle) · rect badge + glyph (attention) · **pill** filter chip · neutral tag · tier mark | D-10 |
 | Text sizes 12/13/14/16/18/24/30 only; weights 400/500/600; 800 = wordmark only **[OD-2]** | D-16 |
 | Focus = 2px solid `#2A6BAC` outline + 2px offset everywhere | D-17 |
-| Orange only for Friday, priority markers, star ratings | D-17 |
+| Orange only for Friday, priority markers, star ratings (**amended 2026-11-04:** + numbered markers) | D-17, D-33 |
 | Charts: you `--chart-you`, ≤ 2 highlighted rivals, others `--chart-context`, legend + table view | D-13 |
 | **Amended 2026-11-04:** canvas variants are opt-in; staff primary = `ink`, client primary = `default`; `done` needs "Done" + `Check` | D-27, D-28 |
 | `shadow-raised` / `Card variant="raised"` on the recommendations board only; `PageHeader tone="ink"` on client workspace pages only | D-29, D-30 |
@@ -165,7 +165,7 @@ Keep component names, exports and `data-slot` attributes so existing tests keep 
 - `ink` (before: none): `bg-ink font-semibold text-white hover:bg-ink-hover`
 - `done` (before: none): `bg-success-strong font-semibold text-white hover:bg-success-strong-hover`
 
-In `.rm-ink-band` a `default` button gets a 1px `--primary-band-ring` shadow.
+In the band a `default` button gets a 1px `--primary-band-ring`.
 
 ### 4.2 Status family (`badge.tsx`, `status-chip.tsx`, new files)
 
@@ -235,7 +235,7 @@ The track wraps (no `overflow-x-auto`).
 **Amendment 2026-11-04 (D-29, D-33):**
 
 - `Card variant`: `'default' | 'interactive'` gains `'raised'` = `border-transparent shadow-raised` (board lanes only); `lib/cn.ts` shadow keys gain `'raised'`.
-- `NumberMarker` (new; before: primary-soft step circles): `inline-flex shrink-0 items-center justify-center rounded-full bg-amber font-semibold tabular-nums text-amber-text`; `md` `size-7 text-13`, `sm` `size-6 text-xs`; `aria-hidden`; one `ALLOW_AMBER` entry. |
+- `NumberMarker` (new; before: primary-soft step circles): `inline-flex shrink-0 items-center justify-center rounded-full bg-amber font-semibold tabular-nums text-amber-text`; `md` `size-7 text-13`, `sm` `size-6 text-xs`; `aria-hidden`; one `ALLOW_AMBER` entry.
 
 ### 4.6 Overlays
 
@@ -276,8 +276,6 @@ The track wraps (no `overflow-x-auto`).
 - `userBubbleClass` (before `bg-muted-surface px-3 py-2`): `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]`
 - `answerBubbleClass` (before: flat): `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`
 - `starterChipClass` (before: `↳` rows): `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink`
-
-`StarterChips variant?: 'rows' | 'chips'`.
 
 ## 5. App recipes (`apps/web/src`)
 

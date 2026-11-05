@@ -47,7 +47,7 @@
 ### Segmented control `.rm-seg`
 - Track `background.muted`, 2px padding, `radius.sm`; options 24px, 12px/500, `radius.xs`; **active** = white + `border.default` + 600. 2–4 options. `role=radiogroup` (or tablist when it swaps panels).
 - **Use:** range (This week / 4 weeks / 12 weeks), view (Table / Map), metric toggles on a chart.
-- **Segmented tabs (D-31, 2026-11-04):** `TabsList` / `TabsLinkList` `variant="segmented"` (`TabsLink` takes `variant` too). Track `inline-flex h-9 max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-surface p-0.5`; items `rounded-sm px-3 text-13 font-medium text-muted-ink`, hover `bg-muted-surface`; **active** = `bg-primary text-primary-foreground font-semibold` (hover `bg-primary-hover`) via `data-[state=active]` / `aria-[current=page]` / `aria-selected`. Items carry `data-variant="segmented"` (underline items `data-variant="underline"`). Use for **one page-level switch of ≤ 4 views** (Briefs, Rankings, Leads); the track wraps, never scrolls. Range switches stay `Segmented`; underline stays the default.
+- **Segmented tabs (D-31, 2026-11-04):** `TabsList` / `TabsLinkList` `variant="segmented"` (`TabsLink` takes `variant` too). Track `inline-flex h-9 max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-surface p-0.5`; items `rounded-sm px-3 text-13 font-medium text-muted-ink`, hover `bg-muted-surface`; **active** = `bg-primary text-primary-foreground font-semibold` via `data-[state=active]` / `aria-[current=page]` / `aria-selected`. Items carry `data-variant="segmented"` (underline items `data-variant="underline"`). Use for **one page-level switch of ≤ 4 views** (Briefs, Rankings, Leads); the track wraps. Range switches stay `Segmented`; underline stays the default.
 
 ### Toolbar `.rm-toolbar`
 - One row, gap 8, margin-bottom 12. Left: view or segment, search (28px, `border.strong`), filter chips, "Clear". Right: sort, columns, export (ghost or secondary sm). Wraps on narrow widths; the primary page action lives in the PageHeader, not here.
@@ -83,7 +83,7 @@
 
 ### Friday pill `.rm-friday` · existing: `friday-badge.tsx`
 - 28px pill, `fridayPillBg` / `fridayPillText`, 12px/700, optional 12px chat icon. **Variants:** `ask` (top bar "Ask Friday", detail "Ask about BlueRidge") · `label` (20px, 11px, marks Friday's messages and summaries).
-- **Rule:** the only orange UI element. Per view: the top-bar "Ask Friday" pill, **at most one** contextual ask pill (e.g. "Ask about BlueRidge" in a detail header), and any number of 20px labels. Assistant name comes from agency settings (renamable).
+- **Rule:** the only orange UI element (**amended 2026-11-04 → D-33:** besides `NumberMarker`). Per view: the top-bar "Ask Friday" pill, **at most one** contextual ask pill (e.g. "Ask about BlueRidge" in a detail header), and any number of 20px labels. Assistant name comes from agency settings (renamable).
 
 ## Status and labels (D-10)
 
@@ -93,7 +93,7 @@
 | **Badge** | `.rm-badge.{success,warning,danger,info}` | 20px, `radius.xs`, 12px/500, tinted surface + text token, **12px glyph** (✓ ⚠ ✕ ⓘ ⏱) | Attention states: Needs attention, Failed, New, Verified | Non-interactive (`span`); glyph `aria-hidden`, text carries meaning | Pill shape; more than one badge per row; badge as a button |
 | **Filter chip** | `.rm-chip` (`.is-add`, `.is-applied`, `.is-selected`) | 28px **pill**, 1px `border.control`, 12px/500; add = dashed + ⊕; applied = `background.selected` + `primarySoftText`, "Field: **value** ▾" + ✕ | Filters in toolbars; quick choices in onboarding | `button` with `aria-pressed` or a menu trigger; ✕ has `aria-label="Remove filter Tier"` | Rect chips (they would look like badges) |
 | **Tag** | `.rm-tag` | 20px, `radius.xs`, `muted` fill, `text.secondary` 12px. **`tone`** (D-34): `neutral` (default) or a chip tone (`info` / `success` / `warning` / `danger`, `chipToneClass`), `data-tone` set. **`emphasis="strong"`**: `rounded-sm px-2 font-semibold` (6px / 600) | Categories: Website, Ads, Reviews, service names. Toned + strong: board chips whose text states the value ("Impact: High") | Static | Custom colours per tag (v1); a tone without the value in the text |
-| **Strong status chip** | `StatusChip emphasis="strong"` | Same `rounded-sm px-2 font-semibold` | Attention state that must stand out on a lane card | Keeps its glyph | Dropping the glyph |
+| **Strong status chip** | `StatusChip emphasis="strong"` | `rounded-sm px-2 font-semibold` | Attention on a lane card | Keeps its glyph | Dropping the glyph |
 | **Number marker** (D-33) | `NumberMarker n size` | `inline-flex rounded-full bg-amber text-amber-text font-semibold tabular-nums`; `md` `size-7 text-13`, `sm` `size-6 text-xs`; `aria-hidden` | Numbered steps in an `<ol>` (onboarding done screens) | The list carries the order | Any other amber; use outside an ordered list |
 | **Tier mark** | `.rm-tier.{top,watch,minor}` | 10px square (filled secondary / half / outline) + 12px/600 label | Competitor tier: Top rival / Worth watching / Minor | Shape differs, not only colour | Red or amber for "Top rival" (it's not an error) |
 | **Count** | `.rm-count` / `.rm-tab .count` | 18px neutral rect, 11px/600 tabular | Tab and nav counts | `aria-label="3 unread"` where needed | Red count outside the bell |
@@ -183,7 +183,7 @@
 | Starter chips | `.rm-starter` | `StarterChips variant="chips"` (empty state; default `rows`): `starterChipClass` = `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink` |
 | Chrome panel | `.rm-friday-panel` | **Amended → D-32:** wide column = `rounded-lg border border-line bg-chrome` (no `border-l pl-6`), `bg-surface` header strip; sheet body and composer wrapper `bg-chrome`; composer box `rounded-lg`, border stays `border-input`, send `size="icon"` (36px) |
 | Suggestions | `.rm-suggest` | ↳ rows with hairlines, 13px `text.secondary`; 4–6 on empty state, 2–3 after an answer |
-| Composer | `.rm-composer` | `border.strong`, `radius.md`; placeholder "Ask about your competitors…"; bar: scope chip (`muted` rect) · attach (later) · send (28px primary square, `radius.sm`, `aria-label="Send"`) |
+| Composer | `.rm-composer` | `border.strong`, `radius.md`; placeholder "Ask about your competitors…"; bar: scope chip (`muted` rect) · attach (later) · send (36px primary square, `radius.sm`, `aria-label="Send"`; **amended → D-32**) |
 | Disclaimer | `.rm-disclaimer` | 11px muted centred: "Friday answers only from captured evidence. Check sources before acting." |
 | States | — | Thinking: "Reading 12 captures…" with a muted step list (collapsible); refusal/no evidence: "I couldn't find evidence for that" + suggested searches; error: inline danger alert + Retry |
 

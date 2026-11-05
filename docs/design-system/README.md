@@ -35,7 +35,7 @@
 - Underline tabs for views; segmented controls for ranges.
 - Label-above forms in a ≤ 640px column.
 - Hairline tables with no zebra striping and tabular numbers.
-- Assistant answers as flat prose with inline evidence.
+- Assistant answers as flat prose with inline evidence (**amended 2026-11-04 → D-32:** in a hairline bubble).
 
 **2. The unified look and feel.** Calm, neutral and evidence-first, like Plain or Stripe on a quiet day. The #F6F9FC frame holds the top bar and sidebar, and one white sheet holds the work. Inter at 13–16px with semibold (not extra-bold) headings in ink. Colour appears only when it means something: the primary colour for the next action, primary-soft for "you are here", four muted status tints, the chart roles (you / two rivals / grey), Friday's orange and numbered markers (D-33). Since 2026-11-04 the product adds opt-in canvas variants (D-27…D-34): an ink title band, the `ink` primary on staff pages, segmented tabs, strong chips and Friday bubbles. The result reads as a professional tool an agency can put its own brand on.
 
