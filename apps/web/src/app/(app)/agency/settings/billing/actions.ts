@@ -6,9 +6,9 @@ import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
 
 /** Subscribe / add a payment method: Stripe Checkout. Agency admins only (the tool refuses everyone else). */
-export async function checkoutAction(): Promise<FormResult> {
+export async function checkoutAction(interval?: 'month' | 'year'): Promise<FormResult> {
   const { ctx } = await requireContext();
-  const r = await runTool<{ url: string }>(ctx, 'create_checkout_session', {});
+  const r = await runTool<{ url: string }>(ctx, 'create_checkout_session', interval === 'year' ? { interval } : {});
   if (!r.ok) return r;
   redirect(r.data.url);
 }
@@ -27,4 +27,13 @@ export async function redeemCodeAction(_prev: FormResult, fd: FormData): Promise
   if (!r.ok) return r;
   revalidatePath('/agency/settings/billing');
   return { ok: true, message: r.data.applied ? 'Code applied to your subscription.' : 'Code saved. It will apply at checkout.' };
+}
+
+/** Monthly -> yearly on an active subscription (the tool checks admin, state and the plan's yearly base). */
+export async function switchToYearlyAction(): Promise<FormResult> {
+  const { ctx } = await requireContext();
+  const r = await runTool<{ interval: 'year' }>(ctx, 'switch_billing_to_yearly', {});
+  if (!r.ok) return r;
+  revalidatePath('/agency/settings/billing');
+  return { ok: true, message: 'Switched to yearly billing.' };
 }

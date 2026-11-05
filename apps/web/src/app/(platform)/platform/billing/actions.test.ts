@@ -19,10 +19,10 @@ beforeEach(() => {
 beforeEach(() => m.runTool.mockReset().mockResolvedValue({ ok: true, data: { version: 3, url: 'https://x/join/t' } }));
 
 describe('createPlanVersionAction', () => {
-  const fields = { name: 'Standard', basePrice: '299', includedSeats: '3', seatPrice: '49.50', trialDays: '30' };
+  const fields = { name: 'Standard', basePrice: '299', basePriceYear: '2990', includedSeats: '3', tierFrom0: '4', tierPrice0: '79', tierFrom1: '11', tierPrice1: '59.50', trialDays: '30' };
   it('turns dollars into cents', async () => {
     expect(await createPlanVersionAction(ok, form(fields))).toMatchObject({ ok: true });
-    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'create_plan_version', { name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4950, trialDays: 30, features: [] });
+    expect(m.runTool).toHaveBeenCalledWith({ userId: 'op' }, 'create_plan_version', { name: 'Standard', basePriceCents: 29900, basePriceYearCents: 299000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5950 }], trialDays: 30, features: [] });
   });
   it('sends the ticked Includes checkboxes as features', async () => {
     const fd = form(fields);
@@ -30,6 +30,13 @@ describe('createPlanVersionAction', () => {
     fd.append('features', 'ask');
     await createPlanVersionAction(ok, fd);
     expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ features: ['ask', 'mcp'] });
+  });
+  it('sends a null yearly base when blank and refuses bad tier rows before calling the tool', async () => {
+    await createPlanVersionAction(ok, form({ ...fields, basePriceYear: '' }));
+    expect(m.runTool.mock.calls[0]?.[2]).toMatchObject({ basePriceYearCents: null });
+    m.runTool.mockClear();
+    expect(await createPlanVersionAction(ok, form({ ...fields, tierFrom0: '6' }))).toMatchObject({ ok: false });
+    expect(m.runTool).not.toHaveBeenCalled();
   });
   it('rejects bad money and integers before calling the tool', async () => {
     expect(await createPlanVersionAction(ok, form({ ...fields, basePrice: '1,000' }))).toMatchObject({ ok: false });

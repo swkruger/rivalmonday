@@ -10,6 +10,8 @@ export interface PlanAgencyRow {
   onHold: boolean;
   seatWarning: 'extra_seats' | 'over_cap' | null;
   extraSeatsAfter: number;
+  interval: 'month' | 'year';
+  moveBlocked: 'no_yearly_price' | null;
   monthlyNowCents: number;
   monthlyAfterCents: number;
 }
@@ -17,7 +19,7 @@ export interface PlanAgencyRow {
 export interface MoveResultData {
   targetPlanId: string;
   targetVersion: number;
-  results: { agencyId: string; outcome: 'moved' | 'already_current' | 'refused' | 'failed'; reason?: keyof typeof PLAN_MOVE_REASON_LABEL; emailed: boolean }[];
+  results: { agencyId: string; outcome: 'moved' | 'already_current' | 'refused' | 'failed'; reason?: keyof typeof PLAN_MOVE_REASON_LABEL; message?: string; emailed: boolean }[];
 }
 
 export const MOVE_NOTE = "New prices start at each agency's next billing date. Feature changes apply now. Admins are emailed when their price or features change.";
@@ -28,6 +30,8 @@ export function seatWarningText(row: Pick<PlanAgencyRow, 'seatWarning' | 'extraS
   if (row.seatWarning === 'over_cap') return "Over the client limit: new clients can't be activated until they're under it.";
   return null;
 }
+
+export const NO_YEARLY_PRICE = 'No yearly price';
 
 export const versionText = (v: number | null) => (v === null ? 'Not set' : `v${v}`);
 export const monthly = (cents: number) => formatMoney(cents, { unit: 'cents' });
@@ -43,6 +47,7 @@ export function MoveLines({ rows, targetVersion }: { rows: PlanAgencyRow[]; targ
             <li key={r.agencyId} className="text-sm text-ink">
               <span className="font-semibold">{r.name}</span>{' '}
               <span>({versionText(r.version)} → v{targetVersion}): {monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)} a month</span>
+              {r.moveBlocked && <span className="block text-xs text-muted-ink">{NO_YEARLY_PRICE}</span>}
               {warning && <span className="block text-xs text-muted-ink">{warning}</span>}
             </li>
           );

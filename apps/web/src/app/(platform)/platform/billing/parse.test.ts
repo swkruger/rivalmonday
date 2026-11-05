@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { endOfDayIso, toCents, toFeatures, toInt, toPercent } from './parse';
+import { endOfDayIso, parseTierRows, toCents, toFeatures, toInt, toPercent } from './parse';
 
 describe('toCents', () => {
   it.each([['229.99', 22999], ['0.1', 10], ['229', 22900], ['0', 0]])('%s -> %s', (v, c) => expect(toCents(v as string)).toBe(c));
@@ -26,4 +26,21 @@ describe('toFeatures', () => {
     expect(toFeatures(['mcp'])).toEqual(['mcp']);
     expect(toFeatures([])).toEqual([]);
   });
+});
+
+describe('parseTierRows', () => {
+  const rows = (...r: [string, string][]) => r.map(([from, price]) => ({ from, price }));
+  it('rows 4–10 $79 and 11+ $59 with 3 included → v2 tiers', () => {
+    expect(parseTierRows(rows(['4', '79'], ['11', '59']), 3)).toEqual({ ok: true, tiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] });
+  });
+  it('one row is a flat price; blank rows are skipped', () => {
+    expect(parseTierRows(rows(['4', '49'], ['', ''], ['', '']), 3)).toEqual({ ok: true, tiers: [{ upTo: null, unitCents: 4900 }] });
+  });
+  it.each([
+    [rows(['', '']), 3],
+    [rows(['5', '79']), 3],
+    [rows(['4', '79'], ['4', '59']), 3],
+    [rows(['4', '79'], ['x', '59']), 3],
+    [rows(['4', '7,9']), 3],
+  ])('rejects %j', (r, n) => expect(parseTierRows(r, n).ok).toBe(false));
 });

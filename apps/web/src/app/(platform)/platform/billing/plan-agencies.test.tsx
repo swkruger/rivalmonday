@@ -8,7 +8,7 @@ const { PlanAgencies } = await import('./plan-agencies');
 
 const row = (over: Record<string, unknown> = {}) => ({
   agencyId: 'a1', name: 'Alpha', state: 'active', version: 1, onHold: false, seatWarning: null, extraSeatsAfter: 0,
-  monthlyNowCents: 29900, monthlyAfterCents: 34900, ...over,
+  interval: 'month', moveBlocked: null, monthlyNowCents: 29900, monthlyAfterCents: 34900, ...over,
 });
 const data = (agencies: unknown[]) => ({ currentVersion: 3, agencies }) as never;
 const rows = [
@@ -30,6 +30,12 @@ describe('PlanAgencies', () => {
     expect(within(alpha).getByText('Active')).toBeTruthy();
     expect(within(alpha).getByText('$299 → $349')).toBeTruthy();
     expect(within(screen.getByText('Bravo').closest('tr')!).getByText('Not set')).toBeTruthy();
+  });
+
+  it('a yearly agency on a plan without a yearly price shows the chip and cannot be selected', () => {
+    render(<PlanAgencies data={data([row({ agencyId: 'a9', name: 'Echo', interval: 'year', moveBlocked: 'no_yearly_price' })])} canMove />);
+    expect(within(screen.getByText('Echo').closest('tr')!).getByText('No yearly price')).toBeTruthy();
+    expect(box('Select Echo').disabled).toBe(true);
   });
 
   it('empty state', () => {

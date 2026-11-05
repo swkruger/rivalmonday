@@ -5,7 +5,7 @@ import { requireOperatorContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool } from '@/server/run-tool';
 import type { MoveResultData } from '../_components/plan-move-parts';
-import { endOfDayIso, toCents, toFeatures, toInt, toPercent } from './parse';
+import { endOfDayIso, parseTierRows, toCents, toFeatures, toInt, toPercent } from './parse';
 import type { ToolResult } from '@/server/run-tool';
 
 const PATH = '/platform/billing';
@@ -14,12 +14,15 @@ const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 export async function createPlanVersionAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   const { ctx } = await requireOperatorContext();
   const base = toCents(str(fd, 'basePrice'));
-  const seat = toCents(str(fd, 'seatPrice'));
+  const yearText = str(fd, 'basePriceYear');
+  const year = yearText === '' ? null : toCents(yearText);
   const seats = toInt(str(fd, 'includedSeats'));
   const trial = toInt(str(fd, 'trialDays'));
-  if (base === null || seat === null) return { ok: false, error: 'Enter prices in dollars, e.g. 299 or 49.00' };
+  if (base === null || (yearText !== '' && year === null)) return { ok: false, error: 'Enter prices in dollars, e.g. 299 or 49.00' };
   if (seats === null || trial === null) return { ok: false, error: 'Included seats and trial days must be whole numbers' };
-  const r = await runTool<{ version: number }>(ctx, 'create_plan_version', { name: str(fd, 'name'), basePriceCents: base, includedSeats: seats, seatPriceCents: seat, trialDays: trial, features: toFeatures(fd.getAll('features')) });
+  const tiers = parseTierRows([0, 1, 2, 3, 4].map((i) => ({ from: str(fd, `tierFrom${i}`), price: str(fd, `tierPrice${i}`) })), seats);
+  if (!tiers.ok) return { ok: false, error: tiers.error };
+  const r = await runTool<{ version: number }>(ctx, 'create_plan_version', { name: str(fd, 'name'), basePriceCents: base, basePriceYearCents: year, includedSeats: seats, seatTiers: tiers.tiers, trialDays: trial, features: toFeatures(fd.getAll('features')) });
   if (!r.ok) return r;
   revalidatePath(PATH);
   return { ok: true, message: `Published version ${r.data.version}. Existing subscriptions keep their prices.` };

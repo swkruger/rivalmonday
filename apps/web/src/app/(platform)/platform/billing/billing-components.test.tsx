@@ -20,7 +20,7 @@ const { InviteLinks } = await import('./invite-links');
 const { ConnectPanel } = await import('./connect-panel');
 
 const plan = (over: Partial<PlanRow> = {}): PlanRow => ({
-  id: 'p2', version: 2, name: 'Standard', basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4900, trialDays: 30, features: ['ask', 'mcp'],
+  id: 'p2', version: 2, name: 'Standard', basePriceCents: 29900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }], trialDays: 30, features: ['ask', 'mcp'],
   isCurrent: true, synced: true, createdAt: '2026-10-01T00:00:00Z', ...over,
 });
 const code = (over: Partial<CodeRow> = {}): CodeRow => ({
@@ -62,7 +62,8 @@ describe('PlanEditor confirms and dates', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.change(screen.getByLabelText('Included seats'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Extra seat ($/month)'), { target: { value: '99' } });
+    fireEvent.change(screen.getAllByLabelText('From client')[0]!, { target: { value: '4' } });
+    fireEvent.change(screen.getAllByLabelText('Price per client')[0]!, { target: { value: '99' } });
     fireEvent.change(screen.getByLabelText('Trial days'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
     expect(m.createPlanVersionAction).not.toHaveBeenCalled();
@@ -73,6 +74,18 @@ describe('PlanEditor confirms and dates', () => {
     const fd = (m.createPlanVersionAction.mock.calls[0] as unknown as [unknown, FormData])[1];
     expect(fd.get('basePrice')).toBe('299');
     expect(fd.get('name')).toBe('Standard');
+    expect(fd.get('tierFrom0')).toBe('4');
+    expect(fd.get('tierPrice0')).toBe('99');
+  });
+
+  it('the form has up to five tier rows and an optional yearly base; the table shows tiers and the yearly base', () => {
+    render(<PlanEditor plans={[plan(), plan({ id: 'p1', version: 1, isCurrent: false, basePriceYearCents: null, seatTiers: [{ upTo: null, unitCents: 4900 }] })]} canEdit tz="UTC" />);
+    expect(screen.getAllByLabelText('From client')).toHaveLength(5);
+    expect(screen.getAllByLabelText('Price per client')).toHaveLength(5);
+    expect((screen.getByLabelText('Yearly base price ($/year, optional)') as HTMLInputElement).required).toBe(false);
+    expect(screen.getByText('4–10: $79, 11+: $59')).toBeTruthy();
+    expect(screen.getByText('4+: $49')).toBeTruthy();
+    expect(screen.getByText('$2,290')).toBeTruthy();
   });
 
   it('versions table lists the features of each version, or None', () => {
@@ -89,7 +102,8 @@ describe('PlanEditor confirms and dates', () => {
     fireEvent.click(mcp);
     fireEvent.change(screen.getByLabelText('Base price ($/month)'), { target: { value: '299' } });
     fireEvent.change(screen.getByLabelText('Included seats'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Extra seat ($/month)'), { target: { value: '99' } });
+    fireEvent.change(screen.getAllByLabelText('From client')[0]!, { target: { value: '4' } });
+    fireEvent.change(screen.getAllByLabelText('Price per client')[0]!, { target: { value: '99' } });
     fireEvent.change(screen.getByLabelText('Trial days'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish new version' }));
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Publish version' }));

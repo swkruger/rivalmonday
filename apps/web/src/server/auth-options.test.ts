@@ -139,7 +139,7 @@ describe('5b-2 hardening (decision 14)', () => {
 });
 
 describe('Phase 10: pending agency sign-up completion (session.create.after)', () => {
-  const PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatPriceCents: 9900, trialDays: 30, isCurrent: true, createdBy: 'test' };
+  const PLAN = { code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 9900 }], trialDays: 30, isCurrent: true, createdBy: 'test' };
   const pend = (email: string) =>
     dbs.service.insert(pendingSignup).values({ email, agencyName: 'Fresh Agency', source: 'open', ipHash: 'h'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) });
   const fresh = async () => (await dbs.owner.select().from(agency)).filter((a) => a.id !== IDS.agencyA && a.id !== IDS.agencyB);

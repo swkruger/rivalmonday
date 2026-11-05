@@ -42,7 +42,9 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/server/run-tool', () => ({ runTool: vi.fn() }));
 
 const SUMMARY = {
-  state: 'trialing', plan: { name: 'Standard', version: 1, basePriceCents: 29900, includedSeats: 3, seatPriceCents: 4900 },
+  state: 'trialing', plan: { name: 'Standard', version: 2, basePriceCents: 22900, basePriceYearCents: 229000, includedSeats: 3, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] },
+  interval: 'month',
+  tiers: [{ fromClient: 4, toClient: 10, unitCents: 7900 }, { fromClient: 11, toClient: null, unitCents: 5900 }],
   dates: { trialEndsAt: '2026-11-13T12:00:00Z', pilotEndsAt: null, pastDueSince: null, pausesOn: null, cancelAt: null },
   seats: { used: 2, included: 3, extra: 0 }, nextInvoice: null, discount: null, recentInvoices: [] as unknown[], hasSubscription: false,
 };
@@ -159,7 +161,7 @@ describe('agency batch B: Billing', () => {
     const p = open('Your plan and clients');
     for (const w of ['active', 'paused', 'prospect', 'plan card']) expect(p, w).toContain(w);
     expect(p).not.toMatch(/\$\d/);
-    expect(screen.getByText(/\$299 per month, includes 3 clients; each extra client \$49 per month/)).toBeTruthy();
+    expect(screen.getByText("$229/mo (or $2,290/yr) · 3 clients included · clients 4–10: $79 each · clients 11+: $59 each")).toBeTruthy();
   });
 
   it('the status tip uses the page labels and the 7 day pause', async () => {

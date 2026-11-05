@@ -43,7 +43,7 @@ describe('ManageMenu items by role', () => {
 
 const planMove = {
   currentVersion: 3,
-  row: { agencyId: AG, name: 'Brightline Marketing', state: 'active', version: 1, onHold: false, seatWarning: 'extra_seats' as const, extraSeatsAfter: 1, monthlyNowCents: 29900, monthlyAfterCents: 34900 },
+  row: { agencyId: AG, name: 'Brightline Marketing', state: 'active', version: 1, onHold: false, seatWarning: 'extra_seats' as const, extraSeatsAfter: 1, interval: 'month' as const, moveBlocked: null, monthlyNowCents: 29900, monthlyAfterCents: 34900 },
 };
 
 describe('ManageMenu: Move to current plan', () => {

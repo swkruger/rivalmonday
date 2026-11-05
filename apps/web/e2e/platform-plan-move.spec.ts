@@ -16,7 +16,8 @@ test('an owner publishes v2 without MCP and moves an agency from v1 to it', { ta
 
     await page.getByLabel('Base price ($/month)').fill('249');
     await page.getByLabel('Included seats').fill('3');
-    await page.getByLabel('Extra seat ($/month)').fill('99');
+    await page.getByLabel('From client').first().fill('4');
+    await page.getByLabel('Price per client').first().fill('99');
     await page.getByLabel('Trial days').fill('30');
     await page.getByRole('checkbox', { name: 'MCP access' }).uncheck();
     await page.getByRole('button', { name: 'Publish new version' }).click();

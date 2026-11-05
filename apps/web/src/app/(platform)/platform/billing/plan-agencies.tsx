@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
 import { AGENCY_LIFECYCLE, BILLING_STATE, labelFor } from '@/lib/labels';
 import { moveAgenciesToCurrentPlanAction } from './actions';
-import { monthly, MoveLines, moveSummary, type PlanAgencyRow, versionText } from '../_components/plan-move-parts';
+import { monthly, MoveLines, NO_YEARLY_PRICE, moveSummary, type PlanAgencyRow, versionText } from '../_components/plan-move-parts';
 
 export interface PlanAgenciesData {
   currentVersion: number;
@@ -15,13 +15,13 @@ type Outcome = { ok: true; message: string } | { ok: false; error: string };
 
 /**
  * Agencies not on the current plan version (15c-3b spec §3.6). Owners tick rows and move them; everyone else sees the table
- * read-only. Held and cancelled rows are disabled (the tool refuses both). The result line lives here (always mounted), so it survives the list refreshing.
+ * read-only. Held, cancelled and yearly-without-a-yearly-price rows are disabled (the tool refuses them). The result line lives here (always mounted), so it survives the list refreshing.
  */
 export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMove: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const rows = data.agencies;
-  const locked = (r: PlanAgencyRow) => r.onHold || r.state === 'cancelled';
+  const locked = (r: PlanAgencyRow) => r.onHold || r.state === 'cancelled' || r.moveBlocked !== null;
   const enabled = rows.filter((r) => !locked(r));
   const chosen = rows.filter((r) => selected.has(r.agencyId) && !locked(r));
   const allChecked = enabled.length > 0 && enabled.every((r) => selected.has(r.agencyId));
@@ -93,6 +93,7 @@ export function PlanAgencies({ data, canMove }: { data: PlanAgenciesData; canMov
                       <span className="flex flex-wrap items-center gap-1.5">
                         <StatusChip tone={state.tone}>{state.label}</StatusChip>
                         {r.onHold && <StatusChip tone={AGENCY_LIFECYCLE.on_hold.tone}>{AGENCY_LIFECYCLE.on_hold.label}</StatusChip>}
+                        {r.moveBlocked && <StatusChip tone="neutral">{NO_YEARLY_PRICE}</StatusChip>}
                       </span>
                     </TableCell>
                     <TableCell>{monthly(r.monthlyNowCents)} → {monthly(r.monthlyAfterCents)}</TableCell>

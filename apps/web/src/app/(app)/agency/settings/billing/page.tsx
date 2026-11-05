@@ -13,8 +13,9 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import type { FormResult } from '@/server/forms';
 import { callTool } from '@/server/tools';
-import { checkoutAction, portalAction } from './actions';
-import { PaymentButton } from './payment-button';
+import { checkoutAction, portalAction, switchToYearlyAction } from './actions';
+import { CheckoutForm, PaymentButton, SwitchToYearly } from './payment-button';
+import { type PlanTier, planLine, twoMonthsFree } from './plan-line';
 import { ClientBillingSection, type ConnectStatus } from './client-billing/section';
 import type { Revenue } from './client-billing/revenue-card';
 import { RedeemForm } from './redeem-form';
@@ -30,7 +31,9 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 interface Summary {
   state: BillingState;
-  plan: { name: string; version: number; basePriceCents: number; includedSeats: number; seatPriceCents: number } | null;
+  plan: { name: string; version: number; basePriceCents: number; basePriceYearCents: number | null; includedSeats: number; seatTiers: { upTo: number | null; unitCents: number }[] } | null;
+  interval: 'month' | 'year';
+  tiers: PlanTier[];
   dates: { trialEndsAt: string | null; pilotEndsAt: string | null; pastDueSince: string | null; pausesOn: string | null; cancelAt: string | null };
   seats: { used: number; included: number; extra: number };
   nextInvoice: { amountDueCents: number; periodEnd: string; discountCents: number } | null;
@@ -77,6 +80,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const date = keyDate(s);
   const pay = paymentAction(s);
   const state = labelFor(BILLING_STATE, s.state);
+  const hasYearly = s.plan?.basePriceYearCents != null;
+  const yearlyChoice = hasYearly && !s.hasSubscription;
+  const canSwitch = hasYearly && s.state === 'active' && s.interval === 'month' && s.hasSubscription;
   return (
     <>
       <PageHeader
@@ -106,9 +112,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       >
         <div className="flex flex-col gap-2">
           {s.plan && (
-            <p>
-              {formatMoney(s.plan.basePriceCents, { unit: 'cents' })} per month, includes {s.plan.includedSeats} {s.plan.includedSeats === 1 ? 'client' : 'clients'}; each extra client {formatMoney(s.plan.seatPriceCents, { unit: 'cents' })} per month.
-            </p>
+            <p>{planLine(s.plan, s.tiers, s.interval)}</p>
           )}
           {date && <p className="font-semibold">{date}</p>}
           <p>
@@ -125,8 +129,23 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           )}
           {s.discount && <p>Discount: {s.discount.code ?? 'applied'}</p>}
           <div className="mt-2">
-            <PaymentButton action={pay.action} label={pay.label} variant="ink" />
+            {yearlyChoice ? (
+              <CheckoutForm
+                action={checkoutAction}
+                label={pay.label}
+                monthlyLabel={`Monthly — ${formatMoney(s.plan!.basePriceCents, { unit: 'cents' })}/mo`}
+                yearlyLabel={`Yearly — ${formatMoney(s.plan!.basePriceYearCents!, { unit: 'cents' })}/yr${twoMonthsFree(s.plan!) ? ' (2 months free)' : ''}`}
+              />
+            ) : (
+              <PaymentButton action={pay.action} label={pay.label} variant="ink" />
+            )}
           </div>
+          {canSwitch && (
+            <div>
+              <SwitchToYearly action={switchToYearlyAction} yearBase={formatMoney(s.plan!.basePriceYearCents!, { unit: 'cents' })} />
+            </div>
+          )}
+          {s.interval === 'year' && s.hasSubscription && <p className="text-sm text-muted-ink">To go back to monthly billing, contact support before your renewal date.</p>}
         </div>
       </Section>
       <ClientBillingSection status={connectStatus} revenue={revenue} connect={connect} help={<HelpTip tip="agency.settings.billing.clientBilling" />} />

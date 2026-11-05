@@ -323,12 +323,13 @@ export const SPEND_GUARD_EVENT_KIND: LabelMap<SpendGuardEventKind> = {
 };
 
 // move_agencies_to_current_plan per-agency reasons (15c-3b)
-export const PLAN_MOVE_REASON_LABEL: Record<'on_hold' | 'cancelled' | 'not_found' | 'stripe_error' | 'db_error', string> = {
+export const PLAN_MOVE_REASON_LABEL: Record<'on_hold' | 'cancelled' | 'not_found' | 'stripe_error' | 'db_error' | 'no_yearly_price', string> = {
   on_hold: 'On hold',
   cancelled: 'Cancelled',
   not_found: 'Not found',
   stripe_error: 'Stripe error',
   db_error: 'Save failed',
+  no_yearly_price: 'No yearly price',
 };
 
 // PLAN_FEATURES (@cs/core): what a plan version includes

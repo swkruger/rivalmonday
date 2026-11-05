@@ -84,7 +84,7 @@ describe('consentOptions', () => {
     await member('u1', 'agency_admin');
     await enableMcp(IDS.clientB1);
     await member('u1', 'client_owner', IDS.clientB1, IDS.agencyB);
-    const [p] = await dbs.owner.insert(plan).values({ code: 'nomcp', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatPriceCents: 0, trialDays: 30, features: ['ask'], createdBy: 't' }).returning({ id: plan.id });
+    const [p] = await dbs.owner.insert(plan).values({ code: 'nomcp', version: 1, name: 'No MCP', basePriceCents: 0, includedSeats: 3, seatTiers: [{ upTo: null, unitCents: 0 }], trialDays: 30, features: ['ask'], createdBy: 't' }).returning({ id: plan.id });
     await dbs.owner.insert(agencyBilling).values({ agencyId: IDS.agencyA, state: 'active', planId: p!.id });
     expect((await consentOptions(dbs.service, 'u1', 'read')).map((o) => o.agencyId)).toEqual([IDS.agencyB]);
   });
