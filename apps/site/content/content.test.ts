@@ -37,9 +37,9 @@ describe('site copy', () => {
   it('no digits in copy outside PRICING and an explicit allowlist', () => {
     const a = PRICING.agency;
     const priceValues = [
-      ...Object.values(a).filter((x): x is number => typeof x === 'number'),
-      ...a.extraClientTiers.flatMap((t) => [t.usd, t.toClient].filter((x): x is number => x !== null)),
-      ...Object.values(PRICING.business).filter((x): x is number => typeof x === 'number'),
+      ...(Object.values(a) as unknown[]).filter((x) => typeof x === 'number') as number[],
+      ...a.extraClientTiers.flatMap((t) => ([t.usd, t.toClient] as (number | null)[]).filter((x) => typeof x === 'number') as number[]),
+      ...(Object.values(PRICING.business) as unknown[]).filter((x) => typeof x === 'number') as number[],
     ]
       .flatMap((n) => [String(n), n.toLocaleString('en-US')])
       // The tier line prints each tier's first client number (previous cap + 1).

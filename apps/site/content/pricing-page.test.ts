@@ -17,9 +17,9 @@ function strings(v: unknown, out: string[] = []): string[] {
 describe('pricing page copy', () => {
   it('every figure comes from PRICING', () => {
     const values = [
-      ...Object.values(PRICING.agency).filter((x): x is number => typeof x === 'number'),
-      ...PRICING.agency.extraClientTiers.flatMap((t) => [t.usd, t.toClient].filter((x): x is number => typeof x === 'number')),
-      ...Object.values(PRICING.business).filter((x): x is number => typeof x === 'number'),
+      ...(Object.values(PRICING.agency) as unknown[]).filter((x) => typeof x === 'number') as number[],
+      ...PRICING.agency.extraClientTiers.flatMap((t) => ([t.usd, t.toClient] as (number | null)[]).filter((x) => typeof x === 'number') as number[]),
+      ...(Object.values(PRICING.business) as unknown[]).filter((x) => typeof x === 'number') as number[],
     ]
       .flatMap((n) => [String(n), n.toLocaleString('en-US')])
       // The tier line also prints the first extra client number (seats included + 1) and the last tier's "from" (cap + 1).
