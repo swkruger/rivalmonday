@@ -70,6 +70,7 @@ export async function AskScreen({ clientId, threadId, initialQuestion, autoSend,
   return (
     <>
       <PageHeader
+        tone="ink"
         title={askTitle}
         breadcrumb={thread ? clientCrumbs(client, { label: askTitle, href: `/c/${clientId}/ask` }, thread.title) : clientCrumbs(client, askTitle)}
         description={<HelpText text={PAGE_COPY[helpKeyFor(threadId)].description} />}
@@ -125,6 +126,7 @@ async function supportAskView(clientId: string, threadId: string | null, ctx: Ac
   return (
     <>
       <PageHeader
+        tone="ink"
         title={askTitle}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, askTitle)}
         helpKey={`page:${helpKeyFor(threadId)}`}

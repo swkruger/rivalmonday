@@ -54,6 +54,7 @@ export default async function CompetitorsPage({ params }: { params: Promise<{ cl
         </Link>
       )}
       <PageHeader
+        tone="ink"
         title="Competitors"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Competitors')}
         description={

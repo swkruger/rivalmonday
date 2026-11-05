@@ -54,6 +54,7 @@ export default async function ReportPage({ params }: { params: Promise<{ clientI
   return (
     <>
       <PageHeader
+        tone="ink"
         title={titleOf(report)}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, { label: 'Briefs & reports', href: `/c/${clientId}/briefs?tab=reports` }, report.quarter)}
         description={<HelpText text={COPY.description} />}

@@ -98,6 +98,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Overview"
         description={
           <>
@@ -109,7 +110,7 @@ export default async function ClientHome({ params }: { params: Promise<{ clientI
         guide={guides.has(HELP_KEY)}
         actions={
           agency && overview.pitchSnapshot ? (
-            <Link href={`/c/${clientId}/pitch-snapshot`} className={linkCls}>
+            <Link href={`/c/${clientId}/pitch-snapshot`} className="font-semibold text-link">
               Pitch snapshot →
             </Link>
           ) : undefined

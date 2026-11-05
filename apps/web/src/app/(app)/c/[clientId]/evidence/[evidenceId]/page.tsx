@@ -88,6 +88,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
     <>
       {/* 15a §2.7: back to the Changes feed — only for viewers who have it (briefs-only clients reach evidence from a brief). */}
       <PageHeader
+        tone="ink"
         title={titleOf(evidence)}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, ...(hasFeature(ctx, 'dashboard') ? [{ label: 'Changes', href: `/c/${clientId}/changes` }] : []), 'Evidence')}
         description={

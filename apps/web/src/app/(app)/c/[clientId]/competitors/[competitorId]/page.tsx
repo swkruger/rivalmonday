@@ -99,6 +99,7 @@ export default async function CompetitorProfilePage({
   return (
     <>
       <PageHeader
+        tone="ink"
         title={profile.name}
         breadcrumb={clientCrumbs({ id: clientId, name: client.name }, { label: 'Competitors', href: `/c/${clientId}/competitors` }, profile.name)}
         description={
@@ -113,7 +114,7 @@ export default async function CompetitorProfilePage({
         actions={
           <>
             {profile.domain && (
-              <a href={`https://${profile.domain}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
+              <a href={`https://${profile.domain}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-link">
                 {profile.domain}
               </a>
             )}

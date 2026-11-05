@@ -78,6 +78,7 @@ export default async function ReviewsPage({ params, searchParams }: {
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Reviews"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Reviews')}
         description={<HelpText text={COPY.description} />}

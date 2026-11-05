@@ -71,6 +71,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
   return (
     <>
       <PageHeader
+        tone="ink"
         title={titleOf(brief)}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, { label: 'Briefs & reports', href: `/c/${clientId}/briefs` }, formatDate(brief.deliveryDate, { tz: profile.timezone }))}
         description={<HelpText text={COPY.description} />}
@@ -78,7 +79,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
         guide={guides.has(HELP_KEY)}
         actions={
           agency ? (
-            <Link href={`/agency/approvals/${brief.id}`} className="font-semibold text-primary-soft-text">
+            <Link href={`/agency/approvals/${brief.id}`} className="font-semibold text-link">
               Open in approvals
             </Link>
           ) : undefined
@@ -98,7 +99,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
       {feedback?.email && (
         <p className="text-sm text-muted-ink">
           {'Something look off? '}
-          <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-primary-soft-text">
+          <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-link">
             Email {feedback.name?.trim() || 'your agency'}
           </a>
           .

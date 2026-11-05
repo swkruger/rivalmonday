@@ -134,6 +134,7 @@ export default async function MovesPage({
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Moves"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Moves')}
         description={<HelpText text={COPY.description} />}

@@ -102,14 +102,16 @@ export default async function RankingsPage({ params, searchParams }: {
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Local rankings"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Local rankings')}
         description={<HelpText text={COPY.description} />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
+        // The status/error lines under the buttons are `text-ink`; on the ink band they read white.
         actions={
           controls ? (
-            <div className="flex flex-wrap items-start gap-3">
+            <div className="flex flex-wrap items-start gap-3 [&_[role=alert]]:text-[var(--on-ink)] [&_[role=status]]:text-[var(--on-ink)]">
               <RankSettingsSheet clientId={clientId} settings={controls} />
               <div className="flex items-start gap-1.5">
                 <ScanNowButton clientId={clientId} scan={controls.scan} />

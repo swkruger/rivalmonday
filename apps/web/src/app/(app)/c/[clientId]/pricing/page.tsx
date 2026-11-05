@@ -57,6 +57,7 @@ export default async function PricingPage({ params, searchParams }: {
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Pricing"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Pricing')}
         description={<HelpText text={COPY.description} />}

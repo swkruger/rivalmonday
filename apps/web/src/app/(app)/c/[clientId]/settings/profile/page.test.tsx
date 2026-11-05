@@ -42,6 +42,7 @@ describe('client profile page', () => {
     render(await Page({ params: Promise.resolve({ clientId: C }) }));
     expect(screen.getByRole('heading', { level: 1, name: 'Business profile' })).toBeTruthy();
     expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_ask_starters');
+    expect(document.querySelector('[data-slot="page-header-band"]')).toBeNull(); // settings keep the plain header
     expect(screen.getByText('features form role=undefined')).toBeTruthy();
   });
   it('staff get the Business details section from get_client_details', async () => {

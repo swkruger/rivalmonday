@@ -100,6 +100,7 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Briefs & reports"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Act', 'Briefs & reports')}
         description={<HelpText text={COPY.description} />}
@@ -108,9 +109,9 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
       />
 
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <TabsLinkList aria-label="Briefs and reports views" className="max-w-full overflow-x-auto">
+        <TabsLinkList aria-label="Briefs and reports views" variant="segmented" className="h-auto">
           {TABS.map((t) => (
-            <TabsLink key={t.key} asChild active={t.key === tab} className="flex-none px-3">
+            <TabsLink key={t.key} asChild active={t.key === tab} variant="segmented" className="min-h-8 px-2.5">
               <Link href={hrefFor(clientId, t.key)}>{t.label}</Link>
             </TabsLink>
           ))}

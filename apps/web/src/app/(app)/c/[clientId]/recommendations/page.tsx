@@ -43,6 +43,7 @@ export default async function RecommendationsPage({ params }: { params: Promise<
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Recommendations"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Act', 'Recommendations')}
         description={<HelpText text={COPY.description} />}

@@ -110,6 +110,7 @@ export default async function ChangesPage({
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Changes"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Changes')}
         description={<HelpText text={COPY.description} />}

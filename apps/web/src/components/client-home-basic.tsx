@@ -30,12 +30,13 @@ export async function ClientHomeBasic({ clientId, ctx, viewer }: { clientId: str
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Overview"
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
         description={`${profile.name} · Weekly briefs, alerts and quarterly reports.`}
         actions={
-          <Link href={`/c/${clientId}/briefs`} className="font-semibold text-primary-soft-text">
+          <Link href={`/c/${clientId}/briefs`} className="font-semibold text-link">
             Brief archive →
           </Link>
         }

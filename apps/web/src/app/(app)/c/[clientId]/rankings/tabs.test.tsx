@@ -15,6 +15,12 @@ describe('RankTabs', () => {
     expect(screen.getByRole('tab', { name: 'Compare' }).getAttribute('aria-selected')).toBe('false');
   });
 
+  it('uses the segmented classes, the selected tab filled via aria-selected', () => {
+    render(<RankTabs tab="trend" query={{}} />);
+    expect(screen.getByRole('tablist').className).toContain('border-line');
+    expect(screen.getByRole('tab', { name: 'Trend' }).className).toContain('aria-selected:bg-primary');
+  });
+
   beforeEach(() => { replace.mockReset(); });
 
   it('ArrowRight on Trend moves focus to Compare and activates it', () => {

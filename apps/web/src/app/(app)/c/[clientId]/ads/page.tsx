@@ -55,6 +55,7 @@ export default async function AdsPage({ params, searchParams }: {
   return (
     <>
       <PageHeader
+        tone="ink"
         title="Ads"
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, 'Insights', 'Ads')}
         description={<HelpText text={COPY.description} />}

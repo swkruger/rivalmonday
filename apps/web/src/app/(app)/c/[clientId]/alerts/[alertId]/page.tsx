@@ -53,6 +53,7 @@ export default async function AlertPage({ params }: { params: Promise<{ clientId
   return (
     <>
       <PageHeader
+        tone="ink"
         title={alert.headline}
         breadcrumb={clientCrumbs({ id: clientId, name: profile.name }, { label: 'Briefs & reports', href: `/c/${clientId}/briefs?tab=alerts` }, date)}
         description={<HelpText text={COPY.description} />}
