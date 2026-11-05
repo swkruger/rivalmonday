@@ -200,6 +200,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Platform (operator) pages adopt the `ink` primary (still default `Button`); `ConfirmDialog` confirm button gets the ink tier on agency pages — *app-style*
 - [ ] Lead cards: one ink Accept per card vs outline (owner's call; ties to "≤ 1 primary per view" ruling above) — *app-style*
 - [ ] M5: data attributes for the Friday bubble / segmented tab classes (styled by class composition only) — *app-style*
+- [ ] 13a: comprehensive branding per the 13a spec addendum 2026-11-05 (header-colour override, editor preview of band/buttons/bubble, dark logo, emails/PDF/auth strip); `--ink-hover` now unused (remove or reuse) — *brand-band*
 
 ## Polish (small UI/UX fixes, any time)
 - [ ] Guest views: the sidebar's bottom edge sits below the viewport until the guest banner scrolls away (sticky top bar + scrolling banner) — *stage3-fixes*
