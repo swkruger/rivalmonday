@@ -1,13 +1,13 @@
 # pricing-v2 — volume-tiered agency pricing, annual options, $249 direct, agency-plan fence
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/pricing-v2   **Base:** main @ 8e3b86a6
-**Plan/spec:** none yet. Input: `docs/research/2026-11-04-pricing-feasibility.md` §5 (owner-approved direction 2026-11-04)
+**Plan/spec:** `docs/superpowers/specs/2026-11-04-pricing-v2-design.md`, `docs/superpowers/plans/2026-11-04-pricing-v2.md`. Input: `docs/research/2026-11-04-pricing-feasibility.md` §5 (owner-approved direction 2026-11-04)
 
 ## Status (overwrite)
-Kicked off 2026-11-04; brief written, nothing brainstormed.
+2026-11-04: owner said "just go" on Brief §6 (all recommendations taken; Claude's calls marked in the spec). Spec + lean plan written; awaiting owner approval of the plan.
 
 ## Next (overwrite)
-Owner answers Brief §6; then `superpowers:brainstorming`, spec, lean plan.
+Owner approves the plan; then SDD Tasks 0-7 (Tasks 8-9 after site-story merges).
 
 ## Interfaces this branch adds or changes
 None yet. Likely: `plan` tier columns (migration **0097**), shared `planMonthlyCents(plan, activeClients)`, `pending_signup` website/clients-served, `PRICING` shape in `apps/site/content/pricing.ts`.
