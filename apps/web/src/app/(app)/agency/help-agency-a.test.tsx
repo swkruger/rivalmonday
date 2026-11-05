@@ -166,6 +166,7 @@ describe('agency batch A: Portfolio', () => {
     await show('agency.portfolio');
     expect(screen.getByText('No clients yet')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Add client' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Add client' })[0]!.getAttribute('data-variant')).toBe('ink');
     cleanup();
     m.role = 'account_manager'; m.scope = [C];
     await show('agency.portfolio');
@@ -262,6 +263,7 @@ describe('agency batch A: Leads', () => {
     expect(nav.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
     expect(links[0]!.getAttribute('aria-current')).toBe('page');
     expect(links[0]!.getAttribute('href')).toBe('/agency/leads');
+    expect(links[0]!.getAttribute('data-variant')).toBe('segmented');
   });
 
   it('the tips name the Accept and invite flow, the lead pool and both sources, with the card labels', async () => {

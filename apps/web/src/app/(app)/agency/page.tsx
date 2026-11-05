@@ -83,7 +83,7 @@ export default async function AgencyPortfolioPage() {
         actions={
           canAddClient && (
             <WriteGuard>
-              <Button asChild>
+              <Button asChild variant="ink">
                 <Link href="/agency/clients/new">Add client</Link>
               </Button>
             </WriteGuard>

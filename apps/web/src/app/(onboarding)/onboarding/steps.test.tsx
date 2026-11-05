@@ -163,6 +163,7 @@ describe('DoneStep', () => {
     expect(rows.Contact!.textContent).toContain('Sam Lee · (512) 555-0142');
     expect(rows.Team!.textContent).toContain('1 invite sent');
     expect(rows.Brand!.textContent).toContain('Logo and colour set');
+    expect(document.querySelectorAll('ol [data-slot="number-marker"]').length).toBeGreaterThan(0);
     expect(within(rows.Agency!).getByRole('link', { name: /Edit/ }).getAttribute('href')).toBe('/onboarding?step=profile');
     expect(within(rows.Contact!).getByRole('link', { name: /Edit/ }).getAttribute('href')).toBe('/onboarding?step=profile');
     expect(within(rows.Team!).getByRole('link', { name: /Edit/ }).getAttribute('href')).toBe('/onboarding?step=team');

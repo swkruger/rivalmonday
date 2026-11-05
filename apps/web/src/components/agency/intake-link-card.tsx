@@ -99,7 +99,7 @@ export function IntakeLinkCard({ link, save, toggle, primary = null }: { link: I
               <label htmlFor="intake-slug" className="font-medium">Link name</label>
               <input id="intake-slug" name="slug" defaultValue={link.slug ?? ''} maxLength={40} autoComplete="off" className={fieldCls} />
             </div>
-            <Button type="submit" disabled={saving}>{link.url ? 'Save' : 'Create link'}</Button>
+            <Button type="submit" variant="ink" disabled={saving}>{link.url ? 'Save' : 'Create link'}</Button>
             {!saved.ok && <ErrorNote compact focusKey={saved} className="basis-full">{saved.error}</ErrorNote>}
             {saved.ok && saved.message && <p role="status" className="basis-full text-sm text-ink">{saved.message}</p>}
           </form>

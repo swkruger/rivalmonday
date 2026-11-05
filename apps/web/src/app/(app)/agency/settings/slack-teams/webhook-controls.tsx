@@ -55,7 +55,7 @@ export function AddWebhookForm() {
           <Label htmlFor="webhook-url">Webhook URL</Label>
           <Input id="webhook-url" name="url" type="password" autoComplete="off" required className="w-80" placeholder="https://hooks.slack.com/services/…" />
         </div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="ink" disabled={pending}>
           Add webhook
         </Button>
       </div>

@@ -96,9 +96,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           { label: 'Snapshots', tip: 'agency.leads.preview' },
         ]}
       />
-      <TabsLinkList aria-label="Lead status">
+      <TabsLinkList variant="segmented" aria-label="Lead status">
         {TABS.map((t) => (
-          <TabsLink key={t.key} asChild active={t.key === tab.key}>
+          <TabsLink variant="segmented" key={t.key} asChild active={t.key === tab.key}>
             <Link href={t.key === 'new' ? '/agency/leads' : `/agency/leads?tab=${t.key}`}>
               {t.label} <span className="text-muted-ink">({counts[t.status]})</span>
             </Link>

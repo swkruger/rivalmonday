@@ -37,7 +37,7 @@ export function SnapshotControls({ clientId, report, canRun, blockers, action }:
       <input type="hidden" name="clientId" value={clientId} />
       {blockers.length > 0 && <ul className="list-disc pl-5 text-sm">{blockers.map((b) => <li key={b}>{b}</li>)}</ul>}
       <WriteGuard>
-        <Button type="submit" disabled={!canRun || running || pending} className="self-start">{report ? 'Run snapshot again' : 'Run snapshot'}</Button>
+        <Button type="submit" variant="ink" disabled={!canRun || running || pending} className="self-start">{report ? 'Run snapshot again' : 'Run snapshot'}</Button>
       </WriteGuard>
       {running && <Band tone="muted" className="p-3 text-ink">Snapshot running — this page updates by itself.</Band>}
       {report?.status === 'failed' && <ErrorNote passive={failedOnLoad && !sawRunning}>{report.error ?? 'The snapshot failed.'}</ErrorNote>}

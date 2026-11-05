@@ -45,7 +45,7 @@ export default async function ProspectsPage() {
         actions={
           canAdd && (
             <WriteGuard>
-              <Button asChild>
+              <Button asChild variant="ink">
                 <Link href="/agency/prospects/new">New prospect</Link>
               </Button>
             </WriteGuard>

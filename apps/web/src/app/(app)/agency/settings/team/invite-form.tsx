@@ -58,7 +58,7 @@ export function InviteForm({ clients, canInviteAgencyRoles }: { clients: { id: s
             </select>
           </div>
         )}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="ink" disabled={pending}>
           Invite
         </Button>
       </div>

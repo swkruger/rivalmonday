@@ -141,7 +141,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
         <p className="text-sm text-muted-ink">The amber accent is part of the product and can&apos;t be changed.</p>
         {wizard ? (
           <WriteGuard>
-            <Button type="submit" disabled={pending} className="self-start">
+            <Button type="submit" variant="ink" disabled={pending} className="self-start">
               {submitLabel}
             </Button>
           </WriteGuard>

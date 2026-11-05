@@ -53,7 +53,7 @@ function ApproveButton({ alertId, run, pending }: { alertId: string; run: RunAct
     <form action={run}>
       <input type="hidden" name="intent" value="approve" />
       <input type="hidden" name="alertId" value={alertId} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" variant="ink" disabled={pending}>
         Approve &amp; send
       </Button>
     </form>

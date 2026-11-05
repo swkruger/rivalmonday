@@ -1,4 +1,5 @@
 'use client';
+import { NumberMarker } from '@cs/ui';
 import Image from 'next/image';
 import Link from 'next/link';
 import { OnboardingShell } from '@/components/onboarding/onboarding-shell';
@@ -73,7 +74,7 @@ export function DoneStep({ firstName, summary, guide }: { firstName: string; sum
         <ol className="mt-3.5 flex flex-col gap-3.5">
           {NEXT.map(([title, body], i) => (
             <li key={title} className="grid grid-cols-[28px_1fr] gap-3 text-sm leading-[1.45]">
-              <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-primary-soft text-13 font-semibold text-primary-soft-text">{i + 1}</span>
+              <NumberMarker n={i + 1} />
               <div><b className="font-semibold">{title}</b><div className="text-muted-ink">{body}</div></div>
             </li>
           ))}

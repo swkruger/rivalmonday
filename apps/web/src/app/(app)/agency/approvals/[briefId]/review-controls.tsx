@@ -253,7 +253,7 @@ function ApproveButton({ briefId, startingPoint, sendTime, formAction, pending }
     <form action={formAction}>
       <input type="hidden" name="briefId" value={briefId} />
       {startingPoint && <input type="hidden" name="kind" value="starting_point" />}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" variant="ink" disabled={pending}>
         {startingPoint ? 'Approve and send' : `Approve · send ${sendTime}`}
       </Button>
     </form>

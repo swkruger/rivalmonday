@@ -79,7 +79,7 @@ function AcceptForm({ lead, verticals, verticalActions, onCancel }: { lead: Lead
           ))}
         </select>
       </div>
-      <Button type="submit" disabled={pending}>Accept and invite {lead.contactName}</Button>
+      <Button type="submit" variant="ink" disabled={pending}>Accept and invite {lead.contactName}</Button>
       <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
       {!state.ok && <ErrorNote compact focusKey={state} className="basis-full">{state.error}</ErrorNote>}
     </form>
@@ -137,7 +137,7 @@ export function LeadCard({ lead, verticals, verticalActions, tz = 'UTC', nowMs }
           <WriteGuard>
             {mode === null ? (
               <div className="flex gap-2">
-                <Button onClick={() => setMode('accept')}>Accept</Button>
+                <Button variant="ink" onClick={() => setMode('accept')}>Accept</Button>
                 <Button variant="outline" onClick={() => setMode('decline')}>Decline</Button>
               </div>
             ) : mode === 'accept' ? (

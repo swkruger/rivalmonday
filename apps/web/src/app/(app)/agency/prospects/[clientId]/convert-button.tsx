@@ -15,7 +15,7 @@ export function ConvertButton({ clientId, action, canUpgrade = false }: {
     <form action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="clientId" value={clientId} />
       <FormError state={state} canUpgrade={canUpgrade} />
-      <Button type="submit" disabled={pending} className="self-start">Convert to client</Button>
+      <Button type="submit" variant="ink" disabled={pending} className="self-start">Convert to client</Button>
     </form>
   );
 }

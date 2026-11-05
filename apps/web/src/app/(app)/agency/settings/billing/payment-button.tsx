@@ -11,7 +11,7 @@ export function PaymentButton({ action, label }: { action: () => Promise<FormRes
   if (useReadOnly()) return null;
   return (
     <form action={formAction} className="flex flex-col gap-2">
-      <Button type="submit" disabled={pending} className="self-start">{label}</Button>
+      <Button type="submit" variant="ink" disabled={pending} className="self-start">{label}</Button>
       {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
     </form>
   );
