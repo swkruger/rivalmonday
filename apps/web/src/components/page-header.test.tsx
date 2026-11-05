@@ -194,3 +194,41 @@ describe('PageHeader Friday trigger (16d P6)', () => {
     expect(container.querySelector('[data-slot="page-header-row"]')!.children).toHaveLength(1);
   });
 });
+
+describe('PageHeader ink band (app-style § 3.7)', () => {
+  it('default renders no band', () => {
+    const { container } = render(<PageHeader title="A" />);
+    expect(container.querySelector('[data-slot="page-header-band"]')).toBeNull();
+    expect(container.querySelector('header')!.getAttribute('data-tone')).toBe('default');
+  });
+
+  it.each(['standard', 'compact'] as const)('ink (%s) wraps breadcrumb, h1 and actions; tabs sit outside the band', (variant) => {
+    const { container } = render(
+      <PageHeader
+        title="Overview"
+        variant={variant}
+        tone="ink"
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Overview' }]}
+        actions={<button type="button">Act</button>}
+        tabs={<nav aria-label="Views">tabs</nav>}
+      />,
+    );
+    const header = container.querySelector('header')!;
+    expect(header.getAttribute('data-tone')).toBe('ink');
+    const band = container.querySelector('[data-slot="page-header-band"]') as HTMLElement;
+    expect(band.className).toContain('rm-ink-band');
+    expect(within(band).getByRole('heading', { level: 1 })).toBeTruthy();
+    expect(within(band).getByRole('navigation', { name: 'Breadcrumb' })).toBeTruthy();
+    expect(within(band).getByRole('button', { name: 'Act' })).toBeTruthy();
+    expect(within(band).queryByRole('navigation', { name: 'Views' })).toBeNull();
+    expect(within(header).getByRole('navigation', { name: 'Views' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).className).toContain('tracking-[-0.02em]');
+  });
+
+  it('countPrimaryActions counts ink and default primaries', () => {
+    const { container } = render(
+      <PageHeader title="A" tone="ink" actions={<><button type="button" data-variant="ink">Go</button><button type="button" data-variant="default">Go</button><button type="button" data-variant="outline">No</button></>} />,
+    );
+    expect(countPrimaryActions(container)).toBe(2);
+  });
+});
