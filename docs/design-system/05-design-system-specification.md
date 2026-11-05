@@ -41,6 +41,8 @@ Source key: **brand** = decided in brand.md / CLAUDE.md · **existing** = alread
 | `color.background.inverse` | #0B2540 | brand (ink) | Toast, bulk bar, tooltip |
 | `color.background.scrim` | #0B2540 @ 32% | new | Dialog and sheet backdrop |
 | `color.background.chrome` (`--chrome`) | #FBFCFE | new (app-style) | Near-white body of the Friday panel and sheet (D-32); muted text on it 5.3:1 |
+| `color.action.brandInk` (`--brand-ink`) | #0B2540 | new (brand-band, 2026-11-05) | Per-agency fill of the ink band, `ink` button and Friday user bubble; derived by `themeVars` (brand-band spec B2); default = ink |
+| `color.action.brandInkHover` (`--brand-ink-hover`) | #2D435B | new (brand-band, 2026-11-05) | Hover of `--brand-ink` (spec B3); white on it ≥ 4.5:1 |
 | `color.background.onInk` (`--on-ink`) | #FFFFFF | new (app-style) | Text on the ink title band (D-30); 15.5:1; white-surface children keep their greys |
 | `color.background.onInkMuted` (`--on-ink-muted`) | #B7C7DA | new (app-style) | Secondary text on ink; 9.0:1 |
 | `color.background.onInkLink` (`--on-ink-link`) | #7FC3F0 | new (app-style) | Links on ink; 8.1:1 |

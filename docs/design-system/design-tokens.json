@@ -48,6 +48,8 @@
       "danger": { "$value": "#DC2626", "$description": "Destructive fill inside a confirmation dialog only. White text 4.83:1.", "$extensions": { "rm": { "source": "brand" } } },
       "dangerHover": { "$value": "#B91C1C", "$extensions": { "rm": { "source": "existing" } } },
       "ink": { "$value": "#0B2540", "$description": "ink button fill, white label (D-28).", "$extensions": { "rm": { "source": "brand", "cssVar": "--ink" } } },
+      "brandInk": { "$value": "#0B2540", "$description": "per agency via themeVars; brand-band spec B2", "$extensions": { "rm": { "source": "new", "cssVar": "--brand-ink" } } },
+      "brandInkHover": { "$value": "#2D435B", "$description": "per agency via themeVars; brand-band spec B2", "$extensions": { "rm": { "source": "new", "cssVar": "--brand-ink-hover" } } },
       "inkHover": { "$value": "#2D435B", "$description": "ink button hover (ink 86% + white); white on it 10:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--ink-hover" } } },
       "successStrong": { "$value": "#15803D", "$description": "done button fill; white 5.0:1 (success #16A34A is 3.3:1).", "$extensions": { "rm": { "source": "new", "cssVar": "--success-strong" } } },
       "successStrongHover": { "$value": "#166534", "$description": "done hover; white 7.1:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--success-strong-hover" } } }

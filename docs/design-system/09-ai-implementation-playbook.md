@@ -162,7 +162,7 @@ Keep component names, exports and `data-slot` attributes so existing tests keep 
 
 **Amendment 2026-11-04 (D-28), `button.tsx`, two new variants:**
 
-- `ink` (before: none): `bg-ink font-semibold text-white hover:bg-ink-hover`
+- `ink` (before: none): `bg-brand-ink font-semibold text-white hover:bg-brand-ink-hover` (brand-band, 2026-11-05)
 - `done` (before: none): `bg-success-strong font-semibold text-white hover:bg-success-strong-hover`
 
 In the band a `default` button gets a 1px `--primary-band-ring`.
@@ -273,7 +273,7 @@ The track wraps (no `overflow-x-auto`).
 
 **Amendment 2026-11-04 (D-32)** (`components/ask/bubble-classes.ts`):
 
-- `userBubbleClass` (before `bg-muted-surface px-3 py-2`): `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]`
+- `userBubbleClass` (before `bg-muted-surface px-3 py-2`): `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-brand-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]` (brand-band, 2026-11-05)
 - `answerBubbleClass` (before: flat): `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`
 - `starterChipClass` (before: `↳` rows): `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink`
 
@@ -305,7 +305,7 @@ The track wraps (no `overflow-x-auto`).
 - `tabs` render after the band.
 - `countPrimaryActions` (`page-header-guard.ts`) counts `default` and `ink`.
 
-`.rm-ink-band` (`styles.css`) re-scopes `--muted-ink`, `--ink-secondary`, `--link`, `--focus`. White-surface children reset to their own greys: outline `button`, `status-chip`, `tag`, `pressure-badge`, `business-avatar` (and `help-tip` on hover).
+`.rm-ink-band` (`styles.css`; background `var(--brand-ink)`, brand-band spec B2, 2026-11-05) re-scopes `--muted-ink`, `--ink-secondary`, `--link`, `--focus`. White-surface children reset to their own greys: outline `button`, `status-chip`, `tag`, `pressure-badge`, `business-avatar` (and `help-tip` on hover).
 
 ### 5.3 KPI (`components/stat-card.tsx` → `kpi-strip.tsx`)
 

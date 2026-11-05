@@ -36,7 +36,7 @@
 ### PageHeader `.rm-pagehead` · existing: `PageHeader` (apps/web)
 - **Structure:** `.rm-breadcrumb` (13px muted, `›` separators (core spec §2.7; the storyboard shows `/`, which is superseded); omit at context root) → `h1` 24/32 600 (= menu label) → `.desc` 14px muted, ≤ 70ch → `.rm-meta` (12px muted: live dot "Updated 2 hours ago", period) → actions right (gap 8, ≤ 1 primary, segmented range allowed).
 - **Variants:** standard · **compact** (`.is-compact`: 18px title, used with tabs and toolbar on data pages; `.has-tabs` puts the tabs inline on the title row) · detail (40px business avatar + name + website + tier mark, `.rm-detail` main + aside layout, `.rm-props` aside rows).
-- **`tone` (D-30, 2026-11-04):** `default` or `ink`. `ink` wraps breadcrumb + title row (actions, guide, Friday trigger) in `<div data-slot="page-header-band" class="rm-ink-band flex flex-col gap-2 rounded-lg px-5 py-5 md:px-6">`; the header carries `data-tone`; the title gains `tracking-[-0.02em]`. **Tabs render after the band** (standard and compact). Only on client workspace pages, never settings, help or the pitch snapshot. A `default` primary in the band gets the `--primary-band-ring`; an `ink` primary does not. White-surface children keep their own greys (`outline` button, `status-chip`, `tag`, `pressure-badge`, `business-avatar`; `help-tip` on hover).
+- **`tone` (D-30, 2026-11-04; band fill = `bg-brand-ink` since 2026-11-05, brand-band spec B2):** `default` or `ink`. `ink` wraps breadcrumb + title row (actions, guide, Friday trigger) in `<div data-slot="page-header-band" class="rm-ink-band flex flex-col gap-2 rounded-lg px-5 py-5 md:px-6">`; the header carries `data-tone`; the title gains `tracking-[-0.02em]`. **Tabs render after the band** (standard and compact). Only on client workspace pages, never settings, help or the pitch snapshot. A `default` primary in the band gets the `--primary-band-ring`; an `ink` primary does not. White-surface children keep their own greys (`outline` button, `status-chip`, `tag`, `pressure-badge`, `business-avatar`; `help-tip` on hover).
 - **Don't:** put two primaries; repeat the title in a card below; add a coloured header band on any page except `tone="ink"`.
 
 ### Tabs `.rm-tabs` / `.rm-tab`
@@ -73,7 +73,7 @@
 | `danger` | `action.danger` / white 600 | `dangerHover` | Only the confirm button inside a destructive dialog |
 | `danger-outline` | white / `text.danger` / `border.control` | `secondaryHover` | Page-level trigger for destructive flows (danger zone) |
 | `link` | none / `text.link` | underline | Inline actions in text and alerts |
-| `ink` (D-28) | `bg-ink` / white 600 / none | `ink-hover` | Staff pages' primary action; second-tier next step (per card) on client pages |
+| `ink` (D-28; amended 2026-11-05, brand-band spec B2) | `bg-brand-ink` / white 600 / none | `brand-ink-hover` | Staff pages' primary action; second-tier next step (per card) on client pages |
 | `done` (D-28) | `bg-success-strong` / white 600 / none | `success-strong-hover` | "Done" / "Mark … done" only, with a leading `Check` glyph (AS13): green never carries meaning alone |
 - **Sizes:** sm 28 (12px, padding 10) · md 36 (13px, padding 12) · lg 44 (14px, padding 16; touch, onboarding CTAs). **Radius** 6. Icon 16px leading, gap 6; icon-only = square (`.icon`) with `aria-label` + tooltip.
 - **Loading:** spinner replaces the icon, label stays, width locked, `aria-busy="true"`, click ignored. **Disabled:** 45% opacity; prefer an explanation over disabling.
@@ -177,7 +177,7 @@
 | Part | Class | Spec |
 |---|---|---|
 | Docked panel | `.rm-friday-panel` | 400px, `rounded-lg border border-line bg-chrome` (no border-left), header strip `bg-surface px-4 py-3`: Friday label, scope chip, history, expand-to-page, close |
-| User message | `.rm-msg-user` | **Amended 2026-11-04 → D-32:** ink bubble, `userBubbleClass`: `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]`. (Was: right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20.) |
+| User message | `.rm-msg-user` | **Amended 2026-11-04 → D-32:** ink bubble, `userBubbleClass`: `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-brand-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]` (`bg-brand-ink` since 2026-11-05, brand-band spec B2). (Was: right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20.) |
 | Friday message | `.rm-msg-friday` | **Amended → D-32:** content, sources and save action sit in a hairline bubble, `answerBubbleClass`: `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`; the avatar + badge row stays outside; citations use the info tone. Otherwise flat; `.who` row = Friday label + "Answered from 6 sources · just now"; 14/22 (16/26 on the full page); lists, bold entity names; citation pills after each claim; tools row (copy, 👍, 👎) ghost icons |
 | Sources | `.rm-sources` | Rule above; rows: source icon · title · date right; "Show all 6 sources" |
 | Starter chips | `.rm-starter` | `StarterChips variant="chips"` (empty state; default `rows`): `starterChipClass` = `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink` |

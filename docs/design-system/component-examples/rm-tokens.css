@@ -48,6 +48,8 @@
   --color-action-dangerHover: #B91C1C;
   --color-action-ink: #0B2540; /* --ink */
   --color-action-inkHover: #2D435B; /* --ink-hover */
+  --color-action-brandInk: #0B2540; /* --brand-ink: per agency via themeVars; brand-band spec B2 */
+  --color-action-brandInkHover: #2D435B; /* --brand-ink-hover: per agency via themeVars; brand-band spec B2 */
   --color-action-successStrong: #15803D; /* --success-strong */
   --color-action-successStrongHover: #166534; /* --success-strong-hover */
   /* colour.state */
