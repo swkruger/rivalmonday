@@ -117,3 +117,14 @@ phase-11: sign-in page branding by host, `/start` copy, `OutgoingEmail.cc`, prof
 
 ## Out of scope
 Per-domain MCP issuers; apex domains; per-client domains; free-text style prompts; generic runbook.
+
+## Addendum 2026-11-05 — comprehensive branding (owner: "add instructions in 13a")
+Context: brand-band (`2026-11-05-brand-band-design.md`) derives `--brand-ink` (client title band, `ink` buttons, Friday user bubble) from the agency's secondary/primary with a legibility floor; no setting. 13a turns branding into a full white-label surface. Refresh the 13a plan with these as its own tasks (13a2, after voice):
+1. **Header colour override.** Optional `headerColor` (validated `#rrggbb`, nullable) in the branding JSON; Branding editor field "Header colour" with "Automatic" default. A chosen colour is accepted only if it passes the brand-band floor (white ≥ 7:1, #B7C7DA and #7FC3F0 ≥ 4.5:1); otherwise show the nearest passing shade (same `mixHex` toward black) and let the agency accept it. `themeVars` uses the override, else `brandInk()`.
+2. **Live preview.** Branding editor preview shows the band with breadcrumb + title, an `ink` and a primary button, a Friday user bubble and a segmented tab, in the agency's colours, before saving.
+3. **Logo on dark.** Optional second logo for dark surfaces (band, emails' header); fallback = the agency name in white, never the light logo on the band.
+4. **Close the brand gaps already in BACKLOG:** `--secondary-foreground` from `readableTextOn` (no literal); brand-aware chart check (`--you` = agency secondary vs rival orange #E05A2B, pick a fallback series colour); checked Switch contrast on light secondaries; neutral chart alias for platform costs; onboarding Timeline preview `fill-ink` on agency primary.
+5. **Emails and PDFs follow the same tokens:** brief/alert email header band and PDF cover use the same header colour + dark logo (`@cs/email` branding gains `headerColor`).
+6. **Sign-in / auth card** on agency hosts uses the header colour for its top strip (`authBranding()`).
+7. **Tests:** property test of the override path (any input → floor holds); leak check unchanged; screenshots of the client view in three agency themes (default, teal, yellow) at 1440/390.
+Copy for the new editor fields goes through `pnpm copy:review`.
