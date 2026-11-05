@@ -79,7 +79,7 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
   ceiling: {
     id: 'ceiling',
     eyebrow: '',
-    heading: "You've already won the client. Why is the retainer the only thing you sell them?",
+    heading: "Your clients trust you. So why do you sell them only one thing?",
     body: "You've done the hard part: you've won the clients and earned their trust. Here's what to build on it.",
   },
   opportunity: {
