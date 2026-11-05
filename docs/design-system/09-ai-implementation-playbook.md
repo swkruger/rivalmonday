@@ -34,6 +34,9 @@
 | Focus = 2px solid `#2A6BAC` outline + 2px offset everywhere | D-17 |
 | Orange only for Friday, priority markers, star ratings | D-17 |
 | Charts: you `--chart-you`, ≤ 2 highlighted rivals, others `--chart-context`, legend + table view | D-13 |
+| **Amended 2026-11-04:** canvas variants are opt-in; staff primary = `ink`, client primary = `default`; `done` needs "Done" + `Check` | D-27, D-28 |
+| `shadow-raised` / `Card variant="raised"` on the recommendations board only; `PageHeader tone="ink"` on client workspace pages only | D-29, D-30 |
+| Segmented tabs for one page-level switch of ≤ 4 views; Friday bubbles + `bg-chrome` panel; orange also for `NumberMarker`; `strong` chips 6px/600 | D-31…D-34 |
 | Breadcrumb separators stay `›` (core spec §2.7) | D-07 |
 
 ## 2. Current state (what you will find)
@@ -157,6 +160,13 @@ Keep component names, exports and `data-slot` attributes so existing tests keep 
 
 *Note:* `sm` shrinks from 32px to 28px (51 call sites). Check toolbars and table rows visually; that is the intended density (D-09).
 
+**Amendment 2026-11-04 (D-28), `button.tsx`, two new variants:**
+
+- `ink` (before: none): `bg-ink font-semibold text-white hover:bg-ink-hover`
+- `done` (before: none): `bg-success-strong font-semibold text-white hover:bg-success-strong-hover`
+
+In `.rm-ink-band` a `default` button gets a 1px `--primary-band-ring` shadow.
+
 ### 4.2 Status family (`badge.tsx`, `status-chip.tsx`, new files)
 
 - **`StatusChip` → becomes the attention badge.** Change the base to `inline-flex h-5 items-center gap-1 rounded-xs px-1.5 text-xs font-medium whitespace-nowrap`. Add a **required** `icon` prop (lucide component, rendered `size-3 aria-hidden`). Map tone `warning` to `bg-warning-surface text-warning-text shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]`.
@@ -165,6 +175,12 @@ Keep component names, exports and `data-slot` attributes so existing tests keep 
 - *new* `tag.tsx`: `inline-flex h-5 items-center rounded-xs bg-muted-surface px-1.5 text-xs text-ink-secondary`.
 - *new* `tier-mark.tsx`: `TierMark({ tier: 'top'|'watch'|'minor' })`. A 10px `rounded-[2px]` square (filled `bg-secondary` / half via `bg-[linear-gradient(90deg,var(--secondary)_50%,var(--line-control)_50%)]` / `bg-line-control`) + 12px/600 label (minor: 500 + `text-muted-ink`). Labels from `@cs/core` tier names.
 - **`Badge`** (shadcn) stays for back-compat but is **not used in new code**. Migrate its 23 uses: `outline` → `Tag` (category) or `DotStatus` (state); `secondary` → `StatusChip` (attention) or `Tag`. Decide per call site with § 6.1 C.
+
+**Amendment 2026-11-04 (D-34), chips:**
+
+- `Tag tone` (default `neutral` = unchanged classes; before: none): non-neutral = `inline-flex h-5 items-center rounded-xs px-1.5 text-xs` + `chipToneClass[tone]` (exported from `status-chip.tsx`, was `toneClass`); `data-tone` set.
+- `emphasis="strong"` (`Tag`, `StatusChip`): `rounded-sm px-2 font-semibold`.
+- `CitationPill tone="info"`: `rounded-sm bg-chip-info-bg font-semibold text-chip-info-text hover:underline`.
 
 ### 4.3 Tabs (`tabs-classes.ts`, `tabs.tsx`, `tabs-link.tsx`, new `segmented.tsx`)
 
@@ -178,6 +194,14 @@ export const tabsLinkActiveClass = /* same with aria-[current=page]: prefixes */
 *new* `segmented.tsx` (`role="radiogroup"`, radix ToggleGroup single): track `inline-flex gap-0.5 rounded-sm bg-muted-surface p-0.5`; item `h-6 rounded-xs border border-transparent px-2.5 text-xs font-medium text-ink-secondary`; on `data-[state=on]:border-line data-[state=on]:bg-surface data-[state=on]:font-semibold data-[state=on]:text-ink`. Every current use of `Tabs` that switches a range or view of the *same* data (rather than navigating between sections) moves to `Segmented`. Search `<TabsList` / `<Tabs ` and judge each.
 
 Counts in a tab: `<span class="inline-grid h-[18px] min-w-[18px] place-items-center rounded-xs bg-muted-surface px-1 text-[11px] font-semibold tabular-nums text-ink-secondary">`.
+
+**Amendment 2026-11-04 (D-31), segmented tabs.** `TabsList variant?: 'underline' | 'segmented'` (default `underline`; reaches `TabsTrigger` by context); `TabsLinkList`/`TabsLink` take `variant` explicitly (server-safe). Items carry `data-variant`.
+```ts
+tabsSegmentedListClass = "inline-flex h-9 max-w-full flex-wrap items-stretch gap-0.5 rounded-md border border-line bg-surface p-0.5"
+tabsSegmentedItemClass = "inline-flex items-center rounded-sm px-3 text-13 font-medium whitespace-nowrap text-muted-ink transition-colors outline-none hover:bg-muted-surface hover:text-ink " + /* focus + svg as underline */
+  "data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground data-[state=active]:hover:bg-primary-hover …" /* + aria-[current=page]: and aria-selected: */
+```
+The track wraps (no `overflow-x-auto`).
 
 ### 4.4 Form controls
 
@@ -207,6 +231,11 @@ Counts in a tab: `<span class="inline-grid h-[18px] min-w-[18px] place-items-cen
 // frame = Card (restyled, below)
 ```
 `card.tsx` becomes the **frame**: `Card` → `flex flex-col rounded-md border border-line bg-card text-card-foreground` (no `shadow-card`, no `gap-6 py-6`). `CardHeader` → `flex items-center gap-2 border-b border-line px-4 py-3` (title `text-sm font-semibold`). `CardContent` → `p-4`. `CardFooter` → `flex items-center gap-3 border-t border-line bg-canvas px-4 py-3 text-[13px] text-muted-ink`. Add `variant="interactive"` → `transition-colors hover:border-line-control hover:bg-canvas` + `focus-within:outline-2 …`, and `selected` → `border-2 border-secondary bg-primary-soft`. **Spacing changes for every `<Card>`.** That is intended. Check each page in § 9 PR 4.
+
+**Amendment 2026-11-04 (D-29, D-33):**
+
+- `Card variant`: `'default' | 'interactive'` gains `'raised'` = `border-transparent shadow-raised` (board lanes only); `lib/cn.ts` shadow keys gain `'raised'`.
+- `NumberMarker` (new; before: primary-soft step circles): `inline-flex shrink-0 items-center justify-center rounded-full bg-amber font-semibold tabular-nums text-amber-text`; `md` `size-7 text-13`, `sm` `size-6 text-xs`; `aria-hidden`; one `ALLOW_AMBER` entry. |
 
 ### 4.6 Overlays
 
@@ -242,6 +271,14 @@ Counts in a tab: `<span class="inline-grid h-[18px] min-w-[18px] place-items-cen
 - *new* `citation-pill.tsx`: an `<a>`/`<button>` → `inline-flex h-5 items-center gap-1 rounded-xs bg-muted-surface px-1.5 align-[1px] text-xs font-medium text-ink-secondary hover:bg-line`, icon `size-[11px]`, accessible name "Evidence: {source}, {date}". It **must** open the existing evidence view; reuse `components/evidence-chips.tsx` logic if it already maps evidence ids → URLs.
 - *new* `sources-list.tsx`: rule above, rows `icon · title · date (ml-auto text-muted-ink)`, 12px.
 
+**Amendment 2026-11-04 (D-32)** (`components/ask/bubble-classes.ts`):
+
+- `userBubbleClass` (before `bg-muted-surface px-3 py-2`): `max-w-[85%] self-end whitespace-pre-line rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white [overflow-wrap:anywhere]`
+- `answerBubbleClass` (before: flat): `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`
+- `starterChipClass` (before: `↳` rows): `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink`
+
+`StarterChips variant?: 'rows' | 'chips'`.
+
 ## 5. App recipes (`apps/web/src`)
 
 ### 5.1 Shell (§ 9 PR 5)
@@ -263,6 +300,14 @@ Counts in a tab: `<span class="inline-grid h-[18px] min-w-[18px] place-items-cen
 - `step` eyebrow: `text-xs font-medium text-muted-ink` (no `font-semibold` caps).
 - Keep the `›` breadcrumb (core spec §2.7). The breadcrumb list becomes `text-[13px]`.
 - Guard rail: add a dev-only check (or a test helper) that counts `[data-variant="default"]` buttons inside `actions` and warns if > 1.
+
+**Amendment 2026-11-04 (D-30), `tone`:** `PageHeader` gains `tone?: 'default' | 'ink'` (`data-tone` on the header).
+
+- `ink` wraps breadcrumb + title row in `<div data-slot="page-header-band" className="rm-ink-band flex flex-col gap-2 rounded-lg px-5 py-5 md:px-6">`; `h1` tracking `-0.02em` there only.
+- `tabs` render after the band.
+- `countPrimaryActions` (`page-header-guard.ts`) counts `default` and `ink`.
+
+`.rm-ink-band` (`styles.css`) re-scopes `--muted-ink`, `--ink-secondary`, `--link`, `--focus`.
 
 ### 5.3 KPI (`components/stat-card.tsx` → `kpi-strip.tsx`)
 
@@ -292,6 +337,8 @@ Cell `px-5 py-4 [&+&]:border-l border-line`; label `text-[13px] text-muted-ink`;
 - Ask page: thread column `max-w-[680px]`; user message `self-end max-w-[85%] rounded-lg bg-muted-surface px-3 py-2 text-sm`; assistant message flat, `text-base leading-[26px]` on the full page (`text-sm leading-[22px]` in the docked panel) with a `FridayBadge size="label"` header row; claims render `CitationPill`; `SourcesList` under each answer; suggestions as `↳` rows (`border-t border-line py-2.5 text-[13px] text-ink-secondary`); composer `rounded-md border border-input p-3` with a scope chip and a `size-7 rounded-sm bg-primary` send button.
 - Docked panel (D-14) is new UI. Build it after the Overview slice, as `components/ask/friday-panel.tsx`: a third grid column at ≥ 1280, a `Sheet side="right"` below that.
 - Brief reading view: `mx-auto max-w-[680px]`, title `text-[30px] font-semibold leading-9 tracking-[-0.02em]`, sections `border-t border-line py-6 first:border-0`, H2 `text-lg font-semibold`, body `text-base leading-[26px]`, "Why it matters" = Band `bg-muted-surface rounded-md px-4 py-3 text-sm leading-[22px]`.
+
+**Amendment 2026-11-04 (D-32), Ask page and panel:** user turns `userBubbleClass`; answers in `answerBubbleClass` (avatar + badge row outside; info-tone citations); empty state `StarterChips variant="chips"`; composer `rounded-lg`. Panel: `rounded-lg border border-line bg-chrome` (drops `border-l pl-6`); sheet body and composer wrapper `bg-chrome`.
 
 ## 6. Migration rules
 

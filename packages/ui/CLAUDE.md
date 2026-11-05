@@ -17,6 +17,7 @@ New or changed UI follows it now; existing screens migrate via docs/design-syste
 - Lint: `bash scripts/design-lint.sh` is strict by default (exit 1 if total > 0; must stay 0); `--report` prints counts and exits 0. Allowlist = `ALLOW_<LABEL>` arrays at the top of the script; each entry needs a `# reason` line. Not in CI/turbo (owner's call, D17).
 - `StatusChip`: non-neutral tones always show a glyph (`icon={null}` is a type error); only `neutral` may suppress it.
 - Focus: `focus-visible:outline-2 outline-offset-2 outline-ring` (#2A6BAC). Weights 400/500/600 (800 wordmark only). Primary-button label ink.
+- **app-style (2026-11-04, D-27…D-34):** canvas looks are opt-in variants; never change a default class string. `Button` `ink` (staff primary; client pages keep `default`) and `done` (needs "Done" + `Check`); `Card variant="raised"` + `shadow-raised` = recommendations board only (`'raised'` is registered in `cn`); `emphasis="strong"` chips (6px/600) and `Tag tone`; `NumberMarker` is the only amber outside Friday and the priority bar; `.rm-ink-band` re-scopes text tokens and `--focus`, so use it only via `PageHeader tone="ink"`; segmented tabs = `variant="segmented"`, wraps, never `overflow-x-auto`.
 
 ## Phase 16 gotchas
 - `cn()` uses `extendTailwindMerge` so custom `text-13`/`text-11` and `shadow-overlay`/`shadow-dialog`/`shadow-card` aren't misread as colours; any new custom theme key used through `cn` needs adding there (`lib/cn.ts`) or it gets silently dropped.

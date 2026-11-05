@@ -36,7 +36,8 @@
 ### PageHeader `.rm-pagehead` · existing: `PageHeader` (apps/web)
 - **Structure:** `.rm-breadcrumb` (13px muted, `›` separators (core spec §2.7; the storyboard shows `/`, which is superseded); omit at context root) → `h1` 24/32 600 (= menu label) → `.desc` 14px muted, ≤ 70ch → `.rm-meta` (12px muted: live dot "Updated 2 hours ago", period) → actions right (gap 8, ≤ 1 primary, segmented range allowed).
 - **Variants:** standard · **compact** (`.is-compact`: 18px title, used with tabs and toolbar on data pages; `.has-tabs` puts the tabs inline on the title row) · detail (40px business avatar + name + website + tier mark, `.rm-detail` main + aside layout, `.rm-props` aside rows).
-- **Don't:** put two primaries; repeat the title in a card below; add a coloured header band.
+- **`tone` (D-30, 2026-11-04):** `default` or `ink`. `ink` wraps breadcrumb + title row (actions, guide, Friday trigger) in `<div data-slot="page-header-band" class="rm-ink-band flex flex-col gap-2 rounded-lg px-5 py-5 md:px-6">`; the header carries `data-tone`; the title gains `tracking-[-0.02em]`. **Tabs render after the band** (standard and compact). Only on client workspace pages, never settings, help or the pitch snapshot. A `default` primary in the band gets the `--primary-band-ring`; an `ink` primary does not.
+- **Don't:** put two primaries; repeat the title in a card below; add a coloured header band on any page except `tone="ink"`.
 
 ### Tabs `.rm-tabs` / `.rm-tab`
 - 40px tall, 13px/500 muted; gap 24; bottom rule `border.default`. **Hover** ink. **Active** ink 600 + 2px ink underline, `role=tab aria-selected`. Count `.count` = neutral 18px rect.
@@ -46,6 +47,7 @@
 ### Segmented control `.rm-seg`
 - Track `background.muted`, 2px padding, `radius.sm`; options 24px, 12px/500, `radius.xs`; **active** = white + `border.default` + 600. 2–4 options. `role=radiogroup` (or tablist when it swaps panels).
 - **Use:** range (This week / 4 weeks / 12 weeks), view (Table / Map), metric toggles on a chart.
+- **Segmented tabs (D-31, 2026-11-04):** `TabsList` / `TabsLinkList` `variant="segmented"` (`TabsLink` takes `variant` too). Track `inline-flex h-9 max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-surface p-0.5`; items `rounded-sm px-3 text-13 font-medium text-muted-ink`, hover `bg-muted-surface`; **active** = `bg-primary text-primary-foreground font-semibold` (hover `bg-primary-hover`) via `data-[state=active]` / `aria-[current=page]` / `aria-selected`. Items carry `data-variant="segmented"` (underline items `data-variant="underline"`). Use for **one page-level switch of ≤ 4 views** (Briefs, Rankings, Leads); the track wraps, never scrolls. Range switches stay `Segmented`; underline stays the default.
 
 ### Toolbar `.rm-toolbar`
 - One row, gap 8, margin-bottom 12. Left: view or segment, search (28px, `border.strong`), filter chips, "Clear". Right: sort, columns, export (ghost or secondary sm). Wraps on narrow widths; the primary page action lives in the PageHeader, not here.
@@ -58,6 +60,7 @@
 | **Band** | `.rm-band` / `.rm-panel-muted` | `surfaceSubtle` or `muted` fill, `radius.md`, padding 16 × 20, no border | Summary (Friday weekly summary), "Where you stand", "Why it matters", tips, nested reply | Holding tables or forms |
 | **Frame** | `.rm-frame` (`-head`, `-body`, `-foot`) | 1px `border.default`, `radius.md`, white, no shadow; head and foot divided by rules; foot on `surfaceSubtle` | Tables inside mixed pages, grouped settings rows, KPI strip, live preview, tabbed panel, danger zone row group | Nesting a frame in a frame; framing a single paragraph |
 | **Card** | `.rm-card` (`.is-link`) | Frame + padding 16 + hover (`border.control`, `surfaceSubtle`) | Independent objects: suggested competitors to pick, integration catalogue, saved views, selectable plan options | Single rows of a list; KPI tiles; chart wrappers; nested cards |
+| **Raised card + lane** (D-29) | `Card variant="raised"`; lane = `<section data-lane class="rounded-lg p-3.5">` | Card: `border-transparent shadow-raised`, resting shadow, no hover lift, no primary ring. Lanes: `bg-muted-surface` / `bg-chip-info-bg` / `bg-chip-success-bg` with an `aria-hidden` dot in the heading | **Recommendations board only** (cards in To do / In progress / Done lanes) | Any other page; a raised card inside a frame or band; a raised card as a link |
 
 ## Actions
 
@@ -70,6 +73,8 @@
 | `danger` | `action.danger` / white 600 | `dangerHover` | Only the confirm button inside a destructive dialog |
 | `danger-outline` | white / `text.danger` / `border.control` | `secondaryHover` | Page-level trigger for destructive flows (danger zone) |
 | `link` | none / `text.link` | underline | Inline actions in text and alerts |
+| `ink` (D-28) | `bg-ink` / white 600 / none | `ink-hover` | Staff pages' primary action; second-tier next step (per card) on client pages |
+| `done` (D-28) | `bg-success-strong` / white 600 / none | `success-strong-hover` | "Done" / "Mark … done" only, with a leading `Check` glyph (AS13): green never carries meaning alone |
 - **Sizes:** sm 28 (12px, padding 10) · md 36 (13px, padding 12) · lg 44 (14px, padding 16; touch, onboarding CTAs). **Radius** 6. Icon 16px leading, gap 6; icon-only = square (`.icon`) with `aria-label` + tooltip.
 - **Loading:** spinner replaces the icon, label stays, width locked, `aria-busy="true"`, click ignored. **Disabled:** 45% opacity; prefer an explanation over disabling.
 - **Split button `.rm-btngroup`:** primary + chevron segment (1px divider). Rare; for "Run now ▾" style actions only.
@@ -87,13 +92,15 @@
 | **Dot status** | `.rm-dot.{success,warning,danger,info,off}` | 8px dot + 13px text (`text.secondary`) | Lifecycle in tables and lists: Active, Paused, Scanning, Error | Text is the meaning; the dot is redundant colour | A dot without text |
 | **Badge** | `.rm-badge.{success,warning,danger,info}` | 20px, `radius.xs`, 12px/500, tinted surface + text token, **12px glyph** (✓ ⚠ ✕ ⓘ ⏱) | Attention states: Needs attention, Failed, New, Verified | Non-interactive (`span`); glyph `aria-hidden`, text carries meaning | Pill shape; more than one badge per row; badge as a button |
 | **Filter chip** | `.rm-chip` (`.is-add`, `.is-applied`, `.is-selected`) | 28px **pill**, 1px `border.control`, 12px/500; add = dashed + ⊕; applied = `background.selected` + `primarySoftText`, "Field: **value** ▾" + ✕ | Filters in toolbars; quick choices in onboarding | `button` with `aria-pressed` or a menu trigger; ✕ has `aria-label="Remove filter Tier"` | Rect chips (they would look like badges) |
-| **Tag** | `.rm-tag` | 20px, `radius.xs`, `muted` fill, `text.secondary` 12px | Categories: Website, Ads, Reviews, service names | Static | Custom colours per tag (v1) |
+| **Tag** | `.rm-tag` | 20px, `radius.xs`, `muted` fill, `text.secondary` 12px. **`tone`** (D-34): `neutral` (default) or a chip tone (`info` / `success` / `warning` / `danger`, `chipToneClass`), `data-tone` set. **`emphasis="strong"`**: `rounded-sm px-2 font-semibold` (6px / 600) | Categories: Website, Ads, Reviews, service names. Toned + strong: board chips whose text states the value ("Impact: High") | Static | Custom colours per tag (v1); a tone without the value in the text |
+| **Strong status chip** | `StatusChip emphasis="strong"` | Same `rounded-sm px-2 font-semibold` | Attention state that must stand out on a lane card | Keeps its glyph | Dropping the glyph |
+| **Number marker** (D-33) | `NumberMarker n size` | `inline-flex rounded-full bg-amber text-amber-text font-semibold tabular-nums`; `md` `size-7 text-13`, `sm` `size-6 text-xs`; `aria-hidden` | Numbered steps in an `<ol>` (onboarding done screens) | The list carries the order | Any other amber; use outside an ordered list |
 | **Tier mark** | `.rm-tier.{top,watch,minor}` | 10px square (filled secondary / half / outline) + 12px/600 label | Competitor tier: Top rival / Worth watching / Minor | Shape differs, not only colour | Red or amber for "Top rival" (it's not an error) |
 | **Count** | `.rm-count` / `.rm-tab .count` | 18px neutral rect, 11px/600 tabular | Tab and nav counts | `aria-label="3 unread"` where needed | Red count outside the bell |
 | **Notification bubble** | `.rm-badge-count` | 16px red full pill, 10px/700 | Bell only | Mirrored in the bell's `aria-label` | Anywhere else |
 | **Delta** | `.rm-delta.{up,down}` | 20px, `radius.xs`, arrow + signed value, tinted | KPI change | "Up 0.1 from last week" in `aria-label`; direction is good/bad per metric (a lower map rank is good) | Colour without arrow or sign |
 | **Unread dot** | `.rm-unread` | 8px secondary dot | Feed and alerts | Visually hidden "Unread" text | Using red |
-| **Citation pill** | `.rm-cite` | 20px, `radius.xs`, `muted`, 12px/500, 11px source icon, "Ads · Oct 22" | Every evidence-backed claim (Friday, briefs, feeds) | `a`/`button` → evidence drawer; `aria-label="Evidence: Google Ads capture, 22 October"` | Shrinking below 12px (F06 anti-pattern); hiding sources behind hover only |
+| **Citation pill** | `.rm-cite` | 20px, `radius.xs`, `muted`, 12px/500, 11px source icon, "Ads · Oct 22" | Every evidence-backed claim (Friday, briefs, feeds) | `a`/`button` → evidence drawer; `aria-label="Evidence: Google Ads capture, 22 October"` | Shrinking below 12px (F06 anti-pattern); hiding sources behind hover only. `tone="info"` (D-34): `rounded-sm bg-chip-info-bg font-semibold text-chip-info-text hover:underline` (`citationPillInfoClass`), on lane cards and Friday answers |
 
 ## Data display
 
@@ -170,9 +177,11 @@
 | Part | Class | Spec |
 |---|---|---|
 | Docked panel | `.rm-friday-panel` | 400px, border-left, white; header 52px: Friday label, scope chip, history, expand-to-page, close |
-| User message | `.rm-msg-user` | Right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20 |
-| Friday message | `.rm-msg-friday` | Flat; `.who` row = Friday label + "Answered from 6 sources · just now"; 14/22 (16/26 on the full page); lists, bold entity names; citation pills after each claim; tools row (copy, 👍, 👎) ghost icons |
+| User message | `.rm-msg-user` | **Amended 2026-11-04 → D-32:** ink bubble, `userBubbleClass`: `max-w-[85%] self-end rounded-lg rounded-br-xs bg-ink px-3.5 py-2.5 text-sm text-white`. (Was: right-aligned, max 85%, `muted` fill, `radius.lg`, 14/20.) |
+| Friday message | `.rm-msg-friday` | **Amended → D-32:** content, sources and save action sit in a hairline bubble, `answerBubbleClass`: `flex flex-col gap-3 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5`; the avatar + badge row stays outside; citations use the info tone. Otherwise flat; `.who` row = Friday label + "Answered from 6 sources · just now"; 14/22 (16/26 on the full page); lists, bold entity names; citation pills after each claim; tools row (copy, 👍, 👎) ghost icons |
 | Sources | `.rm-sources` | Rule above; rows: source icon · title · date right; "Show all 6 sources" |
+| Starter chips | `.rm-starter` | `StarterChips variant="chips"` (empty state; default `rows`): `starterChipClass` = `inline-flex min-h-9 items-center rounded-md border border-line-control bg-surface px-3 py-1.5 text-left text-13 text-ink-secondary hover:bg-canvas hover:text-ink` |
+| Chrome panel | `.rm-friday-panel` | **Amended → D-32:** wide column = `rounded-lg border border-line bg-chrome` (no `border-l pl-6`), `bg-surface` header strip; sheet body and composer wrapper `bg-chrome`; composer box `rounded-lg`, border stays `border-input`, send `size="icon"` (36px) |
 | Suggestions | `.rm-suggest` | ↳ rows with hairlines, 13px `text.secondary`; 4–6 on empty state, 2–3 after an answer |
 | Composer | `.rm-composer` | `border.strong`, `radius.md`; placeholder "Ask about your competitors…"; bar: scope chip (`muted` rect) · attach (later) · send (28px primary square, `radius.sm`, `aria-label="Send"`) |
 | Disclaimer | `.rm-disclaimer` | 11px muted centred: "Friday answers only from captured evidence. Check sources before acting." |

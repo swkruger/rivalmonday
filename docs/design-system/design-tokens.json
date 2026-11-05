@@ -12,7 +12,12 @@
       "interactive": { "$value": "#EEF2F6", "$description": "Hover fill for rows, nav items, menu items, ghost buttons.", "$extensions": { "rm": { "source": "existing" } } },
       "selected": { "$value": "#E3F2FC", "$description": "Selected nav item, selected row, applied filter chip.", "$extensions": { "rm": { "source": "brand", "brandToken": "primary-soft" } } },
       "inverse": { "$value": "#0B2540", "$description": "Toast, bulk-action bar, tooltip.", "$extensions": { "rm": { "source": "brand", "brandToken": "ink" } } },
-      "scrim": { "$value": "#0B254052", "$description": "Dialog/sheet backdrop: ink at 32%.", "$extensions": { "rm": { "source": "new" } } }
+      "scrim": { "$value": "#0B254052", "$description": "Dialog/sheet backdrop: ink at 32%.", "$extensions": { "rm": { "source": "new" } } },
+      "chrome": { "$value": "#FBFCFE", "$description": "Near-white body of the Friday panel (D-32); muted text on it 5.3:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--chrome" } } },
+      "onInk": { "$value": "#FFFFFF", "$description": "Text on the ink title band (D-30); 15.5:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--on-ink" } } },
+      "onInkMuted": { "$value": "#B7C7DA", "$description": "Secondary text on ink; 9.0:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--on-ink-muted" } } },
+      "onInkLink": { "$value": "#7FC3F0", "$description": "Links on ink; 8.1:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--on-ink-link" } } },
+      "primaryBandRing": { "$value": "#47A8E7", "$description": "1px ring on a default button inside the ink band; per agency (themeVars: the primary when >= 3:1 on ink, else #B7C7DA).", "$extensions": { "rm": { "source": "new", "cssVar": "--primary-band-ring", "whiteLabel": true } } }
     },
     "text": {
       "primary": { "$value": "#0B2540", "$description": "Body, headings, KPI values. 15.5:1 on surface.", "$extensions": { "rm": { "source": "brand", "brandToken": "ink" } } },
@@ -41,7 +46,11 @@
       "secondaryHover": { "$value": "#F6F9FC", "$extensions": { "rm": { "source": "new" } } },
       "ghostHover": { "$value": "#EEF2F6", "$extensions": { "rm": { "source": "new" } } },
       "danger": { "$value": "#DC2626", "$description": "Destructive fill inside a confirmation dialog only. White text 4.83:1.", "$extensions": { "rm": { "source": "brand" } } },
-      "dangerHover": { "$value": "#B91C1C", "$extensions": { "rm": { "source": "existing" } } }
+      "dangerHover": { "$value": "#B91C1C", "$extensions": { "rm": { "source": "existing" } } },
+      "ink": { "$value": "#0B2540", "$description": "ink button fill, white label (D-28).", "$extensions": { "rm": { "source": "brand", "cssVar": "--ink" } } },
+      "inkHover": { "$value": "#2D435B", "$description": "ink button hover (ink 86% + white); white on it 10:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--ink-hover" } } },
+      "successStrong": { "$value": "#15803D", "$description": "done button fill; white 5.0:1 (success #16A34A is 3.3:1).", "$extensions": { "rm": { "source": "new", "cssVar": "--success-strong" } } },
+      "successStrongHover": { "$value": "#166534", "$description": "done hover; white 7.1:1.", "$extensions": { "rm": { "source": "new", "cssVar": "--success-strong-hover" } } }
     },
     "state": {
       "success": { "$value": "#16A34A", "$description": "Icons, dots, chart deltas (graphics only; 3.3:1). Text uses text.success.", "$extensions": { "rm": { "source": "brand" } } },
@@ -215,7 +224,8 @@
     "$type": "shadow",
     "none": { "$value": "none", "$description": "Every static surface: sheet, sections, frames, cards, tables." },
     "overlay": { "$value": [ { "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px", "color": "#0B25400F" }, { "offsetX": "0px", "offsetY": "6px", "blur": "20px", "spread": "0px", "color": "#0B25401F" } ], "$description": "Popover, menu, select list, tooltip, toast, bulk-action bar, command palette." },
-    "dialog": { "$value": [ { "offsetX": "0px", "offsetY": "2px", "blur": "6px", "spread": "0px", "color": "#0B254014" }, { "offsetX": "0px", "offsetY": "16px", "blur": "40px", "spread": "0px", "color": "#0B25402E" } ], "$description": "Dialog and mobile bottom sheet (always with scrim)." }
+    "dialog": { "$value": [ { "offsetX": "0px", "offsetY": "2px", "blur": "6px", "spread": "0px", "color": "#0B254014" }, { "offsetX": "0px", "offsetY": "16px", "blur": "40px", "spread": "0px", "color": "#0B25402E" } ], "$description": "Dialog and mobile bottom sheet (always with scrim)." },
+    "raised": { "$value": [ { "offsetX": "0px", "offsetY": "1px", "blur": "2px", "spread": "0px", "color": "#0B25400F" }, { "offsetX": "0px", "offsetY": "6px", "blur": "20px", "spread": "0px", "color": "#0B25400F" } ], "$description": "Recommendations-board cards only (D-29); --shadow-raised-value.", "$extensions": { "rm": { "cssVar": "--shadow-raised-value" } } }
   },
   "elevation": {
     "$type": "number",
