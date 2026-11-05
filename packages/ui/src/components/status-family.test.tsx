@@ -134,3 +134,31 @@ describe('FridayBadge', () => {
     expect(screen.getByText('Friday').getAttribute('data-size')).toBe('default');
   });
 });
+
+describe('app-style chips (§ 3.4)', () => {
+  it('Tag tone sets data-tone and the chip pair; default class is the old literal', () => {
+    const { container, rerender } = render(<Tag tone="danger">X</Tag>);
+    const el = () => container.firstElementChild as HTMLElement;
+    expect(el().getAttribute('data-tone')).toBe('danger');
+    expect(el().className).toContain('bg-chip-danger-bg');
+    rerender(<Tag>X</Tag>);
+    expect(el().className).toBe('inline-flex h-5 items-center rounded-xs bg-muted-surface px-1.5 text-xs text-ink-secondary');
+    rerender(<Tag emphasis="strong">X</Tag>);
+    expect(el().className).toContain('rounded-sm');
+    expect(el().className).toContain('font-semibold');
+    expect(el().className).not.toContain('rounded-xs');
+  });
+  it('StatusChip strong warning keeps its glyph', () => {
+    const { container } = render(<StatusChip tone="warning" emphasis="strong">Slow</StatusChip>);
+    expect(container.querySelector('svg')).not.toBeNull();
+    expect((container.firstElementChild as HTMLElement).className).toContain('font-semibold');
+  });
+  it('CitationPill info tone', () => {
+    const { container, rerender } = render(<CitationPill href="/e/1" n={1} tone="info" />);
+    const a = () => container.querySelector('a') as HTMLElement;
+    expect(a().className).toContain('bg-chip-info-bg');
+    rerender(<CitationPill href="/e/1" n={1} />);
+    expect(a().className).toContain('bg-muted-surface');
+    expect(a().getAttribute('aria-label')).toBe('Evidence 1');
+  });
+});

@@ -6,7 +6,10 @@ import { cn } from "../lib/cn"
 export const citationPillClass =
   "inline-flex h-5 max-w-full items-center gap-1 rounded-xs bg-muted-surface px-1.5 align-[1px] text-xs font-medium text-ink-secondary hover:bg-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 
-type CitationPillProps = { href?: string; asChild?: boolean; children?: React.ReactElement; icon?: LucideIcon; className?: string } & (
+/** Info tone (app-style § 3.4): blue chip, 6 px radius, hover underline. */
+export const citationPillInfoClass = "rounded-sm bg-chip-info-bg font-semibold text-chip-info-text hover:underline"
+
+type CitationPillProps = { tone?: "neutral" | "info"; href?: string; asChild?: boolean; children?: React.ReactElement; icon?: LucideIcon; className?: string } & (
   | { source: string; date?: string; n?: number }
   | { source?: undefined; date?: undefined; n: number }
 )
@@ -14,9 +17,9 @@ type CitationPillProps = { href?: string; asChild?: boolean; children?: React.Re
 /**
  * Inline evidence citation. Shows the source (or "Evidence n" without one). Name: "Evidence[ n][: {source}][, {date}]".
  */
-function CitationPill({ href, asChild, children, source, date, n, icon: Icon = FileText, className }: CitationPillProps) {
+function CitationPill({ tone = "neutral", href, asChild, children, source, date, n, icon: Icon = FileText, className }: CitationPillProps) {
   const label = (n === undefined ? "Evidence" : `Evidence ${n}`) + (source ? `: ${source}` : "") + (date ? `, ${date}` : "")
-  const props = { "data-slot": "citation-pill", "aria-label": label, className: cn(citationPillClass, className) }
+  const props = { "data-slot": "citation-pill", "aria-label": label, className: cn(citationPillClass, tone === "info" && citationPillInfoClass, className) }
   const content = (
     <>
       <Icon aria-hidden="true" className="size-[11px] shrink-0" />

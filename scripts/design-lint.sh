@@ -48,6 +48,8 @@ ALLOW_AMBER=(
   ':(exclude,glob)apps/site/src/components/client-view/note-mark.tsx'
   # Spec D14 round 2: the "For you" chip uses the canvas's amber tint (bg-amber-tint) with amber-text.
   ':(exclude,glob)apps/site/src/components/sample/sample-recommendations.tsx'
+  # Numbered markers are orange (D-33, app-style AS3): the one amber primitive outside Friday.
+  ':(exclude,glob)packages/ui/src/components/number-marker.tsx'
   # Spec D14 round 2: amber sheet step markers and the amber-tinted "No evidence, no claim" result box.
   ':(exclude,glob)apps/site/src/components/home/checks-diagram.tsx'
   # Spec D14 round 2: numbered brief items in the client-view email are orange markers.

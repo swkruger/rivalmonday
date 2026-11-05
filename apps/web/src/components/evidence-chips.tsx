@@ -9,8 +9,8 @@ export const evidenceHref = (clientId: string, id: string) => `/c/${clientId}/ev
  * replaces the app's evidence page (17a: the public sample page links its own evidence route) and links only refs marked
  * `servable`; any other chip is a plain, non-linked pill with the same label. No `'use client'` — safe in both server and client hosts.
  */
-export function EvidenceChips({ clientId, ids, max = 6, refs, evidenceHref: hrefOf }: {
-  clientId: string; ids: string[]; max?: number; refs?: EvidenceRefs; evidenceHref?: (id: string) => string;
+export function EvidenceChips({ clientId, ids, max = 6, refs, evidenceHref: hrefOf, tone }: {
+  clientId: string; ids: string[]; max?: number; refs?: EvidenceRefs; evidenceHref?: (id: string) => string; tone?: 'neutral' | 'info';
 }) {
   if (ids.length === 0) return null;
   const shown = ids.slice(0, max);
@@ -20,11 +20,11 @@ export function EvidenceChips({ clientId, ids, max = 6, refs, evidenceHref: href
         const ref = refs?.[id];
         const link = !hrefOf ? <Link href={evidenceHref(clientId, id)} /> : ref?.servable ? <Link href={hrefOf(id)} /> : <span />;
         return ref ? (
-          <CitationPill key={id} asChild n={i + 1} source={ref.source} date={ref.date}>
+          <CitationPill key={id} asChild tone={tone} n={i + 1} source={ref.source} date={ref.date}>
             {link}
           </CitationPill>
         ) : (
-          <CitationPill key={id} asChild n={i + 1}>
+          <CitationPill key={id} asChild tone={tone} n={i + 1}>
             {link}
           </CitationPill>
         );

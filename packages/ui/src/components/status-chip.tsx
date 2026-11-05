@@ -14,7 +14,7 @@ export const CHIP_COLOURS: Record<ChipTone, { bg: string; text: string }> = {
 }
 
 // Literal class strings so Tailwind's scanner sees them.
-const toneClass: Record<ChipTone, string> = {
+export const chipToneClass: Record<ChipTone, string> = {
   neutral: "bg-chip-neutral-bg text-chip-neutral-text",
   info: "bg-chip-info-bg text-chip-info-text",
   success: "bg-chip-success-bg text-chip-success-text",
@@ -35,13 +35,15 @@ type ChipBase = {
   children: React.ReactNode
   title?: string
   className?: string
+  /** `strong` = 6 px radius, 600 weight (app-style § 3.4). */
+  emphasis?: "default" | "strong"
 }
 /** Lucide glyph; defaults per tone. Only the neutral tone may suppress it with `null`. */
 type StatusChipProps =
   | ({ tone: "neutral"; icon?: LucideIcon | null } & ChipBase)
   | ({ tone: Exclude<ChipTone, "neutral">; icon?: LucideIcon } & ChipBase)
 
-function StatusChip({ tone, children, title, icon, className }: StatusChipProps) {
+function StatusChip({ tone, children, title, icon, className, emphasis = "default" }: StatusChipProps) {
   const Icon = tone === "neutral" ? (icon === undefined ? null : icon) : (icon ?? defaultIcon[tone])
   return (
     <span
@@ -50,7 +52,8 @@ function StatusChip({ tone, children, title, icon, className }: StatusChipProps)
       title={title}
       className={cn(
         "inline-flex h-5 items-center gap-1 rounded-xs px-1.5 text-xs font-medium whitespace-nowrap",
-        toneClass[tone],
+        chipToneClass[tone],
+        emphasis === "strong" && "rounded-sm px-2 font-semibold",
         tone === "warning" && "shadow-[inset_0_0_0_1px_rgb(217_119_6/0.25)]",
         className,
       )}

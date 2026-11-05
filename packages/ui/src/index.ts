@@ -43,4 +43,5 @@ export * from './components/dot-status';
 export * from './components/filter-chip';
 export * from './components/sources-list';
 export * from './components/tag';
+export * from './components/number-marker';
 export * from './components/tier-mark';
