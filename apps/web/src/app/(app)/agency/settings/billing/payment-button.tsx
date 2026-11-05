@@ -32,7 +32,7 @@ export function CheckoutForm({ action, label, monthlyLabel, yearlyLabel }: { act
           </label>
         ))}
       </fieldset>
-      <Button type="submit" disabled={pending} className="self-start">{label}</Button>
+      <Button type="submit" variant="ink" disabled={pending} className="self-start">{label}</Button>
       {!state.ok && <ErrorNote compact focusKey={state}>{state.error}</ErrorNote>}
     </form>
   );
