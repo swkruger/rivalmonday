@@ -319,6 +319,7 @@ describe('list_plan_agencies', () => {
 
   it('a yearly agency with 4 clients on v2 shows 26983 a month; no yearly price on the target marks the row blocked', async () => {
     const a = await mk('Yearly', { billing: { state: 'active', billingInterval: 'year' }, sub: 'sub_y', clients: 4 });
+    await dbs.owner.update(plan).set({ basePriceYearCents: 229000 }).where(eq(plan.id, v2));
     expect((await list()).agencies[0]).toMatchObject({ agencyId: a, monthlyAfterCents: 26983, moveBlocked: null });
     await dbs.owner.update(plan).set({ basePriceYearCents: null, stripeBasePriceYearId: null, stripeSeatPriceYearId: null }).where(eq(plan.id, v2));
     expect((await list()).agencies[0]).toMatchObject({ moveBlocked: 'no_yearly_price' });
