@@ -3,7 +3,7 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { planFor } from './access';
 import { applyBillingSignal } from './apply';
 import { clientMrrCents, runConnectDaily } from './connect-daily';
-import { syncSeats } from './seats';
+import { inYearlyRenewalWindow, syncSeats } from './seats';
 import type { BillingSignal } from './state';
 import type { BillingGateway } from './types';
 import { monthlyEquivalentCents, planCents } from './pricing';
@@ -60,6 +60,8 @@ async function reconcile(db: Db, gw: BillingGateway, row: AgencyBillingRow, now:
     drift++;
     await syncSeats(db, gw, row.agencyId);
   }
+  // Final fix I4: a yearly seat decrease waits for renewal; inside the renewal window lower the quantity (proration none).
+  if (sub.interval === 'year' && inYearlyRenewalWindow(sub, now)) await syncSeats(db, gw, row.agencyId, { applyYearlyDecrease: true });
   // 15c-3b: the subscription should carry the prices of the plan version the agency is on. Report only; never auto-fix.
   if (row.planId) {
     const [p] = await db.select().from(plan).where(eq(plan.id, row.planId));
@@ -89,7 +91,8 @@ async function mrrFor(gw: BillingGateway | null, row: AgencyBillingRow, p: PlanR
   // A yearly agency on a plan without a yearly price: report the monthly list price.
   const eff = interval === 'year' && p.basePriceYearCents == null ? 'month' : interval;
   const cents = monthlyEquivalentCents(planCents(p, p.includedSeats + paidSeats, eff), eff);
-  return Math.max(0, cents - discount);
+  // The discount is on the real (row-interval) invoice: a yearly invoice's discount is spread over 12 months (final fix I3).
+  return Math.max(0, cents - monthlyEquivalentCents(discount, interval));
 }
 
 const logFailure = (step: string, agencyId: string, e: unknown) =>

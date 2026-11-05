@@ -12,7 +12,7 @@ export const FAKE_WEBHOOK_SIGNATURE = 'fake-sig';
 export interface FakeCall { method: string; args: unknown[] }
 interface FakeCustomer { id: string; agencyId: string; name: string; email?: string; address?: CustomerDetails['address']; taxId?: string }
 /** A price minted by `createPrices`: what `upcomingInvoice` needs to price a subscription. */
-export interface FakePrice { id: string; role: 'base' | 'seat'; interval: BillingInterval; plan: PlanPriceInput }
+export interface FakePrice { id: string; role: 'base' | 'seat'; interval: BillingInterval; plan: PlanPriceInput; productId: string }
 interface FakeCoupon extends CreateCouponInput { id: string }
 interface FakePromotionCode extends CreatePromotionCodeInput { id: string; active: boolean }
 
@@ -53,9 +53,11 @@ export interface FakeGateway extends BillingGateway {
   seedConnectedSubscription(s: Partial<ConnectedSubscription> & { id: string; stripeAccount: string; customerId: string }): FakeConnectedSubscription;
   /** The next gateway method call (any method) rejects with `error`; later calls succeed. */
   failNext(error?: Error): void;
-  /** Every `swapSubscriptionPlan` call, in order. */
-  /** Every `switchSubscriptionInterval` call, in order. */
+  /** The next `switchSubscriptionInterval` is declined (Stripe `pending_if_incomplete` + failed charge): `{ switched: false }`, nothing changes. */
+  declineNextSwitch(): void;
+  /** Every applied `switchSubscriptionInterval` call, in order. */
   readonly switches: Array<{ subscriptionId: string; basePriceId: string; seatPriceId: string; seatQuantity: number }>;
+  /** Every `swapSubscriptionPlan` call, in order. */
   readonly swaps: Array<{ subscriptionId: string; basePriceId: string; seatPriceId: string; seatQuantity: number }>;
   seedSubscription(sub: Partial<GatewaySubscription> & { id: string; customerId: string }): GatewaySubscription;
   seedInvoice(customerId: string, inv: Partial<GatewayInvoice> & { id: string }): GatewayInvoice;
@@ -96,6 +98,7 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
   const connectedCharges = new Map<string, { id: string; stripeAccount: string; customerId: string | null }>();
   const connectedPortalConfigurations = new Map<string, { id: string; stripeAccount: string }>();
   let failure: Error | null = null;
+  let declineSwitch = false;
   const pausedCollection = new Set<string>();
   const collectionFailures = new Map<string, Error>();
   /** Random suffix (R27): a fake id must never look like, or collide with, one minted by another process. */
@@ -191,6 +194,7 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
     prices,
     switches,
     failNext(error = new Error('fake gateway failure')) { failure = error; },
+    declineNextSwitch() { declineSwitch = true; },
     callsTo: (m) => calls.filter((c) => c.method === m),
     pausedCollection,
     failCollectionFor(id, error = new Error('fake gateway collection failure')) { collectionFailures.set(id, error); },
@@ -243,6 +247,7 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
           ...(i.seatQty > 0 ? [{ id: nid('si_seat'), priceId: i.seatPriceId, quantity: i.seatQty }] : []),
         ],
       });
+      if (i.couponId) subscriptionCoupons.set(subId, [i.couponId]);
       return { url: `${i.successUrl}${i.successUrl.includes('?') ? '&' : '?'}fake_checkout=${subId}` };
     },
     async pauseCollection(id, o) {
@@ -275,9 +280,14 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
     },
     async switchSubscriptionInterval(id, i) {
       enter('switchSubscriptionInterval', id, i);
+      sub(id);
+      if (declineSwitch) {
+        declineSwitch = false;
+        return { switched: false, currentPeriodEnd: null };
+      }
       const out = swap(id, i, 'year');
       switches.push({ subscriptionId: id, ...i });
-      return out;
+      return { switched: true, ...out };
     },
     async getSubscription(id) {
       enter('getSubscription', id);
@@ -291,9 +301,24 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
       // Not seeded: price the subscription from the prices `createPrices` minted (graduated seats via `planCents`).
       const base = s.items.map((x) => prices.get(x.priceId)).find((x) => x?.role === 'base');
       if (!base) return null;
-      const seatQty = s.items.filter((x) => prices.get(x.priceId)?.role === 'seat').reduce((n, x) => n + x.quantity, 0);
-      const amountDueCents = planCents({ ...base.plan, includedSeats: 0 }, seatQty, base.interval);
-      return { amountDueCents, periodEnd: s.currentPeriodEnd ?? new Date(), discountCents: 0 };
+      const seatLines = s.items.filter((x) => prices.get(x.priceId)?.role === 'seat');
+      const seatQty = seatLines.reduce((n, x) => n + x.quantity, 0);
+      const baseCents = planCents({ ...base.plan, includedSeats: 0 }, 0, base.interval);
+      const totalCents = planCents({ ...base.plan, includedSeats: 0 }, seatQty, base.interval);
+      // Attached coupons (latest attach or the Checkout coupon), percent or amount, limited to their products like Stripe.
+      // Duration is not modelled: every upcoming invoice carries the discount.
+      const seatProduct = seatLines.map((x) => prices.get(x.priceId)!.productId)[0];
+      let discountCents = 0;
+      for (const cid of subscriptionCoupons.get(id) ?? []) {
+        const c = coupons.get(cid);
+        if (!c) continue;
+        const only = c.appliesToProductIds?.length ? c.appliesToProductIds : null;
+        const eligible = (!only || only.includes(base.productId) ? baseCents : 0)
+          + (!only || (seatProduct && only.includes(seatProduct)) ? totalCents - baseCents : 0);
+        discountCents += c.percentOff != null ? Math.round((eligible * c.percentOff) / 100) : Math.min(eligible, c.amountOffCents ?? 0);
+      }
+      discountCents = Math.min(discountCents, totalCents);
+      return { amountDueCents: totalCents - discountCents, periodEnd: s.currentPeriodEnd ?? new Date(), discountCents };
     },
     async listInvoices(customerId, limit = 12) {
       enter('listInvoices', customerId, limit);
@@ -301,14 +326,16 @@ export function fakeGateway(opts: FakeGatewayOptions = {}): FakeGateway {
     },
     async createPrices(plan) {
       enter('createPrices', plan);
+      const baseProductId = plan.stripeProductId ?? nid('prod_base');
+      const seatProductId = plan.stripeSeatProductId ?? nid('prod_seat');
       const mint = (role: 'base' | 'seat', interval: BillingInterval): string => {
         const id = nid(`price_${role}${interval === 'year' ? '_year' : ''}`);
-        prices.set(id, { id, role, interval, plan });
+        prices.set(id, { id, role, interval, plan, productId: role === 'base' ? baseProductId : seatProductId });
         return id;
       };
       const yearly = plan.basePriceYearCents != null;
       return {
-        baseProductId: plan.stripeProductId ?? nid('prod_base'), seatProductId: plan.stripeSeatProductId ?? nid('prod_seat'),
+        baseProductId, seatProductId,
         basePriceId: mint('base', 'month'), seatPriceId: mint('seat', 'month'),
         basePriceYearId: yearly ? mint('base', 'year') : null, seatPriceYearId: yearly ? mint('seat', 'year') : null,
       };

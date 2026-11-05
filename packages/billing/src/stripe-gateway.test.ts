@@ -181,10 +181,29 @@ describe('stripeGateway', () => {
     expect(c.subscriptions.update).toHaveBeenCalledWith('sub_1', {
       items: [{ id: 'si_b', price: 'pby' }, { id: 'si_s', price: 'psy', quantity: 3 }],
       proration_behavior: 'always_invoice',
+      payment_behavior: 'pending_if_incomplete',
     });
-    expect(r.currentPeriodEnd).toEqual(new Date(1_900_000_000_000));
+    expect(r).toEqual({ switched: true, currentPeriodEnd: new Date(1_900_000_000_000) });
     c.subscriptions.retrieve.mockResolvedValueOnce({ id: 'sub_1', items: { data: [] } } as never);
     await expect(gw(c).switchSubscriptionInterval('sub_1', { basePriceId: 'a', seatPriceId: 'b', seatQuantity: 1 })).rejects.toThrow(/base/);
+  });
+
+  it('switchSubscriptionInterval: a declined charge (pending_update or card error) reports not switched (final fix I6)', async () => {
+    const c = mockClient();
+    const i = { basePriceId: 'pby', seatPriceId: 'psy', seatQuantity: 3 };
+    c.subscriptions.update.mockResolvedValueOnce({ pending_update: { expires_at: 1_900_000_000 }, items: { data: [{ current_period_end: 1_800_100_000 }] } } as never);
+    expect(await gw(c).switchSubscriptionInterval('sub_1', i)).toEqual({ switched: false, currentPeriodEnd: null });
+    c.subscriptions.update.mockRejectedValueOnce(Object.assign(new Error('Your card was declined.'), { type: 'StripeCardError', code: 'card_declined' }) as never);
+    expect(await gw(c).switchSubscriptionInterval('sub_1', i)).toEqual({ switched: false, currentPeriodEnd: null });
+    c.subscriptions.update.mockRejectedValueOnce(Object.assign(new Error('boom'), { type: 'StripeAPIError' }) as never);
+    await expect(gw(c).switchSubscriptionInterval('sub_1', i)).rejects.toThrow('boom');
+  });
+
+  it('swapSubscriptionPlan does not use pending updates', async () => {
+    const c = mockClient();
+    c.subscriptions.update.mockResolvedValueOnce({ items: { data: [{ current_period_end: 1_900_000_000 }] } } as never);
+    await gw(c).swapSubscriptionPlan('sub_1', { basePriceId: 'pb2', seatPriceId: 'ps2', seatQuantity: 3 });
+    expect((c.subscriptions.update.mock.calls[0] as unknown[])[1]).not.toHaveProperty('payment_behavior');
   });
 
   it('getSubscription interval comes from the base line recurring interval', async () => {

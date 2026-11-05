@@ -32,6 +32,8 @@ export interface GatewaySubscription {
   status: SubscriptionStatus;
   customerId: string;
   cancelAtPeriodEnd: boolean;
+  /** Start of the current billing period (Stripe item `current_period_start`); optional for older fixtures. */
+  currentPeriodStart?: Date | null;
   currentPeriodEnd: Date | null;
   trialEnd: Date | null;
   /** Quantity of the per-seat price line (0 when the seat line is absent). */
@@ -40,6 +42,12 @@ export interface GatewaySubscription {
   interval: BillingInterval;
   hasDefaultPaymentMethod: boolean;
   items: SubscriptionItem[];
+}
+
+/** `switched: false` = the immediate charge failed and Stripe kept the monthly prices (`currentPeriodEnd` is then null). */
+export interface IntervalSwitchResult {
+  switched: boolean;
+  currentPeriodEnd: Date | null;
 }
 
 export interface UpcomingInvoice {
@@ -161,10 +169,12 @@ export interface BillingGateway extends ConnectGateway {
    */
   swapSubscriptionPlan(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<{ currentPeriodEnd: Date | null }>;
   /**
-   * Moves a monthly subscription to the same plan's yearly prices (swap semantics) with `proration_behavior: 'always_invoice'`:
-   * the prorated difference is invoiced immediately. Throws when the subscription has no base line.
+   * Moves a monthly subscription to the same plan's yearly prices (swap semantics) with `proration_behavior: 'always_invoice'`
+   * and `payment_behavior: 'pending_if_incomplete'`: the prorated difference is charged immediately and the yearly prices
+   * apply only if that payment succeeds. A failed charge leaves a Stripe `pending_update` (or a card error) and returns
+   * `{ switched: false }`: the subscription stays monthly. Throws when the subscription has no base line.
    */
-  switchSubscriptionInterval(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<{ currentPeriodEnd: Date | null }>;
+  switchSubscriptionInterval(subscriptionId: string, i: { basePriceId: string; seatPriceId: string; seatQuantity: number }): Promise<IntervalSwitchResult>;
   getSubscription(subscriptionId: string): Promise<GatewaySubscription>;
   upcomingInvoice(subscriptionId: string): Promise<UpcomingInvoice | null>;
   listInvoices(customerId: string, limit?: number): Promise<GatewayInvoice[]>;

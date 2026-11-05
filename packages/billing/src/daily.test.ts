@@ -234,6 +234,19 @@ describe('runBillingDaily stats', () => {
     expect((await stat())!.mrrCents).toBe(0);
   });
 
+  it('a yearly coupon is spread over 12 months like the price (final fix I3)', async () => {
+    const gw = fakeGateway();
+    const V2 = { basePriceYearCents: 229000, seatTiers: [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }] };
+    await dbs.owner.update(plan).set(V2).where(eq(plan.id, planId));
+    const p = await gw.createPrices({ code: 'standard', version: 1, name: 'Standard', basePriceCents: 22900, ...V2 });
+    await withSub(gw, { billingInterval: 'year' }, { interval: 'year', items: [{ id: 'si_base_1', priceId: p.basePriceYearId!, quantity: 1 }] });
+    const coupon = await gw.createCoupon({ percentOff: 20, duration: 'forever' });
+    await gw.attachSubscriptionDiscount({ subscriptionId: 'sub_1', couponId: coupon.id });
+    await seedStat();
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect((await stat())!.mrrCents).toBe(19083 - 3817); // 45,800 a year off = 3,817 a month
+  });
+
   it('non-paying states get zero mrr and seats; cancelled with a future cancel_at still pays', async () => {
     const gw = fakeGateway();
     await setBilling(dbs.owner, planId, { state: 'trialing', trialEndsAt: day('2026-11-30'), billableSeatsSynced: 4 });
@@ -249,6 +262,46 @@ describe('runBillingDaily stats', () => {
     await setBilling(dbs.owner, planId, { state: 'pilot' });
     await runBillingDaily(dbs.service, fakeGateway(), NOW);
     expect(await stat()).toBeUndefined();
+  });
+});
+
+describe('runBillingDaily: yearly seat decreases at renewal (final fix I4)', () => {
+  const HOUR = 3_600_000;
+  const yearly = async (gw: ReturnType<typeof fakeGateway>, sub: Record<string, unknown>) => {
+    await addClients(dbs.owner, 2); // 4 active -> 1 extra wanted, 2 paid
+    await withSub(gw, { billableSeatsSynced: 2, billingInterval: 'year' }, { seatQuantity: 2, interval: 'year', ...sub });
+  };
+
+  it('in the last 24 h before the period end it lowers the quantity with proration none', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodEnd: new Date(NOW.getTime() + 12 * HOUR) });
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: false, seatPriceId: null, invoiceNow: false }]]);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+  });
+
+  it('right after a renewal (period started under 24 h ago) it lowers the quantity too', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 3 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 365 * 24 * HOUR) });
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.subscriptions.get('sub_1')!.seatQuantity).toBe(1);
+    expect((await row()).billableSeatsSynced).toBe(1);
+  });
+
+  it('mid-term it keeps the paid quantity and leaves nothing pending', async () => {
+    const gw = fakeGateway();
+    await yearly(gw, { currentPeriodStart: new Date(NOW.getTime() - 100 * 24 * HOUR), currentPeriodEnd: new Date(NOW.getTime() + 30 * 24 * HOUR) });
+    expect(await runBillingDaily(dbs.service, gw, NOW)).toMatchObject({ drift: 0, seatRetries: 0 });
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+    expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false });
+  });
+
+  it('a monthly agency is untouched by the renewal window', async () => {
+    const gw = fakeGateway();
+    await addClients(dbs.owner, 2);
+    await withSub(gw, { billableSeatsSynced: 1 }, { seatQuantity: 1, currentPeriodEnd: new Date(NOW.getTime() + 12 * HOUR) });
+    await runBillingDaily(dbs.service, gw, NOW);
+    expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
   });
 });
 

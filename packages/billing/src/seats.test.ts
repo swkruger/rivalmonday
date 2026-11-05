@@ -1,4 +1,4 @@
-import { agency, agencyBilling, plan } from '@cs/db';
+import { agency, agencyBilling, client, plan } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +90,48 @@ describe('syncSeats', () => {
     monthly.seedSubscription({ id: 'sub_1', customerId: 'cus_1' });
     expect(await syncSeats(dbs.service, monthly, AGENCY)).toBe('synced');
     expect(monthly.callsTo('updateSeatQuantity')[0]!.args).toEqual(['sub_1', 1, { prorate: true, seatPriceId: 'price_seat', invoiceNow: false }]);
+  });
+
+  describe('yearly: decreases wait for renewal (final fix I4, spec D6)', () => {
+    const yearly = async (paid: number) => {
+      await dbs.owner.update(plan).set({ stripeSeatPriceId: 'price_seat', stripeSeatPriceYearId: 'price_seat_year' }).where(eq(plan.id, planId));
+      const gw = fakeGateway();
+      gw.seedSubscription({ id: 'sub_1', customerId: 'cus_1', seatQuantity: paid, interval: 'year' });
+      await setBilling(dbs.owner, planId, { state: 'active', stripeCustomerId: 'cus_1', stripeSubscriptionId: 'sub_1', billingInterval: 'year', billableSeatsSynced: paid });
+      return gw;
+    };
+    const setStatus = (id: string, status: 'active' | 'prospect') => dbs.owner.update(client).set({ status }).where(eq(client.id, id));
+
+    it('a decrease then an increase back changes nothing in Stripe and invoices nothing', async () => {
+      const gw = await yearly(2);
+      const [extra] = await addClients(dbs.owner, 3); // 5 active -> 2 extra, all paid
+      await setStatus(extra!, 'prospect'); // 4 active -> 1 extra
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('deferred');
+      expect(await row()).toMatchObject({ billableSeatsSynced: 2, seatSyncPending: false });
+      await setStatus(extra!, 'active'); // back to 2 extra: still within the paid quantity
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
+      expect(gw.callsTo('updateSeatQuantity')).toEqual([]);
+      expect(gw.subscriptions.get('sub_1')!.seatQuantity).toBe(2);
+    });
+
+    it('an increase above the paid quantity is prorated and invoiced now', async () => {
+      const gw = await yearly(2);
+      const [extra] = await addClients(dbs.owner, 3);
+      await setStatus(extra!, 'prospect');
+      await syncSeats(dbs.service, gw, AGENCY); // deferred: 1 wanted, 2 paid
+      await addClients(dbs.owner, 2); // 6 active -> 3 extra
+      expect(await syncSeats(dbs.service, gw, AGENCY)).toBe('synced');
+      expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 3, { prorate: true, seatPriceId: 'price_seat_year', invoiceNow: true }]]);
+      expect(await row()).toMatchObject({ billableSeatsSynced: 3, seatSyncPending: false });
+    });
+
+    it('applyYearlyDecrease (the renewal window) lowers the quantity without proration', async () => {
+      const gw = await yearly(2);
+      await addClients(dbs.owner, 2); // 4 active -> 1 extra
+      expect(await syncSeats(dbs.service, gw, AGENCY, { applyYearlyDecrease: true })).toBe('synced');
+      expect(gw.callsTo('updateSeatQuantity').map((c) => c.args)).toEqual([['sub_1', 1, { prorate: false, seatPriceId: 'price_seat_year', invoiceNow: false }]]);
+      expect(await row()).toMatchObject({ billableSeatsSynced: 1, seatSyncPending: false });
+    });
   });
 
   it('gateway failure sets seat_sync_pending, never throws, and a retry clears it', async () => {

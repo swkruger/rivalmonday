@@ -30,12 +30,17 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
   const seatItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'seat');
   const baseItem = (s: Stripe.Subscription) => s.items.data.find((i) => i.price.metadata?.[PRICE_ROLE_KEY] === 'base');
 
-  /** Base line -> new base price; seat line -> new seat price at the quantity (added when absent, removed at 0). */
+  /**
+   * Base line -> new base price; seat line -> new seat price at the quantity (added when absent, removed at 0).
+   * `pendingIfIncomplete` (interval switch): the update applies only once its immediate invoice is paid; a failed charge
+   * leaves `pending_update` set and the old prices in place (`switched: false`).
+   */
   const swap = async (
     subscriptionId: string,
     i: { basePriceId: string; seatPriceId: string; seatQuantity: number },
     proration: 'none' | 'always_invoice',
-  ): Promise<{ currentPeriodEnd: Date | null }> => {
+    pendingIfIncomplete = false,
+  ): Promise<{ switched: boolean; currentPeriodEnd: Date | null }> => {
     const s = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items.data.price'] });
     const base = baseItem(s);
     if (!base) throw new Error(`Subscription ${subscriptionId} has no base line`);
@@ -43,8 +48,11 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
     const items: Stripe.SubscriptionUpdateParams.Item[] = [{ id: base.id, price: i.basePriceId }];
     if (seat) items.push(i.seatQuantity > 0 ? { id: seat.id, price: i.seatPriceId, quantity: i.seatQuantity } : { id: seat.id, deleted: true });
     else if (i.seatQuantity > 0) items.push({ price: i.seatPriceId, quantity: i.seatQuantity });
-    const updated = await stripe.subscriptions.update(subscriptionId, { items, proration_behavior: proration });
-    return { currentPeriodEnd: date(updated.items.data[0]?.current_period_end) };
+    const updated = await stripe.subscriptions.update(subscriptionId, {
+      items, proration_behavior: proration, ...(pendingIfIncomplete ? { payment_behavior: 'pending_if_incomplete' as const } : {}),
+    });
+    if (updated.pending_update) return { switched: false, currentPeriodEnd: null };
+    return { switched: true, currentPeriodEnd: date(updated.items.data[0]?.current_period_end) };
   };
 
   return {
@@ -106,10 +114,17 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
       });
     },
     async swapSubscriptionPlan(subscriptionId, i) {
-      return swap(subscriptionId, i, 'none');
+      const { currentPeriodEnd } = await swap(subscriptionId, i, 'none');
+      return { currentPeriodEnd };
     },
     async switchSubscriptionInterval(subscriptionId, i) {
-      return swap(subscriptionId, i, 'always_invoice');
+      try {
+        return await swap(subscriptionId, i, 'always_invoice', true);
+      } catch (e) {
+        // A synchronous decline: with `pending_if_incomplete` nothing was applied, so the subscription is still monthly.
+        if ((e as { type?: string } | null)?.type === 'StripeCardError') return { switched: false, currentPeriodEnd: null };
+        throw e;
+      }
     },
     async getSubscription(id): Promise<GatewaySubscription> {
       const s = await stripe.subscriptions.retrieve(id, { expand: ['items.data.price', 'default_payment_method'] });
@@ -122,6 +137,7 @@ export function stripeGateway(secretKey: string, opts: StripeGatewayOptions = {}
         status: s.status as SubscriptionStatus,
         customerId,
         cancelAtPeriodEnd: s.cancel_at_period_end,
+        currentPeriodStart: date(s.items.data[0]?.current_period_start),
         currentPeriodEnd: date(s.items.data[0]?.current_period_end),
         trialEnd: date(s.trial_end),
         seatQuantity: seatItem(s)?.quantity ?? 0,

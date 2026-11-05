@@ -158,6 +158,39 @@ describe('fakeGateway', () => {
     await expect(gw.switchSubscriptionInterval(id, i)).rejects.toThrow(/fake gateway failure/);
   });
 
+  it('upcomingInvoice reports the discount of attached percent and amount coupons (final fix I3)', async () => {
+    const gw = fakeGateway();
+    const p = await gw.createPrices(V2);
+    const y = (await co(gw, 'year', p.basePriceYearId!, p.seatPriceYearId!, 0)).url.split('fake_checkout=')[1]!;
+    expect((await gw.upcomingInvoice(y))!.discountCents).toBe(0);
+    const pct = await gw.createCoupon({ percentOff: 20, duration: 'forever' });
+    await gw.attachSubscriptionDiscount({ subscriptionId: y, couponId: pct.id });
+    expect(await gw.upcomingInvoice(y)).toMatchObject({ amountDueCents: 229000 - 45800, discountCents: 45800 });
+    const amt = await gw.createCoupon({ amountOffCents: 5000, duration: 'once' });
+    await gw.attachSubscriptionDiscount({ subscriptionId: y, couponId: amt.id });
+    expect(await gw.upcomingInvoice(y)).toMatchObject({ amountDueCents: 224000, discountCents: 5000 });
+    // A product-restricted coupon only discounts the lines of those products.
+    const seatOnly = await gw.createCoupon({ percentOff: 50, duration: 'forever', appliesToProductIds: [p.seatProductId] });
+    await gw.attachSubscriptionDiscount({ subscriptionId: y, couponId: seatOnly.id });
+    expect((await gw.upcomingInvoice(y))!.discountCents).toBe(0);
+    // A Checkout coupon is attached to the new subscription too.
+    const c = (await gw.createCheckoutSession({ customerId: 'c', basePriceId: p.basePriceId, seatPriceId: p.seatPriceId, seatQty: 0, interval: 'month', couponId: pct.id, allowPromotionCodes: false, successUrl: 'https://x/ok', cancelUrl: 'https://x/no' })).url.split('fake_checkout=')[1]!;
+    expect((await gw.upcomingInvoice(c))!.discountCents).toBe(4580);
+  });
+
+  it('declineNextSwitch: the next interval switch is left pending (card declined) and changes nothing (final fix I6)', async () => {
+    const gw = fakeGateway();
+    const p = await gw.createPrices(V2);
+    const id = (await co(gw, 'month', p.basePriceId, p.seatPriceId, 2)).url.split('fake_checkout=')[1]!;
+    const i = { basePriceId: p.basePriceYearId!, seatPriceId: p.seatPriceYearId!, seatQuantity: 2 };
+    gw.declineNextSwitch();
+    expect(await gw.switchSubscriptionInterval(id, i)).toEqual({ switched: false, currentPeriodEnd: null });
+    expect((await gw.getSubscription(id)).interval).toBe('month');
+    expect(gw.switches).toEqual([]);
+    expect((await gw.switchSubscriptionInterval(id, i)).switched).toBe(true);
+    expect((await gw.getSubscription(id)).interval).toBe('year');
+  });
+
   it('verifyWebhook accepts only the fake signature', () => {
     const gw = fakeGateway();
     const body = JSON.stringify({ id: 'evt_1', type: 'x', created: 1, data: { object: {} } });
