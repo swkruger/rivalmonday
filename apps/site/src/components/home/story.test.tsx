@@ -112,7 +112,7 @@ describe('Opportunity', () => {
     expect(container.querySelector('section#opportunity')).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(OPPORTUNITY.outcomes.length);
     expect(screen.getByText(opportunityLine())).toBeTruthy();
-    expect(screen.getByText(/\$2,068/)).toBeTruthy();
+    expect(screen.getByText(/\$2,608/)).toBeTruthy();
     expect(screen.getByText(OPPORTUNITY.exampleNote)).toBeTruthy();
     expect(screen.getByRole('link', { name: OPPORTUNITY.link.label }).getAttribute('href')).toBe('/partners');
   });

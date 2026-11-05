@@ -1,4 +1,4 @@
-import { PRICING } from './pricing';
+import { agencyCostParts, agencyTiersLine, PRICING } from './pricing';
 
 /** Calculator starting point and slider limits. OWNER SIGNS: example prices and upsell share only. */
 export const PARTNER_EXAMPLE = {
@@ -22,7 +22,7 @@ export interface PartnerExample {
 export function partnerExample(clients: number, clientPriceUsd: number, a = PRICING.agency): PartnerExample {
   if (!Number.isInteger(clients) || clients < 1) throw new Error('clients must be a positive integer');
   const extraSeats = Math.max(0, clients - a.seatsIncluded);
-  const costUsd = a.monthlyUsd + extraSeats * a.extraSeatUsd;
+  const costUsd = a.monthlyUsd + agencyCostParts(clients, a).reduce((sum, p) => sum + p.count * p.usd, 0);
   const revenueUsd = clients * clientPriceUsd;
   return { clients, clientPriceUsd, extraSeats, costUsd, revenueUsd, marginUsd: revenueUsd - costUsd };
 }
@@ -101,6 +101,6 @@ export const PARTNER_COPY = {
     upsell: 'Your monthly upsell revenue',
     total: 'Your monthly total, before upsell delivery costs',
   },
-  plan: `Your plan is $${PRICING.agency.monthlyUsd}/mo including ${PRICING.agency.seatsIncluded} seats, then $${PRICING.agency.extraSeatUsd} per extra seat.`,
+  plan: `Your plan is $${PRICING.agency.monthlyUsd}/mo including ${PRICING.agency.seatsIncluded} seats, then ${agencyTiersLine()}.`,
   pilotNote: 'Free during the pilot',
 } as const;

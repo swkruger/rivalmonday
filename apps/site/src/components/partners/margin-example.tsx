@@ -3,7 +3,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useId, useState } from 'react';
 import { breakEvenClients, PARTNER_COPY, PARTNER_EXAMPLE, partnerExample, partnerUpsell } from '../../../content/partners';
-import { PRICING } from '../../../content/pricing';
+import { agencyCostParts, PRICING } from '../../../content/pricing';
 import { usePilot } from '../shell/pilot-context';
 
 const usd = (n: number) => `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US')}`;
@@ -30,13 +30,13 @@ export function MarginExample() {
   const [share, setShare] = useState<number>(PARTNER_EXAMPLE.upsellSharePct);
   const e = partnerExample(clients, PARTNER_EXAMPLE.clientPriceUsd);
   const u = partnerUpsell(e, share, PARTNER_EXAMPLE.upsellPriceUsd);
-  const { monthlyUsd, extraSeatUsd } = PRICING.agency;
+  const { monthlyUsd } = PRICING.agency;
   const c = PARTNER_COPY.calculator;
   const breakEven = breakEvenClients(PARTNER_EXAMPLE.clientPriceUsd);
   const rows: [string, string][] = [
     [PARTNER_COPY.rows.clients, String(e.clients)],
     [PARTNER_COPY.rows.clientPrice, `${usd(e.clientPriceUsd)}/mo`],
-    [PARTNER_COPY.rows.cost, e.extraSeats > 0 ? `${usd(monthlyUsd)} + ${e.extraSeats} × ${usd(extraSeatUsd)} = ${usd(e.costUsd)}` : usd(e.costUsd)],
+    [PARTNER_COPY.rows.cost, e.extraSeats > 0 ? `${[usd(monthlyUsd), ...agencyCostParts(e.clients).map((p) => `${p.count} × ${usd(p.usd)}`)].join(' + ')} = ${usd(e.costUsd)}` : usd(e.costUsd)],
     [PARTNER_COPY.rows.revenue, usd(e.revenueUsd)],
     [PARTNER_COPY.rows.margin, usd(e.marginUsd)],
     [PARTNER_COPY.rows.upsell, `${u.upsellClients} × ${usd(PARTNER_EXAMPLE.upsellPriceUsd)} = ${usd(u.upsellRevenueUsd)}`],

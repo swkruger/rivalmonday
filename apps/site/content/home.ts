@@ -1,6 +1,6 @@
 import type { JoinStart } from '../src/components/join/join-provider';
 import { partnerExample, type PartnerExample } from './partners';
-import { PRICING } from './pricing';
+import { agencyPriceLine, agencyTiersLine, PRICING } from './pricing';
 
 export const HERO = {
   eyebrowPill: 'Pilot',
@@ -19,7 +19,7 @@ export const HERO = {
   /** Three short proofs under the CTA; each restates a claim the site already makes (pages.ts, checks, white label). */
   proof: ['Public information only', 'No claim without evidence', 'Sold under your brand'],
   /** Pilot off (NEW, owner signs). */
-  finePrintTrial: `${PRICING.agency.trialDays}-day free trial · then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats`,
+  finePrintTrial: `${PRICING.agency.trialDays}-day free trial · then ${agencyPriceLine()} incl. ${PRICING.agency.seatsIncluded} client seats`,
 } as const;
 
 export const ANNOUNCEMENT = {
@@ -225,12 +225,12 @@ export const HOW_STEPS = [
 ] as const;
 
 export const PRICING_LINES = {
-  agency: `Then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, with a ${agency.trialDays}-day trial.`,
+  agency: `Then ${agencyPriceLine()} including ${agency.seatsIncluded} client seats, ${agencyTiersLine()}, with a ${agency.trialDays}-day trial.`,
 } as const;
 
 /** Pilot off (NEW, owner signs). */
 export const PRICING_LINES_TRIAL = {
-  agency: `$${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats, $${agency.extraSeatUsd} per extra seat, after a ${agency.trialDays}-day free trial.`,
+  agency: `${agencyPriceLine()} including ${agency.seatsIncluded} client seats, ${agencyTiersLine()}, after a ${agency.trialDays}-day free trial.`,
 } as const;
 
 export const CTA_BAND = {
@@ -242,7 +242,7 @@ export const CTA_BAND = {
 /** Pilot off (NEW, owner signs). The button is `JoinButton`'s own "Start your free trial". */
 export const CTA_BAND_TRIAL = {
   heading: 'Start your free trial',
-  body: `Try Rival Monday free for ${agency.trialDays} days, then $${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats.`,
+  body: `Try Rival Monday free for ${agency.trialDays} days, then ${agencyPriceLine()} including ${agency.seatsIncluded} client seats.`,
 } as const;
 
 export const COUNTER_LABELS = [
@@ -296,7 +296,7 @@ export function opportunityExample(): PartnerExample {
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-/** "For example: 20 clients at $199/mo is $3,980 revenue against $1,912 in platform cost, a margin of $2,068 a month." */
+/** "For example: 20 clients at $199/mo is $3,980 revenue against $1,372 in platform cost, a margin of $2,608 a month." */
 export function opportunityLine(e: Pick<PartnerExample, 'clients' | 'clientPriceUsd' | 'revenueUsd' | 'costUsd' | 'marginUsd'> = opportunityExample()): string {
   return `For example: ${e.clients} clients at ${usd.format(e.clientPriceUsd)}/mo is ${usd.format(e.revenueUsd)} revenue against ${usd.format(e.costUsd)} in platform cost, a margin of ${usd.format(e.marginUsd)} a month.`;
 }

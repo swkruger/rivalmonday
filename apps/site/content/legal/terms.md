@@ -41,6 +41,8 @@ If you are an agency:
 - You are responsible for reviewing a brief if you promise your clients that it has been reviewed.
 - You must tell your clients what they need to know about how their information is handled, including through our [privacy policy](/privacy).
 
+The agency plan is for businesses that provide marketing or related services to other businesses. A business that wants Rival Monday for itself should use a client plan through an agency or our own sign-up.
+
 If you use Rival Monday through an agency, your agency manages your access and billing, and your agency may have its own terms.
 
 # Briefs, the assistant and AI output

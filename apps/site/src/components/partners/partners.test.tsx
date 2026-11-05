@@ -36,10 +36,10 @@ describe('MarginExample', () => {
     fireEvent.change(screen.getByRole('slider', { name: 'Clients' }), { target: { value: '10' } });
     fireEvent.change(screen.getByRole('slider', { name: 'Clients who also buy an upsell' }), { target: { value: '50' } });
     const text = container.textContent ?? '';
-    expect(text).toContain('$229 + 7 × $99 = $922');
+    expect(text).toContain('$229 + 7 × $79 = $782');
     expect(text).toContain('5 × $999 = $4,995');
-    expect(container.querySelector('output')!.textContent).toContain('$6,063');
-    expect(container.querySelector('output')!.textContent).toContain('$72,756');
+    expect(container.querySelector('output')!.textContent).toContain('$6,203');
+    expect(container.querySelector('output')!.textContent).toContain('$74,436');
   });
   it('one client with no upsell shows the loss and has no extra-seat sum', () => {
     const { container } = render(<MarginExample />);
@@ -54,7 +54,7 @@ describe('MarginExample', () => {
     const e = partnerExample(PARTNER_EXAMPLE.clients, PARTNER_EXAMPLE.clientPriceUsd);
     const u = partnerUpsell(e, PARTNER_EXAMPLE.upsellSharePct, PARTNER_EXAMPLE.upsellPriceUsd);
     const text = container.textContent ?? '';
-    expect(text).toContain('$229 + 47 × $99');
+    expect(text).toContain('$229 + 7 × $79 + 40 × $59 = $3,142');
     for (const n of [e.costUsd, e.revenueUsd, e.marginUsd, u.upsellRevenueUsd, u.totalUsd]) expect(text).toContain(`$${n.toLocaleString('en-US')}`);
   });
   it('rendered copy has no affiliate or commission wording', () => {

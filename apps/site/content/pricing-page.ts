@@ -1,11 +1,11 @@
-import { PRICING } from './pricing';
+import { agencyPriceLine, agencyTiersLine, PRICING } from './pricing';
 
 /** /pricing copy. Every figure is interpolated from `PRICING`. Draft copy: owner signs. */
 const { agency, business } = PRICING;
 
 export type PlanCopy = { name: string; price: string; note: string; points: string[]; cta: 'join' | 'trial' | 'business' };
 
-const AGENCY_AFTER = `$${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats · $${agency.extraSeatUsd} per extra seat`;
+const AGENCY_AFTER = `${agencyPriceLine()} including ${agency.seatsIncluded} client seats · ${agencyTiersLine()}`;
 const AGENCY_POINTS = [
   'Your name, logo and colors on client pages and emails',
   'A Monday brief for every client, with evidence one click away',

@@ -35,9 +35,15 @@ describe('site copy', () => {
   });
 
   it('no digits in copy outside PRICING and an explicit allowlist', () => {
-    const priceValues = [...Object.values(PRICING.agency), ...Object.values(PRICING.business)]
-      .filter((x): x is number => typeof x === 'number')
-      .map(String)
+    const a = PRICING.agency;
+    const priceValues = [
+      ...Object.values(a).filter((x): x is number => typeof x === 'number'),
+      ...a.extraClientTiers.flatMap((t) => [t.usd, t.toClient].filter((x): x is number => x !== null)),
+      ...Object.values(PRICING.business).filter((x): x is number => typeof x === 'number'),
+    ]
+      .flatMap((n) => [String(n), n.toLocaleString('en-US')])
+      // The tier line prints each tier's first client number (previous cap + 1).
+      .concat(String(a.seatsIncluded + 1), ...a.extraClientTiers.flatMap((t) => (t.toClient === null ? [] : [String(t.toClient + 1)])))
       .sort((a, b) => b.length - a.length);
     for (const s of allCopy) {
       let t = s.replace(/^\d+\.\s/, '');
@@ -94,10 +100,10 @@ describe('site copy', () => {
   });
 
   it('opportunity example is computed from PRICING and rendered in dollars', () => {
-    expect(home.opportunityExample()).toMatchObject({ revenueUsd: 3980, costUsd: 1912, marginUsd: 2068 });
+    expect(home.opportunityExample()).toMatchObject({ revenueUsd: 3980, costUsd: 1372, marginUsd: 2608 });
     const line = home.opportunityLine(home.opportunityExample());
-    expect(line).toContain('$2,068');
-    expect(line).toBe('For example: 20 clients at $199/mo is $3,980 revenue against $1,912 in platform cost, a margin of $2,068 a month.');
+    expect(line).toContain('$2,608');
+    expect(line).toBe('For example: 20 clients at $199/mo is $3,980 revenue against $1,372 in platform cost, a margin of $2,608 a month.');
   });
 
   it('website-free copy never mentions price, websites or snapshots', () => {

@@ -1,5 +1,5 @@
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
-import { PRICING } from '../../content/pricing';
+import { agencyTiersLine, PRICING } from '../../content/pricing';
 import type { Crumb } from './breadcrumbs';
 
 type Ld = Record<string, unknown>;
@@ -34,7 +34,7 @@ export function softwareApplicationLd(): Ld {
     '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: SITE_NAME, url: SITE_URL,
     applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: TITLE_STEM, publisher: { '@id': ORG_ID },
     offers: [
-      monthly('Agency', a.monthlyUsd, `Includes ${a.seatsIncluded} client seats; $${a.extraSeatUsd} per extra seat; ${a.trialDays}-day trial.`),
+      monthly('Agency', a.monthlyUsd, `Includes ${a.seatsIncluded} client seats; ${agencyTiersLine()}; or $${a.yearlyUsd.toLocaleString('en-US')}/yr; ${a.trialDays}-day trial.`),
       monthly('Local business', PRICING.business.monthlyUsd, 'One business, served by our agency.'),
     ],
   }; // never aggregateRating/review: we have none (no invented facts)

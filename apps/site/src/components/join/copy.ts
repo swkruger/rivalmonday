@@ -1,4 +1,4 @@
-import { PRICING } from '../../../content/pricing';
+import { agencyPriceLine, PRICING } from '../../../content/pricing';
 
 /** Join popup copy (owner signs). Spec § 5 lines verbatim where given. */
 export const JOIN_COPY = {
@@ -11,8 +11,8 @@ export const JOIN_COPY = {
     subTrial: 'Agencies can start a free trial now. Local businesses join the waitlist.',
     agency: {
       title: 'I run an agency',
-      body: `Resell Rival Monday to your clients under your own brand. Free during the pilot, then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats.`,
-      bodyTrial: `Resell Rival Monday to your clients under your own brand. ${PRICING.agency.trialDays}-day free trial, then $${PRICING.agency.monthlyUsd}/mo incl. ${PRICING.agency.seatsIncluded} client seats.`,
+      body: `Resell Rival Monday to your clients under your own brand. Free during the pilot, then ${agencyPriceLine()} incl. ${PRICING.agency.seatsIncluded} client seats.`,
+      bodyTrial: `Resell Rival Monday to your clients under your own brand. ${PRICING.agency.trialDays}-day free trial, then ${agencyPriceLine()} incl. ${PRICING.agency.seatsIncluded} client seats.`,
     },
     business: {
       title: 'I own a local business',

@@ -1,5 +1,5 @@
 import { siteEnv } from '../src/lib/env';
-import { PRICING } from './pricing';
+import { agencyPriceLine, agencyTiersLine, PRICING } from './pricing';
 import { WEBSITE_MONITORING_LIVE } from './website-monitoring';
 
 // Draft copy: owner + counsel sign. Rival facts come only from
@@ -164,7 +164,7 @@ export const RIVAL_MONDAY: Record<CapabilityKey, OurCell> = {
   reseller: { mark: 'yes', label: 'Bill clients through your own Stripe account', ledger: 'cap-reseller' },
   publicPricing: {
     mark: 'yes',
-    label: `$${P.monthlyUsd}/mo for the agency, ${P.seatsIncluded} client seats included, $${P.extraSeatUsd} per extra seat`,
+    label: `${agencyPriceLine()} for the agency, ${P.seatsIncluded} client seats included, ${agencyTiersLine()}`,
     ledger: 'cap-publicPricing',
   },
   trial: { mark: 'yes', label: `${P.trialDays}-day free trial; one active client until you add a card`, ledger: 'cap-trial' },
@@ -219,7 +219,7 @@ export const RIVALS: readonly Rival[] = [
       { text: 'A brief every Monday, which your team can edit or approve before it goes out.', key: 'weeklyBrief' },
       { text: 'Every claim in the brief links to its evidence.', key: 'evidenceLinks' },
       { text: 'Self-serve software your agency runs for its clients, billed through your own Stripe account.', key: 'reseller' },
-      { text: `Agency pricing: $${P.monthlyUsd}/mo with ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
+      { text: `Agency pricing: ${agencyPriceLine()} with ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
     ],
     cells: {
       websites: U,
@@ -391,7 +391,7 @@ export const RIVALS: readonly Rival[] = [
       { text: "Watches rivals' ads on Meta and Google.", key: 'ads' },
       { text: 'Weekly map rankings across the service area.', key: 'rankings' },
       { text: 'Every claim in the brief links to its evidence.', key: 'evidenceLinks' },
-      { text: `Public pricing: $${P.monthlyUsd}/mo for the agency, ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
+      { text: `Public pricing: ${agencyPriceLine()} for the agency, ${P.seatsIncluded} client seats included.`, key: 'publicPricing' },
     ],
     cells: {
       websites: U,
@@ -515,7 +515,7 @@ export const CATEGORY_TABLE: { columns: string[]; rows: { label: string; cells: 
     {
       label: 'Pricing',
       cells: [
-        `$${P.monthlyUsd}/mo for the agency, ${P.seatsIncluded} client seats included`,
+        `${agencyPriceLine()} for the agency, ${P.seatsIncluded} client seats included`,
         "Your team's time",
         'Typically per location',
         'Typically by quote, per location',

@@ -16,9 +16,14 @@ function strings(v: unknown, out: string[] = []): string[] {
 
 describe('pricing page copy', () => {
   it('every figure comes from PRICING', () => {
-    const values = [...Object.values(PRICING.agency), ...Object.values(PRICING.business)]
-      .filter((x): x is number => typeof x === 'number')
-      .map(String)
+    const values = [
+      ...Object.values(PRICING.agency).filter((x): x is number => typeof x === 'number'),
+      ...PRICING.agency.extraClientTiers.flatMap((t) => [t.usd, t.toClient].filter((x): x is number => typeof x === 'number')),
+      ...Object.values(PRICING.business).filter((x): x is number => typeof x === 'number'),
+    ]
+      .flatMap((n) => [String(n), n.toLocaleString('en-US')])
+      // The tier line also prints the first extra client number (seats included + 1) and the last tier's "from" (cap + 1).
+      .concat(String(PRICING.agency.seatsIncluded + 1), ...PRICING.agency.extraClientTiers.flatMap((t) => (t.toClient === null ? [] : [String(t.toClient + 1)])))
       .sort((a, b) => b.length - a.length);
     const copy = strings({
       cards: page.PLAN_CARDS,
@@ -33,7 +38,7 @@ describe('pricing page copy', () => {
     }
     const { agency, business } = PRICING;
     expect(page.PLAN_CARDS.pilot.agency.note).toContain(
-      `$${agency.monthlyUsd}/mo including ${agency.seatsIncluded} client seats · $${agency.extraSeatUsd} per extra seat · ${agency.trialDays}-day trial`,
+      `$${agency.monthlyUsd}/mo or $2,290/yr including ${agency.seatsIncluded} client seats · clients 4–10 $79 each, 11+ $59 · ${agency.trialDays}-day trial`,
     );
     expect(page.PLAN_CARDS.pilot.business.note).toBe(`Then $${business.monthlyUsd}/mo`);
     expect(page.PLAN_CARDS.trial.agency.note).toContain('one active client until you add a card');
