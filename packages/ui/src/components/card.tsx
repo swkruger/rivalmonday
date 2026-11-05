@@ -7,7 +7,8 @@ function Card({
   selected,
   ...props
 }: React.ComponentProps<"div"> & {
-  variant?: "default" | "interactive"
+  /** `raised` (border-transparent + shadow-raised): only on recommendation-board lanes (D-29). */
+  variant?: "default" | "interactive" | "raised"
   selected?: boolean
 }) {
   return (
@@ -22,6 +23,7 @@ function Card({
         variant === "interactive" &&
           !selected &&
           "hover:border-line-control hover:bg-canvas",
+        variant === "raised" && "border-transparent shadow-raised",
         selected && "border-secondary bg-primary-soft ring-1 ring-inset ring-secondary",
         className
       )}

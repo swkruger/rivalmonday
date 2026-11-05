@@ -16,6 +16,10 @@ const buttonVariants = cva(
         outline:
           "border border-line-control bg-surface text-ink hover:bg-canvas [&_svg:not([class*='text-'])]:text-muted-ink",
         ghost: "text-ink-secondary hover:bg-muted-surface hover:text-ink",
+        /** Dark ink tone (canvas "Open" / "Ask"). */
+        ink: "bg-ink font-semibold text-white hover:bg-ink-hover",
+        /** Completion. The label must say "Done" and carry a leading `Check` icon (AS13): never colour alone. */
+        done: "bg-success-strong font-semibold text-white hover:bg-success-strong-hover",
         link: "h-auto px-0 text-link underline-offset-4 hover:underline",
       },
       size: {

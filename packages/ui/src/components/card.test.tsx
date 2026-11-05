@@ -14,6 +14,15 @@ describe('Card', () => {
     expect(el.className).toContain('ring-inset');
   });
 
+  it('raised keeps a transparent border and adds the raised shadow', () => {
+    const { container } = render(<Card variant="raised">x</Card>);
+    const el = container.querySelector('[data-slot="card"]')!;
+    expect(el.getAttribute('data-variant')).toBe('raised');
+    expect(el.className).toContain('shadow-raised');
+    expect(el.className.split(' ')).toContain('border-transparent');
+    expect(el.className.split(' ')).not.toContain('border-line');
+  });
+
   it('unselected has no data-selected', () => {
     const { container } = render(<Card>x</Card>);
     expect(container.querySelector('[data-slot="card"]')!.hasAttribute('data-selected')).toBe(false);
