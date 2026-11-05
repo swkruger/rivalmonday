@@ -99,7 +99,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
       {feedback?.email && (
         <p className="text-sm text-muted-ink">
           {'Something look off? '}
-          <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-link">
+          <a href={`mailto:${feedback.email}?subject=${encodeURIComponent(`Feedback: ${profile.name} — ${titleOf(brief)}`)}`} className="font-semibold text-primary-soft-text">
             Email {feedback.name?.trim() || 'your agency'}
           </a>
           .

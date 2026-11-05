@@ -111,7 +111,7 @@ export default async function RankingsPage({ params, searchParams }: {
         // The status/error lines under the buttons are `text-ink`; on the ink band they read white.
         actions={
           controls ? (
-            <div className="flex flex-wrap items-start gap-3 [&_[role=alert]]:text-[var(--on-ink)] [&_[role=status]]:text-[var(--on-ink)]">
+            <div className="flex flex-wrap items-start gap-3 [&_[role=status]]:text-[var(--on-ink)]">
               <RankSettingsSheet clientId={clientId} settings={controls} />
               <div className="flex items-start gap-1.5">
                 <ScanNowButton clientId={clientId} scan={controls.scan} />

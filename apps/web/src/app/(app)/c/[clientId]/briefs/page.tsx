@@ -109,9 +109,9 @@ export default async function BriefsPage({ params, searchParams }: { params: Pro
       />
 
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <TabsLinkList aria-label="Briefs and reports views" variant="segmented" className="h-auto">
+        <TabsLinkList aria-label="Briefs and reports views" variant="segmented" className="h-auto min-h-9">
           {TABS.map((t) => (
-            <TabsLink key={t.key} asChild active={t.key === tab} variant="segmented" className="min-h-8 px-2.5">
+            <TabsLink key={t.key} asChild active={t.key === tab} variant="segmented" className="px-2.5">
               <Link href={hrefFor(clientId, t.key)}>{t.label}</Link>
             </TabsLink>
           ))}

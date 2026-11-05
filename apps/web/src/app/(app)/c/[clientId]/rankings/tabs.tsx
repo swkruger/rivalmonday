@@ -35,7 +35,7 @@ export function RankTabs({ tab, query }: { tab: RankTab; query: RankQuery }) {
     activate(TABS[to]!.key);
   };
   return (
-    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className={cn(tabsSegmentedListClass, 'h-auto self-start')}>
+    <div role="tablist" aria-label="Rank views" onKeyDown={onKeyDown} className={cn(tabsSegmentedListClass, 'h-auto min-h-9 self-start')}>
       {TABS.map((t, n) => {
         const on = t.key === tab;
         return (
@@ -49,7 +49,7 @@ export function RankTabs({ tab, query }: { tab: RankTab; query: RankQuery }) {
             aria-controls="rank-tabpanel"
             tabIndex={on ? 0 : -1}
             onClick={() => activate(t.key)}
-            className={cn(tabsSegmentedItemClass, 'min-h-8')}
+            className={tabsSegmentedItemClass}
           >
             {t.label}
           </button>
