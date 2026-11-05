@@ -2,7 +2,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-const { RecommendationBoard } = await import('./recommendation-board');
+const { RecommendationBoard, variantFor } = await import('./recommendation-board');
 
 const rec = (id: string, status: 'todo' | 'in_progress' | 'done' | 'dismissed', extra: object = {}) => ({
   id, title: `Rec ${id}`, rationale: 'because', effort: 'L', impact: 'H', owner: 'client', status, dismissReason: status === 'dismissed' ? 'Not now' : null, dueAt: null,
@@ -93,5 +93,19 @@ describe('RecommendationBoard', () => {
   it('evidence pills are info-toned', () => {
     const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo')]} />);
     expect(container.querySelector('[data-slot="citation-pill"]')!.className).toContain('bg-chip-info-bg');
+  });
+
+  it('variantFor: forward moves are filled, the rest outline', () => {
+    expect(variantFor('todo', 'in_progress')).toBe('ink');
+    expect(variantFor('in_progress', 'done')).toBe('done');
+    expect(variantFor('todo', 'done')).toBe('outline');
+    expect(variantFor('in_progress', 'todo')).toBe('outline');
+    expect(variantFor('done', 'in_progress')).toBe('outline');
+  });
+
+  it('chips are strong and done cards carry a check beside the title', () => {
+    const { container } = render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'done')]} />);
+    expect(container.querySelector('[data-slot="tag"]')!.className).toContain('font-semibold');
+    expect(container.querySelector('[data-slot=card] p svg.text-success')).toBeTruthy();
   });
 });

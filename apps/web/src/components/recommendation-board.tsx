@@ -21,9 +21,9 @@ export function variantFor(from: Status, to: Status): 'ink' | 'done' | 'outline'
 }
 
 const LANES: { status: 'todo' | 'in_progress' | 'done'; label: string; tint: string; dot: string }[] = [
-  { status: 'todo', label: 'To do', tint: 'bg-muted-surface', dot: 'bg-muted-ink' },
+  { status: 'todo', label: 'To do', tint: 'bg-muted-surface', dot: 'bg-line-strong' },
   { status: 'in_progress', label: 'In progress', tint: 'bg-chip-info-bg', dot: 'bg-chip-info-text' },
-  { status: 'done', label: 'Done', tint: 'bg-chip-success-bg', dot: 'bg-success-strong' },
+  { status: 'done', label: 'Done', tint: 'bg-chip-success-bg', dot: 'bg-success' },
 ];
 
 const SOURCE_LABEL: Record<string, string> = { brief: 'From weekly brief', move: 'From a detected move', ask: 'From Ask' };
@@ -132,13 +132,16 @@ function targetsFor(status: Status, title: string): Target[] {
 function RecommendationCard({ item, clientId, canEdit, agency, action, refs }: { item: RecommendationView; clientId: string; canEdit: boolean; agency: boolean; action: SetStatusAction; refs?: EvidenceRefs }) {
   return (
     <Card variant="raised" role="article" className="p-4.5">
-      <p className="font-semibold">{item.title}</p>
-      <p className="mt-1 text-ink-secondary">{item.rationale}</p>
+      <p className="flex items-center gap-1.5 font-semibold">
+        {item.status === 'done' && <Check aria-hidden className="size-4 shrink-0 text-success" />}
+        {item.title}
+      </p>
+      <p className="mt-1 text-13 text-muted-ink">{item.rationale}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <Tag>Effort: {labelFor(LEVEL, item.effort).label}</Tag>
-        <Tag tone={IMPACT_TONE[item.impact as 'L' | 'M' | 'H'] ?? 'neutral'}>Impact: {labelFor(LEVEL, item.impact).label}</Tag>
-        <Tag tone={item.owner === 'client' ? 'neutral' : 'info'}>{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</Tag>
-        <Tag>{SOURCE_LABEL[item.source] ?? item.source}</Tag>
+        <Tag emphasis="strong">Effort: {labelFor(LEVEL, item.effort).label}</Tag>
+        <Tag emphasis="strong" tone={IMPACT_TONE[item.impact as 'L' | 'M' | 'H'] ?? 'neutral'}>Impact: {labelFor(LEVEL, item.impact).label}</Tag>
+        <Tag emphasis="strong" tone={item.owner === 'client' ? 'neutral' : 'info'}>{item.owner === 'client' ? (agency ? 'Client' : 'For you') : 'Agency'}</Tag>
+        <Tag emphasis="strong">{SOURCE_LABEL[item.source] ?? item.source}</Tag>
         {agency && item.upsellTag && <Tag>Upsell: {item.upsellTag}</Tag>}
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} tone="info" />
       </div>

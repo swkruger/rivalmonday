@@ -280,7 +280,7 @@ export const RECOMMENDATION_STATUS: LabelMap<RecommendationStatus> = {
 
 // runbook play effort / impact
 export const LEVEL: LabelMap<'L' | 'M' | 'H'> = { L: e('Low'), M: e('Medium'), H: e('High') };
-/** Impact chip tone on the recommendations board (app-style § 4). */
+/** Impact chip tone on the recommendations board (app-style spec section 4). */
 export const IMPACT_TONE: Record<'L' | 'M' | 'H', ChipTone> = { L: 'neutral', M: 'warning', H: 'danger' };
 
 // setup wizard StepState (packages/tools/src/setup/state.ts; competitors adds searching/ready/waiting_owner)
