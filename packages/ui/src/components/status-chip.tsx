@@ -35,7 +35,7 @@ type ChipBase = {
   children: React.ReactNode
   title?: string
   className?: string
-  /** `strong` = 6 px radius, 600 weight (app-style ง 3.4). */
+  /** `strong` = 6 px radius, 600 weight (app-style ยง 3.4). */
   emphasis?: "default" | "strong"
 }
 /** Lucide glyph; defaults per tone. Only the neutral tone may suppress it with `null`. */

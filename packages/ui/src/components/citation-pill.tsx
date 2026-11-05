@@ -6,7 +6,7 @@ import { cn } from "../lib/cn"
 export const citationPillClass =
   "inline-flex h-5 max-w-full items-center gap-1 rounded-xs bg-muted-surface px-1.5 align-[1px] text-xs font-medium text-ink-secondary hover:bg-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 
-/** Info tone (app-style ง 3.4): blue chip, 6 px radius, hover underline. */
+/** Info tone (app-style ยง 3.4): blue chip, 6 px radius, hover underline. */
 export const citationPillInfoClass = "rounded-sm bg-chip-info-bg font-semibold text-chip-info-text hover:underline"
 
 type CitationPillProps = { tone?: "neutral" | "info"; href?: string; asChild?: boolean; children?: React.ReactElement; icon?: LucideIcon; className?: string } & (
