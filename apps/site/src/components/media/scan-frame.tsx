@@ -12,6 +12,7 @@ export function ScanFrame({
   size = 'card',
   screenshot = false,
   blip = 1,
+  showTag = true,
   eager = false,
   className = '',
   imgClassName = 'aspect-[3/2]',
@@ -28,6 +29,8 @@ export function ScanFrame({
   screenshot?: boolean;
   /** Where the blip sits on the rings; vary it between neighbouring pictures. */
   blip?: 1 | 2 | 3;
+  /** Off for small side pictures, where the tag would cover too much. */
+  showTag?: boolean;
   eager?: boolean;
   /** On the mat (layout, visibility). */
   className?: string;
@@ -54,6 +57,7 @@ export function ScanFrame({
           </svg>
           <span className={`scan-blip scan-blip-${blip}`} />
         </span>
+        {showTag && (
         <span className="scan-tag">
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="6.5" strokeOpacity=".6" />
@@ -63,6 +67,7 @@ export function ScanFrame({
           </svg>
           {tag}
         </span>
+        )}
       </span>
     </span>
   );

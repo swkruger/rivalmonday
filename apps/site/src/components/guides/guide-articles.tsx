@@ -7,9 +7,9 @@ import { ScanFrame } from '../media/scan-frame';
 type Blip = 1 | 2 | 3;
 const blipFor = (i: number) => ((i % 3) + 1) as Blip;
 
-function GuideImage({ guide, blip }: { guide: Guide; blip: Blip }) {
+function GuideImage({ guide, blip, showTag = true }: { guide: Guide; blip: Blip; showTag?: boolean }) {
   const { src, alt, width, height, tag, screenshot } = guide.image;
-  return <ScanFrame src={src} alt={alt} width={width} height={height} tag={tag} screenshot={screenshot} blip={blip} />;
+  return <ScanFrame src={src} alt={alt} width={width} height={height} tag={tag} screenshot={screenshot} blip={blip} showTag={showTag} />;
 }
 
 const meta = (g: Guide) => `${guideReadMinutes(g)} min read`;
@@ -34,7 +34,8 @@ export function GuideTeaser({ guide, stacked = false, index = 0 }: { guide: Guid
   return (
     <article>
       <a href={`/guides/${guide.slug}`} className={`group ${stacked ? 'block' : 'grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-4 sm:gap-6'}`}>
-        <GuideImage guide={guide} blip={blipFor(index)} />
+        {/* Small side cards drop the tag; stacked grid cards keep it. */}
+        <GuideImage guide={guide} blip={blipFor(index)} showTag={stacked} />
         <div className={stacked ? 'mt-4' : undefined}>
           <h3 className="text-lg font-semibold tracking-tight text-ink group-hover:underline">{guide.h1}</h3>
           <p className="mt-1 hidden text-sm leading-relaxed text-ink-secondary sm:block">{guide.seo.description}</p>
