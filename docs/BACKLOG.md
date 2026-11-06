@@ -173,6 +173,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 
 ## Phase 17 follow-ups (marketing site, waitlist)
 **Soon**
+- [ ] Radar mark in the Rival Monday emails' header (`@cs/email` branding still prints the text wordmark; platform-sent emails only, never white-label) — *friday-robot*
 - [ ] SRI / nonce CSP (P7) — *phase-17*
 - [ ] Free map-check tool (link magnet): one-off grid scan for any business from the site; needs app-side vendor calls behind cost guards + Turnstile — *site-showcase*
 - [ ] More SEO pages once signed: further trades (roofing, landscaping, med spas…) in `content/industries.ts`; more guides; port the hand-tuned rank story into `@cs/demo` `site-export` so a re-export keeps it — *site-showcase*
