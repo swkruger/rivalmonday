@@ -17,8 +17,11 @@ export interface Guide {
   published: string;
   /** ISO date of the last substantive edit (`dateModified`). */
   updated: string;
-  /** Committed in `public/sample`; never generated at runtime. `caption` marks sample or fictional content. */
-  image: { src: `/sample/${string}`; alt: string; width: number; height: number; caption?: string };
+  /**
+   * Committed in `public/sample`; never generated at runtime. `caption` marks sample or fictional content. `tag` is the
+   * scan tag on the picture (one or two words); `screenshot` marks a light product shot (blue rings, cropped from the top left).
+   */
+  image: { src: `/sample/${string}`; alt: string; width: number; height: number; caption?: string; tag: string; screenshot?: true };
   sections: readonly GuideSection[];
   /** Internal links shown under the guide: source pages and industry pages that go deeper. */
   related: readonly { label: string; href: string }[];
@@ -36,6 +39,7 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-29',
     image: {
       src: '/sample/home-street.webp',
+      tag: 'Analysis',
       alt: 'Local shops on a small-town main street with two plain white service vans parked outside',
       width: 1200,
       height: 800,
@@ -123,6 +127,8 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-29',
     image: {
       src: '/sample/hero-map.webp',
+      tag: 'Map rankings',
+      screenshot: true,
       alt: 'Map rankings for a sample keyword: a grid of ranks over the service area, strongest around the business',
       width: 960,
       height: 1120,
@@ -202,6 +208,7 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-29',
     image: {
       src: '/sample/home-counter.webp',
+      tag: 'Checklist',
       alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window',
       width: 1200,
       height: 800,
@@ -311,6 +318,7 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-31',
     image: {
       src: '/sample/site-heat-pump.webp',
+      tag: 'Reviews',
       alt: 'A heat pump on a concrete pad outside a house, the kind of finished job a customer writes a review about',
       width: 960,
       height: 640,
@@ -393,6 +401,7 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-31',
     image: {
       src: '/sample/ad-comfort-club.webp',
+      tag: 'Ads',
       alt: 'A bright living room with a thermostat on the wall, the image from a fictional rival’s membership ad',
       width: 720,
       height: 480,
@@ -470,6 +479,8 @@ export const GUIDES: readonly Guide[] = [
     updated: '2026-10-31',
     image: {
       src: '/sample/hero-overview.webp',
+      tag: 'Briefs',
+      screenshot: true,
       alt: 'A client dashboard for a sample heating and air business, showing the week in four numbers, where it stands against its rivals and the Ask Friday card',
       width: 1720,
       height: 948,

@@ -16,8 +16,8 @@ export default function GuidesPage() {
           <PageIntro path="/guides" eyebrow={GUIDES_PAGE.eyebrow} h1={GUIDES_PAGE.h1} lead={GUIDES_PAGE.lead} />
         </div>
         <div className="mt-12 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-          {newestFirst.map((g) => (
-            <GuideTeaser key={g.slug} guide={g} stacked />
+          {newestFirst.map((g, i) => (
+            <GuideTeaser key={g.slug} guide={g} stacked index={i} />
           ))}
         </div>
       </section>

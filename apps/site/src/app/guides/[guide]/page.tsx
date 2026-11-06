@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { GUIDES, guideReadMinutes } from '../../../../content/guides';
 import { CtaBand } from '../../../components/home/cta-band';
+import { ScanFrame } from '../../../components/media/scan-frame';
 import { RankMap, weekStats } from '../../../components/sample/rank-map';
 import { JsonLd } from '../../../components/seo/json-ld';
 import { PageIntro } from '../../../components/seo/page-intro';
@@ -64,9 +65,7 @@ export default async function GuidePage({ params }: { params: Promise<{ guide: s
             <time dateTime={g.updated}>Updated {formatDay(g.updated)}</time> · {guideReadMinutes(g)} min read
           </p>
           <figure className="mt-8">
-            <span className="scope">
-              <img src={g.image.src} alt={g.image.alt} width={g.image.width} height={g.image.height} decoding="async" className="aspect-[3/2] w-full rounded-lg border photo-glow bg-muted-surface object-cover [object-position:left_top]" />
-            </span>
+            <ScanFrame src={g.image.src} alt={g.image.alt} width={g.image.width} height={g.image.height} tag={g.image.tag} screenshot={g.image.screenshot} size="lg" eager />
             {g.image.caption ? <figcaption className="mt-2 text-13 text-muted-ink">{g.image.caption}</figcaption> : null}
           </figure>
           {g.sections.map((s, i) => (

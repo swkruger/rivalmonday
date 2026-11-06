@@ -1,5 +1,6 @@
 import { HOME_IMAGES, HOW_STEPS, SECTIONS } from '../../../content/home';
 import { ANY_INDUSTRY, INDUSTRIES } from '../../../content/industries';
+import { ScanFrame } from '../media/scan-frame';
 import { Reveal } from '../motion/in-view';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
@@ -9,9 +10,7 @@ export function Steps({ industries = true, afterSteps }: { industries?: boolean;
     <HomeSectionShell id="how-it-works" labelledBy="how-it-works-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
       <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-16">
         <SectionHeading section={SECTIONS['how-it-works']} />
-        <span className="scope">
-          <img src={HOME_IMAGES.street.src} alt={HOME_IMAGES.street.alt} width={1200} height={800} loading="lazy" decoding="async" className="aspect-[16/9] w-full rounded-card border photo-glow bg-muted-surface object-cover" />
-        </span>
+        <ScanFrame src={HOME_IMAGES.street.src} alt={HOME_IMAGES.street.alt} width={1200} height={800} tag={HOME_IMAGES.street.tag} size="lg" imgClassName="aspect-[16/9]" />
       </div>
       <Reveal>
         <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -7,6 +7,7 @@ import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
 import { type OpenEvidence } from '../sample/brief-items';
 import { EvidencePanel } from '../sample/evidence-panel';
+import { ScanFrame } from '../media/scan-frame';
 import { FridayPanel } from '../sample/friday-panel';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
@@ -41,9 +42,7 @@ export function FridayRow() {
           </div>
           <p className="mt-4 max-w-3xl text-13 text-muted-ink">{FRIDAY_PERSONA.mcpNote}</p>
           {/* Desktop only: on phones it would push the live Friday further down the page. */}
-          <span className="scope mt-8 hidden lg:block">
-            <img src={HOME_IMAGES.counter.src} alt={HOME_IMAGES.counter.alt} width={1200} height={800} loading="lazy" decoding="async" className="aspect-[16/9] w-full rounded-card border photo-glow bg-muted-surface object-cover" />
-          </span>
+          <ScanFrame src={HOME_IMAGES.counter.src} alt={HOME_IMAGES.counter.alt} width={1200} height={800} tag={HOME_IMAGES.counter.tag} size="lg" blip={2} className="mt-8 hidden lg:block" imgClassName="aspect-[16/9]" />
         </div>
         <div data-slot="ask-dock" className="friday-dock min-w-0 rounded-frame border border-line p-5 shadow-frame md:p-8">
             <FridayPanel answers={FRIDAY_ANSWERS} data={SAMPLE} onOpen={open} initialId={FRIDAY_ANSWERS[1]!.id} label={FRIDAY_PERSONA.prompt} />

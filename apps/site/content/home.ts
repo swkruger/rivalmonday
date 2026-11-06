@@ -188,8 +188,8 @@ export const HOME_IMAGES = {
   },
   heroMap: { src: '/sample/hero-map.webp', alt: 'Map rankings for "ac repair marlowemere": a grid of ranks over the service area, strongest around the business' },
   heroFriday: { src: '/sample/hero-friday.webp', alt: 'Friday, the assistant, answering who is winning the map, with numbered sources for each figure' },
-  street: { src: '/sample/home-street.webp', alt: 'Local shops on a small-town main street with two plain white service vans parked outside' },
-  counter: { src: '/sample/home-counter.webp', alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window' },
+  street: { src: '/sample/home-street.webp', tag: 'Local rivals', alt: 'Local shops on a small-town main street with two plain white service vans parked outside' },
+  counter: { src: '/sample/home-counter.webp', tag: 'Weekly check', alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window' },
 } as const;
 
 export const CHECKS_LINK = { label: 'Read how we check claims →', href: '/how-it-works' } as const;
