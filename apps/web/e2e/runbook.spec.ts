@@ -75,6 +75,8 @@ test.describe.serial('runbooks', () => {
       await agencyCard.getByRole('button', { name: 'Edit' }).click();
       await agencyCard.getByLabel('Template').fill(AGENCY_CUSTOM);
       await agencyCard.getByRole('button', { name: 'Save' }).click();
+      // The editor closes only once the save has landed; the text alone can match the editor before it commits.
+      await expect(agencyCard.getByRole('button', { name: 'Save' })).toBeHidden();
       await expect(agencyCard.getByText(AGENCY_CUSTOM).first()).toBeVisible();
 
       await page.goto(`/c/${await clientId()}/settings/runbook`);
