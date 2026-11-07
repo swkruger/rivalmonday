@@ -28,6 +28,19 @@ export interface ClientProfile {
  */
 export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['service_area_change', 'new_location']);
 
+/**
+ * brief-signal D2/P1: change types that describe the whole business, so "no service for the client's vertical" is not a
+ * sign the tagger failed. They score with `scoring.relevance.whole_business` instead of `unmapped`.
+ * - review_spike, rating_change: reviews and rating are about the business; the tag stage never maps a service.
+ * - new_location: a new address or location page is the whole business; territory still applies (TERRITORIAL_TYPES).
+ * - ad_started, ad_stopped: service-mapped by the tag stage; "none" = a branding or general ad = the whole business.
+ * - hiring: service-mapped; "none" = general hiring (capacity of the whole business).
+ * - rank_change: keyword to service by phrase; no match = a generic keyword ("hvac company near me").
+ * Excluded: content (shared with web page edits; no service = generic copy), tier_change (deterministic score, P10),
+ * and the service-specific types (price_change, promo, new_service, service_removed, service_area_change, cosmetic).
+ */
+export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location']);
+
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
@@ -56,11 +69,12 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
   }
 }
 
-export function serviceOverlap(serviceId: string | null, clientServices: string[], pack: VerticalPack): number {
+export function serviceOverlap(serviceId: string | null, clientServices: string[], pack: VerticalPack, changeType: ChangeType): { value: number; wholeBusiness: boolean } {
   const r = pack.scoring.relevance;
-  if (clientServices.length === 0) return 1;
-  if (!serviceId) return r.unmapped;
-  return clientServices.includes(serviceId) ? r.matched : r.unmatched;
+  if (clientServices.length === 0) return { value: 1, wholeBusiness: false };
+  if (serviceId) return { value: clientServices.includes(serviceId) ? r.matched : r.unmatched, wholeBusiness: false };
+  if (WHOLE_BUSINESS_TYPES.has(changeType)) return { value: r.whole_business, wholeBusiness: true };
+  return { value: r.unmapped, wholeBusiness: false };
 }
 
 export function territoryOverlap(eventZips: string[], clientZips: string[], pack: VerticalPack): number {
@@ -92,9 +106,9 @@ function tierChangeScore(d: ChangeDetails, t: ScoreThresholds): number {
 export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: VerticalPack): { score: number; route: Route; factors: ScoreFactors } {
   const typeWeight = pack.type_weights[input.changeType];
   const size = sizeFactor(input, pack);
-  const svc = serviceOverlap(input.serviceId, profile.services, pack);
+  const svc = serviceOverlap(input.serviceId, profile.services, pack, input.changeType);
   const territory = TERRITORIAL_TYPES.has(input.changeType) ? territoryOverlap(input.zips, profile.zips, pack) : 1;
-  const relevance = svc * territory;
+  const relevance = svc.value * territory;
   const novelty = noveltyFactor(input.maxSimilarity, pack);
   if (profile.thresholds && !validThresholds(profile.thresholds)) console.warn('[engine] invalid client score thresholds; using the pack routing', profile.thresholds);
   const thresholds = validThresholds(profile.thresholds) ? profile.thresholds : pack.scoring.routing;
@@ -113,7 +127,7 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
     score,
     route,
     factors: {
-      typeWeight, size, serviceOverlap: svc, territoryOverlap: territory, relevance, novelty, maxSimilarity: input.maxSimilarity,
+      typeWeight, size, serviceOverlap: svc.value, wholeBusiness: svc.wholeBusiness, territoryOverlap: territory, relevance, novelty, maxSimilarity: input.maxSimilarity,
       needsReviewCap, staleCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
     },
   };

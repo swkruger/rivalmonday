@@ -1,7 +1,7 @@
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { noveltyFactor, scoreForClient, type ScoreInput, sizeFactor, TERRITORIAL_TYPES } from './score';
+import { noveltyFactor, scoreForClient, type ScoreInput, serviceOverlap, sizeFactor, TERRITORIAL_TYPES, WHOLE_BUSINESS_TYPES } from './score';
 
 let pack: VerticalPack;
 beforeAll(async () => {
@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 3 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 4 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -133,5 +133,78 @@ describe('tier_change scoring (P10)', () => {
 
   it('stale cap still applies', () => {
     expect(scoreForClient(tier('watch', 'top', { ageDays: 10 }), client, pack)).toMatchObject({ route: 'brief' });
+  });
+});
+
+describe('whole-business relevance (brief-signal D2)', () => {
+  const whole = (over: Partial<ScoreInput>) => input({ facts: [], serviceId: null, ...over });
+
+  it('rating_change with no service scores 100·0.7·size·1·novelty and wholeBusiness true', () => {
+    const r = scoreForClient(whole({ changeType: 'rating_change', details: { ratingBefore: 4.6, ratingAfter: 4.45 }, maxSimilarity: 0.75 }), client, pack);
+    const novelty = noveltyFactor(0.75, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 1, relevance: 1, wholeBusiness: true });
+    expect(r.score).toBe(Math.round(100 * 0.7 * 0.5 * 1 * novelty * 10) / 10);
+  });
+
+  it('ad_started with a mapped matching service uses matched, wholeBusiness false', () => {
+    const r = scoreForClient(whole({ changeType: 'ad_started', serviceId: 'ac_tune_up', details: { count: 5 } }), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 1, wholeBusiness: false });
+  });
+
+  it('ad_started with an unmatched service uses unmatched', () => {
+    const r = scoreForClient(whole({ changeType: 'ad_started', serviceId: 'drain_cleaning', details: { count: 5 } }), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 0.2, wholeBusiness: false });
+  });
+
+  it('price_change with no service stays unmapped', () => {
+    const r = scoreForClient(whole({ changeType: 'price_change' }), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 0.6, wholeBusiness: false });
+  });
+
+  it('content with no service stays unmapped', () => {
+    expect(scoreForClient(whole({ changeType: 'content' }), client, pack).factors).toMatchObject({ serviceOverlap: 0.6, wholeBusiness: false });
+  });
+
+  it('client without services → 1, wholeBusiness false', () => {
+    expect(serviceOverlap(null, [], pack, 'rating_change')).toEqual({ value: 1, wholeBusiness: false });
+    expect(scoreForClient(whole({ changeType: 'rating_change' }), { ...client, services: [] }, pack).factors.wholeBusiness).toBe(false);
+  });
+
+  it('serviceOverlap returns the rule table', () => {
+    expect(serviceOverlap(null, ['a'], pack, 'hiring')).toEqual({ value: pack.scoring.relevance.whole_business, wholeBusiness: true });
+    expect(serviceOverlap('a', ['a'], pack, 'hiring')).toEqual({ value: 1, wholeBusiness: false });
+    expect(serviceOverlap(null, ['a'], pack, 'promo')).toEqual({ value: 0.6, wholeBusiness: false });
+    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'hiring', 'new_location', 'rank_change', 'rating_change', 'review_spike']);
+  });
+
+  it('new_location outside territory = whole_business × outside_territory', () => {
+    const r = scoreForClient(whole({ changeType: 'new_location', zips: ['10001'] }), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 1, territoryOverlap: 0.3, relevance: 0.3, wholeBusiness: true });
+  });
+
+  it('review_spike z ≥ 4 reaches the brief bar (60)', () => {
+    const r = scoreForClient(whole({ changeType: 'review_spike', details: { z: 4 } }), client, pack);
+    expect(r).toMatchObject({ score: 60, route: 'brief' });
+  });
+
+  it('ad_stopped never reaches 40', () => {
+    const r = scoreForClient(whole({ changeType: 'ad_stopped', details: { count: 50 } }), client, pack);
+    expect(r.score).toBe(30);
+    expect(r.route).toBe('archive');
+  });
+
+  it('rating_change Δ0.3, novelty 1 routes alert (70)', () => {
+    const r = scoreForClient(whole({ changeType: 'rating_change', details: { ratingBefore: 4.6, ratingAfter: 4.3 } }), client, pack);
+    expect(r).toMatchObject({ score: 70, route: 'alert' });
+  });
+
+  it('tier_change unchanged', () => {
+    const r = scoreForClient(input({ changeType: 'tier_change', facts: [], serviceId: null, details: { changeType: 'tier_change', from: 'watch', to: 'top' } }), client, pack);
+    expect(r).toMatchObject({ score: 70, route: 'alert' });
+    expect(r.factors.wholeBusiness).toBe(false);
+  });
+
+  it('factors.scoringVersion is 4 with the shipped pack', () => {
+    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(4);
   });
 });

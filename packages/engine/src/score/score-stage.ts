@@ -5,7 +5,7 @@ import type { VerticalPack } from '@cs/verticals';
 import { loadClientRunbook } from '../runbook/store';
 import { MAX_STAGE_ATTEMPTS, RETRY_BACKOFF_MINUTES } from '../stage';
 import type { PackLoader } from '../tag/tag-stage';
-import { type Route, scoreForClient } from './score';
+import { type Route, type ScoreInput, scoreForClient } from './score';
 
 /** A pair that failed recently (exponential backoff, like the stage sweep) or MAX_STAGE_ATTEMPTS times is skipped. */
 export const scoreBackoff = (eventId: SQL | string, clientId: SQL | AnyColumn) => sql`EXISTS (
@@ -102,6 +102,14 @@ export interface ScoreRunResult {
   routes: Record<Route, number>;
 }
 
+/** The ScoreInput for one event and vertical (shared with the re-score). */
+export function scoreInputFor(ev: typeof changeEvent.$inferSelect, verticalId: string, maxSimilarity: number | null, ageDays: number): ScoreInput {
+  return {
+    changeType: ev.changeType as ChangeType, facts: ev.facts, serviceId: ev.services[verticalId] ?? null, zips: ev.zips, needsReview: ev.needsReview,
+    maxSimilarity, details: ev.details, ageDays,
+  };
+}
+
 /** Scores the event for every tracking client that has no score yet. Idempotent via event_score's primary key. */
 export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack> }, eventId: string, opts: { now?: Date } = {}): Promise<ScoreRunResult> {
   const [ev] = await deps.db.select().from(changeEvent).where(eq(changeEvent.id, eventId)).limit(1);
@@ -138,10 +146,7 @@ export async function scoreEvent(deps: { db: Db; packs: PackLoader; generic: () 
       if (!similarityByWindow.has(window)) similarityByWindow.set(window, noveltySimilarity(deps.db, ev, window));
       const runbook = await loadClientRunbook(deps, c.id);
       const s = scoreForClient(
-        {
-          changeType: ev.changeType as ChangeType, facts: ev.facts, serviceId: ev.services[c.verticalId] ?? null, zips: ev.zips, needsReview: ev.needsReview,
-          maxSimilarity: await similarityByWindow.get(window)!, details: ev.details, ageDays,
-        },
+        scoreInputFor(ev, c.verticalId, await similarityByWindow.get(window)!, ageDays),
         { services: c.services, zips: c.serviceArea?.zips ?? [], thresholds: runbook.thresholds },
         pack,
       );

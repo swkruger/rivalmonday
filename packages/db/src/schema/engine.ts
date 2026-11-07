@@ -105,6 +105,12 @@ export interface ScoreFactors {
   needsReviewCap: boolean;
   /** True when an alert was capped to brief because the event was older than the pack's alert_max_age_days (Phase 3b). */
   staleCap?: boolean;
+  /** brief-signal D2: relevance came from scoring.relevance.whole_business. */
+  wholeBusiness?: boolean;
+  /** brief-signal D3: set by the rescore CLI; the previous score/route/version and when. */
+  rescored?: { at: string; score: number; route: 'alert' | 'brief' | 'archive'; scoringVersion: number };
+  /** brief-signal D3: an alert route produced by a re-score, stored as brief. */
+  rescoreCap?: boolean;
   thresholds: ScoreThresholds;
   scoringVersion: number;
 }
