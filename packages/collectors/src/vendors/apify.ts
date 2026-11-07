@@ -7,6 +7,10 @@ export const APIFY_META_ACTOR = 'curious_coder~facebook-ads-library-scraper';
 /** Max ads requested per run. A response this size may have been cut off at the cap. */
 export const APIFY_META_COUNT = 200;
 
+/** Estimated Apify cost per returned ad (USD); the actor is pay-per-ad (live-verified 2026-10). */
+export const APIFY_COST_PER_AD_USD = 0.00075;
+export const apifyCostUsd = (count: number): number => count * APIFY_COST_PER_AD_USD;
+
 export function metaLibraryUrl(pageId: string, country = 'US'): string {
   const u = new URL('https://www.facebook.com/ads/library/');
   u.search = new URLSearchParams({ active_status: 'active', ad_type: 'all', country, view_all_page_id: pageId, media_type: 'all' }).toString();
@@ -63,6 +67,6 @@ export async function fetchMetaAdsApify(
     if (err instanceof VendorError) throw err;
     throw new VendorError('apify', null, 'Network error calling Apify', true, { cause: err });
   } finally {
-    await safeRecordVendorCall(opts.ledger, { ...scope, vendor: 'apify', operation: APIFY_META_ACTOR, units: items.length, costUsd: null, latencyMs: Date.now() - started, ok });
+    await safeRecordVendorCall(opts.ledger, { ...scope, vendor: 'apify', operation: APIFY_META_ACTOR, units: items.length, costUsd: apifyCostUsd(items.length), latencyMs: Date.now() - started, ok });
   }
 }

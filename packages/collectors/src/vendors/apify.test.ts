@@ -90,4 +90,24 @@ describe('fetchMetaAdsApify', () => {
     }
     expect(records.map((r) => [r.ok, r.units])).toEqual([[true, 0], [false, 0], [true, 1]]);
   });
+
+  it('ledgers 0.00075 per returned ad (3 ads → 0.00225)', async () => {
+    const { fetch, records, ledger } = setup([new Response(JSON.stringify([{ adArchiveID: '1' }, { adArchiveID: '2' }, { adArchiveID: '3' }]), { status: 201 })]);
+    await fetchMetaAdsApify({ token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', scope);
+    expect(records[0]).toMatchObject({ vendor: 'apify', ok: true, units: 3 });
+    expect(records[0].costUsd).toBeCloseTo(0.00225, 8);
+  });
+
+  it('ADS_NOT_FOUND ledgers 0', async () => {
+    const notFound = [{ error: 'Ads not found', errorCode: 'ADS_NOT_FOUND', url: 'https://www.facebook.com/ads/library/?view_all_page_id=99' }];
+    const { fetch, records, ledger } = setup([new Response(JSON.stringify(notFound), { status: 201 })]);
+    await fetchMetaAdsApify({ token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', scope);
+    expect(records[0]).toMatchObject({ ok: true, units: 0, costUsd: 0 });
+  });
+
+  it('HTTP error ledgers 0 with ok false', async () => {
+    const { fetch, records, ledger } = setup([new Response('server error', { status: 500 })]);
+    await fetchMetaAdsApify({ token: 't', ledger, fetch: fetch as unknown as typeof globalThis.fetch }, '99', scope).catch(() => {});
+    expect(records[0]).toMatchObject({ ok: false, units: 0, costUsd: 0 });
+  });
 });

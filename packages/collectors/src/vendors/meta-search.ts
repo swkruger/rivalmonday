@@ -1,6 +1,6 @@
 import { type TimedFetch, timedFetch } from '@cs/core/server';
 import type { CallScope, LedgerSink } from '@cs/core';
-import { APIFY_META_ACTOR } from './apify';
+import { APIFY_COST_PER_AD_USD, APIFY_META_ACTOR, apifyCostUsd } from './apify';
 import { safeRecordVendorCall, VendorError } from './errors';
 
 export interface MetaSearchDeps { apiKey?: string; apifyToken?: string; ledger: LedgerSink; fetch?: TimedFetch; /** Apify's own limited fetch (ScrapeCreators uses `fetch`); falls back to `fetch`. */ apifyFetch?: TimedFetch }
@@ -12,8 +12,7 @@ export interface MetaSearchResult { pages: MetaPageHit[] | null; vendor: MetaSea
 /** Ad rows a discovery search reads per business (both vendors): enough to find the page, cheap on Apify's per-ad price. */
 export const META_SEARCH_COUNT = 30;
 /** Cost estimates (USD): ScrapeCreators charges 1 credit per call; the Apify actor is pay-per-ad (live-verified 2026-10). */
-export const META_SEARCH_COST_USD = { scrapecreators: 0.01, apifyPerAd: 0.00075 } as const;
-const apifyCostUsd = (count: number) => count * META_SEARCH_COST_USD.apifyPerAd;
+export const META_SEARCH_COST_USD = { scrapecreators: 0.01, apifyPerAd: APIFY_COST_PER_AD_USD } as const;
 /** Worst case of one search: ScrapeCreators fails after being called and Apify answers in full. */
 export const metaSearchWorstCaseUsd = (count = META_SEARCH_COUNT): number => META_SEARCH_COST_USD.scrapecreators + apifyCostUsd(count);
 
