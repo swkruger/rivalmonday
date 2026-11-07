@@ -4,10 +4,10 @@
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (owner-approved 2026-11-07) · **Plan:** `docs/superpowers/plans/2026-11-07-brief-report.md` (Tasks 0–15, lean)
 
 ## Status (overwrite)
-Plan drafted; awaiting owner approval; execution after brief-signal merges.
+Plan owner-approved 2026-11-07; execution after brief-signal merges.
 
 ## Next (overwrite)
-Owner approves the plan (plan calls P1–P8 in its Decisions). After brief-signal merges: `superpowers:subagent-driven-development` from Task 0 (rebase, re-check, next free migration number).
+After brief-signal merges: `superpowers:subagent-driven-development` from Task 0 (rebase, re-check, next free migration number).
 
 ## Interfaces this branch adds or changes
 - Migration `<n>_brief_report` (next free number at execution, ≥ 0100): `brief.report jsonb` nullable; `(client_id, scored_at)` index on `event_score` only if Task 0's EXPLAIN needs it.
@@ -21,6 +21,7 @@ Owner approves the plan (plan calls P1–P8 in its Decisions). After brief-signa
 - `brief-signal` merged: whole-business relevance + re-score (grades are meaningless before it), migration 0099, `EVIDENCE_CHANNEL_LABEL`, evidence head format. Re-check its final `score.ts`/`gather.ts` at plan time.
 
 ## Decisions (owner-approved 2026-11-07)
+- **O6** `get_brief` graded `changes` on the web channel only for now (MCP/Ask unchanged, no eval re-record); revisit later (owner, 2026-11-07).
 - **O1** Brief PDF = full weekly report (layout "C"): agency-branded cover (never Rival Monday), summary page (headline stats, top move, next steps), one page/section per topic — Reviews & rating, Ads, Map rankings, Moves, Recommendations (+ recent alerts if they fit) — each with the client-overview chart(s) and that topic's changes this week. **Ask Friday never included.** Owner: "I want the client to feel he gets his money's worth", "more comprehensive even if it is an extra overview".
 - **O2** Graded changes everywhere (email, in-app brief, PDF): every competitor change of the period, graded by `event_score.score` vs the client's brief threshold T (default 40): **Major** ≥ T (existing written, verified items), **Notable** T/2 ≤ s < T, **Minor** < T/2. Labels exactly "Major", "Notable", "Minor". Notable/Minor one line each, deterministic from stored event summaries + evidence dates (no model text; verifier never drops them). Retracted + cosmetic hidden. Repeats grouped ("Lakeview: 6 Google ads stopped"); cap per topic with "+N more" → app Changes page; Minor collapsed by default in email and app. "Quiet week" = nothing Major.
 - **O3** Own branch; builds after `brief-signal` merges (scoring fix: whole-business relevance).
