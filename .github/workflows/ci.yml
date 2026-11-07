@@ -5,7 +5,25 @@ on:
   pull_request:
 
 jobs:
+  # Docs-only pushes/PRs (rule: scripts/docs-only.sh) skip test, image and site; the deploy jobs require those to
+  # succeed, so they skip too. An unknown base (new branch, force-push) counts as code.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.f.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: f
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if bash scripts/docs-only.sh "$BASE" "$GITHUB_SHA"; then echo "code=false" >> "$GITHUB_OUTPUT"; echo "Docs-only change: tests and deploys skipped."; else echo "code=true" >> "$GITHUB_OUTPUT"; fi
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -49,6 +67,8 @@ jobs:
   # Worker image: built from the repo root (turbo prune inside the Dockerfile), then smoke-tested offline
   # (loads ai.yaml, launches + closes Chromium; no DB, no network). No local Docker on the dev machine — this is the proof.
   image:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +80,8 @@ jobs:
   # Marketing site (apps/site): no database. Unit tests + typecheck already run in `test`. The build env matches
   # apps/site/playwright.config.ts (SERVER_ENV), because the E2E starts the server on this build (E2E_SKIP_BUILD=1).
   site:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_APP_URL: https://app.e2e.test

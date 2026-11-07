@@ -10,7 +10,7 @@ argument-hint: <branch>
 
 ## 1. Verify on the branch (in its worktree)
 1. `git status` clean (commit or ask about leftovers). `git fetch -q origin; git rebase main` (or merge `main` in if the branch was shared/pushed — ask).
-2. Run `pnpm typecheck` and `pnpm test:affected --base main` first (fast feedback). Then **ask the owner**: "Run the full unit suite (~N min) and full E2E (~N min) now?" — quote the last measured times from `docs/gotchas-cross-cutting.md`. On yes: `npx turbo run test --concurrency=1 --continue` and `pnpm --filter @cs/web e2e` in the background, one after the other (never concurrently). On no: record "full suite deferred to CI" in the merge summary. Report real numbers; failures stop the merge (use superpowers:systematic-debugging).
+2. **Docs-only branch?** `bash scripts/docs-only.sh main` exits 0 → skip the rest of this step and step 3 (no typecheck, no tests, no question; CI skips them too) and record "docs-only, tests skipped" in the merge summary. Otherwise run `pnpm typecheck` and `pnpm test:affected --base main` first (fast feedback). Then **ask the owner**: "Run the full unit suite (~N min) and full E2E (~N min) now?" — quote the last measured times from `docs/gotchas-cross-cutting.md`. On yes: `npx turbo run test --concurrency=1 --continue` and `pnpm --filter @cs/web e2e` in the background, one after the other (never concurrently). On no: record "full suite deferred to CI" in the merge summary. Report real numbers; failures stop the merge (use superpowers:systematic-debugging).
 3. If the branch added a screen: `pnpm --filter @cs/demo test` (demo coverage list).
 
 ## 2. Fold the work file into the shared docs (on the branch, one docs commit)
