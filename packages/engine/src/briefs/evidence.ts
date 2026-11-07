@@ -17,6 +17,12 @@ export interface EvidenceChange {
   text: string;
 }
 
+/** Human channel names for evidence head lines (brief-signal D4); an unknown channel shows its id. */
+export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
+  web: 'Website', google_ads: 'Google Ads', meta_ads: 'Meta ads', google_business_profile: 'Google Business Profile',
+  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings',
+};
+
 const trunc = (s: string) => (s.length > EVIDENCE_TEXT_CHARS ? `${s.slice(0, EVIDENCE_TEXT_CHARS - 1)}…` : s);
 
 /** Scraped text sits inside <evidence>/<candidate> blocks of the writer prompt: never let it close or open one. */
@@ -33,6 +39,7 @@ function describe(c: typeof detectedChange.$inferSelect, names: string[]): strin
     else lines.push(`Before: "${red(c.beforeText)}"`, `After: "${red(c.afterText)}"`);
   } else {
     lines.push(redactForModel(buildStructuredSummary(c, names), { businessNames: names }));
+    if (c.kind === 'modified' && c.beforeText !== null && c.afterText !== null) lines.push(`Before: "${red(c.beforeText)}"`, `After: "${red(c.afterText)}"`);
     const labels = (c.details.items ?? []).slice(0, ITEM_LABELS).map((i) => red(i.label));
     if (labels.length > 0) lines.push(`Items: ${labels.join('; ')}`);
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import type { BriefClient, EventCandidate, MoveCandidate } from './gather';
+import { checkSentence } from './rules';
 import { supportCheck } from './support';
 import { ruleEvidenceFor, verifyDraft, verifyText } from './verify';
 
@@ -46,6 +47,27 @@ describe('supportCheck', () => {
     expect(ok.has('k0')).toBe(false);
     expect(ok.has('k1')).toBe(true);
     expect(ok.size).toBe(23); // first key of each chunk was low-confidence
+  });
+});
+
+describe('rating change evidence', () => {
+  const rating: EventCandidate = {
+    ...cand, changeType: 'rating_change', summary: 'Google rating 4.9 → 4.3',
+    changes: [{ ...cand.changes[0]!, channel: 'google_business_profile', capturedAt: new Date('2026-11-05T06:00:00Z'), text: 'Google rating 4.9 → 4.3 (3 reviews)\nBefore: "4.9"\nAfter: "4.3"' }],
+  };
+  const rulesPeriod = { start: new Date('2026-11-02T03:30:00Z'), end: new Date('2026-11-09T03:30:00Z') };
+
+  it('the 4.9 → 4.3 rating sentence passes the rules check against the new evidence', () => {
+    const ev = ruleEvidenceFor([rating], rulesPeriod);
+    expect(ev.text).toContain('[Google Business Profile · detected on 2026-11-05]');
+    const r = checkSentence("Smith HVAC's Google rating dropped from 4.9 to 4.3, detected on 2026-11-05", ev, { trackedCompetitorNames: ['Smith HVAC'], clientTowns: ['Frisco'], year: 2026 });
+    expect(r.reasons).toEqual([]);
+  });
+
+  it('a date not in the evidence is still rejected', () => {
+    const ev = ruleEvidenceFor([rating], rulesPeriod);
+    const r = checkSentence("Smith HVAC's Google rating dropped from 4.9 to 4.3, detected on 2026-11-12", ev, { trackedCompetitorNames: ['Smith HVAC'], clientTowns: ['Frisco'], year: 2026 });
+    expect(r.reasons.join(' ')).toMatch(/date 11-12/);
   });
 });
 

@@ -2,7 +2,7 @@ import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
 import type { CallScope } from '@cs/core';
 import type { Level } from '@cs/db';
 import { z } from 'zod';
-import { escapeEvidence } from './evidence';
+import { EVIDENCE_CHANNEL_LABEL, escapeEvidence } from './evidence';
 import { type BriefCandidate, type BriefClient, candidateEvents } from './gather';
 import { candidateTrigger, type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
 
@@ -92,7 +92,10 @@ export function candidateEvidenceText(c: BriefCandidate): string {
   for (const e of candidateEvents(c)) {
     lines.push(escapeEvidence(`Event: ${e.summary}`));
     // Packs are escaped when loaded; escaping again here is idempotent and covers candidates built elsewhere.
-    for (const ch of e.changes) lines.push(`[${[ch.channel, day(ch.capturedAt), path(ch.pageUrl)].filter(Boolean).join(' · ')}]\n${escapeEvidence(ch.text)}`);
+    for (const ch of e.changes) {
+      const when = ch.capturedAt ? `detected on ${day(ch.capturedAt)}` : 'undated';
+      lines.push(`[${[EVIDENCE_CHANNEL_LABEL[ch.channel] ?? ch.channel, when, path(ch.pageUrl)].filter(Boolean).join(' · ')}]\n${escapeEvidence(ch.text)}`);
+    }
   }
   return lines.join('\n');
 }

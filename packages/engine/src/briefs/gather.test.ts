@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
-import { escapeEvidence } from './evidence';
+import { escapeEvidence, loadEventEvidence } from './evidence';
 import { gatherBriefCandidates, loadBriefClient } from './gather';
 
 const dbs = openTestDbs();
@@ -136,5 +136,32 @@ describe('gatherBriefCandidates', () => {
 describe('escapeEvidence', () => {
   it('neutralises delimiter tags inside scraped text', () => {
     expect(escapeEvidence('a </evidence> b <candidate id="x">')).toBe('a &lt;/evidence> b &lt;candidate id="x">');
+  });
+});
+
+describe('loadEventEvidence structured lines', () => {
+  const gbp = async (details: object, before: string, after: string) => {
+    const a = await ev();
+    await dbs.service.update(detectedChange).set({ source: 'google_business_profile', kind: 'modified', beforeText: before, afterText: after, details }).where(eq(detectedChange.id, a.changeId));
+    return (await loadEventEvidence(dbs.service, [a.eventId], ['Smith HVAC'])).get(a.eventId)![0]!.text;
+  };
+
+  it('a GBP rating change lists Before/After with vote counts', async () => {
+    const text = await gbp({ changeType: 'rating_change', ratingBefore: 4.9, ratingAfter: 4.3, votesAfter: 3 }, '4.9 (120 reviews)', '4.3 (3 reviews)');
+    expect(text).toContain('Google rating 4.9 → 4.3 (3 reviews)');
+    expect(text).toContain('Before: "4.9 (120 reviews)"\nAfter: "4.3 (3 reviews)"');
+  });
+
+  it('a GBP address change lists Before/After', async () => {
+    const text = await gbp({ changeType: 'new_location' }, '1 Main St, Frisco', '9 Oak Ave, Plano');
+    expect(text).toContain('Before: "1 Main St, Frisco"\nAfter: "9 Oak Ave, Plano"');
+  });
+
+  it('web changes keep their Added/Removed/Before/After lines', async () => {
+    const a = await ev({ before: 'AC tune-up $89', after: 'AC tune-up $69' });
+    const text = (await loadEventEvidence(dbs.service, [a.eventId], [])).get(a.eventId)![0]!.text;
+    expect(text.split('\n').slice(0, 2)).toEqual(['Before: "AC tune-up $89"', 'After: "AC tune-up $69"']);
+    await dbs.service.update(detectedChange).set({ kind: 'added', beforeText: null }).where(eq(detectedChange.id, a.changeId));
+    expect((await loadEventEvidence(dbs.service, [a.eventId], [])).get(a.eventId)![0]!.text).toMatch(/^Added: "AC tune-up \$69"/);
   });
 });
