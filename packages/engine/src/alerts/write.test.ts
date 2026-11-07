@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, noul } from '../../test/fake-ai';
 import { day, seedScoredEvent } from '../../test/seed';
+import { EVIDENCE_WORDING } from '../briefs/writer';
 import { createPackLoader } from '../tag/tag-stage';
 import { ALERT_WRITER_TASK, templateAlert, writeAlertText } from './write';
 
@@ -29,6 +30,18 @@ describe('writeAlertText', () => {
     expect(text).toMatchObject({ written: 'model', headline: 'Smith HVAC cut its AC tune-up price to $69.', body: 'The pricing page now shows $69, down from $89.', competitorName: 'Smith HVAC' });
     expect(text!.evidenceIds.length).toBeGreaterThan(0);
     expect(ai.calls.chat[0]!.task).toBe(ALERT_WRITER_TASK);
+  });
+
+  it('alert system prompt contains EVIDENCE_WORDING', async () => {
+    const ai = createFakeAi({ chat: () => draft(), decide: support() });
+    const systems: string[] = [];
+    const chat = ai.chat.bind(ai);
+    ai.chat = (task, input, scope) => {
+      systems.push(input.messages.find((m) => m.role === 'system')?.content ?? '');
+      return chat(task, input, scope);
+    };
+    await run(ai);
+    expect(systems[0]).toContain(EVIDENCE_WORDING);
   });
 
   it('escapes injected tags in the evidence it sends to the writer', async () => {
