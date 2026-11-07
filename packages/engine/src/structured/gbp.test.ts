@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
-import { diffGbpProfiles, type GbpProfile } from './gbp';
+import { diffGbpProfiles, guardedGbpDiff, implausibleVotesDrop, type GbpProfile } from './gbp';
 import { diffVendorCapture, previousVendorCaptures } from './vendor-diff';
 import { capture } from '@cs/db';
 
@@ -64,6 +64,83 @@ describe('diffGbpProfiles', () => {
   });
 });
 
+/** Snapshots from oldest to newest, as written; guardedGbpDiff takes them newest first. */
+const run = (...profiles: GbpProfile[]) => guardedGbpDiff(profiles.map((profile, i) => ({ captureId: `c${i}`, profile })).reverse());
+const A = { ...base, address: '1 Main St, Plano, TX 75023' };
+const B = { ...base, address: '900 Oak Ave, Frisco, TX 75034' };
+const C = { ...base, address: '5 Pine Rd, Allen, TX 75002' };
+const G = { ...base, address: '7 Glitch Ln, Plano, TX 75023' };
+
+describe('guardedGbpDiff', () => {
+  it('548 to 3 votes, 4.9 to 4.3: no change, implausible 1', () => {
+    expect(run({ ...base, rating: 4.9, votes: 548 }, { ...base, rating: 4.3, votes: 3 })).toEqual({ changes: [], implausible: 1, held: 0 });
+  });
+  it('51 of 1000 votes lost suppresses', () => {
+    expect(run({ ...base, rating: 4.9, votes: 1000 }, { ...base, rating: 4.3, votes: 949 })).toMatchObject({ changes: [], implausible: 1 });
+    expect(implausibleVotesDrop({ votes: 1000 }, { votes: 950 })).toBe(false);
+  });
+  it('10 to 9 votes keeps it', () => {
+    const r = run({ ...base, rating: 4.6, votes: 10 }, { ...base, rating: 4.3, votes: 9 });
+    expect(r.implausible).toBe(0);
+    expect(r.changes.map((c) => c.blockKey)).toEqual(['gbp:rating']);
+  });
+  it('unknown votes keep it', () => {
+    const r = run({ ...base, rating: 4.6, votes: null }, { ...base, rating: 4.3, votes: 3 });
+    expect(r.implausible).toBe(0);
+    expect(r.changes).toHaveLength(1);
+  });
+  it('recovery A G A: no change', () => {
+    const a = { ...base, rating: 4.9, votes: 548 };
+    expect(run(a, { ...base, rating: 4.3, votes: 3 }, a)).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+  it('real purge suppressed once, then diffs normally', () => {
+    const a = { ...base, rating: 4.9, votes: 548 };
+    const purged = { ...base, rating: 4.3, votes: 3 };
+    expect(run(a, purged).implausible).toBe(1);
+    expect(run(a, purged, purged)).toEqual({ changes: [], implausible: 0, held: 0 });
+    const next = run(a, purged, purged, { ...purged, rating: 4.0 });
+    expect(next.changes.map((c) => c.blockKey)).toEqual(['gbp:rating']);
+    expect(next.changes[0]?.beforeCaptureId).toBeUndefined();
+  });
+  it('address A,B: held 1', () => {
+    expect(run(A, B)).toEqual({ changes: [], implausible: 0, held: 1 });
+  });
+  it('A,B,B: A to B, beforeCaptureId of A', () => {
+    const r = run(A, B, B);
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:address', beforeText: A.address, afterText: B.address, beforeCaptureId: 'c0' });
+  });
+  it('A,G,A,A: nothing', () => {
+    expect(run(A, G, A, A)).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+  it('A,A,B,B then B: one change', () => {
+    expect(run(A, A, B, B).changes).toHaveLength(1);
+    expect(run(A, A, B, B, B).changes).toHaveLength(0);
+  });
+  it('A,A,B,C,C: A to C', () => {
+    const r = run(A, A, B, C, C);
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ beforeText: A.address, afterText: C.address, beforeCaptureId: 'c1' });
+  });
+  it('title and domain alike', () => {
+    for (const [f, v] of [['title', 'Smith Heating & Air'], ['domain', 'smithair.example']] as const) {
+      expect(run(base, { ...base, [f]: v })).toMatchObject({ changes: [], held: 1 });
+      const r = run(base, { ...base, [f]: v }, { ...base, [f]: v });
+      expect(r.changes.map((c) => c.blockKey)).toEqual([`gbp:${f}`]);
+      expect(r.changes[0]?.beforeCaptureId).toBe('c0');
+    }
+  });
+  it('missing value in prev2: nothing', () => {
+    expect(run({ ...A, address: null }, B, B)).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+  it('category/service/hours/status unguarded', () => {
+    const after = { ...base, category: 'Plumber', services: [{ title: 'Ducts' }, { title: 'Leaks' }], currentStatus: 'closed_forever',
+      workHours: { work_hours: { timetable: { monday: [{ open: { hour: 9, minute: 0 }, close: { hour: 17, minute: 0 } }] } } } };
+    const r = run(base, after);
+    expect(r.changes.map((c) => c.blockKey).sort()).toEqual(['gbp:category:hvac contractor', 'gbp:category:plumber', 'gbp:hours', 'gbp:service:leaks', 'gbp:status']);
+  });
+});
+
 describe('diffVendorCapture — google_business_profile', () => {
   const dbs = openTestDbs();
   afterAll(() => dbs.closeAll());
@@ -103,5 +180,20 @@ describe('diffVendorCapture — google_business_profile', () => {
     const [latest] = await dbs.service.select().from(capture).where(eq(capture.id, ids[3]!));
     expect((await previousVendorCaptures(dbs.service, latest!, 3)).map((c) => c.id)).toEqual([ids[2], ids[1], ids[0]]);
     expect((await previousVendorCaptures(dbs.service, latest!, 2)).map((c) => c.id)).toEqual([ids[2], ids[1]]);
+  });
+
+  it('four GBP captures store the confirmed address change with before_capture_id of the from capture', async () => {
+    const src = 'google_business_profile';
+    const ids: string[] = [];
+    const profiles = [A, A, B, B];
+    for (const [i, d] of [0, 7, 14, 21].entries()) {
+      const id = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: src, capturedAt: day(d) });
+      ids.push(id);
+      await dbs.service.insert(observation).values({ competitorId: IDS.competitorX, captureId: id, kind: 'gbp_profile', key: 'profile', data: { ...profiles[i]! } });
+    }
+    const mid = await diffVendorCapture({ db: dbs.service }, ids[2]!, { now: day(30) });
+    expect(mid).toMatchObject({ result: { changeIds: [], held: 1 } });
+    await diffVendorCapture({ db: dbs.service }, ids[3]!, { now: day(30) });
+    expect((await dbs.service.select().from(detectedChange).where(eq(detectedChange.afterCaptureId, ids[3]!))).map((c) => [c.blockKey, c.beforeCaptureId])).toEqual([['gbp:address', ids[1]]]);
   });
 });
