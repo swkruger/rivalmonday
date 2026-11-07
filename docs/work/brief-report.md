@@ -1,20 +1,21 @@
 # brief-report — weekly brief becomes a full report; every change graded Major / Notable / Minor
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/brief-report   **Base:** main @ 16d20199
-**Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (draft) · **Plan:** not yet
+**Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (owner-approved 2026-11-07) · **Plan:** `docs/superpowers/plans/2026-11-07-brief-report.md` (Tasks 0–15, lean)
 
 ## Status (overwrite)
-Kickoff brief + design draft written 2026-11-07. Builds only after `brief-signal` merges (O3).
+Plan drafted; awaiting owner approval; execution after brief-signal merges.
 
 ## Next (overwrite)
-Owner reads the spec's "Calls I made" + open questions; then `superpowers:writing-plans` (lean format).
+Owner approves the plan (plan calls P1–P8 in its Decisions). After brief-signal merges: `superpowers:subagent-driven-development` from Task 0 (rebase, re-check, next free migration number).
 
 ## Interfaces this branch adds or changes
-- Migration **0100** `brief_report` (next free after brief-signal's 0099): `brief.report jsonb` (nullable).
-- Engine `briefs/report.ts` (`buildBriefReport`, `BriefReport` zod), `briefs/graded.ts` (`gradeFor`, `gradedChanges`, `groupChanges`, `GradedChanges`); `adWeeklySeries`, `pressureByClient`, `MOVE_LABELS` move from `@cs/tools` to `@cs/engine` (tools re-import).
-- `@cs/core` `charts.ts` (pure: `foldSeries`, `chartRole`, ticks, path); web `LineChart` keeps rendering, `@cs/email` gets print charts.
-- `BriefDetail.changes` (tool output); Changes page `from`/`to` date params; `EmailPayload` attachment.
-- `PDF_LAYOUT_VERSION` 5 → 6.
+- Migration `<n>_brief_report` (next free number at execution, ≥ 0100): `brief.report jsonb` nullable; `(client_id, scored_at)` index on `event_score` only if Task 0's EXPLAIN needs it.
+- `@cs/core` `brief-report.ts`: `Grade`, `GRADE_LABEL`, `ReportTopic`, `TOPIC_LABEL`, `gradeFor`, `topicOf`, `ChangeLine`, `GradedChanges`, `GradedChangesView`, `GradeTotals`, `BriefReport` (zod), `REPORT_CAPS`, `capTopic`, `totalsOf`; `day-range.ts` `formatDayRange`; `charts.ts` (`ChartSeries`, `foldSeries`, `chartRole`, `niceMax`, `yTicks`, `linePath`); `PDF_LAYOUT_VERSION` 6; glossary `major-change`, `notable-change`, `minor-change`.
+- `@cs/engine`: `briefs/graded.ts` (`groupChanges`, `gradedChanges`, `liveChanges`), `briefs/report.ts` (`buildBriefReport`, `briefReportProps`, `briefHighlights`), `briefs/attachment.ts` (`briefAttachment`, `attachmentName`, `MAX_ATTACHMENT_BYTES`), `ensureBriefPdf`, `majorSummary`, `finalBriefSummary(b, items, liveMajorEvents)`; `workspace/{scope,pressure,ads,kpi}.ts` moved from `@cs/tools` (tools keep re-export shims); `createEmailSender({ attachment? })`.
+- `@cs/email`: `GROUP_PHRASE`/`groupPhrase`, `PrintLineChart`, `renderBriefReportDocument`, `BriefReportDocumentProps`, `BriefEmailProps.{highlights, attachPdf, attached}`, `OutgoingEmail.attachments` (Postmark/file/memory); previews `brief.highlights`, `brief.quiet_highlights`, `brief.highlights_not_attached`, `document.brief_report*`.
+- `@cs/tools`: `BriefDetail.changes` / `BriefReview.changes` (`GradedChangesView`, web channel only); `briefDetail(..., { changes })`.
+- Web: `GradedChanges` view on the brief page; Changes page `from`/`to` params; help tip `client.briefs.detail.grades`.
 
 ## Assumes from other branches
 - `brief-signal` merged: whole-business relevance + re-score (grades are meaningless before it), migration 0099, `EVIDENCE_CHANNEL_LABEL`, evidence head format. Re-check its final `score.ts`/`gather.ts` at plan time.
@@ -30,9 +31,11 @@ Owner reads the spec's "Calls I made" + open questions; then `superpowers:writin
 
 ## New backlog (target → item)
 - (later) → agency control to hide a single Notable/Minor line, if pilots ask (O5).
+- (later) → graded changes on MCP/Ask `get_brief` (plan P5).
+- (later) → `search_events` date bounds if the Changes week view (page-side filter, plan P6) misleads.
 
 ## Owner verification steps
-TBD at plan time (expect: copy sign-off in `pnpm copy:review`; one staging brief on a phone; open one PDF; old PDFs re-render once at v6).
+See plan Task 15: migrate cs_dev; sign the new copy in `pnpm copy:review`; render one PDF (`deliver-once`) and open it on a phone + print (agency-only cover and metadata); one live staging week (email with attachment on a phone, Minor folded in the app, "See all changes this week"); old PDFs re-render once at v6.
 
 ## Brief
 
