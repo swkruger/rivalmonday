@@ -4,10 +4,10 @@
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-signal-design.md` · **Plan:** `docs/superpowers/plans/2026-11-07-brief-signal.md` (Tasks 0–12)
 
 ## Status (overwrite)
-Plan owner-approved 2026-11-07; execution started.
+All 12 tasks complete; final review next.
 
 ## Next (overwrite)
-`superpowers:subagent-driven-development` from Task 0.
+Final whole-branch review, then fix wave, then owner go-ahead for /rm-merge.
 
 ## Interfaces this branch adds or changes
 - Migration **0099** `vertical_whole_business` (data only: `scoring.relevance.whole_business = 1`, `scoring.version 4` on generic/hvac_plumbing/dental).
@@ -34,14 +34,24 @@ None.
 - **D9** GBP title/domain/hours/status `content` stays `unmapped` (weight 0.2 caps it at 20 regardless) (owner, 2026-11-07).
 
 ## New backlog (target → item)
+- (later) → carry last confirmed GBP field value as state (fixes flapping-value limits of the 4-capture guard).
 - (later) → GBP title/domain/hours/status `content` events stay at `unmapped` relevance (never briefed); revisit if pilots want them.
+
+## Measured (Task 6, `briefs` eval re-recorded 2026-11-07, $0.60)
+| Metric | Before | After |
+|---|---|---|
+| verifier_keep_rate | 0.5111 | 0.7889 |
+| items_kept (of 90 drafts) | 46 | 71 |
+| dropped_items | 44 | 19 |
+| B2 unsupported-claims | 0.0667 | 0.0333 |
+| min_items_met_rate | 0.68 | 0.90 |
 
 ## Owner verification steps
 After merge (each step is the owner's; nothing here edits env files):
 1. `pnpm db:migrate` on cs_dev (applies 0099). Check: `SELECT id, config #> '{scoring,version}', config #> '{scoring,relevance,whole_business}' FROM vertical WHERE id IN ('generic','hvac_plumbing','dental');` → 4 / 1.
 2. cs_dev re-score: `pnpm --filter @cs/worker rescore --dry-run`, read the `archive->brief` count, then run without `--dry-run`. Run it again: everything `current`, nothing re-scored.
 3. Label verifier samples: `pnpm --filter @cs/worker decisions export --out <csv outside repo> --task verifier_decisions`, label in `tools/decision-labeler.html`, `decisions import --in <csv> --by <name>`, `decisions report --task verifier_decisions`.
-4. Staging live: in `.env.staging` delete `VENDOR_FAKE_MODE` and `VENDOR_LIVE_RANK_SCANS` lines; add real `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`, `APIFY_TOKEN`, `SCRAPECREATORS_API_KEY`, `STADIA_API_KEY`.
+4. Staging live (order: keys, merge + push main, `staging-refresh`, limits, `staging:up`; box in STAGING.md § 5): in `.env.staging` delete `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS` and `WEB_MONITORING_ENABLED` lines; add real `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`, `APIFY_TOKEN`, `SCRAPECREATORS_API_KEY`, `STADIA_API_KEY`.
 5. Stop the staging worker; **staging-refresh** from cs_dev (destructive: erases staging sign-ups/test agencies; confirm at the time); copy evidence (STAGING.md § 3).
 6. On staging, set per-client spend limits (platform staff) for every active client, then `pnpm staging:up`. With an old `.env.staging` it must refuse with "Refusing VENDOR_FAKE_MODE … Remove the line".
 7. After one live week on staging, measure:

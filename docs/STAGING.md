@@ -24,8 +24,8 @@ Menu names below were correct when written. If a website has moved something, lo
 - **Website updates are automatic.** After setup, every push to `main` that passes its tests updates the app and the site.
 - **The worker updates when you restart it.** It runs on your computer, so GitHub can't update it (§ 4).
 - **Data only changes when you ask.** The `staging-refresh` action replaces all staging data with a fresh copy of `cs_dev` (§ 5). Anything you did on staging since the last refresh is lost.
-- **Vendors cost nothing, except rank scans if you switch them on.** Calls to DataForSEO, Apify, ScrapeCreators and Stadia get fake sample answers ("fixtures"). The history copied from `cs_dev` is real, but new collected data is sample data. With `VENDOR_LIVE_RANK_SCANS=true` (§ 2), local-ranking scans and their map backgrounds are real and cost money.
-- **No competitor websites are crawled.** `WEB_MONITORING_ENABLED` stays unset.
+- **Vendors are live, like pilot.** Calls to DataForSEO, Apify, ScrapeCreators and Stadia are real and cost money; the per-client spend limits apply (set them on staging, see "Switch to live vendors" in § 5). Web monitoring stays off.
+- **No competitor websites are crawled.** `WEB_MONITORING_ENABLED` stays unset (the worker refuses it).
 - **AI is real and costs money,** limited by the monthly cap you set in step 6.
 - **Email is really sent,** so check who could receive it in step 1. Dev's unsent emails, webhooks and queued jobs are switched off on every refresh.
 
@@ -213,7 +213,7 @@ These settings come first, because the same project will also host production la
    | Same name in both | `APP_DATABASE_URL`, `SERVICE_DATABASE_URL`, `APP_URL`, `LINK_SIGNING_SECRET`, `BETTER_AUTH_SECRET`, `EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `POSTMARK_WEBHOOK_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `OPENROUTER_API_KEY`, `REVIEWER_HASH_SALT`, `SENTRY_ENVIRONMENT`, `SENTRY_ISSUES_URL`, `PLATFORM_ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED`, `SITE_ORIGIN`, `SUPPORT_REPLY_TO` |
    | Optional | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
-   Don't add `WORKER_DATABASE_URL`, `SERVICE_DATABASE_POOLED_URL`, `VENDOR_FAKE_MODE`, or anything in the GitHub section of the file.
+   Don't add `WORKER_DATABASE_URL`, `SERVICE_DATABASE_POOLED_URL`, the vendor keys, or anything in the GitHub section of the file.
 
    `EMAIL_FROM` is a bare address, for example `support@mail.rivalmonday.app`, with no name in front. The app adds the name itself, and both the app and the worker refuse to start with a name in it.
 7. Get the IDs:
@@ -221,7 +221,7 @@ These settings come first, because the same project will also host production la
    - **Team Settings → General → Team ID:** save as `VERCEL_ORG_ID`.
    - **Project Settings → General → Project ID:** save as `VERCEL_PROJECT_ID`.
 
-**Never set these on staging:** `WEB_MONITORING_ENABLED`, `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY`, `PROFILE_TOOLS`. Leave `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` unset in Vercel too. The setup wizard's business lookup then says it's unavailable, which is expected. Add them only to test that lookup, because each one is a small real charge. Real rank scans (§ 2) put the keys in `.env.staging` for the worker only, not in Vercel.
+**Never set these on staging:** `WEB_MONITORING_ENABLED`, `ASK_FAKE_AI`, `SETUP_FAKE_LOOKUP`, `BILLING_FAKE_GATEWAY`, `PROFILE_TOOLS`. Leave `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` unset in Vercel too. The setup wizard's business lookup then says it's unavailable, which is expected. Add them only to test that lookup, because each one is a small real charge. The vendor keys (§ 2) go in `.env.staging` for the worker only, never in Vercel.
 
 ### Step 12: Create the site project (Vercel)
 
@@ -323,14 +323,15 @@ Go through § 6.
 - `STRIPE_SECRET_KEY`, the same test key.
 - The Turnstile keys, the same widget.
 
-**Real rank scans (optional):** add these worker lines to `.env.staging`, with real keys:
+**Vendor keys (required, worker only):** the worker reads these from `.env.staging` and won't start without all five, real:
 ```
-VENDOR_LIVE_RANK_SCANS=true
 DATAFORSEO_LOGIN=
 DATAFORSEO_PASSWORD=
+APIFY_TOKEN=
+SCRAPECREATORS_API_KEY=
 STADIA_API_KEY=
 ```
-Then local-ranking scans (weekly and **Scan now**) and their map backgrounds use the real DataForSEO and Stadia. Everything else stays fake, including the prospect snapshot's small scan. The usual limits still apply: client spend caps, paused clients, one **Scan now** per client a week. Cost: about $0.10 per keyword per 7×7 scan, so about $2-3 a week for 5 clients, plus $0.06 per new map background. The worker won't start if a key is missing or `fixture`. Remove the lines to go back to all-fake.
+Staging runs live vendors like pilot. Do **not** put `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS` or `WEB_MONITORING_ENABLED` in the file: the worker refuses all three (fixtures belong to the rehearsal stack in DEPLOY.md only). A key set to `fixture` is refused too.
 
 Everything else is staging's own. If you add a new environment variable to the code later, it also needs adding to `globalPassThroughEnv` in `turbo.json`.
 
@@ -410,6 +411,17 @@ The action does the following, stopping at the first failure:
 - **Worker:** fix the problem on `main`, then run `pnpm staging:up`. It only runs the latest `main`.
 - **Database:** changes only go forward. Fix them with a new migration, or run a refresh.
 
+### Switch to live vendors (one time)
+
+Staging used to run fake vendors. Do this once, in order:
+1. In `.env.staging` delete any `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS` and `WEB_MONITORING_ENABLED` lines, and add the five vendor keys (§ 2).
+2. Merge and push `main` (`git push origin main`).
+3. Stop the worker, then run `staging-refresh` from `cs_dev`. This is destructive: it replaces all staging data, including staging sign-ups and test agencies.
+4. The refresh applies the new migrations. Copy the evidence files again (step 16).
+5. On staging, set per-client spend limits (platform staff) for every active client.
+6. Run `pnpm staging:up`. With an old `.env.staging` it refuses and names the line to remove.
+7. After the first weekly run, check the briefs: each should have items, and the `dropped` counts should be low (`brief_item` rows and `brief.dropped`).
+
 ### Rough monthly cost
 
 | Item | Cost |
@@ -418,7 +430,7 @@ The action does the following, stopping at the first failure:
 | Neon staging | a few dollars, more if the worker runs all day |
 | OpenRouter | up to your limit |
 | R2, Postmark, Sentry | about $0 at this volume on their entry plans |
-| Vendors | $0, because they're faked; about $10 a month with real rank scans (§ 2) |
+| Vendors | about $2–4 a week for ~5 clients (vendors) + ~$1.5 AI; the first heavy week can reach ~$9 |
 
 Pages are a little slower than production will be, because this database is in `us-east-2`. Don't use staging speeds to judge performance.
 
@@ -469,6 +481,8 @@ Run through this after the first deploy, and again whenever you change the setup
 | Refresh says `cs_dev` has migrations `main` lacks | A branch changed `cs_dev` but hasn't been merged | Keep the worker stopped, merge that branch, then refresh again |
 | Neon refuses the reset | The branch has child branches, or its parent was restored in the last 24 hours | Delete the children, or wait |
 | `staging:up` says `origin/main has no staging worker yet` | Your commits aren't on GitHub | Run `git push origin main` |
+| Worker says `Refusing VENDOR_FAKE_MODE …` (or `VENDOR_LIVE_RANK_SCANS`, `WEB_MONITORING_ENABLED`) | The line is left over from the all-fake setup | Delete the line from `.env.staging` |
+| Worker says `Refusing: … must be real keys` | A vendor key is set to `fixture` | Put the real key in `.env.staging` |
 | Worker says `Fill in ...` | Those values are empty in `.env.staging` | Fill them in. `SENTRY_DSN` is required too |
 | Worker says it's `not on the latest main` or has uncommitted changes | The worker folder has drifted | Run `pnpm staging:up`. If it still complains, look in `../CompetitorSpy-wt/staging-worker` for local edits and remove them |
 | Evidence gives a 404 on an old brief | The file was never copied | Run step 16. If the file isn't on your computer, it's missing in dev too |

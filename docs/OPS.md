@@ -6,7 +6,7 @@ What is built: [ARCHITECTURE.md](ARCHITECTURE.md). All commands run from the rep
 
 | DB | Use |
 |---|---|
-| `cs_dev` | Live dev data (real vendor pulls for Aire Serv; the Internal QA fixture below). Owner verification runs here. Run `pnpm db:migrate` if it is behind. |
+| `cs_dev` | Live dev data (real vendor pulls for Aire Serv; the Internal QA fixture below). Owner verification runs here. Run `pnpm db:migrate` if it is behind. **No worker has run against it since 2026-10-30** (the owner's worker runs staging), so its data is idle. After migrating `0099`, run `pnpm --filter @cs/worker rescore --dry-run`, then without `--dry-run` (see Re-score). |
 | `cs_test` | Test suites. Snapshot restore never targets a `_test` database. |
 | `cs_demo` | Fictional HVAC/plumbing demo data, rebuilt by `pnpm demo:reset`. |
 
@@ -45,6 +45,10 @@ pnpm --filter @cs/worker engine-once --client 25f99947-4559-4150-ab5d-dd432540ac
 pnpm --filter @cs/worker brief-once --client 25f99947-4559-4150-ab5d-dd432540aca0 --force
 ```
 `brief-once` should store the first live standard brief. Other `engine-once` flags: `--insights`, `--competitor`, `--rounds`. `brief-once` also accepts `--now <iso>`.
+
+## Re-score (brief-signal, `0099`)
+
+`pnpm --filter @cs/worker rescore [--since-days N] [--client <uuid>] [--dry-run]` re-scores recent events with the current pack (whole-business relevance, `scoring.version` 4). `--since-days` 1-30 (default 14); `--dry-run` prints counts and writes nothing. It skips pairs that are featured in a brief, already alerted, or already current. It never writes `alert` (a would-be alert is stored as `brief` with `factors.rescoreCap`). `scored_at` moves to now only on archive to brief. Safe to re-run; a pack or runbook load error stops the run (re-running is safe). Read the `archive->brief` line of the dry run first.
 
 ## Runbook backfill (Phase 14b)
 
