@@ -13,7 +13,7 @@ Owner reads the spec's "Calls I made" + open questions; then `superpowers:writin
 - Migration **0100** `brief_report` (next free after brief-signal's 0099): `brief.report jsonb` (nullable).
 - Engine `briefs/report.ts` (`buildBriefReport`, `BriefReport` zod), `briefs/graded.ts` (`gradeFor`, `gradedChanges`, `groupChanges`, `GradedChanges`); `adWeeklySeries`, `pressureByClient`, `MOVE_LABELS` move from `@cs/tools` to `@cs/engine` (tools re-import).
 - `@cs/core` `charts.ts` (pure: `foldSeries`, `chartRole`, ticks, path); web `LineChart` keeps rendering, `@cs/email` gets print charts.
-- `BriefDetail.changes` (tool output); `LINK_TARGETS` + `brief_changes`; Changes page query param `brief=<id>`.
+- `BriefDetail.changes` (tool output); Changes page `from`/`to` date params; `EmailPayload` attachment.
 - `PDF_LAYOUT_VERSION` 5 → 6.
 
 ## Assumes from other branches
@@ -23,9 +23,13 @@ Owner reads the spec's "Calls I made" + open questions; then `superpowers:writin
 - **O1** Brief PDF = full weekly report (layout "C"): agency-branded cover (never Rival Monday), summary page (headline stats, top move, next steps), one page/section per topic — Reviews & rating, Ads, Map rankings, Moves, Recommendations (+ recent alerts if they fit) — each with the client-overview chart(s) and that topic's changes this week. **Ask Friday never included.** Owner: "I want the client to feel he gets his money's worth", "more comprehensive even if it is an extra overview".
 - **O2** Graded changes everywhere (email, in-app brief, PDF): every competitor change of the period, graded by `event_score.score` vs the client's brief threshold T (default 40): **Major** ≥ T (existing written, verified items), **Notable** T/2 ≤ s < T, **Minor** < T/2. Labels exactly "Major", "Notable", "Minor". Notable/Minor one line each, deterministic from stored event summaries + evidence dates (no model text; verifier never drops them). Retracted + cosmetic hidden. Repeats grouped ("Lakeview: 6 Google ads stopped"); cap per topic with "+N more" → app Changes page; Minor collapsed by default in email and app. "Quiet week" = nothing Major.
 - **O3** Own branch; builds after `brief-signal` merges (scoring fix: whole-business relevance).
+- **O4** Email = short (summary + highlights) pointing to the full report, which is **attached** to the weekly brief email (supersedes decision 16's "linked, not attached"; PDF link kept as fallback). Starting-point email unchanged.
+- **O5** Agencies cannot hide single Notable/Minor lines; read-only, retraction is the only recourse.
+- Website, prices & services section accepted.
+- Controller calls (my call, spec §4.4–4.7): C1 quiet only with no written item and no Major line, scorecard on every weekly brief; C2 AM-dropped/retracted events leave lines + totals at delivery/read; C3 "See all changes this week" = Changes page with the period's dates (page params only, no `search_events` change, no new link target); email highlights + attachment fallback (render fails or > 9 MB ⇒ link only, logged).
 
 ## New backlog (target → item)
-- (none yet)
+- (later) → agency control to hide a single Notable/Minor line, if pilots ask (O5).
 
 ## Owner verification steps
 TBD at plan time (expect: copy sign-off in `pnpm copy:review`; one staging brief on a phone; open one PDF; old PDFs re-render once at v6).
@@ -58,7 +62,7 @@ O1 + O2 above. Starting-point brief keeps its current format (my call). No new m
 ### Backlog to fold in (`docs/BACKLOG.md`)
 - L395 "standard → quiet-at-delivery brief has no scorecard" (quiet definition changes here).
 - L212 13a comprehensive branding for emails/PDF (cover uses it; header-colour override, dark logo).
-- L244 `/go` skips client-facing status filters (new `brief_changes` target must not).
+- L244 `/go` skips client-facing status filters (reused `brief` links in the new email must respect them).
 - L400 read-path conventions (strip upsell, status filters, sort by `ord`).
 - L150 "First moves still open" vs glossary wording (scorecard copy on the summary page).
 
