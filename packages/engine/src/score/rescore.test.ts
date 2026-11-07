@@ -90,6 +90,22 @@ describe('rescoreRecent', () => {
     expect((await rowOf(id)).route).toBe('archive');
   });
 
+  it('a pair featured after selection is not updated', async () => {
+    const id = await ratingEvent(0.2);
+    await scored(id);
+    // The pack loader runs between the selection read and the guarded UPDATE: feature the pair there.
+    let featuredNow = false;
+    const racing: typeof packs = async (verticalId) => {
+      if (!featuredNow) { featuredNow = true; await feature(id, 'draft'); }
+      return packs(verticalId);
+    };
+    const r = await rescoreRecent({ db: dbs.service, packs: racing, generic }, { sinceDays: 14, dryRun: false, now: NOW });
+    expect(r).toMatchObject({ considered: 1, rescored: 0, transitions: {} });
+    const row = await rowOf(id);
+    expect(row.route).toBe('archive');
+    expect(row.factors.scoringVersion).toBe(3);
+  });
+
   it('failed-brief item does not count as featured', async () => {
     const id = await ratingEvent(0.2);
     await scored(id);

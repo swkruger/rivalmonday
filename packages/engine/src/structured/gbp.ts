@@ -110,8 +110,11 @@ export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
   const changes = diffGbpProfiles(prev.profile, after.profile).filter((c) => !guarded.has(c.blockKey));
   let implausible = 0;
   let held = 0;
-  // (a) A glitch capture that `after` recovered from is not a baseline (P6).
-  const base = prev2 && implausibleVotesDrop(prev2.profile, prev.profile) && !implausibleVotesDrop(prev2.profile, after.profile) ? prev2 : prev;
+  // (a) A glitch capture (votes collapsed vs an older one) that `after` recovered from is not a baseline (P6),
+  // however many captures the glitch lasted. A drop that `after` shares is a persisting purge, not a glitch.
+  const window = [prev, prev2, prev3].filter((s): s is GbpSnapshot => !!s);
+  const isGlitch = (i: number) => window.slice(i + 1).some((o) => implausibleVotesDrop(o.profile, window[i]!.profile) && !implausibleVotesDrop(o.profile, after.profile));
+  const base = window.find((_, i) => !isGlitch(i)) ?? prev;
   const rating = pick(base.profile, after.profile, 'gbp:rating');
   if (rating) {
     if (implausibleVotesDrop(base.profile, after.profile)) implausible++;

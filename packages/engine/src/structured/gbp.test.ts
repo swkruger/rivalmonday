@@ -93,6 +93,21 @@ describe('guardedGbpDiff', () => {
     const a = { ...base, rating: 4.9, votes: 548 };
     expect(run(a, { ...base, rating: 4.3, votes: 3 }, a)).toEqual({ changes: [], implausible: 0, held: 0 });
   });
+  it('A,G,G2,A: no change (a two-capture glitch is not a baseline)', () => {
+    const a = { ...base, rating: 4.9, votes: 548 };
+    expect(run(a, { ...base, rating: 4.3, votes: 3 }, { ...base, rating: 4.2, votes: 5 }, a).changes).toEqual([]);
+  });
+  it('A,G,G2: no change', () => {
+    const a = { ...base, rating: 4.9, votes: 548 };
+    expect(run(a, { ...base, rating: 4.3, votes: 3 }, { ...base, rating: 4.2, votes: 5 }).changes).toEqual([]);
+  });
+  it('a real purge that persists (A,P,P,P) still diffs normally afterwards', () => {
+    const a = { ...base, rating: 4.9, votes: 548 };
+    const p = { ...base, rating: 4.3, votes: 3 };
+    expect(run(a, p, p, p)).toEqual({ changes: [], implausible: 0, held: 0 });
+    const next = run(a, p, p, { ...p, rating: 4.0 });
+    expect(next.changes.map((c) => c.blockKey)).toEqual(['gbp:rating']);
+  });
   it('real purge suppressed once, then diffs normally', () => {
     const a = { ...base, rating: 4.9, votes: 548 };
     const purged = { ...base, rating: 4.3, votes: 3 };

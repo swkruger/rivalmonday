@@ -86,9 +86,13 @@ export async function rescoreRecent(
         .where(and(
           eq(eventScore.clientId, s.clientId), eq(eventScore.eventId, s.eventId), ne(eventScore.route, 'alert'),
           sql`COALESCE((${eventScore.factors}->>'scoringVersion')::int, 0) = ${oldVersion}::int`,
+          // Re-check featured: a brief may have taken the pair since the selection read it.
+          sql`NOT EXISTS (
+            SELECT 1 FROM brief_item bi JOIN brief b ON b.id = bi.brief_id
+            WHERE b.client_id = ${eventScore.clientId} AND b.status <> 'failed' AND bi.event_ids ? (${eventScore.eventId})::text)`,
         ))
         .returning({ eventId: eventScore.eventId });
-      if (updated.length === 0) continue; // a concurrent run got there first
+      if (updated.length === 0) continue; // a concurrent run (or a brief) got there first
     }
     out.rescored++;
     if (capped) out.capped++;
