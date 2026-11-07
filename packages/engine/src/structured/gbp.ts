@@ -1,5 +1,5 @@
-import { observation } from '@cs/db';
-import { and, eq, inArray } from 'drizzle-orm';
+import { capture, observation } from '@cs/db';
+import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import type { DifferResult, SourceDiffer, StructuredChange } from './vendor-diff';
 
 /** GBP ratings move in tenths; smaller deltas are rounding noise between pulls. */
@@ -134,18 +134,41 @@ export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
   return { changes, implausible, held };
 }
 
+/** Earlier captures GBP may look through to find 3 that carry a profile (an ok capture can lack one). */
+const GBP_CANDIDATES = 6;
+
+/**
+ * The newest up-to-4 captures that carry a `gbp_profile` (cap first); captures without one are skipped, so they
+ * never cut the window between a glitch and its recovery. No profile on `cap` itself: no GBP changes.
+ */
 export const diffGbp: SourceDiffer = async (db, cap, prev, older) => {
-  const ordered = [cap, prev, ...older];
+  const known = [prev, ...older];
+  // Queried here, not via vendor-diff's previousVendorCaptures: that module imports this one (a value import would be circular).
+  const more =
+    known.length < GBP_CANDIDATES
+      ? await db
+          .select()
+          .from(capture)
+          .where(
+            and(
+              eq(capture.competitorId, cap.competitorId), eq(capture.source, cap.source), eq(capture.status, 'ok'),
+              cap.url === null ? isNull(capture.url) : eq(capture.url, cap.url), lt(capture.capturedAt, cap.capturedAt),
+            ),
+          )
+          .orderBy(desc(capture.capturedAt))
+          .limit(GBP_CANDIDATES)
+      : known;
+  const ordered = [cap, ...more];
   const rows = await db
     .select({ captureId: observation.captureId, data: observation.data })
     .from(observation)
     .where(and(inArray(observation.captureId, ordered.map((c) => c.id)), eq(observation.kind, 'gbp_profile')));
   const byCapture = new Map(rows.map((r) => [r.captureId, r.data as GbpProfile]));
+  if (!byCapture.has(cap.id)) return { changes: [], implausible: 0, held: 0 };
   const snaps: GbpSnapshot[] = [];
   for (const c of ordered) {
     const profile = byCapture.get(c.id);
-    if (!profile) break;
-    snaps.push({ captureId: c.id, profile });
+    if (profile && snaps.length < 4) snaps.push({ captureId: c.id, profile });
   }
   if (snaps.length < 2) return { changes: [], implausible: 0, held: 0 };
   const res = guardedGbpDiff(snaps);

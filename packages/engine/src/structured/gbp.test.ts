@@ -196,4 +196,32 @@ describe('diffVendorCapture — google_business_profile', () => {
     await diffVendorCapture({ db: dbs.service }, ids[3]!, { now: day(30) });
     expect((await dbs.service.select().from(detectedChange).where(eq(detectedChange.afterCaptureId, ids[3]!))).map((c) => [c.blockKey, c.beforeCaptureId])).toEqual([['gbp:address', ids[1]]]);
   });
+
+  const seedRun = async (profiles: (GbpProfile | null)[]) => {
+    const ids: string[] = [];
+    for (const [i, pr] of profiles.entries()) {
+      const id = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', capturedAt: day(i * 7) });
+      ids.push(id);
+      if (pr) await dbs.service.insert(observation).values({ competitorId: IDS.competitorX, captureId: id, kind: 'gbp_profile', key: 'profile', data: { ...pr } });
+    }
+    return ids;
+  };
+  const changesAt = async (id: string) => (await dbs.service.select().from(detectedChange).where(eq(detectedChange.afterCaptureId, id))).map((c) => [c.blockKey, c.beforeCaptureId]);
+
+  it('a profile-less capture between a glitch and its recovery emits nothing', async () => {
+    const good = { ...base, rating: 4.9, votes: 548 };
+    const ids = await seedRun([good, null, { ...base, rating: 4.3, votes: 3 }, good]);
+    await diffVendorCapture({ db: dbs.service }, ids[3]!, { now: day(60) });
+    expect(await changesAt(ids[3]!)).toEqual([]);
+  });
+  it('a profile-less capture between two agreeing address captures still confirms', async () => {
+    const ids = await seedRun([A, B, null, B]);
+    await diffVendorCapture({ db: dbs.service }, ids[3]!, { now: day(60) });
+    expect(await changesAt(ids[3]!)).toEqual([['gbp:address', ids[0]]]);
+  });
+  it('fewer than 2 profile snapshots: no change', async () => {
+    const ids = await seedRun([null, null, B]);
+    const out = await diffVendorCapture({ db: dbs.service }, ids[2]!, { now: day(60) });
+    expect(out).toMatchObject({ result: { changeIds: [], implausible: 0, held: 0 } });
+  });
 });
