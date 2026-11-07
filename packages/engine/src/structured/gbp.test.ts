@@ -1,9 +1,11 @@
 import { detectedChange, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
 import { diffGbpProfiles, type GbpProfile } from './gbp';
-import { diffVendorCapture } from './vendor-diff';
+import { diffVendorCapture, previousVendorCaptures } from './vendor-diff';
+import { capture } from '@cs/db';
 
 const base: GbpProfile = {
   title: 'Smith HVAC', category: 'HVAC contractor', additionalCategories: ['Air conditioning repair service'], rating: 4.6, votes: 120,
@@ -79,5 +81,27 @@ describe('diffVendorCapture — google_business_profile', () => {
     ]);
     await diffVendorCapture({ db: dbs.service }, cap1, { now: day(30) });
     expect((await dbs.service.select().from(detectedChange)).map((c) => [c.blockKey, c.source, c.beforeCaptureId])).toEqual([['gbp:rating', 'google_business_profile', cap0]]);
+  });
+  it('stage output carries implausible 0 and held 0 for an ordinary diff', async () => {
+    const cap0 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', capturedAt: day(0) });
+    const cap1 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', capturedAt: day(7) });
+    await dbs.service.insert(observation).values([
+      { competitorId: IDS.competitorX, captureId: cap0, kind: 'gbp_profile', key: 'profile', data: { ...base } },
+      { competitorId: IDS.competitorX, captureId: cap1, kind: 'gbp_profile', key: 'profile', data: { ...base, rating: 4.3 } },
+    ]);
+    const out = await diffVendorCapture({ db: dbs.service }, cap1, { now: day(30) });
+    expect(out).toMatchObject({ ran: true, result: { baseline: false, implausible: 0, held: 0 } });
+  });
+
+  it('previousVendorCaptures returns ok captures of the same competitor/source/url, newest first, at most limit', async () => {
+    const src = 'google_business_profile';
+    const ids = [];
+    for (const d of [0, 7, 14, 21]) ids.push(await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: src, capturedAt: day(d) }));
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_reviews', capturedAt: day(10) });
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: src, capturedAt: day(11), url: 'https://other.example/' });
+    await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: src, url: null, status: 'failed', collectorVersion: 'test/1', capturedAt: day(12) });
+    const [latest] = await dbs.service.select().from(capture).where(eq(capture.id, ids[3]!));
+    expect((await previousVendorCaptures(dbs.service, latest!, 3)).map((c) => c.id)).toEqual([ids[2], ids[1], ids[0]]);
+    expect((await previousVendorCaptures(dbs.service, latest!, 2)).map((c) => c.id)).toEqual([ids[2], ids[1]]);
   });
 });

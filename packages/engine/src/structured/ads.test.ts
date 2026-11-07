@@ -25,7 +25,7 @@ describe('diffVendorCapture — ads', () => {
   it('treats the first capture of a page as a silent baseline', async () => {
     await metaAd('A0', { firstCaptureId: cap0 });
     const r = await diffVendorCapture({ db: dbs.service }, cap0, { now });
-    expect(r).toEqual({ ran: true, result: { baseline: true, changeIds: [] } });
+    expect(r).toEqual({ ran: true, result: { baseline: true, changeIds: [], implausible: 0, held: 0 } });
     expect(await dbs.service.select().from(detectedChange)).toEqual([]);
   });
 
@@ -50,7 +50,7 @@ describe('diffVendorCapture — ads', () => {
   it('compares each Meta page with its own history (a new page starts as a baseline)', async () => {
     const page77 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', url: metaPageUrl('77'), capturedAt: day(8) });
     await metaAd('P77', { advertiserId: '77', firstCaptureId: page77 });
-    expect(await diffVendorCapture({ db: dbs.service }, page77, { now })).toEqual({ ran: true, result: { baseline: true, changeIds: [] } });
+    expect(await diffVendorCapture({ db: dbs.service }, page77, { now })).toEqual({ ran: true, result: { baseline: true, changeIds: [], implausible: 0, held: 0 } });
   });
 
   it('refuses to diff a capture younger than the settle delay, without claiming it', async () => {
@@ -79,7 +79,7 @@ describe('diffVendorCapture — google ads', () => {
     await googleAd('DOMAIN_OLD', { advertiserId: 'AR9', firstCaptureId: domainCap, isActive: false, endedCaptureId: null }); // retired silently
     await googleAd('NEW', { firstCaptureId: pinned2, startedAt: day(12) });
     await googleAd('GONE', { firstCaptureId: pinned1, isActive: false, endedCaptureId: pinned2 });
-    expect(await diffVendorCapture({ db: dbs.service }, pinned1, { now })).toEqual({ ran: true, result: { baseline: true, changeIds: [] } });
+    expect(await diffVendorCapture({ db: dbs.service }, pinned1, { now })).toEqual({ ran: true, result: { baseline: true, changeIds: [], implausible: 0, held: 0 } });
     const r = await diffVendorCapture({ db: dbs.service }, pinned2, { now });
     expect(r.ran && r.result.changeIds).toHaveLength(2);
     const rows = (await dbs.service.select().from(detectedChange)).sort((a, b) => a.kind.localeCompare(b.kind));

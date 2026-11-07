@@ -91,7 +91,7 @@ const loadProfile = async (db: Parameters<SourceDiffer>[0], captureId: string): 
   return (row?.data as GbpProfile | undefined) ?? null;
 };
 
-export const diffGbp: SourceDiffer = async (db, cap, prev) => {
+export const diffGbp: SourceDiffer = async (db, cap, prev, _older) => {
   const [before, after] = await Promise.all([loadProfile(db, prev.id), loadProfile(db, cap.id)]);
   return before && after ? diffGbpProfiles(before, after) : [];
 };
