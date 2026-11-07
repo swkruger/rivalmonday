@@ -4,10 +4,10 @@
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-signal-design.md` · **Plan:** `docs/superpowers/plans/2026-11-07-brief-signal.md` (Tasks 0–12)
 
 ## Status (overwrite)
-Spec + plan drafted; awaiting owner approval. No code.
+Plan owner-approved 2026-11-07; execution started.
 
 ## Next (overwrite)
-Owner approves the plan → `superpowers:subagent-driven-development` from Task 0.
+`superpowers:subagent-driven-development` from Task 0.
 
 ## Interfaces this branch adds or changes
 - Migration **0099** `vertical_whole_business` (data only: `scoring.relevance.whole_business = 1`, `scoring.version 4` on generic/hvac_plumbing/dental).
@@ -30,6 +30,8 @@ None.
 - **D6** GBP guard: no `rating_change` when votes drop > 20 % or by > 50; address/title/domain emitted only after 2 consecutive agreeing captures; state = earlier captures (no table); counters + log, no ops alert.
 - **D7** Apify Meta-ads ledgered per item at `$0.00075`/ad.
 - Plan calls P1–P6 (whole-business set, default 1.0, no pack/diff version bumps, rescore inputs, alert-writer wording, rating-glitch recovery): spec Decisions table.
+- **D8** Whole-business events may route to `alert` (rating_change up to 70, new_location up to 90); thresholds unchanged (owner, 2026-11-07).
+- **D9** GBP title/domain/hours/status `content` stays `unmapped` (weight 0.2 caps it at 20 regardless) (owner, 2026-11-07).
 
 ## New backlog (target → item)
 - (later) → GBP title/domain/hours/status `content` events stay at `unmapped` relevance (never briefed); revisit if pilots want them.
