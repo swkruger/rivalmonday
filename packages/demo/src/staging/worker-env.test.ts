@@ -5,7 +5,7 @@ const DIRECT = 'ep-staging.c-7.us-east-2.aws.neon.tech';
 const POOLED = 'ep-staging-pooler.c-7.us-east-2.aws.neon.tech';
 const url = (role: string, host: string, db = 'cs_dev') => `postgresql://${role}:pw-${role}@${host}/${db}?sslmode=require`;
 
-const FILE = {
+const FILE: Record<string, string> = {
   STAGING_DB_DIRECT_HOST: DIRECT,
   STAGING_DB_POOLED_HOST: POOLED,
   WORKER_DATABASE_URL: url('cs_worker', DIRECT),
@@ -24,7 +24,11 @@ const FILE = {
   REVIEWER_HASH_SALT: 'salt',
   SENTRY_DSN: 'https://sentry.example/1',
   SENTRY_ENVIRONMENT: 'staging',
-  VENDOR_FAKE_MODE: 'fixtures',
+  DATAFORSEO_LOGIN: 'dfs-l',
+  DATAFORSEO_PASSWORD: 'dfs-p',
+  APIFY_TOKEN: 'apify',
+  SCRAPECREATORS_API_KEY: 'sc',
+  STADIA_API_KEY: 'stadia',
   STRIPE_SECRET_KEY: 'web-only',
 };
 
@@ -44,10 +48,9 @@ describe('stagingWorkerEnv', () => {
   });
 
   it('keeps the shell basics but drops dev and crawling settings from the shell', () => {
-    const env = stagingWorkerEnv(FILE, { PATH: '/bin', WEB_MONITORING_ENABLED: 'true', DATAFORSEO_LOGIN: 'real', DEV_PANEL: '1' });
+    const env = stagingWorkerEnv(FILE, { PATH: '/bin', WEB_MONITORING_ENABLED: 'true', DEV_PANEL: '1' });
     expect(env.PATH).toBe('/bin');
     expect(env.WEB_MONITORING_ENABLED).toBeUndefined();
-    expect(env.DATAFORSEO_LOGIN).toBeUndefined();
     expect(env.DEV_PANEL).toBeUndefined();
   });
 
@@ -85,29 +88,40 @@ describe('stagingWorkerEnv', () => {
     expect(() => stagingWorkerEnv({ ...FILE, R2_BUCKET: 'rivalmonday' }, {})).toThrow(/-staging/);
   });
 
-  it('refuses unless this is staging with fixture vendors', () => {
+  it('refuses a non-staging Sentry environment', () => {
     expect(() => stagingWorkerEnv({ ...FILE, SENTRY_ENVIRONMENT: 'production' }, {})).toThrow(/SENTRY_ENVIRONMENT/);
-    expect(() => stagingWorkerEnv({ ...FILE, VENDOR_FAKE_MODE: '' }, {})).toThrow(/VENDOR_FAKE_MODE/);
   });
 
-  it('passes the live-rank switch and only its keys from the file; the worker validates them', () => {
-    const live = { ...FILE, VENDOR_LIVE_RANK_SCANS: 'true', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p', STADIA_API_KEY: 's', APIFY_TOKEN: 'a', SCRAPECREATORS_API_KEY: 'c' };
-    const env = stagingWorkerEnv(live, {});
-    expect(env).toMatchObject({ VENDOR_LIVE_RANK_SCANS: 'true', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p', STADIA_API_KEY: 's' });
-    expect(env.APIFY_TOKEN).toBeUndefined();
-    expect(env.SCRAPECREATORS_API_KEY).toBeUndefined();
+  it('passes the five vendor keys from the file', () => {
+    expect(stagingWorkerEnv(FILE, {})).toMatchObject({
+      DATAFORSEO_LOGIN: 'dfs-l', DATAFORSEO_PASSWORD: 'dfs-p', APIFY_TOKEN: 'apify', SCRAPECREATORS_API_KEY: 'sc', STADIA_API_KEY: 'stadia',
+    });
   });
 
-  it('any other non-blank switch value is refused, and nothing is passed', () => {
-    for (const v of ['false', '1', 'TRUE', 'yes']) {
-      expect(() => stagingWorkerEnv({ ...FILE, VENDOR_LIVE_RANK_SCANS: v, DATAFORSEO_LOGIN: 'l', STADIA_API_KEY: 's' }, {})).toThrow('VENDOR_LIVE_RANK_SCANS must be true; remove the line to turn it off');
+  it('takes vendor keys from the file, never the shell', () => {
+    expect(stagingWorkerEnv(FILE, { APIFY_TOKEN: 'dev' }).APIFY_TOKEN).toBe('apify');
+  });
+
+  it.each(['VENDOR_FAKE_MODE', 'VENDOR_LIVE_RANK_SCANS', 'WEB_MONITORING_ENABLED'])('refuses %s in the file', (k) => {
+    expect(() => stagingWorkerEnv({ ...FILE, [k]: 'true' }, {})).toThrow(new RegExp(`${k}.*Remove the line`));
+  });
+
+  it('a blank refused line is ignored', () => {
+    expect(() => stagingWorkerEnv({ ...FILE, VENDOR_FAKE_MODE: ' ', WEB_MONITORING_ENABLED: '' }, {})).not.toThrow();
+  });
+
+  it('names a missing vendor key', () => {
+    expect(() => stagingWorkerEnv({ ...FILE, APIFY_TOKEN: '' }, {})).toThrow(/APIFY_TOKEN/);
+  });
+
+  it('refuses a fixture dummy key without printing other values', () => {
+    let message = '';
+    try {
+      stagingWorkerEnv({ ...FILE, STADIA_API_KEY: 'Fixture' }, {});
+    } catch (e) {
+      message = (e as Error).message;
     }
-  });
-
-  it('without the switch no vendor key reaches the worker, from the file or the shell', () => {
-    const env = stagingWorkerEnv({ ...FILE, DATAFORSEO_LOGIN: 'l', STADIA_API_KEY: 's' }, { VENDOR_LIVE_RANK_SCANS: 'true', STADIA_API_KEY: 'shell' });
-    expect(env.VENDOR_LIVE_RANK_SCANS).toBeUndefined();
-    expect(env.DATAFORSEO_LOGIN).toBeUndefined();
-    expect(env.STADIA_API_KEY).toBeUndefined();
+    expect(message).toMatch(/STADIA_API_KEY/);
+    expect(message).not.toMatch(/dfs-p|apify|r2-secret/);
   });
 });

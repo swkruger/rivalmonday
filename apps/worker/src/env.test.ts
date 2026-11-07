@@ -65,6 +65,12 @@ describe('rehearsalEnvErrors', () => {
   it('staging allows them', () => {
     expect(rehearsalEnvErrors({ NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging', ...VALUES, ...RANK_KEYS })).toEqual([]);
   });
+  it('a live staging env has no rehearsal errors', () => {
+    expect(rehearsalEnvErrors({ NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging', ...RANK_KEYS, APIFY_TOKEN: 'a', SCRAPECREATORS_API_KEY: 'c' })).toEqual([]);
+  });
+  it("the rehearsal stack's fixture mode is still allowed on staging", () => {
+    expect(rehearsalEnvErrors({ NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging', VENDOR_FAKE_MODE: 'fixtures' })).toEqual([]);
+  });
   it('staging crawling without an allowlist refuses', () => {
     const env = { NODE_ENV: 'production', SENTRY_ENVIRONMENT: 'staging', WEB_MONITORING_ENABLED: 'true' };
     expect(rehearsalEnvErrors(env)).toEqual(['staging crawling requires CRAWL_HOST_ALLOWLIST']);
