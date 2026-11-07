@@ -137,7 +137,7 @@ Page order (CSS `break-before: page` per section; Letter, current margins):
 - `GROUP_PHRASE` table wording (then owner sign-off) and summary-page copy.
 - Whether `ChartSeries` for rating uses `foldSeries` mean (likely yes, `aggregate: 'mean'`, `pin: ['you']`).
 - Query shapes, indexes (`event_score_client_route_idx` covers `client_id, route, scored_at`; an any-route window may want `(client_id, scored_at)` — measure first).
-- Test list: `gradeFor` boundaries (T, T/2, odd T), grouping, caps, retraction re-filter, quiet rule, PDF without report (old brief), white-label (no "Rival Monday" in HTML), no `upsell_tag` in props, isolation (`get_brief` changes only for the brief's client).
+- Tests: `gradeFor` boundaries, grouping, caps, retraction re-filter, quiet rule, old brief PDF, no "Rival Monday" in HTML, no `upsell_tag`, isolation.
 
 ## 6. Calls I made
 1. Starting-point brief keeps its current format; no graded block (*my call*).
