@@ -73,11 +73,29 @@ describe('Phase 3b pack knobs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
     const p = await loadVerticalPack(id);
     expect(p.type_weights.rank_change).toBe(0.5);
-    expect(p.scoring.version).toBe(3);
+    expect(p.scoring.version).toBe(4);
     expect(p.type_weights.tier_change).toBe(0.6);
     expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
     expect(p.scoring.alert_max_age_days).toBe(7);
     expect(p.move_thresholds).toMatchObject({ price_war_cuts_90d: 2, ad_burst_starts_30d: 3, promo_blitz_window_days: 14 });
+  });
+});
+
+describe('brief-signal whole_business', () => {
+  it('every shipped pack has whole_business 1 and scoring version 4', async () => {
+    for (const id of await listVerticalPacks()) {
+      const p = await loadVerticalPack(id);
+      expect(p.scoring.relevance.whole_business, id).toBe(1);
+      expect(p.scoring.version, id).toBe(4);
+    }
+  });
+
+  it('a pack without the field defaults to 1', async () => {
+    const raw = await readFile(join(PACKS_DIR, 'generic.yaml'), 'utf8');
+    const dir = await mkdtemp(join(tmpdir(), 'wb-'));
+    await writeFile(join(dir, 'generic.yaml'), raw.replace(', whole_business: 1.0', ''), 'utf8');
+    const p = await loadVerticalPack('generic', dir);
+    expect(p.scoring.relevance.whole_business).toBe(1);
   });
 });
 

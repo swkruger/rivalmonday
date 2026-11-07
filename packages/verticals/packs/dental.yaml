@@ -55,11 +55,11 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 3
+  version: 4
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 25, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
-  relevance: { matched: 1.0, unmapped: 0.6, unmatched: 0.2, outside_territory: 0.3 }
+  relevance: { matched: 1.0, unmapped: 0.6, unmatched: 0.2, outside_territory: 0.3, whole_business: 1.0 }
   novelty_similarity_floor: 0.5
   novelty_window_days: 365
   alert_max_age_days: 7

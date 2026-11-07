@@ -110,7 +110,7 @@ export const verticalPackSchema = z.object({
         })
         .prefault({}),
       relevance: z
-        .object({ matched: weight.default(1), unmapped: weight.default(0.6), unmatched: weight.default(0.2), outside_territory: weight.default(0.3) })
+        .object({ matched: weight.default(1), unmapped: weight.default(0.6), unmatched: weight.default(0.2), outside_territory: weight.default(0.3), whole_business: weight.default(1) })
         .prefault({}),
       novelty_similarity_floor: z.number().min(0).max(0.99).default(0.5),
       novelty_window_days: z.number().int().positive().default(365),

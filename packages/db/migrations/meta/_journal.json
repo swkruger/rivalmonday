@@ -694,6 +694,13 @@
       "when": 1793904982798,
       "tag": "0098_seat_decrease_deferred",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1794089812962,
+      "tag": "0099_vertical_whole_business",
+      "breakpoints": true
     }
   ]
 }
