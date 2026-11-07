@@ -30,7 +30,7 @@ describe('brief writer', () => {
     const user = messages[1]!.content ?? '';
     expect(messages[0]!.content).toMatch(/untrusted data/i);
     expect(user).toMatch(/<candidate id="C1">/);
-    expect(user).toMatch(/\[web · 2026-09-30 · \/pricing\]/);
+    expect(user).toMatch(/\[Website · detected on 2026-09-30 · \/pricing\]/);
     expect(user).toMatch(/Playbook: Smith HVAC cut AC tune-up\./);
     expect(user.match(/<\/evidence>/g)).toHaveLength(1); // only our own closing tag
   });
