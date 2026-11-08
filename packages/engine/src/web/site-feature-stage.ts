@@ -53,8 +53,8 @@ async function featuresOf(deps: { db: Db; store: ObjectStore }, captureId: strin
  * Spec D4: the website tools of one ok web capture N, confirmed by its successor S (the page's next `ok` or
  * `unchanged` capture). A tool the two disagree on keeps the page's previous state, so a one-off load failure never
  * emits. Writes one `site_features` observation per capture and, against the previous observation, one
- * `site_feature` change per tool added to / removed from the competitor's site (no other active page has it, no
- * change for the tool in 28 days). The change text names the category and path only; the vendor stays in
+ * `site_feature` change per tool category added to / removed from the competitor's site (no other active page has the category, no
+ * change for the category in 28 days; a vendor swap within a category emits nothing). The change text names the category and path only; the vendor stays in
  * `details.vendor` (ruling J1). Rules only, no model calls.
  */
 export async function detectSiteFeatures(deps: { db: Db; store: ObjectStore }, captureId: string): Promise<StageOutcome<SiteFeatureResult>> {
