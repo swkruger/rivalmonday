@@ -40,6 +40,7 @@ export function normalizeGoogleAd(item: unknown, now: Date): NormalizedAd | null
     startedAt: parseDfsTimestamp(i.first_shown),
     endedAt: isActive ? null : lastShown,
     isActive,
+    event: null,
   };
 }
 

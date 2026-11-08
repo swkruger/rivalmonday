@@ -23,6 +23,25 @@ describe('normalizeMetaAd', () => {
     expect(normalizeMetaAd(scItem)).toMatchObject({ externalId: 'S1', text: 'Beat the heat', mediaUrls: ['https://img/v.jpg'] });
     expect(normalizeMetaAd({ foo: 1 })).toBeNull();
   });
+
+  it('event name and date reach ad.event and the item label', async () => {
+    // Event shape is unseen in real data (null in every stored item): synthetic objects in the accepted shapes.
+    expect(normalizeMetaAd({ ...apifyItem, snapshot: { ...apifyItem.snapshot, event: { name: 'Spring AC Clinic', start_time: 1790000000 } } })?.event).toEqual({ name: 'Spring AC Clinic', startsAt: new Date(1790000000 * 1000).toISOString() });
+    expect(normalizeMetaAd({ ...apifyItem, snapshot: { ...apifyItem.snapshot, event: { title: 'Open house', startTime: '2026-12-01T15:00:00Z' } } })?.event).toEqual({ name: 'Open house', startsAt: '2026-12-01T15:00:00.000Z' });
+    expect(normalizeMetaAd({ ...apifyItem, snapshot: { ...apifyItem.snapshot, event: { name: 'No date yet' } } })?.event).toEqual({ name: 'No date yet', startsAt: null });
+    const item = { ...apifyItem, snapshot: { ...apifyItem.snapshot, event: { name: 'Spring AC Clinic', start_date: '2026-12-01T15:00:00Z' } } };
+    const fetch = vi.fn(async () => new Response(JSON.stringify([item]), { status: 201 }));
+    await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageIds: ['99'] });
+    const [row] = await dbs.service.select().from(ad);
+    expect(row?.event).toEqual({ name: 'Spring AC Clinic', startsAt: '2026-12-01T15:00:00.000Z' });
+  });
+
+  it('null event stays null', () => {
+    expect(normalizeMetaAd(apifyItem)?.event).toBeNull();
+    for (const event of [null, 'Spring clinic', { name: '' }, { name: 42 }, { start_time: 1790000000 }, []]) {
+      expect(normalizeMetaAd({ ...apifyItem, snapshot: { ...apifyItem.snapshot, event } })?.event).toBeNull();
+    }
+  });
 });
 
 describe('collectMetaAds', () => {

@@ -13,6 +13,14 @@ export interface NormalizedAd {
   startedAt: Date | null;
   endedAt: Date | null;
   isActive: boolean;
+  /** Phase 18a-1 D4: the event a Meta ad promotes (`snapshot.event`), else null. */
+  event: AdEvent | null;
+}
+
+export interface AdEvent {
+  name: string;
+  /** ISO timestamp, or null when the ad gives no start time. */
+  startsAt: string | null;
 }
 
 export async function upsertAds(
@@ -46,7 +54,7 @@ export async function upsertAds(
           isActive: sql`excluded.is_active`, endedAt: sql`excluded.ended_at`, lastSeenAt: sql`excluded.last_seen_at`, lastCaptureId: sql`excluded.last_capture_id`,
           // A legacy row without an advertiser id is adopted by the page that lists it, so other pages' pulls stop ending it.
           advertiserId: sql`coalesce(${ad.advertiserId}, excluded.advertiser_id)`,
-          text: sql`coalesce(excluded.text, ${ad.text})`, mediaUrls: sql`excluded.media_urls`, publisherPlatforms: sql`excluded.publisher_platforms`,
+          text: sql`coalesce(excluded.text, ${ad.text})`, mediaUrls: sql`excluded.media_urls`, publisherPlatforms: sql`excluded.publisher_platforms`, event: sql`excluded.event`,
           // Seen active again → no longer ended; seen inactive while it was active → this capture ended it; otherwise unchanged.
           endedCaptureId: sql`CASE WHEN excluded.is_active THEN NULL WHEN ${ad.isActive} THEN excluded.last_capture_id ELSE ${ad.endedCaptureId} END`,
         },

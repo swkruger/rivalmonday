@@ -47,6 +47,21 @@ describe('diffVendorCapture — ads', () => {
     expect(rows[1]?.beforeText).toBe('Ad ENDED: AC tune-up $79');
   });
 
+  it('event name and date reach ad.event and the item label', async () => {
+    await metaAd('EVT', { firstCaptureId: cap1, text: 'Free AC clinic', event: { name: 'Spring AC Clinic', startsAt: '2026-12-01T15:00:00.000Z' } });
+    await metaAd('EVT2', { firstCaptureId: cap1, text: 'Open day', event: { name: 'Open house', startsAt: null } });
+    await metaAd('PLAIN', { firstCaptureId: cap1, text: 'Plain ad' });
+    await diffVendorCapture({ db: dbs.service }, cap1, { now });
+    const [row] = await dbs.service.select().from(detectedChange);
+    const items = (row?.details as { items: unknown[] }).items;
+    expect(items).toEqual(expect.arrayContaining([
+      { id: 'EVT', label: 'Free AC clinic — promotes event "Spring AC Clinic" (2026-12-01)', event: { name: 'Spring AC Clinic', startsAt: '2026-12-01T15:00:00.000Z' } },
+      { id: 'EVT2', label: 'Open day — promotes event "Open house"', event: { name: 'Open house', startsAt: null } },
+      { id: 'PLAIN', label: 'Plain ad' },
+    ]));
+    expect(row?.afterText).toContain('Free AC clinic — promotes event "Spring AC Clinic" (2026-12-01)');
+  });
+
   it('compares each Meta page with its own history (a new page starts as a baseline)', async () => {
     const page77 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', url: metaPageUrl('77'), capturedAt: day(8) });
     await metaAd('P77', { advertiserId: '77', firstCaptureId: page77 });

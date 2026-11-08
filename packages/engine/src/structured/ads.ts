@@ -1,4 +1,4 @@
-import { ad } from '@cs/db';
+import { ad, type ChangeItem } from '@cs/db';
 import { and, eq, gte, isNotNull, isNull, or } from 'drizzle-orm';
 import type { SourceDiffer, StructuredChange } from './vendor-diff';
 
@@ -8,8 +8,15 @@ export const AD_START_WINDOW_DAYS = 30;
 export const MAX_CHANGE_ITEMS = 25;
 const DAY_MS = 86_400_000;
 
-export const adLabel = (a: { externalId: string; title: string | null; text: string | null }): string =>
-  (a.text ?? a.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200) || `creative ${a.externalId}`;
+type AdEvent = { name: string; startsAt: string | null };
+
+/** The ad's copy (or title, else its id); an ad promoting an event appends ` — promotes event "<name>" (<YYYY-MM-DD>)` (D4). */
+export const adLabel = (a: { externalId: string; title: string | null; text: string | null; event?: AdEvent | null }): string => {
+  const base = (a.text ?? a.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200) || `creative ${a.externalId}`;
+  if (!a.event) return base;
+  const date = a.event.startsAt ? ` (${a.event.startsAt.slice(0, 10)})` : '';
+  return `${base} — promotes event "${a.event.name.replace(/\s+/g, ' ').trim().slice(0, 120)}"${date}`;
+};
 
 export function pageIdOf(url: string | null): string | null {
   if (!url) return null;
@@ -35,7 +42,8 @@ export const diffAds: SourceDiffer = async (db, cap) => {
     .where(and(mine, eq(ad.firstCaptureId, cap.id), or(isNull(ad.startedAt), gte(ad.startedAt, startedSince)), or(eq(ad.isActive, true), isNotNull(ad.endedCaptureId))));
   const stopped = await db.select().from(ad).where(and(mine, eq(ad.endedCaptureId, cap.id)));
   const pageId = platform === 'meta' ? pageIdOf(cap.url) : null;
-  const items = (rows: typeof started) => rows.slice(0, MAX_CHANGE_ITEMS).map((a) => ({ id: a.externalId, label: adLabel(a) }));
+  const items = (rows: typeof started): ChangeItem[] =>
+    rows.slice(0, MAX_CHANGE_ITEMS).map((a) => ({ id: a.externalId, label: adLabel(a), ...(a.event ? { event: a.event } : {}) }));
   const text = (rows: typeof started) => items(rows).map((i) => i.label).join('\n');
   const out: StructuredChange[] = [];
   if (started.length > 0) {

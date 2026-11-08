@@ -38,6 +38,8 @@ export interface NumericChange {
 export interface ChangeItem {
   id: string;
   label: string;
+  /** Phase 18a-1 D4: the event a Meta ad promotes (its label already names it). */
+  event?: { name: string; startsAt: string | null };
 }
 
 /**

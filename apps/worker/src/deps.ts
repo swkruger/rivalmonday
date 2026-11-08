@@ -12,7 +12,7 @@ import { createCatalog } from '@cs/verticals';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -82,6 +82,8 @@ export interface WorkerDeps {
   analyzeReview(reviewId: string): Promise<{ ran: boolean }>;
   reaskReview(reviewId: string): Promise<{ ran: boolean; questions: number }>;
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
+  /** D5: ad-copy prices of one Meta capture. */
+  extractAdPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
   collectModelBatches(): Promise<BatchCollectResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
@@ -406,6 +408,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     },
     async extractPrices(captureId) {
       const r = await runExtractPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
+      return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
+    },
+    async extractAdPrices(captureId) {
+      const r = await runExtractAdPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
       return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
     },
     async runReviewInsights() {

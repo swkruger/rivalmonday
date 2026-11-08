@@ -23,6 +23,7 @@ export function createEngineJobs(
     enqueueScore(eventId: string): Promise<void>;
     enqueueReview(reviewId: string): Promise<void>;
     enqueuePrice(captureId: string): Promise<void>;
+    enqueueAdPrice(captureId: string): Promise<void>;
     enqueueReask(reviewId: string): Promise<void>;
   },
 ) {
@@ -46,9 +47,10 @@ export function createEngineJobs(
       for (const id of w.reviews) await queue.enqueueReview(id);
       for (const id of w.reask) await queue.enqueueReask(id);
       for (const id of w.prices) await queue.enqueuePrice(id);
-      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length > 0)
+      for (const id of w.adPrices) await queue.enqueueAdPrice(id);
+      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length > 0)
         workerLog.info(
-          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}`,
+          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}`,
         );
     },
   });
@@ -101,5 +103,12 @@ export function createEngineJobs(
       if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
     },
   });
-  return { sweep, diff, rankDiff, tag, score, review, reask, price };
+  const adPrice = defineJob({
+    name: 'engine-ad-price', usesAi: true, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    handler: async ({ captureId }) => {
+      const r = await deps.extractAdPrices(captureId);
+      if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-ad-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
+    },
+  });
+  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice };
 }

@@ -36,6 +36,23 @@ export async function writeMetaPageObservation(
     .onConflictDoNothing({ target: [observation.captureId, observation.kind, observation.key] });
 }
 
+/** The `items` of a stored vendor payload (`{ vendor, items, truncated }`, gzipped JSON); null when unreadable. */
+export function vendorPayloadItems(body: Uint8Array): unknown[] | null {
+  try {
+    const payload = JSON.parse(gunzipSync(body).toString('utf8')) as { items?: unknown };
+    return Array.isArray(payload.items) ? payload.items : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The stored payload items of one vendor capture (its `vendor_json` evidence); null when absent or unreadable. */
+export async function loadVendorCaptureItems(deps: { db: Db; store: ObjectStore }, captureId: string): Promise<unknown[] | null> {
+  const [row] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, captureId), eq(evidence.kind, 'vendor_json'))).limit(1);
+  const body = row ? await deps.store.get(row.objectKey) : null;
+  return body ? vendorPayloadItems(body) : null;
+}
+
 const pageIdFromUrl = (url: string | null) => url?.match(/view_all_page_id=([^&]+)/)?.[1] ?? null;
 
 /** Writes a `meta_page` observation for every ok `meta_ads` capture with a readable like count. Idempotent. */
@@ -53,15 +70,8 @@ export async function backfillMetaPageObservations(
   for (const row of rows) {
     const pageId = pageIdFromUrl(row.url);
     const body = pageId ? await deps.store.get(row.objectKey) : null;
-    let reading: MetaPageReading | null = null;
-    if (pageId && body) {
-      try {
-        const payload = JSON.parse(gunzipSync(body).toString('utf8')) as { items?: unknown };
-        reading = Array.isArray(payload.items) ? pageReadingFrom(payload.items, pageId) : null;
-      } catch {
-        reading = null;
-      }
-    }
+    const items = pageId && body ? vendorPayloadItems(body) : null;
+    const reading = items && pageId ? pageReadingFrom(items, pageId) : null;
     if (!reading) {
       skipped++;
       continue;

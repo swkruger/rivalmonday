@@ -14,7 +14,7 @@ export const PRICE_STAGE = 'price_extract';
 export const PRICE_VERSION = 1;
 /** A page with more priced blocks than this is a catalogue; the rest are skipped (and logged). */
 export const PRICE_MAX_BLOCKS = 40;
-const MAX_STATE_TEXT = 1500;
+export const MAX_STATE_TEXT = 1500;
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 /** One Choice per vertical: which service is priced in this block ("none" for fees, bundles, general prices). */
@@ -29,6 +29,41 @@ export function buildPriceQuestions(packs: VerticalPack[]): Record<string, Decis
       } satisfies DecisionQuestion,
     ]),
   );
+}
+
+export type PriceBlockMapRow = typeof priceBlockMap.$inferInsert;
+
+/**
+ * Maps priced texts to one service per vertical, once per (text sha, vertical): cached `price_block_map` rows are
+ * reused, the rest asked in one `price_decisions` call per text (low confidence ⇒ "no service"). Returns the
+ * mapping keyed `<sha>|<verticalId>` and the new cache rows to insert. `state` is built only for texts still asked.
+ */
+export async function mapPricedTexts(
+  deps: { db: Db; ai: Ai; packs: PackLoader },
+  verticalIds: string[],
+  texts: { sha: string; state: () => Record<string, unknown> }[],
+): Promise<{ mapped: Map<string, string | null>; maps: PriceBlockMapRow[] }> {
+  const maps: PriceBlockMapRow[] = [];
+  const shas = [...new Set(texts.map((t) => t.sha))];
+  const known = shas.length > 0
+    ? await deps.db.select().from(priceBlockMap).where(and(inArray(priceBlockMap.textSha, shas), inArray(priceBlockMap.verticalId, verticalIds)))
+    : [];
+  const mapped = new Map<string, string | null>(known.map((m) => [`${m.textSha}|${m.verticalId}`, m.serviceId]));
+  for (const t of texts) {
+    const missing = verticalIds.filter((v) => !mapped.has(`${t.sha}|${v}`));
+    if (missing.length === 0) continue;
+    const packs = await Promise.all(missing.map(deps.packs));
+    const result = await deps.ai.decide('price_decisions', t.state(), buildPriceQuestions(packs), PLATFORM);
+    const low = new Set(result.needsReview);
+    for (const p of packs) {
+      const k = serviceQuestionKey(p.id);
+      const v = result.answers[k]?.value;
+      const serviceId = !low.has(k) && typeof v === 'string' && p.services.some((s) => s.id === v) ? v : null;
+      mapped.set(`${t.sha}|${p.id}`, serviceId);
+      maps.push({ textSha: t.sha, verticalId: p.id, serviceId, confidence: result.answers[k]?.confidence ?? 0, needsReview: low.has(k) });
+    }
+  }
+  return { mapped, maps };
 }
 
 export interface PriceRunResult {
@@ -53,8 +88,7 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
     deps.db,
     { stage: PRICE_STAGE, version: PRICE_VERSION, subjectId: captureId },
     async () => {
-      const maps: (typeof priceBlockMap.$inferInsert)[] = [];
-      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps, truncated: false });
+      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps: [] as PriceBlockMapRow[], truncated: false });
       const verticalIds = await competitorVerticals(deps.db, cap.competitorId);
       if (verticalIds.length === 0) return skip('no client tracks this competitor');
       // The watermark is the newest capture of this page whose price_extract run is done — not the newest
@@ -73,33 +107,17 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
       const truncated = priced.length > PRICE_MAX_BLOCKS;
       if (truncated) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
       const blocks = priced.slice(0, PRICE_MAX_BLOCKS);
-      const shas = [...new Set(blocks.map((x) => x.b.textSha))];
-      const known = shas.length > 0
-        ? await deps.db.select().from(priceBlockMap).where(and(inArray(priceBlockMap.textSha, shas), inArray(priceBlockMap.verticalId, verticalIds)))
-        : [];
-      const mapped = new Map<string, string | null>(known.map((m) => [`${m.textSha}|${m.verticalId}`, m.serviceId]));
       const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, cap.competitorId)).limit(1);
       const [page] = await deps.db.select({ url: trackedPage.url, pageType: trackedPage.pageType }).from(trackedPage).where(eq(trackedPage.id, pageId)).limit(1);
       const names = [comp?.name ?? null];
 
-      for (const { b, obs } of blocks) {
-        const missing = verticalIds.filter((v) => !mapped.has(`${b.textSha}|${v}`));
-        if (missing.length === 0) continue;
-        const packs = await Promise.all(missing.map(deps.packs));
-        const state = {
+      const { mapped, maps } = await mapPricedTexts(deps, verticalIds, blocks.map(({ b, obs }) => ({
+        sha: b.textSha,
+        state: () => ({
           competitor: comp?.name ?? null, page_url: page?.url ?? cap.url, page_type: page?.pageType ?? null,
           text: redactForModel(b.text, { businessNames: names }).slice(0, MAX_STATE_TEXT), prices: obs.map((o) => o.raw),
-        };
-        const result = await deps.ai.decide('price_decisions', state, buildPriceQuestions(packs), PLATFORM);
-        const low = new Set(result.needsReview);
-        for (const p of packs) {
-          const k = serviceQuestionKey(p.id);
-          const v = result.answers[k]?.value;
-          const serviceId = !low.has(k) && typeof v === 'string' && p.services.some((s) => s.id === v) ? v : null;
-          mapped.set(`${b.textSha}|${p.id}`, serviceId);
-          maps.push({ textSha: b.textSha, verticalId: p.id, serviceId, confidence: result.answers[k]?.confidence ?? 0, needsReview: low.has(k) });
-        }
-      }
+        }),
+      })));
 
       const observations: Observed[] = blocks.flatMap(({ b, obs }) =>
         verticalIds.flatMap((verticalId) => {

@@ -1,5 +1,6 @@
 import { agencyServiceable, clientWorkAllowed, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
+import { AD_PRICE_SINCE, AD_PRICE_STAGE, AD_PRICE_VERSION } from './prices/ad-price-stage';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
 import { scoreBackoff } from './score/score-stage';
@@ -18,6 +19,8 @@ export interface EngineWork {
   rankDiff: string[];
   reviews: string[];
   prices: string[];
+  /** Ok `meta_ads` captures from `AD_PRICE_SINCE` for the ad-copy price stage (D5). */
+  adPrices: string[];
   /** Older analysed reviews with a re-ask gap (15b-3b §5); only when `reviews` is empty. */
   reask: string[];
 }
@@ -167,5 +170,15 @@ export async function findEngineWork(
       AND NOT ${finished(PRICE_STAGE, PRICE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
-  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), reask };
+  // Ad prices (D5): ok Meta captures since the deploy cutoff, settled like the vendor diff (ad rows are written
+  // after the capture row), of a competitor some client tracks, oldest first so spans build in order.
+  const adPrices = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.source = 'meta_ads' AND c.status = 'ok' AND c.captured_at >= ${AD_PRICE_SINCE.toISOString()}::timestamptz
+      AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
+      AND NOT ${finished(AD_PRICE_STAGE, AD_PRICE_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+
+  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices), reask };
 }

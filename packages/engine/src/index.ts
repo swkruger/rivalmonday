@@ -15,6 +15,7 @@ export * from './structured/rank';
 export * from './structured/reviews';
 export * from './events/retract';
 export * from './facts/numeric';
+export * from './prices/ad-price-stage';
 export * from './prices/observe';
 export * from './prices/price-stage';
 export * from './prices/tracker';

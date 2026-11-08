@@ -31,6 +31,7 @@ const makeAd = (over: Partial<NormalizedAd> = {}): NormalizedAd => ({
   startedAt: new Date('2026-09-01T00:00:00Z'),
   endedAt: null,
   isActive: true,
+  event: null,
   ...over,
 });
 

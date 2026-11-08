@@ -10,6 +10,7 @@ const queue = () => ({
   enqueueScore: vi.fn(async (_id: string) => {}),
   enqueueReview: vi.fn(async (_id: string) => {}),
   enqueuePrice: vi.fn(async (_id: string) => {}),
+  enqueueAdPrice: vi.fn(async (_id: string) => {}),
   enqueueReask: vi.fn(async (_id: string) => {}),
 });
 
@@ -17,7 +18,7 @@ describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], reask: [U(7)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], reask: [U(7)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -26,6 +27,7 @@ describe('engine jobs', () => {
     expect([q.enqueueDiff.mock.calls, q.enqueueTag.mock.calls, q.enqueueScore.mock.calls, q.enqueueRankDiff.mock.calls]).toEqual([[[U(1)]], [[U(2)]], [[U(3)]], [[U(4)]]]);
     expect(q.enqueueReview.mock.calls).toEqual([[U(5)]]);
     expect(q.enqueuePrice.mock.calls).toEqual([[U(6)]]);
+    expect(q.enqueueAdPrice.mock.calls).toEqual([[U(8)]]);
     expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
   });
 
@@ -81,13 +83,20 @@ describe('engine jobs', () => {
   });
 
   it('runs review analysis and price extraction jobs without self-retry', async () => {
-    const deps = { analyzeReview: vi.fn(async () => ({ ran: true })), extractPrices: vi.fn(async () => ({ ran: true, points: 2, ended: 0 })) } as unknown as WorkerDeps;
+    const deps = {
+      analyzeReview: vi.fn(async () => ({ ran: true })), extractPrices: vi.fn(async () => ({ ran: true, points: 2, ended: 0 })),
+      extractAdPrices: vi.fn(async () => ({ ran: true, points: 1, ended: 0 })),
+    } as unknown as WorkerDeps;
     const jobs = createEngineJobs(deps, queue());
     await jobs.review.handler({ reviewId: U(5) });
     await jobs.price.handler({ captureId: U(6) });
+    await jobs.adPrice.handler({ captureId: U(8) });
     expect(deps.analyzeReview).toHaveBeenCalledWith(U(5));
     expect(deps.extractPrices).toHaveBeenCalledWith(U(6));
-    for (const job of [jobs.review, jobs.price]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    expect(deps.extractAdPrices).toHaveBeenCalledWith(U(8));
+    expect(jobs.adPrice.name).toBe('engine-ad-price');
+    expect(jobs.adPrice.usesAi).toBe(true);
+    for (const job of [jobs.review, jobs.price, jobs.adPrice]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
     expect(() => jobs.review.schema.parse({ reviewId: 'x' })).toThrow();
   });
 

@@ -9,7 +9,7 @@ import { parseDfsTimestamp } from '../vendors/dfs-time';
 import { VendorError } from '../vendors/errors';
 import { fetchMetaAdsScrapeCreators } from '../vendors/scrapecreators';
 import { pageReadingFrom, writeMetaPageObservation } from './meta-page';
-import { type NormalizedAd, upsertAds } from './upsert';
+import { type AdEvent, type NormalizedAd, upsertAds } from './upsert';
 
 export const META_COLLECTOR_VERSION = 'meta/1';
 type Obj = Record<string, unknown>;
@@ -51,7 +51,22 @@ export function normalizeMetaAd(raw: unknown): NormalizedAd | null {
     landingUrl: str(pick(snap, ['link_url', 'linkUrl'])) ?? str(pick(firstCard, ['link_url', 'linkUrl'])),
     publisherPlatforms: Array.isArray(platforms) ? platforms.filter((p): p is string => typeof p === 'string') : [],
     startedAt: start, endedAt: isActive === false ? end : null, isActive: isActive !== false,
+    event: metaAdEvent(pick(snap, ['event'])),
   };
+}
+
+/**
+ * D4: `snapshot.event` → `{ name, startsAt }`. The populated shape is unseen in real data (null in every stored
+ * item, Task 0), so accept a string `name` (or `title`) with an optional start under `start_time`/`startTime`/
+ * `start_date` (unix seconds or ISO); anything else is null.
+ */
+export function metaAdEvent(raw: unknown): AdEvent | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const e = raw as Obj;
+  const name = [e.name, e.title].find((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  if (!name) return null;
+  const startsAt = parseDfsTimestamp(pick(e, ['start_time', 'startTime', 'start_date']));
+  return { name: name.trim(), startsAt: startsAt ? startsAt.toISOString() : null };
 }
 
 export const metaPageUrl = (pageId: string) => `https://www.facebook.com/ads/library/?view_all_page_id=${pageId}`;

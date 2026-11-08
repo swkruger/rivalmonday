@@ -65,6 +65,9 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     enqueuePrice: async (captureId) => {
       await enqueue(boss, engine.price, { captureId }, { singletonKey: captureId });
     },
+    enqueueAdPrice: async (captureId) => {
+      await enqueue(boss, engine.adPrice, { captureId }, { singletonKey: `ad-price:${captureId}` });
+    },
   });
   const web = createWebJobs(deps, {
     enqueueCapture: async (trackedPageId, startAfter) => {
@@ -165,7 +168,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   return [
     heartbeat, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
     rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
-    engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, reviews.nightly, moves.nightly, moves.client,
+    engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, engine.adPrice, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
     delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
   ];
