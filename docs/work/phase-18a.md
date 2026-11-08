@@ -1,6 +1,6 @@
 # phase-18a — Wider sources, part 1: brief what we already collect (no new paid vendors)
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a   **Base:** main @ cca12fde
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a   **Base:** main @ 4b305a7e
 **Plan/spec:** none yet
 
 ## Status (overwrite)
@@ -10,7 +10,7 @@ Kicked off 2026-11-08; not on the roadmap yet. 18a-1 spec drafted + builder-chec
 Owner approves the 18a-1 spec → `superpowers:writing-plans` (lean format) → owner approves plan → SDD. Brief open questions 3, 5, 7, 8 belong to 18a-2.
 
 ## Interfaces this branch adds or changes
-TBD. Migration: next free at execution; main ends 0099, `brief-report` claims the next (≥ 0100) ⇒ expect **0101**; re-check.
+TBD. Migration: next free at execution; main ends 0099, `brief-report` claims the next (≥ 0100) ⇒ `brief-report` adds none (checked 2026-11-08) ⇒ next free **0100**; re-check at execution.
 
 ## Assumes from other branches
 - `brief-report` (planned, unmerged): `@cs/core` `brief-report.ts` `topicOf` (unknown types → `offers` "Website, prices & services") and `@cs/email` `GROUP_PHRASE` are tested to cover every `CHANGE_LABELS` key; a new change type must add both. Edits `briefs/{generate,summary,review,deliver}.ts`, `labels.ts`; 18a rebases onto it.
@@ -69,3 +69,10 @@ TBD. Migration: next free at execution; main ends 0099, `brief-report` claims th
 6. **Ad prices into `price_point`.** (A) Meta ad copy only, nullable `tracked_page_id` + `source` column; (B) separate `ad_price` table; (C) defer. **Rec: A** — one tracker.
 7. **Event JSON-LD.** (A) Offer now (feeds prices), Event waits for 18d; (B) both now, stored only; (C) both wait. **Rec: A** — HVAC/dental rarely post Events.
 8. **Own-site prices ("you" column).** (A) crawl the client's own site in 18a; (B) defer to after web goes live; (C) out of 18a. **Rec: B**.
+
+## Pre-flight (Task 0)
+Rebased onto main 4b305a7e; `pnpm install`, test DB `cs_phase_18a_test`, `worker boss.test.ts` 20/20 green.
+- **Migration:** next free **0100** (`brief-report` adds no migration; plan says 0101, fix).
+- **Plan paths (package-relative, all exist or planned creates):** `sweep.ts`, `drain.ts` = `packages/engine/src/`; `catalog/merge.ts` and `tools/schemas.ts` = `packages/tools/src/`; `rescore-args.ts` = `apps/worker/src/cli/`. `core/brief-report.ts` is brief-report's (unmerged).
+- **Meta (cs_dev, 19 ok captures, all `vendor:"apify"`; no ScrapeCreators capture exists, fixture used):** payload `{vendor, items[], truncated}` for both vendors. Per item: `page_id` (string, also `snapshot.page_id`), `page_name` (also `snapshot.page_name`), `snapshot.page_like_count` (number, 352/353 items; the one miss is an empty item), `snapshot.event` key exists but null in 353/353 (fixtures: null). Event shape unseen; treat as always null in tests.
+- **GBP closed (free check, no vendor call):** `current_status` lives at `work_time.work_hours.current_status` (cs_dev GBP: only `open`/`close`; maps rank: `open`/`close`). No `closed_forever`/`temporarily_closed` anywhere in cs_dev; `rank_snapshot.results` items carry only cid/rank/title/domain/placeId (no `closed`). No candidate; paid DFS closed-listing probe still needs owner pick.
