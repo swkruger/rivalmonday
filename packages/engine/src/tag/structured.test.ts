@@ -179,9 +179,18 @@ describe('web-channel structured changes (18a-2)', () => {
     expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'site_feature', category: 'live_chat', vendor: 'Intercom', direction: 'removed' } })).toBe('Removed live chat from its website');
     expect(added).not.toMatch(/ServiceTitan/);
   });
-  it('new_page summary quotes the heading, else the path', () => {
-    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: 'Furnace Repair', details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } })).toBe('Added a new page to its website: "Furnace Repair"');
-    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } })).toBe('Added a new page to its website: "/furnace-repair"');
+  it('new_page summary quotes the first item label (h1/title), else the path, and never afterText', () => {
+    const multi = '/furnace-repair
+Furnace Repair
+We fix furnaces fast.
+Our process';
+    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: multi, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair', items: [{ id: 'h1', label: 'Furnace Repair' }] } })).toBe('Added a new page to its website: "Furnace Repair"');
+    const noLabel = buildStructuredSummary({ source: 'web', beforeText: null, afterText: multi, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } });
+    expect(noLabel).toBe('Added a new page to its website: "/furnace-repair"');
+    expect(noLabel).not.toContain('We fix furnaces');
+  });
+  it('site_feature with an unknown category falls back to a generic label', () => {
+    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'site_feature', category: 'nonsense', direction: 'added' } })).toBe('Added a tool to its website');
   });
   it('tags a site_feature web change on the structured path with no vendor in the event', async () => {
     const capW = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'web', capturedAt: day(7) });

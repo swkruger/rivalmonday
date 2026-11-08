@@ -121,7 +121,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
     case 'new_page': {
       let path = '';
       try { path = d.pageUrl ? new URL(d.pageUrl).pathname : ''; } catch { path = d.pageUrl ?? ''; }
-      s = `Added a new page to its website: "${trunc(after || d.items?.[0]?.label || path || 'untitled', 80)}"`;
+      s = `Added a new page to its website: "${trunc(d.items?.[0]?.label || path || 'untitled', 80)}"`;
       break;
     }
     default: {
