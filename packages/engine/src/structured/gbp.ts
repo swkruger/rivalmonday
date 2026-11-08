@@ -20,6 +20,7 @@ export interface GbpProfile {
   domain?: string | null;
   currentStatus?: string | null;
   address?: string | null;
+  description?: string | null;
   services?: unknown;
   workHours?: unknown;
 }
@@ -39,6 +40,10 @@ const services = (p: GbpProfile, other: GbpProfile) =>
     ? p.services.map((s) => (s && typeof s === 'object' ? (s as { title?: unknown }).title : null)).filter(present)
     : [];
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+const DESCRIPTION_CHARS = 300;
+
+/** `open` for a transient status (open/close/closing_soon...), else the lowercased raw value (closed_forever...); null when absent. */
+export const statusClass = (s: string | null | undefined): string | null => (!present(s) ? null : TRANSIENT_STATUS.test(s) ? 'open' : s.toLowerCase());
 
 function hoursText(p: GbpProfile): string | null {
   const timetable = (p.workHours as { work_hours?: { timetable?: Record<string, { open?: Hm; close?: Hm }[] | null> } } | null | undefined)?.work_hours?.timetable;
@@ -64,15 +69,27 @@ export function diffGbpProfiles(before: GbpProfile, after: GbpProfile): Structur
   for (const field of ['title', 'domain'] as const) {
     const a = before[field];
     const b = after[field];
-    if (a && b && norm(a) !== norm(b)) out.push({ kind: 'modified', blockKey: `gbp:${field}`, beforeText: `${field}: ${a}`, afterText: `${field}: ${b}`, details: { changeType: 'content', field } });
+    if (a && b && norm(a) !== norm(b)) out.push({ kind: 'modified', blockKey: `gbp:${field}`, beforeText: `${field}: ${a}`, afterText: `${field}: ${b}`, details: { changeType: 'profile_change', field } });
   }
   const h0 = hoursText(before);
   const h1 = hoursText(after);
-  if (h0 && h1 && h0 !== h1) out.push({ kind: 'modified', blockKey: 'gbp:hours', beforeText: h0, afterText: h1, details: { changeType: 'content', field: 'hours' } });
-  const s0 = before.currentStatus;
-  const s1 = after.currentStatus;
-  if (s0 && s1 && s0 !== s1 && !(TRANSIENT_STATUS.test(s0) && TRANSIENT_STATUS.test(s1))) {
-    out.push({ kind: 'modified', blockKey: 'gbp:status', beforeText: `status: ${s0}`, afterText: `status: ${s1}`, details: { changeType: 'content', field: 'status' } });
+  if (h0 && h1 && h0 !== h1) out.push({ kind: 'modified', blockKey: 'gbp:hours', beforeText: h0, afterText: h1, details: { changeType: 'profile_change', field: 'hours' } });
+  const d0 = before.description;
+  const d1 = after.description;
+  if (present(d0) && present(d1) && norm(d0) !== norm(d1)) {
+    out.push({
+      kind: 'modified', blockKey: 'gbp:description',
+      beforeText: `description: ${d0.slice(0, DESCRIPTION_CHARS)}`, afterText: `description: ${d1.slice(0, DESCRIPTION_CHARS)}`,
+      details: { changeType: 'profile_change', field: 'description' },
+    });
+  }
+  const c0 = statusClass(before.currentStatus);
+  const c1 = statusClass(after.currentStatus);
+  if (c0 && c1 && c0 !== c1) {
+    out.push({
+      kind: 'modified', blockKey: 'gbp:status', beforeText: `status: ${before.currentStatus}`, afterText: `status: ${after.currentStatus}`,
+      details: { changeType: 'status_change', field: 'status', direction: c1 === 'open' ? 'reopened' : 'closed', statusBefore: before.currentStatus!, statusAfter: after.currentStatus! },
+    });
   }
   const r0 = before.rating;
   const r1 = after.rating;
@@ -88,7 +105,13 @@ export function diffGbpProfiles(before: GbpProfile, after: GbpProfile): Structur
 
 export const VOTES_DROP_MAX_RATIO = 0.2;
 export const VOTES_DROP_MAX_ABS = 50;
-export const HELD_GBP_FIELDS = ['address', 'title', 'domain'] as const;
+const text = (f: 'address' | 'title' | 'domain' | 'description') => (p: GbpProfile) => (present(p[f]) ? norm(p[f] as string) : null);
+/** Fields held until a new value is seen on two pulls (vendor noise otherwise), with the comparable value of each. */
+export const HELD_GBP = [
+  { key: 'gbp:address', value: text('address') }, { key: 'gbp:title', value: text('title') }, { key: 'gbp:domain', value: text('domain') },
+  { key: 'gbp:status', value: (p: GbpProfile) => statusClass(p.currentStatus) }, { key: 'gbp:hours', value: hoursText },
+  { key: 'gbp:description', value: text('description') },
+] as const;
 export interface GbpSnapshot { captureId: string; profile: GbpProfile }
 
 /** A review count that falls by more than 20 % or 50 votes in one pull is a vendor glitch, not a purge worth reporting. */
@@ -99,14 +122,14 @@ export function implausibleVotesDrop(before: GbpProfile, after: GbpProfile): boo
   return b - a > VOTES_DROP_MAX_ABS || (b - a) / b > VOTES_DROP_MAX_RATIO;
 }
 
-const heldValue = (s: GbpSnapshot | undefined, f: (typeof HELD_GBP_FIELDS)[number]) => (present(s?.profile[f]) ? norm(s!.profile[f] as string) : null);
+const heldValue = (s: GbpSnapshot | undefined, h: (typeof HELD_GBP)[number]) => (s ? h.value(s.profile) : null);
 const pick = (from: GbpProfile, to: GbpProfile, key: string) => diffGbpProfiles(from, to).find((c) => c.blockKey === key);
 
 /** snaps newest first: [after, prev, prev2?, prev3?]. */
 export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
   const [after, prev, prev2, prev3] = snaps;
   if (!after || !prev) return { changes: [], implausible: 0, held: 0 };
-  const guarded = new Set(['gbp:rating', ...HELD_GBP_FIELDS.map((f) => `gbp:${f}`)]);
+  const guarded = new Set(['gbp:rating', ...HELD_GBP.map((h) => h.key)]);
   const changes = diffGbpProfiles(prev.profile, after.profile).filter((c) => !guarded.has(c.blockKey));
   let implausible = 0;
   let held = 0;
@@ -121,17 +144,17 @@ export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
     else changes.push(base === prev ? rating : { ...rating, beforeCaptureId: base.captureId });
   }
   // (b) Emit once the new value is seen twice, from the last confirmed value.
-  for (const f of HELD_GBP_FIELDS) {
-    const now = heldValue(after, f);
-    const last = heldValue(prev, f);
+  for (const h of HELD_GBP) {
+    const now = heldValue(after, h);
+    const last = heldValue(prev, h);
     if (now === null || last === null) continue;
     if (now !== last) { held++; continue; }
-    const v2 = heldValue(prev2, f);
+    const v2 = heldValue(prev2, h);
     if (v2 === null || v2 === now) continue;
-    const v3 = heldValue(prev3, f);
+    const v3 = heldValue(prev3, h);
     const from = prev3 && v3 !== null && v3 !== v2 ? prev3 : prev2!;
-    if (heldValue(from, f) === now) continue;
-    const c = pick(from.profile, after.profile, `gbp:${f}`);
+    if (heldValue(from, h) === now) continue;
+    const c = pick(from.profile, after.profile, h.key);
     if (c) changes.push({ ...c, beforeCaptureId: from.captureId });
   }
   return { changes, implausible, held };

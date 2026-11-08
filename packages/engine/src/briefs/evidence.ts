@@ -1,6 +1,7 @@
 import { redactForModel } from '@cs/collectors';
 import { capture, changeEvent, detectedChange, type Db, evidence, eventChange, trackedPage } from '@cs/db';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { GBP_STATUS_PHRASE } from '../structured/gbp-status';
 import { buildStructuredSummary } from '../tag/structured';
 
 export const EVIDENCE_TEXT_CHARS = 300;
@@ -23,8 +24,7 @@ export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
   google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings',
 };
 
-/** Google Business Profile `business_status` values in reader words; any other (transient open/close/closing_soon...) value reads `open`. */
-export const GBP_STATUS_PHRASE: Record<string, string> = { closed_forever: 'permanently closed', temporarily_closed: 'temporarily closed', open: 'open' };
+export { GBP_STATUS_PHRASE };
 
 /** `status: closed_forever` -> `status: permanently closed` (before/after text of a `status_change`). */
 const statusText = (s: string): string => s.replace(/^status:\s*(\S+)\s*$/, (_m, raw: string) => `status: ${GBP_STATUS_PHRASE[raw] ?? 'open'}`);

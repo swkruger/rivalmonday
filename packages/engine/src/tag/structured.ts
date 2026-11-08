@@ -7,6 +7,7 @@ import { and, eq } from 'drizzle-orm';
 import { diffFacts, extractNumericFacts, MONEY_KINDS } from '../facts/numeric';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
+import { GBP_STATUS_PHRASE } from '../structured/gbp-status';
 import { serviceQuestionKey } from './questions';
 import { competitorVerticals, extractZips, type PackLoader, singleVerticalScope, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
 
@@ -92,6 +93,18 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       break;
     case 'tier_change':
       s = `Now rated "${d.to ? TIER_LABELS[d.to] : after}" (was "${d.from ? TIER_LABELS[d.from] : before}")`;
+      break;
+    case 'status_change': {
+      const phrase = (raw: string | undefined) => GBP_STATUS_PHRASE[(raw ?? '').replace(/^status:\s*/, '')] ?? 'open';
+      s = d.direction === 'reopened'
+        ? `Google Business Profile reopened (was ${phrase(d.statusBefore ?? before)})`
+        : `Google Business Profile marked ${phrase(d.statusAfter ?? after)}`;
+      break;
+    }
+    case 'profile_change':
+      s = d.field === 'hours' || d.field === 'description'
+        ? `Changed its ${d.field} on Google: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`
+        : `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
       break;
     default: {
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;

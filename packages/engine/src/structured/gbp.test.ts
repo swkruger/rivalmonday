@@ -43,7 +43,8 @@ describe('diffGbpProfiles', () => {
       workHours: { work_hours: { timetable: { monday: [{ open: { hour: 9, minute: 0 }, close: { hour: 17, minute: 0 } }] } } },
     };
     const cs = diffGbpProfiles(base, after);
-    expect(keys(cs)).toEqual([['modified', 'gbp:title', 'content'], ['modified', 'gbp:hours', 'content'], ['modified', 'gbp:status', 'content']]);
+    expect(keys(cs)).toEqual([['modified', 'gbp:title', 'profile_change'], ['modified', 'gbp:hours', 'profile_change'], ['modified', 'gbp:status', 'status_change']]);
+    expect(cs[2]?.details).toMatchObject({ direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' });
     expect(cs[1]?.afterText).toBe('hours: monday 09:00–17:00');
   });
 
@@ -151,11 +152,55 @@ describe('guardedGbpDiff', () => {
   it('missing value in prev2: nothing', () => {
     expect(run({ ...A, address: null }, B, B)).toEqual({ changes: [], implausible: 0, held: 0 });
   });
-  it('category/service/hours/status unguarded', () => {
+  it('category/service unguarded; hours and status held until seen twice', () => {
     const after = { ...base, category: 'Plumber', services: [{ title: 'Ducts' }, { title: 'Leaks' }], currentStatus: 'closed_forever',
       workHours: { work_hours: { timetable: { monday: [{ open: { hour: 9, minute: 0 }, close: { hour: 17, minute: 0 } }] } } } };
     const r = run(base, after);
-    expect(r.changes.map((c) => c.blockKey).sort()).toEqual(['gbp:category:hvac contractor', 'gbp:category:plumber', 'gbp:hours', 'gbp:service:leaks', 'gbp:status']);
+    expect(r.changes.map((c) => c.blockKey).sort()).toEqual(['gbp:category:hvac contractor', 'gbp:category:plumber', 'gbp:service:leaks']);
+    expect(r.held).toBe(2);
+  });
+  const closed = { ...base, currentStatus: 'closed_forever' };
+  const hrs = (h: number): GbpProfile => ({ ...base, workHours: { work_hours: { timetable: { monday: [{ open: { hour: h, minute: 0 }, close: { hour: 17, minute: 0 } }] } } } });
+  it('open/close flips never emit', () => {
+    expect(run(base, { ...base, currentStatus: 'close' }, { ...base, currentStatus: 'open' }, { ...base, currentStatus: 'closing_soon' })).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+  it('closed_forever seen once is held', () => {
+    expect(run(base, closed)).toMatchObject({ changes: [], held: 1 });
+  });
+  it('closed_forever seen twice emits status_change direction closed from the last open capture', () => {
+    const r = run(base, base, closed, closed);
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:status', beforeCaptureId: 'c1', details: { changeType: 'status_change', direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' } });
+  });
+  it('closed → open twice emits reopened', () => {
+    const r = run(closed, closed, base, base);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:status', details: { changeType: 'status_change', direction: 'reopened', statusBefore: 'closed_forever', statusAfter: 'open' } });
+  });
+  it('missing work_time between closed pulls emits nothing', () => {
+    const missing = { ...base, currentStatus: null, workHours: null };
+    expect(run(closed, missing, closed)).toEqual({ changes: [], implausible: 0, held: 0 });
+    expect(run(base, closed, missing, closed).changes).toEqual([]);
+  });
+  it('hours change needs two pulls', () => {
+    expect(run(hrs(8), hrs(9))).toMatchObject({ changes: [], held: 1 });
+    const r = run(hrs(8), hrs(9), hrs(9));
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:hours', beforeCaptureId: 'c0', details: { changeType: 'profile_change', field: 'hours' } });
+  });
+  it('description rewrite emits profile_change truncated to 300', () => {
+    const d0 = { ...base, description: 'Family owned since 1990. ' + 'x'.repeat(400) };
+    const d1 = { ...base, description: 'Now with 24/7 service. ' + 'y'.repeat(400) };
+    expect(run(d0, d1)).toMatchObject({ changes: [], held: 1 });
+    const r = run(d0, d1, d1);
+    expect(r.changes).toHaveLength(1);
+    const c = r.changes[0]!;
+    expect(c.details).toMatchObject({ changeType: 'profile_change', field: 'description' });
+    expect(c.beforeText).toBe(`description: ${d0.description.slice(0, 300)}`);
+    expect(c.afterText).toBe(`description: ${d1.description.slice(0, 300)}`);
+  });
+  it('title change emits profile_change (was content)', () => {
+    const r = run(base, { ...base, title: 'Smith Heating & Air' }, { ...base, title: 'Smith Heating & Air' });
+    expect(r.changes[0]?.details.changeType).toBe('profile_change');
   });
 });
 

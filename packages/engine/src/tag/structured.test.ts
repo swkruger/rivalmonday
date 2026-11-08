@@ -145,6 +145,17 @@ describe('buildStructuredSummary', () => {
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'Mon 8-5', afterText: 'Mon 7-6', details: { changeType: 'content', field: 'hours' } }))
       .toBe('Google Business Profile hours changed: Mon 8-5 → Mon 7-6');
   });
+  it('renders a status_change in reader words, never the raw vendor value', () => {
+    const closed = buildStructuredSummary({ source: 'google_business_profile', beforeText: 'status: open', afterText: 'status: closed_forever', details: { changeType: 'status_change', field: 'status', direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' } });
+    expect(closed).toBe('Google Business Profile marked permanently closed');
+    expect(closed).not.toContain('closed_forever');
+    const reopened = buildStructuredSummary({ source: 'google_business_profile', beforeText: 'status: temporarily_closed', afterText: 'status: open', details: { changeType: 'status_change', field: 'status', direction: 'reopened', statusBefore: 'temporarily_closed', statusAfter: 'open' } });
+    expect(reopened).toBe('Google Business Profile reopened (was temporarily closed)');
+  });
+  it('renders a profile_change for hours as a plain sentence', () => {
+    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'hours: monday 08:00–17:00', afterText: 'hours: monday 09:00–17:00', details: { changeType: 'profile_change', field: 'hours' } }))
+      .toBe('Changed its hours on Google: monday 08:00–17:00 → monday 09:00–17:00');
+  });
 });
 
 describe('serviceForKeyword', () => {
