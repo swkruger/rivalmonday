@@ -1,13 +1,13 @@
 # phase-18a — Wider sources, part 1: brief what we already collect (no new paid vendors)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a   **Base:** main @ 4b305a7e
-**Plan/spec:** none yet
+**Spec/plan:** 18a-1 `docs/superpowers/{specs,plans}/2026-11-08-phase-18a1-gbp-meta*`; 18a-2 `…/2026-11-08-phase-18a2-web-readiness*` (spec O1–O4, D1–D7; plan Tasks 0–13)
 
 ## Status (overwrite)
-18a-1 done: tasks 0-10 + final fix wave 5326e722, final review clean (2026-11-08). test:affected green after fixes (focused), e2e:affected 153/153, profile gate pass (competitor page 4 DB stages). Awaiting owner go-ahead for `/rm-merge`. Not on the roadmap yet.
+18a-1 done: tasks 0-10 + final fix wave 5326e722, final review clean (2026-11-08); test:affected green (focused), e2e:affected 153/153, profile gate pass. 18a-2 (web readiness) spec + lean plan written 2026-11-08 on this branch, awaiting owner approval; both merge together. Not on the roadmap yet.
 
 ## Next (overwrite)
-`/rm-merge` (owner go-ahead): first add `.describe` on `PriceNowView.source` (M5), then re-record the Ask eval suite (`record --fill`; ask_assistant cassettes miss since Task 9 changed the `get_price_matrix` spec; past cost $1.6-7.65, owner chose to do it at merge); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs off new copy in `pnpm copy:review` (incl. the writer's reopening sentence). 18a-2 (web readiness) and 18a-3 (ad images) are separate branches; brief open questions 3, 5, 7, 8 belong to 18a-2.
+Owner approves the 18a-2 plan (check its D-calls: D1 `new_page` type, D4 two-capture confirmation, D6 28-day re-discovery + `site_url`, D7 `deferred`), then `superpowers:subagent-driven-development` from Task 0. At `/rm-merge` (covers both halves): `.describe` on `PriceNowView.source` (M5); one Ask eval re-record (`record --fill`; 18a-1 `get_price_matrix` spec + 18a-2 `search_events`/`Discovery` enums; past cost $1.6-7.65); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs new copy in `pnpm copy:review`. 18a-3 (ad images) stays a separate branch.
 
 ## Interfaces this branch adds or changes
 - **Migration 0100:** `price_point.ad_id` (FK `ad`), `tracked_page_id` now nullable, CHECK exactly one of the two, unique index `price_point_ad_open_unique`; `ad.event` column; vertical pack v5 data (scoring v5).
@@ -32,8 +32,9 @@
 ## Decisions (owner-approved)
 1. Phase 18 "Wider sources" (brainstorm 2026-11-08): **18a** use what we have (this branch) → **18b** more Google via DataForSEO (GBP posts/offers, Google Guaranteed/LSA, organic + AI Overview, news/awards, Tripadvisor/Trustpilot) → **18c** citations (client NAP hygiene, rival citation growth/partner directories) → **18d** events & entertainment vertical → **18e** social via ScrapeCreators. Out of Phase 18: public records, newsletters, FB Events/Nextdoor, ad image/video analysis, bought citation data, Yelp.
 2. 18a adds no paid vendors.
-3. 18a splits: **18a-1** GBP + Meta (this branch; spec `docs/superpowers/specs/2026-11-08-phase-18a1-gbp-meta-design.md`, O1–O6), **18a-2** web readiness (own branch, after/alongside the prod deploy), **18a-3** reading ad images (own branch, after 18a-1).
+3. 18a splits: **18a-1** GBP + Meta (this branch; spec `docs/superpowers/specs/2026-11-08-phase-18a1-gbp-meta-design.md`, O1–O6), **18a-2** web readiness (later moved onto this branch; merges with 18a-1), **18a-3** reading ad images (own branch, after 18a-1).
 4. 18a-3 basis (checked 2026-11-08, OpenRouter): `typesafe/jev-1.14` takes text + image input, output = decisions only (choice/score/noul; no text read-out), $0.042/M prompt tokens, completion free. Plan: Jev triages ad images (service, offer, theme, "shows a price"); only price-bearing images go to a vision LLM to read the amount. Start with Google ad images (no copy today). Needs: image parts in `@cs/ai` Jev provider, ad images copied into the evidence store, a no-people-images rule, a < $0.01 live cost check (owner approves).
+5. **18a-2 owner calls (2026-11-08, "go as recommended"):** Q3 bot page stays in `apps/web` at `rivalmonday.app/bot`, live with the prod deploy; 18a-2 ships dark behind `WEB_MONITORING_ENABLED` (fixture tests, no live crawl). Q5 new change type `site_feature` (added/removed) from script/iframe/link signatures in stored `page.html.gz`; client text names the category, vendor stays in details. Q7 Offer/Product JSON-LD prices feed `price_point` (rules-only); Event markup waits for 18d. Q8 own-site prices deferred until web is live (backlog kept).
 
 ## New backlog (target → item)
 - 18e → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
@@ -78,11 +79,7 @@
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
 ### Open questions for the owner
-1-2, 4, 6 settled in the 18a-1 spec (O1-O6). Still open, for 18a-2: 3 (bot page), 5 (site-tool detection), 7 (Event JSON-LD), 8 (own-site prices).
+All settled: 1-2, 4, 6 in the 18a-1 spec (O1-O6); 3, 5, 7, 8 in the 18a-2 spec (O1-O4) and Decision 5.
 
-## Pre-flight (Task 0)
-Rebased onto main 4b305a7e; `pnpm install`, test DB `cs_phase_18a_test`, `worker boss.test.ts` 20/20 green.
-- **Migration:** next free **0100** (`brief-report` adds no migration; plan says 0101, fix).
-- **Plan paths (package-relative, all exist or planned creates):** `sweep.ts`, `drain.ts` = `packages/engine/src/`; `catalog/merge.ts` and `tools/schemas.ts` = `packages/tools/src/`; `rescore-args.ts` = `apps/worker/src/cli/`. `core/brief-report.ts` is brief-report's (unmerged).
-- **Meta (cs_dev, 19 ok captures, all `vendor:"apify"`; no ScrapeCreators capture exists, fixture used):** payload `{vendor, items[], truncated}` for both vendors. Per item: `page_id` (string, also `snapshot.page_id`), `page_name` (also `snapshot.page_name`), `snapshot.page_like_count` (number, 352/353 items; the one miss is an empty item), `snapshot.event` key exists but null in 353/353 (fixtures: null). Event shape unseen; treat as always null in tests.
-- **GBP closed (free check, no vendor call):** `current_status` lives at `work_time.work_hours.current_status` (cs_dev GBP: only `open`/`close`; maps rank: `open`/`close`). No `closed_forever`/`temporarily_closed` anywhere in cs_dev; `rank_snapshot.results` items carry only cid/rank/title/domain/placeId (no `closed`). No candidate; paid DFS closed-listing probe still needs owner pick.
+## Pre-flight (18a-1 Task 0)
+Rebased onto main 4b305a7e; test DB `cs_phase_18a_test`; migration 0100 (18a-2 takes the next free, 0101). Meta (cs_dev, 19 Apify captures): payload `{vendor, items[], truncated}`; `snapshot.page_like_count` numeric (352/353), `snapshot.event` always null. GBP `current_status` at `work_time.work_hours.current_status` (only `open`/`close` in cs_dev); no closed listing to probe.
