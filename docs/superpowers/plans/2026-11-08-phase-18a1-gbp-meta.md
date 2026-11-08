@@ -17,7 +17,7 @@
 - Model input through `redactForModel` (ad text, event names). Prices are rules-only (`pricesInBlock`); a discount never becomes a price.
 - New tool ⇒ `ISOLATION_FIXTURES` entry; out-of-scope client/competitor ⇒ `not_found`. Web reads are registered `@cs/tools` tools.
 - Every user-facing string goes through copy sign-off (`pnpm copy:status`); dates in viewer tz; DS v1 rules on UI.
-- Migrations: next free number at execution (expect 0101); never edit applied ones. LF only. Commits end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagents: own model).
+- Migrations: next free number at execution (0100 per Task 0; `brief-report` adds none); never edit applied ones. LF only. Commits end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagents: own model).
 - Implementers run focused tests only; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` once at the final review.
 
 ## Decisions
@@ -37,7 +37,7 @@ Spec O1–O6 and D1–D6 are binding. Plan-level calls: one migration for all sc
 ## Dependencies on in-flight work (re-check in Task 0)
 
 - `brief-report` (unmerged): `topicOf` (`@cs/core` `brief-report.ts`) and `GROUP_PHRASE` (`@cs/email`) must cover every `CHANGE_LABELS` key; it edits `briefs/{generate,summary,review,deliver}.ts`, `email/src/labels.ts`. If merged first, Task 3 adds the three types there.
-- Migration number: `brief-report` likely takes 0100.
+- Migration number: 0100 (Task 0: `brief-report` adds no migration; re-check if it merges first).
 
 ## Review focus
 
@@ -56,7 +56,7 @@ Spec O1–O6 and D1–D6 are binding. Plan-level calls: one migration for all sc
 - [ ] `git fetch && git rebase main` (or onto `brief-report` if merged). Re-check every "Dependencies" line and each file path in this plan; fix the plan where the code moved.
 - [ ] Set up the worktree for implementation: `pnpm install`, own test DB (`/rm-kickoff` §1 commands), `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once.
 - [ ] Note the next free migration number in the work file.
-- [ ] **GBP closed value (paid, ≈ $0.01 — ask the owner first):** one DataForSEO `business_data/google/my_business_info` call for a known permanently closed listing (owner picks or approves one). Record where the closed value lands (`current_status`, `work_time.work_hours.current_status`, absent `work_time`, or no result). If GBP carries no closed value: switch Task 4's closed source to the rank-scan `closed` flag (`collectors/src/local/maps.ts`) and update Task 4's Behaviour before dispatching it.
+- [ ] **GBP closed value (paid, ≈ $0.01 — ask the owner first):** one DataForSEO `business_data/google/my_business_info` call for a known permanently closed listing (owner picks or approves one). Record where the closed value lands (`current_status`, `work_time.work_hours.current_status`, absent `work_time`, or no result). If GBP carries no closed value: switch Task 4's closed source to the rank-scan `closed` flag (`collectors/src/local/maps.ts`) and update Task 4's Behaviour before dispatching it. **Outcome (2026-11-08): skipped by the owner** — no closed listing exists in cs_dev to test against, and the rank-scan fallback is unusable (`rank_snapshot.results` never stores `closed`). Task 4 builds to the documented values (`temporarily_closed`, `closed_forever`, read via `workTimeStatus`, top-level or `work_time.work_hours.current_status`); confirm on the first real closure in the pilot.
 - [ ] **Meta shapes (free):** in `cs_dev`, read 3+ stored `meta_ads` capture payloads (Apify and ScrapeCreators) and record the real shapes of `snapshot.page_like_count`, `snapshot.page_name` and `snapshot.event`. Fix Task 5/6 field paths if they differ.
 - **Done when:** work file has the four findings; plan fixed; commit `docs(phase-18a): pre-flight`.
 
@@ -195,7 +195,7 @@ export const HELD_GBP = [
 **Goal:** D4 and D5 collection side.
 **Files:** modify `packages/collectors/src/ads/{meta,upsert}.ts`, `packages/db/src/schema/engine.ts` (`ChangeItem.event?`), `packages/engine/src/structured/ads.ts`; create `packages/engine/src/prices/ad-price-stage.ts` (+ test); modify `packages/engine/src/sweep.ts`, `packages/engine/src/drain.ts`, `apps/worker/src/jobs/engine.ts`.
 **Interfaces:**
-- `NormalizedAd.event: { name: string; startsAt: string | null } | null` (from `snapshot.event`; Task 0 shape); upsert writes `ad.event`.
+- `NormalizedAd.event: { name: string; startsAt: string | null } | null` (from `snapshot.event`; upsert writes `ad.event`). Task 0: `snapshot.event` is null in all 353 stored items and the fixtures, so the non-null shape is unseen — accept an object with a string `name` (or `title`) and an optional start time under `start_time`/`startTime`/`start_date` (unix seconds or ISO, via `parseDfsTimestamp`); anything else → null. Tests use synthetic objects in those shapes. Page likes: `snapshot.page_like_count` (number) with `page_id`/`page_name` at item top level and in `snapshot`; ScrapeCreators raw container is `results`, stored normalised as `items`.
 - `ChangeItem.event?: { name: string; startsAt: string | null }`; ad item label appends ` — promotes event "<name>" (<YYYY-MM-DD>)` (date omitted when null).
 - `AD_PRICE_STAGE = 'ad_price_extract'`, `AD_PRICE_VERSION = 1`, `AD_PRICE_SINCE = new Date('<commit date>T00:00:00Z')`; `extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader }, captureId: string): Promise<StageOutcome<PriceRunResult>>`.
 - Sweep result `adPrices: string[]` (ok `meta_ads` captures, `captured_at >= AD_PRICE_SINCE`, tracked competitor, not finished, oldest first); drain loop + worker job `engine-ad-price` (`usesAi: true`, `{ captureId }`), pattern `engine-price`.
