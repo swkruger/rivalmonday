@@ -39,7 +39,10 @@ export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['
  * Excluded: content (shared with web page edits; no service = generic copy), tier_change (deterministic score, P10),
  * and the service-specific types (price_change, promo, new_service, service_removed, service_area_change, cosmetic).
  */
-export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth']);
+export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page']);
+
+/** Phase 18a-2: website changes are brief news only; they never page anyone. */
+export const BRIEF_ONLY_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['site_feature', 'new_page']);
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
@@ -131,12 +134,14 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   // Phase 18a-1: profile edits (hours, phone, categories) never page anyone.
   const profileCap = input.changeType === 'profile_change' && route === 'alert';
   if (profileCap) route = 'brief';
+  const briefOnly = BRIEF_ONLY_TYPES.has(input.changeType) && route === 'alert';
+  if (briefOnly) route = 'brief';
   return {
     score,
     route,
     factors: {
       typeWeight, size, serviceOverlap: svc.value, wholeBusiness: svc.wholeBusiness, territoryOverlap: territory, relevance, novelty, maxSimilarity: input.maxSimilarity,
-      needsReviewCap, staleCap, profileCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
+      needsReviewCap, staleCap, profileCap, briefOnly, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
     },
   };
 }

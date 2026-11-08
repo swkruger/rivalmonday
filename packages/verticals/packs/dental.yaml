@@ -47,6 +47,8 @@ type_weights:
   status_change: 1.0
   profile_change: 0.8
   audience_growth: 0.7
+  site_feature: 0.7
+  new_page: 0.7
 
 move_thresholds:
   hiring_push_postings_30d: 2
@@ -58,7 +60,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 5
+  version: 6
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 25, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }

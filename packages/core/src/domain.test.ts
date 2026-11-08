@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SITE_FEATURE_CATEGORIES, SITE_FEATURE_CATEGORY_LABEL } from './site-features';
 import { CADENCES, CAPTURE_STATUSES, CHANGE_TYPES, CHANNELS, MOVE_TYPES, PAGE_TYPES } from './domain';
 
 describe('domain constants', () => {
@@ -6,7 +7,7 @@ describe('domain constants', () => {
     expect(CHANGE_TYPES).toEqual([
       'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
       'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
-      'status_change', 'profile_change', 'audience_growth',
+      'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page',
     ]);
   });
 
@@ -18,6 +19,13 @@ describe('domain constants', () => {
     expect(MOVE_TYPES).toEqual([
       'territory_expansion', 'price_war', 'new_service_line', 'hiring_push', 'promo_blitz', 'reputation_slump', 'ad_surge', 'map_climb',
     ]);
+  });
+});
+
+describe('site feature categories', () => {
+  it('lists the categories and gives each a label', () => {
+    expect(SITE_FEATURE_CATEGORIES).toEqual(['online_booking', 'live_chat', 'financing', 'review_widget']);
+    expect(SITE_FEATURE_CATEGORY_LABEL).toEqual({ online_booking: 'online booking', live_chat: 'live chat', financing: 'financing', review_widget: 'review widget' });
   });
 });
 

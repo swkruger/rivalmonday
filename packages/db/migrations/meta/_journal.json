@@ -708,6 +708,13 @@
       "when": 1794127144906,
       "tag": "0100_wider_sources_gbp_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794167356919,
+      "tag": "0101_web_readiness_pack_v6",
+      "breakpoints": true
     }
   ]
 }

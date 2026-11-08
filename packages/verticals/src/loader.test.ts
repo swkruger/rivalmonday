@@ -19,6 +19,8 @@ const weights = `
     status_change: 1
     profile_change: 0.8
     audience_growth: 0.7
+    site_feature: 0.7
+    new_page: 0.7
     cosmetic: 0`;
 
 const discovery = `

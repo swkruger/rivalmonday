@@ -67,7 +67,15 @@ export interface ChangeDetails {
   /** Phase 18a-1: GBP status change (closed/reopened), profile edits, and page-likes growth. */
   /** Fingerprint of the new normalised value of a changed GBP profile field (novelty compares true repeats only). */
   after?: string;
-  direction?: 'closed' | 'reopened';
+  /** closed/reopened = GBP status (18a-1); added/removed = a website tool (18a-2). */
+  direction?: 'closed' | 'reopened' | 'added' | 'removed';
+  /** Phase 18a-2: website tool (site_feature) and new page (new_page) details. */
+  feature?: string;
+  category?: string;
+  vendor?: string;
+  pageUrl?: string;
+  pageType?: string;
+  pageKey?: string;
   statusBefore?: string;
   statusAfter?: string;
   likesBefore?: number;
@@ -125,6 +133,8 @@ export interface ScoreFactors {
   rescoreCap?: boolean;
   /** Phase 18a-1: a profile_change alert capped to brief (profile edits never page anyone). */
   profileCap?: boolean;
+  /** Phase 18a-2: a site_feature / new_page alert capped to brief (website news never pages anyone). */
+  briefOnly?: boolean;
   thresholds: ScoreThresholds;
   scoringVersion: number;
 }

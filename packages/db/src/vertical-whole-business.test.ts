@@ -16,6 +16,9 @@ const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 const BLOCKS_0100 = readFileSync(join(__dirname, '../migrations/0100_wider_sources_gbp_meta.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL_0100 = BLOCKS_0100.slice(BLOCKS_0100.findIndex((b) => b.includes('-- backfill:start')));
 
+const BLOCKS_0101 = readFileSync(join(__dirname, '../migrations/0101_web_readiness_pack_v6.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0101 = BLOCKS_0101.slice(BLOCKS_0101.findIndex((b) => b.includes('-- backfill:start')));
+
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
 }
@@ -23,6 +26,7 @@ async function backfill() {
 async function backfillAll() {
   await backfill();
   for (const s of BACKFILL_0100) await dbs.owner.execute(sql.raw(s));
+  for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s));
 }
 type Row = { id: string; config: Record<string, any>; updated_at: string };
 async function rows(): Promise<Row[]> {
@@ -72,16 +76,16 @@ describe('migration 0099 whole_business', () => {
     expect(await rows()).toEqual(after);
   });
 
-  it('createCatalog assembles whole_business 1 and version 5 for all four (generic inheritance)', async () => {
+  it('createCatalog assembles whole_business 1 and version 6 for all four (generic inheritance)', async () => {
     await backfillAll();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     for (const id of ['hvac_plumbing', 'dental', 'wb_created']) {
       const p = await cat.packs(id);
       expect(p.scoring.relevance.whole_business, id).toBe(1);
-      expect(p.scoring.version, id).toBe(5);
+      expect(p.scoring.version, id).toBe(6);
     }
     const g = await cat.generic();
     expect(g.scoring.relevance.whole_business).toBe(1);
-    expect(g.scoring.version).toBe(5);
+    expect(g.scoring.version).toBe(6);
   });
 });

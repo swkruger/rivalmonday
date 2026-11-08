@@ -16,7 +16,7 @@ const MAX_STATE_TEXT = 1500;
 export const STRUCTURED_DECISION_TASK = 'structured_decisions';
 
 /** Structured change types whose text names a service (ad copy, job titles, GBP categories/services): ask the service mapping. */
-export const SERVICE_MAPPED_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'new_service', 'service_removed']);
+export const SERVICE_MAPPED_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'new_service', 'service_removed', 'new_page']);
 export const OFFER_QUESTION =
   'Does this ad copy advertise a specific offer — a price, discount, coupon, financing deal, free add-on or limited-time promotion — rather than general branding?';
 

@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 5 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 6 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -174,7 +174,7 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(serviceOverlap(null, ['a'], pack, 'hiring')).toEqual({ value: pack.scoring.relevance.whole_business, wholeBusiness: true });
     expect(serviceOverlap('a', ['a'], pack, 'hiring')).toEqual({ value: 1, wholeBusiness: false });
     expect(serviceOverlap(null, ['a'], pack, 'promo')).toEqual({ value: 0.6, wholeBusiness: false });
-    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'hiring', 'new_location', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'status_change']);
+    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'hiring', 'new_location', 'new_page', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'site_feature', 'status_change']);
   });
 
   it('new_location outside territory = whole_business × outside_territory', () => {
@@ -222,13 +222,34 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(r.factors.profileCap).toBe(true);
   });
 
+  it('site_feature added scores 42 and routes brief', () => {
+    const r = scoreForClient(whole({ changeType: 'site_feature', details: { feature: 'Online scheduling', direction: 'added' } }), client, pack);
+    expect(r).toMatchObject({ score: 42, route: 'brief' });
+    expect(r.factors.briefOnly).toBe(false);
+  });
+
+  it('site_feature with thresholds {alert:10,brief:5} routes brief, briefOnly true', () => {
+    const r = scoreForClient(whole({ changeType: 'site_feature', details: { direction: 'added' } }), { ...client, thresholds: { alert: 10, brief: 5 } }, pack);
+    expect(r.route).toBe('brief');
+    expect(r.factors.briefOnly).toBe(true);
+  });
+
+  it('new_page none-service scores 42, unmatched 8', () => {
+    expect(scoreForClient(whole({ changeType: 'new_page', details: { pageKey: 'k' } }), client, pack).score).toBe(42);
+    expect(scoreForClient(whole({ changeType: 'new_page', serviceId: 'other', details: { pageKey: 'k' } }), client, pack).score).toBeCloseTo(8, 0);
+  });
+
+  it('status_change sizing stays on direction closed (not widened by added/removed)', () => {
+    expect(sizeFactor(whole({ changeType: 'status_change', details: { direction: 'added' } }), pack)).toBe(pack.scoring.size.default);
+  });
+
   it('audience_growth pct 15 scores about 52.5 to brief', () => {
     const r = scoreForClient(whole({ changeType: 'audience_growth', details: { pct: 15 } }), client, pack);
     expect(r.score).toBeCloseTo(52.5, 1);
     expect(r.route).toBe('brief');
   });
 
-  it('factors.scoringVersion is 5 with the shipped pack', () => {
-    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(5);
+  it('factors.scoringVersion is 6 with the shipped pack', () => {
+    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(6);
   });
 });

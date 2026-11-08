@@ -246,6 +246,13 @@ describe('detailsSignature', () => {
     expect(detailsSignature('status_change', { direction: 'reopened', statusBefore: 'temporarily_closed', statusAfter: 'open' })).toBe('status|reopened|temporarily_closed|open');
     expect(detailsSignature('status_change', { direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' })).toBe('status|closed|open|closed_forever');
   });
+
+  it('distinguishes added/removed site features and two page keys', () => {
+    expect(detailsSignature('site_feature', { feature: 'Online scheduling', direction: 'added' })).toBe('site_feature|Online scheduling|added');
+    expect(detailsSignature('site_feature', { feature: 'Online scheduling', direction: 'removed' })).not.toBe(detailsSignature('site_feature', { feature: 'Online scheduling', direction: 'added' }));
+    expect(detailsSignature('new_page', { pageKey: 'a' })).toBe('new_page|a');
+    expect(detailsSignature('new_page', { pageKey: 'b' })).not.toBe(detailsSignature('new_page', { pageKey: 'a' }));
+  });
 });
 
 describe('billing state (9a)', () => {

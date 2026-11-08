@@ -13,6 +13,9 @@ const BLOCKS = readFileSync(join(__dirname, '../migrations/0100_wider_sources_gb
 const BACKFILL = BLOCKS.slice(BLOCKS.findIndex((b) => b.includes('-- backfill:start')));
 const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 
+const BLOCKS_0101 = readFileSync(join(__dirname, '../migrations/0101_web_readiness_pack_v6.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0101 = BLOCKS_0101.slice(BLOCKS_0101.findIndex((b) => b.includes('-- backfill:start')));
+
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
 }
@@ -27,6 +30,7 @@ async function cleanup() {
 afterEach(async () => {
   await cleanup();
   await backfill();
+  for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s)); // leave the shared test DB in the current shape
 });
 beforeEach(async () => {
   await dbs.owner.execute(sql`
@@ -38,6 +42,24 @@ beforeEach(async () => {
   await dbs.owner.execute(sql`INSERT INTO vertical (id, name, status, config, gbp_categories, gbp_related_categories)
     SELECT 'ws_created', 'WS Created', 'reviewed', config - 'scoring' - 'type_weights', gbp_categories, gbp_related_categories FROM vertical WHERE id = 'dental'`);
   await dbs.owner.execute(sql`INSERT INTO business_area (vertical_id, id, name, status) VALUES ('ws_created', 'ws_area', 'WS Area', 'reviewed')`);
+});
+
+describe('migration 0101 web readiness', () => {
+  it('adds the web weights and version 6 to the shipped packs, idempotently', async () => {
+    await backfill();
+    await dbs.owner.execute(sql`UPDATE vertical SET config = jsonb_set(config #- '{type_weights,site_feature}' #- '{type_weights,new_page}', '{scoring,version}', '5'::jsonb) WHERE id IN ('generic', 'hvac_plumbing', 'dental')`);
+    const before = await rows();
+    for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s));
+    const after = await rows();
+    for (const id of SHIPPED) {
+      const r = after.find((x) => x.id === id)!;
+      expect(r.config.scoring.version).toBe(6);
+      expect(r.config.type_weights).toMatchObject({ site_feature: 0.7, new_page: 0.7 });
+      expect(r.updated_at).toBe(before.find((x) => x.id === id)!.updated_at);
+    }
+    for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s));
+    expect(await rows()).toEqual(after);
+  });
 });
 
 describe('migration 0100 wider sources', () => {
