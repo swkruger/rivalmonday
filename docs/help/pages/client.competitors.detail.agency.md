@@ -34,6 +34,10 @@ No Google profile has been read for this competitor yet.
 
 The last attempt to read that source failed on the data provider's side.
 
+### Do the monitored pages change by themselves?
+
+Yes, while website monitoring is on. Each competitor's site is re-checked about monthly: new pages are added automatically (up to the page limit) and pages that disappear or duplicate another are retired. Pinned pages stay.
+
 ### Why are there no prices?
 
 Prices come from the competitor's own website. A competitor that does not publish prices shows none.

@@ -134,6 +134,19 @@ select key, value, updated_at from platform_setting where key in ('ai_guard_stat
 
 Don't point the web crawler at real competitors until `https://rivalmonday.app/bot` exists. That covers `collect-once` without `--vendors` and `collect-once` with `--web`. `--vendors` on its own calls only vendor APIs. `WEB_MONITORING_ENABLED` stays off.
 
+## Switching on website monitoring (18a-2)
+
+Everything below is dark until `WEB_MONITORING_ENABLED` is set. Do it only when the Crawler ban conditions are met (section above).
+
+1. **Bot page.** Confirm `https://rivalmonday.app/bot` loads in a browser. Stop here if it does not.
+2. **Registry hosts.** The hosts in `packages/collectors/src/web/markup-registry.ts` are memory-sourced. Open one real embed page per vendor and check the match: `wisetack.us` (financing), `setmore.com` (online booking), `withcherry.com` (financing), `zdassets.com` (live chat; it also serves non-chat Zendesk widgets, so confirm the page really shows a chat). Fix a wrong host before switching on (step 7).
+3. **Set the flag.** `WEB_MONITORING_ENABLED=true` on **both web and worker** (the worker gets it from the host env, Railway or Docker; it is not a turbo var). Staging refuses it. One worker replica only.
+4. **First sweep.** Expect one full capture per tracked page after the deploy (`web/2` compares the markup hash too), so the first day is heavier than normal. Dev and staging databases that already hold old web captures may replay `site_feature` history on the first `engine-site-features` sweep; prod has none.
+5. **Discovery.** `discover-schedule` runs daily and takes at most 25 competitors a day (28-day cadence, at most 20 new URLs classified per run). A competitor's first run is a baseline and creates no `new_page` events. Run `collect-once` for one competitor first and inspect the result before letting the schedule run.
+6. **Reading `site_discovery`.** One row per competitor: `last_run_at`; `next_due_at` (every run pushes it 28 days out); `homepage_status` (anything but ok = site blocked or down, nothing refreshed); `urls` (sitemap/nav URLs seen); `truncated` (sitemap cut off); `runs` (1 = baseline done). `site_url` lists every URL seen with `first_seen_at`/`last_seen_at`. `tracked_page.inactive_reason` says why a page stopped: `gone`, `duplicate`, `replaced` or `manual`.
+7. **Registry update.** Add or fix an entry in `SITE_FEATURE_REGISTRY` with `since` = the new `SITE_FEATURE_REGISTRY_VERSION`. No stage version bump; an entry only counts captures from its `since` onward.
+8. **If a site bans the bot,** follow Crawler ban. Pause that competitor's pages; never evade.
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.

@@ -24,7 +24,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 
 ### Why does a competitor show no prices?
 
-Prices come from the competitor's own website. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty.
+Prices come from the competitor's own website: the visible text of a page, and the structured price data many sites publish for search engines. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty.
 
 ### Why is there no tag on a price?
 

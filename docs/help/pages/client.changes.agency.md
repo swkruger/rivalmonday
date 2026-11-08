@@ -26,6 +26,10 @@ Under **Settings › Alert rules** for this client. New levels apply to changes 
 
 One of the caps applied (it needs a check, or it is too old), or the client already had 3 instant alerts that day; extra ones go into the daily digest.
 
+### What are "Website tool" and "New page" changes?
+
+A **website tool** change means a competitor added or dropped online booking, live chat, financing or a review widget. A **new page** change means a page appeared on its site after tracking began. The evidence names the kind of tool and the page, never the supplier. Both only appear while website monitoring is switched on.
+
 ### Do archived changes count anywhere?
 
 They don't count toward competitive pressure or "Changes this week". They do count toward "Competitor price moves" on the Overview.

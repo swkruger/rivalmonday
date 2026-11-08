@@ -32,6 +32,10 @@ The list on the left is grouped by week. Select a change to see it on the right:
 
 Try **All** and a longer period. Changes that scored too low are archived, not deleted. A competitor that was added recently shows changes after its first checks.
 
+### What are "Website tool" and "New page" changes?
+
+A website tool change means a competitor added or dropped online booking, live chat, financing or a review widget. A new page change means a page appeared on its website. Each links to its evidence.
+
 ### What does "Part of moves" mean?
 
 The change is one piece of a bigger pattern by that competitor, such as a price war or an ad surge. Select the move to see the whole pattern.

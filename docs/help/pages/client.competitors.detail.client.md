@@ -28,6 +28,10 @@ Everything monitored for one of {{client}}'s competitors, from public informatio
 
 No Google profile has been read for this competitor yet.
 
+### Do the monitored pages change by themselves?
+
+Yes, while website monitoring is on. Each competitor's site is re-checked about monthly: new pages are added automatically (up to the page limit) and pages that disappear or duplicate another are retired.
+
 ### Why are there no prices?
 
 Prices come from the competitor's own website. A competitor that does not publish prices shows none.
