@@ -367,6 +367,8 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Discovery (parked): re-tracked competitor keeps a stale `competitor_signal` until Monday; a failed first-ever run's suggestions stay hidden; sweep clock from `started_at`; bulk-accept lock order; deduped enqueue not detected — *from 12a*
 
 ### Engine — known limitations
+- [ ] GBP guard: carry the last confirmed field value as state (the 4-capture guard cannot fix flapping values); a spurious `new_location` from address flapping reaches the brief, not an alert (max score 54) — *from brief-signal D6*
+- [ ] GBP title/domain/hours/status `content` events stay at `unmapped` relevance (never briefed); revisit if pilots want them — *from brief-signal D9*
 - [ ] Tag-stage version bump doesn't re-tag already-tagged changes — *from 3a/3d (decision 7)*
 - [ ] A competitor whose `place_id` changes is never re-linked (`findExistingCompetitor`/`ensureSelfCompetitor` match the old id); self link matched from `client.place_id` only (no domain) — *from 3c*
 - [ ] `price_block_map` never re-mapped on catalogue change, partial failure or rotating copy; no page-level lock for concurrent price jobs (equal `captured_at` not ordered) — *from 3c*
