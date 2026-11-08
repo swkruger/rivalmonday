@@ -96,7 +96,7 @@ describe('rescoreRecent', () => {
     // The pack loader runs between the selection read and the guarded UPDATE: feature the pair there.
     let featuredNow = false;
     const racing: typeof packs = async (verticalId) => {
-      if (!featuredNow) { featuredNow = true; await feature(id, 'draft'); }
+      if (!featuredNow) { featuredNow = true; await feature(id, 'ready'); }
       return packs(verticalId);
     };
     const r = await rescoreRecent({ db: dbs.service, packs: racing, generic }, { sinceDays: 14, dryRun: false, now: NOW });

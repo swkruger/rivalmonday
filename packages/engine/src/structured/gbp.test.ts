@@ -97,9 +97,12 @@ describe('guardedGbpDiff', () => {
     const a = { ...base, rating: 4.9, votes: 548 };
     expect(run(a, { ...base, rating: 4.3, votes: 3 }, { ...base, rating: 4.2, votes: 5 }, a).changes).toEqual([]);
   });
-  it('A,G,G2: no change', () => {
+  it('A,G,G2: a drop that persists is real; the later move G to G2 is reported', () => {
     const a = { ...base, rating: 4.9, votes: 548 };
-    expect(run(a, { ...base, rating: 4.3, votes: 3 }, { ...base, rating: 4.2, votes: 5 }).changes).toEqual([]);
+    const r = run(a, { ...base, rating: 4.3, votes: 3 }, { ...base, rating: 4.2, votes: 5 });
+    expect(r.implausible).toBe(0);
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:rating', details: { ratingBefore: 4.3, ratingAfter: 4.2 } });
   });
   it('a real purge that persists (A,P,P,P) still diffs normally afterwards', () => {
     const a = { ...base, rating: 4.9, votes: 548 };
