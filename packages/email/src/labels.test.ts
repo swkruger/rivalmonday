@@ -11,4 +11,8 @@ describe('CHANGE_LABELS', () => {
     expect(changeTypeLabel('profile_change')).toBe('Profile change');
     expect(changeTypeLabel('audience_growth')).toBe('Audience growth');
   });
+  it('labels the 18a-2 types', () => {
+    expect(changeTypeLabel('site_feature')).toBe('Website tool change');
+    expect(changeTypeLabel('new_page')).toBe('New website page');
+  });
 });

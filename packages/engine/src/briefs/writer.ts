@@ -53,6 +53,8 @@ export const EVIDENCE_WORDING = [
   'Give numbers exactly as the evidence does, with both values of a change (for example "from 4.9 to 4.3"), and keep the evidence\'s dates; never say when the competitor made a change, only when it was detected.',
   'Factual fields (headline, what_changed, body) state only what the evidence shows: no reasons, effects or predictions there; those belong in why_it_matters, hedged with "may" or "possibly".',
   'For an opening status change, say the business is "listed as permanently closed" or "listed as temporarily closed" on Google; never say it went out of business or why. For a reopening, say Google lists it as open again.',
+  'For a website tool change, name the kind of tool (for example "online booking" or "live chat") and never the software company behind it.',
+  'For a new website page, say the page appeared on their website and what it is titled; do not claim a new service, price or area unless the evidence text states it.',
 ].join(' ');
 
 const SYSTEM = [

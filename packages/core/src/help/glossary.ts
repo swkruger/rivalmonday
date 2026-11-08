@@ -220,6 +220,20 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     short: "The business's Facebook Page gained a large share of likes in about four weeks.",
   },
   {
+    // source: packages/core/src/site-features.ts (SITE_FEATURE_CATEGORIES); site_feature change type
+    id: 'website-tool-change',
+    term: 'Website tool change',
+    audience: 'all',
+    short: 'The business added or removed a tool on its website, such as online booking, live chat or financing.',
+  },
+  {
+    // source: new_page change type (monthly site-map and menu re-check)
+    id: 'new-website-page',
+    term: 'New website page',
+    audience: 'all',
+    short: "A page that newly appeared on the business's website, found when we re-check its site map and menu each month.",
+  },
+  {
     // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; topics (defined per business type in the packs): packages/verticals/packs/*.yaml
     id: 'topic',
     term: 'Topic',
