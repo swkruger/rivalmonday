@@ -13,8 +13,16 @@ const BLOCKS = readFileSync(join(__dirname, '../migrations/0099_vertical_whole_b
 const BACKFILL = BLOCKS.slice(BLOCKS.findIndex((b) => b.includes('-- backfill:start')));
 const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 
+const BLOCKS_0100 = readFileSync(join(__dirname, '../migrations/0100_wider_sources_gbp_meta.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0100 = BLOCKS_0100.slice(BLOCKS_0100.findIndex((b) => b.includes('-- backfill:start')));
+
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
+}
+/** 0099 then 0100 (scoring v5 needs 0100's type weights): the shape the live DB has. */
+async function backfillAll() {
+  await backfill();
+  for (const s of BACKFILL_0100) await dbs.owner.execute(sql.raw(s));
 }
 type Row = { id: string; config: Record<string, any>; updated_at: string };
 async function rows(): Promise<Row[]> {
@@ -27,7 +35,7 @@ async function cleanup() {
 }
 afterEach(async () => {
   await cleanup();
-  await backfill(); // leave the shared test DB in the current shape
+  await backfillAll(); // leave the shared test DB in the current shape
 });
 
 beforeEach(async () => {
@@ -65,7 +73,7 @@ describe('migration 0099 whole_business', () => {
   });
 
   it('createCatalog assembles whole_business 1 and version 5 for all four (generic inheritance)', async () => {
-    await backfill();
+    await backfillAll();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     for (const id of ['hvac_plumbing', 'dental', 'wb_created']) {
       const p = await cat.packs(id);

@@ -94,6 +94,8 @@ export const ad = pgTable(
     publisherPlatforms: jsonb('publisher_platforms').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     startedAt: ts('started_at'),
     endedAt: ts('ended_at'),
+    /** Event the ad promotes (18a-1), from the ad text; null when none. */
+    event: jsonb('event').$type<{ name: string; startsAt: string | null } | null>(),
     isActive: boolean('is_active').notNull().default(true),
     firstSeenAt: ts('first_seen_at').notNull().defaultNow(),
     lastSeenAt: ts('last_seen_at').notNull().defaultNow(),

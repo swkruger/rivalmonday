@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { capture, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage } from './schema';
+import { ad, capture, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -80,6 +80,29 @@ describe('review and price insight tables', () => {
     await dbs.service.update(pricePoint).set({ endedAt: new Date(), endedCaptureId: CAP_X });
     await dbs.service.insert(pricePoint).values(again);
     expect(await dbs.owner.select().from(pricePoint)).toHaveLength(2);
+  });
+
+  it('price_point rejects a row with both or neither of tracked_page_id/ad_id', async () => {
+    const [a] = await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'pp-both' }).returning();
+    const base = {
+      competitorId: IDS.competitorX, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 99, unit: 'USD', qualifier: 'exact' as const,
+      raw: '$99', context: 'x', firstSeenAt: new Date(), lastSeenAt: new Date(), firstCaptureId: CAP_X, lastCaptureId: CAP_X,
+    };
+    expect(await errorText(dbs.service.insert(pricePoint).values({ ...base, trackedPageId: PAGE_X, adId: a!.id }))).toMatch(/price_point_subject_check/);
+    expect(await errorText(dbs.service.insert(pricePoint).values(base))).toMatch(/price_point_subject_check/);
+    await dbs.service.insert(pricePoint).values({ ...base, adId: a!.id });
+    expect(await errorText(dbs.service.insert(pricePoint).values({ ...base, adId: a!.id }))).toMatch(/price_point_ad_open_unique/);
+  });
+
+  it('deleting an ad cascades its price points', async () => {
+    const [a] = await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'pp-cascade' }).returning();
+    await dbs.service.insert(pricePoint).values({
+      competitorId: IDS.competitorX, adId: a!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 59, unit: 'USD', qualifier: 'from',
+      raw: '$59', context: 'x', firstSeenAt: new Date(), lastSeenAt: new Date(), firstCaptureId: CAP_X, lastCaptureId: CAP_X,
+    });
+    expect(await dbs.owner.select().from(pricePoint)).toHaveLength(2);
+    await dbs.owner.delete(ad).where(eq(ad.id, a!.id));
+    expect(await dbs.owner.select().from(pricePoint)).toHaveLength(1);
   });
 
   it('one live (proposed or approved) proposal per vertical topic id; rejected and none rows may repeat', async () => {

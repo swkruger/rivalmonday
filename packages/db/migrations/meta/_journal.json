@@ -701,6 +701,13 @@
       "when": 1794089812962,
       "tag": "0099_vertical_whole_business",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1794127144906,
+      "tag": "0100_wider_sources_gbp_meta",
+      "breakpoints": true
     }
   ]
 }
