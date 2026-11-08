@@ -1,10 +1,11 @@
-import { capture, detectedChange, stageRun } from '@cs/db';
+import { capture, detectedChange, stageRun, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeAi } from '../../test/fake-ai';
 import { day, fixture, seedPage, seedWebCapture } from '../../test/seed';
+import { isStructuredChange } from '../tag/structured';
 import { CHURN_MIN_CANDIDATES, CHURN_RATIO, churnCount, cosine, diffWebCapture, gateChange } from './diff-stage';
 
 const dbs = openTestDbs();
@@ -190,5 +191,60 @@ describe('churn guard (Phase 3d decision 16)', () => {
       { kind: 'modified', before: b('Fast friendly AC repair in Plano', 'p#1'), after: b('Totally different words appear now', 'p#1') },
       { kind: 'added', before: null, after: b('New block', 'p#2') },
     ])).toBe(2);
+  });
+});
+
+describe('new_page (Phase 18a-2 Task 11)', () => {
+  const NEW = htmlPage('<main><h1>Heat Pump Installation</h1><h2>Why choose us</h2><h2>Financing</h2><h2>Third heading</h2><p>Body copy that is long enough.</p></main>');
+  async function firstCapture(appearedDaysBeforeCapture: number | null, html = NEW) {
+    const store = createMemoryStore();
+    const page = await seedPage(dbs.service, IDS.competitorX, 'https://smithhvac.example/heat-pumps', 'service');
+    if (appearedDaysBeforeCapture !== null) {
+      await dbs.owner.update(trackedPage).set({ appearedAt: new Date(day(0).getTime() - appearedDaysBeforeCapture * 86_400_000) }).where(eq(trackedPage.id, page));
+    }
+    const cap = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html, capturedAt: day(0) });
+    return { store, page, cap };
+  }
+
+  it('first capture of an appeared page writes one structured new_page change', async () => {
+    const { store, page, cap } = await firstCapture(1);
+    const r = await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, cap);
+    expect(r.ran && r.result.changeIds).toHaveLength(1);
+    const rows = await changes();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'added', blockKey: `page:${page}`, afterCaptureId: cap, beforeCaptureId: null, status: 'pending', stageVersion: 1 });
+    expect(rows[0]?.details).toMatchObject({ changeType: 'new_page', pageUrl: 'https://smithhvac.example/heat-pumps', pageType: 'service', pageKey: 'smithhvac.example/heat-pumps', items: [{ label: 'Heat Pump Installation' }] });
+    expect(rows[0]?.afterText).toBe('/heat-pumps\nHeat Pump Installation\nWhy choose us\nFinancing');
+    expect(isStructuredChange({ source: 'web', details: rows[0]!.details })).toBe(true);
+  });
+
+  it('falls back to <title> for the label when there is no h1', async () => {
+    const { store, cap } = await firstCapture(1, '<html><head><title>Heat Pumps | Smith</title></head><body><main><h2>Why us</h2></main></body></html>');
+    await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, cap);
+    expect((await changes())[0]?.details).toMatchObject({ items: [{ label: 'Heat Pumps | Smith' }] });
+  });
+
+  it('writes nothing without appeared_at, or when the page appeared 20 days earlier', async () => {
+    for (const age of [null, 20]) {
+      await truncateAll(dbs.owner);
+      await seedTenancy(dbs.owner);
+      const { store, cap } = await firstCapture(age);
+      const r = await diffWebCapture({ db: dbs.service, store, ai: createFakeAi() }, cap);
+      expect(r.ran && r.result).toMatchObject({ baseline: true, changeIds: [] });
+      expect(await changes()).toEqual([]);
+    }
+  });
+
+  it('a second capture gets the normal diff only, and a re-run adds no duplicate', async () => {
+    const { store, page, cap } = await firstCapture(1);
+    const ai = createFakeAi();
+    await diffWebCapture({ db: dbs.service, store, ai }, cap);
+    await diffWebCapture({ db: dbs.service, store, ai }, cap);
+    expect(await changes()).toHaveLength(1);
+    const second = await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: page, html: NEW.replace('Financing', 'Financing options and rebates today'), capturedAt: day(1) });
+    await diffWebCapture({ db: dbs.service, store, ai }, second);
+    const rows = await changes();
+    expect(rows.filter((c) => (c.details as { changeType?: string }).changeType === 'new_page')).toHaveLength(1);
+    expect(rows.filter((c) => c.afterCaptureId === second).every((c) => !(c.details as { changeType?: string }).changeType)).toBe(true);
   });
 });

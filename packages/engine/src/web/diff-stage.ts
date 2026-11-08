@@ -1,8 +1,11 @@
 import type { Ai } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { capture, captureBlock, competitor, type Db, detectedChange, type NumericChange } from '@cs/db';
+import { pageKey } from '@cs/collectors';
+import { capture, captureBlock, competitor, type Db, detectedChange, evidence, type NumericChange, trackedPage } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
+import * as cheerio from 'cheerio';
 import { and, desc, eq, lt } from 'drizzle-orm';
+import { gunzipSync } from 'node:zlib';
 import { supersedePriorChanges } from '../events/retract';
 import { diffFacts, extractFacts, type FactExtractor, llmFactExtractor, MONEY_KINDS } from '../facts/numeric';
 import { runStage, type StageOutcome } from '../stage';
@@ -25,6 +28,10 @@ export const CHURN_RATIO = 0.5;
 export const CHURN_MIN_CANDIDATES = 20;
 /** Cap on how many non-money changes a single churned capture writes as 'suppressed' rows. */
 export const CHURN_SUPPRESSED_MAX = 200;
+/** A page that appeared at most this many days before its first capture is announced as a `new_page` change. */
+export const NEW_PAGE_MAX_AGE_DAYS = 14;
+/** Cap on the `new_page` change's after text (path + h1 + up to two h2 blocks). */
+export const NEW_PAGE_TEXT_CHARS = 600;
 const PLATFORM = { agencyId: null, clientId: null } as const;
 
 export type ChangeFlag = 'semantic' | 'numeric' | 'structural' | 'masked';
@@ -80,6 +87,39 @@ export function gateChange(a: Alignment<StoredBlock>, numeric: NumericChange[], 
   return flags.length > 0 ? flags : null;
 }
 
+interface NewPageCandidate {
+  text: string;
+  label: string | null;
+  pageUrl: string;
+  pageType: string;
+}
+
+const lastSegment = (path: string) => path.split('>').pop() ?? '';
+const isTag = (path: string, tag: string) => new RegExp(`^${tag}(?:[#.].*)?$`).test(lastSegment(path));
+
+/** First-capture text of a new page: URL path, h1, up to two h2 blocks, capped at NEW_PAGE_TEXT_CHARS. Label = h1, else <title>. */
+async function newPageCandidate(deps: EngineDeps, cap: { id: string; capturedAt: Date }, pageId: string, blocks: StoredBlock[]): Promise<NewPageCandidate | null> {
+  const [page] = await deps.db.select({ url: trackedPage.url, pageType: trackedPage.pageType, appearedAt: trackedPage.appearedAt }).from(trackedPage).where(eq(trackedPage.id, pageId)).limit(1);
+  if (!page?.appearedAt) return null;
+  if (cap.capturedAt.getTime() - page.appearedAt.getTime() > NEW_PAGE_MAX_AGE_DAYS * 86_400_000) return null;
+  let path = page.url;
+  try {
+    path = new URL(page.url).pathname;
+  } catch {
+    /* keep the raw url */
+  }
+  const h1 = blocks.find((b) => isTag(b.path, 'h1'))?.text.trim() || null;
+  const h2s = blocks.filter((b) => isTag(b.path, 'h2')).slice(0, 2).map((b) => b.text.trim());
+  let label = h1;
+  if (!label) {
+    const [ev] = await deps.db.select({ key: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, cap.id), eq(evidence.kind, 'html'))).limit(1);
+    const gz = ev ? await deps.store.get(ev.key) : null;
+    if (gz) label = cheerio.load(new TextDecoder().decode(gunzipSync(gz)))('title').first().text().replace(/\s+/g, ' ').trim() || null;
+  }
+  const text = [path, ...(h1 ? [h1] : []), ...h2s].join('\n').slice(0, NEW_PAGE_TEXT_CHARS);
+  return { text, label, pageUrl: page.url, pageType: page.pageType };
+}
+
 interface Candidate {
   alignment: Alignment<StoredBlock>;
   numeric: NumericChange[];
@@ -105,7 +145,10 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         .where(and(eq(capture.trackedPageId, pageId), eq(capture.source, 'web'), eq(capture.status, 'ok'), lt(capture.capturedAt, cap.capturedAt)))
         .orderBy(desc(capture.capturedAt))
         .limit(1);
-      if (!prev) return { prevId: null, candidates: [] as Candidate[], masked: 0, embedded: [] as StoredBlock[], suppressed: [] as { alignment: Alignment<StoredBlock>; numeric: NumericChange[] }[] };
+      if (!prev) {
+        const newPage = await newPageCandidate(deps, cap, pageId, await loadBlocks(deps.db, captureId));
+        return { prevId: null, candidates: [] as Candidate[], masked: 0, embedded: [] as StoredBlock[], suppressed: [] as { alignment: Alignment<StoredBlock>; numeric: NumericChange[] }[], newPage };
+      }
       if ((await ensureBlocks(deps, prev.id)) === 'busy') throw new Error(`blocks of capture ${prev.id} are being extracted`);
 
       const [before, after, maskedKeys] = await Promise.all([loadBlocks(deps.db, prev.id), loadBlocks(deps.db, captureId), maskedBlockKeys(deps.db, pageId)]);
@@ -147,7 +190,7 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
         if (flags) candidates.push({ alignment: a, numeric, similarity, flags });
         else if (a.kind === 'modified' && maskedKeys.has(a.before!.blockKey)) masked++;
       }
-      return { prevId: prev.id, candidates, masked, embedded, suppressed };
+      return { prevId: prev.id, candidates, masked, embedded, suppressed, newPage: null as NewPageCandidate | null };
     },
     async (tx, c) => {
       await supersedePriorChanges(tx, { afterCaptureId: captureId, source: 'web' }, WEB_DIFF_VERSION);
@@ -163,6 +206,22 @@ export async function diffWebCapture(deps: EngineDeps, captureId: string, opts: 
             })),
           )
           .onConflictDoNothing();
+      }
+      if (c.newPage) {
+        const np = c.newPage;
+        const inserted = await tx
+          .insert(detectedChange)
+          .values({
+            competitorId: cap.competitorId, trackedPageId: pageId, source: 'web', kind: 'added', beforeCaptureId: null, afterCaptureId: captureId,
+            blockKey: `page:${pageId}`, beforeText: null, afterText: np.text, flags: ['structural'], stageVersion: WEB_DIFF_VERSION,
+            details: {
+              changeType: 'new_page', pageUrl: np.pageUrl, pageType: np.pageType, pageKey: pageKey(np.pageUrl) ?? np.pageUrl,
+              ...(np.label ? { items: [{ id: pageId, label: np.label }] } : {}),
+            },
+          })
+          .onConflictDoNothing()
+          .returning({ id: detectedChange.id });
+        return { baseline: false, changeIds: inserted.map((r) => r.id), masked: 0, suppressed: 0 };
       }
       if (c.candidates.length === 0) return { baseline: c.prevId === null, changeIds: [] as string[], masked: c.masked, suppressed: c.suppressed.length };
       const rows = await tx
