@@ -9,6 +9,7 @@ import { RANK_DIFF_STAGE, RANK_DIFF_VERSION } from './structured/rank';
 import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDiffSources } from './structured/vendor-diff';
 import { TAG_STAGE, TAG_VERSION } from './tag/tag-stage';
 import { WEB_DIFF_STAGE, WEB_DIFF_VERSION } from './web/diff-stage';
+import { SITE_FEATURE_STAGE, SITE_FEATURE_VERSION } from './web/site-feature-stage';
 
 export { RETRY_BACKOFF_MINUTES } from './stage';
 
@@ -21,6 +22,8 @@ export interface EngineWork {
   prices: string[];
   /** Ok `meta_ads` captures from `AD_PRICE_SINCE` for the ad-copy price stage (D5). */
   adPrices: string[];
+  /** Ok web captures with a successor capture, for the website-tools stage (18a-2 D4). */
+  siteFeatures: string[];
   /** Older analysed reviews with a re-ask gap (15b-3b §5); only when `reviews` is empty. */
   reask: string[];
 }
@@ -180,5 +183,19 @@ export async function findEngineWork(
       AND NOT ${finished(AD_PRICE_STAGE, AD_PRICE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
-  return { diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices), reask };
+  // Website tools (18a-2 D4): ok web captures of a competitor some client tracks that the page's next ok/unchanged
+  // capture can confirm, oldest first so observations build in order. Self businesses are never in client_competitor.
+  const siteFeatures = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.source = 'web' AND c.status = 'ok' AND c.tracked_page_id IS NOT NULL ${only('c.competitor_id')}
+      AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
+      AND EXISTS (SELECT 1 FROM capture n WHERE n.tracked_page_id = c.tracked_page_id AND n.source = 'web'
+                  AND n.status IN ('ok', 'unchanged') AND n.captured_at > c.captured_at)
+      AND NOT ${finished(SITE_FEATURE_STAGE, SITE_FEATURE_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+
+  return {
+    diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices),
+    siteFeatures: ids(siteFeatures), reask,
+  };
 }

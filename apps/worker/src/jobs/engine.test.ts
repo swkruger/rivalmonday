@@ -11,6 +11,7 @@ const queue = () => ({
   enqueueReview: vi.fn(async (_id: string) => {}),
   enqueuePrice: vi.fn(async (_id: string) => {}),
   enqueueAdPrice: vi.fn(async (_id: string) => {}),
+  enqueueSiteFeatures: vi.fn(async (_id: string) => {}),
   enqueueReask: vi.fn(async (_id: string) => {}),
 });
 
@@ -18,7 +19,7 @@ describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], reask: [U(7)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], siteFeatures: [U(10)], reask: [U(7)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -28,6 +29,7 @@ describe('engine jobs', () => {
     expect(q.enqueueReview.mock.calls).toEqual([[U(5)]]);
     expect(q.enqueuePrice.mock.calls).toEqual([[U(6)]]);
     expect(q.enqueueAdPrice.mock.calls).toEqual([[U(8)]]);
+    expect(q.enqueueSiteFeatures.mock.calls).toEqual([[U(10)]]);
     expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
   });
 
@@ -98,6 +100,19 @@ describe('engine jobs', () => {
     expect(jobs.adPrice.usesAi).toBe(true);
     for (const job of [jobs.review, jobs.price, jobs.adPrice]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
     expect(() => jobs.review.schema.parse({ reviewId: 'x' })).toThrow();
+  });
+
+  it('engine-site-features runs the rules-only stage and tags its changes, without self-retry', async () => {
+    const deps = { detectSiteFeatures: vi.fn(async () => ({ ran: true, changes: [U(11), U(12)] })) } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    await jobs.siteFeatures.handler({ captureId: U(10) });
+    expect(deps.detectSiteFeatures).toHaveBeenCalledWith(U(10));
+    expect(q.enqueueTag.mock.calls).toEqual([[U(11)], [U(12)]]);
+    expect(jobs.siteFeatures.name).toBe('engine-site-features');
+    expect(jobs.siteFeatures.usesAi).toBe(false);
+    expect(jobs.siteFeatures.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    expect(() => jobs.siteFeatures.schema.parse({ captureId: 'x' })).toThrow();
   });
 
   it('engine-reask calls deps.reaskReview and uses ENGINE_STAGE_QUEUE', async () => {

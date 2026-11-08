@@ -7,6 +7,7 @@ export * from './web/align';
 export * from './web/blocks';
 export * from './web/volatile';
 export * from './web/diff-stage';
+export * from './web/site-feature-stage';
 export * from './structured/vendor-diff';
 export * from './structured/ads';
 export * from './structured/gbp';

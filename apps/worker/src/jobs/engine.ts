@@ -24,6 +24,7 @@ export function createEngineJobs(
     enqueueReview(reviewId: string): Promise<void>;
     enqueuePrice(captureId: string): Promise<void>;
     enqueueAdPrice(captureId: string): Promise<void>;
+    enqueueSiteFeatures(captureId: string): Promise<void>;
     enqueueReask(reviewId: string): Promise<void>;
   },
 ) {
@@ -48,9 +49,10 @@ export function createEngineJobs(
       for (const id of w.reask) await queue.enqueueReask(id);
       for (const id of w.prices) await queue.enqueuePrice(id);
       for (const id of w.adPrices) await queue.enqueueAdPrice(id);
-      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length > 0)
+      for (const id of w.siteFeatures) await queue.enqueueSiteFeatures(id);
+      if (w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length + w.siteFeatures.length > 0)
         workerLog.info(
-          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}`,
+          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}, site features ${w.siteFeatures.length}`,
         );
     },
   });
@@ -110,5 +112,14 @@ export function createEngineJobs(
       if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-ad-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
     },
   });
-  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice };
+  // Rules only (no model call): website tools of one web capture, confirmed by the page's next capture (18a-2 D4).
+  const siteFeatures = defineJob({
+    name: 'engine-site-features', usesAi: false, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    handler: async ({ captureId }) => {
+      const r = await deps.detectSiteFeatures(captureId);
+      for (const id of r.changes) await queue.enqueueTag(id);
+      if (r.ran && r.changes.length > 0) workerLog.info(`[engine-site-features] ${captureId} → ${r.changes.length} change(s)`);
+    },
+  });
+  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice, siteFeatures };
 }

@@ -10,6 +10,7 @@ import { scoreEvent } from './score/score-stage';
 import { diffRankScan } from './structured/rank';
 import { findEngineWork } from './sweep';
 import { type PackLoader, tagChange } from './tag/tag-stage';
+import { detectSiteFeatures } from './web/site-feature-stage';
 
 export interface DrainResult {
   diffs: number;
@@ -22,6 +23,8 @@ export interface DrainResult {
   prices: number;
   /** Meta captures whose ad-copy prices were extracted (D5). */
   adPrices: number;
+  /** Web captures whose website tools were confirmed (18a-2 D4). */
+  siteFeatures: number;
   /** Older reviews re-asked at least one missing question (15b-3b §5). */
   reasked: number;
   errors: number;
@@ -32,7 +35,7 @@ export async function drainEngine(
   deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader; generic: () => Promise<VerticalPack> },
   opts: { competitorId?: string; limit?: number; maxRounds?: number } = {},
 ): Promise<DrainResult> {
-  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, reasked: 0, errors: 0 };
+  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, siteFeatures: 0, reasked: 0, errors: 0 };
   const attempt = async (what: string, fn: () => Promise<void>) => {
     try {
       await fn();
@@ -43,7 +46,7 @@ export async function drainEngine(
   };
   for (let round = 0; round < (opts.maxRounds ?? 10); round++) {
     const work = await findEngineWork(deps.db, { limit: opts.limit ?? 100, competitorId: opts.competitorId });
-    if (work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.reask.length === 0) break;
+    if (work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.siteFeatures.length + work.reask.length === 0) break;
     for (const id of work.diff) {
       await attempt(`diff ${id}`, async () => {
         const o = await diffCapture(deps, id);
@@ -91,6 +94,15 @@ export async function drainEngine(
     for (const id of work.adPrices) {
       await attempt(`ad prices ${id}`, async () => {
         if ((await extractAdPrices(deps, id)).ran) r.adPrices++;
+      });
+    }
+    for (const id of work.siteFeatures) {
+      await attempt(`site features ${id}`, async () => {
+        const o = await detectSiteFeatures(deps, id);
+        if (o.ran) {
+          r.siteFeatures++;
+          r.changes += o.result.changes.length;
+        }
       });
     }
     for (const id of work.reask) {

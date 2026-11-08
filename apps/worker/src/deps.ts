@@ -12,7 +12,7 @@ import { createCatalog } from '@cs/verticals';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -84,6 +84,8 @@ export interface WorkerDeps {
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   /** D5: ad-copy prices of one Meta capture. */
   extractAdPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
+  /** 18a-2 D4: website tools of one web capture (rules only); returns the new change ids. */
+  detectSiteFeatures(captureId: string): Promise<{ ran: boolean; changes: string[] }>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
   collectModelBatches(): Promise<BatchCollectResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
@@ -413,6 +415,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     async extractAdPrices(captureId) {
       const r = await runExtractAdPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
       return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
+    },
+    async detectSiteFeatures(captureId) {
+      const r = await runDetectSiteFeatures({ db: getDb(), store: getStore() }, captureId);
+      return r.ran ? { ran: true, changes: r.result.changes } : { ran: false, changes: [] };
     },
     async runReviewInsights() {
       return runReviewInsights({ db: getDb(), ai: await getAi(), packs });
