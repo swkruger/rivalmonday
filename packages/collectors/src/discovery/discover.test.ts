@@ -360,6 +360,22 @@ describe('discoverPages — re-discovery', () => {
     expect(await page(`${SITE}/blog/nav`)).toMatchObject({ active: false, inactiveReason: 'replaced' });
   });
 
+  it('over the cap (more than 25 active), a new page neither replaces a page nor gets added', async () => {
+    const base = { competitorId: IDS.competitorX, cadence: 'weekly' };
+    await dbs.service.insert(trackedPage).values([
+      { ...base, url: `${SITE}/`, pageType: 'home', source: 'nav', cadence: 'daily' },
+      ...Array.from({ length: 24 }, (_, i) => ({ ...base, url: `${SITE}/svc-${i}`, pageType: 'service', source: 'nav', pinned: true })),
+      { ...base, url: `${SITE}/blog/nav`, pageType: 'blog', source: 'nav' },
+    ]);
+    await dbs.service.insert(siteUrl).values({ competitorId: IDS.competitorX, urlKey: 'smithhvac.example', url: `${SITE}/`, source: 'nav' });
+    const existing = (await pages()).filter((p) => p.pageType !== 'home').map((p) => ({ href: p.url, text: p.url }));
+    const r = await world({ links: [...existing, { href: `${SITE}/rates`, text: 'Rates' }], types: { [`${SITE}/rates`]: 'pricing' } }).run();
+    expect(r).toMatchObject({ mode: 'refresh', newPages: 0, deactivated: 0 });
+    expect(await page(`${SITE}/blog/nav`)).toMatchObject({ active: true, inactiveReason: null });
+    expect(await page(`${SITE}/rates`)).toBeUndefined();
+    expect((await pages()).filter((p) => p.active)).toHaveLength(26);
+  });
+
   it('a 404/410 page missing from a complete run goes inactive gone and re-activates when it is back', async () => {
     await world().run();
     const ac = (await page(`${SITE}/ac-repair`))!;

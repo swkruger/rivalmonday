@@ -89,6 +89,8 @@ interface TrackedRow {
   lastCapturedAt: Date | null;
   createdAt: Date;
 }
+/** The db or a transaction — what the page writers need. */
+type DbWriter = Pick<Db, 'insert' | 'update'>;
 interface PageWrite {
   url: string;
   pageType: string;
@@ -261,23 +263,30 @@ export async function discoverPages(
       }
       toTrack.sort((a, b) => pageTypeRank(a.pageType) - pageTypeRank(b.pageType));
       for (const p of toTrack) {
-        if (active >= max) {
-          // Full: replace the lowest-priority non-pinned, non-manual page of a lower-priority type, else skip.
-          const victim = tracked
-            .filter((r) => r.active && !r.pinned && r.source !== 'manual' && pageTypeRank(r.pageType) > pageTypeRank(p.pageType))
-            .sort((a, b) => pageTypeRank(b.pageType) - pageTypeRank(a.pageType) || b.createdAt.getTime() - a.createdAt.getTime())[0];
-          if (!victim) {
-            console.warn(`[discovery] ${competitor.id}: ${max} pages tracked and none replaceable; new page ${p.url} skipped`);
-            continue;
-          }
-          const n = await deactivate(deps.db, [victim], 'replaced');
-          deactivated += n;
-          active -= n;
-          if (active >= max) continue;
+        const write: PageWrite = { url: p.url, pageType: p.pageType, source: p.source, cadence: cadenceFor(p.pageType), appeared: true };
+        if (active < max) {
+          const n = await upsertPages(deps.db, competitor.id, [write]);
+          newPages += n;
+          active += n;
+          continue;
         }
-        const n = await upsertPages(deps.db, competitor.id, [{ url: p.url, pageType: p.pageType, source: p.source, cadence: cadenceFor(p.pageType), appeared: true }]);
-        newPages += n;
-        active += n;
+        if (active > max) {
+          // Over the cap already (e.g. human-added pages): a swap would still leave no room, so add and replace nothing.
+          console.warn(`[discovery] ${competitor.id}: ${active} pages tracked (cap ${max}); new page ${p.url} skipped`);
+          continue;
+        }
+        // Full: swap out the lowest-priority non-pinned, non-manual page of a lower-priority type, else skip.
+        const victim = tracked
+          .filter((r) => r.active && !r.pinned && r.source !== 'manual' && pageTypeRank(r.pageType) > pageTypeRank(p.pageType))
+          .sort((a, b) => pageTypeRank(b.pageType) - pageTypeRank(a.pageType) || b.createdAt.getTime() - a.createdAt.getTime())[0];
+        if (!victim) {
+          console.warn(`[discovery] ${competitor.id}: ${max} pages tracked and none replaceable; new page ${p.url} skipped`);
+          continue;
+        }
+        if (await swapPage(deps.db, competitor.id, victim, write)) {
+          deactivated++;
+          newPages++;
+        }
       }
       selected += newPages;
     }
@@ -314,7 +323,7 @@ async function loadTracked(db: Db, competitorId: string): Promise<TrackedRow[]> 
 }
 
 /** Sets still-active rows inactive with `reason` (the CHECK needs one); mirrors the change on the in-memory rows. */
-async function deactivate(db: Db, rows: TrackedRow[], reason: 'gone' | 'duplicate' | 'replaced'): Promise<number> {
+async function deactivate(db: DbWriter, rows: TrackedRow[], reason: 'gone' | 'duplicate' | 'replaced'): Promise<number> {
   if (rows.length === 0) return 0;
   const done = await db
     .update(trackedPage)
@@ -325,6 +334,27 @@ async function deactivate(db: Db, rows: TrackedRow[], reason: 'gone' | 'duplicat
   for (const r of rows) if (ids.has(r.id)) Object.assign(r, { active: false, inactiveReason: reason });
   return ids.size;
 }
+
+/**
+ * Replaces `victim` (inactive `replaced`) with the new page in one transaction: either both happen or neither, so a
+ * full competitor never loses a page without gaining one. Returns whether the swap happened.
+ */
+async function swapPage(db: Db, competitorId: string, victim: TrackedRow, page: PageWrite): Promise<boolean> {
+  const before = { active: victim.active, inactiveReason: victim.inactiveReason };
+  try {
+    return await db.transaction(async (tx) => {
+      if ((await deactivate(tx, [victim], 'replaced')) === 0) return false;
+      if ((await upsertPages(tx, competitorId, [page])) === 0) throw new SwapAborted();
+      return true;
+    });
+  } catch (err) {
+    Object.assign(victim, before);
+    if (err instanceof SwapAborted) return false;
+    throw err;
+  }
+}
+
+class SwapAborted extends Error {}
 
 /** Re-activates `gone` rows only — never `manual`, `duplicate` or `replaced` ones. */
 async function reactivate(db: Db, ids: string[]): Promise<number> {
@@ -339,10 +369,11 @@ async function reactivate(db: Db, ids: string[]): Promise<number> {
 
 /**
  * Inserts tracked pages. On a URL conflict it only touches an inactive `gone` row (re-activating it, clearing the
- * reason); active, `manual`, `duplicate` and `replaced` rows are left alone. Pinned pages keep their type/cadence.
+ * reason); active, `manual`, `duplicate` and `replaced` rows are left alone. A `gone` row can be pinned after it
+ * went inactive (`pin_page` accepts any page), so pinned pages keep their type/cadence on re-activation.
  * Returns the number of rows inserted or re-activated.
  */
-async function upsertPages(db: Db, competitorId: string, pages: PageWrite[]): Promise<number> {
+async function upsertPages(db: DbWriter, competitorId: string, pages: PageWrite[]): Promise<number> {
   if (pages.length === 0) return 0;
   const done = await db
     .insert(trackedPage)
