@@ -4,7 +4,7 @@
 
 Agency-owned white-label SaaS that monitors competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, a remote **MCP server**, an in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to the agency's clients first, then wholesale.
 
-**Start sessions with `/rm-start`.**
+**Start with `/rm-start`.**
 
 ## Where things are
 | Need | Read |
@@ -58,7 +58,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 1. `/rm-kickoff <phase>` → own **worktree + branch** + distilled brief (`docs/work/<branch>.md`).
 2. `superpowers:brainstorming` from the brief's open questions.
 3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md`, aim ≤ 15 KB). Reference the core spec by §; don't restate it.
-4. `superpowers:writing-plans` in the **lean plan format** below. 
+4. `superpowers:writing-plans` in the **lean plan format** below.
 5. **Owner approval** of the plan.
 6. `superpowers:subagent-driven-development`: pre-flight, implementer + reviewer per task, final review (most capable model), one fix wave. **Tests:** implementers run focused tests, reviewers none; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` once at the final review; full unit + E2E only in `/rm-merge`, after asking the owner (CI runs both).
 7. `/rm-wrap-up` at the end of every session; `/rm-merge` only with the owner's go-ahead.
