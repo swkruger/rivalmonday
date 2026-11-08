@@ -4,10 +4,10 @@
 **Spec/plan:** 18a-1 `docs/superpowers/{specs,plans}/2026-11-08-phase-18a1-gbp-meta*`; 18a-2 `…/2026-11-08-phase-18a2-web-readiness*` (spec O1–O4, D1–D7; plan Tasks 0–13)
 
 ## Status (overwrite)
-18a-1 done: tasks 0-10 + final fix wave 5326e722, final review clean (2026-11-08); test:affected green (focused), e2e:affected 153/153, profile gate pass. 18a-2 (web readiness) spec + lean plan written 2026-11-08 on this branch, awaiting owner approval; both merge together. Not on the roadmap yet.
+18a-1 done: tasks 0-10 + final fix wave 5326e722, final review clean (2026-11-08); test:affected green (focused), e2e:affected 153/153, profile gate pass. 18a-2 (web readiness) plan approved 2026-11-08; Task 0 pre-flight done (below); SDD Tasks 1-13 next. Both merge together. Not on the roadmap yet.
 
 ## Next (overwrite)
-Owner approves the 18a-2 plan (check its D-calls: D1 `new_page` type, D4 two-capture confirmation, D6 28-day re-discovery + `site_url`, D7 `deferred`), then `superpowers:subagent-driven-development` from Task 0. At `/rm-merge` (covers both halves): `.describe` on `PriceNowView.source` (M5); one Ask eval re-record (`record --fill`; 18a-1 `get_price_matrix` spec + 18a-2 `search_events`/`Discovery` enums; past cost $1.6-7.65); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs new copy in `pnpm copy:review`. 18a-3 (ad images) stays a separate branch.
+18a-2 SDD from Task 1 (ledger `.superpowers/sdd/2026-11-08-phase-18a2-web-readiness/progress.md`). At `/rm-merge` (covers both halves): `.describe` on `PriceNowView.source` (M5); one Ask eval re-record (`record --fill`; 18a-1 `get_price_matrix` spec + 18a-2 `search_events`/`Discovery` enums; past cost $1.6-7.65); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs new copy in `pnpm copy:review`. 18a-3 (ad images) stays a separate branch.
 
 ## Interfaces this branch adds or changes
 - **Migration 0100:** `price_point.ad_id` (FK `ad`), `tracked_page_id` now nullable, CHECK exactly one of the two, unique index `price_point_ad_open_unique`; `ad.event` column; vertical pack v5 data (scoring v5).
@@ -15,7 +15,7 @@ Owner approves the 18a-2 plan (check its D-calls: D1 `new_page` type, D4 two-cap
 - **`observation` kind `meta_page`** (Page likes per capture). Worker CLI `meta-page-backfill [--dry-run]` fills it from stored raw Meta captures.
 - **Engine:** stage `ad_price_extract` (`AD_PRICE_SINCE` = 2026-11-08; Meta ad copy only, rules-only prices) and worker job `engine-ad-price`. `GBP_STATUS_PHRASE` in `packages/engine/src/structured/gbp-status.ts`.
 - **Tool** `get_audience_trend` (web only; `ISOLATION_FIXTURES` entry; out-of-scope => `not_found`). Competitor page shows a Page likes stat from 4 weekly points.
-- **`PriceNow.source`** (`page` | `ad`); the pricing page tags ad prices "From an ad"; ad prices never count toward the 90-day tag.
+- **`PriceNow.source`** (`web` | `meta_ad`; `PriceNowView` same); the pricing page tags ad prices "From an ad"; ad prices never count toward the 90-day tag.
 
 ## Rollout (in order)
 1. Migrate (`pnpm db:migrate`), deploy web + worker.
@@ -45,8 +45,7 @@ Owner approves the 18a-2 plan (check its D-calls: D1 `new_page` type, D4 two-cap
 ## Brief
 
 ### Scope
-- **(a) GBP changes** already diffed but scored `content` × `unmapped` (weight 0.2 × 0.6 ⇒ never briefed): `currentStatus` (temporarily/permanently closed; open/close flips ignored), hours, title, domain. `description` is collected (`extractGbpProfile`) but never diffed.
-- **(b) Meta ads data:** `snapshot.page_like_count`/`event` are in the raw Apify capture, not in `ad`. Prices in ad copy → `price_point`. Google ads carry no copy (`text: null`): their prices need image analysis (out).
+- **(a) GBP changes, (b) Meta Page likes/ad-copy prices:** done in 18a-1.
 - **(c) Website readiness:** `/bot` + `robots.ts` exist in `apps/web` (7a1); prod is undeployed (7a1 Task 12), so `rivalmonday.app/bot` is not live. Then: sitemap diffs (discovery runs once; no re-discovery job), site tools from scripts in stored `page.html.gz` (extraction strips `<script>`), Event/Offer JSON-LD.
 - **Core spec:** §1.5 (no evidence no claim; honest collection), §4.1 (page discovery ≈ 25), §4.2 (collectors; crawler conduct, bot page), §4.3 (global tables), §4.4 (immutable evidence), §4.5 (redaction), §6.1 (diffs grouped per capture), §6.2 (type list), §6.3 (score; 70 alert/40 brief), §6.6 (rules-only prices; ads/own-site deferred), §9.1 (verify, never pad).
 
@@ -82,4 +81,11 @@ Owner approves the 18a-2 plan (check its D-calls: D1 `new_page` type, D4 two-cap
 All settled: 1-2, 4, 6 in the 18a-1 spec (O1-O6); 3, 5, 7, 8 in the 18a-2 spec (O1-O4) and Decision 5.
 
 ## Pre-flight (18a-1 Task 0)
-Rebased onto main 4b305a7e; test DB `cs_phase_18a_test`; migration 0100 (18a-2 takes the next free, 0101). Meta (cs_dev, 19 Apify captures): payload `{vendor, items[], truncated}`; `snapshot.page_like_count` numeric (352/353), `snapshot.event` always null. GBP `current_status` at `work_time.work_hours.current_status` (only `open`/`close` in cs_dev); no closed listing to probe.
+Base main 4b305a7e; test DB `cs_phase_18a_test`; migration 0100. Meta `snapshot.page_like_count` numeric, `snapshot.event` always null; GBP `current_status` only `open`/`close` in cs_dev.
+
+## Pre-flight 18a-2 (Task 0, 2026-11-08)
+- `main` still 4b305a7e (no rebase). `brief-report` unmerged (docs only, no migration) ⇒ **18a-2 migration = 0101**; brief-report takes the next free one.
+- `source === 'web'` branches to switch to `isStructuredChange` (Task 6): `tag/tag-stage.ts:149`, `model-ops/resolve.ts:104/136/166`, `events/retract.ts:24`, `briefs/evidence.ts:42`. Unchanged capture/price checks: `diff.ts`, `web/{diff-stage,blocks}.ts`, `prices/price-stage.ts`, `tools/{evidence,pricing}.ts`. Web diff rows never set `details` (default `'{}'`).
+- Worker reads `WEB_MONITORING_ENABLED` only in the staging check (`env.ts:53`); jobs get no env ⇒ plan Task 10 passes `webMonitoring` from `createJobList`'s `opts.env` into `createWebJobs`. It reaches the worker through host env (Railway/Docker), not turbo.
+- Nothing sets `tracked_page.active = false`; only `collectors/src/schedule/due-pages.test.ts:28` inserts an inactive page ⇒ Task 2 adds `inactiveReason: 'manual'` there.
+- Plan fixes: `CHANGE_LABELS` move to Task 1 (`labels.test.ts` iterates `CHANGE_TYPES`); 0101's `tracked_page` CHECK stays out of the Drizzle schema (it must follow the backfill); `site_discovery.next_due_at` set by every `discoverPages` run (`REDISCOVERY_DAYS` lives in Task 9); collectors `index.ts` exports for Tasks 9/10; tracker `PriceNow.source` is `'web'`, not `'page'`; `actions.ts` bulk note order `disabled` > `deferred` > `queued`; rls-sweep path `packages/db/src/rls-sweep.test.ts`.

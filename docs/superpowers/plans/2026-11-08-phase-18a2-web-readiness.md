@@ -37,8 +37,8 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 
 ## Dependencies on in-flight work (re-check in Task 0)
 
-- 18a-1 is on this branch (migration 0100, `profileCap`, pack v5). 18a-2 builds on its tip.
-- `brief-report` (unmerged): `topicOf` (`@cs/core` `brief-report.ts`) and `GROUP_PHRASE` (`@cs/email`) must cover `site_feature`/`new_page` (`offers` topic). If merged first, Task 3 adds them; else note it in the work file for its pre-flight.
+- 18a-1 is on this branch (migration 0100, `profileCap`, pack v5, catalog seed already regenerated at v5). 18a-2 builds on its tip. *Re-checked Task 0 (2026-11-08): `main` = 4b305a7e, no rebase needed.*
+- `brief-report` (unmerged, docs only at 376d8c0c, no migration yet): `topicOf` (`@cs/core` `brief-report.ts`) and `GROUP_PHRASE` (`@cs/email`) must cover `site_feature`/`new_page` (`offers` topic). Not merged ⇒ the work file's "Assumes" note carries it to brief-report's pre-flight (it also takes the migration after 0101).
 - Ask eval re-record at merge (18a-1 already needs one) also covers the `search_events` enum and `Discovery` enum changes.
 
 ## Review focus
@@ -57,17 +57,17 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 
 **Files:** modify `docs/work/phase-18a.md`, this plan (fixes).
 
-- [ ] Rebase onto `main` (or `brief-report` if merged); re-check the Dependencies lines and every path here; fix the plan where code moved.
-- [ ] Next free migration number (expect 0101; `git show brief-report:docs/work/brief-report.md` — it planned `<n>_brief_report ≥ 0100`).
-- [ ] `grep -rn "source === 'web'\|source !== 'web'" packages/engine/src packages/tools/src` — list every branch for Task 6 (known: `tag/tag-stage.ts`, `model-ops/resolve.ts` ×3, `events/retract.ts`, `briefs/evidence.ts`, `diff.ts`, `tools/evidence.ts`). Confirm web diff changes never set `details.changeType`.
-- [ ] Confirm `apps/worker/src/env.ts` reads `WEB_MONITORING_ENABLED` (it does for the staging check) and that it reaches the worker (Docker/Railway env, not `turbo.json` — the worker is not a turbo task at runtime).
-- [ ] Confirm no code sets `tracked_page.active = false` today (Task 2's CHECK would break it).
+- [x] Rebase onto `main` (or `brief-report` if merged); re-check the Dependencies lines and every path here; fix the plan where code moved.
+- [x] Next free migration number (expect 0101; `git show brief-report:docs/work/brief-report.md` — it planned `<n>_brief_report ≥ 0100`).
+- [x] `grep -rn "source === 'web'\|source !== 'web'" packages/engine/src packages/tools/src` — list every branch for Task 6 (known: `tag/tag-stage.ts`, `model-ops/resolve.ts` ×3, `events/retract.ts`, `briefs/evidence.ts`, `diff.ts`, `tools/evidence.ts`). Confirm web diff changes never set `details.changeType`.
+- [x] Confirm `apps/worker/src/env.ts` reads `WEB_MONITORING_ENABLED` (it does for the staging check) and that it reaches the worker (Docker/Railway env, not `turbo.json` — the worker is not a turbo task at runtime).
+- [x] Confirm no code sets `tracked_page.active = false` today (Task 2's CHECK would break it).
 - **Done when:** findings in the work file; commit `docs(phase-18a): 18a-2 pre-flight`.
 
 ### Task 1: Change types, categories and scoring
 
 **Goal:** D1 types score as the spec table.
-**Files:** modify `packages/core/src/domain.ts`; create `packages/core/src/site-features.ts` (+ export from index); modify `packages/db/src/schema/engine.ts`, `packages/verticals/src/schema.ts`, `packages/verticals/packs/{generic,hvac_plumbing,dental}.yaml`, `packages/engine/src/score/{score,score-stage}.ts`, `packages/engine/src/tag/structured.ts` (`SERVICE_MAPPED_TYPES`); tests `score.test.ts`, `score-stage.test.ts`, `packages/verticals/src/packs.test.ts`, `packages/core/src/domain.test.ts`.
+**Files:** modify `packages/core/src/domain.ts`; create `packages/core/src/site-features.ts` (+ export from index); modify `packages/email/src/labels.ts` (`CHANGE_LABELS`: `site_feature: 'website tool change'`, `new_page: 'new website page'` — the existing `labels.test.ts` iterates `CHANGE_TYPES`, so the labels land with the types; pre-flight fix), `packages/db/src/schema/engine.ts` (`ChangeDetails`, `ScoreFactors`), `packages/verticals/src/schema.ts`, `packages/verticals/packs/{generic,hvac_plumbing,dental}.yaml`, `packages/engine/src/score/{score,score-stage}.ts`, `packages/engine/src/tag/structured.ts` (`SERVICE_MAPPED_TYPES`); tests `score.test.ts`, `score-stage.test.ts`, `packages/verticals/src/packs.test.ts`, `packages/core/src/domain.test.ts`.
 
 **Interfaces:**
 - `CHANGE_TYPES` += `'site_feature' | 'new_page'`.
@@ -79,14 +79,14 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 
 **Behaviour:** `scoreForClient` caps `alert` → `brief` for `BRIEF_ONLY_TYPES` and records `briefOnly`; `profileCap` unchanged. `direction` widening must not change `status_change` sizing (`=== 'closed'`).
 **Tests (TDD):** `site_feature added scores 42 → brief`; `site_feature with thresholds {alert:10,brief:5} routes brief, briefOnly true`; `new_page none-service scores 42, unmatched 8`; `detailsSignature distinguishes added/removed and two page keys`; packs: every shipped pack has both weights and version 6; domain: categories have labels.
-**Done when:** `npx vitest run src/score` (engine), `pnpm --filter @cs/verticals test`, `pnpm --filter @cs/core test` pass; tsc clean for core/db/verticals/engine.
+**Done when:** `npx vitest run src/score` (engine), `pnpm --filter @cs/verticals test`, `pnpm --filter @cs/core test`, `pnpm --filter @cs/email exec vitest run src/labels` pass; tsc clean for core/db/verticals/engine/email.
 
 ### Task 2: Migration 0101 (schema + pack data) and table classes
 
 **Goal:** columns, two `service_only` tables, pack v6 in stored configs, regenerated seed.
-**Files:** `packages/db/src/schema/evidence.ts` (`capture.markupSha`, `trackedPage.{inactiveReason, appearedAt}`, `siteUrl`, `siteDiscovery`); generate `0101_web_readiness` with `pnpm --filter @cs/db generate --name=web_readiness`, then append the hand SQL below; `packages/db/test/{table-classes,isolation-world}.ts`; `packages/db/src/catalog-seed.sql.ts` via `pnpm --filter @cs/verticals seed-sql`; test `packages/db/src/web-readiness.test.ts` (create; pattern `wider-sources-backfill.test.ts`).
+**Files:** `packages/db/src/schema/evidence.ts` (`capture.markupSha`, `trackedPage.{inactiveReason, appearedAt}`, `siteUrl`, `siteDiscovery`); generate `0101_web_readiness` with `pnpm --filter @cs/db generate --name=web_readiness`, then append the hand SQL below; `packages/db/test/{table-classes,isolation-world}.ts`; `packages/db/src/catalog-seed.sql.ts` via `pnpm --filter @cs/verticals seed-sql`; test `packages/db/src/web-readiness.test.ts` (create; pattern `wider-sources-backfill.test.ts`); fix `packages/collectors/src/schedule/due-pages.test.ts:28` (inserts `active: false` ⇒ add `inactiveReason: 'manual'`, the only fixture the CHECK breaks — pre-flight).
 
-Generated part must equal (reorder by hand if drizzle differs):
+Generated part must be equivalent to (drizzle emits FKs as separate `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` statements — fine; reorder by hand only if needed). The `tracked_page` CHECK is **not** declared in the Drizzle schema (it must run after the `UPDATE` backfill below, and a schema `check()` would put it in the generated part, before the backfill); add a one-line comment on `inactiveReason` pointing at 0101.
 
 ```sql
 ALTER TABLE "capture" ADD COLUMN "markup_sha" text;
@@ -133,7 +133,7 @@ WHERE id IN ('generic', 'hvac_plumbing', 'dental')
   AND coalesce((config #>> '{scoring,version}')::int, 0) < 6;
 ```
 
-**Behaviour:** `TABLE_CLASS`: `site_url`, `site_discovery` → `service_only`; one world row each (competitor X). Verify service roles reach the tables through 0001's default privileges (`rls-sweep.test.ts`).
+**Behaviour:** `TABLE_CLASS`: `site_url`, `site_discovery` → `service_only`; one world row each (competitor X). Verify service roles reach the tables through 0001's default privileges (`packages/db/src/rls-sweep.test.ts`, `packages/db/src/isolation-world.test.ts`). Pattern for the RLS/REVOKE lines: `0094_ops_alert.sql`.
 **Tests:** `tracked_page rejects active=false without a reason and active=true with one`; `existing inactive rows become manual`; `backfill block re-runs without change`; `catalog seed carries type weights v6` (existing seed test if any); isolation-world + rls-sweep pass.
 **Done when:** `pnpm --filter @cs/db test` passes on the worktree DB; `generate` reports "No schema changes"; no CRLF.
 
@@ -142,7 +142,7 @@ WHERE id IN ('generic', 'hvac_plumbing', 'dental')
 **Files:** `packages/email/src/labels.ts`, `packages/engine/src/briefs/writer.ts` (`EVIDENCE_WORDING`), `packages/core/src/help/glossary.ts`, `brief-report`'s `topicOf`/`GROUP_PHRASE` if merged; tests `labels.test.ts`, glossary tests, writer prompt test.
 
 **Decided copy (owner signs in `pnpm copy:review`):**
-- `CHANGE_LABELS`: `site_feature: 'website tool change'`, `new_page: 'new website page'`.
+- `CHANGE_LABELS`: already added in Task 1 (`site_feature: 'website tool change'`, `new_page: 'new website page'`); only check them here.
 - `EVIDENCE_WORDING` += `'For a website tool change, name the kind of tool (for example "online booking" or "live chat") and never the software company behind it.'` and `'For a new website page, say the page appeared on their website and what it is titled; do not claim a new service, price or area unless the evidence text states it.'`
 - Glossary: **Website tool change** — "The business added or removed a tool on its website, such as online booking, live chat or financing." **New website page** — "A page that newly appeared on the business's website, found when we re-check its site map and menu each month."
 
@@ -186,7 +186,9 @@ export function markupSha(html: string): string;
 ### Task 6: Structured changes on the web channel
 
 **Goal:** `isStructuredChange` routing; summaries and questions for the new types.
-**Files:** modify `packages/engine/src/tag/{structured,tag-stage}.ts`, `model-ops/resolve.ts`, `events/retract.ts` (summary + `supersedePriorChanges`), `briefs/evidence.ts`, any other Task 0 hit; tests next to each.
+**Files:** modify `packages/engine/src/tag/{structured,tag-stage}.ts`, `model-ops/resolve.ts`, `events/retract.ts` (summary + `supersedePriorChanges`), `briefs/evidence.ts`; tests next to each.
+
+**Task 0 grep (complete list):** replace — `tag/tag-stage.ts:149` (`head.source !== 'web'` ⇒ structured path; also select `details`), `model-ops/resolve.ts:104, :136, :166`, `events/retract.ts:24`, `briefs/evidence.ts:42`. Keep (capture/price checks, not change routing) — `diff.ts:10`, `web/diff-stage.ts:92`, `web/blocks.ts:32`, `prices/price-stage.ts:85`, `tools/evidence.ts:147` (capture view), `tools/pricing.ts:19` (price source). Web diff rows never set `details` (column default `'{}'`), so `isStructuredChange` is false for every existing web change.
 
 **Interfaces:** `export const isStructuredChange = (c: { source: string; details: ChangeDetails }) => c.source !== 'web' || typeof c.details?.changeType === 'string';` in `tag/structured.ts`.
 
@@ -201,7 +203,7 @@ export function markupSha(html: string): string;
 ### Task 7: `site_features` stage
 
 **Goal:** D4.
-**Files:** create `packages/engine/src/web/site-feature-stage.ts` (+ test); modify `packages/engine/src/sweep.ts` (`EngineWork.siteFeatures`), `drain.ts`, `index.ts`; `apps/worker/src/jobs/engine.ts` (job `engine-site-features`, `usesAi: false`), `apps/worker/src/deps.ts`, `job-list.ts`.
+**Files:** create `packages/engine/src/web/site-feature-stage.ts` (+ test); modify `packages/engine/src/sweep.ts` (`EngineWork.siteFeatures`), `drain.ts`, `index.ts`; `apps/worker/src/jobs/engine.ts` (job `engine-site-features`, `usesAi: false`; `engine-sweep` enqueues via a new `queue.enqueueSiteFeatures` and counts it in its log line/empty check), `apps/worker/src/deps.ts`, `job-list.ts` (queue impl, pattern `enqueuePrice`). Tests asserting the full `EngineWork`/`DrainResult` shape (sweep, drain, worker `engine.test.ts`) gain the new key.
 
 **Interfaces:** `SITE_FEATURE_STAGE = 'site_features'`, `SITE_FEATURE_VERSION = 1`, `SITE_FEATURE_COOLDOWN_DAYS = 28`; `detectSiteFeatures(deps: { db; store }, captureId): Promise<StageOutcome<{ observed: number; changes: string[]; skipped?: string }>>`.
 
@@ -216,14 +218,14 @@ export function markupSha(html: string): string;
 
 **Interfaces:** `export function offerPrices(offers: StructuredOffer[]): { text: string; sha: string; obs: PriceObservation[] }[]`.
 
-**Behaviour:** per spec D5. The stage loads the capture's `page.html.gz` once (same evidence row `ensureBlocks` reads), appends JSON-LD pseudo-blocks after text blocks, then one `mapPricedTexts` call and the existing `PRICE_MAX_BLOCKS` truncation. The model state for a pseudo-block is `{ competitor, page_url, page_type, text: redactForModel(text).slice(0, MAX_STATE_TEXT), prices }`. Dedupe with text observations by `keyOf`.
+**Behaviour:** per spec D5. The stage loads the capture's `page.html.gz` once (same evidence row `ensureBlocks` reads), appends JSON-LD pseudo-blocks after text blocks, then one `mapPricedTexts` call and the existing `PRICE_MAX_BLOCKS` truncation. The model state for a pseudo-block is `{ competitor, page_url, page_type, text: redactForModel(text).slice(0, MAX_STATE_TEXT), prices }`. Dedupe with text observations by `keyOf`. Rows are ordinary page rows: `tracked_page_id` set, so the tracker's `PriceNow.source` is `'web'` (the code's value; the spec's "`'page'`" means this) and they count toward lowest price/90-day change.
 **Tests (TDD):** `Offer price 129 USD ⇒ exact 129`; `AggregateOffer lowPrice 79 ⇒ from 79`; `name "$20 off tune-up" ⇒ none`; `priceSpecification only ⇒ none`; `EUR ⇒ none`; `no currency ⇒ treated as USD (exact)`; `"1,299.00" ⇒ 1299`; `0 or > MAX_PRICE ⇒ none`; stage: a page with the same price in text and JSON-LD writes one span; a capture whose JSON-LD offer disappears ends that span; the block map caches by `jsonld|` sha (second run makes no model call).
 **Done when:** engine `src/prices` tests pass.
 
 ### Task 9: Re-discovery (refresh mode) and tracked-page hygiene
 
 **Goal:** D6 store, modes, new pages, gone/duplicate/replaced.
-**Files:** create `packages/collectors/src/discovery/page-key.ts` (+ test); modify `discovery/{discover,sitemap}.ts`, `discover.test.ts`, `sitemap.test.ts`; move `MAX_ACTIVE_PAGES` to `packages/core/src/domain.ts` (`packages/tools/src/limits.ts` re-exports).
+**Files:** create `packages/collectors/src/discovery/page-key.ts` (+ test); modify `discovery/{discover,sitemap}.ts`, `discover.test.ts`, `sitemap.test.ts`, `packages/collectors/src/index.ts` (export `pageKey`, `REDISCOVERY_DAYS`, `EVENT_PAGE_TYPES`); move `MAX_ACTIVE_PAGES` to `packages/core/src/domain.ts` (`packages/tools/src/limits.ts` re-exports; `discoverPages`' `opts.max ?? 25` uses it).
 
 **Interfaces:**
 ```ts
@@ -231,23 +233,24 @@ export function pageKey(url: string): string | null;   // 'example.com/services/
 export async function collectSitemapUrls(...): Promise<{ urls: string[]; truncated: boolean }>;
 export const EVENT_PAGE_TYPES: ReadonlySet<PageType>;   // service, service_area, pricing, promo
 export const REDISCOVERY_MAX_CLASSIFY = 20;
+export const REDISCOVERY_DAYS = 28;                      // defined here (Task 10 imports it)
 discoverPages(...) → { mode: 'initial' | 'refresh'; selected: number; candidates: number; newPages: number; deactivated: number; truncated: boolean; homepageStatus }
 ```
 
-**Behaviour:** per spec D6 bullets "One `discoverPages`, two modes", "Room", "Tracked-page hygiene". Candidates are keyed by `pageKey` (stored URL = first seen, prefer https). Home not ok ⇒ existing placeholder logic + `site_discovery` upsert (`last_run_at`, `homepage_status`, `runs+1`), no `site_url` writes. Every upsert that sets `active = true` also sets `inactive_reason = NULL` and only touches rows that are new or inactive `gone`. Classification failures fall back to `guessPageType` as today. `site_discovery` upsert at the end (`urls`, `truncated`, `runs+1`, `last_run_at`).
+**Behaviour:** per spec D6 bullets "One `discoverPages`, two modes", "Room", "Tracked-page hygiene". Candidates are keyed by `pageKey` (stored URL = first seen, prefer https). Home not ok ⇒ existing placeholder logic + `site_discovery` upsert (`last_run_at`, `homepage_status`, `runs+1`), no `site_url` writes. Every upsert that sets `active = true` also sets `inactive_reason = NULL` and only touches rows that are new or inactive `gone`. Classification failures fall back to `guessPageType` as today. `site_discovery` upsert at the end (`urls`, `truncated`, `runs+1`, `last_run_at`, and `next_due_at = greatest(existing, now() + REDISCOVERY_DAYS)` — also on the home-not-ok path — so a tool-started run is not followed by a scheduled one the next day; pre-flight fix, spec D6 "every 28 days").
 **Tests (TDD):** pageKey folds http/https/www/trailing slash/tracking params; initial run = selection + `site_url` baseline, no `appeared_at`; refresh with one new nav service URL ⇒ tracked with `appeared_at`; new `blog` URL ⇒ in `site_url`, not tracked; truncated this or previous run ⇒ sitemap-only new URLs ignored, nav ones kept; 21 new URLs ⇒ 20 classified; full (25) ⇒ replaces a `blog` page (`replaced`), never a pinned/manual one; 404 page missing from candidates ⇒ `gone`, re-activated when back; `manual` row never re-activated; duplicate http/https rows ⇒ one stays active.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/discovery` passes.
 
 ### Task 10: Scheduling and `add_tracked_page`
 
 **Goal:** 28-day cadence, worker gate, key-aware manual add.
-**Files:** create `packages/collectors/src/schedule/due-discovery.ts` (+ test); modify `apps/worker/src/jobs/web.ts` (job `discover-schedule`, cron `0 4 * * *`), `apps/worker/src/deps.ts`, `job-list.ts`; `packages/tools/src/tools/pages.ts` (+ `pages.test.ts`).
+**Files:** create `packages/collectors/src/schedule/due-discovery.ts` (+ test; export from `packages/collectors/src/index.ts`); modify `apps/worker/src/jobs/web.ts` (job `discover-schedule`, cron `0 4 * * *`), `apps/worker/src/deps.ts`, `job-list.ts`; `packages/tools/src/tools/pages.ts` (+ `pages.test.ts`).
 
-**Interfaces:** `claimDueDiscoveries(db: Db, limit: number): Promise<string[]>`; `REDISCOVERY_DAYS = 28`, `DISCOVERY_SCHEDULE_BATCH = 25`.
+**Interfaces:** `claimDueDiscoveries(db: Db, limit: number): Promise<string[]>`; `DISCOVERY_SCHEDULE_BATCH = 25`; `REDISCOVERY_DAYS` imported from Task 9. `createWebJobs(deps, queue, opts: { webMonitoring: boolean })`; `createJobList` passes `webMonitoring: opts.env.WEB_MONITORING_ENABLED?.trim() === 'true'` (pre-flight: the worker reads this var nowhere today except the staging check in `env.ts`; it reaches the worker through the host env — Railway/Docker — not `turbo.json`).
 
 **Behaviour:**
 - Claim (one transaction): insert `site_discovery` rows for eligible competitors without one (`ON CONFLICT DO NOTHING`), then `UPDATE … SET next_due_at = now() + interval '28 days' WHERE next_due_at <= now() AND competitor_id IN (eligible) … FOR UPDATE SKIP LOCKED LIMIT n RETURNING`. Eligible = `competitor.domain IS NOT NULL` and `EXISTS client_competitor` with `clientWorkAllowed('cl')` and `agencyServiceable`. Same DST-safe test approach as `due-pages.test.ts`.
-- `discover-schedule` returns at once (logged once) unless `env.WEB_MONITORING_ENABLED === 'true'`; enqueues `discover-pages` with singleton `discover:<id>`.
+- `discover-schedule` returns at once (logged once) unless `opts.webMonitoring`; enqueues `discover-pages` with singleton `discover:<id>`.
 - `add_tracked_page`: look up an existing row of the competitor by `pageKey`; if found, update it (pinned, active, `inactive_reason NULL`, daily) instead of inserting; the active-page limit uses `@cs/core` `MAX_ACTIVE_PAGES`.
 **Tests (TDD):** claims due/no-row competitors once, not concurrently twice; skips prospects, spend-paused, untracked and domain-less; job idles with the switch unset; `add_tracked_page` with `http://www.` of an existing `https://` row returns that row's id and re-activates a `manual` row (a human action may).
 **Done when:** collectors `src/schedule`, worker `jobs`, tools `pages` tests pass.
@@ -268,7 +271,7 @@ discoverPages(...) → { mode: 'initial' | 'refresh'; selected: number; candidat
 **Files:** modify `packages/tools/src/tools/{competitors,prospects}.ts` (+ tests), `apps/web/src/app/(app)/c/[clientId]/competitors/actions.ts` (copy map).
 
 **Interfaces:** `export type Discovery = 'queued' | 'disabled' | 'deferred' | 'not_needed'`; `startDiscovery(deps, competitorId, clientId): Promise<Discovery>`; tool output enums += `deferred`.
-**Behaviour:** order: switch off ⇒ `disabled`; client fails `clientWorkAllowed` (service read of `client`) ⇒ `deferred`; then today's checks. `accept_competitor_suggestion`, its bulk twin and `add_competitor` pass their `clientId`. `convert_prospect`, after `postCommitSeatSync`, calls `startDiscovery` for each `client_competitor` of the client (errors logged, never fail the conversion). Copy: `deferred: 'Website page discovery starts once monitoring runs for this client.'`
+**Behaviour:** order: switch off ⇒ `disabled`; client fails `clientWorkAllowed` (service read of `client`) ⇒ `deferred`; then today's checks. `accept_competitor_suggestion`, its bulk twin and `add_competitor` pass their `clientId`. `convert_prospect`, after `postCommitSeatSync`, calls `startDiscovery` for each `client_competitor` of the client (errors logged, never fail the conversion). Copy: `deferred: 'Website page discovery starts once monitoring runs for this client.'` In `actions.ts` the `DISCOVERY` map gains `deferred`, and the bulk-accept note (line ~63) picks `disabled` > `deferred` > `queued`.
 **Tests (TDD):** prospect add ⇒ `deferred`, no job; active client ⇒ `queued`; switch off ⇒ `disabled` even for a prospect; convert enqueues `discover-pages` once per competitor without pages; spend-paused ⇒ `deferred`.
 **Done when:** tools `competitors`, `prospects` tests pass; web typecheck clean.
 
