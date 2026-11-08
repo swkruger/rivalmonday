@@ -73,6 +73,9 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     },
   });
   const web = createWebJobs(deps, {
+    enqueueDiscover: async (competitorId) => {
+      await enqueue(boss, web.discover, { competitorId }, { singletonKey: `discover:${competitorId}` });
+    },
     enqueueCapture: async (trackedPageId, startAfter) => {
       const singletonKey = `capture:${trackedPageId}`;
       await enqueue(boss, web.capture, { trackedPageId }, startAfter === undefined ? { singletonKey } : { singletonKey, startAfter });
@@ -80,7 +83,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     enqueueDiff: async (captureId) => {
       if (deps.engineConfigured()) await enqueue(boss, engine.diff, { captureId }, { singletonKey: captureId });
     },
-  });
+  }, { webMonitoring: opts.env.WEB_MONITORING_ENABLED?.trim() === 'true' });
   const vendor = createVendorJobs(deps, {
     enqueueCollect: async (p) => {
       await enqueue(boss, vendor.collect, p);
@@ -169,7 +172,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   });
 
   return [
-    heartbeat, web.schedule, web.capture, web.discover, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
+    heartbeat, web.schedule, web.capture, web.discover, web.discoverSchedule, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
     rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, engine.adPrice, engine.siteFeatures, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,

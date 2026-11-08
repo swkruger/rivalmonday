@@ -19,15 +19,29 @@ describe('web jobs', () => {
   it('schedule job enqueues a capture job per claimed page', async () => {
     const enqueueCapture = vi.fn(async (_trackedPageId: string) => {});
     const deps = { claimDuePages: vi.fn(async () => ['p1', 'p2']) } as unknown as WorkerDeps;
-    const jobs = createWebJobs(deps, { enqueueCapture });
+    const jobs = createWebJobs(deps, { enqueueCapture }, { webMonitoring: true });
     expect(jobs.schedule.name).toBe('web-schedule');
     expect(jobs.schedule.cron).toBe('*/15 * * * *');
     await jobs.schedule.handler({});
     expect(enqueueCapture.mock.calls.map((c) => c[0])).toEqual(['p1', 'p2']);
   });
 
+  it('discover-schedule idles with the switch unset and enqueues claimed competitors when on (18a-2 D6)', async () => {
+    const claimDueDiscoveries = vi.fn(async () => ['c1', 'c2']);
+    const enqueueDiscover = vi.fn(async (_id: string) => {});
+    const off = createWebJobs({ claimDueDiscoveries } as unknown as WorkerDeps, { enqueueCapture: async () => {}, enqueueDiscover }, { webMonitoring: false });
+    expect(off.discoverSchedule.name).toBe('discover-schedule');
+    expect(off.discoverSchedule.cron).toBe('0 4 * * *');
+    await off.discoverSchedule.handler({});
+    expect(claimDueDiscoveries).not.toHaveBeenCalled();
+    const on = createWebJobs({ claimDueDiscoveries } as unknown as WorkerDeps, { enqueueCapture: async () => {}, enqueueDiscover }, { webMonitoring: true });
+    await on.discoverSchedule.handler({});
+    expect(claimDueDiscoveries).toHaveBeenCalledWith(25);
+    expect(enqueueDiscover.mock.calls.map((c) => c[0])).toEqual(['c1', 'c2']);
+  });
+
   it('validates payloads of capture and discovery jobs', () => {
-    const jobs = createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} });
+    const jobs = createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} }, { webMonitoring: true });
     expect(() => jobs.capture.schema.parse({ trackedPageId: 'nope' })).toThrow();
     expect(() => jobs.discover.schema.parse({ competitorId: '00000000-0000-4000-8000-0000000000f1' })).not.toThrow();
   });
@@ -35,19 +49,19 @@ describe('web jobs', () => {
   it('enqueues an engine diff after an ok capture only', async () => {
     const capturePage = vi.fn(async (id: string) => (id === 'a' ? { status: 'ok', captureId: 'cap-a' } : { status: 'unchanged' }));
     const enqueueDiff = vi.fn(async (_id: string) => {});
-    const jobs = createWebJobs({ capturePage } as unknown as WorkerDeps, { enqueueCapture: async () => {}, enqueueDiff });
+    const jobs = createWebJobs({ capturePage } as unknown as WorkerDeps, { enqueueCapture: async () => {}, enqueueDiff }, { webMonitoring: true });
     await jobs.capture.handler({ trackedPageId: 'a' });
     await jobs.capture.handler({ trackedPageId: 'b' });
     expect(enqueueDiff.mock.calls).toEqual([['cap-a']]);
   });
 
   it('dedupes queued page discovery per competitor (short policy)', () => {
-    const jobs = createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} });
+    const jobs = createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} }, { webMonitoring: true });
     expect(jobs.discover.queue?.policy).toBe('short');
   });
 
   it('capture queue is short (one queued job per page)', () => {
-    expect(createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} }).capture.queue?.policy).toBe('short');
+    expect(createWebJobs({} as WorkerDeps, { enqueueCapture: async () => {} }, { webMonitoring: true }).capture.queue?.policy).toBe('short');
   });
 
   it('deferral re-enqueues with startAfter and the capture singletonKey', async () => {

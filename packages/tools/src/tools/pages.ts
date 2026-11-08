@@ -1,9 +1,9 @@
-import { type AccessContext, canAccessClient, PAGE_TYPES, toolkit, ToolError } from '@cs/core';
+import { pageKey } from '@cs/collectors';
+import { type AccessContext, canAccessClient, MAX_ACTIVE_PAGES, PAGE_TYPES, toolkit, ToolError } from '@cs/core';
 import { clientCompetitor, competitor, type Db, trackedPage, withTenant } from '@cs/db';
-import { and, asc, count, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { MAX_ACTIVE_PAGES } from '../limits';
 import { TrackedPageView, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -81,12 +81,21 @@ export const addTrackedPage = defineTool({
     const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
     if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || host !== c.domain) throw new ToolError('invalid_input', `Pages must be on ${c.domain}`);
     parsed.hash = '';
-    const [active] = await deps.service.select({ n: count() }).from(trackedPage).where(and(eq(trackedPage.competitorId, competitorId), eq(trackedPage.active, true)));
-    if ((active?.n ?? 0) >= MAX_ACTIVE_PAGES) throw new ToolError('invalid_input', `A competitor can have at most ${MAX_ACTIVE_PAGES} monitored pages`);
+    // 18a-2 D6: the same page under another spelling (http/https, www, trailing slash, tracking params) is one row.
+    const key = pageKey(parsed.toString());
+    const rows = await deps.service.select({ id: trackedPage.id, url: trackedPage.url, active: trackedPage.active }).from(trackedPage).where(eq(trackedPage.competitorId, competitorId));
+    const existing = rows.find((r) => pageKey(r.url) === key);
+    // A human adding a page re-activates it even when it was switched off by hand ('manual') or by discovery.
+    if (existing) {
+      if (!existing.active && rows.filter((r) => r.active).length >= MAX_ACTIVE_PAGES) throw new ToolError('invalid_input', `A competitor can have at most ${MAX_ACTIVE_PAGES} monitored pages`);
+      await deps.service.update(trackedPage).set({ pinned: true, active: true, inactiveReason: null, cadence: 'daily' }).where(eq(trackedPage.id, existing.id));
+      return { pageId: existing.id };
+    }
+    if (rows.filter((r) => r.active).length >= MAX_ACTIVE_PAGES) throw new ToolError('invalid_input', `A competitor can have at most ${MAX_ACTIVE_PAGES} monitored pages`);
     const [row] = await deps.service
       .insert(trackedPage)
       .values({ competitorId, url: parsed.toString(), pageType, source: 'manual', pinned: true, active: true, cadence: 'daily' })
-      .onConflictDoUpdate({ target: [trackedPage.competitorId, trackedPage.url], set: { pinned: true, active: true, cadence: 'daily' } })
+      .onConflictDoUpdate({ target: [trackedPage.competitorId, trackedPage.url], set: { pinned: true, active: true, inactiveReason: null, cadence: 'daily' } })
       .returning({ id: trackedPage.id });
     return { pageId: row!.id };
   },

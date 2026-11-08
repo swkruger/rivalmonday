@@ -59,6 +59,15 @@ describe('tracked pages', () => {
     await expect(reg(true).invoke(amA1, 'add_tracked_page', { ...input, url: 'https://smithhvac.com/one-more' })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringContaining('25') });
   });
 
+  it('add_tracked_page matches an existing row by page key and re-activates a manual-off row (18a-2 D6)', async () => {
+    const [off] = await dbs.owner.insert(trackedPage).values({ competitorId: IDS.competitorX, url: 'https://smithhvac.com/pricing', pageType: 'pricing', source: 'nav', cadence: 'weekly', active: false, inactiveReason: 'manual' }).returning();
+    const input = { clientId: IDS.clientA1, competitorId: IDS.competitorX, url: 'http://www.smithhvac.com/pricing/?utm_source=x', pageType: 'pricing' };
+    const { pageId } = (await reg(true).invoke(amA1, 'add_tracked_page', input)) as { pageId: string };
+    expect(pageId).toBe(off!.id);
+    expect((await dbs.owner.select().from(trackedPage).where(eq(trackedPage.id, off!.id)))[0]).toMatchObject({ url: 'https://smithhvac.com/pricing', active: true, pinned: true, cadence: 'daily', inactiveReason: null });
+    expect(await dbs.owner.select().from(trackedPage).where(eq(trackedPage.competitorId, IDS.competitorX))).toHaveLength(2);
+  });
+
   it('refuses to add a page for a competitor the client does not track (cross-scope, Review Focus 1)', async () => {
     const input = { clientId: IDS.clientA2, competitorId: IDS.competitorX, url: 'https://www.smithhvac.com/specials', pageType: 'promo' };
     await expect(reg(true).invoke(amA1, 'add_tracked_page', input)).rejects.toMatchObject({ code: 'not_found' });

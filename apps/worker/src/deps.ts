@@ -1,6 +1,6 @@
 import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
-  capturePage, claimDuePages, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
+  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
@@ -71,6 +71,8 @@ export interface WorkerDeps {
   /** The daemon's shared spend guard; `undefined` when built with `{ aiGuard: false }` (the `*-once` CLIs). */
   aiGuard(): AiGuard | undefined;
   claimDuePages(limit: number): Promise<string[]>;
+  /** 18a-2 D6: competitors whose site discovery is due (28-day cadence); advances their next_due_at. */
+  claimDueDiscoveries(limit: number): Promise<string[]>;
   /** 7c2: `deferred` (+ `retryInMs`) when the page's host is busy or its next slot is > 10 s away. */
   capturePage(trackedPageId: string): Promise<CapturePageResult>;
   /** True once OPENROUTER_API_KEY is set — gates the intelligence engine (embeddings + decisions). */
@@ -387,6 +389,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   return {
     aiGuard,
     claimDuePages: (limit) => claimDuePages(getDb(), limit),
+    claimDueDiscoveries: (limit) => claimDueDiscoveries(getDb(), limit),
     capturePage: (id) => capturePage({ db: getDb(), store: getStore(), renderer: getRenderer() }, id),
     engineConfigured: () => Boolean(env.OPENROUTER_API_KEY),
     async diffCapture(captureId) {
