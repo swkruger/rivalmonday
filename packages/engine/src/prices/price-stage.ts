@@ -3,7 +3,7 @@ import { jsonLdOffers, redactForModel } from '@cs/collectors';
 import { capture, competitor, type Db, evidence, priceBlockMap, pricePoint, stageRun, trackedPage } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import type { VerticalPack } from '@cs/verticals';
-import { and, eq, inArray, isNull, max, ne } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, max, ne } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import { runStage, type StageOutcome } from '../stage';
 import { serviceQuestionKey } from '../tag/questions';
@@ -107,12 +107,25 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
 
       const textBlocks = (await loadBlocks(deps.db, captureId)).map((b) => ({ sha: b.textSha, text: b.text, obs: pricesInBlock(b.text) })).filter((x) => x.obs.length > 0);
       // JSON-LD offers of the stored page html (never re-fetched) join as pseudo-blocks after the text blocks (spec D5).
-      const [html] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, captureId), eq(evidence.kind, 'html'))).limit(1);
-      const gz = html ? await deps.store.get(html.objectKey) : null;
-      const offers = gz ? offerPrices(jsonLdOffers(new TextDecoder().decode(gunzipSync(gz)))) : [];
+      // An unreadable html (no evidence row, missing object, bad gzip) is a partial read: text prices are still
+      // written but no span ends, as the JSON-LD offers could not be checked.
+      let htmlRead = false;
+      let offers: ReturnType<typeof offerPrices> = [];
+      try {
+        const [html] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, captureId), eq(evidence.kind, 'html'))).orderBy(asc(evidence.createdAt), asc(evidence.id)).limit(1);
+        const gz = html ? await deps.store.get(html.objectKey) : null;
+        if (gz) {
+          offers = offerPrices(jsonLdOffers(new TextDecoder().decode(gunzipSync(gz))));
+          htmlRead = true;
+        }
+      } catch {
+        htmlRead = false;
+      }
+      if (!htmlRead) console.warn(`[engine] capture ${captureId} html unreadable; JSON-LD offers not checked, no spans end`);
       const priced = [...textBlocks, ...offers];
-      const truncated = priced.length > PRICE_MAX_BLOCKS;
-      if (truncated) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
+      const overCap = priced.length > PRICE_MAX_BLOCKS;
+      const truncated = overCap || !htmlRead;
+      if (overCap) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
       const blocks = priced.slice(0, PRICE_MAX_BLOCKS);
       const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, cap.competitorId)).limit(1);
       const [page] = await deps.db.select({ url: trackedPage.url, pageType: trackedPage.pageType }).from(trackedPage).where(eq(trackedPage.id, pageId)).limit(1);

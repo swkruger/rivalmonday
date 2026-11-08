@@ -1,5 +1,5 @@
 import type { DecisionQuestion } from '@cs/ai';
-import { competitor, priceBlockMap, pricePoint } from '@cs/db';
+import { capture as captureTable, captureBlock, competitor, priceBlockMap, pricePoint, stageRun } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { asc } from 'drizzle-orm';
@@ -7,6 +7,10 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { choice, createFakeAi, type DecideFn } from '../../test/fake-ai';
 import { day, seedPage, seedWebCapture } from '../../test/seed';
 import { findEngineWork } from '../sweep';
+import { sha256Hex } from '@cs/collectors';
+import { randomUUID } from 'node:crypto';
+import { ensureBlocks, EXTRACT_STAGE } from '../web/blocks';
+import { EXTRACTOR_VERSION } from '../web/extract';
 import { createPackLoader } from '../tag/tag-stage';
 import { extractPrices, PRICE_MAX_BLOCKS } from './price-stage';
 
@@ -158,6 +162,35 @@ describe('extractPrices', () => {
       await extractPrices(deps, await capture(html, day(1)));
       expect(ai.calls.decide).toHaveLength(1);
       expect((await dbs.owner.select().from(priceBlockMap)).every((m) => /^[0-9a-f]{64}$/.test(m.textSha))).toBe(true);
+    });
+
+    it('an unreadable html (evidence row missing, or store object null) ends no span but still writes text prices', async () => {
+      const bare = '<html><body><main><h2>Our prices</h2><p>Call us</p></main></body></html>';
+      for (const mode of ['no-row', 'null-object'] as const) {
+        await truncateAll(dbs.owner);
+        await seedTenancy(dbs.owner);
+        pageId = await seedPage(dbs.service, IDS.competitorX, 'https://smithhvac.example/pricing', 'pricing');
+        const ai = createFakeAi({ decide: byText() });
+        const deps = { db: dbs.service, store, ai, packs };
+        await extractPrices(deps, await capture(`<html><head>${offerLd(129)}</head>${bare.slice(6)}`, day(0)));
+        expect((await points()).map((p) => p.endedAt)).toEqual([null]);
+
+        const text = 'Water heater installs from $1,299';
+        let c1: string;
+        if (mode === 'no-row') {
+          // Evidence is immutable, so seed a capture with cached blocks and no html evidence row at all.
+          c1 = randomUUID();
+          await dbs.owner.insert(captureTable).values({ id: c1, competitorId: IDS.competitorX, trackedPageId: pageId, source: 'web', url: 'https://smithhvac.example/pricing', status: 'ok', httpStatus: 200, collectorVersion: 'web/2', capturedAt: day(1) });
+          await dbs.owner.insert(captureBlock).values({ captureId: c1, competitorId: IDS.competitorX, trackedPageId: pageId, ord: 0, blockKey: 'b0', path: 'main>p', text, textSha: sha256Hex(text) });
+          await dbs.owner.insert(stageRun).values({ stage: EXTRACT_STAGE, stageVersion: EXTRACTOR_VERSION, subjectId: c1, status: 'done', finishedAt: day(1) });
+        } else {
+          c1 = await capture(`<html><body><main><h2>Our prices</h2><p>${text}</p></main></body></html>`, day(1));
+          await ensureBlocks(deps, c1); // blocks cached, so the html is not needed to build them
+        }
+        const r = await extractPrices({ ...deps, store: mode === 'null-object' ? { ...store, get: async () => null } : store }, c1);
+        expect(r).toEqual({ ran: true, result: { points: 1, ended: 0 } });
+        expect((await points()).map((p) => [p.amount, p.endedAt])).toEqual([[129, null], [1299, null]]);
+      }
     });
 
     it('a discount or EUR offer never becomes a price', async () => {
