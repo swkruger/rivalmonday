@@ -124,4 +124,13 @@ describe('catalogue seed', () => {
     expect(sql).toContain('\\"topics\\":');
     expect(sql).not.toMatch(/theme/i);
   });
+
+  it.each(['hvac_plumbing', 'dental', 'generic'])('%s seed matches the pack scoring version and weights', async (id) => {
+    const sql = await readFile(join(PACKS_DIR, '../../db/src/catalog-seed.sql.ts'), 'utf8');
+    const pack = await loadVerticalPack(id);
+    const row = sql.split('INSERT INTO vertical (').find((r) => r.includes(`VALUES ('${id}'`)) ?? '';
+    expect(row, 'seed row missing; run pnpm --filter @cs/verticals seed-sql').not.toBe('');
+    expect(row).toContain(`\\"version\\":${pack.scoring.version}}`);
+    for (const k of Object.keys(pack.type_weights)) expect(row).toContain(`\\"${k}\\":`);
+  });
 });
