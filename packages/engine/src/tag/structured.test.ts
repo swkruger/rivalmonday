@@ -180,10 +180,7 @@ describe('web-channel structured changes (18a-2)', () => {
     expect(added).not.toMatch(/ServiceTitan/);
   });
   it('new_page summary quotes the first item label (h1/title), else the path, and never afterText', () => {
-    const multi = '/furnace-repair
-Furnace Repair
-We fix furnaces fast.
-Our process';
+    const multi = ['/furnace-repair', 'Furnace Repair', 'We fix furnaces fast.', 'Our process'].join(String.fromCharCode(10));
     expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: multi, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair', items: [{ id: 'h1', label: 'Furnace Repair' }] } })).toBe('Added a new page to its website: "Furnace Repair"');
     const noLabel = buildStructuredSummary({ source: 'web', beforeText: null, afterText: multi, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } });
     expect(noLabel).toBe('Added a new page to its website: "/furnace-repair"');
