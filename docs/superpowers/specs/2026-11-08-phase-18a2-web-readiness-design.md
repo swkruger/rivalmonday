@@ -159,7 +159,7 @@ Copy: `deferred: 'Website page discovery starts once monitoring runs for this cl
 
 ## Interfaces summary
 
-Migration `0101_web_readiness`: `capture.markup_sha`, `tracked_page.{inactive_reason, appeared_at}` + CHECK,
+Migrations `0101_web_readiness_pack_v6` (pack data) + `0102_web_readiness`: `capture.markup_sha`, `tracked_page.{inactive_reason, appeared_at}` + CHECK,
 `site_url`, `site_discovery` (RLS forced, `service_only`), pack v6 data. Collectors: `web/markup.ts`
 (`siteFeatures`, `jsonLdOffers`, `markupSha`, `SITE_FEATURE_REGISTRY*`), `discovery/page-key.ts` (`pageKey`),
 `schedule/due-discovery.ts` (`claimDueDiscoveries`). Engine: `web/site-feature-stage.ts`, `prices/json-ld.ts`,

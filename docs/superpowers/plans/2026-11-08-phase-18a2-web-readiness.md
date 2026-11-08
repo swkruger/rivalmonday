@@ -28,7 +28,7 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 ## File structure
 
 - `packages/core/src/domain.ts` (types, `MAX_ACTIVE_PAGES`), `site-features.ts` (create: categories/labels), `help/glossary.ts`.
-- `packages/db/src/schema/{evidence,engine}.ts`, `packages/db/migrations/0101_web_readiness.sql`, `packages/db/test/{table-classes,isolation-world}.ts`, `packages/db/src/catalog-seed.sql.ts` (generated).
+- `packages/db/src/schema/{evidence,engine}.ts`, `packages/db/migrations/0102_web_readiness.sql`, `packages/db/test/{table-classes,isolation-world}.ts`, `packages/db/src/catalog-seed.sql.ts` (generated).
 - `packages/verticals/{src/schema.ts,packs/*.yaml}`.
 - `packages/collectors/src/web/markup.ts` (+ `markup-registry.ts`, fixtures under `src/web/__fixtures__/markup/`), `evidence/recorder.ts`, `discovery/{discover,sitemap,page-key}.ts`, `schedule/due-discovery.ts`.
 - `packages/engine/src/{score/score.ts,score/score-stage.ts,tag/{structured,tag-stage}.ts,model-ops/resolve.ts,events/retract.ts,briefs/{evidence,writer}.ts,web/{diff-stage,site-feature-stage}.ts,prices/{json-ld,price-stage}.ts,sweep.ts,drain.ts}`.
@@ -81,7 +81,7 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 **Tests (TDD):** `site_feature added scores 42 → brief`; `site_feature with thresholds {alert:10,brief:5} routes brief, briefOnly true`; `new_page none-service scores 42, unmatched 8`; `detailsSignature distinguishes added/removed and two page keys`; packs: every shipped pack has both weights and version 6; domain: categories have labels.
 **Done when:** `npx vitest run src/score` (engine), `pnpm --filter @cs/verticals test`, `pnpm --filter @cs/core test`, `pnpm --filter @cs/email exec vitest run src/labels` pass; tsc clean for core/db/verticals/engine/email.
 
-### Task 2: Migration 0101 (schema + pack data) and table classes
+### Task 2: Migration 0102 (schema; pack v6 data already in Task 1's 0101_web_readiness_pack_v6 — do not repeat it) and table classes
 
 **Goal:** columns, two `service_only` tables, pack v6 in stored configs, regenerated seed.
 **Files:** `packages/db/src/schema/evidence.ts` (`capture.markupSha`, `trackedPage.{inactiveReason, appearedAt}`, `siteUrl`, `siteDiscovery`); generate `0101_web_readiness` with `pnpm --filter @cs/db generate --name=web_readiness`, then append the hand SQL below; `packages/db/test/{table-classes,isolation-world}.ts`; `packages/db/src/catalog-seed.sql.ts` via `pnpm --filter @cs/verticals seed-sql`; test `packages/db/src/web-readiness.test.ts` (create; pattern `wider-sources-backfill.test.ts`); fix `packages/collectors/src/schedule/due-pages.test.ts:28` (inserts `active: false` ⇒ add `inactiveReason: 'manual'`, the only fixture the CHECK breaks — pre-flight).
@@ -279,7 +279,7 @@ discoverPages(...) → { mode: 'initial' | 'refresh'; selected: number; candidat
 
 **Files:** `docs/work/phase-18a.md` (Interfaces + Rollout for 18a-2), `docs/OPS.md` (new section "Switching on website monitoring (18a-2)"), `docs/help/pages/client.changes.{agency,client}.md`, `client.pricing.md`, `client.competitors.detail.{agency,client}.md` (`kb:seed` keys unchanged).
 
-- [ ] Work file: migration 0101, both change types, `capture.markup_sha`, `site_url`/`site_discovery`, `tracked_page.{inactive_reason, appeared_at}`, stage `site_features`, jobs `discover-schedule`/`engine-site-features`, `Discovery.deferred`, `WEB_COLLECTOR_VERSION web/2`, registry v1.
+- [ ] Work file: migrations 0101 (pack v6) + 0102 (schema), both change types, `capture.markup_sha`, `site_url`/`site_discovery`, `tracked_page.{inactive_reason, appeared_at}`, stage `site_features`, jobs `discover-schedule`/`engine-site-features`, `Discovery.deferred`, `WEB_COLLECTOR_VERSION web/2`, registry v1.
 - [ ] OPS: after `rivalmonday.app/bot` loads: set `WEB_MONITORING_ENABLED=true` on **web and worker**; first `discover-schedule` runs baseline every tracked competitor (≤ 25/day; no events on a first run); `collect-once` dry checks; how to read `site_discovery`; registry update = add entry with `since` = new version (no stage bump); crawler-ban link.
 - [ ] Help: changes guides list the two new types; pricing guide says prices also come from a page's structured price data; competitor detail guides: pages are re-checked monthly and new pages added automatically.
 - [ ] Re-score not needed (new types only on new captures). Backlog: tracked-pages and prospect items closed; own-site prices kept; new item "later → competitor-page website tools section".
