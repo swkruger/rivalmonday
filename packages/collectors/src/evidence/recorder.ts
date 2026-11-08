@@ -4,9 +4,10 @@ import type { ObjectStore } from '@cs/storage';
 import { and, desc, eq } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
+import { markupSha } from '../web/markup';
 import type { RenderedPage } from '../web/renderer';
 
-export const WEB_COLLECTOR_VERSION = 'web/1';
+export const WEB_COLLECTOR_VERSION = 'web/2';
 
 export function normalizeText(text: string): string {
   return text
@@ -31,7 +32,7 @@ export interface WebCaptureInput {
   page: RenderedPage;
 }
 
-/** Hash-first, immutable capture: unchanged text → no objects and no screenshot (spec §4.2, §4.4). */
+/** Hash-first, immutable capture: unchanged text and markup → no objects and no screenshot (spec §4.2, §4.4). */
 export async function recordWebCapture(deps: RecorderDeps, input: WebCaptureInput): Promise<{ captureId: string; status: CaptureStatus; evidenceKeys: string[] }> {
   const now = deps.now ?? (() => new Date());
   const { trackedPage: tp, page } = input;
@@ -45,8 +46,9 @@ export async function recordWebCapture(deps: RecorderDeps, input: WebCaptureInpu
 
   const text = normalizeText(page.text);
   const textSha = sha256Hex(text);
+  const markup = markupSha(page.html);
   const [last] = await deps.db
-    .select({ sha: evidence.sha256 })
+    .select({ sha: evidence.sha256, markup: capture.markupSha })
     .from(capture)
     .innerJoin(evidence, and(eq(evidence.captureId, capture.id), eq(evidence.kind, 'text')))
     .where(and(eq(capture.trackedPageId, tp.id), eq(capture.status, 'ok')))
@@ -54,9 +56,9 @@ export async function recordWebCapture(deps: RecorderDeps, input: WebCaptureInpu
     .limit(1);
 
   const capturedAt = now();
-  if (last?.sha === textSha) {
+  if (last?.sha === textSha && last.markup === markup) {
     await deps.db.transaction(async (tx) => {
-      await tx.insert(capture).values({ ...base, status: 'unchanged', capturedAt });
+      await tx.insert(capture).values({ ...base, status: 'unchanged', markupSha: markup, capturedAt });
       await tx.update(trackedPage).set({ lastCapturedAt: capturedAt }).where(eq(trackedPage.id, tp.id));
     });
     return { captureId, status: 'unchanged', evidenceKeys: [] };
@@ -86,7 +88,7 @@ export async function recordWebCapture(deps: RecorderDeps, input: WebCaptureInpu
   for (const o of objects) await deps.store.put(o.key, o.body, o.contentType);
 
   await deps.db.transaction(async (tx) => {
-    await tx.insert(capture).values({ ...base, status: 'ok', capturedAt });
+    await tx.insert(capture).values({ ...base, status: 'ok', markupSha: markup, capturedAt });
     await tx.insert(evidence).values(
       objects.map((o) => ({ captureId, kind: o.kind, objectKey: o.key, sha256: o.sha, bytes: o.body.byteLength, contentType: o.contentType })),
     );

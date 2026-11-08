@@ -4,8 +4,9 @@ import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { markupSha } from '../web/markup';
 import type { RenderedPage } from '../web/renderer';
-import { recordWebCapture } from './recorder';
+import { recordWebCapture, sha256Hex } from './recorder';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -59,6 +60,43 @@ describe('recordWebCapture', () => {
     expect(r).toMatchObject({ status: 'unchanged', evidenceKeys: [] });
     expect(put).not.toHaveBeenCalled();
     expect(again.screenshot).not.toHaveBeenCalled();
+  });
+
+  const BOOKING = '<script src="https://widget.calendly.com/assets/external/widget.js"></script>';
+
+  it('same text, new booking script => ok with html/text/screenshot', async () => {
+    const store = createMemoryStore();
+    await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: page('AC tune-up $99') });
+    const r = await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: page('AC tune-up $99', { html: `<html><body>AC tune-up $99${BOOKING}</body></html>` }) });
+    expect(r.status).toBe('ok');
+    expect(r.evidenceKeys).toHaveLength(3);
+  });
+
+  it('same text and markup => unchanged with markup_sha', async () => {
+    const store = createMemoryStore();
+    const html = `<html><body>AC tune-up $99${BOOKING}</body></html>`;
+    await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: page('AC tune-up $99', { html }) });
+    const r = await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: page('AC tune-up $99', { html }) });
+    expect(r.status).toBe('unchanged');
+    const [row] = await dbs.service.select().from(capture).where(eq(capture.id, r.captureId));
+    expect(row?.markupSha).toBe(markupSha(html));
+    expect(row?.collectorVersion).toBe('web/2');
+  });
+
+  it('previous capture without markup_sha => ok', async () => {
+    const store = createMemoryStore();
+    const [old] = await dbs.service.insert(capture).values({ competitorId: tp.competitorId, trackedPageId: PAGE, source: 'web', url: tp.url, status: 'ok', httpStatus: 200, collectorVersion: 'web/1', capturedAt: now() }).returning({ id: capture.id });
+    await dbs.service.insert(evidence).values({ captureId: old?.id as string, kind: 'text', objectKey: 'legacy/text.txt', sha256: sha256Hex('AC tune-up $99'), bytes: 14, contentType: 'text/plain' });
+    const r = await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: page('AC tune-up $99') });
+    expect(r.status).toBe('ok');
+  });
+
+  it('markup_sha stored on ok', async () => {
+    const store = createMemoryStore();
+    const p = page('AC tune-up $99');
+    const r = await recordWebCapture({ db: dbs.service, store, now }, { trackedPage: tp, page: p });
+    const [row] = await dbs.service.select().from(capture).where(eq(capture.id, r.captureId));
+    expect(row?.markupSha).toBe(markupSha(p.html));
   });
 
   it('stores a new capture when the text changes', async () => {
