@@ -109,8 +109,8 @@ jobs:
 
   # Staging (docs/STAGING.md): every push to main migrates and deploys staging.rivalmonday.app first; production waits
   # for it. Off until the repo variable STAGING_DEPLOY_ENABLED is 'true'. Same steps as `deploy`, but Vercel custom
-  # environment `staging`, and no worker (it runs locally: STAGING.md § Local worker). Shares the `staging` group with
-  # staging-refresh.yml.
+  # environment `staging`, and the worker goes to Railway project `rivalmonday-staging` (STAGING.md § 4) once the app
+  # answers. Shares the `staging` group with staging-refresh.yml.
   deploy-staging:
     needs: [test, image]
     if: vars.STAGING_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -163,6 +163,11 @@ jobs:
         run: |
           curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
           curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/sign-in"
+      - name: Railway deploy (staging worker; waits until it is live)
+        # RAILWAY_TOKEN here is the rivalmonday-staging project token (GitHub environment `staging`), never production's.
+        run: bash scripts/railway-deploy-worker.sh rivalmonday-worker
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   # Staging marketing site. No placeholder or facts gate here (staging is noindex); production keeps both.
   deploy-staging-site:
@@ -250,10 +255,8 @@ jobs:
         run: npx --yes vercel@62.4.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      - name: Stamp worker release
-        run: echo "$GITHUB_SHA" > apps/worker/.release
-      - name: Railway deploy (worker)
-        run: npx --yes @railway/cli@5.63.1 up --ci --service rivalmonday-worker
+      - name: Railway deploy (worker; release = commit SHA; waits until it is live)
+        run: bash scripts/railway-deploy-worker.sh rivalmonday-worker
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       - name: Sentry release (worker)

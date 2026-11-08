@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stagingWorkerEnv } from './worker-env';
+import { railwayWorkerVars, stagingWorkerEnv } from './worker-env';
 
 const DIRECT = 'ep-staging.c-7.us-east-2.aws.neon.tech';
 const POOLED = 'ep-staging-pooler.c-7.us-east-2.aws.neon.tech';
@@ -123,5 +123,32 @@ describe('stagingWorkerEnv', () => {
     }
     expect(message).toMatch(/STADIA_API_KEY/);
     expect(message).not.toMatch(/dfs-p|apify|r2-secret/);
+  });
+});
+
+describe('railwayWorkerVars', () => {
+  it('sends the worker values only: DATABASE_URL from WORKER_DATABASE_URL, no NODE_ENV/PORT, no web or file-only keys', () => {
+    const vars = railwayWorkerVars(FILE);
+    expect(vars.DATABASE_URL).toBe(FILE.WORKER_DATABASE_URL);
+    expect(vars.SERVICE_DATABASE_POOLED_URL).toBe(FILE.SERVICE_DATABASE_POOLED_URL);
+    expect(vars.STADIA_API_KEY).toBe('stadia');
+    for (const k of ['NODE_ENV', 'PORT', 'STRIPE_SECRET_KEY', 'WEB_DATABASE_URL', 'WORKER_DATABASE_URL', 'STAGING_DB_DIRECT_HOST']) {
+      expect(vars).not.toHaveProperty(k);
+    }
+    expect(Object.keys(vars)).toHaveLength(20);
+  });
+
+  it('applies the local worker checks (refused line, wrong host)', () => {
+    expect(() => railwayWorkerVars({ ...FILE, VENDOR_FAKE_MODE: 'fixtures' })).toThrow(/Refusing VENDOR_FAKE_MODE/);
+    expect(() => railwayWorkerVars({ ...FILE, WORKER_DATABASE_URL: url('cs_worker', POOLED) })).toThrow(/Refusing WORKER_DATABASE_URL/);
+  });
+
+  it('ignores the shell', () => {
+    process.env.WEB_MONITORING_ENABLED = 'true';
+    try {
+      expect(railwayWorkerVars(FILE)).not.toHaveProperty('WEB_MONITORING_ENABLED');
+    } finally {
+      delete process.env.WEB_MONITORING_ENABLED;
+    }
   });
 });

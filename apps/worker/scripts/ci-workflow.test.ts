@@ -14,9 +14,15 @@ interface Job {
   'continue-on-error'?: unknown;
 }
 
-const raw = readFileSync(new URL('../../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const read = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), 'utf8');
+const raw = read('.github/workflows/ci.yml');
 const wf = parse(raw) as { jobs: Record<string, Job> };
 const deploy = wf.jobs.deploy!;
+const deployStaging = wf.jobs['deploy-staging']!;
+const refreshRaw = read('.github/workflows/staging-refresh.yml');
+const refresh = (parse(refreshRaw) as { jobs: Record<string, Job> }).jobs.refresh!;
+const workerScript = read('scripts/railway-deploy-worker.sh');
+const WORKER_DEPLOY = /bash scripts\/railway-deploy-worker\.sh rivalmonday-worker/;
 const stepIndex = (job: Job, re: RegExp) => job.steps.findIndex((s) => re.test(s.run ?? ''));
 const step = (job: Job, re: RegExp) => job.steps[stepIndex(job, re)];
 const MIGRATION_URL = '${{ secrets.MIGRATION_DATABASE_URL }}';
@@ -44,7 +50,7 @@ describe('ci workflow shape', () => {
       /pnpm --filter @cs\/db predeploy-check/,
       /pnpm --filter @cs\/db migrate/,
       /vercel@\S+ deploy --prebuilt --prod/,
-      /@railway\/cli@\S+ up --ci --service rivalmonday-worker/,
+      WORKER_DEPLOY,
       /@sentry\/cli@\S+ releases finalize/,
     ].map((re) => stepIndex(deploy, re));
     expect(order.every((i) => i >= 0)).toBe(true);
@@ -60,16 +66,49 @@ describe('ci workflow shape', () => {
   });
 
   it('pins the deploy CLIs to exact versions', () => {
-    const runs = deploy.steps.map((s) => s.run ?? '').join('\n');
+    const runs = [...deploy.steps.map((s) => s.run ?? ''), workerScript].join('\n');
     for (const cli of ['vercel', '@railway/cli', '@sentry/cli']) {
       expect(runs).toMatch(new RegExp(`${cli.replace('/', '\\/')}@\\d+\\.\\d+\\.\\d+(\\s|$)`));
     }
   });
 
-  it('writes the worker release file before railway up', () => {
-    const release = stepIndex(deploy, /\$GITHUB_SHA.*> apps\/worker\/\.release/);
+  it('the worker deploy sets SENTRY_RELEASE as a variable before railway up (up skips the git-ignored .release)', () => {
+    const release = workerScript.indexOf('variable set "SENTRY_RELEASE=$sha"');
     expect(release).toBeGreaterThanOrEqual(0);
-    expect(release).toBeLessThanOrEqual(stepIndex(deploy, /@railway\/cli@\S+ up /));
+    expect(release).toBeLessThan(workerScript.indexOf('railway up --ci --service'));
+    expect(workerScript).toContain('--skip-deploys');
+    expect(raw).not.toContain('apps/worker/.release');
+  });
+
+  it('the worker deploy waits for the uploaded deployment to reach SUCCESS', () => {
+    expect(workerScript).toMatch(/deployment list --service/);
+    expect(workerScript).toMatch(/SUCCESS\)/);
+    expect(workerScript).toMatch(/FAILED\|CRASHED/);
+  });
+
+  it('deploy-staging deploys the Railway staging worker after migrate and the app smoke test', () => {
+    const migrate = stepIndex(deployStaging, /@cs\/db migrate/);
+    const smoke = stepIndex(deployStaging, /\/sign-in/);
+    const worker = stepIndex(deployStaging, WORKER_DEPLOY);
+    expect(migrate).toBeGreaterThanOrEqual(0);
+    expect(smoke).toBeGreaterThan(migrate);
+    expect(worker).toBeGreaterThan(smoke);
+    expect(deployStaging.steps[worker]?.env?.RAILWAY_TOKEN).toBe('${{ secrets.RAILWAY_TOKEN }}');
+    expect(deployStaging.environment).toBe('staging');
+  });
+
+  it('staging-refresh stops the worker before the reset and redeploys it after migrating', () => {
+    const stop = stepIndex(refresh, /railway\/cli@\S+ down --service rivalmonday-worker -y/);
+    const connected = stepIndex(refresh, /usename = 'cs_worker'/);
+    const reset = stepIndex(refresh, /\/restore/);
+    const migrate = stepIndex(refresh, /@cs\/db migrate/);
+    const redeploy = stepIndex(refresh, WORKER_DEPLOY);
+    expect(stop).toBeGreaterThanOrEqual(0);
+    expect(connected).toBe(stop);
+    expect(reset).toBeGreaterThan(stop);
+    expect(redeploy).toBeGreaterThan(migrate);
+    expect(refresh.environment).toBe('staging');
+    expect(refreshRaw).not.toContain('continue-on-error');
   });
 
   it('has no continue-on-error anywhere', () => {

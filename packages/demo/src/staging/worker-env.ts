@@ -64,3 +64,14 @@ export function stagingWorkerEnv(file: Record<string, string | undefined>, shell
   env.PORT = '8081';
   return env;
 }
+
+/**
+ * docs/STAGING.md § 4: the Railway staging worker's variables, after the same checks as the local worker. Nothing from
+ * the shell, and not NODE_ENV/PORT (the image sets both). `pnpm staging:railway-vars` sends these to Railway.
+ */
+export function railwayWorkerVars(file: Record<string, string | undefined>): Record<string, string> {
+  const env = stagingWorkerEnv(file, {});
+  const vars: Record<string, string> = {};
+  for (const k of [...PASSED, 'DATABASE_URL']) vars[k] = env[k]!;
+  return vars;
+}

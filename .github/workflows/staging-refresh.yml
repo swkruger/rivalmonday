@@ -1,7 +1,8 @@
 name: staging-refresh
-# Replaces staging data with a fresh copy of cs_dev (docs/STAGING.md § Refresh): refuses while the local staging worker
-# is connected, resets the Neon `staging` branch from its parent, neutralises dev's queued work
-# (infra/db/staging/after-refresh.sql) and migrates to main. Manual only; shares the `staging` group with ci.yml `deploy-staging`.
+# Replaces staging data with a fresh copy of cs_dev (docs/STAGING.md § Refresh): stops the Railway staging worker and
+# refuses while any worker is still connected, resets the Neon `staging` branch from its parent, neutralises dev's queued
+# work (infra/db/staging/after-refresh.sql), migrates to main and redeploys the worker. Manual only; shares the `staging`
+# group with ci.yml `deploy-staging`. A failure after the stop leaves the worker stopped (STAGING.md § 4 to start it).
 on:
   workflow_dispatch:
     inputs:
@@ -40,14 +41,23 @@ jobs:
       - name: Check the target (branch named staging, has a parent, owner URL is its direct endpoint)
         run: bash scripts/staging-target-check.sh
 
-      - name: Refuse while the staging worker is connected (no job may run against the half-refreshed copy)
-        # The worker runs on the owner's machine, so CI cannot stop it. A worker left running would pick up dev's copied
-        # jobs before the clean-up below. It is the only cs_worker client, and pg-boss keeps its connections open.
+      - name: Stop the Railway staging worker, then refuse while any worker is connected (no job may run on the half-refreshed copy)
+        # A worker left running would pick up dev's copied jobs before the clean-up below. It is the only cs_worker client,
+        # and pg-boss keeps its connections open. `down` fails when nothing is deployed; the connection check decides.
+        # CI cannot stop a local fallback worker (pnpm staging:up): that one the owner stops with Ctrl+C.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -euo pipefail
-          connected=$(psql "$DATABASE_URL" -XtAc "SELECT count(*) FROM pg_stat_activity WHERE usename = 'cs_worker'")
+          npx --yes @railway/cli@5.63.1 down --service rivalmonday-worker -y || echo "No active Railway deployment to remove."
+          connected=unknown
+          for _ in $(seq 1 18); do
+            connected=$(psql "$DATABASE_URL" -XtAc "SELECT count(*) FROM pg_stat_activity WHERE usename = 'cs_worker'")
+            [ "$connected" = "0" ] && break
+            sleep 10
+          done
           if [ "$connected" != "0" ]; then
-            echo "::error::The staging worker is running ($connected connections). Stop it (Ctrl+C), wait a moment, then run this again."
+            echo "::error::A staging worker is still connected ($connected connections) 3 minutes after the Railway stop. Stop a local one (Ctrl+C), then run this again."
             exit 1
           fi
 
@@ -117,3 +127,7 @@ jobs:
       - name: Smoke (staging app answers)
         if: ${{ !inputs.first_run }}
         run: curl -fsS --retry 6 --retry-delay 10 --retry-all-errors -o /dev/null "$STAGING_APP_URL/health"
+      - name: Redeploy the staging worker (Railway; waits until it is live)
+        run: bash scripts/railway-deploy-worker.sh rivalmonday-worker
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
