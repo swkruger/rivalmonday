@@ -4,7 +4,7 @@
 
 Agency-owned white-label SaaS that monitors competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, a remote **MCP server**, an in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to the agency's clients first, then wholesale.
 
-**Start each session with `/rm-start`.**
+**Start sessions with `/rm-start`.**
 
 ## Where things are
 | Need | Read |
@@ -43,8 +43,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Help (15b):** guides = `docs/help/pages/` Markdown via `kb:seed` (`help_key` `page:<context>.<page>`; client roles never get agency/operator help); short copy = `server-only` TS in `help/copy/`; glossary = one `@cs/core` list; every `PageHeader` page needs a help key + guides.
 - **Copy sign-off:** owner signs in local `pnpm copy:review`; ledger `docs/copy/signoff.json`; new email template/variant ⇒ preview in `@cs/email` `previews.ts`.
 - **Onboarding (16):** L7 split flows (`OnboardingShell`, `(onboarding)`); owners never enter `/setup` (pick page only while `waiting_owner`); search = keywords + centre (no place id; Stadia geocode); images only on the 4 O14 screens.
-- **Hosting (7a):** Vercel iad1 + one worker + own Neon prod; CI migrate → deploy (`DEPLOY_ENABLED`); staging `docs/STAGING.md`. Roles `cs_worker`/`cs_web` (no owner URL). Sentry + pino via `redactForLog`.
-- **Brief signal (2026-11-07):** whole-business vendor events use `relevance.whole_business` 1.0 (scoring v4; only `rating_change` can alert); writers mirror evidence wording, τ unchanged; GBP guard (votes-drop, two-capture hold); staging worker runs live vendors (fixtures only on the rehearsal stack).
+- **Hosting (7a):** Vercel iad1 + one worker + own Neon prod; CI migrate → deploy (`DEPLOY_ENABLED`); staging `docs/STAGING.md` (live vendors). Roles `cs_worker`/`cs_web` (no owner URL). Sentry + pino via `redactForLog`.
 - **Safety (7a):** SSRF guard (`@cs/collectors` `net/guard.ts`) = only fetch path for user-supplied URLs. Plan features gate Ask/MCP (`hasChannel`). Archived = deleted for tenants (`archived_at`); purge CLI after >= 30 d; evidence never deleted.
 - **Cost guards (7b):** nothing usage-billed; tenant credits (1 USD = 100); only staff set limits; 100 % = notice, 130 % = auto-pause client AI/paid work; spike +100 % alert / +200 % pause all AI until staff reset; Jev counts as a provider; paid-work schedulers use `clientWorkAllowed`; fake gateway refused on Vercel; `max_redemptions` = local holder count; a second live client subscription is ignored.
 - **Launch gate:** every page ≤ 8 app DB stages (`bash apps/web/scripts/profile-gate.sh --seed`) before a live deploy; successful web reads audit via `after()`, writes/failures/support/non-web stay awaited; no cross-request cache or `cookieCache`.
