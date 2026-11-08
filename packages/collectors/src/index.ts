@@ -46,6 +46,7 @@ export * from './vendors/fixture-fetch';
 export * from './vendors/meta-search';
 export * from './vendors/scrapecreators';
 export * from './web/blocked';
+export * from './web/markup';
 export * from './web/polite';
 export * from './web/rate-limit';
 export * from './net/guard';
