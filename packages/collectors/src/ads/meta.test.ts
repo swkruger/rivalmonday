@@ -1,4 +1,4 @@
-import { ad, capture } from '@cs/db';
+import { ad, capture, observation } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -38,6 +38,16 @@ describe('collectMetaAds', () => {
     const rows = await dbs.service.select().from(ad);
     expect(rows.find((a) => a.externalId === 'OLD')).toMatchObject({ isActive: false });
     expect(rows.find((a) => a.externalId === 'A1')).toMatchObject({ isActive: true });
+  });
+
+  it('writes a meta_page observation at the capture time', async () => {
+    const item = { ...apifyItem, page_id: '99', page_name: 'Smith HVAC', snapshot: { ...apifyItem.snapshot, page_like_count: 250 } };
+    const fetch = vi.fn(async () => new Response(JSON.stringify([item]), { status: 201 }));
+    await collectMetaAds({ db: dbs.service, store: createMemoryStore(), ledger, apify: { token: 't' }, fetch: fetch as unknown as typeof globalThis.fetch }, { id: IDS.competitorX, metaPageIds: ['99'] });
+    const [cap] = await dbs.service.select().from(capture);
+    const rows = await dbs.service.select().from(observation);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'meta_page', key: '99', data: { pageId: '99', pageName: 'Smith HVAC', likes: 250 }, observedAt: cap!.capturedAt });
   });
 
   it('apify meta ledgers the competitor scope', async () => {

@@ -1,5 +1,6 @@
 export * from './ads/google';
 export * from './ads/meta';
+export * from './ads/meta-page';
 export * from './ads/upsert';
 export * from './capture/capture-page';
 export * from './discovery/classify';

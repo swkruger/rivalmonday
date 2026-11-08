@@ -20,6 +20,7 @@
     "billing:sync-plan": "tsx src/cli/billing-sync-plan.ts",
     "runbook:backfill": "tsx src/cli/runbook-backfill.ts",
     "rescore": "tsx src/cli/rescore.ts",
+    "meta-page-backfill": "tsx src/cli/meta-page-backfill.ts",
     "fixture-hosts": "tsx src/cli/fixture-hosts.ts",
     "smoke:image": "tsx scripts/image-smoke.ts"
   },

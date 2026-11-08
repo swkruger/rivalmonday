@@ -18,7 +18,7 @@ export interface VendorCaptureInput {
 export async function recordVendorCapture(
   deps: { db: Db; store: ObjectStore; now?: () => Date },
   input: VendorCaptureInput,
-): Promise<{ captureId: string; objectKey: string | null }> {
+): Promise<{ captureId: string; objectKey: string | null; capturedAt: Date }> {
   const captureId = randomUUID();
   const capturedAt = (deps.now ?? (() => new Date()))();
   const row = {
@@ -33,7 +33,7 @@ export async function recordVendorCapture(
   };
   if (input.status !== 'ok' || input.payload === undefined) {
     await deps.db.insert(capture).values(row);
-    return { captureId, objectKey: null };
+    return { captureId, objectKey: null, capturedAt };
   }
   const json = JSON.stringify(input.payload);
   const body = new Uint8Array(gzipSync(json));
@@ -50,5 +50,5 @@ export async function recordVendorCapture(
       contentType: 'application/gzip',
     });
   });
-  return { captureId, objectKey };
+  return { captureId, objectKey, capturedAt };
 }

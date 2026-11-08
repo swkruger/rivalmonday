@@ -8,6 +8,7 @@ import { fetchMetaAdsApify } from '../vendors/apify';
 import { parseDfsTimestamp } from '../vendors/dfs-time';
 import { VendorError } from '../vendors/errors';
 import { fetchMetaAdsScrapeCreators } from '../vendors/scrapecreators';
+import { pageReadingFrom, writeMetaPageObservation } from './meta-page';
 import { type NormalizedAd, upsertAds } from './upsert';
 
 export const META_COLLECTOR_VERSION = 'meta/1';
@@ -103,7 +104,9 @@ async function collectMetaPage(deps: MetaDeps, competitorId: string, pageId: str
       errors.push(`${vendor}: ${err.code ?? ''} ${err.message}`.trim());
       continue;
     }
-    const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw, truncated } });
+    const { captureId, capturedAt } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: { vendor, items: raw, truncated } });
+    const reading = pageReadingFrom(raw, pageId);
+    if (reading) await writeMetaPageObservation(deps.db, { competitorId, captureId, capturedAt }, reading);
     // An ad without a vendor page id belongs to the page we asked for.
     const ads = raw.map(normalizeMetaAd).filter((a): a is NormalizedAd => a !== null).map((a) => ({ ...a, advertiserId: a.advertiserId ?? pageId }));
     // Only the active set was requested, so anything previously active and now missing has ended —
