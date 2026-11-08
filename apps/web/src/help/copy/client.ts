@@ -147,6 +147,11 @@ export const CLIENT_COPY = {
         title: 'Open moves',
         body: 'How many of this competitor\'s moves are still open. A move is a pattern across several of its changes, such as a price war. Select the number to open the Moves page.',
       },
+      // source: packages/tools/src/tools/audience.ts:getAudienceTrend (meta_page observations, one reading per ISO week; the page shows the stat from 4 weekly readings)
+      audience: {
+        title: 'Facebook Page likes',
+        body: "Likes on the competitor's Facebook Page, read each week while they run Meta ads. Shown once there are four weekly readings.",
+      },
       // source: packages/tools/src/tools/pages.ts:setPagePin (pinned = daily cadence, otherwise the default cadence for the page type); packages/db/src/schema/evidence.ts:trackedPage (shared by every client tracking the competitor)
       pinned: {
         title: 'Pinned pages',

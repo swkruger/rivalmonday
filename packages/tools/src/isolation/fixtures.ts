@@ -96,6 +96,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_move: clientWith((w, t) => ({ moveId: idOf(w, 'move', t.tenant) })),
   get_competitor_profile: clientWith((w, t) => ({ competitorId: competitorOf(w, t) })),
   get_competitor_timeline: clientWith((w, t) => ({ competitorId: competitorOf(w, t), days: 30 })),
+  get_audience_trend: clientWith((w, t) => ({ competitorId: competitorOf(w, t) })),
   get_alert_rules: client(),
 
   // ── client: pricing, ads, reputation, rankings ─────────────────────────────────────────────────────

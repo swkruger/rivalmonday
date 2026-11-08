@@ -471,3 +471,12 @@ export const StartingPointStatus = z.discriminatedUnion('state', [
   z.object({ state: z.literal('sent'), briefId: uuid }),
 ]);
 export type StartingPointStatus = z.infer<typeof StartingPointStatus>;
+
+// 18a-1 audience trend (Task 7): Facebook Page likes per ISO week, per page. Pages are never summed.
+export const AudienceTrend = z.object({
+  pages: z.array(z.object({
+    pageId: z.string(), pageName: z.string().nullable(),
+    points: z.array(z.object({ week: z.string(), likes: z.number().int() })),
+  })),
+});
+export type AudienceTrend = z.infer<typeof AudienceTrend>;

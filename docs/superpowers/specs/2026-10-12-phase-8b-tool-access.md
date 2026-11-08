@@ -28,6 +28,7 @@ list_clients (clients.ts) | read | read-only
 get_client_profile (clients.ts) | read | read-only
 get_competitor_profile (competitor-profile.ts) | read | read-only
 get_competitor_timeline (competitor-profile.ts) | read | read-only
+get_audience_trend (audience.ts) | read | read-only
 list_competitor_suggestions (competitors.ts) | read | read-only
 request_competitor_suggestions (competitors.ts) | write | inserts discovery_run, enqueues rival-search job
 get_competitor_search_status (competitors.ts) | read | reads latest discovery_run only

@@ -1,7 +1,7 @@
 import { formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdActivityView, AdList, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
+import type { AdActivityView, AdList, AudienceTrend, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
 import { Card, CardContent, CardHeader, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -72,7 +72,7 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides, adActivity, ratingTrend] = await Promise.all([
+  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides, adActivity, ratingTrend, audience] = await Promise.all([
     loadCompetitor(ctx, clientId, competitorId),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
@@ -88,9 +88,13 @@ export default async function CompetitorProfilePage({
     // Sparkline traces for two KPIs: a refused read leaves the Kpi plain instead of 404-ing the page.
     tryCallTool<AdActivityView>(ctx, 'get_ad_activity', { clientId, competitorId, weeks: 12 }),
     tryCallTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
+    // Facebook Page likes (18a-1): a refused or empty read simply leaves the stat out.
+    tryCallTool<AudienceTrend>(ctx, 'get_audience_trend', { clientId, competitorId }),
   ]);
   const adsTrace = adActivity?.series.find((x) => x.competitorId === competitorId)?.points;
   const ratingTrace = ratingTrend?.businesses.find((b) => b.competitorId === competitorId)?.monthly.map((m) => m.avgRating);
+  const fbPage = audience?.pages[0];
+  const showLikes = fbPage !== undefined && fbPage.points.length >= 4;
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
   const tz = client.timezone;
@@ -169,6 +173,15 @@ export default async function CompetitorProfilePage({
               traceLabel={adsTrace ? 'Active ads, last 12 weeks' : undefined}
               caption={`Google ${profile.activeAds.google} · Meta ${profile.activeAds.meta}`}
             />
+            {showLikes && (
+              <Kpi
+                label={kpiLabel('Facebook Page likes', <HelpTip tip="client.competitors.detail.audience" />)}
+                value={fbPage.points.at(-1)!.likes.toLocaleString('en-US')}
+                trace={fbPage.points.map((x) => x.likes)}
+                traceLabel={`Page likes, ${fbPage.points.length} weekly readings`}
+                caption={fbPage.pageName ?? undefined}
+              />
+            )}
             <Kpi
               label={kpiLabel('Open moves', <HelpTip tip="client.competitors.detail.openMoves" />)}
               value={

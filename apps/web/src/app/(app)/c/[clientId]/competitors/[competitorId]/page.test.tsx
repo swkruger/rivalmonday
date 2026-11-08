@@ -3,10 +3,11 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
+const tryCallTool = vi.fn();
 let role = 'client_owner';
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role, features: new Set(['dashboard']) } }) }));
 vi.mock('../actions', () => ({ setPinAction: vi.fn(), addPageAction: vi.fn(), confirmAdMatchAction: vi.fn(), removeAdMatchAction: vi.fn() }));
-vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: vi.fn(), registry: vi.fn() }));
+vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => tryCallTool(...a), registry: vi.fn() }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({}) }));
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: ({ tip, term }: { tip?: string; term?: string }) => <button type="button">{'tip ' + (tip ?? term)}</button> }));
 const timeline = vi.hoisted(() => ({ suspend: false }));
@@ -17,7 +18,7 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 import CompetitorProfilePage from './page';
 
 describe('CompetitorProfilePage', () => {
-  beforeEach(() => { callTool.mockReset(); role = 'client_owner'; pagesItems = []; gbp = null; });
+  beforeEach(() => { callTool.mockReset(); tryCallTool.mockReset(); role = 'client_owner'; pagesItems = []; gbp = null; });
   afterEach(cleanup);
 
   it('starts every read in one batch and still 404s on a bad id, without unhandled rejections', async () => {
@@ -92,6 +93,28 @@ describe('CompetitorProfilePage', () => {
     } finally {
       timeline.suspend = false;
     }
+  });
+
+  describe('Facebook Page likes stat', () => {
+    const weeks = (n: number) => Array.from({ length: n }, (_, i) => ({ week: `2026-10-${String(5 + i * 7).padStart(2, '0')}`, likes: 1000 + i * 10 }));
+    const withPoints = (n: number) => tryCallTool.mockImplementation(async (_c: unknown, tool: string) => (tool === 'get_audience_trend' ? { pages: [{ pageId: '9', pageName: 'Smith HVAC', points: weeks(n) }] } : null));
+
+    it('stat hidden with 3 weekly points, shown with 4', async () => {
+      withPoints(3);
+      await renderPage();
+      expect(screen.queryByText('Facebook Page likes')).toBeNull();
+      cleanup();
+      withPoints(4);
+      await renderPage();
+      expect(screen.getByText('Facebook Page likes')).toBeTruthy();
+      expect(screen.getByText('1,030')).toBeTruthy();
+      expect(screen.getByText('Smith HVAC', { selector: '[data-slot=kpi] *' })).toBeTruthy();
+    });
+
+    it('stays out when the read returns nothing', async () => {
+      await renderPage();
+      expect(screen.queryByText('Facebook Page likes')).toBeNull();
+    });
   });
 
   it('reads source statuses as words, not codes', async () => {
