@@ -157,6 +157,13 @@ describe('loadEventEvidence structured lines', () => {
     expect(text).toContain('Before: "1 Main St, Frisco"\nAfter: "9 Oak Ave, Plano"');
   });
 
+  it('a status change renders the status in reader words', async () => {
+    const text = await gbp({ changeType: 'status_change', statusBefore: 'open', statusAfter: 'closed_forever' }, 'status: open', 'status: closed_forever');
+    expect(text).toContain('Before: "status: open"\nAfter: "status: permanently closed"');
+    const transient = await gbp({ changeType: 'status_change', statusBefore: 'closed_forever', statusAfter: 'close' }, 'status: closed_forever', 'status: close');
+    expect(transient).toContain('After: "status: open"');
+  });
+
   it('web changes keep their Added/Removed/Before/After lines', async () => {
     const a = await ev({ before: 'AC tune-up $89', after: 'AC tune-up $69' });
     const text = (await loadEventEvidence(dbs.service, [a.eventId], [])).get(a.eventId)![0]!.text;

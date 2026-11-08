@@ -199,6 +199,27 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['review-velocity'],
   },
   {
+    // source: packages/engine/src/structured/gbp.ts (status_change, business_status); packages/engine/src/briefs/evidence.ts:GBP_STATUS_PHRASE
+    id: 'opening-status-change',
+    term: 'Opening status change',
+    audience: 'all',
+    short: 'Google now lists the business as closed, or open again after being closed.',
+  },
+  {
+    // source: packages/engine/src/structured/gbp.ts (profile_change: title, website, hours, description)
+    id: 'profile-change',
+    term: 'Profile change',
+    audience: 'all',
+    short: 'The business changed its name, website, opening hours or description on its Google profile.',
+  },
+  {
+    // source: Facebook Page likes growth over about four weeks (audience_growth change type)
+    id: 'audience-growth',
+    term: 'Audience growth',
+    audience: 'all',
+    short: "The business's Facebook Page gained a large share of likes in about four weeks.",
+  },
+  {
     // source: packages/engine/src/reviews/benchmark.ts:summarizeWindow (share = mentioning / asked), sentimentScore; topics (defined per business type in the packs): packages/verticals/packs/*.yaml
     id: 'topic',
     term: 'Topic',

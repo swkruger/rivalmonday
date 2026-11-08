@@ -23,6 +23,12 @@ export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
   google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings',
 };
 
+/** Google Business Profile `business_status` values in reader words; any other (transient open/close/closing_soon...) value reads `open`. */
+export const GBP_STATUS_PHRASE: Record<string, string> = { closed_forever: 'permanently closed', temporarily_closed: 'temporarily closed', open: 'open' };
+
+/** `status: closed_forever` -> `status: permanently closed` (before/after text of a `status_change`). */
+const statusText = (s: string): string => s.replace(/^status:\s*(\S+)\s*$/, (_m, raw: string) => `status: ${GBP_STATUS_PHRASE[raw] ?? 'open'}`);
+
 const trunc = (s: string) => (s.length > EVIDENCE_TEXT_CHARS ? `${s.slice(0, EVIDENCE_TEXT_CHARS - 1)}…` : s);
 
 /** Scraped text sits inside <evidence>/<candidate> blocks of the writer prompt: never let it close or open one. */
@@ -39,7 +45,10 @@ function describe(c: typeof detectedChange.$inferSelect, names: string[]): strin
     else lines.push(`Before: "${red(c.beforeText)}"`, `After: "${red(c.afterText)}"`);
   } else {
     lines.push(redactForModel(buildStructuredSummary(c, names), { businessNames: names }));
-    if (c.kind === 'modified' && c.beforeText !== null && c.afterText !== null) lines.push(`Before: "${red(c.beforeText)}"`, `After: "${red(c.afterText)}"`);
+    if (c.kind === 'modified' && c.beforeText !== null && c.afterText !== null) {
+      const status = c.details.changeType === 'status_change';
+      lines.push(`Before: "${red(status ? statusText(c.beforeText) : c.beforeText)}"`, `After: "${red(status ? statusText(c.afterText) : c.afterText)}"`);
+    }
     const labels = (c.details.items ?? []).slice(0, ITEM_LABELS).map((i) => red(i.label));
     if (labels.length > 0) lines.push(`Items: ${labels.join('; ')}`);
   }
