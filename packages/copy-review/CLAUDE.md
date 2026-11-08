@@ -26,3 +26,6 @@
 
 ## Comments become agent work
 `copy:status --todo` → apply the edits in source → those items return as "changed" → owner re-signs → `--prune`. A comment is keyed to the text it was made on, so after the edit it no longer matches any item: `--todo` then lists it under "Orphaned comments" (check the current text) until `--prune` removes it. Signing resolves only comments on the signed `(file, hash)`.
+
+## Branches
+- A branch's new strings exist only in its worktree: the owner must run `pnpm copy:review` there (a run in the main checkout signs main's strings only). Commit main's ledger before rebasing the branch, or the merge conflicts on `signoff.json`.
