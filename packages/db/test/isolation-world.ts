@@ -260,6 +260,8 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
   });
   // service_only, competitor-linked (no tenant column; recorded under the competitor tenant)
   await b.ins('competitor_source', k, { competitor_id: competitorId, source: 'google_reviews', last_status: `ok ${b.c(k)}` });
+  await b.ins('site_url', k, { competitor_id: competitorId, url_key: `${comp.domain}/about ${b.c(k)}`, url: `https://${comp.domain}/about?ref=${b.c(k)}`, source: 'sitemap' });
+  await b.ins('site_discovery', k, { competitor_id: competitorId, homepage_status: `ok ${b.c(k)}`, urls: 1 });
   await b.ins('vendor_task', k, { id: b.id('vendor_task', k), vendor: 'dataforseo', kind: 'reviews', external_task_id: `world-task-${k} ${b.c(k)}`, competitor_id: competitorId });
   await b.ins('volatile_block', k, { tracked_page_id: pageId, block_key: `clock ${b.c(k)}`, key_capture_id: afterCaptureId });
   // public (client_id NULL) change + event on this competitor (class tenant_client; recorded under the competitor tenant)

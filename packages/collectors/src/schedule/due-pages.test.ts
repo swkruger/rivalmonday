@@ -25,7 +25,7 @@ beforeEach(async () => {
     { ...base, url: 'https://s.example/due-daily', cadence: 'daily', nextDueAt: sql`now() - interval '1 minute'` },
     { ...base, url: 'https://s.example/due-weekly', cadence: 'weekly', nextDueAt: sql`now() - interval '1 hour'` },
     { ...base, url: 'https://s.example/future', cadence: 'daily', nextDueAt: sql`now() + interval '1 hour'` },
-    { ...base, url: 'https://s.example/inactive', cadence: 'daily', active: false, nextDueAt: sql`now() - interval '1 hour'` },
+    { ...base, url: 'https://s.example/inactive', cadence: 'daily', active: false, inactiveReason: 'manual', nextDueAt: sql`now() - interval '1 hour'` },
   ]);
 });
 

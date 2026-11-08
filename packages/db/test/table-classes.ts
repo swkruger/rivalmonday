@@ -103,6 +103,8 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   runbook_item: 'service_only',
   score_failure: 'service_only',
   ops_alert: 'service_only',
+  site_discovery: 'service_only',
+  site_url: 'service_only',
   spend_guard_event: 'service_only',
   stage_run: 'service_only',
   stripe_connect_event: 'service_only',

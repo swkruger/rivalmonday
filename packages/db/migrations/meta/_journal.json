@@ -715,6 +715,13 @@
       "when": 1794167356919,
       "tag": "0101_web_readiness_pack_v6",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794167679226,
+      "tag": "0102_web_readiness",
+      "breakpoints": true
     }
   ]
 }
