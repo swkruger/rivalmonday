@@ -10,7 +10,7 @@ Menu names below were correct when written. If a website has moved something, lo
 |---|---|---|
 | App | Dashboards, sign-in, API and MCP | Vercel, at **https://staging.rivalmonday.app** |
 | Marketing site | The public website, hidden from search engines | Vercel, at **https://staging.rivalmonday.com** |
-| Worker | Background jobs: briefs, data collection, queued email | **Your computer** (Railway isn't accepting sign-ups) |
+| Worker | Background jobs: briefs, data collection, queued email | **Railway**, project `rivalmonday-staging`, service `rivalmonday-worker` |
 | Database | A copy of `cs_dev` | Neon, branch `staging` of your dev project |
 | Evidence files | Screenshots and PDFs | Cloudflare R2, bucket `rivalmonday-staging` |
 | Email | Sign-in links and notifications | Postmark, server "Rival Monday staging" |
@@ -21,8 +21,7 @@ Menu names below were correct when written. If a website has moved something, lo
 
 ### How staging behaves
 
-- **Website updates are automatic.** After setup, every push to `main` that passes its tests updates the app and the site.
-- **The worker updates when you restart it.** It runs on your computer, so GitHub can't update it (§ 4).
+- **Updates are automatic.** After setup, every push to `main` that passes its tests updates the app, the worker (Railway) and the site.
 - **Data only changes when you ask.** The `staging-refresh` action replaces all staging data with a fresh copy of `cs_dev` (§ 5). Anything you did on staging since the last refresh is lost.
 - **Vendors are live, like pilot.** Calls to DataForSEO, Apify, ScrapeCreators and Stadia are real and cost money; the per-client spend limits apply (set them on staging, see "Switch to live vendors" in § 5). Web monitoring stays off.
 - **No competitor websites are crawled.** `WEB_MONITORING_ENABLED` stays unset (the worker refuses it).
@@ -41,9 +40,9 @@ Menu names below were correct when written. If a website has moved something, lo
 
 ## Before you start
 
-1. **Accounts you need:** Neon (you have this), Cloudflare, Postmark, OpenRouter, Sentry, Stripe (test mode), Cloudflare Turnstile, Namecheap (you have this), GitHub, and **Vercel on the Pro plan**, because the free plan has no custom environments.
+1. **Accounts you need:** Neon (you have this), **Railway on the Hobby plan** (the free trial stops services when its credit runs out), Cloudflare, Postmark, OpenRouter, Sentry, Stripe (test mode), Cloudflare Turnstile, Namecheap (you have this), GitHub, and **Vercel on the Pro plan**, because the free plan has no custom environments.
 2. **Tests must pass on `main`.** GitHub won't deploy staging while the `ci` action is failing. Check at *GitHub → Actions → ci*: the latest `main` run must be green. Fix any failures first.
-3. **Your local commits must be pushed.** The refresh action and the worker both use what's on GitHub, so run `git push origin main`.
+3. **Your local commits must be pushed.** The refresh action and the worker deploy both use what's on GitHub, so run `git push origin main`.
 
 **To make a new random secret,** run this in a terminal and copy the output:
 ```powershell
@@ -287,13 +286,9 @@ Remove-Item Env:R2_*
 ```
 It reports how many files were uploaded and how many were already there. It never overwrites a file.
 
-### Step 17: Start the worker
+### Step 17: Deploy the worker (Railway)
 
-From your main repo folder:
-```powershell
-pnpm staging:up
-```
-The first run takes a few minutes. Leave the window open. § 4 has the details.
+Do § 4 **One-time setup**, then § 4 **Deploy or update the worker**. The first build takes about 10 minutes.
 
 ### Step 18: Turn on automatic deploys
 
@@ -309,21 +304,21 @@ Go through § 6.
 
 ## 2. What goes where
 
-`.env.staging` is in your main repo folder. Most values get pasted somewhere once. The worker reads its own values directly from the file.
+`.env.staging` is in your main repo folder. Each value gets pasted somewhere once.
 
 | Values | Goes to |
 |---|---|
 | GitHub section | GitHub environment `staging` (step 14) |
 | App values | Vercel app project, `staging` environment (step 11) |
 | Site values | Vercel site project, `staging` environment (step 12) |
-| Worker values | Nowhere: `pnpm staging:up` reads the file |
+| Worker values | Railway service `rivalmonday-worker`, **Variables** (§ 4, step 7). The local fallback `pnpm staging:up` reads the file itself |
 
 **Values shared with dev on purpose:**
 - `REVIEWER_HASH_SALT` must match dev's, because the copied reviews were hashed with it. Never change it.
 - `STRIPE_SECRET_KEY`, the same test key.
 - The Turnstile keys, the same widget.
 
-**Vendor keys (required, worker only):** the worker reads these from `.env.staging` and won't start without all five, real:
+**Vendor keys (required, worker only):** these go in `.env.staging` and in the Railway variables, all five, real:
 ```
 DATAFORSEO_LOGIN=
 DATAFORSEO_PASSWORD=
@@ -331,7 +326,7 @@ APIFY_TOKEN=
 SCRAPECREATORS_API_KEY=
 STADIA_API_KEY=
 ```
-Staging runs live vendors like pilot. Do **not** put `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS` or `WEB_MONITORING_ENABLED` in the file: the worker refuses all three (fixtures belong to the rehearsal stack in DEPLOY.md only). A key set to `fixture` is refused too.
+Staging runs live vendors like pilot. Do **not** put `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS` or `WEB_MONITORING_ENABLED` in the file or on Railway: the local launcher refuses all three, but **the Railway worker doesn't check them**, so leaving one in silently changes what staging does (fixtures belong to the rehearsal stack in DEPLOY.md only). A key set to `fixture` is refused too.
 
 Everything else is staging's own. If you add a new environment variable to the code later, it also needs adding to `globalPassThroughEnv` in `turbo.json`.
 
@@ -339,34 +334,95 @@ Everything else is staging's own. If you add a new environment variable to the c
 
 Each refresh brings new database rows that may point to new evidence files. After a refresh, run the commands in step 16 again. Only new files upload.
 
-## 4. Local worker
+## 4. Worker (Railway)
 
-The worker does background jobs, so staging needs it running whenever you're testing briefs, data collection or queued email.
+The worker does background jobs, so staging needs it running whenever you're testing briefs, data collection or queued email. It runs on Railway as one container, built from `apps/worker/Dockerfile`, the same image production will use.
 
-**To start it, or to pick up new code:**
+**GitHub deploys it.** After each push to `main`, `deploy-staging` migrates the database, updates the app, then runs `scripts/railway-deploy-worker.sh`. That script uploads the commit, tags its Sentry release, and waits until Railway reports the new deployment live. The `staging-refresh` action stops the worker before it resets the data and deploys it again afterwards. You only deploy by hand when the setup changes (**Deploy or update the worker**), from the clean copy of `main` in `../CompetitorSpy-wt/staging-worker`. **Never run `railway up` from your main repo folder:** it would upload your uncommitted edits.
+
+### One-time setup
+
+**A. Account and command-line tool**
+
+1. Sign up at [railway.com](https://railway.com) (signing in with GitHub is fine). Choose the **Hobby** plan and add a card.
+2. In PowerShell, install the Railway CLI. This is the same version CI uses:
+   ```powershell
+   npm install -g @railway/cli@5.63.1
+   railway --version
+   ```
+3. Run `railway login`. A browser window opens. Approve it there.
+
+**B. Project and service**
+
+4. In the Railway dashboard, click **New → Empty Project**. Open the project's **Settings** and rename it `rivalmonday-staging`. Railway names its only environment `production`. Leave that as it is: everything in this project is staging.
+5. In the project, click **Create → Empty Service** and name it `rivalmonday-worker`. **Don't connect a GitHub repo.** Uploads from the CLI are the only way to deploy it, so nothing deploys by itself.
+6. Open the service's **Settings**:
+   - Railway no longer lets new services use a config file, so copy the values of `apps/worker/railway.json` into the settings: **Dockerfile path** `apps/worker/Dockerfile`, **healthcheck path** `/healthz` with a **300 s** timeout, **restart policy** On failure (10 retries), **draining** 40 s, **overlap** 0 s. If `railway.json` changes, change these too.
+   - **Region:** US East (Virginia), the closest to the staging database.
+   - **Root directory:** empty.
+   - **Serverless** (app sleeping): off.
+   - **Networking:** don't add a public domain. The worker needs none, and Railway runs the health check from inside.
+   - **Replicas:** 1, from the file. Never more than one.
+
+**C. Variables**
+
+7. Do step 9 first, then run this from your main repo folder:
+   ```powershell
+   pnpm staging:railway-vars
+   ```
+   It runs the same checks as the local worker on `.env.staging` (roles and staging hosts in the three database addresses, a `-staging` bucket, `SENTRY_ENVIRONMENT=staging`, five real vendor keys, none of the refused lines), then sets the 20 worker variables on `rivalmonday-worker`. `DATABASE_URL` gets the value of `WORKER_DATABASE_URL`. It prints names only. `pnpm staging:railway-vars --check` only runs the checks.
+8. Run it again whenever a worker value in `.env.staging` changes. The change applies at the next deploy. The command never deletes a Railway variable, so remove an old one under **Variables** yourself. **Never add** `NODE_ENV` or `PORT` (the image sets both), `WEB_MONITORING_ENABLED`, `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS`, `AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `CRAWL_HOST_ALLOWLIST`, `DEV_PANEL` or `EVIDENCE_FS_DIR`. The Railway worker doesn't refuse them.
+
+**D. Link the worker folder**
+
+9. From your main repo folder:
+   ```powershell
+   git fetch origin main
+   if (-not (Test-Path ..\CompetitorSpy-wt\staging-worker)) { git worktree add --detach ..\CompetitorSpy-wt\staging-worker origin/main }
+   Push-Location ..\CompetitorSpy-wt\staging-worker
+   railway link
+   Pop-Location
+   ```
+   `railway link` asks you to choose: pick your workspace, project `rivalmonday-staging`, environment `production` and service `rivalmonday-worker`. It saves the link in Railway's settings on your computer, not in the repo.
+
+**E. Let GitHub deploy it**
+
+10. In the Railway project, open **Settings → Tokens**, create a token for environment `production` named `github-ci-staging`, and copy it.
+11. In GitHub, open **Settings → Environments → staging** and add it as the secret `RAILWAY_TOKEN`. Or, in PowerShell, run `gh secret set RAILWAY_TOKEN --env staging` and paste the token when asked. It belongs to `rivalmonday-staging` only: production gets its own token, in the `production` environment.
+
+### Deploy or update the worker
+
+CI does this after each push and each refresh. Do it by hand only for the first deploy, after changing variables, or to start a stopped worker. From your main repo folder in PowerShell:
+
 ```powershell
-pnpm staging:up
+git fetch origin main
+git -C ..\CompetitorSpy-wt\staging-worker checkout -q --detach origin/main
+git -C ..\CompetitorSpy-wt\staging-worker status --porcelain
 ```
-This does four things:
-1. Fetches the latest `main`.
-2. Creates or updates a separate folder, `../CompetitorSpy-wt/staging-worker`.
-3. Installs dependencies.
-4. Starts the worker.
+The last command must print nothing. If it prints file names, someone has edited the worker folder. Undo those edits (`git -C ..\CompetitorSpy-wt\staging-worker checkout -- .`) before going on. Then:
 
-**To stop it:** press Ctrl+C in that window and wait a moment for it to finish cleanly.
+```powershell
+Push-Location ..\CompetitorSpy-wt\staging-worker
+bash ..\..\CompetitorSpy\scripts\railway-deploy-worker.sh rivalmonday-worker
+Pop-Location
+```
+This is the script CI runs. It tags the worker's Sentry reports with the commit and uploads the folder, but not git-ignored files such as `node_modules`. Railway builds the image, which takes 5-10 minutes. The script then waits until the new deployment is **Active**, which Railway only allows after `/healthz` answers, and prints `worker rivalmonday-worker live`, or stops with an error. Until then, the previous deployment keeps running. If it fails, open the deployment's **Deploy Logs** and see § 7.
 
-**Why a separate folder:** it has no `.env` file and none of your uncommitted changes, so staging runs exactly what's on `main` with staging's settings. It won't start otherwise.
+### Stop and start
 
-**Your dev worker can run at the same time.** Dev uses port 8080 and `cs_dev`. Staging uses port 8081 and the staging database. Never run two staging workers.
+The refresh stops and restarts the worker itself. Stop it by hand when you won't be testing for a while, because a connected worker keeps the Neon database awake and costs more. The next push to `main` starts it again.
 
-**When the worker is off, or your computer is asleep:**
+- **Stop:** in the dashboard, open **Deployments**, open the menu (⋮) on the active deployment and choose **Remove**. Or, from the worker folder, run `railway down --service rivalmonday-worker -y`. Wait about a minute: the worker gets 40 s to finish its current jobs.
+- **Start:** run **Deploy or update the worker** again. It always deploys the latest `main`.
+
+**While the worker is stopped:**
 - The site, sign-in and webhooks still work, because they run on Vercel.
 - Briefs, data collection and queued email wait until the worker runs again.
 - `/platform/health` shows the worker as down.
 
-**After each merge to `main`,** stop the worker and run `pnpm staging:up` again. GitHub will already have updated the database structure, so an old worker may fail.
+### Local worker (fallback)
 
-**Stop it when you aren't testing.** The Neon database can't go to sleep while the worker is connected, which costs more.
+`pnpm staging:up` still runs the staging worker on your computer, from the same folder and with `.env.staging`, for example if Railway is down. **Never run two staging workers:** remove the Railway deployment first (**Stop**), and press Ctrl+C on the local one before you deploy to Railway again. Your dev worker can run alongside either one: dev uses port 8080 and `cs_dev`, while the local staging worker uses port 8081 and the staging database.
 
 ## 5. Everyday use
 
@@ -383,32 +439,33 @@ Push to `main`. GitHub then runs, in order:
 
 If a step fails, the later ones don't run. Deploys and refreshes also wait for each other. If several pushes queue up, GitHub replaces the older waiting deploy with the newest.
 
-Then restart the worker (§ 4).
+`deploy-staging` also redeploys the worker and waits until it's live.
 
 ### Refresh
 
 **This erases everything done on staging since the last refresh,** including sign-ups, settings and test agencies. Merge any branch that has changed the structure of `cs_dev` first.
 
-1. Stop the worker (Ctrl+C).
+1. If a local fallback worker is running (`pnpm staging:up`), stop it with Ctrl+C. The action stops the Railway worker itself.
 2. Go to **Actions → staging-refresh → Run workflow**, on `main`. Type `refresh staging`, and leave **first_run** unticked.
 3. Wait for the green tick.
 4. Copy new evidence files (§ 3).
-5. Start the worker: `pnpm staging:up`.
+5. Nothing to start: the action redeploys the worker at the end. If it failed after stopping the worker, the worker stays stopped. Fix the cause and run the action again, or start the worker by hand (§ 4).
 
 The action does the following, stopping at the first failure:
 1. Checks it's really working on the `staging` branch.
-2. Refuses if the worker is still connected. Nothing has changed at this point.
+2. Stops the Railway worker, then waits up to 3 minutes and refuses if any worker is still connected. Nothing in the data has changed at this point.
 3. Replaces the data with a fresh copy of `cs_dev`.
 4. Sets the staging database passwords again.
 5. Cleans the copy so it can't act on dev's behalf: signs everyone out, cancels MCP tokens, turns off webhooks, marks unsent email as skipped and removes queued jobs (`infra/db/staging/after-refresh.sql`).
 6. Refuses if `cs_dev` has database changes that `main` doesn't have.
 7. Applies any database changes from `main`.
 8. Checks the app responds.
+9. Deploys the worker again and waits until it's live.
 
 ### Undo a bad deploy
 
 - **App or site:** in Vercel, open the project's **Deployments**, filter by `staging`, pick the last good one and choose **Instant Rollback**.
-- **Worker:** fix the problem on `main`, then run `pnpm staging:up`. It only runs the latest `main`.
+- **Worker:** in Railway, open the service's **Deployments**, pick the last good one and choose **Redeploy**. This only works if the database structure hasn't changed since. Otherwise fix the problem on `main` and redeploy (§ 4).
 - **Database:** changes only go forward. Fix them with a new migration, or run a refresh.
 
 ### Switch to live vendors (one time)
@@ -419,7 +476,7 @@ Staging used to run fake vendors. Do this once, in order:
 3. Stop the worker, then run `staging-refresh` from `cs_dev`. This is destructive: it replaces all staging data, including staging sign-ups and test agencies.
 4. The refresh applies the new migrations. Copy the evidence files again (step 16).
 5. On staging, set per-client spend limits (platform staff) for every active client.
-6. Run `pnpm staging:up`. With an old `.env.staging` it refuses and names the line to remove.
+6. Run `pnpm staging:railway-vars`, then deploy the worker (§ 4).
 7. After the first weekly run, check the briefs: each should have items, and the `dropped` counts should be low (`brief_item` rows and `brief.dropped`).
 
 ### Rough monthly cost
@@ -427,7 +484,8 @@ Staging used to run fake vendors. Do this once, in order:
 | Item | Cost |
 |---|---|
 | Vercel Pro | your plan's price |
-| Neon staging | a few dollars, more if the worker runs all day |
+| Railway (worker) | Hobby plan $5 a month, which includes $5 of usage; a worker left on all month is roughly $5-15 more. See **Usage** in Railway after a week |
+| Neon staging | a few dollars if you stop the worker between tests; roughly $15-25 if it runs all month, because the database never sleeps while the worker is connected |
 | OpenRouter | up to your limit |
 | R2, Postmark, Sentry | about $0 at this volume on their entry plans |
 | Vendors | about $2–4 a week for ~5 clients (vendors) + ~$1.5 AI; the first heavy week can reach ~$9 |
@@ -451,12 +509,13 @@ Run through this after the first deploy, and again whenever you change the setup
 - [ ] A brief's PDF and an evidence screenshot both open.
 
 **Worker**
-- [ ] With the worker running, `curl.exe http://localhost:8081/healthz` shows `queueGrants: ok`.
+- [ ] In Railway, the newest deployment shows **Active**. Railway only switches to a deployment once its `/healthz` check passes, and the check fails unless `queueGrants` is `ok`.
+- [ ] Its **Deploy Logs** show the worker starting, with no `missing required env` or `refusing` line.
 - [ ] `/platform/health` is green after about an hour.
 
 **Other services**
 - [ ] A test webhook from each Stripe endpoint succeeds.
-- [ ] Sentry shows staging events from the web and worker projects, under environment `staging`.
+- [ ] Sentry shows staging events from the web and worker projects, under environment `staging`. The worker's release is the commit ID, not `dev`.
 - [ ] The site's waitlist form submits successfully.
 
 **Safety.** In the Neon SQL Editor, on branch `staging`, database `cs_dev`:
@@ -476,7 +535,7 @@ Run through this after the first deploy, and again whenever you change the setup
 | Postmark test: **401** | The webhook has the wrong secret | Use `POSTMARK_WEBHOOK_SECRET`, not the server token, and make sure it matches Vercel |
 | Postmark test: **404** | The secret isn't on the deployed app | Add it in Vercel, then redeploy |
 | Sign-in email doesn't arrive | Usually Postmark's pending-account limit or an unverified domain | Look at the server's **Activity** page in Postmark and see step 5 |
-| Refresh says the worker is running | The worker is still connected | Stop it. If you already did, wait a minute and run it again |
+| Refresh says the worker is running | The worker is still connected | Stop it on Railway (§ 4 **Stop and start**), or press Ctrl+C on a local one. If you already did, wait a minute and run it again |
 | `permission denied to alter role` | The owner can't change a role's password | On `cs_dev`, run `GRANT <role> TO rivalmonday_test_owner WITH ADMIN OPTION;` |
 | Refresh says `cs_dev` has migrations `main` lacks | A branch changed `cs_dev` but hasn't been merged | Keep the worker stopped, merge that branch, then refresh again |
 | Neon refuses the reset | The branch has child branches, or its parent was restored in the last 24 hours | Delete the children, or wait |
@@ -485,12 +544,20 @@ Run through this after the first deploy, and again whenever you change the setup
 | Worker says `Refusing: … must be real keys` | A vendor key is set to `fixture` | Put the real key in `.env.staging` |
 | Worker says `Fill in ...` | Those values are empty in `.env.staging` | Fill them in. `SENTRY_DSN` is required too |
 | Worker says it's `not on the latest main` or has uncommitted changes | The worker folder has drifted | Run `pnpm staging:up`. If it still complains, look in `../CompetitorSpy-wt/staging-worker` for local edits and remove them |
+| Railway deploy logs: `[worker] missing required env: …` | A variable is missing on Railway | Run `pnpm staging:railway-vars` (§ 4 step 7), then redeploy |
+| Railway deploy logs: `[worker] EMAIL_FROM …` or `refusing rehearsal settings …` | `EMAIL_FROM` has a name in it, or a rehearsal switch is set | Fix the variable, then redeploy. `SENTRY_ENVIRONMENT` must be exactly `staging` |
+| Railway deployment fails its health check | The worker didn't start or can't reach the database | Read **Deploy Logs**. A `password authentication failed` line means the database passwords have changed: compare them with `.env.staging`, which the last refresh used |
+| Railway build fails at `pnpm install` | `main`'s lockfile and packages don't match | The `image` job in CI fails the same way. Fix it on `main` first |
+| `railway up` says no project is linked | The worker folder isn't linked | Run § 4 step 9 again |
+| CI "Railway deploy" step: `Unauthorized` or project not found | `RAILWAY_TOKEN` is missing or expired in the GitHub `staging` environment | Make a new token (§ 4 step 10) and replace the secret |
+| Refresh fails at "Stop the Railway staging worker", workers still connected | A local `pnpm staging:up` worker is running | Press Ctrl+C on it, then run the action again |
+| Sentry shows the worker release as `dev` | `SENTRY_RELEASE` wasn't set before the upload | Deploy with `scripts/railway-deploy-worker.sh` (§ 4), never a bare `railway up` |
 | Evidence gives a 404 on an old brief | The file was never copied | Run step 16. If the file isn't on your computer, it's missing in dev too |
 
 ## 8. Removing staging
 
 1. Delete the `STAGING_DEPLOY_ENABLED` repository variable.
-2. Stop the worker and run `git worktree remove ../CompetitorSpy-wt/staging-worker`.
+2. Stop the worker, delete the Railway project `rivalmonday-staging` (**Settings → Danger**), and run `git worktree remove ../CompetitorSpy-wt/staging-worker`.
 3. Delete:
    - the Neon `staging` branch and API key
    - the `staging` environments and domains in Vercel (or the whole projects, if nothing else uses them)
@@ -509,6 +576,6 @@ Nothing here is needed yet. Staging keeps working on its own, because `DEPLOY_EN
 
 - **Reuse the two Vercel projects and three Sentry projects.** Add the production domains and variables to the same projects.
 - **Everything else is separate:** a new Neon project, a new R2 bucket, a new Postmark server, a new OpenRouter key, Stripe live mode, new secrets, and a GitHub `production` environment. Never reuse a staging secret in production.
-- **Choose a worker host.** Production's deploy step expects Railway, which isn't accepting sign-ups, so either get an account or change that step to another host.
+- **Worker host: Railway, its own project.** Create a separate Railway project for production (DEPLOY.md § 1 step 3), with the same service name `rivalmonday-worker`, and give its project token to GitHub as `RAILWAY_TOKEN`. Never deploy production into `rivalmonday-staging`. Unlike staging, CI deploys the production worker itself.
 - **Production waits for staging.** Once `DEPLOY_ENABLED=true`, a push deploys staging first and production only if staging succeeds. Add yourself as a required reviewer on the GitHub `production` environment, so you can look at staging before production goes out.
 - **Limit Sentry alerts** to `environment:production`, so staging errors don't page you.

@@ -36,7 +36,7 @@ Answered 2026-11-02.
 
 | # | Decision | Answer |
 |---|---|---|
-| 1 | Worker host (Railway isn't accepting sign-ups) | **Open.** Check Railway again around 2026-11-09 to 11-16. Stages 5 and 6 wait for it. |
+| 1 | Worker host | **Railway** (account open 2026-11-07). Staging worker live in project `rivalmonday-staging` (STAGING.md § 4). Production gets its own Railway project at Stage 5. |
 | 2 | `evals-live` as a required check | **Required** (`ask-inject-09` has been fixed). Turn it on only after the `evals` secrets are in (Stage 1). Until then the check fails every run and would block merges. |
 | 3 | Make the repo private | **Deferred.** |
 | 4 | 13a1 (white-label) before the pilot | **Preferred, not a blocker.** |
