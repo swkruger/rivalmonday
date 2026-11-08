@@ -100,7 +100,7 @@ client tracks; no `AD_PRICE_SINCE`-style cutoff needed (prod has no web captures
 5. Page delta → competitor delta: `added` only if no other active page's latest observation (≤ N) has the id;
    `removed` only if none has it. Cooldown: no `site_feature` change for the same (competitor, feature id) in 28 days.
 6. One `detected_change` per feature: `source 'web'`, `kind` added/removed, `block_key 'feature:<id>'`,
-   `before/after_capture_id` = previous-observation capture / N, text `online booking: <vendor> (on <path>)`.
+   `before/after_capture_id` = previous-observation capture / N, text `online booking (on <path>)` (vendor only in `details.vendor`; `get_evidence` shows the text to client roles).
 
 Effect: a change is briefed one cadence after it appears (daily pages ≈ 1 day, weekly ≈ 7), and a one-off load
 failure (N absent, S present) never emits.
