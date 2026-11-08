@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
 import { siteEnv } from '../lib/env';
 import { organizationLd, websiteLd } from '../lib/json-ld';
@@ -15,7 +15,17 @@ import { footerColumns, navItems } from '../components/shell/nav-items';
 import './site.css';
 
 // `optional`, not `swap`: the size-matched fallback needs Arial, so without it (Android, Linux) the swap reflows the hero (CLS 0.3).
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['400', '500', '600', '800'], display: 'optional' });
+// Inter (OFL, `fonts/LICENSE-Inter.txt`) ships in the repo: `next/font/google` fetches at build time and failed CI builds intermittently.
+const inter = localFont({
+  variable: '--font-inter',
+  display: 'optional',
+  src: [
+    { path: './fonts/inter-latin-400-normal.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/inter-latin-500-normal.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/inter-latin-600-normal.woff2', weight: '600', style: 'normal' },
+    { path: './fonts/inter-latin-800-normal.woff2', weight: '800', style: 'normal' },
+  ],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ getViewer: vi.fn(), getOperatorViewer: vi.fn(), themed: [] as unknown[] }));
-vi.mock('next/font/google', () => ({ Inter: () => ({ variable: 'font-inter' }) }));
+vi.mock('next/font/local', () => ({ default: () => ({ variable: 'font-inter' }) }));
 vi.mock('./globals.css', () => ({}));
 vi.mock('@/dev-panel/mount', () => ({ devBanner: async () => null }));
 vi.mock('@/server/current-viewer', () => ({ getViewer: m.getViewer, getOperatorViewer: m.getOperatorViewer }));
