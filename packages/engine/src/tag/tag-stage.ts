@@ -11,7 +11,7 @@ import { extractZips } from '../geo/zips';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { buildTagQuestions, buildTagState, resolveTag, type TagResolution } from './questions';
-import { tagStructuredChange } from './structured';
+import { isStructuredChange, tagStructuredChange } from './structured';
 
 export const TAG_STAGE = 'tag';
 export const TAG_VERSION = 1;
@@ -144,9 +144,9 @@ export function webEventValues(row: WebChangeRow, resolution: TagResolution, emb
 }
 
 export async function tagChange(deps: { db: Db; ai: Ai; packs: PackLoader }, changeId: string): Promise<StageOutcome<TagOutcome>> {
-  const [head] = await deps.db.select({ source: detectedChange.source }).from(detectedChange).where(eq(detectedChange.id, changeId)).limit(1);
+  const [head] = await deps.db.select({ source: detectedChange.source, details: detectedChange.details }).from(detectedChange).where(eq(detectedChange.id, changeId)).limit(1);
   if (!head) throw new Error(`detected_change ${changeId} not found`);
-  if (head.source !== 'web') return tagStructuredChange(deps, changeId);
+  if (isStructuredChange(head)) return tagStructuredChange(deps, changeId);
   return runStage(
     deps.db,
     { stage: TAG_STAGE, version: TAG_VERSION, subjectId: changeId },

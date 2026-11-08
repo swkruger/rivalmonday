@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, structuredResult } from '../../test/fake-ai';
 import { day, seedVendorCapture } from '../../test/seed';
-import { buildStructuredSummary, serviceForKeyword } from './structured';
+import { buildStructuredSummary, isStructuredChange, serviceForKeyword } from './structured';
 import { createPackLoader, tagChange } from './tag-stage';
 
 const dbs = openTestDbs();
@@ -163,6 +163,36 @@ describe('buildStructuredSummary', () => {
   it('renders a profile_change for hours as a plain sentence', () => {
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'hours: monday 08:00–17:00', afterText: 'hours: monday 09:00–17:00', details: { changeType: 'profile_change', field: 'hours' } }))
       .toBe('Changed its hours on Google: monday 08:00–17:00 → monday 09:00–17:00');
+  });
+});
+
+describe('web-channel structured changes (18a-2)', () => {
+  it('isStructuredChange: a web text diff is not structured, a stamped web change and every vendor change are', () => {
+    expect(isStructuredChange({ source: 'web', details: {} })).toBe(false);
+    expect(isStructuredChange({ source: 'web', details: { offer: true } as never })).toBe(false);
+    expect(isStructuredChange({ source: 'web', details: { changeType: 'site_feature' } })).toBe(true);
+    expect(isStructuredChange({ source: 'meta_ads', details: {} })).toBe(true);
+  });
+  it('site_feature summaries use the category label and never the vendor', () => {
+    const added = buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'site_feature', category: 'online_booking', vendor: 'ServiceTitan', direction: 'added' } });
+    expect(added).toBe('Added online booking to its website');
+    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'site_feature', category: 'live_chat', vendor: 'Intercom', direction: 'removed' } })).toBe('Removed live chat from its website');
+    expect(added).not.toMatch(/ServiceTitan/);
+  });
+  it('new_page summary quotes the heading, else the path', () => {
+    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: 'Furnace Repair', details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } })).toBe('Added a new page to its website: "Furnace Repair"');
+    expect(buildStructuredSummary({ source: 'web', beforeText: null, afterText: null, details: { changeType: 'new_page', pageUrl: 'https://x.test/furnace-repair' } })).toBe('Added a new page to its website: "/furnace-repair"');
+  });
+  it('tags a site_feature web change on the structured path with no vendor in the event', async () => {
+    const capW = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'web', capturedAt: day(7) });
+    const id = await change({ source: 'web', beforeCaptureId: null, afterCaptureId: capW, blockKey: 'feature:online_booking', details: { changeType: 'site_feature', category: 'online_booking', vendor: 'ServiceTitan', direction: 'added', pageUrl: 'https://x.test/book' } });
+    const ai = createFakeAi({ decide: structuredResult({ services: {} }) });
+    const r = await tagChange({ db: dbs.service, ai, packs }, id);
+    expect(r).toMatchObject({ ran: true });
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev).toMatchObject({ changeType: 'site_feature', channels: ['web'], summary: 'Added online booking to its website' });
+    expect(ev?.summary).not.toMatch(/ServiceTitan/);
+    expect(ev?.details).toMatchObject({ vendor: 'ServiceTitan' }); // the vendor lives only in details
   });
 });
 

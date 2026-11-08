@@ -7,7 +7,7 @@ import { detachChange } from '../events/retract';
 import { writeEvent } from '../merge/merge';
 import { scoreEvent } from '../score/score-stage';
 import { buildTagQuestions, resolveTag, serviceQuestionKey } from '../tag/questions';
-import { buildStructuredQuestions } from '../tag/structured';
+import { buildStructuredQuestions, isStructuredChange } from '../tag/structured';
 import { blockEmbedding, competitorVerticals, loadWebChange, type PackLoader, webEventValues } from '../tag/tag-stage';
 
 export type ResolveAction = 'created' | 'updated' | 'detached' | 'retracted' | 'unchanged';
@@ -101,7 +101,7 @@ async function reviewContext(deps: { db: Db; packs: PackLoader }, reviewId: stri
   const verticalIds = ch.clientId ? (await db.select({ v: client.verticalId }).from(client).where(eq(client.id, ch.clientId))).map((r) => r.v) : await competitorVerticals(db, ch.competitorId);
   const packs = await Promise.all(verticalIds.map(deps.packs));
   const questions = (sample?.questions as Record<string, DecisionQuestion> | undefined) ??
-    (ch.source === 'web' ? buildTagQuestions(packs) : buildStructuredQuestions(ch.details.changeType as ChangeType, packs));
+    (!isStructuredChange(ch) ? buildTagQuestions(packs) : buildStructuredQuestions(ch.details.changeType as ChangeType, packs));
   return { rev, ch, sample, packs, questions };
 }
 
@@ -133,7 +133,7 @@ export async function resolveDecisionReview(
   const merged = { ...(rev.answers as Record<string, ResolvedAnswer>), ...human };
 
   // Loaded before the transaction: loadWebChange/blockEmbedding take the pool Db.
-  const webRow = ch.source === 'web' ? await loadWebChange(db, ch.id) : undefined;
+  const webRow = !isStructuredChange(ch) ? await loadWebChange(db, ch.id) : undefined;
   const embedding = webRow ? await blockEmbedding(db, webRow.change) : null;
 
   // The transaction returns its outcome rather than mutating outer locals: TS doesn't track
@@ -163,7 +163,7 @@ export async function resolveDecisionReview(
     let action: ResolveAction = 'unchanged';
     let newEventId: string | null = link?.eventId ?? null;
     let labels = 0;
-    if (ch.source === 'web') {
+    if (!isStructuredChange(ch)) {
       const res = resolveTag(ch.numericChanges, { answers: merged, needsReview: [] }, packs);
       // A human "not meaningful" wins even over the money rule (which binds models, decision 8).
       const meaningful = human.meaningful?.type === 'noul' ? human.meaningful.value : res.meaningful;

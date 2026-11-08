@@ -138,6 +138,18 @@ describe('stage-version supersede (Phase 3d decision 7)', () => {
     expect([current, spike]).toHaveLength(2);
   });
 
+  it('a web-diff re-run at a higher version never supersedes a site_feature row', async () => {
+    const { cap } = await webCapture();
+    const feat = await change(cap, { stageVersion: WEB_DIFF_VERSION - 1, blockKey: 'feature:live_chat', details: { changeType: 'site_feature', category: 'live_chat', direction: 'added' } });
+    const text = await change(cap, { stageVersion: WEB_DIFF_VERSION - 1, blockKey: 'body>p#2' });
+    const r = await dbs.service.transaction((tx) => supersedePriorChanges(tx, { afterCaptureId: cap, source: 'web' }, WEB_DIFF_VERSION));
+    expect(r.superseded).toBe(1);
+    const [f] = await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, feat));
+    const [t] = await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, text));
+    expect(f?.status).not.toBe('superseded');
+    expect(t?.status).toBe('superseded');
+  });
+
   it('retracted events are invisible to merge, scoring and the score sweep', async () => {
     const { cap } = await webCapture();
     const ev = await eventFor([await change(cap)], { retractedAt: day(2), retractionReason: 'superseded', facts: [] });

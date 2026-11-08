@@ -1,6 +1,6 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type CallScope, CHANGE_TYPES, type ChangeType, TIER_LABELS } from '@cs/core';
+import { type CallScope, CHANGE_TYPES, type ChangeType, SITE_FEATURE_CATEGORY_LABEL, type SiteFeatureCategory, TIER_LABELS } from '@cs/core';
 import { capture, type ChangeDetails, changeEvent, client, competitor, type Db, decisionReview, detectedChange, rankScan } from '@cs/db';
 import type { VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
@@ -12,6 +12,9 @@ import { serviceQuestionKey } from './questions';
 import { competitorVerticals, extractZips, type PackLoader, singleVerticalScope, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
 
 const MAX_STATE_TEXT = 1500;
+
+/** Web changes are text diffs unless the web channel stamped a `details.changeType` (site_feature, new_page, 18a-2). */
+export const isStructuredChange = (c: { source: string; details: ChangeDetails }): boolean => c.source !== 'web' || typeof c.details?.changeType === 'string';
 
 export const STRUCTURED_DECISION_TASK = 'structured_decisions';
 
@@ -109,6 +112,18 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
         ? `Changed its ${d.field} on Google: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`
         : `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
       break;
+    case 'site_feature': {
+      // Category label only: the vendor stays in details.vendor and never reaches a summary (Ruling J1).
+      const label = SITE_FEATURE_CATEGORY_LABEL[d.category as SiteFeatureCategory] ?? 'a tool';
+      s = d.direction === 'removed' ? `Removed ${label} from its website` : `Added ${label} to its website`;
+      break;
+    }
+    case 'new_page': {
+      let path = '';
+      try { path = d.pageUrl ? new URL(d.pageUrl).pathname : ''; } catch { path = d.pageUrl ?? ''; }
+      s = `Added a new page to its website: "${trunc(after || d.items?.[0]?.label || path || 'untitled', 80)}"`;
+      break;
+    }
     default: {
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
     }

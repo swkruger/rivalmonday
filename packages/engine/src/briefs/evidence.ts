@@ -2,7 +2,7 @@ import { redactForModel } from '@cs/collectors';
 import { capture, changeEvent, detectedChange, type Db, evidence, eventChange, trackedPage } from '@cs/db';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { GBP_STATUS_PHRASE } from '../structured/gbp-status';
-import { buildStructuredSummary } from '../tag/structured';
+import { buildStructuredSummary, isStructuredChange } from '../tag/structured';
 
 export const EVIDENCE_TEXT_CHARS = 300;
 const ITEM_LABELS = 5;
@@ -39,7 +39,7 @@ export function escapeEvidence(text: string): string {
 function describe(c: typeof detectedChange.$inferSelect, names: string[]): string {
   const red = (s: string | null) => (s === null ? null : trunc(redactForModel(s, { businessNames: names })));
   const lines: string[] = [];
-  if (c.source === 'web') {
+  if (!isStructuredChange(c)) {
     if (c.kind === 'added') lines.push(`Added: "${red(c.afterText)}"`);
     else if (c.kind === 'removed') lines.push(`Removed: "${red(c.beforeText)}"`);
     else lines.push(`Before: "${red(c.beforeText)}"`, `After: "${red(c.afterText)}"`);
