@@ -66,9 +66,8 @@ politeness or a second fetch path. Model spend that grows with sitemap size.
   - `live_chat`: Podium, Intercom, Drift, LiveChat, tawk.to, Tidio, Zendesk, HubSpot chat.
   - `financing`: Wisetack, GreenSky, Synchrony, CareCredit, Sunbit, Affirm, Cherry, Service Finance.
   - `review_widget`: Birdeye, NiceJob, Trustindex.
-  - `call_tracking`: CallRail, CallTrackingMetrics, WhatConverts.
 - **Client-facing text names the category, never the vendor** (`SITE_FEATURE_CATEGORY_LABEL` in `@cs/core`:
-  "online booking", "live chat", "financing", "review widget", "call tracking"). The vendor lives in `details.vendor`
+  "online booking", "live chat", "financing", "review widget"; call tracking is out — customers never see it, ruling 2026-11-08, owner may overturn). The vendor lives in `details.vendor`
   and the evidence text; `EVIDENCE_WORDING` tells the writer not to name it.
 - `jsonLdOffers(html): StructuredOffer[]` — every `<script type="application/ld+json">` body, `JSON.parse` in
   try/catch, walks arrays and `@graph`, collects `Offer`/`AggregateOffer` (also nested under `Product`/`Service`
@@ -112,7 +111,7 @@ failure (N absent, S present) never emits.
   same `mapPricedTexts` call (sha = `sha256('jsonld|' + text)`, so `price_block_map` caches them) and the same
   `PRICE_MAX_BLOCKS` cap (text blocks first; over the cap = truncated, nothing ends).
 - `Offer.price` → `exact`; `AggregateOffer.lowPrice` → `from`; `highPrice` alone ignored. `priceCurrency` must be
-  `USD` (missing → skip). Offers with any `priceSpecification` → skip. Price must parse as a plain number (commas
+  `USD` or missing (missing → USD; all clients are US, ruling 2026-11-08, owner may overturn); any other currency → skip. Offers with any `priceSpecification` → skip. Price must parse as a plain number (commas
   allowed), 0 < amount ≤ `MAX_PRICE`. Name/description matching the discount words (`off`, `discount`, `rebate`,
   `coupon`, `credit`, `savings`) → skip. `promo` = the observer's `PROMO` test on name/description.
 - Rows are ordinary page rows (`tracked_page_id` set, `PriceNow.source = 'page'`); dedupe with text prices by the

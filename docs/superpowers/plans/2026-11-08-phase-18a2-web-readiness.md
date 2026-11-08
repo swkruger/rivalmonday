@@ -46,7 +46,7 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 1. Widget present → absent once → present emits nothing; present → absent → absent emits one `removed` (Task 7).
 2. No `new_page` on initial discovery, truncated sitemap runs, or a page that was known but untracked (Tasks 9, 11).
 3. Recorder: same text + new script ⇒ `ok` with HTML; same text + same markup ⇒ `unchanged` (Task 5).
-4. JSON-LD: discount/`priceSpecification`/non-USD offers yield nothing; text + JSON-LD of the same price give one span (Task 8).
+4. JSON-LD: discount/`priceSpecification`/non-USD offers yield nothing (missing currency = USD); text + JSON-LD of the same price give one span (Task 8).
 5. `manual` inactive pages stay inactive; http/https/www variants are one page; `add_tracked_page` reuses the row (Tasks 9, 10).
 6. Prospect ⇒ `deferred`, discovered on conversion; worker scheduler idle while the switch is off (Tasks 10, 12).
 7. Every changed `source === 'web'` branch keeps web text diffs byte-identical (Task 6 regression tests).
@@ -71,7 +71,7 @@ Spec O1–O4 and D1–D7 are binding. Plan-level calls: one migration for schema
 
 **Interfaces:**
 - `CHANGE_TYPES` += `'site_feature' | 'new_page'`.
-- `SITE_FEATURE_CATEGORIES = ['online_booking','live_chat','financing','review_widget','call_tracking'] as const`; `SITE_FEATURE_CATEGORY_LABEL: Record<SiteFeatureCategory, string>` = `online booking`, `live chat`, `financing`, `review widget`, `call tracking`.
+- `SITE_FEATURE_CATEGORIES = ['online_booking','live_chat','financing','review_widget'] as const`; `SITE_FEATURE_CATEGORY_LABEL: Record<SiteFeatureCategory, string>` = `online booking`, `live chat`, `financing`, `review widget` (no call tracking — ruling 2026-11-08, owner may overturn).
 - `ChangeDetails` += `feature?: string; category?: string; vendor?: string; pageUrl?: string; pageType?: string; pageKey?: string`; `direction?: 'closed' | 'reopened' | 'added' | 'removed'`. `ScoreFactors` += `briefOnly: boolean`.
 - Packs: `type_weights.site_feature 0.7`, `new_page 0.7`; `scoring.version 6`.
 - `WHOLE_BUSINESS_TYPES` += both; `SERVICE_MAPPED_TYPES` += `new_page`; `BRIEF_ONLY_TYPES = new Set(['site_feature','new_page'])`.
@@ -217,7 +217,7 @@ export function markupSha(html: string): string;
 **Interfaces:** `export function offerPrices(offers: StructuredOffer[]): { text: string; sha: string; obs: PriceObservation[] }[]`.
 
 **Behaviour:** per spec D5. The stage loads the capture's `page.html.gz` once (same evidence row `ensureBlocks` reads), appends JSON-LD pseudo-blocks after text blocks, then one `mapPricedTexts` call and the existing `PRICE_MAX_BLOCKS` truncation. The model state for a pseudo-block is `{ competitor, page_url, page_type, text: redactForModel(text).slice(0, MAX_STATE_TEXT), prices }`. Dedupe with text observations by `keyOf`.
-**Tests (TDD):** `Offer price 129 USD ⇒ exact 129`; `AggregateOffer lowPrice 79 ⇒ from 79`; `name "$20 off tune-up" ⇒ none`; `priceSpecification only ⇒ none`; `EUR or no currency ⇒ none`; `"1,299.00" ⇒ 1299`; `0 or > MAX_PRICE ⇒ none`; stage: a page with the same price in text and JSON-LD writes one span; a capture whose JSON-LD offer disappears ends that span; the block map caches by `jsonld|` sha (second run makes no model call).
+**Tests (TDD):** `Offer price 129 USD ⇒ exact 129`; `AggregateOffer lowPrice 79 ⇒ from 79`; `name "$20 off tune-up" ⇒ none`; `priceSpecification only ⇒ none`; `EUR ⇒ none`; `no currency ⇒ treated as USD (exact)`; `"1,299.00" ⇒ 1299`; `0 or > MAX_PRICE ⇒ none`; stage: a page with the same price in text and JSON-LD writes one span; a capture whose JSON-LD offer disappears ends that span; the block map caches by `jsonld|` sha (second run makes no model call).
 **Done when:** engine `src/prices` tests pass.
 
 ### Task 9: Re-discovery (refresh mode) and tracked-page hygiene
