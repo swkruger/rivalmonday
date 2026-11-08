@@ -9,6 +9,7 @@ import { enqueueOf, type ToolDeps } from '../deps';
 import { PROSPECT_SNAPSHOT_COOLDOWN_HOURS, RIVAL_SEARCH_REUSE_DAYS } from '../limits';
 import { latestDoneRun, startCompetitorSearchQuietly } from '../rival-search';
 import { completeIfDone } from '../setup/state';
+import { startDiscovery } from './competitors';
 import { ProspectReportView, ProspectRow } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -151,6 +152,13 @@ export const convertProspect = defineTool({
       if (reopened.length > 0) await completeIfDone(tx, clientId, new Date());
     });
     await postCommitSeatSync(deps, ctx.agencyId);
+    // 18a-2 D7: the client is active now, so start the page discovery deferred while it was a prospect (never fails the conversion).
+    try {
+      const links = await deps.service.select({ competitorId: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
+      for (const l of links) await startDiscovery(deps, l.competitorId, clientId);
+    } catch (err) {
+      console.error('convert_prospect: page discovery could not start', err);
+    }
     // 12a D4 (P7): reuse the prospect's last finished search when it is recent enough; otherwise start a new one.
     const last = await latestDoneRun(deps.service, clientId);
     const fresh = last?.finishedAt && Date.now() - last.finishedAt.getTime() <= RIVAL_SEARCH_REUSE_DAYS * 86_400_000;

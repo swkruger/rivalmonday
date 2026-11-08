@@ -26,6 +26,7 @@ const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const DISCOVERY: Record<string, string> = {
   queued: 'Website page discovery has started.',
   disabled: 'Website monitoring is off — only ads, reviews and Google profile data are collected.',
+  deferred: 'Website page discovery starts once monitoring runs for this client.',
   not_needed: '',
 };
 
@@ -60,7 +61,7 @@ export async function acceptSuggestionsAction(clientId: string, ids: string[]): 
   const r = await runTool<{ items: { discovery: string }[] }>(ctx, 'accept_competitor_suggestions', { clientId, ids });
   if (!r.ok) return r;
   const n = r.data.items.length;
-  const note = r.data.items.some((i) => i.discovery === 'disabled') ? DISCOVERY.disabled : r.data.items.some((i) => i.discovery === 'queued') ? DISCOVERY.queued : '';
+  const note = r.data.items.some((i) => i.discovery === 'disabled') ? DISCOVERY.disabled : r.data.items.some((i) => i.discovery === 'deferred') ? DISCOVERY.deferred : r.data.items.some((i) => i.discovery === 'queued') ? DISCOVERY.queued : '';
   return done(clientId, r, `${n} competitor${n === 1 ? '' : 's'} added. ${note}`.trim());
 }
 

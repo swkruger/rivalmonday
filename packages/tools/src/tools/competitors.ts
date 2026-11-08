@@ -1,6 +1,6 @@
 import { type AccessContext, appLinkFor, canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { ensureCompetitorSources, findExistingCompetitor, patchReusedCompetitor } from '@cs/collectors';
-import { ad, client, clientCompetitor, competitor, competitorSignal, competitorSuggestion, discoveryRun, type DiscoveryRunRow, trackedPage, type Tx, withTenant } from '@cs/db';
+import { ad, client, clientCompetitor, clientWorkAllowed, competitor, competitorSignal, competitorSuggestion, discoveryRun, type DiscoveryRunRow, trackedPage, type Tx, withTenant } from '@cs/db';
 import { and, asc, count, desc, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { enqueueOf, type ToolDeps } from '../deps';
@@ -11,11 +11,17 @@ import { AdMatch, CompetitorSignalView, HiddenReason, pageFields, pagedItems, Si
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
 
-export type Discovery = 'queued' | 'disabled' | 'not_needed';
+export type Discovery = 'queued' | 'disabled' | 'deferred' | 'not_needed';
 
-/** Decision 7: page discovery crawls the competitor's site, so it only runs with website monitoring switched on. */
-export async function startDiscovery(deps: ToolDeps, competitorId: string): Promise<Discovery> {
+/**
+ * Decision 7: page discovery crawls the competitor's site, so it only runs with website monitoring switched on (else
+ * `disabled`) and for a client whose work is allowed (active, not paused/archived/spend-paused; else `deferred`: a
+ * prospect's discovery starts in `convert_prospect`).
+ */
+export async function startDiscovery(deps: ToolDeps, competitorId: string, clientId: string): Promise<Discovery> {
   if (!deps.webMonitoring) return 'disabled';
+  const [allowed] = await deps.service.select({ id: client.id }).from(client).where(and(eq(client.id, clientId), clientWorkAllowed(client)));
+  if (!allowed) return 'deferred';
   const [c] = await deps.service.select({ domain: competitor.domain }).from(competitor).where(eq(competitor.id, competitorId));
   if (!c?.domain) return 'not_needed';
   const [pages] = await deps.service.select({ n: count() }).from(trackedPage).where(eq(trackedPage.competitorId, competitorId));
@@ -326,7 +332,7 @@ export async function acceptSuggestions(ctx: AccessContext, deps: ToolDeps, clie
   const accepted: Accepted[] = [];
   for (const l of linked) {
     await ensureCompetitorSources(deps.service, l.competitorId);
-    accepted.push({ ...l, discovery: await startDiscovery(deps, l.competitorId) });
+    accepted.push({ ...l, discovery: await startDiscovery(deps, l.competitorId, clientId) });
   }
   return accepted;
 }
@@ -336,7 +342,7 @@ export const acceptCompetitorSuggestion = defineTool({
   access: 'write',
   description: 'Start tracking a suggested competitor for its client.',
   input: z.object({ suggestionId: uuid }),
-  output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) }),
+  output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'deferred', 'not_needed']) }),
   permission: 'manage',
   feature: 'manage_competitors',
   async handler(ctx, { suggestionId }, deps) {
@@ -352,7 +358,7 @@ export const acceptCompetitorSuggestions = defineTool({
   access: 'write',
   description: 'Start tracking several suggested competitors of one client at once ("Track selected"); all or none, within the client’s competitor limit.',
   input: z.object({ clientId: uuid, ids: z.array(uuid).min(1).max(10) }),
-  output: z.object({ items: z.array(z.object({ suggestionId: uuid, competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) })) }),
+  output: z.object({ items: z.array(z.object({ suggestionId: uuid, competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'deferred', 'not_needed']) })) }),
   permission: 'manage',
   feature: 'manage_competitors',
   async handler(ctx, { clientId, ids }, deps) {
@@ -565,7 +571,7 @@ export const addCompetitor = defineTool({
   access: 'write',
   description: 'Track a competitor by website and/or Google place id.',
   input: z.object({ clientId: uuid, name: z.string().min(1).max(120), domain: z.string().max(300).optional(), placeId: z.string().max(300).optional() }),
-  output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'not_needed']) }),
+  output: z.object({ competitorId: uuid, discovery: z.enum(['queued', 'disabled', 'deferred', 'not_needed']) }),
   permission: 'manage',
   feature: 'manage_competitors',
   async handler(ctx, input, deps) {
@@ -600,7 +606,7 @@ export const addCompetitor = defineTool({
       return id;
     });
     await ensureCompetitorSources(deps.service, competitorId);
-    return { competitorId, discovery: await startDiscovery(deps, competitorId) };
+    return { competitorId, discovery: await startDiscovery(deps, competitorId, input.clientId) };
   },
 });
 

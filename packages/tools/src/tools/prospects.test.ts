@@ -1,6 +1,6 @@
 import { type AccessContext, createAccessContext, SPEND_PAUSED_COPY } from '@cs/core';
 import { claimDueSources, ensureCompetitorSources } from '@cs/collectors';
-import { agencyConnect, client, clientCompetitor, clientSetup, contact, prospectReport, plan } from '@cs/db';
+import { agencyConnect, client, clientCompetitor, competitor, clientSetup, contact, prospectReport, plan } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -29,6 +29,17 @@ beforeEach(async () => {
 });
 
 describe('prospects (decisions 8–12, Review Focus 1)', () => {
+  it('18a-2 D7: convert enqueues discover-pages once per competitor without pages, only with monitoring on', async () => {
+    const withWeb = createToolRegistry({ app: dbs.app, service: dbs.service, enqueue, webMonitoring: true }, { audit: { record: async () => {} } });
+    await withWeb.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 });
+    expect(queued.filter((q) => q.job === 'discover-pages')).toEqual([{ job: 'discover-pages', data: { competitorId: IDS.competitorY }, key: `discover:${IDS.competitorY}` }]);
+  });
+
+  it('18a-2 D7: convert does not start discovery while the switch is off', async () => {
+    await registry.invoke(admin, 'convert_prospect', { clientId: IDS.clientA2 });
+    expect(queued.filter((q) => q.job === 'discover-pages')).toEqual([]);
+  });
+
   it('creates a prospect, lists it, and keeps it off the portfolio', async () => {
     const { clientId } = (await registry.invoke(admin, 'create_client', { name: 'Peach Dental', verticalId: 'dental', services: [], keywords: ['dentist'], serviceArea: AREA, placeId: null, status: 'prospect' })) as { clientId: string };
     const { items } = (await registry.invoke(admin, 'list_prospects', {})) as { items: { clientId: string; competitors: number; keywords: number; hasServiceArea: boolean; report: unknown }[] };

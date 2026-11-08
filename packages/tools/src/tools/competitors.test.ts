@@ -253,6 +253,27 @@ describe('manual competitors', () => {
     await expect(registry.invoke(amA1, 'add_competitor', { clientId: IDS.clientA2, name: 'X', domain: 'x.com' })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('18a-2 D7: discovery is deferred for a prospect or spend-paused client, disabled when the switch is off', async () => {
+    await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA2));
+    const on = reg(true);
+    const p = (await on.invoke(admin, 'add_competitor', { clientId: IDS.clientA2, name: 'Fresh Plumbing', domain: 'freshplumbing.com' })) as { discovery: string };
+    expect(p.discovery).toBe('deferred');
+    expect(enqueue).not.toHaveBeenCalled();
+    // The switch beats the client gate.
+    const off = (await registry.invoke(admin, 'add_competitor', { clientId: IDS.clientA2, name: 'Other Plumbing', domain: 'otherplumbing.com' })) as { discovery: string };
+    expect(off.discovery).toBe('disabled');
+    // Active client: queued.
+    const a = (await on.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Active Air', domain: 'activeair.com' })) as { competitorId: string; discovery: string };
+    expect(a.discovery).toBe('queued');
+    expect(enqueue).toHaveBeenCalledWith('discover-pages', { competitorId: a.competitorId }, `discover:${a.competitorId}`);
+    // Spend-paused: deferred.
+    enqueue.mockClear();
+    await dbs.owner.update(client).set({ spendPausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    const sp = (await on.invoke(amA1, 'add_competitor', { clientId: IDS.clientA1, name: 'Paused Air', domain: 'pausedair.com' })) as { discovery: string };
+    expect(sp.discovery).toBe('deferred');
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   it('removes a competitor; its alerts still list with a fallback name (Review Focus 3)', async () => {
     const [e] = await dbs.owner.insert(changeEvent).values({ competitorId: IDS.competitorX, changeType: 'price_change', summary: 's', confidence: 0.9, occurredAt: new Date() }).returning();
     await dbs.owner.insert(alert).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: e!.id, score: 80, headline: 'Price cut', status: 'delivered', mode: 'direct' });
