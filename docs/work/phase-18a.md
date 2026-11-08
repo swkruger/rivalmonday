@@ -4,10 +4,10 @@
 **Spec/plan:** 18a-1 `docs/superpowers/{specs,plans}/2026-11-08-phase-18a1-gbp-meta*`; 18a-2 `…/2026-11-08-phase-18a2-web-readiness*` (spec O1–O4, D1–D7; plan Tasks 0–13)
 
 ## Status (overwrite)
-18a-1 done (final review clean 2026-11-08; e2e:affected 153/153, profile gate pass). 18a-2 (web readiness) Tasks 0-13 done on this branch (ledger `.superpowers/sdd/2026-11-08-phase-18a2-web-readiness/progress.md`); final branch review next. Both halves merge together. Ships dark: nothing crawls until `WEB_MONITORING_ENABLED` is set (OPS "Switching on website monitoring (18a-2)"). Not on the roadmap yet.
+18a-1 done (final review clean 2026-11-08; e2e:affected 153/153, profile gate pass). 18a-2 (web readiness) Tasks 0-13 + final fix wave 8e7945f8 done; final review clean 2026-11-08 (test:affected 18/18, e2e:affected 153/153, profile gate pass). Awaiting owner go-ahead for `/rm-merge`. Both halves merge together. Ships dark: nothing crawls until `WEB_MONITORING_ENABLED` is set (OPS "Switching on website monitoring (18a-2)"). Not on the roadmap yet.
 
 ## Next (overwrite)
-Final review + one fix wave (carry: one try/catch around the whole `convert_prospect` loop). At `/rm-merge` (both halves): `.describe` on `PriceNowView.source` (M5); one Ask eval re-record (`record --fill`; tool spec changes: 18a-1 `get_price_matrix` `source`, 18a-2 `search_events` and `Discovery` enums incl. `deferred`; past cost $1.6-7.65); one brief eval re-record (new `EVIDENCE_WORDING` lines for `site_feature`/`new_page`); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs new copy in `pnpm copy:review`. 18a-3 (ad images) stays a separate branch.
+At `/rm-merge` (both halves): `.describe` on `PriceNowView.source` (M5); one Ask eval re-record (`record --fill`; tool spec changes: 18a-1 `get_price_matrix` `source`, 18a-2 `search_events` and `Discovery` enums incl. `deferred`; past cost $1.6-7.65); one brief eval re-record (new `EVIDENCE_WORDING` lines for `site_feature`/`new_page`); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs new copy in `pnpm copy:review`. 18a-3 (ad images) stays a separate branch.
 
 ## Interfaces this branch adds or changes
 - **Migration 0100 (18a-1):** `price_point.ad_id` (FK `ad`), `tracked_page_id` now nullable, CHECK exactly one of the two, unique index `price_point_ad_open_unique`; `ad.event` column; vertical pack v5 data (scoring v5).
