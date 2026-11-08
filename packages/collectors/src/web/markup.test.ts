@@ -73,6 +73,19 @@ describe('siteFeatures inert content', () => {
   });
 });
 
+describe('siteFeatures tag syntax', () => {
+  it('closes scripts written </script > and </script\n>', () => {
+    for (const close of ['</script >', '</script\n>']) {
+      const html = page(`<script>x${close}<script src="https://embed.tawk.to/x"></script>`);
+      expect(siteFeatures(html).map((f) => f.id)).toEqual(['tawk_to']);
+    }
+  });
+  it('keeps src after a > inside a quoted attribute value', () => {
+    const html = page('<script data-x="a>b" src="https://embed.tawk.to/x"></script>');
+    expect(siteFeatures(html).map((f) => f.id)).toEqual(['tawk_to']);
+  });
+});
+
 describe('jsonLdOffers', () => {
   it('accepts a type with parameters and case variants', () => {
     const html = page('<script type="Application/LD+JSON; charset=utf-8">{"@type":"Offer","price":5}</script>');

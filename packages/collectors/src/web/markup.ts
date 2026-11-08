@@ -32,6 +32,20 @@ interface ScannedTag {
   body: string;
 }
 
+/** Index of the `>` closing an opening tag, skipping quoted attribute values; -1 if none. */
+function tagEnd(html: string, from: number): number {
+  let q: string | null = null;
+  for (let i = from; i < html.length; i++) {
+    const c = html[i]!;
+    if (q) {
+      if (c === q) q = null;
+    } else if (c === '"' || c === "'") q = c;
+    else if (c === '>') return i;
+  }
+  // an unbalanced quote swallowed the rest: fall back to the first plain `>`
+  return html.indexOf('>', from);
+}
+
 /**
  * Single linear pass: skips HTML comments and the bodies of script/style/noscript (so tag-shaped
  * text inside them is never seen) and returns the live script/iframe/link/a tags. An unclosed
@@ -50,12 +64,12 @@ function scanTags(html: string): ScannedTag[] {
       continue;
     }
     const name = m[1].toLowerCase();
-    const gt = html.indexOf('>', re.lastIndex);
+    const gt = tagEnd(html, re.lastIndex);
     if (gt < 0) break;
     const attrs = html.slice(re.lastIndex, gt);
     re.lastIndex = gt + 1;
     if (name === 'script' || name === 'style' || name === 'noscript') {
-      const close = new RegExp(`</${name}\s*>`, 'gi');
+      const close = new RegExp(`</${name}\\s*>`, 'gi');
       close.lastIndex = gt + 1;
       const c = close.exec(html);
       const bodyEnd = c ? c.index : html.length;
