@@ -1,4 +1,5 @@
 import type { AdList, GeoGridView, PriceMatrixView, TopicBenchmarkView } from '@cs/tools';
+import { Tag } from '@cs/ui';
 import Link from 'next/link';
 import { formatDate } from '@/lib/format';
 import { formatPrice, pricingHref } from '../../pricing/format';
@@ -26,7 +27,13 @@ export function PricesSection({ clientId, competitorId, matrix }: { clientId: st
           {cells.map((c) => (
             <li key={c.serviceId} className="flex items-baseline justify-between gap-3 py-2">
               <span className="text-ink">{names.get(c.serviceId) ?? c.serviceId}</span>
-              <span className="font-semibold text-secondary">{c.prices.map(formatPrice).join(' · ')}</span>
+              <span className="font-semibold text-secondary">{c.prices.map((p, i) => (
+                <span key={i}>
+                  {i > 0 && ' · '}
+                  {formatPrice(p)}
+                  {p.source === 'meta_ad' && <Tag className="ml-1 whitespace-nowrap">From an ad</Tag>}
+                </span>
+              ))}</span>
             </li>
           ))}
         </ul>

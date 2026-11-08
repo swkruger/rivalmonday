@@ -247,6 +247,17 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     id: b.id('ad', k), competitor_id: competitorId, platform: 'google', external_id: `world-ad-${k}`, title: `Ad title ${b.c(k)}`, text: `Ad text ${b.c(k)}`,
     landing_url: `https://${comp.domain}/offer`, started_at: b.at(6), first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
   });
+  // An ad-sourced price (18a-1): listed in the matrix, never counted. Only Meta ads carry prices, so this ad is a Meta one.
+  const metaAdId = b.id('ad', k);
+  await b.ins('ad', k, {
+    id: metaAdId, competitor_id: competitorId, platform: 'meta', external_id: `world-meta-ad-${k}`, advertiser_id: `world-page-${k}`, title: `Meta ad ${b.c(k)}`, text: `Meta ad text $59 ${b.c(k)}`,
+    started_at: b.at(2), first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
+  });
+  await b.ins('price_point', k, {
+    id: b.id('price_point', k), competitor_id: competitorId, ad_id: metaAdId, vertical_id: comp.vertical, service_id: comp.service, amount: 59, unit: 'visit',
+    qualifier: 'exact', raw: `$59 ${b.c(k)}`, context: `Ad price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
+    first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
+  });
   // service_only, competitor-linked (no tenant column; recorded under the competitor tenant)
   await b.ins('competitor_source', k, { competitor_id: competitorId, source: 'google_reviews', last_status: `ok ${b.c(k)}` });
   await b.ins('vendor_task', k, { id: b.id('vendor_task', k), vendor: 'dataforseo', kind: 'reviews', external_task_id: `world-task-${k} ${b.c(k)}`, competitor_id: competitorId });

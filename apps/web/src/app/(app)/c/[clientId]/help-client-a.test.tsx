@@ -59,7 +59,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
         ? { services: [], rows: [] }
         : {
           services: [{ id: 'tune_up', name: 'AC tune-up', offered: true }],
-          rows: [{ competitorId: X, name: 'Smith HVAC', cells: m.noPrices ? [] : [{ serviceId: 'tune_up', prices: [{ amount: 89, unit: 'USD', qualifier: null, promo: false, since: '2026-10-01T00:00:00.000Z' }], change: { before: 99, after: 89 } }] }],
+          rows: [{ competitorId: X, name: 'Smith HVAC', cells: m.noPrices ? [] : [{ serviceId: 'tune_up', prices: [{ amount: 89, unit: 'USD', qualifier: null, promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' }], change: { before: 99, after: 89 } }] }],
         };
     // Ads
     case 'get_ad_activity': return { weeks: ['2026-10-04'], series: [{ competitorId: X, name: 'Smith HVAC', points: [1] }] };

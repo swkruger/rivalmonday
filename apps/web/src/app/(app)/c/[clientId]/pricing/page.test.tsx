@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const matrix = {
   services: [{ id: 'ac', name: 'AC tune-up', offered: true }],
-  rows: [{ competitorId: '11111111-1111-4111-8111-111111111111', name: 'Smith HVAC', cells: [{ serviceId: 'ac', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z' }], change: null }] }],
+  rows: [{ competitorId: '11111111-1111-4111-8111-111111111111', name: 'Smith HVAC', cells: [{ serviceId: 'ac', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' }], change: null }] }],
 };
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: 'client_owner', features: new Set(['dashboard']) } }) }));
 vi.mock('@/server/tools', () => ({ callTool: async (_c: unknown, name: string) => (name === 'get_price_matrix' ? matrix : { name: 'Client' }) }));

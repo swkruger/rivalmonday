@@ -10,7 +10,7 @@ describe('competitor profile sections (decision 13)', () => {
   it('lists up to five current prices and links to pricing', () => {
     render(<PricesSection clientId={C} competitorId={X} matrix={{
       services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],
-      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z' }], change: null }] }],
+      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' }], change: null }] }],
     }} />);
     expect(screen.getByRole('heading', { name: 'Prices' })).toBeTruthy();
     expect(screen.getByText('AC tune-up')).toBeTruthy();

@@ -337,7 +337,7 @@ export type AlertRulesView = z.infer<typeof AlertRulesView>;
 // 5c-2 data views. A business is the client's own ('self') or a tracked competitor id.
 export const BusinessKey = z.union([z.literal('self'), uuid]);
 
-export const PriceNowView = z.object({ amount: z.number(), unit: z.string(), qualifier: z.enum(['exact', 'from', 'up_to']), promo: z.boolean(), since: iso });
+export const PriceNowView = z.object({ amount: z.number(), unit: z.string(), qualifier: z.enum(['exact', 'from', 'up_to']), promo: z.boolean(), since: iso, source: z.enum(['web', 'meta_ad']) });
 export type PriceNowView = z.infer<typeof PriceNowView>;
 export const PriceMatrixView = z.object({
   services: z.array(z.object({ id: z.string(), name: z.string(), offered: z.boolean() })),

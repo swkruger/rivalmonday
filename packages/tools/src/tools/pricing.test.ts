@@ -1,9 +1,11 @@
+import { metaPageUrl } from '@cs/collectors';
 import { client, clientCompetitor, competitor } from '@cs/db';
+import { createPackLoader, priceHistory, priceMatrix } from '@cs/engine';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PriceHistoryView, PriceMatrixView } from './schemas';
-import { ago, ctx, dbs, registry, resetWorkspace, seedPrice } from './workspace-fixtures';
+import { ago, ctx, dbs, registry, resetWorkspace, seedAdPrice, seedPrice } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -30,6 +32,28 @@ describe('get_price_matrix', () => {
       ['furnace_repair', [129], null],
     ]);
     expect(r.rows[0]!.cells[0]!.prices[0]).toMatchObject({ unit: 'USD', qualifier: 'exact', promo: true });
+  });
+
+  it('ad price listed with source meta_ad and Ad Library url', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 89, from: ago(10) });
+    await seedAdPrice({ serviceId: 'ac_tune_up', amount: 59, from: ago(3) });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 })) as PriceMatrixView;
+    expect(r.rows[0]!.cells[0]!.prices.map((p) => [p.amount, p.source])).toEqual([[59, 'meta_ad'], [89, 'web']]);
+    const m = await priceMatrix({ db: dbs.service, packs: createPackLoader() }, IDS.clientA1);
+    expect(m.rows[0]!.cells.ac_tune_up!.find((p) => p.source === 'meta_ad')).toMatchObject({ amount: 59, pageUrl: metaPageUrl('4242') });
+    expect(m.rows[0]!.cells.ac_tune_up!.find((p) => p.source === 'web')!.pageUrl).toMatch(/^https:\/\//);
+  });
+
+  it('ad price below the web price does not change the cell lowest or 90-day change', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(120), to: ago(30) });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(30) });
+    await seedAdPrice({ serviceId: 'ac_tune_up', amount: 29, from: ago(120) });
+    await seedAdPrice({ serviceId: 'furnace_repair', amount: 19, from: ago(5) });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 })) as PriceMatrixView;
+    const cells = Object.fromEntries(r.rows[0]!.cells.map((c) => [c.serviceId, c]));
+    expect(cells.ac_tune_up!.change).toEqual({ before: 99, after: 79 });
+    expect(cells.ac_tune_up!.prices).toHaveLength(2);
+    expect(cells.furnace_repair).toMatchObject({ change: null, prices: [expect.objectContaining({ amount: 19, source: 'meta_ad' })] });
   });
 
   it('shows non-USD units but never compares them', async () => {
@@ -70,6 +94,16 @@ describe('get_price_history', () => {
     expect(pts[0]).toBeNull();
     expect(pts).toContain(99);
     expect(pts.at(-1)).toBe(79);
+  });
+
+  it('priceHistory ignores ad rows', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(60) });
+    await seedAdPrice({ serviceId: 'ac_tune_up', amount: 29, from: ago(40) });
+    const r = (await registry.invoke(owner, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })) as PriceHistoryView;
+    expect(r.series[0]!.points.filter((p) => p !== null)).not.toContain(29);
+    expect(r.series[0]!.points.at(-1)).toBe(99);
+    const spans = await priceHistory(dbs.service, { competitorId: IDS.competitorX, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', since: ago(90) });
+    expect(spans.map((x) => x.amount)).toEqual([99]);
   });
 
   it('sizes the labels by period and leaves out tracked competitors without a price', async () => {

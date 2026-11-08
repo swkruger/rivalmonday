@@ -267,6 +267,21 @@ export async function seedPrice(o: SeedPriceOptions): Promise<string> {
   return p!.id;
 }
 
+/** An ad-sourced price (18a-1): `ad_id` set, no tracked page. Open unless `to` is given. */
+export async function seedAdPrice(o: { serviceId: string; amount: number; from: Date; to?: Date; advertiserId?: string | null; competitorId?: string }): Promise<string> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  const first = await seedCapture({ competitorId, at: o.from, kinds: [] });
+  const [a] = await dbs.owner.insert(ad).values({
+    competitorId, platform: 'meta', externalId: `ad-${randomUUID()}`, advertiserId: o.advertiserId === undefined ? '4242' : o.advertiserId, text: `$${o.amount} ${o.serviceId}`,
+  }).returning({ id: ad.id });
+  const [p] = await dbs.owner.insert(pricePoint).values({
+    competitorId, adId: a!.id, verticalId: 'hvac_plumbing', serviceId: o.serviceId, amount: o.amount, unit: 'USD', qualifier: 'exact', promo: false,
+    raw: `$${o.amount}`, context: `${o.serviceId} $${o.amount}`, firstSeenAt: o.from, lastSeenAt: o.to ?? new Date(), firstCaptureId: first.captureId, lastCaptureId: first.captureId,
+    endedAt: o.to ?? null,
+  }).returning();
+  return p!.id;
+}
+
 export interface SeedReviewOptions {
   /** Default competitor X. */
   competitorId?: string;

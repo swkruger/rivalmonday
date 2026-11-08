@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
+import { ad, capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
@@ -149,6 +149,26 @@ describe('merge_vertical', () => {
     await dbs.owner.execute(ppSql(PAGE1, 'distillery', 'bottle_sales'));
     await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: 'taproom' } });
     expect(await q<{ vertical_id: string; service_id: string }>(sql`select vertical_id, service_id from price_point`)).toEqual([{ vertical_id: 'brewery', service_id: 'taproom' }]);
+  });
+
+  it('vertical merge keeps one open ad row per ad', async () => {
+    await seedMergeData();
+    await dbs.owner.execute(sql`truncate price_point`);
+    const [a1, a2] = await dbs.owner.insert(ad).values([
+      { competitorId: IDS.competitorX, platform: 'meta', externalId: 'm1', advertiserId: '9' },
+      { competitorId: IDS.competitorX, platform: 'meta', externalId: 'm2', advertiserId: '9' },
+    ]).returning({ id: ad.id });
+    const adPp = (adId: string, vertical: string, service: string) => sql`insert into price_point (competitor_id, ad_id, vertical_id, service_id, amount, unit, qualifier, raw, context, first_seen_at, last_seen_at, first_capture_id, last_capture_id)
+      values (${IDS.competitorX}, ${adId}, ${vertical}, ${service}, 10, 'USD', 'from', '$10', 'from $10', now(), now(), ${CAP}, ${CAP})`;
+    // The same ad priced in both verticals collides on merge; a second ad's row must survive.
+    await dbs.owner.execute(adPp(a1!.id, 'distillery', 'tasting_room'));
+    await dbs.owner.execute(adPp(a1!.id, 'brewery', 'taproom'));
+    await dbs.owner.execute(adPp(a2!.id, 'distillery', 'tasting_room'));
+    await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: null } });
+    const rows = await q<{ ad_id: string; vertical_id: string; service_id: string }>(sql`select ad_id, vertical_id, service_id from price_point order by ad_id`);
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.ad_id))).toEqual(new Set([a1!.id, a2!.id]));
+    expect(rows.every((r) => r.vertical_id === 'brewery' && r.service_id === 'taproom')).toBe(true);
   });
 
   it('refuses itself, a merged row, generic, an incomplete or invalid areaMap, and a colliding move', async () => {

@@ -10,8 +10,8 @@ const services = [
 const row = {
   competitorId: 'x', name: 'Smith HVAC',
   cells: [
-    { serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact' as const, promo: true, since: '2026-10-01T00:00:00.000Z' }], change: { before: 99, after: 79 } },
-    { serviceId: 'furnace_repair', prices: [{ amount: 129, unit: 'USD', qualifier: 'from' as const, promo: false, since: '2026-10-01T00:00:00.000Z' }], change: null },
+    { serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact' as const, promo: true, since: '2026-10-01T00:00:00.000Z', source: 'web' as const }], change: { before: 99, after: 79 } },
+    { serviceId: 'furnace_repair', prices: [{ amount: 129, unit: 'USD', qualifier: 'from' as const, promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' as const }], change: null },
   ],
 };
 
@@ -49,6 +49,15 @@ describe('PriceCard', () => {
     expect(screen.getByText('down $20 since 90 days ago').className).toContain('sr-only');
     rerender(<PriceCard row={up} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
     expect(screen.getByText('up $20 since 90 days ago')).toBeTruthy();
+  });
+
+  it('"From an ad" tag on ad rows only', () => {
+    const mixed = { ...row, cells: [{ ...row.cells[0]!, prices: [row.cells[0]!.prices[0]!, { amount: 59, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'meta_ad' as const }] }, row.cells[1]!] };
+    render(<PriceCard row={mixed} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    const tags = screen.getAllByText('From an ad');
+    expect(tags).toHaveLength(1);
+    expect(tags[0]!.getAttribute('data-slot')).toBe('tag');
+    expect(screen.getByRole('link', { name: /Furnace repair/ }).textContent).not.toContain('From an ad');
   });
 
   it('says so when the competitor shows no prices', () => {

@@ -1,7 +1,7 @@
 import { ToolError, toolkit } from '@cs/core';
 import { type Db, pricePoint } from '@cs/db';
 import { dailySeries, priceHistory, priceMatrix } from '@cs/engine';
-import { and, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf, type ToolDeps } from '../deps';
 import { workspaceBusinesses } from '../workspace/business';
@@ -14,8 +14,9 @@ const uuid = z.string().uuid();
 const DAY = 86_400_000;
 const cellKey = (competitorId: string, serviceId: string) => `${competitorId}|${serviceId}`;
 
-const lowestUsd = (prices: { amount: number; unit: string }[]): number | null => {
-  const usd = prices.filter((p) => p.unit === 'USD').map((p) => p.amount);
+/** Ad-sourced prices are shown but never counted (18a-1 O6). */
+const lowestUsd = (prices: { amount: number; unit: string; source: 'web' | 'meta_ad' }[]): number | null => {
+  const usd = prices.filter((p) => p.unit === 'USD' && p.source === 'web').map((p) => p.amount);
   return usd.length ? Math.min(...usd) : null;
 };
 
@@ -26,6 +27,7 @@ async function lowestUsdAt(db: Db, competitorIds: string[], verticalId: string, 
     .from(pricePoint)
     .where(and(
       inArray(pricePoint.competitorId, competitorIds), eq(pricePoint.verticalId, verticalId), eq(pricePoint.unit, 'USD'),
+      isNotNull(pricePoint.trackedPageId),
       lte(pricePoint.firstSeenAt, at), or(isNull(pricePoint.endedAt), gt(pricePoint.endedAt, at)),
     ))
     .groupBy(pricePoint.competitorId, pricePoint.serviceId);
@@ -61,7 +63,7 @@ export const getPriceMatrix = defineTool({
           const before = then.get(cellKey(r.competitorId, s.id)) ?? null;
           return {
             serviceId: s.id,
-            prices: prices.map((p) => ({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.since.toISOString() })),
+            prices: prices.map((p) => ({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.since.toISOString(), source: p.source })),
             change: now !== null && before !== null && now !== before ? { before, after: now } : null,
           };
         }),

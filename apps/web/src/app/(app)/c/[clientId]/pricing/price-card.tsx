@@ -44,7 +44,16 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                     {s?.name ?? cell.serviceId}
                     {s?.offered && <Tag className="ml-2 whitespace-nowrap">Your service</Tag>}
                   </span>
-                  <span className="font-semibold text-secondary">{cell.prices.map(formatPrice).join(' · ')}</span>
+                  <span className="font-semibold text-secondary">
+                    {cell.prices.map((p, i) => (
+                      <span key={i}>
+                        {i > 0 && ' · '}
+                        {formatPrice(p)}
+                        {/* Ad-sourced prices are shown but never counted in the change (18a-1 O6). */}
+                        {p.source === 'meta_ad' && <Tag className="ml-1 whitespace-nowrap">From an ad</Tag>}
+                      </span>
+                    ))}
+                  </span>
                   {cell.prices.some((p) => p.promo) && <StatusChip tone="warning">Promo</StatusChip>}
                   {change && <span title="Change against 90 days ago" className={`inline-flex h-5 items-center rounded-xs px-1.5 text-xs font-semibold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
                   <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-ink" />
