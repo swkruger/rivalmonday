@@ -236,6 +236,16 @@ describe('detailsSignature', () => {
     expect(detailsSignature('hiring', { items: [{ id: 'J1', label: 'Tech' }] })).toBe('hiring|J1');
     expect(detailsSignature('price_change', {})).toBeNull();
   });
+
+  it('separates a repeat of a different profile edit, likes rise or status flip from a true repeat', () => {
+    expect(detailsSignature('profile_change', { field: 'hours', after: 'a1' })).toBe('profile|hours|a1');
+    expect(detailsSignature('profile_change', { field: 'hours', after: 'b2' })).not.toBe(detailsSignature('profile_change', { field: 'hours', after: 'a1' }));
+    expect(detailsSignature('profile_change', { field: 'title', after: 'a1' })).not.toBe(detailsSignature('profile_change', { field: 'hours', after: 'a1' }));
+    expect(detailsSignature('audience_growth', { pageId: 'P1', likesBefore: 1000, likesAfter: 1200 })).toBe('audience|P1|1000|1200');
+    expect(detailsSignature('audience_growth', { pageId: 'P1', likesBefore: 1200, likesAfter: 1500 })).not.toBe('audience|P1|1000|1200');
+    expect(detailsSignature('status_change', { direction: 'reopened', statusBefore: 'temporarily_closed', statusAfter: 'open' })).toBe('status|reopened|temporarily_closed|open');
+    expect(detailsSignature('status_change', { direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' })).toBe('status|closed|open|closed_forever');
+  });
 });
 
 describe('billing state (9a)', () => {

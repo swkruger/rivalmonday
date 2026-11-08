@@ -60,6 +60,23 @@ describe('diffVendorCapture — audience_growth', () => {
     expect(await changes()).toEqual([]);
   });
 
+  it('a glitchy low base reading among normal readings emits nothing', async () => {
+    await metaCapture(day(0), 480); // vendor blip: 10x too low
+    await metaCapture(day(3), 4800);
+    await metaCapture(day(5), 4820);
+    const cap = await metaCapture(day(28), 4900);
+    await diffVendorCapture({ db: dbs.service }, cap, { now });
+    expect(await changes()).toEqual([]);
+  });
+
+  it('a rise above 100 % is implausible: no event, counted as implausible', async () => {
+    await metaCapture(day(0), 400);
+    const cap = await metaCapture(day(28), 1000); // +150 %
+    const out = await diffVendorCapture({ db: dbs.service }, cap, { now });
+    expect(await changes()).toEqual([]);
+    expect(out).toMatchObject({ result: { implausible: 1 } });
+  });
+
   it('a drop does not', async () => {
     await metaCapture(day(0), 1000);
     const cap = await metaCapture(day(28), 700);
@@ -85,14 +102,14 @@ describe('diffVendorCapture — audience_growth', () => {
     await diffVendorCapture({ db: dbs.service }, first, { now });
     await dbs.service.update(detectedChange).set({ detectedAt: day(28) }).where(eq(detectedChange.afterCaptureId, first));
     await metaCapture(day(40), 1230);
-    const later = await metaCapture(day(60), 1500); // base day 28 -> 32 d back? closest in 21–35 d: day 28 (32 d)... use day 28 reading 1220: +23 %
+    const later = await metaCapture(day(60), 1500); // 21–35 d back holds only the day-28 reading (1220): +23 %
     await diffVendorCapture({ db: dbs.service }, later, { now });
     expect(await changes()).toHaveLength(2);
   });
 
-  it('picks the reading closest to 28 d', async () => {
+  it('uses the highest reading in the 21–35 d window as the base', async () => {
     await metaCapture(day(-6), 100); // 34 d back
-    await metaCapture(day(2), 1000); // 26 d back  <- closest
+    await metaCapture(day(2), 1000); // 26 d back  <- highest
     await metaCapture(day(6), 120); // 22 d back
     const cap = await metaCapture(day(28), 1250);
     await diffVendorCapture({ db: dbs.service }, cap, { now });

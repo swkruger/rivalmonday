@@ -1,12 +1,13 @@
+import { createHash } from 'node:crypto';
 import { capture, observation } from '@cs/db';
 import { and, desc, eq, inArray, isNull, lt } from 'drizzle-orm';
 import type { DifferResult, SourceDiffer, StructuredChange } from './vendor-diff';
 
 /** GBP ratings move in tenths; smaller deltas are rounding noise between pulls. */
 export const RATING_CHANGE_MIN = 0.1;
-/** The "open now / closed now" status flips with the clock; only other values (e.g. closed_forever) are news. */
 /** The documented closed values; any other unrecognised status is not compared. */
 const CLOSED_STATUS = /^(temporarily_closed|closed_forever)$/i;
+/** The "open now / closed now" status flips with the clock; only other values (e.g. closed_forever) are news. */
 const TRANSIENT_STATUS = /^(open|close|closed|opening_soon|closing_soon)$/i;
 
 type Hm = { hour?: number; minute?: number };
@@ -42,6 +43,8 @@ const services = (p: GbpProfile, other: GbpProfile) =>
     ? p.services.map((s) => (s && typeof s === 'object' ? (s as { title?: unknown }).title : null)).filter(present)
     : [];
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+/** Short fingerprint of a field's new normalised value: lets novelty tell two different edits of one field apart. */
+const valueHash = (s: string) => createHash('sha256').update(norm(s)).digest('hex').slice(0, 12);
 const DESCRIPTION_CHARS = 300;
 
 /** `open` for a transient status (open/close/closing_soon...), else the lowercased raw value (closed_forever...); null when absent. */
@@ -72,18 +75,18 @@ export function diffGbpProfiles(before: GbpProfile, after: GbpProfile): Structur
   for (const field of ['title', 'domain'] as const) {
     const a = before[field];
     const b = after[field];
-    if (a && b && norm(a) !== norm(b)) out.push({ kind: 'modified', blockKey: `gbp:${field}`, beforeText: `${field}: ${a}`, afterText: `${field}: ${b}`, details: { changeType: 'profile_change', field } });
+    if (a && b && norm(a) !== norm(b)) out.push({ kind: 'modified', blockKey: `gbp:${field}`, beforeText: `${field}: ${a}`, afterText: `${field}: ${b}`, details: { changeType: 'profile_change', field, after: valueHash(b) } });
   }
   const h0 = hoursText(before);
   const h1 = hoursText(after);
-  if (h0 && h1 && h0 !== h1) out.push({ kind: 'modified', blockKey: 'gbp:hours', beforeText: h0, afterText: h1, details: { changeType: 'profile_change', field: 'hours' } });
+  if (h0 && h1 && h0 !== h1) out.push({ kind: 'modified', blockKey: 'gbp:hours', beforeText: h0, afterText: h1, details: { changeType: 'profile_change', field: 'hours', after: valueHash(h1) } });
   const d0 = before.description;
   const d1 = after.description;
   if (present(d0) && present(d1) && norm(d0) !== norm(d1)) {
     out.push({
       kind: 'modified', blockKey: 'gbp:description',
       beforeText: `description: ${d0.slice(0, DESCRIPTION_CHARS)}`, afterText: `description: ${d1.slice(0, DESCRIPTION_CHARS)}`,
-      details: { changeType: 'profile_change', field: 'description' },
+      details: { changeType: 'profile_change', field: 'description', after: valueHash(d1) },
     });
   }
   const c0 = statusClass(before.currentStatus);

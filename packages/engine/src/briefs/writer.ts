@@ -52,7 +52,7 @@ export const EVIDENCE_WORDING = [
   'Describe each change as detected: say it was "detected" or "seen" on the date after "detected on", and never write that a competitor "started", "launched", "began", "opened" or "introduced" something unless the evidence itself uses that word.',
   'Give numbers exactly as the evidence does, with both values of a change (for example "from 4.9 to 4.3"), and keep the evidence\'s dates; never say when the competitor made a change, only when it was detected.',
   'Factual fields (headline, what_changed, body) state only what the evidence shows: no reasons, effects or predictions there; those belong in why_it_matters, hedged with "may" or "possibly".',
-  'For an opening status change, say the business is "listed as permanently closed" or "listed as temporarily closed" on Google; never say it went out of business or why.',
+  'For an opening status change, say the business is "listed as permanently closed" or "listed as temporarily closed" on Google; never say it went out of business or why. For a reopening, say Google lists it as open again.',
 ].join(' ');
 
 const SYSTEM = [

@@ -1,4 +1,4 @@
-import { formatDate, formatRelative } from '@/lib/format';
+import { formatCount, formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
 import type { AdActivityView, AdList, AudienceTrend, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
@@ -93,7 +93,9 @@ export default async function CompetitorProfilePage({
   ]);
   const adsTrace = adActivity?.series.find((x) => x.competitorId === competitorId)?.points;
   const ratingTrace = ratingTrend?.businesses.find((b) => b.competitorId === competitorId)?.monthly.map((m) => m.avgRating);
-  const fbPage = audience?.pages?.[0];
+  // Only pages with a reading in the last 5 weeks count (a stale page must not headline the stat); the audience tool sorts largest first.
+  const likesSince = Date.now() - 35 * 86_400_000;
+  const fbPage = audience?.pages?.find((x) => Date.parse(`${x.points.at(-1)?.week ?? ''}T00:00:00Z`) >= likesSince);
   const showLikes = fbPage !== undefined && fbPage.points.length >= 4;
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
@@ -176,7 +178,7 @@ export default async function CompetitorProfilePage({
             {showLikes && (
               <Kpi
                 label={kpiLabel('Facebook Page likes', <HelpTip tip="client.competitors.detail.audience" />)}
-                value={fbPage.points.at(-1)!.likes.toLocaleString('en-US')}
+                value={formatCount(fbPage.points.at(-1)!.likes)}
                 trace={fbPage.points.map((x) => x.likes)}
                 traceLabel={`Page likes, ${fbPage.points.length} weekly readings`}
                 caption={fbPage.pageName ?? undefined}

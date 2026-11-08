@@ -14,7 +14,7 @@ const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
 const store = createMemoryStore();
-/** Hours after the cutoff (always in the past and past the settle delay once the cutoff day has passed 09:00 UTC). */
+/** Hours after the cutoff. Only the `at(1)` sweep assertion depends on the clock: at(1) + the 10-minute settle delay is 2026-11-08 01:10Z, in the past for good. */
 const at = (h: number) => new Date(AD_PRICE_SINCE.getTime() + h * 3_600_000);
 
 const byText: DecideFn = (state, questions: Record<string, DecisionQuestion>) => {

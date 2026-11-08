@@ -135,6 +135,22 @@ export async function seedReviews(ctx: SeedContext): Promise<void> {
   for (const [i, c] of ctx.ids.competitors.lakeside.entries()) {
     await gbpProfile(ctx, { competitorId: c.id, slug: c.slug, name: c.name, domain: c.domain, placeId: c.placeId, lat: c.lat, lng: c.lng, category: 'Dentist', count: 0, mean: 0, self: false }, [], [4.6, 4.3][i] ?? 4.5, [210, 95][i] ?? 50);
   }
+  await metaPageLikes(ctx, ctx.ids.competitors.loneStar[0]!);
+}
+
+/** Six weekly Facebook Page likes readings (Meta ads captures) for the rival detail page's likes stat. */
+async function metaPageLikes(ctx: SeedContext, c: { id: string; name: string }): Promise<void> {
+  const pageId = '100200300400500';
+  for (let w = 5; w >= 0; w--) {
+    const at = ctx.clock.daysAgo(w * 7 + 1);
+    const [cap] = await ctx.db.insert(capture).values({
+      competitorId: c.id, source: 'meta_ads', status: 'ok', collectorVersion: DEMO_COLLECTOR, capturedAt: at, url: `https://www.facebook.com/ads/library/?view_all_page_id=${pageId}`,
+    }).returning({ id: capture.id });
+    await ctx.db.insert(observation).values({
+      competitorId: c.id, captureId: cap!.id, kind: 'meta_page', key: pageId, observedAt: at,
+      data: { pageId, pageName: c.name, likes: 2400 + (5 - w) * 35 },
+    });
+  }
 }
 
 async function gbpProfile(ctx: SeedContext, t: Target, ratings: number[], fixedRating?: number, fixedVotes?: number, ageDays = 1.5): Promise<void> {

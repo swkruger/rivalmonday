@@ -96,7 +96,8 @@ describe('CompetitorProfilePage', () => {
   });
 
   describe('Facebook Page likes stat', () => {
-    const weeks = (n: number) => Array.from({ length: n }, (_, i) => ({ week: `2026-10-${String(5 + i * 7).padStart(2, '0')}`, likes: 1000 + i * 10 }));
+    /** n weekly points whose last week is `endAgoDays` days back. */
+    const weeks = (n: number, endAgoDays = 7) => Array.from({ length: n }, (_, i) => ({ week: new Date(Date.now() - (endAgoDays + (n - 1 - i) * 7) * 86_400_000).toISOString().slice(0, 10), likes: 1000 + i * 10 }));
     const withPoints = (n: number) => tryCallTool.mockImplementation(async (_c: unknown, tool: string) => (tool === 'get_audience_trend' ? { pages: [{ pageId: '9', pageName: 'Smith HVAC', points: weeks(n) }] } : null));
 
     it('stat hidden with 3 weekly points, shown with 4', async () => {
@@ -109,6 +110,19 @@ describe('CompetitorProfilePage', () => {
       expect(screen.getByText('Facebook Page likes')).toBeTruthy();
       expect(screen.getByText('1,030')).toBeTruthy();
       expect(screen.getByText('Smith HVAC', { selector: '[data-slot=kpi] *' })).toBeTruthy();
+    });
+
+    it('a page last read more than 5 weeks ago does not headline the stat; a fresh smaller page does', async () => {
+      tryCallTool.mockImplementation(async (_c: unknown, tool: string) => (tool === 'get_audience_trend'
+        ? { pages: [{ pageId: '1', pageName: 'Old Page', points: weeks(5, 280) }, { pageId: '2', pageName: 'Fresh Page', points: weeks(4).map((p) => ({ ...p, likes: 200 })) }] }
+        : null));
+      await renderPage();
+      expect(screen.getByText('Fresh Page', { selector: '[data-slot=kpi] *' })).toBeTruthy();
+      expect(screen.queryByText('Old Page')).toBeNull();
+      cleanup();
+      tryCallTool.mockImplementation(async (_c: unknown, tool: string) => (tool === 'get_audience_trend' ? { pages: [{ pageId: '1', pageName: 'Old Page', points: weeks(5, 280) }] } : null));
+      await renderPage();
+      expect(screen.queryByText('Facebook Page likes')).toBeNull();
     });
 
     it('stays out when the read returns nothing', async () => {

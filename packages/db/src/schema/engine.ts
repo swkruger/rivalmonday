@@ -65,6 +65,8 @@ export interface ChangeDetails {
   topicName?: string;
   verticalId?: string;
   /** Phase 18a-1: GBP status change (closed/reopened), profile edits, and page-likes growth. */
+  /** Fingerprint of the new normalised value of a changed GBP profile field (novelty compares true repeats only). */
+  after?: string;
   direction?: 'closed' | 'reopened';
   statusBefore?: string;
   statusAfter?: string;

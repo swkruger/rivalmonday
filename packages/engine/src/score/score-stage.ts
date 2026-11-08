@@ -42,6 +42,12 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
       return `tier|${d.from ?? ''}|${d.to ?? ''}`;
     case 'review_spike':
       return `reviews|${d.topic ?? ''}|${d.count ?? ''}|${d.windowDays ?? ''}|${d.baselineMean ?? ''}`;
+    case 'profile_change':
+      return `profile|${d.field ?? ''}|${d.after ?? ''}`;
+    case 'audience_growth':
+      return `audience|${d.pageId ?? ''}|${d.likesBefore ?? ''}|${d.likesAfter ?? ''}`;
+    case 'status_change':
+      return `status|${d.direction ?? ''}|${d.statusBefore ?? ''}|${d.statusAfter ?? ''}`;
     case 'ad_started':
     case 'ad_stopped':
     case 'hiring':
