@@ -4,10 +4,10 @@
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-Kicked off 2026-11-08; not on the roadmap yet.
+Kicked off 2026-11-08; not on the roadmap yet. 18a-1 spec drafted + builder-checked (d7d8a333); awaiting owner approval.
 
 ## Next (overwrite)
-Owner answers the open questions → `superpowers:brainstorming` → spec.
+Owner approves the 18a-1 spec → `superpowers:writing-plans` (lean format) → owner approves plan → SDD. Brief open questions 3, 5, 7, 8 belong to 18a-2.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: next free at execution; main ends 0099, `brief-report` claims the next (≥ 0100) ⇒ expect **0101**; re-check.
@@ -18,6 +18,8 @@ TBD. Migration: next free at execution; main ends 0099, `brief-report` claims th
 ## Decisions (owner-approved)
 1. Phase 18 "Wider sources" (brainstorm 2026-11-08): **18a** use what we have (this branch) → **18b** more Google via DataForSEO (GBP posts/offers, Google Guaranteed/LSA, organic + AI Overview, news/awards, Tripadvisor/Trustpilot) → **18c** citations (client NAP hygiene, rival citation growth/partner directories) → **18d** events & entertainment vertical → **18e** social via ScrapeCreators. Out of Phase 18: public records, newsletters, FB Events/Nextdoor, ad image/video analysis, bought citation data, Yelp.
 2. 18a adds no paid vendors.
+3. 18a splits: **18a-1** GBP + Meta (this branch; spec `docs/superpowers/specs/2026-11-08-phase-18a1-gbp-meta-design.md`, O1–O6), **18a-2** web readiness (own branch, after/alongside the prod deploy), **18a-3** reading ad images (own branch, after 18a-1).
+4. 18a-3 basis (checked 2026-11-08, OpenRouter): `typesafe/jev-1.14` takes text + image input, output = decisions only (choice/score/noul; no text read-out), $0.042/M prompt tokens, completion free. Plan: Jev triages ad images (service, offer, theme, "shows a price"); only price-bearing images go to a vision LLM to read the amount. Start with Google ad images (no copy today). Needs: image parts in `@cs/ai` Jev provider, ad images copied into the evidence store, a no-people-images rule, a < $0.01 live cost check (owner approves).
 
 ## New backlog (target → item)
 - none yet
