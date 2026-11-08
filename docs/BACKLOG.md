@@ -62,6 +62,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 
 ### 7c1 follow-ups (quality gates, evals)
 - [ ] Ask `eval:replay` miss names only the key: log the case id and dump the normalized request on a miss (diagnosing `193437be` needed a temporary patch; cause was `get_competitor_timeline` ties, fixed 2026-11-07) — *staging 2026-11-01*
+- [ ] Site `e2e/vitals.spec.ts` `/` phone LCP sits at the 2500 ms budget (CI 1.86–2.58 s, local 2.37–2.57 s with either font setup): failed CI run 42440234294; find the LCP element and trim it before raising the budget — *2026-11-07*
 - [ ] Ask evals: run cases with bounded concurrency (~1 h sequential) and prompt-cache the system prompt + tool definitions (~12k prompt tokens per Sonnet 5 call) — *jev-openrouter*
 - [ ] Evals: `record --case <id>` single-case merge or `--keep-only-green` (`record --fill` covers most of it; `eval record` saves a take with blocking failures); flush cassette on budget stop; omit `topic.*`/`sentiment.mae` when n=0; validate baseline JSON; cassette `version` guard; rebuild `changes` once real web changes exist (R15) and re-baseline after the owner confirms labels — *phase-7c1*
 - [ ] Ask: citation-repair follow-up for thinner answers (guard runs after `supportCheck`; misses spelled-out numbers/relative dates); eval B2 splitter vs guard `splitUnits` divergence; ~2 % invalid-JSON turns (likely per-call `AbortSignal.timeout` firing during `res.json()`, mislabelled) — *phase-7c1*

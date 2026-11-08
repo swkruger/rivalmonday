@@ -70,7 +70,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}page-header-guard\\.ts$`), tags: [], why: 'test-only PageHeader guard rail (countPrimaryActions), no browser flow' },
   { pattern: re(`${COMP}page-skeleton\\.tsx$`), tags: [], why: 'Suspense fallback, not used by a page until 15c-2' },
   { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
-  { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|health/)`), tags: 'all', why: 'root layout/styles/health check' },
+  { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|fonts/|health/)`), tags: 'all', why: 'root layout/styles/fonts/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
   { pattern: re(`${APP}(?:favicon\\.ico|icon\\.svg)$`), tags: [], why: 'static tab icons, no browser flow' },
   { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
