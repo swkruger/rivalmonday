@@ -82,6 +82,7 @@ export const getCompetitorTimeline = defineTool({
   feature: 'dashboard',
   async handler(ctx, input, deps) {
     const since = new Date(Date.now() - input.days * DAY);
+    // Ties break on id: an unordered tie changed the Ask request between runs (CI replay miss on ask-ground-18).
     // Launch-gate 6a: the client check, the tracked check and both RLS reads (pipelined in one transaction) start together;
     // refusals keep their order (`allInOrder`). `input.clientId` is the checked client's id.
     const [c, , [events, moves]] = await allInOrder([
@@ -89,9 +90,10 @@ export const getCompetitorTimeline = defineTool({
       requireTracked(deps.app, ctx, input.clientId, input.competitorId),
       withTenant(deps.app, ctx, (tx) => Promise.all([
         tx.select(eventRowSelect).from(eventScore).innerJoin(changeEvent, eventJoin.change).innerJoin(clientCompetitor, eventJoin.tracked).innerJoin(competitor, eq(competitor.id, changeEvent.competitorId))
-          .where(and(clientEvents(input.clientId), eq(changeEvent.competitorId, input.competitorId), gte(changeEvent.occurredAt, since))).orderBy(desc(changeEvent.occurredAt)).limit(200),
+          .where(and(clientEvents(input.clientId), eq(changeEvent.competitorId, input.competitorId), gte(changeEvent.occurredAt, since))).orderBy(desc(changeEvent.occurredAt), asc(changeEvent.id)).limit(200),
         tx.select({ id: move.id, moveType: move.moveType, status: move.status, summary: move.summary, at: move.firstDetectedAt, closedAt: move.closedAt }).from(move)
-          .where(and(eq(move.clientId, input.clientId), eq(move.competitorId, input.competitorId), or(gte(move.firstDetectedAt, since), isNull(move.closedAt)), sql`${liveEventCount} > 0`)),
+          .where(and(eq(move.clientId, input.clientId), eq(move.competitorId, input.competitorId), or(gte(move.firstDetectedAt, since), isNull(move.closedAt)), sql`${liveEventCount} > 0`))
+          .orderBy(desc(move.firstDetectedAt), asc(move.id)),
       ])),
     ]);
     const pack = await packsOf(deps)(c.verticalId);

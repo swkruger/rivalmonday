@@ -1,4 +1,5 @@
-import { ad, capture, competitorSource, observation } from '@cs/db';
+import { ad, capture, changeEvent, competitorSource, observation } from '@cs/db';
+import { inArray } from 'drizzle-orm';
 import { IDS } from '@cs/db/test-helpers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CompetitorProfile, TimelineItem } from './schemas';
@@ -49,5 +50,13 @@ describe('get_competitor_timeline', () => {
     expect(t.items.map((i) => [i.kind, i.id])).toEqual([['move', m], ['event', recent.eventId]]);
     const year = (await registry.invoke(am, 'get_competitor_timeline', { clientId: IDS.clientA1, competitorId: IDS.competitorX, days: 365 })) as { items: TimelineItem[] };
     expect(year.items.map((i) => i.id)).toContain(old.eventId);
+  });
+
+  it('orders events at the same instant by id, so repeated reads (and the Ask cassette) see one order', async () => {
+    const ids = [];
+    for (let i = 0; i < 4; i++) ids.push((await seedEvent({ score: 75, route: 'alert', ageDays: 2 })).eventId);
+    await dbs.owner.update(changeEvent).set({ occurredAt: new Date('2026-10-13T10:00:00Z') }).where(inArray(changeEvent.id, ids));
+    const t = (await registry.invoke(am, 'get_competitor_timeline', { clientId: IDS.clientA1, competitorId: IDS.competitorX, days: 365 })) as { items: TimelineItem[] };
+    expect(t.items.map((i) => i.id)).toEqual([...ids].sort());
   });
 });
