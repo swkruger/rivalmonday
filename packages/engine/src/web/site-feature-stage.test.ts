@@ -14,6 +14,8 @@ const store = createMemoryStore();
 const deps = () => ({ db: dbs.service, store });
 
 const BOOKING = '<script src="https://online-booking.housecallpro.com/script.js"></script>';
+const CALENDLY = '<script src="https://assets.calendly.com/assets/external/widget.js"></script>';
+const ACUITY = '<script src="https://embed.acuityscheduling.com/js/embed.js"></script>';
 const CHAT = '<script src="https://connect.podium.com/widget.js"></script>';
 const html = (...embeds: string[]) => `<html><head>${embeds.join('')}</head><body><main><h1>Smith HVAC</h1><p>Book a tune-up today.</p></main></body></html>`;
 
@@ -116,6 +118,35 @@ describe('detectSiteFeatures', () => {
     await ok(html(), day(3));
     await run(a2);
     expect((await run(n2)).changes).toHaveLength(1);
+  });
+
+  it('a vendor swap within one category emits nothing', async () => {
+    const a = await ok(html(CALENDLY), day(0));
+    await ok(html(CALENDLY), day(1));
+    const n = await ok(html(ACUITY), day(2));
+    await ok(html(ACUITY), day(3));
+    await run(a);
+    expect((await run(n)).changes).toEqual([]);
+    expect(await changes()).toEqual([]);
+  });
+
+  it('removing the last vendor of a category emits one removed', async () => {
+    const a = await ok(html(CALENDLY, CHAT), day(0));
+    await ok(html(CALENDLY, CHAT), day(1));
+    const n = await ok(html(CHAT), day(2));
+    await ok(html(CHAT), day(3));
+    await run(a);
+    expect((await run(n)).changes).toHaveLength(1);
+    expect(await changes()).toEqual([expect.objectContaining({ kind: 'removed', blockKey: 'feature:calendly', details: expect.objectContaining({ category: 'online_booking', direction: 'removed' }) })]);
+  });
+
+  it('a second vendor added while the first stays emits nothing', async () => {
+    const a = await ok(html(CALENDLY), day(0));
+    await ok(html(CALENDLY), day(1));
+    const n = await ok(html(CALENDLY, ACUITY), day(2));
+    await ok(html(CALENDLY, ACUITY), day(3));
+    await run(a);
+    expect((await run(n)).changes).toEqual([]);
   });
 
   it('another active page that already has the tool blocks added', async () => {

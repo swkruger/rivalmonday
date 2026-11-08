@@ -1,6 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { redactForModel } from '@cs/collectors';
-import { pageKey } from '@cs/collectors';
+import { pageKey, redactForModel } from '@cs/collectors';
 import { capture, captureBlock, competitor, type Db, detectedChange, evidence, type NumericChange, trackedPage } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import * as cheerio from 'cheerio';
@@ -112,9 +111,13 @@ async function newPageCandidate(deps: EngineDeps, cap: { id: string; capturedAt:
   const h2s = blocks.filter((b) => isTag(b.path, 'h2')).slice(0, 2).map((b) => b.text.trim());
   let label = h1;
   if (!label) {
-    const [ev] = await deps.db.select({ key: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, cap.id), eq(evidence.kind, 'html'))).limit(1);
-    const gz = ev ? await deps.store.get(ev.key) : null;
-    if (gz) label = cheerio.load(new TextDecoder().decode(gunzipSync(gz)))('title').first().text().replace(/\s+/g, ' ').trim() || null;
+    try {
+      const [ev] = await deps.db.select({ key: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, cap.id), eq(evidence.kind, 'html'))).limit(1);
+      const gz = ev ? await deps.store.get(ev.key) : null;
+      if (gz) label = cheerio.load(new TextDecoder().decode(gunzipSync(gz)))('title').first().text().replace(/\s+/g, ' ').trim() || null;
+    } catch {
+      /* a bad html object only loses the title; the path label stands */
+    }
   }
   const text = [path, ...(h1 ? [h1] : []), ...h2s].join('\n').slice(0, NEW_PAGE_TEXT_CHARS);
   return { text, label, pageUrl: page.url, pageType: page.pageType };

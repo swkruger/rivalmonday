@@ -8,7 +8,7 @@ import { runStage, type StageOutcome } from '../stage';
 
 export const SITE_FEATURE_STAGE = 'site_features';
 export const SITE_FEATURE_VERSION = 1;
-/** At most one `site_feature` change per (competitor, tool) in this many days. */
+/** At most one `site_feature` change per (competitor, category) in this many days. */
 export const SITE_FEATURE_COOLDOWN_DAYS = 28;
 const DAY_MS = 86_400_000;
 const OBSERVATION_KIND = 'site_features';
@@ -124,23 +124,36 @@ export async function detectSiteFeatures(deps: { db: Db; store: ObjectStore }, c
         WHERE o.competitor_id = ${cap.competitorId}::uuid AND o.kind = ${OBSERVATION_KIND} AND o.key <> ${pageId}
           AND o.observed_at <= ${cap.capturedAt.toISOString()}::timestamptz
         ORDER BY o.key, o.observed_at DESC`)) as unknown as { data: Record<string, unknown> }[];
-      const elsewhere = new Set(others.flatMap((o) => readObservation(o.data)?.features ?? []));
-      const candidates = [...added.map((id) => ({ id, direction: 'added' as const })), ...removed.map((id) => ({ id, direction: 'removed' as const }))].filter((c) => !elsewhere.has(c.id));
+      // Client text names the category only, so presence is decided per category: a vendor swap within a category
+      // (on one page or across pages) is neither an add nor a removal.
+      const catsOf = (ids: Iterable<string>) => new Set([...ids].flatMap((id) => (REGISTRY.has(id) ? [REGISTRY.get(id)!.category] : [])));
+      const elsewhereCats = catsOf(others.flatMap((o) => readObservation(o.data)?.features ?? []));
+      const catPrev = new Set([...catsOf(prevSet), ...elsewhereCats]);
+      const catNow = new Set([...catsOf(confirmedSet), ...elsewhereCats]);
+      const seen = new Set<string>();
+      const pick = (ids: string[], direction: 'added' | 'removed', absent: Set<string>) =>
+        ids.flatMap((id) => {
+          const category = REGISTRY.get(id)!.category;
+          if (absent.has(category) || seen.has(category)) return [];
+          seen.add(category);
+          return [{ id, category, direction }];
+        });
+      const candidates = [...pick(added, 'added', catPrev), ...pick(removed, 'removed', catNow)];
       if (candidates.length === 0) return { ...none, observation: obs };
 
-      // Cooldown: no site_feature change for the same (competitor, tool) whose evidence is within 28 days of N.
+      // Cooldown: no site_feature change for the same (competitor, category) whose evidence is within 28 days of N.
       const since = new Date(cap.capturedAt.getTime() - SITE_FEATURE_COOLDOWN_DAYS * DAY_MS);
       const recent = (await deps.db.execute(sql`
-        SELECT DISTINCT d.details->>'feature' AS feature FROM detected_change d JOIN capture c ON c.id = d.after_capture_id
+        SELECT DISTINCT d.details->>'category' AS category FROM detected_change d JOIN capture c ON c.id = d.after_capture_id
         WHERE d.competitor_id = ${cap.competitorId}::uuid AND d.source = 'web' AND d.status <> 'superseded'
           AND d.details->>'changeType' = 'site_feature'
-          AND d.details->>'feature' IN (${sql.join(candidates.map((c) => sql`${c.id}`), sql`, `)})
-          AND c.captured_at > ${since.toISOString()}::timestamptz`)) as unknown as { feature: string }[];
-      const cooling = new Set(recent.map((r) => r.feature));
+          AND d.details->>'category' IN (${sql.join(candidates.map((c) => sql`${c.category}`), sql`, `)})
+          AND c.captured_at > ${since.toISOString()}::timestamptz`)) as unknown as { category: string }[];
+      const cooling = new Set(recent.map((r) => r.category));
 
       const url = page?.url ?? cap.url ?? '';
       const changes = candidates
-        .filter((c) => !cooling.has(c.id))
+        .filter((c) => !cooling.has(c.category))
         .map(({ id, direction }) => {
           const sig = REGISTRY.get(id)!;
           const text = `${SITE_FEATURE_CATEGORY_LABEL[sig.category]} (on ${pathOf(url)})`;

@@ -1,11 +1,10 @@
+import { DISCOVERY_SCHEDULE_BATCH } from '@cs/collectors';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 import { workerLog } from '../log';
 
 export const WEB_SCHEDULE_BATCH = 200;
-/** Owner cap: competitors re-discovered per daily run (= `DISCOVERY_SCHEDULE_BATCH`). */
-export const DISCOVERY_BATCH = 25;
 
 export function createWebJobs(
   deps: WorkerDeps,
@@ -66,7 +65,7 @@ export function createWebJobs(
         idleLogged = true;
         return;
       }
-      const ids = await deps.claimDueDiscoveries(DISCOVERY_BATCH);
+      const ids = await deps.claimDueDiscoveries(DISCOVERY_SCHEDULE_BATCH);
       for (const id of ids) await queue.enqueueDiscover?.(id);
       if (ids.length > 0) workerLog.info(`[discover-schedule] enqueued ${ids.length} site discoveries`);
     },

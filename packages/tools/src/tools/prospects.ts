@@ -155,7 +155,13 @@ export const convertProspect = defineTool({
     // 18a-2 D7: the client is active now, so start the page discovery deferred while it was a prospect (never fails the conversion).
     try {
       const links = await deps.service.select({ competitorId: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.clientId, clientId));
-      for (const l of links) await startDiscovery(deps, l.competitorId, clientId);
+      for (const l of links) {
+        try {
+          await startDiscovery(deps, l.competitorId, clientId);
+        } catch (err) {
+          console.error('convert_prospect: page discovery could not start', err);
+        }
+      }
     } catch (err) {
       console.error('convert_prospect: page discovery could not start', err);
     }

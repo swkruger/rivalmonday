@@ -84,7 +84,7 @@ export const addTrackedPage = defineTool({
     // 18a-2 D6: the same page under another spelling (http/https, www, trailing slash, tracking params) is one row.
     const key = pageKey(parsed.toString());
     const rows = await deps.service.select({ id: trackedPage.id, url: trackedPage.url, active: trackedPage.active }).from(trackedPage).where(eq(trackedPage.competitorId, competitorId));
-    const existing = rows.find((r) => pageKey(r.url) === key);
+    const existing = rows.find((r) => r.active && pageKey(r.url) === key) ?? rows.find((r) => pageKey(r.url) === key);
     // A human adding a page re-activates it even when it was switched off by hand ('manual') or by discovery.
     if (existing) {
       if (!existing.active && rows.filter((r) => r.active).length >= MAX_ACTIVE_PAGES) throw new ToolError('invalid_input', `A competitor can have at most ${MAX_ACTIVE_PAGES} monitored pages`);

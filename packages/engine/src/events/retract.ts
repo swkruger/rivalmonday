@@ -68,7 +68,7 @@ export type SupersedeSubject = { afterCaptureId: string; source: string } | { ra
  * Phase 3d decision 7: when a diff stage re-runs a subject under a newer stage version, that subject's changes from
  * older versions are superseded and withdrawn from their events, and their open AM reviews are closed as moot
  * (`resolved_by = 'system:superseded'`). Complaint spikes (`details.topic`, written by the
- * nightly review-insights run against a reviews capture) are not diff output and are never touched.
+ * nightly review-insights run against a reviews capture) and `site_feature` rows (written by the site-features stage, not the diff) are not diff output and are never touched.
  */
 export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, version: number): Promise<{ superseded: number; retracted: number }> {
   const scope =

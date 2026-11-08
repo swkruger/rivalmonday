@@ -27,7 +27,7 @@ Final review + one fix wave (carry: one try/catch around the whole `convert_pros
 - **Tools:** `Discovery` = `queued | disabled | deferred | not_needed` (bulk-note precedence disabled > deferred > queued). `deferred` = prospect or paused/archived/spend-paused client: no crawl; `convert_prospect` starts discovery. `add_tracked_page` matches by page key. No new tool, so `ISOLATION_FIXTURES` is unchanged; `search_events` output enums gained the new types.
 
 ## Rollout (in order)
-1. Migrate (`pnpm db:migrate`), deploy web + worker.
+1. Migrate (`pnpm db:migrate`), then deploy the worker immediately (old code rejects v6 packs and the old `add_tracked_page` trips the new CHECK until it is replaced), then web.
 2. `pnpm --filter @cs/worker meta-page-backfill --dry-run`, then without `--dry-run`.
 3. `pnpm --filter @cs/worker rescore --dry-run`, then without (read the `archive->brief` line first). No re-score for 18a-2 (new types appear only on new captures).
 4. 18a-2 switch-on is separate and later: OPS "Switching on website monitoring (18a-2)" (needs `rivalmonday.app/bot` live).

@@ -9,6 +9,7 @@ import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
 import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
+import type { DiscoveryResult } from '@cs/collectors';
 import {
   analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
@@ -114,7 +115,7 @@ export interface WorkerDeps {
   /** Phase 11a Task 9: daily reminders to agency staff about open setups (needs delivery config). */
   setupReminders(now: Date): Promise<{ queued: number }>;
   recommendForMoves(clientId: string): Promise<{ created: number; skipped: number; failed: number }>;
-  discoverPages(competitorId: string): Promise<{ selected: number; candidates: number; homepageStatus: string } | { skipped: string }>;
+  discoverPages(competitorId: string): Promise<DiscoveryResult | { skipped: string }>;
   /** True once DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are both set — gates all vendor collection. */
   vendorsConfigured(): boolean;
   /** Links clients with a place id to their own business as a self competitor (reviews + GBP only). */

@@ -114,7 +114,7 @@ failure (N absent, S present) never emits.
   `USD` or missing (missing → USD; all clients are US, ruling 2026-11-08, owner may overturn); any other currency → skip. Offers with any `priceSpecification` → skip. Price must parse as a plain number (commas
   allowed), 0 < amount ≤ `MAX_PRICE`. Name/description matching the discount words (`off`, `discount`, `rebate`,
   `coupon`, `credit`, `savings`) → skip. `promo` = the observer's `PROMO` test on name/description.
-- Rows are ordinary page rows (`tracked_page_id` set, `PriceNow.source = 'page'`); dedupe with text prices by the
+- Rows are ordinary page rows (`tracked_page_id` set, `PriceNow.source = 'web'`); dedupe with text prices by the
   existing open-span key. `raw` = `$129` / `from $79`; `context` = redacted `<name> — <raw>`.
 - No `price_change` event from JSON-LD alone. `PRICE_VERSION` stays 1 (no re-run of old captures).
 
