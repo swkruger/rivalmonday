@@ -93,7 +93,7 @@ export default async function CompetitorProfilePage({
   ]);
   const adsTrace = adActivity?.series.find((x) => x.competitorId === competitorId)?.points;
   const ratingTrace = ratingTrend?.businesses.find((b) => b.competitorId === competitorId)?.monthly.map((m) => m.avgRating);
-  const fbPage = audience?.pages[0];
+  const fbPage = audience?.pages?.[0];
   const showLikes = fbPage !== undefined && fbPage.points.length >= 4;
   const rated = signals.competitors.find((x) => x.competitorId === competitorId) ?? null;
   const now = new Date();
