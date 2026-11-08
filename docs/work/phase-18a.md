@@ -4,10 +4,10 @@
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-18a-1 tasks 0-10 done; final review next (then owner go-ahead for `/rm-merge`). Not on the roadmap yet.
+18a-1 done: tasks 0-10 + final fix wave 5326e722, final review clean (2026-11-08). test:affected green after fixes (focused), e2e:affected 153/153, profile gate pass (competitor page 4 DB stages). Awaiting owner go-ahead for `/rm-merge`. Not on the roadmap yet.
 
 ## Next (overwrite)
-Final review (`pnpm test:affected` + `pnpm --filter @cs/web e2e:affected`, once), one fix wave, owner approval, merge. 18a-2 (web readiness) and 18a-3 (ad images) are separate branches; brief open questions 3, 5, 7, 8 belong to 18a-2.
+`/rm-merge` (owner go-ahead): first add `.describe` on `PriceNowView.source` (M5), then re-record the Ask eval suite (`record --fill`; ask_assistant cassettes miss since Task 9 changed the `get_price_matrix` spec; past cost $1.6-7.65, owner chose to do it at merge); bump `AD_PRICE_SINCE` if the deploy slips by weeks; owner signs off new copy in `pnpm copy:review` (incl. the writer's reopening sentence). 18a-2 (web readiness) and 18a-3 (ad images) are separate branches; brief open questions 3, 5, 7, 8 belong to 18a-2.
 
 ## Interfaces this branch adds or changes
 - **Migration 0100:** `price_point.ad_id` (FK `ad`), `tracked_page_id` now nullable, CHECK exactly one of the two, unique index `price_point_ad_open_unique`; `ad.event` column; vertical pack v5 data (scoring v5).
@@ -36,7 +36,10 @@ Final review (`pnpm test:affected` + `pnpm --filter @cs/web e2e:affected`, once)
 4. 18a-3 basis (checked 2026-11-08, OpenRouter): `typesafe/jev-1.14` takes text + image input, output = decisions only (choice/score/noul; no text read-out), $0.042/M prompt tokens, completion free. Plan: Jev triages ad images (service, offer, theme, "shows a price"); only price-bearing images go to a vision LLM to read the amount. Start with Google ad images (no copy today). Needs: image parts in `@cs/ai` Jev provider, ad images copied into the evidence store, a no-people-images rule, a < $0.01 live cost check (owner approves).
 
 ## New backlog (target → item)
-- none yet
+- 18e → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
+- 18a-3 → ad prices can lead a pricing cell and the Promo chip counts ad promos (display only, tagged "From an ad"); revisit with pilots — *from 18a-1 final review*
+- later → audience cooldown keyed on `detected_at` over-suppresses after a long engine stall — *from 18a-1 final review*
+- pilot → confirm GBP closure values (`closed_forever`/`temporarily_closed`) on the first real closure — *from 18a-1 pre-flight*
 
 ## Brief
 
