@@ -39,7 +39,7 @@ export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['
  * Excluded: content (shared with web page edits; no service = generic copy), tier_change (deterministic score, P10),
  * and the service-specific types (price_change, promo, new_service, service_removed, service_area_change, cosmetic).
  */
-export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location']);
+export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth']);
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
@@ -64,6 +64,10 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
       return curve(d.ratingBefore !== undefined && d.ratingAfter !== undefined ? d.ratingAfter - d.ratingBefore : undefined, s.rating_delta_for_full);
     case 'rank_change':
       return curve(d.avgRankBefore !== undefined && d.avgRankAfter !== undefined ? d.avgRankBefore - d.avgRankAfter : undefined, s.rank_delta_for_full);
+    case 'status_change':
+      return d.direction === 'closed' ? 1 : s.default;
+    case 'audience_growth':
+      return curve(d.pct, s.audience_pct_for_full);
     default:
       return s.default;
   }
@@ -109,7 +113,8 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const svc = serviceOverlap(input.serviceId, profile.services, pack, input.changeType);
   const territory = TERRITORIAL_TYPES.has(input.changeType) ? territoryOverlap(input.zips, profile.zips, pack) : 1;
   const relevance = svc.value * territory;
-  const novelty = noveltyFactor(input.maxSimilarity, pack);
+  // Phase 18a-1: a closure is always news, so novelty never discounts it.
+  const novelty = input.changeType === 'status_change' && input.details.direction === 'closed' ? 1 : noveltyFactor(input.maxSimilarity, pack);
   if (profile.thresholds && !validThresholds(profile.thresholds)) console.warn('[engine] invalid client score thresholds; using the pack routing', profile.thresholds);
   const thresholds = validThresholds(profile.thresholds) ? profile.thresholds : pack.scoring.routing;
   // P10: a tier change is deterministic. Promotion to top scores the alert threshold, any other promotion the brief threshold, a demotion 0.
@@ -123,12 +128,15 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   if (needsReviewCap) route = 'brief';
   const staleCap = route === 'alert' && input.ageDays > pack.scoring.alert_max_age_days;
   if (staleCap) route = 'brief';
+  // Phase 18a-1: profile edits (hours, phone, categories) never page anyone.
+  const profileCap = input.changeType === 'profile_change' && route === 'alert';
+  if (profileCap) route = 'brief';
   return {
     score,
     route,
     factors: {
       typeWeight, size, serviceOverlap: svc.value, wholeBusiness: svc.wholeBusiness, territoryOverlap: territory, relevance, novelty, maxSimilarity: input.maxSimilarity,
-      needsReviewCap, staleCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
+      needsReviewCap, staleCap, profileCap, thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version,
     },
   };
 }

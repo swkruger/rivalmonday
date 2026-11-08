@@ -106,6 +106,7 @@ export const verticalPackSchema = z.object({
           review_z_for_full: z.number().positive().default(4),
           rating_delta_for_full: z.number().positive().default(0.3),
           rank_delta_for_full: z.number().positive().default(5),
+          audience_pct_for_full: z.number().positive().default(20),
           structured_min: weight.default(0.3),
         })
         .prefault({}),

@@ -64,16 +64,16 @@ describe('migration 0099 whole_business', () => {
     expect(await rows()).toEqual(after);
   });
 
-  it('createCatalog assembles whole_business 1 and version 4 for all four (generic inheritance)', async () => {
+  it('createCatalog assembles whole_business 1 and version 5 for all four (generic inheritance)', async () => {
     await backfill();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     for (const id of ['hvac_plumbing', 'dental', 'wb_created']) {
       const p = await cat.packs(id);
       expect(p.scoring.relevance.whole_business, id).toBe(1);
-      expect(p.scoring.version, id).toBe(4);
+      expect(p.scoring.version, id).toBe(5);
     }
     const g = await cat.generic();
     expect(g.scoring.relevance.whole_business).toBe(1);
-    expect(g.scoring.version).toBe(4);
+    expect(g.scoring.version).toBe(5);
   });
 });

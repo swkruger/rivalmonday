@@ -73,7 +73,7 @@ describe('Phase 3b pack knobs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
     const p = await loadVerticalPack(id);
     expect(p.type_weights.rank_change).toBe(0.5);
-    expect(p.scoring.version).toBe(4);
+    expect(p.scoring.version).toBe(5);
     expect(p.type_weights.tier_change).toBe(0.6);
     expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
     expect(p.scoring.alert_max_age_days).toBe(7);
@@ -82,11 +82,20 @@ describe('Phase 3b pack knobs', () => {
 });
 
 describe('brief-signal whole_business', () => {
-  it('every shipped pack has whole_business 1 and scoring version 4', async () => {
+  it('every shipped pack has whole_business 1 and scoring version 5', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.scoring.relevance.whole_business, id).toBe(1);
-      expect(p.scoring.version, id).toBe(4);
+      expect(p.scoring.version, id).toBe(5);
+    }
+  });
+
+  it('every shipped pack has the Phase 18a-1 weights and version 5', async () => {
+    for (const id of await listVerticalPacks()) {
+      const p = await loadVerticalPack(id);
+      expect(p.type_weights, id).toMatchObject({ status_change: 1.0, profile_change: 0.8, audience_growth: 0.7 });
+      expect(p.scoring.version, id).toBe(5);
+      expect(p.scoring.size.audience_pct_for_full, id).toBe(20);
     }
   });
 

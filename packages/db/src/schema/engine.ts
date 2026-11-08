@@ -62,6 +62,14 @@ export interface ChangeDetails {
   topic?: string;
   topicName?: string;
   verticalId?: string;
+  /** Phase 18a-1: GBP status change (closed/reopened), profile edits, and page-likes growth. */
+  direction?: 'closed' | 'reopened';
+  statusBefore?: string;
+  statusAfter?: string;
+  likesBefore?: number;
+  likesAfter?: number;
+  pct?: number;
+  days?: number;
   ratingBefore?: number;
   ratingAfter?: number;
   votesBefore?: number | null;
@@ -111,6 +119,8 @@ export interface ScoreFactors {
   rescored?: { at: string; score: number; route: 'alert' | 'brief' | 'archive'; scoringVersion: number };
   /** brief-signal D3: an alert route produced by a re-score, stored as brief. */
   rescoreCap?: boolean;
+  /** Phase 18a-1: a profile_change alert capped to brief (profile edits never page anyone). */
+  profileCap?: boolean;
   thresholds: ScoreThresholds;
   scoringVersion: number;
 }

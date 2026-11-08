@@ -1,6 +1,7 @@
 export const CHANGE_TYPES = [
   'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
   'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
+  'status_change', 'profile_change', 'audience_growth',
 ] as const;
 export type ChangeType = (typeof CHANGE_TYPES)[number];
 

@@ -16,6 +16,9 @@ const weights = `
     rank_change: 0.5
     tier_change: 0.6
     content: 0.2
+    status_change: 1
+    profile_change: 0.8
+    audience_growth: 0.7
     cosmetic: 0`;
 
 const discovery = `
