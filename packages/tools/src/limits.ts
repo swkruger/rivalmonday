@@ -1,8 +1,8 @@
 /** Decision 6 (5b-2): default for the per-client column `client.competitor_limit` (spec §4.1, §11). */
 export const DEFAULT_COMPETITOR_LIMIT = 5;
 export const MAX_COMPETITOR_LIMIT = 10;
-/** Spec §4.1: cap ≈ 25 tracked pages per competitor. */
-export const MAX_ACTIVE_PAGES = 25;
+/** Spec §4.1: cap ≈ 25 tracked pages per competitor (defined in `@cs/core`, shared with discovery). */
+export { MAX_ACTIVE_PAGES } from '@cs/core';
 /** Decision 17 (5b-2): a new paid competitor search waits this long after the client's last one finished. */
 export const RIVAL_SEARCH_COOLDOWN_MINUTES = 10;
 /** Phase 12a D7: competitor searches (discovery runs) per agency per UTC day, any trigger and status. */

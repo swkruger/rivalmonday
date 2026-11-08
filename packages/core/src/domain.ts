@@ -25,6 +25,8 @@ export type SelfRuleId = (typeof SELF_RULE_IDS)[number];
 
 export const PAGE_TYPES = ['home', 'pricing', 'service', 'service_area', 'promo', 'careers', 'team', 'about', 'contact', 'blog', 'other'] as const;
 export type PageType = (typeof PAGE_TYPES)[number];
+/** Spec §4.1: cap ≈ 25 tracked (active) pages per competitor — discovery selection, re-discovery room and `add_tracked_page`. */
+export const MAX_ACTIVE_PAGES = 25;
 
 export const CAPTURE_STATUSES = ['ok', 'unchanged', 'blocked', 'robots_disallowed', 'vendor_error', 'timeout', 'error'] as const;
 export type CaptureStatus = (typeof CAPTURE_STATUSES)[number];

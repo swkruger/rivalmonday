@@ -23,10 +23,10 @@ describe('collectSitemapUrls', () => {
       if (u.endsWith('/pages.xml')) return { status: 200, body: pages };
       throw new Error('down');
     });
-    expect(await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml', 'https://s.example/broken.xml'])).toEqual([
+    expect((await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml', 'https://s.example/broken.xml'])).urls).toEqual([
       'https://s.example/', 'https://s.example/pricing',
     ]);
-    expect(await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml'], { maxUrls: 1 })).toHaveLength(1);
+    expect((await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml'], { maxUrls: 1 })).urls).toHaveLength(1);
   });
 
   it('caps the number of sitemap files fetched per call (default 10)', async () => {
@@ -41,5 +41,34 @@ describe('collectSitemapUrls', () => {
     const many = Array.from({ length: 20 }, (_, i) => `https://s.example/sitemap-${i}.xml`);
     await collectSitemapUrls(fetchText, many, { maxFiles: 3 });
     expect(fetchText).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports a complete read as not truncated, and a 404/410 seed as no sitemap (not truncated)', async () => {
+    const fetchText = vi.fn(async (u: string) => (u.endsWith('/sitemap.xml') ? { status: 200, body: pages } : { status: 404, body: '' }));
+    expect(await collectSitemapUrls(fetchText, ['https://s.example/sitemap.xml', 'https://s.example/missing.xml'])).toEqual({
+      urls: ['https://s.example/', 'https://s.example/pricing'], truncated: false,
+    });
+    expect(await collectSitemapUrls(async () => ({ status: 410, body: '' }), ['https://s.example/sitemap.xml'])).toEqual({ urls: [], truncated: false });
+  });
+
+  it('is truncated when the url cap drops urls', async () => {
+    const r = await collectSitemapUrls(async () => ({ status: 200, body: pages }), ['https://s.example/sitemap.xml'], { maxUrls: 1 });
+    expect(r).toEqual({ urls: ['https://s.example/'], truncated: true });
+    expect((await collectSitemapUrls(async () => ({ status: 200, body: pages }), ['https://s.example/sitemap.xml'], { maxUrls: 2 })).truncated).toBe(false);
+  });
+
+  it('is truncated when the file cap or depth cap leaves sitemaps unread', async () => {
+    const many = Array.from({ length: 4 }, (_, i) => `https://s.example/sitemap-${i}.xml`);
+    expect((await collectSitemapUrls(async () => ({ status: 200, body: single }), many, { maxFiles: 3 })).truncated).toBe(true);
+    expect((await collectSitemapUrls(async () => ({ status: 200, body: single }), many, { maxFiles: 4 })).truncated).toBe(false);
+    const deep = vi.fn(async (u: string) => (u.endsWith('/sitemap.xml') ? { status: 200, body: index } : { status: 200, body: pages }));
+    expect((await collectSitemapUrls(deep, ['https://s.example/sitemap.xml'], { maxDepth: 0 })).truncated).toBe(true);
+    expect((await collectSitemapUrls(deep, ['https://s.example/sitemap.xml'], { maxDepth: 1 })).truncated).toBe(false);
+  });
+
+  it('is truncated when a sitemap file fails (thrown, 5xx or other non-2xx except 404/410)', async () => {
+    expect((await collectSitemapUrls(async () => { throw new Error('robots disallowed'); }, ['https://s.example/sitemap.xml'])).truncated).toBe(true);
+    expect((await collectSitemapUrls(async () => ({ status: 503, body: '' }), ['https://s.example/sitemap.xml'])).truncated).toBe(true);
+    expect((await collectSitemapUrls(async () => ({ status: 403, body: '' }), ['https://s.example/sitemap.xml'])).truncated).toBe(true);
   });
 });

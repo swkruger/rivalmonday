@@ -1,6 +1,7 @@
 import type { PageType } from '@cs/core';
 
-const TRACKING = /^(utm_|gclid$|fbclid$|msclkid$)/i;
+/** Query parameters that only track a visit (dropped from candidate URLs and page keys). */
+export const TRACKING_PARAM = /^(utm_|gclid$|fbclid$|msclkid$)/i;
 const BINARY = /\.(pdf|jpe?g|png|gif|webp|svg|ico|zip|docx?|xlsx?|pptx?|mp4|mp3|mov|avi|css|js|xml|json)$/i;
 const bare = (host: string) => host.toLowerCase().replace(/^www\./, '');
 
@@ -15,7 +16,7 @@ export function normalizeUrl(raw: string, site: string): string | null {
   if (bare(u.hostname) !== bare(site)) return null;
   if (BINARY.test(u.pathname)) return null;
   u.hash = '';
-  for (const key of [...u.searchParams.keys()]) if (TRACKING.test(key)) u.searchParams.delete(key);
+  for (const key of [...u.searchParams.keys()]) if (TRACKING_PARAM.test(key)) u.searchParams.delete(key);
   u.hostname = u.hostname.toLowerCase();
   if (u.pathname.length > 1 && u.pathname.endsWith('/')) u.pathname = u.pathname.replace(/\/+$/, '');
   return u.toString();

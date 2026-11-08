@@ -5,6 +5,7 @@ export * from './ads/upsert';
 export * from './capture/capture-page';
 export * from './discovery/classify';
 export * from './discovery/discover';
+export * from './discovery/page-key';
 export * from './discovery/select';
 export * from './discovery/sitemap';
 export * from './discovery/urls';
