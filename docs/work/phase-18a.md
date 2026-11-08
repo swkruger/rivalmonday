@@ -4,13 +4,27 @@
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-Kicked off 2026-11-08; not on the roadmap yet. 18a-1 spec drafted + builder-checked (d7d8a333); awaiting owner approval.
+18a-1 tasks 0-10 done; final review next (then owner go-ahead for `/rm-merge`). Not on the roadmap yet.
 
 ## Next (overwrite)
-Owner approves the 18a-1 spec → `superpowers:writing-plans` (lean format) → owner approves plan → SDD. Brief open questions 3, 5, 7, 8 belong to 18a-2.
+Final review (`pnpm test:affected` + `pnpm --filter @cs/web e2e:affected`, once), one fix wave, owner approval, merge. 18a-2 (web readiness) and 18a-3 (ad images) are separate branches; brief open questions 3, 5, 7, 8 belong to 18a-2.
 
 ## Interfaces this branch adds or changes
-TBD. Migration: next free at execution; main ends 0099, `brief-report` claims the next (≥ 0100) ⇒ `brief-report` adds none (checked 2026-11-08) ⇒ next free **0100**; re-check at execution.
+- **Migration 0100:** `price_point.ad_id` (FK `ad`), `tracked_page_id` now nullable, CHECK exactly one of the two, unique index `price_point_ad_open_unique`; `ad.event` column; vertical pack v5 data (scoring v5).
+- **Change types** `status_change` (GBP closed/reopened; alert-capable), `profile_change` (title/domain/hours/description), `audience_growth` (Meta Page likes). Each has `CHANGE_LABELS`, status wording and glossary entries.
+- **`observation` kind `meta_page`** (Page likes per capture). Worker CLI `meta-page-backfill [--dry-run]` fills it from stored raw Meta captures.
+- **Engine:** stage `ad_price_extract` (`AD_PRICE_SINCE` = 2026-11-08; Meta ad copy only, rules-only prices) and worker job `engine-ad-price`. `GBP_STATUS_PHRASE` in `packages/engine/src/structured/gbp-status.ts`.
+- **Tool** `get_audience_trend` (web only; `ISOLATION_FIXTURES` entry; out-of-scope => `not_found`). Competitor page shows a Page likes stat from 4 weekly points.
+- **`PriceNow.source`** (`page` | `ad`); the pricing page tags ad prices "From an ad"; ad prices never count toward the 90-day tag.
+
+## Rollout (in order)
+1. Migrate (`pnpm db:migrate`), deploy web + worker.
+2. `pnpm --filter @cs/worker meta-page-backfill --dry-run`, then without `--dry-run`.
+3. `pnpm --filter @cs/worker rescore --dry-run`, then without (read the `archive->brief` line first).
+
+## Owner notes
+- GBP closure values (`closed_forever` / `temporarily_closed`) are unverified live: none exists in `cs_dev`; the first real closure in the pilot confirms them.
+- Copy sign-off: `pnpm copy:status --todo` lists 0 strings to edit (2026-11-08). Re-run after any copy change; sign off in `pnpm copy:review`.
 
 ## Assumes from other branches
 - `brief-report` (planned, unmerged): `@cs/core` `brief-report.ts` `topicOf` (unknown types → `offers` "Website, prices & services") and `@cs/email` `GROUP_PHRASE` are tested to cover every `CHANGE_LABELS` key; a new change type must add both. Edits `briefs/{generate,summary,review,deliver}.ts`, `labels.ts`; 18a rebases onto it.
@@ -61,14 +75,7 @@ TBD. Migration: next free at execution; main ends 0099, `brief-report` claims th
 - [ ] Later: `.pnpmfile.cjs` drops drizzle's optional `@opentelemetry/api` peer (revisit if drizzle needs OTel); `/bot` is dynamic (root layout reads cookies); migrate root `globalPassThroughEnv` to `global.passThroughEnv` — *from 7a*
 
 ### Open questions for the owner
-1. **Split 18a?** (A) one branch; (B) 18a-1 data-only briefing (GBP + Meta) / 18a-2 web readiness (bot live, sitemap diffs, tools, JSON-LD); (C) B, web part after the prod deploy. **Rec: C** — web needs the prod deploy.
-2. **GBP closure severity.** (A) keep `content`, add GBP fields to the whole-business set; (B) new type `status_change` (closed/reopened; alert-capable); (C) B plus `profile_change` for title/domain/hours/description. **Rec: B** — a closure is news.
-3. **Bot page.** (A) as is in `apps/web` at `rivalmonday.app/bot`, live with the prod deploy; (B) move to `apps/site` (rivalmonday.com) and change the UA URL; (C) A, plus a list of what we collect and a dedicated opt-out address. **Rec: A** — built, copy approved, matches the UA.
-4. **Page-like trend.** (A) signal icon/tier input only; (B) brief line on ≥ N % jump, no stat card until ≥ 4 weekly points; (C) stat card with trace now. **Rec: B** — likes arrive only while ads run (sparse history).
-5. **Site-tool detection.** (A) new change type `site_feature` (added/removed); (B) `content` with `details.feature`, shown on profile; (C) competitor facts only, no events. **Rec: A** — "rival added online booking" is briefable.
-6. **Ad prices into `price_point`.** (A) Meta ad copy only, nullable `tracked_page_id` + `source` column; (B) separate `ad_price` table; (C) defer. **Rec: A** — one tracker.
-7. **Event JSON-LD.** (A) Offer now (feeds prices), Event waits for 18d; (B) both now, stored only; (C) both wait. **Rec: A** — HVAC/dental rarely post Events.
-8. **Own-site prices ("you" column).** (A) crawl the client's own site in 18a; (B) defer to after web goes live; (C) out of 18a. **Rec: B**.
+1-2, 4, 6 settled in the 18a-1 spec (O1-O6). Still open, for 18a-2: 3 (bot page), 5 (site-tool detection), 7 (Event JSON-LD), 8 (own-site prices).
 
 ## Pre-flight (Task 0)
 Rebased onto main 4b305a7e; `pnpm install`, test DB `cs_phase_18a_test`, `worker boss.test.ts` 20/20 green.

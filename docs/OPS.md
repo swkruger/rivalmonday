@@ -50,6 +50,10 @@ pnpm --filter @cs/worker brief-once --client 25f99947-4559-4150-ab5d-dd432540aca
 
 `pnpm --filter @cs/worker rescore [--since-days N] [--client <uuid>] [--dry-run]` re-scores recent events with the current pack (whole-business relevance, `scoring.version` 4). `--since-days` 1-30 (default 14); `--dry-run` prints counts and writes nothing. It skips pairs that are featured in a brief, already alerted, or already current. It never writes `alert` (a would-be alert is stored as `brief` with `factors.rescoreCap`). `scored_at` moves to now only on archive to brief. Safe to re-run; a pack or runbook load error stops the run (re-running is safe). Read the `archive->brief` line of the dry run first.
 
+## Meta Page likes backfill (18a-1)
+
+`pnpm --filter @cs/worker meta-page-backfill [--dry-run]` writes `meta_page` observations (Facebook Page likes) from stored raw Meta captures, so the competitor page has history at once. `--dry-run` prints counts and writes nothing; safe to re-run. After migrating `0100`, run it, then `pnpm --filter @cs/worker rescore --dry-run` and `rescore` (see Re-score above).
+
 ## Runbook backfill (Phase 14b)
 
 After migrating `0079` on `cs_dev` and on prod, and before the next brief run, once per database:

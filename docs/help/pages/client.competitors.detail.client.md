@@ -10,6 +10,7 @@ Everything monitored for one of {{client}}'s competitors, from public informatio
 - **The header** shows when this competitor was added, its website and a competitive pressure badge: how much it has been doing lately that could affect {{client}}, from 0 to 100.
 - **Tier, signals and Rated date** sit under the header. The tier says how closely it competes with {{client}}; the Rated date is when the tier and signals were last refreshed. It is a date, not a star rating.
 - **The four numbers** are its Google rating and review count, active ads (Google and Meta), open moves and pages monitored. "Site blocks monitoring" means the latest check of a page was refused by the site, so changes on it cannot be seen.
+- **Facebook Page likes** appears as a fifth number once at least four weekly readings exist; likes are read only while the competitor runs Meta ads.
 - **Prices, Ads, Reviews and Local rankings** are short summaries with a link to the full page, filtered to this competitor.
 - **Timeline** lists its changes and moves for the last 30, 90 or 365 days.
 - **Collection status** lists each source monitored and when it last ran. **Pages** lists the website pages that are checked.

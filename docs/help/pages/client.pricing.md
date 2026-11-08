@@ -11,6 +11,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 - **Your service** marks a service {{client}} offers too, so you can compare like with like. It tags the service, not the price: every price on a card is the competitor's.
 - **The ▼ or ▲ tag** compares the competitor's lowest price for that service now with its lowest price 90 days ago. A red ▼ means the price fell and a green ▲ means it rose. The tag shows only when both prices are known and they differ.
 - **Promo** marks a price listed as a promotion.
+- **From an ad** marks a price read from the competitor's Meta ad text rather than its website; it never counts toward the ▼ and ▲ tags.
 
 ## How to use it
 

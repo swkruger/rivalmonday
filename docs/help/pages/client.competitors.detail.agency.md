@@ -11,6 +11,7 @@ Everything monitored for one competitor of {{client}}. Client users see the same
 - **Tier, signals and Rated date** sit under the header. The tier says how closely it competes; the Rated date is when the tier and signals were last refreshed.
 - **Ad accounts** (agency staff only) show the Google and Meta ad accounts matched to the competitor. "Matched automatically" accounts were linked by the system; "Possible" ones wait for you to confirm or remove them.
 - **The four numbers** are its Google rating and review count, active ads (Google and Meta), open moves and pages monitored. "Site blocks monitoring" means the latest check of a page was refused by the site.
+- **Facebook Page likes** appears as a fifth number once at least four weekly readings exist; likes are read only while the competitor runs Meta ads.
 - **Prices, Ads, Reviews and Local rankings** are short summaries with a link to the full page, filtered to this competitor.
 - **Timeline** lists its changes and moves for the last 30, 90 or 365 days.
 - **Collection status** lists each source and when it last ran. **Pages** lists the website pages that are checked.
