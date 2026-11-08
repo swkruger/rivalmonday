@@ -179,7 +179,23 @@ describe('guardedGbpDiff', () => {
   it('missing work_time between closed pulls emits nothing', () => {
     const missing = { ...base, currentStatus: null, workHours: null };
     expect(run(closed, missing, closed)).toEqual({ changes: [], implausible: 0, held: 0 });
-    expect(run(base, closed, missing, closed).changes).toEqual([]);
+    expect(run(closed, missing, missing, closed)).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+  it('unknown status never emits', () => {
+    const u = { ...base, currentStatus: 'unknown' };
+    expect(run(base, u, u, u)).toEqual({ changes: [], implausible: 0, held: 0 });
+    expect(diffGbpProfiles(base, { ...base, currentStatus: 'CLOSED_TEMPORARILY' })).toEqual([]);
+  });
+  it('CLOSED_FOREVER (upper case) emits closed', () => {
+    const up = { ...base, currentStatus: 'CLOSED_FOREVER' };
+    expect(run(base, base, up, up).changes[0]?.details).toMatchObject({ direction: 'closed', statusAfter: 'CLOSED_FOREVER' });
+  });
+  it('open, closed, missing, closed, closed emits once, on the pull where closed is first confirmed', () => {
+    const missing = { ...base, currentStatus: null, workHours: null };
+    const r = run(base, closed, missing, closed);
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ beforeCaptureId: 'c0', details: { direction: 'closed' } });
+    expect(run(base, closed, missing, closed, closed).changes).toEqual([]);
   });
   it('hours change needs two pulls', () => {
     expect(run(hrs(8), hrs(9))).toMatchObject({ changes: [], held: 1 });

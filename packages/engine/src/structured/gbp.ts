@@ -5,6 +5,8 @@ import type { DifferResult, SourceDiffer, StructuredChange } from './vendor-diff
 /** GBP ratings move in tenths; smaller deltas are rounding noise between pulls. */
 export const RATING_CHANGE_MIN = 0.1;
 /** The "open now / closed now" status flips with the clock; only other values (e.g. closed_forever) are news. */
+/** The documented closed values; any other unrecognised status is not compared. */
+const CLOSED_STATUS = /^(temporarily_closed|closed_forever)$/i;
 const TRANSIENT_STATUS = /^(open|close|closed|opening_soon|closing_soon)$/i;
 
 type Hm = { hour?: number; minute?: number };
@@ -43,7 +45,8 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 const DESCRIPTION_CHARS = 300;
 
 /** `open` for a transient status (open/close/closing_soon...), else the lowercased raw value (closed_forever...); null when absent. */
-export const statusClass = (s: string | null | undefined): string | null => (!present(s) ? null : TRANSIENT_STATUS.test(s) ? 'open' : s.toLowerCase());
+export const statusClass = (s: string | null | undefined): string | null =>
+  !present(s) ? null : TRANSIENT_STATUS.test(s) ? 'open' : CLOSED_STATUS.test(s) ? s.toLowerCase() : null;
 
 function hoursText(p: GbpProfile): string | null {
   const timetable = (p.workHours as { work_hours?: { timetable?: Record<string, { open?: Hm; close?: Hm }[] | null> } } | null | undefined)?.work_hours?.timetable;
@@ -144,16 +147,15 @@ export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
     else changes.push(base === prev ? rating : { ...rating, beforeCaptureId: base.captureId });
   }
   // (b) Emit once the new value is seen twice, from the last confirmed value.
+  // Per key, over the snapshots that carry a value for it (a pull that omits the field says nothing).
   for (const h of HELD_GBP) {
-    const now = heldValue(after, h);
-    const last = heldValue(prev, h);
-    if (now === null || last === null) continue;
-    if (now !== last) { held++; continue; }
-    const v2 = heldValue(prev2, h);
-    if (v2 === null || v2 === now) continue;
-    const v3 = heldValue(prev3, h);
-    const from = prev3 && v3 !== null && v3 !== v2 ? prev3 : prev2!;
-    if (heldValue(from, h) === now) continue;
+    const vals = snaps.map((s) => ({ s, v: heldValue(s, h) })).filter((x): x is { s: GbpSnapshot; v: string } => x.v !== null);
+    if (vals[0]?.s !== after || vals.length < 2) continue;
+    const [now, last, v2, v3] = vals;
+    if (now!.v !== last!.v) { held++; continue; }
+    if (!v2 || v2.v === now!.v) continue;
+    const from = v3 && v3.v !== v2.v ? v3.s : v2.s;
+    if (heldValue(from, h) === now!.v) continue;
     const c = pick(from.profile, after.profile, h.key);
     if (c) changes.push({ ...c, beforeCaptureId: from.captureId });
   }

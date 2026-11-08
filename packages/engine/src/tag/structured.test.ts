@@ -152,6 +152,10 @@ describe('buildStructuredSummary', () => {
     const reopened = buildStructuredSummary({ source: 'google_business_profile', beforeText: 'status: temporarily_closed', afterText: 'status: open', details: { changeType: 'status_change', field: 'status', direction: 'reopened', statusBefore: 'temporarily_closed', statusAfter: 'open' } });
     expect(reopened).toBe('Google Business Profile reopened (was temporarily closed)');
   });
+  it('reads an upper-case status in reader words', () => {
+    expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'status: open', afterText: 'status: CLOSED_FOREVER', details: { changeType: 'status_change', field: 'status', direction: 'closed', statusBefore: 'open', statusAfter: 'CLOSED_FOREVER' } }))
+      .toBe('Google Business Profile marked permanently closed');
+  });
   it('renders a profile_change for hours as a plain sentence', () => {
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'hours: monday 08:00–17:00', afterText: 'hours: monday 09:00–17:00', details: { changeType: 'profile_change', field: 'hours' } }))
       .toBe('Changed its hours on Google: monday 08:00–17:00 → monday 09:00–17:00');

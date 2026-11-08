@@ -95,7 +95,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Now rated "${d.to ? TIER_LABELS[d.to] : after}" (was "${d.from ? TIER_LABELS[d.from] : before}")`;
       break;
     case 'status_change': {
-      const phrase = (raw: string | undefined) => GBP_STATUS_PHRASE[(raw ?? '').replace(/^status:\s*/, '')] ?? 'open';
+      const phrase = (raw: string | undefined) => GBP_STATUS_PHRASE[(raw ?? '').replace(/^status:\s*/, '').toLowerCase()] ?? 'open';
       s = d.direction === 'reopened'
         ? `Google Business Profile reopened (was ${phrase(d.statusBefore ?? before)})`
         : `Google Business Profile marked ${phrase(d.statusAfter ?? after)}`;

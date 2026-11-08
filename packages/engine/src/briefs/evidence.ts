@@ -27,7 +27,7 @@ export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
 export { GBP_STATUS_PHRASE };
 
 /** `status: closed_forever` -> `status: permanently closed` (before/after text of a `status_change`). */
-const statusText = (s: string): string => s.replace(/^status:\s*(\S+)\s*$/, (_m, raw: string) => `status: ${GBP_STATUS_PHRASE[raw] ?? 'open'}`);
+const statusText = (s: string): string => s.replace(/^status:\s*(\S+)\s*$/, (_m, raw: string) => `status: ${GBP_STATUS_PHRASE[raw.toLowerCase()] ?? 'open'}`);
 
 const trunc = (s: string) => (s.length > EVIDENCE_TEXT_CHARS ? `${s.slice(0, EVIDENCE_TEXT_CHARS - 1)}…` : s);
 
