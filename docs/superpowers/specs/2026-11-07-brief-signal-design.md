@@ -56,7 +56,7 @@ Rule: client has no services → `{1, false}`; service set → matched/unmatched
 | excluded: `tier_change` | Deterministic score (P10). |
 | excluded: `price_change`, `promo`, `new_service`, `service_removed`, `service_area_change`, `cosmetic` | Service-specific by nature: no service = the tagger could not map it; `unmapped` stays right. |
 
-New maxima (weight × 1 × 1 × novelty 1): rating_change 70, new_location 90, ad_started/review_spike 60, hiring/rank_change 50. **rating_change and new_location can now reach the alert bar** (both guarded by D6).
+New maxima (weight × 1 × 1 × novelty 1): rating_change 70, new_location 54 (no `sizeFactor` case, size 0.6), ad_started/review_spike 60, hiring/rank_change 50. **Only rating_change can reach the alert bar** (guarded by D6); new_location tops out at 54 (brief).
 
 `ScoreFactors` (`@cs/db` `schema/engine.ts`, JSON only, no migration) adds:
 ```ts

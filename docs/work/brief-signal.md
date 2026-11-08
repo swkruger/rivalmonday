@@ -30,11 +30,11 @@ None.
 - **D6** GBP guard: no `rating_change` when votes drop > 20 % or by > 50; address/title/domain emitted only after 2 consecutive agreeing captures; state = earlier captures (no table); counters + log, no ops alert.
 - **D7** Apify Meta-ads ledgered per item at `$0.00075`/ad.
 - Plan calls P1–P6 (whole-business set, default 1.0, no pack/diff version bumps, rescore inputs, alert-writer wording, rating-glitch recovery): spec Decisions table.
-- **D8** Whole-business events may route to `alert` (rating_change up to 70, new_location up to 90); thresholds unchanged (owner, 2026-11-07).
+- **D8** Whole-business events may route to `alert` (D8 in practice: only rating_change can reach alert; new_location max 54, brief); thresholds unchanged (owner, 2026-11-07).
 - **D9** GBP title/domain/hours/status `content` stays `unmapped` (weight 0.2 caps it at 20 regardless) (owner, 2026-11-07).
 
 ## New backlog (target → item)
-- (later) → carry last confirmed GBP field value as state (fixes flapping-value limits of the 4-capture guard).
+- (later) → carry last confirmed GBP field value as state (fixes flapping-value limits of the 4-capture guard). A spurious new_location from address flapping reaches the brief, not an alert (max 54).
 - (later) → GBP title/domain/hours/status `content` events stay at `unmapped` relevance (never briefed); revisit if pilots want them.
 
 ## Measured (Task 6, `briefs` eval re-recorded 2026-11-07, $0.60)
