@@ -36,21 +36,26 @@ export async function writeMetaPageObservation(
     .onConflictDoNothing({ target: [observation.captureId, observation.kind, observation.key] });
 }
 
-/** The `items` of a stored vendor payload (`{ vendor, items, truncated }`, gzipped JSON); null when unreadable. */
-export function vendorPayloadItems(body: Uint8Array): unknown[] | null {
+export interface VendorPayload { items: unknown[]; truncated: boolean }
+
+/** A stored vendor payload (`{ vendor, items, truncated }`, gzipped JSON); null when unreadable or without `items`. */
+export function vendorPayload(body: Uint8Array): VendorPayload | null {
   try {
-    const payload = JSON.parse(gunzipSync(body).toString('utf8')) as { items?: unknown };
-    return Array.isArray(payload.items) ? payload.items : null;
+    const payload = JSON.parse(gunzipSync(body).toString('utf8')) as { items?: unknown; truncated?: unknown };
+    return Array.isArray(payload.items) ? { items: payload.items, truncated: payload.truncated === true } : null;
   } catch {
     return null;
   }
 }
 
-/** The stored payload items of one vendor capture (its `vendor_json` evidence); null when absent or unreadable. */
-export async function loadVendorCaptureItems(deps: { db: Db; store: ObjectStore }, captureId: string): Promise<unknown[] | null> {
+/** The `items` of a stored vendor payload; null when unreadable. */
+export const vendorPayloadItems = (body: Uint8Array): unknown[] | null => vendorPayload(body)?.items ?? null;
+
+/** The stored payload of one vendor capture (its `vendor_json` evidence); null when absent or unreadable. */
+export async function loadVendorCapturePayload(deps: { db: Db; store: ObjectStore }, captureId: string): Promise<VendorPayload | null> {
   const [row] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, captureId), eq(evidence.kind, 'vendor_json'))).limit(1);
   const body = row ? await deps.store.get(row.objectKey) : null;
-  return body ? vendorPayloadItems(body) : null;
+  return body ? vendorPayload(body) : null;
 }
 
 const pageIdFromUrl = (url: string | null) => url?.match(/view_all_page_id=([^&]+)/)?.[1] ?? null;

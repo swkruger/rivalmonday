@@ -1,9 +1,10 @@
 import type { Ai } from '@cs/ai';
-import { loadVendorCaptureItems, normalizeMetaAd, redactForModel, sha256Hex } from '@cs/collectors';
+import { loadVendorCapturePayload, normalizeMetaAd, redactForModel, sha256Hex } from '@cs/collectors';
 import { ad, capture, competitor, type Db, priceBlockMap, pricePoint, stageRun } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, inArray, isNull, max, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, max, ne, notInArray, or } from 'drizzle-orm';
 import { runStage, type StageOutcome } from '../stage';
+import { pageIdOf } from '../structured/ads';
 import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
 import { type PriceObservation, pricesInBlock } from './observe';
 import { mapPricedTexts, MAX_STATE_TEXT, type PriceBlockMapRow, type PriceRunResult } from './price-stage';
@@ -19,9 +20,11 @@ type Observed = PriceObservation & { adId: string; verticalId: string; serviceId
 
 /**
  * D5: prices in the copy of the Meta ads one capture lists → service-mapped `price_point` spans with `ad_id`
- * (rules only, `pricesInBlock`; the block map and question are the web stage's). A listed ad without an open span
- * is priced (new or returned ads); a listed ad with one advances it; an ad this capture ended ends its spans.
- * An older capture than the page's newest processed one is a no-op. No `price_change` events.
+ * (rules only, `pricesInBlock` on the raw text; the block map and question are the web stage's; only the stored
+ * context and the model state are redacted). A listed active ad without an open span is priced (new or returned
+ * ads); a listed ad with one advances it. Spans end for ads this capture ended and for this page's ads it no longer
+ * lists (never on a truncated or empty payload, as ad deactivation). An older capture than the page's newest
+ * processed one is a no-op. No `price_change` events.
  */
 export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader }, captureId: string): Promise<StageOutcome<PriceRunResult>> {
   const [cap] = await deps.db.select().from(capture).where(eq(capture.id, captureId)).limit(1);
@@ -30,7 +33,7 @@ export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai
     deps.db,
     { stage: AD_PRICE_STAGE, version: AD_PRICE_VERSION, subjectId: captureId },
     async () => {
-      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps: [] as PriceBlockMapRow[], seenAdIds: [] as string[] });
+      const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps: [] as PriceBlockMapRow[], seenAdIds: [] as string[], listedIds: [] as string[], endUnlisted: false });
       const verticalIds = await competitorVerticals(deps.db, cap.competitorId);
       if (verticalIds.length === 0) return skip('no client tracks this competitor');
       // Watermark (pattern extractPrices): the newest capture of this Meta page whose run is done.
@@ -42,10 +45,12 @@ export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai
         .where(and(eq(capture.competitorId, cap.competitorId), eq(capture.source, 'meta_ads'), samePage, ne(capture.id, captureId)));
       if (newest?.at && newest.at > cap.capturedAt) return skip('a newer capture of this Meta page was already processed');
 
-      const items = (await loadVendorCaptureItems(deps, captureId)) ?? [];
-      const externalIds = [...new Set(items.map(normalizeMetaAd).filter((a) => a !== null).map((a) => a.externalId))];
+      const payload = await loadVendorCapturePayload(deps, captureId);
+      const externalIds = [...new Set((payload?.items ?? []).map(normalizeMetaAd).filter((a) => a !== null).map((a) => a.externalId))];
+      // A response cut off at the vendor cap, or empty (a likely glitch), does not prove an unlisted ad has ended.
+      const endUnlisted = payload !== null && !payload.truncated && payload.items.length > 0;
       const listed = externalIds.length > 0
-        ? await deps.db.select({ id: ad.id, text: ad.text }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), inArray(ad.externalId, externalIds)))
+        ? await deps.db.select({ id: ad.id, text: ad.text, isActive: ad.isActive }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), inArray(ad.externalId, externalIds)))
         : [];
       const open = listed.length > 0
         ? new Set((await deps.db.selectDistinct({ adId: pricePoint.adId }).from(pricePoint).where(and(inArray(pricePoint.adId, listed.map((a) => a.id)), isNull(pricePoint.endedAt)))).map((p) => p.adId))
@@ -54,26 +59,23 @@ export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai
       const [comp] = await deps.db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, cap.competitorId)).limit(1);
       const names = [comp?.name ?? null];
       const priced = listed
-        .filter((a): a is { id: string; text: string } => a.text !== null && a.text.trim().length > 0 && !open.has(a.id))
-        .map((a) => {
-          const redacted = redactForModel(a.text, { businessNames: names });
-          return { a, redacted, obs: pricesInBlock(redacted) };
-        })
+        .filter((a): a is { id: string; text: string; isActive: boolean } => a.isActive && a.text !== null && a.text.trim().length > 0 && !open.has(a.id))
+        .map((a) => ({ a, obs: pricesInBlock(a.text) }))
         .filter((x) => x.obs.length > 0);
       if (priced.length > AD_PRICE_MAX_ADS) console.warn(`[engine] meta capture ${captureId} lists ${priced.length} priced ads; mapping the first ${AD_PRICE_MAX_ADS}`);
       const ads = priced.slice(0, AD_PRICE_MAX_ADS).map((x) => ({ ...x, sha: sha256Hex(x.a.text) }));
 
       const { mapped, maps } = await mapPricedTexts(deps, verticalIds, ads.map((x) => ({
         sha: x.sha,
-        state: () => ({ competitor: comp?.name ?? null, ad_text: x.redacted.slice(0, MAX_STATE_TEXT), source: 'meta_ad' }),
+        state: () => ({ competitor: comp?.name ?? null, ad_text: redactForModel(x.a.text, { businessNames: names }).slice(0, MAX_STATE_TEXT), source: 'meta_ad' }),
       })));
       const observations: Observed[] = ads.flatMap(({ a, sha, obs }) =>
         verticalIds.flatMap((verticalId) => {
           const serviceId = mapped.get(`${sha}|${verticalId}`) ?? null;
-          return serviceId ? obs.map((o) => ({ ...o, adId: a.id, verticalId, serviceId })) : [];
+          return serviceId ? obs.map((o) => ({ ...o, adId: a.id, verticalId, serviceId, context: redactForModel(o.context, { businessNames: names }) })) : [];
         }),
       );
-      return { skipped: undefined as string | undefined, observations, maps, seenAdIds: listed.filter((a) => open.has(a.id)).map((a) => a.id) };
+      return { skipped: undefined as string | undefined, observations, maps, seenAdIds: listed.filter((a) => open.has(a.id)).map((a) => a.id), listedIds: listed.map((a) => a.id), endUnlisted };
     },
     async (tx, c) => {
       if (c.maps.length > 0) await tx.insert(priceBlockMap).values(c.maps).onConflictDoNothing();
@@ -94,7 +96,18 @@ export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai
           .returning({ id: pricePoint.id });
         points = written.length;
       }
-      const endedAds = await tx.select({ id: ad.id }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), eq(ad.endedCaptureId, cap.id)));
+      const mine = and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'));
+      const endedAds = await tx.select({ id: ad.id }).from(ad).where(and(mine, eq(ad.endedCaptureId, cap.id)));
+      if (c.endUnlisted) {
+        // This page's ads not listed now (legacy rows without an advertiser id count as its own, as in collectMetaPage).
+        const pageId = pageIdOf(cap.url);
+        const unlisted = await tx.select({ id: ad.id }).from(ad).where(and(
+          mine,
+          ...(pageId ? [or(eq(ad.advertiserId, pageId), isNull(ad.advertiserId))] : []),
+          ...(c.listedIds.length > 0 ? [notInArray(ad.id, c.listedIds)] : []),
+        ));
+        endedAds.push(...unlisted);
+      }
       const ended = endedAds.length > 0
         ? (await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(and(inArray(pricePoint.adId, endedAds.map((a) => a.id)), isNull(pricePoint.endedAt))).returning({ id: pricePoint.id })).length
         : 0;
