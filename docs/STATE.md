@@ -21,6 +21,10 @@
 2. cs_dev: `pnpm db:migrate` (0099), then `pnpm --filter @cs/worker rescore --dry-run`, read the `archive->brief` count, run for real; a second run re-scores nothing.
 3. Label `verifier_decisions` (`decisions export/import/report`, `tools/decision-labeler.html`); verifier τ stays 0.85 until labelled.
 
+**Owner - staging worker on Railway (2026-11-07):**
+1. **Rotate `RAILWAY_TOKEN`** (the staging project token was pasted into a chat): create a new token at Railway → `rivalmonday-staging` → Settings → Tokens (environment `production`), run `gh secret set RAILWAY_TOKEN --env staging` in your own terminal and paste it, then delete the old `github-ci-staging` token. It reaches staging only.
+2. brief-signal item 1 is partly done: per-client spend limits set to $10 (7 clients), worker deployed on Railway with live vendors; refresh skipped by the owner. Still open: check the first weekly brief.
+
 **Owner - closed 2026-11-07:** pricing-v2, app-style, brand-band, friday-robot, user-profile, ui-visual-review, site-polish, owner guide stages, owner-fixes, stage3-fixes, copy sign-off tool, site-roadmap, site-showcase, Phase 17, Phase 16 (16a-16f), 16-onboarding, 7c2 and the earlier phases (7a, jev-openrouter, 7b1, 7b2, 7c1, 15c-2b-1, 15c-2b-2, 15c-3a, 15c-3b). Their checklists stay in `docs/archive/` and git history. Before the first pilot invite: [PILOT.md](PILOT.md) § 1 gate (rehearsal pass, prod tenant-check SQL, pilot copy signed).
 
 **Then, in order:** rehearsal stack (worker host = Railway, account open 2026-11-07; staging worker live) -> 7c2 Task 12 rehearsal (numbers become code defaults) + Task 13 -> 7a1 Task 12 live deploy (launch gate passed) -> pilot. **Phase 7 dev:** 7b1, 7b2, 7c1, 7c2 all merged. **Dev next:** 13a: refresh its 10-17 plan first (says "on `main`", but a push now deploys staging; use a worktree), merge 13a1 after the rehearsal. 13a1 before the pilot: preferred, not a blocker. Site deploy follows the 7a1 live deploy ([DEPLOY.md](DEPLOY.md) § Marketing site).
