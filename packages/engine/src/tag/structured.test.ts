@@ -145,6 +145,10 @@ describe('buildStructuredSummary', () => {
     expect(buildStructuredSummary({ source: 'google_business_profile', beforeText: 'Mon 8-5', afterText: 'Mon 7-6', details: { changeType: 'content', field: 'hours' } }))
       .toBe('Google Business Profile hours changed: Mon 8-5 → Mon 7-6');
   });
+  it('renders an audience_growth as a plain sentence with grouped numbers', () => {
+    expect(buildStructuredSummary({ source: 'meta_ads', beforeText: 'Facebook Page likes: 1000', afterText: 'Facebook Page likes: 1220', details: { changeType: 'audience_growth', pageId: '1', likesBefore: 1000, likesAfter: 1220, pct: 22, days: 28 } }))
+      .toBe('Facebook Page likes grew 22% (1,000 → 1,220) in 28 days');
+  });
   it('renders a status_change in reader words, never the raw vendor value', () => {
     const closed = buildStructuredSummary({ source: 'google_business_profile', beforeText: 'status: open', afterText: 'status: closed_forever', details: { changeType: 'status_change', field: 'status', direction: 'closed', statusBefore: 'open', statusAfter: 'closed_forever' } });
     expect(closed).toBe('Google Business Profile marked permanently closed');

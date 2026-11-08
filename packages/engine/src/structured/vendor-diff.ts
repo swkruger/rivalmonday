@@ -5,6 +5,7 @@ import { runStage, type StageOutcome } from '../stage';
 import { diffAds } from './ads';
 import { diffGbp } from './gbp';
 import { diffJobs } from './jobs';
+import { diffAudience } from './meta-page';
 import { diffReviews } from './reviews';
 
 export const VENDOR_DIFF_STAGE = 'vendor_diff';
@@ -32,10 +33,19 @@ export const VENDOR_DIFF_LOOKBACK = 3;
 /** Compares a vendor capture with the previous ok capture of the same competitor, source and url; `older` is newest first. Never calls a model. */
 export type SourceDiffer = (db: Db, cap: CaptureRow, prev: CaptureRow, older: CaptureRow[]) => Promise<StructuredChange[] | DifferResult>;
 
+/** Meta captures: ad changes plus page-likes growth. */
+const diffMeta: SourceDiffer = async (db, cap, prev, older) => {
+  const ads = await diffAds(db, cap, prev, older);
+  const audience = await diffAudience(db, cap, prev, older);
+  const a: DifferResult = Array.isArray(ads) ? { changes: ads, implausible: 0, held: 0 } : ads;
+  const b: DifferResult = Array.isArray(audience) ? { changes: audience, implausible: 0, held: 0 } : audience;
+  return { changes: [...a.changes, ...b.changes], implausible: a.implausible + b.implausible, held: a.held + b.held };
+};
+
 /** Capture sources with a structured differ. Only these are swept, so a source without one is never marked done. */
 const DIFFERS: Record<string, SourceDiffer> = {
   google_ads: diffAds,
-  meta_ads: diffAds,
+  meta_ads: diffMeta,
   google_business_profile: diffGbp,
   google_jobs: diffJobs,
   google_reviews: diffReviews,

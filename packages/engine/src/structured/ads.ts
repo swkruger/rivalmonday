@@ -11,7 +11,7 @@ const DAY_MS = 86_400_000;
 export const adLabel = (a: { externalId: string; title: string | null; text: string | null }): string =>
   (a.text ?? a.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200) || `creative ${a.externalId}`;
 
-function pageIdOf(url: string | null): string | null {
+export function pageIdOf(url: string | null): string | null {
   if (!url) return null;
   try {
     return new URL(url).searchParams.get('view_all_page_id');

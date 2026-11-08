@@ -91,6 +91,9 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
     case 'rank_change':
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
       break;
+    case 'audience_growth':
+      s = `Facebook Page likes grew ${d.pct}% (${(d.likesBefore ?? 0).toLocaleString('en-US')} → ${(d.likesAfter ?? 0).toLocaleString('en-US')}) in ${d.days} days`;
+      break;
     case 'tier_change':
       s = `Now rated "${d.to ? TIER_LABELS[d.to] : after}" (was "${d.from ? TIER_LABELS[d.from] : before}")`;
       break;
