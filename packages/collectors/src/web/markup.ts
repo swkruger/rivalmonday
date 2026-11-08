@@ -23,7 +23,51 @@ export interface StructuredOffer {
 
 const MAX_OFFERS = 50;
 const MAX_DEPTH = 24;
-const TAG_RE = /<(script|iframe|link|a)(?=[\s/>])([^>]*)>/gi;
+const SCAN_RE = /<!--|<(script|iframe|link|a|style|noscript)(?=[\s/>])/gi;
+
+interface ScannedTag {
+  tag: 'script' | 'iframe' | 'link' | 'a';
+  attrs: string;
+  /** script body only (other tags: empty). */
+  body: string;
+}
+
+/**
+ * Single linear pass: skips HTML comments and the bodies of script/style/noscript (so tag-shaped
+ * text inside them is never seen) and returns the live script/iframe/link/a tags. An unclosed
+ * comment, tag or script ends the scan.
+ */
+function scanTags(html: string): ScannedTag[] {
+  const out: ScannedTag[] = [];
+  const re = new RegExp(SCAN_RE.source, 'gi');
+  for (;;) {
+    const m = re.exec(html);
+    if (!m) break;
+    if (!m[1]) {
+      const end = html.indexOf('-->', re.lastIndex);
+      if (end < 0) break;
+      re.lastIndex = end + 3;
+      continue;
+    }
+    const name = m[1].toLowerCase();
+    const gt = html.indexOf('>', re.lastIndex);
+    if (gt < 0) break;
+    const attrs = html.slice(re.lastIndex, gt);
+    re.lastIndex = gt + 1;
+    if (name === 'script' || name === 'style' || name === 'noscript') {
+      const close = new RegExp(`</${name}\s*>`, 'gi');
+      close.lastIndex = gt + 1;
+      const c = close.exec(html);
+      const bodyEnd = c ? c.index : html.length;
+      if (name === 'script') out.push({ tag: 'script', attrs, body: html.slice(gt + 1, bodyEnd) });
+      if (!c) break;
+      re.lastIndex = close.lastIndex;
+    } else {
+      out.push({ tag: name as ScannedTag['tag'], attrs, body: '' });
+    }
+  }
+  return out;
+}
 
 function attr(attrs: string, name: string): string | null {
   const re = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i');
@@ -51,9 +95,9 @@ function hostMatches(host: string, hosts: readonly string[]): boolean {
 /** Third-party widgets referenced by tag attributes (never inline script text). Unique by id, sorted by id. */
 export function siteFeatures(html: string): SiteFeature[] {
   const found = new Map<string, SiteFeature>();
-  for (const m of html.matchAll(TAG_RE)) {
-    const tag = m[1]!.toLowerCase() as 'script' | 'iframe' | 'link' | 'a';
-    const raw = attr(m[2] ?? '', tag === 'script' || tag === 'iframe' ? 'src' : 'href');
+  for (const t of scanTags(html)) {
+    const tag = t.tag;
+    const raw = attr(t.attrs, tag === 'script' || tag === 'iframe' ? 'src' : 'href');
     if (!raw) continue;
     const url = resolveUrl(raw);
     if (!url) continue;
@@ -105,12 +149,12 @@ function walk(node: unknown, ctx: Ctx, out: StructuredOffer[], depth: number): v
 /** Offer / AggregateOffer nodes from `application/ld+json` blocks (max 50). Broken JSON is skipped. */
 export function jsonLdOffers(html: string): StructuredOffer[] {
   const out: StructuredOffer[] = [];
-  for (const m of html.matchAll(/<script(?=[\s/>])([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+  for (const t of scanTags(html)) {
     if (out.length >= MAX_OFFERS) break;
-    if (!/^application\/ld\+json$/i.test((attr(m[1] ?? '', 'type') ?? '').trim())) continue;
+    if (t.tag !== 'script' || !/^application\/ld\+json\s*(;|$)/i.test((attr(t.attrs, 'type') ?? '').trim())) continue;
     let data: unknown;
     try {
-      data = JSON.parse(m[2] ?? '');
+      data = JSON.parse(t.body);
     } catch {
       continue;
     }

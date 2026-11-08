@@ -54,7 +54,30 @@ describe('siteFeatures', () => {
   });
 });
 
+describe('siteFeatures inert content', () => {
+  it('ignores commented-out embeds', () => {
+    expect(siteFeatures(page('<!-- <script src="https://connect.podium.com/w.js"></script> -->'))).toEqual([]);
+  });
+  it('ignores tag-shaped text in script, style and noscript bodies, but still sees real embeds', () => {
+    const html = page(
+      `<script>document.write('<script src="https://connect.podium.com/w.js"></script>')</script><style>/* <script src="https://embed.tawk.to/x"> */</style><noscript><iframe src="https://widget.intercom.io/a"></iframe></noscript><script src="https://code.tidio.co/x.js"></script>`,
+    );
+    expect(siteFeatures(html).map((f) => f.id)).toEqual(['tidio']);
+  });
+  it('stays linear on large unclosed input', () => {
+    const t0 = Date.now();
+    siteFeatures('<script src="x" '.repeat(50000));
+    jsonLdOffers('<script type="application/ld+json">'.repeat(50000));
+    siteFeatures('<a '.repeat(100000));
+    expect(Date.now() - t0).toBeLessThan(1000);
+  });
+});
+
 describe('jsonLdOffers', () => {
+  it('accepts a type with parameters and case variants', () => {
+    const html = page('<script type="Application/LD+JSON; charset=utf-8">{"@type":"Offer","price":5}</script>');
+    expect(jsonLdOffers(html)).toHaveLength(1);
+  });
   it('finds a Product offer under @graph with the inherited name', () => {
     const offers = jsonLdOffers(fx('jsonld-graph'));
     expect(offers).toEqual([
