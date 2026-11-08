@@ -27,7 +27,7 @@ const SUPERSEDED_BEFORE = /\b(?:was|reg(?:ular(?:ly)?)?\.?|regular\s+price|origi
 const DISCOUNT_BEFORE = /\b(?:save|saving|savings of)(?:\s+up\s+to)?\s*$/i;
 const FROM_BEFORE = /\b(?:from|starting(?:\s+at)?|starts\s+at|as\s+low\s+as)\s*$/i;
 const UP_TO_BEFORE = /\bup\s+to\s*$/i;
-const PROMO = /\b(?:special|sale|promo(?:tion)?|coupon|discount|limited[- ]time|deal|offer|save)\b/i;
+export const PROMO = /\b(?:special|sale|promo(?:tion)?|coupon|discount|limited[- ]time|deal|offer|save)\b/i;
 
 /** Reads the words before and after a price: is it a discount amount, and is it "from", "up to" or exact? */
 export function classifyPrice(before: string, after: string): { discount: boolean; qualifier: PriceQualifier } {

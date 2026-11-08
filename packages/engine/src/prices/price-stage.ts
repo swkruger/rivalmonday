@@ -1,13 +1,15 @@
 import type { Ai, DecisionQuestion } from '@cs/ai';
-import { redactForModel } from '@cs/collectors';
-import { capture, competitor, type Db, priceBlockMap, pricePoint, stageRun, trackedPage } from '@cs/db';
+import { jsonLdOffers, redactForModel } from '@cs/collectors';
+import { capture, competitor, type Db, evidence, priceBlockMap, pricePoint, stageRun, trackedPage } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import type { VerticalPack } from '@cs/verticals';
 import { and, eq, inArray, isNull, max, ne } from 'drizzle-orm';
+import { gunzipSync } from 'node:zlib';
 import { runStage, type StageOutcome } from '../stage';
 import { serviceQuestionKey } from '../tag/questions';
 import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
 import { ensureBlocks, loadBlocks } from '../web/blocks';
+import { offerPrices } from './json-ld';
 import { type PriceObservation, pricesInBlock } from './observe';
 
 export const PRICE_STAGE = 'price_extract';
@@ -103,7 +105,12 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
       if (newest?.at && newest.at > cap.capturedAt) return skip('a newer capture of this page was already processed');
       if ((await ensureBlocks(deps, captureId)) === 'busy') throw new Error(`blocks of capture ${captureId} are being extracted`);
 
-      const priced = (await loadBlocks(deps.db, captureId)).map((b) => ({ b, obs: pricesInBlock(b.text) })).filter((x) => x.obs.length > 0);
+      const textBlocks = (await loadBlocks(deps.db, captureId)).map((b) => ({ sha: b.textSha, text: b.text, obs: pricesInBlock(b.text) })).filter((x) => x.obs.length > 0);
+      // JSON-LD offers of the stored page html (never re-fetched) join as pseudo-blocks after the text blocks (spec D5).
+      const [html] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, captureId), eq(evidence.kind, 'html'))).limit(1);
+      const gz = html ? await deps.store.get(html.objectKey) : null;
+      const offers = gz ? offerPrices(jsonLdOffers(new TextDecoder().decode(gunzipSync(gz)))) : [];
+      const priced = [...textBlocks, ...offers];
       const truncated = priced.length > PRICE_MAX_BLOCKS;
       if (truncated) console.warn(`[engine] capture ${captureId} has ${priced.length} priced blocks; mapping the first ${PRICE_MAX_BLOCKS}`);
       const blocks = priced.slice(0, PRICE_MAX_BLOCKS);
@@ -111,17 +118,17 @@ export async function extractPrices(deps: { db: Db; store: ObjectStore; ai: Ai; 
       const [page] = await deps.db.select({ url: trackedPage.url, pageType: trackedPage.pageType }).from(trackedPage).where(eq(trackedPage.id, pageId)).limit(1);
       const names = [comp?.name ?? null];
 
-      const { mapped, maps } = await mapPricedTexts(deps, verticalIds, blocks.map(({ b, obs }) => ({
-        sha: b.textSha,
+      const { mapped, maps } = await mapPricedTexts(deps, verticalIds, blocks.map((b) => ({
+        sha: b.sha,
         state: () => ({
           competitor: comp?.name ?? null, page_url: page?.url ?? cap.url, page_type: page?.pageType ?? null,
-          text: redactForModel(b.text, { businessNames: names }).slice(0, MAX_STATE_TEXT), prices: obs.map((o) => o.raw),
+          text: redactForModel(b.text, { businessNames: names }).slice(0, MAX_STATE_TEXT), prices: b.obs.map((o) => o.raw),
         }),
       })));
 
-      const observations: Observed[] = blocks.flatMap(({ b, obs }) =>
+      const observations: Observed[] = blocks.flatMap(({ sha, obs }) =>
         verticalIds.flatMap((verticalId) => {
-          const serviceId = mapped.get(`${b.textSha}|${verticalId}`) ?? null;
+          const serviceId = mapped.get(`${sha}|${verticalId}`) ?? null;
           return serviceId ? obs.map((o) => ({ ...o, verticalId, serviceId, context: redactForModel(o.context, { businessNames: names }) })) : [];
         }),
       );

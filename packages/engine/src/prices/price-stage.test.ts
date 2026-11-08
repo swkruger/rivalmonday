@@ -126,4 +126,47 @@ describe('extractPrices', () => {
     expect(await extractPrices(deps, c1)).toEqual({ ran: true, result: { points: 0, ended: 0 } });
     expect(await points()).toHaveLength(PRICE_MAX_BLOCKS);
   });
+
+  describe('JSON-LD offers', () => {
+    const ld = (offers: string) => `<script type="application/ld+json">${offers}</script>`;
+    const offerLd = (price: number) => ld(JSON.stringify({ '@type': 'Offer', name: 'AC tune-up', price, priceCurrency: 'USD' }));
+    const withLd = (ldBlock: string) => `<html><head>${ldBlock}</head><body><main><h2>Our prices</h2><p>AC tune-up $89</p></main></body></html>`;
+
+    it('the same price in text and JSON-LD writes one span', async () => {
+      const deps = { db: dbs.service, store, ai: createFakeAi({ decide: byText() }), packs };
+      const c0 = await capture(withLd(offerLd(89)), day(0));
+      expect(await extractPrices(deps, c0)).toEqual({ ran: true, result: { points: 1, ended: 0 } });
+      expect((await points()).map((p) => [p.serviceId, p.amount, p.trackedPageId])).toEqual([['ac_tune_up', 89, pageId]]);
+    });
+
+    it('a JSON-LD-only price opens a span, and ends it when the offer disappears', async () => {
+      const deps = { db: dbs.service, store, ai: createFakeAi({ decide: byText() }), packs };
+      const bare = '<html><body><main><h2>Our prices</h2><p>Call us</p></main></body></html>';
+      const c0 = await capture(`<html><head>${offerLd(129)}</head>${bare.slice(6)}`, day(0));
+      expect(await extractPrices(deps, c0)).toEqual({ ran: true, result: { points: 1, ended: 0 } });
+      expect((await points()).map((p) => [p.amount, p.qualifier, p.endedAt])).toEqual([[129, 'exact', null]]);
+      expect(await extractPrices(deps, await capture(bare, day(1)))).toEqual({ ran: true, result: { points: 0, ended: 1 } });
+      expect((await points()).map((p) => p.endedAt)).toEqual([day(1)]);
+    });
+
+    it('the block map caches by jsonld| sha: a second run makes no model call', async () => {
+      const ai = createFakeAi({ decide: byText() });
+      const deps = { db: dbs.service, store, ai, packs };
+      const html = `<html><head>${offerLd(129)}</head><body><main><p>Call us</p></main></body></html>`;
+      await extractPrices(deps, await capture(html, day(0)));
+      expect(ai.calls.decide).toHaveLength(1);
+      await extractPrices(deps, await capture(html, day(1)));
+      expect(ai.calls.decide).toHaveLength(1);
+      expect((await dbs.owner.select().from(priceBlockMap)).every((m) => /^[0-9a-f]{64}$/.test(m.textSha))).toBe(true);
+    });
+
+    it('a discount or EUR offer never becomes a price', async () => {
+      const ai = createFakeAi({ decide: byText() });
+      const deps = { db: dbs.service, store, ai, packs };
+      const bad = ld(JSON.stringify([{ '@type': 'Offer', name: '$20 off tune-up', price: 20 }, { '@type': 'Offer', name: 'AC tune-up', price: 99, priceCurrency: 'EUR' }]));
+      await extractPrices(deps, await capture(`<html><head>${bad}</head><body><main><p>Call us</p></main></body></html>`, day(0)));
+      expect(await points()).toEqual([]);
+      expect(ai.calls.decide).toHaveLength(0);
+    });
+  });
 });
