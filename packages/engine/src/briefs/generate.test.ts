@@ -1,3 +1,4 @@
+import { BriefReport } from '@cs/core';
 import { agency, agencyServiceable, brief, briefItem, changeEvent, client, clientWorkAllowed, competitor, type Db, move, moveEvent, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { and, eq, ne } from 'drizzle-orm';
@@ -19,6 +20,12 @@ const scorecardFail = vi.hoisted(() => ({ on: false }));
 vi.mock('./scorecard', async (orig) => {
   const m = await orig<typeof import('./scorecard')>();
   return { ...m, buildScorecard: (...a: Parameters<typeof m.buildScorecard>) => { if (scorecardFail.on) throw new Error('scorecard boom'); return m.buildScorecard(...a); } };
+});
+
+const reportFail = vi.hoisted(() => ({ on: false }));
+vi.mock('./report', async (orig) => {
+  const m = await orig<typeof import('./report')>();
+  return { ...m, buildBriefReport: (...a: Parameters<typeof m.buildBriefReport>) => { if (reportFail.on) throw new Error('report boom'); return m.buildBriefReport(...a); } };
 });
 
 const AGENCY_C = randomUUID();
@@ -67,10 +74,23 @@ describe('generateBrief', () => {
     expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY, claimsChecked: 0 });
   });
 
-  it('becomes quiet when the verifier drops every item (never padded)', async () => {
+  it('major-only week is standard with the major summary (the verifier dropped the only item; its event is a Major line)', async () => {
     await seedEvent();
     const ai = createFakeAi({ chat: () => draft(['C1'], 'Smith HVAC cut its AC tune-up to $49.'), decide: supportAll });
-    expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0, dropped: { items: 1 } });
+    expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'standard', items: 0, dropped: { items: 1 } });
+    const [b] = await dbs.owner.select().from(brief);
+    expect(b).toMatchObject({ kind: 'standard', summary: '1 major competitor change this week.' });
+    expect(BriefReport.safeParse(b!.report).success).toBe(true);
+  });
+
+  it('becomes quiet when the only written event is retracted mid-run: no written item, no live Major line (never padded)', async () => {
+    const e = await seedEvent();
+    const ai = createFakeAi({
+      chat: () => draft(['C1']),
+      decide: async (st, qs) => { await dbs.service.update(changeEvent).set({ retractedAt: new Date(), retractionReason: 'review' }).where(eq(changeEvent.id, e.eventId)); return supportAll(st, qs); },
+    });
+    expect(await run(ai)).toMatchObject({ status: 'ready', kind: 'quiet', items: 0 });
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
   });
 
   it('fails cleanly on a verifier outage, stores no items, retries, and gives up after three attempts', async () => {
@@ -245,10 +265,34 @@ describe('quiet-week scorecard (12b T6)', () => {
     } finally { scorecardFail.on = false; warn.mockRestore(); }
   });
 
-  it('standard briefs have no scorecard', async () => {
-    await seedEvent();
+  it('stores report and scorecard on a standard week', async () => {
+    const e = await seedEvent();
     await run();
-    expect((await dbs.owner.select().from(brief))[0]!.scorecard).toBeNull();
+    const [b] = await dbs.owner.select().from(brief);
+    expect(b).toMatchObject({ kind: 'standard', summary: 'Smith HVAC cut a price.' });
+    expect(b!.scorecard).not.toBeNull();
+    const report = BriefReport.parse(b!.report);
+    // The written item's event is excluded from the graded lines.
+    expect(report.changes.lines.flatMap((l) => l.eventIds)).not.toContain(e.eventId);
+  });
+
+  it('report failure leaves the brief ready with report null', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reportFail.on = true;
+    try {
+      await seedEvent();
+      expect(await run()).toMatchObject({ status: 'ready', kind: 'standard', items: 1 });
+      expect((await dbs.owner.select().from(brief))[0]!.report).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/report skipped/));
+    } finally { reportFail.on = false; warn.mockRestore(); }
+  });
+
+  it('a report failure on a no-item week is quiet (no Major lines known)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reportFail.on = true;
+    try {
+      expect(await run()).toMatchObject({ status: 'ready', kind: 'quiet' });
+    } finally { reportFail.on = false; warn.mockRestore(); }
   });
 });
 

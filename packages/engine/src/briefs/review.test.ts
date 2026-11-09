@@ -6,6 +6,8 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { createPackLoader } from '../tag/tag-stage';
 import { QUIET_SUMMARY } from './generate';
+import type { BriefClient } from './gather';
+import { gradedChanges } from './graded';
 import {
   approveBrief, approveBriefTx, dropBriefItem, dropRetractedItems, editBriefItem, getBrief, RECOMMENDATION_WITHDRAWN_REASON, rateBriefItem, reorderBriefItems,
 } from './review';
@@ -16,6 +18,12 @@ const deps = () => ({ service: dbs.service, app: dbs.app, packs: createPackLoade
 const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'account_manager', clientScope: 'all', features: [] });
 const otherAgency = createAccessContext({ agencyId: IDS.agencyB, userId: 'am-2', role: 'account_manager', clientScope: 'all', features: [] });
 const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'own-1', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
+const clientOf = (id: string): BriefClient => ({
+  id, agencyId: IDS.agencyA, name: 'A1 HVAC', verticalId: 'hvac_plumbing', verticalName: 'HVAC', services: ['ac_tune_up'], serviceNames: ['AC tune-up'],
+  towns: [], zips: [], competitorNames: ['Smith HVAC'], briefThreshold: 40,
+});
+/** A stored report whose graded lines come from the real grouping (events scored 55 grade Major at threshold 40). */
+const reportFor = async (written: string[]) => ({ changes: await gradedChanges({ db: dbs.service }, clientOf(IDS.clientA1), { start: day(-7), end: day(0) }, new Set(written)) });
 const baseItem = (briefId: string, eventId: string) => ({
   briefId, agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, whatChanged: 'The pricing page shows $69, down from $89.', whyItMatters: 'y', recommendedAction: 'Bundle a filter.', confidence: 0.9, effort: 'L', impact: 'M', eventIds: [eventId], evidenceIds: ['ev'], upsellTag: 'ppc', playbookId: 'price_cut_bundle',
 });
@@ -179,6 +187,33 @@ describe('approval recomputes the summary (binding before any send)', () => {
     const none = await readyBrief(['dropped']);
     await approveBrief(deps(), am, none);
     expect(await read(none)).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
+  });
+
+  it('approval keeps standard with the major summary when a written item drops but a major line lives', async () => {
+    const id = await readyBrief(['dropped']);
+    const [it] = await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, id));
+    const other = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-2), score: 70 });
+    await dbs.owner.update(brief).set({ report: await reportFor(it!.eventIds) }).where(eq(brief.id, id));
+    await approveBrief(deps(), am, id);
+    expect(await read(id)).toMatchObject({ status: 'approved', kind: 'standard', summary: '1 major competitor change this week.' });
+    expect(other.eventId).toBeTruthy();
+  });
+
+  it('approval turns the brief quiet when the written item drops and the major line was retracted', async () => {
+    const id = await readyBrief(['dropped']);
+    const [it] = await dbs.owner.select().from(briefItem).where(eq(briefItem.briefId, id));
+    const other = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-2), score: 70 });
+    await dbs.owner.update(brief).set({ report: await reportFor(it!.eventIds) }).where(eq(brief.id, id));
+    await dbs.owner.update(changeEvent).set({ retractedAt: day(1) }).where(eq(changeEvent.id, other.eventId));
+    await approveBrief(deps(), am, id);
+    expect(await read(id)).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
+  });
+
+  it('old brief with null report keeps today rule (no active item is quiet)', async () => {
+    const id = await readyBrief(['dropped']);
+    expect((await read(id)).report).toBeNull();
+    await approveBrief(deps(), am, id);
+    expect(await read(id)).toMatchObject({ kind: 'quiet', summary: QUIET_SUMMARY });
   });
 
   it('records a system approval as feedback', async () => {

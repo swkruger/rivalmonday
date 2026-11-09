@@ -1,4 +1,5 @@
 import type { Ai } from '@cs/ai';
+import type { BriefReport } from '@cs/core';
 import { agencyServiceable, clientWorkAllowed, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { VerticalPack } from '@cs/verticals';
@@ -9,7 +10,8 @@ import { type Playbook, playbookRef } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
 import { buildScorecard, Scorecard } from './scorecard';
-import { countSummary } from './summary';
+import { buildBriefReport } from './report';
+import { countSummary, majorSummary } from './summary';
 import { trendSnapshot } from './trend';
 import { verifyDraft, type VerifiedItem } from './verify';
 import { writeBrief } from './writer';
@@ -114,11 +116,19 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
       verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year, period });
     }
 
-    // Built before the commit transaction: a scorecard failure must never fail the brief (it is stored only if the week turns out quiet).
-    let quietScorecard: Scorecard | null = null;
+    // Built before the commit transaction: a report or scorecard failure must never fail the brief (each is stored as null).
+    // The report's lines exclude the events of the verified items (those are the written items).
+    let report: BriefReport | null = null;
+    try {
+      report = await buildBriefReport(deps, c, period, new Set(verified.items.flatMap((i) => candidateEventIds(i.candidate))));
+    } catch (err) {
+      console.warn(`[briefs] report skipped: ${clientId}: ${briefErrorMessage(err)}`);
+    }
+    const majors = report ? report.changes.lines.filter((l) => l.grade === 'major').reduce((n, l) => n + l.count, 0) : 0;
+    let scorecard: Scorecard | null = null;
     try {
       const sp = await startingPointBaseline(deps.db, clientId);
-      quietScorecard = { ...(await buildScorecard(deps, clientId, { now, baseline: sp?.scorecard ?? null, openFirstMoves: sp?.openFirstMoves ?? [] })), baselineBriefId: sp?.briefId ?? null };
+      scorecard = { ...(await buildScorecard(deps, clientId, { now, baseline: sp?.scorecard ?? null, openFirstMoves: sp?.openFirstMoves ?? [] })), baselineBriefId: sp?.briefId ?? null };
     } catch (err) {
       console.warn(`[briefs] scorecard skipped: ${clientId}: ${briefErrorMessage(err)}`);
     }
@@ -129,11 +139,11 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
       const retracted = ids.length === 0 ? [] : (await tx.select({ id: changeEvent.id }).from(changeEvent).where(and(inArray(changeEvent.id, ids), isNotNull(changeEvent.retractedAt)))).map((r) => r.id);
       const items = committableItems(verified.items, retracted);
       const dropped = { items: verified.dropped.items + (verified.items.length - items.length), sentences: verified.dropped.sentences };
-      const kind: BriefKind = items.length > 0 ? 'standard' : 'quiet';
-      const summary = kind === 'quiet' ? QUIET_SUMMARY : items.length === verified.items.length ? verified.summary : countSummary(items.length);
-      const scorecard = kind === 'quiet' ? quietScorecard : null;
+      // Quiet = no written item AND no Major line (items dropped at commit are not re-added as lines: they were excluded as written).
+      const kind: BriefKind = items.length > 0 || majors > 0 ? 'standard' : 'quiet';
+      const summary = items.length === 0 ? (majors > 0 ? majorSummary(majors) : QUIET_SUMMARY) : items.length === verified.items.length ? verified.summary : countSummary(items.length);
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
-      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, trend, dropped, claimsChecked: verified.checked, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, report, trend, dropped, claimsChecked: verified.checked, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       if (items.length > 0) {
         await tx.insert(briefItem).values(items.map((i, ord) => ({

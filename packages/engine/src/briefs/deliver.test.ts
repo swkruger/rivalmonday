@@ -1,13 +1,15 @@
 import { createAccessContext } from '@cs/core';
 import { agencyBilling, brief, briefItem, changeEvent, client, feedback, notification } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { type BriefDeliveryView, briefEmailProps, deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
 import { QUIET_SUMMARY } from './generate';
+import type { BriefClient } from './gather';
+import { gradedChanges } from './graded';
 import { approveBriefTx } from './review';
 
 const dbs = openTestDbs();
@@ -26,6 +28,13 @@ beforeEach(async () => {
   await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'owner@a1.example', name: 'Pat Lee' });
   await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example', name: 'Sam' });
 });
+
+const clientOf = (id: string): BriefClient => ({
+  id, agencyId: IDS.agencyA, name: 'A1 HVAC', verticalId: 'hvac_plumbing', verticalName: 'HVAC', services: ['ac_tune_up'], serviceNames: ['AC tune-up'],
+  towns: [], zips: [], competitorNames: ['Smith HVAC'], briefThreshold: 40,
+});
+/** A stored report whose graded lines come from the real grouping (events scored 55 grade Major at threshold 40). */
+const reportFor = async (written: string[]) => ({ changes: await gradedChanges({ db: dbs.service }, clientOf(IDS.clientA1), { start: day(22), end: day(29) }, new Set(written)) });
 
 async function seedBrief(status: 'ready' | 'approved', items: { ord: number; status?: 'active' | 'dropped'; headline: string; upsell?: string }[], o: Partial<typeof brief.$inferInsert> = {}) {
   const ev = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(25) });
@@ -134,6 +143,40 @@ describe('deliverBrief — evidence retracted after approval', () => {
     await deliverBrief(deps(), id, MON_0705);
     expect(await emailProps()).toMatchObject({ items: [], kind: 'quiet', summary: QUIET_SUMMARY });
     expect(await read(id)).toMatchObject({ status: 'sent', kind: 'quiet', summary: QUIET_SUMMARY });
+  });
+});
+
+describe('deliverBrief — major-only brief', () => {
+  const emailProps = async () => ((await sentRows()).find((r) => r.channel === 'email')!.payload as { props: { items: unknown[]; summary: string; kind: string } }).props;
+  async function majorOnly() {
+    const id = await seedBrief('ready', []);
+    const major = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(26), score: 70 });
+    await dbs.owner.update(brief).set({ kind: 'standard', summary: '1 major competitor change this week.', report: await reportFor([]) }).where(eq(brief.id, id));
+    return { id, major };
+  }
+
+  it('delivers a major-only brief as standard with the major summary', async () => {
+    const { id } = await majorOnly();
+    await dbs.service.transaction((tx) => approveBriefTx(tx, id, 'am-1', day(30)));
+    await deliverBrief(deps(), id, MON_0705);
+    expect(await emailProps()).toMatchObject({ items: [], kind: 'standard', summary: expect.stringMatching(/^[12] major competitor change/) });
+    expect((await read(id))).toMatchObject({ status: 'sent', kind: 'standard' });
+  });
+
+  it('delivery turns a major-only brief quiet when its major event is retracted', async () => {
+    const { id } = await majorOnly();
+    await dbs.service.transaction((tx) => approveBriefTx(tx, id, 'am-1', day(30)));
+    const lines = ((await read(id)).report as { changes: { lines: { grade: string; eventIds: string[] }[] } }).changes.lines;
+    for (const l of lines.filter((x) => x.grade === 'major')) await dbs.owner.update(changeEvent).set({ retractedAt: day(31) }).where(inArray(changeEvent.id, l.eventIds));
+    await deliverBrief(deps(), id, MON_0705);
+    expect(await emailProps()).toMatchObject({ items: [], kind: 'quiet', summary: QUIET_SUMMARY });
+    expect(await read(id)).toMatchObject({ status: 'sent', kind: 'quiet', summary: QUIET_SUMMARY });
+  });
+
+  it('a standard week stores a scorecard but the email omits it', async () => {
+    const id = await seedBrief('approved', [{ ord: 0, headline: 'Kept' }], { scorecard: { not: 'rendered' } });
+    await deliverBrief(deps(), id, MON_0705);
+    expect(((await sentRows()).find((r) => r.channel === 'email')!.payload as { props: { scorecard: unknown } }).props.scorecard).toBeNull();
   });
 });
 

@@ -10,7 +10,7 @@ import { Scorecard } from './scorecard';
 import { scorecardModel } from './scorecard-model';
 import { approveBriefTx, dropRetractedItems } from './review';
 import { safeTimezone } from './schedule';
-import { finalBriefSummary } from './summary';
+import { finalBriefSummary, liveMajorCount, loadLiveChanges } from './summary';
 
 export const DELIVERY_LOCAL_HOUR = 7;
 export const DELIVERY_GRACE_DAYS = 6;
@@ -43,7 +43,8 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
 }
 
 const scorecardOf = (v: BriefDeliveryView) => {
-  if (v.b.scorecard === null || v.b.scorecard === undefined) return null; // standard briefs carry none
+  // A weekly brief stores its scorecard every week, but the email shows it only on a quiet week (a standard week keeps today's email).
+  if (v.b.scorecard === null || v.b.scorecard === undefined || v.b.kind === 'standard') return null;
   const parsed = Scorecard.safeParse(v.b.scorecard);
   if (!parsed.success) {
     console.warn(`[briefs] brief ${v.b.id}: stored scorecard does not parse, sending without it: ${parsed.error.message}`);
@@ -72,7 +73,7 @@ export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, b
     // Evidence retracted after approval: drop those items before the summary is recomputed (decision 10).
     await dropRetractedItems(tx, briefId);
     const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
-    const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all);
+    const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all, liveMajorCount(await loadLiveChanges(tx, locked)));
     await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now }).where(eq(brief.id, briefId));
     const v = await loadBriefView(tx, briefId);
     const scope = { agencyId: v.b.agencyId, clientId: v.b.clientId };

@@ -9,7 +9,7 @@ import { sendBriefNow } from './deliver';
 import { recommendationFromItem } from './recommendations';
 import { checkSentence, splitSentences } from './rules';
 import { isBaselineItem } from './starting-point';
-import { finalBriefSummary } from './summary';
+import { finalBriefSummary, liveMajorCount, loadLiveChanges } from './summary';
 
 export type ReviewDeps = { service: Db; app: Db; packs: PackLoader };
 export interface BriefView {
@@ -172,7 +172,7 @@ export async function approveBriefTx(tx: Tx, briefId: string, actor: string, now
   const active = await tx.select().from(briefItem).where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')));
   const stale = new Set(await dropRetractedItems(tx, briefId));
   const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
-  const final = finalBriefSummary(claimed as { kind: BriefKind; summary: string }, all);
+  const final = finalBriefSummary(claimed as { kind: BriefKind; summary: string }, all, liveMajorCount(await loadLiveChanges(tx, claimed)));
   if (final.kind !== claimed.kind || final.summary !== claimed.summary) await tx.update(brief).set(final).where(eq(brief.id, briefId));
   if (opts.auto) {
     await tx.insert(feedback).values({ agencyId: claimed.agencyId, clientId: claimed.clientId, subjectType: 'brief', subjectId: briefId, kind: 'status', actor, after: { status: 'approved', auto: true } });
