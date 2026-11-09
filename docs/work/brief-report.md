@@ -1,16 +1,16 @@
 # brief-report — weekly brief becomes a full report; every change graded Major / Notable / Minor
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/brief-report   **Base:** main @ 16d20199
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/brief-report   **Base:** main @ bd58dd62
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (owner-approved 2026-11-07) · **Plan:** `docs/superpowers/plans/2026-11-07-brief-report.md` (Tasks 0–15, lean)
 
 ## Status (overwrite)
-Plan owner-approved 2026-11-07; execution after brief-signal merges.
+Executing (SDD); Task 0 done.
 
 ## Next (overwrite)
-After brief-signal merges: `superpowers:subagent-driven-development` from Task 0 (rebase, re-check, next free migration number).
+Task 1a onward (SDD). Apply the Task 0 findings below to the plan interfaces as each task starts.
 
 ## Interfaces this branch adds or changes
-- Migration `<n>_brief_report` (next free number at execution, ≥ 0100): `brief.report jsonb` nullable; `(client_id, scored_at)` index on `event_score` only if Task 0's EXPLAIN needs it.
+- Migration `0103_brief_report`: `brief.report jsonb` nullable; no `event_score` index (Task 0 EXPLAIN).
 - `@cs/core` `brief-report.ts`: `Grade`, `GRADE_LABEL`, `ReportTopic`, `TOPIC_LABEL`, `gradeFor`, `topicOf`, `ChangeLine`, `GradedChanges`, `GradedChangesView`, `GradeTotals`, `BriefReport` (zod), `REPORT_CAPS`, `capTopic`, `totalsOf`; `day-range.ts` `formatDayRange`; `charts.ts` (`ChartSeries`, `foldSeries`, `chartRole`, `niceMax`, `yTicks`, `linePath`); `PDF_LAYOUT_VERSION` 6; glossary `major-change`, `notable-change`, `minor-change`.
 - `@cs/engine`: `briefs/graded.ts` (`groupChanges`, `gradedChanges`, `liveChanges`), `briefs/report.ts` (`buildBriefReport`, `briefReportProps`, `briefHighlights`), `briefs/attachment.ts` (`briefAttachment`, `attachmentName`, `MAX_ATTACHMENT_BYTES`), `ensureBriefPdf`, `majorSummary`, `finalBriefSummary(b, items, liveMajorEvents)`; `workspace/{scope,pressure,ads,kpi}.ts` moved from `@cs/tools` (tools keep re-export shims); `createEmailSender({ attachment? })`.
 - `@cs/email`: `GROUP_PHRASE`/`groupPhrase`, `PrintLineChart`, `renderBriefReportDocument`, `BriefReportDocumentProps`, `BriefEmailProps.{highlights, attachPdf, attached}`, `OutgoingEmail.attachments` (Postmark/file/memory); previews `brief.highlights`, `brief.quiet_highlights`, `brief.highlights_not_attached`, `document.brief_report*`.
@@ -72,3 +72,17 @@ O1 + O2 above. Starting-point brief keeps its current format (my call). No new m
 
 ### In-flight overlaps
 - `brief-signal` (fix): `briefs/{writer,evidence,verify}.ts`, `score/score.ts`, vendor diff, migration 0099, rescore CLI. This branch touches `generate.ts`, `deliver.ts`, `pdf.ts`, new files; rebase after it merges.
+
+## Task 0 findings (2026-11-08)
+Rebased onto local main bd58dd62 (origin/main identical); `pnpm install` ok; `npx turbo run typecheck --concurrency=1` green (19/19).
+- **Migration number: 0103** (main ends 0102_web_readiness). Use `0103_brief_report` for `<n>`.
+- **Unchanged since the plan's base (✓):** `gather.ts` (scoredAt window `gt start, lte end`, `BRIEF_EVENT_MAX_AGE_DAYS = 30` on `occurredAt`, `featuredBefore`, cosmetic/retracted excluded; existing read filters `route IN ('brief','alert')`, Task 3's any-route read drops that), `loadBriefClient().briefThreshold`; `generate.ts` (commit block `committableItems`, `kind = items > 0 ? standard : quiet`, scorecard only when quiet), `summary.ts` `finalBriefSummary(b, items)`, `review.ts` `dropRetractedItems`/`approveBriefTx`, `deliver.ts` `loadBriefView`/`briefEmailProps`/`deliverBrief`, `pdf.ts` (`renderBriefPdf`, `briefPdfKey`, `PdfDeps {db, store, pdf}`), `delivery/outbox.ts` (`notify`, `dispatchDue`, `createEmailSender({transport, fromAddress})`). phase-18a did not touch them; only `score/*` (rescore, whole-business relevance) changed.
+- `ObjectStore.get` returns `Uint8Array | null` ✓. `OutgoingEmail` has no `attachments` yet (as planned); Postmark/file/memory transports in `packages/email/src/transport.ts` ✓. `PDF_LAYOUT_VERSION` is 5 now, so 6 is right.
+- `event.channels` = `CHANNELS` in `@cs/core` `domain.ts` (`web, google_ads, meta_ads, google_business_profile, google_reviews, google_jobs, rank`); `EVIDENCE_CHANNEL_LABEL` lives in `@cs/engine` `briefs/evidence.ts` (not exported from core); labels differ from the plan's `GROUP_PHRASE` needs, keep `groupPhrase` in `@cs/email`.
+- **MISMATCH Task 2:** `@cs/tools` `workspace/scope.ts` mixes pure helpers with `ToolDeps`-based ones (`workspaceClient`, `requireVisibleClient`, `firstVisibleEvent*`, `requireVisibleEvent`, `allInOrder`). Move only `eventJoin`, `clientEvents`, `liveEventCount` (+ `escapeLike` not needed) to `packages/engine/src/workspace/scope.ts`; tools' `scope.ts` keeps the rest and re-exports the three. `@cs/tools` already depends on `@cs/engine` (no new dep). `pressure.ts` imports `liveEventCount` from `./workspace/scope` and `changeTypeLabel` from `@cs/email` (engine has `@cs/email`). `workspace/ads.ts` is self-contained.
+- **MISMATCH Task 2 (kpi.ts):** `isPriceCut` and `weekIndex` are closures local to `tools/overview.ts` (`weekIndex` closes over `now`/`TREND_WEEKS`), not exports; Task 2 extracts them as new pure functions (`weekIndex(now, at, weeks)`), and `overview.ts` must be edited to use them.
+- **MISMATCH Task 13:** `createEmailSender` is also constructed in `apps/worker/src/cli/deliver-once.ts` (line ~73) and in two web E2E specs (`client-setup-invite.spec.ts`, `intake.spec.ts`); `attachment` is optional so E2E specs need no change, but add `deliver-once.ts` to Task 13's files so the CLI attaches too (worker `deps.ts` has `getStore`, `getPdf` ✓ at lines 291/325).
+- **`@cs/engine` already depends on `@cs/email`** (`package.json`), so Task 1b's `groupPhrase`/`changeTypeLabel` import needs no dep change.
+- **`ChartSeries` in `apps/web/src/components/charts/line-chart.tsx`:** `interface ChartSeries { key: string; name: string; points: (number | null)[]; you?: boolean }`. The planned zod `ChartSeries` (`key, name, points: z.array(z.number().nullable()), you: z.boolean().optional()`) matches exactly; the web component should import the `@cs/core` type (type-only) instead of redeclaring.
+- **`get_brief` channels:** `tools/briefs.ts` lists `['web','mcp','ask']` at lines 25 and 85 (both read tools) and `['web']` at 98; Task 6 adds `changes` to the web channel only (O6).
+- **EXPLAIN (any-route graded read), migrated test DB (PG 18):** plan used `event_score_client_route_idx (client_id, route, scored_at)` as an Index Scan with `Index Cond: client_id = $1 AND scored_at > .. AND scored_at <= ..` (both with seq scan on and off; event side `event_pkey`). Empty tables only (no superuser for bulk seeding), so judged on usability: the index serves it on the `client_id` prefix and PG 18 skip scan covers the missing `route`; on PG < 18 it would scan the client's index range and filter `scored_at`, bounded by one client's rows (hundreds to low thousands) plus the PK `(client_id, event_id)`. **Decision: no `(client_id, scored_at)` index; Task 5's migration is `ALTER TABLE "brief" ADD COLUMN "report" jsonb;` only.** Revisit only if the `profile-gate.sh` brief-page run shows the read hot.
