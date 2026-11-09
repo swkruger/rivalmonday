@@ -1,4 +1,6 @@
+export * from './ads/ad-image';
 export * from './ads/google';
+export * from './ads/library-url';
 export * from './ads/meta';
 export * from './ads/meta-page';
 export * from './ads/upsert';
