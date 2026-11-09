@@ -51,6 +51,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, children 
                         {formatPrice(p)}
                         {/* Ad-sourced prices are shown but never counted in the change (18a-1 O6). */}
                         {p.source === 'meta_ad' && <Tag className="ml-1 whitespace-nowrap">From an ad</Tag>}
+                        {p.source === 'ad_image' && <Tag className="ml-1 whitespace-nowrap">From an ad image</Tag>}
                       </span>
                     ))}
                   </span>

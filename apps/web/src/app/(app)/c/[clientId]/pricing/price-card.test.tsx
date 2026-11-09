@@ -10,8 +10,8 @@ const services = [
 const row = {
   competitorId: 'x', name: 'Smith HVAC',
   cells: [
-    { serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact' as const, promo: true, since: '2026-10-01T00:00:00.000Z', source: 'web' as const }], change: { before: 99, after: 79 } },
-    { serviceId: 'furnace_repair', prices: [{ amount: 129, unit: 'USD', qualifier: 'from' as const, promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' as const }], change: null },
+    { serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact' as const, promo: true, since: '2026-10-01T00:00:00.000Z', source: 'web' as const, evidenceIds: [] as string[] }], change: { before: 99, after: 79 } },
+    { serviceId: 'furnace_repair', prices: [{ amount: 129, unit: 'USD', qualifier: 'from' as const, promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' as const, evidenceIds: [] as string[] }], change: null },
   ],
 };
 
@@ -52,7 +52,7 @@ describe('PriceCard', () => {
   });
 
   it('"From an ad" tag on ad rows only', () => {
-    const mixed = { ...row, cells: [{ ...row.cells[0]!, prices: [row.cells[0]!.prices[0]!, { amount: 59, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'meta_ad' as const }] }, row.cells[1]!] };
+    const mixed = { ...row, cells: [{ ...row.cells[0]!, prices: [row.cells[0]!.prices[0]!, { amount: 59, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'meta_ad' as const, evidenceIds: [] as string[] }] }, row.cells[1]!] };
     render(<PriceCard row={mixed} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
     const tags = screen.getAllByText('From an ad');
     expect(tags).toHaveLength(1);
@@ -63,5 +63,16 @@ describe('PriceCard', () => {
   it('says so when the competitor shows no prices', () => {
     render(<PriceCard row={{ ...row, cells: [] }} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
     expect(screen.getByText('No prices seen on its website yet.')).toBeTruthy();
+  });
+});
+
+describe('PriceCard ad image tag', () => {
+  it('price-card renders the image tag without a nested link', () => {
+    const img = { ...row, cells: [{ ...row.cells[0]!, prices: [{ amount: 89, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'ad_image' as const, evidenceIds: ['e1'] }] }] };
+    const { container } = render(<PriceCard row={img} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    const tag = screen.getByText('From an ad image');
+    expect(tag.getAttribute('data-slot')).toBe('tag');
+    expect(tag.closest('a')?.querySelectorAll('a')).toHaveLength(0);
+    expect(container.querySelectorAll('a a')).toHaveLength(0);
   });
 });

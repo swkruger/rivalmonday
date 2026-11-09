@@ -32,6 +32,9 @@ export function PricesSection({ clientId, competitorId, matrix }: { clientId: st
                   {i > 0 && ' · '}
                   {formatPrice(p)}
                   {p.source === 'meta_ad' && <Tag className="ml-1 whitespace-nowrap">From an ad</Tag>}
+                  {p.source === 'ad_image' && (p.evidenceIds[0]
+                    ? <Link href={`/c/${clientId}/evidence/${p.evidenceIds[0]}`}><Tag className="ml-1 whitespace-nowrap">From an ad image</Tag></Link>
+                    : <Tag className="ml-1 whitespace-nowrap">From an ad image</Tag>)}
                 </span>
               ))}</span>
             </li>

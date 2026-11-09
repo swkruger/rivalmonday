@@ -10,7 +10,7 @@ describe('competitor profile sections (decision 13)', () => {
   it('lists up to five current prices and links to pricing', () => {
     render(<PricesSection clientId={C} competitorId={X} matrix={{
       services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],
-      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web' }], change: null }] }],
+      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 79, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'web', evidenceIds: [] }], change: null }] }],
     }} />);
     expect(screen.getByRole('heading', { name: 'Prices' })).toBeTruthy();
     expect(screen.getByText('AC tune-up')).toBeTruthy();
@@ -29,7 +29,7 @@ describe('competitor profile sections (decision 13)', () => {
   });
 
   it('shows the newest active ads, or says there are none', () => {
-    const { unmount } = render(<AdsSection clientId={C} competitorId={X} timezone="UTC" ads={{ hasMore: false, items: [{ id: 'a', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: null, title: '$49 tune-up', text: null, landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null }] }} />);
+    const { unmount } = render(<AdsSection clientId={C} competitorId={X} timezone="UTC" ads={{ hasMore: false, items: [{ id: 'a', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: null, title: '$49 tune-up', text: null, landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null, imageEvidenceIds: [] }] }} />);
     expect(screen.getByText('$49 tune-up')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'See ads' }).getAttribute('href')).toBe(`/c/${C}/ads?competitor=${X}`);
     unmount();

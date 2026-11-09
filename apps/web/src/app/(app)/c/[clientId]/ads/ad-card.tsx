@@ -1,5 +1,6 @@
 import type { AdView } from '@cs/tools';
 import { StatusChip } from '@cs/ui';
+import { EvidenceImage } from '@/components/evidence-image';
 import { formatDate } from '@/lib/format';
 import { AD_STATE, labelFor } from '@/lib/labels';
 
@@ -8,8 +9,9 @@ const displayUrl = (u: string) => {
   return s.length > 60 ? `${s.slice(0, 59)}…` : s;
 };
 
-/** Decision 5: a text card — no images (vendor media URLs expire). The landing URL is shown as text, never linked. */
-export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
+/** A text card; with a stored ad image (18a-3 D6) it leads with it. Images come only from our evidence store, never vendor URLs (they expire). The landing URL is shown as text, never linked. */
+export function AdCard({ ad, clientId, timezone }: { ad: AdView; clientId: string; timezone: string }) {
+  const imageId = ad.imageEvidenceIds[0];
   const fmt = (iso: string) => formatDate(iso, { tz: timezone });
   const state = labelFor(AD_STATE, ad.active ? 'active' : 'ended');
   const platform = ad.platform === 'meta' ? 'Meta' : 'Google';
@@ -21,6 +23,11 @@ export function AdCard({ ad, timezone }: { ad: AdView; timezone: string }) {
         <span>· {ad.competitorName}</span>
         <StatusChip tone={state.tone} className="ml-auto">{state.label}</StatusChip>
       </div>
+      {imageId && (
+        <div className="flex justify-center rounded-md bg-muted-surface p-2">
+          <EvidenceImage src={`/files/evidence/${clientId}/${imageId}`} alt={`Ad image from ${ad.competitorName}`} loading="lazy" className="max-h-60 w-auto object-contain" />
+        </div>
+      )}
       {ad.title && <h3 className="font-semibold text-ink">{ad.title}</h3>}
       {ad.text && <p className="line-clamp-4 whitespace-pre-line text-sm text-ink">{ad.text}</p>}
       {ad.landingUrl && (

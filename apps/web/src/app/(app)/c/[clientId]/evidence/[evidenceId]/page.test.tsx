@@ -135,3 +135,15 @@ describe('Evidence page Ask entry point (plan-off, 7a2 D13)', () => {
     expect(await open()).not.toContain('Ask Friday');
   });
 });
+
+describe('Evidence page image branch (18a-3)', () => {
+  it('image evidence renders the preview in a grey panel, with no compare section', async () => {
+    mount('google_ads', { kind: 'image', channelLabel: 'Ad image' });
+    const t = await EvidencePage({ params: Promise.resolve({ clientId: C, evidenceId: 'e9' }) });
+    expect(countByName(t, 'EvidenceImage')).toBe(1);
+    expect(textOf(t)).toContain('Ad image from Smith');
+    expect(textOf(t)).toContain(`/files/evidence/${C}/e9`);
+    expect(textOf(t)).not.toContain('isn’t displayed here');
+    expect(hasId(t, 'Compare with previous')).toBe(false);
+  });
+});

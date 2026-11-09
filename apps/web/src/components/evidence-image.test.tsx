@@ -16,4 +16,18 @@ describe('EvidenceImage', () => {
     expect(screen.getByText('Snapshot not available')).toBeTruthy();
     expect(screen.queryByRole('img', { name: 'Snapshot of x' })).toBeNull();
   });
+
+  it('shows the fallback when the image already failed before hydration', () => {
+    const complete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete');
+    const width = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'naturalWidth');
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', { configurable: true, get: () => true });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', { configurable: true, get: () => 0 });
+    try {
+      render(<EvidenceImage src="/files/evidence/c/e" alt="Ad image from x" />);
+      expect(screen.getByText('Snapshot not available')).toBeTruthy();
+    } finally {
+      if (complete) Object.defineProperty(HTMLImageElement.prototype, 'complete', complete);
+      if (width) Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', width);
+    }
+  });
 });

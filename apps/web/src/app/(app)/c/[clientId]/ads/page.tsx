@@ -118,7 +118,7 @@ export default async function AdsPage({ params, searchParams }: {
         <>
           <h2 className="sr-only">Ads</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {list.items.map((a) => <AdCard key={a.id} ad={a} timezone={profile.timezone} />)}
+            {list.items.map((a) => <AdCard key={a.id} clientId={clientId} ad={a} timezone={profile.timezone} />)}
           </div>
           {list.hasMore && <Link href={`/c/${clientId}/ads?${more.toString()}`} className="font-semibold text-primary-soft-text">More ads</Link>}
         </>

@@ -1,7 +1,10 @@
-import { ad, capture } from '@cs/db';
+import { createHash } from 'node:crypto';
+import { ad, adImage, capture, pricePoint } from '@cs/db';
+import sharp from 'sharp';
 import { adItemIds, EVENT_SPECS } from './changes';
 import type { SeedContext } from './context';
 import type { DemoCompetitor } from './ids';
+import { putEvidence } from './evidence';
 import { DEMO_COLLECTOR } from './tenancy';
 
 export const AD_COPY: readonly { title: string; text: string }[] = [
@@ -79,15 +82,43 @@ export async function seedAds(ctx: SeedContext): Promise<void> {
       });
     }
   }
+  let imageDone = false;
   const byComp = new Map<string, typeof pending>();
   for (const p of pending) byComp.set(p.comp.id, [...(byComp.get(p.comp.id) ?? []), p]);
   for (const [competitorId, list] of byComp) {
     const checks = { google: await adChecks(ctx, competitorId, 'google_ads'), meta: await adChecks(ctx, competitorId, 'meta_ads') };
-    await ctx.db.insert(ad).values(list.map(({ row, ended }) => {
+    const inserted = await ctx.db.insert(ad).values(list.map(({ row, ended }) => {
       const c = checks[row.platform as 'google' | 'meta'];
       return { ...row, firstCaptureId: c.first, lastCaptureId: c.latest, endedCaptureId: ended ? c.latest : null };
-    }));
+    })).returning({ id: ad.id, platform: ad.platform, isActive: ad.isActive });
+    const first = inserted.find((r) => r.platform === 'google' && r.isActive);
+    if (!imageDone && first && ctx.ids.competitors.loneStar.some((c) => c.id === competitorId) && competitorId !== ctx.ids.noData.ads) {
+      imageDone = true;
+      await seedAdImage(ctx, competitorId, first.id);
+    }
   }
+}
+
+const AD_IMAGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#0B2540"/>`
+  + `<text x="300" y="190" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#FFFFFF">TUNE-UP</text>`
+  + `<text x="300" y="290" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="bold" fill="#F5A524">$89</text></svg>`;
+
+/** 18a-3: one Lone Star Google ad carries a stored image (its own `ad_image` capture), a triaged `ad_image` row and the price read from it. */
+async function seedAdImage(ctx: SeedContext, competitorId: string, adId: string): Promise<void> {
+  const at = ctx.clock.daysAgo(2);
+  const [cap] = await ctx.db.insert(capture).values({ competitorId, source: 'ad_image', status: 'ok', collectorVersion: DEMO_COLLECTOR, capturedAt: at }).returning({ id: capture.id });
+  const body = new Uint8Array(await sharp(Buffer.from(AD_IMAGE_SVG)).webp({ quality: 80 }).toBuffer());
+  const evidenceId = await putEvidence(ctx, { captureId: cap!.id, competitorId, kind: 'image', body, contentType: 'image/webp' });
+  const [img] = await ctx.db.insert(adImage).values({
+    adId, competitorId, sourceUrlSha: createHash('sha256').update(`demo-ad-image:${adId}`).digest('hex'), status: 'triaged',
+    sourceSha256: createHash('sha256').update(body).digest('hex'), showsPerson: false, showsPrice: true, showsOffer: true, theme: 'tune-up special',
+    serviceIds: { ac_tune_up: 'ac_tune_up' }, triage: { provider: 'demo', model: 'demo', confidences: { shows_price: 0.95 } },
+    evidenceId, readStatus: 'read', readAt: at, triagedAt: at,
+  }).returning({ id: adImage.id });
+  await ctx.db.insert(pricePoint).values({
+    competitorId, adId, adImageId: img!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 89, unit: 'USD', qualifier: 'exact', promo: true,
+    raw: '$89', context: 'TUNE-UP $89', firstSeenAt: at, lastSeenAt: at, firstCaptureId: cap!.id, lastCaptureId: cap!.id,
+  });
 }
 
 /** The first ok ad check (200 days ago) and the latest one (yesterday) for one platform. */

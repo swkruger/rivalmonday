@@ -137,6 +137,10 @@ export default async function EvidencePage({ params }: { params: Promise<{ clien
                 className="w-full"
               />
             </div>
+          ) : evidence.kind === 'image' ? (
+            <div className="flex justify-center rounded-md bg-muted-surface p-2">
+              <EvidenceImage src={fileHref} alt={`Ad image from ${evidence.competitorName}`} className="max-h-[720px] w-auto max-w-full object-contain" />
+            </div>
           ) : evidence.kind === 'text' ? (
             <a href={fileHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-soft-text">
               Open the captured text
