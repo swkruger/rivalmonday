@@ -1,8 +1,7 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
-import { type BriefReport, formatDayRange, type RankMetric } from '@cs/core';
+import { type BriefReport, formatDayRange, projectToImage, type RankMetric } from '@cs/core';
 import type { Branding } from '../../branding';
-import { Img } from '../../rx';
 import { num, numCell, td, th } from '../table-cells';
 import { h2, keepSection, small } from './format';
 
@@ -11,7 +10,40 @@ const rank = (m: RankMetric | null | undefined): string => (m && m.avgRank !== n
 const day = (iso: string, tz: string) => formatDayRange(iso, iso, tz);
 
 /**
- * Map rankings data: the map image slot (Task 11 fills `mapImage`; null = no image) and the keyword table —
+ * Dot paint by rank band: the web geo grid's single-hue ramp (`rankFill` in apps/web charts/geo-grid.tsx is not a shared
+ * helper, so the bands are repeated here). 1-3 darkest, 4-10, 11-20, then "not in the top 20" and "no data" as light dots.
+ */
+function dotPaint(rank: number | null): { fill: string; text: string; label: string } {
+  if (rank === null) return { fill: '#ffffff', text: '#5B6B7F', label: '–' };
+  if (rank <= 3) return { fill: '#0d366b', text: '#ffffff', label: String(rank) };
+  if (rank <= 10) return { fill: '#256abf', text: '#ffffff', label: String(rank) };
+  if (rank <= 20) return { fill: '#86b6ef', text: '#0B2540', label: String(rank) };
+  return { fill: '#f0efec', text: '#0B2540', label: '20+' };
+}
+
+/** The map image (a `data:` URI: the print renderer blocks the network) with one rank dot per scan point, projected from the image bounds. */
+function MapWithDots(p: { map: NonNullable<Rankings['map']>; image: { dataUri: string; attribution: string } }) {
+  const { map: m } = p;
+  const pts = m.points.map((pt) => { const xy = projectToImage(pt, m.bounds, m.width, m.height); return { x: Math.round(xy.x * 10) / 10, y: Math.round(xy.y * 10) / 10, ...dotPaint(pt.rank) }; });
+  const radius = Math.max(10, Math.min(18, m.width / 40));
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <svg data-map-overlay viewBox={`0 0 ${m.width} ${m.height}`} width="100%" role="img" aria-label={`Map positions for ${m.keyword}`} style={{ display: 'block', borderRadius: 8 }}>
+        <image href={p.image.dataUri} x={0} y={0} width={m.width} height={m.height} />
+        {pts.map((q, i) => (
+          <g key={i} data-rank-dot>
+            <circle cx={q.x} cy={q.y} r={radius} fill={q.fill} fillOpacity={0.9} stroke="#ffffff" strokeWidth={1.5} />
+            <text x={q.x} y={q.y} textAnchor="middle" dy="0.35em" fontSize={radius * 1.05} fontWeight={700} fill={q.text} fontFamily="Inter, Arial, sans-serif">{q.label}</text>
+          </g>
+        ))}
+      </svg>
+      <div style={small}>{`Your rank at each point for "${m.keyword}" (lower is better). ${p.image.attribution}`}</div>
+    </div>
+  );
+}
+
+/**
+ * Map rankings data: the map image with rank dots (`mapImage` null = table only) and the keyword table —
  * average map position for you against <= 2 rivals and your previous scan.
  */
 export function RankingsData(p: { branding: Branding; rankings: Rankings; mapImage: { dataUri: string; attribution: string } | null; timezone: string }) {
@@ -22,12 +54,7 @@ export function RankingsData(p: { branding: Branding; rankings: Rankings; mapIma
   const numCols = 1 + (prev ? 1 : 0) + rivalNames.length;
   return (
     <div>
-      {p.mapImage ? (
-        <div style={{ marginBottom: 12 }}>
-          <Img src={p.mapImage.dataUri} alt={r.map ? `Map positions for ${r.map.keyword}` : 'Map positions'} width="100%" style={{ borderRadius: 8 }} />
-          <div style={small}>{p.mapImage.attribution}</div>
-        </div>
-      ) : null}
+      {p.mapImage && r.map ? <MapWithDots map={r.map} image={p.mapImage} /> : null}
       {r.keywords.length > 0 ? (
         <table width="100%" cellPadding={0} cellSpacing={0} border={0} aria-label="Average map position by keyword" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', backgroundColor: p.branding.panel, borderRadius: 8 }}>
           <colgroup>

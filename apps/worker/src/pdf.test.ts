@@ -31,6 +31,18 @@ describe('pdf', () => {
     expect([out.getProducer(), out.getCreator(), out.getModificationDate()?.toISOString()]).toEqual(['Acme Marketing', 'Acme Marketing', '2026-10-05T12:00:00.000Z']);
   });
 
+  it('data: image/png URI renders while every request is aborted', async () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4z8DAAMIM////ZwAAHu8E/KPItPcAAAAASUVORK5CYII=';
+    const withData = `<html><body><img width="100" height="100" src="data:image/png;base64,${png}"></body></html>`;
+    const withBoth = `<html><body><img width="100" height="100" src="data:image/png;base64,${png}"><img width="50" height="50" src="https://example.invalid/x.png"></body></html>`;
+    const withNet = '<html><body><img width="50" height="50" src="https://example.invalid/x.png"></body></html>';
+    // The aborted network image leaves Chromium's 14x16 broken-image icon; the embedded PNG is the only 2x2 image XObject.
+    const images = async (html: string) => (Buffer.from(await renderer(html, meta, { allowUrls: [] })).toString('latin1').match(/\/Subtype \/Image\s+\/Width 2\s+\/Height 2\b/g) ?? []).length;
+    expect(await images(withNet)).toBe(0); // the network image is aborted
+    expect(await images(withData)).toBe(1); // the data: image is not blocked
+    expect(await images(withBoth)).toBe(1); // only the data one
+  }, 60_000);
+
   it('recovers when the cached browser disconnects after a successful render (worker is long-lived)', async () => {
     const launched: Browser[] = [];
     const recovering = createPdfRenderer(async () => {

@@ -1,4 +1,5 @@
 import { BriefReport, formatDayRange, type GradedChangesView, PDF_KEY_SUFFIX, type ReportTopic, topicOf } from '@cs/core';
+import { STADIA_ATTRIBUTION } from '@cs/collectors';
 import { brief, type Db } from '@cs/db';
 import { type BriefReportDocumentProps, briefReportTitle, type PdfMeta, type PdfRenderer, renderBriefReportDocument } from '@cs/email';
 import type { ObjectStore } from '@cs/storage';
@@ -63,14 +64,43 @@ export const briefPdfMeta = (v: BriefDeliveryView): PdfMeta =>
     ? { title: `${v.clientName} — your starting point ${v.b.deliveryDate}`, author: v.branding.displayName, subject: 'Your starting point' }
     : { title: briefReportTitle(v.clientName, v.b.deliveryDate), author: v.branding.displayName, subject: 'Weekly competitor report' };
 
+/** A map image larger than this is skipped: it is inlined into the HTML the renderer holds in memory. */
+export const MAP_IMAGE_MAX_BYTES = 400 * 1024;
+
+const mimeOf = (b: Uint8Array): 'image/png' | 'image/jpeg' | null =>
+  b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 && b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a ? 'image/png'
+    : b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? 'image/jpeg' : null;
+
+/**
+ * The Map rankings image as a `data:` URI (the PDF renderer blocks every network request). The key is only ever the one in the
+ * stored report (built from this client's `rank_map_image`), never a user-supplied URL. Missing, oversized or non-PNG/JPEG
+ * objects are skipped (warned): the section then shows its keyword table only.
+ */
+export async function loadMapImage(store: ObjectStore, report: BriefReport | null): Promise<BriefReportDocumentProps['mapImage']> {
+  const map = report?.rankings?.map;
+  if (!map) return null;
+  const skip = (why: string) => (console.warn(`[briefs] map image skipped: ${why} (${map.objectKey})`), null);
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await store.get(map.objectKey);
+  } catch (err) {
+    return skip(`read failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (!bytes) return skip('object not found');
+  if (bytes.length > MAP_IMAGE_MAX_BYTES) return skip(`${bytes.length} bytes is over ${MAP_IMAGE_MAX_BYTES}`);
+  const mime = mimeOf(bytes);
+  if (!mime) return skip('not a PNG or JPEG');
+  return { dataUri: `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`, attribution: STADIA_ATTRIBUTION };
+}
+
 /** The client's view of an approved or sent brief as a branded PDF (decision 16): the weekly report (layout "C") or the starting point. */
 export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ key: string } | { skipped: string }> {
   const v = await loadBriefView(deps.db, briefId);
   if (v.b.status !== 'approved' && v.b.status !== 'sent') return { skipped: `brief is ${v.b.status}` };
   const report = storedReport(v);
   const live = report ? await deps.db.transaction((tx) => loadLiveChanges(tx, v.b)) : null;
-  // Task 11 fills the map image; until then the Map rankings section shows its keyword table only.
-  const html = await renderBriefReportDocument(briefReportProps(v, live, null, report));
+  const mapImage = await loadMapImage(deps.store, report);
+  const html = await renderBriefReportDocument(briefReportProps(v, live, mapImage, report));
   const bytes = await deps.pdf(html, briefPdfMeta(v), { allowUrls: v.branding.logoUrl ? [v.branding.logoUrl] : [] });
   const key = briefPdfKey(v.b.agencyId, briefId);
   await deps.store.put(key, bytes, 'application/pdf', { overwrite: true });

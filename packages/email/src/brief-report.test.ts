@@ -112,6 +112,29 @@ describe('weekly report document', () => {
     expect(html).not.toContain('Previous scan');
   });
 
+  it('map section has image, overlay and attribution', async () => {
+    const r = fullReport([]);
+    const map = { keyword: 'ac repair', objectKey: 'rank-map/x.png', bounds: { west: -97.1, south: 32.9, east: -96.9, north: 33.1 }, width: 600, height: 400, points: [{ lat: 33, lng: -97, rank: 3 }, { lat: 33.05, lng: -96.95, rank: null }, { lat: 32.95, lng: -97.05, rank: 25 }] };
+    const html = await renderBriefReportDocument(props({ report: { ...r, rankings: { ...r.rankings!, map } }, mapImage: { dataUri: 'data:image/png;base64,AAAA', attribution: '© Stadia Maps © OpenStreetMap contributors' } }));
+    const rankings = html.slice(html.indexOf('data-section="rankings"'), html.indexOf('data-section="offers"'));
+    expect(rankings).toContain('data:image/png;base64,AAAA');
+    expect(rankings).toContain('data-map-overlay');
+    expect(rankings.match(/data-rank-dot/g)).toHaveLength(3);
+    expect(rankings).toMatch(/>3</);
+    expect(rankings).toContain('>–<');
+    expect(rankings).toContain('>20+<');
+    expect(rankings).toContain('© Stadia Maps © OpenStreetMap contributors');
+    // dot of (33, -97): x = (-97 - -97.1) / 0.2 * 600 = 300
+    expect(rankings).toMatch(/cx="300(\.0+)?"/);
+  });
+
+  it('no map image ⇒ table only', async () => {
+    const html = await renderBriefReportDocument(props());
+    expect(html).not.toContain('data-map-overlay');
+    expect(html).not.toContain('data:image');
+    expect(html).toContain('Average map position by keyword');
+  });
+
   it('omits empty sections and prints no NaN', async () => {
     const empty: BriefReport = {
       ...fullReport([]), changes: { v: 1, threshold: 40, lines: [], totals: { major: 0, notable: 0, minor: 0 } },

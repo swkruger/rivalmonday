@@ -3,7 +3,7 @@ import { brief, briefItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import { briefPdfKey, listBriefsMissingPdf, PDF_RETRY_HOURS, renderBriefPdf } from './pdf';
@@ -112,6 +112,68 @@ describe('renderBriefPdf', () => {
   it('skips a brief that is not approved or sent', async () => {
     const id = await seedBrief('ready');
     expect(await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async () => new Uint8Array() }, id)).toEqual({ skipped: 'brief is ready' });
+  });
+});
+
+describe('renderBriefPdf map image', () => {
+  const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0];
+  const bytes = (head: number[], size: number) => Uint8Array.from({ length: size }, (_, i) => head[i] ?? 7);
+  const KEY = 'rank-map/client-a1/abc.png';
+
+  let n = 0;
+  async function seedWithMap(): Promise<string> {
+    const id = await seedBrief('sent', `2026-11-${String(++n).padStart(2, '0')}`);
+    const months = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+    const weeks = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 7, 2 + i * 7)).toISOString().slice(0, 10));
+    const report = {
+      v: 1, asOf: day(0).toISOString(),
+      changes: { v: 1, threshold: 41.5, lines: [], totals: { major: 0, notable: 0, minor: 0 } },
+      kpis: { changes7d: 0, alerts7d: 0, priceMoves7d: 0, priceCuts7d: 0, activeAds: null, activeAds7dAgo: null, ratingSelf: null, ratingAvg: null, weekly: { changes: [0, 0, 0, 0, 0, 0, 0, 0], priceMoves: [0, 0, 0, 0, 0, 0, 0, 0], activeAds: [null, null, null, null, null, null, null, null] } },
+      pressure: [], rating: { months, series: [] }, ads: { weeks, series: [] },
+      rankings: {
+        scanAt: day(-1).toISOString(), prevScanAt: null,
+        keywords: [{ keyword: 'ac repair', you: { avgRank: 3.2, top3Share: 0.4, points: 3 }, prev: null, rivals: [] }],
+        map: { keyword: 'ac repair', objectKey: KEY, bounds: { west: -97.1, south: 32.9, east: -96.9, north: 33.1 }, width: 600, height: 400, points: [{ lat: 33, lng: -97, rank: 3 }] },
+      },
+      moves: [], recommendations: [], alerts: [],
+    };
+    await dbs.owner.update(brief).set({ report, kind: 'standard' }).where(eq(brief.id, id));
+    return id;
+  }
+  async function render(content: Uint8Array | null): Promise<string> {
+    const id = await seedWithMap();
+    const store = createMemoryStore();
+    if (content) await store.put(KEY, content, 'image/png');
+    const calls: string[] = [];
+    await renderBriefPdf({ db: dbs.service, store, pdf: async (html: string) => (calls.push(html), new Uint8Array([1])) }, id);
+    return calls[0]!;
+  }
+
+  it('inlines a stored PNG as a data: URI with the Stadia attribution and the rank dots', async () => {
+    const html = await render(bytes(PNG_HEAD, 64));
+    expect(html).toContain('data:image/png;base64,');
+    expect(html).toContain('data-map-overlay');
+    expect(html).toContain('© Stadia Maps');
+  });
+
+  it('a JPEG gets the image/jpeg mime', async () => {
+    expect(await render(bytes(JPEG_HEAD, 64))).toContain('data:image/jpeg;base64,');
+  });
+
+  it('oversized or non-image object ⇒ mapImage null', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      for (const content of [bytes(PNG_HEAD, 400 * 1024 + 1), new TextEncoder().encode('<html>not an image</html>'), null]) {
+        const html = await render(content);
+        expect(html).not.toContain('data:image');
+        expect(html).not.toContain('data-map-overlay');
+        expect(html).toContain('Average map position by keyword'); // the table still prints
+      }
+      expect(warn.mock.calls.filter((c) => String(c[0]).startsWith('[briefs] map image skipped'))).toHaveLength(3);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

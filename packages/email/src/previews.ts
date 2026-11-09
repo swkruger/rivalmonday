@@ -90,6 +90,9 @@ const ratingFixture: ChartSeries[] = [
   { key: rival(3).id, name: rival(3).name, points: ramp(3.9, 4.0) },
   { key: rival(4).id, name: rival(4).name, points: ramp(4.7, 4.8) },
 ];
+/** A 2x2 PNG standing in for the Stadia map in the preview (the real one is read from the evidence store at render). */
+const PREVIEW_MAP_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4z8DAAMIM////ZwAAHu8E/KPItPcAAAAASUVORK5CYII=';
+
 const weeklyReport: BriefReport = {
   v: 1, asOf: '2026-10-04T12:00:00.000Z',
   changes: { v: 1, threshold: 40, lines: reportLines, totals: { major: 2, notable: 5, minor: 4 } },
@@ -113,7 +116,7 @@ const weeklyReport: BriefReport = {
       { keyword: 'dentist near me', you: { avgRank: 3.4, top3Share: 0.44, points: 25 }, prev: { avgRank: 3.9, top3Share: 0.36, points: 25 }, rivals: [{ name: rival(0).name, metric: { avgRank: 2.2, top3Share: 0.68, points: 25 } }, { name: rival(1).name, metric: { avgRank: 4.8, top3Share: 0.2, points: 25 } }] },
       { keyword: 'teeth whitening', you: { avgRank: 5.1, top3Share: 0.12, points: 25 }, prev: { avgRank: 4.6, top3Share: 0.2, points: 25 }, rivals: [{ name: rival(0).name, metric: { avgRank: 2.9, top3Share: 0.52, points: 25 } }, { name: rival(1).name, metric: { avgRank: null, top3Share: 0, points: 25 } }] },
     ],
-    map: null,
+    map: { keyword: 'dentist near me', objectKey: 'rank-map/preview.png', bounds: { west: -96.9, south: 32.7, east: -96.7, north: 32.9 }, width: 640, height: 400, points: [[32.74, -96.86, 2], [32.74, -96.8, 4], [32.78, -96.84, 1], [32.78, -96.76, 7], [32.82, -96.82, 12], [32.84, -96.74, 25], [32.86, -96.8, null]].map(([lat, lng, rank]) => ({ lat: lat!, lng: lng!, rank })) },
   },
   moves: [{ id: rid(50), competitorName: rival(0).name, moveType: 'price_war', label: 'Price war', status: 'active', firstDetectedAt: '2026-09-14T00:00:00.000Z' }],
   recommendations: [
@@ -125,7 +128,7 @@ const weeklyReport: BriefReport = {
 const reportDoc: BriefReportDocumentProps = {
   branding: agency, clientName: CLIENT, deliveryDate: '2026-10-05', periodLabel: 'Sep 28 – Oct 4', kind: 'standard', summary: brief.summary,
   items: [{ ...item(1), topic: 'offers' }, { ...item(2), headline: 'Harbor Dental keeps cutting prices', whatChanged: 'Its cleaning price fell for the second time in three weeks.', recommendedAction: 'Show what your cleaning includes next to its price.', topic: 'moves' }],
-  changes: { lines: reportLines, totals: weeklyReport.changes.totals }, report: weeklyReport, scorecard: { ...scorecard, openFirstMoves: [] }, trend, timezone: 'America/Chicago', mapImage: null,
+  changes: { lines: reportLines, totals: weeklyReport.changes.totals }, report: weeklyReport, scorecard: { ...scorecard, openFirstMoves: [] }, trend, timezone: 'America/Chicago', mapImage: { dataUri: PREVIEW_MAP_PNG, attribution: '© Stadia Maps © OpenMapTiles © OpenStreetMap contributors' },
 };
 const quietReport: BriefReport = {
   ...weeklyReport, changes: { v: 1, threshold: 40, lines: [], totals: { major: 0, notable: 0, minor: 0 } },
