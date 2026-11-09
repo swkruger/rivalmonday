@@ -1,4 +1,4 @@
-import { BriefReport, formatDayRange, type GradedChangesView, PDF_KEY_SUFFIX, type ReportTopic, topicOf } from '@cs/core';
+import { BriefReport, formatDayRange, type GradedChangesView, isCurrentPdfKey, PDF_KEY_SUFFIX, type ReportTopic, topicOf } from '@cs/core';
 import { STADIA_ATTRIBUTION } from '@cs/collectors';
 import { brief, type Db } from '@cs/db';
 import { type BriefReportDocumentProps, briefReportTitle, type PdfMeta, type PdfRenderer, renderBriefReportDocument } from '@cs/email';
@@ -108,4 +108,16 @@ export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ 
   await deps.store.put(key, bytes, 'application/pdf', { overwrite: true });
   await deps.db.update(brief).set({ pdfKey: key }).where(eq(brief.id, briefId));
   return { key };
+}
+
+/**
+ * The brief's current-version PDF key, rendering it first when there is none (a stored key from an older layout counts as none).
+ * Rendering happens at most once per brief at dispatch: later recipients find `pdf_key` set. Null when the brief cannot be rendered yet.
+ */
+export async function ensureBriefPdf(deps: PdfDeps, briefId: string): Promise<string | null> {
+  const [row] = await deps.db.select({ agencyId: brief.agencyId, pdfKey: brief.pdfKey }).from(brief).where(eq(brief.id, briefId));
+  if (!row) return null;
+  if (row.pdfKey !== null && isCurrentPdfKey(row.pdfKey)) return row.pdfKey;
+  const r = await renderBriefPdf(deps, briefId);
+  return 'key' in r ? r.key : null;
 }

@@ -1,7 +1,7 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
 import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
-import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
+import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, type OutgoingAttachment, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
 import { quietUntil } from './time';
@@ -187,17 +187,23 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
 
 const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 
-export function createEmailSender(opts: { transport: EmailTransport; fromAddress: string }): ChannelSender {
+export function createEmailSender(opts: { transport: EmailTransport; fromAddress: string; attachment?: (n: NotificationRow) => Promise<OutgoingAttachment | null> }): ChannelSender {
   return {
     async send(n) {
       const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[] }) | null;
       if (!p || !n.address) throw new PermanentSendError('email notification without payload or address');
+      // A weekly brief asks for its PDF; the resolver never throws, and any miss falls back to the download link.
+      let att: OutgoingAttachment | null = null;
+      if (p.template === 'brief' && p.props.attachPdf && opts.attachment) {
+        try { att = await opts.attachment(n); } catch { att = null; }
+      }
+      if (p.template === 'brief') p.props.attached = !!att;
       const r = await renderEmail(p);
       const b = p.props.branding;
       try {
         const res = await opts.transport.send(
           // Always the configured address: branding.fromEmail waits for Phase 2 per-agency sending domains (decision 13).
-          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id } },
+          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id }, attachments: att ? [att] : undefined },
           { agencyId: n.agencyId, clientId: n.clientId },
         );
         return { providerId: res.providerId };

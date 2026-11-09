@@ -15,6 +15,7 @@ export * from './review';
 export * from './deliver';
 export * from './recommendations';
 export * from './pdf';
+export * from './attachment';
 export * from './scorecard';
 export * from './scorecard-model';
 export * from './self-rules';

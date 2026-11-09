@@ -11,7 +11,7 @@ import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGu
 import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
-  analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
+  briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
   checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
@@ -317,7 +317,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const getSenders = () => {
     if (!senders) {
       const web = createWebhookSender({ db: getDb() });
-      senders = { email: createEmailSender({ transport: getEmailTransport(), fromAddress: getDelivery().fromAddress }), slack: web, teams: web };
+      senders = { email: createEmailSender({ transport: getEmailTransport(), fromAddress: getDelivery().fromAddress, attachment: briefAttachment({ db: getDb(), store: getStore(), pdf: getPdf() }) }), slack: web, teams: web };
     }
     return senders;
   };

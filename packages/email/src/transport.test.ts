@@ -36,6 +36,20 @@ describe('postmark transport', () => {
     expect(l.calls).toEqual([expect.objectContaining({ vendor: 'postmark', operation: 'email', units: 1, costUsd: 0.0015, ok: true, agencyId: 'a', clientId: 'c' })]);
   });
 
+  it('postmark sends Attachments base64', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch = (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return reply(200, { ErrorCode: 0, MessageID: 'pm-1' })();
+    }) as unknown as typeof globalThis.fetch;
+    const t = createPostmarkTransport({ token: 't', ledger: ledger().sink, fetch });
+    const bytes = new Uint8Array([37, 80, 68, 70, 0, 255]);
+    await t.send({ ...msg, attachments: [{ name: 'A1 weekly report.pdf', contentType: 'application/pdf', content: bytes }] }, scope);
+    await t.send(msg, scope);
+    expect(bodies[0]!.Attachments).toEqual([{ Name: 'A1 weekly report.pdf', Content: Buffer.from(bytes).toString('base64'), ContentType: 'application/pdf' }]);
+    expect(bodies[1]).not.toHaveProperty('Attachments');
+  });
+
   it('sends a broadcast message on the broadcast stream with its headers; ordinary messages stay on outbound with none', async () => {
     const bodies: Record<string, unknown>[] = [];
     const fetch = (async (_url: string, init: RequestInit) => {
@@ -152,6 +166,20 @@ describe('file transport', () => {
     const files = (await readdir(dir)).sort();
     expect(files.map((f) => f.split('.').pop())).toEqual(['html', 'json']);
     expect(JSON.parse(await readFile(join(dir, files[1]!), 'utf8'))).toMatchObject({ to: msg.to, subject: 'S' });
+  });
+
+  it('file outbox writes the pdf', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'outbox-'));
+    const bytes = new Uint8Array([37, 80, 68, 70, 1]);
+    await createFileTransport(dir).send({ ...msg, attachments: [{ name: 'A1 weekly report.pdf', contentType: 'application/pdf', content: bytes }] }, scope);
+    const files = (await readdir(dir)).sort();
+    expect(files.map((f) => f.split('.').pop()).sort()).toEqual(['html', 'json', 'pdf']);
+    const pdf = files.find((f) => f.endsWith('.pdf'))!;
+    expect(pdf).toMatch(/-0\.pdf$/);
+    expect(new Uint8Array(await readFile(join(dir, pdf)))).toEqual(bytes);
+    const json = JSON.parse(await readFile(join(dir, files.find((f) => f.endsWith('.json'))!), 'utf8'));
+    expect(json.attachments).toEqual([{ name: 'A1 weekly report.pdf', contentType: 'application/pdf', file: pdf }]);
+    expect(JSON.stringify(json)).not.toContain('"content"');
   });
 
   it('is the default without a Postmark token', () => {

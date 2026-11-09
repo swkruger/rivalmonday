@@ -50,6 +50,16 @@ describe('weekly brief highlights email', () => {
     expect(n.html).toContain('https://app.example/l/pdf');
     expect(n.text).toContain('Open in your dashboard');
   });
+  it('never dangles: not attached and no PDF link omits the download sentence', async () => {
+    const n = await render({ ...brief, pdfLink: null, attached: false });
+    expect(n.text).not.toContain('ready to download');
+    expect(n.text).not.toContain('attached');
+  });
+  it('a zero-change week with the attachment still says the report is attached', async () => {
+    const r = await render({ ...brief, kind: 'quiet', items: [], highlights: null, attachPdf: true, attached: true });
+    expect(r.text).toContain('Your full report is attached (PDF).');
+    expect((await render({ ...brief, kind: 'quiet', items: [], highlights: null, attached: false })).text).not.toContain('Your full report is');
+  });
   it('singular wording', async () => {
     const r = await render({ ...brief, highlights: { ...highlights, moreLines: 1, minor: 1 } });
     expect(r.text).toContain('+ 1 more notable change');

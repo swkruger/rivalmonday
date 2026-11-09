@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
+/** A file sent with the message (Task 13: the weekly report PDF). */
+export interface OutgoingAttachment { name: string; contentType: 'application/pdf'; content: Uint8Array }
 export interface OutgoingEmail {
   from: string;
   to: string;
@@ -18,6 +20,7 @@ export interface OutgoingEmail {
   headers?: { Name: string; Value: string }[];
   /** Phase 11b §3: copied addresses — always pass through `cleanCc` (Postmark rejects the whole message on one bad Cc). */
   cc?: string[];
+  attachments?: OutgoingAttachment[];
 }
 export interface EmailTransport {
   readonly kind: 'postmark' | 'file' | 'memory' | 'console';
@@ -79,6 +82,7 @@ export function createPostmarkTransport(opts: { token: string; ledger: LedgerSin
             MessageStream: msg.stream === 'broadcast' ? (opts.broadcastStream ?? 'broadcast') : (opts.messageStream ?? 'outbound'),
             TrackOpens: false, TrackLinks: 'None', Tag: msg.tag, Metadata: msg.metadata,
             ...(msg.headers?.length && { Headers: msg.headers }),
+            ...(msg.attachments?.length && { Attachments: msg.attachments.map((a) => ({ Name: a.name, Content: Buffer.from(a.content).toString('base64'), ContentType: a.contentType })) }),
           }),
           signal: AbortSignal.timeout(15_000),
         });
@@ -104,7 +108,13 @@ export function createFileTransport(dir: string): EmailTransport {
       const abs = resolve(dir);
       await mkdir(abs, { recursive: true });
       const name = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`;
-      await writeFile(join(abs, `${name}.json`), JSON.stringify({ ...msg, html: undefined }, null, 2));
+      // The pdf file name is ours (`<id>-<i>.pdf`), never the attachment's name; the json lists names, not bytes.
+      const files: { name: string; contentType: string; file: string }[] = [];
+      for (const [i, a] of (msg.attachments ?? []).entries()) {
+        await writeFile(join(abs, `${name}-${i}.pdf`), a.content);
+        files.push({ name: a.name, contentType: a.contentType, file: `${name}-${i}.pdf` });
+      }
+      await writeFile(join(abs, `${name}.json`), JSON.stringify({ ...msg, html: undefined, attachments: msg.attachments ? files : undefined }, null, 2));
       await writeFile(join(abs, `${name}.html`), msg.html);
       return { providerId: `file:${name}` };
     },

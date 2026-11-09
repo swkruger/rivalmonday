@@ -92,21 +92,23 @@ export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, b
     // Evidence retracted after approval: drop those items before the summary is recomputed (decision 10).
     await dropRetractedItems(tx, briefId);
     const all = await tx.select({ status: briefItem.status }).from(briefItem).where(eq(briefItem.briefId, briefId));
-    const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all, liveMajorCount(await loadLiveChanges(tx, locked)));
-    await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now }).where(eq(brief.id, briefId));
+    // Loaded once (retractions are already dropped above) and reused for the summary and the email highlights; a starting point has none.
+    const live = locked.kind === 'starting_point' ? null : await loadLiveChanges(tx, locked);
+    const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all, liveMajorCount(live));
+    // pdf_key = null (P4): the sender renders the PDF fresh at dispatch; the hourly catch-up and /files/brief re-render a missing one.
+    await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now, pdfKey: null }).where(eq(brief.id, briefId));
     const v = await loadBriefView(tx, briefId);
     const scope = { agencyId: v.b.agencyId, clientId: v.b.clientId };
-    const live = await loadLiveChanges(tx, v.b);
     const notifications = await notify(tx, deps.delivery, {
       ...scope, kind: 'brief', audience: 'client', subjectType: 'brief', subjectId: briefId, dedupe: `brief:${briefId}`, link: { t: 'brief', id: briefId }, now,
       build: (r, link) => ({
         title: v.b.kind === 'starting_point' ? startingPointSubject(v.branding.displayName) : `Weekly competitor brief — ${v.b.deliveryDate}`,
         body: [v.b.summary, ...v.items.map((i) => `• ${i.headline}`)].join('\n'),
-        email: { template: 'brief', props: briefEmailProps(v, {
+        email: { template: 'brief', props: { ...briefEmailProps(v, {
           recipientName: r?.name ?? null, link, live,
           pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'brief_pdf', briefId, now) : null,
           itemLink: (itemId) => (r ? personalLink(deps.delivery, r.contactId, scope, 'brief_item', itemId, now) : null),
-        }) },
+        }), attachPdf: v.b.kind !== 'starting_point' } },
       }),
     });
     return { notifications };

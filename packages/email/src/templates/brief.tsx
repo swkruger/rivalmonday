@@ -55,7 +55,7 @@ export function BriefBody(p: BriefEmailProps & { variant?: 'email' | 'document' 
       {p.scorecard && p.kind === 'quiet' ? <Scorecard branding={p.branding} model={p.scorecard} heading="Where you stand" /> : null}
       {p.trend && !hl ? <TrendTable branding={p.branding} windowDays={p.trend.windowDays} businesses={p.trend.businesses} /> : null}
       {p.signOff ? <Text style={{ marginTop: 16 }}>{p.signOff}</Text> : null}
-      {hl ? <Text>{attachmentLine(p.attached ?? false)}</Text> : null}
+      {p.attached || (hl && p.pdfLink) ? <Text>{attachmentLine(p.attached ?? false)}</Text> : null}
       {p.link && !doc ? <Button href={p.link} style={button(p.branding)}>Open in your dashboard</Button> : null}
       {p.pdfLink && !doc ? <Text><Link href={p.pdfLink}>Download as PDF</Link></Text> : null}
       {doc ? null : <FeedbackLine feedback={p.feedback} subject={briefSubject(p)} />}

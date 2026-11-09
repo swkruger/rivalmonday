@@ -70,7 +70,14 @@ try {
       const cfg = needDelivery();
       const web = engine.createWebhookSender({ db });
       const transport = createEmailTransportFromEnv(process.env, createLedgerSink(db));
-      print(`dispatch via ${transport.kind}`, await engine.dispatchDue({ db, senders: { email: engine.createEmailSender({ transport, fromAddress: cfg.fromAddress }), slack: web, teams: web } }, now));
+      // Same as the worker: weekly brief emails carry the PDF (rendered here on demand, closed afterwards).
+      const renderer = createPdfRenderer();
+      try {
+        const attachment = engine.briefAttachment({ db, store: createStoreFromEnv(process.env), pdf: renderer });
+        print(`dispatch via ${transport.kind}`, await engine.dispatchDue({ db, senders: { email: engine.createEmailSender({ transport, fromAddress: cfg.fromAddress, attachment }), slack: web, teams: web } }, now));
+      } finally {
+        await renderer.close();
+      }
       break;
     }
     case 'deliver':
