@@ -380,7 +380,7 @@ const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.
 **Files:** create `packages/engine/src/ads/images.ts` (constants, `adImageSubjectId`, `anyWorkableTracker`), `ads/triage-questions.ts`, `ads/image-triage-stage.ts` (+ tests); export from `packages/engine/src/index.ts`.
 
 **Interfaces:**
-- `AD_IMAGE_SINCE = new Date('2026-11-16T00:00:00Z')` (P13); `AD_IMAGE_TRIAGE_STAGE = 'ad_image_triage'`, `AD_IMAGE_TRIAGE_VERSION = 1`; `AD_IMAGE_SWEEP_MAX = 200`; `AD_IMAGE_SKIP_FORMATS = ['video']` (Task 0 may extend).
+- `AD_IMAGE_SINCE = new Date('2026-11-16T00:00:00Z')` (P13); `AD_IMAGE_TRIAGE_STAGE = 'ad_image_triage'`, `AD_IMAGE_TRIAGE_VERSION = 1`; `AD_IMAGE_SWEEP_MAX = 200`; `AD_IMAGE_SKIP_FORMATS = ['video']` (Task 0: video is the only non-image format; but 157 of 191 text ads also carry a simgad URL, so Task 8 must reject non-image content types).
 - `adImageSubjectId(id: string, sourceUrlSha: string): string` = `md5(id|sha)` as uuid (pattern `reviewSubjectId`, `reviews/topics.ts:35`); SQL twin `md5(ai.id::text || '|' || ai.source_url_sha)::uuid`.
 - `anyWorkableTracker(db: Db, competitorId: string): Promise<boolean>` (`client_competitor` × `clientWorkAllowed('cl')` × `agencyServiceable`).
 - `buildImageTriageQuestions(packs: VerticalPack[]): Record<string, DecisionQuestion>`; `resolveImageTriage(r: DecisionResult<string>, verticalIds: string[]): ImageTriage` with `ImageTriage = { showsPerson: boolean; showsPrice: boolean | null; showsOffer: boolean | null; serviceIds: Record<string, string | null> | null; theme: string | null; confidences: Record<string, number> }`.
@@ -450,7 +450,7 @@ const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.
 ### Task 10: Readers and tools
 
 **Goal:** R15/R16 and the evidence kind in every reader.
-**Files:** `packages/engine/src/prices/tracker.ts` (+ test), `packages/tools/src/tools/{pricing,schemas,ads}.ts`, `workspace/{events-read,evidence-access,labels}.ts`, `search/fetch-item.ts`; tests `tools/pricing.test.ts`, `tools/ads.test.ts`, `tools/fetch.test.ts`, `tools/evidence.test.ts`; `src/tools/__snapshots__/launch-gate-parity.test.ts.snap` (review, then `-u`).
+**Files:** `packages/engine/src/prices/tracker.ts` (+ test), `packages/tools/src/tools/{pricing,schemas,ads}.ts`, `tools/platform-health.ts` (+ test), `waitlist/site-status.ts` (+ test), `workspace/{events-read,evidence-access,labels}.ts`, `search/fetch-item.ts`; tests `tools/pricing.test.ts`, `tools/ads.test.ts`, `tools/fetch.test.ts`, `tools/evidence.test.ts`; `src/tools/__snapshots__/launch-gate-parity.test.ts.snap` (review, then `-u`).
 
 **Interfaces:**
 - `PriceNow.source: 'web' | 'meta_ad' | 'ad_image'`; `PriceNow.evidenceIds: string[]`. `PriceNowView` += `evidenceIds: z.array(uuid)`, `source: z.enum(['web','meta_ad','ad_image']).describe("Where the price was read: web = the competitor's own site; meta_ad = the wording of one of their Facebook/Instagram ads; ad_image = a price shown in one of their ad images")`. `lowestUsd`'s param type widens (still `source === 'web'`).
@@ -461,7 +461,7 @@ const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.
 - Tracker: left join `ad_image` on `price_point.ad_image_id`; select `ad.platform`, `ad.externalId`, `adImage.evidenceId`. `source` = `ad_image` when `adImageId`, else today's rule. `pageUrl`: web ⇒ page URL; `meta_ad` ⇒ `metaPageUrl`; `ad_image` ⇒ `libraryUrl(ad)`. `evidenceIds` = `[adImage.evidenceId]` only for `ad_image`, else `[]`. Same single query (launch gate).
 - `list_ads`: after `workspaceBusinesses` proves visibility, one service query `ad_image.ad_id, evidence_id WHERE ad_id IN (page) AND evidence_id IS NOT NULL ORDER BY created_at DESC`; full rows get `imageEvidenceIds` (newest first); summary rows append them to `evidenceIds` when `citableEvidenceKinds(meta)` includes `'image'`.
 - `snapshotSide`: `own` = the capture's `screenshot` or `image` evidence. `fetchEvidence`: `image` branch like `screenshot` (text `Ad image of ${where} ${captured}`, `screenshotKey = objectKey`, so the MCP resource returns the WebP).
-- Any Task 0 aggregate reader gets `source <> 'ad_image'`.
+- Task 0 aggregate readers get `source <> 'ad_image'`: `packages/tools/src/tools/platform-health.ts:88` (`max(capture.capturedAt)` freshness, add `source <> 'ad_image'` to the where) and `packages/tools/src/waitlist/site-status.ts:41` (snapshots count). Tests: `platform-health freshness ignores ad_image captures`, `site-status snapshots ignore ad_image captures`.
 **Tests (TDD):** `image price ⇒ source ad_image, evidenceIds [id], Google library pageUrl, not in lowest or 90-day change, not in history`; `list_ads full rows carry imageEvidenceIds; person rows never`; `summary on mcp and ask cites the image id`; `get_price_matrix image price row carries evidenceIds so Ask can cite it`; `get_evidence on an image evidence is servable (image/webp)`; `fetch evidence:<image> returns the description and the screenshot key`; `other client's competitor image ⇒ not_found`; run `src/isolation` unchanged-green.
 **Done when:** `pnpm --filter @cs/tools exec vitest run src/tools/pricing src/tools/ads src/tools/evidence src/tools/fetch src/isolation src/tools/launch-gate-parity src/tools/channels`, engine `npx vitest run src/prices/tracker` pass; typecheck engine, tools.
 

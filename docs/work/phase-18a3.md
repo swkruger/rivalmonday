@@ -67,3 +67,29 @@ Jev -> LLM -> human cascade; review decisions stay on Jev, tau 0.85. No evidence
 7. No-people rule? (a) Jev "shows a person" Noul; people images are not stored or shown, price read skipped (recommended); (b) store but never display; (c) no rule.
 8. Show ad images in the UI? (a) thumbnails from our store on the Ads page and evidence viewer, fixing the backlog item (recommended); (b) evidence viewer only; (c) none.
 9. Cutoff and cost check: (a) new `AD_IMAGE_SINCE` cutoff, no backfill, one < $0.01 live probe the owner approves (recommended); (b) small capped backfill.
+
+## Pre-flight findings (Task 0)
+
+Read-only, $0. Branch `phase-18a3` has main @ c2e5eb2b as an ancestor (no rebase needed).
+
+- **Migration:** last is `0103_brief_report.sql`; next free = **0104**.
+- **Google ad formats (cs_dev, 243 ads):** text 191, image 32, video 20. Only `video` is a non-image kind, so `AD_IMAGE_SKIP_FORMATS = ['video']` stands.
+- **Image hosts:** `tpc.googlesyndication.com` 189 ads (all with `media_urls[0]`); no URL at all on 54 ads (image 1, text 34, video 19). One video ad also has a URL.
+- **Concern:** the host is used by `text` ads too (157 text, 31 image, 1 video). Path shape for all 189: `/archive/simgad/<id 17-20 chars>` (no extension, no query string). So text ads carry a simgad URL and will be fetched as candidates; Task 8 must reject non-image content types (fail_reason) rather than assume the format. Not changed in the plan (the content-type check is already a limit: JPEG/PNG/WebP only); Task 0b/the first live sweep shows what simgad returns for a text ad.
+- **robots.txt:** `tpc.googlesyndication.com/robots.txt` = 404 (RFC 9309 ⇒ allow). Only one host exists.
+- **OpenRouter endpoints (GET only; ZDR = present in `/api/v1/endpoints/zdr`; image input from `architecture.input_modalities`):**
+
+| model | image input | structured outputs | temperature | ZDR | prompt $/M | image price |
+|---|---|---|---|---|---|---|
+| google/gemini-2.5-flash-lite (AI Studio, std) | yes | yes (+flex/priority tiers) | yes | no (no endpoint in ZDR list) | 0.10 (flex 0.05) | 0.10/M image tokens |
+| google/gemini-2.5-flash (AI Studio, std) | yes | yes | yes | no | 0.30 (flex 0.15) | 0.30/M image tokens |
+| openai/gpt-4.1-mini, azure (global) | yes | yes | yes | **yes** (azure, azure/swedencentral; not openai direct) | 0.40 (compl 1.60) | none listed (tokens) |
+| anthropic/claude-haiku-4.5, bedrock/vertex global | yes | yes (vertex: structured_outputs, no response_format) | yes | **yes** (bedrock + vertex, all regions; not azure/anthropic direct) | 1.00 (compl 5.00) | none listed (tokens) |
+
+  **Cheapest ZDR + image + structured outputs among the four: `openai/gpt-4.1-mini` on Azure, $0.40/M prompt, $1.60/M completion.** Gemini 2.5 flash/flash-lite are cheaper but have no ZDR endpoint (only `gemini-2.5-flash-image` on vertex is on the ZDR list; it is an image-generation model). Other ZDR vision models were not scanned (the ZDR list carries no modality field); if a cheaper one matters, check before Task 0b. Image token cost per 512 px read is not in the list (usage reports it).
+- **typesafe/jev-1.14:** one endpoint (`typesafe`), ZDR yes, `input_modalities` text+image, output `decisions`. Price: prompt $0.000000042/token ($0.042/M), completion 0, no per-image price, no `supported_parameters`, context 262144, p50 latency 117 ms. So a call is about $0.00005 at roughly 1.2k input tokens (images' token count only visible in `usage.input_tokens` on Task 0b).
+- **Aggregate capture readers** (grep `max(capture.capturedAt)`, freshness, unfiltered `FROM capture`, `packages/tools/src` + `packages/engine/src`). Capture rows with `source = 'ad_image'` are created by Task 8, so these two must exclude them (added to Task 10):
+  - `packages/tools/src/tools/platform-health.ts:88`: `max(capture.capturedAt)` where status ok, all sources ("data-source freshness"): derived captures would mask a collector outage.
+  - `packages/tools/src/waitlist/site-status.ts:41`: `count(*) FROM capture cp WHERE status IN ('ok','unchanged') ...` = the marketing "snapshots" figure; an image copy is not a snapshot.
+  - Already source-scoped, no change: `moves/moves-stage.ts:34`, `workspace/ads.ts:18` (`google_ads`/`meta_ads`), `briefs/starting-point.ts:129` (`google_ads`), `sweep.ts` lists (explicit sources), `reviews/complaints.ts`, `briefs/scorecard.ts`, `structured/vendor-diff.ts:55` (same source+url as the capture). Per-tracked-page readers (`search.ts:140`, `fetch-item.ts:272`, `competitor-profile.ts:59`, `web/blocks.ts`) key on `tracked_page_id`, which ad_image captures lack.
+- **Plan edits:** Task 10 gains the two readers above. Task 9/0b unchanged.
