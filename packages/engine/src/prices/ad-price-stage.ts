@@ -26,9 +26,45 @@ type Observed = PriceObservation & { adId: string; verticalId: string; serviceId
  * lists (never on a truncated or empty payload, as ad deactivation). An older capture than the page's newest
  * processed one is a no-op. No `price_change` events.
  */
+/**
+ * R14: the Google path. No model call and no copy pricing: image price spans (created by the image read) advance while
+ * their ad is listed by this capture (`last_capture_id`) and end once the ad is inactive (this capture ended it, or
+ * pinned-mode retirement, which sets no `ended_capture_id`). An older capture than the newest processed one of the
+ * same advertiser set / domain is a no-op.
+ */
+async function extractGoogleSpans(db: Db, cap: typeof capture.$inferSelect): Promise<StageOutcome<PriceRunResult>> {
+  return runStage(
+    db,
+    { stage: AD_PRICE_STAGE, version: AD_PRICE_VERSION, subjectId: cap.id },
+    async () => {
+      const sameUrl = cap.url === null ? isNull(capture.url) : eq(capture.url, cap.url);
+      const [newest] = await db
+        .select({ at: max(capture.capturedAt) })
+        .from(capture)
+        .innerJoin(stageRun, and(eq(stageRun.subjectId, capture.id), eq(stageRun.stage, AD_PRICE_STAGE), eq(stageRun.stageVersion, AD_PRICE_VERSION), eq(stageRun.status, 'done')))
+        .where(and(eq(capture.competitorId, cap.competitorId), eq(capture.source, 'google_ads'), sameUrl, ne(capture.id, cap.id)));
+      return { skipped: newest?.at && newest.at > cap.capturedAt ? 'a newer capture of this Google ad set was already processed' : undefined };
+    },
+    async (tx, c) => {
+      if (c.skipped) return { points: 0, ended: 0, skipped: c.skipped };
+      const mine = and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'google'));
+      const listed = await tx.select({ id: ad.id }).from(ad).where(and(mine, eq(ad.lastCaptureId, cap.id)));
+      if (listed.length > 0) {
+        await tx.update(pricePoint).set({ lastSeenAt: cap.capturedAt, lastCaptureId: cap.id }).where(and(inArray(pricePoint.adId, listed.map((a) => a.id)), isNull(pricePoint.endedAt)));
+      }
+      const inactive = await tx.select({ id: ad.id }).from(ad).where(and(mine, eq(ad.isActive, false)));
+      const ended = inactive.length > 0
+        ? (await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(and(inArray(pricePoint.adId, inactive.map((a) => a.id)), isNull(pricePoint.endedAt))).returning({ id: pricePoint.id })).length
+        : 0;
+      return { points: 0, ended };
+    },
+  );
+}
+
 export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader }, captureId: string): Promise<StageOutcome<PriceRunResult>> {
   const [cap] = await deps.db.select().from(capture).where(eq(capture.id, captureId)).limit(1);
-  if (!cap || cap.source !== 'meta_ads' || cap.status !== 'ok') throw new Error(`capture ${captureId} is not an ok meta_ads capture`);
+  if (!cap || (cap.source !== 'meta_ads' && cap.source !== 'google_ads') || cap.status !== 'ok') throw new Error(`capture ${captureId} is not an ok meta_ads or google_ads capture`);
+  if (cap.source === 'google_ads') return extractGoogleSpans(deps.db, cap);
   return runStage(
     deps.db,
     { stage: AD_PRICE_STAGE, version: AD_PRICE_VERSION, subjectId: captureId },

@@ -2,6 +2,7 @@ import { capture, changeEvent, client, clientCompetitor, detectedChange, eventSc
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { AD_IMAGE_SINCE } from './ads/images';
 import { scoreEvent } from './score/score-stage';
 import { MAX_STAGE_ATTEMPTS } from './stage';
 import { findEngineWork } from './sweep';
@@ -76,6 +77,21 @@ describe('findEngineWork', () => {
     await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: id(21), score: 1, route: 'archive', factors, packVersion: 1 });
     const w = await findEngineWork(dbs.service, { limit: 10 });
     expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [], reviews: [], prices: [id(1)], adPrices: [], siteFeatures: [], reask: [] }); // B1 still lacks a score for 21; 22 is outside the window
+  });
+
+  it('google_ads capture before AD_IMAGE_SINCE is not listed for ad prices', async () => {
+    const [row] = await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: 'google_ads', status: 'ok', collectorVersion: 'dfs/1', capturedAt: new Date(AD_IMAGE_SINCE.getTime() - 3_600_000) }).returning({ id: capture.id });
+    expect((await findEngineWork(dbs.service, { limit: 50 })).adPrices).not.toContain(row!.id);
+  });
+
+  // The settle delay compares with the database clock, so a capture dated from the cutoff is only listable once that has passed.
+  it.skipIf(Date.now() < AD_IMAGE_SINCE.getTime() + 3_600_000)('google_ads capture from AD_IMAGE_SINCE listed, earlier not', async () => {
+    const mk = async (capturedAt: Date) => (await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: 'google_ads', status: 'ok', collectorVersion: 'dfs/1', capturedAt }).returning({ id: capture.id }))[0]!.id;
+    const early = await mk(new Date(AD_IMAGE_SINCE.getTime() - 3_600_000));
+    const from = await mk(new Date(AD_IMAGE_SINCE.getTime() + 60_000));
+    const w = await findEngineWork(dbs.service, { limit: 50 });
+    expect(w.adPrices).toContain(from);
+    expect(w.adPrices).not.toContain(early);
   });
 
   it('offers settled vendor captures of sources that have a differ, and nothing else', async () => {

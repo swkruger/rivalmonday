@@ -1,5 +1,6 @@
 import { agencyServiceable, clientWorkAllowed, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
+import { AD_IMAGE_SINCE } from './ads/images';
 import { AD_PRICE_SINCE, AD_PRICE_STAGE, AD_PRICE_VERSION } from './prices/ad-price-stage';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
@@ -173,11 +174,13 @@ export async function findEngineWork(
       AND NOT ${finished(PRICE_STAGE, PRICE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
-  // Ad prices (D5): ok Meta captures since the deploy cutoff, settled like the vendor diff (ad rows are written
+  // Ad prices (D5): ok Meta captures since the deploy cutoff (Google since the image cutoff, R14), settled like the vendor diff (ad rows are written
   // after the capture row), of a competitor some client tracks, oldest first so spans build in order.
   const adPrices = await db.execute(sql`
     SELECT c.id FROM capture c
-    WHERE c.source = 'meta_ads' AND c.status = 'ok' AND c.captured_at >= ${AD_PRICE_SINCE.toISOString()}::timestamptz
+    WHERE c.status = 'ok'
+      AND ((c.source = 'meta_ads' AND c.captured_at >= ${AD_PRICE_SINCE.toISOString()}::timestamptz)
+        OR (c.source = 'google_ads' AND c.captured_at >= ${AD_IMAGE_SINCE.toISOString()}::timestamptz))
       AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
       AND NOT ${finished(AD_PRICE_STAGE, AD_PRICE_VERSION, 'c.id')}

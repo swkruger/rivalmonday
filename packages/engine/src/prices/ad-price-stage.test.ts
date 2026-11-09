@@ -1,11 +1,12 @@
 import type { DecisionQuestion } from '@cs/ai';
 import { metaPageUrl, recordVendorCapture, sha256Hex } from '@cs/collectors';
-import { ad, priceBlockMap, pricePoint } from '@cs/db';
+import { ad, adImage, priceBlockMap, pricePoint } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { choice, createFakeAi, type DecideFn } from '../../test/fake-ai';
+import { AD_IMAGE_SINCE } from '../ads/images';
 import { findEngineWork } from '../sweep';
 import { createPackLoader } from '../tag/tag-stage';
 import { AD_PRICE_SINCE, extractAdPrices } from './ad-price-stage';
@@ -168,9 +169,66 @@ describe('extractAdPrices', () => {
     expect(await points()).toEqual([expect.objectContaining({ lastCaptureId: newer, lastSeenAt: at(5) })]);
   });
 
-  it('refuses a Google ads capture', async () => {
-    const g = (await recordVendorCapture({ db: dbs.service, store, now: () => at(1) }, { competitorId: IDS.competitorX, source: 'google_ads', collectorVersion: 'dfs/1', status: 'ok', payload: { items: [] } })).captureId;
-    await expect(extractAdPrices({ db: dbs.service, store, ai: createFakeAi({ decide: byText }), packs }, g)).rejects.toThrow(/not an ok meta_ads capture/);
+  it('refuses a web capture', async () => {
+    const g = (await recordVendorCapture({ db: dbs.service, store, now: () => at(1) }, { competitorId: IDS.competitorX, source: 'places', collectorVersion: 'p/1', status: 'ok', payload: { items: [] } })).captureId;
+    await expect(extractAdPrices({ db: dbs.service, store, ai: createFakeAi({ decide: byText }), packs }, g)).rejects.toThrow(/not an ok meta_ads or google_ads capture/);
     expect((await findEngineWork(dbs.service, { limit: 50 })).adPrices).toEqual([]);
+  });
+});
+
+describe('extractAdPrices, Google path (R14)', () => {
+  const GURL = 'google-ads:smithhvac.example';
+  const gCapture = async (capturedAt: Date, url: string | null = GURL) =>
+    (await recordVendorCapture({ db: dbs.service, store, now: () => capturedAt }, { competitorId: IDS.competitorX, source: 'google_ads', collectorVersion: 'dfs/1', url: url ?? undefined, status: 'ok', payload: { items: [] } })).captureId;
+  const gAd = async (externalId: string, over: Partial<typeof ad.$inferInsert> = {}) =>
+    (await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'google', externalId, isActive: true, ...over }).returning({ id: ad.id }))[0]!.id;
+  const imageSpan = async (adId: string, firstCaptureId: string, firstSeen: Date) => {
+    const [img] = await dbs.owner.insert(adImage).values({ adId, competitorId: IDS.competitorX, sourceUrlSha: sha256Hex(`img-${adId}`) }).returning({ id: adImage.id });
+    await dbs.owner.insert(pricePoint).values({ competitorId: IDS.competitorX, trackedPageId: null, adId, adImageId: img!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 79, unit: 'USD', qualifier: 'exact', raw: '$79', context: '$79 tune-up', firstSeenAt: firstSeen, lastSeenAt: firstSeen, firstCaptureId, lastCaptureId: firstCaptureId });
+  };
+  const deps = () => ({ db: dbs.service, store, ai: createFakeAi({ decide: byText }), packs });
+  const gat = (h: number) => new Date(AD_IMAGE_SINCE.getTime() + h * 3_600_000);
+
+  it('google capture advances a listed ad image span', async () => {
+    const c0 = await gCapture(gat(1));
+    const a1 = await gAd('G1', { firstCaptureId: c0, lastCaptureId: c0 });
+    await imageSpan(a1, c0, gat(1));
+    const c1 = await gCapture(gat(2));
+    await dbs.service.update(ad).set({ lastCaptureId: c1 }).where(eq(ad.id, a1));
+    const d = deps();
+    expect(await extractAdPrices(d, c1)).toEqual({ ran: true, result: { points: 0, ended: 0 } });
+    expect(await points()).toEqual([expect.objectContaining({ adId: a1, lastSeenAt: gat(2), lastCaptureId: c1, endedAt: null })]);
+    expect(d.ai.calls.decide).toHaveLength(0);
+  });
+
+  it('ad ended by this capture => span ended', async () => {
+    const c0 = await gCapture(gat(1));
+    const a1 = await gAd('G1', { firstCaptureId: c0, lastCaptureId: c0 });
+    await imageSpan(a1, c0, gat(1));
+    const c1 = await gCapture(gat(2));
+    await dbs.service.update(ad).set({ isActive: false, endedCaptureId: c1 }).where(eq(ad.id, a1));
+    expect(await extractAdPrices(deps(), c1)).toEqual({ ran: true, result: { points: 0, ended: 1 } });
+    expect(await points()).toEqual([expect.objectContaining({ endedAt: gat(2), endedCaptureId: c1, lastSeenAt: gat(1) })]);
+  });
+
+  it('pinned-mode retired ad (inactive, no ended_capture_id) => span ended', async () => {
+    const c0 = await gCapture(gat(1));
+    const a1 = await gAd('G1', { firstCaptureId: c0, lastCaptureId: c0 });
+    await imageSpan(a1, c0, gat(1));
+    const c1 = await gCapture(gat(2));
+    await dbs.service.update(ad).set({ isActive: false }).where(eq(ad.id, a1));
+    expect(await extractAdPrices(deps(), c1)).toEqual({ ran: true, result: { points: 0, ended: 1 } });
+    expect(await points()).toEqual([expect.objectContaining({ endedAt: gat(2), endedCaptureId: c1 })]);
+  });
+
+  it('older google capture after a newer done one => no-op', async () => {
+    const newer = await gCapture(gat(5));
+    const a1 = await gAd('G1', { firstCaptureId: newer, lastCaptureId: newer });
+    await imageSpan(a1, newer, gat(5));
+    await extractAdPrices(deps(), newer);
+    const older = await gCapture(gat(2));
+    await dbs.service.update(ad).set({ isActive: false }).where(eq(ad.id, a1));
+    expect(await extractAdPrices(deps(), older)).toEqual({ ran: true, result: { points: 0, ended: 0, skipped: 'a newer capture of this Google ad set was already processed' } });
+    expect(await points()).toEqual([expect.objectContaining({ endedAt: null, lastSeenAt: gat(5) })]);
   });
 });
