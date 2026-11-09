@@ -89,6 +89,19 @@ describe('list_ads image evidence (18a-3)', () => {
     }
   });
 
+  it('caps image ids to the newest three per ad, newest first', async () => {
+    const first = await seedAdImage();
+    const ids = [first.evidenceId];
+    for (let i = 0; i < 4; i++) ids.push((await seedAdImage({ adId: first.adId })).evidenceId);
+    const r = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 })) as { items: { id: string; imageEvidenceIds: string[] }[] };
+    expect(r.items.find((a) => a.id === first.adId)!.imageEvidenceIds).toEqual([ids[4], ids[3], ids[2]]);
+    const s = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 }, { ...mcp, channel: 'mcp' })) as { items: { id: string; evidenceIds: string[] }[] };
+    const cited = s.items.find((a) => a.id === first.adId)!.evidenceIds;
+    expect(cited).toEqual(expect.arrayContaining([ids[4], ids[3], ids[2]]));
+    expect(cited).not.toContain(ids[1]);
+    expect(cited).not.toContain(ids[0]);
+  });
+
   it("another client's competitor image is never listed", async () => {
     const other = await seedAdImage({ competitorId: IDS.competitorY });
     const r = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 })) as { items: { id: string }[] };

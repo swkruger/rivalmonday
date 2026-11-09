@@ -25,7 +25,7 @@ export function AdCard({ ad, clientId, timezone }: { ad: AdView; clientId: strin
       </div>
       {imageId && (
         <div className="flex justify-center rounded-md bg-muted-surface p-2">
-          <EvidenceImage src={`/files/evidence/${clientId}/${imageId}`} alt={`Ad image from ${ad.competitorName}`} loading="lazy" className="max-h-60 w-auto object-contain" />
+          <EvidenceImage src={`/files/evidence/${clientId}/${imageId}`} alt={`Ad image from ${ad.competitorName}`} loading="lazy" fallback="Image not available" className="max-h-60 w-auto object-contain" />
         </div>
       )}
       {ad.title && <h3 className="font-semibold text-ink">{ad.title}</h3>}

@@ -19,14 +19,6 @@ export const AD_PRICE_MAX_ADS = 40;
 type Observed = PriceObservation & { adId: string; verticalId: string; serviceId: string };
 
 /**
- * D5: prices in the copy of the Meta ads one capture lists → service-mapped `price_point` spans with `ad_id`
- * (rules only, `pricesInBlock` on the raw text; the block map and question are the web stage's; only the stored
- * context and the model state are redacted). A listed active ad without an open span is priced (new or returned
- * ads); a listed ad with one advances it. Spans end for ads this capture ended and for this page's ads it no longer
- * lists (never on a truncated or empty payload, as ad deactivation). An older capture than the page's newest
- * processed one is a no-op. No `price_change` events.
- */
-/**
  * R14: the Google path. No model call and no copy pricing: image price spans (created by the image read) advance while
  * their ad is listed by this capture (`last_capture_id`) and end once the ad is inactive (this capture ended it, or
  * pinned-mode retirement, which sets no `ended_capture_id`). An older capture than the newest processed one of the
@@ -61,6 +53,14 @@ async function extractGoogleSpans(db: Db, cap: typeof capture.$inferSelect): Pro
   );
 }
 
+/**
+ * D5: prices in the copy of the Meta ads one capture lists → service-mapped `price_point` spans with `ad_id`
+ * (rules only, `pricesInBlock` on the raw text; the block map and question are the web stage's; only the stored
+ * context and the model state are redacted). A listed active ad without an open span is priced (new or returned
+ * ads); a listed ad with one advances it. Spans end for ads this capture ended and for this page's ads it no longer
+ * lists (never on a truncated or empty payload, as ad deactivation). An older capture than the page's newest
+ * processed one is a no-op. No `price_change` events.
+ */
 export async function extractAdPrices(deps: { db: Db; store: ObjectStore; ai: Ai; packs: PackLoader }, captureId: string): Promise<StageOutcome<PriceRunResult>> {
   const [cap] = await deps.db.select().from(capture).where(eq(capture.id, captureId)).limit(1);
   if (!cap || (cap.source !== 'meta_ads' && cap.source !== 'google_ads') || cap.status !== 'ok') throw new Error(`capture ${captureId} is not an ok meta_ads or google_ads capture`);

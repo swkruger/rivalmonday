@@ -17,6 +17,13 @@ describe('EvidenceImage', () => {
     expect(screen.queryByRole('img', { name: 'Snapshot of x' })).toBeNull();
   });
 
+  it('shows a custom fallback when given one (ad images)', () => {
+    render(<EvidenceImage src="/files/evidence/c/e" alt="Ad image from x" fallback="Image not available" />);
+    fireEvent.error(screen.getByRole('img', { name: 'Ad image from x' }));
+    expect(screen.getByText('Image not available')).toBeTruthy();
+    expect(screen.queryByText('Snapshot not available')).toBeNull();
+  });
+
   it('shows the fallback when the image already failed before hydration', () => {
     const complete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete');
     const width = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'naturalWidth');

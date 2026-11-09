@@ -18,6 +18,19 @@ describe('competitor profile sections (decision 13)', () => {
     expect(screen.getByRole('link', { name: 'See pricing' }).getAttribute('href')).toBe(`/c/${C}/pricing?competitor=${X}&service=ac_tune_up`);
   });
 
+  it('tags an ad-image price "From an ad image": a link to its evidence when there is one, plain text when not', () => {
+    const matrix = (evidenceIds: string[]) => ({
+      services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],
+      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 49, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'ad_image', evidenceIds }], change: null }] }],
+    });
+    const { unmount } = render(<PricesSection clientId={C} competitorId={X} matrix={matrix(['ev9']) as never} />);
+    expect(screen.getByText('From an ad image').closest('a')?.getAttribute('href')).toBe(`/c/${C}/evidence/ev9`);
+    unmount();
+    render(<PricesSection clientId={C} competitorId={X} matrix={matrix([]) as never} />);
+    expect(screen.getByText('From an ad image')).toBeTruthy();
+    expect(screen.getByText('From an ad image').closest('a')).toBeNull();
+  });
+
   it('prices section hides See pricing with no prices', () => {
     render(<PricesSection clientId={C} competitorId={X} matrix={{
       services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],

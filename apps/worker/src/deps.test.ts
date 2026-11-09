@@ -66,6 +66,19 @@ describe('aiGuard', () => {
   });
 });
 
+describe('adImagesEnabled (18a-3 R3: the crawler-ban gate)', () => {
+  const base = { SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv;
+  it('is true only when WEB_MONITORING_ENABLED is "true" (trimmed)', () => {
+    expect(createWorkerDeps({ ...base, WEB_MONITORING_ENABLED: 'true' }).adImagesEnabled()).toBe(true);
+    expect(createWorkerDeps({ ...base, WEB_MONITORING_ENABLED: ' true ' }).adImagesEnabled()).toBe(true);
+  });
+  it('is false when unset, empty or not "true"', () => {
+    expect(createWorkerDeps(base).adImagesEnabled()).toBe(false);
+    expect(createWorkerDeps({ ...base, WEB_MONITORING_ENABLED: '' }).adImagesEnabled()).toBe(false);
+    expect(createWorkerDeps({ ...base, WEB_MONITORING_ENABLED: '1' }).adImagesEnabled()).toBe(false);
+  });
+});
+
 describe('app pool (Phase 7c2)', () => {
   const DIRECT = 'postgres://u:p@127.0.0.1:1/direct';
   const POOLED = 'postgres://u:p@127.0.0.1:1/pooled';

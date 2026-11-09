@@ -49,4 +49,5 @@ Google ad images only: Jev triages each image, price/offer-bearing ones without 
 - Google formats on cs_dev: text 191, image 32, video 20; only `video` skips. Host `tpc.googlesyndication.com` (no robots.txt = allow); text ads carry simgad URLs too, so magic-byte sniffing rejects non-images.
 - Vision model: cheapest ZDR + image + structured outputs = `openai/gpt-4.1-mini` (Azure). Haiku 4.5 fallback not needed.
 - Live probe (~$0.0011): Jev `state_content` shape works only with PNG/JPEG data URLs (P15); ~$0.00005/call. Read ~$0.00023/call, `temperature: 0` and strict json_schema accepted.
+- Ask baseline `citations_per_answer` 0.63 -> 0.41 (re-baselined 2026-11-09): isolation world gained ad-image rows; model citation markers ~unchanged (191 -> 180), the drop is verifier grounding variance (`grounding_removed_rate` 0.47 -> 0.50).
 - Aggregate capture readers excluding `ad_image`: `tools/tools/platform-health.ts`, `tools/waitlist/site-status.ts`.

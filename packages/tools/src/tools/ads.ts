@@ -14,6 +14,8 @@ import { AdPage, pageFields, toIso } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
+/** At most this many stored images (newest first) are returned per ad, so a rotating creative cannot bloat payloads. */
+const MAX_AD_IMAGES = 3;
 
 export { libraryUrl };
 
@@ -55,7 +57,7 @@ export const listAds = defineTool({
       ? await deps.service.select({ adId: adImage.adId, evidenceId: adImage.evidenceId }).from(adImage)
         .where(and(inArray(adImage.adId, page.rows.map((a) => a.id)), isNotNull(adImage.evidenceId))).orderBy(desc(adImage.createdAt), desc(adImage.id))
       : [];
-    const imagesOf = (adId: string): string[] => images.filter((i) => i.adId === adId).map((i) => i.evidenceId!);
+    const imagesOf = (adId: string): string[] => images.filter((i) => i.adId === adId).slice(0, MAX_AD_IMAGES).map((i) => i.evidenceId!);
     if (detailOf(input, meta) === 'summary') {
       // The ad's citable capture evidence (first sighting, else latest), as eventEvidenceIds; global rows, visibility proved above.
       const captureOf = new Map(page.rows.map((a) => [a.id, a.firstCaptureId ?? a.lastCaptureId]));
