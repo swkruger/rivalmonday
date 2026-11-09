@@ -4,10 +4,10 @@
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (owner-approved 2026-11-07) · **Plan:** `docs/superpowers/plans/2026-11-07-brief-report.md` (Tasks 0–15, lean)
 
 ## Status (overwrite)
-All tasks 0–14 implemented and reviewed (SDD). Final whole-branch review done; its fix wave landed (evidence-refs chunks in one stage, PDF "Changes this week" tile = live grade totals, conditional `pdf_key` write, one render per sent brief, report parsed before storing, render-failure backoff at dispatch). Controller gates pending.
+All tasks 0–14 implemented and reviewed (SDD); final whole-branch review clean after one fix wave. Gates green 2026-11-09: test:affected (only the launch-gate parity snapshot needed `changes: null`, updated), e2e:affected 154/154, profile-gate max 7 DB stages (brief page 5, approvals 6), eval:replay no misses ($0), design-lint 0, LF/UTF-8 clean.
 
 ## Next (overwrite)
-Final whole-branch review + gates (controller), then owner verification (steps below), then `/rm-merge` with the owner's go-ahead.
+Owner verification (steps below), `pnpm copy:review` sign-off, then `/rm-merge` with the owner's go-ahead (full unit + E2E there).
 
 ## Interfaces this branch adds or changes
 - Migration `0103_brief_report`: `ALTER TABLE brief ADD COLUMN report jsonb` only. No `(client_id, scored_at)` index (EXPLAIN on the empty test DB used `event_score_client_route_idx`; judged usable). Revisit only if the `profile-gate.sh` brief-page run is hot.
