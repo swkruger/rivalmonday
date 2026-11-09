@@ -39,6 +39,18 @@ function SegmentLink({ clientId, params, route, label }: { clientId: string; par
   );
 }
 
+/** Week view note: the page shows only `from`..`to` (inclusive, viewer tz); the link drops the range. */
+export function RangeBanner({ from, to, timezone, clearHref }: { from: string; to: string; timezone: string; clearHref: string }) {
+  return (
+    <p className="text-sm text-muted-ink">
+      Showing changes from {formatDate(from, { tz: timezone })} to {formatDate(to, { tz: timezone })}.{' '}
+      <Link href={clearHref} className="font-semibold text-primary-soft-text">
+        Show all dates
+      </Link>
+    </p>
+  );
+}
+
 /** A `GET` form (filters) plus a segmented route control, both built from the URL-driven `params`. */
 export function FilterBar({
   clientId,
@@ -57,6 +69,12 @@ export function FilterBar({
     <div className="flex flex-col gap-3">
       <form action={`/c/${clientId}/changes`} className="flex flex-1 flex-wrap items-center gap-2">
         <input type="hidden" name="route" value={params.route} />
+        {params.from && params.to && (
+          <>
+            <input type="hidden" name="from" value={params.from} />
+            <input type="hidden" name="to" value={params.to} />
+          </>
+        )}
         <input name="q" defaultValue={params.q ?? ''} placeholder="Search changes" aria-label="Search changes" className={cn(toolbarControlClass, 'min-w-48 flex-1 basis-48')} />
         <select name="competitor" defaultValue={params.competitor ?? ''} aria-label="Competitor" className={SELECT_CLASS}>
           <option value="">All competitors</option>

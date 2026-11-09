@@ -14,6 +14,9 @@ export interface ChangesParams {
   service?: string;
   route: (typeof ROUTES)[number];
   days: (typeof DAYS)[number];
+  /** Week view (the brief's "See all changes"): inclusive `YYYY-MM-DD` range, both or neither. */
+  from?: string;
+  to?: string;
   q?: string;
   offset: number;
   event?: string;
@@ -48,6 +51,27 @@ function slug(sp: SearchParams, key: string): string | undefined {
   return v && SLUG.test(v) ? v : undefined;
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_SPAN_DAYS = 31;
+
+/** Epoch day of a real calendar `YYYY-MM-DD`, else `null` (rejects 2026-02-30 and malformed input). */
+export function isoDayNumber(v: string | undefined): number | null {
+  if (!v || !ISO_DAY.test(v)) return null;
+  const d = new Date(`${v}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return null;
+  return Math.round(d.getTime() / 86_400_000);
+}
+
+/** Both dates valid, `from <= to`, span <= 31 days - else `null` (both dropped). */
+function dayRange(sp: SearchParams): { from: string; to: string } | null {
+  const from = one(sp.from);
+  const to = one(sp.to);
+  const a = isoDayNumber(from);
+  const b = isoDayNumber(to);
+  if (a === null || b === null || a > b || b - a + 1 > MAX_SPAN_DAYS) return null;
+  return { from: from as string, to: to as string };
+}
+
 export function parseChangesParams(sp: SearchParams): ChangesParams {
   const offsetRaw = Number(one(sp.offset));
   const p: ChangesParams = {
@@ -66,13 +90,18 @@ export function parseChangesParams(sp: SearchParams): ChangesParams {
   if (type) p.type = type;
   if (service) p.service = service;
   if (q) p.q = q;
+  const range = dayRange(sp);
+  if (range) {
+    p.from = range.from;
+    p.to = range.to;
+  }
   if (event) p.event = event;
   if (change) p.change = change;
   return p;
 }
 
 /** Stable key order for `changesHref`'s query string. */
-const ORDER: (keyof ChangesParams)[] = ['competitor', 'type', 'service', 'route', 'days', 'q', 'offset', 'event', 'change', 'tab'];
+const ORDER: (keyof ChangesParams)[] = ['competitor', 'type', 'service', 'route', 'days', 'from', 'to', 'q', 'offset', 'event', 'change', 'tab'];
 const DEFAULTS: Partial<ChangesParams> = { route: 'flagged', days: 30, offset: 0, tab: 'side' };
 
 /** Builds a `/c/<clientId>/changes` URL, omitting any value that equals its default (and any undefined/empty one). */

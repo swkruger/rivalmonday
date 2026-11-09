@@ -13,16 +13,25 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
+import { localDay } from '@/lib/format';
 import { verticalOptions } from '@/server/verticals';
-import { FeedList, FilterBar } from './feed';
+import { FeedList, FilterBar, RangeBanner } from './feed';
 import { groupByWeek } from './group';
-import { changesHref, effectiveTab, parseChangesParams } from './params';
+import { changesHref, effectiveTab, isoDayNumber, parseChangesParams } from './params';
 import { EventViewer } from './viewer';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Changes' };
 const HELP_KEY = 'page:client.changes';
 const COPY = PAGE_COPY['client.changes'];
+const WINDOWS = [7, 30, 90, 365] as const;
+
+/** Smallest read window (days back from `today`, a `YYYY-MM-DD`) that reaches `from`; 365 when none does. */
+function coveringDays(from: string, today: string): (typeof WINDOWS)[number] {
+  const ago = (isoDayNumber(today) ?? 0) - (isoDayNumber(from) ?? 0);
+  return WINDOWS.find((d) => ago <= d) ?? 365;
+}
 
 function EmptyViewer({ message }: { message: string }) {
   return (
@@ -51,17 +60,23 @@ export default async function ChangesPage({
   // only when it's one of the real change types (brief: "avoid that").
   const changeType = p.type && types.some((t) => t.id === p.type) ? p.type : undefined;
 
+  // Week view (`from`/`to`, e.g. the brief's "See all changes"): page-level only - widen the read window to reach `from`,
+  // then keep rows whose local day (viewer tz) falls in the range. `search_events` itself is untouched.
+  const range = p.from && p.to ? { from: p.from, to: p.to } : null;
+  const tz = range ? await viewerTimeZone() : null;
+  const days = range && tz ? coveringDays(range.from, localDay(new Date(), tz)) : p.days;
+
   const feedRead = callTool<{ items: EventRow[]; hasMore: boolean }>(ctx, 'search_events', {
     clientId,
     competitorId: p.competitor,
     changeType,
     serviceId: p.service,
     route: p.route,
-    days: p.days,
+    days,
     query: p.q,
     offset: p.offset,
     limit: 50,
-  });
+  }).then((r) => (range && tz ? { ...r, items: r.items.filter((e) => { const d = localDay(e.occurredAt, tz); return d >= range.from && d <= range.to; }) } : r));
   // Launch-gate 6a: the viewer's event read starts as soon as its id is known — at once for a `?event=` link, else when
   // the feed (its first row) arrives — and the snapshot comparison as soon as the event is in; neither waits for the
   // page's other reads. A bookmarked `?event=` may be retracted, removed or not this client's: the feed still renders
@@ -126,6 +141,8 @@ export default async function ChangesPage({
         services={services.map((s) => ({ id: s.id, name: s.name }))}
       />
 
+      {range && tz && <RangeBanner from={range.from} to={range.to} timezone={tz} clearHref={changesHref(clientId, { ...p, from: undefined, to: undefined, offset: 0, event: undefined, change: undefined })} />}
+
       <ListDetail
         selectedId={selectedId}
         sheetOpen={!!p.event}
@@ -136,6 +153,7 @@ export default async function ChangesPage({
         list={
         <div>
             {rows.length === 0 ? (
+              <>
               <div className="p-4">
                 <EmptyState
                   {...COPY.empty.noMatch}
@@ -148,6 +166,14 @@ export default async function ChangesPage({
                   }
                 />
               </div>
+              {feed.hasMore && (
+                <div className="border-t border-line p-3 text-center">
+                  <Link href={changesHref(clientId, { ...p, offset: p.offset + 50, event: undefined })} className="font-semibold text-primary-soft-text">
+                    Show older changes
+                  </Link>
+                </div>
+              )}
+              </>
             ) : (
               <>
                 <FeedList clientId={clientId} params={p} groups={groups} selectedId={selectedId} currentId={p.event ?? null} timezone={profile.timezone} />

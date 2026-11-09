@@ -22,3 +22,27 @@ describe('tab=page', () => {
     expect(parseChangesParams({ tab: 'nope' }).tab).toBe('side');
   });
 });
+
+describe('from/to', () => {
+  it('parses valid from/to; drops reversed, malformed or > 31 days', () => {
+    expect(parseChangesParams({ from: '2026-10-12', to: '2026-10-18' })).toMatchObject({ from: '2026-10-12', to: '2026-10-18' });
+    expect(parseChangesParams({ from: '2026-10-01', to: '2026-10-31' })).toMatchObject({ from: '2026-10-01', to: '2026-10-31' });
+    const none = (sp: Record<string, string>) => {
+      const p = parseChangesParams(sp);
+      expect(p.from).toBeUndefined();
+      expect(p.to).toBeUndefined();
+    };
+    none({ from: '2026-10-18', to: '2026-10-12' });
+    none({ from: '2026-10-1', to: '2026-10-12' });
+    none({ from: '2026-02-30', to: '2026-03-02' });
+    none({ from: '2026-10-01', to: '2026-11-02' });
+    none({ from: '2026-10-12' });
+    none({ to: '2026-10-12' });
+  });
+  it('changesHref round-trips from/to', () => {
+    const href = changesHref(C, { days: 7, from: '2026-10-12', to: '2026-10-18' });
+    expect(href).toBe(`/c/${C}/changes?days=7&from=2026-10-12&to=2026-10-18`);
+    const sp = Object.fromEntries(new URL(href, 'http://x').searchParams);
+    expect(parseChangesParams(sp)).toMatchObject({ days: 7, from: '2026-10-12', to: '2026-10-18' });
+  });
+});

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callTool = vi.fn();
 const listDetail = vi.fn();
+const feedList = vi.fn();
 const E1 = '00000000-0000-4000-8000-0000000000e1';
 const E2 = '00000000-0000-4000-8000-0000000000e2';
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: 'agency_admin', userId: 'u1', features: new Set(['dashboard']), permissions: new Set() } }) }));
@@ -14,7 +15,9 @@ vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_
 vi.mock('@/components/page-header', () => ({ PageHeader: () => null }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: () => null }));
-vi.mock('./feed', () => ({ FeedList: () => null, FilterBar: () => null }));
+const banner = vi.fn();
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
+vi.mock('./feed', () => ({ FeedList: (p: unknown) => { feedList(p); return null; }, FilterBar: () => null, RangeBanner: (p: unknown) => { banner(p); return null; } }));
 vi.mock('./viewer', () => ({ EventViewer: () => null }));
 vi.mock('@/components/list-detail', () => ({ ListDetail: (p: unknown) => { listDetail(p); return null; } }));
 
@@ -95,5 +98,50 @@ describe('ChangesPage list container', () => {
     const p = await go();
     const { container } = render(<>{p.list as React.ReactNode}</>);
     expect(container.querySelector('[data-slot=card]')).toBeNull();
+  });
+});
+
+describe('ChangesPage from/to', () => {
+  beforeEach(() => {
+    callTool.mockReset(); listDetail.mockReset(); feedList.mockReset(); banner.mockReset();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', verticalId: 'v', services: [], timezone: 'UTC' };
+      if (name === 'search_events') return { items: [{ eventId: E1, channels: [], occurredAt: '2026-10-10T10:00:00.000Z' }, { eventId: E2, channels: [], occurredAt: '2026-10-20T10:00:00.000Z' }], hasMore: false };
+      if (name === 'list_client_competitors') return { items: [] };
+      if (name === 'get_event') return { eventId: E2, changes: [] };
+      throw new Error(`unexpected ${name}`);
+    });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const daysOf = () => callTool.mock.calls.find((c) => c[1] === 'search_events')![2].days;
+
+  it('page picks the smallest covering days window', async () => {
+    await go({ from: '2026-10-18', to: '2026-10-20' });
+    expect(daysOf()).toBe(7);
+    callTool.mockClear();
+    await go({ from: '2026-10-01', to: '2026-10-05' });
+    expect(daysOf()).toBe(30);
+    callTool.mockClear();
+    await go({ from: '2026-04-01', to: '2026-04-05' });
+    expect(daysOf()).toBe(365);
+    callTool.mockClear();
+    await go({ from: '2024-04-01', to: '2024-04-05' });
+    expect(daysOf()).toBe(365);
+  });
+
+  it('rows outside the range are hidden and the banner shows', async () => {
+    const lp = await go({ from: '2026-10-18', to: '2026-10-21' });
+    render(<>{lp.list as React.ReactNode}</>);
+    const groups = feedList.mock.calls[0]![0].groups as { items: { eventId: string }[] }[];
+    expect(groups.flatMap((g) => g.items.map((r) => r.eventId))).toEqual([E2]);
+    expect(banner.mock.calls[0]![0]).toMatchObject({ from: '2026-10-18', to: '2026-10-21', timezone: 'UTC', clearHref: '/c/c1/changes' });
+  });
+
+  it('no banner without from/to', async () => {
+    await go();
+    expect(banner).not.toHaveBeenCalled();
   });
 });

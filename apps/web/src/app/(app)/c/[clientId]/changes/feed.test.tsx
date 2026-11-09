@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ChangesParams } from './params';
 
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
-const { FeedList, FilterBar, RoutePill } = await import('./feed');
+const { FeedList, FilterBar, RangeBanner, RoutePill } = await import('./feed');
 
 const row = (eventId: string, route: EventRow['route'] = 'alert'): EventRow =>
   ({ eventId, competitorName: 'Peachtree', summary: `S-${eventId}`, typeLabel: 'Price change', channels: ['web', 'google_ads'], occurredAt: '2026-10-22T03:30:00Z', score: 82, route }) as unknown as EventRow;
@@ -92,5 +92,18 @@ describe('FeedList rows', () => {
   it('rows carry data-row-id', () => {
     list(null);
     expect(Array.from(document.querySelectorAll('a[data-row-id]')).map((a) => a.getAttribute('data-row-id'))).toEqual(['e1', 'e2']);
+  });
+});
+
+describe('RangeBanner / FilterBar range', () => {
+  it('banner names the dates and links to all dates', () => {
+    render(<RangeBanner from="2026-10-12" to="2026-10-18" timezone="UTC" clearHref="/c/c/changes" />);
+    expect(screen.getByText(/Showing changes from Oct 12/).textContent).toMatch(/Showing changes from Oct 12.* to Oct 18/);
+    expect(screen.getByRole('link', { name: 'Show all dates' }).getAttribute('href')).toBe('/c/c/changes');
+  });
+  it('filter form keeps from/to as hidden inputs', () => {
+    const { container } = render(<FilterBar clientId="c" params={{ ...params, from: '2026-10-12', to: '2026-10-18' }} competitors={[]} types={[]} services={[]} />);
+    expect((container.querySelector('input[name=from]') as HTMLInputElement).value).toBe('2026-10-12');
+    expect((container.querySelector('input[name=to]') as HTMLInputElement).value).toBe('2026-10-18');
   });
 });
