@@ -13,6 +13,32 @@ export const changeTypeLabel = (type: string): string => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
+/** Plural group phrase per change type, used when a line merges 2+ events ("3 price changes"). */
+export const GROUP_PHRASE: Record<string, (channel: string | null) => string> = {
+  price_change: () => 'price changes',
+  promo: () => 'new promotions',
+  new_service: () => 'new services',
+  service_removed: () => 'services removed',
+  service_area_change: () => 'service area changes',
+  new_location: () => 'new locations',
+  hiring: () => 'new job posts',
+  ad_started: (c) => (c === 'google_ads' ? 'Google ads started' : c === 'meta_ads' ? 'Meta ads started' : 'new ads'),
+  ad_stopped: (c) => (c === 'google_ads' ? 'Google ads stopped' : c === 'meta_ads' ? 'Meta ads stopped' : 'ads stopped'),
+  review_spike: () => 'complaint spikes in reviews',
+  rating_change: () => 'rating changes',
+  rank_change: () => 'local ranking changes',
+  tier_change: () => 'tier changes',
+  content: () => 'website changes',
+};
+
+/** "3 price changes"; an unmapped type falls back to "<label> changes" (label lower-cased, or the humanised type). */
+export const groupPhrase = (type: string, channel: string | null, count: number): string => {
+  const f = GROUP_PHRASE[type];
+  if (f) return `${count} ${f(channel)}`;
+  const label = (CHANGE_LABELS[type] ?? type.replace(/_/g, ' ')).toLowerCase();
+  return `${count} ${label} changes`;
+};
+
 /** "less than a day" (≤ 0), "about 1 day", "about N days": the rounded days-left phrase shared by the platform cost strip and email. */
 export const approxDaysText = (days: number): string => {
   const n = Math.round(days);
