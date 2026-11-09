@@ -134,6 +134,7 @@ exports[`launch-gate 6a output parity (snapshot recorded before the change) > ge
 {
   "admin": {
     "approvedAt": null,
+    "changes": null,
     "clientId": "<id:1>",
     "deliveryDate": "<date>",
     "generatedAt": "<ts>",
@@ -207,6 +208,7 @@ exports[`launch-gate 6a output parity (snapshot recorded before the change) > ge
   },
   "owner": {
     "approvedAt": null,
+    "changes": null,
     "clientId": "<id:1>",
     "deliveryDate": "<date>",
     "generatedAt": "<ts>",
@@ -1645,6 +1647,7 @@ exports[`launch-gate 6a output parity: review gaps (snapshot recorded on 42e9ddb
   },
   "readyBriefAdmin": {
     "approvedAt": null,
+    "changes": null,
     "clientId": "<id:1>",
     "deliveryDate": "<date>",
     "generatedAt": "<ts>",
