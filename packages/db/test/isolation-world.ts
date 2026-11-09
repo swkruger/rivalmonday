@@ -243,7 +243,7 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     review_id: reviewId, vertical_id: comp.vertical, competitor_id: competitorId, text_sha: sha256(reviewText), topics: [], sentiment: 1, confidence: 0.9, analysis_version: 1,
   });
   await b.ins('review_revision', k, { id: b.id('review_revision', k), review_id: reviewId, competitor_id: competitorId, rating: 3, text: `Earlier text ${b.c(k)}` });
-  await b.ins('ad', k, {
+  const googleAd = await b.ins('ad', k, {
     id: b.id('ad', k), competitor_id: competitorId, platform: 'google', external_id: `world-ad-${k}`, title: `Ad title ${b.c(k)}`, text: `Ad text ${b.c(k)}`,
     landing_url: `https://${comp.domain}/offer`, started_at: b.at(6), first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
   });
@@ -257,6 +257,30 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     id: b.id('price_point', k), competitor_id: competitorId, ad_id: metaAdId, vertical_id: comp.vertical, service_id: comp.service, amount: 59, unit: 'visit',
     qualifier: 'exact', raw: `$59 ${b.c(k)}`, context: `Ad price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
     first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
+  });
+  // Ad images (18a-3): a stored image (capture source 'ad_image', evidence kind 'image') with an image-read price, and a person image that is never stored.
+  const imageCapture = await b.ins('capture', k, {
+    id: b.id('capture', k), competitor_id: competitorId, source: 'ad_image', url: `https://${comp.domain}/ad.jpg?ref=${b.c(k)}`, status: 'ok', collector_version: 'world', captured_at: b.at(2, 10),
+  });
+  const imageText = `ad image stand-in ${b.c(k)}`;
+  const imageKey = `world/${k}/${imageCapture.id as string}-${b.c(k)}.webp`;
+  b.evidenceText.set(imageKey, imageText);
+  const imageEvidence = await b.ins('evidence', k, {
+    id: b.id('evidence', k), capture_id: imageCapture.id, kind: 'image', object_key: imageKey, sha256: sha256(imageText), bytes: Buffer.byteLength(imageText), content_type: 'image/webp',
+  });
+  const storedImage = await b.ins('ad_image', k, {
+    id: b.id('ad_image', k), ad_id: googleAd.id, competitor_id: competitorId, source_url_sha: sha256(`stored ${b.c(k)}`), status: 'triaged', source_sha256: sha256(imageText),
+    shows_person: false, shows_price: true, shows_offer: false, theme: `price ${b.c(k)}`, service_ids: { [comp.vertical]: comp.service },
+    triage: { provider: 'jev', model: 'world', confidences: { shows_price: 0.9 } }, evidence_id: imageEvidence.id, read_status: 'read', read_at: b.at(2, 11), triaged_at: b.at(2, 10),
+  });
+  await b.ins('price_point', k, {
+    id: b.id('price_point', k), competitor_id: competitorId, ad_id: googleAd.id, ad_image_id: storedImage.id, vertical_id: comp.vertical, service_id: comp.service, amount: 49, unit: 'visit',
+    qualifier: 'exact', raw: `$49 ${b.c(k)}`, context: `Ad image price ${b.c(k)}`, first_seen_at: b.at(2, 11), last_seen_at: b.at(2, 11),
+    first_capture_id: imageCapture.id, last_capture_id: imageCapture.id,
+  });
+  await b.ins('ad_image', k, {
+    id: b.id('ad_image', k), ad_id: googleAd.id, competitor_id: competitorId, source_url_sha: sha256(`person ${b.c(k)}`), status: 'triaged', shows_person: true, shows_price: false,
+    shows_offer: false, theme: `team photo ${b.c(k)}`, triage: { provider: 'jev', model: 'world', confidences: { shows_person: 0.95 } }, triaged_at: b.at(2, 10),
   });
   // service_only, competitor-linked (no tenant column; recorded under the competitor tenant)
   await b.ins('competitor_source', k, { competitor_id: competitorId, source: 'google_reviews', last_status: `ok ${b.c(k)}` });

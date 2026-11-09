@@ -138,6 +138,7 @@ export const EVIDENCE_KIND: LabelMap<EvidenceKind> = {
   text: e('Page text'),
   screenshot: e('Screenshot'),
   vendor_json: e('Source data'),
+  image: e('Ad image'),
 };
 
 // WEBHOOK_KINDS (packages/db/src/schema/delivery.ts)

@@ -114,7 +114,7 @@ export async function seedEvent(o: SeedEventOptions): Promise<SeededEvent> {
   return { eventId: e!.id, changeId: ch!.id, beforeCaptureId: before!.id, afterCaptureId: after!.id, pageId: trackedPageId };
 }
 
-export type EvidenceKind = 'html' | 'text' | 'screenshot' | 'vendor_json';
+export type EvidenceKind = 'html' | 'text' | 'screenshot' | 'vendor_json' | 'image';
 
 export interface SeedCaptureOptions {
   /** `captured_at`. Default now. */
@@ -154,7 +154,7 @@ export async function seedCapture(o: SeedCaptureOptions = {}): Promise<SeededCap
   const objectKeys: SeededCapture['objectKeys'] = {};
   for (const kind of o.kinds ?? ['html', 'text', 'screenshot']) {
     const objectKey = `evidence/${competitorId}/${c!.id}/${kind}`;
-    const contentType = { screenshot: 'image/webp', html: 'text/html', vendor_json: 'application/json', text: 'text/plain' }[kind];
+    const contentType = { screenshot: 'image/webp', image: 'image/webp', html: 'text/html', vendor_json: 'application/json', text: 'text/plain' }[kind];
     const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind, objectKey, sha256: `${kind}-sha-${c!.id.slice(0, 4)}`, bytes: 10, contentType }).returning();
     ids[kind] = e!.id;
     objectKeys[kind] = objectKey;

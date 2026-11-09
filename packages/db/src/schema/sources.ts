@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { competitorSuggestion } from './client-intel';
-import { capture } from './evidence';
+import { capture, evidence } from './evidence';
 import { competitor } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -105,6 +105,53 @@ export const ad = pgTable(
     endedCaptureId: uuid('ended_capture_id').references(() => capture.id, { onDelete: 'set null' }),
   },
   (t) => [unique('ad_platform_external_unique').on(t.platform, t.externalId), index('ad_competitor_active_idx').on(t.competitorId, t.isActive)],
+);
+
+export const AD_IMAGE_STATUSES = ['pending', 'rejected', 'triaged'] as const;
+export type AdImageStatus = (typeof AD_IMAGE_STATUSES)[number];
+export const AD_IMAGE_FAIL_REASONS = ['too_large', 'bad_type', 'bad_image', 'expired', 'robots', 'ssrf'] as const;
+export type AdImageFailReason = (typeof AD_IMAGE_FAIL_REASONS)[number];
+export const AD_IMAGE_READ_STATUSES = ['read', 'no_price', 'unconfirmed', 'failed'] as const;
+export type AdImageReadStatus = (typeof AD_IMAGE_READ_STATUSES)[number];
+
+const inList = (xs: readonly string[]) => sql.raw(xs.map((x) => `'${x}'`).join(', '));
+
+/** One image of an ad (18a-3): fetched, triaged by Jev, stored as evidence only when it shows no person. Global public; service role writes. */
+export const adImage = pgTable(
+  'ad_image',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adId: uuid('ad_id').notNull().references(() => ad.id, { onDelete: 'cascade' }),
+    competitorId: competitorRef(),
+    /** sha256 of the normalised source URL; with adId it identifies the image. */
+    sourceUrlSha: text('source_url_sha').notNull(),
+    status: text('status').$type<AdImageStatus>().notNull().default('pending'),
+    failReason: text('fail_reason').$type<AdImageFailReason>(),
+    /** sha256 of the fetched bytes (dedupe across ads). */
+    sourceSha256: text('source_sha256'),
+    showsPerson: boolean('shows_person'),
+    showsPrice: boolean('shows_price'),
+    showsOffer: boolean('shows_offer'),
+    theme: text('theme'),
+    serviceIds: jsonb('service_ids').$type<Record<string, string | null>>(),
+    triage: jsonb('triage').$type<{ provider: string; model: string; confidences: Record<string, number>; copiedFrom?: string }>(),
+    evidenceId: uuid('evidence_id').references(() => evidence.id, { onDelete: 'restrict' }),
+    readStatus: text('read_status').$type<AdImageReadStatus>(),
+    readAt: ts('read_at'),
+    triagedAt: ts('triaged_at'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('ad_image_ad_url_unique').on(t.adId, t.sourceUrlSha),
+    index('ad_image_source_sha_idx').on(t.sourceSha256),
+    index('ad_image_competitor_stored_idx').on(t.competitorId, t.sourceSha256).where(sql`evidence_id IS NOT NULL`),
+    index('ad_image_competitor_read_idx').on(t.competitorId, t.readAt),
+    check('ad_image_status_check', sql`status IN (${inList(AD_IMAGE_STATUSES)})`),
+    check('ad_image_fail_reason_check', sql`fail_reason IS NULL OR fail_reason IN (${inList(AD_IMAGE_FAIL_REASONS)})`),
+    check('ad_image_rejected_reason', sql`(status = 'rejected') = (fail_reason IS NOT NULL)`),
+    check('ad_image_read_status_check', sql`read_status IS NULL OR read_status IN (${inList(AD_IMAGE_READ_STATUSES)})`),
+    check('ad_image_person_unstored', sql`shows_person IS NOT TRUE OR evidence_id IS NULL`),
+  ],
 );
 
 /** The replaced version of an edited review (3b carry-over): the review row always holds the latest text. Immutable. */

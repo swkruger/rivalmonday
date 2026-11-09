@@ -4,8 +4,8 @@ import sharp from 'sharp';
 import type { SeedContext } from './context';
 import { DEMO_COLLECTOR } from './tenancy';
 
-export type EvidenceKind = 'html' | 'text' | 'screenshot' | 'vendor_json';
-const FILE: Record<EvidenceKind, string> = { html: 'page.html', text: 'text.txt', screenshot: 'screenshot.webp', vendor_json: 'vendor.json' };
+export type EvidenceKind = 'html' | 'text' | 'screenshot' | 'vendor_json' | 'image';
+const FILE: Record<EvidenceKind, string> = { html: 'page.html', text: 'text.txt', screenshot: 'screenshot.webp', vendor_json: 'vendor.json', image: 'ad-image.webp' };
 
 /** Writes the file to the environment's evidence store and its `evidence` row (real sha256 and size). */
 export async function putEvidence(ctx: SeedContext, o: { captureId: string; competitorId: string; kind: EvidenceKind; body: Uint8Array; contentType: string }): Promise<string> {

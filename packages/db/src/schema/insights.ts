@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { capture, trackedPage } from './evidence';
-import { ad, review } from './sources';
+import { ad, adImage, review } from './sources';
 import { competitor } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -87,6 +87,8 @@ export const pricePoint = pgTable(
     trackedPageId: uuid('tracked_page_id').references(() => trackedPage.id, { onDelete: 'cascade' }),
     /** Set for a price read from an ad (18a-1); exactly one of trackedPageId / adId is set. */
     adId: uuid('ad_id').references(() => ad.id, { onDelete: 'cascade' }),
+    /** Set when the price was read from an ad image (18a-3); requires adId. */
+    adImageId: uuid('ad_image_id').references(() => adImage.id, { onDelete: 'cascade' }),
     verticalId: text('vertical_id').notNull(),
     serviceId: text('service_id').notNull(),
     amount: doublePrecision('amount').notNull(),
@@ -110,6 +112,8 @@ export const pricePoint = pgTable(
     uniqueIndex('price_point_open_unique').on(t.trackedPageId, t.verticalId, t.serviceId, t.unit, t.qualifier, t.amount).where(sql`ended_at IS NULL AND tracked_page_id IS NOT NULL`),
     uniqueIndex('price_point_ad_open_unique').on(t.adId, t.verticalId, t.serviceId, t.unit, t.qualifier, t.amount).where(sql`ended_at IS NULL AND ad_id IS NOT NULL`),
     index('price_point_ad_idx').on(t.adId).where(sql`ad_id IS NOT NULL`),
+    check('price_point_ad_image_has_ad', sql`ad_image_id IS NULL OR ad_id IS NOT NULL`),
+    index('price_point_ad_image_idx').on(t.adImageId).where(sql`ad_image_id IS NOT NULL`),
     check('price_point_subject_check', sql`(tracked_page_id IS NULL) <> (ad_id IS NULL)`),
     index('price_point_series_idx').on(t.competitorId, t.verticalId, t.serviceId, t.firstSeenAt),
   ],
