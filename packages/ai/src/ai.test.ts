@@ -239,6 +239,20 @@ tasks:
   });
 });
 
+function parts(p: number, llmP = 0.99) {
+  const ledger: LedgerSink = { recordLlmCall: async () => {}, recordVendorCall: async () => {} };
+  const complete = vi.fn(async (req: { model: string }) => ({ text: JSON.stringify({ m: { probability: llmP } }), model: req.model, inputTokens: 1, outputTokens: 1, costUsd: 0 }));
+  const openrouter = { id: 'openrouter', complete } as unknown as ChatProvider;
+  const jev: DecisionProvider = {
+    id: 'jev',
+    decide: vi.fn(async () => ({
+      answers: { m: { type: 'noul', value: true, probability: p, confidence: Math.abs(p - 0.5) * 2 } },
+      model: 'jev-x', inputTokens: 1, outputTokens: 1, costUsd: 0,
+    })) as unknown as DecisionProvider['decide'],
+  };
+  return { openrouter, ledger, jev, complete };
+}
+
 describe('Ai images', () => {
   const image = { mediaType: 'image/jpeg' as const, data: new Uint8Array([1]), sha256: 'h' };
 
@@ -254,10 +268,10 @@ describe('Ai images', () => {
 
   it('decide with images skips keepSample even when needsReview is non-empty', async () => {
     const recordDecisionSample = vi.fn(async () => 's1');
-    const { openrouter, ledger, jev } = parts(0.5);
+    const { openrouter, ledger, jev } = parts(0.5, 0.5);
     const ai = createAi(config, { openrouter, jev: () => jev, ledger, samples: { recordDecisionSample }, random: () => 0 });
     const r = await ai.decide('img_jev', 's', q, scope, { images: [image] });
-    expect(r.needsReview.length).toBeGreaterThanOrEqual(0);
+    expect(r.needsReview).toEqual(['m']);
     expect(recordDecisionSample).not.toHaveBeenCalled();
     // control: without images the same low-confidence call is sampled
     await ai.decide('img_jev', 's', q, scope);
@@ -280,19 +294,6 @@ describe('Ai images', () => {
   });
 });
 
-function parts(p: number) {
-  const ledger: LedgerSink = { recordLlmCall: async () => {}, recordVendorCall: async () => {}, };
-  const complete = vi.fn(async (req: { model: string }) => ({ text: JSON.stringify({ m: { probability: 0.99 } }), model: req.model, inputTokens: 1, outputTokens: 1, costUsd: 0 }));
-  const openrouter = { id: 'openrouter', complete } as unknown as ChatProvider;
-  const jev: DecisionProvider = {
-    id: 'jev',
-    decide: vi.fn(async () => ({
-      answers: { m: { type: 'noul', value: true, probability: p, confidence: Math.abs(p - 0.5) * 2 } },
-      model: 'jev-x', inputTokens: 1, outputTokens: 1, costUsd: 0,
-    })) as unknown as DecisionProvider['decide'],
-  };
-  return { openrouter, ledger, jev, complete };
-}
 
 describe('Ai guard (7b1)', () => {
   const clientScope = { agencyId: scope.agencyId, clientId: '00000000-0000-4000-8000-0000000000c1' };
