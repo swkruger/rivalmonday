@@ -119,10 +119,10 @@ describe('renderBriefPdf map image', () => {
   const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0];
   const bytes = (head: number[], size: number) => Uint8Array.from({ length: size }, (_, i) => head[i] ?? 7);
-  const KEY = 'rank-map/client-a1/abc.png';
+  const KEY = `rank-map/${IDS.clientA1}/abc123.png`;
 
   let n = 0;
-  async function seedWithMap(): Promise<string> {
+  async function seedWithMap(key = KEY): Promise<string> {
     const id = await seedBrief('sent', `2026-11-${String(++n).padStart(2, '0')}`);
     const months = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
     const weeks = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 7, 2 + i * 7)).toISOString().slice(0, 10));
@@ -134,17 +134,17 @@ describe('renderBriefPdf map image', () => {
       rankings: {
         scanAt: day(-1).toISOString(), prevScanAt: null,
         keywords: [{ keyword: 'ac repair', you: { avgRank: 3.2, top3Share: 0.4, points: 3 }, prev: null, rivals: [] }],
-        map: { keyword: 'ac repair', objectKey: KEY, bounds: { west: -97.1, south: 32.9, east: -96.9, north: 33.1 }, width: 600, height: 400, points: [{ lat: 33, lng: -97, rank: 3 }] },
+        map: { keyword: 'ac repair', objectKey: key, bounds: { west: -97.1, south: 32.9, east: -96.9, north: 33.1 }, width: 600, height: 400, points: [{ lat: 33, lng: -97, rank: 3 }] },
       },
       moves: [], recommendations: [], alerts: [],
     };
     await dbs.owner.update(brief).set({ report, kind: 'standard' }).where(eq(brief.id, id));
     return id;
   }
-  async function render(content: Uint8Array | null): Promise<string> {
-    const id = await seedWithMap();
+  async function render(content: Uint8Array | null, key = KEY): Promise<string> {
+    const id = await seedWithMap(key);
     const store = createMemoryStore();
-    if (content) await store.put(KEY, content, 'image/png');
+    if (content) await store.put(key, content, 'image/png');
     const calls: string[] = [];
     await renderBriefPdf({ db: dbs.service, store, pdf: async (html: string) => (calls.push(html), new Uint8Array([1])) }, id);
     return calls[0]!;
@@ -159,6 +159,20 @@ describe('renderBriefPdf map image', () => {
 
   it('a JPEG gets the image/jpeg mime', async () => {
     expect(await render(bytes(JPEG_HEAD, 64))).toContain('data:image/jpeg;base64,');
+  });
+
+  it('a key outside this client\'s rank-map prefix is never read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      for (const key of [`rank-map/${IDS.clientB1}/abc123.png`, `evidence/${IDS.clientA1}/abc123.png`, `rank-map/${IDS.clientA1}/abc123.jpg`, `rank-map/${IDS.clientA1}/nested/abc123.png`]) {
+        const html = await render(bytes(PNG_HEAD, 64), key); // a valid PNG sits at the key: only the shape check can refuse it
+        expect(html).not.toContain('data:image');
+        expect(html).toContain('Average map position by keyword');
+      }
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes("not this client's rank-map key"))).toHaveLength(4);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('oversized or non-image object ⇒ mapImage null', async () => {

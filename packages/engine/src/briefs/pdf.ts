@@ -76,10 +76,12 @@ const mimeOf = (b: Uint8Array): 'image/png' | 'image/jpeg' | null =>
  * stored report (built from this client's `rank_map_image`), never a user-supplied URL. Missing, oversized or non-PNG/JPEG
  * objects are skipped (warned): the section then shows its keyword table only.
  */
-export async function loadMapImage(store: ObjectStore, report: BriefReport | null): Promise<BriefReportDocumentProps['mapImage']> {
+export async function loadMapImage(store: ObjectStore, clientId: string, report: BriefReport | null): Promise<BriefReportDocumentProps['mapImage']> {
   const map = report?.rankings?.map;
   if (!map) return null;
   const skip = (why: string) => (console.warn(`[briefs] map image skipped: ${why} (${map.objectKey})`), null);
+  // Defence in depth: the collectors build the key as rank-map/<clientId>/<hash>.png; any other key is never read.
+  if (!map.objectKey.startsWith(`rank-map/${clientId}/`) || !/^rank-map\/[^/]+\/[0-9a-f]+\.png$/.test(map.objectKey)) return skip("key is not this client's rank-map key");
   let bytes: Uint8Array | null;
   try {
     bytes = await store.get(map.objectKey);
@@ -99,7 +101,7 @@ export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ 
   if (v.b.status !== 'approved' && v.b.status !== 'sent') return { skipped: `brief is ${v.b.status}` };
   const report = storedReport(v);
   const live = report ? await deps.db.transaction((tx) => loadLiveChanges(tx, v.b)) : null;
-  const mapImage = await loadMapImage(deps.store, report);
+  const mapImage = await loadMapImage(deps.store, v.b.clientId, report);
   const html = await renderBriefReportDocument(briefReportProps(v, live, mapImage, report));
   const bytes = await deps.pdf(html, briefPdfMeta(v), { allowUrls: v.branding.logoUrl ? [v.branding.logoUrl] : [] });
   const key = briefPdfKey(v.b.agencyId, briefId);

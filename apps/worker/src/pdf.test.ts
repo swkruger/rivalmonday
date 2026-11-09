@@ -36,11 +36,36 @@ describe('pdf', () => {
     const withData = `<html><body><img width="100" height="100" src="data:image/png;base64,${png}"></body></html>`;
     const withBoth = `<html><body><img width="100" height="100" src="data:image/png;base64,${png}"><img width="50" height="50" src="https://example.invalid/x.png"></body></html>`;
     const withNet = '<html><body><img width="50" height="50" src="https://example.invalid/x.png"></body></html>';
-    // The aborted network image leaves Chromium's 14x16 broken-image icon; the embedded PNG is the only 2x2 image XObject.
-    const images = async (html: string) => (Buffer.from(await renderer(html, meta, { allowUrls: [] })).toString('latin1').match(/\/Subtype \/Image\s+\/Width 2\s+\/Height 2\b/g) ?? []).length;
-    expect(await images(withNet)).toBe(0); // the network image is aborted
-    expect(await images(withData)).toBe(1); // the data: image is not blocked
-    expect(await images(withBoth)).toBe(1); // only the data one
+    // Test-only seam: the launch hook wraps the page's `route` so the test sees every request URL the renderer's handler receives.
+    const routed: string[] = [];
+    const spied = createPdfRenderer(async () => {
+      const b = await chromium.launch({ headless: true });
+      const newContext = b.newContext.bind(b);
+      b.newContext = (async (o?: Parameters<typeof newContext>[0]) => {
+        const ctx = await newContext(o);
+        const newPage = ctx.newPage.bind(ctx);
+        ctx.newPage = (async () => {
+          const page = await newPage();
+          const route = page.route.bind(page);
+          page.route = ((url: Parameters<typeof route>[0], h: Parameters<typeof route>[1]) => route(url, (r, q) => (routed.push(q.url()), h(r, q)))) as typeof page.route;
+          return page;
+        }) as typeof ctx.newPage;
+        return ctx;
+      }) as typeof b.newContext;
+      return b;
+    });
+    try {
+      // The aborted network image leaves Chromium's 14x16 broken-image icon; the embedded PNG is the only 2x2 image XObject.
+      const images = async (html: string) => (Buffer.from(await spied(html, meta, { allowUrls: [] })).toString('latin1').match(/\/Subtype \/Image\s+\/Width 2\s+\/Height 2\b/g) ?? []).length;
+      expect(await images(withNet)).toBe(0); // the network image is aborted
+      expect(routed.some((u) => u.startsWith('https://example.invalid/'))).toBe(true); // the spy sees real requests
+      routed.length = 0;
+      expect(await images(withData)).toBe(1); // the data: image is not blocked
+      expect(await images(withBoth)).toBe(1); // only the data one
+      expect(routed.filter((u) => u.startsWith('data:'))).toEqual([]); // the route handler never saw a data: request
+    } finally {
+      await spied.close();
+    }
   }, 60_000);
 
   it('recovers when the cached browser disconnects after a successful render (worker is long-lived)', async () => {
