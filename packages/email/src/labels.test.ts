@@ -21,6 +21,7 @@ describe('GROUP_PHRASE', () => {
   it('has an entry for every CHANGE_LABELS key (except the cosmetic-only ones fall back sensibly)', () => {
     for (const t of Object.keys(CHANGE_LABELS)) expect(groupPhrase(t, null, 2), t).toMatch(/^2 \S/);
     for (const t of ['price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location', 'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content']) expect(GROUP_PHRASE[t], t).toBeTypeOf('function');
+    for (const t of ['status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page']) expect(GROUP_PHRASE[t], t).toBeTypeOf('function');
   });
   it('ad phrases name Google and Meta by channel', () => {
     expect(groupPhrase('ad_started', 'google_ads', 3)).toBe('3 Google ads started');
@@ -30,8 +31,14 @@ describe('GROUP_PHRASE', () => {
     expect(groupPhrase('ad_stopped', 'meta_ads', 2)).toBe('2 Meta ads stopped');
     expect(groupPhrase('ad_stopped', 'x', 2)).toBe('2 ads stopped');
   });
-  it('falls back to the label or a humanised type', () => {
-    expect(groupPhrase('status_change', null, 2)).toBe('2 opening status change changes');
+  it('gives the 18a types plain plural phrases', () => {
+    expect(groupPhrase('status_change', null, 2)).toBe('2 opening status changes');
+    expect(groupPhrase('profile_change', null, 2)).toBe('2 profile changes');
+    expect(groupPhrase('audience_growth', null, 2)).toBe('2 audience growth updates');
+    expect(groupPhrase('site_feature', null, 2)).toBe('2 website tool changes');
+    expect(groupPhrase('new_page', null, 2)).toBe('2 new website pages');
+  });
+  it('falls back to the label or a humanised type for an unmapped type', () => {
     expect(groupPhrase('brand_new_type', null, 2)).toBe('2 brand new type changes');
   });
 });

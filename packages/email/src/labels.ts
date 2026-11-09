@@ -29,6 +29,11 @@ export const GROUP_PHRASE: Record<string, (channel: string | null) => string> = 
   rank_change: () => 'local ranking changes',
   tier_change: () => 'tier changes',
   content: () => 'website changes',
+  status_change: () => 'opening status changes',
+  profile_change: () => 'profile changes',
+  audience_growth: () => 'audience growth updates',
+  site_feature: () => 'website tool changes',
+  new_page: () => 'new website pages',
 };
 
 /** "3 price changes"; an unmapped type falls back to "<label> changes" (label lower-cased, or the humanised type). */
