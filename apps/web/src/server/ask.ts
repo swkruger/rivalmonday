@@ -1,7 +1,7 @@
 import 'server-only';
 import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import { aiPauseOf, ASK_COPY, askPausedCopy, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
-import { createScriptedAskAi, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
+import { createScriptedAskAi, type ScriptedChatRequest, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
 import { type AccessContext, type AiGuard, canAccessClient, hasChannel, ToolError } from '@cs/core';
 import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
@@ -60,7 +60,18 @@ function firstKbHit(content: string): { kbId: string; title: string } | null {
  * E2E fake chat: first `search_events` for the turn's client, then an answer citing the first evidence id found. When
  * the question says "as useful" it instead proposes `submit_feedback` (useful) on the first found event.
  */
-function e2eReply(req: { messages: { role: string; content: string | null }[]; toolChoice?: 'auto' | 'none' }): ScriptedReply {
+function e2eReply(request: ScriptedChatRequest): ScriptedReply {
+  // Ask never sends image parts: read every message as text only (user content may be a part list).
+  const req = {
+    toolChoice: request.toolChoice,
+    messages: request.messages.map((m) => ({
+      role: m.role,
+      content:
+        m.role === 'user' && typeof m.content !== 'string'
+          ? m.content.flatMap((p) => (p.type === 'text' ? [p.text] : [])).join('')
+          : (m.content as string | null),
+    })),
+  };
   const turnLine = req.messages.find((m) => m.role === 'system' && /\(clientId [0-9a-f-]{36}\)/i.test(m.content ?? ''))?.content ?? '';
   const clientId = /\(clientId ([0-9a-f-]{36})\)/i.exec(turnLine)?.[1];
   const last = req.messages.at(-1);
