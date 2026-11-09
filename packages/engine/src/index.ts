@@ -1,4 +1,7 @@
 export * from './stage';
+export * from './ads/images';
+export * from './ads/triage-questions';
+export * from './ads/image-triage-stage';
 export * from './sweep';
 export * from './drain';
 export * from './diff';
