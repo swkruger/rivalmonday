@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createJevProvider } from './jev';
 
@@ -22,16 +25,25 @@ describe.skipIf(!key)('Jev live contract', () => {
     expect(r.answers.size.value).toBeLessThanOrEqual(2);
     expect(r.answers.size.type === 'score' && typeof r.answers.size.expected).toBe('number');
   }, 30_000);
+});
 
-  it('reads a synthetic JPEG passed as an image_url content part (state_content)', async () => {
-    // Smallest valid 1x1 JPEG; Jev only has to accept the request shape and answer.
-    const jpeg = Uint8Array.from(Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64'));
+// Opt-in on top of the key: sends a real image (about $0.0001). JEV_LIVE_IMAGES=1 vitest run src/decisions/jev.live -t "price image"
+describe.skipIf(!key || process.env.JEV_LIVE_IMAGES !== '1')('Jev live contract (images)', () => {
+  it('reads a price image passed as an image_url content part (state_content)', async () => {
+    const data = new Uint8Array(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '__fixtures__', 'price-89.jpg')));
     const jev = createJevProvider({ apiKey: key as string, fallbackUsdPerMtok: 0.042, appName: 'RivalMonday-live-test', appUrl: 'http://localhost:3000' });
     const r = await jev.decide(
-      { note: 'An advertisement image is attached.' },
-      { has_price: { type: 'noul', instructions: 'Does the attached image show a price?' } },
-      { images: [{ mediaType: 'image/jpeg', data: jpeg, sha256: '0'.repeat(64) }] },
+      { competitor: 'Example HVAC', ad_title: '' },
+      {
+        shows_price: {
+          type: 'noul',
+          instructions: 'The image shows a money amount as the price of a service, such as "$89" or "from $49". A percentage, the word "free", or a discount amount alone (such as "$50 off") is not a price.',
+        },
+      },
+      { images: [{ mediaType: 'image/jpeg', data, sha256: '0'.repeat(64) }] },
     );
-    expect(r.answers.has_price.type).toBe('noul');
+    const a = r.answers.shows_price;
+    console.log('[jev-live-image]', JSON.stringify({ answer: a, model: r.model, inputTokens: r.inputTokens, costUsd: r.costUsd }));
+    expect(a.type === 'noul' && a.probability).toBeGreaterThanOrEqual(0.85);
   }, 30_000);
 });
