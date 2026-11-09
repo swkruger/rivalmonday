@@ -1,4 +1,4 @@
-import { changeEvent, clientCompetitor, competitor, eventScore, move, type Tx } from '@cs/db';
+import { changeEvent, clientCompetitor, competitor, type Db, eventScore, move, type Tx } from '@cs/db';
 import { changeTypeLabel } from '@cs/email';
 import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { liveEventCount } from './scope';
@@ -40,8 +40,8 @@ export function combinePressure(signals: PressureSignal[]): Pressure {
   return { score, level: score >= 70 ? 'high' : score >= 40 ? 'elevated' : 'low', reasons: reasons.length ? reasons : ['Quiet'] };
 }
 
-/** Pressure per tracked competitor of each client (decision 10), strongest first. Run inside `withTenant`. */
-export async function pressureByClient(tx: Tx, clientIds: string[], now: Date): Promise<Map<string, CompetitorPressure[]>> {
+/** Pressure per tracked competitor of each client (decision 10), strongest first. Run inside `withTenant`, or with the service DB filtered by client_id. */
+export async function pressureByClient(tx: Tx | Db, clientIds: string[], now: Date): Promise<Map<string, CompetitorPressure[]>> {
   const out = new Map<string, CompetitorPressure[]>();
   if (clientIds.length === 0) return out;
   const since = new Date(now.getTime() - PRESSURE_WINDOW_DAYS * 86_400_000);

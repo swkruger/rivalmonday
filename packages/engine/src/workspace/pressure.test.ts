@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { combinePressure, moveWeight } from './pressure';
+import type { Db, Tx } from '@cs/db';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { combinePressure, moveWeight, pressureByClient } from './pressure';
 
 describe('combinePressure (decision 10)', () => {
   it('is quiet with no signals', () => {
@@ -23,5 +24,11 @@ describe('combinePressure (decision 10)', () => {
     expect(moveWeight('active', 1)).toBeCloseTo(0.8);
     expect(moveWeight('emerging', 1)).toBeCloseTo(0.5);
     expect(moveWeight('fading', 0.5)).toBeCloseTo(0.15);
+  });
+});
+
+describe('pressureByClient signature', () => {
+  it('accepts a tenant Tx or the service Db (type-level proof)', () => {
+    expectTypeOf(pressureByClient).parameter(0).toEqualTypeOf<Tx | Db>();
   });
 });
