@@ -1,5 +1,6 @@
 import { promises as dns } from 'node:dns';
 import { isIP } from 'node:net';
+import { type TimedFetch, timedFetch } from '@cs/core/server';
 import { BOT_USER_AGENT, type FetchText, readCapped } from '../web/user-agent';
 
 /**
@@ -157,3 +158,69 @@ export const guardedFetchText: FetchText = createGuardedFetchText();
 
 /** The crawler's fetch for robots.txt, sitemaps and discovery (worker deps): always the guarded one. */
 export const defaultFetchText: FetchText = guardedFetchText;
+
+/**
+ * Reads at most `max` bytes; past it cancels the stream and reports tooLarge (nothing kept).
+ */
+export async function readBytesCapped(stream: ReadableStream<Uint8Array> | null, max: number): Promise<{ bytes: Uint8Array; tooLarge: boolean }> {
+  if (!stream) return { bytes: new Uint8Array(0), tooLarge: false };
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > max) return { bytes: new Uint8Array(0), tooLarge: true };
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.byteLength; }
+  return { bytes: out, tooLarge: false };
+}
+
+export type FetchBytes = (url: string, o: { maxBytes: number; accept: string }) =>
+  Promise<{ status: number; bytes: Uint8Array | null; finalUrl: string; tooLarge: boolean }>;
+
+/**
+ * Binary twin of createGuardedFetchText (18a-3 D2): redirects followed by hand (`redirect: 'manual'`, at most 5),
+ * the start URL and every hop asserted before it is requested, honest UA, `timeoutMs` per hop (P3: a limited fetch
+ * counts time from its slot). Non-2xx returns `bytes: null`; a declared or streamed body over `maxBytes` returns
+ * `tooLarge: true` with no bytes. SsrfBlockedError and network errors propagate.
+ */
+export function createGuardedFetchBytes(opts: { fetch?: TimedFetch; assertUrl?: (url: string) => Promise<void> } = {}): FetchBytes {
+  const assertUrl = opts.assertUrl ?? ((u: string) => assertPublicUrl(u));
+  const doFetch = opts.fetch ?? timedFetch();
+  return async (url, o) => {
+    let current = url;
+    for (let hop = 0; ; hop++) {
+      await assertUrl(current);
+      const res = await doFetch(current, { headers: { 'user-agent': BOT_USER_AGENT, accept: o.accept }, redirect: 'manual', timeoutMs: TIMEOUT_MS });
+      const location = isRedirect(res.status) ? res.headers.get('location') : null;
+      if (location) {
+        await res.body?.cancel().catch(() => {});
+        if (hop >= MAX_REDIRECTS) throw new Error(`too many redirects (more than ${MAX_REDIRECTS}) from ${url}`);
+        current = new URL(location, current).href;
+        continue;
+      }
+      if (res.status < 200 || res.status > 299) {
+        await res.body?.cancel().catch(() => {});
+        return { status: res.status, bytes: null, finalUrl: current, tooLarge: false };
+      }
+      const declared = Number(res.headers.get('content-length') ?? NaN);
+      if (Number.isFinite(declared) && declared > o.maxBytes) {
+        await res.body?.cancel().catch(() => {});
+        return { status: res.status, bytes: null, finalUrl: current, tooLarge: true };
+      }
+      const read = await readBytesCapped(res.body, o.maxBytes);
+      return { status: res.status, bytes: read.tooLarge ? null : read.bytes, finalUrl: current, tooLarge: read.tooLarge };
+    }
+  };
+}
+
+export const guardedFetchBytes: FetchBytes = createGuardedFetchBytes();

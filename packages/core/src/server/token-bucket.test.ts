@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createVendorLimiter, timedFetch } from './token-bucket';
+import { createVendorLimiter, DEFAULT_VENDOR_LIMITS, timedFetch } from './token-bucket';
 
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 
@@ -165,5 +165,11 @@ describe('timedFetch', () => {
     expect(seen).not.toHaveProperty('timeoutMs');
     ac.abort();
     expect(seen!.signal!.aborted).toBe(true);
+  });
+});
+
+describe('DEFAULT_VENDOR_LIMITS', () => {
+  it('caps ad_media (Google ad image downloads) at 4 concurrent fetches', () => {
+    expect(DEFAULT_VENDOR_LIMITS.ad_media).toEqual({ concurrent: 4 });
   });
 });

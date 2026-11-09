@@ -1,7 +1,8 @@
 import http from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { BOT_TOKEN } from '../web/user-agent';
-import { allowlistedAssert, assertPublicUrl, createGuardedFetchText, defaultFetchText, guardedFetchText, isPublicAddress, isPublicHttpUrl, type LookupFn, SsrfBlockedError } from './guard';
+import { BOT_TOKEN, BOT_USER_AGENT } from '../web/user-agent';
+import type { TimedFetch } from '@cs/core/server';
+import { allowlistedAssert, assertPublicUrl, createGuardedFetchBytes, createGuardedFetchText, defaultFetchText, guardedFetchBytes, guardedFetchText, isPublicAddress, isPublicHttpUrl, type LookupFn, readBytesCapped, SsrfBlockedError } from './guard';
 
 describe('isPublicHttpUrl', () => {
   it.each(['https://example.com/a', 'http://www.example.co.uk/x?y=1', 'https://8.8.8.8/', 'https://[2606:4700::1111]/'])('allows %s', (u) => {
@@ -264,5 +265,104 @@ describe('allowlistedAssert', () => {
     const f = createGuardedFetchText({ fetch: fetch as unknown as typeof globalThis.fetch, assertUrl: assert });
     await expect(f('https://listed.example/start')).rejects.toBeInstanceOf(SsrfBlockedError);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createGuardedFetchBytes', () => {
+  const publicLookup = lookupOf(['93.184.216.34']);
+  const bytesOf = (...chunks: number[][]) => new ReadableStream<Uint8Array>({
+    start(c) { for (const ch of chunks) c.enqueue(new Uint8Array(ch)); c.close(); },
+  });
+  type ByteRes = { status: number; location?: string; body?: BodyInit; headers?: Record<string, string> };
+  function fakeByteFetch(routes: Record<string, ByteRes>) {
+    return vi.fn(async (input: string | URL | Request, init?: RequestInit & { timeoutMs?: number }) => {
+      const url = String(input);
+      expect(init?.redirect).toBe('manual');
+      const r = routes[url];
+      if (!r) throw new Error(`unexpected fetch ${url}`);
+      const headers: Record<string, string> = { ...(r.headers ?? {}) };
+      if (r.location) headers.location = r.location;
+      return new Response(r.body ?? null, { status: r.status, headers });
+    });
+  }
+  const bytesGuard = (f: ReturnType<typeof fakeByteFetch>, lookup: LookupFn = publicLookup) =>
+    createGuardedFetchBytes({ fetch: f as unknown as TimedFetch, assertUrl: (u) => assertPublicUrl(u, lookup) });
+  const opts = { maxBytes: 1024, accept: 'image/*' };
+
+  it('follows a relative redirect and asserts every hop', async () => {
+    const f = fakeByteFetch({
+      'https://ads.example/a': { status: 301, location: '/b' },
+      'https://ads.example/b': { status: 302, location: 'https://cdn.ads.example/c.png' },
+      'https://cdn.ads.example/c.png': { status: 200, body: new Uint8Array([1, 2, 3]) },
+    });
+    const lookup = lookupOf(['93.184.216.34']);
+    const out = await bytesGuard(f, lookup)('https://ads.example/a', opts);
+    expect(out.status).toBe(200);
+    expect(out.finalUrl).toBe('https://cdn.ads.example/c.png');
+    expect(out.tooLarge).toBe(false);
+    expect(Array.from(out.bytes!)).toEqual([1, 2, 3]);
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(lookup).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['http://127.0.0.1:8080/admin', 'http://169.254.169.254/latest/meta-data'])('refuses a redirect to %s (SsrfBlockedError)', async (to) => {
+    const f = fakeByteFetch({ 'https://ads.example/a': { status: 302, location: to } });
+    await expect(bytesGuard(f)('https://ads.example/a', opts)).rejects.toBeInstanceOf(SsrfBlockedError);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after 5 redirects', async () => {
+    const routes: Record<string, ByteRes> = {};
+    for (let i = 0; i < 10; i++) routes[`https://ads.example/${i}`] = { status: 302, location: `/${i + 1}` };
+    const f = fakeByteFetch(routes);
+    await expect(bytesGuard(f)('https://ads.example/0', opts)).rejects.toThrow(/redirect/i);
+    expect(f).toHaveBeenCalledTimes(6); // the start URL + 5 followed redirects
+  });
+
+  it('a declared content-length over maxBytes is tooLarge, no bytes, and the body is cancelled', async () => {
+    const cancelled = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) { c.enqueue(new Uint8Array(10)); },
+      cancel: cancelled,
+    });
+    const f = fakeByteFetch({ 'https://ads.example/big.jpg': { status: 200, body, headers: { 'content-length': '999999' } } });
+    const out = await bytesGuard(f)('https://ads.example/big.jpg', opts);
+    expect(out).toEqual({ status: 200, bytes: null, finalUrl: 'https://ads.example/big.jpg', tooLarge: true });
+    expect(cancelled).toHaveBeenCalled();
+  });
+
+  it('a streamed body over maxBytes without content-length is tooLarge with no bytes', async () => {
+    const f = fakeByteFetch({ 'https://ads.example/s.jpg': { status: 200, body: bytesOf(new Array(800).fill(1), new Array(800).fill(2)) } });
+    const out = await bytesGuard(f)('https://ads.example/s.jpg', opts);
+    expect(out).toEqual({ status: 200, bytes: null, finalUrl: 'https://ads.example/s.jpg', tooLarge: true });
+  });
+
+  it('404 gives bytes null and the status', async () => {
+    const f = fakeByteFetch({ 'https://ads.example/gone.jpg': { status: 404 } });
+    await expect(bytesGuard(f)('https://ads.example/gone.jpg', opts)).resolves.toEqual({ status: 404, bytes: null, finalUrl: 'https://ads.example/gone.jpg', tooLarge: false });
+  });
+
+  it('sends BOT_USER_AGENT, the accept header and timeoutMs on each hop', async () => {
+    const f = fakeByteFetch({
+      'https://ads.example/a': { status: 302, location: '/b' },
+      'https://ads.example/b': { status: 200, body: new Uint8Array([9]) },
+    });
+    await bytesGuard(f)('https://ads.example/a', { maxBytes: 1024, accept: 'image/png' });
+    expect(f).toHaveBeenCalledTimes(2);
+    for (const call of f.mock.calls) {
+      const init = call[1] as RequestInit & { timeoutMs?: number; headers: Record<string, string> };
+      expect(init.headers['user-agent']).toBe(BOT_USER_AGENT);
+      expect(init.headers.accept).toBe('image/png');
+      expect(init.timeoutMs).toBe(10_000);
+    }
+  });
+
+  it('readBytesCapped returns empty bytes for a null body and reports tooLarge past the cap', async () => {
+    await expect(readBytesCapped(null, 10)).resolves.toEqual({ bytes: new Uint8Array(0), tooLarge: false });
+    await expect(readBytesCapped(bytesOf([1, 2, 3, 4, 5, 6]), 5)).resolves.toEqual({ bytes: new Uint8Array(0), tooLarge: true });
+  });
+
+  it('is exported as a ready guarded fetch', () => {
+    expect(typeof guardedFetchBytes).toBe('function');
   });
 });

@@ -2,7 +2,7 @@
  * One in-process limiter for every vendor/AI call a process makes (7c2 decisions 3 and 7). A slot is held until response
  * headers arrive; the request timeout starts only after the slot is granted, so queueing never eats the vendor's budget.
  */
-export type VendorKey = 'openrouter' | 'jev' | 'dataforseo' | 'apify' | 'scrapecreators' | 'stadia';
+export type VendorKey = 'openrouter' | 'jev' | 'dataforseo' | 'apify' | 'scrapecreators' | 'stadia' | 'ad_media';
 export interface VendorLimit { concurrent?: number; perSecond?: number }
 
 export const DEFAULT_VENDOR_LIMITS: Record<VendorKey, VendorLimit> = {
@@ -12,6 +12,7 @@ export const DEFAULT_VENDOR_LIMITS: Record<VendorKey, VendorLimit> = {
   apify: { concurrent: 3 },
   scrapecreators: { perSecond: 5 },
   stadia: { perSecond: 5 },
+  ad_media: { concurrent: 4 },
 };
 
 export type TimedFetch = (input: string | URL | Request, init?: RequestInit & { timeoutMs?: number }) => Promise<Response>;
