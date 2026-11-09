@@ -1,7 +1,11 @@
 import { type AccessContext, canAccessClient, ToolError } from '@cs/core';
-import { changeEvent, client, clientCompetitor, eventChange, eventScore, move, withTenant } from '@cs/db';
-import { and, desc, eq, inArray, isNull, type SQL, sql } from 'drizzle-orm';
+import { changeEvent, client, clientCompetitor, eventChange, eventScore, withTenant } from '@cs/db';
+import { and, desc, eq, inArray } from 'drizzle-orm';
+import { clientEvents, eventJoin } from '@cs/engine';
 import type { ToolDeps } from '../deps';
+
+// Moved to `@cs/engine`; re-exported so tools importers don't change.
+export { clientEvents, eventJoin, liveEventCount } from '@cs/engine';
 
 export interface WorkspaceClient {
   id: string;
@@ -37,15 +41,6 @@ export async function requireVisibleClient(deps: ToolDeps, ctx: AccessContext, c
   const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ id: client.id }).from(client).where(eq(client.id, clientId)));
   if (!c) throw new ToolError('not_found', 'Client not found');
 }
-
-/** Decision 3 joins: event_score → event, and the event's competitor still tracked by this client. */
-export const eventJoin = {
-  change: eq(changeEvent.id, eventScore.eventId),
-  tracked: and(eq(clientCompetitor.clientId, eventScore.clientId), eq(clientCompetitor.competitorId, changeEvent.competitorId))!,
-};
-
-/** Decision 3 condition — scored for this client and not retracted. Every workspace event reader uses it. */
-export const clientEvents = (clientId: string): SQL => and(eq(eventScore.clientId, clientId), isNull(changeEvent.retractedAt))!;
 
 /**
  * Of `eventIds`, the newest one this client may see under decision 3 (one RLS query), or null. Used when a change is
@@ -91,7 +86,3 @@ export async function requireVisibleEvent(deps: ToolDeps, ctx: AccessContext, cl
 
 /** Escapes `\`, `%` and `_` for a LIKE/ILIKE pattern (Postgres' default escape character is `\`). */
 export const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (m) => `\\${m}`);
-
-/** Decision 10: live supporting events of a move (the quarterly-report rule). Moves, the profile and pressure
- * count or list a move only while this is > 0. */
-export const liveEventCount = sql<number>`(SELECT count(*)::int FROM move_event me JOIN event e ON e.id = me.event_id WHERE me.move_id = ${move.id} AND e.retracted_at IS NULL)`;

@@ -44,3 +44,7 @@ export * from './delivery';
 export * from './alerts';
 export * from './reports';
 export * from './rehearsal-ai';
+export * from './workspace/scope';
+export * from './workspace/pressure';
+export * from './workspace/ads';
+export * from './workspace/kpi';

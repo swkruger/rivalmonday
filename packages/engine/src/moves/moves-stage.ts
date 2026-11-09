@@ -24,6 +24,8 @@ export function nextStatus(firstDetectedAt: Date, f: Pick<MoveFinding, 'confiden
  * Active ads now vs the mean active count at weekly points over the past 84 days (spec §6.4 ad surge). Only
  * points on/after the competitor's first ok ad capture count — before it we simply were not looking, which
  * is not the same as zero ads — and `historyWeeks` says how many points that left.
+ *
+ * Twin: `adWeeklySeries` (`../workspace/ads.ts`) uses the same ad-at-time predicate and first-capture rule; change both together (preflight D3).
  */
 export async function adActivity(db: Db, competitorId: string, now: Date): Promise<AdActivity> {
   const at = now.toISOString();

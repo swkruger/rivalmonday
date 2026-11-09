@@ -1,11 +1,10 @@
 import { isAgencyRole, toolkit } from '@cs/core';
 import { gbpSummary } from '@cs/collectors';
-import { changeEvent, clientCompetitor, competitor, eventScore, type NumericChange, observation, prospectReport, withTenant } from '@cs/db';
+import { changeEvent, clientCompetitor, competitor, eventScore, observation, prospectReport, withTenant } from '@cs/db';
 import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
-import { pressureByClient } from '../pressure';
-import { adWeeklySeries } from '../workspace/ads';
+import { adWeeklySeries, isPriceCut, pressureByClient, sumPoints, weeklyCounts } from '@cs/engine';
 import { allInOrder, clientEvents, eventJoin, workspaceClient } from '../workspace/scope';
 import { AdActivityView, WorkspaceOverview } from './schemas';
 
@@ -40,13 +39,6 @@ export const getAdActivity = defineTool({
   },
 });
 
-const isPriceCut = (f: NumericChange): boolean =>
-  f.kind === 'price' && typeof f.before?.value === 'number' && typeof f.after?.value === 'number' && f.after.value < f.before.value;
-
-/** Sum of the given points, or null when every point is null (decision 12). */
-const sumPoints = (points: (number | null)[]): number | null =>
-  points.every((p) => p === null) ? null : points.reduce<number>((s, p) => s + (p ?? 0), 0);
-
 export const getWorkspaceOverview = defineTool({
   name: 'get_workspace_overview',
   access: 'read',
@@ -60,8 +52,6 @@ export const getWorkspaceOverview = defineTool({
     const since = new Date(now.getTime() - 7 * DAY);
     const recent = and(clientEvents(clientId), gte(eventScore.scoredAt, since));
     const trendSince = new Date(now.getTime() - TREND_WEEKS * 7 * DAY);
-    // A row stamped after `now` (database clock, or written mid-request) belongs in the latest window.
-    const weekIndex = (at: Date) => Math.min(TREND_WEEKS - 1, TREND_WEEKS - 1 - Math.floor((now.getTime() - at.getTime()) / (7 * DAY)));
     // Launch-gate 6a: the client check and every RLS read start together; the reads are pipelined in one transaction
     // (none needs another's result). `clientId` is the checked client's id; the client's refusal still comes first.
     const [c, { tracked, pressure, counts, priceRows, routedRows, latestReport }] = await allInOrder([
@@ -94,14 +84,6 @@ export const getWorkspaceOverview = defineTool({
       return !!service && c.services.includes(service);
     });
     const priceMoves = allPriceMoves.filter((r) => r.scoredAt >= since);
-    const weeklyCounts = (rows: { scoredAt: Date }[]) => {
-      const out = Array<number>(TREND_WEEKS).fill(0);
-      for (const r of rows) {
-        const i = weekIndex(r.scoredAt);
-        if (i >= 0) out[i]! += 1;
-      }
-      return out;
-    };
 
     // Global rows (`ad`, `capture`, `observation`) — visibility proved by the RLS reads above (the self business through
     // `client.self_competitor_id`).
@@ -128,7 +110,7 @@ export const getWorkspaceOverview = defineTool({
       priceCuts7d: priceMoves.filter((r) => (r.facts ?? []).some(isPriceCut)).length,
       activeAds: adTotals[TREND_WEEKS - 1]!,
       activeAds7dAgo: adTotals[TREND_WEEKS - 2]!,
-      weekly: { changes: weeklyCounts(routedRows), priceMoves: weeklyCounts(allPriceMoves), activeAds: adTotals },
+      weekly: { changes: weeklyCounts(routedRows, now, TREND_WEEKS), priceMoves: weeklyCounts(allPriceMoves, now, TREND_WEEKS), activeAds: adTotals },
       rating: {
         self: c.selfCompetitorId ? ratingOf(c.selfCompetitorId) : null,
         competitorAverage: ratings.length ? Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10) / 10 : null,
