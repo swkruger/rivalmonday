@@ -53,6 +53,7 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Marketing site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; claims only from the claims ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; pilot = waitlist; site client price default $249 (`DEFAULT_CLIENT_PRICE_USD`).
 - **Stats & controls:** stat-card traces from real history only; one 36 px control height.
 - **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters.
+- **Brief report (2026-11-07):** every change graded Major ≥ T / Notable ≥ T/2 / Minor vs the brief threshold (default 40), same lines in email, app and PDF; quiet = no written item and no live Major; weekly PDF = agency-branded full report attached to the email (link fallback), never Ask; graded lines read-only (retraction only); `get_brief` `changes` web channel only.
 - Phase-local decisions: each plan's "Decisions"; don't re-open.
 
 ## Process (owner preference)

@@ -406,7 +406,12 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] `alert_digest` rows not re-checked for retraction at send time; possible duplicate `alert-process` spend on a race; auto-send vs concurrent-edit race — *from 4b final review*
 - [ ] Alerts: approval feedback says "approved" when release withdraws; withdrawn alert sends no `am_alert`; > 7-day alert approvable before sweep expiry; client with no contacts still marked delivered — *from 4b Tasks 12–13*
 - [ ] Quarterly report counts recommendations by *current* status, not at quarter end; `renderReportPdf` untested, no status guard — *from 4b Task 17*
-- [ ] Starting point (parked): home card when exhausted after 3 attempts; `editBriefItem` false warnings on self items; standard→quiet-at-delivery brief has no scorecard; self `ads_google` diff/tag spend; soften facts (BASELINE_BODY "map rankings" when none, 0-review velocity, `complete_profile` claim wording) — *from 12b final review*
+- [ ] Starting point (parked): home card when exhausted after 3 attempts; `editBriefItem` false warnings on self items; self `ads_google` diff/tag spend; soften facts (BASELINE_BODY "map rankings" when none, 0-review velocity, `complete_profile` claim wording) — *from 12b final review*
+- [ ] Agency control to hide a single Notable/Minor change line, if pilots ask (O5) — *from brief-report*
+- [ ] Graded `changes` on MCP/Ask `get_brief` (web channel only today; needs eval re-record) — *from brief-report*
+- [ ] "See all changes this week" filters the Changes page by occurred day while graded lines window by `scored_at` (events up to 30 d older can be missing; client vs viewer tz day edges); add `search_events` date bounds if it misleads — *from brief-report*
+- [ ] Print grey `#A3B1C2` for rival lines is faint on paper (2.18:1); try ~`#8796A8` if pilots say so — *from brief-report*
+- [ ] Brief page fires up to 12 concurrent tool calls (pool pressure under load); PDF attachment backoff also trips on non-render errors — *from brief-report final review*
 
 ### Code quality & test gaps (fold in when touching the file)
 - [ ] phase-11-fixes: third haversine copy (collectors `filters.ts`, intake `preview.ts`, setup `lookup.ts`) -> consolidate into `core/geo.ts`; listing collapse with mixed placeId/cid is not transitive; phone extensions don't match as duplicates; tests: `get_client_setup` ready with services only, no E2E for the "already passed" pilot refusal; a11y: `ErrorNote` role=alert + focus may double-announce, document `focusKey` stability, global `scrollIntoView` stub in tests - *phase-11-fixes*
