@@ -67,7 +67,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'get_audience_trend': return { pages: [] };
     case 'list_ads':
       return {
-        items: m.empty ? [] : [{ id: 'a1', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: 'image', title: '$49 tune-up', text: 'Book now', landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null }],
+        items: m.empty ? [] : [{ id: 'a1', competitorId: X, competitorName: 'Smith HVAC', platform: 'meta', format: 'image', title: '$49 tune-up', text: 'Book now', landingUrl: null, firstSeenAt: '2026-09-12T00:00:00.000Z', lastSeenAt: '2026-10-06T00:00:00.000Z', endedAt: null, active: true, libraryUrl: null, imageEvidenceIds: [] }],
         hasMore: false,
       };
     // Rankings
