@@ -2,25 +2,25 @@
 
 # Rival Monday (repo codename CompetitorSpy)
 
-Agency-owned white-label SaaS that monitors competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, a remote **MCP server**, an in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to the agency's clients first, then wholesale.
+Agency-owned white-label SaaS monitoring competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, a remote **MCP server**, an in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to the agency's clients first, then wholesale.
 
 **Start with `/rm-start`.**
 
 ## Where things are
 | Need | Read |
 |---|---|
-| State of `main`, next up | `docs/STATE.md` (≤ 12 KB) |
-| This branch's state | `docs/work/<branch>.md` (other branches: `git show <b>:docs/work/<b>.md`) |
+| State of `main`, next up | `docs/STATE.md` |
+| Branch state | `docs/work/<branch>.md` (others: `git show <b>:docs/work/<b>.md`) |
 | What's built, where | `docs/ARCHITECTURE.md` |
 | Open work by target phase | `docs/BACKLOG.md` |
 | Binding spec | `docs/superpowers/specs/2026-09-29-core-platform-design.md` (cited § only) |
 | Phase table | `docs/superpowers/plans/2026-09-29-roadmap.md` |
-| Live-data runbook (`cs_dev`) | `docs/OPS.md` |
+| Live-data runbook | `docs/OPS.md` |
 | Package gotchas | `<package>/CLAUDE.md` (auto-loaded) |
-| Cross-cutting gotchas, env | `docs/gotchas-cross-cutting.md` |
+| Cross-cutting gotchas | `docs/gotchas-cross-cutting.md` |
 | Vendor API contracts | `docs/research/2026-09-30-phase-2-vendor-apis.md` |
 | Brand, mockups | `docs/brand/` |
-| **Design system (binding)** | `docs/design-system/README.md`; agents implementing UI: `09-ai-implementation-playbook.md` |
+| **Design system (binding)** | `docs/design-system/README.md`; UI agents: `09-ai-implementation-playbook.md` |
 | Old handover | `docs/archive/` (don't read) |
 
 ## Decisions (do not re-litigate)
@@ -37,24 +37,23 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 - **Billing (9):** platform → agency (Stripe Billing): pilot / 30-day trial / $229/mo or $2,290/yr incl. 3 clients, 4–10 $79, 11+ $59, graduated (`@cs/billing` `pricing.ts`); yearly seat cuts at renewal; soft sign-up fence. Agency → client: Connect Standard, direct, fee 0; nothing client-facing names Rival Monday. Paused client: no work, no seat.
 - **Agency onboarding (10):** self-sign-up (open trial: 1 active client, weekly pages until a card) or invite link; verify-then-create; wizard skippable.
 - **Client onboarding (11):** resumable wizard (lookup → profile → competitors → invite owner → billing); starting-point clock starts when competitors are done (14-day cap). Clients self-start only via an agency intake link or the platform pool; `/start` may show Rival Monday until assigned.
-- **Local rankings (13b):** map backgrounds = Stadia static images cached in our evidence store (not MapTiler); weekly scans Sunday 06:00 UTC count against the client cap; Scan now <= 1/client/7 d, <= 10/agency/day.
+- **Local rankings (13b):** map backgrounds = Stadia static images cached in our evidence store; weekly scans Sun 06:00 UTC count against the client cap; Scan now <= 1/client/7 d, <= 10/agency/day.
 - **UX & IA (15):** context switcher Platform/Agency/Client (one at a time, URL-derived, navigation only, own memberships; other agencies via support session); Ask {assistant} first in client view only; settings under `/agency/settings/*` and `/c/<id>/settings/*`; every page uses `PageHeader` (title = menu label, breadcrumb).
 - **Verticals & runbooks (Phase 14):** verticals/business areas = global DB catalogue (anyone creates, operators review/merge); runbooks copy platform → agency → client, client plays AI-tailored; HVAC/dental keep legacy pack plays until they get a client runbook.
-- **Page fixes (15c):** one `standard` plan; versions carry Ask/MCP; agencies move to the current version at next billing; miles in UI, km stored; dates in viewer tz (`viewerTimeZone`/`rm_tz`); no route `loading.tsx` (use `Suspense`); `postWebhook` = only webhook POST; brand-colour button text via `readableTextOn`; trial end = UTC date; status text via `lib/labels.ts`; hold = `agency.suspended_*` (read-only, billing frozen); archive refuses live billing; operator invites never name the operator.
+- **Page fixes (15c):** one `standard` plan, versions carry Ask/MCP, agencies move to current at next billing; miles in UI, km stored; dates in viewer tz (`viewerTimeZone`/`rm_tz`); no route `loading.tsx` (`Suspense`); `postWebhook` = only webhook POST; brand button text via `readableTextOn`; trial end = UTC date; status text via `lib/labels.ts`; hold = `agency.suspended_*` (read-only, billing frozen); archive refuses live billing; operator invites never name the operator.
 - **Help (15b):** guides = `docs/help/pages/` Markdown via `kb:seed` (`help_key` `page:<context>.<page>`; client roles never get agency/operator help); short copy = `server-only` TS in `help/copy/`; glossary = one `@cs/core` list; every `PageHeader` page needs a help key + guides.
 - **Copy sign-off:** owner signs in local `pnpm copy:review`; ledger `docs/copy/signoff.json`; new email template/variant ⇒ preview in `@cs/email` `previews.ts`.
 - **Onboarding (16):** L7 split flows (`OnboardingShell`, `(onboarding)`); owners never enter `/setup` (pick page only while `waiting_owner`); search = keywords + centre (no place id; Stadia geocode); images only on the 4 O14 screens.
-- **Hosting (7a):** Vercel iad1 + one worker + own Neon prod; CI migrate → deploy (`DEPLOY_ENABLED`); staging `docs/STAGING.md` (live vendors). Roles `cs_worker`/`cs_web` (no owner URL). Sentry + pino via `redactForLog`.
+- **Hosting (7a):** Vercel iad1 + one worker + own Neon prod; CI migrate → deploy (`DEPLOY_ENABLED`); staging `docs/STAGING.md` (live vendors). Roles `cs_worker`/`cs_web` (no owner URL). Sentry + pino (`redactForLog`).
 - **Safety (7a):** SSRF guard (`@cs/collectors` `net/guard.ts`) = only fetch path for user-supplied URLs. Plan features gate Ask/MCP (`hasChannel`). Archived = deleted for tenants (`archived_at`); purge CLI after >= 30 d; evidence never deleted.
-- **Cost guards (7b):** nothing usage-billed; tenant credits (1 USD = 100); only staff set limits; 100 % = notice, 130 % = auto-pause client AI/paid work; spike +100 % alert / +200 % pause all AI until staff reset; Jev counts as a provider; paid-work schedulers use `clientWorkAllowed`; fake gateway refused on Vercel; `max_redemptions` = local holder count; a second live client subscription is ignored.
+- **Cost guards (7b):** nothing usage-billed; credits (1 USD = 100); only staff set limits; 100 % notice, 130 % auto-pause client AI/paid work; spike +100 % alert / +200 % pause all AI until staff reset; Jev counts as a provider; paid-work schedulers use `clientWorkAllowed`; fake gateway refused on Vercel; `max_redemptions` = local holder count; a second live client subscription is ignored.
 - **Launch gate:** every page ≤ 8 app DB stages (`bash apps/web/scripts/profile-gate.sh --seed`) before a live deploy; successful web reads audit via `after()`, writes/failures/support/non-web stay awaited; no cross-request cache or `cookieCache`.
-- **Quality gates (7c1):** new tool => `ISOLATION_FIXTURES` entry; new table => `TABLE_CLASS` + world rows; out-of-scope client => `not_found`, never an empty list; CI `eval:replay` miss => re-record in the PR (<= $5/run); Ask drops uncited figures.
-- **Pilot & scale (7c):** <= 20 agencies x <= 3 clients, slow invites, gates block leaks/claims/injection; feedback by email. One worker, N pollers/queue; `SERVICE_DATABASE_POOLED_URL` required in prod; vendor calls via the limiter; `docs/PILOT.md`.
+- **Quality gates (7c1):** new tool => `ISOLATION_FIXTURES` entry; new table => `TABLE_CLASS` + world rows; out-of-scope client => `not_found`, never an empty list; `eval:replay` miss => re-record in the PR (<= $5/run); Ask drops uncited figures.
+- **Pilot & scale (7c):** <= 20 agencies x <= 3 clients, slow invites, gates block leaks/claims/injection; feedback by email. One worker, N pollers/queue; prod needs `SERVICE_DATABASE_POOLED_URL`; vendor calls via the limiter; `docs/PILOT.md`.
 - **Marketing site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; claims only from the claims ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; pilot = waitlist; site client price default $249 (`DEFAULT_CLIENT_PRICE_USD`).
 - **Stats & controls:** stat-card traces from real history only; one 36 px control height.
-- **Starting-point brief:** one per client, deterministic self-rules + verified why-it-matters.
-- **Brief report (2026-11-07):** every change graded Major ≥ T / Notable ≥ T/2 / Minor vs the brief threshold (default 40), same lines in email, app and PDF; quiet = no written item and no live Major; weekly PDF = agency-branded full report attached to the email (link fallback), never Ask; graded lines read-only (retraction only); `get_brief` `changes` web channel only.
-- Phase-local decisions: each plan's "Decisions"; don't re-open.
+- **Briefs:** starting point = one per client, deterministic self-rules + verified why-it-matters. Weekly changes graded Major >= T / Notable >= T/2 / Minor (T = threshold, default 40) in email, app, PDF; quiet = no written item, no live Major; PDF = agency report attached (link fallback), no Ask; lines read-only; `get_brief` `changes` web-only.
+- Phase-local decisions live in each plan's "Decisions".
 
 ## Process (owner preference)
 1. `/rm-kickoff <phase>` → own **worktree + branch** + distilled brief (`docs/work/<branch>.md`).
@@ -62,10 +61,10 @@ Agency-owned white-label SaaS that monitors competitors of **local-service small
 3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md`, aim ≤ 15 KB). Reference the core spec by §; don't restate it.
 4. `superpowers:writing-plans` in the **lean plan format** below.
 5. **Owner approval** of the plan.
-6. `superpowers:subagent-driven-development`: pre-flight, implementer + reviewer per task, final review (most capable model), one fix wave. **Tests:** implementers run focused tests, reviewers none; `pnpm test:affected` + `pnpm --filter @cs/web e2e:affected` once at the final review; full unit + E2E only in `/rm-merge`, after asking the owner (CI runs both).
+6. `superpowers:subagent-driven-development`: pre-flight, implementer + reviewer per task, final review (most capable model), one fix wave. **Tests:** implementers focused only, reviewers none; `test:affected` + `e2e:affected` once at the final review; full unit + E2E only in `/rm-merge` after asking (CI runs both).
 7. `/rm-wrap-up` at the end of every session; `/rm-merge` only with the owner's go-ahead.
 
-**Parallel workstreams:** one worktree per branch (`../CompetitorSpy-wt/<branch>`), one session each. Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their work file.
+**Parallel workstreams:** one worktree + session per branch (`../CompetitorSpy-wt/<branch>`). Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their work file.
 
 ### Lean plan format (overrides writing-plans' "complete code in every step")
 Plan header: Goal, Global constraints, Decisions, File structure, **Dependencies on in-flight work** (re-check), Review focus. Tasks aim ≤ 4 KB, plan ≤ 80 KB:
@@ -81,9 +80,9 @@ Plan header: Goal, Global constraints, Decisions, File structure, **Dependencies
 - Never print, commit or stage the root `.env` (ask before adding vars). Never stage `.claude/` (except `.claude/skills/rm-*`), `App/` or `.superpowers/`. Never change `REVIEWER_HASH_SALT`.
 - Every commit ends with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagents: own model). Repo is LF-only: `git ls-files --eol | grep crlf` must print nothing.
 - Git Bash: don't `source .env`; use `grep '^KEY=' .env | cut -d= -f2-`.
-- Turborepo strict env mode: a new env var reaches tasks only via `turbo.json` `globalPassThroughEnv`. Packages load `.env` via `process.loadEnvFile(<repo-root>/.env)`; wrong depth silently loads nothing.
+- Turborepo strict env: a new env var reaches tasks only via `turbo.json` `globalPassThroughEnv`. Packages load `.env` via `process.loadEnvFile(<repo-root>/.env)`; wrong depth loads nothing, silently.
 - One test run (incl. E2E) per test DB; one DB per worktree. **Local test cluster:** `bash scripts/local-test-db.sh setup|start|env`. Full suite: `npx turbo run test --concurrency=1 --continue` (background). Focused runs + flakes: gotchas § Testing.
-- Subagents run focused tests in the foreground, never hand back mid-run.
+- Subagents run focused tests in the foreground; never hand back mid-run.
 - Never edit applied migrations; add new ones (`pnpm --filter @cs/db generate --custom --name=<x>`).
 - Crawler: honest UA `RivalMondayBot`, RFC 9309 robots (5xx ⇒ disallow), ≥ 3 s per host, never evade. `WEB_MONITORING_ENABLED` stays unset until `https://rivalmonday.app/bot` exists. One worker replica only; no `collect-once --poll` while it runs.
 - Model input goes through `redactForModel`, never bare `redactContactInfo`. `upsell_tag` never reaches client-facing payloads. Event readers filter `retracted_at IS NULL`; client schedulers/lists filter `client.status = 'active'`.
