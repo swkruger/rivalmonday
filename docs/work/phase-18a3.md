@@ -1,13 +1,13 @@
 # phase-18a3 — Reading ad images: Jev triages ad creatives, a vision LLM reads prices
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ bd58dd62
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ c2e5eb2b
 **Spec:** `docs/superpowers/specs/2026-11-08-phase-18a3-ad-images-design.md` (R1-R17)   **Plan:** `docs/superpowers/plans/2026-11-09-phase-18a3-ad-images.md` (Tasks 0-12, P1-P14)
 
 ## Status (overwrite)
-Spec owner-approved 2026-11-09. Plan written (Tasks 0-12); awaiting owner approval.
+Spec and plan owner-approved 2026-11-09. SDD execution started 2026-11-09.
 
 ## Next (overwrite)
-Spec (new decisions + interfaces) -> builder check -> lean plan -> owner approval -> SDD. Live probe (< $0.01) needs owner approval before it runs.
+SDD Tasks 0-12 (ledger `.superpowers/sdd/`). Task 0b live probe (< $0.01) and Task 12 ask eval re-record (<= $5) wait for the owner's OK.
 
 ## Interfaces this branch adds or changes
 Planned, not built: image parts in the `@cs/ai` Jev provider (`decisions/jev.ts`, `types.ts`); ad images copied into the evidence store; an ad-image triage stage plus a vision-read step; one migration (next free number: 0103 or later; `brief-report` also takes "next free >= 0100", so re-check at execution).
