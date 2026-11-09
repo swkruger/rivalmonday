@@ -12,12 +12,15 @@ const signed = (n: number) => (n < 0 ? `−${Math.abs(n)}` : `+${n}`);
 /**
  * The four KPI tiles. Titles and pill wording are copied from the web Overview's `kpiCards`
  * (apps/web/src/app/(app)/c/[clientId]/overview-kpis.ts): @cs/email cannot import the web app. Keep them in step.
+ * PDF only: `changes` = the live graded view; when present, "Changes this week" is its grade-totals sum so the tile agrees with the
+ * totals line below it (the stored `changes7d` counts alert/brief routes only). Null (old brief, no report) falls back to `changes7d`.
  */
-export function kpiTiles(k: Kpis): { title: string; value: string; sub: string | null }[] {
+export function kpiTiles(k: Kpis, changes: GradedChangesView | null = null): { title: string; value: string; sub: string | null }[] {
   const adsDelta = k.activeAds === null || k.activeAds7dAgo === null ? null : k.activeAds - k.activeAds7dAgo;
   const ratingDelta = k.ratingSelf === null || k.ratingAvg === null ? null : Math.round((k.ratingSelf - k.ratingAvg) * 10) / 10;
+  const changeCount = changes ? GRADES.reduce((n, g) => n + changes.totals[g], 0) : k.changes7d;
   return [
-    { title: 'Changes this week', value: String(k.changes7d), sub: k.alerts7d > 0 ? `${k.alerts7d} high` : null },
+    { title: 'Changes this week', value: String(changeCount), sub: k.alerts7d > 0 ? `${k.alerts7d} high` : null },
     { title: 'Competitor price moves', value: String(k.priceMoves7d), sub: k.priceCuts7d > 0 ? `↓ ${k.priceCuts7d} ${k.priceCuts7d === 1 ? 'cut' : 'cuts'}` : null },
     { title: 'Active competitor ads', value: k.activeAds === null ? '—' : String(k.activeAds), sub: adsDelta === null ? null : adsDelta === 0 ? 'Same as last week' : `${signed(adsDelta)} vs last week` },
     {
@@ -50,7 +53,7 @@ export function SummarySection(p: { doc: BriefReportDocumentProps; report: Brief
       <table role="presentation" width="100%" cellPadding={0} cellSpacing={6} border={0} style={{ width: '100%', borderCollapse: 'separate' }}>
         <tbody>
           <tr>
-            {kpiTiles(report.kpis).map((t) => (
+            {kpiTiles(report.kpis, doc.changes).map((t) => (
               <td key={t.title} style={{ width: '25%', verticalAlign: 'top', backgroundColor: b.panel, borderRadius: 8, padding: 10 }}>
                 <div style={small}>{t.title}</div>
                 <div style={{ fontSize: 22, lineHeight: '30px', fontWeight: 800 }}>{t.value}</div>

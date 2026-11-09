@@ -2,6 +2,7 @@ import type { BriefReport, ChangeLine, GradedChangesView, ReportTopic } from '@c
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { ratingDomain } from './templates/brief-report';
+import { kpiTiles } from './templates/report/summary';
 import { renderBriefDocument, renderBriefReportDocument } from './document';
 import type { BriefEmailProps, BriefReportDocumentProps } from './types';
 
@@ -169,6 +170,15 @@ describe('weekly report document', () => {
     const html = await renderBriefReportDocument(props({ report: fullReport(stored), changes: { lines: [stored[1]!], totals: { major: 0, notable: 1, minor: 0 } } }));
     expect(html).toContain('Live line');
     expect(html).not.toContain('Retracted line');
+  });
+
+  it('"Changes this week" tile = live grade totals sum (agrees with the totals line); falls back to kpis.changes7d without a live view', async () => {
+    expect(kpiTiles(kpis, { lines: [], totals: { major: 3, notable: 7, minor: 22 } })[0]).toMatchObject({ title: 'Changes this week', value: '32' });
+    expect(kpiTiles(kpis, null)[0]!.value).toBe('9');
+    const html = await renderBriefReportDocument(props({ changes: { lines: [line(1, 'offers', 'major')], totals: { major: 3, notable: 7, minor: 22 } } }));
+    const summary = html.slice(html.indexOf('data-section="summary"'));
+    expect(summary).toMatch(/Changes this week<\/div><div[^>]*>32<\/div>/);
+    expect(summary).toContain('3 Major · 7 Notable · 22 Minor changes');
   });
 
   it('old brief (report null) renders cover + legacy body', async () => {
