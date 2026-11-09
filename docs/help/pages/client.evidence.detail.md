@@ -7,7 +7,7 @@ title: Evidence
 
 The stored proof behind a point in a brief, an alert or an answer: what was captured, from where, when, and a fingerprint that shows it has not been changed since.
 
-- **The preview** shows a snapshot of the page when the evidence is a screenshot, or a link to the captured text. Raw page code and provider data are kept unchanged and are not displayed, but their fingerprint is shown.
+- **The preview** shows a snapshot of the page when the evidence is a screenshot, the picture when it is an ad image, or a link to the captured text. Raw page code and provider data are kept unchanged and are not displayed, but their fingerprint is shown.
 - **Source** says where it came from. A competitor's own website is captured automatically by our monitoring service; other sources, such as Google profiles and ad libraries, are recorded when their data is collected.
 - **Captured and Status** give the date and time in UTC and whether the capture worked. "ok" means the page or data was read normally.
 - **The fingerprint (SHA-256)** is a long code worked out from the captured content. The same content always gives the same code, and changing even one character gives a completely different one. Working the code out again from the stored file and getting the same result shows it has not been altered since it was captured.

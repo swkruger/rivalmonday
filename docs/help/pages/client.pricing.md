@@ -12,6 +12,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 - **The ▼ or ▲ tag** compares the competitor's lowest price for that service now with its lowest price 90 days ago. A red ▼ means the price fell and a green ▲ means it rose. The tag shows only when both prices are known and they differ.
 - **Promo** marks a price listed as a promotion.
 - **From an ad** marks a price read from the competitor's Meta ad text rather than its website; it never counts toward the ▼ and ▲ tags.
+- **From an ad image** marks a price read from the picture in one of the competitor's Google ads; select it on the competitor's page to see the picture. It never counts toward the ▼ and ▲ tags.
 
 ## How to use it
 
@@ -24,7 +25,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 
 ### Why does a competitor show no prices?
 
-Prices come from the competitor's own website: the visible text of a page, and the structured price data many sites publish for search engines. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty.
+Prices come from the competitor's own website: the visible text of a page, and the structured price data many sites publish for search engines. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty. Prices marked **From an ad** or **From an ad image** come from its ads instead.
 
 ### Why is there no tag on a price?
 

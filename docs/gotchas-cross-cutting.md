@@ -40,6 +40,8 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 
 - **Passes locally, fails in CI:** CI has no `.env` (stub or mock settings); its clock is real (pin it for fixed dates); row order needs `ORDER BY` or a set compare; poll for async state (`vi.waitFor`), never check once. Check `gh run list --branch main` before calling a suite green.
 
+- **Ad images (18a-3):** Jev takes only PNG/JPEG data URLs (WebP is a 400), so evidence stays WebP and decision calls send `toDecisionJpeg(webp)`; the vision read sends WebP. `JEV_LIVE_IMAGES=1` opts into the live Jev image test. `findEngineWork`/`drainEngine` take a test seam `adImageSince`. Set `AD_IMAGE_SINCE` to the merge day at `/rm-merge`.
+
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
 - **Pool fan-out:** one heavy page can hold up to ~5 service connections at once (pool `max 5` per role/env, `packages/db/src/client.ts`); on Neon its wall time then tracks query count / 5, not DB stages (launch-gate: 110 queries ≈ 3 s). Fewer queries per page beats more parallelism.

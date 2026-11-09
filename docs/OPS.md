@@ -147,6 +147,20 @@ Everything below is dark until `WEB_MONITORING_ENABLED` is set. Do it only when 
 7. **Registry update.** Add or fix an entry in `SITE_FEATURE_REGISTRY` with `since` = the new `SITE_FEATURE_REGISTRY_VERSION`. No stage version bump; an entry only counts captures from its `since` onward.
 8. **If a site bans the bot,** follow Crawler ban. Pause that competitor's pages; never evade.
 
+## Ad images (18a-3)
+
+Google ad pictures become facts: Jev triages each image, only price- or offer-bearing images are stored, a vision model reads the price lines.
+
+- **Gate:** `WEB_MONITORING_ENABLED` (web and worker), no switch of its own; the image fetch needs the bot page like the crawler (Crawler ban applies). Dark until then.
+- **Stages and jobs:** `ad_image_triage` (job `engine-ad-image`: fetch, normalise to WebP, dedupe, Jev triage, store) and `ad_image_read` (job `engine-ad-image-read`: `ad_image_read` vision call, rules, Jev confirm, map, `price_point`). Google ad prices also run through the Google path of `ad_price_extract` (images feed it with `ad_image_id`).
+- **Cutoff:** `AD_IMAGE_SINCE` (`packages/engine/src/ads/images.ts`): only ads first seen on or after it; no backfill. Set it to the merge day at `/rm-merge`.
+- **Cap:** at most 20 vision reads per client per week (`AD_IMAGE_READS_PER_WEEK`; billed failures count, the confirm call does not).
+- **Cost per stored price image (spec D5):** triage Jev about $0.00005 to $0.0001, read `openai/gpt-4.1-mini` about $0.00023 (probe; up to $0.002), confirm about $0.0001, plus one `price_decisions` call on a mapping cache miss. Spend splits across the trackers of the competitor; `mapPricedTexts` is platform-scoped (backlog).
+- **Models:** Jev accepts only PNG/JPEG data URLs, so decision calls send `toDecisionJpeg(webp)`; the vision read sends the stored WebP. Live Jev image test is opt-in: `JEV_LIVE_IMAGES=1` plus the key (`packages/ai/src/decisions/jev.live.test.ts`).
+- **Reading `ad_image`:** `status` pending | rejected | triaged; `fail_reason` too_large | bad_type | bad_image | expired (403/404/410, final for that URL) | robots | ssrf; `read_status` read | no_price | unconfirmed | failed; `evidence_id` set only for stored images. Text ads often carry a simgad URL that is not an image: `bad_type`, expected.
+- **Re-run:** delete the row's `stage_run` (stage `ad_image_triage` or `ad_image_read`, subject `md5(ad_image.id || '|' || source_url_sha)::uuid`) and let the sweep pick it up, or bump `AD_IMAGE_TRIAGE_VERSION` / `AD_IMAGE_READ_VERSION`. Never delete an `ad_image` row that has an `evidence_id` (evidence is never deleted).
+- **Privacy:** an image Jev marks as showing a person is never stored, shown or read (`ad_image_person_unstored` CHECK). Meta ad images wait for a permitted route (its image CDN robots.txt disallows bots).
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.
