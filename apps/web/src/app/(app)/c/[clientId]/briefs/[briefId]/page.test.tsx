@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const callTool = vi.fn();
 const viewer = vi.hoisted(() => ({ role: 'client_owner' }));
-vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: viewer.role } }) }));
+vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role: viewer.role, features: new Set(['dashboard']) } }) }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => callTool(...a) }));
 const evidenceRefsFor = vi.fn(async () => ({}));
 vi.mock('@/server/evidence-refs', () => ({ evidenceRefsFor: (...a: unknown[]) => (evidenceRefsFor as (...x: unknown[]) => unknown)(...a) }));
@@ -49,6 +49,20 @@ describe('Brief page (15a §2.8)', () => {
     expect(screen.getByRole('link', { name: '‹ Previous' }).getAttribute('href')).toBe(`/c/${C}/briefs/b1`);
     expect(screen.getByRole('link', { name: 'Next ›' }).getAttribute('href')).toBe(`/c/${C}/briefs/b3`);
     expect(screen.queryByRole('link', { name: 'Open in approvals' })).toBeNull();
+  });
+
+  it('the Quiet weeks tip belongs to quiet weeks only; the Grades tip to a brief with graded changes', async () => {
+    const scorecard = { asOf: '2026-10-09T00:00:00Z', baselineBriefId: null, tiles: [], rows: [], evidenceIds: [], openFirstMoves: [] };
+    const ln = { grade: 'minor', topic: 'ads', competitorId: C, competitorName: 'X', changeType: 'ad_new', channel: 'ads', count: 1, text: 'X ran a new ad.', firstAt: '2026-10-06T10:00:00.000Z', lastAt: '2026-10-06T10:00:00.000Z', eventIds: [C], evidenceIds: [] };
+    mount({ ...detail('b2', '2026-10-12', 'standard'), scorecard, changes: { lines: [ln], totals: { major: 0, notable: 0, minor: 1 } } } as never);
+    const v = await show('b2');
+    expect(screen.queryByText('Quiet weeks')).toBeNull();
+    expect(screen.getByText('Grades')).toBeTruthy();
+    v.unmount();
+    mount({ ...detail('b2', '2026-10-12', 'quiet'), scorecard } as never);
+    await show('b2');
+    expect(screen.getByText('Quiet weeks')).toBeTruthy();
+    expect(screen.queryByText('Grades')).toBeNull();
   });
 
   it('resolves evidence refs once for the ids of the visible items in the client timezone', async () => {

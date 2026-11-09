@@ -227,6 +227,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}charts/line-chart\\.tsx$`), tags: ['@overview', '@pricing', '@ads', '@reviews', '@rankings'], why: 'line chart' },
   { pattern: re(`${COMP}charts/plot\\.tsx$`), tags: ['@overview', '@pricing', '@ads', '@reviews', '@rankings', '@costs'], why: 'shared chart plot: line chart, rank trend, costs monthly chart' },
   { pattern: re(`${COMP}views/brief-view\\.tsx$`), tags: ['@briefs', '@guest', '@auth', '@starting-point', '@overview'], why: 'brief view (guest link lands here; starting point and quiet-week scorecard)' },
+  { pattern: re(`${COMP}views/graded-changes\\.tsx$`), tags: ['@briefs', '@guest'], why: 'graded "Other changes this week" list on the brief page' },
   { pattern: re(`${COMP}views/scorecard\\.tsx$`), tags: ['@briefs', '@starting-point'], why: 'starting-point / quiet-week scorecard (rendered inside the brief view)' },
   { pattern: re(`${COMP}views/alert-view\\.tsx$`), tags: ['@alerts'], why: 'alert view' },
   { pattern: re(`${COMP}views/report-view\\.tsx$`), tags: [], why: 'no E2E covers the report view' },

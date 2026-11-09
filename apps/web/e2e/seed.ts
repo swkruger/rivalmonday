@@ -231,6 +231,15 @@ export async function seed(): Promise<void> {
     await seedInviteSetup(db);
     await seedNavigation(db, { agencyId });
 
+    // brief-report: the sent brief of E2E HVAC carries a graded change list over the workspace's price-change event (live, scored).
+    const gradedLine = (grade: 'major' | 'notable' | 'minor', text: string) => ({
+      grade, topic: 'offers', competitorId: comp!.id, competitorName: 'Smith HVAC', changeType: 'price_change', channel: 'web', count: 1, text,
+      firstAt: new Date(Date.now() - DAY).toISOString(), lastAt: new Date(Date.now() - DAY).toISOString(), eventIds: [workspace.eventId], evidenceIds: [workspace.evidenceId],
+    });
+    await db.update(brief).set({
+      report: { changes: { v: 1, threshold: 60, lines: [gradedLine('notable', 'Smith HVAC cut its AC tune-up to $79 (graded notable).'), gradedLine('minor', 'Smith HVAC touched its pricing page (graded minor).')], totals: { major: 0, notable: 1, minor: 1 } } },
+    }).where(eq(brief.id, briefId));
+
     await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
     await seedRunbook(db, { agencyId });

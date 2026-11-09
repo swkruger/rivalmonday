@@ -399,6 +399,11 @@ export const CLIENT_COPY = {
         title: 'The last-days table',
         body: 'Numbers for {client} and each competitor over the period in the table caption: new reviews, average rating before and after, and ads running now. A dash in Active ads means not checked for that business.',
       },
+      // source: packages/core/src/brief-report.ts:gradeFor
+      grades: {
+        title: 'Major, Notable and Minor',
+        body: 'Every competitor change this week gets a grade. Major changes matter most to {client} and are written up above with what to do. Notable changes are worth knowing about. Minor changes are listed for completeness and folded away. Grades are worked out the same way every week.',
+      },
     },
   },
   'client.alerts.detail': {

@@ -1,4 +1,4 @@
-import { isAgencyRole } from '@cs/core';
+import { hasFeature, isAgencyRole } from '@cs/core';
 import type { BriefDetail, BriefSummary, ClientProfile, FeedbackContact } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -32,7 +32,8 @@ function briefTips(brief: BriefDetail, hasItems: boolean): { label: string; tip:
   return [
     ...(hasItems ? [{ label: 'Confidence', tip: 'client.briefs.detail.confidence' } as const, { label: 'Evidence', tip: 'client.briefs.detail.evidence' } as const] : []),
     ...(startingPoint ? [{ label: 'The starting point', tip: 'client.briefs.detail.startingPoint' } as const] : []),
-    ...(!startingPoint && brief.scorecard ? [{ label: 'Quiet weeks', tip: 'client.briefs.detail.quiet' } as const] : []),
+    ...(brief.kind === 'quiet' && brief.scorecard ? [{ label: 'Quiet weeks', tip: 'client.briefs.detail.quiet' } as const] : []),
+    ...(!startingPoint && brief.changes && brief.changes.lines.length > 0 ? [{ label: 'Grades', tip: 'client.briefs.detail.grades' } as const] : []),
     ...(!startingPoint && brief.trend ? [{ label: 'Last days', tip: 'client.briefs.detail.trend' } as const] : []),
   ];
 }
@@ -61,7 +62,8 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
   const { clientId, briefId } = await params;
   const { ctx, brief, profile, list } = await loadBrief(clientId, briefId);
   const agency = isAgencyRole(ctx.role);
-  const evidenceIds = brief.items.filter((i) => agency || i.status === 'active').flatMap((i) => i.evidenceIds);
+  const lineEvidence = (brief.changes?.lines ?? []).flatMap((l) => l.evidenceIds.slice(0, 6));
+  const evidenceIds = [...brief.items.filter((i) => agency || i.status === 'active').flatMap((i) => i.evidenceIds), ...lineEvidence];
   const [guides, refs] = await Promise.all([helpGuides(ctx, 'client', clientId), evidenceRefsFor(ctx, clientId, evidenceIds, profile.timezone)]);
   // Client roles only see active items (BriefView filters the same way).
   const tips = briefTips(brief, brief.items.some((i) => agency || i.status === 'active'));
@@ -95,7 +97,7 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
           ))}
         </div>
       )}
-      <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} refs={refs} />
+      <BriefView brief={brief} agency={agency} timezone={profile.timezone} titled={false} refs={refs} changesLinkAllowed={hasFeature(ctx, 'dashboard')} />
       {feedback?.email && (
         <p className="text-sm text-muted-ink">
           {'Something look off? '}

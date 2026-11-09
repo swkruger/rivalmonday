@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
 import type { EvidenceRefs } from '@/server/evidence-refs';
-import { formatDate, formatWeekOf } from '@/lib/format';
+import { formatDate, formatWeekOf, localDay } from '@/lib/format';
+import { changesHref } from '@/app/(app)/c/[clientId]/changes/params';
 import { BRIEF_ITEM_STATUS, BRIEF_STATUS, labelFor } from '@/lib/labels';
+import { GradedChanges } from './graded-changes';
 import { OpenFirstMoves, Scorecard } from './scorecard';
 
 const fmt = (n: number | null) => formatMetric('rating', n);
@@ -58,6 +60,7 @@ export function BriefView({
   surface = 'reading',
   refs,
   evidenceHref,
+  changesLinkAllowed = false,
 }: {
   brief: BriefDetail;
   agency: boolean;
@@ -67,9 +70,12 @@ export function BriefView({
   surface?: 'reading' | 'overview';
   refs?: EvidenceRefs;
   evidenceHref?: (id: string) => string;
+  /** The viewer can open the Changes page (`dashboard` feature): "See all changes this week" links there, else the link is left out. */
+  changesLinkAllowed?: boolean;
 }) {
   const items = [...brief.items].filter((i) => agency || i.status === 'active').sort((a, b) => a.ord - b.ord);
   const startingPoint = brief.kind === 'starting_point';
+  const quiet = brief.kind === 'quiet';
   const model = brief.scorecard ? scorecardModel(brief.scorecard, { clientName: brief.items.find((i) => i.subject === 'self')?.competitorName ?? '' }) : null;
   const deliverable = brief.status === 'approved' || brief.status === 'sent';
   const pdf = deliverable && !evidenceHref;
@@ -99,7 +105,7 @@ export function BriefView({
   const rest = (
     <>
       {model && startingPoint && <Scorecard model={model} />}
-      {model && !startingPoint && (
+      {model && quiet && (
         <>
           <H className={reading ? 'text-lg font-semibold' : 'text-base font-semibold'}>Where you stand</H>
           <Scorecard model={model} />
@@ -136,6 +142,16 @@ export function BriefView({
           </div>
         </section>
       ))}
+      {reading && !startingPoint && (
+        <GradedChanges
+          clientId={brief.clientId}
+          changes={brief.changes}
+          timezone={timezone}
+          changesHref={changesLinkAllowed ? changesHref(brief.clientId, { route: 'all', from: localDay(brief.periodStart, timezone), to: localDay(brief.periodEnd, timezone) }) : null}
+          refs={refs}
+          evidenceHref={evidenceHref}
+        />
+      )}
       {!startingPoint && brief.trend && <TrendTable trend={brief.trend} />}
     </>
   );
