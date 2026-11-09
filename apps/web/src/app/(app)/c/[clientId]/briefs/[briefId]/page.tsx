@@ -1,4 +1,4 @@
-import { hasFeature, isAgencyRole } from '@cs/core';
+import { capTopic, hasFeature, isAgencyRole, REPORT_CAPS, REPORT_TOPICS } from '@cs/core';
 import type { BriefDetail, BriefSummary, ClientProfile, FeedbackContact } from '@cs/tools';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -62,7 +62,11 @@ export default async function BriefPage({ params }: { params: Promise<{ clientId
   const { clientId, briefId } = await params;
   const { ctx, brief, profile, list } = await loadBrief(clientId, briefId);
   const agency = isAgencyRole(ctx.role);
-  const lineEvidence = (brief.changes?.lines ?? []).flatMap((l) => l.evidenceIds.slice(0, 6));
+  // Only the lines GradedChanges renders (capped main lines and capped Minor per topic), 6 chips each.
+  const lineEvidence = REPORT_TOPICS.flatMap((t) => {
+    const c = capTopic(brief.changes?.lines ?? [], t, REPORT_CAPS.app);
+    return [...c.lines, ...c.minor].flatMap((l) => l.evidenceIds.slice(0, 6));
+  });
   const evidenceIds = [...brief.items.filter((i) => agency || i.status === 'active').flatMap((i) => i.evidenceIds), ...lineEvidence];
   const [guides, refs] = await Promise.all([helpGuides(ctx, 'client', clientId), evidenceRefsFor(ctx, clientId, evidenceIds, profile.timezone)]);
   // Client roles only see active items (BriefView filters the same way).

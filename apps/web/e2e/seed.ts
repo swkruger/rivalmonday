@@ -234,7 +234,7 @@ export async function seed(): Promise<void> {
     // brief-report: the sent brief of E2E HVAC carries a graded change list over the workspace's price-change event (live, scored).
     const gradedLine = (grade: 'major' | 'notable' | 'minor', text: string) => ({
       grade, topic: 'offers', competitorId: comp!.id, competitorName: 'Smith HVAC', changeType: 'price_change', channel: 'web', count: 1, text,
-      firstAt: new Date(Date.now() - DAY).toISOString(), lastAt: new Date(Date.now() - DAY).toISOString(), eventIds: [workspace.eventId], evidenceIds: [workspace.evidenceId],
+      firstAt: new Date(Date.now() - DAY).toISOString(), lastAt: new Date(Date.now() - DAY).toISOString(), eventIds: [workspace.eventId], evidenceIds: [],
     });
     await db.update(brief).set({
       report: { changes: { v: 1, threshold: 60, lines: [gradedLine('notable', 'Smith HVAC cut its AC tune-up to $79 (graded notable).'), gradedLine('minor', 'Smith HVAC touched its pricing page (graded minor).')], totals: { major: 0, notable: 1, minor: 1 } } },
