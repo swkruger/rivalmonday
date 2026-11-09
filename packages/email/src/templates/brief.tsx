@@ -4,6 +4,7 @@ import { Button, Heading, Link, Section, Text } from '../rx';
 import { button, greeting, Layout, panel } from '../layout';
 import type { BriefEmailProps } from '../types';
 import { AgencyContactBlock } from './agency-contact';
+import { attachmentLine, HighlightLines, statLine } from './brief-highlights';
 import { FeedbackLine } from './feedback-line';
 import { Scorecard } from './scorecard';
 import { TrendTable } from './trend-table';
@@ -30,26 +31,31 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
 /** The brief's content inside `Layout`; the weekly report PDF reuses it (document variant) under its cover for old briefs. */
 export function BriefBody(p: BriefEmailProps & { variant?: 'email' | 'document' }) {
   const doc = p.variant === 'document';
+  const hl = !doc && p.kind !== 'starting_point' ? (p.highlights ?? null) : null;
   return (
     <>
       {doc ? null : <Text>{greeting(p.recipientName)}</Text>}
       {doc ? null : <Text>{briefIntro(p)}</Text>}
       <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.kind === 'quiet' ? 'A quiet week' : p.kind === 'starting_point' ? 'Your starting point' : 'This week'}</Heading>
       <Text>{p.summary}</Text>
+      {hl ? <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>Highlights</Heading> : null}
+      {hl ? <Text><strong>{statLine(hl.totals)}</strong></Text> : null}
       {p.scorecard && p.kind !== 'quiet' ? <Scorecard branding={p.branding} model={p.scorecard} /> : null}
       {p.items.map((it, i) => (
         <Section key={i} style={panel(p.branding)} className="card">
           <Heading as="h3" style={{ fontSize: 16, margin: '0 0 6px' }}>{`${i + 1}. ${it.headline}`}</Heading>
           <Text style={{ margin: '0 0 6px' }}><strong>What changed:</strong> {it.whatChanged}</Text>
-          {it.whyItMatters ? <Text style={{ margin: '0 0 6px' }}><strong>Why it matters:</strong> {it.whyItMatters}</Text> : null}
-          {it.recommendedAction ? <Text style={{ margin: '0 0 6px' }}><strong>What to do:</strong> {it.recommendedAction}</Text> : null}
-          <Text style={{ margin: 0, fontSize: 14, color: '#5B6B7F' }}>{`${it.subject === 'self' ? '' : `${it.competitorName} · `}effort ${LEVEL[it.effort]} · impact ${LEVEL[it.impact]}`}</Text>
+          {hl ? null : it.whyItMatters ? <Text style={{ margin: '0 0 6px' }}><strong>Why it matters:</strong> {it.whyItMatters}</Text> : null}
+          {hl ? null : it.recommendedAction ? <Text style={{ margin: '0 0 6px' }}><strong>What to do:</strong> {it.recommendedAction}</Text> : null}
+          {hl ? null : <Text style={{ margin: 0, fontSize: 14, color: '#5B6B7F' }}>{`${it.subject === 'self' ? '' : `${it.competitorName} · `}effort ${LEVEL[it.effort]} · impact ${LEVEL[it.impact]}`}</Text>}
           {it.link && !doc ? <Link href={it.link}>See the evidence</Link> : null}
         </Section>
       ))}
+      {hl ? <HighlightLines h={hl} /> : null}
       {p.scorecard && p.kind === 'quiet' ? <Scorecard branding={p.branding} model={p.scorecard} heading="Where you stand" /> : null}
-      {p.trend ? <TrendTable branding={p.branding} windowDays={p.trend.windowDays} businesses={p.trend.businesses} /> : null}
+      {p.trend && !hl ? <TrendTable branding={p.branding} windowDays={p.trend.windowDays} businesses={p.trend.businesses} /> : null}
       {p.signOff ? <Text style={{ marginTop: 16 }}>{p.signOff}</Text> : null}
+      {hl ? <Text>{attachmentLine(p.attached ?? false)}</Text> : null}
       {p.link && !doc ? <Button href={p.link} style={button(p.branding)}>Open in your dashboard</Button> : null}
       {p.pdfLink && !doc ? <Text><Link href={p.pdfLink}>Download as PDF</Link></Text> : null}
       {doc ? null : <FeedbackLine feedback={p.feedback} subject={briefSubject(p)} />}

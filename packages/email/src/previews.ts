@@ -3,7 +3,7 @@ import type { LeadPreview } from '@cs/db';
 import { resolveBranding } from './branding';
 import { renderBriefDocument, renderBriefReportDocument, renderTrendReportDocument } from './document';
 import type {
-  AgencyClientBillingNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, BriefReportDocumentProps, ClientBillingNoticeKind,
+  AgencyClientBillingNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, BriefHighlights, BriefReportDocumentProps, ClientBillingNoticeKind,
   EmailPayload, OnboardingTipProps, PlanTerms, PlatformOpsAlertProps, PlatformSpendAlertProps, ScorecardModel, TrendReportEmailProps,
 } from './types';
 
@@ -49,6 +49,14 @@ const scorecard: ScorecardModel = {
 const brief: BriefEmailProps = {
   branding: agency, recipientName: 'Jordan', clientName: CLIENT, deliveryDate: '2026-10-05', kind: 'standard', summary: 'One competitor changed its offer this week.',
   items: [item(1), item(2)], trend, link: `${APP}/l/brief`, pdfLink: `${APP}/l/pdf`, signOff: `— ${PERSON}, ${AGENCY}`,
+};
+const highlights: BriefHighlights = {
+  totals: { major: 1, notable: 5, minor: 12 }, moreLines: 3, minor: 12,
+  lines: [
+    { grade: 'major', text: 'Harbor Dental cut its cleaning price to $69.', dates: 'Oct 1' },
+    { grade: 'notable', text: 'Harbor Dental added 3 new service pages.', dates: 'Sep 29–Oct 2' },
+    { grade: 'notable', text: 'Lakeside Dentistry started 2 new Google ads.', dates: 'Sep 30' },
+  ],
 };
 const startingPoint: BriefEmailProps = {
   ...brief, kind: 'starting_point', summary: `Where ${CLIENT} stands against the 2 rivals we now watch.`, scorecard, items: [{ ...item(1), subject: 'self', competitorName: CLIENT }],
@@ -193,6 +201,9 @@ export const EMAIL_PREVIEWS: readonly EmailPreview[] = [
   { id: 'brief.feedback', label: 'Weekly brief with feedback line', payload: { template: 'brief', props: { ...brief, feedback: sam } } },
   { id: 'brief.quiet', label: 'Weekly brief, quiet week', payload: { template: 'brief', props: { ...brief, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [] } } },
   { id: 'brief.quiet_scorecard', label: 'Weekly brief, quiet week with "Where you stand" scorecard', payload: { template: 'brief', props: { ...brief, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [], scorecard } } },
+  { id: 'brief.highlights', label: 'Weekly brief highlights, PDF attached', payload: { template: 'brief', props: { ...brief, items: [item(1)], highlights, attachPdf: true, attached: true } } },
+  { id: 'brief.highlights_not_attached', label: 'Weekly brief highlights, PDF not attached (download link)', payload: { template: 'brief', props: { ...brief, items: [item(1)], highlights, attachPdf: true, attached: false } } },
+  { id: 'brief.quiet_highlights', label: 'Weekly brief highlights, quiet week with notable lines and scorecard', payload: { template: 'brief', props: { ...brief, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [], scorecard, highlights: { totals: { major: 0, notable: 2, minor: 4 }, moreLines: 0, minor: 4, lines: highlights.lines.slice(1) }, attachPdf: true, attached: true } } },
   { id: 'brief.starting_point', label: 'Starting-point brief', payload: { template: 'brief', props: startingPoint } },
   { id: 'trend_report', label: 'Quarterly trend report', payload: { template: 'trend_report', props: report } },
   { id: 'sign_in', label: 'Sign-in link', payload: { template: 'sign_in', props: { branding: agency, url: `${APP}/sign-in/abc`, expiresMinutes: 15 } } },

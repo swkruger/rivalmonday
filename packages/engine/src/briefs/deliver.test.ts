@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
-import { type BriefDeliveryView, briefEmailProps, deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
+import { type BriefDeliveryView, briefEmailProps, briefHighlights, deliverBrief, deliverDueBriefs, sendBriefNow } from './deliver';
 import { QUIET_SUMMARY } from './generate';
 import type { BriefClient } from './gather';
 import { gradedChanges } from './graded';
@@ -248,5 +248,31 @@ describe('deliverDueBriefs and a spend-paused client (7b1)', () => {
     const r = await deliverDueBriefs(deps(), MON_0705);
     expect(r.sent).toEqual([approved]);
     expect(await read(approved)).toMatchObject({ status: 'sent' });
+  });
+});
+
+describe('briefHighlights', () => {
+  const line = (grade: 'major' | 'notable' | 'minor', n: number, count = 1) => ({
+    grade, topic: 'offers' as const, competitorId: '00000000-0000-4000-8000-000000000001', competitorName: 'Rival', changeType: 'price_change', channel: null, count,
+    text: `${grade} ${n}`, firstAt: '2026-10-07T15:00:00.000Z', lastAt: '2026-10-09T15:00:00.000Z', eventIds: ['00000000-0000-4000-8000-000000000002'], evidenceIds: [],
+  });
+  const live = { lines: [line('notable', 1), line('minor', 1, 5), line('notable', 2), line('major', 1), line('notable', 3), line('notable', 4), line('major', 2)], totals: { major: 2, notable: 4, minor: 5 } };
+  it('lists Major first, then Notable, at most 3; the rest is counted; minor = the minor event total', () => {
+    const h = briefHighlights(live, 'America/Chicago');
+    expect(h.lines.map((l) => l.text)).toEqual(['major 1', 'major 2', 'notable 1']);
+    expect(h.lines[0]).toMatchObject({ grade: 'major', dates: 'Oct 7–9' });
+    expect(h.moreLines).toBe(3);
+    expect(h.minor).toBe(5);
+    expect(h.totals).toEqual(live.totals);
+  });
+  it('briefEmailProps shows highlights for a weekly brief with a live view; never for a starting point, an old brief or an all-zero view', () => {
+    const v = { b: { id: 'b1', deliveryDate: '2026-10-12', kind: 'standard', summary: 's', trend: null, scorecard: null }, clientName: 'A1', items: [], branding: {}, signOff: '—', timezone: 'America/Chicago' } as unknown as BriefDeliveryView;
+    const opts = { recipientName: null, link: null, pdfLink: null, itemLink: () => null };
+    expect(briefEmailProps(v, { ...opts, live }).highlights?.lines).toHaveLength(3);
+    expect(briefEmailProps(v, opts).highlights).toBeNull();
+    expect(briefEmailProps(v, { ...opts, live: null }).highlights).toBeNull();
+    expect(briefEmailProps(v, { ...opts, live: { lines: [], totals: { major: 0, notable: 0, minor: 0 } } }).highlights).toBeNull();
+    const sp = { ...v, b: { ...v.b, kind: 'starting_point' } } as BriefDeliveryView;
+    expect(briefEmailProps(sp, { ...opts, live }).highlights).toBeNull();
   });
 });

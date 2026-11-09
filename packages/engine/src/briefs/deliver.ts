@@ -1,6 +1,6 @@
-import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
+import { type AccessContext, canAccessClient, formatDayRange, type GradedChangesView, isAgencyRole, REPORT_CAPS, ToolError } from '@cs/core';
 import { agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
-import type { Branding, BriefEmailProps, FeedbackContact } from '@cs/email';
+import type { Branding, BriefEmailProps, BriefHighlights, FeedbackContact } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
 import { replyToFor } from '../delivery/contacts';
@@ -58,8 +58,20 @@ export const storedScorecardModel = (v: BriefDeliveryView) => {
 // A weekly brief stores its scorecard every week, but the email shows it only on a quiet week (a standard week keeps today's email).
 const scorecardOf = (v: BriefDeliveryView) => (v.b.kind === 'standard' ? null : storedScorecardModel(v));
 
+/** The weekly email's highlights (spec §4.7): Major one-liners, then Notable, at most `REPORT_CAPS.emailLines`; `minor` = Minor events (the stat line's count). */
+export function briefHighlights(live: GradedChangesView, tz: string): BriefHighlights {
+  const graded = live.lines.filter((l) => l.grade !== 'minor');
+  const ordered = [...graded.filter((l) => l.grade === 'major'), ...graded.filter((l) => l.grade === 'notable')];
+  return {
+    totals: live.totals,
+    lines: ordered.slice(0, REPORT_CAPS.emailLines).map((l) => ({ grade: l.grade as 'major' | 'notable', text: l.text, dates: formatDayRange(l.firstAt, l.lastAt, tz) })),
+    moreLines: Math.max(0, ordered.length - REPORT_CAPS.emailLines),
+    minor: live.totals.minor,
+  };
+}
+
 /** Client-facing props (decision 15): only active items, never the upsell tag. `feedback` = the view's `replyTo` (the PDF overrides it with null). */
-export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null }): BriefEmailProps {
+export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null; live?: GradedChangesView | null }): BriefEmailProps {
   return {
     branding: v.branding, recipientName: opts.recipientName, clientName: v.clientName, deliveryDate: v.b.deliveryDate, kind: v.b.kind as BriefEmailProps['kind'], summary: v.b.summary,
     items: v.items.map((i) => ({
@@ -67,6 +79,8 @@ export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: str
       subject: i.subject, effort: i.effort as 'L' | 'M' | 'H', impact: i.impact as 'L' | 'M' | 'H', link: opts.itemLink(i.id),
     })),
     trend: v.b.trend, scorecard: scorecardOf(v), link: opts.link, pdfLink: opts.pdfLink, signOff: v.signOff, feedback: v.replyTo,
+    // Weekly briefs with a live graded view only; an old brief (no report), a starting point or a week with no changes keeps the full body.
+    highlights: opts.live && v.b.kind !== 'starting_point' && (opts.live.totals.major + opts.live.totals.notable + opts.live.totals.minor > 0) ? briefHighlights(opts.live, v.timezone) : null,
   };
 }
 
@@ -82,13 +96,14 @@ export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, b
     await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now }).where(eq(brief.id, briefId));
     const v = await loadBriefView(tx, briefId);
     const scope = { agencyId: v.b.agencyId, clientId: v.b.clientId };
+    const live = await loadLiveChanges(tx, v.b);
     const notifications = await notify(tx, deps.delivery, {
       ...scope, kind: 'brief', audience: 'client', subjectType: 'brief', subjectId: briefId, dedupe: `brief:${briefId}`, link: { t: 'brief', id: briefId }, now,
       build: (r, link) => ({
         title: v.b.kind === 'starting_point' ? startingPointSubject(v.branding.displayName) : `Weekly competitor brief — ${v.b.deliveryDate}`,
         body: [v.b.summary, ...v.items.map((i) => `• ${i.headline}`)].join('\n'),
         email: { template: 'brief', props: briefEmailProps(v, {
-          recipientName: r?.name ?? null, link,
+          recipientName: r?.name ?? null, link, live,
           pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'brief_pdf', briefId, now) : null,
           itemLink: (itemId) => (r ? personalLink(deps.delivery, r.contactId, scope, 'brief_item', itemId, now) : null),
         }) },

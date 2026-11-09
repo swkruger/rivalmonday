@@ -1,4 +1,4 @@
-import type { BriefReport, GradedChangesView, PlanFeature, ReportTopic } from '@cs/core';
+import type { BriefReport, GradedChangesView, GradeTotals, PlanFeature, ReportTopic } from '@cs/core';
 import type { LeadPreview, OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
@@ -53,6 +53,13 @@ export interface ScorecardModel {
   table: { headers: string[]; rows: { cells: string[]; self: boolean; tier: 'top' | 'watch' | 'minor' | null }[] };
   openFirstMoves: string[];
 }
+/** The weekly email's highlights (spec §4.7): at most `REPORT_CAPS.emailLines` Major-then-Notable one-liners; the rest is counted. */
+export interface BriefHighlights {
+  totals: GradeTotals;
+  lines: { grade: 'major' | 'notable'; text: string; dates: string }[];
+  moreLines: number;
+  minor: number;
+}
 export interface BriefEmailProps extends Base {
   deliveryDate: string;
   kind: 'standard' | 'quiet' | 'starting_point';
@@ -67,6 +74,12 @@ export interface BriefEmailProps extends Base {
   signOff: string | null;
   /** 7c2: the feedback line; hidden when absent or null and never in the PDF variant. */
   feedback?: FeedbackContact | null;
+  /** Weekly briefs with a live graded view; absent/null = the full body (old briefs, starting points). */
+  highlights?: BriefHighlights | null;
+  /** The PDF is attached to this email (Task 13); the PDF link stays as the fallback. */
+  attachPdf?: boolean;
+  /** The attachment was actually included (false when it was too big or failed): picks the sentence. */
+  attached?: boolean;
 }
 /**
  * The weekly report PDF (layout "C", spec §4.8). `changes` = the live graded lines at render (never `report.changes`);
