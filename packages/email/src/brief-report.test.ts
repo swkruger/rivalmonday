@@ -1,6 +1,7 @@
 import type { BriefReport, ChangeLine, GradedChangesView, ReportTopic } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
+import { ratingDomain } from './templates/brief-report';
 import { renderBriefDocument, renderBriefReportDocument } from './document';
 import type { BriefEmailProps, BriefReportDocumentProps } from './types';
 
@@ -83,6 +84,32 @@ describe('weekly report document', () => {
     expect(html).toContain('Smith HVAC cut its tune-up price to $69');
     expect(html).not.toContain('href=');
     expect(html).not.toMatch(/Something look off|mailto:|Friday|Ask /);
+  });
+
+  it('rating chart uses a [floor, 5] half-star axis', async () => {
+    const html = await renderBriefReportDocument(props());
+    const reviews = html.slice(html.indexOf('data-section="reviews"'), html.indexOf('data-section="ads"'));
+    const svg = reviews.slice(reviews.indexOf('<svg'), reviews.indexOf('</svg>'));
+    const ticks = [...svg.matchAll(/text-anchor="end"[^>]*>([\d.]+)</g)].map((m) => Number(m[1]));
+    expect(Math.max(...ticks)).toBe(5);
+    expect(Math.min(...ticks)).toBeGreaterThan(0);
+    expect(ratingDomain([{ key: 'a', name: 'A', points: [3.9, 4.8, null] }])).toEqual([3, 5]);
+    expect(ratingDomain([{ key: 'a', name: 'A', points: [null] }])).toEqual([0, 5]);
+  });
+
+  it('cover band follows the app brand-ink rule; the agency name stays ink', async () => {
+    const teal = resolveBranding('Acme Marketing', { secondary: '#0F766E' });
+    const html = await renderBriefReportDocument(props({ branding: teal }));
+    expect(html).toContain('background-color:#0b554f');
+    expect(await renderBriefReportDocument(props())).toContain('background-color:#0B2540');
+  });
+
+  it('rankings table drops "Previous scan" without a previous scan', async () => {
+    const r = fullReport([]);
+    expect(await renderBriefReportDocument(props())).toContain('Previous scan');
+    const html = await renderBriefReportDocument(props({ report: { ...r, rankings: { ...r.rankings!, prevScanAt: null } } }));
+    expect(html).toContain('ac repair');
+    expect(html).not.toContain('Previous scan');
   });
 
   it('omits empty sections and prints no NaN', async () => {

@@ -42,11 +42,11 @@ export function storedReport(v: BriefDeliveryView): BriefReport | null {
 /**
  * Client-facing props of the brief PDF (decision 15: active items only, never the upsell tag; no links or feedback).
  * `live` = the graded lines still live at render (P3), never the stored `report.changes`. The scorecard is always shown (P7).
+ * `report` = `storedReport(v)` when the caller already parsed it (parsed once per render).
  */
-export function briefReportProps(v: BriefDeliveryView, live: GradedChangesView | null, mapImage: BriefReportDocumentProps['mapImage']): BriefReportDocumentProps {
+export function briefReportProps(v: BriefDeliveryView, live: GradedChangesView | null, mapImage: BriefReportDocumentProps['mapImage'], report: BriefReport | null = storedReport(v)): BriefReportDocumentProps {
   // 7c2: the PDF never carries the feedback line (it is an email-only prompt to reply).
   const legacy = { ...briefEmailProps(v, { recipientName: null, link: null, pdfLink: null, itemLink: () => null }), feedback: null };
-  const report = storedReport(v);
   return {
     branding: v.branding, clientName: v.clientName, deliveryDate: v.b.deliveryDate,
     // period_end is the exclusive end of the window: the label names the last day inside it.
@@ -67,9 +67,10 @@ export const briefPdfMeta = (v: BriefDeliveryView): PdfMeta =>
 export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ key: string } | { skipped: string }> {
   const v = await loadBriefView(deps.db, briefId);
   if (v.b.status !== 'approved' && v.b.status !== 'sent') return { skipped: `brief is ${v.b.status}` };
-  const live = storedReport(v) ? await deps.db.transaction((tx) => loadLiveChanges(tx, v.b)) : null;
+  const report = storedReport(v);
+  const live = report ? await deps.db.transaction((tx) => loadLiveChanges(tx, v.b)) : null;
   // Task 11 fills the map image; until then the Map rankings section shows its keyword table only.
-  const html = await renderBriefReportDocument(briefReportProps(v, live, null));
+  const html = await renderBriefReportDocument(briefReportProps(v, live, null, report));
   const bytes = await deps.pdf(html, briefPdfMeta(v), { allowUrls: v.branding.logoUrl ? [v.branding.logoUrl] : [] });
   const key = briefPdfKey(v.b.agencyId, briefId);
   await deps.store.put(key, bytes, 'application/pdf', { overwrite: true });

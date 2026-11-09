@@ -20,11 +20,11 @@ export const briefReportTitle = (clientName: string, deliveryDate: string) => `$
 const CHART_W = 700;
 const CHART_H = 220;
 
-function Chart({ title, labels, series, yFormat }: { title: string; labels: string[]; series: ChartSeries[]; yFormat?: (v: number) => string }) {
+function Chart({ title, labels, series, yFormat, yDomain, yStep }: { title: string; labels: string[]; series: ChartSeries[]; yFormat?: (v: number) => string; yDomain?: [number, number]; yStep?: number }) {
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <div style={{ ...h3, marginTop: 0 }}>{title}</div>
-      <PrintLineChart title={title} labels={labels.map(axisLabel)} series={series} width={CHART_W} height={CHART_H} yFormat={yFormat} />
+      <PrintLineChart title={title} labels={labels.map(axisLabel)} series={series} width={CHART_W} height={CHART_H} yFormat={yFormat} yDomain={yDomain} yStep={yStep} />
     </div>
   );
 }
@@ -33,6 +33,13 @@ function Chart({ title, labels, series, yFormat }: { title: string; labels: stri
 const ratingSeries = (r: BriefReport): ChartSeries[] => {
   const self = r.rating.series.find((s) => s.you);
   return foldSeries(r.rating.series, 5, { aggregate: 'mean', pin: self ? [self.key] : [] });
+};
+
+/** Star ratings on a [floor, 5] axis in half stars: the floor is half a star under the lowest known value, never below 0. */
+export const ratingDomain = (series: ChartSeries[]): [number, number] => {
+  const known = series.flatMap((s) => s.points.filter((v): v is number => v !== null && Number.isFinite(v)));
+  if (known.length === 0) return [0, 5];
+  return [Math.min(4.5, Math.max(0, Math.floor((Math.min(...known) - 0.5) * 2) / 2)), 5];
 };
 
 function ReportShell({ title, children }: { title: string; children: ReactNode }) {
@@ -74,7 +81,7 @@ export function BriefReportDocument(p: BriefReportDocumentProps) {
   const rating = ratingSeries(r);
   const reviewsData = hasPoints(rating) || p.trend ? (
     <>
-      {hasPoints(rating) ? <Chart title="Average rating by month" labels={r.rating.months} series={rating} yFormat={(v) => v.toFixed(1)} /> : null}
+      {hasPoints(rating) ? <Chart title="Average rating by month" labels={r.rating.months} series={rating} yFormat={(v) => v.toFixed(1)} yDomain={ratingDomain(rating)} yStep={0.5} /> : null}
       {p.trend ? <TrendTable branding={p.branding} windowDays={p.trend.windowDays} businesses={p.trend.businesses} /> : null}
     </>
   ) : null;

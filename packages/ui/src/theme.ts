@@ -1,36 +1,10 @@
-import { type Branding, contrastRatio, readableTextOn, RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
+import { brandInk, type Branding, contrastRatio, mixHex, readableTextOn, RIVAL_MONDAY_TOKENS } from '@cs/email/branding';
 
-// One implementation, shared with the emails' button labels.
-export { contrastRatio, readableTextOn };
+// One implementation, shared with the emails' button labels and the weekly report PDF's cover band.
+export { brandInk, contrastRatio, mixHex, readableTextOn };
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const safe = (v: string, fallback: string) => (HEX.test(v) ? v : fallback);
-const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-
-/** Linear mix: t = 0 → a, t = 1 → b. Inputs must be #rrggbb. */
-export function mixHex(a: string, b: string, t: number): string {
-  const [ca, cb] = [channels(a), channels(b)];
-  return `#${ca.map((x, i) => Math.round(x + (cb[i]! - x) * t).toString(16).padStart(2, '0')).join('')}`;
-}
-
-const BAND_FLOOR: ReadonlyArray<readonly [string, number]> = [['#FFFFFF', 7], ['#B7C7DA', 4.5], ['#7FC3F0', 4.5]];
-const passesFloor = (c: string) => BAND_FLOOR.every(([fg, min]) => contrastRatio(fg, c) >= min);
-
-/** Deep shade of the agency colour for the title band / ink buttons (spec B2). */
-export function brandInk(primary: string, secondary: string): string {
-  const candidates = [
-    [safe(secondary, RIVAL_MONDAY_TOKENS.secondary), RIVAL_MONDAY_TOKENS.secondary],
-    [safe(primary, RIVAL_MONDAY_TOKENS.primary), RIVAL_MONDAY_TOKENS.primary],
-  ] as const;
-  for (const [c, rmDefault] of candidates) {
-    if (c.toLowerCase() === rmDefault.toLowerCase()) continue;
-    for (let k = 0; k <= 50; k++) {
-      const shade = mixHex(c, '#000000', k / 100);
-      if (passesFloor(shade)) return shade;
-    }
-  }
-  return RIVAL_MONDAY_TOKENS.ink;
-}
 
 /** Hover of a brand-ink fill (spec B3): lighter, white label kept >= 4.5:1. */
 export function brandInkHover(base: string): string {

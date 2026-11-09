@@ -22,6 +22,16 @@ describe('PrintLineChart', () => {
     expect(svg.lastIndexOf(`stroke="${PRINT_ROLE_HEX.you}"`)).toBeGreaterThan(svg.lastIndexOf(`stroke="${PRINT_ROLE_HEX.context}"`));
   });
 
+  it('a fixed y domain puts ticks from its floor to its top (ratings)', () => {
+    const out = html(<PrintLineChart title="R" labels={labels} series={[{ key: 'me', name: 'Acme', you: true, points: [3.9, 4.4, 4.8] }]} yDomain={[3, 5]} yStep={0.5} yFormat={(v) => v.toFixed(1)} />);
+    const ticks = [...out.matchAll(/text-anchor="end"[^>]*>([\d.]+)</g)].map((m) => Number(m[1]));
+    expect(Math.max(...ticks)).toBe(5);
+    expect(Math.min(...ticks)).toBeGreaterThan(0);
+    expect(ticks).toHaveLength(5);
+    const nulls = html(<PrintLineChart title="R" labels={labels} series={[{ key: 'a', name: 'Rival', points: [null, null, null] }]} yDomain={[3, 5]} yStep={0.5} />);
+    expect(nulls).not.toContain('NaN');
+  });
+
   it('renders no NaN for all-null series', () => {
     const out = html(<PrintLineChart title="T" labels={labels} series={[{ key: 'a', name: 'Rival', points: [null, null, null] }]} />);
     expect(out).not.toContain('NaN');

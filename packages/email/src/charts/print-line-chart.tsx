@@ -21,6 +21,8 @@ export function PrintLineChart({
   width = 640,
   height = 220,
   yFormat,
+  yDomain,
+  yStep,
 }: {
   title: string;
   labels: string[];
@@ -29,16 +31,24 @@ export function PrintLineChart({
   width?: number;
   height?: number;
   yFormat?: (v: number) => string;
+  /** Fixed y range (e.g. ratings [3, 5]); default 0 → `niceMax` of the data. */
+  yDomain?: [number, number];
+  /** Tick step inside `yDomain` (default: 2 steps). */
+  yStep?: number;
 }) {
   const series = input.map((s) => ({ ...s, points: s.points.slice(0, labels.length) }));
   const fmt = yFormat ?? ((v: number) => String(Math.round(v * 100) / 100));
   const known = series.flatMap((s) => s.points.filter((v): v is number => v !== null));
-  const yMax = niceMax(known.length ? Math.max(...known) : 0);
+  const fixed = yDomain && Number.isFinite(yDomain[0]) && Number.isFinite(yDomain[1]) && yDomain[1] > yDomain[0] ? yDomain : null;
+  const yMin = fixed ? fixed[0] : 0;
+  const yMax = fixed ? fixed[1] : niceMax(known.length ? Math.max(...known) : 0);
+  const steps = fixed && yStep && yStep > 0 ? Math.max(1, Math.round((yMax - yMin) / yStep)) : 2;
+  const ticks = fixed ? Array.from({ length: steps + 1 }, (_, i) => Math.round((yMin + ((yMax - yMin) * i) / steps) * 1000) / 1000) : yTicks(yMax, 2);
   const pad = { l: 40, r: 12, t: 10, b: 24 };
   const w = width - pad.l - pad.r;
   const h = height - pad.t - pad.b;
   const x = (i: number) => Math.round((labels.length <= 1 ? w / 2 : (i * w) / (labels.length - 1)) * 100) / 100;
-  const y = (v: number) => Math.round((1 - v / yMax) * h * 100) / 100;
+  const y = (v: number) => Math.round((1 - (Math.min(yMax, Math.max(yMin, v)) - yMin) / (yMax - yMin)) * h * 100) / 100;
   const role = (s: ChartSeries) => chartRole(s, series, { lowerIsBetter });
   const valueText = (s: ChartSeries) => {
     const v = latest(s.points);
@@ -53,7 +63,7 @@ export function PrintLineChart({
     <div style={{ margin: 0 }}>
       <svg role="img" aria-label={`${title}. Latest: ${summary}.`} width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <g transform={`translate(${pad.l},${pad.t})`}>
-          {yTicks(yMax, 2).map((v) => (
+          {ticks.map((v) => (
             <g key={v}>
               <line x1={0} x2={w} y1={y(v)} y2={y(v)} stroke={GRID} strokeWidth={1} />
               <text x={-6} y={y(v) + 4} textAnchor="end" fontSize={10} fill={AXIS}>{fmt(v)}</text>

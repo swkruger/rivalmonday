@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
 import { type BriefReport, GRADE_LABEL, GRADES, type GradedChangesView } from '@cs/core';
-import type { Branding } from '../../branding';
+import { brandInk, type Branding } from '../../branding';
 import type { BriefReportDocumentProps, ScorecardModel } from '../../types';
 import { Scorecard } from '../scorecard';
 import { h2, h3, muted, pageSection, small } from './format';
@@ -83,7 +83,7 @@ export function SummarySection(p: { doc: BriefReportDocumentProps; report: Brief
               </div>
               {r.reason ? <div style={small}>{r.reason}</div> : null}
               <div style={{ height: 8, borderRadius: 4, backgroundColor: '#E3E9F0', marginTop: 4 }}>
-                <div style={{ height: 8, borderRadius: 4, backgroundColor: b.secondary, width: `${Math.round(Math.min(100, Math.max(0, r.score)))}%` }} />
+                <div style={{ height: 8, borderRadius: 4, backgroundColor: brandInk(b.primary, b.secondary), width: `${Math.round(Math.min(100, Math.max(0, r.score)))}%` }} />
               </div>
             </div>
           ))}

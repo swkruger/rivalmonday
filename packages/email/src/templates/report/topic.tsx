@@ -8,9 +8,11 @@ import { h2, muted, pageSection, small } from './format';
 
 type Item = BriefReportDocumentProps['items'][number];
 
+// Neutral tint as the app's `StatusChip tone="neutral"` (@cs/ui status-chip.tsx); the grade word carries the meaning.
+const NEUTRAL: CSSProperties = { backgroundColor: '#EEF2F6', color: '#334155' };
 const CHIP: Record<ChangeLine['grade'], CSSProperties> = {
-  major: { backgroundColor: '#FDECEC', color: '#8A1C1C' },
-  notable: { backgroundColor: '#EEF2F6', color: '#33465C' },
+  major: NEUTRAL,
+  notable: NEUTRAL,
   minor: { backgroundColor: '#F6F9FC', color: '#5B6B7F' },
 };
 

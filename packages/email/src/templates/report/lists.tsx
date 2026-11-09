@@ -17,6 +17,9 @@ const day = (iso: string, tz: string) => formatDayRange(iso, iso, tz);
 export function RankingsData(p: { branding: Branding; rankings: Rankings; mapImage: { dataUri: string; attribution: string } | null; timezone: string }) {
   const r = p.rankings;
   const rivalNames = [...new Set(r.keywords.flatMap((k) => k.rivals.map((x) => x.name)))].slice(0, 2);
+  // No previous scan: no "Previous scan" column.
+  const prev = r.prevScanAt !== null;
+  const numCols = 1 + (prev ? 1 : 0) + rivalNames.length;
   return (
     <div>
       {p.mapImage ? (
@@ -28,16 +31,16 @@ export function RankingsData(p: { branding: Branding; rankings: Rankings; mapIma
       {r.keywords.length > 0 ? (
         <table width="100%" cellPadding={0} cellSpacing={0} border={0} aria-label="Average map position by keyword" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', backgroundColor: p.branding.panel, borderRadius: 8 }}>
           <colgroup>
-            <col style={{ width: `${100 - 16 * (2 + rivalNames.length)}%` }} />
+            <col style={{ width: `${100 - 16 * numCols}%` }} />
             <col style={{ width: '16%' }} />
-            <col style={{ width: '16%' }} />
+            {prev ? <col style={{ width: '16%' }} /> : null}
             {rivalNames.map((n) => <col key={n} style={{ width: '16%' }} />)}
           </colgroup>
           <thead>
             <tr>
               <th style={{ ...th, textAlign: 'left' }}>Keyword</th>
               <th style={{ ...th, ...num }}>You</th>
-              <th style={{ ...th, ...num }}>Previous scan</th>
+              {prev ? <th style={{ ...th, ...num }}>Previous scan</th> : null}
               {rivalNames.map((n) => <th key={n} style={{ ...th, ...num }}>{n}</th>)}
             </tr>
           </thead>
@@ -46,7 +49,7 @@ export function RankingsData(p: { branding: Branding; rankings: Rankings; mapIma
               <tr key={k.keyword}>
                 <td style={td}>{k.keyword}</td>
                 <td style={{ ...td, ...numCell, fontWeight: 700 }}>{rank(k.you)}</td>
-                <td style={{ ...td, ...numCell }}>{rank(k.prev)}</td>
+                {prev ? <td style={{ ...td, ...numCell }}>{rank(k.prev)}</td> : null}
                 {rivalNames.map((n) => <td key={n} style={{ ...td, ...numCell }}>{rank(k.rivals.find((x) => x.name === n)?.metric)}</td>)}
               </tr>
             ))}
