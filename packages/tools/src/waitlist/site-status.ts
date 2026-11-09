@@ -38,7 +38,7 @@ export async function siteStatus(service: Db, now: Date): Promise<SiteStatus> {
                  WHERE b.generated_at > ${since}::timestamptz AND b.claims_checked IS NOT NULL AND b.agency_id IS DISTINCT FROM (SELECT id FROM sample))
       SELECT
         (SELECT count(DISTINCT cc.competitor_id) FROM client_competitor cc JOIN live l ON l.id = cc.client_id)::int AS rivals,
-        (SELECT count(*) FROM capture cp WHERE cp.status IN ('ok','unchanged') AND cp.captured_at > ${since}::timestamptz
+        (SELECT count(*) FROM capture cp WHERE cp.status IN ('ok','unchanged') AND cp.source <> 'ad_image' AND cp.captured_at > ${since}::timestamptz
            AND EXISTS (SELECT 1 FROM client_competitor cc JOIN live l ON l.id = cc.client_id WHERE cc.competitor_id = cp.competitor_id))::int AS snapshots,
         (SELECT coalesce(sum(claims_checked), 0) FROM recent)::int AS checked,
         (SELECT coalesce(sum(dropped), 0) FROM recent)::int AS dropped`);

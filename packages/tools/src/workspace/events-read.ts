@@ -29,9 +29,9 @@ export function toEventRow(r: Row, verticalId: string, serviceNames: Map<string,
   };
 }
 
-type EvidenceKind = 'text' | 'screenshot' | 'vendor_json';
+type EvidenceKind = 'text' | 'screenshot' | 'vendor_json' | 'image';
 /** What MCP (and `fetch`, MCP-only) may cite. */
-export const MCP_EVIDENCE_KINDS: EvidenceKind[] = ['text', 'screenshot'];
+export const MCP_EVIDENCE_KINDS: EvidenceKind[] = ['text', 'screenshot', 'image'];
 
 /**
  * Evidence kinds a summary row may cite. MCP: text/screenshot only — an id there must open as an `evidence://` resource

@@ -1,7 +1,7 @@
 import { libraryUrl } from '@cs/collectors';
 import { appLinkFor, toolkit } from '@cs/core';
-import { ad, evidence } from '@cs/db';
-import { and, asc, desc, eq, inArray, type SQL } from 'drizzle-orm';
+import { ad, adImage, evidence } from '@cs/db';
+import { and, asc, desc, eq, inArray, isNotNull, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { detailOf, pageOf, pageResult } from '../paging';
@@ -50,6 +50,12 @@ export const listAds = defineTool({
     const rows = await deps.service.select().from(ad).where(and(...conds))
       .orderBy(desc(ad.isActive), desc(ad.lastSeenAt), desc(ad.id)).offset(offset).limit(limit + 1);
     const page = pageResult(rows, limit, offset);
+    // Stored ad images (18a-3), newest first; person rows never have evidence. Global rows, visibility proved above.
+    const images = page.rows.length
+      ? await deps.service.select({ adId: adImage.adId, evidenceId: adImage.evidenceId }).from(adImage)
+        .where(and(inArray(adImage.adId, page.rows.map((a) => a.id)), isNotNull(adImage.evidenceId))).orderBy(desc(adImage.createdAt), desc(adImage.id))
+      : [];
+    const imagesOf = (adId: string): string[] => images.filter((i) => i.adId === adId).map((i) => i.evidenceId!);
     if (detailOf(input, meta) === 'summary') {
       // The ad's citable capture evidence (first sighting, else latest), as eventEvidenceIds; global rows, visibility proved above.
       const captureOf = new Map(page.rows.map((a) => [a.id, a.firstCaptureId ?? a.lastCaptureId]));
@@ -64,7 +70,7 @@ export const listAds = defineTool({
           const cap = captureOf.get(a.id);
           return {
             id: a.id, title: forChannel(meta, a.title ?? a.text?.slice(0, 80) ?? `${a.platform} ad`, [name]), date: a.firstSeenAt.toISOString(),
-            evidenceIds: cap ? ev.filter((e) => e.captureId === cap).map((e) => e.id) : [],
+            evidenceIds: [...(cap ? ev.filter((e) => e.captureId === cap).map((e) => e.id) : []), ...(citableEvidenceKinds(meta).includes('image') ? imagesOf(a.id) : [])],
             url: appLinkFor(deps.appUrl, { t: 'competitor', clientId: c.id, id: a.competitorId }),
           };
         }),
@@ -75,7 +81,7 @@ export const listAds = defineTool({
       items: page.rows.map((a) => ({
         id: a.id, competitorId: a.competitorId, competitorName: names.get(a.competitorId)!, platform: a.platform as 'meta' | 'google',
         format: a.format, title: forChannel(meta, a.title, [names.get(a.competitorId)]), text: forChannel(meta, a.text, [names.get(a.competitorId)]), landingUrl: a.landingUrl,
-        firstSeenAt: a.firstSeenAt.toISOString(), lastSeenAt: a.lastSeenAt.toISOString(), endedAt: toIso(a.endedAt), active: a.isActive, libraryUrl: libraryUrl(a),
+        firstSeenAt: a.firstSeenAt.toISOString(), lastSeenAt: a.lastSeenAt.toISOString(), endedAt: toIso(a.endedAt), active: a.isActive, libraryUrl: libraryUrl(a), imageEvidenceIds: imagesOf(a.id),
       })),
       hasMore: page.hasMore,
       nextCursor: page.nextCursor,

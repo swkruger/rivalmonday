@@ -2,7 +2,7 @@ import { alert, brief, briefItem, changeEvent, clientCompetitor, detectedChange 
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { evidenceContentType } from '../workspace/evidence-access';
+import { evidenceContentType, snapshotSide } from '../workspace/evidence-access';
 import { firstVisibleEvent } from '../workspace/scope';
 import type { CompareView, EvidenceView } from './schemas';
 import { ctx, day, dbs, registry, resetWorkspace, seedCapture, seedEvent, seedSelf } from './workspace-fixtures';
@@ -182,5 +182,24 @@ describe('get_evidence', () => {
     await expect(getEvidence(ownerA2, a.ids.screenshot!, IDS.clientA2)).rejects.toMatchObject({ code: 'not_found' });
     await expect(getEvidence(otherAgency, a.ids.screenshot!)).rejects.toMatchObject({ code: 'not_found' });
     await expect(getEvidence(am, '00000000-0000-4000-8000-000000000000')).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('ad image evidence (18a-3)', () => {
+  it('get_evidence on an image evidence is servable (image/webp)', async () => {
+    const c = await seedCapture({ source: 'ad_image', kinds: ['image'] });
+    const v = await getEvidence(viewerBriefsOnly, c.ids.image!);
+    expect(v).toMatchObject({ kind: 'image', servable: true, contentType: 'image/webp', channelLabel: 'Ad image' });
+    expect(evidenceContentType('image')).toBe('image/webp');
+  });
+
+  it("another client's competitor image evidence is not found", async () => {
+    const c = await seedCapture({ source: 'ad_image', kinds: ['image'], competitorId: IDS.competitorY });
+    await expect(getEvidence(am, c.ids.image!)).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('snapshotSide treats an image as the capture own picture', async () => {
+    const c = await seedCapture({ source: 'ad_image', kinds: ['image'] });
+    expect((await snapshotSide(dbs.service, c.captureId))!.screenshot).toMatchObject({ evidenceId: c.ids.image, fallback: false });
   });
 });

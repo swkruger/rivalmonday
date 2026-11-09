@@ -51,7 +51,7 @@ const redact = (text: string, names: readonly (string | null | undefined)[], cap
 const day = (d: Date): string => d.toISOString().slice(0, 10);
 const LEVEL: Record<string, string> = { L: 'Low', M: 'Medium', H: 'High' };
 const REC_STATUS: Record<string, string> = { todo: 'To do', in_progress: 'In progress', done: 'Done', dismissed: 'Dismissed' };
-const EVIDENCE_KIND: Record<string, string> = { screenshot: 'Screenshot', text: 'Page text', html: 'Page HTML', vendor_json: 'Vendor data' };
+const EVIDENCE_KIND: Record<string, string> = { screenshot: 'Screenshot', image: 'Ad image', text: 'Page text', html: 'Page HTML', vendor_json: 'Vendor data' };
 
 /** The client's own name and its tracked competitors' names (RLS): business names in model-written text are never people. */
 async function clientNames(deps: ToolDeps, ctx: AccessContext, clientId: string): Promise<string[]> {
@@ -153,8 +153,8 @@ async function fetchEvidence(deps: ToolDeps, ctx: AccessContext, id: string): Pr
     if (!deps.evidenceStore) throw new ToolError('internal', 'Evidence storage is not configured');
     const bytes = await deps.evidenceStore.get(row.objectKey);
     text = bytes ? new TextDecoder('utf-8').decode(bytes) : `Text of ${where} ${captured} is no longer stored.`;
-  } else if (row.kind === 'screenshot') {
-    text = `Screenshot of ${where} ${captured}`;
+  } else if (row.kind === 'screenshot' || row.kind === 'image') {
+    text = `${row.kind === 'image' ? 'Ad image' : 'Screenshot'} of ${where} ${captured}`;
     screenshotKey = row.objectKey;
   } else {
     // Decision 6: html / vendor_json are never returned (untrusted competitor markup) — a metadata line only.

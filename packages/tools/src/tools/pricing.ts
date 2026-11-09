@@ -14,8 +14,8 @@ const uuid = z.string().uuid();
 const DAY = 86_400_000;
 const cellKey = (competitorId: string, serviceId: string) => `${competitorId}|${serviceId}`;
 
-/** Ad-sourced prices are shown but never counted (18a-1 O6). */
-const lowestUsd = (prices: { amount: number; unit: string; source: 'web' | 'meta_ad' }[]): number | null => {
+/** Ad-sourced prices (meta_ad, ad_image) are shown but never counted (18a-1 O6, 18a-3). */
+const lowestUsd = (prices: { amount: number; unit: string; source: 'web' | 'meta_ad' | 'ad_image' }[]): number | null => {
   const usd = prices.filter((p) => p.unit === 'USD' && p.source === 'web').map((p) => p.amount);
   return usd.length ? Math.min(...usd) : null;
 };
@@ -63,7 +63,7 @@ export const getPriceMatrix = defineTool({
           const before = then.get(cellKey(r.competitorId, s.id)) ?? null;
           return {
             serviceId: s.id,
-            prices: prices.map((p) => ({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.since.toISOString(), source: p.source })),
+            prices: prices.map((p) => ({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.since.toISOString(), source: p.source, evidenceIds: p.evidenceIds })),
             change: now !== null && before !== null && now !== before ? { before, after: now } : null,
           };
         }),

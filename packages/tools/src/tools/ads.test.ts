@@ -1,7 +1,7 @@
 import { IDS } from '@cs/db/test-helpers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AdList } from './schemas';
-import { ago, ctx, registry, resetWorkspace, seedAds, seedCapture } from './workspace-fixtures';
+import { ago, ctx, registry, resetWorkspace, seedAdImage, seedAds, seedCapture } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -66,5 +66,33 @@ describe('list_ads summary (mcp)', () => {
     await seedAds({ ads: [{ platform: 'meta', externalId: 'm10', title: 'Vendor-only ad', isActive: true, firstSeenAt: ago(0), lastSeenAt: ago(0), firstCaptureId: cap.captureId }] });
     const out = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 }, { channel: 'ask' })) as { items: { title: string; evidenceIds: string[] }[] };
     expect(out.items.find((i) => i.title === 'Vendor-only ad')!.evidenceIds).toEqual([cap.ids.vendor_json]);
+  });
+});
+
+describe('list_ads image evidence (18a-3)', () => {
+  const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
+
+  it('list_ads full rows carry imageEvidenceIds; person rows never', async () => {
+    const img = await seedAdImage({ person: true });
+    const plain = await seedAdImage({ adId: undefined });
+    const r = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 })) as { items: { id: string; imageEvidenceIds: string[] }[] };
+    expect(r.items.find((a) => a.id === img.adId)!.imageEvidenceIds).toEqual([img.evidenceId]);
+    expect(r.items.find((a) => a.id === plain.adId)!.imageEvidenceIds).toEqual([plain.evidenceId]);
+    expect(r.items.filter((a) => a.id !== img.adId && a.id !== plain.adId).every((a) => a.imageEvidenceIds.length === 0)).toBe(true);
+  });
+
+  it('summary on mcp and ask cites the image id', async () => {
+    const img = await seedAdImage();
+    for (const channel of ['mcp', 'ask'] as const) {
+      const out = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 }, { ...mcp, channel })) as { items: { id: string; evidenceIds: string[] }[] };
+      expect(out.items.find((i) => i.id === img.adId)!.evidenceIds).toContain(img.evidenceId);
+    }
+  });
+
+  it("another client's competitor image is never listed", async () => {
+    const other = await seedAdImage({ competitorId: IDS.competitorY });
+    const r = (await registry.invoke(am, 'list_ads', { clientId: IDS.clientA1 })) as { items: { id: string }[] };
+    expect(r.items.map((a) => a.id)).not.toContain(other.adId);
+    await expect(registry.invoke(am, 'list_ads', { clientId: IDS.clientA1, competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
   });
 });

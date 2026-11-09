@@ -1,7 +1,7 @@
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
 import { capture, opsAlert, vendorCall } from '@cs/db';
 import { summarizeBriefReadiness } from '@cs/engine';
-import { and, desc, eq, gte, isNull, max, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, max, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
@@ -85,7 +85,7 @@ export const getPlatformHealth = defineTool({
         .groupBy(vendorCall.vendor)
         .orderBy(vendorCall.vendor),
       deps.service.select({ at: max(vendorCall.createdAt) }).from(vendorCall).where(eq(vendorCall.ok, true)),
-      deps.service.select({ at: max(capture.capturedAt) }).from(capture).where(eq(capture.status, 'ok')),
+      deps.service.select({ at: max(capture.capturedAt) }).from(capture).where(and(eq(capture.status, 'ok'), ne(capture.source, 'ad_image'))),
       // Like the queue stats: a failing readiness query degrades its block (null), never the whole health page.
       Promise.all([summarizeBriefReadiness(deps.service, now), readinessIssues(deps)])
         .then(([summary, issues]): BriefReadiness => ({ ...summary, issues }))

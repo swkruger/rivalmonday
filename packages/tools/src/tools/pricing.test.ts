@@ -5,7 +5,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PriceHistoryView, PriceMatrixView } from './schemas';
-import { ago, ctx, dbs, registry, resetWorkspace, seedAdPrice, seedPrice } from './workspace-fixtures';
+import { ago, ctx, dbs, registry, resetWorkspace, seedAdImage, seedAdPrice, seedPrice } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -119,5 +119,37 @@ describe('get_price_history', () => {
     await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown service' });
     await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up', competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('image prices (18a-3)', () => {
+  it('image price ⇒ source ad_image, evidenceIds [id], Google library pageUrl, not in lowest or 90-day change, not in history', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(120), to: ago(30) });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(30) });
+    const img = await seedAdImage({ price: { serviceId: 'ac_tune_up', amount: 29, from: ago(120) } });
+    const m = await priceMatrix({ db: dbs.service, packs: createPackLoader() }, IDS.clientA1);
+    expect(m.rows[0]!.cells.ac_tune_up![0]).toMatchObject({ amount: 29, source: 'ad_image', evidenceIds: [img.evidenceId], pageUrl: expect.stringMatching(/^https:\/\/adstransparency\.google\.com\/advertiser\/AR777\/creative\/gad-/) });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 })) as PriceMatrixView;
+    const cell = r.rows[0]!.cells[0]!;
+    expect(cell.change).toEqual({ before: 99, after: 79 });
+    expect(cell.prices.map((p) => [p.amount, p.source])).toEqual([[29, 'ad_image'], [79, 'web']]);
+    const h = (await registry.invoke(owner, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })) as PriceHistoryView;
+    expect(h.series[0]!.points.filter((p) => p !== null)).not.toContain(29);
+  });
+
+  it('get_price_matrix image price row carries evidenceIds so Ask can cite it', async () => {
+    const img = await seedAdImage({ price: { serviceId: 'ac_tune_up', amount: 39, from: ago(3) } });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 89, from: ago(10) });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 }, { channel: 'ask' })) as PriceMatrixView;
+    const prices = r.rows[0]!.cells[0]!.prices;
+    expect(prices.find((p) => p.source === 'ad_image')!.evidenceIds).toEqual([img.evidenceId]);
+    expect(prices.find((p) => p.source === 'web')!.evidenceIds).toEqual([]);
+  });
+
+  it("other client's competitor image ⇒ not_found", async () => {
+    await seedAdImage({ competitorId: IDS.competitorY, price: { serviceId: 'ac_tune_up', amount: 39, from: ago(3) } });
+    await expect(registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1, competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 })) as PriceMatrixView;
+    expect(JSON.stringify(r)).not.toContain('"ad_image"');
   });
 });

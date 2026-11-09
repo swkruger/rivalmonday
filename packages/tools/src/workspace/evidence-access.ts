@@ -9,7 +9,7 @@ import type { SnapshotSide } from '../tools/schemas';
  * `vendor_json` are never served raw (untrusted competitor markup). The single source of truth: `get_evidence`'s
  * `servable` flag is derived from it, and the file route takes its content type from `evidenceContentType`.
  */
-export const EVIDENCE_CONTENT_TYPES = { screenshot: 'image/webp', text: 'text/plain; charset=utf-8' } as const;
+export const EVIDENCE_CONTENT_TYPES = { screenshot: 'image/webp', image: 'image/webp', text: 'text/plain; charset=utf-8' } as const;
 export type ServableEvidenceKind = keyof typeof EVIDENCE_CONTENT_TYPES;
 export const SERVABLE_EVIDENCE: ReadonlySet<string> = new Set<string>(Object.keys(EVIDENCE_CONTENT_TYPES));
 
@@ -60,7 +60,7 @@ export async function snapshotSide(db: Db, captureId: string | null): Promise<Sn
   const cap = rows[0];
   if (!cap) return null;
   const ev = rows.flatMap((r) => (r.evId !== null && r.evKind !== null && r.evSha256 !== null ? [{ id: r.evId, kind: r.evKind, sha256: r.evSha256 }] : []));
-  const own = ev.find((e) => e.kind === 'screenshot');
+  const own = ev.find((e) => e.kind === 'screenshot') ?? ev.find((e) => e.kind === 'image');
   let screenshot: SnapshotSide['screenshot'] = own ? { evidenceId: own.id, capturedAt: cap.capturedAt.toISOString(), fallback: false } : null;
   if (!screenshot && cap.trackedPageId) {
     const [prev] = await db.select({ id: evidence.id, capturedAt: capture.capturedAt }).from(evidence).innerJoin(capture, eq(capture.id, evidence.captureId))

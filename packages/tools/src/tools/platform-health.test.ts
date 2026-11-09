@@ -91,6 +91,15 @@ describe('get_platform_health', () => {
     expect(out.sources.find((s) => s.kind === 'vendor_call')).toMatchObject({ status: 'ok', lastOkAt: ago(2 * HOUR).toISOString() });
   });
 
+  it('platform-health freshness ignores ad_image captures', async () => {
+    await dbs.owner.insert(capture).values([
+      { competitorId: IDS.competitorX, source: 'web', status: 'ok', collectorVersion: 't', capturedAt: ago(27 * HOUR) },
+      { competitorId: IDS.competitorX, source: 'ad_image', status: 'ok', collectorVersion: 't', capturedAt: ago(1 * HOUR) },
+    ]);
+    const out = await health();
+    expect(out.sources.find((s) => s.kind === 'capture')).toMatchObject({ lastOkAt: ago(27 * HOUR).toISOString() });
+  });
+
   it('returns open issues only, newest first', async () => {
     const c = (n: number) => Array.from({ length: n }, (_, i) => ({ clientId: `c${i}`, clientName: `C${i}`, agencyName: 'A' }));
     const row = (key: string, firstSeenAt: Date, o: Partial<typeof opsAlert.$inferInsert> = {}) => ({

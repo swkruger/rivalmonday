@@ -181,6 +181,15 @@ describe('fetch', () => {
     await expect(doFetch(admin, `evidence:${cap.ids.text}`, reg({ evidenceStore: undefined }))).rejects.toMatchObject({ code: 'internal' });
   });
 
+  it('fetch evidence:<image> returns the description and the screenshot key', async () => {
+    const cap = await seedCapture({ source: 'ad_image', kinds: ['image'] });
+    const out = await doFetch(admin, `evidence:${cap.ids.image}`);
+    expect(out.text).toMatch(/^Ad image of https:\/\/smithhvac\.example\/pricing captured \d{4}-\d{2}-\d{2}/);
+    expect(out.title).toContain('Ad image');
+    expect(JSON.stringify(out)).not.toContain('screenshotKey');
+    expect((await fetchItem(baseDeps, admin, 'evidence', cap.ids.image!)).screenshotKey).toBe(cap.objectKeys.image);
+  });
+
   it('caps evidence text at 20,000 characters', async () => {
     const cap = await seedCapture({ kinds: ['text'] });
     store.set(cap.objectKeys.text!, new TextEncoder().encode('word '.repeat(10_000)));

@@ -1,5 +1,5 @@
-import { metaPageUrl } from '@cs/collectors';
-import { ad, client, clientCompetitor, competitor, type Db, type PriceQualifier, pricePoint, trackedPage } from '@cs/db';
+import { libraryUrl, metaPageUrl } from '@cs/collectors';
+import { ad, adImage, client, clientCompetitor, competitor, type Db, type PriceQualifier, pricePoint, trackedPage } from '@cs/db';
 import { and, asc, eq, gte, inArray, isNotNull, isNull, or } from 'drizzle-orm';
 import type { PackLoader } from '../tag/tag-stage';
 
@@ -14,7 +14,9 @@ export interface PriceNow {
   /** Web page URL, or the advertiser's Ad Library URL for an ad-sourced price (null when the ad has no page id). */
   pageUrl: string | null;
   /** 'meta_ad' prices are shown but never counted in a lowest price, a 90-day change or a history (18a-1 O6). */
-  source: 'web' | 'meta_ad';
+  source: 'web' | 'meta_ad' | 'ad_image';
+  /** The stored ad image behind an 'ad_image' price (citable evidence); empty otherwise. */
+  evidenceIds: string[];
 }
 
 export interface PriceMatrixRow {
@@ -46,21 +48,25 @@ export async function priceMatrix(deps: { db: Db; packs: PackLoader }, clientId:
   const result: PriceMatrix = { clientId, verticalId: c.verticalId, services: [], rows: [] };
   if (tracked.length === 0) return result;
   const open = await deps.db
-    .select({ p: pricePoint, url: trackedPage.url, advertiserId: ad.advertiserId })
+    .select({ p: pricePoint, url: trackedPage.url, advertiserId: ad.advertiserId, platform: ad.platform, externalId: ad.externalId, imageEvidenceId: adImage.evidenceId })
     .from(pricePoint)
     // Left joins on purpose: an ad-sourced row has no tracked page and is listed with source 'meta_ad'.
     .leftJoin(trackedPage, eq(trackedPage.id, pricePoint.trackedPageId))
     .leftJoin(ad, eq(ad.id, pricePoint.adId))
+    .leftJoin(adImage, eq(adImage.id, pricePoint.adImageId))
     .where(and(inArray(pricePoint.competitorId, tracked.map((t) => t.id)), eq(pricePoint.verticalId, c.verticalId), isNull(pricePoint.endedAt)))
     .orderBy(asc(pricePoint.amount));
   const priced = new Set(open.map((o) => o.p.serviceId));
   result.services = pack.services.filter((s) => priced.has(s.id)).map((s) => ({ id: s.id, name: s.name }));
   result.rows = tracked.map((t) => {
     const cells: Record<string, PriceNow[]> = {};
-    for (const { p, url, advertiserId } of open.filter((o) => o.p.competitorId === t.id)) {
-      const fromAd = p.trackedPageId === null;
-      const pageUrl = fromAd ? (advertiserId ? metaPageUrl(advertiserId) : null) : url;
-      (cells[p.serviceId] ??= []).push({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.firstSeenAt, pageUrl, source: fromAd ? 'meta_ad' : 'web' });
+    for (const { p, url, advertiserId, platform, externalId, imageEvidenceId } of open.filter((o) => o.p.competitorId === t.id)) {
+      const source: PriceNow['source'] = p.adImageId ? 'ad_image' : p.trackedPageId === null ? 'meta_ad' : 'web';
+      const pageUrl = source === 'web' ? url
+        : source === 'meta_ad' ? (advertiserId ? metaPageUrl(advertiserId) : null)
+        : platform && externalId ? libraryUrl({ platform, externalId, advertiserId }) : null;
+      const evidenceIds = source === 'ad_image' && imageEvidenceId ? [imageEvidenceId] : [];
+      (cells[p.serviceId] ??= []).push({ amount: p.amount, unit: p.unit, qualifier: p.qualifier, promo: p.promo, since: p.firstSeenAt, pageUrl, source, evidenceIds });
     }
     return { competitorId: t.id, name: t.name, cells };
   });

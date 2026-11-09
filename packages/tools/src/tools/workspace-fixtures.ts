@@ -4,7 +4,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
-import { ad, capture, changeEvent, type ChangeDetails, client, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, pricePoint, type PriceQualifier, rankScan, rankSnapshot, type RankResult, review, reviewAnalysis, type ScoreFactors, trackedPage } from '@cs/db';
+import { ad, adImage, capture, changeEvent, type ChangeDetails, client, competitor, detectedChange, eventChange, eventScore, evidence, move, moveEvent, type NumericChange, observation, pricePoint, type PriceQualifier, rankScan, rankSnapshot, type RankResult, review, reviewAnalysis, type ScoreFactors, trackedPage } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll } from 'vitest';
@@ -280,6 +280,32 @@ export async function seedAdPrice(o: { serviceId: string; amount: number; from: 
     endedAt: o.to ?? null,
   }).returning();
   return p!.id;
+}
+
+/**
+ * An ad image (18a-3): a Google ad, its `ad_image` capture (source 'ad_image') with stored `image` evidence, and the `ad_image` row.
+ * With `price`, also an open image-read price point. `person: true` adds a person image that never has evidence.
+ */
+export async function seedAdImage(o: { competitorId?: string; advertiserId?: string | null; price?: { serviceId: string; amount: number; from: Date }; person?: boolean; adId?: string } = {}): Promise<{ adId: string; evidenceId: string; adImageId: string; priceId: string | null }> {
+  const competitorId = o.competitorId ?? IDS.competitorX;
+  const adId = o.adId ?? (await dbs.owner.insert(ad).values({
+    competitorId, platform: 'google', externalId: `gad-${randomUUID()}`, advertiserId: o.advertiserId === undefined ? 'AR777' : o.advertiserId, title: 'Image ad', isActive: true,
+  }).returning({ id: ad.id }))[0]!.id;
+  const at = o.price?.from ?? new Date();
+  const cap = await seedCapture({ competitorId, at, kinds: ['image'], source: 'ad_image' });
+  const [img] = await dbs.owner.insert(adImage).values({
+    adId, competitorId, sourceUrlSha: `sha-${randomUUID()}`, status: 'triaged', showsPerson: false, showsPrice: !!o.price, evidenceId: cap.ids.image!, readStatus: 'read',
+  }).returning({ id: adImage.id });
+  if (o.person) await dbs.owner.insert(adImage).values({ adId, competitorId, sourceUrlSha: `sha-${randomUUID()}`, status: 'triaged', showsPerson: true, showsPrice: false });
+  let priceId: string | null = null;
+  if (o.price) {
+    const [p] = await dbs.owner.insert(pricePoint).values({
+      competitorId, adId, adImageId: img!.id, verticalId: 'hvac_plumbing', serviceId: o.price.serviceId, amount: o.price.amount, unit: 'USD', qualifier: 'exact', promo: false,
+      raw: `$${o.price.amount}`, context: `${o.price.serviceId} $${o.price.amount}`, firstSeenAt: o.price.from, lastSeenAt: new Date(), firstCaptureId: cap.captureId, lastCaptureId: cap.captureId,
+    }).returning();
+    priceId = p!.id;
+  }
+  return { adId, evidenceId: cap.ids.image!, adImageId: img!.id, priceId };
 }
 
 export interface SeedReviewOptions {

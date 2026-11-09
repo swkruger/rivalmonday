@@ -96,6 +96,15 @@ describe('siteStatus', () => {
     expect(s.counters?.snapshotsThisWeek).toBe(10);
   });
 
+  it('site-status snapshots ignore ad_image captures', async () => {
+    const a = await mkAgency();
+    const rivals = await track(a, await mkClient(a), 10);
+    await snap(rivals[0]!, 10);
+    await dbs.owner.insert(capture).values(Array.from({ length: 10 }, () => ({ competitorId: rivals[1]!, source: 'ad_image', status: 'ok', collectorVersion: 't', capturedAt: daysAgo(1) })));
+    const s = await siteStatus(dbs.service, NOW);
+    expect(s.counters?.snapshotsThisWeek).toBe(10);
+  });
+
   it('claims sums only briefs with claims_checked and generated in 7 days', async () => {
     const a = await mkAgency();
     const c = await mkClient(a);
