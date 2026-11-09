@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { CallTiming } from '../config';
 import { AiProviderError, type HttpDeps, defaultHttpDeps, postJson } from '../http';
-import { type DecisionAnswer, type DecisionProvider, type DecisionQuestion, noulConfidence, validateQuestions } from './types';
+import { type DecideOptions, type DecisionAnswer, type DecisionImage, type DecisionProvider, type DecisionQuestion, imageDataUrl, noulConfidence, validateQuestions } from './types';
 
 export const JEV_OPENROUTER_URL = 'https://openrouter.ai/api/v1/systemone';
 /** Pinned request id; OpenRouter echoes a dated id (e.g. typesafe/jev-1.14-20261014) back as `model`. */
@@ -29,6 +29,32 @@ const responseSchema = z.object({
   answers: z.record(z.string(), answerSchema),
   usage: z.object({ input_tokens: z.number(), output_tokens: z.number().optional(), cost: z.number().nullish() }).passthrough(),
 });
+
+/** Where Jev reads an image in the request (18a-3 Task 0b probe: `top_level` 400s, `state_object` reads the data URL as text). */
+export type JevImageShape = 'top_level' | 'state_content' | 'state_object';
+export const JEV_IMAGE_SHAPE: JevImageShape | null = 'state_content';
+
+/** Builds the /systemone body. No images = the body Jev always got; Jev 400s on WebP, so refuse it before any request. */
+export function jevBody(
+  model: string,
+  state: unknown,
+  questions: Record<string, unknown>,
+  images: readonly DecisionImage[],
+  shape: JevImageShape | null = JEV_IMAGE_SHAPE,
+): Record<string, unknown> {
+  if (images.length === 0) return { model, state, questions };
+  if (shape === null) throw new AiProviderError('jev', null, 'Jev does not take images', false);
+  if (images.some((i) => i.mediaType === 'image/webp')) throw new AiProviderError('jev', null, 'Jev takes PNG or JPEG images only', false);
+  const urls = images.map(imageDataUrl);
+  switch (shape) {
+    case 'top_level':
+      return { model, state, questions, images: urls };
+    case 'state_content':
+      return { model, questions, state: [{ type: 'text', text: JSON.stringify(state) }, ...urls.map((url) => ({ type: 'image_url', image_url: { url } }))] };
+    case 'state_object':
+      return { model, questions, state: { text: JSON.stringify(state), image: urls[0] } };
+  }
+}
 
 function toJevQuestion(q: DecisionQuestion): Record<string, unknown> {
   switch (q.type) {
@@ -85,13 +111,14 @@ export function createJevProvider(opts: JevOptions): DecisionProvider {
 
   return {
     id: 'jev',
-    async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>) {
+    async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, callOpts?: DecideOptions) {
       validateQuestions(questions);
-      const body = {
+      const body = jevBody(
         model,
         state,
-        questions: Object.fromEntries(Object.entries<DecisionQuestion>(questions).map(([k, q]) => [k, toJevQuestion(q)])),
-      };
+        Object.fromEntries(Object.entries<DecisionQuestion>(questions).map(([k, q]) => [k, toJevQuestion(q)])),
+        callOpts?.images ?? [],
+      );
       const json = await postJson('jev', JEV_OPENROUTER_URL, body, headers, http, opts.timing);
       const parsed = responseSchema.safeParse(json);
       if (!parsed.success) throw new AiProviderError('jev', 200, 'Unexpected Jev response shape', false, { cause: parsed.error });

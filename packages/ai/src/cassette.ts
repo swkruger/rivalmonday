@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname } from 'node:path';
 import type { Ai } from './ai';
 import type { AiConfig } from './config';
+import type { DecideOptions } from './decisions/types';
 
 /** `fill`: replay stored replies, call live only on misses (or extra calls of a key), save like `record`. */
 export type CassetteMode = 'record' | 'replay' | 'fill';
@@ -32,6 +33,19 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const ISO = /\b(\d{4}-\d{2}-\d{2})(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b/g;
 const DAY = 86_400_000;
 
+/** Image parts never reach a cassette (18a-3 D3): each becomes { type: 'image', sha256 } before the key is built. */
+export function stripImages(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stripImages);
+  if (v instanceof Uint8Array) return { bytes: v.byteLength };
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    if (o.type === 'image' && o.image && typeof o.image === 'object') return { type: 'image', sha256: (o.image as { sha256?: unknown }).sha256 ?? null };
+    return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, stripImages(x)]));
+  }
+  return v;
+}
+const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.map((i) => ({ type: 'image', sha256: i.sha256 })) : undefined);
+
 export function canonicalJson(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;
   if (v && typeof v === 'object') return `{${Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort()
@@ -58,7 +72,9 @@ export function taskSignature(config: AiConfig, task: string): string {
   const t = config.tasks[task];
   if (!t) throw new Error(`Unknown AI task: ${task}`);
   const esc = 'escalate_to' in t && t.escalate_to ? config.tasks[t.escalate_to] : undefined;
-  return canonicalJson({ t, esc });
+  // `images: false` is the default added in 18a-3: dropped so every pre-existing task keeps its recorded key.
+  const bare = <T extends object>(x: T): T => (('images' in x && x.images === false) ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'images')) as T : x);
+  return canonicalJson({ t: bare(t), esc: esc ? bare(esc) : esc });
 }
 
 export function cassetteKey(config: AiConfig, task: string, kind: Kind, normalizedRequest: string): string {
@@ -125,11 +141,11 @@ export function createCassetteAi(inner: Ai | null, opts: CassetteOptions): Casse
   const live = (): Ai => inner as Ai;
   return {
     chat: (task, input, scope) =>
-      through(task, 'chat', { messages: input.messages, jsonSchema: input.jsonSchema }, () => live().chat(task, input, scope)),
+      through(task, 'chat', { messages: stripImages(input.messages), jsonSchema: input.jsonSchema }, () => live().chat(task, input, scope)),
     chatWithTools: (task, req, scope) =>
-      through(task, 'chatWithTools', { messages: req.messages, tools: req.tools, toolChoice: req.toolChoice }, () => live().chatWithTools(task, req, scope)),
-    decide: (task, state, questions, scope) =>
-      through(task, 'decide', { state, questions }, () => live().decide(task, state, questions, scope), (r) => {
+      through(task, 'chatWithTools', { messages: stripImages(req.messages), tools: req.tools, toolChoice: req.toolChoice }, () => live().chatWithTools(task, req, scope)),
+    decide: (task, state, questions, scope, opts) =>
+      through(task, 'decide', { state, questions, images: imageRefs(opts) }, () => live().decide(task, state, questions, scope, opts), (r) => {
         const { sampleId: _drop, ...rest } = r as unknown as Record<string, unknown>;
         return rest as unknown as typeof r;
       }),

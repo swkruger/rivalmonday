@@ -145,4 +145,18 @@ tasks:
   e: { provider: openrouter, model: m, mode: embeddings, dimensions: 512, images: true }
 `)).toThrow(/images/);
   });
+
+  it('shipped ai.yaml parses and every images:true jev task escalates to an images:true task', async () => {
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.ad_image_decisions).toMatchObject({ provider: 'jev', model: 'typesafe/jev-1.14', escalate_to: 'image_llm_decisions', images: true, shadow_rate: 0 });
+    for (const [name, t] of Object.entries(cfg.tasks)) {
+      if (t.provider === 'jev' && t.images) {
+        expect(t.escalate_to, name).toBeTruthy();
+        expect((cfg.tasks[t.escalate_to as string] as { images?: boolean } | undefined)?.images, name).toBe(true);
+      }
+    }
+    expect(cfg.tasks.image_llm_decisions).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-haiku-4.5', mode: 'decisions', images: true });
+    expect(cfg.tasks.ad_image_read).toMatchObject({ provider: 'openrouter', model: 'openai/gpt-4.1-mini', temperature: 0, max_tokens: 300, images: true, fallbacks: ['anthropic/claude-haiku-4.5'] });
+    expect(cfg.tasks.llm_decisions).toMatchObject({ images: false });
+  });
 });

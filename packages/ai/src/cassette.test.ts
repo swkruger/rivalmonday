@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { Ai } from './ai';
-import { canonicalJson, CassetteMissError, createCassetteAi } from './cassette';
+import { canonicalJson, CassetteMissError, cassetteKey, createCassetteAi, normalize, stripImages } from './cassette';
 import { parseAiConfig } from './config';
 
 const yaml = (model: string) => `
@@ -165,5 +165,68 @@ describe('cassette', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(rep.batchAvailable('ask_assistant')).toBe(false);
     fetchSpy.mockRestore();
+  });
+
+  describe('images (18a-3 D3)', () => {
+    const b64 = Buffer.from('SECRET-IMAGE-BYTES-0123456789').toString('base64');
+    const img = (sha: string) => ({ mediaType: 'image/png' as const, data: new Uint8Array(Buffer.from('SECRET-IMAGE-BYTES-0123456789')), sha256: sha });
+    const imgMsgs = (sha: string) => [{ role: 'user' as const, content: [{ type: 'text' as const, text: 'look' }, { type: 'image' as const, image: img(sha) }] }];
+    const dconfig = parseAiConfig(`
+tasks:
+  tag_decisions: { provider: openrouter, model: a/m1, mode: decisions }
+  ask_assistant: { provider: openrouter, model: a/m1, temperature: 0.2 }
+`);
+    const q = { q: { type: 'noul' as const, instructions: 'x' } };
+
+    it('recorded file contains the image sha256 and no base64/data: URL/bytes of the image', async () => {
+      const file = fileOf();
+      const inner = { chat: vi.fn(async () => result('ok')), decide: vi.fn(async () => ({ answers: {}, model: 'm' })) } as unknown as Ai;
+      const rec = createCassetteAi(inner, { mode: 'record', file, config: dconfig });
+      await rec.chat('ask_assistant', { messages: imgMsgs('s'.repeat(64)) } as never, scope);
+      await rec.decide('tag_decisions', { a: 1 }, q, scope, { images: [img('t'.repeat(64))] });
+      rec.flush();
+      const raw = readFileSync(file, 'utf8');
+      expect(raw).not.toContain(b64);
+      expect(raw).not.toContain('data:image');
+      expect(raw).not.toContain('SECRET-IMAGE');
+      const rep = createCassetteAi(null, { mode: 'replay', file, config: dconfig });
+      await rep.chat('ask_assistant', { messages: imgMsgs('s'.repeat(64)) } as never, scope);
+      await rep.decide('tag_decisions', { a: 1 }, q, scope, { images: [img('t'.repeat(64))] });
+      expect(rep.stats().hits).toBe(2);
+    });
+
+    it('same image bytes, different sha => different key', async () => {
+      const file = fileOf();
+      const inner = { chat: vi.fn(async () => result('ok')) } as unknown as Ai;
+      const rec = createCassetteAi(inner, { mode: 'record', file, config: dconfig });
+      await rec.chat('ask_assistant', { messages: imgMsgs('1'.repeat(64)) } as never, scope);
+      rec.flush();
+      const rep = createCassetteAi(null, { mode: 'replay', file, config: dconfig });
+      await expect(rep.chat('ask_assistant', { messages: imgMsgs('2'.repeat(64)) } as never, scope)).rejects.toBeInstanceOf(CassetteMissError);
+    });
+
+    it('stripImages maps image parts and raw bytes', () => {
+      expect(stripImages([{ type: 'image', image: { sha256: 'x', data: new Uint8Array(2) } }, new Uint8Array(3), { a: 'b' }])).toEqual([{ type: 'image', sha256: 'x' }, { bytes: 3 }, { a: 'b' }]);
+    });
+
+    it('image-less request key unchanged (fixture key from before the change)', async () => {
+      const cfg = parseAiConfig(`
+tasks:
+  ask_assistant: { provider: openrouter, model: a/m1, temperature: 0.2 }
+  tag_decisions: { provider: openrouter, model: a/m1, mode: decisions }
+`);
+      const t = new Date('2026-01-01T00:00:00Z');
+      const k = (task: string, kind: 'chat' | 'decide', req: unknown) => cassetteKey(cfg, task, kind, normalize(canonicalJson(req), new Map(), t));
+      expect(k('ask_assistant', 'chat', { messages: [{ role: 'user', content: 'hi' }], jsonSchema: undefined })).toBe('e3daa9de84d3f66ef9ef4e09b66f0b0235516269d16bc4ec0e1d99d0dc32f301');
+      const dec = 'e7b255587f604a4cbeeaea557dfecccea98fc83f98b08aa8d41a247dff6330a9';
+      expect(k('tag_decisions', 'decide', { state: { a: 1 }, questions: { q: { type: 'noul', instructions: 'x' } } })).toBe(dec);
+      // through the wrapper: an image-less decide (new `images: undefined` field) hashes the same
+      const file = fileOf();
+      const inner = { decide: vi.fn(async () => ({ answers: {}, model: 'm' })) } as unknown as Ai;
+      const rec = createCassetteAi(inner, { mode: 'record', file, config: cfg, now: () => t });
+      await rec.decide('tag_decisions', { a: 1 }, { q: { type: 'noul', instructions: 'x' } }, scope);
+      rec.flush();
+      expect(Object.keys(JSON.parse(readFileSync(file, 'utf8')).entries)).toEqual([dec]);
+    });
   });
 });

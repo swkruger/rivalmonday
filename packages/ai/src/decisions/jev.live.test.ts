@@ -22,4 +22,16 @@ describe.skipIf(!key)('Jev live contract', () => {
     expect(r.answers.size.value).toBeLessThanOrEqual(2);
     expect(r.answers.size.type === 'score' && typeof r.answers.size.expected).toBe('number');
   }, 30_000);
+
+  it('reads a synthetic JPEG passed as an image_url content part (state_content)', async () => {
+    // Smallest valid 1x1 JPEG; Jev only has to accept the request shape and answer.
+    const jpeg = Uint8Array.from(Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64'));
+    const jev = createJevProvider({ apiKey: key as string, fallbackUsdPerMtok: 0.042, appName: 'RivalMonday-live-test', appUrl: 'http://localhost:3000' });
+    const r = await jev.decide(
+      { note: 'An advertisement image is attached.' },
+      { has_price: { type: 'noul', instructions: 'Does the attached image show a price?' } },
+      { images: [{ mediaType: 'image/jpeg', data: jpeg, sha256: '0'.repeat(64) }] },
+    );
+    expect(r.answers.has_price.type).toBe('noul');
+  }, 30_000);
 });
