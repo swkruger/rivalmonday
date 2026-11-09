@@ -10,11 +10,11 @@ import { ListDetail } from '@/components/list-detail';
 import { PageHeader } from '@/components/page-header';
 import type { PeekNav } from '@/components/peek-panel';
 import { PAGE_COPY } from '@/help/copy';
+import { localDay } from '@/lib/format';
 import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
-import { localDay } from '@/lib/format';
 import { verticalOptions } from '@/server/verticals';
 import { FeedList, FilterBar, RangeBanner } from './feed';
 import { groupByWeek } from './group';
@@ -27,10 +27,13 @@ const HELP_KEY = 'page:client.changes';
 const COPY = PAGE_COPY['client.changes'];
 const WINDOWS = [7, 30, 90, 365] as const;
 
-/** Smallest read window (days back from `today`, a `YYYY-MM-DD`) that reaches `from`; 365 when none does. */
+/**
+ * Smallest read window that reaches the start of the `from` day; 365 when none does. `search_events` cuts off at
+ * now - days x 24h, so a `from` N local days ago needs N + 1 days to keep its early hours.
+ */
 function coveringDays(from: string, today: string): (typeof WINDOWS)[number] {
   const ago = (isoDayNumber(today) ?? 0) - (isoDayNumber(from) ?? 0);
-  return WINDOWS.find((d) => ago <= d) ?? 365;
+  return WINDOWS.find((d) => ago + 1 <= d) ?? 365;
 }
 
 function EmptyViewer({ message }: { message: string }) {

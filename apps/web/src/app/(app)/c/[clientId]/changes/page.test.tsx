@@ -16,7 +16,8 @@ vi.mock('@/components/page-header', () => ({ PageHeader: () => null }));
 vi.mock('@/components/help/empty-state', () => ({ EmptyState: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: () => null }));
 const banner = vi.fn();
-vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
+let tzName = 'UTC';
+vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => tzName }));
 vi.mock('./feed', () => ({ FeedList: (p: unknown) => { feedList(p); return null; }, FilterBar: () => null, RangeBanner: (p: unknown) => { banner(p); return null; } }));
 vi.mock('./viewer', () => ({ EventViewer: () => null }));
 vi.mock('@/components/list-detail', () => ({ ListDetail: (p: unknown) => { listDetail(p); return null; } }));
@@ -114,7 +115,7 @@ describe('ChangesPage from/to', () => {
       throw new Error(`unexpected ${name}`);
     });
   });
-  afterEach(() => { vi.useRealTimers(); });
+  afterEach(() => { vi.useRealTimers(); tzName = 'UTC'; });
 
   const daysOf = () => callTool.mock.calls.find((c) => c[1] === 'search_events')![2].days;
 
@@ -143,5 +144,42 @@ describe('ChangesPage from/to', () => {
   it('no banner without from/to', async () => {
     await go();
     expect(banner).not.toHaveBeenCalled();
+  });
+
+  it('window boundary: from N days ago needs N + 1 days (7 -> 30, 30 -> 90)', async () => {
+    await go({ from: '2026-10-15', to: '2026-10-16' }); // 7 days before 10-22
+    expect(daysOf()).toBe(30);
+    callTool.mockClear();
+    await go({ from: '2026-10-14', to: '2026-10-16' }); // 8 days
+    expect(daysOf()).toBe(30);
+    callTool.mockClear();
+    await go({ from: '2026-10-16', to: '2026-10-17' }); // 6 days
+    expect(daysOf()).toBe(7);
+    callTool.mockClear();
+    await go({ from: '2026-09-22', to: '2026-09-23' }); // 30 days
+    expect(daysOf()).toBe(90);
+  });
+
+  it('filters by the viewer-timezone day (America/Los_Angeles)', async () => {
+    tzName = 'America/Los_Angeles';
+    callTool.mockImplementation(async (_c: unknown, name: string) => {
+      if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', verticalId: 'v', services: [], timezone: 'UTC' };
+      if (name === 'search_events')
+        return {
+          items: [
+            { eventId: E1, channels: [], occurredAt: '2026-10-19T02:00:00.000Z' }, // LA 10-18 19:00 -> kept (to)
+            { eventId: E2, channels: [], occurredAt: '2026-10-12T05:00:00.000Z' }, // LA 10-11 22:00 -> before from
+            { eventId: 'e3', channels: [], occurredAt: '2026-10-19T08:00:00.000Z' }, // LA 10-19 01:00 -> after to
+          ],
+          hasMore: false,
+        };
+      if (name === 'list_client_competitors') return { items: [] };
+      if (name === 'get_event') return { eventId: E1, changes: [] };
+      throw new Error(`unexpected ${name}`);
+    });
+    const lp = await go({ from: '2026-10-12', to: '2026-10-18' });
+    render(<>{lp.list as React.ReactNode}</>);
+    const groups = feedList.mock.calls[0]![0].groups as { items: { eventId: string }[] }[];
+    expect(groups.flatMap((g) => g.items.map((r) => r.eventId))).toEqual([E1]);
   });
 });
