@@ -109,7 +109,7 @@ export function candidateContextText(c: BriefCandidate): string {
   return c.kind === 'move' ? `${escapeEvidence(`Detected pattern: ${c.summary}`)}\n${evidence}` : evidence;
 }
 
-export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): { messages: ChatMessage[]; jsonSchema: JsonSchemaFormat } {
+export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): { messages: { role: 'system' | 'user'; content: string }[]; jsonSchema: JsonSchemaFormat } {
   const blocks = candidates.map((cand, i) => {
     const pb = playbookFor(playbooks, candidateTrigger(cand));
     const head = [`Competitor: ${cand.competitorName}`, `Kind: ${cand.kind === 'move' ? `pattern (${cand.moveType})` : cand.changeType}`];

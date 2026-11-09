@@ -34,6 +34,8 @@ const openRouterTask = z.object({
   max_tokens: z.number().int().positive().optional(),
   /** Embeddings only, and required there: requested vector width (must match the DB column width, 512). */
   dimensions: z.number().int().positive().optional(),
+  /** Accepts image parts (vision model); without it image input throws. Not for embeddings. */
+  images: z.boolean().default(false),
   ...timing,
 });
 
@@ -43,6 +45,7 @@ const jevTask = z.object({
   escalate_to: z.string().min(1).optional(),
   min_confidence: thresholdsSchema.prefault({ default: 0.85 }),
   shadow_rate: z.number().min(0).max(1).default(0),
+  images: z.boolean().default(false),
   ...timing,
 });
 
@@ -80,6 +83,9 @@ export const aiConfigSchema = z
           message: 'an embeddings task must set dimensions (the DB vector width)',
         });
       }
+      if (task.provider === 'openrouter' && task.mode === 'embeddings' && task.images) {
+        ctx.addIssue({ code: 'custom', path: ['tasks', name, 'images'], message: 'an embeddings task cannot accept images' });
+      }
       // A Jev task's escalation call uses the Jev task's timing, so both stages count toward the budget.
       const stages = task.provider === 'jev' && task.escalate_to ? 2 : 1;
       if (task.request_path && stages * task.timeout_ms * task.max_attempts > REQUEST_PATH_BUDGET_MS) {
@@ -96,6 +102,12 @@ export const aiConfigSchema = z
           code: 'custom',
           path: ['tasks', name, 'escalate_to'],
           message: `escalate_to must name an openrouter task with mode "decisions" (got "${task.escalate_to}")`,
+        });
+      } else if (task.images && !target.images) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['tasks', name, 'images'],
+          message: `a jev task with images: true must escalate to a task with images: true (got "${task.escalate_to}")`,
         });
       }
     }

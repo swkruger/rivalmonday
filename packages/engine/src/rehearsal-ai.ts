@@ -222,7 +222,7 @@ export function createRehearsalAi(o: {
   return {
     chat: (task, input, scope) => route(scope, task).chat(task, input, scope),
     chatWithTools: (task, req, scope) => route(scope, task).chatWithTools(task, req, scope),
-    decide: (task, state, questions, scope) => route(scope, task).decide(task, state, questions, scope),
+    decide: (task, state, questions, scope, opts) => route(scope, task).decide(task, state, questions, scope, opts),
     embed: (task, texts, scope) => route(scope, task).embed(task, texts, scope),
     // No scope here: rehearsal never batches, so theme discovery takes its synchronous chat path.
     batchAvailable: () => false,

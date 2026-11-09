@@ -1,7 +1,7 @@
 import type { ChatProvider } from '../chat';
 import type { CallTiming } from '../config';
 import { AiProviderError } from '../http';
-import { type DecisionAnswer, type DecisionProvider, type DecisionQuestion, noulConfidence, validateQuestions } from './types';
+import { type ContentPart, type DecideOptions, type DecisionAnswer, type DecisionProvider, type DecisionQuestion, noulConfidence, validateQuestions } from './types';
 
 const unit = { type: 'number', minimum: 0, maximum: 1 };
 
@@ -52,7 +52,7 @@ function invalid(key: string): AiProviderError {
 export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: string; fallbacks?: string[]; timing?: CallTiming }): DecisionProvider {
   return {
     id: 'llm',
-    async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>) {
+    async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, decideOpts?: DecideOptions) {
       validateQuestions(questions);
       const entries = Object.entries<DecisionQuestion>(questions);
       const schema = {
@@ -65,6 +65,11 @@ export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: str
       // Neutralise tag-like delimiters so untrusted state cannot close the <state> block early
       // or impersonate a fake "Questions:" section.
       const stateText = rawStateText.replace(/<(\/?)state/gi, '&lt;$1state');
+      const text = `<state>\n${stateText}\n</state>\n\nQuestions:\n${entries.map(([k, q]) => describeQuestion(k, q)).join('\n')}`;
+      const images = decideOpts?.images ?? [];
+      const userContent: string | ContentPart[] = images.length
+        ? [{ type: 'text', text }, ...images.map((image): ContentPart => ({ type: 'image', image }))]
+        : text;
       const result = await chat.complete({
         model: opts.model,
         fallbacks: opts.fallbacks,
@@ -73,7 +78,7 @@ export function createLlmDecisionProvider(chat: ChatProvider, opts: { model: str
         jsonSchema: { name: 'decisions', schema },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `<state>\n${stateText}\n</state>\n\nQuestions:\n${entries.map(([k, q]) => describeQuestion(k, q)).join('\n')}` },
+          { role: 'user', content: userContent },
         ],
       });
 

@@ -1,5 +1,5 @@
 import type { ConfidenceThresholds } from '../config';
-import type { DecisionAnswer, DecisionProvider, DecisionQuestion } from './types';
+import type { DecisionAnswer, DecisionImage, DecisionProvider, DecisionQuestion } from './types';
 
 export type ResolvedAnswer = DecisionAnswer & { provider: string };
 
@@ -41,8 +41,9 @@ export class CascadingDecisionProvider {
     private readonly thresholds: ConfidenceThresholds,
   ) {}
 
-  async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, opts: { shadow?: boolean } = {}): Promise<DecisionResult<K>> {
-    if (opts.shadow && this.fallback) return this.decideShadow(state, questions, this.fallback);
+  async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, opts: { shadow?: boolean; images?: readonly DecisionImage[] } = {}): Promise<DecisionResult<K>> {
+    const callOpts = opts.images ? { images: opts.images } : undefined;
+    if (opts.shadow && this.fallback) return this.decideShadow(state, questions, this.fallback, callOpts);
     const keys = Object.keys(questions) as K[];
     const answers = {} as Record<K, ResolvedAnswer>;
     const isLow = (k: K) => answers[k].confidence < thresholdFor(this.thresholds, questions[k].type);
@@ -50,7 +51,7 @@ export class CascadingDecisionProvider {
 
     let escalate: K[];
     try {
-      const first = await this.primary.decide(state, questions);
+      const first = await this.primary.decide(state, questions, callOpts);
       trace.primary = { provider: this.primary.id, model: first.model, answers: first.answers };
       for (const k of keys) answers[k] = { ...first.answers[k], provider: this.primary.id } as ResolvedAnswer;
       escalate = keys.filter(isLow);
@@ -60,7 +61,7 @@ export class CascadingDecisionProvider {
     }
 
     if (escalate.length > 0 && this.fallback) {
-      const second = await this.fallback.decide(state, pick(questions, escalate));
+      const second = await this.fallback.decide(state, pick(questions, escalate), callOpts);
       trace.fallback = { provider: this.fallback.id, model: second.model, answers: second.answers };
       for (const k of escalate) answers[k] = { ...second.answers[k], provider: this.fallback.id } as ResolvedAnswer;
     }
@@ -72,9 +73,9 @@ export class CascadingDecisionProvider {
    * Shadow mode: both providers answer every question (in parallel); the result is resolved with the same rule as
    * the cascade (primary unless below threshold, then fallback). A failing fallback never changes the outcome.
    */
-  private async decideShadow<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, fallback: DecisionProvider): Promise<DecisionResult<K>> {
+  private async decideShadow<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, fallback: DecisionProvider, callOpts?: { images?: readonly DecisionImage[] }): Promise<DecisionResult<K>> {
     const keys = Object.keys(questions) as K[];
-    const [p, f] = await Promise.allSettled([this.primary.decide(state, questions), fallback.decide(state, questions)]);
+    const [p, f] = await Promise.allSettled([this.primary.decide(state, questions, callOpts), fallback.decide(state, questions, callOpts)]);
     if (p.status === 'rejected' && f.status === 'rejected') throw p.reason;
     const trace: DecisionTrace = {
       primary: p.status === 'fulfilled' ? { provider: this.primary.id, model: p.value.model, answers: p.value.answers } : null,

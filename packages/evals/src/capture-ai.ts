@@ -9,7 +9,7 @@ export function captureAi(inner: Ai): Ai & { toolMessages(): string[]; reset(): 
       for (const m of req.messages) if (m.role === 'tool') seen.push(m.content);
       return inner.chatWithTools(task, req, scope);
     },
-    decide: (t, st, q, s) => inner.decide(t, st, q, s),
+    decide: (t, st, q, s, o) => inner.decide(t, st, q, s, o),
     embed: (t, x, s) => inner.embed(t, x, s),
     batchAvailable: (t) => inner.batchAvailable(t),
     submitBatch: (t, r, s) => inner.submitBatch(t, r, s),

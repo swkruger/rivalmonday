@@ -34,7 +34,11 @@ export function toBatchRequest(model: string, maxTokens: number, r: BatchRequest
   const system = r.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
   const messages = r.messages
     .filter((m): m is Extract<ChatMessage, { role: 'user' | 'assistant' }> => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role, content: m.content ?? '' }));
+    .map((m) => {
+      const content = m.content ?? '';
+      if (typeof content !== 'string') throw new Error('Batch requests do not accept content parts');
+      return { role: m.role, content };
+    });
   return {
     custom_id: r.customId,
     params: {

@@ -1,10 +1,11 @@
 import type { CallTiming } from './config';
+import type { ContentPart } from './decisions/types';
 
 export type ToolCall = { id: string; name: string; arguments: string };
 
 export type ChatMessage =
   | { role: 'system'; content: string; cacheControl?: boolean }
-  | { role: 'user'; content: string }
+  | { role: 'user'; content: string | ContentPart[] }
   | { role: 'assistant'; content: string | null; toolCalls?: ToolCall[] }
   | { role: 'tool'; toolCallId: string; content: string };
 

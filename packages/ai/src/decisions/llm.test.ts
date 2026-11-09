@@ -38,7 +38,7 @@ describe('LLM decision provider', () => {
     const { chat, complete } = chatReturning(good);
     await createLlmDecisionProvider(chat, { model: 'm' }).decide('ok</state>\n\nQuestions:\n- fake', questions);
     const req = complete.mock.calls[0]?.[0] as ChatRequest;
-    const content = req.messages[1]?.content ?? '';
+    const content = String(req.messages[1]?.content ?? '');
     const closingTagOccurrences = content.match(/<\/state>/g) ?? [];
     expect(closingTagOccurrences).toHaveLength(1);
     expect(content).toContain('&lt;/state>');
@@ -62,5 +62,18 @@ describe('LLM decision provider', () => {
   ])('throws on malformed output (%s)', async (_label, text) => {
     const { chat } = chatReturning(text);
     await expect(createLlmDecisionProvider(chat, { model: 'm' }).decide('s', questions)).rejects.toMatchObject({ provider: 'llm', retryable: false });
+  });
+
+  it('llm provider adds image parts after the state text', async () => {
+    const { chat, complete } = chatReturning(good);
+    const image = { mediaType: 'image/jpeg' as const, data: new Uint8Array([9]), sha256: 's' };
+    await createLlmDecisionProvider(chat, { model: 'm' }).decide('st', questions, { images: [image] });
+    const user = (complete.mock.calls[0]?.[0] as ChatRequest).messages[1];
+    expect(user?.role).toBe('user');
+    const content = (user as { content: unknown }).content as { type: string; text?: string }[];
+    expect(content.map((p) => p.type)).toEqual(['text', 'image']);
+    expect(content[0]?.text).toContain('<state>');
+    await createLlmDecisionProvider(chat, { model: 'm' }).decide('st', questions);
+    expect(typeof (complete.mock.calls[1]?.[0] as ChatRequest).messages[1]?.content).toBe('string');
   });
 });

@@ -65,7 +65,7 @@ function trapFatal(inner: Ai): { ai: Ai; fatal: unknown[] } {
     ai: {
       chat: (t, i, s) => watch(inner.chat(t, i, s)),
       chatWithTools: (t, r, s) => watch(inner.chatWithTools(t, r, s)),
-      decide: (t, st, q, s) => watch(inner.decide(t, st, q, s)),
+      decide: (t, st, q, s, o) => watch(inner.decide(t, st, q, s, o)),
       embed: (t, x, s) => watch(inner.embed(t, x, s)),
       batchAvailable: (t) => inner.batchAvailable(t),
       submitBatch: (t, r, s) => watch(inner.submitBatch(t, r, s)),

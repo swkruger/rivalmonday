@@ -1,5 +1,5 @@
 import type { CallScope } from '@cs/core';
-import type { Ai, BatchItemResult, BatchRequest, ChatResult, DecisionQuestion, DecisionResult, EmbeddingResult, ResolvedAnswer } from '@cs/ai';
+import type { Ai, BatchItemResult, DecideOptions, BatchRequest, ChatResult, DecisionQuestion, DecisionResult, EmbeddingResult, ResolvedAnswer } from '@cs/ai';
 import { EMBEDDING_DIMENSIONS } from '@cs/db';
 
 /** Deterministic bag-of-words embedding; digits are ignored, so "$89" and "$69" embed identically. */
@@ -24,7 +24,7 @@ export const score = (value: number, confidence = 0.95): ResolvedAnswer => ({
   type: 'score', value, probabilities: { [String(value)]: confidence }, confidence, provider: 'fake',
 });
 
-export type DecideFn = (state: unknown, questions: Record<string, DecisionQuestion>) => DecisionResult<string> | Promise<DecisionResult<string>>;
+export type DecideFn = (state: unknown, questions: Record<string, DecisionQuestion>, opts?: DecideOptions) => DecisionResult<string> | Promise<DecisionResult<string>>;
 
 /** Answers review questions: `sentiment` (level), `theme_<v>__<id>` true for the listed topic ids, `other_<v>`. */
 export function reviewResult(input: { topics?: string[]; other?: boolean; sentiment?: number; confidence?: number; needsReview?: string[] }): DecideFn {
@@ -86,7 +86,8 @@ export function createFakeAi(opts: {
   return {
     calls,
     async chat(task, input, scope) {
-      const content = input.messages.at(-1)?.content ?? '';
+      const last = input.messages.at(-1)?.content ?? '';
+      const content = typeof last === 'string' ? last : last.map((p) => (p.type === 'text' ? p.text : '')).join('');
       calls.chat.push({ task, content, scope });
       const text = opts.chat ? opts.chat(task, content) : JSON.stringify({ facts: [] });
       return { text, model: 'fake', inputTokens: 0, outputTokens: 0, costUsd: 0, cachedTokens: 0, toolCalls: [], finishReason: null } satisfies ChatResult;
@@ -94,10 +95,10 @@ export function createFakeAi(opts: {
     async chatWithTools() {
       throw new Error('fake ai: chatWithTools is not faked');
     },
-    async decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>> {
+    async decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope, decideOpts?: DecideOptions): Promise<DecisionResult<K>> {
       calls.decide.push({ task, state, questions, scope });
       if (!opts.decide) throw new Error('fake ai: no decide handler');
-      return (await opts.decide(state, questions)) as DecisionResult<K>;
+      return (await opts.decide(state, questions, decideOpts)) as DecisionResult<K>;
     },
     async embed(_task, texts, scope) {
       calls.embed.push(texts);

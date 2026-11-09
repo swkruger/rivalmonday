@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ChatMessage, ChatProvider } from './chat';
+import { imageDataUrl } from './decisions/types';
 import { AiProviderError, type HttpDeps, defaultHttpDeps, postJson } from './http';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -46,7 +47,12 @@ function toWireMessage(m: ChatMessage): Record<string, unknown> {
     case 'tool':
       return { role: 'tool', tool_call_id: m.toolCallId, content: m.content };
     default:
-      return { role: 'user', content: m.content };
+      return {
+        role: 'user',
+        content: typeof m.content === 'string'
+          ? m.content
+          : m.content.map((p) => (p.type === 'text' ? { type: 'text', text: p.text } : { type: 'image_url', image_url: { url: imageDataUrl(p.image) } })),
+      };
   }
 }
 

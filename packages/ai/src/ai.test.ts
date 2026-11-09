@@ -12,6 +12,9 @@ tasks:
   ask_assistant: { provider: openrouter, model: anthropic/claude-sonnet-5, temperature: 0.2, max_tokens: 1500 }
   embeddings: { provider: openrouter, model: e/small, mode: embeddings, dimensions: 512 }
   decisions: { provider: jev, escalate_to: llm_decisions, min_confidence: { default: 0.85 } }
+  img_llm: { provider: openrouter, model: a/vision, mode: decisions, images: true }
+  img_chat: { provider: openrouter, model: a/vision, images: true }
+  img_jev: { provider: jev, escalate_to: img_llm, min_confidence: { default: 0.85 }, images: true, shadow_rate: 1 }
   theme_discovery_batch: { provider: anthropic, model: claude-sonnet-5, mode: batch, input_usd_per_mtok: 1, output_usd_per_mtok: 5 }
 `);
 
@@ -235,6 +238,61 @@ tasks:
     expect(embed).toHaveBeenCalledWith(expect.objectContaining({ timing: { timeoutMs: 8_000, maxAttempts: 2 } }));
   });
 });
+
+describe('Ai images', () => {
+  const image = { mediaType: 'image/jpeg' as const, data: new Uint8Array([1]), sha256: 'h' };
+
+  it('chat with an image part on a non-image task throws before any call or ledger row', async () => {
+    const { ai, records, complete } = harness();
+    await expect(ai.chat('brief_writer', { messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }, { type: 'image', image }] }] }, scope))
+      .rejects.toThrow('Task brief_writer does not accept images');
+    expect(complete).not.toHaveBeenCalled();
+    expect(records).toHaveLength(0);
+    await ai.chat('img_chat', { messages: [{ role: 'user', content: [{ type: 'text', text: 'x' }, { type: 'image', image }] }] }, scope);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('decide with images skips keepSample even when needsReview is non-empty', async () => {
+    const recordDecisionSample = vi.fn(async () => 's1');
+    const { openrouter, ledger, jev } = parts(0.5);
+    const ai = createAi(config, { openrouter, jev: () => jev, ledger, samples: { recordDecisionSample }, random: () => 0 });
+    const r = await ai.decide('img_jev', 's', q, scope, { images: [image] });
+    expect(r.needsReview.length).toBeGreaterThanOrEqual(0);
+    expect(recordDecisionSample).not.toHaveBeenCalled();
+    // control: without images the same low-confidence call is sampled
+    await ai.decide('img_jev', 's', q, scope);
+    expect(recordDecisionSample).toHaveBeenCalledTimes(1);
+  });
+
+  it('decide passes images to Jev and to the escalation', async () => {
+    const { openrouter, ledger, jev, complete } = parts(0.5);
+    const ai = createAi(config, { openrouter, jev: () => jev, ledger });
+    await ai.decide('img_jev', 's', q, scope, { images: [image] });
+    expect(jev.decide).toHaveBeenCalledWith('s', q, { images: [image] });
+    const user = (complete.mock.calls[0]?.[0] as unknown as { messages: { content: unknown }[] }).messages[1]?.content as { type: string }[];
+    expect(user.map((p) => p.type)).toEqual(['text', 'image']);
+  });
+
+  it('decide with images on a task without the flag throws', async () => {
+    const { ai } = harness();
+    await expect(ai.decide('decisions', 's', q, scope, { images: [image] })).rejects.toThrow('does not accept images');
+    await expect(ai.decide('llm_decisions', 's', q, scope, { images: [image] })).rejects.toThrow('does not accept images');
+  });
+});
+
+function parts(p: number) {
+  const ledger: LedgerSink = { recordLlmCall: async () => {}, recordVendorCall: async () => {}, };
+  const complete = vi.fn(async (req: { model: string }) => ({ text: JSON.stringify({ m: { probability: 0.99 } }), model: req.model, inputTokens: 1, outputTokens: 1, costUsd: 0 }));
+  const openrouter = { id: 'openrouter', complete } as unknown as ChatProvider;
+  const jev: DecisionProvider = {
+    id: 'jev',
+    decide: vi.fn(async () => ({
+      answers: { m: { type: 'noul', value: true, probability: p, confidence: Math.abs(p - 0.5) * 2 } },
+      model: 'jev-x', inputTokens: 1, outputTokens: 1, costUsd: 0,
+    })) as unknown as DecisionProvider['decide'],
+  };
+  return { openrouter, ledger, jev, complete };
+}
 
 describe('Ai guard (7b1)', () => {
   const clientScope = { agencyId: scope.agencyId, clientId: '00000000-0000-4000-8000-0000000000c1' };

@@ -125,4 +125,24 @@ tasks:
     expect(tailor).toMatchObject({ request_path: false, max_tokens: 4000 });
     expect(cfg.tasks.runbook_retailor).toMatchObject({ model: (tailor as { model: string }).model, max_tokens: 1000 });
   });
+
+  it('images flag defaults false; jev images:true escalating to a non-image task is refused', () => {
+    const cfg = parseAiConfig(`
+tasks:
+  a: { provider: openrouter, model: m, mode: decisions }
+  b: { provider: openrouter, model: m, mode: decisions, images: true }
+  j: { provider: jev, escalate_to: b, images: true }
+`);
+    expect(cfg.tasks.a).toMatchObject({ images: false });
+    expect(cfg.tasks.j).toMatchObject({ images: true });
+    expect(() => parseAiConfig(`
+tasks:
+  a: { provider: openrouter, model: m, mode: decisions }
+  j: { provider: jev, escalate_to: a, images: true }
+`)).toThrow(/images/);
+    expect(() => parseAiConfig(`
+tasks:
+  e: { provider: openrouter, model: m, mode: embeddings, dimensions: 512, images: true }
+`)).toThrow(/images/);
+  });
 });

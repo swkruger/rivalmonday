@@ -45,7 +45,7 @@ export function budgetedAi(inner: Ai, maxUsd: number, meter: SpendMeter = create
   return {
     chat: (task, input, scope) => guarded(() => inner.chat(task, input, scope)),
     chatWithTools: (task, req, scope) => guarded(() => inner.chatWithTools(task, req, scope)),
-    decide: (task, state, questions, scope) => guarded(() => inner.decide(task, state, questions, scope)),
+    decide: (task, state, questions, scope, opts) => guarded(() => inner.decide(task, state, questions, scope, opts)),
     embed: (task, texts, scope) => guarded(() => inner.embed(task, texts, scope)),
     batchAvailable: (task) => inner.batchAvailable(task),
     submitBatch: (task, requests, scope) => guarded(() => inner.submitBatch(task, requests, scope)),

@@ -117,4 +117,19 @@ describe('OpenRouter provider', () => {
     expect((await provider(withCache).complete({ model: 'a', messages: [] })).cachedTokens).toBe(7);
     expect((await provider(fakeFetch(okBody)).complete({ model: 'a', messages: [] })).cachedTokens).toBe(0);
   });
+
+  it('openrouter sends text then image_url data URL', async () => {
+    const fetch = fakeFetch(okBody);
+    const image = { mediaType: 'image/webp' as const, data: new Uint8Array([1, 2, 3]), sha256: 'x' };
+    await provider(fetch).complete({
+      model: 'a/one',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'look' }, { type: 'image', image }] }, { role: 'user', content: 'plain' }],
+    });
+    const { body } = sentBody(fetch);
+    expect(body.messages[0].content).toEqual([
+      { type: 'text', text: 'look' },
+      { type: 'image_url', image_url: { url: 'data:image/webp;base64,AQID' } },
+    ]);
+    expect(body.messages[1].content).toBe('plain');
+  });
 });

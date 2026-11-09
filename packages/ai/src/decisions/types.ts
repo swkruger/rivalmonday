@@ -16,9 +16,24 @@ export interface DecisionCall<K extends string> {
   costUsd: number | null;
 }
 
+/** Jev takes JPEG/PNG only; the vision chat model takes WebP too (plan P15). */
+export interface DecisionImage {
+  mediaType: 'image/webp' | 'image/jpeg' | 'image/png';
+  data: Uint8Array;
+  sha256: string;
+}
+
+export type ContentPart = { type: 'text'; text: string } | { type: 'image'; image: DecisionImage };
+
+export interface DecideOptions {
+  images?: readonly DecisionImage[];
+}
+
+export const imageDataUrl = (i: DecisionImage): string => `data:${i.mediaType};base64,${Buffer.from(i.data).toString('base64')}`;
+
 export interface DecisionProvider {
   readonly id: string;
-  decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>): Promise<DecisionCall<K>>;
+  decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, opts?: DecideOptions): Promise<DecisionCall<K>>;
 }
 
 export function validateQuestions(questions: Record<string, DecisionQuestion>): void {

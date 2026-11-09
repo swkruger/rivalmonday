@@ -4,7 +4,7 @@ import type { ChatMessage, ChatProvider, ChatResult, ChatTool, JsonSchemaFormat 
 import { type AiConfig, type CallTiming, type ConfidenceThresholds, type TaskConfig, timingOf } from './config';
 import { CascadingDecisionProvider, type DecisionResult } from './decisions/cascade';
 import { createLlmDecisionProvider } from './decisions/llm';
-import type { DecisionProvider, DecisionQuestion } from './decisions/types';
+import type { DecideOptions, DecisionProvider, DecisionQuestion } from './decisions/types';
 import type { EmbeddingProvider, EmbeddingResult } from './embeddings';
 
 /** Records a ledger row without letting a ledger-write failure mask the caller's real result/error. */
@@ -22,7 +22,7 @@ export const EMBED_MAX_CHARS = 8000;
 export interface Ai {
   chat(task: string, input: { messages: ChatMessage[]; jsonSchema?: JsonSchemaFormat }, scope: CallScope): Promise<ChatResult>;
   chatWithTools(task: string, req: { messages: ChatMessage[]; tools: ChatTool[]; toolChoice?: 'auto' | 'none'; signal?: AbortSignal }, scope: CallScope): Promise<ChatResult>;
-  decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope): Promise<DecisionResult<K>>;
+  decide<K extends string>(task: string, state: unknown, questions: Record<K, DecisionQuestion>, scope: CallScope, opts?: DecideOptions): Promise<DecisionResult<K>>;
   embed(task: string, texts: string[], scope: CallScope): Promise<EmbeddingResult>;
   batchAvailable(task: string): boolean;
   submitBatch(task: string, requests: BatchRequest[], scope: CallScope): Promise<string>;
@@ -82,12 +82,12 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
   function recording(provider: DecisionProvider, taskName: string, scope: CallScope, fallbackModel: string): DecisionProvider {
     return {
       id: provider.id,
-      async decide(state, questions) {
+      async decide(state, questions, decideOpts) {
         await deps.guard?.assertAllowed(scope);
         const started = now();
         let call;
         try {
-          call = await provider.decide(state, questions);
+          call = await provider.decide(state, questions, decideOpts);
         } catch (err) {
           await safeRecord(deps.ledger, {
             ...scope, task: taskName, provider: provider.id, model: fallbackModel,
@@ -119,6 +119,9 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
   ): Promise<ChatResult> {
     const t = task(name);
     if (t.provider !== 'openrouter' || t.mode !== 'chat') throw new Error(`Task ${name} is not a chat task`);
+    if (!t.images && input.messages.some((m) => m.role === 'user' && typeof m.content !== 'string' && m.content.some((p) => p.type === 'image'))) {
+      throw new Error(`Task ${name} does not accept images`);
+    }
     await deps.guard?.assertAllowed(scope);
     const started = now();
     let result;
@@ -146,8 +149,14 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
 
     chatWithTools: (name, req, scope) => runChat(name, req, scope),
 
-    async decide(name, state, questions, scope) {
+    async decide(name, state, questions, scope, opts) {
       const t = task(name);
+      const hasImages = Boolean(opts?.images?.length);
+      if (hasImages) {
+        const escalation = t.provider === 'jev' && t.escalate_to ? config.tasks[t.escalate_to] : undefined;
+        const accepts = (x: TaskConfig | undefined) => x !== undefined && x.provider !== 'anthropic' && x.images;
+        if (!accepts(t) || (t.provider === 'jev' && t.escalate_to && !accepts(escalation))) throw new Error(`Task ${name} does not accept images`);
+      }
       let primary: DecisionProvider;
       let fallback: DecisionProvider | null = null;
       let thresholds: ConfidenceThresholds = { default: 0 };
@@ -156,7 +165,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       if (t.provider === 'jev') {
         thresholds = t.min_confidence;
         rate = deps.shadowRateOverride ?? t.shadow_rate;
-        const sampled = deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
+        const sampled = !hasImages && deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
         const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, sampled ? `${t.escalate_to}:shadow` : t.escalate_to, timingOf(t)) : null;
         if (deps.jev) {
           primary = recording(deps.jev(t.model, timingOf(t)), name, scope, t.model);
@@ -166,12 +175,12 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         } else {
           throw new Error(`Task ${name} needs Jev but OPENROUTER_API_KEY is not configured`);
         }
-        const result = await new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions, { shadow: sampled });
-        return keepSample(name, scope, state, questions, result, sampled);
+        const result = await new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions, { shadow: sampled, images: opts?.images });
+        return hasImages ? result : keepSample(name, scope, state, questions, result, sampled);
       }
       primary = llmDecisions(name, scope);
-      const result = await new CascadingDecisionProvider(primary, null, thresholds).decide(state, questions);
-      return keepSample(name, scope, state, questions, result, false);
+      const result = await new CascadingDecisionProvider(primary, null, thresholds).decide(state, questions, { images: opts?.images });
+      return hasImages ? result : keepSample(name, scope, state, questions, result, false);
     },
 
     async embed(name, texts, scope) {
