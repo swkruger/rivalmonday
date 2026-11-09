@@ -1,10 +1,10 @@
 # phase-18a3 — Reading ad images: Jev triages ad creatives, a vision LLM reads prices
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ bd58dd62
-**Plan/spec:** none yet
+**Spec:** `docs/superpowers/specs/2026-11-08-phase-18a3-ad-images-design.md` (R1-R17)   **Plan:** none yet
 
 ## Status (overwrite)
-Owner answered the questions 2026-11-08 (phase-18a merged; rebased onto main @ bd58dd62). Spec next.
+Spec drafted + builder-checked + revised (e607afc4); awaiting owner approval of the spec.
 
 ## Next (overwrite)
 Spec (new decisions + interfaces) -> builder check -> lean plan -> owner approval -> SDD. Live probe (< $0.01) needs owner approval before it runs.
@@ -19,7 +19,7 @@ Planned, not built: image parts in the `@cs/ai` Jev provider (`decisions/jev.ts`
 ## Decisions (owner-approved)
 Basis = 18a Decision 4: `typesafe/jev-1.14` takes text + image, answers choice/score/noul only, $0.042/M prompt, completion free; Jev triages, only price-bearing images go to a vision LLM; Google first; needs image parts in the Jev provider, ad images in the evidence store, a no-people rule, a < $0.01 live cost check the owner approves.
 1. Build after phase-18a merged (done).
-2. **Google + Meta** ad images (owner; not Google-only). Ruling (agent, owner may overturn): Meta videos skipped (video analysis out of Phase 18); each carousel card image counts as one image; an image price is read only when the ad's copy gave none (no double prices).
+2. **Google ad images only** (owner 2026-11-09, replacing "Google + Meta"): Meta's image CDN robots.txt disallows all bots; Google's has none. Meta waits for a permitted route.
 3. Jev triage stores shows-price / offer / service / theme on the ad; not shown in the UI yet.
 4. Image-read prices go to `price_point` as their own source, tagged "From an ad image" (separate from "From an ad").
 5. No-people rule: Jev answers "shows a person?"; yes => image not stored, not shown, not read.
@@ -29,7 +29,8 @@ Basis = 18a Decision 4: `typesafe/jev-1.14` takes text + image, answers choice/s
 9. New cutoff `AD_IMAGE_SINCE`, no backfill; one live probe < $0.01 the owner approves before it runs.
 
 ## New backlog (target → item)
-(none yet)
+- later → Meta ad images: ask the Meta ads vendor whether its API can deliver image files (fbcdn robots disallows us) — *from 18a-3 owner decision*
+- later → image/copy price mapping spend (`mapPricedTexts`) is platform-scoped, not split to tenants — *from 18a-3 spec R13*
 
 
 ---
