@@ -1,6 +1,12 @@
-import { ChangeLine } from '@cs/core';
-import { describe, expect, it } from 'vitest';
-import { type GradableEvent, groupChanges } from './graded';
+import { ChangeLine, type GradedChanges } from '@cs/core';
+import { briefItem, brief, changeEvent, clientCompetitor, competitor, eventScore } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { changeTypeLabel } from '@cs/email';
+import { and, eq } from 'drizzle-orm';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { day, seedScoredEvent } from '../../test/seed';
+import { type GradableEvent, gradedChanges, groupChanges, liveChanges } from './graded';
+import type { BriefClient } from './gather';
 
 const uid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const T0 = Date.parse('2026-11-01T12:00:00Z');
@@ -137,5 +143,101 @@ describe('groupChanges', () => {
       const allowed = new Set([String(l.count), ...l.eventIds.flatMap((id) => digitRuns(summaryById.get(id)!))]);
       for (const run of digitRuns(l.text)) expect(allowed.has(run), `${run} in "${l.text}"`).toBe(true);
     }
+  });
+});
+
+describe('gradedChanges / liveChanges (db)', () => {
+  const dbs = openTestDbs();
+  afterAll(() => dbs.closeAll());
+  const period = { start: day(0), end: day(7) };
+  const c = { id: IDS.clientA1, briefThreshold: 40 } as BriefClient;
+  const ev = (o: Partial<Parameters<typeof seedScoredEvent>[1]> = {}) =>
+    seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(3), createdAt: day(3), ...o });
+  const read = (written = new Set<string>()) => gradedChanges({ db: dbs.service }, c, period, written);
+  const ids = (g: GradedChanges) => g.lines.flatMap((l) => l.eventIds).sort();
+
+  beforeEach(async () => {
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+  });
+
+  it('reads any route in the scoredAt window', async () => {
+    const a = await ev({ route: 'brief', score: 55 });
+    const b = await ev({ route: 'alert', score: 82 });
+    const d = await ev({ route: 'archive', score: 10 });
+    await ev({ scoredAt: day(8) });
+    await ev({ scoredAt: day(0) }); // window is (start, end]
+    const g = await read();
+    expect(ids(g)).toEqual([a.eventId, b.eventId, d.eventId].sort());
+    expect(g.v).toBe(1);
+    expect(g.threshold).toBe(40);
+    expect(g.lines.every((l) => l.evidenceIds.length > 0)).toBe(true);
+    expect(g.lines.find((l) => l.eventIds[0] === d.eventId)!.grade).toBe('minor');
+  });
+
+  it('excludes cosmetic, retracted, featured, written, too-old and untracked', async () => {
+    const keep = await ev();
+    await ev({ changeType: 'cosmetic' });
+    const retracted = await ev();
+    await dbs.service.update(changeEvent).set({ retractedAt: day(4), retractionReason: 'r' }).where(eq(changeEvent.id, retracted.eventId));
+    const featured = await ev();
+    const [b] = await dbs.service.insert(brief).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, deliveryDate: '2026-09-28', periodStart: day(-7), periodEnd: day(0), status: 'approved' }).returning({ id: brief.id });
+    await dbs.service.insert(briefItem).values({ briefId: b!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, ord: 0, competitorId: IDS.competitorX, headline: 'h', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'M', impact: 'M', eventIds: [featured.eventId] });
+    const written = await ev();
+    await ev({ occurredAt: day(-40), createdAt: day(3) });
+    const Y = '00000000-0000-4000-8000-0000000000f9';
+    await dbs.owner.insert(competitor).values({ id: Y, name: 'Untracked Co', domain: 'untracked.example' });
+    await ev({ competitorId: Y });
+    expect(ids(await read(new Set([written.eventId])))).toEqual([keep.eventId]);
+  });
+
+  it('major events without an item become major lines', async () => {
+    const m = await ev({ score: 90 });
+    const w = await ev({ score: 95, changeType: 'rating_change' });
+    const g = await read(new Set([w.eventId]));
+    expect(g.lines).toHaveLength(1);
+    expect(g.lines[0]).toMatchObject({ grade: 'major', eventIds: [m.eventId], channel: 'web' });
+    expect(g.totals).toEqual({ major: 2, notable: 0, minor: 0 });
+  });
+
+  const seedFour = async () => {
+    // one line of 3 price changes (notable) + one line of 1 other
+    const e1 = await ev({ score: 30, summary: 'secret one', occurredAt: day(1), scoredAt: day(1) });
+    const e2 = await ev({ score: 30, summary: 'secret two', occurredAt: day(2), scoredAt: day(2) });
+    const e3 = await ev({ score: 30, summary: 'secret three', occurredAt: day(3), scoredAt: day(3) });
+    const e4 = await ev({ score: 10, changeType: 'rating_change', summary: 'other', occurredAt: day(4), scoredAt: day(4) });
+    return { e1, e2, e3, e4 };
+  };
+
+  it('liveChanges drops retracted, untracked and dropped-item events', async () => {
+    const { e1, e2, e3, e4 } = await seedFour();
+    const g = await read();
+    const total = g.lines.reduce((n, l) => n + l.count, 0);
+    expect(total).toBe(4);
+    await dbs.service.update(changeEvent).set({ retractedAt: day(5), retractionReason: 'r' }).where(eq(changeEvent.id, e1.eventId));
+    const v = await liveChanges(dbs.service, IDS.clientA1, g, { activeItemEventIds: [], droppedItemEventIds: [e2.eventId] });
+    const line = v.lines.find((l) => l.changeType === 'price_change')!;
+    expect(line).toMatchObject({ count: 1, eventIds: [e3.eventId] });
+    expect(line.text).toBe(`Smith HVAC: ${changeTypeLabel('price_change')}`);
+    expect(line.text).not.toMatch(/secret/);
+    expect(v.totals).toEqual({ major: 0, notable: 1, minor: 1 });
+    // untracked: the whole competitor goes
+    await dbs.owner.delete(clientCompetitor).where(and(eq(clientCompetitor.clientId, IDS.clientA1), eq(clientCompetitor.competitorId, IDS.competitorX)));
+    const v2 = await liveChanges(dbs.service, IDS.clientA1, g, { activeItemEventIds: [e4.eventId], droppedItemEventIds: [] });
+    expect(v2).toEqual({ lines: [], totals: { major: 0, notable: 0, minor: 0 } });
+  });
+
+  it('liveChanges keeps a line identical when nothing changed', async () => {
+    await seedFour();
+    const g = await read();
+    const v = await liveChanges(dbs.service, IDS.clientA1, g, { activeItemEventIds: [], droppedItemEventIds: [] });
+    expect(v.lines).toEqual(g.lines);
+    expect(v.totals).toEqual(g.totals);
+  });
+
+  it('liveChanges with no lines and no items makes no query', async () => {
+    const conn = { select: () => { throw new Error('queried'); } } as never;
+    const g: GradedChanges = { v: 1, threshold: 40, lines: [], totals: { major: 0, notable: 0, minor: 0 } };
+    expect(await liveChanges(conn, IDS.clientA1, g, { activeItemEventIds: [], droppedItemEventIds: [] })).toEqual({ lines: [], totals: { major: 0, notable: 0, minor: 0 } });
   });
 });

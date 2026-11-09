@@ -56,11 +56,21 @@ export async function loadBriefClient(deps: { db: Db; packs: PackLoader; generic
 }
 
 /** Event ids already in an item of this client's non-failed briefs (an event is featured once). */
-function featuredBefore(clientId: string) {
+export function featuredBefore(clientId: string) {
   return sql`EXISTS (
     SELECT 1 FROM brief_item bi JOIN brief b ON b.id = bi.brief_id
     WHERE b.client_id = ${clientId} AND b.status <> 'failed' AND bi.event_ids ? (${changeEvent.id})::text)`;
 }
+
+/** Period predicate shared by the brief gather and the graded-changes reader (route is the caller's business). */
+export const periodWindow = (clientId: string, period: { start: Date; end: Date }) =>
+  and(
+    // Windowed on when the event was scored for this client (not created): an event scored after its brief ran
+    // (late scoring, a late-linked client) is featured next week instead of never.
+    gt(eventScore.scoredAt, period.start), lte(eventScore.scoredAt, period.end),
+    gt(changeEvent.occurredAt, new Date(period.end.getTime() - BRIEF_EVENT_MAX_AGE_DAYS * DAY_MS)),
+    sql`NOT ${featuredBefore(clientId)}`,
+  )!;
 
 export async function gatherBriefCandidates(
   deps: { db: Db; packs: PackLoader },
@@ -87,14 +97,7 @@ export async function gatherBriefCandidates(
       .orderBy(desc(eventScore.score), desc(changeEvent.occurredAt), changeEvent.id);
 
   const rows = await eventRows(
-    and(
-      inArray(eventScore.route, ['brief', 'alert']),
-      // Windowed on when the event was scored for this client (not created): an event scored after its brief ran
-      // (late scoring, a late-linked client) is featured next week instead of never.
-      gt(eventScore.scoredAt, period.start), lte(eventScore.scoredAt, period.end),
-      gt(changeEvent.occurredAt, new Date(period.end.getTime() - BRIEF_EVENT_MAX_AGE_DAYS * DAY_MS)),
-      sql`NOT ${featuredBefore(c.id)}`,
-    ),
+    and(inArray(eventScore.route, ['brief', 'alert']), periodWindow(c.id, period)),
   );
 
   const openMoves = await deps.db
