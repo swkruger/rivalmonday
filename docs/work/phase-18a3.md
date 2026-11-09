@@ -1,10 +1,10 @@
 # phase-18a3 — Reading ad images: Jev triages ad creatives, a vision LLM reads prices
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ bd58dd62
-**Spec:** `docs/superpowers/specs/2026-11-08-phase-18a3-ad-images-design.md` (R1-R17)   **Plan:** none yet
+**Spec:** `docs/superpowers/specs/2026-11-08-phase-18a3-ad-images-design.md` (R1-R17)   **Plan:** `docs/superpowers/plans/2026-11-09-phase-18a3-ad-images.md` (Tasks 0-12, P1-P14)
 
 ## Status (overwrite)
-Spec drafted + builder-checked + revised (e607afc4); awaiting owner approval of the spec.
+Spec owner-approved 2026-11-09. Plan written (Tasks 0-12); awaiting owner approval.
 
 ## Next (overwrite)
 Spec (new decisions + interfaces) -> builder check -> lean plan -> owner approval -> SDD. Live probe (< $0.01) needs owner approval before it runs.

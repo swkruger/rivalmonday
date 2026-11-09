@@ -37,7 +37,7 @@ Spec R1–R17 are binding (R1 image URL = `media_urls->>0`; R2 candidates; R3 ga
 - **P7 Reads skip a same-ad twin:** an `ad_image` whose ad already has a read row with the same `source_sha256` is not read again (its spans exist).
 - **P8 Billed-then-failed reads** set `read_at` in a separate update before rethrow (R12 counts them); `read_status` stays null so the stage retries.
 - **P9 Pricing-page tag is not a link** (its row is already a `<Link>`; nested anchors are invalid); the competitor page tag links to the evidence.
-- **P10 Ask harvesting unchanged:** `PriceNowView.evidenceId` is for the UI; Ask harvests `evidenceIds` arrays only, so image prices from `get_price_matrix` are not cited by Ask (as web prices today). `list_ads` summary rows do carry image ids (R16).
+- **P10 (controller ruling, replaces the planner's):** `PriceNow`/`PriceNowView` carry `evidenceIds: string[]` (the image evidence id for `ad_image`, else `[]`), not a singular `evidenceId`: Ask already harvests `evidenceIds` arrays, so image prices from `get_price_matrix` are citable as spec R16 requires, with no Ask code change. UI reads `evidenceIds[0]`. Cost if wrong: none beyond one array field.
 - **P11 Extra CHECKs:** `fail_reason` value list and `(status = 'rejected') = (fail_reason IS NOT NULL)`.
 - **P12 `drainEngine`** runs the image stages only when given `adMedia` deps and `adImages: true` (CLI/tests otherwise skip them).
 - **P13 `AD_IMAGE_SINCE`** ships as `2026-11-16T00:00:00Z`; `/rm-merge` sets it to the merge day.
@@ -453,16 +453,16 @@ const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.
 **Files:** `packages/engine/src/prices/tracker.ts` (+ test), `packages/tools/src/tools/{pricing,schemas,ads}.ts`, `workspace/{events-read,evidence-access,labels}.ts`, `search/fetch-item.ts`; tests `tools/pricing.test.ts`, `tools/ads.test.ts`, `tools/fetch.test.ts`, `tools/evidence.test.ts`; `src/tools/__snapshots__/launch-gate-parity.test.ts.snap` (review, then `-u`).
 
 **Interfaces:**
-- `PriceNow.source: 'web' | 'meta_ad' | 'ad_image'`; `PriceNow.evidenceId: string | null`. `PriceNowView` += `evidenceId: uuid.nullable()`, `source: z.enum(['web','meta_ad','ad_image']).describe("Where the price was read: web = the competitor's own site; meta_ad = the wording of one of their Facebook/Instagram ads; ad_image = a price shown in one of their ad images")`. `lowestUsd`'s param type widens (still `source === 'web'`).
+- `PriceNow.source: 'web' | 'meta_ad' | 'ad_image'`; `PriceNow.evidenceIds: string[]`. `PriceNowView` += `evidenceIds: z.array(uuid)`, `source: z.enum(['web','meta_ad','ad_image']).describe("Where the price was read: web = the competitor's own site; meta_ad = the wording of one of their Facebook/Instagram ads; ad_image = a price shown in one of their ad images")`. `lowestUsd`'s param type widens (still `source === 'web'`).
 - `AdView` += `imageEvidenceIds: z.array(uuid)`.
 - `MCP_EVIDENCE_KINDS = ['text', 'screenshot', 'image']` (type `EvidenceKind` += `'image'`); `EVIDENCE_CONTENT_TYPES.image = 'image/webp'`; `CHANNEL_LABELS.ad_image = 'Ad image'`; fetch-item `EVIDENCE_KIND.image = 'Ad image'`.
 
 **Behaviour:**
-- Tracker: left join `ad_image` on `price_point.ad_image_id`; select `ad.platform`, `ad.externalId`, `adImage.evidenceId`. `source` = `ad_image` when `adImageId`, else today's rule. `pageUrl`: web ⇒ page URL; `meta_ad` ⇒ `metaPageUrl`; `ad_image` ⇒ `libraryUrl(ad)`. `evidenceId` only for `ad_image`. Same single query (launch gate).
+- Tracker: left join `ad_image` on `price_point.ad_image_id`; select `ad.platform`, `ad.externalId`, `adImage.evidenceId`. `source` = `ad_image` when `adImageId`, else today's rule. `pageUrl`: web ⇒ page URL; `meta_ad` ⇒ `metaPageUrl`; `ad_image` ⇒ `libraryUrl(ad)`. `evidenceIds` = `[adImage.evidenceId]` only for `ad_image`, else `[]`. Same single query (launch gate).
 - `list_ads`: after `workspaceBusinesses` proves visibility, one service query `ad_image.ad_id, evidence_id WHERE ad_id IN (page) AND evidence_id IS NOT NULL ORDER BY created_at DESC`; full rows get `imageEvidenceIds` (newest first); summary rows append them to `evidenceIds` when `citableEvidenceKinds(meta)` includes `'image'`.
 - `snapshotSide`: `own` = the capture's `screenshot` or `image` evidence. `fetchEvidence`: `image` branch like `screenshot` (text `Ad image of ${where} ${captured}`, `screenshotKey = objectKey`, so the MCP resource returns the WebP).
 - Any Task 0 aggregate reader gets `source <> 'ad_image'`.
-**Tests (TDD):** `image price ⇒ source ad_image, evidenceId, Google library pageUrl, not in lowest or 90-day change, not in history`; `list_ads full rows carry imageEvidenceIds; person rows never`; `summary on mcp and ask cites the image id`; `get_evidence on an image evidence is servable (image/webp)`; `fetch evidence:<image> returns the description and the screenshot key`; `other client's competitor image ⇒ not_found`; run `src/isolation` unchanged-green.
+**Tests (TDD):** `image price ⇒ source ad_image, evidenceIds [id], Google library pageUrl, not in lowest or 90-day change, not in history`; `list_ads full rows carry imageEvidenceIds; person rows never`; `summary on mcp and ask cites the image id`; `get_price_matrix image price row carries evidenceIds so Ask can cite it`; `get_evidence on an image evidence is servable (image/webp)`; `fetch evidence:<image> returns the description and the screenshot key`; `other client's competitor image ⇒ not_found`; run `src/isolation` unchanged-green.
 **Done when:** `pnpm --filter @cs/tools exec vitest run src/tools/pricing src/tools/ads src/tools/evidence src/tools/fetch src/isolation src/tools/launch-gate-parity src/tools/channels`, engine `npx vitest run src/prices/tracker` pass; typecheck engine, tools.
 
 ### Task 11: Web UI and demo seed
@@ -473,7 +473,7 @@ const imageRefs = (opts?: DecideOptions) => (opts?.images?.length ? opts.images.
 **Copy (decided, sign-off):** tag **From an ad image**; kind/channel **Ad image** (Tasks 1, 10); alt **Ad image from {competitorName}**.
 **Behaviour:**
 - `AdCard` gets `clientId`; with `ad.imageEvidenceIds[0]`, above the title: `<div className="flex justify-center rounded-md bg-muted-surface p-2"><EvidenceImage src={\`/files/evidence/${clientId}/${id}\`} alt={\`Ad image from ${ad.competitorName}\`} loading="lazy" className="max-h-60 w-auto object-contain" /></div>`; else today's text card. Update its doc comment (images come from our store, never vendor URLs).
-- `sections.tsx` (competitor page): `p.source === 'ad_image' && p.evidenceId` ⇒ `<Link href={\`/c/${clientId}/evidence/${p.evidenceId}\`}><Tag …>From an ad image</Tag></Link>`; `meta_ad` keeps "From an ad".
+- `sections.tsx` (competitor page): `p.source === 'ad_image' && p.evidenceIds[0]` ⇒ `<Link href={\`/c/${clientId}/evidence/${p.evidenceIds[0]}\`}><Tag …>From an ad image</Tag></Link>`; `meta_ad` keeps "From an ad".
 - `price-card.tsx`: `ad_image` ⇒ plain `<Tag>From an ad image</Tag>` (P9).
 - Evidence page: `evidence.kind === 'image'` ⇒ `EvidenceImage` (alt as above) in a grey panel, `max-h-[720px]` contained; no "Compare with previous" (channel is not `web`).
 - `EvidenceImage`: a ref + `useEffect` on mount sets `failed` when `img.complete && img.naturalWidth === 0` (pre-hydration 404, backlog item).
