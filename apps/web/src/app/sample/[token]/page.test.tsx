@@ -23,7 +23,7 @@ const brief: BriefDetail = {
     id: '00000000-0000-4000-8000-000000000001', ord: 1, competitorId: C, subject: 'competitor', competitorName: 'Bright Smiles', headline: 'Bright Smiles cut its cleaning price', whatChanged: 'W',
     whyItMatters: 'Y', recommendedAction: 'R', confidence: 0.9, effort: 'low', impact: 'high', evidenceIds: [E1, E2], status: 'active', upsellTag: null,
   }],
-  scorecard: null, trend: null,
+  scorecard: null, trend: null, changes: null,
 };
 const ready = {
   brief, businessName: 'Smith Dental', timezone: 'America/Chicago', expiresAt: '2026-11-27T12:00:00.000Z',

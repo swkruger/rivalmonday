@@ -1,6 +1,6 @@
 import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { brief, briefItem, client, competitor, withTenant } from '@cs/db';
-import { getBrief, Scorecard, startingPointReadiness } from '@cs/engine';
+import { getBrief, loadLiveChanges, Scorecard, startingPointReadiness } from '@cs/engine';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
@@ -49,24 +49,29 @@ export const listBriefs = defineTool({
   },
 });
 
-export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: string): Promise<BriefDetail> {
+/** `opts.changes`: include the brief's live graded changes (web channel and the review page only; Task 6 of brief-report). */
+export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: string, opts: { changes?: boolean } = {}): Promise<BriefDetail> {
   const view = await getBrief({ app: deps.app }, ctx, briefId); // 4a: visibility, status gate and upsell stripping
   const competitorIds = [...new Set(view.items.flatMap((i) => (i.competitorId ? [i.competitorId] : [])))];
   // Launch-gate 6a: both name reads need only the brief view; one transaction, pipelined. Self items (Phase 12b) have no
   // competitor: their name is the client's (the web hides it; the scorecard model uses it for "(you)").
   const needClient = view.items.some((i) => !i.competitorId);
-  const [names, clientRows] = competitorIds.length || needClient
+  const wantChanges = opts.changes === true && view.brief.kind !== 'starting_point' && view.brief.report != null;
+  const [names, clientRows, changes] = competitorIds.length || needClient || wantChanges
     ? await withTenant(deps.app, ctx, (tx) => Promise.all([
       competitorIds.length ? tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)) : Promise.resolve([]),
       needClient ? tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId)) : Promise.resolve([]),
+      // Same transaction, pipelined: no new stage. The filter reads every item (dropped ones included) under RLS.
+      wantChanges ? loadLiveChanges(tx, view.brief) : Promise.resolve(null),
     ]))
-    : [[], []];
+    : [[], [], null];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
   const clientName = needClient ? clientRows[0]?.name : undefined;
   const agency = isAgencyRole(ctx.role);
   return {
     ...summary(view.brief), periodStart: view.brief.periodStart.toISOString(), periodEnd: view.brief.periodEnd.toISOString(), approvedAt: toIso(view.brief.approvedAt),
-    scorecard: Scorecard.safeParse(view.brief.scorecard).data ?? null, trend: view.brief.trend ?? null,
+    // Weekly briefs store a scorecard too (brief-report 5); only quiet weeks and the starting point show it, as before.
+    scorecard: view.brief.kind === 'standard' ? null : (Scorecard.safeParse(view.brief.scorecard).data ?? null), changes, trend: view.brief.trend ?? null,
     items: view.items.map((i) => ({
       id: i.id, ord: i.ord, competitorId: i.competitorId, subject: i.subject, competitorName: (i.competitorId ? nameOf.get(i.competitorId) : clientName) ?? 'Competitor', headline: i.headline, whatChanged: i.whatChanged,
       whyItMatters: i.whyItMatters, recommendedAction: i.recommendedAction, confidence: i.confidence, effort: i.effort, impact: i.impact, evidenceIds: i.evidenceIds,
@@ -83,8 +88,8 @@ export const getBriefTool = defineTool({
   output: BriefDetail,
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
-  async handler(ctx, { briefId }, deps) {
-    return briefDetail(deps, ctx, briefId);
+  async handler(ctx, { briefId }, deps, meta) {
+    return briefDetail(deps, ctx, briefId, { changes: meta.channel === 'web' });
   },
 });
 

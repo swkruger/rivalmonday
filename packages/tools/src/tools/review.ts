@@ -70,7 +70,7 @@ export const getBriefReview = defineTool({
   output: BriefReview,
   permission: 'agency',
   async handler(ctx, { briefId }, deps) {
-    const detail = await briefDetail(deps, ctx, briefId);
+    const detail = await briefDetail(deps, ctx, briefId, { changes: true });
     const [row] = await withTenant(deps.app, ctx, (tx) =>
       tx.select({ dropped: brief.dropped, clientName: client.name, clientTimezone: client.timezone, autoSend: client.briefAutoSend }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId)));
     if (!row) throw new ToolError('not_found', 'Brief not found');

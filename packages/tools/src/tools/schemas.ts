@@ -1,4 +1,5 @@
 import { AdMatch, Signals } from '@cs/collectors';
+import { GradedChangesView } from '@cs/core';
 import { Scorecard } from '@cs/engine';
 import { z } from 'zod';
 
@@ -57,6 +58,8 @@ export const BriefDetail = BriefSummary.extend({
   scorecard: Scorecard.nullable(),
   /** Quiet weeks' trend snapshot; null otherwise. */
   trend: TrendSnapshotView.nullable(),
+  /** The week's graded changes after the live filter; web channel only, null on mcp/ask and for old briefs. No scores. */
+  changes: GradedChangesView.nullable(),
 });
 export type BriefDetail = z.infer<typeof BriefDetail>;
 

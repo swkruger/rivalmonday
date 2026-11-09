@@ -1,8 +1,8 @@
-import { brief, briefItem, client } from '@cs/db';
+import { brief, briefItem, client, clientCompetitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ctx, dbs, registry, resetWorkspace } from './workspace-fixtures';
+import { ctx, dbs, registry, resetWorkspace, seedEvent } from './workspace-fixtures';
 
 const admin = ctx('agency_admin', 'all');
 const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
@@ -106,5 +106,62 @@ describe('7a2 D16: archived client', () => {
     await dbs.owner.update(client).set({ archivedAt: null }).where(eq(client.id, IDS.clientA2));
     await expect(registry.invoke(admin, 'get_brief', { briefId: b!.id })).resolves.toMatchObject({ id: b!.id });
     expect(((await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA2 })) as { items: unknown[] }).items).toHaveLength(1);
+  });
+});
+
+describe('brief-report: graded changes in get_brief', () => {
+  const owner = ctx('client_owner', [IDS.clientA1]);
+  const line = (eventIds: string[], over: Record<string, unknown> = {}) => ({
+    grade: 'major', topic: 'offers', competitorId: IDS.competitorX, competitorName: 'Smith HVAC', changeType: 'price_change', channel: 'web', count: eventIds.length,
+    text: 'Smith HVAC cut a price.', firstAt: '2026-10-01T00:00:00.000Z', lastAt: '2026-10-02T00:00:00.000Z', eventIds, evidenceIds: [], ...over,
+  });
+  const report = (lines: ReturnType<typeof line>[]) => ({ changes: { v: 1, threshold: 60, lines, totals: { major: lines.length, notable: 0, minor: 0 } } });
+  const mk = async (lines: ReturnType<typeof line>[] | null, over: Record<string, unknown> = {}) => {
+    const [b] = await dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-05', status: 'approved', summary: 'S', report: lines ? report(lines) : null, ...over }).returning();
+    return b!.id;
+  };
+  type Changes = { lines: { eventIds: string[] }[]; totals: unknown } | null;
+
+  it('client role gets lines without scores; mcp channel gets null', async () => {
+    const e = await seedEvent({ ageDays: 2, score: 70, route: 'alert' });
+    const id = await mk([line([e.eventId])]);
+    const web = (await registry.invoke(owner, 'get_brief', { briefId: id })) as { changes: Changes };
+    expect(web.changes?.lines).toHaveLength(1);
+    expect(JSON.stringify(web.changes)).not.toMatch(/"(score|threshold|upsell\w*)"/);
+    expect(JSON.stringify(web)).not.toContain('"report"');
+    const m = (await registry.invoke(admin, 'get_brief', { briefId: id }, mcp)) as { changes: Changes };
+    expect(m.changes).toBeNull();
+    const agency = (await registry.invoke(admin, 'get_brief', { briefId: id })) as { changes: Changes };
+    expect(agency.changes?.lines).toHaveLength(1);
+    const review = (await registry.invoke(admin, 'get_brief_review', { briefId: id })) as { changes: Changes };
+    expect(review.changes?.lines).toHaveLength(1);
+  });
+
+  it("dropped item's events never appear as lines", async () => {
+    const e = await seedEvent({ ageDays: 2, score: 70, route: 'alert' });
+    const id = await mk([line([e.eventId])]);
+    await dbs.owner.insert(briefItem).values({ ...item(id, 0, []), status: 'dropped', eventIds: [e.eventId] });
+    for (const c of [admin, owner]) expect(((await registry.invoke(c, 'get_brief', { briefId: id })) as { changes: Changes }).changes?.lines).toEqual([]);
+  });
+
+  it("untracked competitor's line is hidden", async () => {
+    const e = await seedEvent({ ageDays: 2, score: 70, route: 'alert' });
+    const id = await mk([line([e.eventId])]);
+    await dbs.owner.delete(clientCompetitor).where(and(eq(clientCompetitor.clientId, IDS.clientA1), eq(clientCompetitor.competitorId, IDS.competitorX)));
+    expect(((await registry.invoke(admin, 'get_brief', { briefId: id })) as { changes: Changes }).changes?.lines).toEqual([]);
+  });
+
+  it('brief with report null returns changes null', async () => {
+    const id = await mk(null);
+    expect(((await registry.invoke(admin, 'get_brief', { briefId: id })) as { changes: Changes }).changes).toBeNull();
+  });
+
+  it('a standard brief with a stored scorecard returns scorecard null', async () => {
+    const tile = (metric: string) => ({ metric, you: 4, rivalMedian: 4, deltaSinceStart: null });
+    const scorecard = { asOf: '2026-10-05', baselineBriefId: null, tiles: ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'].map(tile), rows: [], evidenceIds: [], openFirstMoves: [] };
+    const std = await mk(null, { kind: 'standard', scorecard });
+    const quiet = await mk(null, { kind: 'quiet', scorecard, deliveryDate: '2026-10-12' });
+    expect(((await registry.invoke(admin, 'get_brief', { briefId: std })) as { scorecard: unknown }).scorecard).toBeNull();
+    expect(((await registry.invoke(admin, 'get_brief', { briefId: quiet })) as { scorecard: unknown }).scorecard).not.toBeNull();
   });
 });
