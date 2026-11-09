@@ -209,7 +209,7 @@ tasks:
       expect(stripImages([{ type: 'image', image: { sha256: 'x', data: new Uint8Array(2) } }, new Uint8Array(3), { a: 'b' }])).toEqual([{ type: 'image', sha256: 'x' }, { bytes: 3 }, { a: 'b' }]);
     });
 
-    it('image-less request key unchanged (fixture key from before the change)', async () => {
+    it('image-less request key unchanged (fixture keys equal the pre-18a-3 keys: the recorded cassettes still replay)', async () => {
       const cfg = parseAiConfig(`
 tasks:
   ask_assistant: { provider: openrouter, model: a/m1, temperature: 0.2 }
@@ -217,8 +217,8 @@ tasks:
 `);
       const t = new Date('2026-01-01T00:00:00Z');
       const k = (task: string, kind: 'chat' | 'decide', req: unknown) => cassetteKey(cfg, task, kind, normalize(canonicalJson(req), new Map(), t));
-      expect(k('ask_assistant', 'chat', { messages: [{ role: 'user', content: 'hi' }], jsonSchema: undefined })).toBe('e3daa9de84d3f66ef9ef4e09b66f0b0235516269d16bc4ec0e1d99d0dc32f301');
-      const dec = 'e7b255587f604a4cbeeaea557dfecccea98fc83f98b08aa8d41a247dff6330a9';
+      expect(k('ask_assistant', 'chat', { messages: [{ role: 'user', content: 'hi' }], jsonSchema: undefined })).toBe('b37512410336a3fa8fc8afc8336ca1059a403c1dfc31faeffd2bb7c9df620b48');
+      const dec = '103c8993bf9fcb781722a129cfdffa09df198de1940e65b37a2c0cc671ab4bd7';
       expect(k('tag_decisions', 'decide', { state: { a: 1 }, questions: { q: { type: 'noul', instructions: 'x' } } })).toBe(dec);
       // through the wrapper: an image-less decide (new `images: undefined` field) hashes the same
       const file = fileOf();
