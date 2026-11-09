@@ -16,14 +16,18 @@ const uuid = z.string().uuid();
 /** Display refs (competitor, channel, capture date in the viewer's tz) for evidence ids. Never throws; unreachable ids are absent. */
 export async function evidenceRefsFor(ctx: AccessContext, clientId: string, ids: readonly string[], timezone: string): Promise<EvidenceRefs> {
   const unique = [...new Set(ids.filter((i) => uuid.safeParse(i).success))];
-  const out: EvidenceRefs = {};
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    let res: { items: EvidenceRef[] } | null = null;
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += CHUNK) chunks.push(unique.slice(i, i + CHUNK));
+  // Launch gate: all chunks in one stage (Promise.all), never one sequential stage per 60 ids.
+  const results = await Promise.all(chunks.map(async (evidenceIds) => {
     try {
-      res = await tryCallTool<{ items: EvidenceRef[] }>(ctx, 'get_evidence_refs', { clientId, evidenceIds: unique.slice(i, i + CHUNK) });
+      return await tryCallTool<{ items: EvidenceRef[] }>(ctx, 'get_evidence_refs', { clientId, evidenceIds });
     } catch {
-      res = null;
+      return null;
     }
+  }));
+  const out: EvidenceRefs = {};
+  for (const res of results) {
     for (const r of res?.items ?? []) out[r.evidenceId] = { source: r.competitorName, channel: r.channelLabel, date: formatDate(r.capturedAt, { tz: timezone }) };
   }
   return out;
