@@ -28,13 +28,13 @@ describe('delivery jobs', () => {
     expect(deps.deliverDueBriefs).not.toHaveBeenCalled();
   });
 
-  it('renders a PDF for every brief delivered and every report created', async () => {
+  it('renders a PDF for every report created; a just-sent brief is left to the dispatcher (no second render)', async () => {
     const q = queue();
     const deps = base({ deliverDueBriefs: vi.fn(async () => ({ sent: [A], autoApproved: 0, overdue: 0 })), runQuarterlyReports: vi.fn(async () => ({ created: [A] })) });
     const jobs = createDeliveryJobs(deps, q);
     await jobs.briefsDeliver.handler({});
     await jobs.reports.handler({});
-    expect(q.enqueueBriefPdf.mock.calls).toEqual([[A]]);
+    expect(q.enqueueBriefPdf).not.toHaveBeenCalled();
     expect(q.enqueueReportPdf.mock.calls).toEqual([[A]]);
     expect([jobs.briefsDeliver.cron, jobs.digest.cron, jobs.dispatch.cron, jobs.reports.cron]).toEqual(['10 * * * *', '2 * * * *', '* * * * *', '20 * * * *']);
   });
@@ -42,13 +42,13 @@ describe('delivery jobs', () => {
   it('re-enqueues PDFs that never rendered for recently sent briefs and reports, once per id', async () => {
     const q = queue();
     const deps = base({
-      deliverDueBriefs: vi.fn(async () => ({ sent: [A], autoApproved: 0, overdue: 0 })), listBriefsMissingPdf: vi.fn(async () => [A, B]),
+      deliverDueBriefs: vi.fn(async () => ({ sent: [A], autoApproved: 0, overdue: 0 })), listBriefsMissingPdf: vi.fn(async () => [B]),
       runQuarterlyReports: vi.fn(async () => ({ created: [] })), listReportsMissingPdf: vi.fn(async () => [B]),
     });
     const jobs = createDeliveryJobs(deps, q);
     await jobs.briefsDeliver.handler({});
     await jobs.reports.handler({});
-    expect(q.enqueueBriefPdf.mock.calls).toEqual([[A], [B]]);
+    expect(q.enqueueBriefPdf.mock.calls).toEqual([[B]]); // only the missing-PDF list, never the just-sent A
     expect(q.enqueueReportPdf.mock.calls).toEqual([[B]]);
   });
 

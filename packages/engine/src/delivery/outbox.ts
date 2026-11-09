@@ -116,6 +116,9 @@ export const DISPATCH_MAX_ATTEMPTS = 5;
 /**
  * A 'sending' row older than this is re-claimed. It must exceed one dispatcher tick's worst case — the claim limit (50)
  * × the Postmark request timeout (15 s) ≈ 12.5 min — or a slow but healthy tick would have its rows sent twice.
+ * Brief emails also render the weekly report PDF at dispatch (`briefAttachment`): at most once per brief (later recipients
+ * reuse `pdf_key`), a few seconds each when healthy (50 × ~5 s ≈ 4 min), and a failing renderer costs one ~30 s timeout per
+ * `RENDER_FAILURE_BACKOFF_MS` (10 min) window, not one per recipient — so the worst tick stays ≈ 17 min, under this bound.
  */
 export const SENDING_STALE_MINUTES = 30;
 

@@ -54,8 +54,9 @@ export function createDeliveryJobs(deps: WorkerDeps, queue: DeliveryQueue) {
       if (!ready()) return;
       const now = new Date();
       const r = await deps.deliverDueBriefs(now);
-      // Also re-offer recently sent briefs whose PDF never rendered (the email links it); singletonKey dedupes.
-      for (const id of new Set([...r.sent, ...(await deps.listBriefsMissingPdf(now))])) await queue.enqueueBriefPdf(id);
+      // A just-sent brief's PDF is rendered by the dispatcher (`ensureBriefPdf` via the email attachment), never enqueued here
+      // too (two renders per brief). Only re-offer recently sent briefs whose PDF never rendered (the email links it); singletonKey dedupes.
+      for (const id of await deps.listBriefsMissingPdf(now)) await queue.enqueueBriefPdf(id);
       if (r.sent.length + r.autoApproved + r.overdue > 0) workerLog.info(`[briefs-deliver] sent ${r.sent.length} (auto ${r.autoApproved}), overdue ${r.overdue}`);
     },
   });

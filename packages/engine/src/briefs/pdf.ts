@@ -106,7 +106,11 @@ export async function renderBriefPdf(deps: PdfDeps, briefId: string): Promise<{ 
   const bytes = await deps.pdf(html, briefPdfMeta(v), { allowUrls: v.branding.logoUrl ? [v.branding.logoUrl] : [] });
   const key = briefPdfKey(v.b.agencyId, briefId);
   await deps.store.put(key, bytes, 'application/pdf', { overwrite: true });
-  await deps.db.update(brief).set({ pdfKey: key }).where(eq(brief.id, briefId));
+  // Only while the brief is still in the status read at render start: an `approved` render finishing after `deliverBrief`
+  // sent the brief (and cleared pdf_key) must not record its pre-send PDF, or the attachment resolver would attach it.
+  // The stored object may stay behind; the next render overwrites it.
+  const written = await deps.db.update(brief).set({ pdfKey: key }).where(and(eq(brief.id, briefId), eq(brief.status, v.b.status))).returning({ id: brief.id });
+  if (written.length === 0) return { skipped: `brief changed from ${v.b.status} during render` };
   return { key };
 }
 

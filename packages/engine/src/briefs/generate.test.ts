@@ -22,10 +22,20 @@ vi.mock('./scorecard', async (orig) => {
   return { ...m, buildScorecard: (...a: Parameters<typeof m.buildScorecard>) => { if (scorecardFail.on) throw new Error('scorecard boom'); return m.buildScorecard(...a); } };
 });
 
-const reportFail = vi.hoisted(() => ({ on: false }));
+const reportFail = vi.hoisted(() => ({ on: false, longLine: false }));
 vi.mock('./report', async (orig) => {
   const m = await orig<typeof import('./report')>();
-  return { ...m, buildBriefReport: (...a: Parameters<typeof m.buildBriefReport>) => { if (reportFail.on) throw new Error('report boom'); return m.buildBriefReport(...a); } };
+  return {
+    ...m,
+    buildBriefReport: async (...a: Parameters<typeof m.buildBriefReport>) => {
+      if (reportFail.on) throw new Error('report boom');
+      const r = await m.buildBriefReport(...a);
+      if (!reportFail.longLine) return r;
+      // A line over the 400-char schema cap: the snapshot no longer parses.
+      const long = { grade: 'minor' as const, topic: 'offers' as const, competitorId: IDS.competitorX, competitorName: 'Smith HVAC', changeType: 'price_change', channel: null, count: 1, text: 'x'.repeat(401), firstAt: r.asOf, lastAt: r.asOf, eventIds: [randomUUID()], evidenceIds: [] };
+      return { ...r, changes: { ...r.changes, lines: [...r.changes.lines, long] } };
+    },
+  };
 });
 
 const AGENCY_C = randomUUID();
@@ -285,6 +295,17 @@ describe('quiet-week scorecard (12b T6)', () => {
       expect((await dbs.owner.select().from(brief))[0]!.report).toBeNull();
       expect(warn).toHaveBeenCalledWith(expect.stringMatching(/report skipped/));
     } finally { reportFail.on = false; warn.mockRestore(); }
+  });
+
+  it('a report that does not parse (over-long line) is stored as null; the brief is still ready', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reportFail.longLine = true;
+    try {
+      await seedEvent();
+      expect(await run()).toMatchObject({ status: 'ready', kind: 'standard', items: 1 });
+      expect((await dbs.owner.select().from(brief))[0]!.report).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[briefs\] report skipped: /));
+    } finally { reportFail.longLine = false; warn.mockRestore(); }
   });
 
   it('a report failure on a no-item week is quiet (no Major lines known)', async () => {

@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import { createEmailSender, type DeliveryConfig, type NotificationRow } from '../delivery/outbox';
-import { attachmentName, briefAttachment, MAX_ATTACHMENT_BYTES } from './attachment';
+import { attachmentName, briefAttachment, MAX_ATTACHMENT_BYTES, RENDER_FAILURE_BACKOFF_MS } from './attachment';
 import { deliverBrief } from './deliver';
 import { briefPdfKey, type PdfDeps } from './pdf';
 
@@ -83,6 +83,39 @@ describe('PDF attachment at dispatch', () => {
     expect(transport.sent[0]!.text).not.toContain('Your full report is attached');
     expect(transport.sent[0]!.html).toContain('Download as PDF'); // the link stays as the fallback
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('pdf attach failed'));
+    warn.mockRestore();
+  });
+
+  it('a failing renderer is tried once per backoff window: both recipients are sent without the attachment', async () => {
+    const id = await seedBrief();
+    await deliverBrief({ db: dbs.service, delivery }, id, NOW);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let clock = 1_000_000;
+    const pdf = vi.fn(async (): Promise<Uint8Array> => { throw new Error('chromium down'); });
+    const transport = createMemoryTransport();
+    const sender = createEmailSender({ transport, fromAddress: 'b@agency.example', attachment: briefAttachment(deps(pdf), { now: () => clock }) });
+    const row = await emailRow(id);
+    await sender.send(row, NOW);
+    await sender.send({ ...row, address: 'second@a1.example' }, NOW);
+    expect(pdf).toHaveBeenCalledTimes(1);
+    expect(transport.sent).toHaveLength(2);
+    expect(transport.sent.map((m) => m.attachments)).toEqual([undefined, undefined]);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('pdf attach failed'))).toHaveLength(1); // logged once
+    // After the backoff window a render is tried again.
+    clock += RENDER_FAILURE_BACKOFF_MS;
+    await sender.send(row, NOW);
+    expect(pdf).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it('logs "no current pdf" when the render is skipped (no key)', async () => {
+    const id = await seedBrief();
+    await deliverBrief({ db: dbs.service, delivery }, id, NOW);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // The brief left 'sent' between the resolver's check and the render: ensureBriefPdf returns null.
+    const pdf = vi.fn(async () => { await dbs.owner.update(brief).set({ status: 'approved' }).where(eq(brief.id, id)); return PDF; });
+    expect(await briefAttachment(deps(pdf))(await emailRow(id))).toBeNull();
+    expect(warn).toHaveBeenCalledWith(`[briefs] pdf attach failed: ${id}: no current pdf`);
     warn.mockRestore();
   });
 

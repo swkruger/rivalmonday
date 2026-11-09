@@ -109,6 +109,17 @@ describe('renderBriefPdf', () => {
     expect(await store.get(briefPdfKey(IDS.agencyA, id))).toEqual(new Uint8Array([2]));
   });
 
+  it('an approved render finishing after the brief was sent (pdf_key cleared) never records its pre-send key', async () => {
+    const id = await seedBrief('approved');
+    const pdf = async () => {
+      // deliverBrief lands mid-render: approved → sent and pdf_key cleared.
+      await dbs.owner.update(brief).set({ status: 'sent', sentAt: new Date(), pdfKey: null }).where(eq(brief.id, id));
+      return new Uint8Array([1]);
+    };
+    expect(await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf }, id)).toEqual({ skipped: 'brief changed from approved during render' });
+    expect((await dbs.owner.select().from(brief).where(eq(brief.id, id)))[0]!.pdfKey).toBeNull();
+  });
+
   it('skips a brief that is not approved or sent', async () => {
     const id = await seedBrief('ready');
     expect(await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async () => new Uint8Array() }, id)).toEqual({ skipped: 'brief is ready' });

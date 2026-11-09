@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import type { BriefReport } from '@cs/core';
+import { BriefReport } from '@cs/core';
 import { agencyServiceable, clientWorkAllowed, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { VerticalPack } from '@cs/verticals';
@@ -120,7 +120,8 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
     // The report's lines exclude the events of the verified items (those are the written items).
     let report: BriefReport | null = null;
     try {
-      report = await buildBriefReport(deps, c, period, new Set(verified.items.flatMap((i) => candidateEventIds(i.candidate))));
+      // Parsed before storing: a snapshot that would not parse (e.g. an over-long line) is stored as null, never as bad data.
+      report = BriefReport.parse(await buildBriefReport(deps, c, period, new Set(verified.items.flatMap((i) => candidateEventIds(i.candidate)))));
     } catch (err) {
       console.warn(`[briefs] report skipped: ${clientId}: ${briefErrorMessage(err)}`);
     }
