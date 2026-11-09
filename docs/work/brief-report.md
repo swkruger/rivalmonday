@@ -4,7 +4,7 @@
 **Spec:** `docs/superpowers/specs/2026-11-07-brief-report-design.md` (owner-approved 2026-11-07) · **Plan:** `docs/superpowers/plans/2026-11-07-brief-report.md` (Tasks 0–15, lean)
 
 ## Status (overwrite)
-All tasks 0–14 implemented and reviewed (SDD); final review pending.
+All tasks 0–14 implemented and reviewed (SDD). Final whole-branch review done; its fix wave landed (evidence-refs chunks in one stage, PDF "Changes this week" tile = live grade totals, conditional `pdf_key` write, one render per sent brief, report parsed before storing, render-failure backoff at dispatch). Controller gates pending.
 
 ## Next (overwrite)
 Final whole-branch review + gates (controller), then owner verification (steps below), then `/rm-merge` with the owner's go-ahead.
@@ -41,7 +41,7 @@ Final whole-branch review + gates (controller), then owner verification (steps b
 ## New backlog (target → item)
 - (later) → agency control to hide a single Notable/Minor line, if pilots ask (O5).
 - (later) → graded changes on MCP/Ask `get_brief` (plan P5).
-- (later) → `search_events` date bounds if the Changes week view (page-side filter) misleads (plan P6).
+- (later) → `search_events` date bounds if the Changes week view (page-side filter) misleads (plan P6). "See all changes this week" filters by occurred day while graded lines are windowed by `scored_at` (events up to 30 days older can be missing from the linked page); client tz vs viewer tz day boundaries can also differ.
 - (later) → darker print grey for context series if pilots find it faint (`#A3B1C2` is 2.18:1 on white; try ~`#8796A8`). Kept as the design-system role colour for now; the text legend carries the series.
 
 ## Owner verification steps
@@ -50,4 +50,5 @@ Final whole-branch review + gates (controller), then owner verification (steps b
 3. `pnpm --filter @cs/worker deliver-once --brief <id> pdf` on cs_dev; open the PDF on a phone and print it. Cover shows the agency only; metadata (File → Properties) names the agency.
 4. Staging: one live week after brief-signal's re-score; open the email on a phone (attachment present, one-line rows), the app brief page (Minor folded), and "See all changes this week".
 5. Old PDFs re-render once at v6 when opened.
-6. Sign the new copy: `pnpm copy:review` in this worktree (glossary, labels, guides, help, emails, documents, app-client). This includes the new PDF strings (chart titles, table caption/headers, "In progress", "· {Status} since").
+6. `EXPLAIN ANALYZE` the graded read (`event_score` any-route by `client_id` + `scored_at` window) on cs_dev; add a `(client_id, scored_at)` index if it seq-scans or sorts.
+7. Sign the new copy: `pnpm copy:review` in this worktree (glossary, labels, guides, help, emails, documents, app-client). This includes the new PDF strings (chart titles, table caption/headers, "In progress", "· {Status} since").
