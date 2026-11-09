@@ -82,3 +82,49 @@ export function totalsOf(lines: ChangeLine[], writtenMajorEvents: number): Grade
   for (const l of lines) t[l.grade] += l.count;
   return t;
 }
+
+/** One chart line: `points` oldest → newest, `null` = no data at that point (never 0). Same shape as the web LineChart series. */
+export const ChartSeries = z.object({ key: z.string(), name: z.string(), points: z.array(z.number().nullable()), you: z.boolean().optional() });
+export type ChartSeries = z.infer<typeof ChartSeries>;
+
+/** One business's map-pack position on one keyword of a scan; `avgRank` null when the business cannot be matched. */
+export const RankMetric = z.object({ avgRank: z.number().nullable(), top3Share: z.number(), points: z.number() });
+export type RankMetric = z.infer<typeof RankMetric>;
+
+const iso = z.iso.datetime();
+const count = z.number().int().min(0);
+
+/** Spec §4.4: the weekly report snapshot, built at generation and stored on `brief.report`. */
+export const BriefReport = z.object({
+  v: z.literal(1),
+  asOf: iso,
+  changes: GradedChanges,
+  kpis: z.object({
+    changes7d: count, alerts7d: count, priceMoves7d: count, priceCuts7d: count,
+    activeAds: count.nullable(), activeAds7dAgo: count.nullable(),
+    ratingSelf: z.number().nullable(), ratingAvg: z.number().nullable(),
+    weekly: z.object({ changes: z.array(count).length(8), priceMoves: z.array(count).length(8), activeAds: z.array(count.nullable()).length(8) }),
+  }),
+  pressure: z.array(z.object({
+    competitorId: z.uuid(), name: z.string(), score: z.number().min(0).max(100), level: z.enum(['low', 'elevated', 'high']), reason: z.string().nullable(),
+  })).max(5),
+  rating: z.object({ months: z.array(z.string()).length(12), series: z.array(ChartSeries) }),
+  ads: z.object({ weeks: z.array(z.string()).length(12), series: z.array(ChartSeries) }),
+  rankings: z.object({
+    scanAt: iso,
+    prevScanAt: iso.nullable(),
+    keywords: z.array(z.object({
+      keyword: z.string(), you: RankMetric, prev: RankMetric.nullable(), rivals: z.array(z.object({ name: z.string(), metric: RankMetric })).max(2),
+    })).max(5),
+    map: z.object({
+      keyword: z.string(), objectKey: z.string(),
+      bounds: z.object({ west: z.number(), south: z.number(), east: z.number(), north: z.number() }),
+      width: z.number().int(), height: z.number().int(),
+      points: z.array(z.object({ lat: z.number(), lng: z.number(), rank: z.number().nullable() })),
+    }).nullable(),
+  }).nullable(),
+  moves: z.array(z.object({ id: z.uuid(), competitorName: z.string(), moveType: z.string(), label: z.string(), status: z.string(), firstDetectedAt: iso })).max(6),
+  recommendations: z.array(z.object({ id: z.uuid(), title: z.string(), status: z.enum(['todo', 'in_progress']), createdThisWeek: z.boolean() })).max(8),
+  alerts: z.array(z.object({ headline: z.string(), competitorName: z.string(), deliveredAt: iso })).max(5),
+});
+export type BriefReport = z.infer<typeof BriefReport>;

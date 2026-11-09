@@ -1,4 +1,5 @@
 import { client, competitor, prospectReport } from '@cs/db';
+import { buildBriefReport, createPackLoader, loadBriefClient } from '@cs/engine';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -116,5 +117,33 @@ describe('get_workspace_overview', () => {
       { agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'failed', createdAt: new Date(now - day), finishedAt: new Date(now - day), error: 'boom' },
     ]);
     expect(((await registry.invoke(am, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview).pitchSnapshot).toBe(false);
+  });
+
+  it('report KPIs equal get_workspace_overview KPIs at the same now (P8)', async () => {
+    const priceFacts = [{ kind: 'price', before: { kind: 'price', value: 99, unit: 'USD', raw: '$99', context: '' }, after: { kind: 'price', value: 79, unit: 'USD', raw: '$79', context: '' }, pct: -20.2 }];
+    await seedEvent({ score: 86, route: 'alert', ageDays: 1, facts: priceFacts as never });
+    await seedEvent({ score: 50, route: 'brief', ageDays: 2, type: 'promo' });
+    await seedEvent({ score: 90, route: 'alert', ageDays: 1, retracted: true });
+    await seedEvent({ score: 20, route: 'archive', ageDays: 1, type: 'content' });
+    await seedEvent({ score: 60, route: 'brief', ageDays: 9 });
+    await seedEvent({ score: 70, route: 'alert', ageDays: 30 });
+    await dbs.owner.update(client).set({ services: ['ac_tune_up'] }).where(eq(client.id, IDS.clientA1));
+    await seedAdHistory();
+    const [self] = await dbs.owner.insert(competitor).values({ name: 'A1 HVAC (self)', placeId: 'ChIJselfA1xxxxx' }).returning();
+    await dbs.owner.update(client).set({ selfCompetitorId: self!.id }).where(eq(client.id, IDS.clientA1));
+    await seedGbpRating(self!.id, 4.8, new Date(Date.now() - day));
+    await seedGbpRating(IDS.competitorX, 4.3, new Date(Date.now() - day));
+
+    const now = new Date();
+    const packs = createPackLoader();
+    const c = await loadBriefClient({ db: dbs.service, packs }, IDS.clientA1);
+    const report = await buildBriefReport({ db: dbs.service, packs }, c, { start: new Date(now.getTime() - 7 * day), end: now }, new Set());
+    const o = (await registry.invoke(owner, 'get_workspace_overview', { clientId: IDS.clientA1 })) as WorkspaceOverview;
+    expect(report.kpis).toEqual({
+      changes7d: o.changes7d, alerts7d: o.alerts7d, priceMoves7d: o.priceMoves7d, priceCuts7d: o.priceCuts7d,
+      activeAds: o.activeAds, activeAds7dAgo: o.activeAds7dAgo, ratingSelf: o.rating.self, ratingAvg: o.rating.competitorAverage, weekly: o.weekly,
+    });
+    expect(report.kpis).toMatchObject({ changes7d: 2, alerts7d: 1, priceMoves7d: 1, priceCuts7d: 1, ratingSelf: 4.8, ratingAvg: 4.3 });
+    expect(report.pressure.map((p) => [p.competitorId, p.score])).toEqual(o.pressure.slice(0, 5).map((p) => [p.competitorId, p.pressure.score]));
   });
 });
