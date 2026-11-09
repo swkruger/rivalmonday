@@ -93,3 +93,7 @@ Read-only, $0. Branch `phase-18a3` has main @ c2e5eb2b as an ancestor (no rebase
   - `packages/tools/src/waitlist/site-status.ts:41`: `count(*) FROM capture cp WHERE status IN ('ok','unchanged') ...` = the marketing "snapshots" figure; an image copy is not a snapshot.
   - Already source-scoped, no change: `moves/moves-stage.ts:34`, `workspace/ads.ts:18` (`google_ads`/`meta_ads`), `briefs/starting-point.ts:129` (`google_ads`), `sweep.ts` lists (explicit sources), `reviews/complaints.ts`, `briefs/scorecard.ts`, `structured/vendor-diff.ts:55` (same source+url as the capture). Per-tracked-page readers (`search.ts:140`, `fetch-item.ts:272`, `competitor-profile.ts:59`, `web/blocks.ts`) key on `tracked_page_id`, which ad_image captures lack.
 - **Plan edits:** Task 10 gains the two readers above. Task 9/0b unchanged.
+
+## Live probe (Task 0b, owner-approved, spent ~$0.0011)
+- Jev `typesafe/jev-1.14`: shape **`state_content`** (state = content array, text + `image_url`) passes (p 0.99 price image, 0.03 blank; ~1.1k input tokens, ~$0.00005/call) **only with PNG/JPEG data URLs** — WebP returns 400. `top_level` 400s; `state_object` returns 200 but reads the data URL as text (fails). ⇒ plan P15: decision calls send a JPEG of the stored WebP.
+- `ad_image_read` = **`openai/gpt-4.1-mini`** (Azure ZDR): accepted `temperature: 0`, strict json_schema with `maxItems`/`maxLength`, `require_parameters`, `data_collection: deny`; `["$89"]` on the price image, `[]` on the blank; ~540 input tokens, ~$0.00023/call. Haiku fallback not needed.

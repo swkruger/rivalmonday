@@ -58,7 +58,7 @@ Each **R-n** below is a *ruling (agent), owner may overturn*; [brackets] give th
 
 - **`@cs/ai` image parts (binding):**
   ```ts
-  export interface DecisionImage { mediaType: 'image/webp'; data: Uint8Array; sha256: string }
+  export interface DecisionImage { mediaType: 'image/webp' | 'image/jpeg' | 'image/png'; data: Uint8Array; sha256: string }  // Task 0b: Jev takes PNG/JPEG only; decision calls send a JPEG of the stored WebP (plan P15)
   // DecisionProvider.decide(state, questions, opts?: { images?: readonly DecisionImage[] })
   // Ai.decide(task, state, questions, scope, opts?: { images?: readonly DecisionImage[] })
   // Ai.chat(task, { messages, jsonSchema }, scope): user content may be ContentPart[]
