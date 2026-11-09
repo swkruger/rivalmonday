@@ -59,6 +59,8 @@ export const brief = pgTable(
     trend: jsonb('trend').$type<TrendSnapshot | null>(),
     /** Phase 12b: starting-point scorecard (computed figures, never model-written). Null for weekly briefs. */
     scorecard: jsonb('scorecard').$type<Record<string, unknown> | null>(),
+    /** Weekly report (`BriefReport`, @cs/core): graded changes, KPIs, sections. Null for starting points, pre-report briefs and a failed build. */
+    report: jsonb('report').$type<Record<string, unknown> | null>(),
     /** Phase 17a: number of claims the verifier checked for this brief (null = not recorded; pre-17a briefs). */
     claimsChecked: integer('claims_checked'),
     dropped: jsonb('dropped').$type<BriefDropStats>().notNull().default(sql`'{"items":0,"sentences":0}'::jsonb`),

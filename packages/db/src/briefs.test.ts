@@ -125,3 +125,13 @@ describe('brief RLS', () => {
     expect(await errorText(write)).toMatch(/permission denied/i);
   });
 });
+
+describe('brief.report', () => {
+  it('migration adds nullable brief.report', async () => {
+    const [col] = (await dbs.owner.execute(sql`SELECT data_type, is_nullable FROM information_schema.columns WHERE table_name = 'brief' AND column_name = 'report'`)) as unknown as { data_type: string; is_nullable: string }[];
+    expect(col).toEqual({ data_type: 'jsonb', is_nullable: 'YES' });
+    const { briefId } = await seedBrief();
+    const [b] = await dbs.service.select({ report: brief.report }).from(brief).where(sql`${brief.id} = ${briefId}`);
+    expect(b!.report).toBeNull();
+  });
+});
