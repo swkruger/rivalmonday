@@ -1,7 +1,7 @@
 import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
   capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
-  createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
+  createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
 } from '@cs/collectors';
@@ -13,7 +13,7 @@ import type { DiscoveryResult } from '@cs/collectors';
 import {
   briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  checkBriefReadiness, createRehearsalAi, type EngineWork, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -89,6 +89,12 @@ export interface WorkerDeps {
   extractAdPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   /** 18a-2 D4: website tools of one web capture (rules only); returns the new change ids. */
   detectSiteFeatures(captureId: string): Promise<{ ran: boolean; changes: string[] }>;
+  /** 18a-3 R3: `WEB_MONITORING_ENABLED === 'true'` — gates both ad-image sweep lists and jobs. */
+  adImagesEnabled(): boolean;
+  /** 18a-3 D3: fetch → triage → store one Google ad's image (polite crawler path; `deferred` when the host is busy). */
+  triageAdImage(adId: string): Promise<TriageAdImageResult>;
+  /** 18a-3 D5: vision read of one stored price image. */
+  readAdImage(adImageId: string): Promise<ReadAdImageResult>;
   runReviewInsights(): Promise<ReviewInsightsResult>;
   collectModelBatches(): Promise<BatchCollectResult>;
   diffRankScan(scanId: string): Promise<{ ran: boolean; changeIds: string[] }>;
@@ -273,6 +279,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const crawlAssert = crawlRaw ? allowlistedAssert(crawlRaw.split(',')) : undefined;
   const crawlFetchText = crawlAssert ? createGuardedFetchText({ assertUrl: crawlAssert }) : defaultFetchText;
   const robots = new RobotsPolicy(crawlFetchText, undefined, undefined, undefined, limiter);
+  // 18a-3 D2: ad images use the crawler's robots, host limiter and allowlist, plus the vendor limiter's ad_media bucket.
+  const adMedia: AdMediaDeps = { fetchBytes: createGuardedFetchBytes({ fetch: vendors.limitedFetch('ad_media'), assertUrl: crawlAssert }), robots, limiter };
+  const adImagesEnabled = () => env.WEB_MONITORING_ENABLED?.trim() === 'true';
   const catalog = createCatalog(() => catalogRows(getDb()), { ttlMs: 60_000 });
   const packs = catalog.packs;
   const generic = () => catalog.generic();
@@ -404,7 +413,14 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       const { scored, failed } = await runScoreStage({ db: getDb(), packs, generic }, eventId);
       return { scored, failed };
     },
-    findEngineWork: (limit) => findEngineWork(getDb(), { limit }),
+    findEngineWork: (limit) => findEngineWork(getDb(), { limit, adImages: adImagesEnabled() }),
+    adImagesEnabled,
+    async triageAdImage(adId) {
+      return runTriageAdImage({ db: getDb(), store: getStore(), ai: await getAi(), packs, media: adMedia }, adId);
+    },
+    async readAdImage(adImageId) {
+      return runReadAdImage({ db: getDb(), store: getStore(), ai: await getAi(), packs }, adImageId);
+    },
     async analyzeReview(reviewId) {
       return { ran: (await runAnalyzeReview({ db: getDb(), ai: await getAi(), packs }, reviewId)).ran };
     },

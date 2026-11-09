@@ -17,4 +17,17 @@ describe('createJobList', () => {
     expect(jobs.length).toBeGreaterThan(10);
     expect(new Set(jobs.map((j) => j.name)).size).toBe(jobs.length);
   });
+
+  it('deferred ad image re-enqueues with startAfter and the same singleton key', async () => {
+    const sends: { name: string; data: unknown; opts: unknown }[] = [];
+    const boss = { send: async (name: string, data: unknown, opts: unknown) => (sends.push({ name, data, opts }), 'job') } as unknown as PgBoss;
+    const deps = { adImagesEnabled: () => true, triageAdImage: async () => ({ status: 'deferred', retryInMs: 2_500 }) } as unknown as WorkerDeps;
+    const jobs = createJobList(deps, boss, { envName: 'dev', env: {} });
+    const adImage = jobs.find((j) => j.name === 'engine-ad-image')!;
+    const adImageRead = jobs.find((j) => j.name === 'engine-ad-image-read');
+    expect(adImageRead).toBeDefined();
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(await adImage.handler({ adId: id })).toEqual({ deferred: true });
+    expect(sends).toEqual([{ name: 'engine-ad-image', data: { adId: id }, opts: { singletonKey: `ad-image:${id}`, startAfter: 3 } }]);
+  });
 });

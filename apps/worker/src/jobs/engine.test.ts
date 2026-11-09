@@ -13,13 +13,15 @@ const queue = () => ({
   enqueueAdPrice: vi.fn(async (_id: string) => {}),
   enqueueSiteFeatures: vi.fn(async (_id: string) => {}),
   enqueueReask: vi.fn(async (_id: string) => {}),
+  enqueueAdImage: vi.fn(async (_id: string, _startAfterSeconds?: number) => {}),
+  enqueueAdImageRead: vi.fn(async (_id: string) => {}),
 });
 
 describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], siteFeatures: [U(10)], reask: [U(7)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], siteFeatures: [U(10)], reask: [U(7)], adImages: [U(11)], adImageReads: [U(12)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -31,6 +33,8 @@ describe('engine jobs', () => {
     expect(q.enqueueAdPrice.mock.calls).toEqual([[U(8)]]);
     expect(q.enqueueSiteFeatures.mock.calls).toEqual([[U(10)]]);
     expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
+    expect(q.enqueueAdImage.mock.calls).toEqual([[U(11)]]);
+    expect(q.enqueueAdImageRead.mock.calls).toEqual([[U(12)]]);
   });
 
   it('skips the sweep without an OpenRouter key', async () => {
@@ -123,5 +127,54 @@ describe('engine jobs', () => {
     expect(jobs.reask.name).toBe('engine-reask');
     expect(jobs.reask.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
     expect(() => jobs.reask.schema.parse({ reviewId: 'x' })).toThrow();
+  });
+
+  it('sweep enqueues both ad image lists', async () => {
+    const empty = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], siteFeatures: [], reask: [] };
+    const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ ...empty, adImages: [U(1), U(2)], adImageReads: [U(3)] })) } as unknown as WorkerDeps;
+    const q = queue();
+    await createEngineJobs(deps, q).sweep.handler({});
+    expect(q.enqueueAdImage.mock.calls).toEqual([[U(1)], [U(2)]]);
+    expect(q.enqueueAdImageRead.mock.calls).toEqual([[U(3)]]);
+  });
+
+  it('ad image jobs: off ⇒ skipped, deps untouched', async () => {
+    const deps = { adImagesEnabled: () => false, triageAdImage: vi.fn(), readAdImage: vi.fn() } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    expect(await jobs.adImage.handler({ adId: U(1) })).toEqual({ skipped: 'web_monitoring_off' });
+    expect(await jobs.adImageRead.handler({ adImageId: U(2) })).toEqual({ skipped: 'web_monitoring_off' });
+    expect(deps.triageAdImage).not.toHaveBeenCalled();
+    expect(deps.readAdImage).not.toHaveBeenCalled();
+    expect(q.enqueueAdImage).not.toHaveBeenCalled();
+  });
+
+  it('ad image deferred re-enqueues with startAfter (rounded up to seconds)', async () => {
+    const deps = { adImagesEnabled: () => true, triageAdImage: vi.fn(async () => ({ status: 'deferred', retryInMs: 4_200 })) } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    expect(await jobs.adImage.handler({ adId: U(1) })).toEqual({ deferred: true });
+    expect(deps.triageAdImage).toHaveBeenCalledWith(U(1));
+    expect(q.enqueueAdImage.mock.calls).toEqual([[U(1), 5]]);
+  });
+
+  it('ad image jobs run their stages on the no-retry engine queue and use AI', async () => {
+    const deps = {
+      adImagesEnabled: () => true, triageAdImage: vi.fn(async () => ({ status: 'ran', adImageId: U(2), outcome: 'stored' })),
+      readAdImage: vi.fn(async () => ({ status: 'ran', readStatus: 'read', points: 1 })),
+    } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    await jobs.adImage.handler({ adId: U(1) });
+    await jobs.adImageRead.handler({ adImageId: U(2) });
+    expect(deps.readAdImage).toHaveBeenCalledWith(U(2));
+    expect(q.enqueueAdImage).not.toHaveBeenCalled();
+    expect([jobs.adImage.name, jobs.adImageRead.name]).toEqual(['engine-ad-image', 'engine-ad-image-read']);
+    for (const job of [jobs.adImage, jobs.adImageRead]) {
+      expect(job.usesAi).toBe(true);
+      expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    }
+    expect(() => jobs.adImage.schema.parse({ adId: 'x' })).toThrow();
+    expect(() => jobs.adImageRead.schema.parse({ adImageId: 'x' })).toThrow();
   });
 });

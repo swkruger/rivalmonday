@@ -1,6 +1,8 @@
 import { agencyServiceable, clientWorkAllowed, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
-import { AD_IMAGE_SINCE } from './ads/images';
+import {
+  AD_IMAGE_READ_STAGE, AD_IMAGE_READ_VERSION, AD_IMAGE_SINCE, AD_IMAGE_SKIP_FORMATS, AD_IMAGE_SWEEP_MAX, AD_IMAGE_TRIAGE_STAGE, AD_IMAGE_TRIAGE_VERSION, readCapOpenSql, readTwinSql,
+} from './ads/images';
 import { AD_PRICE_SINCE, AD_PRICE_STAGE, AD_PRICE_VERSION } from './prices/ad-price-stage';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
@@ -27,6 +29,10 @@ export interface EngineWork {
   siteFeatures: string[];
   /** Older analysed reviews with a re-ask gap (15b-3b §5); only when `reviews` is empty. */
   reask: string[];
+  /** Google ad ids whose current image URL awaits triage (18a-3 R2); empty unless `opts.adImages`. */
+  adImages: string[];
+  /** `ad_image` ids of stored price images awaiting the vision read (D5, R12); empty unless `opts.adImages`. */
+  adImageReads: string[];
 }
 
 /** At most this many reviews are re-asked per UTC day (counted by `review_analysis.checked_at`). */
@@ -46,8 +52,15 @@ const ids = (rows: unknown) => (rows as { id: string }[]).map((r) => r.id);
 
 export async function findEngineWork(
   db: Db,
-  opts: { limit: number; competitorId?: string; scoreWindowDays?: number; now?: Date; reaskDailyMax?: number },
+  opts: {
+    limit: number; competitorId?: string; scoreWindowDays?: number; now?: Date; reaskDailyMax?: number;
+    /** R3: the two ad-image lists only while `WEB_MONITORING_ENABLED === 'true'` (the caller decides). */
+    adImages?: boolean;
+    /** Test seam: the ad-image cutoff (Google ad prices and both image lists); defaults to `AD_IMAGE_SINCE`. */
+    adImageSince?: Date;
+  },
 ): Promise<EngineWork> {
+  const adImageSince = (opts.adImageSince ?? AD_IMAGE_SINCE).toISOString();
   const only = (col: string) => (opts.competitorId ? sql`AND ${sql.raw(col)} = ${opts.competitorId}::uuid` : sql``);
   const finished = (stage: string, version: number, subject: string) => sql`
     EXISTS (SELECT 1 FROM stage_run s WHERE s.stage = ${stage} AND s.stage_version = ${version}::int AND s.subject_id = ${sql.raw(subject)}
@@ -180,7 +193,7 @@ export async function findEngineWork(
     SELECT c.id FROM capture c
     WHERE c.status = 'ok'
       AND ((c.source = 'meta_ads' AND c.captured_at >= ${AD_PRICE_SINCE.toISOString()}::timestamptz)
-        OR (c.source = 'google_ads' AND c.captured_at >= ${AD_IMAGE_SINCE.toISOString()}::timestamptz))
+        OR (c.source = 'google_ads' AND c.captured_at >= ${adImageSince}::timestamptz))
       AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
       AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
       AND NOT ${finished(AD_PRICE_STAGE, AD_PRICE_VERSION, 'c.id')}
@@ -197,8 +210,44 @@ export async function findEngineWork(
       AND NOT ${finished(SITE_FEATURE_STAGE, SITE_FEATURE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
+  // Ad images (18a-3 R2/R3): both lists stay empty while the switch is off.
+  let adImages: string[] = [];
+  let adImageReads: string[] = [];
+  if (opts.adImages) {
+    const skipFormats = AD_IMAGE_SKIP_FORMATS.length > 0 ? sql`AND (a.format IS NULL OR a.format NOT IN (${sql.join(AD_IMAGE_SKIP_FORMATS.map((f) => sql`${f}`), sql`, `)}))` : sql``;
+    // Triage: settled active Google ads from the cutoff with an http(s) image URL and a workable tracker, and no row for
+    // this URL (sha = sha256Hex(url)) that is final or inside its stage backoff (triage fetches before it claims, R4).
+    adImages = ids(
+      await db.execute(sql`
+        SELECT a.id FROM ad a
+        WHERE a.platform = 'google' AND a.is_active
+          AND a.first_seen_at >= ${adImageSince}::timestamptz
+          AND a.first_seen_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('a.competitor_id')}
+          ${skipFormats}
+          AND a.media_urls->>0 ~ '^https?://'
+          AND EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
+                      WHERE cc.competitor_id = a.competitor_id AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))})
+          AND NOT EXISTS (SELECT 1 FROM ad_image ai
+                          WHERE ai.ad_id = a.id AND ai.source_url_sha = encode(sha256(convert_to(a.media_urls->>0, 'UTF8')), 'hex')
+                            AND (ai.status <> 'pending'
+                                 OR ${finished(AD_IMAGE_TRIAGE_STAGE, AD_IMAGE_TRIAGE_VERSION, "md5(ai.id::text || '|' || ai.source_url_sha)::uuid")}))
+        ORDER BY a.first_seen_at ASC, a.id LIMIT least(${opts.limit}::int, ${AD_IMAGE_SWEEP_MAX}::int)`),
+    );
+    // Read: stored price images of active ads with a listing capture (the stage skips others), no read same-ad twin (P7), cap open (R12), oldest triaged first.
+    adImageReads = ids(
+      await db.execute(sql`
+        SELECT ai.id FROM ad_image ai JOIN ad a ON a.id = ai.ad_id
+        WHERE ai.status = 'triaged' AND ai.shows_price IS TRUE AND ai.evidence_id IS NOT NULL AND ai.read_status IS NULL
+          AND a.is_active AND a.last_capture_id IS NOT NULL AND a.first_seen_at >= ${adImageSince}::timestamptz ${only('ai.competitor_id')}
+          AND NOT ${readTwinSql('ai')}
+          AND ${readCapOpenSql(sql`ai.competitor_id`)}
+          AND NOT ${finished(AD_IMAGE_READ_STAGE, AD_IMAGE_READ_VERSION, "md5(ai.id::text || '|' || ai.source_url_sha)::uuid")}
+        ORDER BY ai.triaged_at ASC, ai.id LIMIT ${opts.limit}`),
+    );
+  }
+
   return {
     diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices),
-    siteFeatures: ids(siteFeatures), reask,
+    siteFeatures: ids(siteFeatures), reask, adImages, adImageReads,
   };
 }
