@@ -1,3 +1,4 @@
+import { type ChartRole, type ChartSeries, chartRole, type FoldOptions, foldSeries, niceMax } from '@cs/core';
 import { formatDate, formatMonth } from '@/lib/format';
 import { ChartPlot, PLOT, PlotDot } from './plot';
 /** Design system v1 chart roles (09 § 5.4): you + at most two highlighted rivals + context grey. */
@@ -5,70 +6,19 @@ export const YOU_COLOR = 'var(--you)';
 export const RIVAL_COLORS = ['var(--chart-rival-1)', 'var(--chart-rival-2)'] as const;
 export const CONTEXT_COLOR = 'var(--chart-context)';
 
-export interface ChartSeries {
-  key: string;
-  name: string;
-  points: (number | null)[];
-  /** The client's own business: drawn in `YOU_COLOR`, outside the rival slots. */
-  you?: boolean;
-}
+export type { ChartSeries, FoldOptions };
+export { foldSeries };
 
-/** P8: <= 2 rivals keep their order (stable colours); more -> the two highest latest values are highlighted (lowest when `lowerIsBetter`, e.g. ranks). */
-export function seriesColor(s: ChartSeries, all: ChartSeries[], opts: { lowerIsBetter?: boolean } = {}): string {
-  if (s.you) return YOU_COLOR;
-  if (s.key === 'other') return CONTEXT_COLOR;
-  const rivals = all.filter((x) => !x.you && x.key !== 'other');
-  // A series with no data is the worst, whichever way "better" points.
-  const rank = (x: ChartSeries) => { const v = last(x.points); return v === -Infinity && opts.lowerIsBetter ? Infinity : v; };
-  const ranked = rivals.length <= 2 ? rivals : [...rivals].sort((a, b) => (opts.lowerIsBetter ? rank(a) - rank(b) : rank(b) - rank(a)) || a.name.localeCompare(b.name, 'en'));
-  const i = ranked.slice(0, 2).findIndex((x) => x.key === s.key);
-  return i >= 0 ? RIVAL_COLORS[i]! : CONTEXT_COLOR;
-}
+const ROLE_VAR: Record<ChartRole, string> = { you: YOU_COLOR, rival1: RIVAL_COLORS[0], rival2: RIVAL_COLORS[1], context: CONTEXT_COLOR };
+
+/** P8 rule lives in `@cs/core` `chartRole`; this maps the role to the web CSS variable. */
+export const seriesColor = (s: ChartSeries, all: ChartSeries[], opts: { lowerIsBetter?: boolean } = {}): string => ROLE_VAR[chartRole(s, all, opts)];
 
 const last = (p: (number | null)[]): number => {
   for (let i = p.length - 1; i >= 0; i--) if (p[i] !== null) return p[i]!;
   return -Infinity;
 };
 
-export interface FoldOptions {
-  /** How the folded series combine: sum for counts, mean/min for ratings and prices. Nulls are ignored. */
-  aggregate?: 'sum' | 'mean' | 'min';
-  /** Series keys that are always kept and never folded (e.g. "You"). They come first. */
-  pin?: string[];
-  /** Name of the folded series. */
-  label?: string;
-}
-
-const AGGREGATE: Record<NonNullable<FoldOptions['aggregate']>, (v: number[]) => number> = {
-  sum: (v) => v.reduce((a, b) => a + b, 0),
-  mean: (v) => v.reduce((a, b) => a + b, 0) / v.length,
-  min: (v) => Math.min(...v),
-};
-
-export function foldSeries(series: ChartSeries[], max = 5, opts: FoldOptions = {}): ChartSeries[] {
-  if (series.length <= max) return series;
-  const { aggregate = 'sum', pin = [], label = 'Other' } = opts;
-  const pinned = series.filter((s) => pin.includes(s.key));
-  const free = series.filter((s) => !pin.includes(s.key));
-  const ranked = [...free].sort((a, b) => last(b.points) - last(a.points) || a.name.localeCompare(b.name, 'en'));
-  const keep = Math.max(0, max - pinned.length - 1);
-  const kept = ranked.slice(0, keep).sort((a, b) => a.name.localeCompare(b.name, 'en'));
-  const rest = ranked.slice(keep);
-  const len = Math.max(...series.map((s) => s.points.length));
-  const points = Array.from({ length: len }, (_, i) => {
-    const vals = rest.map((s) => s.points[i]).filter((v): v is number => v !== null && v !== undefined);
-    return vals.length ? AGGREGATE[aggregate](vals) : null;
-  });
-  const shown = [...pinned, ...kept].sort((a, b) => a.name.localeCompare(b.name, 'en'));
-  return [...shown, { key: 'other', name: label, points }];
-}
-
-const niceMax = (v: number) => {
-  if (v <= 4) return 4;
-  const p = 10 ** Math.floor(Math.log10(v));
-  const n = Math.ceil(v / p) * p;
-  return n % 2 === 0 ? n : n + 1; // even, so the mid gridline is an integer
-};
 type Period = 'week' | 'month' | 'scan';
 const HEAD: Record<Period, string> = { week: 'Week of', month: 'Month', scan: 'Scan of' };
 
