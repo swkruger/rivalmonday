@@ -182,6 +182,16 @@ describe('fetchAdImage', () => {
     }
   });
 
+  it('a thrown fetch error never carries the URL query', async () => {
+    const s = setup({ fetch: async () => { throw new Error('boom https://h.example/x?sig=SECRET'); } });
+    const r = await fetchAdImage(s.deps, URL1);
+    expect(r.kind).toBe('transient');
+    const error = r.kind === 'transient' ? r.error : '';
+    expect(error).toContain('https://h.example');
+    expect(error).not.toContain('SECRET');
+    expect(error).not.toContain('?');
+  });
+
   it('tooLarge => too_large', async () => {
     const s = setup({ fetch: async (u) => ({ status: 200, finalUrl: u, bytes: null, tooLarge: true }) });
     expect(await fetchAdImage(s.deps, URL1)).toEqual({ kind: 'rejected', reason: 'too_large' });

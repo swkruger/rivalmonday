@@ -55,6 +55,9 @@ export async function toDecisionJpeg(webp: Uint8Array): Promise<{ data: Uint8Arr
   return { data, sha256: sha256Hex(data) };
 }
 
+/** Error strings never carry a URL's path or query (signed CDN links): every URL in a message shrinks to its origin. */
+const scrubUrls = (message: string): string => message.replace(/https?:\/\/[^\s"'<>)]+/gi, (u) => { try { return new URL(u).origin; } catch { return '[url]'; } }).replace(/\?\S*/g, '');
+
 export interface AdMediaDeps {
   fetchBytes: FetchBytes;
   robots: RobotsPolicy;
@@ -85,7 +88,7 @@ export async function fetchAdImage(deps: AdMediaDeps, url: string, opts: { maxWa
       res = await deps.fetchBytes(url, { maxBytes: AD_IMAGE_MAX_BYTES, accept: AD_IMAGE_ACCEPT });
     } catch (err) {
       if (err instanceof SsrfBlockedError) return { kind: 'rejected', reason: 'ssrf' };
-      return { kind: 'transient', error: err instanceof Error ? err.message : String(err) };
+      return { kind: 'transient', error: scrubUrls(err instanceof Error ? err.message : String(err)) };
     }
     if (siteHost(res.finalUrl) !== siteHost(url)) {
       const after = robotsOutcome(await deps.robots.check(res.finalUrl));
