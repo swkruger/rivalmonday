@@ -16,14 +16,23 @@ export const liveMajorCount = (view: GradedChangesView | null): number => (view 
  * items' events leave. Null when the brief has no report or it does not parse (old briefs): callers treat that as no live Major line.
  */
 export async function loadLiveChanges(tx: Tx, b: { id: string; clientId: string; report: unknown }): Promise<GradedChangesView | null> {
-  const report = (b.report ?? null) as { changes?: unknown } | null;
-  const parsed = GradedChanges.safeParse(report?.changes);
-  if (!parsed.success) return null;
   const items = await tx.select({ status: briefItem.status, eventIds: briefItem.eventIds }).from(briefItem).where(eq(briefItem.briefId, b.id));
-  return liveChanges(tx, b.clientId, parsed.data, {
+  return liveChangesFrom(tx, b, {
     activeItemEventIds: items.filter((i) => i.status === 'active').flatMap((i) => i.eventIds),
     droppedItemEventIds: items.filter((i) => i.status === 'dropped').flatMap((i) => i.eventIds),
   });
+}
+
+/** Same as `loadLiveChanges` when the caller already holds the item event ids (one query instead of two). */
+export async function liveChangesFrom(
+  conn: Parameters<typeof liveChanges>[0],
+  b: { clientId: string; report: unknown },
+  opts: { activeItemEventIds: string[]; droppedItemEventIds: string[] },
+): Promise<GradedChangesView | null> {
+  const report = (b.report ?? null) as { changes?: unknown } | null;
+  const parsed = GradedChanges.safeParse(report?.changes);
+  if (!parsed.success) return null;
+  return liveChanges(conn, b.clientId, parsed.data, opts);
 }
 
 /**

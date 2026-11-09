@@ -1,6 +1,6 @@
 import { type AccessContext, appLinkFor, canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
 import { brief, briefItem, client, competitor, withTenant } from '@cs/db';
-import { getBrief, loadLiveChanges, Scorecard, startingPointReadiness } from '@cs/engine';
+import { getBrief, liveChangesFrom, Scorecard, startingPointReadiness } from '@cs/engine';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
@@ -61,8 +61,8 @@ export async function briefDetail(deps: ToolDeps, ctx: AccessContext, briefId: s
     ? await withTenant(deps.app, ctx, (tx) => Promise.all([
       competitorIds.length ? tx.select({ id: competitor.id, name: competitor.name }).from(competitor).where(inArray(competitor.id, competitorIds)) : Promise.resolve([]),
       needClient ? tx.select({ name: client.name }).from(client).where(eq(client.id, view.brief.clientId)) : Promise.resolve([]),
-      // Same transaction, pipelined: no new stage. The filter reads every item (dropped ones included) under RLS.
-      wantChanges ? loadLiveChanges(tx, view.brief) : Promise.resolve(null),
+      // Same transaction and Promise.all as the name reads: one stage. getBrief already read every item (dropped included), so the filter needs only its event ids.
+      wantChanges ? liveChangesFrom(tx, view.brief, view) : Promise.resolve(null),
     ]))
     : [[], [], null];
   const nameOf = new Map(names.map((n) => [n.id, n.name]));

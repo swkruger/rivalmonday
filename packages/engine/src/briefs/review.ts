@@ -15,6 +15,9 @@ export type ReviewDeps = { service: Db; app: Db; packs: PackLoader };
 export interface BriefView {
   brief: typeof brief.$inferSelect;
   items: (typeof briefItem.$inferSelect)[];
+  /** Event ids of every active / dropped item, for the live filter; computed before the client-role item filter and never part of tool output. */
+  activeItemEventIds: string[];
+  droppedItemEventIds: string[];
 }
 type ItemRow = typeof briefItem.$inferSelect;
 const EDITABLE = ['headline', 'whatChanged', 'whyItMatters', 'recommendedAction'] as const;
@@ -60,7 +63,8 @@ export async function getBrief(deps: Pick<ReviewDeps, 'app'>, ctx: AccessContext
   if (!b || !canAccessClient(ctx, b.clientId)) throw new ToolError('not_found', 'Brief not found');
   const agency = isAgencyRole(ctx.role);
   if (!agency && b.status !== 'approved' && b.status !== 'sent') throw new ToolError('not_found', 'Brief not found');
-  return { brief: b, items: agency ? items : items.filter((i) => i.status === 'active').map((i) => ({ ...i, upsellTag: null })) };
+  const eventIdsOf = (status: string) => items.filter((i) => i.status === status).flatMap((i) => i.eventIds);
+  return { brief: b, activeItemEventIds: eventIdsOf('active'), droppedItemEventIds: eventIdsOf('dropped'), items: agency ? items : items.filter((i) => i.status === 'active').map((i) => ({ ...i, upsellTag: null })) };
 }
 
 export async function editBriefItem(deps: ReviewDeps, ctx: AccessContext, itemId: string, patch: Partial<Record<(typeof EDITABLE)[number], string>>): Promise<{ warnings: string[] }> {

@@ -164,4 +164,17 @@ describe('brief-report: graded changes in get_brief', () => {
     expect(((await registry.invoke(admin, 'get_brief', { briefId: std })) as { scorecard: unknown }).scorecard).toBeNull();
     expect(((await registry.invoke(admin, 'get_brief', { briefId: quiet })) as { scorecard: unknown }).scorecard).not.toBeNull();
   });
+
+  it('a starting point with a parseable report returns changes null', async () => {
+    const e = await seedEvent({ ageDays: 2, score: 70, route: 'alert' });
+    const id = await mk([line([e.eventId])], { kind: 'starting_point' });
+    expect(((await registry.invoke(admin, 'get_brief', { briefId: id })) as { changes: Changes }).changes).toBeNull();
+  });
+
+  it("another tenant cannot read A's report-bearing brief", async () => {
+    const e = await seedEvent({ ageDays: 2, score: 70, route: 'alert' });
+    const id = await mk([line([e.eventId])]);
+    const b = ctx('agency_admin', 'all', [], IDS.agencyB);
+    await expect(registry.invoke(b, 'get_brief', { briefId: id })).rejects.toMatchObject({ code: 'not_found' });
+  });
 });
