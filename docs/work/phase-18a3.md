@@ -1,23 +1,32 @@
 # phase-18a3 — Reading ad images: Jev triages ad creatives, a vision LLM reads prices
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ 4b305a7e
+**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18a3   **Base:** main @ bd58dd62
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-Kickoff brief written 2026-11-08. No spec, plan or code. Depends on 18a-1 (ad prices), built but unmerged on `phase-18a`.
+Owner answered the questions 2026-11-08 (phase-18a merged; rebased onto main @ bd58dd62). Spec next.
 
 ## Next (overwrite)
-Owner answers the open questions (Brief section 6); then `superpowers:brainstorming` -> spec (new decisions only) -> lean plan. Agent acts after the answers.
+Spec (new decisions + interfaces) -> builder check -> lean plan -> owner approval -> SDD. Live probe (< $0.01) needs owner approval before it runs.
 
 ## Interfaces this branch adds or changes
 Planned, not built: image parts in the `@cs/ai` Jev provider (`decisions/jev.ts`, `types.ts`); ad images copied into the evidence store; an ad-image triage stage plus a vision-read step; one migration (next free number: 0103 or later; `brief-report` also takes "next free >= 0100", so re-check at execution).
 
 ## Assumes from other branches
-- **phase-18a (18a-1 + 18a-2, unmerged):** migration 0100 `price_point.ad_id` (FK `ad`, CHECK exactly one of `tracked_page_id`/`ad_id`, unique `price_point_ad_open_unique`) and `ad.event`; `PriceNow.source` `web|meta_ad` (`PriceNowView` same; widen if image prices get their own tag); stage `ad_price_extract` (`engine/src/prices/`, `AD_PRICE_SINCE` = 2026-11-08, Meta copy only, rules-only `pricesInBlock`, `price_block_map` cache keyed by text sha, own sweep + worker job `engine-ad-price` + `drain.ts` entry; Google skipped); pricing page "From an ad" tag; O6: ad prices shown, not counted toward the 90-day tag. Migrations 0101/0102 are 18a-2 (`capture.markup_sha`, `site_url`, `site_discovery`, `tracked_page` columns); next free after both = 0103. `tools/catalog/merge.ts` already handles `ad_id` rows. Same files as 18a-1: `collectors/src/ads/{google,meta,upsert}.ts`, `evidence/{recorder,vendor-capture}.ts`, `engine/src/prices/tracker.ts`.
+- **phase-18a: MERGED 2026-11-08 (main @ bd58dd62)** — interfaces below are on main: migration 0100 `price_point.ad_id` (FK `ad`, CHECK exactly one of `tracked_page_id`/`ad_id`, unique `price_point_ad_open_unique`) and `ad.event`; `PriceNow.source` `web|meta_ad` (`PriceNowView` same; widen if image prices get their own tag); stage `ad_price_extract` (`engine/src/prices/`, `AD_PRICE_SINCE` = 2026-11-08, Meta copy only, rules-only `pricesInBlock`, `price_block_map` cache keyed by text sha, own sweep + worker job `engine-ad-price` + `drain.ts` entry; Google skipped); pricing page "From an ad" tag; O6: ad prices shown, not counted toward the 90-day tag. Migrations 0101/0102 are 18a-2 (`capture.markup_sha`, `site_url`, `site_discovery`, `tracked_page` columns); next free after both = 0103. `tools/catalog/merge.ts` already handles `ad_id` rows. Same files as 18a-1: `collectors/src/ads/{google,meta,upsert}.ts`, `evidence/{recorder,vendor-capture}.ts`, `engine/src/prices/tracker.ts`.
 - **brief-report (planned, unmerged):** `topicOf`/`GROUP_PHRASE` tests cover every `CHANGE_LABELS` key (matters only if 18a-3 adds a change type); takes a migration number; moves `workspace/ads.ts` to `@cs/engine` (shims stay).
 
 ## Decisions (owner-approved)
-(none yet). Basis = 18a Decision 4: `typesafe/jev-1.14` takes text + image, answers choice/score/noul only, $0.042/M prompt, completion free; Jev triages, only price-bearing images go to a vision LLM; Google first; needs image parts in the Jev provider, ad images in the evidence store, a no-people rule, a < $0.01 live cost check the owner approves.
+Basis = 18a Decision 4: `typesafe/jev-1.14` takes text + image, answers choice/score/noul only, $0.042/M prompt, completion free; Jev triages, only price-bearing images go to a vision LLM; Google first; needs image parts in the Jev provider, ad images in the evidence store, a no-people rule, a < $0.01 live cost check the owner approves.
+1. Build after phase-18a merged (done).
+2. **Google + Meta** ad images (owner; not Google-only). Ruling (agent, owner may overturn): Meta videos skipped (video analysis out of Phase 18); each carousel card image counts as one image; an image price is read only when the ad's copy gave none (no double prices).
+3. Jev triage stores shows-price / offer / service / theme on the ad; not shown in the UI yet.
+4. Image-read prices go to `price_point` as their own source, tagged "From an ad image" (separate from "From an ad").
+5. No-people rule: Jev answers "shows a person?"; yes => image not stored, not shown, not read.
+6. Reader = cheapest privacy-safe (ZDR) vision model on OpenRouter after a probe (~$0.01/image); max 20 reads per client per week; counts against tenant credits.
+7. Only images Jev marks price- or offer-bearing are copied into the evidence store: <= 2 MB, <= 1024 px, JPEG/PNG/WebP, never deleted.
+8. Ad image previews from our own store on the Ads page and in the evidence viewer (closes backlog "Ad images (vendor media URLs expire…)").
+9. New cutoff `AD_IMAGE_SINCE`, no backfill; one live probe < $0.01 the owner approves before it runs.
 
 ## New backlog (target → item)
 (none yet)
