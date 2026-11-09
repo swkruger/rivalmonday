@@ -281,6 +281,16 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Costs job: `evaluateAlerts` throw → job retry re-inserts the day's snapshots (wrap in try/catch); concurrent refresh + cron can double-email (conditional update before send) — *from 8c*
 - [ ] Costs UI/edges: strip read audits every owner `/platform` view; strip sits outside the 1560px wrapper; services-table Actions header in read-only; empty warnDays → 0; run dataviz skill on chart colours; Neon `from==to` before 01:00 UTC on the 1st; Anthropic partial sum after 3 pages; empty `APP_URL` → relative link in email; tools' toFixed silently rounds threshold/rate; read.ts 12 sequential queries; seed rows duplicated in migration 0051 and `@cs/db` test helpers (add cross-reference comments) — *from 8c*
 
+## Phase 18 follow-ups (wider sources)
+- [ ] 18a-3 → ad prices can lead a pricing cell and the Promo chip counts ad promos (display only, tagged "From an ad"); revisit with pilots — *from 18a-1 final review*
+- [ ] 18e → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
+- [ ] Web follow-up → permanent sitemap refusals (robots, offsite, 401/403) should count as "no sitemap"; pages skipped for lack of room stay in `site_url` but are never tracked later (track them, without `appeared_at`, when room opens); active rows are not re-typed on refresh — *from 18a-2 Task 9 review*
+- [ ] Web follow-up → `site_feature`: a cooldown-blocked tool can show as added twice; an ok capture without html evidence retries up to 5x — *from 18a-2 Task 7 review*
+- [ ] Web follow-up → registry hosts (wisetack.us, setmore.com, withcherry.com, zdassets.com) are memory-sourced: verify against real embed pages (OPS runbook); zdassets also serves non-chat Zendesk widgets — *from 18a-2 Task 4*
+- [ ] Web follow-up → sites with only a home page never get `new_page` — *from 18a-2 final review*
+- [ ] Later → competitor-page "website tools" section (site_feature history per rival); only changes are shown today — *from 18a-2 spec*
+- [ ] Later → audience cooldown keyed on `detected_at` over-suppresses after a long engine stall — *from 18a-1 final review*
+
 ## Waiting on real data / external events
 - [ ] 7c2 Task 12 (owner + controller, after staging setup): staging rehearsal per `docs/OPS.md` § Rehearsal steps 1-9, fix wave per FAIL, final concurrency/limits and costs become code defaults, `teardown`; done when one run shows every PASS line incl. the fault alarm. Then close "Staging setup" and the 7c2 part of the copy sign-off item — *phase-7c2*
 - [ ] 7c2 Task 13 (owner): (a) the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `/link-other-account` once live (PILOT § 8); then delete the three Model ops/Pilot items tagged Task 13 — *phase-7c2*
@@ -292,6 +302,8 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Verifier strictness: at τ 0.85 true facts often score low (0.36, 0.16; alert headline 0.84) — watch brief `dropped` counts on pilot data before changing τ/routing (labelling: see Owner) — *from 4a/4b*
 - [ ] Accuracy report "consider routing to the LLM" note: restrict pairing to `reason = 'shadow'` samples before acting; keep review decisions on Jev until ~200 pilot labels — *from 3d final review, owner 2026-10-03*
 - [ ] Quarterly report verified only by tests — no client predates a quarter yet; check the first real one — *from 4b live verification*
+
+- [ ] Confirm GBP closure values (`closed_forever`/`temporarily_closed`) on the first real closure; `site_feature` can replay history on the first sweep where old web captures exist (cs_dev/staging; prod has none) — add a `since` cutoff if it bites — *from 18a-1 pre-flight, 18a-2 Task 7*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
 - [ ] Publish v3 with the $49 tier (extra clients 23+) once cost per client < $10 (pricing-v2 D4) — *pricing-v2*
@@ -353,13 +365,12 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Per-client page deactivation; drag-and-drop reordering; agency-wide recommendation board — *from 5b-1*
 - [ ] Delete/archive a prospect (needs soft-delete first); per-agency default caps/limits — *from 5b-2*
 - [ ] Ad images (vendor media URLs expire and leak viewer requests); dark chart theme (with the app's dark theme) — *from 5c-1/5c-2*
-- [ ] Own-site prices: a "you" column; feed ads/own-website prices into `price_point` (3c decision 11) — *from 3c, 5c-2*
+- [ ] Own-site prices: a "you" column; feed own-website prices into `price_point` (3c decision 11; deferred until web monitoring is live, 18a-2 Q8) — *from 3c, 5c-2*
 - [ ] Change-region boxes on screenshots (owner: not wanted for now) — *from 5c-1*
 - [ ] Instagram Business Discovery (needs a Facebook app, a connected Page and app review; Graph API v26.0) — *from Phase 2 planning*
 - [ ] Decide the `briefs_only` feature flag — *from Phase 1 review*
 
 ### Collectors
-- [ ] Tracked pages: re-discovery never deactivates unselected pages; `active: true` re-activates human-deactivated pages; http/https and www/bare tracked separately — *from 2a review*
 - [ ] Claimed pages are lost for a cadence if enqueue fails mid-batch or a capture job exhausts pg-boss retries — *from 2a review*
 - [ ] Spec §4.4 capture status enum lacks `error` — update the spec — *from 2a review*
 - [ ] Smaller 2a items in the Phase 2a SDD review record (git history) — *from 2a review*
