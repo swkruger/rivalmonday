@@ -1,8 +1,9 @@
+import type { BriefReport, ChangeLine, ChartSeries, ReportTopic } from '@cs/core';
 import type { LeadPreview } from '@cs/db';
 import { resolveBranding } from './branding';
-import { renderBriefDocument, renderTrendReportDocument } from './document';
+import { renderBriefDocument, renderBriefReportDocument, renderTrendReportDocument } from './document';
 import type {
-  AgencyClientBillingNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, ClientBillingNoticeKind,
+  AgencyClientBillingNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, BriefReportDocumentProps, ClientBillingNoticeKind,
   EmailPayload, OnboardingTipProps, PlanTerms, PlatformOpsAlertProps, PlatformSpendAlertProps, ScorecardModel, TrendReportEmailProps,
 } from './types';
 
@@ -60,6 +61,77 @@ const report: TrendReportEmailProps = {
     briefsSent: 12, alertsDelivered: 4, recommendations: { created: 9, done: 3, inProgress: 2, dismissed: 1 },
   },
 };
+// ---- weekly report PDF (layout "C") ---------------------------------------------------------------------------------
+const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const RIVALS = [
+  { id: rid(1), name: 'Harbor Dental' }, { id: rid(2), name: 'Maple Family Dentistry' }, { id: rid(3), name: 'Riverside Smiles' },
+  { id: rid(4), name: 'Oak Street Dental' }, { id: rid(5), name: 'Lakeview Dental Care' },
+];
+const rival = (i: number) => RIVALS[i]!;
+const ramp = (from: number, to: number, n = 12) => Array.from({ length: n }, (_, i) => Math.round((from + ((to - from) * i) / (n - 1)) * 10) / 10);
+const reportLine = (n: number, grade: ChangeLine['grade'], topic: ReportTopic, r: number, changeType: string, text: string, count = 1): ChangeLine => ({
+  grade, topic, competitorId: rival(r).id, competitorName: rival(r).name, changeType, channel: null, count, text,
+  firstAt: '2026-09-29T15:00:00.000Z', lastAt: count > 1 ? '2026-10-02T15:00:00.000Z' : '2026-09-29T15:00:00.000Z', eventIds: [rid(100 + n)], evidenceIds: [],
+});
+const reportLines: ChangeLine[] = [
+  reportLine(1, 'major', 'offers', 0, 'price_change', 'Harbor Dental: Price change — cleaning now $69, down from $89'),
+  reportLine(2, 'notable', 'reviews', 1, 'rating_change', 'Maple Family Dentistry: Rating change — 4.5 to 4.6 stars'),
+  reportLine(3, 'notable', 'ads', 2, 'ad_started', 'Riverside Smiles: 3 new ads', 3),
+  reportLine(4, 'notable', 'rankings', 0, 'rank_change', 'Harbor Dental: Local ranking change — now top 3 for "teeth whitening"'),
+  reportLine(5, 'minor', 'offers', 3, 'content', 'Oak Street Dental: 2 website changes', 2),
+  reportLine(6, 'minor', 'offers', 4, 'new_page', 'Lakeview Dental Care: New website page — "Sedation dentistry"'),
+  reportLine(7, 'minor', 'ads', 0, 'ad_stopped', 'Harbor Dental: Ads stopped — summer whitening campaign'),
+];
+const ratingFixture: ChartSeries[] = [
+  { key: 'self', name: CLIENT, points: ramp(4.4, 4.6), you: true },
+  { key: rival(0).id, name: rival(0).name, points: ramp(4.5, 4.1) },
+  { key: rival(1).id, name: rival(1).name, points: ramp(4.3, 4.6) },
+  { key: rival(2).id, name: rival(2).name, points: [null, null, null, 4.0, 4.0, 4.1, 4.1, 4.2, 4.2, 4.2, 4.3, 4.3] },
+  { key: rival(3).id, name: rival(3).name, points: ramp(3.9, 4.0) },
+  { key: rival(4).id, name: rival(4).name, points: ramp(4.7, 4.8) },
+];
+const weeklyReport: BriefReport = {
+  v: 1, asOf: '2026-10-04T12:00:00.000Z',
+  changes: { v: 1, threshold: 40, lines: reportLines, totals: { major: 2, notable: 5, minor: 4 } },
+  kpis: { changes7d: 11, alerts7d: 1, priceMoves7d: 2, priceCuts7d: 1, activeAds: 9, activeAds7dAgo: 7, ratingSelf: 4.6, ratingAvg: 4.4, weekly: { changes: [4, 6, 3, 8, 5, 7, 6, 11], priceMoves: [0, 1, 0, 0, 2, 1, 0, 2], activeAds: [6, 6, 7, 7, 8, 7, 7, 9] } },
+  pressure: [
+    { competitorId: rival(0).id, name: rival(0).name, score: 72, level: 'high', reason: 'Price cut on cleanings and a new whitening offer' },
+    { competitorId: rival(2).id, name: rival(2).name, score: 48, level: 'elevated', reason: 'Three new ads this week' },
+    { competitorId: rival(1).id, name: rival(1).name, score: 21, level: 'low', reason: null },
+  ],
+  rating: { months: ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'], series: ratingFixture },
+  ads: {
+    weeks: Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 6, 19 + i * 7)).toISOString().slice(0, 10)),
+    series: [
+      { key: rival(0).id, name: rival(0).name, points: [2, 2, 3, 3, 4, 4, 4, 3, 3, 3, 2, 2] },
+      { key: rival(2).id, name: rival(2).name, points: [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 7] },
+    ],
+  },
+  rankings: {
+    scanAt: '2026-10-04T06:00:00.000Z', prevScanAt: '2026-09-27T06:00:00.000Z',
+    keywords: [
+      { keyword: 'dentist near me', you: { avgRank: 3.4, top3Share: 0.44, points: 25 }, prev: { avgRank: 3.9, top3Share: 0.36, points: 25 }, rivals: [{ name: rival(0).name, metric: { avgRank: 2.2, top3Share: 0.68, points: 25 } }, { name: rival(1).name, metric: { avgRank: 4.8, top3Share: 0.2, points: 25 } }] },
+      { keyword: 'teeth whitening', you: { avgRank: 5.1, top3Share: 0.12, points: 25 }, prev: { avgRank: 4.6, top3Share: 0.2, points: 25 }, rivals: [{ name: rival(0).name, metric: { avgRank: 2.9, top3Share: 0.52, points: 25 } }, { name: rival(1).name, metric: { avgRank: null, top3Share: 0, points: 25 } }] },
+    ],
+    map: null,
+  },
+  moves: [{ id: rid(50), competitorName: rival(0).name, moveType: 'price_war', label: 'Price war', status: 'active', firstDetectedAt: '2026-09-14T00:00:00.000Z' }],
+  recommendations: [
+    { id: rid(60), title: 'Answer the cleaning price cut on your pricing page', status: 'todo', createdThisWeek: true },
+    { id: rid(61), title: 'Ask happy patients for a review after each visit', status: 'in_progress', createdThisWeek: false },
+  ],
+  alerts: [{ headline: 'Harbor Dental cut its cleaning price to $69.', competitorName: rival(0).name, deliveredAt: '2026-09-29T16:00:00.000Z' }],
+};
+const reportDoc: BriefReportDocumentProps = {
+  branding: agency, clientName: CLIENT, deliveryDate: '2026-10-05', periodLabel: 'Sep 28 – Oct 4', kind: 'standard', summary: brief.summary,
+  items: [{ ...item(1), topic: 'offers' }, { ...item(2), headline: 'Harbor Dental keeps cutting prices', whatChanged: 'Its cleaning price fell for the second time in three weeks.', recommendedAction: 'Show what your cleaning includes next to its price.', topic: 'moves' }],
+  changes: { lines: reportLines, totals: weeklyReport.changes.totals }, report: weeklyReport, scorecard: { ...scorecard, openFirstMoves: [] }, trend, timezone: 'America/Chicago', mapImage: null,
+};
+const quietReport: BriefReport = {
+  ...weeklyReport, changes: { v: 1, threshold: 40, lines: [], totals: { major: 0, notable: 0, minor: 0 } },
+  kpis: { ...weeklyReport.kpis, changes7d: 0, alerts7d: 0, priceMoves7d: 0, priceCuts7d: 0, activeAds7dAgo: 9 }, moves: [], alerts: [], rankings: null,
+};
+
 const alertProps: AlertEmailProps = {
   branding: agency, recipientName: 'Jordan', clientName: CLIENT, competitorName: 'Harbor Dental', headline: 'Harbor Dental cut its cleaning price to $69.',
   body: 'The pricing page now shows $69, down from $89.', detectedOn: '2026-10-05', link: `${APP}/l/alert`,
@@ -187,4 +259,7 @@ export const DOCUMENT_PREVIEWS: readonly DocumentPreview[] = [
   { id: 'document.brief', label: 'Brief PDF', render: () => renderBriefDocument({ ...brief, link: null, pdfLink: null }) },
   { id: 'document.brief_starting_point', label: 'Starting-point brief PDF', render: () => renderBriefDocument({ ...startingPoint, link: null, pdfLink: null }) },
   { id: 'document.trend_report', label: 'Trend report PDF', render: () => renderTrendReportDocument({ ...report, link: null }) },
+  { id: 'document.brief_report', label: 'Weekly report PDF', render: () => renderBriefReportDocument(reportDoc) },
+  { id: 'document.brief_report_quiet', label: 'Weekly report PDF, quiet week', render: () => renderBriefReportDocument({ ...reportDoc, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [], changes: { lines: [], totals: quietReport.changes.totals }, report: quietReport }) },
+  { id: 'document.brief_legacy_cover', label: 'Weekly brief PDF without a stored report (cover + old body)', render: () => renderBriefReportDocument({ ...reportDoc, report: null, changes: null, legacy: { ...brief, link: null, pdfLink: null } }) },
 ];

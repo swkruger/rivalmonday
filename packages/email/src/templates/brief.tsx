@@ -20,9 +20,18 @@ const briefIntro = (p: BriefEmailProps) => {
 
 /** Items arrive already filtered to active ones and sorted by ord (the caller's job — Task 15); no upsell field exists. */
 export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document' }) {
-  const doc = p.variant === 'document';
   return (
     <Layout branding={p.branding} variant={p.variant} wide title={briefSubject(p)} preview={p.summary} footer={`${p.kind === 'starting_point' ? 'Your starting point for' : 'Weekly competitor brief for'} ${p.clientName} · ${p.deliveryDate}`}>
+      <BriefBody {...p} />
+    </Layout>
+  );
+}
+
+/** The brief's content inside `Layout`; the weekly report PDF reuses it (document variant) under its cover for old briefs. */
+export function BriefBody(p: BriefEmailProps & { variant?: 'email' | 'document' }) {
+  const doc = p.variant === 'document';
+  return (
+    <>
       {doc ? null : <Text>{greeting(p.recipientName)}</Text>}
       {doc ? null : <Text>{briefIntro(p)}</Text>}
       <Heading as="h2" style={{ fontSize: 20, margin: '0 0 8px' }}>{p.kind === 'quiet' ? 'A quiet week' : p.kind === 'starting_point' ? 'Your starting point' : 'This week'}</Heading>
@@ -45,7 +54,7 @@ export function BriefEmail(p: BriefEmailProps & { variant?: 'email' | 'document'
       {p.pdfLink && !doc ? <Text><Link href={p.pdfLink}>Download as PDF</Link></Text> : null}
       {doc ? null : <FeedbackLine feedback={p.feedback} subject={briefSubject(p)} />}
       {doc ? null : <AgencyContactBlock branding={p.branding} />}
-    </Layout>
+    </>
   );
 }
 /** A starting point (12b decided copy) names the agency's product (its brand display name). */

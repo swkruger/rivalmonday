@@ -10,7 +10,7 @@ import { type Branding, readableTextOn } from './branding';
 
 export const FONT = "Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 /** Print rules for the PDF variant (Task 16): Letter pages, no shadows, keep a card on one page where possible. */
-const PRINT_CSS = '@page { size: Letter; margin: 16mm 14mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .card { break-inside: avoid; }';
+export const PRINT_CSS = '@page { size: Letter; margin: 16mm 14mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .card { break-inside: avoid; }';
 
 /**
  * `wide`: brief-style emails (brief, digest, trend report) use the PDF's 760 px so their tables have room; short

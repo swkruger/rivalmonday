@@ -1,4 +1,4 @@
-import type { PlanFeature } from '@cs/core';
+import type { BriefReport, GradedChangesView, PlanFeature, ReportTopic } from '@cs/core';
 import type { LeadPreview, OnboardingStep, TrendReportData, TrendSnapshot } from '@cs/db';
 import type { Branding } from './branding';
 
@@ -67,6 +67,33 @@ export interface BriefEmailProps extends Base {
   signOff: string | null;
   /** 7c2: the feedback line; hidden when absent or null and never in the PDF variant. */
   feedback?: FeedbackContact | null;
+}
+/**
+ * The weekly report PDF (layout "C", spec §4.8). `changes` = the live graded lines at render (never `report.changes`);
+ * `report` null = an old brief (cover + `legacy` body); a starting point renders `legacy` exactly as before.
+ */
+export interface BriefReportDocumentProps {
+  branding: Branding;
+  clientName: string;
+  /** YYYY-MM-DD (the delivery Monday). */
+  deliveryDate: string;
+  /** The brief period as days, e.g. "Sep 28 – Oct 4" (`formatDayRange`). */
+  periodLabel: string;
+  kind: BriefEmailProps['kind'];
+  summary: string;
+  /** Active items in ord order; `topic` = the topic of the first event's change type, move items `moves`. */
+  items: (BriefEmailItem & { topic: ReportTopic })[];
+  changes: GradedChangesView | null;
+  report: BriefReport | null;
+  /** "Where you stand": always shown for a weekly report when stored. */
+  scorecard: ScorecardModel | null;
+  trend: TrendSnapshot | null;
+  /** Client time zone for the dates printed on lines and alerts. */
+  timezone: string;
+  /** Map rankings background (Task 11): a `data:` URI and its attribution; null = keyword table only. */
+  mapImage: { dataUri: string; attribution: string } | null;
+  /** Old briefs and starting points: today's document props. */
+  legacy?: BriefEmailProps;
 }
 export interface TrendReportEmailProps extends Base {
   quarter: string;

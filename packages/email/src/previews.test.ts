@@ -42,6 +42,15 @@ describe('email previews', () => {
     for (const d of DOCUMENT_PREVIEWS) expect(await d.render(), d.id).toContain('@page');
   });
 
+  it('weekly report document previews exist and never name Rival Monday', async () => {
+    const ids = ['document.brief_report', 'document.brief_report_quiet', 'document.brief_legacy_cover'];
+    for (const id of ids) {
+      const d = DOCUMENT_PREVIEWS.find((x) => x.id === id);
+      expect(d, id).toBeDefined();
+      expect(await d!.render(), id).not.toMatch(/rival[\s-]*monday|NaN|undefined/i);
+    }
+  });
+
   it('client-facing previews never contain "Rival Monday"', async () => {
     const facing = EMAIL_PREVIEWS.filter((p) => WHITE_LABEL.has(p.payload.template) && p.payload.props.branding.displayName !== 'Rival Monday');
     expect(facing.length).toBeGreaterThan(10);
