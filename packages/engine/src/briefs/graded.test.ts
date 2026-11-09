@@ -1,7 +1,7 @@
 import { ChangeLine, type GradedChanges } from '@cs/core';
-import { briefItem, brief, changeEvent, clientCompetitor, competitor, eventScore } from '@cs/db';
+import { briefItem, brief, changeEvent, clientCompetitor, competitor, detectedChange, eventChange, evidence, withTenant } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { changeTypeLabel } from '@cs/email';
+import { changeTypeLabel, groupPhrase } from '@cs/email';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
@@ -239,5 +239,48 @@ describe('gradedChanges / liveChanges (db)', () => {
     const conn = { select: () => { throw new Error('queried'); } } as never;
     const g: GradedChanges = { v: 1, threshold: 40, lines: [], totals: { major: 0, notable: 0, minor: 0 } };
     expect(await liveChanges(conn, IDS.clientA1, g, { activeItemEventIds: [], droppedItemEventIds: [] })).toEqual({ lines: [], totals: { major: 0, notable: 0, minor: 0 } });
+  });
+
+  it('a shrunk line regroups: n >= 2 phrase, evidence and times of the kept events only', async () => {
+    const a = await ev({ score: 45, occurredAt: day(1), scoredAt: day(1) });
+    const b = await ev({ score: 45, occurredAt: day(2), scoredAt: day(2) });
+    const d = await ev({ score: 45, occurredAt: day(3), scoredAt: day(3) });
+    const g = await read();
+    expect(g.lines).toHaveLength(1);
+    const ev0 = async (id: string) => (await dbs.service.select({ id: evidence.id }).from(eventChange).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId)).innerJoin(evidence, eq(evidence.captureId, detectedChange.afterCaptureId)).where(eq(eventChange.eventId, id))).map((r) => r.id);
+    const keptEvidence = [...(await ev0(a.eventId)), ...(await ev0(b.eventId))].sort();
+    const v = await liveChanges(dbs.service, IDS.clientA1, g, { activeItemEventIds: [], droppedItemEventIds: [d.eventId] });
+    expect(v.lines[0]).toMatchObject({
+      count: 2, eventIds: [a.eventId, b.eventId], text: `Smith HVAC: ${groupPhrase('price_change', 'web', 2)}`,
+      evidenceIds: keptEvidence, firstAt: day(1).toISOString(), lastAt: day(2).toISOString(),
+    });
+    expect(g.lines[0]!.evidenceIds).toHaveLength(3);
+    expect(JSON.stringify(v)).not.toMatch(/"score"/);
+  });
+
+  it('dropping the highest-scoring event moves the line grade down', async () => {
+    const top = await ev({ score: 90, occurredAt: day(1), scoredAt: day(1) });
+    await ev({ score: 45, occurredAt: day(2), scoredAt: day(2) });
+    await ev({ score: 45, occurredAt: day(3), scoredAt: day(3) });
+    const g = await read();
+    expect(g.lines).toHaveLength(1);
+    expect(g.lines[0]!.grade).toBe('major');
+    // threshold 70: the two remaining 45s grade notable (>= 35), the 90 was major
+    const v = await liveChanges(dbs.service, IDS.clientA1, { ...g, threshold: 70 }, { activeItemEventIds: [], droppedItemEventIds: [top.eventId] });
+    expect(v.lines[0]).toMatchObject({ grade: 'notable', count: 2 });
+    expect(v.totals).toEqual({ major: 0, notable: 2, minor: 0 });
+  });
+
+  it('inside withTenant another client\'s event id in a line is dropped', async () => {
+    const mine = await ev({ score: 45 });
+    const theirs = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorY, clientId: IDS.clientA2, agencyId: IDS.agencyA, occurredAt: day(3), createdAt: day(3), score: 45 });
+    const g = await read();
+    const line = g.lines[0]!;
+    const tainted: GradedChanges = { ...g, lines: [{ ...line, count: 2, eventIds: [mine.eventId, theirs.eventId] }] };
+    const v = await withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: [IDS.clientA1] }, (tx) =>
+      liveChanges(tx, IDS.clientA1, tainted, { activeItemEventIds: [], droppedItemEventIds: [] }));
+    expect(v.lines).toHaveLength(1);
+    expect(v.lines[0]).toMatchObject({ count: 1, eventIds: [mine.eventId], text: `Smith HVAC: ${changeTypeLabel('price_change')}` });
+    expect(v.lines[0]!.evidenceIds.length).toBeGreaterThan(0);
   });
 });

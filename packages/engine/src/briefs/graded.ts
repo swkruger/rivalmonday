@@ -103,7 +103,7 @@ export function groupChanges(rows: GradableEvent[], threshold: number): ChangeLi
     .map((x) => x.line);
 }
 
-/** The period's gradable events for a client (ง4.1): any route, scored in the window, not written into an item. */
+/** The period's gradable events for a client (ยง4.1): any route, scored in the window, not written into an item. */
 export async function gradedChanges(
   deps: { db: Db },
   c: BriefClient,
@@ -124,7 +124,7 @@ export async function gradedChanges(
     const links = await deps.db
       .select({ eventId: eventChange.eventId, evidenceId: evidence.id })
       .from(eventChange)
-      .innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
+      .innerJoin(detectedChange, and(eq(detectedChange.id, eventChange.changeId), eq(detectedChange.status, 'event')))
       .innerJoin(evidence, eq(evidence.captureId, detectedChange.afterCaptureId))
       .where(inArray(eventChange.eventId, fresh.map((r) => r.e.id)));
     for (const l of links) evidenceByEvent.set(l.eventId, [...(evidenceByEvent.get(l.eventId) ?? []), l.evidenceId]);
@@ -155,23 +155,42 @@ export async function liveChanges(
   opts: { activeItemEventIds: string[]; droppedItemEventIds: string[] },
 ): Promise<z.infer<typeof GradedChangesView>> {
   const ids = [...new Set([...changes.lines.flatMap((l) => l.eventIds), ...opts.activeItemEventIds])];
-  const live =
-    ids.length === 0
-      ? new Set<string>()
-      : new Set(
-          (
-            await conn
-              .select({ id: changeEvent.id })
-              .from(eventScore)
-              .innerJoin(changeEvent, eventJoin.change)
-              .innerJoin(clientCompetitor, eventJoin.tracked)
-              .where(and(clientEvents(clientId), inArray(changeEvent.id, ids)))
-          ).map((r) => r.id),
-        );
+  // One query: per live event its time, score and live evidence ids (LEFT JOINs keep events without evidence live).
+  // Scores are used only to re-grade a shrunk line and never leave this function.
+  const live = new Map<string, { occurredAt: Date; score: number; evidenceIds: Set<string> }>();
+  if (ids.length > 0) {
+    const rows = await conn
+      .select({ id: changeEvent.id, occurredAt: changeEvent.occurredAt, score: eventScore.score, evidenceId: evidence.id })
+      .from(eventScore)
+      .innerJoin(changeEvent, eventJoin.change)
+      .innerJoin(clientCompetitor, eventJoin.tracked)
+      .leftJoin(eventChange, eq(eventChange.eventId, changeEvent.id))
+      .leftJoin(detectedChange, and(eq(detectedChange.id, eventChange.changeId), eq(detectedChange.status, 'event')))
+      .leftJoin(evidence, eq(evidence.captureId, detectedChange.afterCaptureId))
+      .where(and(clientEvents(clientId), inArray(changeEvent.id, ids)));
+    for (const r of rows) {
+      const e = live.get(r.id) ?? { occurredAt: r.occurredAt, score: r.score, evidenceIds: new Set<string>() };
+      if (r.evidenceId) e.evidenceIds.add(r.evidenceId);
+      live.set(r.id, e);
+    }
+  }
   const dropped = new Set(opts.droppedItemEventIds);
-  const lines = changes.lines.flatMap((l) => {
+  const lines = changes.lines.flatMap((l): ChangeLine[] => {
     const keep = l.eventIds.filter((id) => live.has(id) && !dropped.has(id));
-    return keep.length === 0 ? [] : [keep.length === l.eventIds.length ? l : { ...l, count: keep.length, eventIds: keep, text: regroupText(l, keep.length) }];
+    if (keep.length === 0) return [];
+    if (keep.length === l.eventIds.length) return [l];
+    const kept = keep.map((id) => live.get(id)!);
+    const times = kept.map((k) => k.occurredAt.getTime());
+    return [{
+      ...l,
+      grade: gradeFor(Math.max(...kept.map((k) => k.score)), changes.threshold),
+      count: keep.length,
+      eventIds: keep,
+      text: regroupText(l, keep.length),
+      firstAt: new Date(Math.min(...times)).toISOString(),
+      lastAt: new Date(Math.max(...times)).toISOString(),
+      evidenceIds: [...new Set(kept.flatMap((k) => [...k.evidenceIds]))].sort(),
+    }];
   });
   return { lines, totals: totalsOf(lines, opts.activeItemEventIds.filter((id) => live.has(id)).length) };
 }
