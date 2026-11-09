@@ -21,30 +21,33 @@ export interface BriefDeliveryView {
   b: typeof brief.$inferSelect;
   clientName: string;
   /** Active items only, sorted by ord (ords need not be 0-based or contiguous). Self items (no competitor) carry the client's name. */
-  items: (typeof briefItem.$inferSelect & { competitorName: string })[];
+  items: (typeof briefItem.$inferSelect & { competitorName: string; firstChangeType: string | null })[];
   branding: Branding;
   signOff: string | null;
   /** 7c2: `replyToFor` (the AM, else the agency admin) — the client email's feedback line; null hides it. */
   replyTo: FeedbackContact | null;
+  /** The client's time zone (`safeTimezone`): dates printed in the weekly report PDF. */
+  timezone: string;
 }
 
 export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefDeliveryView> {
-  const [row] = await conn.select({ b: brief, clientName: client.name }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId));
+  const [row] = await conn.select({ b: brief, clientName: client.name, timezone: client.timezone }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId));
   if (!row) throw new Error(`brief ${briefId} not found`);
   const items = await conn
-    .select({ i: briefItem, competitorName: competitor.name })
+    // The first cited event's change type decides the item's report topic (spec §4.8); a correlated subquery, no extra round trip.
+    .select({ i: briefItem, competitorName: competitor.name, firstChangeType: sql<string | null>`(SELECT e.change_type FROM event e WHERE e.id = (${briefItem.eventIds}->>0)::uuid)` })
     .from(briefItem)
     .leftJoin(competitor, eq(competitor.id, briefItem.competitorId))
     .where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')))
     .orderBy(asc(briefItem.ord));
   const branding = await loadBranding(conn, row.b.agencyId);
   const am = await replyToFor(conn, row.b.agencyId, row.b.clientId);
-  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}`, replyTo: am };
+  return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName, firstChangeType: x.firstChangeType })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}`, replyTo: am, timezone: safeTimezone(row.timezone) };
 }
 
-const scorecardOf = (v: BriefDeliveryView) => {
-  // A weekly brief stores its scorecard every week, but the email shows it only on a quiet week (a standard week keeps today's email).
-  if (v.b.scorecard === null || v.b.scorecard === undefined || v.b.kind === 'standard') return null;
+/** The stored scorecard as its display model; null when absent or unparseable (warned). The weekly report PDF always shows it (P7). */
+export const storedScorecardModel = (v: BriefDeliveryView) => {
+  if (v.b.scorecard === null || v.b.scorecard === undefined) return null;
   const parsed = Scorecard.safeParse(v.b.scorecard);
   if (!parsed.success) {
     console.warn(`[briefs] brief ${v.b.id}: stored scorecard does not parse, sending without it: ${parsed.error.message}`);
@@ -52,6 +55,8 @@ const scorecardOf = (v: BriefDeliveryView) => {
   }
   return scorecardModel(parsed.data, { clientName: v.clientName });
 };
+// A weekly brief stores its scorecard every week, but the email shows it only on a quiet week (a standard week keeps today's email).
+const scorecardOf = (v: BriefDeliveryView) => (v.b.kind === 'standard' ? null : storedScorecardModel(v));
 
 /** Client-facing props (decision 15): only active items, never the upsell tag. `feedback` = the view's `replyTo` (the PDF overrides it with null). */
 export function briefEmailProps(v: BriefDeliveryView, opts: { recipientName: string | null; link: string | null; pdfLink: string | null; itemLink: (itemId: string) => string | null }): BriefEmailProps {

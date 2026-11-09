@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { brief, briefItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
@@ -36,8 +37,59 @@ describe('renderBriefPdf', () => {
     expect(html.indexOf('Kept first')).toBeLessThan(html.indexOf('Kept second'));
     expect(html).not.toContain('Dropped one');
     expect(html).not.toMatch(/upsell|\blsa\b/i);
-    expect(calls[0]!.meta).toEqual({ title: 'A1 HVAC — weekly competitor brief 2026-10-05', author: 'Agency A', subject: 'Weekly competitor brief' });
+    expect(calls[0]!.meta).toEqual({ title: 'A1 HVAC — weekly competitor report 2026-10-05', author: 'Agency A', subject: 'Weekly competitor report' });
     expect(calls[0]!.allowUrls).toEqual([]);
+    // An old brief (no stored report): the cover over today's body.
+    expect(html).toContain('Weekly competitor report');
+    expect(html).toContain('data-section="legacy"');
+  });
+
+  it('renderBriefPdf uses the report document and the new title', async () => {
+    const id = await seedBrief('sent');
+    const [kept] = await dbs.owner.select().from(briefItem).where(eq(briefItem.headline, 'Kept first'));
+    const live = await seedScoredEvent(dbs.service, { competitorId: IDS.competitorX, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(-1), changeType: 'ad_started' });
+    const line = (eventId: string, text: string) => ({
+      grade: 'notable', topic: 'ads', competitorId: IDS.competitorX, competitorName: 'Smith HVAC', changeType: 'ad_started', channel: null, count: 1, text,
+      firstAt: day(-1).toISOString(), lastAt: day(-1).toISOString(), eventIds: [eventId], evidenceIds: [],
+    });
+    const months = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`);
+    const weeks = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 7, 2 + i * 7)).toISOString().slice(0, 10));
+    const report = {
+      v: 1, asOf: day(0).toISOString(),
+      changes: { v: 1, threshold: 41.5, lines: [line(live.eventId, 'Live ad line'), line(randomUUID(), 'Gone ad line')], totals: { major: 1, notable: 2, minor: 0 } },
+      kpis: { changes7d: 3, alerts7d: 0, priceMoves7d: 1, priceCuts7d: 1, activeAds: 2, activeAds7dAgo: 1, ratingSelf: null, ratingAvg: null, weekly: { changes: [0, 0, 0, 0, 0, 0, 0, 3], priceMoves: [0, 0, 0, 0, 0, 0, 0, 1], activeAds: [1, 1, 1, 1, 1, 1, 1, 2] } },
+      pressure: [], rating: { months, series: [] }, ads: { weeks, series: [{ key: IDS.competitorX, name: 'Smith HVAC', points: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2] }] },
+      rankings: null, moves: [], recommendations: [], alerts: [],
+    };
+    const scorecard = {
+      asOf: day(0).toISOString(), baselineBriefId: null, evidenceIds: [], openFirstMoves: [],
+      tiles: (['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const).map((metric) => ({ metric, you: null, rivalMedian: null, deltaSinceStart: null })),
+      rows: [{ competitorId: null, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.5, reviews90d: 3, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null } }],
+    };
+    await dbs.owner.update(brief).set({ report, scorecard, kind: 'standard' }).where(eq(brief.id, id));
+    await dbs.owner.update(briefItem).set({ eventIds: [live.eventId] }).where(eq(briefItem.id, kept!.id));
+    const calls: { html: string; meta: unknown }[] = [];
+    await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async (html: string, meta: unknown) => (calls.push({ html, meta }), new Uint8Array([1])) }, id);
+    const html = calls[0]!.html;
+    expect(calls[0]!.meta).toEqual({ title: 'A1 HVAC — weekly competitor report 2026-10-05', author: 'Agency A', subject: 'Weekly competitor report' });
+    expect(html).toContain('data-section="summary"');
+    expect(html).toContain('Where you stand'); // P7: shown on a standard week in the PDF
+    // 'Kept first' cites an ad event, so it prints under Ads; the line whose event is gone never prints.
+    expect(html.slice(html.indexOf('data-section="ads"'))).toContain('Kept first');
+    expect(html).toContain('Live ad line');
+    expect(html).not.toContain('Gone ad line');
+    expect(html).not.toContain('Dropped one');
+    expect(html).not.toMatch(/upsell|lsa|threshold|41\.5|rival\s*monday/i);
+  });
+
+  it('a starting point keeps its old document and title', async () => {
+    const id = await seedBrief('sent');
+    await dbs.owner.update(brief).set({ kind: 'starting_point' }).where(eq(brief.id, id));
+    const calls: { html: string; meta: unknown }[] = [];
+    await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async (html: string, meta: unknown) => (calls.push({ html, meta }), new Uint8Array([1])) }, id);
+    expect(calls[0]!.meta).toEqual({ title: 'A1 HVAC — your starting point 2026-10-05', author: 'Agency A', subject: 'Your starting point' });
+    expect(calls[0]!.html).not.toContain('Weekly competitor report');
+    expect(calls[0]!.html).toContain('Your starting point');
   });
 
   it('the PDF has no feedback line even when the agency has a contact', async () => {
