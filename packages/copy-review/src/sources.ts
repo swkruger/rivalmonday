@@ -53,7 +53,7 @@ export const SOURCES: readonly SourceRule[] = [
     mode: 'module',
     include: [
       'packages/engine/src/briefs/self-rules.ts', 'packages/engine/src/briefs/starting-point.ts',
-      'packages/engine/src/briefs/scorecard-model.ts', 'packages/engine/src/briefs/generate.ts', 'packages/ask/src/quota.ts',
+      'packages/engine/src/briefs/scorecard-model.ts', 'packages/engine/src/briefs/generate.ts', 'packages/engine/src/briefs/summary.ts', 'packages/ask/src/quota.ts',
     ],
   },
   // Agency-facing engine / billing text: alert routing notes, brief delivery notices, review refusals, billing

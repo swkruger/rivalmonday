@@ -45,6 +45,7 @@ describe('surfaceFor', () => {
       ['packages/engine/src/briefs/self-rules.ts', 'app-client'],
       ['packages/engine/src/briefs/starting-point.ts', 'app-client'],
       ['packages/engine/src/briefs/scorecard-model.ts', 'app-client'],
+      ['packages/engine/src/briefs/summary.ts', 'app-client'],
       ['packages/ask/src/quota.ts', 'app-client'],
       ['packages/engine/src/briefs/readiness.ts', 'app-agency'],
       ['packages/engine/src/briefs/recommendations.ts', 'app-agency'],

@@ -69,6 +69,30 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     seeAlso: ['alert', 'report', 'starting-point'],
   },
   {
+    // source: packages/core/src/brief-report.ts:gradeFor
+    id: 'major-change',
+    term: 'Major change',
+    audience: 'all',
+    short: 'A competitor change that clears the bar for the weekly brief. It is written up with why it matters and what to do.',
+    seeAlso: ['change', 'brief'],
+  },
+  {
+    // source: packages/core/src/brief-report.ts:gradeFor
+    id: 'notable-change',
+    term: 'Notable change',
+    audience: 'all',
+    short: "A competitor change that reaches at least half the brief's bar. It is listed in one line in the brief and the weekly report, without advice.",
+    seeAlso: ['change', 'brief'],
+  },
+  {
+    // source: packages/core/src/brief-report.ts:gradeFor
+    id: 'minor-change',
+    term: 'Minor change',
+    audience: 'all',
+    short: "A competitor change below half the brief's bar. It is listed for completeness and folded away by default.",
+    seeAlso: ['change', 'brief'],
+  },
+  {
     // source: packages/engine/src/reports/quarterly.ts
     id: 'report',
     term: 'Quarterly report',

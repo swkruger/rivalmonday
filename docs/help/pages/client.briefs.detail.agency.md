@@ -10,6 +10,7 @@ One brief for {{client}} as the client reads it, plus the details only you see. 
 - **The status badge** next to the date shows where the brief stands (for example ready, approved or sent). **Open in approvals** takes you to the review page to edit, drop, reorder or approve.
 - **Each point** has a headline, what changed, why it matters and a **Recommended** action. At the bottom are its **Evidence** links, its confidence and, for you only, an **Upsell** tag that names the kind of service the point relates to, and a badge for any item that was dropped or replaced (shown faded).
 - **Confidence** shows as "High confidence NN%" at 85% or above, otherwise "Confidence NN%". The same line gives high-confidence points their amber edge, and the approval review page uses it too. Clients see the percentage and the label, never the 85%.
+- **Other changes this week** lists the graded changes without a write-up (Notable, and Minor folded away). Grades follow the client's brief threshold. You cannot hide a line one by one; the only recourse is to retract the underlying change.
 - **Quiet week:** with no items, the brief carries a **Where you stand** scorecard (rating, new reviews in 90 days, reply rate, top-3 map share against the rival median, and the change since the starting point) and the last 30 days' trend table.
 - **Starting point:** the first brief. It carries the scorecard, the first moves still open and the baseline the quiet-week scorecards compare with.
 
