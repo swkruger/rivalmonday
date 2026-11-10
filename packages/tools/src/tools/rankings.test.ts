@@ -1,10 +1,10 @@
 import { STADIA_ATTRIBUTION } from '@cs/collectors';
-import { client, clientCompetitor, competitorSignal, rankMapImage, rankSnapshot } from '@cs/db';
+import { client, clientCompetitor, competitor, competitorSignal, rankMapImage, rankSnapshot, serpSnapshot, type SerpOrganicItem, type SerpLocalServices } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { rankSettingsKey } from '@cs/engine';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
+import type { GeoGridView, RankTrendView, SearchVisibilityView, ShareOfVoiceView } from './schemas';
 import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedCapture, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -296,5 +296,62 @@ describe('launch-gate 6b: scan lists and their snapshots agree', () => {
     // One result per point: the self share is 1 when it is in the top 3, else no top-3 slot was taken (null).
     const sov = (await registry.invoke(am, 'get_share_of_voice', { clientId: IDS.clientA1, scans: 1 })) as ShareOfVoiceView;
     expect([sov.scans.map((s) => s.id), sov.series[0]!.points]).toEqual([[first], [rankOf(first) <= 3 ? 1 : null]]);
+  });
+});
+
+describe('get_search_visibility (18b-2)', () => {
+  const org = (rank: number, domain: string | null, title: string | null = `Result ${rank}`): SerpOrganicItem => ({ rank, domain, url: domain ? `https://${domain}/` : null, title });
+  async function snap(scanId: string, keyword: string, organic: SerpOrganicItem[], localServices: SerpLocalServices | null = null, at = ago(2)) {
+    await dbs.owner.insert(serpSnapshot).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId, keyword, capturedAt: at, organic, localServices });
+  }
+  const call = (c = am) => registry.invoke(c, 'get_search_visibility', { clientId: IDS.clientA1 }) as Promise<SearchVisibilityView>;
+
+  it('is empty before the first scan with search results', async () => {
+    await setupClient();
+    expect(await call()).toEqual({ keywords: [] });
+    await seedRankScan({ finishedAt: ago(2), snapshots: [] });
+    expect(await call()).toEqual({ keywords: [] });
+  });
+
+  it('names you, a tracked rival and everyone else, per keyword of the latest scan with results', async () => {
+    await setupClient();
+    await dbs.owner.update(competitor).set({ domain: 'smithhvac.com' }).where(eq(competitor.id, IDS.competitorX));
+    const self = (await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.id!;
+    await dbs.owner.update(competitor).set({ domain: 'coolair.com' }).where(eq(competitor.id, self));
+    const older = await seedRankScan({ finishedAt: ago(20), snapshots: [] });
+    await snap(older, 'ac repair', [org(1, 'old.example.com')], null, ago(20));
+    const at = ago(2);
+    const newest = await seedRankScan({ finishedAt: at, snapshots: [] });
+    await snap(newest, 'ac repair', [org(1, 'www.Smithhvac.com'), org(2, 'coolair.com'), org(3, 'random.net', 'Random Co'), org(4, null, null)],
+      { title: 'Local Services', providers: [{ name: 'Pro Air', rating: 4.9, votes: 12 }, { name: 'Fast HVAC', rating: null, votes: null }] }, at);
+    await snap(newest, 'plumber', [org(1, 'random.net', 'Random Co')], null, at);
+    const r = await call();
+    expect(r.keywords.map((k) => k.keyword)).toEqual(['ac repair', 'plumber']);
+    const ac = r.keywords[0]!;
+    expect(ac.scannedAt).toBe(at.toISOString());
+    expect(ac.organic).toEqual([
+      { rank: 1, name: 'Smith HVAC', domain: 'www.Smithhvac.com', self: false, competitorId: IDS.competitorX },
+      { rank: 2, name: 'A1 HVAC', domain: 'coolair.com', self: true, competitorId: null },
+      { rank: 3, name: 'Random Co', domain: 'random.net', self: false, competitorId: null },
+      { rank: 4, name: 'Unknown', domain: null, self: false, competitorId: null },
+    ]);
+    expect(ac.localServicesAds).toEqual({ names: ['Pro Air', 'Fast HVAC'] });
+    expect(r.keywords[1]!.localServicesAds).toBeNull();
+  });
+
+  it('never reads a result on a shared host as the rival whose stored domain is that host', async () => {
+    await setupClient();
+    await dbs.owner.update(competitor).set({ domain: 'facebook.com' }).where(eq(competitor.id, IDS.competitorX));
+    const scan = await seedRankScan({ finishedAt: ago(2), snapshots: [] });
+    await snap(scan, 'ac repair', [org(1, 'facebook.com', 'Some Page')]);
+    expect((await call()).keywords[0]!.organic).toEqual([{ rank: 1, name: 'Some Page', domain: 'facebook.com', self: false, competitorId: null }]);
+  });
+
+  it('refuses a client the caller cannot see, or without the dashboard feature', async () => {
+    await setupClient();
+    await expect(registry.invoke(am, 'get_search_visibility', { clientId: IDS.clientA2 })).resolves.toEqual({ keywords: [] });
+    await expect(registry.invoke(ctx('account_manager', [IDS.clientA2]), 'get_search_visibility', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(registry.invoke(ownerNoDash, 'get_search_visibility', { clientId: IDS.clientA1 })).rejects.toMatchObject({ code: 'not_found' });
+    expect((await call(owner)).keywords).toEqual([]);
   });
 });

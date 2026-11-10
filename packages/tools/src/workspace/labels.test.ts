@@ -20,6 +20,14 @@ describe('workspace labels', () => {
     expect(detailLines({ offer: true })).toEqual([{ label: 'Offer', value: 'Yes' }]);
     expect(detailLines({ offer: false })).toEqual([]);
   });
+  it('shows a Google page-one change as keyword, direction and position', () => {
+    expect(detailLines({ changeType: 'rank_change', surface: 'organic', keyword: 'ac repair', direction: 'entered', position: 4 })).toEqual([
+      { label: 'Keyword', value: 'ac repair' }, { label: 'Page one', value: 'Entered' }, { label: 'Position', value: '4' },
+    ]);
+    expect(detailLines({ surface: 'organic', keyword: 'ac repair', direction: 'left' })).toEqual([
+      { label: 'Keyword', value: 'ac repair' }, { label: 'Page one', value: 'Left' },
+    ]);
+  });
   it('shows facts by their raw text', () => {
     expect(factView({ kind: 'price', before: { kind: 'price', value: 99, unit: 'USD', raw: '$99', context: '' }, after: { kind: 'price', value: 79, unit: 'USD', raw: '$79', context: '' }, pct: -20.2 }))
       .toEqual({ kind: 'price', before: '$99', after: '$79', pct: -20.2 });

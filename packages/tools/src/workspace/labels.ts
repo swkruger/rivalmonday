@@ -36,6 +36,11 @@ export function detailLines(d: ChangeDetails | null | undefined): DetailLine[] {
   if (d.keyword) out.push({ label: 'Keyword', value: d.keyword });
   if (d.avgRankBefore !== undefined || d.avgRankAfter !== undefined) out.push({ label: 'Average rank', value: pair(d.avgRankBefore, d.avgRankAfter) });
   if (d.top3Before !== undefined || d.top3After !== undefined) out.push({ label: 'Top-3 points', value: pair(d.top3Before, d.top3After) });
+  // 18b-2: a rival entering or leaving page one of Google (a `rank_change` with surface 'organic').
+  if (d.surface === 'organic' && (d.direction === 'entered' || d.direction === 'left')) {
+    out.push({ label: 'Page one', value: d.direction === 'entered' ? 'Entered' : 'Left' });
+    if (d.position !== undefined) out.push({ label: 'Position', value: String(d.position) });
+  }
   if (d.offer) out.push({ label: 'Offer', value: 'Yes' });
   return out;
 }

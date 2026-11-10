@@ -2,7 +2,7 @@
 export const CHANGE_LABELS: Record<string, string> = {
   price_change: 'price change', promo: 'new promotion', new_service: 'new service', service_removed: 'service removed',
   service_area_change: 'service area change', new_location: 'new location', hiring: 'hiring', ad_started: 'new ads', ad_stopped: 'ads stopped',
-  review_spike: 'complaint spike in reviews', rating_change: 'rating change', rank_change: 'local ranking change', tier_change: 'competitor tier change', content: 'website change', cosmetic: 'minor change',
+  review_spike: 'complaint spike in reviews', rating_change: 'rating change', rank_change: 'ranking change', tier_change: 'competitor tier change', content: 'website change', cosmetic: 'minor change',
   status_change: 'opening status change', profile_change: 'profile change', audience_growth: 'audience growth',
   site_feature: 'website tool change', new_page: 'new website page',
 };
@@ -26,7 +26,7 @@ export const GROUP_PHRASE: Record<string, (channel: string | null) => string> = 
   ad_stopped: (c) => (c === 'google_ads' ? 'Google ads stopped' : c === 'meta_ads' ? 'Meta ads stopped' : 'ads stopped'),
   review_spike: () => 'complaint spikes in reviews',
   rating_change: () => 'rating changes',
-  rank_change: () => 'local ranking changes',
+  rank_change: () => 'ranking changes',
   tier_change: () => 'tier changes',
   content: () => 'website changes',
   status_change: () => 'opening status changes',

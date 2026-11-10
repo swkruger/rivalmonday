@@ -1,14 +1,14 @@
 import { rankKeywordsFor, STADIA_ATTRIBUTION } from '@cs/collectors';
 import { canAccessClient, insideBounds, toolkit, ToolError } from '@cs/core';
-import { client, competitorSignal, evidence, type RankResult, rankMapImage, rankScan, rankSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
-import { competitorMatcher, NOT_FOUND_RANK, rankMetrics, rankSettingsKey } from '@cs/engine';
+import { client, competitorSignal, evidence, type RankResult, rankMapImage, rankScan, rankSnapshot, serpSnapshot, type Tier, type Tx, withTenant } from '@cs/db';
+import { competitorMatcher, isSharedHost, normalizeDomain, NOT_FOUND_RANK, rankMetrics, rankSettingsKey } from '@cs/engine';
 import { and, desc, eq, inArray, isNotNull, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { enqueueMapRefresh, rankScanAvailability, rankScanLabel, requestRankScan } from '../rank-scan';
 import { pickBusiness, trackedRows, workspaceBusinesses } from '../workspace/business';
 import { allInOrder, workspaceClient } from '../workspace/scope';
-import { BusinessKey, GeoGridView, RankTrendView, ShareOfVoiceView } from './schemas';
+import { BusinessKey, GeoGridView, RankTrendView, SearchVisibilityView, ShareOfVoiceView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -281,6 +281,51 @@ export const getShareOfVoice = defineTool({
   },
 });
 
+export const getSearchVisibility = defineTool({
+  name: 'get_search_visibility',
+  access: 'read',
+  description: "Page one of Google (the top organic results) for each of the client's rank keywords at the service-area centre, from the latest weekly scan with search results. "
+    + 'Each result names you, a tracked competitor (competitorId) or the result title; localServicesAds lists the Local Services ads Google showed, when any. Empty before the first scan.',
+  input: z.object({ clientId: uuid }),
+  output: SearchVisibilityView,
+  permission: 'read',
+  channels: ['web', 'mcp', 'ask'],
+  feature: 'dashboard',
+  async handler(ctx, input, deps) {
+    // Client check and tenant reads start together; the scan is picked by a subquery in the same statement as the rows.
+    const [c, [tracked, rows]] = await allInOrder([
+      workspaceClient(deps, ctx, input.clientId),
+      withTenant(deps.app, ctx, (tx) => {
+        const latest = tx.select({ id: rankScan.id }).from(rankScan).innerJoin(serpSnapshot, eq(serpSnapshot.scanId, rankScan.id))
+          .where(isDone(input.clientId)).orderBy(...newestFirst).limit(1);
+        return Promise.all([
+          trackedRows(tx, input.clientId),
+          tx.select({ keyword: serpSnapshot.keyword, capturedAt: serpSnapshot.capturedAt, organic: serpSnapshot.organic, localServices: serpSnapshot.localServices })
+            .from(serpSnapshot).where(and(eq(serpSnapshot.clientId, input.clientId), inArray(serpSnapshot.scanId, latest))),
+        ]);
+      }),
+    ]);
+    if (rows.length === 0) return { keywords: [] };
+    const list = await workspaceBusinesses(deps, ctx, c, tracked);
+    // A business is matched by its own (non-shared) domain only: a result on facebook.com is never a rival stored with that host.
+    const owners = list.map((b) => ({ b, host: normalizeDomain(b.domain) })).filter((o): o is { b: typeof o.b; host: string } => o.host !== null && !isSharedHost(o.host));
+    const nameOf = (item: { domain: string | null; url: string | null; title: string | null }) => {
+      const host = normalizeDomain(item.domain ?? item.url);
+      const hit = host ? owners.find((o) => o.host === host) : undefined;
+      if (hit) return { name: hit.b.name, self: hit.b.self, competitorId: hit.b.self ? null : hit.b.competitorId };
+      return { name: item.title?.trim() || host || 'Unknown', self: false, competitorId: null };
+    };
+    return {
+      keywords: rows.sort((a, b) => byWord(a.keyword, b.keyword)).map((r) => ({
+        keyword: r.keyword,
+        scannedAt: r.capturedAt.toISOString(),
+        organic: [...r.organic].sort((a, b) => a.rank - b.rank).map((o) => ({ rank: o.rank, domain: o.domain, ...nameOf(o) })),
+        localServicesAds: r.localServices && r.localServices.providers.length > 0 ? { names: r.localServices.providers.map((p) => p.name) } : null,
+      })),
+    };
+  },
+});
+
 const GridSize = z.union([z.literal(5), z.literal(7)]);
 const ScanState = z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'cap', 'running', 'not_ready', 'spend_paused']);
 
@@ -354,4 +399,4 @@ export const requestRankScanTool = defineTool({
   },
 });
 
-export const rankingTools = [getGeogrid, getRankTrend, getShareOfVoice, getRankSettings, updateClientRankSettings, requestRankScanTool];
+export const rankingTools = [getGeogrid, getRankTrend, getShareOfVoice, getSearchVisibility, getRankSettings, updateClientRankSettings, requestRankScanTool];

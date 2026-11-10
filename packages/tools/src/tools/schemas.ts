@@ -452,6 +452,18 @@ export const ShareOfVoiceView = z.object({
 });
 export type ShareOfVoiceView = z.infer<typeof ShareOfVoiceView>;
 
+/** 18b-2: page one of Google per keyword (latest weekly scan with search results). `name` = you, a tracked rival or the result title. */
+export const SearchVisibilityView = z.object({
+  keywords: z.array(z.object({
+    keyword: z.string(),
+    scannedAt: iso,
+    organic: z.array(z.object({ rank: z.number().int(), name: z.string(), domain: z.string().nullable(), self: z.boolean(), competitorId: uuid.nullable() })),
+    /** Local Services ads Google showed for the search; null when none. Names as Google shows them, never matched to rivals. */
+    localServicesAds: z.object({ names: z.array(z.string()) }).nullable(),
+  })),
+});
+export type SearchVisibilityView = z.infer<typeof SearchVisibilityView>;
+
 /** Phase 6a: AI connections views (`list_api_tokens` / `list_oauth_grants`). Scope values mirror `TOKEN_SCOPES` (`@cs/core`). */
 const TokenScopeView = z.enum(['read', 'feedback', 'manage']);
 export const ApiTokenView = z.object({

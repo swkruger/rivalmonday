@@ -1,5 +1,5 @@
 import { hasFeature, isAgencyRole } from '@cs/core';
-import type { ClientProfile, GeoGridView, RankTrendView, ShareOfVoiceView } from '@cs/tools';
+import type { ClientProfile, GeoGridView, RankTrendView, SearchVisibilityView, ShareOfVoiceView } from '@cs/tools';
 import { Button, Section, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow, toolbarControlClass } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -18,6 +18,7 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { one, uuidParam } from '@/server/search-params';
 import { callTool, tryCallTool } from '@/server/tools';
+import { GoogleSearch } from './google-search';
 import { RankSettingsSheet } from './rank-settings-sheet';
 import type { RankSettingsView } from './scan-copy';
 import { ScanNowButton } from './scan-now-button';
@@ -67,11 +68,13 @@ export default async function RankingsPage({ params, searchParams }: {
   const ready = geo.setup === 'ready' && !noBusiness && geo.keyword !== null;
   // Phase 13b: agency-only controls. `not_ready` covers a paused or inactive client (or agency) and a client without
   // keywords or a service area, so neither control shows for one; client roles never read the settings.
-  // 7a1 D7: the three reads depend only on `geo`, so they run together (one stage).
-  const [trend, sov, rankSettings] = await Promise.all([
+  // 7a1 D7: the reads depend only on `geo`, so they run together (one stage).
+  const [trend, sov, rankSettings, search] = await Promise.all([
     ready ? callTool<RankTrendView>(ctx, 'get_rank_trend', { clientId, keyword: geo.keyword }) : null,
     ready && tab === 'trend' ? callTool<ShareOfVoiceView>(ctx, 'get_share_of_voice', { clientId, ...(sovKeyword ? { keyword: sovKeyword } : {}) }) : null,
     isAgencyRole(ctx.role) && geo.setup !== 'no_keywords' ? callTool<RankSettingsView>(ctx, 'get_rank_settings', { clientId }) : null,
+    // 18b-2: page one of Google, beside the other reads (same stage).
+    ready && tab === 'trend' ? callTool<SearchVisibilityView>(ctx, 'get_search_visibility', { clientId }) : null,
   ]);
   const history = trend ? [...trend.scans].reverse() : []; // oldest → newest
   const controls = rankSettings && rankSettings.scan.state !== 'not_ready' ? rankSettings : null;
@@ -237,6 +240,8 @@ export default async function RankingsPage({ params, searchParams }: {
                     </TableFrame>
                   </Section>
                 )}
+
+                {search && <GoogleSearch view={search} tz={tz} />}
               </>
             ) : !compare ? (
               <EmptyState {...COPY.empty.compareNeedsTwo} />

@@ -79,12 +79,14 @@ describe('RankingsPage', () => {
       scanId: id, finishedAt: at[id], settingsKey, settingsChanged, self: { avgRank: 3, top3Share: 0.5, points: 4 }, competitors: [],
     });
     const sov = { keyword: null, scans: [], series: [] };
+    let searchView: unknown = { keywords: [] };
     // Newest first, as get_rank_trend returns them.
     const mount = (keys: [string, string, string] = ['aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaa']) => {
       callTool.mockImplementation(async (_ctx: unknown, name: string, input: { scanId?: string }) => {
         if (name === 'get_geogrid') return input.scanId === S1 ? ready(S1, [[5, 2], [3, null]]) : ready(input.scanId ?? S3);
         if (name === 'get_rank_trend') return { scans: [trendScan(S3, keys[2], keys[2] !== keys[1]), trendScan(S2, keys[1]), trendScan(S1, keys[0])], nextCursor: null };
         if (name === 'get_share_of_voice') return sov;
+        if (name === 'get_search_visibility') return searchView;
         if (name === 'get_client_profile') return { id: 'c1', name: 'Cool Air', timezone: 'America/Chicago' };
         throw new Error(`unexpected ${name}`);
       });
@@ -97,6 +99,46 @@ describe('RankingsPage', () => {
       for (const n of ['keyword', 'business', 'sov']) expect(form.querySelector(`[name=${n}]`)).toBeTruthy();
       const table = screen.getByRole('table', { name: 'Share of voice in the latest scan' });
       expect(table.closest('[data-slot=table-frame]')).toBeTruthy();
+    });
+
+    describe('Google search section', () => {
+      beforeEach(() => { searchView = { keywords: [] }; });
+      it('shows the empty state before the first weekly scan', async () => {
+        mount();
+        await render5();
+        expect(screen.getByRole('heading', { name: 'Google search' })).toBeTruthy();
+        expect(screen.getByText('Page one for your keywords at your service-area centre, checked every Sunday.')).toBeTruthy();
+        expect(screen.getByText('No search results yet. They appear after the next weekly scan.')).toBeTruthy();
+      });
+
+      it('lists page one per keyword, highlights you and names Local Services ads only when shown', async () => {
+        searchView = { keywords: [
+          { keyword: 'ac repair', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: { names: ['Pro Air', 'Fast HVAC'] }, organic: [
+            { rank: 1, name: 'Smith HVAC', domain: 'smithhvac.com', self: false, competitorId: 'x' },
+            { rank: 2, name: 'Cool Air', domain: 'coolair.com', self: true, competitorId: null },
+          ] },
+          { keyword: 'plumber', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: null, organic: [{ rank: 1, name: 'Random Co', domain: null, self: false, competitorId: null }] },
+        ] };
+        mount();
+        await render5();
+        expect(screen.queryByText(/No search results yet/)).toBeNull();
+        const table = screen.getByRole('table', { name: 'Page one of Google for ac repair' });
+        expect(screen.getAllByRole('columnheader', { name: 'Position' })).toHaveLength(2);
+        const rows = [...table.querySelectorAll('tbody tr')];
+        expect(rows.map((r) => r.getAttribute('data-self'))).toEqual([null, 'true']);
+        expect(rows[0]!.textContent).toContain('Smith HVAC');
+        expect(rows[1]!.textContent).toContain('You · Cool Air');
+        expect(screen.getAllByText(/Local Services ads shown:/)).toHaveLength(1);
+        expect(screen.getByText(/Pro Air, Fast HVAC/)).toBeTruthy();
+        expect(screen.getAllByText('Checked Oct 18')).toHaveLength(2);
+        expect(document.body.textContent).not.toMatch(/AI answer/);
+      });
+
+      it('is read beside the other reads and only on the Trend tab', async () => {
+        mount();
+        await render5({ tab: 'compare' });
+        expect(callTool.mock.calls.map((c) => c[1])).not.toContain('get_search_visibility');
+      });
     });
 
     it('page defaults to Trend', async () => {

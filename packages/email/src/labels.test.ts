@@ -17,6 +17,13 @@ describe('CHANGE_LABELS', () => {
   });
 });
 
+describe('rank_change labels', () => {
+  it('reads neutrally, as one event type covers map and Google page-one changes', () => {
+    expect(changeTypeLabel('rank_change')).toBe('Ranking change');
+    expect(groupPhrase('rank_change', null, 2)).toBe('2 ranking changes');
+  });
+});
+
 describe('GROUP_PHRASE', () => {
   it('has an entry for every CHANGE_LABELS key (except the cosmetic-only ones fall back sensibly)', () => {
     for (const t of Object.keys(CHANGE_LABELS)) expect(groupPhrase(t, null, 2), t).toMatch(/^2 \S/);
