@@ -13,6 +13,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 - **Promo** marks a price listed as a promotion.
 - **From an ad** marks a price read from the competitor's Meta ad text rather than its website; it never counts toward the ▼ and ▲ tags.
 - **From an ad image** marks a price read from the picture in one of the competitor's Google ads; the picture button at the end of the row opens it. It never counts toward the ▼ and ▲ tags.
+- **From a Google post** marks a price read from one of the competitor's Google posts; the link button at the end of the row opens the post. It never counts toward the ▼ and ▲ tags.
 
 ## How to use it
 
@@ -25,7 +26,7 @@ What each of {{client}}'s competitors charges, read from its own website, and ho
 
 ### Why does a competitor show no prices?
 
-Prices come from the competitor's own website: the visible text of a page, and the structured price data many sites publish for search engines. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty. Prices marked **From an ad** or **From an ad image** come from its ads instead.
+Prices come from the competitor's own website: the visible text of a page, and the structured price data many sites publish for search engines. A card fills in once a page that lists prices has been read; a competitor that does not publish prices stays empty. Prices marked **From an ad** or **From an ad image** come from its ads instead, and prices marked **From a Google post** come from its Google posts.
 
 ### Why is there no tag on a price?
 
