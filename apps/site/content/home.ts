@@ -206,13 +206,27 @@ export const HOW_STEPS = [
 ] as const;
 
 export const PRICING_LINES = {
-  agency: `Then ${agencyPriceLine()} including ${agency.seatsIncluded} client seats, ${agencyTiersLine()}, with a ${agency.trialDays}-day trial.`,
+  strong: 'Free during the pilot.',
+  lead: `Then one plan, with a ${agency.trialDays}-day trial:`,
 } as const;
 
 /** Pilot off (NEW, owner signs). */
 export const PRICING_LINES_TRIAL = {
-  agency: `${agencyPriceLine()} including ${agency.seatsIncluded} client seats, ${agencyTiersLine()}, after a ${agency.trialDays}-day free trial.`,
+  lead: `One plan, with a ${agency.trialDays}-day free trial:`,
 } as const;
+
+/** The plan as three cells under the plan lead (deck § 3). Every figure comes from `PRICING.agency`. */
+export function planCells(): { value: string; label: string }[] {
+  const tiers = agency.extraClientTiers;
+  const first = tiers[0]!;
+  const last = tiers[tiers.length - 1]!;
+  const lastFrom = (tiers.length > 1 ? (tiers[tiers.length - 2]!.toClient ?? 0) : agency.seatsIncluded) + 1;
+  return [
+    { value: `$${agency.monthlyUsd}/mo`, label: `or $${agency.yearlyUsd.toLocaleString('en-US')}/yr · ${agency.seatsIncluded} client seats included` },
+    { value: `$${first.usd}`, label: `each for clients ${agency.seatsIncluded + 1}–${first.toClient}` },
+    { value: `$${last.usd}`, label: `each from client ${lastFrom}` },
+  ];
+}
 
 export const CTA_BAND = {
   heading: 'Join the pilot',
@@ -292,7 +306,7 @@ export const COMMERCIAL = {
   points: [
     {
       heading: 'Your brand',
-      body: 'Your name, logo and colours on every client page and email, plus your own sender name and assistant name. Logins on your own web address are on the roadmap.',
+      body: 'Your name, logo and colors on every client page and email, plus your own sender name and assistant name. Logins on your own web address are on the roadmap.',
     },
     { heading: 'Your price', body: 'You set what your clients pay.' },
     {
@@ -300,7 +314,7 @@ export const COMMERCIAL = {
       body: 'Clients pay you directly through your own Stripe account. We add no platform fee on what your clients pay you.',
     },
   ],
-  /** Planned work, not a claim (same rules as `roadmap.ts`). The plan line is `PRICING_LINES.agency` / `PRICING_LINES_TRIAL.agency`. */
+  /** Planned work, not a claim (same rules as `roadmap.ts`). The plan line is `PRICING_LINES` / `PRICING_LINES_TRIAL` plus `planCells()`. */
   roadmapLine: { text: 'Coming next: act on a recommendation without leaving Rival Monday.', link: { label: 'See the roadmap →', href: '/roadmap' } },
 } as const;
 

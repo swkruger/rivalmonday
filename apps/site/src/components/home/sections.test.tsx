@@ -236,8 +236,9 @@ describe('HomePage', () => {
     const text = container.textContent!;
     expect(text).toContain(CLOSE_TRIAL.heading);
     expect(text).toContain(HERO.finePrintTrial);
-    expect(text).toContain(PRICING_LINES_TRIAL.agency);
-    expect(text).not.toContain(PRICING_LINES.agency);
+    expect(text).toContain(PRICING_LINES_TRIAL.lead);
+    expect(text).not.toContain(PRICING_LINES.lead);
+    expect(text).not.toContain(PRICING_LINES.strong);
     expect(text.match(/pilot/gi) ?? []).toEqual([]);
   }, 20_000);
 
@@ -245,7 +246,8 @@ describe('HomePage', () => {
     const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
     const text = container.textContent!;
     expect(text).toContain(CLOSE.heading);
-    expect(text).toContain(PRICING_LINES.agency);
+    expect(text).toContain(PRICING_LINES.strong);
+    expect(text).toContain(PRICING_LINES.lead);
     expect(text).toContain(HERO.finePrint);
   }, 20_000);
 

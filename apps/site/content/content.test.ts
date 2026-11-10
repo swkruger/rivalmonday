@@ -52,7 +52,20 @@ describe('site copy', () => {
       expect(t, s).not.toMatch(/\d/);
     }
     // the pricing lines really render PRICING
-    expect(home.PRICING_LINES.agency).toContain(`$${PRICING.agency.monthlyUsd}/mo`);
+    expect(home.planCells()[0]!.value).toContain(`$${PRICING.agency.monthlyUsd}/mo`);
+  });
+
+  it('plan cells are computed from PRICING', () => {
+    const a = PRICING.agency;
+    const [monthly, first, last] = home.planCells();
+    expect(home.planCells()).toHaveLength(3);
+    expect(monthly!.value).toBe(`$${a.monthlyUsd}/mo`);
+    expect(monthly!.label).toContain(`$${a.yearlyUsd.toLocaleString('en-US')}/yr`);
+    expect(monthly!.label).toContain(`${a.seatsIncluded} client seats included`);
+    expect(first!.value).toBe(`$${a.extraClientTiers[0]!.usd}`);
+    expect(first!.label).toBe(`each for clients ${a.seatsIncluded + 1}–${a.extraClientTiers[0]!.toClient}`);
+    expect(last!.value).toBe(`$${a.extraClientTiers[1]!.usd}`);
+    expect(last!.label).toBe(`each from client ${a.extraClientTiers[0]!.toClient! + 1}`);
   });
 
   it('announcement has the three decided entries', () => {

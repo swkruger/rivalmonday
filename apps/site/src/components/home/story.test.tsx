@@ -1,13 +1,15 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const web = vi.hoisted(() => ({ live: false }));
+const pilot = vi.hoisted(() => ({ pilotMode: true }));
+vi.mock('../shell/pilot-context', async (orig) => ({ ...(await orig<typeof import('../shell/pilot-context')>()), usePilot: () => ({ pilotMode: pilot.pilotMode, status: null, loaded: true }) }));
 vi.mock('../../../content/website-monitoring', () => ({
   get WEBSITE_MONITORING_LIVE() {
     return web.live;
   },
 }));
 
-import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityCells, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
+import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityCells, planCells, PRICING_LINES, PRICING_LINES_TRIAL, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
 import { rivalStoryMoves } from '../../../content/rival-story';
 import { ANY_INDUSTRY } from '../../../content/industries';
 import { PRICING } from '../../../content/pricing';
@@ -25,6 +27,7 @@ import { Steps } from './steps';
 
 beforeEach(() => {
   web.live = false;
+  pilot.pilotMode = true;
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
   vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} });
 });
@@ -132,7 +135,7 @@ describe('Opportunity', () => {
 });
 
 describe('Commercial', () => {
-  it('renders the H2, three points, the agency plan line, the calculator and the roadmap link', () => {
+  it('shows the three points, one calculator and the roadmap link', () => {
     const { container } = render(<Commercial />);
     expect(screen.getByRole('heading', { level: 2, name: SECTIONS.commercial.heading })).toBeTruthy();
     expect(container.querySelector('section#commercial')).toBeTruthy();
@@ -140,11 +143,33 @@ describe('Commercial', () => {
       expect(screen.getByRole('heading', { level: 3, name: p.heading })).toBeTruthy();
       expect(screen.getByText(p.body)).toBeTruthy();
     }
-    expect(screen.getByText(PRICING_LINES.agency)).toBeTruthy();
+    expect(container.querySelectorAll('[data-slot=margin-example]')).toHaveLength(1);
     expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}/mo`);
     expect(container.querySelector('input[type="range"]')).toBeTruthy();
     expect(screen.getByText(COMMERCIAL.roadmapLine.text)).toBeTruthy();
     expect(screen.getByRole('link', { name: COMMERCIAL.roadmapLine.link.label }).getAttribute('href')).toBe('/roadmap');
+  });
+
+  it('pilot on: the plan line starts with the pilot lead and holds the three cells', () => {
+    const { container } = render(<Commercial />);
+    const line = container.querySelector('[data-slot=plan-line]')!;
+    expect(line.textContent!.startsWith(PRICING_LINES.strong)).toBe(true);
+    expect(line.textContent).toContain(PRICING_LINES.lead);
+    expect(line.querySelectorAll('dl dt')).toHaveLength(3);
+    for (const c of planCells()) {
+      expect(line.textContent).toContain(c.value);
+      expect(line.textContent).toContain(c.label);
+    }
+  });
+
+  it('pilot off: the trial lead and no pilot wording', () => {
+    pilot.pilotMode = false;
+    const { container } = render(<Commercial />);
+    const line = container.querySelector('[data-slot=plan-line]')!;
+    expect(line.textContent).toContain(PRICING_LINES_TRIAL.lead);
+    expect(line.textContent).not.toContain('Free during the pilot');
+    expect(line.textContent).not.toMatch(/pilot/i);
+    expect(line.querySelectorAll('dl dt')).toHaveLength(3);
   });
 });
 
