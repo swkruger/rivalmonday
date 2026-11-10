@@ -55,7 +55,7 @@ export function cityFromAddress(a: string | null): string | null {
   return i >= 1 ? parts[i - 1]! : null;
 }
 
-/** Category / roundup titles: "Best …", "Top 10 …", "… near me", "<trade> in <city>" (a "Plumbers in Dallas" page is not this business). */
+/** Category / roundup titles: "Best ...", "Top 10 ...", "... near me", "<trade> in <city>" (a "Plumbers in Dallas" page is not this business). */
 export function isCategoryTitle(title: string | null): boolean {
   const t = titleHead(title ?? '').trim().toLowerCase();
   if (!t) return false;
