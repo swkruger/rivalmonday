@@ -20,6 +20,7 @@ vi.mock('../join/join-provider', async (orig) => {
   return { ...real, useJoin: () => ({ ...real.useJoin(), open: openSpy }) };
 });
 
+import { ANNOUNCEMENT } from '../../../content/home';
 import { PAGES } from '../../../content/pages';
 const realPages = [...PAGES];
 import { JoinProvider } from '../join/join-provider';
@@ -158,24 +159,30 @@ describe('site shell', () => {
     expect(openSpy).toHaveBeenCalledWith('business');
   });
 
-  it('rotation is static under reduced motion', async () => {
-    mockMatchMedia(true);
-    vi.useFakeTimers();
+  it('announcement shows one fixed sentence and the join link', async () => {
     await renderShell();
-    const first = screen.getByTestId('announcement-example').textContent;
-    await act(async () => {
-      vi.advanceTimersByTime(10_000);
-    });
-    expect(screen.getByTestId('announcement-example').textContent).toBe(first);
+    const bar = document.querySelector<HTMLElement>('[data-slot="announcement-bar"]')!;
+    expect(bar.textContent).toContain(ANNOUNCEMENT.agency.text);
+    expect(bar.textContent).toContain('The free pilot is open to agencies with local-business clients.');
+    expect(bar.querySelector('[data-testid="announcement-example"]')).toBeNull();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Join the free pilot →' }));
+    expect(openSpy).toHaveBeenCalledWith('agency');
   });
 
-  it('rotates every 3 s without reduced motion', async () => {
+  it('announcement does not change over time', async () => {
     vi.useFakeTimers();
     await renderShell();
-    const first = screen.getByTestId('announcement-example').textContent;
+    const bar = document.querySelector('[data-slot="announcement-bar"]')!;
+    const first = bar.textContent;
     await act(async () => {
-      vi.advanceTimersByTime(3_100);
+      vi.advanceTimersByTime(30_000);
     });
-    expect(screen.getByTestId('announcement-example').textContent).not.toBe(first);
+    expect(bar.textContent).toBe(first);
+  });
+
+  it('pilot off hides the bar', async () => {
+    fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: { rivalSitesWatched: 1, snapshotsThisWeek: 1, claimsChecked: 1, claimsDropped: 0 } });
+    await renderShell();
+    expect(document.querySelector('[data-slot="announcement-bar"]')).toBeNull();
   });
 });

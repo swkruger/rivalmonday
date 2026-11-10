@@ -23,14 +23,14 @@ const DIGIT_ALLOWLIST = ['Last 7 days', '8 of 49 points', "Now it's 31", '$69', 
 
 describe('site copy', () => {
   it('hero matches the decided copy', () => {
-    expect(home.HERO.headline).toBe('Your competitors are making moves. Are you watching?');
-    expect(home.HERO.sub).toContain('launching ads and changing prices.');
-    expect(home.HERO.subNoWeb).toContain('collecting reviews and launching ads.');
+    expect(home.HERO.headline).toEqual({ lead: 'Tell every client what their rivals did', mark: 'this week.' });
+    expect(home.HERO.sub).toBe('Rival Monday tracks their map rankings, reviews and ads, then writes a Monday brief with the evidence attached. You sell it under your brand, at your price.');
+    expect('subNoWeb' in home.HERO).toBe(false);
     expect(home.HERO.primaryStart).toBe('agency-sample');
     expect(home.HERO.eyebrow).toBe('White-label competitor intelligence for agencies');
     expect(home.HERO.eyebrowPill).toBe('Pilot');
     expect([home.HERO.primaryCta, home.HERO.secondaryCta]).toEqual(['Join the free pilot', 'See what your clients get']);
-    expect(home.HERO.heroCta).toBe('Get a free brief for one of your clients');
+    expect(home.HERO.heroCta).toBe('Get a free brief for one client');
     expect(home.HERO.finePrint).toBe('Free during the pilot · No card needed · Limited places');
   });
 
@@ -55,8 +55,17 @@ describe('site copy', () => {
     expect(home.PRICING_LINES.agency).toContain(`$${PRICING.agency.monthlyUsd}/mo`);
   });
 
+  it('announcement has the three decided entries', () => {
+    expect(home.ANNOUNCEMENT).toEqual({
+      home: { text: 'The free pilot is open.' },
+      agency: { text: 'The free pilot is open to agencies with local-business clients.', link: { label: 'Join the free pilot →', start: 'agency' } },
+      business: { text: 'The free pilot is open. Local businesses can join the waitlist.', link: { label: 'Join the waitlist', start: 'business' } },
+    });
+  });
+
   it('headlines are at most 90 characters', () => {
     const headings = [
+      `${home.HERO.headline.lead} ${home.HERO.headline.mark}`,
       ...Object.values(home.SECTIONS).map((s) => s.heading),
       home.CTA_BAND.heading,
       how.HOW_IT_WORKS.title,
@@ -107,7 +116,7 @@ describe('site copy', () => {
   });
 
   it('website-free copy never mentions price, websites or snapshots', () => {
-    expect(home.HERO.subNoWeb).not.toMatch(/changing prices|price cut|\$69|website|snapshot/i);
+    expect(home.HERO.sub).not.toMatch(/changing prices|price cut|\$69|website|snapshot/i);
     expect(home.RIVAL_STORY.bodyNoWeb).not.toMatch(/changing prices|price cut|\$69|website|snapshot/i);
   });
 

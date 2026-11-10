@@ -5,14 +5,11 @@ import { agencyPriceLine, agencyTiersLine, PRICING } from './pricing';
 export const HERO = {
   eyebrowPill: 'Pilot',
   eyebrow: 'White-label competitor intelligence for agencies',
-  headline: 'Your competitors are making moves. Are you watching?',
-  /** Website wording is gated (D5): the page picks `sub` or `subNoWeb` by `WEBSITE_MONITORING_LIVE`. */
-  sub: "Your clients' rivals are climbing the map, collecting reviews, launching ads and changing prices. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
-  subNoWeb:
-    "Your clients' rivals are climbing the map, collecting reviews and launching ads. Rival Monday watches every move and turns it into a weekly brief, dashboard and AI assistant, with evidence behind every claim. You sell it under your own brand, at your own price.",
+  headline: { lead: 'Tell every client what their rivals did', mark: 'this week.' },
+  sub: 'Rival Monday tracks their map rankings, reviews and ads, then writes a Monday brief with the evidence attached. You sell it under your brand, at your price.',
   primaryCta: 'Join the free pilot',
   /** Home hero, home mobile bar and close band (D1). `primaryCta` stays the shared `JoinButton` default. */
-  heroCta: 'Get a free brief for one of your clients',
+  heroCta: 'Get a free brief for one client',
   primaryStart: 'agency-sample' as const satisfies JoinStart,
   secondaryCta: 'See what your clients get',
   finePrint: 'Free during the pilot · No card needed · Limited places',
@@ -22,12 +19,12 @@ export const HERO = {
   finePrintTrial: `${PRICING.agency.trialDays}-day free trial · then ${agencyPriceLine()} incl. ${PRICING.agency.seatsIncluded} client seats`,
 } as const;
 
-export const ANNOUNCEMENT = {
-  lead: 'Pilot now open for agencies serving local businesses',
-  /** Kinds of business, not claims of customers. Rendered "— like {x}". */
-  examples: ['HVAC', 'plumbing', 'dental', 'roofing', 'electrical', 'med spas', 'law firms', 'landscaping', 'pest control', 'auto repair', 'cleaning', 'veterinary', 'salons'],
-  link: 'Join the free pilot →',
-} as const;
+/** One fixed sentence per reader; the bar shows `agency` today, the side picks the entry later. Wording: copy deck § 1. */
+export const ANNOUNCEMENT: Record<'home' | 'agency' | 'business', { text: string; link?: { label: string; start: JoinStart } }> = {
+  home: { text: 'The free pilot is open.' },
+  agency: { text: 'The free pilot is open to agencies with local-business clients.', link: { label: 'Join the free pilot →', start: 'agency' } },
+  business: { text: 'The free pilot is open. Local businesses can join the waitlist.', link: { label: 'Join the waitlist', start: 'business' } },
+};
 
 /** Final; owned here only, in page order. `join` is the closing band (`close`). */
 export const HOME_ANCHORS = [

@@ -25,6 +25,9 @@ const BANNED: readonly RegExp[] = [
   /\buseInView\b/,
   /\bautoplay\b/,
   /\bautoplayMap\b/,
+  /\bradar-sweep\b/,
+  /\bradar-blip\b/,
+  /\bannouncement-example\b/,
 ];
 
 /** File (relative to `apps/site`) -> why it may still hold a banned name. Empty today. */
@@ -54,6 +57,18 @@ function offenders(): string[] {
 }
 
 describe('no idle motion', () => {
+  const css = readFileSync(join(SITE, 'src/app/site.css'), 'utf8');
+
+  it('site.css has no infinite animation', () => {
+    expect(css).not.toMatch(/\binfinite\b/);
+  });
+
+  it('site.css keyframes are only the ones that play once', () => {
+    const names = [...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => m[1]!);
+    const allowed = ['reveal-quick', 'sheet-in-right', 'sheet-in-bottom'];
+    expect(names.filter((n) => !allowed.includes(n))).toEqual([]);
+  });
+
   it('no source file uses a removed motion helper or class', () => {
     expect(offenders()).toEqual([]);
   });

@@ -7,8 +7,7 @@ import sitemap from '../src/app/sitemap';
 import { articleLd } from '../src/lib/json-ld';
 import { pageMetadata } from '../src/lib/metadata';
 import { GUIDES } from './guides';
-import { ANNOUNCEMENT } from './home';
-import { ANY_INDUSTRY, INDUSTRIES, INDUSTRY_EXAMPLE_LINKS, watchList, websitesLine } from './industries';
+import { ANY_INDUSTRY, INDUSTRIES, watchList, websitesLine } from './industries';
 import { PAGES } from './pages';
 import { SITE_URL } from './site';
 import { SOURCE_DEPTH, SOURCES } from './sources';
@@ -61,11 +60,6 @@ describe('industry and guide copy', () => {
       expect(i.clientLabel, i.slug).toMatch(/^an? /);
       expect(JSON.stringify(i), i.slug).not.toMatch(/botox|invisalign|coolsculpting/i);
     }
-  });
-
-  it('the announcement bar links every industry it names, and every industry is named', () => {
-    for (const e of ANNOUNCEMENT.examples) expect(INDUSTRY_EXAMPLE_LINKS[e], e).toMatch(/^\/for\//);
-    expect(new Set(Object.values(INDUSTRY_EXAMPLE_LINKS))).toEqual(new Set(INDUSTRIES.map((i) => `/for/${i.slug}`)));
   });
 
   it('every guide has its own committed image with alt text', () => {

@@ -512,20 +512,3 @@ export const ANY_INDUSTRY = {
   body: 'These trades are examples. Any local business works the same way: we search its area, suggest the rivals that matter and watch them every week.',
   link: 'See what it watches, by industry →',
 } as const;
-
-/** Examples in the announcement bar that have an industry page (rendered as a quiet link). */
-export const INDUSTRY_EXAMPLE_LINKS: Readonly<Record<string, string>> = {
-  HVAC: '/for/hvac',
-  plumbing: '/for/plumbing',
-  dental: '/for/dental',
-  roofing: '/for/roofing',
-  electrical: '/for/electrical',
-  landscaping: '/for/landscaping',
-  'pest control': '/for/pest-control',
-  cleaning: '/for/cleaning',
-  'auto repair': '/for/auto-repair',
-  'med spas': '/for/med-spas',
-  veterinary: '/for/veterinary',
-  'law firms': '/for/law-firms',
-  salons: '/for/salons',
-};

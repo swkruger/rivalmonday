@@ -7,49 +7,47 @@ const join = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
-const web = vi.hoisted(() => ({ live: false }));
-vi.mock('../../../content/website-monitoring', () => ({
-  get WEBSITE_MONITORING_LIVE() {
-    return web.live;
-  },
-}));
-
 import { HERO, HOME_IMAGES } from '../../../content/home';
 import { Hero } from './hero';
 
 beforeEach(() => {
-  web.live = false;
   pilot.pilotMode = true;
   join.open.mockClear();
 });
 
 describe('Hero', () => {
-  it('renders the decided headline, eyebrow and sub exactly', () => {
+  it('headline is the decided lead and mark in one h1', () => {
     const { container } = render(<Hero />);
     const h1 = container.querySelector('h1')!;
-    expect(h1.textContent).toBe(HERO.headline);
+    expect(h1.textContent).toBe('Tell every client what their rivals did this week.');
+    expect(h1.textContent).toBe(`${HERO.headline.lead} ${HERO.headline.mark}`);
+    const mark = [...h1.querySelectorAll('span')].find((e) => e.textContent === 'this week.')!;
+    expect(mark).toBeTruthy();
+    expect(mark.className).toContain('whitespace-nowrap');
     expect(screen.getByText(HERO.eyebrow)).toBeTruthy();
     expect(screen.getByText(HERO.eyebrowPill)).toBeTruthy();
-    expect(screen.getByText(HERO.subNoWeb)).toBeTruthy();
     expect(screen.getByText(HERO.finePrint)).toBeTruthy();
     expect(screen.getByRole('button', { name: HERO.heroCta })).toBeTruthy();
   });
 
-  it('headline is the D1 line', () => {
-    expect(HERO.headline).toBe('Your competitors are making moves. Are you watching?');
+  it('sub is the decided line', () => {
+    const { container } = render(<Hero />);
+    const sub = container.querySelector('h1 + p')!.textContent;
+    expect(sub).toBe('Rival Monday tracks their map rankings, reviews and ads, then writes a Monday brief with the evidence attached. You sell it under your brand, at your price.');
+    expect(sub).toBe(HERO.sub);
   });
 
-  it('sub does not mention changing prices while website monitoring is not live', () => {
-    const { container } = render(<Hero />);
-    expect(container.querySelector('h1 + p')!.textContent).toBe(HERO.subNoWeb);
-    expect(container.querySelector('h1 + p')!.textContent).not.toMatch(/changing prices/i);
+  it('secondary button is hidden on phones', () => {
+    render(<Hero />);
+    const link = screen.getByRole('link', { name: HERO.secondaryCta });
+    expect(link.className).toContain('hidden');
+    expect(link.className).toContain('sm:inline-flex');
   });
 
-  it('sub names changing prices once website monitoring is live', () => {
-    web.live = true;
+  it('the radar is still', () => {
     const { container } = render(<Hero />);
-    expect(container.querySelector('h1 + p')!.textContent).toBe(HERO.sub);
-    expect(container.querySelector('h1 + p')!.textContent).toMatch(/changing prices/i);
+    for (const el of container.querySelectorAll('[class]')) expect(el.getAttribute('class'), el.outerHTML.slice(0, 80)).not.toMatch(/sweep|blip/);
+    expect(container.querySelector('.radar svg')).toBeTruthy();
   });
 
   it('primary button opens the join dialog on the sample start', () => {
@@ -112,7 +110,7 @@ describe('Hero', () => {
     expect(container.querySelectorAll('.night-veil')).toHaveLength(1);
   });
 
-  it('the pilot pill is the only orange fill; the other orange (underline, radar blips) is decorative and aria-hidden (D14)', () => {
+  it('the pilot pill is the only orange fill; the other orange (the headline underline) is decorative and aria-hidden (D14)', () => {
     const { container } = render(<Hero />);
     const amber = [...container.querySelectorAll('[class*="bg-amber"]')];
     expect(amber.map((e) => e.getAttribute('data-slot') ?? e.textContent)).toEqual(['Pilot']);

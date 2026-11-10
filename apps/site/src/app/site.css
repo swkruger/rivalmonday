@@ -20,10 +20,10 @@
 }
 
 @theme inline {
-  /* Display headings (spec D14 canvas): 48 px on phones → 82 px at 1440 → 96 px from ~1740 px. */
-  --text-display: clamp(3rem, 1rem + 4.6vw, 6rem);
-  --text-display--line-height: .96;
-  --text-display--letter-spacing: -0.045em;
+  /* Display headings (PA4): 40 px on phones → 68 px from ~1200 px. */
+  --text-display: clamp(2.5rem, 1.4rem + 3.2vw, 4.25rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.04em;
   /* Section headings (D14): 34 → 56 px. */
   --text-section: clamp(2.125rem, 4.4vw, 3.5rem);
   --text-section--line-height: 1.04;
@@ -134,25 +134,8 @@
   .btn-ink-ghost:hover { background: color-mix(in srgb, var(--surface) 8%, transparent); }
   .btn-ink-ghost:focus-visible { outline: 2px solid var(--surface); outline-offset: 2px; }
 
-  /* D14 hero radar: slow sweep, faint rings, a few pulsing amber blips. Decorative (`aria-hidden`), never clickable. */
+  /* D14 hero radar: faint still rings (`RadarRings`). Decorative (`aria-hidden`), never clickable. */
   .radar { position: absolute; pointer-events: none; }
-  .radar-sweep {
-    position: absolute;
-    inset: 50px;
-    border-radius: 9999px;
-    background: conic-gradient(from 0deg, color-mix(in srgb, var(--primary) 30%, transparent), transparent 75deg, transparent 360deg);
-    opacity: .8;
-    animation: radar-sweep 9s linear infinite;
-  }
-  .radar-blip {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    margin: -5px 0 0 -5px;
-    border-radius: 9999px;
-    background: var(--amber);
-    animation: radar-blip 2.4s ease-out infinite;
-  }
   /* Site pictures (owner's canvas "image frame ideas", B range ring + C scan tag; `components/media/scan-frame.tsx`):
      a white mat with an ink hairline and a soft drop shadow, the picture in a rounded window, range rings arcing in
      from the top-right corner, and a frosted ink tag bottom-left. Nothing sits outside the
@@ -283,8 +266,6 @@
 [data-slot="status-chip"], [data-slot="tag"] { border-radius: 6px; }
 
 @keyframes reveal-quick { from { opacity: 0; transform: translateY(6px); } }
-@keyframes radar-sweep { to { transform: rotate(360deg); } }
-@keyframes radar-blip { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--amber) 60%, transparent); } 100% { box-shadow: 0 0 0 22px transparent; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
 
@@ -293,8 +274,6 @@
     animation: none !important;
     transition: none !important;
   }
-  /* The hero radar's motion is gone altogether (rings stay). */
-  .radar-sweep, .radar-blip { display: none; }
 }
 
 /* A page that ends on the ink CTA band runs straight into the footer (no white strip between them). */
