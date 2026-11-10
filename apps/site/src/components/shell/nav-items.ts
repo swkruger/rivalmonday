@@ -34,7 +34,7 @@ export function sidePaths(): { agency: string[]; business: string[] } {
   };
 }
 
-const COLUMNS:FooterColumn[] = [
+const COLUMNS: FooterColumn[] = [
   {
     heading: 'Product',
     links: [

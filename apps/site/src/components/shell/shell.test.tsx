@@ -210,6 +210,7 @@ describe('site shell', () => {
     expect(sideFor('/partners')).toBe('agency');
     expect(sideFor('/business/pricing/')).toBe('business');
     expect(sideFor('/agencies/nope')).toBe('both');
+    expect(sideFor('/partners/x')).toBe('both');
     nav.pathname = '/';
   });
 

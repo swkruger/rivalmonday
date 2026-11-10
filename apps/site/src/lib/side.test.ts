@@ -19,7 +19,7 @@ describe('sideOf', () => {
   });
 
   it('an unknown path under a side prefix is both', () => {
-    for (const p of ['/agencies/nope', '/business/pricing/x', '/_not-found']) expect(sideOf(p, paths), p).toBe('both');
+    for (const p of ['/agencies/nope', '/business/pricing/x', '/_not-found', '/partners/x', '/compare/unknown']) expect(sideOf(p, paths), p).toBe('both');
   });
 
   it('a trailing slash, query or hash does not change the side', () => {
@@ -27,6 +27,13 @@ describe('sideOf', () => {
       expect(sideOf(p, paths), p).toBe('agency');
     }
     expect(sideOf('/?a=1', paths)).toBe('home');
+  });
+
+  it('matches a business list entry', () => {
+    const lists = { agency: [], business: ['/business'] };
+    expect(sideOf('/business', lists)).toBe('business');
+    expect(sideOf('/business/', lists)).toBe('business');
+    expect(sideOf('/business/x', lists)).toBe('both');
   });
 });
 
