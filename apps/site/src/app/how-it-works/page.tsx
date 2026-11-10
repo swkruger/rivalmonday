@@ -1,13 +1,10 @@
 import { ArrowRight } from 'lucide-react';
 import { HERO } from '../../../content/home';
 import { HOW_IT_WORKS } from '../../../content/how-it-works';
-import { HOW_FAQ, JUMP_LINKS, ROLES, WEEK } from '../../../content/how-it-works-page';
-import { ClientView } from '../../components/client-view/client-view';
+import { HOW_FAQ, HOW_LINKS, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { GuideArticles } from '../../components/guides/guide-articles';
 import { ChecksHub } from '../../components/home/checks-hub';
 import { CtaBand } from '../../components/home/cta-band';
-import { RecommendationsSection } from '../../components/home/recommendations-section';
-import { SampleSection } from '../../components/home/sample-section';
 import { HomeSectionShell } from '../../components/home/section-heading';
 import { Steps } from '../../components/home/steps';
 import { JoinButton } from '../../components/join/join-button';
@@ -28,7 +25,7 @@ const checkSteps = HOW_IT_WORKS.sections.flatMap((s) => {
 });
 const dontDo = HOW_IT_WORKS.sections.find((s) => !NUMBERED.test(s.heading))!;
 
-/** Opens on the week the product runs to, then walks the journey with the home page's working sections, the checks and the questions. */
+/** The four steps, links to what moved to /agencies, the claim checks, the questions and the guides. */
 export default function HowItWorksPage() {
   return (
     <main>
@@ -45,23 +42,7 @@ export default function HowItWorksPage() {
               </JoinButton>
             </div>
           </div>
-          <div className="mt-12 lg:mt-16">
-            <h2 className="text-sm font-semibold text-surface">{WEEK.heading}</h2>
-            {/* Ends on Monday, the one filled stop: the whole week builds to the brief. */}
-            <ol className="mt-4 grid gap-3 lg:grid-cols-[3fr_2fr_3fr]">
-              {WEEK.stops.map((stop, i) => {
-                const monday = i === WEEK.stops.length - 1;
-                return (
-                  <li key={stop.when} className={`rounded-lg p-5 lg:p-6 ${monday ? 'bg-primary' : 'border border-surface/20 bg-ink/60'}`}>
-                    <p className={`text-13 font-medium ${monday ? 'text-ink' : 'text-muted-surface'}`}>{stop.when}</p>
-                    <h3 className={`mt-2 text-xl font-semibold ${monday ? 'text-ink' : 'text-surface'}`}>{stop.title}</h3>
-                    <p className={`mt-1 text-sm leading-relaxed ${monday ? 'text-ink' : 'text-muted-surface'}`}>{stop.body}</p>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-          <nav aria-label="On this page" className="mt-8">
+          <nav aria-label="On this page" className="mt-10">
             <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
               {JUMP_LINKS.map((l) => (
                 <li key={l.href}>
@@ -73,27 +54,15 @@ export default function HowItWorksPage() {
         </div>
       </section>
       <Steps />
-      <HomeSectionShell id={ROLES.id} labelledBy={`${ROLES.id}-heading`}>
-        <div className="max-w-3xl">
-          <h2 id={`${ROLES.id}-heading`} className="text-section font-semibold text-ink">{ROLES.heading}</h2>
-          <p className="mt-4 text-lg text-ink-secondary">{ROLES.body}</p>
-        </div>
-        <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-          {ROLES.columns.map((c) => (
-            <div key={c.who} className="border-t-2 border-secondary pt-5">
-              <h3 className="text-xl font-semibold text-ink">{c.who}</h3>
-              <ul className="mt-3 divide-y divide-line">
-                {c.lines.map((line) => (
-                  <li key={line} className="py-3 text-base text-ink-secondary">{line}</li>
-                ))}
-              </ul>
-            </div>
+      <nav aria-label="Where things moved" className="site-container pb-6 lg:pb-8">
+        <ul className="flex flex-wrap gap-x-8 gap-y-1">
+          {HOW_LINKS.map((l) => (
+            <li key={l.href}>
+              <a href={l.href} className="inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{l.label}</a>
+            </li>
           ))}
-        </div>
-      </HomeSectionShell>
-      <ClientView />
-      <SampleSection />
-      <RecommendationsSection />
+        </ul>
+      </nav>
       <ChecksHub hideLink />
       <section className="site-container pb-20 lg:pb-28" aria-labelledby="check-detail-heading">
         <div className="border-t border-line pt-12 lg:pt-16">

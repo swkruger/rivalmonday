@@ -8,7 +8,7 @@ const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
 import { CHECKS_SAMPLE_LINK, CLOSE, CLOSE_TRIAL, COUNTER_LABELS, HOW_STEPS, HERO, HOME_ANCHORS, PRICING_LINES, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
-import { HOW_FAQ, JUMP_LINKS } from '../../../content/how-it-works-page';
+import { HOW_FAQ, HOW_LINKS, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { PRICING } from '../../../content/pricing';
 import { SOURCES } from '../../../content/sources';
 import HowItWorksPage from '../../app/how-it-works/page';
@@ -49,11 +49,9 @@ afterEach(() => {
 });
 
 describe('HowItWorksPage', () => {
-  it('has the home page sections, every question in the markup and JSON-LD, and no duplicate ids', async () => {
+  it('has the steps, checks and faq sections, every question in the markup and JSON-LD, and no duplicate ids', async () => {
     const { container } = await renderApp(<HowItWorksPage />, null);
-    for (const id of ['how-it-works', 'who-does-what', 'client-view', 'sample', 'recommendations', 'checks', 'faq']) expect(container.querySelector(`section#${id}`), id).toBeTruthy();
-    expect(container.querySelector('#client-view-heading')!.textContent).toBe(SECTIONS['client-view'].heading);
-    for (const l of JUMP_LINKS) expect(container.querySelector(l.href), l.href).toBeTruthy();
+    for (const id of ['how-it-works', 'checks', 'faq', 'guides']) expect(container.querySelector(`section#${id}`), id).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const questions = HOW_FAQ.groups.flatMap((g) => g.items.map((f) => f.q));
     expect([...container.querySelectorAll('#faq summary')].map((s) => s.firstChild!.textContent)).toEqual(questions);
@@ -73,13 +71,29 @@ describe('HowItWorksPage', () => {
     }
   }, 20_000);
 
-  it('the client view tabs switch on this page too', async () => {
-    await renderApp(<HowItWorksPage />, null);
-    const tablist = screen.getByRole('tablist', { name: 'Client view' });
-    const [, brief] = within(tablist).getAllByRole('tab');
-    fireEvent.mouseDown(brief!);
-    fireEvent.click(brief!);
-    expect(brief!.getAttribute('data-state')).toBe('active');
+  it('jump links point only at ids the page renders', async () => {
+    const { container } = await renderApp(<HowItWorksPage />, null);
+    const links = [...container.querySelectorAll('nav[aria-label="On this page"] a')];
+    expect(links).toHaveLength(4);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(JUMP_LINKS.map((l) => l.href));
+    for (const a of links) expect(container.querySelector(a.getAttribute('href')!), a.getAttribute('href')!).toBeTruthy();
+  }, 20_000);
+
+  it('the page links to /agencies#client-view, /sample-brief and /agencies#recommendations', async () => {
+    const { container } = await renderApp(<HowItWorksPage />, null);
+    for (const l of HOW_LINKS) {
+      const a = container.querySelector(`main a[href="${l.href}"]`);
+      expect(a, l.href).toBeTruthy();
+      expect(a!.textContent).toBe(l.label);
+    }
+    expect(HOW_LINKS.map((l) => l.href)).toEqual(['/agencies#client-view', '/sample-brief', '/agencies#recommendations']);
+  }, 20_000);
+
+  it('no client tour, sample or recommendations board on the page', async () => {
+    const { container } = await renderApp(<HowItWorksPage />, null);
+    for (const id of ['client-view', 'sample', 'recommendations', 'who-does-what']) expect(container.querySelector(`#${id}`), id).toBeNull();
+    expect(screen.queryByRole('tablist', { name: 'Client view' })).toBeNull();
+    expect(screen.queryByText('A week with Rival Monday')).toBeNull();
   }, 20_000);
 });
 

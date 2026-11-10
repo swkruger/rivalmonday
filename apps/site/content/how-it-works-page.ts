@@ -1,5 +1,5 @@
 /**
- * /how-it-works: the week, the roles and the questions. Draft: owner signs.
+ * /how-it-works: the four steps, the claim checks and the questions. Draft: owner signs.
  * Every answer carries the claims-ledger row behind it (docs/research/2026-10-29-phase-17c-claim-check.md; test checks them).
  * Weekly collection has no fixed day, so only Sunday (map scans) and Monday (the brief) are named as days.
  */
@@ -14,43 +14,17 @@ export function weeklyCollection(live: boolean = WEBSITE_MONITORING_LIVE): strin
 
 export const JUMP_LINKS = [
   { label: 'The four steps', href: '#how-it-works' },
-  { label: 'Who does what', href: '#who-does-what' },
-  { label: 'What clients see', href: '#client-view' },
-  { label: 'A sample brief', href: '#sample' },
-  { label: 'Recommendations', href: '#recommendations' },
   { label: 'How claims get checked', href: '#checks' },
   { label: 'Questions', href: '#faq' },
   { label: 'Guides', href: '#guides' },
 ] as const;
 
-export const WEEK = {
-  heading: 'A week with Rival Monday',
-  stops: [
-    { when: 'During the week', title: 'We keep watching', body: `${weeklyCollection()}, collected weekly. Big moves send an alert.` },
-    { when: 'Sunday', title: 'We scan the map', body: 'Map rankings from a grid of points across the service area.' },
-    { when: 'Monday', title: 'The brief lands', body: 'Under your brand, with every claim linked to its evidence. Your team can edit or approve it first.' },
-  ],
-} as const;
-
-export const ROLES = {
-  id: 'who-does-what',
-  heading: 'Who does what',
-  body: 'We do the watching and the writing. You stay in charge of the client.',
-  columns: [
-    {
-      who: 'Your agency',
-      lines: ['Adds each client and picks which rivals to follow', 'Sets your name, logo, colors and prices', 'Can edit or approve each brief before it goes out', 'Chooses who gets the dashboard, Friday and MCP'],
-    },
-    {
-      who: 'Rival Monday',
-      lines: ['Suggests the rivals that matter, ranked Top rival, Worth watching or Minor', 'Collects public information and saves it as evidence', 'Writes the brief from that evidence only', 'Drops any claim it cannot back up'],
-    },
-    {
-      who: 'Your client',
-      lines: ['Gets a short brief under your brand every Monday', 'Opens the evidence behind any claim', 'Starts, finishes or dismisses recommendations', 'Asks Friday about any rival, when you switch it on'],
-    },
-  ],
-} as const;
+/** Where the tour, the sample and the board moved to (deck § 7). */
+export const HOW_LINKS: readonly { label: string; href: string }[] = [
+  { label: 'See what your clients get →', href: '/agencies#client-view' },
+  { label: 'Open the sample brief →', href: '/sample-brief' },
+  { label: 'See the recommendations board →', href: '/agencies#recommendations' },
+];
 
 const faq = (q: string, a: string, ledger: string) => ({ q, a, ledger });
 const pricingFaq = (ledger: string) => PRICING_FAQ.find((f) => f.ledger === ledger)!;
