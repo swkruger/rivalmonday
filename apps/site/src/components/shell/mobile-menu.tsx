@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@cs/ui';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { BUSINESS } from '../../../content/business';
@@ -34,8 +34,18 @@ export function MobileMenu({ menus }: { menus: { agency: NavLink[]; business: Na
         </Button>
       </SheetTrigger>
       <SheetContent side="right" aria-describedby={undefined}>
-        <SheetTitle className="px-2 pb-2">Menu</SheetTitle>
-        <AudienceSwitch className="px-1 pb-2" />
+        <div className="flex items-center justify-between pb-2">
+          <SheetTitle className="px-2">Menu</SheetTitle>
+          <SheetClose asChild>
+            <Button type="button" variant="ghost" size="icon-lg" aria-label="Close">
+              <X aria-hidden="true" />
+            </Button>
+          </SheetClose>
+        </div>
+        {/* A click on the current side changes no address, so the switch closes the sheet itself, like the row below. */}
+        <div onClick={() => setOpen(false)}>
+          <AudienceSwitch className="px-1 pb-2" />
+        </div>
         <nav aria-label="Mobile" className="flex flex-col gap-1">
           {items.map((item) => (
             <SheetClose key={item.href} asChild>

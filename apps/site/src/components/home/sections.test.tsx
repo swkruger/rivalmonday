@@ -249,10 +249,11 @@ describe('AgenciesPage', () => {
 
   it('no link on the agencies page points at an id the page does not render', async () => {
     const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
-    const dangling = [...container.querySelectorAll('a[href^="#"], a[href^="/#"]')]
+    const hrefs = [...container.querySelectorAll('a[href^="#"], a[href^="/#"], a[href^="/agencies#"]')]
       .map((a) => a.getAttribute('href')!)
-      .filter((h) => h !== '#join' && h !== '/#join')
-      .filter((h) => !container.querySelector(`[id="${h.slice(h.indexOf('#') + 1)}"]`));
+      .filter((h) => h !== '#join' && h !== '/#join' && h !== '/agencies#join');
+    expect(hrefs.length).toBeGreaterThan(0);
+    const dangling = hrefs.filter((h) => !container.querySelector(`[id="${h.slice(h.indexOf('#') + 1)}"]`));
     expect(dangling).toEqual([]);
   }, 20_000);
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { siteEnv } from '../../lib/env';
 import { buildWaitlistBody, sessionStore, sourceFrom } from '../../lib/waitlist-body';
 import { submitWaitlist } from '../../lib/waitlist-submit';
@@ -40,6 +41,13 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
   // Read at the moment of open(), so a client-side move between sides needs no remount.
   const side = useSideOrHome();
   const { pilotMode } = usePilot();
+  const pathname = usePathname();
+  const [openedAt, setOpenedAt] = useState(pathname);
+  // A new address closes the popup (state adjusted during render, no effect or timer). Not `close()`: that rewrites history.
+  if (openedAt !== pathname) {
+    setOpenedAt(pathname);
+    if (isOpen) setOpen(false);
+  }
   const live = useRef({ side, pilotMode });
   live.current = { side, pilotMode };
   const open = useCallback((next?: JoinStart) => {
@@ -71,7 +79,7 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, [open]);
+  }, [open, pathname]);
   const value = useMemo(() => ({ open, isOpen, start, close }), [open, isOpen, start, close]);
   return (
     <JoinContext.Provider value={value}>

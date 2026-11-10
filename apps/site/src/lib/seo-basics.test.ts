@@ -8,7 +8,7 @@ import { PAGES } from '../../content/pages';
 import { PRICING } from '../../content/pricing';
 import { BUSINESS_FAQ } from '../../content/pricing-page';
 import { SOURCES } from '../../content/sources';
-import { SITE_URL } from '../../content/site';
+import { SITE_NAME, SITE_URL } from '../../content/site';
 import manifest from '../app/manifest';
 import { ORG_ID, faqPageLd, organizationLd, softwareApplicationLd, websiteLd } from './json-ld';
 import { effectiveTitle, pageMetadata } from './metadata';
@@ -59,7 +59,8 @@ describe('SEO surfaces of the two sides', () => {
     expect(organizationLd([]).description).toBe(CHOOSER.eyebrow);
     expect(softwareApplicationLd().description).toBe(CHOOSER.eyebrow);
     const layout = source('', 'layout.tsx');
-    expect(layout).toContain('default: `${SITE_NAME} — ${CHOOSER.eyebrow}`');
+    expect(layout).toContain('default: SITE_NAME,');
+    expect(SITE_NAME.length).toBeLessThanOrEqual(60);
     expect(layout).not.toContain('TITLE_STEM');
   });
 

@@ -24,7 +24,8 @@ vi.mock('../join/join-provider', async (orig) => {
 });
 
 import { BUSINESS } from '../../../content/business';
-import { CHOOSER } from '../../../content/chooser';
+import { CHOOSER, SWITCH } from '../../../content/chooser';
+const CHOOSER_SWITCH_LABEL = SWITCH.label;
 import { ANNOUNCEMENT, HERO } from '../../../content/home';
 import { PAGES } from '../../../content/pages';
 const realPages = [...PAGES];
@@ -100,6 +101,23 @@ describe('site shell', () => {
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Join the free pilot' }));
     expect(openSpy).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('the menu sheet has a Close button that closes it', async () => {
+    await renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('a click on the switch inside the sheet closes it', async () => {
+    await renderShell('/agencies');
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    const dialog = screen.getByRole('dialog');
+    const current = within(within(dialog).getByRole('navigation', { name: CHOOSER_SWITCH_LABEL })).getByRole('link', { current: 'page' });
+    fireEvent.click(current);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

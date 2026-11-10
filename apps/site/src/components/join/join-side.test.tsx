@@ -141,6 +141,31 @@ describe('join popup per side', () => {
     expect(back()).toBeNull();
   });
 
+  it('the popup closes when the address changes', async () => {
+    const view = await mount('/agencies');
+    fireEvent.click(screen.getByRole('button', { name: 'Open now' }));
+    expect(screen.getByText('About your agency')).toBeTruthy();
+    const replace = vi.spyOn(window.history, 'replaceState');
+    const goBack = vi.spyOn(window.history, 'back');
+    nav.pathname = '/business';
+    view.rerender(<App />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+    expect(goBack).not.toHaveBeenCalled();
+    replace.mockRestore();
+    goBack.mockRestore();
+  });
+
+  it('a #join that arrives with a new address opens the popup after the close', async () => {
+    const view = await mount('/agencies');
+    fireEvent.click(screen.getByRole('button', { name: 'Open now' }));
+    window.history.replaceState(null, '', '/business#join');
+    nav.pathname = '/business';
+    view.rerender(<App />);
+    await act(async () => {});
+    expect(screen.getByText('About your business')).toBeTruthy();
+  });
+
   it('a popup opened on /business shows no agency plan number', async () => {
     const a = PRICING.agency;
     const nums = [a.monthlyUsd, a.yearlyUsd, ...a.extraClientTiers.map((t) => t.usd)];
