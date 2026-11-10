@@ -152,7 +152,7 @@ describe('vendor-poll → rival-finalise', () => {
     let cb: ((runId: string) => Promise<void>) | undefined;
     const pollVendorTasks = vi.fn(async (o?: { onSuggestionReviews?: (runId: string) => Promise<void> }) => {
       cb = o?.onSuggestionReviews;
-      return { reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 } };
+      return { reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 0, failed: 0, posts: 0 } };
     });
     const enqueueRivalFinalise = vi.fn(async (_runId: string) => {});
     const deps = { vendorsConfigured: () => true, pollVendorTasks } as unknown as WorkerDeps;

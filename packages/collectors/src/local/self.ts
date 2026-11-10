@@ -6,7 +6,7 @@ import { normaliseDomain } from '../rivals/names';
 import { findExistingCompetitor } from './accept';
 
 /** The client's own business is benchmarked on reviews and its GBP rating, plus a weekly Google-ads check (12b, so the scorecard has its own ad count) — never crawled; Meta ads only when page ids are pinned. */
-export const SELF_SOURCES = ['gbp', 'reviews', 'ads_google'] as const satisfies readonly SourceKind[];
+export const SELF_SOURCES = ['gbp', 'reviews', 'ads_google', 'gbp_posts'] as const satisfies readonly SourceKind[];
 
 /**
  * Links a client to a global competitor row for its own business (spec §6.5 "client vs each competitor"),

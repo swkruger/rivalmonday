@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
+import { workerLog } from '../log';
 import { createVendorJobs } from './vendor';
 
 describe('vendor jobs', () => {
@@ -19,6 +20,32 @@ describe('vendor jobs', () => {
     expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' }]);
     expect(jobs.schedule.cron).toBe('*/30 * * * *');
     expect(jobs.poll.cron).toBe('*/10 * * * *');
+  });
+
+  it('batches gbp_posts with reviews/jobs and does not enqueue it as a sync collect', async () => {
+    const deps = {
+      vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => 0),
+      claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'gbp_posts' }, { competitorId: 'c1', source: 'gbp' }]),
+      postBatchTasks: vi.fn(async () => ({ failed: 0 })),
+    } as unknown as WorkerDeps;
+    const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
+    const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
+    await jobs.schedule.handler({});
+    expect(deps.postBatchTasks).toHaveBeenCalledWith([{ competitorId: 'c1', source: 'gbp_posts' }]);
+    expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }]);
+  });
+
+  it('logs the poll result when only gbp posts were collected', async () => {
+    const info = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
+    const deps = {
+      vendorsConfigured: () => true,
+      pollVendorTasks: vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 2, failed: 0, posts: 5 } })),
+    } as unknown as WorkerDeps;
+    const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
+    await jobs.poll.handler({});
+    expect(info.mock.calls.some((c) => String(c[0]).includes('[vendor-poll]') && String(c[0]).includes('"posts":5'))).toBe(true);
+    info.mockRestore();
   });
 
   it('rejects unknown sources in collect payloads', () => {
@@ -87,7 +114,7 @@ describe('vendor jobs', () => {
   });
 
   it('skips polling when vendor credentials are not configured', async () => {
-    const pollVendorTasks = vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 } }));
+    const pollVendorTasks = vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 0, failed: 0, posts: 0 } }));
     const deps = { vendorsConfigured: () => false, pollVendorTasks } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     await jobs.poll.handler({});
@@ -97,7 +124,7 @@ describe('vendor jobs', () => {
   it('handles a skipped-reviews poll result without crashing on the collected count', async () => {
     const deps = {
       vendorsConfigured: () => true,
-      pollVendorTasks: vi.fn(async () => ({ reviews: { skipped: 'REVIEWER_HASH_SALT must be set to at least 32 random characters' }, jobs: { collected: 1, failed: 0, postings: 1 } })),
+      pollVendorTasks: vi.fn(async () => ({ reviews: { skipped: 'REVIEWER_HASH_SALT must be set to at least 32 random characters' }, jobs: { collected: 1, failed: 0, postings: 1 }, gbpPosts: { collected: 0, failed: 0, posts: 0 } })),
     } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     await expect(jobs.poll.handler({})).resolves.toBeUndefined();

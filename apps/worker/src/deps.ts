@@ -1,8 +1,8 @@
 import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
-  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyJobs, collectReadyReviews,
+  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
@@ -129,18 +129,19 @@ export interface WorkerDeps {
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta', scope?: CallScope): Promise<{ status: string }>;
   /**
-   * Posts reviews/jobs DataForSEO tasks. Reviews and jobs are handled independently: a failure
+   * Posts reviews/jobs/gbp_posts DataForSEO tasks. Each source is handled independently: a failure
    * posting one never touches the other. Each item ends up 'posted' (task created), released
    * back to due-now with last_status 'post_failed' (a VendorError posting that chunk — retried
    * next tick), or 'skipped' (the competitor was ineligible, e.g. no placeId/cid or blank name —
    * never attempted). Reviews are not posted at all while REVIEWER_HASH_SALT is unusable (see
    * reviewsSkipReason) — they are marked 'skipped_no_salt'. Returns how many sources were released for retry, for logging.
    */
-  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' }[]): Promise<{ failed: number }>;
+  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' | 'gbp_posts' }[]): Promise<{ failed: number }>;
   /** `onSuggestionReviews`: called with the run id after a discovery review sample landed (Phase 12a). */
   pollVendorTasks(opts?: { onSuggestionReviews?: (runId: string) => Promise<void> }): Promise<{
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
+    gbpPosts: { collected: number; failed: number; posts: number };
   }>;
   scanRankings(
     clientId: string,
@@ -490,6 +491,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     async postBatchTasks(items) {
       const reviewIds = items.filter((i) => i.source === 'reviews').map((i) => i.competitorId);
       const jobIds = items.filter((i) => i.source === 'jobs').map((i) => i.competitorId);
+      const postIds = items.filter((i) => i.source === 'gbp_posts').map((i) => i.competitorId);
       let failed = 0;
       // Reviews and jobs are posted and resolved independently below: a VendorError in one must
       // never affect the other's status (each has its own postedIds/failedIds from its own call).
@@ -527,6 +529,18 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
           failed += failedIds.length;
         }
       }
+      if (postIds.length > 0) {
+        const rows = await loadCompetitors(postIds);
+        const { postedIds, failedIds } = await postGbpPostTasks({ db: getDb(), dfs: getDfs() }, rows.map((c) => ({ id: c.id, placeId: c.placeId, cid: c.cid })));
+        const posted = new Set(postedIds);
+        const failedSet = new Set(failedIds);
+        // Competitors without place_id/cid are in neither list → 'skipped'.
+        for (const id of postIds) if (!failedSet.has(id)) await markSourceResult(getDb(), id, 'gbp_posts', posted.has(id) ? 'posted' : 'skipped');
+        if (failedIds.length > 0) {
+          await releaseSources(getDb(), failedIds.map((id) => ({ competitorId: id, source: 'gbp_posts' as const })), 'post_failed');
+          failed += failedIds.length;
+        }
+      }
       return { failed };
     },
     async pollVendorTasks(opts = {}) {
@@ -543,7 +557,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         reviews = await collectReadyReviews({ ...base, salt: requireSalt(env), onSuggestionReviews: opts.onSuggestionReviews });
       }
       const jobs = await collectReadyJobs(base);
-      return { reviews, jobs };
+      const gbpPosts = await collectReadyGbpPosts(base);
+      return { reviews, jobs, gbpPosts };
     },
     scanRankings: (clientId, opts) =>
       scanRankings(

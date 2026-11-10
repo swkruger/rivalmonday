@@ -3,7 +3,7 @@ import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
 import { workerLog } from '../log';
 
-const BATCH = new Set(['reviews', 'jobs']);
+const BATCH = new Set(['reviews', 'jobs', 'gbp_posts']);
 
 /**
  * Paid, long-running jobs run exactly once: a rank scan is up to ~245 DataForSEO calls and must
@@ -39,14 +39,14 @@ export function createVendorJobs(
       const linked = await deps.ensureSelfCompetitors();
       if (linked > 0) workerLog.info(`[vendor-schedule] linked ${linked} client(s) to their own business for review benchmarking`);
       const due = await deps.claimDueSources(500);
-      const batch = due.filter((d) => BATCH.has(d.source)) as { competitorId: string; source: 'reviews' | 'jobs' }[];
+      const batch = due.filter((d) => BATCH.has(d.source)) as { competitorId: string; source: 'reviews' | 'jobs' | 'gbp_posts' }[];
       // Enqueue the synchronous collects first: if the batch task_post below throws, those
       // collect jobs are already queued and unaffected by the failure handled below.
       for (const d of due) if (!BATCH.has(d.source)) await queue.enqueueCollect(d as { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' });
       if (batch.length > 0) {
         try {
           // deps.postBatchTasks already resolves each source's status itself (posted/skipped, or
-          // released back to due-now as post_failed on a VendorError — reviews and jobs
+          // released back to due-now as post_failed on a VendorError — reviews, jobs and gbp_posts
           // independently, so one failing never touches the other). Nothing here needs releasing:
           // anything already marked this tick, by definition, must not be reset.
           const { failed } = await deps.postBatchTasks(batch);
@@ -81,7 +81,7 @@ export function createVendorJobs(
       }
       const r = await deps.pollVendorTasks({ onSuggestionReviews: queue.enqueueRivalFinalise });
       const reviewsCollected = 'collected' in r.reviews ? r.reviews.collected : 0;
-      if (reviewsCollected + r.jobs.collected > 0) workerLog.info(`[vendor-poll] ${JSON.stringify(r)}`);
+      if (reviewsCollected + r.jobs.collected + r.gbpPosts.collected > 0) workerLog.info(`[vendor-poll] ${JSON.stringify(r)}`);
     },
   });
   const rankSchedule = defineJob({

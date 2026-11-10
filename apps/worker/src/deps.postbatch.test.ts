@@ -103,4 +103,61 @@ describe('WorkerDeps.postBatchTasks', () => {
       await deps.close();
     }
   });
+
+  describe('gbp_posts', () => {
+    const postsOk = () => new Response(JSON.stringify({ status_code: 20000, status_message: 'Ok.', tasks: [{ id: 'g1', status_code: 20100, status_message: 'Task Created.', result: [] }] }), { status: 200 });
+    const seedPosts = () => dbs.service.insert(competitorSource).values({ competitorId: IDS.competitorX, source: 'gbp_posts', nextDueAt: sql`now() + interval '7 days'` });
+    const statuses = async () => (await dbs.service.execute(sql`SELECT last_status, (next_due_at <= now()) AS due FROM competitor_source WHERE competitor_id = ${IDS.competitorX} AND source = 'gbp_posts'`)) as unknown as { last_status: string; due: boolean }[];
+
+    it('posts one google_posts task tagged with the competitor', async () => {
+      await seedPosts();
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+        if (String(input).includes('/business_data/google/my_business_updates/task_post')) return postsOk();
+        throw new Error(`unexpected fetch ${String(input)}`);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 's'.repeat(32) } as NodeJS.ProcessEnv);
+      try {
+        const r = await deps.postBatchTasks([{ competitorId: IDS.competitorX, source: 'gbp_posts' }]);
+        expect(r.failed).toBe(0);
+        const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { tag?: string }[];
+        expect(body).toHaveLength(1);
+        expect(body[0]!.tag).toContain(IDS.competitorX);
+        expect((await statuses())[0]).toMatchObject({ last_status: 'posted', due: false });
+        const tasks = (await dbs.service.execute(sql`SELECT kind FROM vendor_task WHERE competitor_id = ${IDS.competitorX}`)) as unknown as { kind: string }[];
+        expect(tasks.map((t) => t.kind)).toEqual(['google_posts']);
+      } finally {
+        await deps.close();
+      }
+    });
+
+    it('releases the source to due-now as post_failed on a VendorError', async () => {
+      await seedPosts();
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })));
+      const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 's'.repeat(32) } as NodeJS.ProcessEnv);
+      try {
+        const r = await deps.postBatchTasks([{ competitorId: IDS.competitorX, source: 'gbp_posts' }]);
+        expect(r.failed).toBe(1);
+        expect((await statuses())[0]).toMatchObject({ last_status: 'post_failed', due: true });
+      } finally {
+        await deps.close();
+      }
+    });
+
+    it('marks a competitor without place_id/cid skipped and posts nothing', async () => {
+      await seedPosts();
+      await dbs.service.update(competitor).set({ placeId: null, cid: null }).where(eq(competitor.id, IDS.competitorX));
+      const fetchMock = vi.fn(async () => postsOk());
+      vi.stubGlobal('fetch', fetchMock);
+      const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 's'.repeat(32) } as NodeJS.ProcessEnv);
+      try {
+        const r = await deps.postBatchTasks([{ competitorId: IDS.competitorX, source: 'gbp_posts' }]);
+        expect(r.failed).toBe(0);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect((await statuses())[0]).toMatchObject({ last_status: 'skipped', due: false });
+      } finally {
+        await deps.close();
+      }
+    });
+  });
 });

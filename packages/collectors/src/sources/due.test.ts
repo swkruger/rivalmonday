@@ -27,7 +27,7 @@ describe('claimDueSources', () => {
     expect(rows[0]?.last_status).toBe('ok');
   });
 
-  it('never claims vendor sources of a competitor nobody tracks; a self business keeps gbp/reviews/ads_google', async () => {
+  it('never claims vendor sources of a competitor nobody tracks; a self business keeps gbp/reviews/ads_google/gbp_posts', async () => {
     // Competitor U: no client_competitor link and not a self business. Competitor S: some client's self_competitor_id.
     const [u] = await dbs.owner.insert(competitor).values({ name: 'Untracked Co' }).returning();
     const [s] = await dbs.owner.insert(competitor).values({ name: 'Self Co' }).returning();
@@ -40,7 +40,7 @@ describe('claimDueSources', () => {
     );
     const claimed = await claimDueSources(dbs.service, 100);
     expect(claimed.filter((c) => c.competitorId === u!.id)).toEqual([]);
-    expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['ads_google', 'gbp', 'reviews']);
+    expect(claimed.filter((c) => c.competitorId === s!.id).map((c) => c.source).sort()).toEqual(['ads_google', 'gbp', 'gbp_posts', 'reviews']);
   });
 
   it('never claims a competitor only prospects track, nor a prospect’s own business; resumes on convert (5b-2 decision 9)', async () => {
@@ -51,10 +51,12 @@ describe('claimDueSources', () => {
     await dbs.owner.update(client).set({ selfCompetitorId: self!.id }).where(eq(client.id, IDS.clientA2));
     await ensureCompetitorSources(dbs.service, IDS.competitorX);
     await ensureCompetitorSources(dbs.service, IDS.competitorY);
-    await ensureCompetitorSources(dbs.service, self!.id, ['gbp', 'reviews']);
+    await ensureCompetitorSources(dbs.service, self!.id, ['gbp', 'reviews', 'gbp_posts']);
     expect(new Set((await claimDueSources(dbs.service, 100)).map((c) => c.competitorId))).toEqual(new Set([IDS.competitorX]));
     await dbs.owner.update(client).set({ status: 'active' }).where(eq(client.id, IDS.clientA2));
-    expect(new Set((await claimDueSources(dbs.service, 100)).map((c) => c.competitorId))).toEqual(new Set([IDS.competitorY, self!.id]));
+    const resumed = await claimDueSources(dbs.service, 100);
+    expect(new Set(resumed.map((c) => c.competitorId))).toEqual(new Set([IDS.competitorY, self!.id]));
+    expect(resumed.some((c) => c.competitorId === self!.id && c.source === 'gbp_posts')).toBe(true);
   });
 });
 
