@@ -3,14 +3,14 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (implementer + reviewer per task, final review on the top model, one fix wave). Steps use `- [ ]`.
 
 **Goal:** A monthly, search-only audit of where Google finds the client and its top rivals on the directories its vertical picked (listed / not found / name and phone shown), shown on a new client **Listings** page, read by `get_citation_audit` (web, MCP, Friday), turned into a `citation_gap` starting-point finding with a `fix_citations` play, and into Minor brief lines when a tracked rival is newly found on a directory.
-**Architecture:** A daily worker cron queues due clients. A per-client job runs a two-stage organic search per business (one `"<name>" "<phone>"` search at depth 50, then `site:` searches only for the catalogue directories stage 1 missed). Deterministic matching (no model) writes global `citation_listing` rows and a tenant `citation_audit_run`. A `citation_diff` stage then emits global `citation_added` changes; these are scored with a fixed T/4 score and always archived, so they reach only the graded brief lines.
+**Architecture:** A daily worker cron queues due clients. A per-client job runs two organic searches per business, both depth 20 ($0.004 each): `"<name>" "<phone>"`, then one `"<name>" <city>` for the catalogue hosts stage 1 missed (no `site:` queries, B2). Hosts come from each result's `breadcrumb`/`website_name` (B1). Deterministic matching (no model) writes global `citation_listing` rows and a tenant `citation_audit_run`. A `citation_diff` stage then emits global `citation_added` changes; these are scored with a fixed T/4 score and always archived, so they reach only the graded brief lines.
 **Tech stack:** TypeScript, Drizzle + Postgres RLS, Vitest, pg-boss worker, Next.js App Router, `@cs/ui`.
 **Spec (binding):** `docs/superpowers/specs/2026-11-10-phase-18c-citations-design.md` (C1–C12, Interfaces, Copy). Read it before any task. Owner decisions: `docs/work/phase-18c.md`.
 
 ## Global constraints
 - **No evidence, no claim; never "not listed":** a host that searches did not find is `not_found` ("Not found in Google search"). A host not searched (vendor error, cap, never) has **no row written by this run** and reads `not_checked`. No mismatch without a phone or name in the stored result text (C6).
 - **Never stored and never searched:** `BANNED_CITATION_HOSTS = ['yelp.com','healthgrades.com','zocdoc.com','nextdoor.com']`, subdomains included. They may appear only inside the raw vendor capture. Never search a directory the vertical didn't pick (C4). No listing-page reads (C1). Client text names the category, never the vendor.
-- Cost: `CITATION_RUN_CAP_USD = 0.20` per client run. Depth-10 call = `SERP_CALL_USD` (0.002). Depth-50 price is set by Task 0 (> $0.01/call ⇒ stage 1 uses depth 20). Spend guard = `checkRankScanBudget`. Ledger scope `{ agencyId, clientId, verticalId }` (credits). All calls go through `DataForSeoClient` (limiter + ledger).
+- Cost: `CITATION_RUN_CAP_USD = 0.20` per client run. Every citation call = depth 20 = `CITATION_CALL_USD` 0.004 (2 per business, ≤ $0.032 per run of self + 3); never `site:`, never depth 50 (Task 0). Spend guard = `checkRankScanBudget`. Ledger scope `{ agencyId, clientId, verticalId }` (credits). All calls go through `DataForSeoClient` (limiter + ledger).
 - Cadence (C10): first run once `client_setup.competitors_done_at` is set (or the client has no setup row), then every 30 days after the last `done`/`capped` run. Audited = self + `competitor_signal.tier = 'top'` by `overlap` (≤ 3); fallback = the 3 tracked rivals with the highest overlap. A competitor checked < 25 days ago (by any client) is reused, not searched. No "check now".
 - Scheduling: `clientWorkAllowed` ∧ `agencyServiceable` ∧ `client.status = 'active'` (via those filters); one worker replica; `singletonKey 'citation:<clientId>:<yyyy-mm-dd>'`.
 - Events (C7/C8): only a **tracked rival** newly found (`not_found` → `listed`) emits a change. The first audit is a silent baseline. Self never emits one. `listed` → `not_found` emits nothing. Score = `thresholds.brief / 4`, route **always `archive`**, never an alert or a brief item, graded **Minor**.
@@ -25,7 +25,7 @@
 - **P1 `newly_found_at` column (adds to spec migration).** Nothing else in the spec's columns tells "was `not_found` before" apart from "first check found it", and the diff must be retry-safe (`runStage`). The upsert sets it when a catalogue row goes `not_found` → `listed`. The diff reads it.
 - **P2 Unchecked hosts write nothing.** A vendor error, the cap or a skipped stage leaves an existing row untouched and inserts no `not_checked` row (the tool maps "no row" to `not_checked`). A listed span is never reset by an error.
 - **P3 Matching tightens C6 for common names (Review focus 1):** a name whose tokens, after dropping the city and legal words, are all trade words (`GENERIC_NAME_TOKENS`, e.g. "Dallas Plumbing" → `plumbing`) counts as a name hit only on an exact token match of the title head. The reverse-containment rule needs ≥ 2 title tokens, at least one distinctive. Phones are matched as whole US phone numbers (`usPhones`), not as a digit substring.
-- **P4 Stage 1 failure** (vendor error) ⇒ treated like "no phone": stage 2 for every catalogue host, `phone_match` null.
+- **P4 Stage 1 failure** (vendor error) ⇒ treated like "no phone": stage 2 classifies every catalogue host, `phone_match` null.
 - **P5 City for rivals:** `cityFromAddress(gbp address)` (GBP has no city field), else the client's city.
 - **P6 `min_missing`:** the self-rule reads `rule.params.min_missing` (runbook-editable), fallback 3. `citations.min_missing` stays in the schema per spec but no engine code reads it (noted in the package CLAUDE.md).
 - **P7 Grading:** `groupChanges` forces `citation_added` to `minor`, so T = 0 (score 0 ≥ 0) can never make it Major.
@@ -41,19 +41,23 @@
 
 ## Dependencies on in-flight work (re-check at Task 0)
 - `site-audiences`: touches only `apps/site`, claims no migration, env or `apps/web` change. `apps/site/content/roadmap.ts:33` stays.
+- **P13 Host derivation (B1, fixes 18b-2):** organic `url`/`domain` are google.com/goto wrappers. `parseSerp` sets `domain` from `breadcrumb` (`https://www.angi.com › TX › Granbury` → `angi.com`, `www.` stripped), else `WEBSITE_NAME_HOSTS[website_name]`, else keeps the vendor domain; `listingUrl` = `https://<host>` + the breadcrumb path (dropped when truncated with "…"). One change in `rankings/serp.ts` also makes `get_search_visibility` / `structured/serp.ts` match the self/rival domain for scans stored after this branch (older `serp_snapshot` rows stay unmatched; no backfill).
+- **P14 Stage 2 (B2):** one `"<name>" <city>` search per business, depth 20, classified against every host stage 1 missed; `citations:name_city` capture; no per-host queries.
+- **P15 Listed rule (B3):** `phoneHit`, or `nameHit` ∧ city in title/snippet (city null → `nameHit`). The old "path ≠ /" rule is dropped (breadcrumb paths are often truncated).
+- **P16 `name_match` rule (B4):** false only when the snippet has exactly one phone, it is the business's, `¬nameHit` and the title is not a category page; else null.
 - Migration number: next free on main is **0107** (main @ 88974241). Re-check `ls packages/db/migrations | tail -2` after rebasing.
 
 ## Review focus (each pinned by a test in the named task)
 1. **Common business names give false-positive listings** ("Dallas Plumbing", a "Best plumbers in Dallas" category page). Task 3: `generic-name needs exact head`, `category page is no hit`.
 2. **A phone in another format counts as a mismatch.** Task 3: `(214) 555-0101 / 214.555.0101 / +1 214-555-0101 all match`; zip + street digits are no phone.
-3. **Excluded or unpicked hosts leak into rows or queries** (yelp, `m.yelp.com`, a dentist searched on Angi). Tasks 1, 4, 5: `banned subdomain is a schema error`, `banned host never stored`, `dental never queries site:angi.com`.
+3. **Excluded or unpicked hosts leak into rows or queries** (yelp, `m.yelp.com`, a dentist searched on Angi). Tasks 1, 4, 5: `banned subdomain is a schema error`, `banned host never stored`, `dental catalogue never classifies or stores angi.com` and `stage-2 query has no site:`.
 4. **A rival found late is labelled "new" or emits twice** (first audit, reuse by a second client, a retry, `not_checked` → listed). Task 6: `baseline silent`, `not_checked→listed silent`, `reused rival no second change`, `rerun idempotent`.
 5. **Cost cap overrun on a large rival set or tenant leak via the global table.** Task 4: `stops before crossing 0.20`. Task 2/9: `client B cannot read A-only rows / audit run`; tool `not_found` for an out-of-scope client.
 
 ---
 
 ### Task 0: Pre-flight + live probe (controller; STOP point) — DONE 2026-11-10, results in `docs/work/phase-18c.md` § Task 0 results
-> **Task 0 outcome (binding until the controller rules otherwise):** migration stays **0107**; `STAGE1_DEPTH = 20`, `CITATION_CALL_USD.stage1 = 0.004` (depth 50 failed 2/2 with 40101); **Bing Places and Apple Maps removed** (0 hits); fixtures saved from the live probe (public business data, person names redacted). **Open blockers before Task 3b/4** (controller/owner rulings, see `preflight-scan.md` B1–B4): organic `url`/`domain` are Google `goto` wrappers (host only in `breadcrumb`/`website_name`); the `site:` operator is ignored by the vendor and billed $0.01/call, so stage 2 as specified does not work; name-only hits need a city check; phone-only hits on category pages must not yield "Name differs".
+> **Task 0 outcome (binding; blockers B1–B4 ruled, see P13–P16):** migration stays **0107**; `CITATION_DEPTH = 20`, `CITATION_CALL_USD = 0.004` (depth 50 failed 2/2 with 40101); **Bing Places and Apple Maps removed** (0 hits); fixtures saved from the live probe (public business data, person names redacted). Findings behind P13–P16: goto wrappers hide the host; `site:` is ignored and billed $0.01; name-only hits need a city check; phone-only category hits must not yield "Name differs".
 **Goal:** Re-check every interface in this plan against `main`, and decide depth, Bing Places / Apple Maps and recall from a live probe (≤ $0.10, owner-approved with the plan).
 - [ ] `git fetch && git rebase origin/main`; `git branch --no-merged main`; `ls packages/db/migrations | tail -2` → set the migration number (rename `0107_citations` everywhere if it changed).
 - [ ] Grep-confirm (fix this plan inline if any drifted): `CHANGE_TYPES/CHANNELS/SELF_RULE_IDS` in `packages/core/src/domain.ts`; `topicOf`/`gradeFor` in `packages/core/src/brief-report.ts`; `parseSerp` caps at `SERP_DEPTH`; `checkRankScanBudget(db, clientId, usd)`; `recordVendorCapture`; `runStage`/`supersedePriorChanges`; `detected_change_unique (after_capture_id, kind, block_key, stage_version)`; `scoreForClient` threshold source; `groupChanges`; `PLAYBOOK_VARS`; the operator vertical form = `apps/web/src/app/(platform)/platform/verticals/catalog-queue.tsx` + tool `review_vertical` (`packages/tools/src/tools/platform-verticals.ts`).
@@ -189,68 +193,84 @@ export function cityFromAddress(a: string | null): string | null {
 **Tests (first):** `normaliseName('ABC Plumbing & Heating, LLC', 'Dallas')` = `['abc','plumbing','heating']`. **RF1** `generic-name needs exact head`: `nameHit('Dallas Plumbing Co - Dallas, TX', 'Dallas Plumbing', 'Dallas')` true; `nameHit('Plumbing Services in Dallas, TX', 'Dallas Plumbing', 'Dallas')` false. `category page is no hit`: `nameHit('Best Plumbers in Dallas, TX - Updated 2026', 'ABC Plumbing', 'Dallas')` false. `nameHit('ABC Plumbing 123 Main St, Dallas, TX 75201 - YP.com', 'ABC Plumbing LLC', 'Dallas')` true. Reverse: `nameHit('Smith Dental Care | Facebook', 'Smith Family Dental Care PLLC', null)` true; `nameHit('Smith | Facebook', 'Smith Plumbing', null)` false. **RF2** `usPhones` of `"(214) 555-0101"`, `"214.555.0101"`, `"+1 214-555-0101"`, `"2145550101"` = `['2145550101']`; `"TX 75201, Suite 214, 555 Elm"` = `[]`; `phone10('+1 (214) 555-0101')` = `'2145550101'`; `phone10('555-0101')` null. `cityFromAddress('9 Oak Ave, Granbury, TX 76048, United States')` = `'Granbury'`.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations/match.test.ts`; tsc.
 
+### Task 3a2: `parseSerp` real host, description, listing URL (runs before 3b)
+**Goal:** Organic items carry the real host (P13) so citations and 18b-2 match; add `description`.
+**Files:** `packages/collectors/src/rankings/serp.ts` (+ `serp.test.ts`); `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem` += `description?: string | null`, `listingUrl?: string | null`).
+**Interfaces:**
+```ts
+export const WEBSITE_NAME_HOSTS: Record<string, string> = { Facebook: 'facebook.com', Yelp: 'yelp.com', "Angie's List": 'angi.com', Angi: 'angi.com',
+  'Better Business Bureau': 'bbb.org', BBB: 'bbb.org', 'Yellow Pages': 'yellowpages.com', YP: 'yellowpages.com', Manta: 'manta.com', Foursquare: 'foursquare.com',
+  MapQuest: 'mapquest.com', HomeAdvisor: 'homeadvisor.com', Thumbtack: 'thumbtack.com', Houzz: 'houzz.com', Porch: 'porch.com', Nextdoor: 'nextdoor.com' };
+export function organicHost(o: { breadcrumb?: string | null; website_name?: string | null; domain?: string | null }): { host: string | null; path: string | null };
+export function parseSerp(raw: unknown, max = 10): SerpResult; // item.domain = organicHost.host ?? vendor domain; listingUrl = https://host + path (or null)
+```
+**Behaviour:**
+- zod item gains `breadcrumb`, `website_name`, `description` (all nullish). `url` stays the vendor value (never used as a host).
+- Breadcrumb `^https?://([^\s›]+)(\s*›\s*(.+))?$`: host lowercased, `www.` stripped; path = segments joined `/` unless any segment contains `…`/`...`. Not a URL (e.g. "30+ comments · 2 years ago") → `website_name` (text before " · ") via `WEBSITE_NAME_HOSTS`; no match → keep the vendor `domain`, `listingUrl` null.
+- Default `max` stays 10 (`SERP_DEPTH`), so 18b-2 callers are unchanged; citations pass 20.
+**Tests (first):** with `citations/__fixtures__/citation-stage1.json`: the Angi item → `domain 'angi.com'`, `listingUrl 'https://angi.com/TX/Granbury'`; the Yelp item (truncated crumb) → `yelp.com`, `listingUrl 'https://yelp.com'`; the Facebook item with a non-URL crumb → `facebook.com`; an unmapped item keeps the vendor domain. 18b-2 `rankings/__fixtures__/serp-live.json` now yields real hosts: no item with a breadcrumb keeps `google.com`; `yelp.com`, `aireserv.com`, `comfortexpertsinc.com` (www stripped). `description` kept; `max` 20 honoured. **Matching fixed:** extend `packages/tools/src/tools/rankings.test.ts` (`get_search_visibility (18b-2)`): a snapshot built via `parseSerp(serp-live.json)` finds the self/rival whose domain is `aireserv.com`; extend `packages/engine/src/structured/serp.test.ts` (`diffSerp`): a snapshot from `parseSerp(serp-live.json)` makes a rival on `comfortexpertsinc.com` a page-one entry.
+**Done when:** `pnpm --filter @cs/collectors exec vitest run src/rankings/serp.test.ts`; `pnpm --filter @cs/tools exec vitest run src/tools/rankings.test.ts`; `pnpm --filter @cs/engine exec vitest run src/structured/serp.test.ts`; tsc (`@cs/db`, `@cs/collectors`).
+
 ### Task 3b: Listing match + "Also found on" (pure)
-**Goal:** Pick a business's listing on one catalogue host, and the strict uncatalogued hits (C6, C12).
-**Files:** `packages/collectors/src/citations/match.ts` (+ test); `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem.description?: string | null`, moved here from Task 4 because `matchListing` reads it).
-**Code (binding; host derivation pending blocker B1 — live items carry `google.com/goto` URLs):**
+**Goal:** Pick a listing on one catalogue host, plus strict uncatalogued hits (C6, C12, P15, P16).
+**Files:** `packages/collectors/src/citations/match.ts` (+ test). Items are `parseSerp` output (Task 3a2): `domain` = real host, `listingUrl`.
+**Code (binding):**
 ```ts
 export interface CitationBiz { name: string; phone: string | null; city: string | null; domain: string | null }
 export interface ListingMatch { url: string; title: string | null; nameMatch: boolean | null; phoneMatch: boolean | null; shownPhone: string | null }
 export const NOT_DIRECTORY_HOSTS = ['youtube.com', 'wikipedia.org'] as const; // plus any google.<tld>, the business's own domain
 export const ALSO_FOUND_MAX = 10;
-const urlParts = (url: string | null): { host: string; path: string } | null => {
-  try { const u = new URL(url ?? ''); return { host: u.hostname.toLowerCase().replace(/^www\./, ''), path: u.pathname || '/' }; } catch { return null; }
-};
+const hostOf = (it: SerpOrganicItem): string | null => (it.domain ?? '').toLowerCase().replace(/^www\./, '') || null;
 const bare = (d: string) => d.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]!;
-/** C6: items in rank order; best = name and phone, else the first hit. */
+const cityHit = (text: string, city: string | null) => !city || text.toLowerCase().includes(city.toLowerCase());
+/** C6: rank order; best = name and phone, else the first listed item. */
 export function matchListing(items: SerpOrganicItem[], host: string, biz: CitationBiz): ListingMatch | null {
   const p = phone10(biz.phone);
   let best: ListingMatch | null = null;
   for (const it of items) {
-    const u = urlParts(it.url);
-    if (!u || u.path === '/' || !onHost(u.host, host) || isBannedHost(u.host)) continue;
-    const phones = usPhones(`${it.title ?? ''} ${it.description ?? ''}`);
+    const h = hostOf(it);
+    if (!h || !onHost(h, host) || isBannedHost(h)) continue;
+    const text = `${it.title ?? ''} ${it.description ?? ''}`, phones = usPhones(text);
     const nh = nameHit(it.title, biz.name, biz.city), ph = p !== null && phones.includes(p);
-    if (!nh && !ph) continue;
+    if (!ph && !(nh && cityHit(text, biz.city))) continue;                            // P15
     const other = p !== null && nh && !ph ? (phones.find((x) => x !== p) ?? null) : null;
-    const m: ListingMatch = { url: it.url!, title: it.title, nameMatch: nh, phoneMatch: ph ? true : other ? false : null, shownPhone: other };
+    const nameFalse = ph && !nh && phones.length === 1 && !isCategoryTitle(it.title); // P16
+    const m: ListingMatch = { url: it.listingUrl ?? `https://${h}`, title: it.title, nameMatch: nh ? true : nameFalse ? false : null,
+      phoneMatch: ph ? true : other ? false : null, shownPhone: other };
     if (nh && ph) return m;
     best ??= m;
   }
   return best;
 }
-/** C12: stage-1 hits outside the catalogue, name AND phone, never own/banned/not-a-directory hosts; <= 10, one per host. */
+/** C12: hits outside the catalogue, name AND phone, never own/banned/not-a-directory hosts; <= 10, one per host. */
 export function alsoFoundOn(items: SerpOrganicItem[], catalogueHosts: string[], biz: CitationBiz): { host: string; url: string; title: string | null }[] {
   const p = phone10(biz.phone);
   if (!p) return [];
-  const own = biz.domain ? bare(biz.domain) : null;
-  const out = new Map<string, { host: string; url: string; title: string | null }>();
+  const own = biz.domain ? bare(biz.domain) : null, out = new Map<string, { host: string; url: string; title: string | null }>();
   for (const it of items) {
-    const u = urlParts(it.url);
-    if (!u || u.path === '/' || out.has(u.host) || out.size >= ALSO_FOUND_MAX) continue;
-    const h = u.host;
+    const h = hostOf(it);
+    if (!h || out.has(h) || out.size >= ALSO_FOUND_MAX) continue;
     if (catalogueHosts.some((c) => onHost(h, c)) || isBannedHost(h) || NOT_DIRECTORY_HOSTS.some((n) => onHost(h, n))
       || /(^|\.)google\.[a-z.]+$/.test(h) || (own && onHost(h, own))) continue;
-    if (nameHit(it.title, biz.name, biz.city) && usPhones(`${it.title ?? ''} ${it.description ?? ''}`).includes(p)) out.set(h, { host: h, url: it.url!, title: it.title });
+    if (nameHit(it.title, biz.name, biz.city) && usPhones(`${it.title ?? ''} ${it.description ?? ''}`).includes(p)) out.set(h, { host: h, url: it.listingUrl ?? `https://${h}`, title: it.title });
   }
   return [...out.values()];
 }
 ```
-`shownPhone` is stored as 10 digits; the page formats it with `formatPhone`.
-**Tests (first):** (Task 0 fixture + hand rows) `bbb.org/` root skipped; `m.facebook.com/x` matches `facebook.com`; name+phone beats an earlier name-only item; name hit + other phone → `phoneMatch false`, `shownPhone '2145550199'`; phone-only → `nameMatch false`; no phone → `phoneMatch null`; a `yelp.com` item never matches (**RF3**). `alsoFoundOn`: news article with the name but not the phone → excluded; `chamberofcommerce.com` with both → included; own domain, `maps.google.com`, `youtube.com`, catalogue subdomain → excluded; 12 hosts → 10.
+`isCategoryTitle(title)` (in `match.ts`, Task 3a's category cases): "Best …", "Top N …", "… near me", "<trade> in <city>".
+**Tests (first):** (`parseSerp(citation-stage1.json)` + hand rows) the Angi item matches `angi.com`, url `https://angi.com/TX/Granbury`; `m.facebook.com` matches `facebook.com`; name+phone beats earlier name-only; **B3** name hit without the city in title/snippet → null, with the city → listed, phone-only → listed; name hit + other phone → `phoneMatch false`, `shownPhone '2145550199'`; **B4** phone-only, one phone, normal title → `nameMatch false`; on a "Best Plumbers in Dallas" title or with two phones → `nameMatch null`; no phone → `phoneMatch null`; `yelp.com` never matches (**RF3**). `alsoFoundOn`: name without phone → excluded; `chamberofcommerce.com` with both → included; own domain, `maps.google.com`, `youtube.com`, catalogue subdomain → excluded; 12 hosts → 10.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations/match.test.ts`.
 
 ### Task 4: Search, business audit, upsert, cost cap
-**Goal:** `parseSerp` keeps `description`. The two-stage audit of one business writes captures and rows within the budget.
-**Files:** `packages/collectors/src/rankings/serp.ts` (+ test), create `citations/{search,audit}.ts` (+ tests), `index.ts` exports, `vendors/fixture-fetch.ts` (canned stage-1/site answers from the Task 0 fixtures).
+**Goal:** The two-search audit of one business (P14) writes captures and rows within the budget.
+**Files:** create `packages/collectors/src/citations/{search,audit}.ts` (+ tests), `index.ts` exports, `vendors/fixture-fetch.ts` (canned stage-1/stage-2 answers from the Task 0 fixtures).
 **Interfaces:**
 ```ts
-export function parseSerp(raw: unknown, max = 10): SerpResult;           // organic items gain description
-export const CITATION_CALL_USD = { depth10: SERP_CALL_USD, stage1: 0.004 } as const; // Task 0: depth 20 = 2 pages x $0.002; a site: query was billed $0.01 (B2)
-export const STAGE1_DEPTH: 20 | 50 = 20;                                  // Task 0 ruling (depth 50 -> 40101 on narrow quoted queries)
+export const CITATION_CALL_USD = 0.004;   // depth 20 = 2 pages x $0.002; both stages (Task 0; a site: query was billed $0.01, B2)
+export const CITATION_DEPTH = 20;         // depth 50 -> 40101 on narrow quoted queries
 export const CITATION_RUN_CAP_USD = 0.2;
 export const CITATIONS_SOURCE = 'directories';
-export async function citationSearch(dfs: DataForSeoClient, q: { query: string; depth: 10 | 20 | 50 }, scope: CallScope): Promise<{ organic: SerpOrganicItem[]; raw: unknown[] }>;
+export async function citationSearch(dfs: DataForSeoClient, q: { query: string; depth: 20 }, scope: CallScope): Promise<{ organic: SerpOrganicItem[]; raw: unknown[] }>;
 export interface CitationBudget { spentUsd: number; readonly capUsd: number }  // mutated by auditBusiness
 export interface CitationRow { host: string; status: 'listed' | 'not_found'; inCatalogue: boolean; match: ListingMatch | null; captureId: string }
 export async function auditBusiness(
@@ -260,14 +280,13 @@ export async function auditBusiness(
 export async function upsertCitationRows(db: Db | Tx, competitorId: string, rows: CitationRow[], checkedAt: Date, opts: { stage1Ok: boolean }): Promise<void>;
 ```
 **Behaviour:**
-- `citationSearch` = `serpSearch` without coordinates (`location_code 2840`, `language_code 'en'`, `depth`), same error rules, `parseSerp(raw, depth)`. An empty organic page = nothing found (not a failure, unlike 18b-2).
-- Stage 1 `"<name>" "<NNN-NNN-NNNN>"` (quotes stripped). Stage 2 `site:<host> "<name>" <city>` (no city when null). One `recordVendorCapture` per call: `source 'directories'`, `url 'citations:name_phone' | 'citations:site:<host>'`, `collectorVersion 'dfs/1'`. A vendor error → `vendor_error` capture, no rows for those hosts (P2).
-- **Pending B2:** the probe showed `site:` is ignored by the vendor (same results for `site:bbb.org` and `site:bing.com`) and billed $0.01/call. Do not implement stage 2 until the controller rules (proposal: one operator-free `"<name>" <city>` search at depth 20, $0.004, classified against every unfound catalogue host).
-- Before each call: `spentUsd + price > capUsd` → stop, `capped`, remaining hosts get no row.
-- No phone or stage 1 failed (P4) → stage 2 for every catalogue host; never for a host stage 1 found. `not_found` rows carry the stage-2 capture; listed rows the finding capture. Also-found rows only from a successful stage 1. `upsertCitationRows` drops `isBannedHost` (defence).
+- `citationSearch` = `serpSearch` without coordinates (`location_code 2840`, `language_code 'en'`, `depth 20`), same error rules, `parseSerp(raw, 20)` (real hosts, Task 3a2). An empty organic page = nothing found, not a failure.
+- Stage 1 `"<name>" "<NNN-NNN-NNNN>"` (quotes stripped from name). Stage 2 (P14) = ONE `"<name>" <city>` search (no city when null), never `site:`; `matchListing` per catalogue host stage 1 missed; absent = `not_found`. `recordVendorCapture` per call: `source 'directories'`, `url 'citations:name_phone' | 'citations:name_city'`, `collectorVersion 'dfs/1'`. A vendor error → `vendor_error` capture, no rows for those hosts (P2).
+- Before each call: `spentUsd + CITATION_CALL_USD > capUsd` → stop, `capped`, remaining hosts get no row.
+- No phone or stage 1 failed (P4) → stage 2 only, `phone_match` null. Skip stage 2 when stage 1 found every catalogue host. `not_found` rows carry the stage-2 capture, listed rows the finding capture. Also-found rows only from a successful stage 1. `upsertCitationRows` drops `isBannedHost` (defence).
 - Upsert = one `INSERT … ON CONFLICT (competitor_id, host) DO UPDATE`: `first_seen_at` = checked_at on not-listed → listed, else kept; `last_seen_at` = checked_at when listed, else kept; `newly_found_at` = checked_at when `EXCLUDED.status='listed' AND c.status='not_found' AND EXCLUDED.in_catalogue`, NULL when not listed, else kept (P1); other columns replaced. If `stage1Ok`, delete the competitor's `in_catalogue = false` rows not in `rows` (P12).
-**Tests (first):** `parseSerp` keeps `description` and honours `max` 50; the 18b-2 fixture still parses. Audit with fake dfs: phone → 1 stage-1 call + site calls only for unfound hosts; no phone → stage 2 for all; stage-1 vendor error → stage 2 for all, a `vendor_error` capture; **RF5** `stops before crossing 0.20` (budget spent 0.195 → no call, `capped`); **RF3** dental catalogue never sends `site:angi.com`; `banned host never stored` (stage-1 yelp hit with name+phone → no row, also not in also-found). Upsert: not_found → listed sets `newly_found_at`; first insert as listed leaves it null; listed → not_found keeps `first/last_seen_at`, nulls `newly_found_at`; a missed also-found host is deleted only when `stage1Ok`.
-**Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations src/rankings/serp.test.ts`; tsc (`@cs/db`, `@cs/collectors`, `@cs/demo`).
+**Tests (first):** fake dfs: phone → stage-1 call + one stage-2 call (query `"name" city`, no `site:`, depth 20), none when stage 1 found all; no phone → stage 2 only; stage-1 vendor error → stage 2 classifies all, a `vendor_error` capture; spend per business = 2 × 0.004; **RF5** `stops before crossing 0.20` (spent 0.197 → no call, `capped`); **RF3** dental catalogue never classifies or stores `angi.com`, no query contains `site:`; `banned host never stored` (stage-1 yelp hit with name+phone → no row, not in also-found). Upsert: not_found → listed sets `newly_found_at`; first insert as listed leaves it null; listed → not_found keeps `first/last_seen_at`, nulls `newly_found_at`; a missed also-found host is deleted only when `stage1Ok`.
+**Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations`; tsc (`@cs/db`, `@cs/collectors`, `@cs/demo`).
 
 ### Task 5: Client run + worker job (runs **after Task 6**, so `diffCitations` exists when the worker deps are wired)
 **Goal:** The daily due-scan, one guarded run per client (self, then top rivals), and the stale-run sweep.
@@ -286,7 +305,7 @@ Jobs: `citation-audit` cron `0 9 * * *` (skip + log once when `!vendorsConfigure
 **Behaviour:**
 - Due: `clientWorkAllowed ∧ agencyServiceable`; no `client_setup` row or `competitors_done_at` set; no `running` run; no run, or the newest done/capped `started_at ≤ now − 30 d` (only-failed runs → due again next day). Trigger `'setup'` without an earlier done/capped run, else `'monthly'`.
 - `auditedCompetitors`: tracked rivals with tier `top` by `overlap DESC NULLS LAST, competitor_id`, ≤ 3; none → the 3 tracked rivals with the highest overlap (self excluded).
-- Run: re-check `clientWorkAllowed`; empty catalogue or a live `running` row → `skipped`. Insert `running`. `checkRankScanBudget(db, clientId, Σ businesses × (stage1 + catalogue × depth10))`; `cap` → `capped`, 0 calls.
+- Run: re-check `clientWorkAllowed`; empty catalogue or a live `running` row → `skipped`. Insert `running`. `checkRankScanBudget(db, clientId, Σ businesses × 2 × CITATION_CALL_USD)`; `cap` → `capped`, 0 calls.
 - Self (self competitor name; latest self `gbp_profile` phone, else `client.phone`; `client.address.city`, else `cityFromAddress`), then rivals (GBP phone, P5 city). Reuse ($0): every catalogue host has a non-`not_checked` row with `checked_at ≥ now − 25 d`. One shared budget, cap `CITATION_RUN_CAP_USD`.
 - Finish `capped` if any business capped, else `done`; a non-vendor throw → `failed`. Store `calls`, `est_usd`, `competitor_ids` (reused included).
 **Follow pattern:** `rankings/scan.ts` (`listRankClients`, `failStaleRankScans`, pause re-check); `jobs/rivals.ts` (`rival-monthly` spacing).
