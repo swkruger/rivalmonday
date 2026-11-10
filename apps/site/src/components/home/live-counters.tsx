@@ -24,7 +24,7 @@ export function LiveCounters() {
   });
   if (shown.length === 0) return null;
   return (
-    <HomeSectionShell id="live" labelledBy="live-heading" className="py-20 lg:py-28">
+    <HomeSectionShell id="live" labelledBy="live-heading">
       <SectionHeading section={SECTIONS.live} body={false} />
       <div role="group" aria-label="Live platform numbers" className="mt-12 grid grid-cols-2 gap-x-6 gap-y-10 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
         {shown.map((c) => (

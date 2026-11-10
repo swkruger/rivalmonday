@@ -2,12 +2,11 @@
 
 import { FridayAvatar } from '@cs/ui';
 import { useRef, useState } from 'react';
-import { FRIDAY_PERSONA, HOME_IMAGES, SECTIONS } from '../../../content/home';
+import { FRIDAY_PERSONA, SECTIONS } from '../../../content/home';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
 import { type OpenEvidence } from '../sample/brief-items';
 import { EvidencePanel } from '../sample/evidence-panel';
-import { ScanFrame } from '../media/scan-frame';
 import { FridayPanel } from '../sample/friday-panel';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
@@ -23,7 +22,7 @@ export function FridayRow() {
     setOpenId(id);
   };
   return (
-    <HomeSectionShell id="friday" labelledBy="friday-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+    <HomeSectionShell id="friday" labelledBy="friday-heading" className="border-t border-line bg-canvas">
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <div>
           <SectionHeading section={SECTIONS.friday} />
@@ -41,8 +40,6 @@ export function FridayRow() {
             </p>
           </div>
           <p className="mt-4 max-w-3xl text-13 text-muted-ink">{FRIDAY_PERSONA.mcpNote}</p>
-          {/* Desktop only: on phones it would push the live Friday further down the page. */}
-          <ScanFrame src={HOME_IMAGES.counter.src} alt={HOME_IMAGES.counter.alt} width={1200} height={800} tag={HOME_IMAGES.counter.tag} size="lg" className="mt-8 hidden lg:block" imgClassName="aspect-[16/9]" />
         </div>
         <div data-slot="ask-dock" className="friday-dock min-w-0 rounded-frame border border-line p-5 shadow-frame md:p-8">
             <FridayPanel answers={FRIDAY_ANSWERS} data={SAMPLE} onOpen={open} initialId={FRIDAY_ANSWERS[1]!.id} label={FRIDAY_PERSONA.prompt} />

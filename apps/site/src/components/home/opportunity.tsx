@@ -5,7 +5,7 @@ import { HomeSectionShell, SectionHeading } from './section-heading';
 export function Opportunity() {
   const section = SECTIONS.opportunity;
   return (
-    <HomeSectionShell id={section.id} labelledBy={`${section.id}-heading`} className="border-t border-line bg-surface py-20 lg:py-28">
+    <HomeSectionShell id={section.id} labelledBy={`${section.id}-heading`} className="border-t border-line bg-surface">
       <SectionHeading section={section} />
       <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
         {OPPORTUNITY.outcomes.map((o) => (

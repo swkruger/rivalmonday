@@ -19,4 +19,11 @@ describe('FridayRow', () => {
     fireEvent.click(within(dock(container)).getByRole('button', { name: FRIDAY_ANSWERS[3]!.question }));
     expect(screen.getByTestId('friday-live').textContent).toBe(FRIDAY_ANSWERS[3]!.answer.map((p) => p.text).join(''));
   });
+
+  it('renders no picture', () => {
+    const { container } = render(<FridayRow />);
+    // The Friday avatar is the only image; the counter photo and its scan frame are gone.
+    expect([...container.querySelectorAll('img')].filter((i) => i.getAttribute('data-slot') !== 'friday-avatar')).toHaveLength(0);
+    expect(container.querySelector('.scan-mat')).toBeNull();
+  });
 });

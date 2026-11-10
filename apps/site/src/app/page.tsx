@@ -1,7 +1,5 @@
 import { ClientView } from '../components/client-view/client-view';
 import { AgencyCeiling } from '../components/home/agency-ceiling';
-import { BeforeAfter } from '../components/home/before-after';
-import { Cast } from '../components/home/cast';
 import { ChecksHub } from '../components/home/checks-hub';
 import { CloseBand } from '../components/home/close-band';
 import { Commercial } from '../components/home/commercial';
@@ -12,7 +10,6 @@ import { MobileCta } from '../components/home/mobile-cta';
 import { Opportunity } from '../components/home/opportunity';
 import { RecommendationsSection } from '../components/home/recommendations-section';
 import { RivalStory } from '../components/home/rival-story';
-import { SampleSection } from '../components/home/sample-section';
 import { Steps } from '../components/home/steps';
 import { Testimonials } from '../components/home/testimonials';
 import { JsonLd } from '../components/seo/json-ld';
@@ -23,8 +20,8 @@ import { pageMetadata } from '../lib/metadata';
 export const metadata = pageMetadata('/');
 
 /**
- * The story, in `HOME_ANCHORS` order: hero → a rival on the move → the agency's ceiling → the new service → the cast
- * → what clients see → recommendations → Friday → before/after → checks → sample → live (when there are counters)
+ * The story, in `HOME_ANCHORS` order: hero → a rival on the move → the agency's ceiling → the new service
+ * → what clients see → recommendations → Friday → checks → live (when there are counters)
  * → how it works → your business model → (quotes, once there are any) → closing band, which carries the founder note
  * (once there is one). Phones also get a sticky join bar after the hero.
  */
@@ -36,13 +33,10 @@ export default function HomePage() {
       <RivalStory />
       <AgencyCeiling />
       <Opportunity />
-      <Cast />
       <ClientView heading={SECTIONS['client-view'].homeHeading} />
       <RecommendationsSection roadmap={false} />
       <FridayRow />
-      <BeforeAfter />
       <ChecksHub heading={SECTIONS.checks.homeHeading} divided />
-      <SampleSection />
       <LiveCounters />
       <Steps industries={false} afterSteps={HOW_STEPS_NOTE} />
       <Commercial />

@@ -6,7 +6,7 @@ import { HomeSectionShell } from './section-heading';
 export function FounderNote({ note = FOUNDER_NOTE }: { note?: Note | null }) {
   if (!note) return null;
   return (
-    <HomeSectionShell id="founder" className="border-t border-line py-14">
+    <HomeSectionShell id="founder" pad={false} className="border-t border-line py-14">
       <figure className="mx-auto flex max-w-3xl flex-col items-start gap-5 sm:flex-row">
         {note.photo ? (
           <Image src={note.photo} alt={note.name} width={64} height={64} className="size-16 shrink-0 rounded-full object-cover" />

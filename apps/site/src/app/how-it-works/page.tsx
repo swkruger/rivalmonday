@@ -115,7 +115,7 @@ export default function HowItWorksPage() {
           </div>
         </div>
       </section>
-      <HomeSectionShell id="faq" labelledBy="faq-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+      <HomeSectionShell id="faq" labelledBy="faq-heading" className="border-t border-line bg-canvas">
         <h2 id="faq-heading" className="text-section font-semibold text-ink">{HOW_FAQ.heading}</h2>
         <div className="mt-12 flex flex-col gap-12">
           {HOW_FAQ.groups.map((g) => (

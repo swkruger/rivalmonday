@@ -31,21 +31,18 @@ export const HOME_ANCHORS = [
   'rival-story',
   'ceiling',
   'opportunity',
-  'cast',
   'client-view',
   'recommendations',
   'friday',
-  'before-after',
   'checks',
-  'sample',
   'live',
   'how-it-works',
   'commercial',
   'join',
 ] as const;
 export type HomeAnchor = (typeof HOME_ANCHORS)[number];
-/** `guides` is only used by `/how-it-works`. */
-type SectionId = Exclude<HomeAnchor, 'join'> | 'guides';
+/** `guides` and `sample` are only used by `/how-it-works`. */
+type SectionId = Exclude<HomeAnchor, 'join'> | 'guides' | 'sample';
 
 export interface HomeSection {
   id: SectionId;
@@ -84,18 +81,6 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
     eyebrow: '',
     heading: 'Your clients have competitors. You have a new service to sell.',
     body: "Offer a weekly competitor intelligence service under your agency's name. Rival Monday does the watching, the research and the first draft. Your team can edit or approve each brief before it goes out, and your agency gets the credit.",
-  },
-  cast: {
-    id: 'cast',
-    eyebrow: '',
-    heading: 'Two colleagues your clients will look forward to.',
-    body: '',
-  },
-  'before-after': {
-    id: 'before-after',
-    eyebrow: '',
-    heading: 'What changes when Monday arrives.',
-    body: '',
   },
   commercial: {
     id: 'commercial',
@@ -186,7 +171,6 @@ export const HOME_IMAGES = {
   heroMap: { src: '/sample/hero-map.webp', alt: 'Map rankings for "ac repair marlowemere": a grid of ranks over the service area, strongest around the business' },
   heroFriday: { src: '/sample/hero-friday.webp', alt: 'Friday, the assistant, answering who is winning the map, with numbered sources for each figure' },
   street: { src: '/sample/home-street.webp', tag: 'Local rivals', alt: 'Local shops on a small-town main street with two plain white service vans parked outside' },
-  counter: { src: '/sample/home-counter.webp', tag: 'Weekly check', alt: 'A phone, keys, a clipboard and a cup of coffee on a service counter, with a work van outside the window' },
 } as const;
 
 export const CHECKS_LINK = { label: 'Read how we check claims →', href: '/how-it-works' } as const;
@@ -297,31 +281,6 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',
 export function opportunityLine(e: Pick<PartnerExample, 'clients' | 'clientPriceUsd' | 'revenueUsd' | 'costUsd' | 'marginUsd'> = opportunityExample()): string {
   return `For example: ${e.clients} clients at ${usd.format(e.clientPriceUsd)}/mo is ${usd.format(e.revenueUsd)} revenue against ${usd.format(e.costUsd)} in platform cost, a margin of ${usd.format(e.marginUsd)} a month.`;
 }
-
-export const CAST: { name: 'Monday' | 'Friday' | 'Rival Monday'; body: string }[] = [
-  { name: 'Monday', body: 'The brief that lands every Monday morning: what each rival did, why it matters and what to do about it.' },
-  {
-    name: 'Friday',
-    body: "The colleague who has done the reading. Ask about any rival and get an answer with the sources attached. If the evidence isn't there, Friday says so. You can rename Friday.",
-  },
-  { name: 'Rival Monday', body: 'The engine behind both. Your clients see your name, not ours.' },
-];
-
-export const BEFORE_AFTER = {
-  columns: ['Before', 'After'],
-  rows: [
-    {
-      who: 'Your client',
-      before: '"I think Quillstone\'s been busier lately."',
-      after: '"Quillstone moved into the top three at 31 of 49 map points, started two Meta ads on October 7, and we have two moves open to answer it."',
-    },
-    {
-      who: 'Your agency',
-      before: "A monthly report about your client's own numbers.",
-      after: 'A weekly brief about their whole market, under your name, with next steps your team can sell.',
-    },
-  ],
-} as const;
 
 export const COMMERCIAL = {
   points: [

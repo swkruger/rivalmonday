@@ -24,7 +24,7 @@ export default function SampleBriefPage() {
           <SampleBrief sourceLinks={sourceLinks()} />
         </div>
       </section>
-      <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+      <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas">
         <SectionHeading section={SECTIONS.recommendations} />
         <div className="mt-10">
           <SampleRecommendations />

@@ -140,17 +140,14 @@ describe('site copy', () => {
     const e4 = story.rivalStoryMoves(true).find((m) => m.evidence === 'e4')!;
     const day = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${e4.date}T00:00:00Z`));
     expect(day).toBe('October 7');
-    expect(home.BEFORE_AFTER.rows[0]!.after).toContain(day);
     const e3 = story.rivalStoryMoves(true).find((m) => m.evidence === 'e3')!;
     expect(e3.title).toContain('$69');
     expect(home.SECTIONS['rival-story'].body).toContain('$69');
   });
 
-  it('lists and cast have the decided sizes', () => {
+  it('lists have the decided sizes', () => {
     expect(home.CEILING_LINES).toHaveLength(3);
     expect(home.OPPORTUNITY.outcomes).toHaveLength(3);
-    expect(home.CAST.map((c) => c.name)).toEqual(['Monday', 'Friday', 'Rival Monday']);
-    expect(home.BEFORE_AFTER.rows).toHaveLength(2);
     expect(home.COMMERCIAL.points).toHaveLength(3);
     expect(home.COMMERCIAL.roadmapLine.link.href).toBe('/roadmap');
     expect(home.OPPORTUNITY.link.href).toBe('/partners');

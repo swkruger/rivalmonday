@@ -7,7 +7,7 @@ vi.mock('../../../content/website-monitoring', () => ({
   },
 }));
 
-import { BEFORE_AFTER, CAST, CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
+import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
 import { rivalStoryMoves } from '../../../content/rival-story';
 import { ANY_INDUSTRY } from '../../../content/industries';
 import { PRICING } from '../../../content/pricing';
@@ -15,8 +15,6 @@ import { SAMPLE } from '../../sample/schema';
 import { JoinProvider } from '../join/join-provider';
 import { weekStats } from '../sample/rank-map';
 import { AgencyCeiling } from './agency-ceiling';
-import { BeforeAfter } from './before-after';
-import { Cast } from './cast';
 import { ChecksHub } from './checks-hub';
 import { CloseBand } from './close-band';
 import { Commercial } from './commercial';
@@ -116,42 +114,6 @@ describe('Opportunity', () => {
     expect(screen.getByText(/\$2,608/)).toBeTruthy();
     expect(screen.getByText(OPPORTUNITY.exampleNote)).toBeTruthy();
     expect(screen.getByRole('link', { name: OPPORTUNITY.link.label }).getAttribute('href')).toBe('/partners');
-  });
-});
-
-describe('Cast', () => {
-  it('renders the H2 and three named columns, with the avatar only in Friday', () => {
-    const { container } = render(<Cast />);
-    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS.cast.heading);
-    expect(container.querySelector('section#cast')).toBeTruthy();
-    const names = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
-    expect(names).toEqual(CAST.map((c) => c.name));
-    for (const c of CAST) expect(screen.getByText(c.body)).toBeTruthy();
-    const cols = Array.from(container.querySelectorAll('[data-cast]'));
-    expect(cols).toHaveLength(3);
-    const withAvatar = cols.filter((c) => c.querySelector('[data-slot="friday-avatar"], svg, img'));
-    expect(withAvatar.map((c) => c.getAttribute('data-cast'))).toEqual(['Friday']);
-  });
-});
-
-describe('BeforeAfter', () => {
-  it('renders an accessible table with 2 row and 2 column headers', () => {
-    const { container } = render(<BeforeAfter />);
-    const h2 = screen.getByRole('heading', { level: 2 });
-    expect(h2.textContent).toBe(SECTIONS['before-after'].heading);
-    expect(container.querySelector('section#before-after')).toBeTruthy();
-    const table = screen.getByRole('table');
-    expect(table.getAttribute('aria-labelledby')).toBe(h2.id);
-    expect(screen.getAllByRole('rowheader').map((r) => r.textContent)).toEqual(BEFORE_AFTER.rows.map((r) => r.who));
-    expect(screen.getAllByRole('columnheader').map((r) => r.textContent)).toEqual([...BEFORE_AFTER.columns]);
-    expect(screen.getByText(BEFORE_AFTER.rows[0]!.after).className).toContain('font-medium');
-    expect(screen.getByText(BEFORE_AFTER.rows[0]!.before).className).toContain('text-ink-secondary');
-    // Phones: every row shows its own visible Before/After labels, hidden from screen readers (the column headers name them).
-    for (const col of BEFORE_AFTER.columns) {
-      const labels = container.querySelectorAll(`[role="cell"] > [aria-hidden="true"]`);
-      expect([...labels].filter((l) => l.textContent === col)).toHaveLength(BEFORE_AFTER.rows.length);
-    }
-    expect(screen.getAllByRole('cell').filter((c) => c.textContent)).toHaveLength(BEFORE_AFTER.rows.length * 2);
   });
 });
 

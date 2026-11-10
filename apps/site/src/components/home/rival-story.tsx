@@ -35,7 +35,7 @@ export function RivalStory() {
   };
   const section = SECTIONS['rival-story'];
   return (
-    <HomeSectionShell id="rival-story" labelledBy="rival-story-heading" className="bg-surface py-20 lg:py-28">
+    <HomeSectionShell id="rival-story" labelledBy="rival-story-heading" className="bg-surface">
       {/* Phones read heading → replay → log; from `lg` the replay spans both rows on the left. */}
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-8">
         <div className="min-w-0 lg:col-start-2 lg:row-start-1">

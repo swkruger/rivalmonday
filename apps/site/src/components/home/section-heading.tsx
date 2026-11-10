@@ -1,9 +1,9 @@
 import type { HomeSection } from '../../../content/home';
 
-/** One home section: anchored (`id`), clear of the sticky header, with the shared page gutter. */
-export function HomeSectionShell({ id, labelledBy, className, children }: { id: string; labelledBy?: string; className?: string; children: React.ReactNode }) {
+/** One home section: anchored (`id`), clear of the sticky header, with the shared page gutter. `pad={false}` leaves the vertical padding to the caller. */
+export function HomeSectionShell({ id, labelledBy, className, pad = true, children }: { id: string; labelledBy?: string; className?: string; pad?: boolean; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={labelledBy} className={`scroll-mt-20 ${className ?? 'py-20 lg:py-28'}`}>
+    <section id={id} aria-labelledby={labelledBy} className={`scroll-mt-20 ${pad ? 'py-14 lg:py-18' : ''} ${className ?? ''}`.trim()}>
       <div className="site-container">{children}</div>
     </section>
   );

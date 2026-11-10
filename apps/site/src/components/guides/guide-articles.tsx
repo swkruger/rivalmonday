@@ -46,7 +46,7 @@ export function GuideTeaser({ guide, stacked = false }: { guide: Guide; stacked?
 export function GuideArticles({ slugs }: { slugs: readonly [Guide['slug'], Guide['slug'], Guide['slug']] }) {
   const [feature, ...rest] = slugs.map((slug) => GUIDES.find((g) => g.slug === slug)!);
   return (
-    <HomeSectionShell id="guides" labelledBy="guides-heading" className="border-t border-line py-20 lg:py-28">
+    <HomeSectionShell id="guides" labelledBy="guides-heading" className="border-t border-line">
       <SectionHeading section={SECTIONS.guides} />
       <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
         <GuideFeature guide={feature!} />

@@ -5,7 +5,7 @@ import { HomeSectionShell, SectionHeading } from './section-heading';
 /** The working recommendations board, then what is planned next. On the home page and /how-it-works. */
 export function RecommendationsSection({ roadmap = true }: { roadmap?: boolean } = {}) {
   return (
-    <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+    <HomeSectionShell id="recommendations" labelledBy="recommendations-heading" className="border-t border-line bg-canvas">
       <SectionHeading section={SECTIONS.recommendations} />
       <div className="mt-10">
         <SampleRecommendations />

@@ -211,6 +211,20 @@ describe('HomePage', () => {
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
   }, 20_000);
 
+  it('the home page has no cast, before-after or sample section', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    for (const id of ['cast', 'before-after', 'sample']) expect(container.querySelector(`#${id}`), id).toBeNull();
+  }, 20_000);
+
+  it('no link on the home page points at an id the page does not render', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const dangling = [...container.querySelectorAll('a[href^="#"], a[href^="/#"]')]
+      .map((a) => a.getAttribute('href')!)
+      .filter((h) => h !== '#join' && h !== '/#join')
+      .filter((h) => !container.querySelector(`[id="${h.slice(h.indexOf('#') + 1)}"]`));
+    expect(dangling).toEqual([]);
+  }, 20_000);
+
   it('the home page opens the client view with its own heading', async () => {
     const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
     expect(container.querySelector('#client-view-heading')!.textContent).toBe(SECTIONS['client-view'].homeHeading);

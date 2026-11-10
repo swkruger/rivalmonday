@@ -28,7 +28,7 @@ export function ClientView({ heading }: { heading?: string } = {}) {
   const page = CLIENT_VIEW.nav.find((n) => n.id === view)!.label;
   const bar = tab === 'dashboard' ? `${page} · ${SAMPLE.business.name}` : TABS.find((t) => t.value === tab)!.bar;
   return (
-    <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas py-20 lg:py-28">
+    <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas">
       <SectionHeading section={heading ? { ...SECTIONS['client-view'], heading } : SECTIONS['client-view']} />
       <div className="mt-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">

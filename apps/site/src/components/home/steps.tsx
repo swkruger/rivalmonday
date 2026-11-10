@@ -6,7 +6,7 @@ import { HomeSectionShell, SectionHeading } from './section-heading';
 /** Four numbered steps: a row from `lg`, stacked below; the numbers carry the section. */
 export function Steps({ industries = true, afterSteps }: { industries?: boolean; afterSteps?: string } = {}) {
   return (
-    <HomeSectionShell id="how-it-works" labelledBy="how-it-works-heading" className="border-t border-line bg-canvas py-20 lg:py-28">
+    <HomeSectionShell id="how-it-works" labelledBy="how-it-works-heading" className="border-t border-line bg-canvas">
       <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-16">
         <SectionHeading section={SECTIONS['how-it-works']} />
         <ScanFrame src={HOME_IMAGES.street.src} alt={HOME_IMAGES.street.alt} width={1200} height={800} tag={HOME_IMAGES.street.tag} size="lg" imgClassName="aspect-[16/9]" />

@@ -9,7 +9,7 @@ const ICONS: LucideIcon[] = [Copy, CircleHelp, Clock];
 export function AgencyCeiling() {
   const section = SECTIONS.ceiling;
   return (
-    <HomeSectionShell id={section.id} labelledBy={`${section.id}-heading`} className="border-t border-line bg-canvas py-20 lg:py-28">
+    <HomeSectionShell id={section.id} labelledBy={`${section.id}-heading`} className="border-t border-line bg-canvas">
       <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
           <SectionHeading section={section} body={false} />
