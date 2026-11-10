@@ -298,8 +298,20 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Later → ad image read cap counts rows before the claim; make it atomic before running > 1 poller — *18a-3 final review*
 - [ ] Later → guarded byte fetch checks robots for a cross-host redirect target after the fetch (same as `polite.ts`) — *18a-3 final review*
 - [ ] Later → test that `findEngineWork` gets `adImages:false` when `WEB_MONITORING_ENABLED` is off — *18a-3 final re-review*
+- [ ] Polish → `get_search_visibility` and `get_geogrid` return `vendor_json` evidence ids to MCP that `get_evidence`/`fetch` won't serve; filter by `citableEvidenceKinds(meta)` (as `get_ad_activity`) — *18b-2 final review*
+- [ ] Polish → `adPrices` sweep + `extractAdPrices` ignore `clientWorkAllowed` (a competitor tracked only by paused/archived clients is still priced; the post-price path checks it) — *18b-1 Task 6 review*
+- [ ] Polish → post prices carry no evidence ids (Ask drops them as uncited; same as `meta_ad`) — *18b-1 final review*
+- [ ] Polish → novelty over shared summary prefixes ("Posted on Google:") may over-discount a rival's second offer; score novelty on `afterText` — *18b-1 Task 4 review*
+- [ ] Polish → an edited Google post under the same id keeps its old open price; the price card links only the first post url per cell — *18b-1*
+- [ ] Polish → page-one search series restarts on a grid-size-only change (search area unchanged; events ~2 weeks late) — *18b-2 final review*
+- [ ] Polish → change summaries in `engine/src/tag/structured.ts` are outside the `copy:review` scan — *18b-2 final review*
+- [ ] Polish (nits) → `gbpPostId` comment placement in `schema/insights.ts`; `sources.ts` vendor_task kind comment; `ensureSelfCompetitors` gbp_posts test; photo-push steady-growth test asserts spacing only; stale `glossary.ts:233` profile_change comment — *18b-1 reviews*
+- [ ] Unscheduled → store the client's own website and match it in `get_search_visibility` (own listing is unhighlighted when the self competitor has no domain) — *18b-2 Task 4*
+- [ ] Unscheduled → re-probe Google AI answers on local-service queries quarterly (18b-2 probe 2026-11-10: AI answer 0/9, Local Services 0/9; spec E3 re-adds AI-answer events at ≥ 30 %) — *18b-2 Task 0*
+- [ ] Later → Google Q&A, News, Tripadvisor/Trustpilot (out of 18b; revisit with 18d events vertical) — *18b brief*
 
 ## Waiting on real data / external events
+- [ ] Verify the `local_services` parse on the first live Local Services block in a search snapshot (fixture is hand-made); an image-only Google post (no text, no url) parses to null and holds back post ending for that capture (fails safe) — check on staging data — *18b*
 - [ ] 7c2 Task 12 (owner + controller, after staging setup): staging rehearsal per `docs/OPS.md` § Rehearsal steps 1-9, fix wave per FAIL, final concurrency/limits and costs become code defaults, `teardown`; done when one run shows every PASS line incl. the fault alarm. Then close "Staging setup" and the 7c2 part of the copy sign-off item — *phase-7c2*
 - [ ] 7c2 Task 13 (owner): (a) the two rename `UPDATE`s on `cs_dev` (`docs/OPS.md` § Internal QA); (b) `/link-other-account` once live (PILOT § 8); then delete the three Model ops/Pilot items tagged Task 13 — *phase-7c2*
 - [ ] After the 15b-3b deploy: watch `[engine-reask]` log lines; daily `review_analysis` checks stay <= 2,000. Copy doc: [archive/phase-15b3b-copy-signoff.md](archive/phase-15b3b-copy-signoff.md) — *moved from STATE at 15c-2b-2 merge*

@@ -13,11 +13,10 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 | Branch state | `docs/work/<branch>.md` (others: `git show <b>:docs/work/<b>.md`) |
 | What's built, where | `docs/ARCHITECTURE.md` |
 | Open work by target phase | `docs/BACKLOG.md` |
-| Old handover | `docs/archive/` (don't read) |
 | Binding spec | `docs/superpowers/specs/2026-09-29-core-platform-design.md` (cite §) |
 | Phases | `docs/superpowers/plans/2026-09-29-roadmap.md` |
 | Live-data runbook | `docs/OPS.md` |
-| Package gotchas | `<package>/CLAUDE.md` (auto-loaded) |
+| Package gotchas | `<package>/CLAUDE.md` |
 | Cross-cutting gotchas | `docs/gotchas-cross-cutting.md` |
 | Vendor API contracts | `docs/research/2026-09-30-phase-2-vendor-apis.md` |
 | **Design system (binding)** | `docs/design-system/README.md`; UI agents: `09-ai-implementation-playbook.md` |
@@ -31,7 +30,7 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 - **App style (2026-11-04):** opt-in `@cs/ui` variants; primary `ink` on agency pages, agency primary on client pages; orange only Friday/priority bar/`NumberMarker`; fixed chip tints; ink title band on client pages; raised cards only on recommendations board. `--brand-ink` (band, ink buttons, Friday bubble) = agency colour darkened to white 7:1, else ink; header override at 13a.
 - **Charts:** inline SVG; colours checked with the dataviz skill.
 - **Review decisions stay on Jev** until pilots give gold labels; verifier τ 0.85 until `verifier_decisions` are labelled.
-- **Wider sources (18):** 18a no new paid vendors; 18b more Google (DataForSEO), 18c citations, 18d events vertical, 18e social (ScrapeCreators); out: public records, newsletters, FB Events/Nextdoor, video, bought citations, Yelp. Website tools: client text names the category, never the vendor. Ad images (18a-3): Google only (Meta's CDN disallows bots); Jev triage, person images never stored, vision LLM reads price images (≤ 20/client/week).
+- **Wider sources (18):** 18a no new paid vendors; 18b more Google (posts/offers; page one in Sunday scans; AI answers off until re-probe), 18c citations, 18d events vertical, 18e social (ScrapeCreators); out: public records, newsletters, FB Events/Nextdoor, video, bought citations, Yelp. Website tools: client text names the category, never the vendor. Ad images (18a-3): Google only (Meta's CDN disallows bots); Jev triage, person images never stored, vision LLM reads price images (≤ 20/client/week).
 - **Discovery (12):** vendor-only two-stage search, $3/run cap; auto-run once at profile completion, then 1 manual search/client/week + monthly refresh; tiers Top rival / Worth watching / Minor.
 - **Billing (9):** platform → agency (Stripe Billing): pilot / 30-day trial / $229/mo or $2,290/yr incl. 3 clients, 4–10 $79, 11+ $59, graduated (`@cs/billing` `pricing.ts`); yearly seat cuts at renewal; soft sign-up fence. Agency → client: Connect Standard, direct, fee 0; client-facing never names Rival Monday. Paused client: no work, no seat.
 - **Agency onboarding (10):** self-sign-up (open trial: 1 active client, weekly pages until a card) or invite link; verify-then-create; wizard skippable.
