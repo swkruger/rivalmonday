@@ -246,7 +246,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Starting-point copy: approval message "Approved — sent to the client." is wrong when delivery is unconfigured (show by status); "In progress" label while waiting for the agency to track a rival; deleted-brief notice link 404s after `--force` — *from phase-12*
 
 ### Evidence, timeline & profile
-- [ ] Evidence: chip ordering can make an `html`/`vendor_json` piece "Evidence 1"; `EvidenceImage` `onError` can miss a pre-hydration 404 (add a mount-time `complete`/`naturalWidth` check) — *from 5c-1 final review*
+- [ ] Evidence: chip ordering can make an `html`/`vendor_json` piece "Evidence 1" — *from 5c-1 final review*
 - [ ] `compare_snapshots` screenshot fallback doesn't filter `capture.status` (a blocked capture's screenshot can be "as of") — *from 5c-1 final review*
 - [ ] Timeline includes open moves that started before the period; profile's "Open moves" KPI link is unfiltered — *from 5c-1 final review*
 - [ ] Long `del`/`ins` `aria-label`s on the large-diff fallback — *from 5c-1 final review*
@@ -290,6 +290,12 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Web follow-up → sites with only a home page never get `new_page` — *from 18a-2 final review*
 - [ ] Later → competitor-page "website tools" section (site_feature history per rival); only changes are shown today — *from 18a-2 spec*
 - [ ] Later → audience cooldown keyed on `detected_at` over-suppresses after a long engine stall — *from 18a-1 final review*
+- [ ] Later → Meta ad images: ask the Meta ads vendor whether its API can deliver image files (fbcdn robots disallows us) — *from 18a-3 owner decision*
+- [ ] Later → image/copy price mapping spend (`mapPricedTexts`) is platform-scoped, not split to tenants — *from 18a-3 spec R13*
+- [ ] Later → ad image read: `read_at` not set if the commit transaction throws (P8; <= 1 uncounted read) — *18a-3 final review*
+- [ ] Later → ad image read cap counts rows before the claim; make it atomic before running > 1 poller — *18a-3 final review*
+- [ ] Later → guarded byte fetch checks robots for a cross-host redirect target after the fetch (same as `polite.ts`) — *18a-3 final review*
+- [ ] Later → test that `findEngineWork` gets `adImages:false` when `WEB_MONITORING_ENABLED` is off — *18a-3 final re-review*
 
 ## Waiting on real data / external events
 - [ ] 7c2 Task 12 (owner + controller, after staging setup): staging rehearsal per `docs/OPS.md` § Rehearsal steps 1-9, fix wave per FAIL, final concurrency/limits and costs become code defaults, `teardown`; done when one run shows every PASS line incl. the fault alarm. Then close "Staging setup" and the 7c2 part of the copy sign-off item — *phase-7c2*
@@ -306,6 +312,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Confirm GBP closure values (`closed_forever`/`temporarily_closed`) on the first real closure; `site_feature` can replay history on the first sweep where old web captures exist (cs_dev/staging; prod has none) — add a `since` cutoff if it bites — *from 18a-1 pre-flight, 18a-2 Task 7*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Pricing-page "From an ad image" tag is plain text (plan P9) while spec D6 wanted an evidence link; competitor page links — *18a-3 final review*
 - [ ] Publish v3 with the $49 tier (extra clients 23+) once cost per client < $10 (pricing-v2 D4) — *pricing-v2*
 - [ ] Sign in `pnpm copy:review`: `traceLabel` hover strings, `moveFactLabel` output, chart and toolbar labels — *ui-visual-review*
 - [ ] Copy sign-off now happens in `pnpm copy:review` (ledger `docs/copy/signoff.json`): the per-phase sign-off items below (archive `*copy-signoff*.md` docs) close once their surfaces are signed in the tool; decide whether tool `.describe()` parameter text stays in the scan — *copy-signoff-tool*
@@ -364,7 +371,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Batch-priced brief writing (not needed at pilot volume) — *from 4a*
 - [ ] Per-client page deactivation; drag-and-drop reordering; agency-wide recommendation board — *from 5b-1*
 - [ ] Delete/archive a prospect (needs soft-delete first); per-agency default caps/limits — *from 5b-2*
-- [ ] Ad images (vendor media URLs expire and leak viewer requests); dark chart theme (with the app's dark theme) — *from 5c-1/5c-2*
+- [ ] Meta ad image previews still use vendor URLs (expire, leak viewer requests; Google's are stored now); dark chart theme (with the app's dark theme) — *from 5c-1/5c-2*
 - [ ] Own-site prices: a "you" column; feed own-website prices into `price_point` (3c decision 11; deferred until web monitoring is live, 18a-2 Q8) — *from 3c, 5c-2*
 - [ ] Change-region boxes on screenshots (owner: not wanted for now) — *from 5c-1*
 - [ ] Instagram Business Discovery (needs a Facebook app, a connected Page and app review; Graph API v26.0) — *from Phase 2 planning*
