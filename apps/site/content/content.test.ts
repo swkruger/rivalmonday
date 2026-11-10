@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { weekStats } from '../src/components/sample/rank-map';
 import { rivalRanks } from '../src/sample/rival-grid';
 import { SAMPLE } from '../src/sample/schema';
+import { CHOOSER } from './chooser';
 import * as home from './home';
 import * as how from './how-it-works';
 import { NAV_EXTRA } from './pages';
@@ -15,13 +16,31 @@ function strings(v: unknown, out: string[] = []): string[] {
   else if (v && typeof v === 'object') Object.values(v).forEach((x) => strings(x, out));
   return out;
 }
-const allCopy = strings({ ...home, ...how });
+const allCopy = strings({ ...home, ...how, CHOOSER });
 
 // Literals allowed to carry digits: 17a's counter window.
 // plus the fictional sample's own figures in the story copy.
 const DIGIT_ALLOWLIST = ['Last 7 days', '8 of 49 points', "Now it's 31", '$69', '31 of 49', 'October 7'];
 
 describe('site copy', () => {
+  it('chooser copy matches the deck', () => {
+    expect(CHOOSER.headline).toEqual({ lead: 'See what local rivals did', mark: 'this week.' });
+    expect(CHOOSER.question).toBe('Which one are you?');
+    expect(CHOOSER.bandHeading).toBe('Which one are you?');
+    expect(CHOOSER.doors.map((d) => [d.id, d.title, d.cta, d.href])).toEqual([
+      ['agency', 'I run an agency', 'For agencies →', '/agencies'],
+      ['business', 'I own a local business', 'For local businesses →', '/business'],
+    ]);
+    expect(CHOOSER.sample).toEqual({ lead: 'Not sure yet?', label: 'See a sample brief', href: '/sample-brief' });
+    expect(CHOOSER.proof).toEqual(['Public information only', 'No claim without evidence']);
+  });
+
+  it('chooser has no digits', () => {
+    const all = strings(CHOOSER);
+    expect(all.length).toBeGreaterThan(10);
+    for (const s of all) expect(s, s).not.toMatch(/\d/);
+  });
+
   it('hero matches the decided copy', () => {
     expect(home.HERO.headline).toEqual({ lead: 'Tell every client what their rivals did', mark: 'this week.' });
     expect(home.HERO.sub).toBe('Rival Monday tracks their map rankings, reviews and ads, then writes a Monday brief with the evidence attached. You sell it under your brand, at your price.');
