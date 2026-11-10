@@ -47,6 +47,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   rank_map_image: 'tenant_client',
   rank_scan: 'tenant_client',
   rank_snapshot: 'tenant_client',
+  serp_snapshot: 'tenant_client',
   recommendation: 'tenant_client',
   trend_report: 'tenant_client',
   vendor_call: 'tenant_client',

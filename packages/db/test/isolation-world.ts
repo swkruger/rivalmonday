@@ -420,6 +420,10 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
     id: b.id('rank_snapshot', t), ...base, keyword: `ac repair ${b.c(t)}`, lat: 30.27, lng: -97.74, scan_id: scan.id, captured_at: b.at(2, 1),
     results: [{ rank: 1, placeId: null, cid: null, domain: null, title: `Map result ${b.c(t)}` }],
   });
+  await b.ins('serp_snapshot', t, {
+    id: b.id('serp_snapshot', t), ...base, scan_id: scan.id, keyword: `ac repair ${b.c(t)}`, captured_at: b.at(2, 1),
+    organic: [{ rank: 1, domain: null, url: null, title: `Search result ${b.c(t)}` }], local_services: null,
+  });
   await b.ins('rank_map_image', t, { ...base, settings_hash: `world-${lc} ${b.c(t)}`, object_key: `world/rank/${lc}.png`, bounds: { west: -97.8, south: 30.2, east: -97.7, north: 30.3 }, width: 640, height: 640 });
   const change = await b.ins('detected_change', t, {
     id: b.id('detected_change', t), competitor_id: competitorId, source: 'rank', kind: 'modified', rank_scan_id: scan.id, block_key: 'rank:ac repair', before_text: `rank 4 ${b.c(t)}`,

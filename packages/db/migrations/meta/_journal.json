@@ -743,6 +743,13 @@
       "when": 1794292424498,
       "tag": "0105_gbp_posts",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1794302024487,
+      "tag": "0106_serp_snapshot",
+      "breakpoints": true
     }
   ]
 }

@@ -127,6 +127,31 @@ export const rankSnapshot = pgTable(
   ],
 );
 
+export interface SerpOrganicItem { rank: number; domain: string | null; url: string | null; title: string | null }
+export interface SerpLocalServices { title: string | null; providers: { name: string; rating: number | null; votes: number | null }[] }
+
+/** Google page one (organic top 10 + Local Services ads block) for one rank keyword in one scan (18b-2). Tenant-scoped like rank_snapshot. */
+export const serpSnapshot = pgTable(
+  'serp_snapshot',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agencyId: uuid('agency_id').notNull().references(() => agency.id, { onDelete: 'cascade' }),
+    clientId: uuid('client_id').notNull(),
+    scanId: uuid('scan_id').notNull().references(() => rankScan.id, { onDelete: 'cascade' }),
+    keyword: text('keyword').notNull(),
+    captureId: uuid('capture_id').references(() => capture.id),
+    capturedAt: ts('captured_at').notNull(),
+    organic: jsonb('organic').$type<SerpOrganicItem[]>().notNull(),
+    localServices: jsonb('local_services').$type<SerpLocalServices | null>(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.clientId, t.agencyId], foreignColumns: [client.id, client.agencyId] }).onDelete('cascade'),
+    unique('serp_snapshot_scan_keyword_unique').on(t.scanId, t.keyword),
+    index('serp_snapshot_client_keyword_idx').on(t.clientId, t.keyword, t.capturedAt.desc()),
+  ],
+);
+export type SerpSnapshotRow = typeof serpSnapshot.$inferSelect;
+
 export interface ProspectRank { keyword: string; found: number; top3: number; averageRank: number | null }
 export interface ProspectBusiness {
   competitorId: string;
