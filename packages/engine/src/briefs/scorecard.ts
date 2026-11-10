@@ -13,13 +13,21 @@ export const Scorecard = z.object({
   tiles: z.array(z.object({ metric: ScorecardMetric, you: z.number().nullable(), rivalMedian: z.number().nullable(), deltaSinceStart: z.number().nullable() })).length(4),
   rows: z.array(z.object({
     competitorId: z.uuid().nullable(), name: z.string(), self: z.boolean(), tier: z.enum(['top', 'watch', 'minor']).nullable(),
-    // Scorecards stored before 18b lack `googlePosts30d`: parse them as not measured (null).
-    values: z.preprocess((v) => (v && typeof v === 'object' ? { googlePosts30d: null, ...v } : v), z.record(ScorecardMetric, z.number().nullable())),
+    // Exhaustive object (not a record/preprocess) so the MCP access-marks walker can read it; keep in sync with `ScorecardMetric`.
+    // Scorecards stored before 18b lack `googlePosts30d`: they parse as not measured (null).
+    values: z.object({
+      rating: z.number().nullable(), reviews90d: z.number().nullable(), replyRate: z.number().nullable(), mapTop3Share: z.number().nullable(),
+      adsActive: z.number().nullable(), metaAdsActive: z.number().nullable(), googlePosts30d: z.number().nullable().default(null),
+    }),
   })),
   evidenceIds: z.array(z.uuid()),
   openFirstMoves: z.array(z.object({ recommendationId: z.uuid(), title: z.string() })).default([]),
 });
 export type Scorecard = z.infer<typeof Scorecard>;
+// Type-level check: the `values` keys are exactly the metric enum.
+type ValueKeys = keyof Scorecard['rows'][number]['values'];
+const _valuesMatchMetrics: [ValueKeys] extends [ScorecardMetric] ? ([ScorecardMetric] extends [ValueKeys] ? true : never) : never = true;
+void _valuesMatchMetrics;
 
 const TILE_METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const satisfies readonly ScorecardMetric[];
 const TIER_ORDER: Record<string, number> = { top: 0, watch: 1, minor: 2 };

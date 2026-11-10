@@ -29,6 +29,11 @@ describe('parseGbpPost', () => {
     expect(p?.postId).toMatch(/^[0-9a-f]{32}$/);
     expect(parseGbpPost({ post_text: 'Other', url: 'https://example.com/p/1' })?.postId).toBe(p?.postId);
   });
+  it('keeps only http(s) urls for the post and its button', () => {
+    expect(parseGbpPost({ post_text: 'Hi', url: 'javascript:alert(1)', links: [{ url: 'data:text/html,x' }] })).toMatchObject({ url: null, buttonUrl: null });
+    expect(parseGbpPost({ post_text: 'Hi', url: 'not a url', links: [{ url: 'ftp://x/y' }] })).toMatchObject({ url: null, buttonUrl: null });
+    expect(parseGbpPost({ post_text: 'Hi', url: 'http://a.test/p?lpsid=Z', links: [{ url: 'https://b.test/x' }] })).toMatchObject({ postId: 'Z', url: 'http://a.test/p?lpsid=Z', buttonUrl: 'https://b.test/x' });
+  });
   it('returns null with no id and no text', () => {
     expect(parseGbpPost({ type: 'google_business_post' })).toBeNull();
     expect(parseGbpPost(null)).toBeNull();
@@ -96,6 +101,13 @@ describe('collectReadyGbpPosts', () => {
     rows = await dbs.service.select().from(gbpPost);
     expect(byId('ID2').endedAt).toBeNull();
     expect(byId('ID2').endedCaptureId).toBeNull();
+  });
+
+  it('a capture with an unparseable item ends no stored post', async () => {
+    await run(TASK, [post(1), post(2)]);
+    await run(TASK2, [post(1), { type: 'google_business_post' }]);
+    const rows = await dbs.service.select().from(gbpPost);
+    expect(rows.every((p) => p.endedAt === null)).toBe(true);
   });
 
   it('an empty (40102) capture ends none', async () => {

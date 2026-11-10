@@ -110,7 +110,7 @@ INSERT INTO competitor_source (competitor_id, source)
 ### Copy (decided; goes to `pnpm copy:review`)
 - Price tag: **"From a Google post"**.
 - Summaries (`tag/structured.ts`): `promo` post → `Posted an offer on Google: "<text ≤ 80>"`; `content` post → `Posted on Google: "<text ≤ 80>"`;
-  aggregate → `Posted <n> updates on Google`; booking added → `Added an online booking link to its Google profile`;
+  aggregate → `Posted <n> more updates on Google`; booking added → `Added an online booking link to its Google profile`;
   removed → `Removed the online booking link from its Google profile`; changed → `Changed the online booking link on its Google profile`;
   attribute added → `Google profile now shows "<label>"`; removed → `Google profile no longer shows "<label>"`;
   photos → `Added <n> photos to its Google profile in <d> days`.

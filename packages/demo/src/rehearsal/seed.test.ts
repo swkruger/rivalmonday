@@ -1,4 +1,4 @@
-import { fixturePlaceId } from '@cs/collectors';
+import { SOURCE_KINDS, fixturePlaceId } from '@cs/collectors';
 import { agency, agencyBilling, brief, client, clientCompetitor, clientSetup, competitor, competitorSource, contact, membership, trackedPage } from '@cs/db';
 import { openTestDbs } from '@cs/db/test-helpers';
 import { listBriefDueClients } from '@cs/engine';
@@ -54,7 +54,7 @@ describe('seedRehearsal (scaled: 2 agencies x 2 clients + 1 starting point)', ()
     expect(pages.every((p) => p.cadence === 'daily' && /^https:\/\/fx[1-5]\.rehearsal\.rivalmonday\.app\/g\d+\/s[1-3]\/(pricing|services|offers)?$/.test(p.url))).toBe(true);
     expect(new Set(pages.map((p) => new URL(p.url).hostname)).size).toBe(5);
     const sources = await dbs.owner.select().from(competitorSource);
-    expect(sources).toHaveLength(15 * 5);
+    expect(sources).toHaveLength(15 * SOURCE_KINDS.length);
     expect(sources.every((s) => s.lastStatus === 'ok' && s.lastRunAt !== null && s.nextDueAt.getTime() > NOW.getTime())).toBe(true);
 
     const briefs = await dbs.owner.select().from(brief);

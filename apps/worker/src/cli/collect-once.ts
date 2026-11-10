@@ -38,7 +38,7 @@ if (!serviceUrl) {
 }
 
 // --poll runs the same async-task poll the vendor-poll cron job runs, once, and exits — no
-// --domain needed. Reviews and jobs always arrive this way (DataForSEO task_post/task_get).
+// --domain needed. Reviews, jobs and Google posts always arrive this way (DataForSEO task_post/task_get).
 if (values.poll) {
   const deps = createWorkerDeps(process.env, { aiGuard: false });
   try {
@@ -115,10 +115,10 @@ try {
       // 'skipped_no_salt'); say so here so the operator isn't told reviews were posted.
       const reviewsSkip = reviewsSkipReason(process.env);
       if (reviewsSkip) console.log(`[vendors] reviews skipped (not posted): ${reviewsSkip}`);
-      await deps.postBatchTasks([{ competitorId: row.id, source: 'reviews' }, { competitorId: row.id, source: 'jobs' }]);
-      sourcesRun.push('reviews', 'jobs');
+      await deps.postBatchTasks([{ competitorId: row.id, source: 'reviews' }, { competitorId: row.id, source: 'jobs' }, { competitorId: row.id, source: 'gbp_posts' }]);
+      sourcesRun.push('reviews', 'jobs', 'gbp_posts');
       console.log(
-        `[vendors] ${reviewsSkip ? 'jobs task' : 'reviews/jobs tasks'} posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ` +
+        `[vendors] ${reviewsSkip ? 'jobs/posts tasks' : 'reviews/jobs/posts tasks'} posted — DataForSEO fulfills these asynchronously; results arrive via the vendor-poll cron job ` +
           '(run `pnpm --filter @cs/worker collect-once --poll` to poll once manually).',
       );
     }

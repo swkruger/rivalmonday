@@ -17,7 +17,7 @@ export const CHANNEL_LABELS: Record<string, string> = {
 export const channelLabel = (c: string): string => CHANNEL_LABELS[c] ?? humanise(c);
 
 /** `competitor_source.source` values (`SOURCE_KINDS`, `@cs/collectors`). */
-export const SOURCE_LABELS: Record<string, string> = { gbp: 'Google Business Profile', reviews: 'Google reviews', ads_google: 'Google ads', ads_meta: 'Meta ads', jobs: 'Google Jobs' };
+export const SOURCE_LABELS: Record<string, string> = { gbp: 'Google Business Profile', reviews: 'Google reviews', ads_google: 'Google ads', ads_meta: 'Meta ads', jobs: 'Google Jobs', gbp_posts: 'Google posts' };
 export const sourceLabel = (s: string): string => SOURCE_LABELS[s] ?? humanise(s);
 
 export interface DetailLine { label: string; value: string }

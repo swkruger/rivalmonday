@@ -139,7 +139,7 @@ describe('buildStructuredSummary', () => {
     const base = { source: 'google_business_profile', beforeText: null };
     expect(buildStructuredSummary({ ...base, afterText: 'Spring tune-up $79', details: { changeType: 'promo', field: 'post', postId: 'p', offer: true } })).toBe('Posted an offer on Google: "Spring tune-up $79"');
     expect(buildStructuredSummary({ ...base, afterText: "We're hiring!", details: { changeType: 'content', field: 'post', postId: 'p', offer: false } })).toBe('Posted on Google: "We\'re hiring!"');
-    expect(buildStructuredSummary({ ...base, afterText: null, details: { changeType: 'content', field: 'post', count: 2 } })).toBe('Posted 2 updates on Google');
+    expect(buildStructuredSummary({ ...base, afterText: null, details: { changeType: 'content', field: 'post', count: 2 } })).toBe('Posted 2 more updates on Google');
     expect(buildStructuredSummary({ ...base, afterText: 'x'.repeat(100), details: { changeType: 'content', field: 'post', postId: 'p' } })).toBe(`Posted on Google: "${'x'.repeat(79)}…"`);
   });
   it('service-maps a single post like an ad, but not the aggregate or a web promo', () => {

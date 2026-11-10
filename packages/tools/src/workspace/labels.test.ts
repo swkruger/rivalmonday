@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changeTypeOptions, channelLabel, detailLines, factView } from './labels';
+import { changeTypeOptions, channelLabel, detailLines, factView, sourceLabel } from './labels';
 
 describe('workspace labels', () => {
   it('labels channels and falls back to a humanised key', () => {
@@ -23,6 +23,9 @@ describe('workspace labels', () => {
   it('shows facts by their raw text', () => {
     expect(factView({ kind: 'price', before: { kind: 'price', value: 99, unit: 'USD', raw: '$99', context: '' }, after: { kind: 'price', value: 79, unit: 'USD', raw: '$79', context: '' }, pct: -20.2 }))
       .toEqual({ kind: 'price', before: '$99', after: '$79', pct: -20.2 });
+  });
+  it('labels Google posts as a source', () => {
+    expect(sourceLabel('gbp_posts')).toBe('Google posts');
   });
   it('offers every change type but cosmetic as a filter', () => {
     const ids = changeTypeOptions().map((o) => o.id);

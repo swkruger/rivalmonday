@@ -35,5 +35,6 @@ ALTER TABLE gbp_post FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 CREATE POLICY gbp_post_visible ON gbp_post FOR SELECT USING (app_competitor_visible(competitor_id));
 --> statement-breakpoint
-INSERT INTO competitor_source (competitor_id, source)
-  SELECT competitor_id, 'gbp_posts' FROM competitor_source WHERE source = 'gbp' ON CONFLICT DO NOTHING;
+-- next_due_at = now() + 2 h: an old worker still running after migrate must not claim these rows before the new code ships.
+INSERT INTO competitor_source (competitor_id, source, next_due_at)
+  SELECT competitor_id, 'gbp_posts', now() + interval '2 hours' FROM competitor_source WHERE source = 'gbp' ON CONFLICT DO NOTHING;

@@ -70,7 +70,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
   if ((d.changeType === 'promo' || d.changeType === 'content') && d.field === 'post') {
     s = d.postId
       ? `${d.changeType === 'promo' ? 'Posted an offer on Google' : 'Posted on Google'}: "${trunc(after, 80)}"`
-      : `Posted ${d.count ?? 0} updates on Google`;
+      : `Posted ${d.count ?? 0} more updates on Google`;
     return redactForModel(s, { businessNames });
   }
   switch (d.changeType) {

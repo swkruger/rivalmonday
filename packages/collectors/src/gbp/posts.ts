@@ -39,16 +39,28 @@ function lpsid(url: string): string | null {
   }
 }
 
+/** The trimmed value when it is an http(s) URL, else null (vendor text is never trusted as a link). */
+function httpUrl(v: string | null | undefined): string | null {
+  const t = v?.trim();
+  if (!t) return null;
+  try {
+    const u = new URL(t);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? t : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Pure parsing of one google_business_post item; the vendor gives no id, so it is the `lpsid` of the post url (else a hash). */
 export function parseGbpPost(raw: unknown): GbpPost | null {
   const p = postSchema.safeParse(raw);
   if (!p.success) return null;
   const text = p.data.post_text?.trim() ? p.data.post_text : null;
-  const url = p.data.url?.trim() ? p.data.url : null;
+  const url = httpUrl(p.data.url);
   const seed = url ?? text;
   if (!seed) return null;
   const postId = (url ? lpsid(url) : null) ?? sha256Hex(seed).slice(0, 32);
-  return { postId, text, url, buttonUrl: p.data.links?.[0]?.url || null, postedAt: parseDfsTimestamp(p.data.timestamp)?.toISOString() ?? null };
+  return { postId, text, url, buttonUrl: httpUrl(p.data.links?.[0]?.url), postedAt: parseDfsTimestamp(p.data.timestamp)?.toISOString() ?? null };
 }
 
 export async function postGbpPostTasks(
@@ -89,9 +101,11 @@ export async function collectReadyGbpPosts(deps: { db: Db; store: ObjectStore; d
     const { captureId, capturedAt } = await recordVendorCapture(deps, { competitorId: c.id, source: 'google_business_profile', url: GBP_POSTS_URL, collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: task.result });
     const items = (task.result[0] as { items?: unknown[] } | undefined)?.items ?? [];
     const byId = new Map<string, GbpPost>();
+    let unparsed = 0;
     for (const it of items) {
       const p = parseGbpPost(it);
       if (p) byId.set(p.postId, p);
+      else unparsed++;
     }
     const listed = [...byId.values()];
     if (listed.length === 0) return; // empty capture (40102 or no items): nothing listed, nothing ended
@@ -109,7 +123,8 @@ export async function collectReadyGbpPosts(deps: { db: Db; store: ObjectStore; d
           lastCaptureId: captureId, lastSeenAt: capturedAt, endedCaptureId: null, endedAt: null,
         },
       });
-    await deps.db
+    // A malformed item must not end a stored post: end posts only when every item parsed.
+    if (unparsed === 0) await deps.db
       .update(gbpPost)
       .set({ endedCaptureId: captureId, endedAt: capturedAt })
       .where(and(eq(gbpPost.competitorId, c.id), isNull(gbpPost.endedAt), notInArray(gbpPost.externalId, listed.map((p) => p.postId))));
