@@ -15,6 +15,8 @@ const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 
 const BLOCKS_0101 = readFileSync(join(__dirname, '../migrations/0101_web_readiness_pack_v6.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL_0101 = BLOCKS_0101.slice(BLOCKS_0101.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS_0107 = readFileSync(join(__dirname, '../migrations/0107_citations.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0107 = BLOCKS_0107.slice(BLOCKS_0107.findIndex((b) => b.includes('-- backfill:start')));
 
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
@@ -31,6 +33,7 @@ afterEach(async () => {
   await cleanup();
   await backfill();
   for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s)); // leave the shared test DB in the current shape
+  for (const s of BACKFILL_0107) await dbs.owner.execute(sql.raw(s));
 });
 beforeEach(async () => {
   await dbs.owner.execute(sql`

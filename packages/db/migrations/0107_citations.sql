@@ -57,3 +57,30 @@ ALTER TABLE citation_audit_run ENABLE ROW LEVEL SECURITY;
 ALTER TABLE citation_audit_run FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 CREATE POLICY citation_audit_run_select ON citation_audit_run FOR SELECT USING (agency_id = app_agency_id() AND app_client_visible(client_id));
+--> statement-breakpoint
+-- 18c-1: pack v7 for the shipped packs (citation_added weight, citations block, citation_gap rule, fix_citations play).
+-- DB-created verticals inherit generic's via assemblePack. vertical.updated_at left alone (see 0099). Idempotent.
+-- backfill:start
+UPDATE vertical
+SET config = jsonb_set(jsonb_set(config, '{type_weights,citation_added}', '0.3'::jsonb, true), '{scoring,version}', '7'::jsonb, true)
+WHERE id IN ('generic', 'hvac_plumbing', 'dental')
+  AND jsonb_typeof(config -> 'type_weights') = 'object'
+  AND jsonb_typeof(config -> 'scoring') = 'object'
+  AND coalesce((config #>> '{scoring,version}')::int, 0) < 7;
+--> statement-breakpoint
+UPDATE vertical SET config = jsonb_set(config, '{citations}', $json${"directory_groups":{"general":[{"host":"facebook.com","label":"Facebook","add_listing_url":"https://www.facebook.com/pages/create"},{"host":"bbb.org","label":"Better Business Bureau","add_listing_url":"https://www.bbb.org/get-listed"},{"host":"yellowpages.com","label":"Yellow Pages","add_listing_url":"https://www.yellowpages.com/claim-your-listing"},{"host":"manta.com","label":"Manta","add_listing_url":"https://www.manta.com/business-listings/add-your-company"},{"host":"foursquare.com","label":"Foursquare","add_listing_url":"https://business.foursquare.com/claim"},{"host":"mapquest.com","label":"MapQuest","add_listing_url":"https://business.mapquest.com/"}],"home_services":[{"host":"angi.com","label":"Angi","add_listing_url":"https://signup.angi.com/pro"},{"host":"homeadvisor.com","label":"HomeAdvisor","add_listing_url":"https://pro.homeadvisor.com/"},{"host":"thumbtack.com","label":"Thumbtack","add_listing_url":"https://www.thumbtack.com/pro"},{"host":"houzz.com","label":"Houzz","add_listing_url":"https://pro.houzz.com/pro"},{"host":"porch.com","label":"Porch","add_listing_url":"https://pro.porch.com/how-it-works"}],"dental_health":[{"host":"findadentist.ada.org","label":"ADA Find-a-Dentist","add_listing_url":"https://www.ada.org/join-the-ada/member-benefits/find-a-dentist"}]},"groups":["general"],"min_missing":3}$json$::jsonb, true)
+WHERE id = 'generic' AND NOT config ? 'citations';
+--> statement-breakpoint
+UPDATE vertical SET config = jsonb_set(config, '{citations}', '{"groups":["general","home_services"],"min_missing":3}'::jsonb, true)
+WHERE id = 'hvac_plumbing' AND NOT config ? 'citations';
+--> statement-breakpoint
+UPDATE vertical SET config = jsonb_set(config, '{citations}', '{"groups":["general","dental_health"],"min_missing":3}'::jsonb, true)
+WHERE id = 'dental' AND NOT config ? 'citations';
+--> statement-breakpoint
+UPDATE vertical SET config = jsonb_set(config, '{self_rules}', (config -> 'self_rules') || '[{"id":"citation_gap","weight":0.6,"playbook":"fix_citations","params":{"min_missing":3}}]'::jsonb)
+WHERE id IN ('generic', 'hvac_plumbing', 'dental') AND jsonb_typeof(config -> 'self_rules') = 'array'
+  AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(config -> 'self_rules') r WHERE r ->> 'id' = 'citation_gap');
+--> statement-breakpoint
+UPDATE vertical SET config = jsonb_set(config, '{playbooks}', (config -> 'playbooks') || $json$[{"id":"fix_citations","trigger":"citation_gap","title":"Get listed on the directories you're missing","template":"Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.","effort":"L","impact":"M"}]$json$::jsonb)
+WHERE id IN ('generic', 'hvac_plumbing', 'dental') AND jsonb_typeof(config -> 'playbooks') = 'array'
+  AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(config -> 'playbooks') r WHERE r ->> 'id' = 'fix_citations');
