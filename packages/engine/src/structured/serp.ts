@@ -1,6 +1,13 @@
-import { client, clientCompetitor, competitor, type Db, type detectedChange, rankScan, serpSnapshot } from '@cs/db';
-import { and, desc, eq, inArray, isNotNull, lte } from 'drizzle-orm';
+import { client, clientCompetitor, competitor, type Db, detectedChange, rankScan, serpSnapshot } from '@cs/db';
+import { and, desc, eq, inArray, isNotNull, lte, type SQL, sql } from 'drizzle-orm';
 import { RANK_DIFF_VERSION, rankSettingsKey } from './rank';
+
+/**
+ * The capture behind a change's evidence: `after_capture_id`, or for a page-one Google change (rank scan subject; the
+ * schema allows only one of the two) the confirming scan's `serp_snapshot` capture for its keyword. Use it wherever
+ * evidence is joined to a detected_change (brief evidence, graded/live lines, event evidence ids).
+ */
+export const changeCaptureId: SQL<string | null> = sql<string | null>`coalesce(${detectedChange.afterCaptureId}, (SELECT ss.capture_id FROM serp_snapshot ss WHERE ss.scan_id = ${detectedChange.rankScanId} AND ${detectedChange.details}->>'surface' = 'organic' AND ss.keyword = ${detectedChange.details}->>'keyword'))`;
 
 /** A change is confirmed only after two scans agree: s0 and s1 equal, s2 different. */
 export const SERP_SERIES = 3;

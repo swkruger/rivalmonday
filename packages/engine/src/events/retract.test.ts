@@ -175,4 +175,15 @@ describe('rank-scope supersede (P9)', () => {
     expect(rows.find((c) => c.id === rank!.id)?.status).toBe('superseded');
     expect(rows.find((c) => c.id === tier!.id)?.status).toBe('event');
   });
+
+  it('rank re-diff supersedes older page-one (serp:) rows too', async () => {
+    const [scan] = await dbs.service.insert(rankScan).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'done', finishedAt: day(2) }).returning({ id: rankScan.id });
+    const [serp] = await dbs.service.insert(detectedChange).values({
+      competitorId: IDS.competitorX, source: 'rank', kind: 'added', rankScanId: scan!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1, status: 'event', stageVersion: 0,
+      blockKey: 'serp:ac repair', details: { changeType: 'rank_change', surface: 'organic', keyword: 'ac repair', direction: 'entered', position: 3 },
+    }).returning({ id: detectedChange.id });
+    const r = await dbs.service.transaction((tx) => supersedePriorChanges(tx, { rankScanId: scan!.id }, 1));
+    expect(r.superseded).toBe(1);
+    expect((await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, serp!.id)))[0]?.status).toBe('superseded');
+  });
 });

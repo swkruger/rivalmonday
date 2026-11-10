@@ -6,7 +6,7 @@ import { and, asc, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { competitorLinked, linkedCompetitors, SERVABLE_EVIDENCE, snapshotSide } from '../workspace/evidence-access';
-import { channelLabel, detailLines, factView } from '../workspace/labels';
+import { changeChannelLabel, channelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel } from '../workspace/model-text';
 import { allInOrder, clientEvents, eventJoin, firstVisibleEventOfChange, workspaceClient } from '../workspace/scope';
 import { type DiffSegment, diffCells, MAX_DIFF_CELLS, wordDiff } from '../workspace/word-diff';
@@ -112,7 +112,7 @@ export const compareSnapshots = defineTool({
     const [before, after] = await Promise.all([snapshotSide(deps.service, ch.beforeCaptureId), snapshotSide(deps.service, ch.afterCaptureId)]);
     const hasText = ch.beforeText !== null || ch.afterText !== null;
     return {
-      changeId: ch.id, eventId, channel: ch.source, channelLabel: channelLabel(ch.source), kind: ch.kind, pageUrl: ch.pageUrl ?? null, before, after,
+      changeId: ch.id, eventId, channel: ch.source, channelLabel: changeChannelLabel(ch.source, ch.details), kind: ch.kind, pageUrl: ch.pageUrl ?? null, before, after,
       diff: hasText ? wordDiff(forChannel(meta, ch.beforeText ?? '', [ch.competitorName]), forChannel(meta, ch.afterText ?? '', [ch.competitorName])) : [],
       facts: (ch.numericChanges ?? []).map(factView), details: detailLines(ch.details),
     };

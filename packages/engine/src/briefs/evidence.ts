@@ -2,6 +2,7 @@ import { redactForModel } from '@cs/collectors';
 import { capture, changeEvent, detectedChange, type Db, evidence, eventChange, trackedPage } from '@cs/db';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { GBP_STATUS_PHRASE } from '../structured/gbp-status';
+import { changeCaptureId } from '../structured/serp';
 import { buildStructuredSummary, isStructuredChange } from '../tag/structured';
 
 export const EVIDENCE_TEXT_CHARS = 300;
@@ -21,7 +22,7 @@ export interface EvidenceChange {
 /** Human channel names for evidence head lines (brief-signal D4); an unknown channel shows its id. */
 export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
   web: 'Website', google_ads: 'Google Ads', meta_ads: 'Meta ads', google_business_profile: 'Google Business Profile',
-  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings',
+  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings', google_search: 'Google search',
 };
 
 export { GBP_STATUS_PHRASE };
@@ -64,20 +65,21 @@ export async function loadEventEvidence(db: Db, eventIds: string[], businessName
   const out = new Map<string, EvidenceChange[]>(eventIds.map((id) => [id, []]));
   if (eventIds.length === 0) return out;
   const rows = await db
-    .select({ eventId: eventChange.eventId, change: detectedChange, capturedAt: capture.capturedAt, pageUrl: trackedPage.url })
+    .select({ eventId: eventChange.eventId, change: detectedChange, captureId: capture.id, capturedAt: capture.capturedAt, pageUrl: trackedPage.url })
     .from(eventChange)
     .innerJoin(changeEvent, eq(changeEvent.id, eventChange.eventId))
     .innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId))
-    .leftJoin(capture, eq(capture.id, detectedChange.afterCaptureId))
+    .leftJoin(capture, eq(capture.id, changeCaptureId))
     .leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
     .where(and(inArray(eventChange.eventId, eventIds), eq(detectedChange.status, 'event'), isNull(changeEvent.retractedAt)))
     .orderBy(asc(detectedChange.detectedAt), asc(detectedChange.id));
-  const captureIds = [...new Set(rows.map((r) => r.change.afterCaptureId).filter((x): x is string => x !== null))];
+  const captureIds = [...new Set(rows.map((r) => r.captureId).filter((x): x is string => x !== null))];
   const ev = captureIds.length === 0 ? [] : await db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, captureIds));
   for (const r of rows) {
     out.get(r.eventId)!.push({
-      changeId: r.change.id, channel: r.change.source, capturedAt: r.capturedAt, pageUrl: r.pageUrl, captureId: r.change.afterCaptureId,
-      evidenceIds: ev.filter((e) => e.captureId === r.change.afterCaptureId).map((e) => e.id).sort(),
+      // A page-one Google change (rank scan subject) is labelled by its surface, not as local map rankings.
+      changeId: r.change.id, channel: r.change.details.surface === 'organic' ? 'google_search' : r.change.source, capturedAt: r.capturedAt, pageUrl: r.pageUrl, captureId: r.captureId,
+      evidenceIds: ev.filter((e) => e.captureId === r.captureId).map((e) => e.id).sort(),
       text: describe(r.change, businessNames),
     });
   }

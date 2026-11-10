@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { changeTypeOptions, channelLabel, detailLines, factView, sourceLabel } from './labels';
+import { toEventRow } from './events-read';
+import { changeChannelLabel, changeTypeOptions, channelLabel, detailLines, factView, sourceLabel } from './labels';
 
 describe('workspace labels', () => {
   it('labels channels and falls back to a humanised key', () => {
@@ -39,5 +40,19 @@ describe('workspace labels', () => {
     const ids = changeTypeOptions().map((o) => o.id);
     expect(ids).toContain('price_change');
     expect(ids).not.toContain('cosmetic');
+  });
+});
+
+describe('page-one Google changes read "Google search" (18b-2)', () => {
+  it('labels a change by its surface, and a feed row maps its rank channel to google_search', () => {
+    expect(changeChannelLabel('rank', { changeType: 'rank_change', surface: 'organic', keyword: 'ac repair', direction: 'entered' })).toBe('Google search');
+    expect(changeChannelLabel('rank', { changeType: 'rank_change', keyword: 'ac repair' })).toBe('Local rankings');
+    const base = {
+      eventId: 'e', competitorId: 'c', competitorName: 'Smith HVAC', changeType: 'rank_change', channels: ['rank'], services: null, summary: 's', score: 50, route: 'brief',
+      occurredAt: new Date('2026-11-08T06:00:00Z'), scoredAt: new Date('2026-11-08T06:00:00Z'), evidenceCount: 1,
+    };
+    expect(toEventRow({ ...base, surface: 'organic' }, 'hvac_plumbing', new Map()).channels).toEqual(['google_search']);
+    expect(toEventRow({ ...base, surface: null }, 'hvac_plumbing', new Map()).channels).toEqual(['rank']);
+    expect(channelLabel('google_search')).toBe('Google search');
   });
 });

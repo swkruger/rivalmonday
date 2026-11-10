@@ -14,6 +14,7 @@ import { changeEvent, clientCompetitor, competitor, type Db, detectedChange, eve
 import { changeTypeLabel, groupPhrase } from '@cs/email';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import type { z } from 'zod';
+import { changeCaptureId } from '../structured/serp';
 import { clientEvents, eventJoin } from '../workspace/scope';
 import { type BriefClient, periodWindow } from './gather';
 
@@ -125,7 +126,7 @@ export async function gradedChanges(
       .select({ eventId: eventChange.eventId, evidenceId: evidence.id })
       .from(eventChange)
       .innerJoin(detectedChange, and(eq(detectedChange.id, eventChange.changeId), eq(detectedChange.status, 'event')))
-      .innerJoin(evidence, eq(evidence.captureId, detectedChange.afterCaptureId))
+      .innerJoin(evidence, eq(evidence.captureId, changeCaptureId))
       .where(inArray(eventChange.eventId, fresh.map((r) => r.e.id)));
     for (const l of links) evidenceByEvent.set(l.eventId, [...(evidenceByEvent.get(l.eventId) ?? []), l.evidenceId]);
   }
@@ -166,7 +167,7 @@ export async function liveChanges(
       .innerJoin(clientCompetitor, eventJoin.tracked)
       .leftJoin(eventChange, eq(eventChange.eventId, changeEvent.id))
       .leftJoin(detectedChange, and(eq(detectedChange.id, eventChange.changeId), eq(detectedChange.status, 'event')))
-      .leftJoin(evidence, eq(evidence.captureId, detectedChange.afterCaptureId))
+      .leftJoin(evidence, eq(evidence.captureId, changeCaptureId))
       .where(and(clientEvents(clientId), inArray(changeEvent.id, ids)));
     for (const r of rows) {
       const e = live.get(r.id) ?? { occurredAt: r.occurredAt, score: r.score, evidenceIds: new Set<string>() };

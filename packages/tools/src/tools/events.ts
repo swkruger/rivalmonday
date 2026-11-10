@@ -6,7 +6,7 @@ import { packsOf, type ToolDeps } from '../deps';
 import { MOVE_LABELS } from '../pressure';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { citableEvidenceKinds, eventEvidenceIds, eventRowSelect, toEventRow } from '../workspace/events-read';
-import { channelLabel, detailLines, factView } from '../workspace/labels';
+import { changeChannelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel, summaryForChannel } from '../workspace/model-text';
 import { allInOrder, clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
 import { EventDetail, EventRow, FEEDBACK_VERDICTS, pageFields, pagedItems } from './schemas';
@@ -110,7 +110,8 @@ export const getEvent = defineTool({
     // Visibility proved above — global change rows are read with the service Db (Global Constraints).
     const changes = await deps.service
       .select({ changeId: detectedChange.id, channel: detectedChange.source, kind: detectedChange.kind, pageUrl: trackedPage.url, beforeCaptureId: detectedChange.beforeCaptureId,
-        afterCaptureId: detectedChange.afterCaptureId, detectedAt: detectedChange.detectedAt, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText })
+        afterCaptureId: detectedChange.afterCaptureId, detectedAt: detectedChange.detectedAt, beforeText: detectedChange.beforeText, afterText: detectedChange.afterText,
+        details: detectedChange.details })
       .from(eventChange).innerJoin(detectedChange, eq(detectedChange.id, eventChange.changeId)).leftJoin(trackedPage, eq(trackedPage.id, detectedChange.trackedPageId))
       .where(and(eq(eventChange.eventId, eventId), eq(detectedChange.status, 'event'))).orderBy(asc(detectedChange.detectedAt));
     const verdict = fb?.after?.verdict;
@@ -121,7 +122,7 @@ export const getEvent = defineTool({
       details: detailLines(r.details),
       factors: { typeWeight: f.typeWeight, size: f.size, relevance: f.relevance, serviceOverlap: f.serviceOverlap, territoryOverlap: f.territoryOverlap, novelty: f.novelty, thresholds: f.thresholds },
       changes: changes.map((ch) => ({
-        changeId: ch.changeId, channel: ch.channel, channelLabel: channelLabel(ch.channel), kind: ch.kind, pageUrl: ch.pageUrl ?? null,
+        changeId: ch.changeId, channel: ch.channel, channelLabel: changeChannelLabel(ch.channel, ch.details), kind: ch.kind, pageUrl: ch.pageUrl ?? null,
         beforeCaptureId: ch.beforeCaptureId, afterCaptureId: ch.afterCaptureId, detectedAt: ch.detectedAt.toISOString(), hasTextDiff: ch.beforeText !== null || ch.afterText !== null,
       })),
       moves: moves.map((m) => ({ id: m.id, label: MOVE_LABELS[m.moveType] ?? m.moveType, status: m.closedAt ? 'closed' : m.status })),

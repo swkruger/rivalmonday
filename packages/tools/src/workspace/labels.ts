@@ -15,6 +15,9 @@ export const CHANNEL_LABELS: Record<string, string> = {
   ad_image: 'Ad image',
 };
 export const channelLabel = (c: string): string => CHANNEL_LABELS[c] ?? humanise(c);
+/** A detected change's channel label: a page-one Google change (`details.surface 'organic'`) reads "Google search". */
+export const changeChannelLabel = (source: string, details: ChangeDetails | null | undefined): string =>
+  channelLabel(details?.surface === 'organic' ? 'google_search' : source);
 
 /** `competitor_source.source` values (`SOURCE_KINDS`, `@cs/collectors`). */
 export const SOURCE_LABELS: Record<string, string> = { gbp: 'Google Business Profile', reviews: 'Google reviews', ads_google: 'Google ads', ads_meta: 'Meta ads', jobs: 'Google Jobs', gbp_posts: 'Google posts' };

@@ -1,14 +1,16 @@
-import { client, clientCompetitor, competitor, detectedChange, rankScan, type SerpOrganicItem, serpSnapshot } from '@cs/db';
+import { client, clientCompetitor, competitor, detectedChange, eventChange, evidence, rankScan, type SerpOrganicItem, serpSnapshot } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { day } from '../../test/seed';
+import { day, seedScoredEvent, seedVendorCapture } from '../../test/seed';
+import { EVIDENCE_CHANNEL_LABEL, loadEventEvidence } from '../briefs/evidence';
+import { gradedChanges } from '../briefs/graded';
 import { scoreForClient } from '../score/score';
 import { detailsSignature } from '../score/score-stage';
 import { buildStructuredSummary } from '../tag/structured';
 import { diffRankScan } from './rank';
-import { isSharedHost } from './serp';
+import { changeCaptureId, isSharedHost } from './serp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -155,5 +157,33 @@ describe('summaries and scoring', () => {
   it('leaves map rank_change scoring unchanged', () => {
     const r = scoreForClient(input({ avgRankBefore: 9, avgRankAfter: 3 }), client1, pack);
     expect(r.factors.size).toBe(1);
+  });
+});
+
+describe('page-one change evidence', () => {
+  it("two rivals entering the same keyword in one scan give two changes, each citing that search's evidence", async () => {
+    await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorY });
+    const Y = 'brightsmiles.example';
+    await scan(0, { [KW]: org('a.example') });
+    await scan(7, { [KW]: org('a.example', X, Y) });
+    const s2 = await scan(14, { [KW]: org(Y, 'a.example', X) });
+    const captureId = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_search', capturedAt: day(14) });
+    const [ev] = await dbs.service.insert(evidence).values({ captureId, kind: 'vendor_json', objectKey: `evidence/${captureId}/serp.json`, sha256: captureId.replace(/-/g, ''), bytes: 1, contentType: 'application/json' }).returning({ id: evidence.id });
+    await dbs.service.update(serpSnapshot).set({ captureId }).where(and(eq(serpSnapshot.scanId, s2), eq(serpSnapshot.keyword, KW)));
+    const rows = await run(s2);
+    expect(rows.map((r) => r.competitorId).sort()).toEqual([IDS.competitorX, IDS.competitorY].sort());
+    const caps = await dbs.service.select({ id: detectedChange.id, cap: changeCaptureId }).from(detectedChange);
+    for (const r of rows) expect(caps.find((c) => c.id === r.id)?.cap).toBe(captureId);
+    // Brief evidence and graded lines resolve the same capture: hang each change off a scored event.
+    for (const r of rows) {
+      const e = await seedScoredEvent(dbs.service, { competitorId: r.competitorId, clientId: IDS.clientA1, agencyId: IDS.agencyA, occurredAt: day(14) });
+      await dbs.service.update(detectedChange).set({ status: 'event' }).where(eq(detectedChange.id, r.id));
+      await dbs.service.update(eventChange).set({ changeId: r.id }).where(eq(eventChange.eventId, e.eventId));
+      const [line] = (await loadEventEvidence(dbs.service, [e.eventId], [])).get(e.eventId)!;
+      expect(line).toMatchObject({ captureId, evidenceIds: [ev!.id], channel: 'google_search' });
+      expect(EVIDENCE_CHANNEL_LABEL[line!.channel]).toBe('Google search');
+    }
+    const graded = await gradedChanges({ db: dbs.service }, { id: IDS.clientA1, briefThreshold: 40 } as never, { start: day(13), end: day(15) }, new Set());
+    expect(graded.lines.flatMap((l) => l.evidenceIds)).toEqual([ev!.id, ev!.id]);
   });
 });

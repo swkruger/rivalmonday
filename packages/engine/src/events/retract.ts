@@ -1,5 +1,5 @@
 import { changeEvent, competitor, decisionReview, detectedChange, eventChange, eventScore, moveEvent, trackedPage, type Tx } from '@cs/db';
-import { and, asc, eq, inArray, isNull, like, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, like, lt, ne, or, sql } from 'drizzle-orm';
 import { buildStructuredSummary, isStructuredChange } from '../tag/structured';
 import { buildSummary, redactFacts } from '../tag/tag-stage';
 
@@ -73,7 +73,7 @@ export type SupersedeSubject = { afterCaptureId: string; source: string } | { ra
 export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, version: number): Promise<{ superseded: number; retracted: number }> {
   const scope =
     'rankScanId' in subject
-      ? and(eq(detectedChange.rankScanId, subject.rankScanId), like(detectedChange.blockKey, 'rank:%')) // never the 'tier:' rows (P9)
+      ? and(eq(detectedChange.rankScanId, subject.rankScanId), or(like(detectedChange.blockKey, 'rank:%'), like(detectedChange.blockKey, 'serp:%'))) // map and page-one rows, never the 'tier:' rows (P9)
       : and(eq(detectedChange.afterCaptureId, subject.afterCaptureId), eq(detectedChange.source, subject.source), sql`NOT (${detectedChange.details} ? 'topic')`, sql`(${detectedChange.details}->>'changeType') IS DISTINCT FROM 'site_feature'`);
   const old = await tx
     .update(detectedChange)
