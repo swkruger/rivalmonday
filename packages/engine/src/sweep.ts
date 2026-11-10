@@ -61,8 +61,11 @@ export async function findEngineWork(
     adImages?: boolean;
     /** Test seam: the ad-image cutoff (Google ad prices and both image lists); defaults to `AD_IMAGE_SINCE`. */
     adImageSince?: Date;
+    /** Test seam: the post-price cutoff; defaults to `POST_PRICE_SINCE`. */
+    postPriceSince?: Date;
   },
 ): Promise<EngineWork> {
+  const postPriceSince = (opts.postPriceSince ?? POST_PRICE_SINCE).toISOString();
   const adImageSince = (opts.adImageSince ?? AD_IMAGE_SINCE).toISOString();
   const only = (col: string) => (opts.competitorId ? sql`AND ${sql.raw(col)} = ${opts.competitorId}::uuid` : sql``);
   const finished = (stage: string, version: number, subject: string) => sql`
@@ -206,9 +209,10 @@ export async function findEngineWork(
   const postPrices = await db.execute(sql`
     SELECT c.id FROM capture c
     WHERE c.status = 'ok' AND c.source = 'google_business_profile' AND c.url = 'gbp:posts'
-      AND c.captured_at >= ${POST_PRICE_SINCE.toISOString()}::timestamptz
+      AND c.captured_at >= ${postPriceSince}::timestamptz
       AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
-      AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
+      AND EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
+                  WHERE cc.competitor_id = c.competitor_id AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))})
       AND NOT ${finished(POST_PRICE_STAGE, POST_PRICE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 

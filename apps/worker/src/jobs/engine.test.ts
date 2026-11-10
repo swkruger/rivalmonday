@@ -105,9 +105,10 @@ describe('engine jobs', () => {
     await jobs.postPrice.handler({ captureId: U(9) });
     expect(deps.extractPostPrices).toHaveBeenCalledWith(U(9));
     expect(jobs.postPrice.name).toBe('engine-post-price');
+    expect(jobs.postPrice.usesAi).toBe(true);
     expect(jobs.adPrice.name).toBe('engine-ad-price');
     expect(jobs.adPrice.usesAi).toBe(true);
-    for (const job of [jobs.review, jobs.price, jobs.adPrice]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    for (const job of [jobs.review, jobs.price, jobs.adPrice, jobs.postPrice]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
     expect(() => jobs.review.schema.parse({ reviewId: 'x' })).toThrow();
   });
 

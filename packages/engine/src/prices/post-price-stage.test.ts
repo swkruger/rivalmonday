@@ -1,6 +1,6 @@
 import type { DecisionQuestion } from '@cs/ai';
 import { GBP_POSTS_URL, sha256Hex } from '@cs/collectors';
-import { capture, client, competitor, gbpPost, priceBlockMap, pricePoint } from '@cs/db';
+import { client, competitor, gbpPost, priceBlockMap, pricePoint } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { asc, eq } from 'drizzle-orm';
@@ -136,14 +136,42 @@ describe('extractPostPrices', () => {
     await expect(extractPostPrices(mkDeps(), meta)).rejects.toThrow(/posts capture/);
   });
 
-  it('the sweep lists only gbp:posts captures from the cutoff', async () => {
-    const [info] = await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: SRC, url: 'gbp:info', status: 'ok', collectorVersion: 't/1', capturedAt: at(1) }).returning({ id: capture.id });
-    const early = await postsCapture(new Date(POST_PRICE_SINCE.getTime() - 3_600_000));
-    const good = await postsCapture(at(1));
-    // The settle delay compares with the database clock and the cutoff is in the future until deploy, so only the filters are asserted.
-    const w = await findEngineWork(dbs.service, { limit: 50 });
-    expect(w.postPrices).not.toContain(info!.id);
+  it('a post ended by a newer capture does not end the span of an older capture run', async () => {
+    const deps = mkDeps();
+    const c0 = await postsCapture(at(1));
+    const p1 = await post('P1', '$79 AC tune-up', c0);
+    await extractPostPrices(deps, c0);
+    const c1 = await postsCapture(at(2));
+    const c2 = await postsCapture(at(3));
+    await dbs.service.update(gbpPost).set({ endedCaptureId: c2, endedAt: at(3) }).where(eq(gbpPost.id, p1));
+    expect(await extractPostPrices(deps, c1)).toEqual({ ran: true, result: { points: 0, ended: 0 } });
+    expect(await points()).toEqual([expect.objectContaining({ endedAt: null })]);
+    expect(await extractPostPrices(deps, c2)).toEqual({ ran: true, result: { points: 0, ended: 1 } });
+    expect(await points()).toEqual([expect.objectContaining({ gbpPostId: p1, endedAt: at(3), endedCaptureId: c2 })]);
+  });
+
+  it('a competitor tracked only by a paused client is skipped by the stage and not listed by the sweep', async () => {
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA2)); // A2 tracks Y only
+    const since = new Date(Date.now() - 86_400_000);
+    const ai = createFakeAi({ decide: byText });
+    const c0 = await postsCapture(new Date(since.getTime() + 60_000), IDS.competitorY);
+    await post('Y1', '$79 AC tune-up', c0, {}, IDS.competitorY);
+    expect((await findEngineWork(dbs.service, { limit: 50, postPriceSince: since })).postPrices).not.toContain(c0);
+    const c1 = await postsCapture(at(1), IDS.competitorY);
+    await post('Y2', '$79 AC tune-up', c1, {}, IDS.competitorY);
+    expect(await extractPostPrices(mkDeps(ai), c1)).toMatchObject({ ran: true, result: { points: 0, skipped: expect.any(String) } });
+    expect(ai.calls.decide).toHaveLength(0);
+  });
+
+  it('the sweep lists a settled gbp:posts capture after the cutoff, not an earlier one, not gbp:info', async () => {
+    const since = new Date(Date.now() - 86_400_000);
+    const mk = (capturedAt: Date, url: string) => seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: SRC, url, capturedAt });
+    const early = await mk(new Date(since.getTime() - 3_600_000), GBP_POSTS_URL);
+    const info = await mk(new Date(since.getTime() + 60_000), 'gbp:info');
+    const good = await mk(new Date(since.getTime() + 120_000), GBP_POSTS_URL);
+    const w = await findEngineWork(dbs.service, { limit: 50, postPriceSince: since });
+    expect(w.postPrices).toEqual([good]);
     expect(w.postPrices).not.toContain(early);
-    expect(w.postPrices.every((id) => id === good)).toBe(true);
+    expect(w.postPrices).not.toContain(info);
   });
 });

@@ -1,8 +1,8 @@
 import type { Ai } from '@cs/ai';
 import { GBP_POSTS_URL, redactForModel, sha256Hex } from '@cs/collectors';
-import { capture, clientCompetitor, competitor, type Db, gbpPost, priceBlockMap, pricePoint, stageRun } from '@cs/db';
+import { agencyServiceable, capture, client, clientCompetitor, clientWorkAllowed, competitor, type Db, gbpPost, priceBlockMap, pricePoint, stageRun } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, inArray, isNotNull, isNull, max, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lte, max, ne } from 'drizzle-orm';
 import { runStage, type StageOutcome } from '../stage';
 import { competitorVerticals, type PackLoader } from '../tag/tag-stage';
 import { type PriceObservation, pricesInBlock } from './observe';
@@ -34,7 +34,10 @@ export async function extractPostPrices(deps: { db: Db; store: ObjectStore; ai: 
       const skip = (skipped: string) => ({ skipped, observations: [] as Observed[], maps: [] as PriceBlockMapRow[], seenPostIds: [] as string[] });
       if (cap.capturedAt < POST_PRICE_SINCE) return skip('capture predates post pricing');
       // A client's own business (self competitor, in no client_competitor row) is never priced; `competitorVerticals` would include its vertical.
-      const [tracked] = await deps.db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.competitorId, cap.competitorId)).limit(1);
+      // Paid work: at least one tracking client must be allowed work (active, not paused/archived/spend-paused, agency serviceable).
+      const [tracked] = await deps.db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor)
+        .innerJoin(client, eq(client.id, clientCompetitor.clientId))
+        .where(and(eq(clientCompetitor.competitorId, cap.competitorId), clientWorkAllowed(client), agencyServiceable(client.agencyId))).limit(1);
       const verticalIds = tracked ? await competitorVerticals(deps.db, cap.competitorId) : [];
       if (verticalIds.length === 0) return skip('no client tracks this competitor');
       const [newest] = await deps.db
@@ -44,6 +47,7 @@ export async function extractPostPrices(deps: { db: Db; store: ObjectStore; ai: 
         .where(and(eq(capture.competitorId, cap.competitorId), eq(capture.source, 'google_business_profile'), eq(capture.url, GBP_POSTS_URL), ne(capture.id, captureId)));
       if (newest?.at && newest.at > cap.capturedAt) return skip('a newer posts capture was already processed');
 
+      // Only posts this capture lists: a capture overtaken by a newer one prices nothing, the newer capture does the work.
       const listed = await deps.db
         .select({ id: gbpPost.id, text: gbpPost.text })
         .from(gbpPost)
@@ -92,11 +96,10 @@ export async function extractPostPrices(deps: { db: Db; store: ObjectStore; ai: 
           .returning({ id: pricePoint.id });
         points = written.length;
       }
-      // Posts the collector ended (by this capture, or an earlier one whose spans were not yet closed) end their spans.
-      const endedPosts = await tx.select({ id: gbpPost.id }).from(gbpPost).where(and(eq(gbpPost.competitorId, cap.competitorId), isNotNull(gbpPost.endedAt)));
-      const ended = endedPosts.length > 0
-        ? (await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(and(inArray(pricePoint.gbpPostId, endedPosts.map((p) => p.id)), isNull(pricePoint.endedAt))).returning({ id: pricePoint.id })).length
-        : 0;
+      // Posts the collector ended at or before this capture (by it, or an earlier one whose spans were not yet closed) end their spans;
+      // a post ended by a newer capture is left for that capture's run.
+      const endedPosts = tx.select({ id: gbpPost.id }).from(gbpPost).where(and(eq(gbpPost.competitorId, cap.competitorId), isNotNull(gbpPost.endedAt), lte(gbpPost.endedAt, cap.capturedAt)));
+      const ended = (await tx.update(pricePoint).set({ endedAt: cap.capturedAt, endedCaptureId: cap.id }).where(and(inArray(pricePoint.gbpPostId, endedPosts), isNull(pricePoint.endedAt))).returning({ id: pricePoint.id })).length;
       return { points, ended };
     },
   );
