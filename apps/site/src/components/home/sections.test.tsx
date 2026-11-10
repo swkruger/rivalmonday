@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ siteEnv: { appUrl: 'https://app.test', clientPriceUsd: 99, social: {}, comparePages: [] as string[], turnstileSiteKey: null as string | null } }));
@@ -148,6 +149,12 @@ describe('ChecksHub and Steps', () => {
     for (const t of ['Competitor websites', 'Google reviews', 'Google Business Profile', 'Meta Ad Library', 'Google Ads Transparency Center', 'Local map rankings', 'Monday brief', 'No evidence, no claim']) {
       expect(name).toContain(t);
     }
+  });
+
+  it('the checks diagram shows every step in static markup', () => {
+    const html = renderToStaticMarkup(<App><ChecksHub /></App>);
+    for (const t of ['Competitor websites', 'Google reviews', 'Google Business Profile', 'Local map rankings', 'Monday brief', 'No evidence, no claim']) expect(html).toContain(t);
+    expect(html).not.toContain('opacity-0');
   });
 
   it('every diagram box opens its explanation, with the source wording from the sources page', async () => {

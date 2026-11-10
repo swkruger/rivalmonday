@@ -190,6 +190,12 @@ describe('CloseBand', () => {
     expect((screen.getByLabelText('Send me a real sample brief for one of my clients') as HTMLInputElement).checked).toBe(true);
   });
 
+  it('the card sits straight', () => {
+    const { container } = render(<JoinProvider><CloseBand /></JoinProvider>);
+    const classes = [...container.querySelectorAll('[class]')].map((e) => e.getAttribute('class')).join(' ');
+    expect(classes).not.toContain('rotate');
+  });
+
   it('the preview is a decorative illustration whose scorecard matches the sample', () => {
     const { container } = render(<JoinProvider><CloseBand /></JoinProvider>);
     const fig = container.querySelector('figure')!;

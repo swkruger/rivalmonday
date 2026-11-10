@@ -7,7 +7,6 @@ import { CLIENT_VIEW, type DashboardOpen, type DashboardView } from '../../../co
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { formatDay } from '../../sample/format';
 import { SAMPLE } from '../../sample/schema';
-import { useCountUp, useInView } from '../motion/in-view';
 import { EvidencePanel } from '../sample/evidence-panel';
 import { AdActivityChart } from './ad-activity-chart';
 import { AdsView, BriefsView, CompetitorsView, MapView, Page, ReviewsPane } from './dashboard-views';
@@ -25,11 +24,6 @@ const KpiFollow = createContext<(label: string, el: HTMLElement) => void>(() => 
 function KpiButton({ href, className, ...rest }: { href: string } & React.ComponentProps<'button'>) {
   const follow = useContext(KpiFollow);
   return <button type="button" onClick={(e) => follow(href, e.currentTarget)} className={`${className ?? ''} w-full text-left hover:bg-canvas`} {...rest} />;
-}
-
-function CountUp({ value, decimals, suffix, active }: { value: number; decimals: number; suffix: string; active: boolean }) {
-  const shown = useCountUp(value, active);
-  return <>{shown.toFixed(decimals)}{suffix}</>;
 }
 
 function WhereYouStand() {
@@ -129,7 +123,7 @@ function AskCard({ onAsk }: { onAsk: () => void }) {
   );
 }
 
-function Overview({ seen, onFollow, onView, onOpen, onAskFriday }: { seen: boolean; onFollow: Follow; onView: (v: DashboardView) => void; onOpen: (id: string, el: HTMLElement) => void; onAskFriday: () => void }) {
+function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow; onView: (v: DashboardView) => void; onOpen: (id: string, el: HTMLElement) => void; onAskFriday: () => void }) {
   const latest = SAMPLE.items.slice(0, 2);
   const weeks = SAMPLE.rankGrid.weeks.map((w) => w.weekOf);
   const followKpi = (label: string, el: HTMLElement) => {
@@ -157,7 +151,7 @@ function Overview({ seen, onFollow, onView, onOpen, onAskFriday }: { seen: boole
                 linkAs={KpiButton}
                 href={k.label}
                 label={k.label}
-                value={<CountUp value={k.value} decimals={k.decimals} suffix={k.suffix} active={seen} />}
+                value={`${k.value.toFixed(k.decimals)}${k.suffix}`}
                 badge={<span className={`${pillClass} ${PILL[k.pill.tone]}`}>{k.pill.text}</span>}
                 caption={k.caption}
                 trace={k.trace}
@@ -212,7 +206,7 @@ function Overview({ seen, onFollow, onView, onOpen, onAskFriday }: { seen: boole
           <section className="flex flex-col gap-3">
             <h4 className="flex items-center gap-2 text-base font-semibold text-ink">Competitive pressure <NoteMark n={2} /></h4>
             <ul className="flex flex-col gap-2">
-              {CLIENT_VIEW.pressure.map((p, i) => (
+              {CLIENT_VIEW.pressure.map((p) => (
                 <li key={p.name}>
                   <button type="button" onClick={(e) => onFollow(p.open, e.currentTarget)} className="-mx-1.5 block w-[calc(100%+0.75rem)] rounded-sm px-1.5 py-1 text-left hover:bg-canvas">
                     <span className="flex items-baseline justify-between gap-2">
@@ -221,7 +215,7 @@ function Overview({ seen, onFollow, onView, onOpen, onAskFriday }: { seen: boole
                     </span>
                     <span className="block truncate text-xs text-muted-ink">{p.reason}</span>
                     <span role="img" aria-label={`Competitive pressure ${p.score} of 100, ${p.level}`} className="mt-1 block h-2 overflow-hidden rounded-full bg-muted-surface-2">
-                      <span className={`grow-bar block h-2 rounded-full ${BAR[p.level]}`} style={{ width: `${p.score}%`, transitionDelay: `${i * 90}ms` }} />
+                      <span className={`block h-2 rounded-full ${BAR[p.level]}`} style={{ width: `${p.score}%` }} />
                     </span>
                   </button>
                 </li>
@@ -255,7 +249,6 @@ function Overview({ seen, onFollow, onView, onOpen, onAskFriday }: { seen: boole
  * It works like the real one: the menu switches pages, and numbers, rivals and alerts lead to the page or evidence sheet behind them.
  */
 export function DashboardMock({ view, onView, onAskFriday }: { view: DashboardView; onView: (v: DashboardView) => void; onAskFriday: () => void }) {
-  const [ref, seen] = useInView<HTMLDivElement>(0.2);
   const [openId, setOpenId] = useState<string | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const open = (id: string, el: HTMLElement) => {
@@ -267,7 +260,7 @@ export function DashboardMock({ view, onView, onAskFriday }: { view: DashboardVi
     else onView(to.view);
   };
   return (
-    <div ref={ref} data-drawn={seen ? '' : undefined} className="flex min-h-0 flex-col bg-surface lg:flex-row">
+    <div className="flex min-h-0 flex-col bg-surface lg:flex-row">
       <aside className="flex shrink-0 flex-col gap-1 border-b border-line bg-canvas p-2 lg:w-48 lg:border-b-0 lg:border-r lg:p-3">
         <span className="mb-3 hidden h-9 items-center justify-center rounded-md border border-dashed border-line-control text-xs font-medium text-muted-ink lg:flex">
           {CLIENT_VIEW.agency.logo}
@@ -290,7 +283,7 @@ export function DashboardMock({ view, onView, onAskFriday }: { view: DashboardVi
         </button>
       </aside>
 
-      {view === 'overview' && <Overview seen={seen} onFollow={follow} onView={onView} onOpen={open} onAskFriday={onAskFriday} />}
+      {view === 'overview' && <Overview onFollow={follow} onView={onView} onOpen={open} onAskFriday={onAskFriday} />}
       {view === 'briefs' && <BriefsView onOpen={open} />}
       {view === 'competitors' && <CompetitorsView onOpen={open} onAds={() => onView('ads')} />}
       {view === 'map' && <MapView onOpen={open} />}

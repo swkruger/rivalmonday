@@ -7,7 +7,6 @@ import { CLIENT_VIEW, type DashboardView } from '../../../content/client-view';
 import { SECTIONS } from '../../../content/home';
 import { SAMPLE } from '../../sample/schema';
 import { HomeSectionShell, SectionHeading } from '../home/section-heading';
-import { Reveal } from '../motion/in-view';
 import { BriefEmailMock } from './brief-email-mock';
 import { DashboardMock } from './dashboard-mock';
 import { FridayChatMock } from './friday-chat-mock';
@@ -31,7 +30,7 @@ export function ClientView({ heading }: { heading?: string } = {}) {
   return (
     <HomeSectionShell id="client-view" labelledBy="client-view-heading" className="border-y border-line bg-canvas py-20 lg:py-28">
       <SectionHeading section={heading ? { ...SECTIONS['client-view'], heading } : SECTIONS['client-view']} />
-      <Reveal className="mt-10">
+      <div className="mt-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
           <TabsList aria-label="Client view" className="seg-tabs self-start">
             {TABS.map((t) => (
@@ -81,7 +80,7 @@ export function ClientView({ heading }: { heading?: string } = {}) {
             </ol>
           )}
         </Tabs>
-      </Reveal>
+      </div>
     </HomeSectionShell>
   );
 }

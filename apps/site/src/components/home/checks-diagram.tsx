@@ -3,7 +3,6 @@
 import { Button, Sheet, SheetClose, SheetContent, SheetTitle, useMediaQuery } from '@cs/ui';
 import { BadgeCheck, ChevronRight, FileText, Globe, Map, Megaphone, Star, Store, X, type LucideIcon } from 'lucide-react';
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { Reveal } from '../motion/in-view';
 
 export type CheckNode = 'websites' | 'reviews' | 'profile' | 'ads' | 'rankings' | 'brief' | 'result';
 
@@ -126,54 +125,50 @@ export function ChecksDiagram({ nodes, hint }: { nodes: Record<CheckNode, CheckN
   });
   return (
     <>
-      <Reveal>
-        <svg role="group" aria-label={NAME} viewBox="0 0 960 380" className="mx-auto mt-10 hidden h-auto w-full max-w-5xl md:block">
-          {SOURCES.map((s, i) => {
-            const y = 8 + i * (TILE_H + GAP);
-            const flow = `M ${TILE_W} ${y + TILE_H / 2} C ${TILE_W + 50} ${y + TILE_H / 2}, ${TILE_W + 60} ${MID_Y}, ${HUB.x} ${MID_Y}`;
-            return (
-              <g key={s.id}>
-                <path d={flow} fill="none" className="stroke-chart-grid" strokeWidth="2" />
-                {/* Evidence flowing into the brief (static under reduced motion). */}
-                <path d={flow} fill="none" className="flow-dash stroke-secondary" strokeOpacity="0.55" strokeWidth="2" strokeLinecap="round" />
-                <g {...box(s.id, s.label)}>
-                  <rect x="0" y={y} width={TILE_W} height={TILE_H} rx="14" className={`fill-surface stroke-line ${BOX}`} />
-                  <s.Icon x="16" y={y + 16} width="24" height="24" className="stroke-secondary" aria-hidden="true" />
-                  {s.lines ? (
-                    <text x="52" y={y + 26} className="fill-ink text-sm font-medium">
-                      <tspan x="52">{s.lines[0]}</tspan>
-                      <tspan x="52" dy="16">{s.lines[1]}</tspan>
-                    </text>
-                  ) : (
-                    <text x="52" y={y + 33} className="fill-ink text-sm font-medium">{s.label}</text>
-                  )}
-                  <ChevronRight x={TILE_W - 26} y={y + 20} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
-                </g>
+      <svg role="group" aria-label={NAME} viewBox="0 0 960 380" className="mx-auto mt-10 hidden h-auto w-full max-w-5xl md:block">
+        {SOURCES.map((s, i) => {
+          const y = 8 + i * (TILE_H + GAP);
+          const flow = `M ${TILE_W} ${y + TILE_H / 2} C ${TILE_W + 50} ${y + TILE_H / 2}, ${TILE_W + 60} ${MID_Y}, ${HUB.x} ${MID_Y}`;
+          return (
+            <g key={s.id}>
+              <path d={flow} fill="none" className="stroke-chart-grid" strokeWidth="2" />
+              <g {...box(s.id, s.label)}>
+                <rect x="0" y={y} width={TILE_W} height={TILE_H} rx="14" className={`fill-surface stroke-line ${BOX}`} />
+                <s.Icon x="16" y={y + 16} width="24" height="24" className="stroke-secondary" aria-hidden="true" />
+                {s.lines ? (
+                  <text x="52" y={y + 26} className="fill-ink text-sm font-medium">
+                    <tspan x="52">{s.lines[0]}</tspan>
+                    <tspan x="52" dy="16">{s.lines[1]}</tspan>
+                  </text>
+                ) : (
+                  <text x="52" y={y + 33} className="fill-ink text-sm font-medium">{s.label}</text>
+                )}
+                <ChevronRight x={TILE_W - 26} y={y + 20} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
               </g>
-            );
-          })}
-          <g {...box('brief', nodes.brief.title)}>
-            {/* D14: the canvas's hub card, white with a soft primary halo. */}
-            <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" fill="none" strokeWidth="12" strokeOpacity="0.14" className="stroke-primary" aria-hidden="true" />
-            <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" strokeWidth="2" className="fill-surface stroke-primary transition-colors group-hover:fill-canvas" />
-            <text x={HUB.x + HUB.w / 2} y={HUB.y + 38} textAnchor="middle" className="fill-ink text-lg font-semibold">Monday brief</text>
-            <rect x={HUB.x + 40} y={HUB.y + 54} width="120" height="26" rx="6" className="fill-chip-info-bg" />
-            <circle cx={HUB.x + 56} cy={HUB.y + 67} r="4" className="animate-pulse fill-primary" />
-            <text x={HUB.x + 66} y={HUB.y + 72} className="fill-chip-info-text text-xs font-semibold">Verifying…</text>
-            <ChevronRight x={HUB.x + HUB.w - 26} y={MID_Y - 8} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
-          </g>
-          {/* D14: the canvas's orange arrow into the result. */}
-          <path d={`M ${HUB.x + HUB.w} ${MID_Y} L ${OUT.x - 16} ${MID_Y}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" />
-          <path d={`M ${OUT.x - 24} ${MID_Y - 7} L ${OUT.x - 12} ${MID_Y} L ${OUT.x - 24} ${MID_Y + 7}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <g {...box('result', nodes.result.title)}>
-            {/* D14: the canvas's amber result box (amber-text on the amber tint, 11.9:1). */}
-            <rect x={OUT.x} y={HUB.y} width={OUT.w} height={HUB.h} rx="14" className="fill-amber-tint stroke-amber transition-colors group-hover:fill-warning-surface group-focus-visible:stroke-amber-text" />
-            <BadgeCheck x={OUT.x + 14} y={MID_Y - 14} width="28" height="28" className="stroke-accent-text" aria-hidden="true" />
-            <text x={OUT.x + 48} y={MID_Y + 6} className="fill-amber-text text-base font-semibold">No evidence, no claim</text>
-            <ChevronRight x={OUT.x + OUT.w - 24} y={MID_Y - 8} width="16" height="16" className="stroke-amber-text" aria-hidden="true" />
-          </g>
-        </svg>
-      </Reveal>
+            </g>
+          );
+        })}
+        <g {...box('brief', nodes.brief.title)}>
+          {/* D14: the canvas's hub card, white with a soft primary halo. */}
+          <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" fill="none" strokeWidth="12" strokeOpacity="0.14" className="stroke-primary" aria-hidden="true" />
+          <rect x={HUB.x} y={HUB.y} width={HUB.w} height={HUB.h} rx="18" strokeWidth="2" className="fill-surface stroke-primary transition-colors group-hover:fill-canvas" />
+          <text x={HUB.x + HUB.w / 2} y={HUB.y + 38} textAnchor="middle" className="fill-ink text-lg font-semibold">Monday brief</text>
+          <rect x={HUB.x + 40} y={HUB.y + 54} width="120" height="26" rx="6" className="fill-chip-info-bg" />
+          <circle cx={HUB.x + 56} cy={HUB.y + 67} r="4" className="fill-primary" />
+          <text x={HUB.x + 66} y={HUB.y + 72} className="fill-chip-info-text text-xs font-semibold">Verifying…</text>
+          <ChevronRight x={HUB.x + HUB.w - 26} y={MID_Y - 8} width="16" height="16" className="stroke-muted-ink group-hover:stroke-secondary" aria-hidden="true" />
+        </g>
+        {/* D14: the canvas's orange arrow into the result. */}
+        <path d={`M ${HUB.x + HUB.w} ${MID_Y} L ${OUT.x - 16} ${MID_Y}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" />
+        <path d={`M ${OUT.x - 24} ${MID_Y - 7} L ${OUT.x - 12} ${MID_Y} L ${OUT.x - 24} ${MID_Y + 7}`} fill="none" className="stroke-amber" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <g {...box('result', nodes.result.title)}>
+          {/* D14: the canvas's amber result box (amber-text on the amber tint, 11.9:1). */}
+          <rect x={OUT.x} y={HUB.y} width={OUT.w} height={HUB.h} rx="14" className="fill-amber-tint stroke-amber transition-colors group-hover:fill-warning-surface group-focus-visible:stroke-amber-text" />
+          <BadgeCheck x={OUT.x + 14} y={MID_Y - 14} width="28" height="28" className="stroke-accent-text" aria-hidden="true" />
+          <text x={OUT.x + 48} y={MID_Y + 6} className="fill-amber-text text-base font-semibold">No evidence, no claim</text>
+          <ChevronRight x={OUT.x + OUT.w - 24} y={MID_Y - 8} width="16" height="16" className="stroke-amber-text" aria-hidden="true" />
+        </g>
+      </svg>
       <ol className="mt-8 flex flex-col gap-2 md:hidden">
         {SOURCES.map((s) => (
           <li key={s.id}>

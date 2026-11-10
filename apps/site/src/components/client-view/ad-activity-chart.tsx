@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { formatDay } from '../../sample/format';
-import { useInView } from '../motion/in-view';
 
 export interface AdSeries {
   name: string;
@@ -22,11 +21,10 @@ const PAD = { l: 36, r: 12, t: 12, b: 36 };
 const AXIS_TEXT = 'fill-chart-axis text-xl sm:text-sm';
 
 /**
- * Active competitor ads per week: one line per rival, drawn in once it scrolls into view (`draw-line`). A legend
+ * Active competitor ads per week: one line per rival, drawn at once. A legend
  * names every series; a crosshair tooltip reads the hovered week; "Show as table" is the text alternative.
  */
 export function AdActivityChart({ weeks, series }: { weeks: readonly string[]; series: readonly AdSeries[] }) {
-  const [ref, seen] = useInView<HTMLDivElement>(0.3);
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(2, ...series.flatMap((s) => s.points));
   const x = (i: number) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(1, weeks.length - 1);
@@ -37,7 +35,7 @@ export function AdActivityChart({ weeks, series }: { weeks: readonly string[]; s
   const summary = series.map((s) => `${s.name} ${s.points.at(-1)}`).join(', ');
 
   return (
-    <div ref={ref} data-drawn={seen ? '' : undefined} className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink">
         {series.map((s) => (
           <li key={s.name} className="flex items-center gap-1.5">
@@ -67,7 +65,7 @@ export function AdActivityChart({ weeks, series }: { weeks: readonly string[]; s
           ))}
           {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={H - PAD.b} className="stroke-line-strong" strokeWidth="1" strokeDasharray="3 3" />}
           {series.map((s) => (
-            <path key={s.name} d={path(s.points)} pathLength={1} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" className={`draw-line ${STROKE[s.role]}`} />
+            <path key={s.name} d={path(s.points)} fill="none" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" className={STROKE[s.role]} />
           ))}
           {hover !== null &&
             series.map((s) => (

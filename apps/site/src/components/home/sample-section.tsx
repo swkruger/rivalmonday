@@ -1,6 +1,5 @@
 import { SECTIONS } from '../../../content/home';
 import { sourceLinks } from '../../lib/source-links';
-import { Reveal } from '../motion/in-view';
 import { SampleBrief } from '../sample/sample-brief';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
@@ -12,9 +11,9 @@ export function SampleSection({ autoplayMap = true }: { autoplayMap?: boolean } 
   return (
     <HomeSectionShell id="sample" labelledBy="sample-heading">
       <SectionHeading section={SECTIONS.sample} />
-      <Reveal className="mt-8">
+      <div className="mt-8">
         <SampleBrief sourceLinks={sourceLinks()} autoplayMap={autoplayMap} />
-      </Reveal>
+      </div>
       <a href="/sample-brief" className="mt-6 inline-flex text-sm font-medium text-link hover:underline">
         Open the sample brief on its own page →
       </a>

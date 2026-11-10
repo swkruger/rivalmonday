@@ -1,7 +1,6 @@
 import { HOME_IMAGES, HOW_STEPS, SECTIONS } from '../../../content/home';
 import { ANY_INDUSTRY, INDUSTRIES } from '../../../content/industries';
 import { ScanFrame } from '../media/scan-frame';
-import { Reveal } from '../motion/in-view';
 import { HomeSectionShell, SectionHeading } from './section-heading';
 
 /** Four numbered steps: a row from `lg`, stacked below; the numbers carry the section. */
@@ -12,21 +11,19 @@ export function Steps({ industries = true, afterSteps }: { industries?: boolean;
         <SectionHeading section={SECTIONS['how-it-works']} />
         <ScanFrame src={HOME_IMAGES.street.src} alt={HOME_IMAGES.street.alt} width={1200} height={800} tag={HOME_IMAGES.street.tag} size="lg" imgClassName="aspect-[16/9]" />
       </div>
-      <Reveal>
-        <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {HOW_STEPS.map((step, i) => {
-            // D14: steps are the canvas's bordered cards; the last one (the brief) is its ink card.
-            const last = i === HOW_STEPS.length - 1;
-            return (
-              <li key={step.title} className={`rounded-frame px-6 py-7 ${last ? 'bg-ink shadow-frame' : 'border border-line bg-surface'}`}>
-                <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-amber text-base font-bold tabular-nums text-amber-text">{i + 1}</span>
-                <h3 className={`mt-5 text-xl font-bold ${last ? 'text-surface' : 'text-ink'}`}>{step.title}</h3>
-                <p className={`mt-2 text-base ${last ? 'text-muted-surface' : 'text-ink-secondary'}`}>{step.body}</p>
-              </li>
-            );
-          })}
-        </ol>
-      </Reveal>
+      <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {HOW_STEPS.map((step, i) => {
+          // D14: steps are the canvas's bordered cards; the last one (the brief) is its ink card.
+          const last = i === HOW_STEPS.length - 1;
+          return (
+            <li key={step.title} className={`rounded-frame px-6 py-7 ${last ? 'bg-ink shadow-frame' : 'border border-line bg-surface'}`}>
+              <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-amber text-base font-bold tabular-nums text-amber-text">{i + 1}</span>
+              <h3 className={`mt-5 text-xl font-bold ${last ? 'text-surface' : 'text-ink'}`}>{step.title}</h3>
+              <p className={`mt-2 text-base ${last ? 'text-muted-surface' : 'text-ink-secondary'}`}>{step.body}</p>
+            </li>
+          );
+        })}
+      </ol>
       {afterSteps && <p className="mt-10 max-w-3xl text-lg text-ink-secondary">{afterSteps}</p>}
       {industries && (
       <div data-slot="any-industry" className="mt-16 rounded-frame border border-line bg-surface p-6 md:p-10">

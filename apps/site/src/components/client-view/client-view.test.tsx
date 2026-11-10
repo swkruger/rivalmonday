@@ -20,6 +20,12 @@ describe('ClientView', () => {
     expect(within(panel()).getByRole('img', { name: /Active competitor ads per week/ })).toBeTruthy();
   });
 
+  it('stat cards show their final values on first render', () => {
+    render(<ClientView />);
+    const strip = panel().textContent ?? '';
+    for (const k of CLIENT_VIEW.kpis) expect(strip).toContain(`${k.value.toFixed(k.decimals)}${k.suffix}`);
+  });
+
   it('the heading is overridable: /how-it-works keeps the shared one, the home page passes its own', () => {
     const { unmount } = render(<ClientView />);
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS['client-view'].heading);
