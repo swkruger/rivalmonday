@@ -5,10 +5,10 @@
 **Plans:** `docs/superpowers/plans/2026-11-10-site-audiences-a-still-site.md` (A, 9 tasks) then `…-b-two-sides.md` (B, 13 tasks)
 
 ## Status (overwrite)
-2026-11-10: spec, copy deck and both lean plans written and committed. **Waiting for owner approval of the plans.** No product code, no dependency installed.
+2026-11-10: spec, copy deck and both lean plans written and committed. **Owner approved both plans 2026-11-10** ("Record plans as approved"), including the calls listed below. No product code yet; `sharp` not yet added (Plan B Task 2). Worktree has `pnpm install` done and its own test DB `cs_site_audiences_test`; nothing uncommitted, no server or background job running.
 
 ## Next (overwrite)
-1. Owner approves the plans (and the calls listed below), or corrects them.
+1. New session in this worktree: Plan A Task 0 (pre-flight), then `superpowers:subagent-driven-development`.
 2. SDD: Plan A Tasks 0-8, then Plan B Tasks 0-12 (site E2E once per plan; whole-branch review on the top model after Plan B; one fix wave).
 3. Owner: `pnpm copy:review` for all new and changed lines; then `/rm-merge` on the owner's go-ahead.
 
@@ -33,8 +33,8 @@ Owner 2026-11-10: "I like and approve ALL the recommendations."
 7. Rest of the review: 11-section agency home without the two characters; mockups 2-6; Motion; Copy review.
 8. Join popup skips the audience step once a side is chosen.
 
-## Calls made for the owner (not yet approved)
-Spec § 3 M1-M17, Plan A PA1-PA8, Plan B PB1-PB10, and every copy-deck line marked `D`. The ones that change what a visitor sees:
+## Calls made for the owner (approved with the plans 2026-11-10)
+Spec § 3 M1-M17, Plan A PA1-PA8, Plan B PB1-PB10. Copy-deck lines marked `D` are approved to build; the wording is still signed in `pnpm copy:review`. The ones that change what a visitor sees:
 - Pages for both readers (sample brief, sources, industries, guides, legal) show the switch but no menu (M3).
 - `/how-it-works` loses the week timeline, roles block, client tour, sample and board; it links to them instead (M10).
 - Compare leaves the top menu (M13); the footer hides agency-only links on the business side (M11).
