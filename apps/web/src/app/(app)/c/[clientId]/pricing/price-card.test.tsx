@@ -75,4 +75,20 @@ describe('PriceCard ad image tag', () => {
     expect(tag.closest('a')?.querySelectorAll('a')).toHaveLength(0);
     expect(container.querySelectorAll('a a')).toHaveLength(0);
   });
+
+  it('links the ad image evidence beside the row (not nested) when there is one', () => {
+    const img = { ...row, cells: [{ ...row.cells[0]!, prices: [{ amount: 89, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'ad_image' as const, evidenceIds: ['e1'] }] }, row.cells[1]!] };
+    const { container } = render(<PriceCard row={img} services={services} selectedServiceId={null} hrefFor={() => '#'} evidenceHref={(id) => `/c/c1/evidence/${id}`} />);
+    const links = screen.getAllByRole('link', { name: 'Open the ad image for AC tune-up' });
+    expect(links).toHaveLength(1);
+    expect(links[0]!.getAttribute('href')).toBe('/c/c1/evidence/e1');
+    expect(container.querySelectorAll('a a')).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: /Open the ad image for Furnace repair/ })).toBeNull();
+  });
+
+  it('shows no image link when the ad image price has no evidence id', () => {
+    const img = { ...row, cells: [{ ...row.cells[0]!, prices: [{ amount: 89, unit: 'USD', qualifier: 'exact' as const, promo: false, since: '2026-10-02T00:00:00.000Z', source: 'ad_image' as const, evidenceIds: [] as string[] }] }] };
+    render(<PriceCard row={img} services={services} selectedServiceId={null} hrefFor={() => '#'} evidenceHref={(id) => `/e/${id}`} />);
+    expect(screen.queryByRole('link', { name: /Open the ad image/ })).toBeNull();
+  });
 });

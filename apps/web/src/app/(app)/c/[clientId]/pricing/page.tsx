@@ -96,6 +96,7 @@ export default async function PricingPage({ params, searchParams }: {
                 services={matrix.services}
                 selectedServiceId={selected?.competitorId === row.competitorId ? selected.serviceId : null}
                 hrefFor={(serviceId) => pricingHref(clientId, { competitor: row.competitorId, service: serviceId, days })}
+                evidenceHref={(evidenceId) => `/c/${clientId}/evidence/${evidenceId}`}
               >
                 {selected?.competitorId === row.competitorId && (
                   <Suspense fallback={<SectionSkeleton />}>
