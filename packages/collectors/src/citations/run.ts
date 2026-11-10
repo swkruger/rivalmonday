@@ -16,7 +16,7 @@ const DAY_MS = 86_400_000;
 const AUDITED_RIVALS_MAX = 3;
 
 /** Postgres unique violation on the one-running-run-per-client index (drizzle may wrap the driver error in `cause`). */
-function isLiveRunViolation(err: unknown): boolean {
+export function isLiveRunViolation(err: unknown): boolean {
   for (let e: unknown = err, i = 0; e && typeof e === 'object' && i < 4; e = (e as { cause?: unknown }).cause, i++) {
     const x = e as { code?: string; constraint_name?: string; constraint?: string };
     if (x.code === '23505' && (x.constraint_name ?? x.constraint) === 'citation_audit_run_one_live') return true;
@@ -111,6 +111,7 @@ export async function runCitationAudit(
 
   let runId: string;
   if (opts.runId) {
+    // The job's own competitor list is authoritative (it may differ from the tool's snapshot).
     const [adopted] = await db.update(citationAuditRun).set({ competitorIds: ids })
       .where(and(eq(citationAuditRun.id, opts.runId), eq(citationAuditRun.clientId, clientId), eq(citationAuditRun.status, 'running'), eq(citationAuditRun.trigger, 'manual')))
       .returning({ id: citationAuditRun.id });

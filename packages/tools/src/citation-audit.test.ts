@@ -1,4 +1,4 @@
-import { type AccessContext, createAccessContext, type Feature, SPEND_PAUSED_COPY } from '@cs/core';
+import { type AccessContext, createAccessContext, type Feature } from '@cs/core';
 import { citationAuditRun, client, clientCompetitor, competitor } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
@@ -78,10 +78,9 @@ describe('request_citation_audit', () => {
     expect(await call()).toEqual({ refused: 'running' });
   });
 
-  it('spend-paused client: spend_paused (copy constant exists)', async () => {
+  it('spend-paused client: spend_paused', async () => {
     await spendPauseClient(dbs.owner, IDS.clientA1);
     expect(await call()).toEqual({ refused: 'spend_paused' });
-    expect(SPEND_PAUSED_COPY).toBeTruthy();
   });
 
   it('not_ready: vendors not configured', async () => {
@@ -99,6 +98,7 @@ describe('request_citation_audit', () => {
   it('concurrent requests start exactly one run', async () => {
     const rs = await Promise.all([call(), call(), call()]);
     expect(rs.filter((r) => 'runId' in r)).toHaveLength(1);
+    expect(rs.filter((r) => !('runId' in r))).toEqual([{ refused: 'running' }, { refused: 'running' }]);
     expect(await runs()).toHaveLength(1);
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
@@ -116,7 +116,38 @@ describe('request_citation_audit', () => {
 });
 
 describe('citationAuditAvailability', () => {
+  const NOW = new Date('2026-11-10T12:00:00Z');
+  const c = { id: IDS.clientA1, agencyId: IDS.agencyA };
+  const avail = (vendorsConfigured = true) => citationAuditAvailability(dbs.service, c, NOW, { vendorsConfigured });
+
   it('available with no history', async () => {
-    expect(await citationAuditAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, new Date(), true)).toEqual({ state: 'available' });
+    expect(await avail()).toEqual({ state: 'available' });
+  });
+
+  it('a manual run started exactly 7 days ago no longer blocks (strict >)', async () => {
+    await manualRun('done', new Date(NOW.getTime() - CITATION_MANUAL_PER_CLIENT_DAYS * DAY));
+    expect(await avail()).toEqual({ state: 'available' });
+    await dbs.owner.update(citationAuditRun).set({ startedAt: new Date(NOW.getTime() - CITATION_MANUAL_PER_CLIENT_DAYS * DAY + 1000) });
+    expect(await avail()).toEqual({ state: 'weekly_limit', nextAvailableAt: new Date(NOW.getTime() + 1000).toISOString() });
+  });
+
+  it('weekly and daily limits both hit: weekly_limit wins, every time', async () => {
+    const dayStart = new Date('2026-11-10T00:00:00Z');
+    await manualRun('done', new Date(dayStart.getTime() + 1000));
+    await dbs.owner.insert(citationAuditRun).values(Array.from({ length: CITATION_MANUAL_PER_AGENCY_DAY }, () => ({
+      agencyId: IDS.agencyA, clientId: IDS.clientA2, trigger: 'manual' as const, status: 'done' as const, competitorIds: [], startedAt: new Date(dayStart.getTime() + 1000),
+    })));
+    const first = await avail();
+    expect(first.state).toBe('weekly_limit');
+    expect(await avail()).toEqual(first);
+  });
+
+  it('a running row older than 3 h is not running', async () => {
+    await dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'monthly', status: 'running', competitorIds: [], startedAt: new Date(NOW.getTime() - 4 * 3_600_000) });
+    expect(await avail()).toEqual({ state: 'available' });
+  });
+
+  it('vendors not configured: not_ready', async () => {
+    expect(await avail(false)).toEqual({ state: 'not_ready' });
   });
 });
