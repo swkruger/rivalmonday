@@ -1,13 +1,13 @@
 # phase-18b — Wider sources: more Google via DataForSEO
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18b   **Base:** main @ 843cfbac
-**Plan/spec:** [spec 18b-1](../superpowers/specs/2026-11-10-phase-18b1-gbp-posts-design.md) · [plan 18b-1](../superpowers/plans/2026-11-10-phase-18b1-gbp-posts.md) (no roadmap row; add one at merge)
+**Plan/spec:** [spec 18b-1](../superpowers/specs/2026-11-10-phase-18b1-gbp-posts-design.md) · [plan 18b-1](../superpowers/plans/2026-11-10-phase-18b1-gbp-posts.md) · [spec 18b-2](../superpowers/specs/2026-11-10-phase-18b2-search-visibility-design.md) · [plan 18b-2](../superpowers/plans/2026-11-10-phase-18b2-search-visibility.md) (no roadmap row; add one at merge)
 
 ## Status (overwrite)
-18b-1 plan owner-approved 2026-11-10. **Task 0 done:** GBP fields `total_photos`, `book_online_url`, `attributes.available_attributes` ({group: [names]}) confirmed on a cs_dev capture; posts endpoint `business_data/google/my_business_updates/task_post|tasks_ready|task_get/{id}` (sandbox fixture saved); items have no id/offer marker, `lpsid` in `url` is unique per post; **live cost $0.003/task** (spent $0.003). SDD Tasks 1–8 running.
+18b-1 Tasks 1–8 complete and reviewed; final affected tests + whole-branch review in progress. **18b-2 plan owner-approved 2026-11-10** (incl. Task 0 live probe ≤ $0.05); starts after the 18b-1 final review. 18b-1 Task 0: GBP fields `total_photos`, `book_online_url`, `attributes.available_attributes` ({group: [names]}) confirmed on a cs_dev capture; posts endpoint `business_data/google/my_business_updates/task_post|tasks_ready|task_get/{id}` (sandbox fixture saved); items have no id/offer marker, `lpsid` in `url` is unique per post; **live cost $0.003/task** (spent $0.003). SDD Tasks 1–8 running.
 
 ## Next (overwrite)
-Task 0 (pre-flight + vendor probe, stop point) → SDD Tasks 1–8 → final review.
+18b-1 final review + one fix wave → 18b-2 Task 0 (probe) → SDD Tasks 1–5 → final review → `/rm-wrap-up`; merge only on the owner's go-ahead.
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
@@ -16,7 +16,7 @@ None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
 None (`git branch --no-merged main` lists only `phase-18b`).
 
 ## Decisions (owner-approved)
-2026-11-10: owner chose the brief's recommendations (§6 Q1–Q7 option A/rec). Spec D1–D8; Owner added (2026-11-10): self posts are collected and the brief scorecard shows "Google posts (30 days)" you vs rivals (D3 reversed, D9).
+2026-11-10: owner chose the brief's recommendations (§6 Q1–Q7 option A/rec). Spec D1–D8; Owner added (2026-11-10): self posts are collected and the brief scorecard shows "Google posts (30 days)" you vs rivals (D3 reversed, D9). 2026-11-10: owner approved the 18b-2 plan (spec E1–E10: live search inside the weekly rank scan, page-one and AI-answer events with two-scan confirm, Local Services ad names read-side only, "Cited in AI answers" scorecard column if the probe shows AI answers on ≥ 30 % of runs).
 
 ## New backlog (target → item)
 None yet.
