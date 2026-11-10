@@ -21,16 +21,19 @@ export async function claimDueDiscoveries(db: Db, limit: number): Promise<string
       INSERT INTO site_discovery (competitor_id)
       SELECT c.id FROM competitor c WHERE ${eligible}
       ON CONFLICT DO NOTHING`);
+    // MATERIALIZED: picked once, so LIMIT holds (an IN (... LIMIT ... SKIP LOCKED) subquery may be re-run by the planner).
     const rows = (await tx.execute(sql`
+      WITH picked AS MATERIALIZED (
+        SELECT sd.competitor_id FROM site_discovery sd JOIN competitor c ON c.id = sd.competitor_id
+         WHERE sd.next_due_at <= now() AND ${eligible}
+         ORDER BY sd.next_due_at
+         LIMIT ${limit}
+         FOR UPDATE OF sd SKIP LOCKED)
       UPDATE site_discovery
          SET next_due_at = now() + ${sql.raw(`interval '${REDISCOVERY_DAYS} days'`)}
-       WHERE competitor_id IN (
-         SELECT sd.competitor_id FROM site_discovery sd JOIN competitor c ON c.id = sd.competitor_id
-          WHERE sd.next_due_at <= now() AND ${eligible}
-          ORDER BY sd.next_due_at
-          LIMIT ${limit}
-          FOR UPDATE OF sd SKIP LOCKED)
-      RETURNING competitor_id`)) as unknown as { competitor_id: string }[];
+        FROM picked
+       WHERE site_discovery.competitor_id = picked.competitor_id
+      RETURNING site_discovery.competitor_id`)) as unknown as { competitor_id: string }[];
     return rows.map((r) => r.competitor_id);
   });
 }

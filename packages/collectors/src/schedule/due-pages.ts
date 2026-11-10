@@ -9,15 +9,9 @@ import { sql } from 'drizzle-orm';
  * that is not on the reduced trial allowance; pages only reduced-trial agencies track advance 7 days.
  */
 export async function claimDuePages(db: Db, limit: number): Promise<string[]> {
+  // MATERIALIZED: picked once, so LIMIT holds (an IN (... LIMIT ... SKIP LOCKED) subquery may be re-run by the planner).
   const rows = (await db.execute(sql`
-    UPDATE tracked_page
-       SET next_due_at = now() + CASE
-             WHEN cadence = 'daily' AND EXISTS (
-               SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
-                WHERE cc.competitor_id = tracked_page.competitor_id AND ${clientWorkAllowed('cl')}
-                  AND ${agencyServiceable(sql.raw('cl.agency_id'))} AND NOT ${agencyReducedTrial(sql.raw('cl.agency_id'))})
-             THEN interval '1 day' ELSE interval '7 days' END
-     WHERE id IN (
+    WITH picked AS MATERIALIZED (
        SELECT id FROM tracked_page tp
         WHERE active AND next_due_at <= now()
           AND EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
@@ -25,6 +19,15 @@ export async function claimDuePages(db: Db, limit: number): Promise<string[]> {
         ORDER BY next_due_at
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED)
-    RETURNING id`)) as unknown as { id: string }[];
+    UPDATE tracked_page
+       SET next_due_at = now() + CASE
+             WHEN cadence = 'daily' AND EXISTS (
+               SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
+                WHERE cc.competitor_id = tracked_page.competitor_id AND ${clientWorkAllowed('cl')}
+                  AND ${agencyServiceable(sql.raw('cl.agency_id'))} AND NOT ${agencyReducedTrial(sql.raw('cl.agency_id'))})
+             THEN interval '1 day' ELSE interval '7 days' END
+      FROM picked
+     WHERE tracked_page.id = picked.id
+    RETURNING tracked_page.id`)) as unknown as { id: string }[];
   return rows.map((r) => r.id);
 }

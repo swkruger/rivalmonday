@@ -10,9 +10,9 @@ import type { SourceKind } from './kinds';
  * below must stay in sync with `SELF_SOURCES` in `local/self.ts`.
  */
 export async function claimDueSources(db: Db, limit: number): Promise<{ competitorId: string; source: SourceKind }[]> {
+  // MATERIALIZED: picked once, so LIMIT holds (an IN (... LIMIT ... SKIP LOCKED) subquery may be re-run by the planner).
   const rows = (await db.execute(sql`
-    UPDATE competitor_source SET next_due_at = now() + interval '7 days'
-     WHERE (competitor_id, source) IN (
+    WITH picked AS MATERIALIZED (
        SELECT competitor_id, source FROM competitor_source cs
         WHERE active AND next_due_at <= now()
           AND (EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
@@ -20,7 +20,10 @@ export async function claimDueSources(db: Db, limit: number): Promise<{ competit
                OR (cs.source IN ('gbp', 'reviews', 'ads_google') AND EXISTS (SELECT 1 FROM client c WHERE c.self_competitor_id = cs.competitor_id AND ${clientWorkAllowed('c')} AND ${agencyServiceable(sql.raw('c.agency_id'))})))
         ORDER BY next_due_at LIMIT ${limit}
         FOR UPDATE SKIP LOCKED)
-    RETURNING competitor_id, source`)) as unknown as { competitor_id: string; source: SourceKind }[];
+    UPDATE competitor_source SET next_due_at = now() + interval '7 days'
+      FROM picked
+     WHERE competitor_source.competitor_id = picked.competitor_id AND competitor_source.source = picked.source
+    RETURNING competitor_source.competitor_id, competitor_source.source`)) as unknown as { competitor_id: string; source: SourceKind }[];
   return rows.map((r) => ({ competitorId: r.competitor_id, source: r.source }));
 }
 

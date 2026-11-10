@@ -8,7 +8,7 @@ Migrated 2026-10-11 from the roadmap's per-phase carry-over sections (full text:
 ## Phase 7 — Hardening & pilot
 > 7b/7c planned 2026-10-23: items below are owned by the plans `2026-10-23-phase-7b1|7c1|7c2` (7b2 merged) (each plan's docs task lists the lines it closes). Not folded: Launch gate (standalone before the live deploy), ANN index (when pilot volume shows slow search).
 
-- [ ] Claim queries can overrun their `LIMIT`: `UPDATE … WHERE id IN (SELECT … LIMIT n FOR UPDATE SKIP LOCKED)` may re-run the subquery, so a batch claims more than `n` (CI flake `due-discovery.test.ts` "respects the limit", run 42752751939). Pick rows in a `WITH picked AS MATERIALIZED (…)` CTE and join: `collectors/src/sources/due.ts`, `collectors/src/schedule/due-pages.ts`, `collectors/src/schedule/due-discovery.ts`, `engine/src/delivery/outbox.ts` — *CI 2026-11-10*
+- [ ] `engine/src/delivery/outbox.ts` claim uses `id IN (SELECT … LIMIT n FOR UPDATE SKIP LOCKED)`, which can overrun `n` (the planner may re-run the subquery); switch to a `MATERIALIZED` CTE like the collectors claimers (fixed 2026-11-10 after CI run 42752751939 failed `due-discovery` "respects the limit") — *CI 2026-11-10*
 
 ### Launch gate (before 7a1 Task 12, the live deploy)
 Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/71 routes ≤ 8; numbers [archive/launch-gate-results.md](archive/launch-gate-results.md)).
