@@ -127,7 +127,7 @@ export const rankSnapshot = pgTable(
   ],
 );
 
-export interface SerpOrganicItem { rank: number; domain: string | null; url: string | null; title: string | null }
+export interface SerpOrganicItem { rank: number; domain: string | null; url: string | null; title: string | null; description?: string | null; listingUrl?: string | null }
 export interface SerpLocalServices { title: string | null; providers: { name: string; rating: number | null; votes: number | null }[] }
 
 /** Google page one (organic top 10 + Local Services ads block) for one rank keyword in one scan (18b-2). Tenant-scoped like rank_snapshot. */

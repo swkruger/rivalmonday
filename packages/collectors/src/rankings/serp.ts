@@ -20,6 +20,9 @@ const organicSchema = z.looseObject({
   domain: z.string().nullish(),
   url: z.string().nullish(),
   title: z.string().nullish(),
+  breadcrumb: z.string().nullish(),
+  website_name: z.string().nullish(),
+  description: z.string().nullish(),
 });
 
 const localServicesSchema = z.looseObject({
@@ -33,8 +36,44 @@ const providerSchema = z.looseObject({
   rating: z.looseObject({ value: z.number().nullish(), votes_count: z.number().nullish() }).nullish(),
 });
 
+/** Vendor `website_name` (text before " · ") to the host it names, for results whose breadcrumb is not a URL. */
+export const WEBSITE_NAME_HOSTS: Record<string, string> = {
+  Facebook: 'facebook.com',
+  Yelp: 'yelp.com',
+  "Angie's List": 'angi.com',
+  Angi: 'angi.com',
+  'Better Business Bureau': 'bbb.org',
+  BBB: 'bbb.org',
+  'Yellow Pages': 'yellowpages.com',
+  YP: 'yellowpages.com',
+  Manta: 'manta.com',
+  Foursquare: 'foursquare.com',
+  MapQuest: 'mapquest.com',
+  HomeAdvisor: 'homeadvisor.com',
+  Thumbtack: 'thumbtack.com',
+  Houzz: 'houzz.com',
+  Porch: 'porch.com',
+  Nextdoor: 'nextdoor.com',
+};
+
+const CRUMB_URL = /^https?:\/\/([^\s›]+)(\s*›\s*(.+))?$/;
+
+/** The real host of a Google result: the vendor `url`/`domain` are a google.com goto wrapper, the site is only in the breadcrumb or website name. Path is dropped when the crumb is truncated. */
+export function organicHost(o: { breadcrumb?: string | null; website_name?: string | null; domain?: string | null }): { host: string | null; path: string | null } {
+  const m = CRUMB_URL.exec((o.breadcrumb ?? '').trim());
+  if (m) {
+    const host = m[1]!.toLowerCase().replace(/^www\./, '');
+    const segments = (m[3] ?? '').split(/\s*›\s*/).map((x) => x.trim()).filter(Boolean);
+    const truncated = segments.some((x) => x.includes('…') || x.includes('...'));
+    return { host, path: segments.length && !truncated ? segments.join('/') : null };
+  }
+  const name = (o.website_name ?? '').split(/\s+·\s+/)[0]!.trim();
+  const mapped = Object.hasOwn(WEBSITE_NAME_HOSTS, name) ? WEBSITE_NAME_HOSTS[name]! : null;
+  return { host: mapped, path: null };
+}
+
 /** Pure parse of a `serp/google/organic/live/advanced` task `result` array (or the whole result[0]) into page-one organic items and the Local Services ads block. */
-export function parseSerp(raw: unknown): SerpResult {
+export function parseSerp(raw: unknown, max = SERP_DEPTH): SerpResult {
   const first = Array.isArray(raw) ? raw[0] : raw;
   const items = (first as { items?: unknown } | null | undefined)?.items;
   const list = Array.isArray(items) ? items : [];
@@ -43,7 +82,17 @@ export function parseSerp(raw: unknown): SerpResult {
   for (const item of list) {
     const o = organicSchema.safeParse(item);
     if (o.success) {
-      if (organic.length < SERP_DEPTH) organic.push({ rank: o.data.rank_group, domain: o.data.domain ?? null, url: o.data.url ?? null, title: o.data.title ?? null });
+      if (organic.length < max) {
+        const { host, path } = organicHost({ breadcrumb: o.data.breadcrumb, website_name: o.data.website_name });
+        organic.push({
+          rank: o.data.rank_group,
+          domain: host ?? o.data.domain ?? null,
+          url: o.data.url ?? null,
+          title: o.data.title ?? null,
+          description: o.data.description ?? null,
+          listingUrl: host ? `https://${host}${path ? `/${path}` : ''}` : null,
+        });
+      }
       continue;
     }
     if (localServices) continue;

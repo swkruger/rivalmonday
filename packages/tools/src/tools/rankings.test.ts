@@ -1,10 +1,11 @@
-import { STADIA_ATTRIBUTION } from '@cs/collectors';
+import { parseSerp, STADIA_ATTRIBUTION } from '@cs/collectors';
 import { client, clientCompetitor, competitor, competitorSignal, rankMapImage, rankSnapshot, serpSnapshot, type SerpOrganicItem, type SerpLocalServices } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { rankSettingsKey } from '@cs/engine';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { GeoGridView, RankTrendView, SearchVisibilityView, ShareOfVoiceView } from './schemas';
+import live from '../../../collectors/src/rankings/__fixtures__/serp-live.json';
 import { ago, ctx, dbs, gridSnapshots, registry, resetWorkspace, rr, seedCapture, seedRankScan, seedSelf, setPlace } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
@@ -369,6 +370,18 @@ describe('get_search_visibility (18b-2)', () => {
     expect([web.organic[0]!.name, web.localServicesAds!.names[0]]).toEqual([dirty, dirty]);
     const ask = (await run('ask')).keywords[0]!;
     for (const t of [ask.organic[0]!.name, ask.localServicesAds!.names[0]!]) expect(t).not.toMatch(/555-0199|bob@example\.com/);
+  });
+
+  it('matches self and a rival on a snapshot parsed from a real goto-wrapped response', async () => {
+    await setupClient();
+    await dbs.owner.update(competitor).set({ domain: 'aireserv.com' }).where(eq(competitor.id, IDS.competitorX));
+    const self = (await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.id!;
+    await dbs.owner.update(competitor).set({ domain: 'comfortexpertsinc.com' }).where(eq(competitor.id, self));
+    const scan = await seedRankScan({ finishedAt: ago(2), snapshots: [] });
+    await snap(scan, 'ac repair', parseSerp((live as { tasks: { result: unknown[] }[] }).tasks[0]!.result).organic);
+    const organic = (await call()).keywords[0]!.organic;
+    expect(organic.find((o) => o.rank === 2)).toMatchObject({ domain: 'aireserv.com', self: false, competitorId: IDS.competitorX });
+    expect(organic.find((o) => o.rank === 3)).toMatchObject({ domain: 'comfortexpertsinc.com', self: true });
   });
 
   it('refuses a client the caller cannot see, or without the dashboard feature', async () => {

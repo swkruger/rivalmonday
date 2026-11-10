@@ -1,8 +1,10 @@
 import { client, clientCompetitor, competitor, detectedChange, eventChange, evidence, rankScan, type SerpOrganicItem, serpSnapshot } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { parseSerp } from '@cs/collectors';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import live from '../../../collectors/src/rankings/__fixtures__/serp-live.json';
 import { day, seedScoredEvent, seedVendorCapture } from '../../test/seed';
 import { EVIDENCE_CHANNEL_LABEL, loadEventEvidence } from '../briefs/evidence';
 import { gradedChanges } from '../briefs/graded';
@@ -70,6 +72,17 @@ describe('diffSerp (page-one entries and exits)', () => {
     expect(await run(await scan(14, { [KW]: org('a.example') }))).toEqual([]); // s0 != s1
     expect(await run(await scan(21, { [KW]: org('a.example') }))).toHaveLength(1); // s0 == s1 != s2: a confirmed exit
     expect(await run(await scan(28, { [KW]: org('a.example') }))).toEqual([]); // stable absent
+  });
+
+  it('makes a rival a page-one entry from snapshots parsed from a real goto-wrapped response', async () => {
+    await dbs.owner.update(competitor).set({ domain: 'comfortexpertsinc.com' }).where(eq(competitor.id, IDS.competitorX));
+    const real = parseSerp((live as { tasks: { result: unknown[] }[] }).tasks[0]!.result).organic;
+    const without = real.filter((o) => o.domain !== 'comfortexpertsinc.com');
+    await scan(0, { [KW]: without });
+    await scan(7, { [KW]: real });
+    const rows = await run(await scan(14, { [KW]: real }));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ competitorId: IDS.competitorX, details: { direction: 'entered', position: 3 } });
   });
 
   it('does not compare scans across a settings change (keyword set changed)', async () => {

@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
+import stage1 from '../citations/__fixtures__/citation-stage1.json';
 import live from './__fixtures__/serp-live.json';
 import withLsa from './__fixtures__/serp-local-services.json';
-import { parseSerp, SERP_CALL_USD, serpSearch } from './serp';
+import { organicHost, parseSerp, SERP_CALL_USD, serpSearch } from './serp';
 
 const liveResult = (live as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
+const stage1Result = (stage1 as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
 
 describe('parseSerp', () => {
   it('reads <= 10 organic items with ranks and domains from a live response, and no Local Services block', () => {
     const r = parseSerp(liveResult);
     expect(r.organic).toHaveLength(8);
     expect(r.organic.map((o) => o.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(r.organic[0]).toMatchObject({ rank: 1, domain: 'google.com' });
+    expect(r.organic[0]).toMatchObject({ rank: 1, domain: 'yelp.com' });
     expect(r.organic.every((o) => typeof o.title === 'string')).toBe(true);
     expect(r.localServices).toBeNull();
   });
@@ -23,7 +25,7 @@ describe('parseSerp', () => {
       title: 'Local Services ads',
       providers: [{ name: 'Cool Air Pros', rating: 4.9, votes: 212 }, { name: 'Breeze HVAC', rating: null, votes: null }],
     });
-    expect(r.organic).toEqual([{ rank: 1, domain: 'coolairpros.example', url: 'https://coolairpros.example/ac', title: 'AC repair | Cool Air Pros' }]);
+    expect(r.organic).toEqual([{ rank: 1, domain: 'coolairpros.example', url: 'https://coolairpros.example/ac', title: 'AC repair | Cool Air Pros', description: null, listingUrl: null }]);
   });
 
   it('caps at 10 organic items and tolerates junk', () => {
@@ -31,6 +33,45 @@ describe('parseSerp', () => {
     expect(parseSerp([{ items }]).organic).toHaveLength(10);
     expect(parseSerp(null)).toEqual({ organic: [], localServices: null });
     expect(parseSerp([{ items: [{ type: 'organic' }, 5] }]).organic).toEqual([]);
+  });
+});
+
+describe('parseSerp real host (goto-wrapped results)', () => {
+  const r = parseSerp(stage1Result, 20);
+  const at = (rank: number) => r.organic.find((o) => o.rank === rank)!;
+
+  it('reads the host and path from a URL breadcrumb (www stripped)', () => {
+    expect(at(1)).toMatchObject({ domain: 'angi.com', listingUrl: 'https://angi.com/TX/Granbury' });
+    expect(at(5)).toMatchObject({ domain: 'bbb.org', listingUrl: 'https://bbb.org/granbury/category/plumber' });
+  });
+
+  it('drops the path of a truncated crumb', () => {
+    expect(at(3)).toMatchObject({ domain: 'yelp.com', listingUrl: 'https://yelp.com' });
+    expect(at(6)).toMatchObject({ domain: 'mapquest.com', listingUrl: 'https://mapquest.com' });
+  });
+
+  it('maps a non-URL crumb through website_name, and keeps the vendor domain when unmapped', () => {
+    expect(at(2)).toMatchObject({ domain: 'facebook.com' });
+    expect(at(10)).toMatchObject({ domain: 'chamberofcommerce.com', listingUrl: 'https://chamberofcommerce.com' });
+    const unmapped = parseSerp([{ items: [{ type: 'organic', rank_group: 1, domain: 'google.com', breadcrumb: '5 reviews', website_name: 'Someone Else' }] }]).organic[0]!;
+    expect(unmapped).toMatchObject({ domain: 'google.com', listingUrl: null });
+  });
+
+  it('keeps description and honours max 20 (default stays 10)', () => {
+    expect(at(1).description).toMatch(/^See reviews for/);
+    expect(r.organic).toHaveLength(19);
+    expect(parseSerp(stage1Result).organic).toHaveLength(10);
+    expect(parseSerp(stage1Result, 3).organic).toHaveLength(3);
+  });
+
+  it('gives the 18b-2 live fixture real hosts, none left on google.com', () => {
+    const live18 = parseSerp(liveResult);
+    expect(live18.organic.map((o) => o.domain)).toEqual(['yelp.com', 'aireserv.com', 'comfortexpertsinc.com', 'ellibeeac.com', 'facebook.com', 'airmasters-inc.com', 'angi.com', 'actexasmade.com']);
+    expect(live18.organic.some((o) => o.domain === 'google.com')).toBe(false);
+  });
+
+  it('organicHost ignores a Object.prototype website_name', () => {
+    expect(organicHost({ breadcrumb: null, website_name: 'constructor' })).toEqual({ host: null, path: null });
   });
 });
 
