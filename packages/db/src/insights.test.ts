@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { ad, capture, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage } from './schema';
+import { ad, capture, gbpPost, client, competitor, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -92,6 +92,23 @@ describe('review and price insight tables', () => {
     expect(await errorText(dbs.service.insert(pricePoint).values(base))).toMatch(/price_point_subject_check/);
     await dbs.service.insert(pricePoint).values({ ...base, adId: a!.id });
     expect(await errorText(dbs.service.insert(pricePoint).values({ ...base, adId: a!.id }))).toMatch(/price_point_ad_open_unique/);
+  });
+
+  it('price_point accepts a post-sourced row; rejects ad+post; one open span per post', async () => {
+    const [a] = await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'pp-post-ad' }).returning();
+    const now = new Date();
+    const [post] = await dbs.service
+      .insert(gbpPost)
+      .values({ competitorId: IDS.competitorX, externalId: 'post-1', text: 'AC tune-up $79', firstCaptureId: CAP_X, lastCaptureId: CAP_X, firstSeenAt: now, lastSeenAt: now })
+      .returning();
+    const base = {
+      competitorId: IDS.competitorX, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 79, unit: 'USD', qualifier: 'exact' as const,
+      raw: '$79', context: 'x', firstSeenAt: now, lastSeenAt: now, firstCaptureId: CAP_X, lastCaptureId: CAP_X,
+    };
+    expect(await errorText(dbs.service.insert(pricePoint).values({ ...base, adId: a!.id, gbpPostId: post!.id }))).toMatch(/price_point_subject_check/);
+    await dbs.service.insert(pricePoint).values({ ...base, gbpPostId: post!.id });
+    expect(await errorText(dbs.service.insert(pricePoint).values({ ...base, gbpPostId: post!.id }))).toMatch(/price_point_post_open_unique/);
+    expect(await errorText(dbs.service.insert(gbpPost).values({ competitorId: IDS.competitorX, externalId: 'post-1', firstCaptureId: CAP_X, lastCaptureId: CAP_X, firstSeenAt: now, lastSeenAt: now }))).toMatch(/gbp_post_external_unique/);
   });
 
   it('deleting an ad cascades its price points', async () => {

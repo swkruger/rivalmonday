@@ -258,6 +258,17 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     qualifier: 'exact', raw: `$59 ${b.c(k)}`, context: `Ad price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
     first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
   });
+  // A Google post and a post-sourced price (18b-1): global public like ads.
+  const postId = b.id('gbp_post', k);
+  await b.ins('gbp_post', k, {
+    id: postId, competitor_id: competitorId, external_id: `world-post-${k}`, text: `Post text $39 ${b.c(k)}`, url: `https://${comp.domain}/post`, posted_at: b.at(2),
+    first_capture_id: afterCaptureId, last_capture_id: afterCaptureId, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
+  });
+  await b.ins('price_point', k, {
+    id: b.id('price_point', k), competitor_id: competitorId, gbp_post_id: postId, vertical_id: comp.vertical, service_id: comp.service, amount: 39, unit: 'visit',
+    qualifier: 'exact', raw: `$39 ${b.c(k)}`, context: `Post price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
+    first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
+  });
   // Ad images (18a-3): a stored image (capture source 'ad_image', evidence kind 'image') with an image-read price, and a person image that is never stored.
   const imageCapture = await b.ins('capture', k, {
     id: b.id('capture', k), competitor_id: competitorId, source: 'ad_image', url: `https://${comp.domain}/ad.jpg?ref=${b.c(k)}`, status: 'ok', collector_version: 'world', captured_at: b.at(2, 10),

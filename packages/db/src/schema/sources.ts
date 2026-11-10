@@ -107,6 +107,27 @@ export const ad = pgTable(
   (t) => [unique('ad_platform_external_unique').on(t.platform, t.externalId), index('ad_competitor_active_idx').on(t.competitorId, t.isActive)],
 );
 
+/** One Google Business Profile post with our own first/last-seen history (18b-1). Global public; service role writes. */
+export const gbpPost = pgTable(
+  'gbp_post',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    competitorId: competitorRef(),
+    externalId: text('external_id').notNull(),
+    text: text('text'),
+    url: text('url'),
+    buttonUrl: text('button_url'),
+    postedAt: ts('posted_at'),
+    firstCaptureId: uuid('first_capture_id').notNull().references(() => capture.id),
+    lastCaptureId: uuid('last_capture_id').notNull().references(() => capture.id),
+    firstSeenAt: ts('first_seen_at').notNull(),
+    lastSeenAt: ts('last_seen_at').notNull(),
+    endedCaptureId: uuid('ended_capture_id').references(() => capture.id),
+    endedAt: ts('ended_at'),
+  },
+  (t) => [unique('gbp_post_external_unique').on(t.competitorId, t.externalId), index('gbp_post_competitor_idx').on(t.competitorId).where(sql`ended_at IS NULL`)],
+);
+
 export const AD_IMAGE_STATUSES = ['pending', 'rejected', 'triaged'] as const;
 export type AdImageStatus = (typeof AD_IMAGE_STATUSES)[number];
 export const AD_IMAGE_FAIL_REASONS = ['too_large', 'bad_type', 'bad_image', 'expired', 'robots', 'ssrf'] as const;
