@@ -10,7 +10,10 @@ const NEW_PAGES = [
   '/sources/ads',
   '/compare',
   '/compare/brightlocal',
-  '/pricing',
+  '/agencies',
+  '/business',
+  '/agencies/pricing',
+  '/business/pricing',
   '/partners',
   '/roadmap',
 ];
@@ -42,13 +45,73 @@ test.describe('no horizontal overflow on new pages', () => {
     });
   }
 
-  test('header fits at 1024', async ({ page }) => {
-    await mockApp(page);
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await page.goto('/');
+  /** One line and no overflow: the container is one `min-h-16` row, every shown part sits inside it and inside the viewport. */
+  async function headerFit(page: Page, path: string, width: number) {
+    await page.setViewportSize({ width, height: 768 });
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.waitForLoadState('networkidle');
-    const { sw, cw } = await overflow(page);
-    expect(sw).toBeLessThanOrEqual(cw);
+    const m = await page.evaluate(() => {
+      const header = document.querySelector('header')!;
+      const box = header.firstElementChild as HTMLElement;
+      const parts = [...box.children].filter((e) => e.getClientRects().length > 0).map((e) => e.getBoundingClientRect());
+      const inner = box.getBoundingClientRect();
+      const pad = parseFloat(getComputedStyle(box).paddingLeft) + parseFloat(getComputedStyle(box).paddingRight);
+      return {
+        vw: document.documentElement.clientWidth,
+        sw: document.documentElement.scrollWidth,
+        boxHeight: Math.round(inner.height),
+        boxScroll: box.scrollWidth - box.clientWidth,
+        // The parts' own widths plus the bar's 16 px column gap (`gap-x-4`): what the bar needs, whatever `justify-between` spreads.
+        content: Math.round(parts.reduce((s, r) => s + r.width, 0) + 16 * (parts.length - 1)),
+        room: Math.round(inner.width - pad),
+        maxRight: Math.round(Math.max(...parts.map((r) => r.right))),
+        // Every shown part's vertical centre lies on one line.
+        centres: parts.map((r) => Math.round(r.top + r.height / 2)),
+      };
+    });
+    console.log(`HEADER ${path} @${width}: content ${m.content}px of ${m.room}px room (viewport ${m.vw}px), height ${m.boxHeight}px`);
+    expect(m.sw, `${path} @${width} page overflow`).toBeLessThanOrEqual(m.vw);
+    expect(m.boxScroll, `${path} @${width} header overflow`).toBeLessThanOrEqual(0);
+    expect(m.maxRight, `${path} @${width} right edge`).toBeLessThanOrEqual(m.vw);
+    expect(m.boxHeight, `${path} @${width} one line`).toBeLessThanOrEqual(65);
+    expect(Math.max(...m.centres) - Math.min(...m.centres), `${path} @${width} one row`).toBeLessThanOrEqual(8);
+    return m;
+  }
+
+  test('the header fits at 1024 px on both sides', async ({ page }) => {
+    await mockApp(page);
+    for (const path of ['/agencies', '/business']) {
+      await headerFit(page, path, 1024);
+      // Below 1280 px the menu lives in the sheet: with it open, how many Audience navs does the accessibility tree hold?
+      await page.getByRole('button', { name: 'Menu' }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      const navs = await page.getByRole('navigation', { name: 'Audience' }).count();
+      console.log(`AUDIENCE navs in the accessibility tree at 1024 with the sheet open (${path}): ${navs}`);
+      test.info().annotations.push({ type: 'audience-navs', description: `${path}: ${navs}` });
+      await page.keyboard.press('Escape');
+    }
+  });
+
+  test('the header stays on one line at 1280 and 1440 on both sides', async ({ page }) => {
+    await mockApp(page);
+    for (const width of [1280, 1440]) {
+      for (const path of ['/agencies', '/business']) await headerFit(page, path, width);
+    }
+  });
+
+  test('no overflow at 390 and 1024', async ({ page }) => {
+    test.setTimeout(90_000);
+    await mockApp(page);
+    for (const width of [390, 1024]) {
+      await page.setViewportSize({ width, height: 800 });
+      for (const path of ['/', '/agencies', '/business', '/agencies/pricing', '/business/pricing']) {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle');
+        const { sw, cw } = await overflow(page);
+        expect(sw, `${path} at ${width}`).toBeLessThanOrEqual(cw);
+      }
+    }
   });
 
   test('every sitemap page at 390 and at 1024', async ({ page, request }) => {
@@ -121,7 +184,7 @@ test.describe('compare toggle', () => {
       const u = new URL(r.url());
       if (u.pathname.startsWith('/_next/static/')) chunks.add(u.pathname);
     });
-    for (const path of ['/', '/compare', '/compare/brightlocal', '/pricing', '/integrations', '/sources']) {
+    for (const path of ['/', '/agencies', '/business', '/compare', '/compare/brightlocal', '/agencies/pricing', '/business/pricing', '/integrations', '/sources']) {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
     }
@@ -142,23 +205,43 @@ test.describe('structured data', () => {
     }
   });
 
-  test('home has Organization and SoftwareApplication', async ({ page }) => {
+  for (const path of ['/', '/agencies']) {
+    test(`${path} has Organization and SoftwareApplication`, async ({ page }) => {
+      await mockApp(page);
+      await page.goto(path);
+      const t = (await ldJson(page)).flatMap(types);
+      expect(t).toContain('Organization');
+      expect(t).toContain('SoftwareApplication');
+    });
+  }
+
+  test('/business has Organization and no SoftwareApplication (it carries the agency offer)', async ({ page }) => {
     await mockApp(page);
-    await page.goto('/');
+    await page.goto('/business');
     const t = (await ldJson(page)).flatMap(types);
     expect(t).toContain('Organization');
-    expect(t).toContain('SoftwareApplication');
+    expect(t).not.toContain('SoftwareApplication');
   });
 
-  test('pricing FAQPage questions equal the visible summaries', async ({ page }) => {
-    await mockApp(page);
-    await page.goto('/pricing');
-    const faq = (await ldJson(page)).flat().find((n) => types(n).includes('FAQPage')) as { mainEntity: { name: string }[] } | undefined;
-    expect(faq).toBeDefined();
-    const visible = (await page.locator('details > summary').allTextContents()).map((s) => s.trim());
-    expect(visible.length).toBeGreaterThan(0);
-    expect(faq!.mainEntity.map((q) => q.name)).toEqual(visible);
-  });
+  for (const path of ['/agencies/pricing', '/business/pricing']) {
+    test(`${path} FAQPage questions equal the visible summaries`, async ({ page }) => {
+      await mockApp(page);
+      await page.goto(path);
+      const faq = (await ldJson(page)).flat().find((n) => types(n).includes('FAQPage')) as { mainEntity: { name: string }[] } | undefined;
+      expect(faq).toBeDefined();
+      const visible = (await page.locator('details > summary').allTextContents()).map((s) => s.trim());
+      expect(visible.length).toBeGreaterThan(0);
+      expect(faq!.mainEntity.map((q) => q.name)).toEqual(visible);
+    });
+  }
+
+  for (const path of ['/agencies/pricing', '/business/pricing']) {
+    test(`${path} has BreadcrumbList`, async ({ page }) => {
+      await mockApp(page);
+      await page.goto(path);
+      expect((await ldJson(page)).flatMap(types)).toContain('BreadcrumbList');
+    });
+  }
 
   test('a compare page has BreadcrumbList', async ({ page }) => {
     await mockApp(page);
@@ -202,18 +285,62 @@ test('rendered pages never name a data vendor', async ({ page, request }) => {
 
 test('pricing pilot off shows trial cards', async ({ page }) => {
   await mockApp(page, { pilotMode: false });
-  await page.goto('/pricing');
+  await page.goto('/agencies/pricing');
   const agency = page.locator('[data-slot="plan-agency"]');
   await expect(agency).toContainText('free trial');
   await expect(agency).not.toContainText('Free during the pilot');
+  await page.goto('/business/pricing');
   await expect(page.locator('[data-slot="plan-business"]')).not.toContainText('Free during the pilot');
 });
 
-test('the home page is shorter', async ({ page }, info) => {
+test('the pricing chip is readable', async ({ page }) => {
+  await mockApp(page);
+  for (const [path, slot] of [['/agencies/pricing', 'plan-agency'], ['/business/pricing', 'plan-business']] as const) {
+    await page.goto(path);
+    const chip = page.locator(`[data-slot="${slot}"] [data-slot="plan-chip"]`);
+    await expect(chip).toHaveCount(1);
+    await expect(chip).toBeVisible();
+    // WCAG contrast of the chip's text over what is really behind it. A canvas turns any CSS colour (oklch, color-mix) into sRGB,
+    // and the chip's own and every ancestor's background are painted in order over white, so translucent layers count.
+    const ratio = await chip.evaluate((el) => {
+      const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+      const paint = (css: string) => {
+        ctx.fillStyle = css;
+        ctx.fillRect(0, 0, 1, 1);
+      };
+      const read = () => [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3) as [number, number, number];
+      ctx.canvas.width = ctx.canvas.height = 1;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 1, 1);
+      const layers: string[] = [];
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        const bg = getComputedStyle(n).backgroundColor;
+        if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') layers.unshift(bg);
+      }
+      layers.forEach(paint);
+      const back = read();
+      paint(getComputedStyle(el).color);
+      const text = read();
+      const lum = (c: number[]) => {
+        const [r, g, b] = c.map((v) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+      };
+      const [hi, lo] = [lum(back), lum(text)].sort((a, b) => b - a);
+      return (hi! + 0.05) / (lo! + 0.05);
+    });
+    console.log(`CHIP ${path} contrast ${ratio.toFixed(2)}:1`);
+    expect(ratio, `${path} chip contrast`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+test('the agencies page is shorter', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop only (1440)');
   await page.setViewportSize({ width: 1440, height: 900 });
   await mockApp(page);
-  await page.goto('/');
+  await page.goto('/agencies');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('#live')).toBeVisible();
   const m = await page.evaluate((ids) => {
