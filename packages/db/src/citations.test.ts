@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { errorText, IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { citationAuditRun, citationListing } from './schema';
+import { eq } from 'drizzle-orm';
+import { citationAuditRun, citationListing, client, competitor } from './schema';
 import { withTenant } from './tenant';
 
 const dbs = openTestDbs();
@@ -29,6 +30,12 @@ describe('citation_audit_run', () => {
   });
 });
 
+describe('citation_audit_run writes', () => {
+  it('app_user cannot write (permission denied)', async () => {
+    expect(await errorText(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.insert(citationAuditRun).values(run(IDS.agencyA, IDS.clientA1))))).toMatch(/permission denied/);
+  });
+});
+
 describe('citation_listing', () => {
   it('client B sees a listing of a shared competitor but not of one only A tracks', async () => {
     await dbs.service.insert(citationListing).values([listing(IDS.competitorX), listing(IDS.competitorY)]);
@@ -38,5 +45,17 @@ describe('citation_listing', () => {
 
   it('app_user cannot write (permission denied)', async () => {
     expect(await errorText(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.insert(citationListing).values(listing(IDS.competitorX))))).toMatch(/permission denied/);
+  });
+
+  it("a client's self-business listing is visible to that client only", async () => {
+    const selfId = '00000000-0000-4000-8000-0000000000f9';
+    await dbs.owner.insert(competitor).values({ id: selfId, name: 'Own business', domain: 'own.example' });
+    await dbs.owner.update(client).set({ selfCompetitorId: selfId }).where(eq(client.id, IDS.clientA1));
+    await dbs.service.insert(citationListing).values(listing(selfId));
+    const hosts = (agencyId: string, clientId: string) =>
+      withTenant(dbs.app, { agencyId, clientScope: [clientId] }, (tx) => tx.select().from(citationListing).where(eq(citationListing.competitorId, selfId)));
+    expect(await hosts(IDS.agencyA, IDS.clientA1)).toHaveLength(1);
+    expect(await hosts(IDS.agencyA, IDS.clientA2)).toHaveLength(0);
+    expect(await hosts(IDS.agencyB, IDS.clientB1)).toHaveLength(0);
   });
 });

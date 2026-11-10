@@ -269,7 +269,7 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     qualifier: 'exact', raw: `$39 ${b.c(k)}`, context: `Post price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
     first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
   });
-  // A directory listing (18c): global public like ads; self businesses are competitor rows too.
+  // A directory listing (18c): global public like ads. The client self-business listing is seeded in seedClient.
   await b.ins('citation_listing', k, {
     competitor_id: competitorId, host: `world-dir-${k.toLowerCase()}.example`, status: 'listed', name_match: true, phone_match: true, listing_url: `https://world-dir.example/${comp.domain}`,
     listing_title: `Listing ${b.c(k)}`, capture_id: afterCaptureId, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9), in_catalogue: true, checked_at: b.at(2, 9),
@@ -409,6 +409,15 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
   await b.db.execute(sql`UPDATE client_competitor SET pending_ad_matches = ${JSON.stringify([{ platform: 'google', accountId: 'AR-world-1', name: 'Smith ads', strength: 'strong' }])}::jsonb
     WHERE client_id = ${clientId} AND competitor_id = ${competitorId}`);
   b.track('client_competitor', t, { client_id: clientId, competitor_id: competitorId });
+
+  // A client's own business (a competitor row linked by self_competitor_id, never in client_competitor) with a directory listing (18c).
+  const selfId = b.id('competitor', t);
+  await b.ins('competitor', null, { id: selfId, name: `Self business ${lc}`, domain: `self-${lc}.example` });
+  await b.db.update(client).set({ selfCompetitorId: selfId }).where(eq(client.id, clientId));
+  await b.ins('citation_listing', t, {
+    competitor_id: selfId, host: `world-dir-self-${lc}.example`, status: 'listed', name_match: true, phone_match: false, shown_phone: '5125550100', listing_url: `https://world-dir.example/self-${lc}`,
+    listing_title: `Self listing ${b.c(t)}`, in_catalogue: true, checked_at: b.at(2, 9),
+  });
 
   // tenant_client
   await b.ins('client_setup', t, {

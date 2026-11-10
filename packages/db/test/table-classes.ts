@@ -19,7 +19,7 @@
 export type TableClass = 'tenant_client' | 'tenant_agency' | 'global_public' | 'service_only' | 'platform';
 
 export const TABLE_CLASS: Record<string, TableClass> = {
-  // tenant_client (30)
+  // tenant_client (32)
   alert: 'tenant_client',
   alert_event: 'tenant_client',
   ask_message: 'tenant_client',
@@ -64,7 +64,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   oauth_grant_binding: 'tenant_agency',
   playbook_override: 'tenant_agency',
 
-  // global_public (12)
+  // global_public (14)
   ad: 'global_public',
   ad_image: 'global_public',
   gbp_post: 'global_public',
