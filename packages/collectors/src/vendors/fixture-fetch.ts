@@ -84,6 +84,19 @@ function jobsResult(data: Obj): Obj[] {
   return [{ keyword: employer, type: 'jobs', se_domain: 'google.com', location_code: 2840, language_code: 'en', check_url: null, datetime: FIXED_TS[2], spell: null, refinement_chips: null, item_types: ['google_jobs_item'], se_results_count: items.length, items_count: items.length, items }];
 }
 
+function postsResult(data: Obj): Obj[] {
+  const keyword = typeof data.keyword === 'string' ? data.keyword : 'Fixture Business';
+  const items = [
+    ['Spring tune-up special: $89 AC checkup this month.', '2026-11-03 00:00:00 +00:00'],
+    ['Our team is growing. Meet the new technicians.', '2026-10-20 00:00:00 +00:00'],
+  ].map(([text, ts], i) => ({
+    type: 'google_business_post', rank_group: i + 1, rank_absolute: i + 1, position: 'left', xpath: null, author: keyword, snippet: null, post_text: text,
+    url: `https://search.google.com/local/posts?q=fixture&lpsid=FX${hex(`${keyword}:post:${i}`).slice(0, 20)}&source=sh/x/loc/post/m1/1`,
+    images_url: null, post_date: null, timestamp: ts, links: [{ type: 'link_element', title: 'Learn more', url: 'https://example.com/offer' }],
+  }));
+  return [{ keyword, se_domain: 'google.com', location_code: 2840, language_code: 'en', check_url: null, datetime: FIXED_TS[2], business_updates_id: null, cid: null, feature_id: null, item_types: ['google_business_post'], items_count: items.length, items }];
+}
+
 function gbpResult(keyword: string): Obj[] {
   const placeId = keyword.startsWith('place_id:') ? keyword.slice('place_id:'.length) : null;
   const cid = keyword.startsWith('cid:') ? keyword.slice('cid:'.length) : null;
@@ -152,11 +165,11 @@ function metaAds(pageId: string, pageName: string): Obj[] {
 const metaPageName = (pageId: string) => `Fixture Page ${pageId}`;
 const metaPageIdFor = (name: string) => digits(`${name}:page`, 15);
 
-type TaskKind = 'reviews' | 'jobs';
-const READY_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs' };
-const POST_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs' };
-const GET_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_get': 'reviews', '/serp/google/jobs/task_get/advanced': 'jobs' };
-const GET_PATH = /^(\/business_data\/google\/reviews\/task_get|\/serp\/google\/jobs\/task_get\/advanced)\/([A-Za-z0-9_-]+)$/;
+type TaskKind = 'reviews' | 'jobs' | 'posts';
+const READY_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs', '/business_data/google/my_business_updates/tasks_ready': 'posts' };
+const POST_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs', '/business_data/google/my_business_updates/task_post': 'posts' };
+const GET_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_get': 'reviews', '/serp/google/jobs/task_get/advanced': 'jobs', '/business_data/google/my_business_updates/task_get': 'posts' };
+const GET_PATH = /^(\/business_data\/google\/reviews\/task_get|\/serp\/google\/jobs\/task_get\/advanced|\/business_data\/google\/my_business_updates\/task_get)\/([A-Za-z0-9_-]+)$/;
 /** The posted inputs a task_get answer needs; everything else in the post is dropped from the id. */
 const TASK_KEYS = ['tag', 'place_id', 'cid', 'keyword'] as const;
 const TASK_ID_PREFIX = 'fx_';
@@ -173,7 +186,7 @@ function decodeTaskId(id: string): { kind: TaskKind; data: Obj } | null {
   if (!id.startsWith(TASK_ID_PREFIX)) return null;
   try {
     const v = JSON.parse(Buffer.from(id.slice(TASK_ID_PREFIX.length), 'base64url').toString('utf8')) as { k?: unknown; d?: unknown };
-    if ((v.k !== 'reviews' && v.k !== 'jobs') || !v.d || typeof v.d !== 'object') return null;
+    if ((v.k !== 'reviews' && v.k !== 'jobs' && v.k !== 'posts') || !v.d || typeof v.d !== 'object') return null;
     return { kind: v.k, data: v.d as Obj };
   } catch {
     return null;
@@ -236,7 +249,7 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
         const t = decodeTaskId(id);
         if (!t || t.kind !== GET_PATHS[get[1]!]) return json(dfsEnvelope([dfsTask(path, {}, null, { id, code: 40400, message: 'Not Found.' })]));
         ready.delete(id);
-        return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : jobsResult(t.data), { id })]));
+        return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : t.kind === 'posts' ? postsResult(t.data) : jobsResult(t.data), { id })]));
       }
       const live = method === 'POST' ? LIVE[path] : undefined;
       if (live) return json(dfsEnvelope(posted.map((data) => dfsTask(path, data, live(data)))));

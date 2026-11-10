@@ -23,7 +23,7 @@ async function taskScope(db: Db, vt: VendorTaskRow): Promise<CallScope> {
 /** Shared poll loop for async DataForSEO endpoints: tasks_ready → task_get for our pending tasks. */
 export async function collectReadyTasks(
   deps: { db: Db; dfs: DataForSeoClient },
-  kind: 'google_reviews' | 'google_jobs',
+  kind: 'google_reviews' | 'google_jobs' | 'google_posts',
   readyPath: string,
   getPath: (id: string) => string,
   handle: (task: DfsTask, vt: VendorTaskRow) => Promise<void>,
