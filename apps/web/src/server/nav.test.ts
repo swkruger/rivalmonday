@@ -37,7 +37,7 @@ describe('navForViewer', () => {
 
   it('client view for an agency role covers the open client, Ask first (agency roles have every feature)', () => {
     expect(hrefs(navForViewer({ kind: 'user', ctx: ctx('account_manager') }, 'client', C))).toEqual([
-      `/c/${C}/ask`, `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/briefs`, `/c/${C}/settings/profile`,
+      `/c/${C}/ask`, `/c/${C}`, `/c/${C}/competitors`, `/c/${C}/changes`, `/c/${C}/pricing`, `/c/${C}/ads`, `/c/${C}/reviews`, `/c/${C}/rankings`, `/c/${C}/listings`, `/c/${C}/moves`, `/c/${C}/recommendations`, `/c/${C}/briefs`, `/c/${C}/settings/profile`,
     ]);
   });
 

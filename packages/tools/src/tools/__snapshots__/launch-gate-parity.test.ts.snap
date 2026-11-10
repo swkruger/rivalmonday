@@ -2894,6 +2894,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+          "title": "Get listed on the directories you're missing",
+          "trigger": "citation_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:fix_citations",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+            "title": "Get listed on the directories you're missing",
+            "trigger": "citation_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+            "title": "Get listed on the directories you're missing",
+            "trigger": "citation_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "effort": "M",
           "impact": "H",
           "template": "Read your lowest reviews from the last 90 days, pick the complaint customers repeat most, and fix it this month.",
@@ -3327,6 +3364,49 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "id": "citation_gap",
+          "params": {
+            "min_missing": 3,
+          },
+          "playbook": "fix_citations",
+          "strength": false,
+          "weight": 0.6,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:citation_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "citation_gap",
+            "params": {
+              "min_missing": 3,
+            },
+            "playbook": "fix_citations",
+            "strength": false,
+            "weight": 0.6,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "citation_gap",
+            "params": {
+              "min_missing": 3,
+            },
+            "playbook": "fix_citations",
+            "strength": false,
+            "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "id": "map_visibility_gap",
           "params": {
             "gap": 0.1,
@@ -3672,6 +3752,7 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "new_price",
       "areas",
       "topic",
+      "directories",
     ],
   },
   "clientRole": {
@@ -3854,6 +3935,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+          "title": "Get listed on the directories you're missing",
+          "trigger": "citation_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:fix_citations",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+            "title": "Get listed on the directories you're missing",
+            "trigger": "citation_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.",
+            "title": "Get listed on the directories you're missing",
+            "trigger": "citation_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "effort": "M",
           "impact": "H",
           "template": "Read your lowest reviews from the last 90 days, pick the complaint customers repeat most, and fix it this month.",
@@ -4287,6 +4405,49 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "id": "citation_gap",
+          "params": {
+            "min_missing": 3,
+          },
+          "playbook": "fix_citations",
+          "strength": false,
+          "weight": 0.6,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:citation_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "citation_gap",
+            "params": {
+              "min_missing": 3,
+            },
+            "playbook": "fix_citations",
+            "strength": false,
+            "weight": 0.6,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "citation_gap",
+            "params": {
+              "min_missing": 3,
+            },
+            "playbook": "fix_citations",
+            "strength": false,
+            "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "id": "map_visibility_gap",
           "params": {
             "gap": 0.1,
@@ -4632,6 +4793,7 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "new_price",
       "areas",
       "topic",
+      "directories",
     ],
   },
   "otherAgency": {
