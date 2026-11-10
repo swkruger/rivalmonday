@@ -42,7 +42,7 @@ export default function HomePage() {
       <FridayRow />
       <BeforeAfter />
       <ChecksHub heading={SECTIONS.checks.homeHeading} divided />
-      <SampleSection autoplayMap={false} />
+      <SampleSection />
       <LiveCounters />
       <Steps industries={false} afterSteps={HOW_STEPS_NOTE} />
       <Commercial />

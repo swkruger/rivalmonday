@@ -1,11 +1,9 @@
 'use client';
 
-import { useMediaQuery } from '@cs/ui';
 import { Pause, Play } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { formatDay } from '../../sample/format';
 import type { SampleBriefData } from '../../sample/schema';
-import { useInView } from '../motion/in-view';
 import { EvidencePills, type OpenEvidence } from './brief-items';
 import { cellsFor, labelOf, RankMap, weekStats, type Bucket } from './rank-map';
 
@@ -34,26 +32,16 @@ const STEP_MS = 650;
 
 /**
  * Map-rank grid over the sample town (P3): size × size scan points, rows north → south, each printing its rank,
- * coloured by bucket. It opens on the first of the 12 weekly scans and plays forward once on first view, so the
- * reader watches the business climb from its own street outwards; the slider and the weekly bars step through it.
- * Text alternative: the caption, the img label and a table.
+ * coloured by bucket. It opens on the last of the 12 weekly scans and moves only when the reader presses Play (from
+ * week 1 forward, stopping on the last week) or picks a week on the slider or the weekly bars. Nothing starts by
+ * itself, on mount or on scroll. Text alternative: the caption, the img label and a table.
  */
-export function RankGrid({ data, onOpen, howHref, autoplay = true, subject }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string; /** `false`: plays only when asked (a page whose showpiece replay is elsewhere). */ autoplay?: boolean; /** Replay someone else's ranks (default: the client's own). */ subject?: RankGridSubject }) {
+export function RankGrid({ data, onOpen, howHref, subject }: { data: SampleBriefData; onOpen: OpenEvidence; /** Page explaining the scan. */ howHref?: string; /** Replay someone else's ranks (default: the client's own). */ subject?: RankGridSubject }) {
   const { keyword, size, weeks } = data.rankGrid;
-  const reduced = useMediaQuery('(prefers-reduced-motion: reduce)') === true;
-  const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [autoplayed, setAutoplayed] = useState(false);
-  const [ref, seen] = useInView<HTMLElement>(0.4);
-  const sliderId = useId();
   const last = weeks.length - 1;
-
-  // Autoplay once, the first time the grid is in view (never under reduced motion, never with `autoplay={false}`).
-  useEffect(() => {
-    if (!autoplay || !seen || reduced || autoplayed) return;
-    setAutoplayed(true);
-    setPlaying(true);
-  }, [autoplay, seen, reduced, autoplayed]);
+  const [index, setIndex] = useState(last);
+  const [playing, setPlaying] = useState(false);
+  const sliderId = useId();
 
   useEffect(() => {
     if (!playing) return;
@@ -87,19 +75,17 @@ export function RankGrid({ data, onOpen, howHref, autoplay = true, subject }: { 
   const max = Math.max(1, ...trend.map((t) => t.points));
 
   const select = (i: number) => {
-    setAutoplayed(true);
     setPlaying(false);
     setIndex(i);
   };
   const toggle = () => {
-    setAutoplayed(true);
     if (playing) return setPlaying(false);
     if (index >= last) setIndex(0);
     setPlaying(true);
   };
 
   return (
-    <figure ref={ref} className="flex flex-col gap-4">
+    <figure className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <p className="text-sm font-semibold text-ink">{subject ? subject.title : <>Your map rankings for &ldquo;{keyword}&rdquo;</>}</p>
         <p className="text-sm text-ink-secondary">

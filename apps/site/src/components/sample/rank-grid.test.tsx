@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rivalRanks } from '../../sample/rival-grid';
 import { SAMPLE } from '../../sample/schema';
@@ -11,14 +11,71 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 const subject: RankGridSubject = { title: 'Rival map rankings for "x"', ranks: rivalRanks, tone: 'rival' };
 const last = SAMPLE.rankGrid.weeks.length - 1;
+const STEP_MS = 650;
+const slider = () => screen.getByRole('slider', { name: 'Week' }) as HTMLInputElement;
 const toLast = () => fireEvent.change(screen.getByRole('slider', { name: 'Week' }), { target: { value: String(last) } });
 
+function playbackTests(props: Partial<React.ComponentProps<typeof RankGrid>>) {
+  const ui = (data = SAMPLE) => <RankGrid data={data} onOpen={() => {}} {...props} />;
+
+  it('opens on the last week', () => {
+    render(ui());
+    expect(slider().value).toBe(String(last));
+    const stats = weekStats(props.subject ? rivalRanks(SAMPLE.rankGrid.weeks[last]!.weekOf) : SAMPLE.rankGrid.weeks[last]!.you);
+    expect(screen.getByText(`Top 3 in ${stats.top3} of ${stats.points} points`)).toBeTruthy();
+  });
+
+  it('does not move by itself', () => {
+    vi.useFakeTimers();
+    render(ui());
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(slider().value).toBe(String(last));
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+  });
+
+  it('Play restarts from week 1 and stops on the last week', () => {
+    vi.useFakeTimers();
+    render(ui());
+    fireEvent.click(screen.getByRole('button', { name: 'Play all 12 weeks' }));
+    expect(slider().value).toBe('0');
+    // One step per act: each step re-renders and schedules the next timer.
+    for (let i = 0; i < last; i++) act(() => { vi.advanceTimersByTime(STEP_MS); });
+    expect(slider().value).toBe(String(last));
+    expect(screen.getByRole('button', { name: 'Play all 12 weeks' })).toBeTruthy();
+  });
+
+  it('choosing a week stops playback', () => {
+    vi.useFakeTimers();
+    render(ui());
+    fireEvent.click(screen.getByRole('button', { name: 'Play all 12 weeks' }));
+    act(() => { vi.advanceTimersByTime(STEP_MS * 2); });
+    fireEvent.change(slider(), { target: { value: '5' } });
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+    act(() => { vi.advanceTimersByTime(STEP_MS * 5); });
+    expect(slider().value).toBe('5');
+  });
+
+  it('one week of data: shows it, and Play leaves it there', () => {
+    vi.useFakeTimers();
+    const one = { ...SAMPLE, rankGrid: { ...SAMPLE.rankGrid, weeks: SAMPLE.rankGrid.weeks.slice(0, 1) } };
+    expect(() => render(ui(one))).not.toThrow();
+    expect(slider().value).toBe('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Play all 12 weeks' }));
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(slider().value).toBe('0');
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+  });
+}
+
 describe('RankGrid with a subject', () => {
+  playbackTests({ subject });
+
   it('shows the subject title and keeps the ringed-point line', () => {
     render(<RankGrid data={SAMPLE} onOpen={() => {}} subject={subject} />);
     expect(screen.getByText(subject.title)).toBeTruthy();
@@ -28,7 +85,7 @@ describe('RankGrid with a subject', () => {
 
   it('summarises the subject ranks: top 3 in 31 of 49 on the last week, up from 8', () => {
     render(<RankGrid data={SAMPLE} onOpen={() => {}} subject={subject} />);
-    expect(screen.getByText('Top 3 in 8 of 49 points')).toBeTruthy();
+    expect(screen.getByText('Top 3 in 31 of 49 points')).toBeTruthy();
     toLast();
     expect(screen.getByText('Top 3 in 31 of 49 points')).toBeTruthy();
     expect(screen.getByText('up from 8 in week 1')).toBeTruthy();
@@ -60,6 +117,8 @@ describe('RankGrid with a subject', () => {
 });
 
 describe('RankGrid without a subject', () => {
+  playbackTests({});
+
   it('keeps the client title, the you ramp and the "You:" evidence chip', () => {
     const { container } = render(<RankGrid data={SAMPLE} onOpen={() => {}} />);
     expect(screen.getByText(/Your map rankings for/)).toBeTruthy();

@@ -22,6 +22,9 @@ const BANNED: readonly RegExp[] = [
   /\banimate-ping\b/,
   /\banimate-bounce\b/,
   /\banimate-spin\b/,
+  /\buseInView\b/,
+  /\bautoplay\b/,
+  /\bautoplayMap\b/,
 ];
 
 /** File (relative to `apps/site`) -> why it may still hold a banned name. Empty today. */

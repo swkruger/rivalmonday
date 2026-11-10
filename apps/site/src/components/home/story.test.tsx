@@ -53,10 +53,11 @@ describe('RivalStory', () => {
     expect(screen.getByText(title)).toBeTruthy();
     expect(screen.queryByText(/Your map rankings for/)).toBeNull();
     expect(screen.getByText(new RegExp(`The ringed point is ${SAMPLE.business.name}\\.`))).toBeTruthy();
-    expect(screen.getByText('Top 3 in 8 of 49 points')).toBeTruthy();
-    fireEvent.change(screen.getByRole('slider', { name: 'Week' }), { target: { value: String(SAMPLE.rankGrid.weeks.length - 1) } });
+    // Opens on the last week; week 1 is one step back.
     expect(screen.getByText('Top 3 in 31 of 49 points')).toBeTruthy();
     expect(screen.getByText('up from 8 in week 1')).toBeTruthy();
+    fireEvent.change(screen.getByRole('slider', { name: 'Week' }), { target: { value: '0' } });
+    expect(screen.getByText('Top 3 in 8 of 49 points')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Evidence \d+: Map scan/ })).toBeNull();
   });
 

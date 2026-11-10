@@ -82,6 +82,12 @@ describe('SampleBrief', () => {
     await waitFor(() => expect(document.activeElement).toBe(claim));
   });
 
+  it('the map opens on the last week', () => {
+    render(<SampleBrief />);
+    expect((screen.getByRole('slider', { name: 'Week' }) as HTMLInputElement).value).toBe(String(SAMPLE.rankGrid.weeks.length - 1));
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+  });
+
   it('slider changes the grid and caption', () => {
     render(<SampleBrief />);
     const weeks = SAMPLE.rankGrid.weeks;
@@ -89,12 +95,13 @@ describe('SampleBrief', () => {
     const points = (i: number) => weeks[i]!.you.filter((r) => r !== null).length;
     const slider = screen.getByRole('slider', { name: 'Week' });
     expect(slider.getAttribute('aria-valuetext')).toMatch(/^Week of /);
-    // Opens on the first scan, so the story plays forward.
-    expect(screen.getByText(`Top 3 in ${top3(0)} of ${points(0)} points`)).toBeTruthy();
+    // The map opens on the last week and moves only on Play.
+    expect((slider as HTMLInputElement).value).toBe('11');
+    expect(screen.getByText(`Top 3 in ${top3(11)} of ${points(11)} points`)).toBeTruthy();
     const grid = () => screen.getByRole('img', { name: /Map rankings for/ }).textContent;
     const before = grid();
-    fireEvent.change(slider, { target: { value: '11' } });
-    expect(screen.getByText(`Top 3 in ${top3(11)} of ${points(11)} points`)).toBeTruthy();
+    fireEvent.change(slider, { target: { value: '0' } });
+    expect(screen.getByText(`Top 3 in ${top3(0)} of ${points(0)} points`)).toBeTruthy();
     expect(grid()).not.toBe(before);
     expect(slider.getAttribute('aria-valuetext')).not.toBe('');
   });
