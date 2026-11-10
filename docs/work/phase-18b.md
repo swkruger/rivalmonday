@@ -8,7 +8,7 @@
 
 ## Next (overwrite)
 1. Owner: review, then go-ahead for `/rm-merge phase-18b` (merge runs the full unit + E2E suites after asking; CI runs both).
-2. Before merge: re-check `POST_PRICE_SINCE` (`packages/engine/src/prices/post-price-stage.ts`, 2026-11-17) against the real deploy date.
+2. `POST_PRICE_SINCE` set to 2026-11-10 (owner: staging deploy day); bump it to the prod deploy day if prod should not price earlier captures.
 3. After merge: owner steps below.
 
 ## Interfaces this branch adds or changes

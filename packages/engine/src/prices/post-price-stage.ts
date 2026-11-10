@@ -11,7 +11,7 @@ import { mapPricedTexts, MAX_STATE_TEXT, type PriceBlockMapRow, type PriceRunRes
 export const POST_PRICE_STAGE = 'post_price_extract';
 export const POST_PRICE_VERSION = 1;
 /** Deploy cutoff (D5): only posts captures from this date are priced — no past-dated spans, no backlog model spend. Merge re-checks the deploy date. */
-export const POST_PRICE_SINCE = new Date('2026-11-17T00:00:00Z');
+export const POST_PRICE_SINCE = new Date('2026-11-10T00:00:00Z');
 /** At most this many priced posts are mapped per capture; the rest are skipped (and logged). */
 export const POST_PRICE_MAX = 20;
 
