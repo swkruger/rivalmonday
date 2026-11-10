@@ -84,7 +84,8 @@ async function recentlyChecked(db: Db, competitorId: string, hosts: string[], no
 
 /**
  * One guarded run per client (self, then top rivals). `skipped` = work not allowed, empty catalogue, or a live run;
- * `capped` = over the monthly cost guard (0 calls) or the per-run cap; a non-vendor error ends the run `failed`.
+ * `capped` = over the monthly cost guard (0 calls) or the per-run cap; a non-vendor error (rethrown) or a run whose
+ * every vendor call failed (returned) ends the run `failed`.
  */
 export async function runCitationAudit(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; packs: (verticalId: string) => Promise<VerticalPack>; now?: () => Date },
@@ -117,7 +118,7 @@ export async function runCitationAudit(
   const finish = (status: 'done' | 'capped' | 'failed', calls: number, usd: number) =>
     db.update(citationAuditRun).set({ status, calls, estUsd: usd.toFixed(4), finishedAt: now }).where(eq(citationAuditRun.id, runId));
 
-  let calls = 0, usd = 0;
+  let calls = 0, okCalls = 0, usd = 0;
   try {
     const toSearch: string[] = [];
     for (const id of ids) if (!(await recentlyChecked(db, id, hosts, now))) toSearch.push(id);
@@ -142,13 +143,15 @@ export async function runCitationAudit(
         phone: isSelf ? (gbp.phone ?? c.phone) : gbp.phone,
         city: isSelf ? (clientCity ?? cityFromAddress(gbp.address)) : (cityFromAddress(gbp.address) ?? clientCity),
       };
-      const r = await auditBusiness({ db, store: deps.store, dfs: deps.dfs, now: deps.now }, biz, catalogue, budget, scope);
+      const r = await auditBusiness({ db, store: deps.store, dfs: deps.dfs, now: deps.now }, biz, catalogue, budget, scope, { isSelf });
       calls += r.calls;
+      okCalls += r.okCalls;
       usd += r.usd;
-      if (r.rows.length > 0 || r.stage1Ok) await db.transaction((tx) => upsertCitationRows(tx, id, r.rows, now, { stage1Ok: r.stage1Ok }));
+      if (r.rows.length > 0 || r.stage1Ok) await db.transaction((tx) => upsertCitationRows(tx, id, r.rows, now, { stage1Ok: r.stage1Ok, isSelf }));
       if (r.capped) { capped = true; break; }
     }
-    const status = capped ? 'capped' : 'done';
+    // Every vendor call failed (an outage): `failed`, so readers keep the previous good run and the client is due again.
+    const status = calls > 0 && okCalls === 0 ? 'failed' : capped ? 'capped' : 'done';
     await finish(status, calls, usd);
     return { runId, status, calls, usd };
   } catch (err) {

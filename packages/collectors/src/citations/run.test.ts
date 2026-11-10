@@ -150,6 +150,21 @@ describe('runCitationAudit', () => {
     await expect(run(dfs)).rejects.toThrow('boom');
     expect((await dbs.owner.select().from(citationAuditRun))[0]).toMatchObject({ status: 'failed' });
   });
+  it('every vendor call failing ends the run failed (no rethrow) and the client is due again', async () => {
+    await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }]);
+    const dfs = fakeDfs(() => [dfsTask(null, { statusCode: 50000, statusMessage: 'outage' })]);
+    const r = await run(dfs);
+    expect(r.status).toBe('failed');
+    expect(r.calls).toBeGreaterThan(0);
+    expect((await dbs.owner.select().from(citationAuditRun))[0]).toMatchObject({ status: 'failed', calls: r.calls });
+    expect(await listCitationDueClients(dbs.service, NOW)).toContain(IDS.clientA1);
+  });
+  it('one answered call keeps the run done', async () => {
+    await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }]);
+    let n = 0;
+    const dfs = fakeDfs(() => (n++ === 0 ? [dfsTask([{ items: [] }])] : [dfsTask(null, { statusCode: 50000, statusMessage: 'outage' })]));
+    expect((await run(dfs)).status).toBe('done');
+  });
   it('uses the GBP phone and address city for a rival', async () => {
     await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }]);
     await dbs.owner.insert(capture).values({ id: '00000000-0000-4000-8000-0000000000c9', competitorId: RIVAL_A, source: 'gbp', status: 'ok', collectorVersion: 'dfs/1' });
@@ -157,6 +172,39 @@ describe('runCitationAudit', () => {
     const dfs = emptyDfs();
     await run(dfs);
     expect(dfs.calls.map((c) => c.body![0]!.keyword)).toEqual(['"Rival f3" "817-219-4790"', '"Rival f3" Granbury']);
+  });
+});
+
+describe('runCitationAudit across clients (I2)', () => {
+  const X = IDS.competitorX;
+  const packOf = (...hosts: string[]) => ({ citations: { groups: ['general'], min_missing: 3, directory_groups: { general: hosts.map(dir) } } }) as unknown as VerticalPack;
+  const PACK_A = packOf('mapquest.com', 'angi.com');
+  const PACK_B = packOf('mapquest.com', 'chamberofcommerce.com');
+  const hit = (host: string, rank: number) => ({ type: 'organic', rank_group: rank, domain: 'www.google.com', url: 'https://www.google.com/goto', title: 'Smith HVAC', description: 'call 817-219-4790', breadcrumb: `https://www.${host} › x` });
+  const dfsWith = (hosts: string[]) => fakeDfs(() => [dfsTask([{ items: hosts.map((h, i) => hit(h, i + 1)) }])]);
+  const runFor = (clientId: string, p: VerticalPack, dfs: ReturnType<typeof fakeDfs>, at: Date) =>
+    runCitationAudit({ db: dbs.service, store: createMemoryStore(), dfs, packs: async () => p, now: () => at }, clientId);
+  const rowsOfX = async () => Object.fromEntries((await dbs.owner.select().from(citationListing).where(eq(citationListing.competitorId, X))).map((r) => [r.host, r]));
+
+  it('a shared rival: B\'s narrower catalogue never demotes or deletes A\'s angi row; only self gets also-found rows', async () => {
+    await dbs.owner.insert(capture).values({ id: '00000000-0000-4000-8000-0000000000c8', competitorId: X, source: 'gbp', status: 'ok', collectorVersion: 'dfs/1' });
+    await dbs.owner.insert(observation).values({ competitorId: X, captureId: '00000000-0000-4000-8000-0000000000c8', kind: 'gbp_profile', key: 'profile', data: { phone: '+1 817-219-4790', address: '1 Main St, Granbury, TX 76048, USA' } });
+    // A1: X is a rival. The page also shows an off-catalogue directory, which a rival never stores.
+    expect((await runFor(IDS.clientA1, PACK_A, dfsWith(['angi.com', 'other-dir.example']), NOW)).status).toBe('done');
+    let x = await rowsOfX();
+    expect(x['angi.com']).toMatchObject({ status: 'listed', inCatalogue: true });
+    expect(Object.values(x).some((r) => !r.inCatalogue)).toBe(false);
+    // B1: X is its own business; angi.com is outside B1's catalogue, so it arrives as also-found.
+    await dbs.owner.update(client).set({ selfCompetitorId: X }).where(eq(client.id, IDS.clientB1));
+    expect((await runFor(IDS.clientB1, PACK_B, dfsWith(['angi.com', 'other-dir.example']), NOW)).status).toBe('done');
+    x = await rowsOfX();
+    expect(x['angi.com']).toMatchObject({ inCatalogue: true });
+    expect(x['other-dir.example']).toMatchObject({ status: 'listed', inCatalogue: false });
+    // B1 a month later sees neither: its stale also-found row goes (P12), A's catalogue row stays.
+    expect((await runFor(IDS.clientB1, PACK_B, dfsWith(['mapquest.com']), new Date(NOW.getTime() + 26 * 86_400_000))).status).toBe('done');
+    x = await rowsOfX();
+    expect(x['angi.com']).toMatchObject({ inCatalogue: true });
+    expect(x['other-dir.example']).toBeUndefined();
   });
 });
 

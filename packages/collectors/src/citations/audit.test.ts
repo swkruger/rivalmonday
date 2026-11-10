@@ -21,6 +21,7 @@ const dir = (host: string): Directory => ({ host, label: host, add_listing_url: 
 const CAT = [dir('mapquest.com'), dir('bbb.org'), dir('chamberofcommerce.com')];
 const biz = { competitorId: IDS.competitorX, name: 'Atomic Plumbing', phone: '(817) 219-4790', city: 'Granbury', domain: 'atomicplumbing.example' };
 const budget = (spentUsd = 0): CitationBudget => ({ spentUsd, capUsd: CITATION_RUN_CAP_USD });
+const SELF = { isSelf: true }, RIVAL = { isSelf: false };
 const item = (host: string, title: string, description = '', rank = 1) => ({
   type: 'organic', rank_group: rank, domain: 'www.google.com', url: 'https://www.google.com/goto', title, description, breadcrumb: `https://www.${host} › x`,
 });
@@ -53,7 +54,7 @@ describe('auditBusiness', () => {
         : page(item('bbb.org', 'Atomic Plumbing - Granbury, TX - BBB')))];
     });
     const b = budget();
-    const r = await auditBusiness(deps(dfs), biz, CAT, b, scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, b, scope, SELF);
     expect(keywords(dfs)).toEqual(['"Atomic Plumbing" "817-219-4790"', '"Atomic Plumbing" Granbury']);
     expect(dfs.calls.every((c) => c.body![0]!.depth === 20 && !String(c.body![0]!.keyword).includes('site:'))).toBe(true);
     const by = Object.fromEntries(r.rows.map((x) => [x.host, x]));
@@ -75,14 +76,14 @@ describe('auditBusiness', () => {
     const dfs = fakeDfs(() => [dfsTask(page(
       item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790'), item('bbb.org', 'Atomic Plumbing', '817-219-4790'), item('chamberofcommerce.com', 'Atomic Plumbing', '817-219-4790'),
     ))]);
-    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope, SELF);
     expect(dfs.calls).toHaveLength(1);
     expect(r.rows.map((x) => x.status)).toEqual(['listed', 'listed', 'listed']);
   });
 
   it('no phone: stage 2 only, phone_match null', async () => {
     const dfs = fakeDfs(() => [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', 'Granbury 817-555-0000')))]);
-    const r = await auditBusiness(deps(dfs), { ...biz, phone: null }, CAT, budget(), scope);
+    const r = await auditBusiness(deps(dfs), { ...biz, phone: null }, CAT, budget(), scope, SELF);
     expect(keywords(dfs)).toEqual(['"Atomic Plumbing" Granbury']);
     expect(r.rows.find((x) => x.host === 'mapquest.com')!.match!.phoneMatch).toBeNull();
     expect(r.calls).toBe(1);
@@ -91,14 +92,14 @@ describe('auditBusiness', () => {
 
   it('no city: stage-2 query is the quoted name only', async () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
-    await auditBusiness(deps(dfs), { ...biz, phone: null, city: null }, CAT, budget(), scope);
+    await auditBusiness(deps(dfs), { ...biz, phone: null, city: null }, CAT, budget(), scope, SELF);
     expect(keywords(dfs)).toEqual(['"Atomic Plumbing"']);
   });
 
   it('stage-1 vendor error: stage 2 classifies every host with null phone_match, a vendor_error capture is stored', async () => {
     let n = 0;
     const dfs = fakeDfs(() => (n++ === 0 ? [dfsTask(null, { statusCode: 50000, statusMessage: 'boom' })] : [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', 'Granbury 817-219-4790')))]));
-    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope, SELF);
     expect(r.stage1Ok).toBe(false);
     expect(r.rows).toHaveLength(3);
     expect(r.rows.find((x) => x.host === 'mapquest.com')!.match!.phoneMatch).toBeNull();
@@ -111,14 +112,14 @@ describe('auditBusiness', () => {
   it('stage-2 vendor error writes no rows for the missed hosts (P2)', async () => {
     let n = 0;
     const dfs = fakeDfs(() => (n++ === 0 ? [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790')))] : [dfsTask(null, { statusCode: 50000, statusMessage: 'x' })]));
-    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope, SELF);
     expect(r.rows.map((x) => x.host)).toEqual(['mapquest.com']);
   });
 
   it('RF5 stops before crossing 0.20 (spent 0.197: no call, capped, no rows)', async () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
     const b = budget(0.197);
-    const r = await auditBusiness(deps(dfs), biz, CAT, b, scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, b, scope, SELF);
     expect(dfs.calls).toHaveLength(0);
     expect(r).toMatchObject({ rows: [], calls: 0, usd: 0, capped: true });
     expect(b.spentUsd).toBe(0.197);
@@ -126,7 +127,7 @@ describe('auditBusiness', () => {
 
   it('caps between stages: stage 1 runs, stage 2 does not', async () => {
     const dfs = fakeDfs(() => [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790')))]);
-    const r = await auditBusiness(deps(dfs), biz, CAT, budget(0.194), scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(0.194), scope, SELF);
     expect(dfs.calls).toHaveLength(1);
     expect(r.capped).toBe(true);
     expect(r.rows.map((x) => x.host)).toEqual(['mapquest.com']);
@@ -141,17 +142,33 @@ describe('auditBusiness', () => {
     expect(catalogue.length).toBeGreaterThan(0);
     expect(catalogue.some((x) => x.host === 'angi.com')).toBe(false);
     const dfs = fakeDfs(() => [dfsTask(page(item('angi.com', 'Atomic Plumbing - Granbury, TX', 'Granbury plumber')))]);
-    const r = await auditBusiness(deps(dfs), biz, catalogue, budget(), scope);
+    const r = await auditBusiness(deps(dfs), biz, catalogue, budget(), scope, SELF);
     expect(r.rows.some((x) => x.host === 'angi.com')).toBe(false);
     expect(keywords(dfs).some((k) => k.includes('site:'))).toBe(false);
   });
 
+  it('I2 also-found rows only for self: a rival gets catalogue rows only', async () => {
+    const answer = () => [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790'), item('example-dir.com', 'Atomic Plumbing', '817-219-4790', 2)))];
+    const rival = await auditBusiness(deps(fakeDfs(answer)), biz, CAT, budget(), scope, RIVAL);
+    expect(rival.rows.length).toBeGreaterThan(0);
+    expect(rival.rows.every((x) => x.inCatalogue)).toBe(true);
+    const self = await auditBusiness(deps(fakeDfs(answer)), biz, CAT, budget(), scope, SELF);
+    expect(self.rows.find((x) => !x.inCatalogue)).toMatchObject({ host: 'example-dir.com', status: 'listed' });
+  });
+
+  it('okCalls counts only answered calls', async () => {
+    let n = 0;
+    const dfs = fakeDfs(() => (n++ === 0 ? [dfsTask(null, { statusCode: 50000, statusMessage: 'boom' })] : [dfsTask([{ items: [] }])]));
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope, SELF);
+    expect(r).toMatchObject({ calls: 2, okCalls: 1 });
+  });
+
   it('a banned host never appears as a row nor as also-found', async () => {
     const dfs = fakeDfs(() => [dfsTask(page(item('yelp.com', 'Atomic Plumbing', '817-219-4790'), item('example-dir.com', 'Atomic Plumbing', '817-219-4790', 2)))]);
-    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope);
+    const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope, SELF);
     expect(r.rows.some((x) => x.host.includes('yelp'))).toBe(false);
     expect(r.rows.find((x) => !x.inCatalogue)).toMatchObject({ host: 'example-dir.com', status: 'listed' });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [{ host: 'yelp.com', status: 'listed', inCatalogue: false, match: null, captureId: r.rows[0]!.captureId }], new Date(), { stage1Ok: false });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [{ host: 'yelp.com', status: 'listed', inCatalogue: false, match: null, captureId: r.rows[0]!.captureId }], new Date(), { stage1Ok: false, isSelf: true });
     expect(await dbs.owner.select().from(citationListing)).toHaveLength(0);
   });
 });
@@ -160,12 +177,12 @@ describe('auditBusiness error handling', () => {
   it('a non-vendor error (capture write fails) propagates, with no vendor_error capture', async () => {
     const dfs = fakeDfs(() => [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790')))]);
     const store = { ...createMemoryStore(), put: async () => { throw new Error('disk full'); } };
-    await expect(auditBusiness({ db: dbs.service, store, dfs }, biz, CAT, budget(), scope)).rejects.toThrow('disk full');
+    await expect(auditBusiness({ db: dbs.service, store, dfs }, biz, CAT, budget(), scope, SELF)).rejects.toThrow('disk full');
     expect(await dbs.owner.select().from(capture)).toHaveLength(0);
   });
   it('quotes in the city are stripped from the stage-2 query', async () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
-    await auditBusiness(deps(dfs), { ...biz, phone: null, city: 'Gran"bury' }, CAT, budget(), scope);
+    await auditBusiness(deps(dfs), { ...biz, phone: null, city: 'Gran"bury' }, CAT, budget(), scope, SELF);
     expect(keywords(dfs)).toEqual(['"Atomic Plumbing" Gran bury']);
   });
 });
@@ -175,7 +192,7 @@ describe('upsertCitationRows', () => {
   let captureId: string;
   beforeEach(async () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
-    await auditBusiness(deps(dfs), { ...biz, phone: null }, [dir('bbb.org')], budget(), scope);
+    await auditBusiness(deps(dfs), { ...biz, phone: null }, [dir('bbb.org')], budget(), scope, SELF);
     captureId = (await dbs.owner.select().from(capture))[0]!.id;
   });
   const row = (host: string, status: CitationRow['status'], inCatalogue = true): CitationRow => ({
@@ -184,30 +201,44 @@ describe('upsertCitationRows', () => {
   const get = async (host: string) => (await dbs.owner.select().from(citationListing).where(eq(citationListing.host, host)))[0]!;
 
   it('not_found -> listed sets newly_found_at; first_seen_at is the first listed time', async () => {
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T1, { stage1Ok: true });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T1, { stage1Ok: true, isSelf: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: true, isSelf: true });
     expect(await get('bbb.org')).toMatchObject({ status: 'listed', firstSeenAt: T2, lastSeenAt: T2, newlyFoundAt: T2, checkedAt: T2, listingUrl: 'https://bbb.org/x' });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T3, { stage1Ok: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T3, { stage1Ok: true, isSelf: true });
     expect(await get('bbb.org')).toMatchObject({ firstSeenAt: T2, lastSeenAt: T3, newlyFoundAt: T2 });
   });
 
   it('first insert as listed leaves newly_found_at null', async () => {
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T1, { stage1Ok: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T1, { stage1Ok: true, isSelf: true });
     expect(await get('bbb.org')).toMatchObject({ firstSeenAt: T1, lastSeenAt: T1, newlyFoundAt: null });
   });
 
   it('listed -> not_found keeps first/last_seen_at and nulls newly_found_at', async () => {
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T1, { stage1Ok: true });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: true });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T3, { stage1Ok: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T1, { stage1Ok: true, isSelf: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: true, isSelf: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'not_found')], T3, { stage1Ok: true, isSelf: true });
     expect(await get('bbb.org')).toMatchObject({ status: 'not_found', firstSeenAt: T2, lastSeenAt: T2, newlyFoundAt: null, checkedAt: T3, listingUrl: null });
   });
 
   it('a missed also-found host is deleted only when stage1Ok', async () => {
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed'), row('other.example', 'listed', false)], T1, { stage1Ok: true });
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: false });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed'), row('other.example', 'listed', false)], T1, { stage1Ok: true, isSelf: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: false, isSelf: true });
     expect((await dbs.owner.select().from(citationListing)).map((r) => r.host).sort()).toEqual(['bbb.org', 'other.example']);
-    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T3, { stage1Ok: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T3, { stage1Ok: true, isSelf: true });
     expect((await dbs.owner.select().from(citationListing)).map((r) => r.host)).toEqual(['bbb.org']);
+  });
+
+  it('I2 in_catalogue is never downgraded, so a narrower catalogue never demotes or deletes the row', async () => {
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('angi.com', 'not_found')], T1, { stage1Ok: true, isSelf: false });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('angi.com', 'listed', false)], T2, { stage1Ok: true, isSelf: true });
+    expect(await get('angi.com')).toMatchObject({ inCatalogue: true, status: 'listed', newlyFoundAt: T2 });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T3, { stage1Ok: true, isSelf: true });
+    expect(await get('angi.com')).toMatchObject({ inCatalogue: true });
+  });
+
+  it('I2 a rival upsert never deletes also-found rows written for another client\'s self', async () => {
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed'), row('other.example', 'listed', false)], T1, { stage1Ok: true, isSelf: true });
+    await upsertCitationRows(dbs.service, IDS.competitorX, [row('bbb.org', 'listed')], T2, { stage1Ok: true, isSelf: false });
+    expect((await dbs.owner.select().from(citationListing)).map((r) => r.host).sort()).toEqual(['bbb.org', 'other.example']);
   });
 });

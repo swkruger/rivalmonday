@@ -10,7 +10,8 @@ import { alsoFoundOn, type CitationBiz, type ListingMatch, matchListing, phone10
 import { CITATION_CALL_USD, CITATION_DEPTH, CITATIONS_SOURCE, citationSearch } from './search';
 
 export interface CitationBudget { spentUsd: number; readonly capUsd: number }
-export interface AuditResult { rows: CitationRow[]; calls: number; usd: number; capped: boolean; stage1Ok: boolean }
+/** `okCalls` = calls that returned a page (`calls - okCalls` ended in a vendor_error capture). */
+export interface AuditResult { rows: CitationRow[]; calls: number; okCalls: number; usd: number; capped: boolean; stage1Ok: boolean }
 export interface CitationRow { host: string; status: 'listed' | 'not_found'; inCatalogue: boolean; match: ListingMatch | null; captureId: string }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -19,7 +20,9 @@ const stripQuotes = (s: string): string => s.replace(/["\u201c\u201d]/g, ' ').re
 /**
  * P14: one business, at most two searches. Stage 1 `"name" "NNN-NNN-NNNN"` (also feeds "Also found on"), stage 2 one
  * `"name" city` search for the catalogue hosts stage 1 missed. A failed call writes a vendor_error capture and no rows for
- * the hosts it would have classified (P2). Stops before a call that would cross the run cap.
+ * the hosts it would have classified (P2). Stops before a call that would cross the run cap. "Also found on" rows are
+ * built only for the client's own business (C12, `isSelf`): `citation_listing` is global, so a rival's off-catalogue rows
+ * would depend on which client's catalogue ran.
  */
 export async function auditBusiness(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; now?: () => Date },
@@ -27,9 +30,10 @@ export async function auditBusiness(
   catalogue: Directory[],
   budget: CitationBudget,
   scope: CallScope,
+  opts: { isSelf: boolean },
 ): Promise<AuditResult> {
   const rows: CitationRow[] = [];
-  let calls = 0, usd = 0, capped = false;
+  let calls = 0, okCalls = 0, usd = 0, capped = false;
   const hosts = catalogue.map((d) => d.host).filter((h) => !isBannedHost(h));
   const name = stripQuotes(biz.name);
 
@@ -48,6 +52,7 @@ export async function auditBusiness(
       return null;
     }
     const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: r.raw });
+    okCalls++;
     return { organic: r.organic, captureId };
   }
 
@@ -64,7 +69,7 @@ export async function auditBusiness(
         rows.push({ host, status: 'listed', inCatalogue: true, match, captureId: s1.captureId });
         missed.delete(host);
       }
-      for (const a of alsoFoundOn(s1.organic, hosts, biz)) {
+      if (opts.isSelf) for (const a of alsoFoundOn(s1.organic, hosts, biz)) {
         rows.push({ host: a.host, status: 'listed', inCatalogue: false, match: { url: a.url, title: a.title, nameMatch: true, phoneMatch: true, shownPhone: null }, captureId: s1.captureId });
       }
     }
@@ -80,11 +85,16 @@ export async function auditBusiness(
       }
     }
   }
-  return { rows, calls, usd, capped, stage1Ok };
+  return { rows, calls, okCalls, usd, capped, stage1Ok };
 }
 
-/** One upsert per business; see spec 18c for the first/last seen and `newly_found_at` rules. With `stage1Ok`, also-found rows not seen again are deleted (P12). */
-export async function upsertCitationRows(db: Db | Tx, competitorId: string, rows: CitationRow[], checkedAt: Date, opts: { stage1Ok: boolean }): Promise<void> {
+/**
+ * One upsert per business; see spec 18c for the first/last seen and `newly_found_at` rules. `in_catalogue` is never
+ * downgraded: another client's narrower catalogue must not demote a row that is in some catalogue (readers filter by
+ * their own catalogue hosts). Only for the client's own business (`isSelf`) with `stage1Ok` are also-found rows not seen
+ * again deleted (P12, C12).
+ */
+export async function upsertCitationRows(db: Db | Tx, competitorId: string, rows: CitationRow[], checkedAt: Date, opts: { stage1Ok: boolean; isSelf: boolean }): Promise<void> {
   const kept = rows.filter((r) => !isBannedHost(r.host));
   if (kept.length > 0) {
     await db.insert(citationListing).values(kept.map((r) => {
@@ -101,14 +111,14 @@ export async function upsertCitationRows(db: Db | Tx, competitorId: string, rows
       set: {
         status: sql`excluded.status`, nameMatch: sql`excluded.name_match`, phoneMatch: sql`excluded.phone_match`,
         listingUrl: sql`excluded.listing_url`, listingTitle: sql`excluded.listing_title`, shownPhone: sql`excluded.shown_phone`,
-        captureId: sql`excluded.capture_id`, inCatalogue: sql`excluded.in_catalogue`, checkedAt: sql`excluded.checked_at`,
+        captureId: sql`excluded.capture_id`, inCatalogue: sql`citation_listing.in_catalogue OR excluded.in_catalogue`, checkedAt: sql`excluded.checked_at`,
         firstSeenAt: sql`CASE WHEN excluded.status = 'listed' AND citation_listing.status <> 'listed' THEN excluded.checked_at ELSE citation_listing.first_seen_at END`,
         lastSeenAt: sql`CASE WHEN excluded.status = 'listed' THEN excluded.checked_at ELSE citation_listing.last_seen_at END`,
-        newlyFoundAt: sql`CASE WHEN excluded.status = 'listed' AND citation_listing.status = 'not_found' AND excluded.in_catalogue THEN excluded.checked_at WHEN excluded.status <> 'listed' THEN NULL ELSE citation_listing.newly_found_at END`,
+        newlyFoundAt: sql`CASE WHEN excluded.status = 'listed' AND citation_listing.status = 'not_found' AND (citation_listing.in_catalogue OR excluded.in_catalogue) THEN excluded.checked_at WHEN excluded.status <> 'listed' THEN NULL ELSE citation_listing.newly_found_at END`,
       },
     });
   }
-  if (opts.stage1Ok) {
+  if (opts.stage1Ok && opts.isSelf) {
     const seen = kept.map((r) => r.host);
     await db.delete(citationListing).where(and(
       eq(citationListing.competitorId, competitorId), eq(citationListing.inCatalogue, false),
