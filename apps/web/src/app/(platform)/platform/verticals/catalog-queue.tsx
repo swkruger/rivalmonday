@@ -1,4 +1,5 @@
 'use client';
+import { CITATION_GROUPS, type CitationGroup } from '@cs/verticals';
 import { Band, Button, Card, ConfirmDialog, Input, Label, nativeSelectClass, Section, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
@@ -22,11 +23,8 @@ export interface ReviewVertical {
   citationGroups: string[];
   detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; topics: string[]; areas: { id: string; name: string; aliases: string[] }[] };
 }
-const DIRECTORY_GROUPS: { id: string; label: string }[] = [
-  { id: 'general', label: 'General directories' },
-  { id: 'home_services', label: 'Home services' },
-  { id: 'dental_health', label: 'Dental and health' },
-];
+const GROUP_LABELS: Record<CitationGroup, string> = { general: 'General directories', home_services: 'Home services', dental_health: 'Dental and health' };
+const DIRECTORY_GROUPS = CITATION_GROUPS.map((id) => ({ id, label: GROUP_LABELS[id] }));
 
 export interface ReviewArea {
   verticalId: string;
@@ -160,6 +158,8 @@ function RenameForm({ intent, id, verticalId, current, formAction, busy, onDone 
 function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: ReviewVertical; targets: TargetVertical[]; maps: Record<string, Record<string, string | null>>; canEdit: boolean; formAction: Shared['formAction']; busy: boolean }) {
   const [mode, setMode] = useState<Mode>('none');
   const [editing, setEditing] = useState(false);
+  const [picked, setPicked] = useState<string[]>(v.citationGroups);
+  const groupsChanged = !same([...picked].sort(), [...v.citationGroups].sort());
   return (
     <Card className="gap-3 p-6">
       <h3 className="text-base font-semibold text-ink">{v.name} <span className="font-mono text-xs text-muted-ink">{v.id}</span></h3>
@@ -182,14 +182,14 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
                     title={`Approve ${v.name}?`}
                     body="It joins the business type list that every agency can choose from."
                     confirmLabel="Approve"
-                    fields={{ intent: 'approve-vertical', id: v.id, label: v.name }}
+                    fields={{ intent: 'approve-vertical', id: v.id, label: v.name, ...(groupsChanged && picked.length ? { groups: picked.join(',') } : {}) }}
                     action={(fd) => formAction(fd)}
                   />
                   <Button type="button" variant="outline" aria-label={`Edit ${v.name}`} disabled={busy} onClick={() => { setEditing((e) => !e); setMode('none'); }}>Edit</Button>
                 </>
               }
             />
-            <DirectoryGroups v={v} formAction={formAction} busy={busy} />
+            <DirectoryGroups v={v} picked={picked} setPicked={setPicked} changed={groupsChanged} formAction={formAction} busy={busy} />
             {mode === 'rename' && <RenameForm intent="rename-vertical" id={v.id} current={v.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {editing && <EditForm v={v} formAction={formAction} busy={busy} onDone={() => setEditing(false)} />}
             {mode === 'merge' && <MergeForm v={v} targets={targets} maps={maps} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
@@ -201,9 +201,7 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
 }
 
 /** Staff tick which directory groups the monthly listings check covers for this type (default: what it has now). */
-function DirectoryGroups({ v, formAction, busy }: { v: ReviewVertical; formAction: Shared['formAction']; busy: boolean }) {
-  const [picked, setPicked] = useState<string[]>(v.citationGroups);
-  const changed = !same([...picked].sort(), [...v.citationGroups].sort());
+function DirectoryGroups({ v, picked, setPicked, changed, formAction, busy }: { v: ReviewVertical; picked: string[]; setPicked: (g: string[]) => void; changed: boolean; formAction: Shared['formAction']; busy: boolean }) {
   return (
     <form action={formAction} aria-label={`Directories for ${v.name}`}>
       <Post fields={{ intent: 'groups-vertical', id: v.id, label: v.name }}>

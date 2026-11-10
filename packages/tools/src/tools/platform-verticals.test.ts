@@ -423,6 +423,25 @@ const versionOf = async () => (await q<{ version: number }>(sql`select version f
     expect(after.verticals[0]!.citationGroups).toEqual(['general', 'dental_health']);
   });
 
+  it('dedupes the picked groups and keeps sibling citations keys', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    await dbs.owner.execute(sql`update vertical set config = jsonb_set(config, '{citations}', '{"min_missing": 5}'::jsonb) where id = 'distillery'`);
+    await call(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: ['general', 'general', 'home_services'] });
+    const [row] = await q<{ c: { groups: string[]; min_missing: number } }>(sql`select config -> 'citations' as c from vertical where id = 'distillery'`);
+    expect(row!.c).toEqual({ groups: ['general', 'home_services'], min_missing: 5 });
+  });
+
+  it('reports an otherwise invalid pack with a generic message, not the 15-directory one', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    await dbs.owner.execute(sql`update vertical set config = jsonb_set(config, '{citations}', '{"bogus": true}'::jsonb) where id = 'distillery'`);
+    const v0 = await versionOf();
+    const e = await fails(call(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: ['general'] }));
+    expect(e.code).toBe('invalid_input');
+    expect(e.message).toMatch(/Ask an engineer/);
+    expect(e.message).not.toMatch(/15 directories/);
+    expect(await versionOf()).toBe(v0);
+  });
+
   it('approve with groups saves them in the same call', async () => {
     await call(adminA, 'create_vertical', distillery);
     const v0 = await versionOf();

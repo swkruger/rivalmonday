@@ -37,6 +37,15 @@ describe('CatalogQueue', () => {
     expect([fd.get('intent'), fd.get('id'), fd.getAll('group')]).toEqual(['groups-vertical', 'distillery', ['general', 'home_services', 'dental_health']]);
   });
 
+  it('carries the ticked groups into Approve', async () => {
+    const action = setup();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Home services' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve Craft distilleries' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(action.mock.calls[0]![1].get('groups')).toBe('general,dental_health,home_services');
+  });
+
   it('hides the directory boxes from read-only viewers', () => {
     setup({ canEdit: false });
     expect(screen.queryByRole('checkbox', { name: 'Home services' })).toBeNull();

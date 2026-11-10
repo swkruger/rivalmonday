@@ -32,7 +32,8 @@ export async function catalogReviewAction(_p: FormResult, fd: FormData): Promise
   };
   switch (intent) {
     case 'approve-vertical': {
-      const r = await runTool(ctx, 'review_vertical', { verticalId: id, action: 'approve' });
+      const groups = text(fd, 'groups').split(',').filter(Boolean);
+      const r = await runTool(ctx, 'review_vertical', { verticalId: id, action: 'approve', ...(groups.length ? { citationGroups: groups } : {}) });
       return r.ok ? done(`Approved “${label}”.`) : r;
     }
     case 'rename-vertical': {

@@ -147,8 +147,12 @@ async function groupsConfig(tx: Tx, v: typeof vertical.$inferSelect, groups: str
   }));
   try {
     assemblePack({ ...rowOf(v), config }, areas, rowOf(g));
-  } catch {
-    throw new ToolError('invalid_input', 'Pick fewer directory groups (15 directories at most).', { userFacing: true });
+  } catch (e) {
+    // Only the catalogue-size refine (path citations.groups) is the operator's to fix; any other schema failure is a configuration problem.
+    const detail = e instanceof Error ? e.message : String(e);
+    if (/at most [0-9]+ directories[\s\S]*at citations\.groups/.test(detail)) throw new ToolError('invalid_input', 'Pick fewer directory groups (15 directories at most).', { userFacing: true });
+    console.error(`[review_vertical] pack for ${v.id} does not validate after a groups change: ${detail}`);
+    throw new ToolError('invalid_input', "This business type's settings can't be saved. Ask an engineer to check its configuration.", { userFacing: true });
   }
   return config;
 }
@@ -173,7 +177,7 @@ export const reviewVerticalTool = defineTool({
         const [v] = await tx.select().from(vertical).where(eq(vertical.id, input.verticalId)).for('update');
         if (!v || v.id === GENERIC_VERTICAL_ID || v.status === 'merged') throw new ToolError('not_found', 'Business type not found');
         const now = new Date();
-        const groups = input.action === 'rename' ? undefined : input.citationGroups;
+        const groups = input.action === 'rename' || !input.citationGroups ? undefined : [...new Set(input.citationGroups)];
         // Groups: the assembled pack must still pass the schema (at most 15 directories) before anything is written.
         const config = groups ? await groupsConfig(tx, v, groups) : v.config;
         const version = groups ? v.version + 1 : v.version;
