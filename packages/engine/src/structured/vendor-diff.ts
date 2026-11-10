@@ -1,9 +1,11 @@
+import { GBP_POSTS_URL } from '@cs/collectors';
 import { capture, type ChangeDetails, type Db, detectedChange } from '@cs/db';
 import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 import { supersedePriorChanges } from '../events/retract';
 import { runStage, type StageOutcome } from '../stage';
 import { diffAds } from './ads';
 import { diffGbp } from './gbp';
+import { diffGbpPosts } from './gbp-posts';
 import { diffJobs } from './jobs';
 import { diffAudience } from './meta-page';
 import { diffReviews } from './reviews';
@@ -42,11 +44,14 @@ const diffMeta: SourceDiffer = async (db, cap, prev, older) => {
   return { changes: [...a.changes, ...b.changes], implausible: a.implausible + b.implausible, held: a.held + b.held };
 };
 
+/** Google Business Profile captures: the posts capture (url `gbp:posts`) has its own differ. */
+const diffGbpCapture: SourceDiffer = (db, cap, prev, older) => (cap.url === GBP_POSTS_URL ? diffGbpPosts(db, cap, prev, older) : diffGbp(db, cap, prev, older));
+
 /** Capture sources with a structured differ. Only these are swept, so a source without one is never marked done. */
 const DIFFERS: Record<string, SourceDiffer> = {
   google_ads: diffAds,
   meta_ads: diffMeta,
-  google_business_profile: diffGbp,
+  google_business_profile: diffGbpCapture,
   google_jobs: diffJobs,
   google_reviews: diffReviews,
 };

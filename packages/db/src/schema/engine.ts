@@ -102,6 +102,9 @@ export interface ChangeDetails {
   to?: Tier;
   /** The change advertises a specific offer (ad copy with a deal, or a web promo / money change). */
   offer?: boolean;
+  /** Phase 18b-1: a new Google post (`field 'post'`): the post id and its public link. */
+  postId?: string;
+  url?: string | null;
 }
 
 export type MoveStatus = 'emerging' | 'active' | 'fading';

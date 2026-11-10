@@ -136,6 +136,27 @@ describe('tier_change scoring (P10)', () => {
   });
 });
 
+describe('Google post offers (18b-1)', () => {
+  const postPromo = (over: Partial<ScoreInput> = {}) =>
+    input({ changeType: 'promo', facts: [], serviceId: null, details: { field: 'post', postId: 'p', offer: true }, ...over });
+  it('an unmapped post promo scores whole_business and routes brief', () => {
+    const r = scoreForClient(postPromo(), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 1, wholeBusiness: true });
+    expect(r.score).toBeGreaterThanOrEqual(40);
+    expect(r.score).toBeLessThan(70);
+    expect(r.route).toBe('brief');
+  });
+  it('a mapped, matching post promo routes brief and never alert', () => {
+    const r = scoreForClient(postPromo({ serviceId: 'ac_tune_up' }), client, pack);
+    expect(r.route).toBe('brief');
+    expect(r.score).toBeLessThan(70);
+  });
+  it('a web promo with no service still scores unmapped', () => {
+    const r = scoreForClient(input({ changeType: 'promo', facts: [], serviceId: null, details: {} }), client, pack);
+    expect(r.factors).toMatchObject({ serviceOverlap: 0.6, wholeBusiness: false });
+  });
+});
+
 describe('whole-business relevance (brief-signal D2)', () => {
   const whole = (over: Partial<ScoreInput>) => input({ facts: [], serviceId: null, ...over });
 

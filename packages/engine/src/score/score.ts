@@ -76,11 +76,14 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
   }
 }
 
-export function serviceOverlap(serviceId: string | null, clientServices: string[], pack: VerticalPack, changeType: ChangeType): { value: number; wholeBusiness: boolean } {
+/** 18b-1: a Google post offer is service-mapped like an ad, so "no service" = a general offer = the whole business. Web promos stay as they were. */
+export const isPostOffer = (changeType: ChangeType, details: ChangeDetails | undefined): boolean => changeType === 'promo' && details?.field === 'post';
+
+export function serviceOverlap(serviceId: string | null, clientServices: string[], pack: VerticalPack, changeType: ChangeType, details?: ChangeDetails): { value: number; wholeBusiness: boolean } {
   const r = pack.scoring.relevance;
   if (clientServices.length === 0) return { value: 1, wholeBusiness: false };
   if (serviceId) return { value: clientServices.includes(serviceId) ? r.matched : r.unmatched, wholeBusiness: false };
-  if (WHOLE_BUSINESS_TYPES.has(changeType)) return { value: r.whole_business, wholeBusiness: true };
+  if (WHOLE_BUSINESS_TYPES.has(changeType) || isPostOffer(changeType, details)) return { value: r.whole_business, wholeBusiness: true };
   return { value: r.unmapped, wholeBusiness: false };
 }
 
@@ -113,7 +116,7 @@ function tierChangeScore(d: ChangeDetails, t: ScoreThresholds): number {
 export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: VerticalPack): { score: number; route: Route; factors: ScoreFactors } {
   const typeWeight = pack.type_weights[input.changeType];
   const size = sizeFactor(input, pack);
-  const svc = serviceOverlap(input.serviceId, profile.services, pack, input.changeType);
+  const svc = serviceOverlap(input.serviceId, profile.services, pack, input.changeType, input.details);
   const territory = TERRITORIAL_TYPES.has(input.changeType) ? territoryOverlap(input.zips, profile.zips, pack) : 1;
   const relevance = svc.value * territory;
   // Phase 18a-1: a closure is always news, so novelty never discounts it.

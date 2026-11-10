@@ -20,6 +20,8 @@ export const STRUCTURED_DECISION_TASK = 'structured_decisions';
 
 /** Structured change types whose text names a service (ad copy, job titles, GBP categories/services): ask the service mapping. */
 export const SERVICE_MAPPED_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'new_service', 'service_removed', 'new_page']);
+/** 18b-1: a new Google post (single, not the `gbp_post:more` aggregate) is service-mapped like an ad; web promos and content are not. */
+export const isMappedPost = (type: ChangeType, d: ChangeDetails): boolean => (type === 'promo' || type === 'content') && d.field === 'post' && !!d.postId;
 export const OFFER_QUESTION =
   'Does this ad copy advertise a specific offer — a price, discount, coupon, financing deal, free add-on or limited-time promotion — rather than general branding?';
 
@@ -64,6 +66,12 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
   const after = change.afterText ?? '';
   const adWord = CHANNEL_LABEL[change.source] ? `${CHANNEL_LABEL[change.source]} ad` : 'ad';
   let s: string;
+  if ((d.changeType === 'promo' || d.changeType === 'content') && d.field === 'post') {
+    s = d.postId
+      ? `${d.changeType === 'promo' ? 'Posted an offer on Google' : 'Posted on Google'}: "${trunc(after, 80)}"`
+      : `Posted ${d.count ?? 0} updates on Google`;
+    return redactForModel(s, { businessNames });
+  }
   switch (d.changeType) {
     case 'ad_started':
       s = `${plural(d.count ?? 1, `new ${adWord}`)}: "${trunc(first, 80)}"${more}`;
@@ -185,7 +193,7 @@ export async function tagStructuredChange(deps: { db: Db; ai: Ai; packs: PackLoa
       let modelOffer = false;
       if (type === 'rank_change') {
         services = Object.fromEntries(packs.map((p) => [p.id, serviceForKeyword(c.details.keyword ?? '', p)]));
-      } else if (SERVICE_MAPPED_TYPES.has(type) && packs.length > 0) {
+      } else if ((SERVICE_MAPPED_TYPES.has(type) || isMappedPost(type, c.details)) && packs.length > 0) {
         const state = { competitor: row.competitorName, channel: c.source, change: type, text: clean };
         const result = await deps.ai.decide(STRUCTURED_DECISION_TASK, state, buildStructuredQuestions(type, packs), scope);
         services = Object.fromEntries(
