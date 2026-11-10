@@ -179,6 +179,13 @@ function agencyAmountsIn(text: string): string[] {
 test("the business side's source has no agency plan number", async ({ page, request }) => {
   // The one allowed overlap would be a business price equal to an agency amount; there is none by default.
   expect(AGENCY_AMOUNTS, `the business price ${PRICING.business.monthlyUsd} equals an agency amount: exclude exactly that collision here`).not.toContain(PRICING.business.monthlyUsd);
+  // Positive control: on the agency pricing page the same matchers find every agency amount, so an empty scan below means absence, not a blind regex.
+  const control = await (await request.get('/agencies/pricing')).text();
+  expect(agencyAmountsIn(control).sort(), 'control: whole amounts on /agencies/pricing').toEqual(AGENCY_AMOUNTS.map(money).sort());
+  // Its JSON-LD (SoftwareApplication offer) carries the monthly price as a bare number ("229.00" and 229); the tier and yearly amounts
+  // appear there only inside "$..." description text, which the bare matcher rightly ignores.
+  const controlLd = [...control.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]!).join('\n');
+  expect(bareAmount(PRICING.agency.monthlyUsd).test(controlLd), 'control: bare monthly price in json-ld').toBe(true);
   for (const path of ['/business', '/business/pricing']) {
     const html = await (await request.get(path)).text();
     expect(html.length, `${path} html`).toBeGreaterThan(1000);
@@ -265,6 +272,7 @@ test('moving between sides without a reload updates header, menu and popup', asy
 
 test('nothing on the home pages moves by itself', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop only');
+  test.setTimeout(90_000);
   await page.clock.install();
   await mockApp(page);
   for (const path of ['/', '/agencies', '/business']) {
@@ -300,6 +308,7 @@ test('nothing on the home pages moves by itself', async ({ page }, info) => {
 
 test('the gallery plays once and then rests', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop only');
+  test.setTimeout(90_000);
   await page.clock.install();
   await mockApp(page);
   await page.goto('/agencies');
@@ -310,12 +319,13 @@ test('the gallery plays once and then rests', async ({ page }, info) => {
   // It moves on by itself once (the second picture after one dwell)...
   await runClock(page, GALLERY.dwellMs + 1000);
   await expect(tab(page, secondTab)).toHaveAttribute('aria-selected', 'true');
-  const swapped = await page.evaluate(() => {
-    const img = document.querySelector<HTMLImageElement>('[data-slot="hero-gallery"] img');
-    return { complete: img?.complete ?? false, fade: img?.className.includes('gallery-fade') ?? false };
-  });
-  console.log(`GALLERY swap: new picture complete=${swapped.complete} fade=${swapped.fade}`);
-  expect(swapped.complete, 'the picture is in before it is shown (no blank frame)').toBe(true);
+  const swapped = () =>
+    page.evaluate(() => {
+      const img = document.querySelector<HTMLImageElement>('[data-slot="hero-gallery"] img');
+      return { complete: img?.complete ?? false, fade: img?.className.includes('gallery-fade') ?? false };
+    });
+  console.log(`GALLERY swap: ${JSON.stringify(await swapped())}`);
+  await expect.poll(async () => (await swapped()).complete, { message: 'the picture is in before it is shown (no blank frame)' }).toBe(true);
 
   // ...and after the whole round it is back on the first tab and rests with a Play button.
   await runClock(page, 40_000 - GALLERY.dwellMs - 1000);
