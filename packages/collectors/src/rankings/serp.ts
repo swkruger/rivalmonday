@@ -62,7 +62,7 @@ const CRUMB_URL = /^https?:\/\/([^\s›]+)(\s*›\s*(.+))?$/;
 export function organicHost(o: { breadcrumb?: string | null; website_name?: string | null; domain?: string | null }): { host: string | null; path: string | null } {
   const m = CRUMB_URL.exec((o.breadcrumb ?? '').trim());
   if (m) {
-    const host = m[1]!.toLowerCase().replace(/^www\./, '');
+    const host = m[1]!.split(/[/?#:]/)[0]!.toLowerCase().replace(/^www\./, '');
     const segments = (m[3] ?? '').split(/\s*›\s*/).map((x) => x.trim()).filter(Boolean);
     const truncated = segments.some((x) => x.includes('…') || x.includes('...'));
     return { host, path: segments.length && !truncated ? segments.join('/') : null };

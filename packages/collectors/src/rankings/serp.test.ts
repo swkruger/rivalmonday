@@ -70,6 +70,11 @@ describe('parseSerp real host (goto-wrapped results)', () => {
     expect(live18.organic.some((o) => o.domain === 'google.com')).toBe(false);
   });
 
+  it('organicHost takes only the host from a separator-less crumb', () => {
+    expect(organicHost({ breadcrumb: 'https://example.com/foo' }).host).toBe('example.com');
+    expect(organicHost({ breadcrumb: 'https://example.com:8080 › x' }).host).toBe('example.com');
+  });
+
   it('organicHost ignores a Object.prototype website_name', () => {
     expect(organicHost({ breadcrumb: null, website_name: 'constructor' })).toEqual({ host: null, path: null });
   });
