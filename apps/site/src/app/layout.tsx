@@ -12,7 +12,7 @@ import { SideProvider } from '../components/shell/side-context';
 import { SiteAnalytics } from '../components/shell/site-analytics';
 import { SiteFooter } from '../components/shell/site-footer';
 import { SiteHeader } from '../components/shell/site-header';
-import { footerColumns, navItems, sidePaths } from '../components/shell/nav-items';
+import { footerColumns, navMenus, sidePaths } from '../components/shell/nav-items';
 import './site.css';
 
 // `optional`, not `swap`: the size-matched fallback needs Arial, so without it (Android, Linux) the swap reflows the hero (CLS 0.3).
@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PilotProvider>
             <JoinProvider>
               <AnnouncementBar />
-              <SiteHeader items={navItems()} />
+              <SiteHeader menus={navMenus()} />
               {children}
               <SiteFooter columns={footerColumns()} />
             </JoinProvider>

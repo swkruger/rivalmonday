@@ -7,7 +7,6 @@ import { BUSINESS } from './business';
 import { CHOOSER } from './chooser';
 import * as home from './home';
 import * as how from './how-it-works';
-import { NAV_EXTRA } from './pages';
 import { PRICING } from './pricing';
 import * as story from './rival-story';
 
@@ -123,13 +122,6 @@ describe('site copy', () => {
     expect(home.RECOMMENDATIONS_ROADMAP.notice).toMatch(/not yet available/i);
     expect(home.RECOMMENDATIONS_ROADMAP.notice).toMatch(/may change/i);
     expect(home.RECOMMENDATIONS_ROADMAP.link.href).toBe('/roadmap');
-  });
-
-  it('every NAV_EXTRA /#id is in HOME_ANCHORS', () => {
-    for (const n of NAV_EXTRA) {
-      if (!n.href.startsWith('/#')) continue;
-      expect(home.HOME_ANCHORS as readonly string[], n.href).toContain(n.href.slice(2));
-    }
   });
 
   it('rival story moves: website capture only when live, oldest first', () => {

@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { footerColumns, navItems } from '../src/components/shell/nav-items';
+import { footerColumns, navMenus } from '../src/components/shell/nav-items';
 import sitemap from '../src/app/sitemap';
 import { articleLd } from '../src/lib/json-ld';
 import { pageMetadata } from '../src/lib/metadata';
@@ -81,7 +81,8 @@ describe('industry and guide copy', () => {
 describe('discoverability without the top nav', () => {
   it('industry and guide pages are in the sitemap but not the header nav', () => {
     const urls = sitemap().map((e) => e.url);
-    const nav = navItems().map((n) => n.href);
+    const menus = navMenus();
+    const nav = [...menus.agency, ...menus.business].map((n) => n.href);
     for (const p of PAGES.filter((x) => x.group === 'industries' || x.group === 'guides')) {
       expect(urls, p.path).toContain(SITE_URL + p.path);
       expect(nav, p.path).not.toContain(p.path);

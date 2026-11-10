@@ -3,14 +3,16 @@
 import { ANNOUNCEMENT } from '../../../content/home';
 import { useJoin } from '../join/join-provider';
 import { usePilot } from './pilot-context';
+import { useSide } from './side-context';
 
 /** Pilot-only strip above the header: one fixed sentence and its join link. Nothing moves. */
 export function AnnouncementBar() {
   const { pilotMode } = usePilot();
   const { open } = useJoin();
+  const side = useSide();
 
   if (!pilotMode) return null;
-  const { text, link } = ANNOUNCEMENT.agency;
+  const { text, link } = ANNOUNCEMENT[side === 'both' ? 'home' : side];
 
   return (
     <div data-slot="announcement-bar" role="region" aria-label="Announcement" className="border-b border-line bg-muted-surface text-13 text-ink">

@@ -1,15 +1,25 @@
 'use client';
 
 import { Wordmark } from '@cs/ui';
+import { BUSINESS } from '../../../content/business';
+import { CHOOSER } from '../../../content/chooser';
 import { HERO } from '../../../content/home';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from './pilot-context';
 import type { FooterColumn } from './nav-items';
+import { useSide } from './side-context';
 import { SocialLinks } from './social-links';
 
 /** `columns` come from the server (`footerColumns()` in `nav-items.ts`): this client module never imports the page registry. */
 export function SiteFooter({ columns }: { columns: FooterColumn[] }) {
   const { pilotMode } = usePilot();
+  const side = useSide();
+  const tagline = side === 'agency' ? HERO.eyebrow : side === 'business' ? BUSINESS.hero.eyebrow : CHOOSER.eyebrow;
+  const wide = side === 'home' || side === 'both';
+  // A link with a side is hidden on the other side; a column left empty drops out.
+  const visible = columns
+    .map((c) => ({ ...c, links: c.links.filter((l) => !l.side || side === 'home' || side === 'both' || l.side === side) }))
+    .filter((c) => c.links.length > 0);
 
   return (
     <footer data-slot="site-footer" className="mt-16 border-t border-line bg-surface">
@@ -17,12 +27,12 @@ export function SiteFooter({ columns }: { columns: FooterColumn[] }) {
         <div className="flex flex-col gap-8 md:flex-row md:justify-between">
           <div className="flex flex-col gap-3">
             <Wordmark />
-            <p className="max-w-52 text-sm text-ink-secondary">{HERO.eyebrow}</p>
+            <p className="max-w-52 text-sm text-ink-secondary">{tagline}</p>
             <SocialLinks />
           </div>
-          {columns.length > 0 && (
+          {visible.length > 0 && (
             <nav aria-label="Footer" className="flex flex-wrap gap-x-10 gap-y-6 md:gap-x-8">
-              {columns.map((c) => (
+              {visible.map((c) => (
                 <div key={c.heading}>
                   <h3 className="mb-2 text-13 font-semibold text-ink">{c.heading}</h3>
                   {/* `twoColumn`: a long list reads in two columns; a `highlight` link closes it across both, set apart by a hairline. */}
@@ -31,13 +41,13 @@ export function SiteFooter({ columns }: { columns: FooterColumn[] }) {
                       l.highlight ? (
                         <li key={l.href} data-highlight="" className="col-span-2 mt-1.5 border-t border-line pt-2.5">
                           <a href={l.href} className="text-sm font-medium text-link hover:underline">
-                            {l.label} <span aria-hidden="true">→</span>
+                            {wide && l.wideLabel ? l.wideLabel : l.label} <span aria-hidden="true">→</span>
                           </a>
                         </li>
                       ) : (
                         <li key={l.href}>
                           <a href={l.href} className="text-sm text-ink-secondary hover:text-ink hover:underline">
-                            {l.label}
+                            {wide && l.wideLabel ? l.wideLabel : l.label}
                           </a>
                         </li>
                       ),

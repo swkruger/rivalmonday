@@ -23,7 +23,9 @@ vi.mock('../join/join-provider', async (orig) => {
   return { ...real, useJoin: () => ({ ...real.useJoin(), open: openSpy }) };
 });
 
-import { ANNOUNCEMENT } from '../../../content/home';
+import { BUSINESS } from '../../../content/business';
+import { CHOOSER } from '../../../content/chooser';
+import { ANNOUNCEMENT, HERO } from '../../../content/home';
 import { PAGES } from '../../../content/pages';
 const realPages = [...PAGES];
 import { JoinProvider } from '../join/join-provider';
@@ -32,24 +34,31 @@ import { SideProvider, useSide } from './side-context';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { AnnouncementBar } from './announcement-bar';
-import { footerColumns, navItems } from './nav-items';
+import { footerColumns, navMenus, sidePaths } from './nav-items';
 
 function Shell() {
   return (
-    <PilotProvider>
-      <JoinProvider>
-        <AnnouncementBar />
-        <SiteHeader items={navItems()} />
-        <SiteFooter columns={footerColumns()} />
-      </JoinProvider>
-    </PilotProvider>
+    <SideProvider paths={sidePaths()}>
+      <PilotProvider>
+        <JoinProvider>
+          <AnnouncementBar />
+          <SiteHeader menus={navMenus()} />
+          <SiteFooter columns={footerColumns()} />
+        </JoinProvider>
+      </PilotProvider>
+    </SideProvider>
   );
 }
 
-async function renderShell() {
+async function renderShell(pathname = '/agencies') {
+  nav.pathname = pathname;
   render(<Shell />);
   await act(async () => {});
 }
+
+const links = (root: HTMLElement) => within(root).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')]);
+const header = () => screen.getByRole('banner');
+const bar = () => document.querySelector<HTMLElement>('[data-slot="announcement-bar"]')!;
 
 function mockMatchMedia(reduce: boolean) {
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: reduce && q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
@@ -60,6 +69,7 @@ beforeEach(() => {
   mockMatchMedia(false);
   for (const k of Object.keys(social)) social[k] = null;
   openSpy.mockClear();
+  nav.pathname = '/';
   pages.list = [...realPages];
 });
 afterEach(() => {
@@ -93,13 +103,18 @@ describe('site shell', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('mobile menu items equal the header items', async () => {
-    await renderShell();
-    const main = within(screen.getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')]);
-    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
-    const mobile = within(screen.getByRole('navigation', { name: 'Mobile' })).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')]);
-    expect(mobile).toEqual(main);
-    expect(main.length).toBeGreaterThan(0);
+  it('phone menu lists the same items as the header on each side, switch first', async () => {
+    for (const pathname of ['/agencies', '/business']) {
+      await renderShell(pathname);
+      const main = links(within(header()).getByRole('navigation', { name: 'Main' }));
+      expect(main.length).toBeGreaterThan(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      const dialog = screen.getByRole('dialog');
+      const navs = within(dialog).getAllByRole('navigation');
+      expect(navs[0]!.getAttribute('aria-label')).toBe('Audience');
+      expect(links(within(dialog).getByRole('navigation', { name: 'Mobile' }))).toEqual(main);
+      cleanup();
+    }
   });
 
   it('a mobile menu link closes the sheet on navigate', async () => {
@@ -110,14 +125,83 @@ describe('site shell', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('nav follows the spec order', async () => {
-    await renderShell();
-    const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Compare', 'Pricing', 'Partners', 'Roadmap']);
-    for (const name of ['Sample brief', 'Integrations']) {
-      expect(within(nav).queryByText(name)).toBeNull();
-      expect(within(screen.getByRole('contentinfo')).getByRole('link', { name })).toBeTruthy();
+  it('header on /: wordmark and Sign in only', async () => {
+    await renderShell('/');
+    const h = header();
+    expect(within(h).getByRole('link', { name: 'Rival Monday home' })).toBeTruthy();
+    expect(within(h).getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('https://app.test/sign-in');
+    expect(within(h).queryByRole('navigation', { name: 'Audience' })).toBeNull();
+    expect(within(h).queryByRole('navigation', { name: 'Main' })).toBeNull();
+    expect(within(h).queryByRole('button')).toBeNull();
+  });
+
+  it('header on /agencies: switch with For agencies current, five menu items, join button', async () => {
+    await renderShell('/agencies');
+    const h = header();
+    const sw = within(h).getByRole('navigation', { name: 'Audience' });
+    expect(within(sw).getByRole('link', { name: 'For agencies' }).getAttribute('aria-current')).toBe('page');
+    expect(within(sw).getByRole('link', { name: 'For local businesses' }).getAttribute('aria-current')).toBeNull();
+    expect(within(within(h).getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['How it works', 'Sample brief', 'Pricing', 'Partners', 'Roadmap']);
+    expect(within(h).getByRole('link', { name: 'Sign in' })).toBeTruthy();
+    expect(within(h).getByRole('button', { name: 'Join the free pilot' })).toBeTruthy();
+  });
+
+  it('header on /business: business menu and Join the waitlist', async () => {
+    await renderShell('/business');
+    const h = header();
+    const sw = within(h).getByRole('navigation', { name: 'Audience' });
+    expect(within(sw).getByRole('link', { name: 'For local businesses' }).getAttribute('aria-current')).toBe('page');
+    expect(within(sw).getByRole('link', { name: 'For agencies' }).getAttribute('aria-current')).toBeNull();
+    expect(links(within(h).getByRole('navigation', { name: 'Main' }))).toEqual([
+      ['What you get', '/business#client-view'],
+      ['Sample brief', '/business#sample'],
+      ['Pricing', '/business/pricing'],
+    ]);
+    fireEvent.click(within(h).getByRole('button', { name: BUSINESS.hero.primaryCta }));
+    expect(openSpy).toHaveBeenCalledWith('business');
+    expect(within(h).queryByRole('button', { name: 'Join the free pilot' })).toBeNull();
+  });
+
+  it('header on /sample-brief: switch with neither current, no menu', async () => {
+    await renderShell('/sample-brief');
+    const h = header();
+    const sw = within(h).getByRole('navigation', { name: 'Audience' });
+    expect(links(sw)).toEqual([
+      ['For agencies', '/agencies'],
+      ['For local businesses', '/business'],
+    ]);
+    for (const a of within(sw).getAllByRole('link')) expect(a.getAttribute('aria-current')).toBeNull();
+    expect(within(h).queryByRole('navigation', { name: 'Main' })).toBeNull();
+    expect(within(h).queryByRole('button', { name: 'Menu' })).toBeNull();
+    expect(within(h).getByRole('link', { name: 'Sign in' })).toBeTruthy();
+  });
+
+  it('the switch keeps pricing on pricing', async () => {
+    for (const pathname of ['/agencies/pricing', '/business/pricing']) {
+      await renderShell(pathname);
+      const sw = within(header()).getByRole('navigation', { name: 'Audience' });
+      expect(links(sw)).toEqual([
+        ['For agencies', '/agencies/pricing'],
+        ['For local businesses', '/business/pricing'],
+      ]);
+      cleanup();
     }
+  });
+
+  it('changing the pathname re-renders the header for the new side and closes the open sheet', async () => {
+    nav.pathname = '/agencies';
+    const { rerender } = render(<Shell />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    nav.pathname = '/business';
+    rerender(<Shell />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(within(header()).getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['What you get', 'Sample brief', 'Pricing']);
+    // Coming back to the first address must not reopen the sheet.
+    nav.pathname = '/agencies';
+    rerender(<Shell />);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('footer compare column lists only enabled rivals', async () => {
@@ -126,9 +210,50 @@ describe('site shell', () => {
     expect(within(footer).getByRole('link', { name: 'Compare overview' }).getAttribute('href')).toBe('/compare');
     expect(within(footer).queryByRole('link', { name: 'Birdeye' })).toBeNull();
     cleanup();
-    pages.list = [...realPages, { path: '/compare/birdeye', title: 'Rival Monday vs Birdeye', crumb: 'Birdeye', group: 'compare' } as never];
+    pages.list = [...realPages, { path: '/compare/birdeye', title: 'Rival Monday vs Birdeye', crumb: 'Birdeye', group: 'compare', side: 'agency' } as never];
     await renderShell();
     expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Birdeye' }).getAttribute('href')).toBe('/compare/birdeye');
+  });
+
+  it('footer on /business has no agency-only link and one Pricing link to /business/pricing', async () => {
+    await renderShell('/business');
+    const footer = screen.getByRole('contentinfo');
+    for (const name of ['How it works', 'Roadmap', 'Partners', 'Integrations', 'Compare overview']) expect(within(footer).queryByRole('link', { name }), name).toBeNull();
+    expect(within(footer).queryByRole('heading', { name: 'Compare' })).toBeNull();
+    const pricing = within(footer).getAllByRole('link', { name: /Pricing/ });
+    expect(pricing.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([['Pricing', '/business/pricing']]);
+    expect(within(footer).getByRole('link', { name: 'Sample brief' })).toBeTruthy();
+    cleanup();
+    await renderShell('/agencies');
+    const agency = within(screen.getByRole('contentinfo')).getAllByRole('link', { name: /Pricing/ });
+    expect(agency.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([['Pricing', '/agencies/pricing']]);
+  });
+
+  it('footer on / shows both pricing links with their long labels', async () => {
+    for (const pathname of ['/', '/sample-brief']) {
+      await renderShell(pathname);
+      const pricing = within(screen.getByRole('contentinfo')).getAllByRole('link', { name: /Pricing/ });
+      expect(pricing.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+        ['Pricing for agencies', '/agencies/pricing'],
+        ['Pricing for local businesses', '/business/pricing'],
+      ]);
+      cleanup();
+    }
+  });
+
+  it('footer tagline follows the side', async () => {
+    const tagline = (eyebrow: string) => within(screen.getByRole('contentinfo')).getByText(eyebrow);
+    await renderShell('/agencies');
+    expect(tagline(HERO.eyebrow)).toBeTruthy();
+    cleanup();
+    await renderShell('/business');
+    expect(tagline(BUSINESS.hero.eyebrow)).toBeTruthy();
+    cleanup();
+    for (const pathname of ['/', '/sample-brief']) {
+      await renderShell(pathname);
+      expect(tagline(CHOOSER.eyebrow)).toBeTruthy();
+      cleanup();
+    }
   });
 
   it('social link renders only when its env is set', async () => {
@@ -163,25 +288,38 @@ describe('site shell', () => {
     expect(openSpy).toHaveBeenCalledWith('business');
   });
 
-  it('announcement shows one fixed sentence and the join link', async () => {
-    await renderShell();
-    const bar = document.querySelector<HTMLElement>('[data-slot="announcement-bar"]')!;
-    expect(bar.textContent).toContain(ANNOUNCEMENT.agency.text);
-    expect(bar.textContent).toContain('The free pilot is open to agencies with local-business clients.');
-    expect(bar.querySelector('[data-testid="announcement-example"]')).toBeNull();
-    fireEvent.click(within(bar).getByRole('button', { name: 'Join the free pilot →' }));
-    expect(openSpy).toHaveBeenCalledWith('agency');
+  it('announcement per side; both-reader pages use the home line; pilot off hides it', async () => {
+    await renderShell('/agencies');
+    expect(bar().textContent).toContain(ANNOUNCEMENT.agency.text);
+    expect(bar().textContent).toContain('The free pilot is open to agencies with local-business clients.');
+    expect(bar().querySelector('[data-testid="announcement-example"]')).toBeNull();
+    fireEvent.click(within(bar()).getByRole('button', { name: 'Join the free pilot →' }));
+    expect(openSpy).toHaveBeenLastCalledWith('agency');
+    cleanup();
+    await renderShell('/business');
+    expect(bar().textContent).toContain(ANNOUNCEMENT.business.text);
+    fireEvent.click(within(bar()).getByRole('button', { name: ANNOUNCEMENT.business.link!.label }));
+    expect(openSpy).toHaveBeenLastCalledWith('business');
+    cleanup();
+    for (const pathname of ['/', '/sample-brief']) {
+      await renderShell(pathname);
+      expect(bar().textContent).toBe(ANNOUNCEMENT.home.text);
+      expect(within(bar()).queryByRole('button')).toBeNull();
+      cleanup();
+    }
+    fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: { rivalSitesWatched: 1, snapshotsThisWeek: 1, claimsChecked: 1, claimsDropped: 0 } });
+    await renderShell('/business');
+    expect(document.querySelector('[data-slot="announcement-bar"]')).toBeNull();
   });
 
   it('announcement does not change over time', async () => {
     vi.useFakeTimers();
     await renderShell();
-    const bar = document.querySelector('[data-slot="announcement-bar"]')!;
-    const first = bar.textContent;
+    const first = bar().textContent;
     await act(async () => {
       vi.advanceTimersByTime(30_000);
     });
-    expect(bar.textContent).toBe(first);
+    expect(bar().textContent).toBe(first);
   });
 
   it('pilot off hides the bar', async () => {

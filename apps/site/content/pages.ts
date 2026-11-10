@@ -8,7 +8,8 @@ export interface SitePage {
   path: `/${string}`;
   title: string;
   description: string;
-  nav?: { label: string; order: number };
+  /** The menu it appears in (default `agency`) and its place there. */
+  nav?: { label: string; order: number; side?: 'agency' | 'business' };
   sitemap: boolean;
   changeFrequency?: 'weekly' | 'monthly' | 'yearly';
   priority?: number;
@@ -88,6 +89,7 @@ export const PAGES: readonly SitePage[] = [
     path: '/sample-brief',
     title: 'Sample competitor brief for a local business',
     crumb: 'Sample brief',
+    nav: { label: 'Sample brief', order: 20 },
     description: 'See a full Monday brief for a fictional local business, with every claim linked to the evidence behind it.',
     sitemap: true,
     changeFrequency: 'monthly',
@@ -185,7 +187,6 @@ export const PAGES: readonly SitePage[] = [
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.6,
-    nav: { label: 'Compare', order: 30 },
     crumb: 'Compare',
     group: 'compare',
   },
@@ -215,4 +216,9 @@ export const PAGES: readonly SitePage[] = [
   ...GUIDES.map((g) => ({ ...collectionPage('/guides', { slug: g.slug, ...g.seo }), priority: 0.7 })),
 ];
 
-export const NAV_EXTRA: readonly { label: string; href: string; order: number }[] = [];
+/** Business-menu entries (anchors on `/business` and its pricing page); the agency menu comes from `PAGES`. */
+export const NAV_EXTRA: readonly { label: string; href: string; order: number; side: 'agency' | 'business' }[] = [
+  { label: 'What you get', href: '/business#client-view', order: 10, side: 'business' },
+  { label: 'Sample brief', href: '/business#sample', order: 20, side: 'business' },
+  { label: 'Pricing', href: '/business/pricing', order: 30, side: 'business' },
+];

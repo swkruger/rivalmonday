@@ -11,6 +11,10 @@ export interface NavLink {
   href: string;
   /** Footer only: set apart at the end of a two-column list. */
   highlight?: boolean;
+  /** Footer only: the link is hidden on the other side's pages. */
+  side?: 'agency' | 'business';
+  /** Footer only: label on `/` and both-reader pages, where the two pricing links must be told apart. */
+  wideLabel?: string;
 }
 
 export interface FooterColumn {
@@ -20,10 +24,12 @@ export interface FooterColumn {
   twoColumn?: boolean;
 }
 
-/** Registered pages with a `nav` entry plus the extra anchors, by order. */
-export function navItems(): NavLink[] {
-  const fromPages = PAGES.flatMap((p) => (p.nav ? [{ label: p.nav.label, href: p.path as string, order: p.nav.order }] : []));
-  return [...fromPages, ...NAV_EXTRA].sort((a, b) => a.order - b.order).map(({ label, href }) => ({ label, href }));
+/** Menu per side: registered pages with a `nav` entry (default side `agency`) plus the extras, by order. */
+export function navMenus(): { agency: NavLink[]; business: NavLink[] } {
+  const fromPages = PAGES.flatMap((p) => (p.nav ? [{ label: p.nav.label, href: p.path as string, order: p.nav.order, side: p.nav.side ?? 'agency' }] : []));
+  const all = [...fromPages, ...NAV_EXTRA].sort((a, b) => a.order - b.order);
+  const menu = (side: 'agency' | 'business') => all.filter((n) => n.side === side).map(({ label, href }) => ({ label, href }));
+  return { agency: menu('agency'), business: menu('business') };
 }
 
 /** Registered paths that belong to one side, for `sideOf` (disabled rivals are not in `PAGES`). */
@@ -40,7 +46,8 @@ const COLUMNS: FooterColumn[] = [
     links: [
       { label: 'How it works', href: '/how-it-works' },
       { label: 'Sample brief', href: '/sample-brief' },
-      { label: 'Pricing', href: '/agencies/pricing' },
+      { label: 'Pricing', wideLabel: 'Pricing for agencies', href: '/agencies/pricing' },
+      { label: 'Pricing', wideLabel: 'Pricing for local businesses', href: '/business/pricing' },
       { label: 'Integrations', href: '/integrations' },
       { label: 'Sources', href: '/sources' },
       { label: 'Roadmap', href: '/roadmap' },
@@ -74,11 +81,17 @@ const COLUMNS: FooterColumn[] = [
   },
 ];
 
-/** Footer columns: registered links only, plus one link per enabled rival under Compare; empty columns dropped. */
+/** Footer columns: registered links only, each carrying its page's side; plus one link per enabled rival under Compare; empty columns dropped. */
 export function footerColumns(): FooterColumn[] {
-  const registered = new Set<string>(PAGES.map((p) => p.path));
+  const sideOfPath = new Map<string, 'agency' | 'business' | undefined>(PAGES.map((p) => [p.path, p.side]));
   const rivals = PAGES.filter((p) => p.group === 'compare' && p.path !== '/compare').map((p) => ({ label: p.crumb ?? p.title, href: p.path as string }));
   return COLUMNS.map((c) => (c.heading === 'Compare' ? { ...c, links: [...c.links, ...rivals] } : c))
-    .map((c) => ({ ...c, links: c.links.filter((l) => registered.has(l.href)) }))
+    .map((c) => ({
+      ...c,
+      links: c.links.filter((l) => sideOfPath.has(l.href)).map((l) => {
+        const side = sideOfPath.get(l.href);
+        return side ? { ...l, side } : l;
+      }),
+    }))
     .filter((c) => c.links.length > 0);
 }

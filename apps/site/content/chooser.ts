@@ -21,3 +21,6 @@ export const CHOOSER = {
   proof: readonly string[];
   bandHeading: string;
 };
+
+/** The header's audience switch: wording is deck § 1. */
+export const SWITCH = { label: 'Audience', agency: 'For agencies', business: 'For local businesses' } as const;

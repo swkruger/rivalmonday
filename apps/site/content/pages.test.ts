@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { collectionPage, NAV_EXTRA, PAGES } from './pages';
 import { REDIRECTS } from '../src/lib/redirects';
-import { sidePaths } from '../src/components/shell/nav-items';
+import { navMenus, sidePaths } from '../src/components/shell/nav-items';
+import { BUSINESS_ANCHORS } from './business';
 
 /** Fixed agency-side rows; later tasks add their rows here. Rival and integration rows are checked by group. */
 const AGENCY_SIDE_FIXED = ['/agencies', '/agencies/pricing', '/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
@@ -54,9 +55,30 @@ describe('page registry', () => {
     expect(p).toMatchObject({ path: '/compare/birdeye', group: 'compare', crumb: 'Birdeye', sitemap: true, changeFrequency: 'monthly', priority: 0.6 });
   });
 
-  it('nav entries follow the spec order', () => {
-    const nav = PAGES.filter((p) => p.nav).sort((a, b) => a.nav!.order - b.nav!.order);
-    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/compare', '/agencies/pricing', '/partners', '/roadmap']);
+  it('agency menu is the decided five', () => {
+    expect(navMenus().agency.map((l) => [l.label, l.href])).toEqual([
+      ['How it works', '/how-it-works'],
+      ['Sample brief', '/sample-brief'],
+      ['Pricing', '/agencies/pricing'],
+      ['Partners', '/partners'],
+      ['Roadmap', '/roadmap'],
+    ]);
+    expect(navMenus().business.map((l) => [l.label, l.href])).toEqual([
+      ['What you get', '/business#client-view'],
+      ['Sample brief', '/business#sample'],
+      ['Pricing', '/business/pricing'],
+    ]);
+  });
+
+  it('Compare is not in the top menu', () => {
+    expect(PAGES.find((p) => p.path === '/compare')?.nav).toBeUndefined();
+    const menus = navMenus();
+    expect([...menus.agency, ...menus.business].map((l) => l.href)).not.toContain('/compare');
+  });
+
+  it('/for and /guides never appear in a menu', () => {
+    const menus = navMenus();
+    for (const l of [...menus.agency, ...menus.business]) expect(l.href, l.href).not.toMatch(/^\/(for|guides)(\/|$)/);
   });
 
   it('every page path has a page.tsx', () => {
@@ -138,8 +160,14 @@ describe('page registry', () => {
     expect(agency.filter((p) => p.startsWith('/compare/'))).toEqual(rivals);
   });
 
-  it('every NAV_EXTRA href is a registered path or an in-page anchor', () => {
+  it('every NAV_EXTRA href is a registered path, optionally with an anchor', () => {
     const paths = new Set<string>(PAGES.map((p) => p.path));
-    for (const n of NAV_EXTRA) expect(paths.has(n.href) || /^\/#[a-z-]+$/.test(n.href), n.href).toBe(true);
+    for (const n of NAV_EXTRA) expect(paths.has(n.href.split('#')[0]!), n.href).toBe(true);
+  });
+
+  it('every business menu anchor is in BUSINESS_ANCHORS', () => {
+    const anchors = NAV_EXTRA.filter((n) => n.side === 'business' && n.href.includes('#')).map((n) => n.href.split('#')[1]!);
+    expect(anchors.length).toBeGreaterThan(0);
+    for (const a of anchors) expect(BUSINESS_ANCHORS as readonly string[], a).toContain(a);
   });
 });
