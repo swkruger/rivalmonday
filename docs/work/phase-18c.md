@@ -18,21 +18,7 @@ Rulings on B1–B4 (`.superpowers/sdd/2026-11-10-phase-18c-citations/preflight-s
 - Phone format in snippets: `(817) 219-4790` and `817-219-4790`; `description` present on organic items.
 **Hit rate** (stage 1 vs manual web check; manual = listing confirmed): Atomic 4/6 (angi, bbb, mapquest, facebook; missed yellowpages, homeadvisor), Daffan 2/2 (mapquest, facebook), Lakeview 0/1 (mapquest found only via a same-name UT business), Granbury Park Dental 0/0 (no catalogue listing confirmed). Per directory: facebook 2/2, mapquest 2/3, angi 1/1, bbb 1/1, yellowpages 0/1, homeadvisor 0/1; Bing Places 0/4 and Apple Maps 0/4 searched (Google does not index them). **Overall recall 6/9 = 67 %** (stage 1 only; stage 2 contributed nothing). Small sample.
 **Rulings (C3):** Bing Places + Apple Maps **removed**; recall ≥ 50 % → no stop; depth 50 unusable → **stage 1 depth 20**, `CITATION_CALL_USD.stage1 = 0.004`. Migration stays **0107**.
-**add_listing_url** (hand-checked: curl status + page title / web search):
-| host | add_listing_url | check |
-|---|---|---|
-| facebook.com | https://www.facebook.com/pages/create | "Create a Page" (bots get 400) |
-| bbb.org | https://www.bbb.org/get-listed | 200 "Submit a business to our directory" |
-| yellowpages.com | https://www.yellowpages.com/claim-your-listing | 200 "Claim Your Yellow Pages Business Listing" |
-| manta.com | https://www.manta.com/business-listings/add-your-company | 200 (linked from the home page) |
-| foursquare.com | https://business.foursquare.com/claim | 200 "Business Listings" |
-| mapquest.com | https://business.mapquest.com/ | 200 "Business Listing Updater" |
-| angi.com | https://signup.angi.com/pro | 200 "Angi Pro" (pro.angi.com redirects) |
-| homeadvisor.com | https://pro.homeadvisor.com/ | 200 |
-| thumbtack.com | https://www.thumbtack.com/pro | 200 |
-| houzz.com | https://pro.houzz.com/pro | Houzz Pro sign-up (www.houzz.com/pro 301s here; bots 403) |
-| porch.com | https://pro.porch.com/how-it-works | 200 "How it Works" (pro.porch.com redirects) |
-| findadentist.ada.org | https://www.ada.org/join-the-ada/member-benefits/find-a-dentist | 200; listing comes with ADA membership (My ADA) |
+**add_listing_url:** all 12 hand-checked at Task 0 (curl + page title); they live in `packs/generic.yaml` `citations.directory_groups`.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: next free on main is **0107**; site-audiences claims none.
@@ -48,7 +34,10 @@ TBD. Migration: next free on main is **0107**; site-audiences claims none.
 - Owner 2026-11-10: directory groups (general / home_services / dental_health) picked per vertical, operators tick them for DB verticals; "Also found on" = informational non-catalogue hits from the name+phone search. No searching directories a vertical didn't pick.
 
 ## New backlog (target → item)
-- **hotfix/next** → 18b-2 organic matching uses `domain`, which the vendor now returns as `google.com` (Task 0 B1): derive host from `breadcrumb`.
+- **hotfix/next** → 18b-2 organic matching used `domain` (vendor returns `google.com`); fixed for new scans in 18c (host from breadcrumb). **18b-2 `serp_snapshot` rows before 18c stay unmatched (domain google.com) — optional backfill from stored captures.**
+- **18c-2** → listing-page NAP + address via the crawler (after prod + `/bot` + `WEB_MONITORING_ENABLED`); replaces "Address: not checked".
+- **later** → platform page for uncatalogued hosts ("Also found on" promotion; OPS SQL meanwhile); "check now" for a client's listings; scorecard row for listings; editing citation groups on already-reviewed verticals.
+- **phase-16** → no-self clients: "Link Google listing" prompt (the Listings page only shows a note).
 
 ## Brief
 

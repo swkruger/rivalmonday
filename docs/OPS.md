@@ -189,6 +189,28 @@ Page one of Google for each client rank keyword: who shows up (you, tracked riva
   Fewer rows than `rank_scan.keywords` = searches that failed (see the worker log). Spend: `vendor_call` rows for the operation above.
 - **AI answers:** absent on local service queries (probe 2026-11-10: 0 of 9), so not requested or shown. Re-probe quarterly (backlog).
 
+## Directory listings (18c-1)
+
+Where Google search finds each client and its top rivals on major directories (Facebook, BBB, Yellow Pages, ...); the directory groups are picked per vertical (`citations.groups`).
+
+- **When:** worker job `citation-audit` daily 09:00 UTC. It fails dead runs, then queues one `citation-audit-client` per due client, 60 s apart. Due = serviceable client, competitors step done (or no setup row), no running run, no done/capped run in the last 30 days. So the first audit runs once competitors are done, then every 30 days. Skipped without `DATAFORSEO_*`. There is no "check now".
+- **Audited:** the client's own business plus up to 3 Top-rival tier rivals. A rival checked under 25 days ago (for any client) is reused at $0.
+- **Cost:** two live Google searches per business (stage 1 name + phone, stage 2 `"name" city`), depth 20, $0.004 each; a run is at most about $0.032 (4 businesses, 8 calls). Per-run cap $0.20 and the monthly cost guard both end a run as `capped` (partial rows kept; the guard makes 0 calls). Spend: `vendor_call` rows and `citation_audit_run.est_usd`.
+- **Read a run:**
+  ```sql
+  SELECT trigger, status, calls, est_usd, started_at, finished_at, cardinality(competitor_ids) AS businesses
+  FROM citation_audit_run WHERE client_id = '<client>' ORDER BY started_at DESC LIMIT 5;
+  SELECT competitor_id, host, status, name_match, phone_match, in_catalogue, checked_at FROM citation_listing
+  WHERE competitor_id = ANY((SELECT competitor_ids FROM citation_audit_run WHERE id = '<run>')) ORDER BY competitor_id, host;
+  ```
+  Status: `running` (one per client, unique index), `done`, `capped`, `failed` (a client with only failed runs is due again the next day). Changes: `detected_change` rows with `details->>'changeType' = 'citation_added'`.
+- **Re-run a client:** delete that client's latest `done`/`capped` `citation_audit_run` row (not the listings); the next daily sweep audits it again (paid, about $0.03). Delete a `running` row only when it is older than 3 h; the sweep fails those itself, and deleting a live one lets a second run start.
+- **Uncatalogued hosts ("Also found on"):** the hosts most worth promoting into a vertical's directory groups:
+  ```sql
+  SELECT host, count(DISTINCT competitor_id) n FROM citation_listing WHERE NOT in_catalogue AND status = 'listed' GROUP BY host ORDER BY n DESC LIMIT 30;
+  ```
+- **Staging:** let the cron run, or enqueue `citation-audit-client` for one client; rehearsal fixtures answer at $0.
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.
