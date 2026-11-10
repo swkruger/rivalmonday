@@ -172,6 +172,23 @@ A rival's Google Business Profile posts and offers become facts: dated posts, of
 - **Local DBs:** local DBs migrated to 0105 before 2026-11-10's fix keep due-now `gbp_posts` rows (harmless locally).
 - **Re-run:** delete the capture's `post_price_extract` `stage_run` and let the sweep pick it up, or bump the stage version. Never delete a `gbp_post` row that a capture or evidence cites.
 
+## Google search (18b-2)
+
+Page one of Google for each client rank keyword: who shows up (you, tracked rivals, everyone else) and any Local Services ads.
+
+- **When:** inside the weekly rank scan (Sun 06:00 UTC `rank-scan`) and "Scan now", after the map grid; no queue of its own. Skipped for prospect scans and for scans whose grid stored nothing.
+- **Call:** DataForSEO live organic advanced (`/serp/google/organic/live/advanced`), one per keyword, depth 10, desktop, at the service-area centre (`location_coordinate lat,lng,radius m`). Measured $0.002/keyword (about $0.01/client/week); `estimateRankScanUsd` adds it to the scan estimate and cap check.
+- **Storage:** one `serp_snapshot` row per scan × keyword (tenant-private); raw JSON is evidence with capture `source = 'google_search'`, filed under the client's own business. A failed search or an empty organic result has no row and never fails the map scan (warn log `[rank-scan] <client> "<keyword>": Google search …`).
+- **Changes:** `rank_change` with `details.surface = 'organic'` (`block_key serp:<keyword>`), rival entered/left page one. The first one can appear only after the **3rd done scan with the same rank settings** (two scans agree, the one before differs). Evidence resolves through the scan's `serp_snapshot` capture for the keyword.
+- **Check a run:**
+  ```sql
+  SELECT s.keyword, s.captured_at, jsonb_array_length(s.organic) AS results, s.capture_id IS NOT NULL AS has_evidence, s.local_services IS NOT NULL AS lsa
+  FROM serp_snapshot s JOIN rank_scan r ON r.id = s.scan_id
+  WHERE s.client_id = '<client>' AND r.id = '<scan>' ORDER BY s.keyword;
+  ```
+  Fewer rows than `rank_scan.keywords` = searches that failed (see the worker log). Spend: `vendor_call` rows for the operation above.
+- **AI answers:** absent on local service queries (probe 2026-11-10: 0 of 9), so not requested or shown. Re-probe quarterly (backlog).
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.
