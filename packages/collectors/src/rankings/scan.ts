@@ -31,7 +31,7 @@ function isRunningUniqueViolation(err: unknown): boolean {
  *
  * After the grid, one live Google search per keyword (page one at the service-area centre, 18b-2) stores a
  * `serp_snapshot` and its evidence (`source: google_search`). A failed search is logged and skipped: it has no row and
- * never changes `failed` or the scan's status (those stay map-only). Prospect scans skip it.
+ * never changes `failed` or the scan's status (those stay map-only). Prospect scans and scans whose grid stored nothing skip it.
  *
  * Bounds paid live DataForSEO calls: gridSize=7 x maxKeywords=5 is already 245 live searches (~$0.49)
  * per client per run.
@@ -62,7 +62,7 @@ export async function scanRankings(
   const keywords = prospect ? rankKeywordsFor(c).slice(0, Math.min(prospect.maxKeywords, RANK_MAX_KEYWORDS)) : rankKeywordsFor(c);
   const depth = Math.min(prospect?.depth ?? 20, 20);
   const radiusKm = rankRadiusKm(c.serviceArea.radiusKm);
-  const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }).usd;
+  const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }, { search: !prospect }).usd;
   const settings = { gridSize, radiusKm, keywords, estimatedUsd, trigger: prospect ? ('scheduled' as const) : opts.trigger, requestedBy: opts.requestedBy ?? null };
 
   let skip = false;
@@ -139,31 +139,8 @@ export async function scanRankings(
         snapshots++;
       }
     }
-    if (!prospect) {
-      for (const keyword of keywords) {
-        let result: Awaited<ReturnType<typeof serpSearch>>;
-        try {
-          result = await serpSearch(deps.dfs, { keyword, lat: c.serviceArea.center.lat, lng: c.serviceArea.center.lng, radiusM: radiusKm * 1000 }, scope);
-        } catch (err) {
-          if (!(err instanceof VendorError)) throw err;
-          console.warn(`[rank-scan] ${clientId} "${keyword}": Google search failed: ${err.message} (code ${err.code ?? 'n/a'}) — keyword skipped`);
-          continue;
-        }
-        let captureId: string | null = null;
-        if (c.selfCompetitorId) {
-          try {
-            ({ captureId } = await recordVendorCapture(deps, {
-              competitorId: c.selfCompetitorId, source: 'google_search', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: result.raw,
-            }));
-          } catch (err) {
-            console.warn(`[rank-scan] ${clientId} "${keyword}": search evidence capture failed (${err instanceof Error ? err.message : String(err)}) — snapshot stored without capture`);
-          }
-        }
-        await deps.db.insert(serpSnapshot).values({
-          agencyId: c.agencyId, clientId: c.id, scanId, keyword, captureId, capturedAt: new Date(), organic: result.organic, localServices: result.localServices,
-        });
-      }
-    }
+    // A scan whose grid stored nothing is failed anyway: don't pay for searches. Prospect scans never search.
+    if (!prospect && snapshots > 0) await searchKeywords(deps, c, scanId, keywords, { ...c.serviceArea.center, radiusKm }, scope);
   } catch (err) {
     await deps.db.update(rankScan).set({ status: 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
     throw err;
@@ -171,6 +148,50 @@ export async function scanRankings(
   // A scan that stored nothing (every point failed) is not a done scan: rank diff would treat it as one.
   await deps.db.update(rankScan).set({ status: snapshots > 0 ? 'done' : 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
   return { snapshots, failed, scanId };
+}
+
+/**
+ * One live Google search per keyword at the service-area centre (18b-2, spec E2). A search problem never fails the map
+ * scan: any error on a keyword (vendor, evidence, insert) is logged with the keyword and that keyword has no
+ * `serp_snapshot` row. An empty organic result (no results / zero organic items) counts as a failed search too.
+ */
+async function searchKeywords(
+  deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient },
+  c: { id: string; agencyId: string; selfCompetitorId: string | null },
+  scanId: string,
+  keywords: string[],
+  at: { lat: number; lng: number; radiusKm: number },
+  scope: { agencyId: string; clientId: string },
+): Promise<void> {
+  for (const keyword of keywords) {
+    try {
+      const result = await serpSearch(deps.dfs, { keyword, lat: at.lat, lng: at.lng, radiusM: at.radiusKm * 1000 }, scope);
+      if (result.organic.length === 0) {
+        console.warn(`[rank-scan] ${c.id} "${keyword}": Google search returned no organic results — keyword skipped`);
+        continue;
+      }
+      let captureId: string | null = null;
+      if (c.selfCompetitorId) {
+        try {
+          ({ captureId } = await recordVendorCapture(deps, {
+            competitorId: c.selfCompetitorId, source: 'google_search', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: result.raw,
+          }));
+        } catch (err) {
+          console.warn(`[rank-scan] ${c.id} "${keyword}": search evidence capture failed (${errText(err)}) — snapshot stored without capture`);
+        }
+      }
+      await deps.db.insert(serpSnapshot).values({
+        agencyId: c.agencyId, clientId: c.id, scanId, keyword, captureId, capturedAt: new Date(), organic: result.organic, localServices: result.localServices,
+      }).onConflictDoNothing();
+    } catch (err) {
+      const code = err instanceof VendorError ? ` (code ${err.code ?? 'n/a'})` : '';
+      console.warn(`[rank-scan] ${c.id} "${keyword}": Google search failed: ${errText(err)}${code} — keyword skipped`);
+    }
+  }
+}
+
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 /** Clients due a weekly rank scan: active (5b-2 decision 9), with a service area and at least one keyword. */

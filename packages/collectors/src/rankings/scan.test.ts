@@ -86,7 +86,7 @@ describe('scanRankings', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       expect(await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED)).toMatchObject({ snapshots: 24, failed: 1 });
-      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledTimes(2); // the failed point + the Google search (maps items only: no organic results)
     } finally {
       warn.mockRestore();
     }
@@ -294,11 +294,74 @@ describe('scanRankings Google search (18b-2)', () => {
 
   it('stores the Local Services block when the response has one', async () => {
     const dfs = fakeDfs((_m, path) => [path === SERP_OPERATION
-      ? dfsTask([{ items: [{ type: 'local_services', title: 'Local Services ads', items: [{ title: 'Cool Air Pros', rating: { value: 4.8, votes_count: 30 } }] }] }])
+      ? dfsTask([{ items: [
+        { type: 'local_services', title: 'Local Services ads', items: [{ title: 'Cool Air Pros', rating: { value: 4.8, votes_count: 30 } }] },
+        { type: 'organic', rank_group: 1, domain: 'a.example', url: 'https://a.example/', title: 'A' },
+      ] }])
       : mapsTask()]);
     await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
     const [row] = await dbs.service.select().from(serpSnapshot);
-    expect(row).toMatchObject({ organic: [], localServices: { title: 'Local Services ads', providers: [{ name: 'Cool Air Pros', rating: 4.8, votes: 30 }] } });
+    expect(row).toMatchObject({ organic: [{ rank: 1, domain: 'a.example' }], localServices: { title: 'Local Services ads', providers: [{ name: 'Cool Air Pros', rating: 4.8, votes: 30 }] } });
+  });
+
+  it('any search-side error (not only VendorError) is logged with the keyword; the map scan stays done', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair', 'furnace repair'] }).where(eq(client.id, IDS.clientA1));
+    const dfs = fakeDfs((_m, path, body) => {
+      if (path !== SERP_OPERATION) return [mapsTask()];
+      if (body?.[0]?.keyword === 'ac repair') throw new TypeError('boom');
+      return [serpTask()];
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const res = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+      expect(res).toMatchObject({ snapshots: 50, failed: 0 });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"ac repair": Google search failed: boom'));
+    } finally {
+      warn.mockRestore();
+    }
+    expect((await dbs.service.select().from(serpSnapshot)).map((r) => r.keyword)).toEqual(['furnace repair']);
+    expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ status: 'done', failed: 0 });
+  });
+
+  it('an empty organic result (no results or zero organic items) is a failed search: no snapshot row', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair', 'furnace repair'] }).where(eq(client.id, IDS.clientA1));
+    const dfs = fakeDfs((_m, path, body) => {
+      if (path !== SERP_OPERATION) return [mapsTask()];
+      if (body?.[0]?.keyword === 'ac repair') return [{ ...dfsTask([]), statusCode: 40102, statusMessage: 'No Search Results.' }];
+      return [dfsTask([{ items: [{ type: 'local_services', title: 'Local Services ads', items: [] }] }])];
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const res = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+      expect(res).toMatchObject({ snapshots: 50, failed: 0 });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no organic results'));
+    } finally {
+      warn.mockRestore();
+    }
+    expect(await dbs.service.select().from(serpSnapshot)).toEqual([]);
+    expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ status: 'done' });
+  });
+
+  it('makes no search call when the map grid stored no snapshot', async () => {
+    const dfs = fakeDfs((_m, path) => {
+      if (path !== SERP_OPERATION) throw new VendorError('dataforseo', 40402, 'Maps search failed.', false);
+      return [serpTask()];
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+    } finally {
+      warn.mockRestore();
+    }
+    expect(dfs.calls.filter((c) => c.path === SERP_OPERATION)).toHaveLength(0);
+    expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ status: 'failed' });
+  });
+
+  it('a prospect scan makes no search call and its estimate excludes the search cost', async () => {
+    const dfs = fakeDfs((_m, path) => [path === SERP_OPERATION ? serpTask() : mapsTask()]);
+    await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, { trigger: 'manual', prospect: { gridSize: 3, maxKeywords: 3 } });
+    expect(dfs.calls.filter((c) => c.path === SERP_OPERATION)).toHaveLength(0);
+    expect((await dbs.service.select().from(rankScan))[0]!.estimatedUsd).toBeCloseTo(9 * 0.002);
   });
 
   it('a capped scan makes no search call, and the stored estimate includes the search cost', async () => {
