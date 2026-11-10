@@ -115,7 +115,7 @@ export async function runCitationAudit(
     return skipped;
   }
   const finish = (status: 'done' | 'capped' | 'failed', calls: number, usd: number) =>
-    db.update(citationAuditRun).set({ status, calls, estUsd: usd.toFixed(4), finishedAt: new Date() }).where(eq(citationAuditRun.id, runId));
+    db.update(citationAuditRun).set({ status, calls, estUsd: usd.toFixed(4), finishedAt: now }).where(eq(citationAuditRun.id, runId));
 
   let calls = 0, usd = 0;
   try {
@@ -153,8 +153,12 @@ export async function runCitationAudit(
     return { runId, status, calls, usd };
   } catch (err) {
     console.warn(`[citation-audit] ${clientId}: run failed (${err instanceof Error ? err.message : String(err)})`);
-    await finish('failed', calls, usd);
-    return { runId, status: 'failed', calls, usd };
+    try {
+      await finish('failed', calls, usd);
+    } catch (finishErr) {
+      console.warn(`[citation-audit] ${clientId}: could not mark run failed (${finishErr instanceof Error ? finishErr.message : String(finishErr)})`);
+    }
+    throw err; // reported to Sentry by runJob; the job is single-shot, so no paid retry
   }
 }
 

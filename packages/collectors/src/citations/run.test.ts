@@ -147,7 +147,7 @@ describe('runCitationAudit', () => {
   it('a non-vendor error ends the run failed', async () => {
     await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }]);
     const dfs = fakeDfs(() => { throw new TypeError('boom'); });
-    expect(await run(dfs)).toMatchObject({ status: 'failed' });
+    await expect(run(dfs)).rejects.toThrow('boom');
     expect((await dbs.owner.select().from(citationAuditRun))[0]).toMatchObject({ status: 'failed' });
   });
   it('uses the GBP phone and address city for a rival', async () => {
