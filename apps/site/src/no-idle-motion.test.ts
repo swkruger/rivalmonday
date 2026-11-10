@@ -65,7 +65,7 @@ describe('no idle motion', () => {
 
   it('site.css keyframes are only the ones that play once', () => {
     const names = [...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => m[1]!);
-    const allowed = ['reveal-quick', 'sheet-in-right', 'sheet-in-bottom'];
+    const allowed = ['reveal-quick', 'gallery-fade', 'sheet-in-right', 'sheet-in-bottom'];
     expect(names.filter((n) => !allowed.includes(n))).toEqual([]);
   });
 

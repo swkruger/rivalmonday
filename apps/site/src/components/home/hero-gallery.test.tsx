@@ -20,12 +20,14 @@ const alt = (id: GallerySlideId) => GALLERY.slides.find((s) => s.id === id)!.alt
 const shownAlt = () => screen.getByRole('img').getAttribute('alt');
 const tabs = () => screen.getAllByRole('tab');
 
+let mediaListeners: ((e: { matches: boolean }) => void)[] = [];
 function stubMedia(reduce: boolean) {
+  mediaListeners = [];
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: reduce && query.includes('prefers-reduced-motion'),
     media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (_: string, fn: (e: { matches: boolean }) => void) => void mediaListeners.push(fn),
+    removeEventListener: (_: string, fn: (e: { matches: boolean }) => void) => void (mediaListeners = mediaListeners.filter((l) => l !== fn)),
   }));
 }
 
@@ -157,6 +159,72 @@ describe('HeroGallery', () => {
     tick(60_000);
     expect(shownAlt()).toBe(alt('brief'));
     expect(screen.getByRole('button', { name: GALLERY.play })).toBeTruthy();
+  });
+
+  it('Play pressed under the pointer and with focus still starts the round', () => {
+    const { container } = render(<HeroGallery />);
+    const root = container.firstElementChild!;
+    openingLoaded();
+    fireEvent.click(screen.getByRole('button', { name: GALLERY.pause }));
+    fireEvent.mouseEnter(root);
+    const play = screen.getByRole('button', { name: GALLERY.play });
+    act(() => play.focus());
+    fireEvent.click(play);
+    expect(screen.getByRole('button', { name: GALLERY.pause })).toBeTruthy();
+    step();
+    expect(shownAlt()).toBe(alt('brief'));
+    // the pointer hold re-arms on the next enter
+    fireEvent.mouseLeave(root);
+    fireEvent.mouseEnter(root);
+    tick(60_000);
+    expect(shownAlt()).toBe(alt('brief'));
+  });
+
+  it('Play pressed while the tab is hidden waits until it is visible again', () => {
+    render(<HeroGallery />);
+    openingLoaded();
+    fireEvent.click(screen.getByRole('button', { name: GALLERY.pause }));
+    setHidden(true);
+    fireEvent.click(screen.getByRole('button', { name: GALLERY.play }));
+    tick(60_000);
+    expect(shownAlt()).toBe(alt('dashboard'));
+    setHidden(false);
+    step();
+    expect(shownAlt()).toBe(alt('brief'));
+  });
+
+  it('the swap fades with gallery-fade only, never on the opening picture', () => {
+    render(<HeroGallery />);
+    openingLoaded();
+    expect(screen.getByRole('img').className).not.toMatch(/gallery-fade|reveal-quick/);
+    step();
+    const cls = screen.getByRole('img').className;
+    expect(cls).toContain('gallery-fade');
+    expect(cls).not.toContain('reveal-quick');
+  });
+
+  it('reduced motion at mount stays still when the setting later changes', () => {
+    stubMedia(true);
+    render(<HeroGallery />);
+    openingLoaded();
+    act(() => mediaListeners.forEach((l) => l({ matches: false })));
+    openingLoaded();
+    tick(60_000);
+    expect(pending()).toHaveLength(0);
+    expect(FakeImage.instances).toHaveLength(0);
+    expect(shownAlt()).toBe(alt('dashboard'));
+    expect(screen.queryByRole('button', { name: GALLERY.pause })).toBeNull();
+  });
+
+  it('a preload that settles after a tab choice changes nothing', () => {
+    render(<HeroGallery />);
+    openingLoaded();
+    tick(GALLERY.dwellMs - 1500);
+    const stale = pending().at(-1)!;
+    fireEvent.click(screen.getByRole('tab', { name: 'Ads' }));
+    act(() => stale.onload?.());
+    tick(60_000);
+    expect(shownAlt()).toBe(alt('ads'));
   });
 
   it('reduced motion: never plays, no button, tabs work', () => {

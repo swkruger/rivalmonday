@@ -50,6 +50,7 @@ export function HeroGallery({ start = 'dashboard' }: { start?: GallerySlideId })
   // The one automatic round, once per mount, after the opening picture is in.
   useEffect(() => {
     if (reduced === true) {
+      began.current = true;
       setMode('stopped');
       return;
     }
@@ -144,7 +145,7 @@ export function HeroGallery({ start = 'dashboard' }: { start?: GallerySlideId })
           fetchPriority={slide.id === start ? 'high' : undefined}
           decoding="async"
           onLoad={() => setLoaded(true)}
-          className={`${SHOT} ${touched ? 'reveal-quick ' : ''}size-full`}
+          className={`${SHOT} ${touched ? 'gallery-fade ' : ''}size-full`}
         />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -175,6 +176,8 @@ export function HeroGallery({ start = 'dashboard' }: { start?: GallerySlideId })
               if (mode === 'playing') {
                 setMode('stopped');
               } else {
+                // The press itself happens under the pointer and with focus on the button: release both holds.
+                setHold((h) => ({ ...h, hover: false, focus: false }));
                 setLeft(slides.length);
                 setMode('playing');
               }

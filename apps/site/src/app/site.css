@@ -113,6 +113,9 @@
   /* A short fade-up for content that swaps in place (tab notes). */
   .reveal-quick { animation: reveal-quick 300ms ease-out both; }
 
+  /* Gallery pictures swap in place: opacity only, no slide or zoom. */
+  .gallery-fade { animation: gallery-fade 150ms ease-out both; }
+
   /* Pressable feedback for site buttons and tabs. */
   .press { transition: transform 120ms ease-out; }
   .press:active { transform: scale(.97); }
@@ -266,6 +269,7 @@
 [data-slot="status-chip"], [data-slot="tag"] { border-radius: 6px; }
 
 @keyframes reveal-quick { from { opacity: 0; transform: translateY(6px); } }
+@keyframes gallery-fade { from { opacity: 0; } }
 @keyframes sheet-in-right { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-in-bottom { from { transform: translateY(24px); opacity: 0; } }
 
