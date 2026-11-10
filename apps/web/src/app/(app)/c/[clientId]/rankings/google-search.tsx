@@ -18,7 +18,7 @@ export function GoogleSearch({ view, tz }: { view: SearchVisibilityView; tz: str
                   <TableHeader><TableRow><TableHead scope="col">Position</TableHead><TableHead scope="col">Business</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {k.organic.map((o) => (
-                      <TableRow key={o.rank} data-self={o.self ? 'true' : undefined} className={o.self ? 'bg-primary-soft' : undefined}>
+                      <TableRow key={`${o.rank}-${o.domain ?? o.name}`} data-self={o.self ? 'true' : undefined} className={o.self ? 'bg-primary-soft' : undefined}>
                         <TableCell className={o.self ? 'font-semibold text-primary-soft-text' : undefined}>{o.rank}</TableCell>
                         <TableCell className={o.self ? 'font-semibold text-primary-soft-text' : undefined}>
                           {o.self ? `You · ${o.name}` : o.name}

@@ -5,6 +5,7 @@ import { competitorMatcher, isSharedHost, normalizeDomain, NOT_FOUND_RANK, rankM
 import { and, desc, eq, inArray, isNotNull, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
+import { forChannel } from '../workspace/model-text';
 import { enqueueMapRefresh, rankScanAvailability, rankScanLabel, requestRankScan } from '../rank-scan';
 import { pickBusiness, trackedRows, workspaceBusinesses } from '../workspace/business';
 import { allInOrder, workspaceClient } from '../workspace/scope';
@@ -291,7 +292,7 @@ export const getSearchVisibility = defineTool({
   permission: 'read',
   channels: ['web', 'mcp', 'ask'],
   feature: 'dashboard',
-  async handler(ctx, input, deps) {
+  async handler(ctx, input, deps, meta) {
     // Client check and tenant reads start together; the scan is picked by a subquery in the same statement as the rows.
     const [c, [tracked, rows]] = await allInOrder([
       workspaceClient(deps, ctx, input.clientId),
@@ -309,18 +310,21 @@ export const getSearchVisibility = defineTool({
     const list = await workspaceBusinesses(deps, ctx, c, tracked);
     // A business is matched by its own (non-shared) domain only: a result on facebook.com is never a rival stored with that host.
     const owners = list.map((b) => ({ b, host: normalizeDomain(b.domain) })).filter((o): o is { b: typeof o.b; host: string } => o.host !== null && !isSharedHost(o.host));
+    const names = list.map((b) => b.name);
     const nameOf = (item: { domain: string | null; url: string | null; title: string | null }) => {
       const host = normalizeDomain(item.domain ?? item.url);
       const hit = host ? owners.find((o) => o.host === host) : undefined;
       if (hit) return { name: hit.b.name, self: hit.b.self, competitorId: hit.b.self ? null : hit.b.competitorId };
-      return { name: item.title?.trim() || host || 'Unknown', self: false, competitorId: null };
+      // Result titles are third-party text: redacted off-web (d12), the business names kept.
+      const title = item.title?.trim();
+      return { name: title ? forChannel(meta, title, names) : (host || 'Unknown'), self: false, competitorId: null };
     };
     return {
       keywords: rows.sort((a, b) => byWord(a.keyword, b.keyword)).map((r) => ({
         keyword: r.keyword,
         scannedAt: r.capturedAt.toISOString(),
         organic: [...r.organic].sort((a, b) => a.rank - b.rank).map((o) => ({ rank: o.rank, domain: o.domain, ...nameOf(o) })),
-        localServicesAds: r.localServices && r.localServices.providers.length > 0 ? { names: r.localServices.providers.map((p) => p.name) } : null,
+        localServicesAds: r.localServices && r.localServices.providers.length > 0 ? { names: r.localServices.providers.map((p) => forChannel(meta, p.name, names)) } : null,
       })),
     };
   },

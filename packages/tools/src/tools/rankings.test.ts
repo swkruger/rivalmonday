@@ -347,6 +347,18 @@ describe('get_search_visibility (18b-2)', () => {
     expect((await call()).keywords[0]!.organic).toEqual([{ rank: 1, name: 'Some Page', domain: 'facebook.com', self: false, competitorId: null }]);
   });
 
+  it('redacts third-party titles and Local Services names off-web, never on web, and keeps our own names', async () => {
+    await setupClient();
+    const scan = await seedRankScan({ finishedAt: ago(2), snapshots: [] });
+    const dirty = 'Call Bob Jones 512-555-0199 or bob@example.com';
+    await snap(scan, 'ac repair', [org(1, 'random.net', dirty)], { title: null, providers: [{ name: dirty, rating: null, votes: null }] });
+    const run = (channel: 'web' | 'ask') => registry.invoke(am, 'get_search_visibility', { clientId: IDS.clientA1 }, { channel }) as Promise<SearchVisibilityView>;
+    const web = (await run('web')).keywords[0]!;
+    expect([web.organic[0]!.name, web.localServicesAds!.names[0]]).toEqual([dirty, dirty]);
+    const ask = (await run('ask')).keywords[0]!;
+    for (const t of [ask.organic[0]!.name, ask.localServicesAds!.names[0]!]) expect(t).not.toMatch(/555-0199|bob@example\.com/);
+  });
+
   it('refuses a client the caller cannot see, or without the dashboard feature', async () => {
     await setupClient();
     await expect(registry.invoke(am, 'get_search_visibility', { clientId: IDS.clientA2 })).resolves.toEqual({ keywords: [] });
