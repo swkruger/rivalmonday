@@ -26,6 +26,8 @@ const gbpSchema = z.looseObject({
   services: z.unknown().optional(),
   attributes: z.unknown().optional(),
   description: z.string().nullish(),
+  total_photos: z.number().nullish(),
+  book_online_url: z.string().nullish(),
 });
 
 // Live-verified 2026-10-01: my_business_info has no top-level `current_status`; it is nested at
@@ -41,17 +43,27 @@ export type GbpProfile = {
   rating: number | null; votes: number | null; phone: string | null; url: string | null; domain: string | null; address: string | null;
   isClaimed: boolean | null; currentStatus: string | null; cid: string | null; placeId: string | null;
   workHours: unknown; services: unknown; attributes: unknown;
+  /** 18b-1: `total_photos`; null when the pull omits it. */
+  totalPhotos: number | null;
+  /**
+   * 18b-1: `book_online_url`. Three states that survive JSON storage in `observation.data`: the URL; `''` when the payload
+   * carries the key but it is null/empty (= "no booking link"); null when the key is absent (= says nothing). Observations
+   * written before 18b-1 have no `bookOnlineUrl` key at all, which readers treat like null.
+   */
+  bookOnlineUrl: string | null;
 };
 
 export function extractGbpProfile(item: unknown): GbpProfile | null {
   const p = gbpSchema.safeParse(item);
   if (!p.success) return null;
   const i = p.data;
+  const bookOnlineUrl = !('book_online_url' in i) || i.book_online_url === undefined ? null : (i.book_online_url ?? '').trim();
   return {
     title: i.title ?? null, category: i.category ?? null, additionalCategories: i.additional_categories ?? [], description: i.description ?? null,
     rating: i.rating?.value ?? null, votes: i.rating?.votes_count ?? null, phone: i.phone ?? null, url: i.url ?? null,
     domain: i.domain ?? null, address: i.address ?? null, isClaimed: i.is_claimed ?? null, currentStatus: i.current_status ?? workTimeStatus(i.work_time), cid: i.cid ?? null,
     placeId: i.place_id ?? null, workHours: i.work_time ?? null, services: i.services ?? null, attributes: i.attributes ?? null,
+    totalPhotos: i.total_photos ?? null, bookOnlineUrl,
   };
 }
 

@@ -8,6 +8,7 @@ import { diffFacts, extractNumericFacts, MONEY_KINDS } from '../facts/numeric';
 import { findMergeTarget, writeEvent } from '../merge/merge';
 import { runStage, type StageOutcome } from '../stage';
 import { GBP_STATUS_PHRASE } from '../structured/gbp-status';
+import { humanizeAttribute } from '../structured/gbp';
 import { serviceQuestionKey } from './questions';
 import { competitorVerticals, extractZips, type PackLoader, singleVerticalScope, TAG_STAGE, TAG_VERSION, type TagOutcome } from './tag-stage';
 
@@ -116,6 +117,22 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       break;
     }
     case 'profile_change':
+      // 18b-1: booking link, attributes and photo push (copy decided in the 18b-1 spec § Copy). Added = no before text, removed = no after text.
+      if (d.field === 'booking') {
+        s = !change.beforeText ? 'Added an online booking link to its Google profile'
+          : !change.afterText ? 'Removed the online booking link from its Google profile'
+          : 'Changed the online booking link on its Google profile';
+        break;
+      }
+      if (d.field === 'attribute') {
+        const label = humanizeAttribute(stripFieldLabel(d.field, change.afterText ?? change.beforeText ?? ''));
+        s = change.beforeText ? `Google profile no longer shows "${label}"` : `Google profile now shows "${label}"`;
+        break;
+      }
+      if (d.field === 'photos') {
+        s = `Added ${d.count ?? 0} photos to its Google profile in ${d.days ?? 0} days`;
+        break;
+      }
       s = d.field === 'hours' || d.field === 'description'
         ? `Changed its ${d.field} on Google: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`
         : `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;

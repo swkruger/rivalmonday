@@ -148,6 +148,25 @@ describe('extractGbpProfile description', () => {
   });
 });
 
+describe('extractGbpProfile photos and booking link (18b-1 T5)', () => {
+  it('reads total_photos and book_online_url (Task 0 field names)', () => {
+    const p = extractGbpProfile({ ...item, total_photos: 226, book_online_url: 'https://book.example/smith?ref=gbp' });
+    expect(p).toMatchObject({ totalPhotos: 226, bookOnlineUrl: 'https://book.example/smith?ref=gbp' });
+  });
+  it("book_online_url: null in the payload is '' (no booking link); the key absent is null (says nothing)", () => {
+    expect(extractGbpProfile({ ...item, book_online_url: null })?.bookOnlineUrl).toBe('');
+    expect(extractGbpProfile({ ...item, book_online_url: '  ' })?.bookOnlineUrl).toBe('');
+    expect(extractGbpProfile(item)?.bookOnlineUrl).toBeNull();
+    expect(extractGbpProfile(item)?.totalPhotos).toBeNull();
+    // The distinction survives JSON storage in observation.data.
+    expect(JSON.parse(JSON.stringify(extractGbpProfile({ ...item, book_online_url: null })))).toMatchObject({ bookOnlineUrl: '' });
+  });
+  it('keeps the raw attributes shape', () => {
+    const attributes = { available_attributes: { accessibility: ['has_wheelchair_accessible_entrance'] }, unavailable_attributes: null };
+    expect(extractGbpProfile({ ...item, attributes })?.attributes).toEqual(attributes);
+  });
+});
+
 describe('fetchGbpProfile', () => {
   it('posts place_id with the given scope and returns the profile', async () => {
     const dfs = fakeDfs(() => [dfsTask([{ items: [{ ...item, description: 'Hello' }] }])]);

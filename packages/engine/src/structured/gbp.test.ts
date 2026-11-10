@@ -3,7 +3,10 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
-import { diffGbpProfiles, guardedGbpDiff, implausibleVotesDrop, type GbpProfile } from './gbp';
+import { loadVerticalPack } from '@cs/verticals';
+import { scoreForClient } from '../score/score';
+import { buildStructuredSummary } from '../tag/structured';
+import { diffGbpProfiles, guardedGbpDiff, humanizeAttribute, implausibleVotesDrop, PHOTO_PUSH_MIN, type GbpProfile } from './gbp';
 import { diffVendorCapture, previousVendorCaptures } from './vendor-diff';
 import { capture } from '@cs/db';
 
@@ -66,7 +69,7 @@ describe('diffGbpProfiles', () => {
 });
 
 /** Snapshots from oldest to newest, as written; guardedGbpDiff takes them newest first. */
-const run = (...profiles: GbpProfile[]) => guardedGbpDiff(profiles.map((profile, i) => ({ captureId: `c${i}`, profile })).reverse());
+const run = (...profiles: GbpProfile[]) => guardedGbpDiff(profiles.map((profile, i) => ({ captureId: `c${i}`, profile, capturedAt: day(i * 7) })).reverse());
 const A = { ...base, address: '1 Main St, Plano, TX 75023' };
 const B = { ...base, address: '900 Oak Ave, Frisco, TX 75034' };
 const C = { ...base, address: '5 Pine Rd, Allen, TX 75002' };
@@ -220,6 +223,108 @@ describe('guardedGbpDiff', () => {
   });
 });
 
+describe('profile leftovers (18b-1 T5)', () => {
+  const attrs = (...names: string[]) => ({
+    available_attributes: names.reduce<Record<string, string[]>>((acc, n) => {
+      const [g, a] = n.split('/') as [string, string];
+      (acc[g] ??= []).push(a);
+      return acc;
+    }, {}),
+    unavailable_attributes: null,
+  });
+  const noBook: GbpProfile = { ...base, bookOnlineUrl: '' };
+  const book = (u: string): GbpProfile => ({ ...base, bookOnlineUrl: u });
+  const photos = (n: number): GbpProfile => ({ ...base, totalPhotos: n });
+
+  it('humanizeAttribute strips has_/is_, keeps offers as a word', () => {
+    expect(humanizeAttribute('has_wheelchair_accessible_entrance')).toBe('wheelchair accessible entrance');
+    expect(humanizeAttribute('offers_online_estimates')).toBe('offers online estimates');
+    expect(humanizeAttribute('is_owned_by_veterans')).toBe('owned by veterans');
+    expect(humanizeAttribute('accessibility/has_wheelchair_accessible_parking')).toBe('wheelchair accessible parking');
+  });
+
+  it('old profile without bookOnlineUrl, new with one: nothing', () => {
+    expect(run(base, book('https://book.example/smith'), book('https://book.example/smith'))).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+
+  it('booking added: held once, then one profile_change booking added', () => {
+    expect(run(noBook, book('https://book.example/smith'))).toMatchObject({ changes: [], held: 1 });
+    const r = run(noBook, book('https://book.example/smith'), book('https://Book.example/smith?utm=1'));
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ kind: 'added', blockKey: 'gbp:booking', beforeCaptureId: 'c0', details: { changeType: 'profile_change', field: 'booking' } });
+    expect(typeof r.changes[0]?.details.after).toBe('string');
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...r.changes[0]! })).toBe('Added an online booking link to its Google profile');
+  });
+
+  it('booking removed and changed', () => {
+    const removed = run(book('https://book.example/a'), noBook, noBook).changes;
+    expect(removed.map((c) => [c.kind, c.blockKey])).toEqual([['removed', 'gbp:booking']]);
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...removed[0]! })).toBe('Removed the online booking link from its Google profile');
+    const changed = run(book('https://book.example/a'), book('https://other.example/b'), book('https://other.example/b')).changes;
+    expect(changed.map((c) => [c.kind, c.blockKey])).toEqual([['modified', 'gbp:booking']]);
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...changed[0]! })).toBe('Changed the online booking link on its Google profile');
+    // A query string or fragment alone is not a change.
+    expect(run(book('https://book.example/a?x=1'), book('https://book.example/a#y'), book('https://book.example/a')).changes).toEqual([]);
+  });
+
+  it('attribute seen once is held; seen twice emits added with the humanised label', () => {
+    const a0 = { ...base, attributes: attrs('accessibility/has_wheelchair_accessible_entrance') };
+    const a1 = { ...base, attributes: attrs('accessibility/has_wheelchair_accessible_entrance', 'service_options/offers_online_estimates') };
+    expect(run(a0, a1)).toMatchObject({ changes: [], held: 1 });
+    const r = run(a0, a1, a1);
+    expect(r.changes.map((c) => [c.kind, c.blockKey, c.details.field, c.beforeCaptureId])).toEqual([
+      ['added', 'gbp:attribute:service_options/offers_online_estimates', 'attribute', 'c0'],
+    ]);
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...r.changes[0]! })).toBe('Google profile now shows "offers online estimates"');
+  });
+
+  it('attribute removed emits one removed per attribute', () => {
+    const a0 = { ...base, attributes: attrs('accessibility/has_wheelchair_accessible_entrance', 'crowd/is_owned_by_veterans') };
+    const a1 = { ...base, attributes: attrs('accessibility/has_wheelchair_accessible_entrance') };
+    const r = run(a0, a1, a1);
+    expect(r.changes.map((c) => [c.kind, c.blockKey])).toEqual([['removed', 'gbp:attribute:crowd/is_owned_by_veterans']]);
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...r.changes[0]! })).toBe('Google profile no longer shows "owned by veterans"');
+  });
+
+  it('a pull with no attributes between two equal pulls says nothing', () => {
+    const a = { ...base, attributes: attrs('accessibility/has_wheelchair_accessible_entrance') };
+    expect(run(a, { ...base, attributes: null }, a)).toEqual({ changes: [], implausible: 0, held: 0 });
+    expect(run(a, { ...base, attributes: { available_attributes: null, unavailable_attributes: null } }, a)).toEqual({ changes: [], implausible: 0, held: 0 });
+  });
+
+  it('photos 100 → 125 over 28 days: a photos change with count and days', () => {
+    // The day-7 pull carries no count, so the newest 21–35-day base is day 0.
+    const r = run(photos(100), base, photos(110), photos(118), photos(125));
+    expect(r.changes).toHaveLength(1);
+    expect(r.changes[0]).toMatchObject({ blockKey: 'gbp:photos', beforeCaptureId: 'c0', details: { changeType: 'profile_change', field: 'photos', count: 25, days: 28, after: '2026-10' } });
+    expect(buildStructuredSummary({ source: 'google_business_profile', ...r.changes[0]! })).toBe('Added 25 photos to its Google profile in 28 days');
+    expect(PHOTO_PUSH_MIN).toBe(20);
+    // The newest base wins: day 7 (21 days back) at 105 gives exactly 20.
+    expect(run(photos(100), photos(105), photos(110), photos(118), photos(125)).changes[0]).toMatchObject({ beforeCaptureId: 'c1', details: { count: 20, days: 21 } });
+  });
+
+  it('photos 100 → 110: nothing; no 21–35-day base: nothing; a drop: nothing', () => {
+    expect(run(photos(100), photos(102), photos(104), photos(106), photos(110)).changes).toEqual([]);
+    // Only 14 days of history.
+    expect(run(photos(100), photos(110), photos(150)).changes).toEqual([]);
+    expect(run(photos(150), photos(140), photos(130), photos(120), photos(100)).changes).toEqual([]);
+    // Old profiles without totalPhotos are no base.
+    expect(run(base, base, base, base, photos(300)).changes).toEqual([]);
+  });
+
+  it('booking, attribute and photo changes score below the pack alert bar with the default size', async () => {
+    const pack = await loadVerticalPack('hvac_plumbing');
+    for (const details of [{ field: 'booking' }, { field: 'attribute' }, { field: 'photos', count: 40, days: 28 }]) {
+      const r = scoreForClient(
+        { changeType: 'profile_change', facts: [], serviceId: null, zips: [], needsReview: false, maxSimilarity: null, details: { changeType: 'profile_change', ...details }, ageDays: 0 },
+        { services: ['ac_tune_up'], zips: ['75024'], thresholds: null }, pack,
+      );
+      expect(r.score).toBeLessThan(pack.scoring.routing.alert);
+      expect(r.route).not.toBe('alert');
+    }
+  });
+});
+
 describe('diffVendorCapture — google_business_profile', () => {
   const dbs = openTestDbs();
   afterAll(() => dbs.closeAll());
@@ -297,6 +402,11 @@ describe('diffVendorCapture — google_business_profile', () => {
     const ids = await seedRun([A, B, null, B]);
     await diffVendorCapture({ db: dbs.service }, ids[3]!, { now: day(60) });
     expect(await changesAt(ids[3]!)).toEqual([['gbp:address', ids[0]]]);
+  });
+  it('photo push looks back past 4 snapshots to a 28-day base (18b-1 T5)', async () => {
+    const ids = await seedRun([{ ...base, totalPhotos: 100 }, base, { ...base, totalPhotos: 110 }, { ...base, totalPhotos: 118 }, { ...base, totalPhotos: 125 }]);
+    await diffVendorCapture({ db: dbs.service }, ids[4]!, { now: day(60) });
+    expect(await changesAt(ids[4]!)).toEqual([['gbp:photos', ids[0]]]);
   });
   it('fewer than 2 profile snapshots: no change', async () => {
     const ids = await seedRun([null, null, B]);
