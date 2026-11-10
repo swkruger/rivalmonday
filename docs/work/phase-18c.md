@@ -4,10 +4,10 @@
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-Kicked off 2026-11-10; brief written. No roadmap row yet (split = 18a kickoff decision 1).
+2026-11-10: brief written; owner took all recommendations; spec being drafted.
 
 ## Next (overwrite)
-Owner answers the open questions → `superpowers:brainstorming` → spec.
+Spec (`docs/superpowers/specs/2026-11-10-phase-18c-citations-design.md`) → lean plan → owner approval → SDD.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: next free on main is **0107**; site-audiences claims none.
@@ -16,7 +16,10 @@ TBD. Migration: next free on main is **0107**; site-audiences claims none.
 - `site-audiences` (site only; no migration/env/`apps/web`): no overlap. `apps/site/content/roadmap.ts:33` ("Listings and citations") stays; making it a live claim is a site follow-up after both merge.
 
 ## Decisions (owner-approved)
-None yet.
+2026-11-10: owner took every brief recommendation (1C 2C 3C 4B 5B 6B 7A 8A 9A). Intent (owner): find the client's missing or incorrect citations; a newly found listing shows as a Minor change.
+- Split: 18c-1 now (search-based presence + name/phone from results); 18c-2 (listing-page NAP via crawler) after prod deploy + `/bot` (backlog).
+- Our call (owner to confirm in spec review): "new listing" Minor = tracked rival newly listed (`citation_added`, brief-only, never alerts); the client's own new/missing/mismatched listings show in the Listings page + `citation_gap` self-rule.
+- Owner 2026-11-10: the citation view is its own client menu item + page (our call: "Listings", `/c/<id>/listings`, after Rankings), not a Rankings section.
 
 ## New backlog (target → item)
 - none yet
