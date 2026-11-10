@@ -4,12 +4,11 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-11-10-phase-18c-citations-design.md) · [plan](../superpowers/plans/2026-11-10-phase-18c-citations.md)
 
 ## Status (overwrite)
-2026-11-10: **18c-1 built and reviewed** (SDD Tasks 0-13, 40+ commits). Final whole-branch review clean after one fix wave; `test:affected` failures fixed (focused re-runs green); `e2e:affected --full` 154 passed incl. `next build`. **Open:** Ask eval cassette — 48/50 recorded ($2.07), 2 flaky live turns; uncommitted `packages/evals/cassettes/ask.json`; `eval:replay` fails on `ask` until a `record --fill` (~$0.05-0.15, owner OK pending; never run vitest on this worktree DB meanwhile).
+2026-11-10: **18c-1 built, reviewed, ready for the owner** (SDD Tasks 0-13, 40+ commits). Final whole-branch review clean after one fix wave; `test:affected` failures fixed (focused re-runs green); `e2e:affected --full` 154 passed incl. `next build`. Ask eval cassette 50/50 (`6d8f719a`, total recording spend ~$2.4); `eval:replay` passes all 4 suites. `ask-ground-06` had timed out live twice on its final step (8 tool calls, 13 KB context; not listings) and was re-recorded from scratch.
 
 ## Next (overwrite)
-1. Owner: OK the ask `record --fill`; then `eval run --suite ask --mode replay --update-baseline`, commit cassette + baseline.
-2. Owner: `pnpm copy:review` (new strings: Listings page, help + 2 guides, glossary, play/self-rule copy, recommendations subtitle, operator group labels; flag: "Add your business to …" reads oddly for mismatch-only).
-3. `/rm-merge` on the owner's go-ahead. After merge, any env with data: `pnpm db:migrate` (0107) → deploy worker, then web; `pnpm kb:seed`. Staging: wait for the 09:00 UTC `citation-audit` (or run `citation-audit-client` for one client), check `/c/<id>/listings`, one `citation_audit_run.est_usd` ≤ 0.20, no banned host in `citation_listing`. Old 18b-2 `serp_snapshot` rows stay unmatched (domain google.com); staging rivals may read "entered page one" once.
+1. Owner: `pnpm copy:review` (new strings: Listings page, help + 2 guides, glossary, play/self-rule copy, recommendations subtitle, operator group labels; flag: "Add your business to …" reads oddly for mismatch-only).
+2. `/rm-merge` on the owner's go-ahead. After merge, any env with data: `pnpm db:migrate` (0107) → deploy worker, then web; `pnpm kb:seed`. Staging: wait for the 09:00 UTC `citation-audit` (or run `citation-audit-client` for one client), check `/c/<id>/listings`, one `citation_audit_run.est_usd` ≤ 0.20, no banned host in `citation_listing`. Old 18b-2 `serp_snapshot` rows stay unmatched (domain google.com); staging rivals may read "entered page one" once.
 
 ## Task 0 results (2026-11-10)
 Probe $0.078: organic results are `google.com/goto` wrappers (host from breadcrumb), vendor ignores `site:` (billed $0.01), depth 50 errors → depth 20 at $0.004; Bing Places + Apple Maps removed (0/4); stage-1 recall 6/9 = 67 %. Details + rulings B1-B4: SDD ledger / spec C2-C6.
@@ -37,6 +36,7 @@ Probe $0.078: organic results are `google.com/goto` wrappers (host from breadcru
 - **hotfix/next** → 18b-2 organic matching used `domain` (vendor returns `google.com`); fixed for new scans in 18c (host from breadcrumb). **18b-2 `serp_snapshot` rows before 18c stay unmatched (domain google.com) — optional backfill from stored captures.**
 - **18c-2** → listing-page NAP + address via the crawler (after prod + `/bot` + `WEB_MONITORING_ENABLED`); replaces "Address: not checked".
 - **later** → platform page for uncatalogued hosts ("Also found on" promotion; OPS SQL meanwhile); "check now" for a client's listings; scorecard row for listings; editing citation groups on already-reviewed verticals.
+- **next** → Friday `ask_assistant`: `max_tokens` 6000 with `timeout_ms` 20000 and no streaming, so a long final answer after many tool calls times out on both models ("Friday couldn't answer"); pre-existing on main (eval `ask-ground-06` hit it twice). Fix by streaming or a lower answer cap; changing the task config re-keys the ask cassette (~$2 re-record).
 - **phase-16** → no-self clients: "Link Google listing" prompt (the Listings page only shows a note).
 
 ## Brief
