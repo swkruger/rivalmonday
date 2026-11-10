@@ -4,8 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@cs/ui';
 import { LayoutDashboard, Mail, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { CLIENT_VIEW, type DashboardView } from '../../../content/client-view';
-import { SECTIONS } from '../../../content/home';
+import { HERO, SECTIONS } from '../../../content/home';
 import { SAMPLE } from '../../sample/schema';
+import { JoinButton } from '../join/join-button';
 import { HomeSectionShell, SectionHeading } from '../home/section-heading';
 import { BriefEmailMock } from './brief-email-mock';
 import { DashboardMock } from './dashboard-mock';
@@ -80,6 +81,12 @@ export function ClientView({ heading }: { heading?: string } = {}) {
             </ol>
           )}
         </Tabs>
+        <div data-slot="client-view-cta" className="mt-8">
+          {/* The tour's one action, quiet on purpose: the hero holds the primary button (D14). */}
+          <JoinButton start={HERO.primaryStart} variant="ghost" className="h-auto min-h-11 border border-line-control px-5 py-3 text-ink">
+            {HERO.heroCta}
+          </JoinButton>
+        </div>
       </div>
     </HomeSectionShell>
   );

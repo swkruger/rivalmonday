@@ -1,12 +1,24 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { SECTIONS } from '../../../content/home';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const pilot = vi.hoisted(() => ({ pilotMode: true }));
+vi.mock('../shell/pilot-context', () => ({ usePilot: () => ({ pilotMode: pilot.pilotMode, status: null, loaded: true }) }));
+const join = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
+vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
+
+import { HERO, SECTIONS } from '../../../content/home';
 import { CLIENT_VIEW, type DashboardOpen } from '../../../content/client-view';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
 import { SAMPLE } from '../../sample/schema';
 import { ClientView } from './client-view';
 
 /** Panels stay mounted (charts keep their drawn state); each is named by its tab. */
+beforeEach(() => {
+  pilot.pilotMode = true;
+  join.open.mockClear();
+});
+
 const panel = (name = 'Dashboard') => screen.getByRole('tabpanel', { name });
 
 describe('ClientView', () => {
@@ -141,5 +153,23 @@ describe('ClientView', () => {
       const marks = [...panel(name).querySelectorAll('[data-note-mark]')].map((m) => m.getAttribute('data-note-mark')).sort();
       expect(marks).toEqual(['1', '2', '3']);
     }
+  });
+
+  it('the tour ends with the quiet brief button', () => {
+    const { container } = render(<ClientView />);
+    const wrap = container.querySelector('[data-slot="client-view-cta"]')!;
+    expect(wrap).toBeTruthy();
+    const btn = within(wrap as HTMLElement).getByRole('button', { name: 'Get a free brief for one client' });
+    expect(HERO.heroCta).toBe('Get a free brief for one client');
+    fireEvent.click(btn);
+    expect(join.open).toHaveBeenCalledWith('agency-sample');
+  });
+
+  it("pilot off: that button is the sign-up link with the join button's own label", () => {
+    pilot.pilotMode = false;
+    const { container } = render(<ClientView />);
+    const link = within(container.querySelector('[data-slot="client-view-cta"]') as HTMLElement).getByRole('link', { name: 'Start your free trial' });
+    expect(link.getAttribute('href')).toBe('https://app.test/sign-up');
+    expect(join.open).not.toHaveBeenCalled();
   });
 });

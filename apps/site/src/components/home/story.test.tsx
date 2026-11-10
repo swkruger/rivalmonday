@@ -18,6 +18,7 @@ import { JoinProvider } from '../join/join-provider';
 import { weekStats } from '../sample/rank-map';
 import { AgencyCeiling } from './agency-ceiling';
 import { ChecksHub } from './checks-hub';
+import { CtaBand } from './cta-band';
 import { CloseBand } from './close-band';
 import { Commercial } from './commercial';
 import { Opportunity } from './opportunity';
@@ -219,6 +220,14 @@ describe('shared opt-outs', () => {
     const def = render(<Steps />);
     expect(def.container.querySelector('[data-slot="any-industry"]')).toBeTruthy();
     expect(screen.queryByText(HOW_STEPS_NOTE)).toBeNull();
+  });
+
+  it('CtaBand and the recommendations section carry the decided headings', () => {
+    render(<JoinProvider><CtaBand /></JoinProvider>);
+    expect(screen.getByRole('heading', { name: 'Try it on one client, free.' })).toBeTruthy();
+    cleanup();
+    render(<RecommendationsSection />);
+    expect(screen.getByRole('heading', { name: 'Every rival move comes with a next step.' })).toBeTruthy();
   });
 
   it('RecommendationsSection drops the roadmap block only when asked', () => {

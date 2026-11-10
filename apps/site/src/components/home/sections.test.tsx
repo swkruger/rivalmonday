@@ -7,7 +7,7 @@ vi.mock('../../lib/env', () => env);
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
-import { CLOSE, CLOSE_TRIAL, COUNTER_LABELS, HERO, HOME_ANCHORS, PRICING_LINES, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
+import { CHECKS_SAMPLE_LINK, CLOSE, CLOSE_TRIAL, COUNTER_LABELS, HOW_STEPS, HERO, HOME_ANCHORS, PRICING_LINES, PRICING_LINES_TRIAL, SECTIONS } from '../../../content/home';
 import { HOW_FAQ, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { PRICING } from '../../../content/pricing';
 import { SOURCES } from '../../../content/sources';
@@ -142,6 +142,22 @@ describe('FounderNote', () => {
 });
 
 describe('ChecksHub and Steps', () => {
+  it('the claim checks link to the sample brief', async () => {
+    await renderApp(<ChecksHub />, null);
+    expect(screen.getByRole('link', { name: 'Open the sample brief →' }).getAttribute('href')).toBe('/sample-brief');
+    expect(CHECKS_SAMPLE_LINK.href).toBe('/sample-brief');
+    cleanup();
+    await renderApp(<ChecksHub hideLink />, null);
+    expect(screen.getByRole('link', { name: CHECKS_SAMPLE_LINK.label }).getAttribute('href')).toBe('/sample-brief');
+    expect(screen.queryByRole('link', { name: 'Read how we check claims →' })).toBeNull();
+  });
+
+  it("the fourth step is 'The brief lands on Monday'", () => {
+    expect(HOW_STEPS[3].title).toBe('The brief lands on Monday');
+    render(<Steps />);
+    expect(screen.getByText('The brief lands on Monday')).toBeTruthy();
+  });
+
   it('checks hub has an accessible name', async () => {
     const { container } = await renderApp(<ChecksHub />, null);
     const svg = container.querySelector('svg[role="group"]')!;

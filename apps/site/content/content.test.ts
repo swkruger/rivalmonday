@@ -152,6 +152,12 @@ describe('site copy', () => {
     expect(home.SECTIONS['client-view'].homeHeading).toBe('What your client opens on Monday morning.');
     expect(home.SECTIONS.checks.homeHeading).toBe('Your name is on every brief, so we check every sentence.');
     expect(home.SECTIONS.checks.heading).toBe('No evidence, no claim.');
+    expect(home.SECTIONS.recommendations.heading).toBe('Every rival move comes with a next step.');
+    expect(home.SECTIONS.recommendations.body).toBe('Each recommendation comes from the brief, with its evidence attached and who it is for. This is the board your clients get. Try it: start, finish or dismiss a recommendation.');
+    expect(home.HOW_STEPS[3].title).toBe('The brief lands on Monday');
+    expect(home.CTA_BAND.heading).toBe('Try it on one client, free.');
+    expect(home.CTA_BAND.body).toBe('Pilot places are limited because we work closely with each agency.');
+    expect(home.CHECKS_SAMPLE_LINK).toEqual({ label: 'Open the sample brief →', href: '/sample-brief' });
   });
 
   it('typed story figures agree with the sample they come from', () => {

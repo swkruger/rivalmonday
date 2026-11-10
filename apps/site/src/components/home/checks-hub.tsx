@@ -1,4 +1,4 @@
-import { CHECKS_DETAIL, CHECKS_LINK, SECTIONS } from '../../../content/home';
+import { CHECKS_DETAIL, CHECKS_LINK, CHECKS_SAMPLE_LINK, SECTIONS } from '../../../content/home';
 import { HOW_IT_WORKS } from '../../../content/how-it-works';
 import { SOURCES, type Source } from '../../../content/sources';
 import { ChecksDiagram, type CheckNode, type CheckNodeDetail } from './checks-diagram';
@@ -55,11 +55,16 @@ export function ChecksHub({ hideLink = false, heading, divided = false }: { hide
     <HomeSectionShell id="checks" labelledBy="checks-heading" className={divided ? 'border-t border-line' : undefined}>
       <SectionHeading section={heading ? { ...SECTIONS.checks, heading } : SECTIONS.checks} />
       <ChecksDiagram nodes={nodes} hint={CHECKS_DETAIL.hint} />
-      {!hideLink && (
-        <a href={CHECKS_LINK.href} className="mt-6 inline-flex text-sm font-medium text-link hover:underline">
-          {CHECKS_LINK.label}
+      <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+        {!hideLink && (
+          <a href={CHECKS_LINK.href} className="inline-flex text-sm font-medium text-link hover:underline">
+            {CHECKS_LINK.label}
+          </a>
+        )}
+        <a href={CHECKS_SAMPLE_LINK.href} className="inline-flex text-sm font-medium text-link hover:underline">
+          {CHECKS_SAMPLE_LINK.label}
         </a>
-      )}
+      </div>
     </HomeSectionShell>
   );
 }

@@ -97,8 +97,8 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
   recommendations: {
     id: 'recommendations',
     eyebrow: 'Recommendations',
-    heading: 'Every move becomes something to do about it.',
-    body: 'Each recommendation comes from the brief, with its evidence attached and who it is for. This is the board your clients get, and it works: start one, finish one or dismiss one.',
+    heading: 'Every rival move comes with a next step.',
+    body: 'Each recommendation comes from the brief, with its evidence attached and who it is for. This is the board your clients get. Try it: start, finish or dismiss a recommendation.',
   },
   live: {
     id: 'live',
@@ -175,6 +175,9 @@ export const HOME_IMAGES = {
 
 export const CHECKS_LINK = { label: 'Read how we check claims →', href: '/how-it-works' } as const;
 
+/** Under the claim checks, always shown (`hideLink` hides only `CHECKS_LINK`). */
+export const CHECKS_SAMPLE_LINK = { label: 'Open the sample brief →', href: '/sample-brief' } as const;
+
 /** Labels of the diagram's explanation sheets; the wording inside them comes from `sources.ts` and `how-it-works.ts`. */
 export const CHECKS_DETAIL = {
   hint: 'Open any box to see how it works.',
@@ -200,7 +203,7 @@ export const HOW_STEPS = [
     body: 'Websites, Google reviews, ads and map rankings, checked on a schedule and saved as evidence.',
   },
   {
-    title: 'Monday brief + alerts',
+    title: 'The brief lands on Monday',
     body: 'Your client gets a short brief under your brand, with the evidence one click away. Big moves send an alert.',
   },
 ] as const;
@@ -229,8 +232,8 @@ export function planCells(): { value: string; label: string }[] {
 }
 
 export const CTA_BAND = {
-  heading: 'Join the pilot',
-  body: 'Places are limited while we work closely with each agency.',
+  heading: 'Try it on one client, free.',
+  body: 'Pilot places are limited because we work closely with each agency.',
   button: 'Join the free pilot',
 } as const;
 
