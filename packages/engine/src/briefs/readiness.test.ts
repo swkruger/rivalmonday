@@ -4,6 +4,9 @@ import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
+import { createPackLoader } from '../tag/tag-stage';
+import { loadVerticalPack } from '@cs/verticals';
+import { citationAuditRun } from '@cs/db';
 import { listStartingPointDue, resetStartingPoint, startingPointReadiness } from './readiness';
 
 const AGENCY_C = randomUUID();
@@ -40,10 +43,38 @@ beforeEach(async () => {
 });
 
 describe('startingPointReadiness', () => {
+  describe('citations check (18c)', () => {
+    const base = createPackLoader();
+    /** Directory definitions live in generic.yaml (DB packs inherit them), so graft them onto the file pack. */
+    const packs = async (id: string) => { const [p, g] = await Promise.all([base(id), loadVerticalPack('generic')]); return { ...p, citations: { ...p.citations, directory_groups: g.citations.directory_groups } }; };
+    const ready = async () => { await activate(hoursAgo(1)); await seedProfile(); await seedReviewsDone(); };
+    const runRow = (status: 'running' | 'done' | 'capped' | 'failed') =>
+      dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'setup', status, competitorIds: [selfId] });
+    it('no audit run yet: not ready', async () => {
+      await ready();
+      expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW, packs)).toMatchObject({ ready: false, checks: { citations: false } });
+      await runRow('running');
+      expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW, packs)).toMatchObject({ ready: false, checks: { citations: false } });
+    });
+    it('a failed (or done, capped) run counts: citations true and ready', async () => {
+      await ready();
+      await runRow('failed');
+      expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW, packs)).toMatchObject({ ready: true, checks: { citations: true } });
+    });
+    it('null without an own business, or with an empty catalogue / no pack loader', async () => {
+      await ready();
+      await dbs.owner.update(client).set({ selfCompetitorId: null }).where(eq(client.id, IDS.clientA1));
+      expect((await startingPointReadiness(dbs.service, IDS.clientA1, NOW, packs)).checks.citations).toBeNull();
+      await dbs.owner.update(client).set({ selfCompetitorId: selfId }).where(eq(client.id, IDS.clientA1));
+      expect((await startingPointReadiness(dbs.service, IDS.clientA1, NOW, base)).checks.citations).toBeNull();
+      expect((await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).checks.citations).toBeNull();
+    });
+  });
+
   it('rankings and competitors are null (not applicable) without keywords, service area or place id', async () => {
     await activate(hoursAgo(1));
     expect(await startingPointReadiness(dbs.service, IDS.clientA1, NOW)).toEqual({
-      ready: false, timedOut: false, setupHold: false, checks: { profile: false, reviews: false, rankings: null, competitors: null },
+      ready: false, timedOut: false, setupHold: false, checks: { profile: false, reviews: false, rankings: null, competitors: null, citations: null },
     });
     await seedProfile();
     await seedReviewsDone();

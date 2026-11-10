@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, capture, client, clientSetup, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
+import { brief, briefItem, capture, citationListing, client, clientSetup, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -12,8 +12,10 @@ import { deliverDueBriefs } from './deliver';
 import { generateBrief } from './generate';
 import { approveBrief } from './review';
 import { Scorecard } from './scorecard';
-import { BASELINE_BODY, BASELINE_HEADLINE, generateStartingPoint, SELF_WHY_IT_MATTERS } from './starting-point';
-import { loadVerticalPack } from '@cs/verticals';
+import { BASELINE_BODY, BASELINE_HEADLINE, generateStartingPoint, loadSelfCitations, scorecardEvidenceText, SELF_WHY_IT_MATTERS } from './starting-point';
+import { checkSentence } from './rules';
+import type { SelfFinding } from './self-rules';
+import { citationCatalogue, loadVerticalPack } from '@cs/verticals';
 const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
@@ -25,6 +27,8 @@ const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'a
 const NOW = new Date('2026-10-15T12:00:00Z');
 const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 const ACTIVATED = ago(3);
+/** Directory definitions live in generic.yaml (DB packs inherit them); the file loader does not, so graft them on. */
+const withDirs = async (id: string) => { const [p, g] = await Promise.all([packs(id), generic()]); return { ...p, citations: { ...p.citations, directory_groups: g.citations.directory_groups } }; };
 const supportAll = (_s: unknown, qs: Record<string, unknown>) => ({ answers: Object.fromEntries(Object.keys(qs).map((k) => [k, noul(true)])), needsReview: [] });
 const writer = () => JSON.stringify({ items: [{ ref: 'F1', why_it_matters: 'Fresh reviews help you show up first.' }, { ref: 'F2', why_it_matters: 'Rivals got 99 reviews.' }] });
 const run = (ai = createFakeAi({ chat: writer, decide: supportAll }), now = NOW) => generateStartingPoint({ db: dbs.service, ai, generic, packs, now: () => now }, IDS.clientA1);
@@ -137,6 +141,50 @@ describe('generateStartingPoint', () => {
     expect(ads.whatChanged).toBe('Smith HVAC run ads; you run none.');
     expect(ads.evidenceIds.sort()).toEqual([selfAds.evidenceId, rivalAds.evidenceId].sort());
     expect(ads.evidenceIds).not.toContain(gbp.evidenceId);
+  });
+
+  it('citation_gap: missing directories become an item with the fix_citations action; not_checked hosts stay out of the total', async () => {
+    const miss = await evidenceFor(selfId, 'directories');
+    const checkedAt = new Date();
+    const row = (host: string, status: 'listed' | 'not_found' | 'not_checked', over: Record<string, unknown> = {}) =>
+      ({ competitorId: selfId, host, status, checkedAt, captureId: status === 'not_found' ? miss.captureId : null, ...over });
+    await dbs.owner.insert(citationListing).values([
+      row('manta.com', 'not_found'), row('foursquare.com', 'not_found'), row('mapquest.com', 'not_found'),
+      row('facebook.com', 'listed'), row('bbb.org', 'listed'), row('yellowpages.com', 'not_checked'), row('angi.com', 'not_checked'),
+      row('example-also.com', 'not_found', { inCatalogue: false }),
+    ]);
+    const ai = createFakeAi({ chat: () => 'not json', decide: supportAll });
+    expect(await generateStartingPoint({ db: dbs.service, ai, generic, packs: withDirs, now: () => NOW }, IDS.clientA1)).toMatchObject({ status: 'ready' });
+    const it0 = (await items()).find((i) => i.playbookId === 'fix_citations')!;
+    expect(it0.whatChanged).toBe('Google search found no listing for you on 3 of 5 directories we check: Manta, Foursquare and MapQuest.');
+    expect(it0.recommendedAction).toContain('Add your business to Manta, Foursquare and MapQuest using each directory');
+    expect(it0.headline).toBe("Get listed on the directories you're missing");
+    expect(it0.evidenceIds).toEqual([miss.evidenceId]);
+  });
+
+  it('loadSelfCitations: null without self or checked rows; rivalsListed counts audited rivals; phone mismatch needs phone_match = false', async () => {
+    const cat = citationCatalogue(await withDirs('hvac_plumbing'));
+    expect(await loadSelfCitations(dbs.service, IDS.clientA1, null, cat, [])).toBeNull();
+    expect(await loadSelfCitations(dbs.service, IDS.clientA1, selfId, cat, [])).toBeNull();
+    const checkedAt = new Date();
+    const ev = await evidenceFor(selfId, 'directories');
+    await dbs.owner.insert(citationListing).values([
+      { competitorId: selfId, host: 'manta.com', status: 'not_found', checkedAt, captureId: ev.captureId },
+      { competitorId: selfId, host: 'yellowpages.com', status: 'listed', phoneMatch: false, nameMatch: true, checkedAt, captureId: ev.captureId },
+      { competitorId: selfId, host: 'bbb.org', status: 'listed', phoneMatch: null, nameMatch: null, checkedAt, captureId: null },
+      { competitorId: IDS.competitorX, host: 'manta.com', status: 'listed', checkedAt },
+    ]);
+    const r = (await loadSelfCitations(dbs.service, IDS.clientA1, selfId, cat, [IDS.competitorX]))!;
+    expect(r).toMatchObject({ total: 3, missing: [{ host: 'manta.com', label: 'Manta', rivalsListed: 1 }], mismatched: [{ host: 'yellowpages.com', label: 'Yellow Pages', field: 'phone' }], evidenceIds: [ev.evidenceId] });
+    expect(r.checkedAt).toBe(checkedAt.toISOString());
+  });
+
+  it('the citation_gap fact passes the verifier rules against scorecardEvidenceText', () => {
+    const sc = { asOf: '2026-10-14T00:00:00Z', rows: [], evidenceIds: [] } as unknown as Scorecard;
+    const f = { ruleId: 'citation_gap', strength: false, score: 0.4, fact: 'Google search found no listing for you on 4 of 9 directories we check: Manta, Foursquare, MapQuest and ADA Find-a-Dentist.', values: { missing: 4, total: 9, directories: 'x' }, evidenceIds: ['e'], playbookId: 'fix_citations', effort: 'L', impact: 'M' } as SelfFinding;
+    const ctx = { trackedCompetitorNames: [], clientTowns: [], year: 2026 };
+    expect(checkSentence(f.fact, { text: scorecardEvidenceText(sc, [f]), captureDates: [], zips: [], competitorNames: [] }, ctx).ok).toBe(true);
+    expect(checkSentence(f.fact, { text: scorecardEvidenceText(sc, []), captureDates: [], zips: [], competitorNames: [] }, ctx).ok).toBe(false);
   });
 
   it('fallback item when no rule fires', async () => {

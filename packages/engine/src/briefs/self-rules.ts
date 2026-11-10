@@ -34,6 +34,16 @@ export interface SelfRuleInput {
   /** Evidence of each business's latest ok `google_ads` capture (keyed by `competitorId`, self included): what `rival_only_advertiser` cites. */
   adEvidenceByCompetitor: Record<string, string[]>;
   rankEvidenceIds: string[];
+  /**
+   * Phase 18c: the client's own directory listings from the latest audit; null = never audited (rule skipped). `not_checked` hosts never
+   * count; `total` = catalogue hosts that were listed or not found. Evidence = the stored captures behind those rows.
+   */
+  citations: {
+    checkedAt: string; total: number;
+    missing: { host: string; label: string; rivalsListed: number }[];
+    mismatched: { host: string; label: string; field: 'name' | 'phone' }[];
+    evidenceIds: string[];
+  } | null;
 }
 
 export const SELF_FINDINGS_MAX = 5;
@@ -151,6 +161,19 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         if (!input.rankHasEvidence || y === null || med === null || !(y < med - gap)) break;
         push(rule, score(rule, med - y, 0.5), `You appear in the map top 3 in ${pct(y)}% of searches; rivals ${pct(med)}%.`, { you: y, median: med },
           input.rankEvidenceIds.slice(0, EVIDENCE_PER_FINDING));
+        break;
+      }
+      case 'citation_gap': {
+        const c = input.citations;
+        if (!c || c.total === 0) break;
+        const listed = c.missing.length >= param(rule, 'min_missing', 3) ? c.missing : [];
+        if (listed.length === 0 && c.mismatched.length === 0) break;
+        const labels = joinNames(listed.map((m) => m.label));
+        const facts: string[] = [];
+        if (listed.length) facts.push(`Google search found no listing for you on ${listed.length} of ${c.total} directories we check: ${labels}.`);
+        for (const m of c.mismatched.slice(0, 2)) facts.push(`${m.label} shows a different ${m.field} for you than your Google profile.`);
+        push(rule, score(rule, c.missing.length + 2 * c.mismatched.length, c.total), facts.join(' '),
+          { missing: listed.length, total: c.total, directories: labels || joinNames([...new Set(c.mismatched.map((m) => m.label))]) }, c.evidenceIds.slice(0, EVIDENCE_PER_FINDING));
         break;
       }
       case 'profile_gap': {

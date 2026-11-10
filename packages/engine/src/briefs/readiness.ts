@@ -1,6 +1,8 @@
-import { agencyServiceable, brief, briefItem, client, clientWorkAllowed, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { agencyServiceable, brief, briefItem, citationAuditRun, client, clientWorkAllowed, clientSetup, clientCompetitor, type Db, discoveryRun, observation, rankScan, recommendation, vendorTask } from '@cs/db';
+import { citationCatalogue } from '@cs/verticals';
 import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES } from './generate';
+import type { PackLoader } from '../tag/tag-stage';
 import { startingPointClockStart } from './setup-clock';
 
 /** Spec § Generation: a starting point waits for onboarding data at most this long after activation, then ships with what is there. */
@@ -9,7 +11,9 @@ export const STARTING_POINT_WAIT_HOURS = 48;
 export interface StartingPointReadiness {
   ready: boolean;
   /** `null` = not applicable (no keywords / service area for rankings; no discovery run possible for competitors). */
-  checks: { profile: boolean; reviews: boolean; rankings: boolean | null; competitors: boolean | null };
+  checks: { profile: boolean; reviews: boolean; rankings: boolean | null; competitors: boolean | null;
+    /** Phase 18c: the first directory audit has finished (done, capped or failed). `null` = not applicable (no own business, empty catalogue, or no pack loader given). */
+    citations: boolean | null };
   /** Not ready, but the starting-point clock start (`activated_at`/`created_at`, or the setup clock) + 48 h has passed. */
   timedOut: boolean;
   /** An open client setup (11a) has not yet reached its competitors step (and is < 14 days old): never ready, never timed out. */
@@ -21,12 +25,12 @@ export interface StartingPointReadiness {
  * finished (when the client has keywords and a service area) and the latest discovery run is done with at least one rival tracked
  * (when one ran or could run).
  */
-export async function startingPointReadiness(db: Db, clientId: string, now: Date): Promise<StartingPointReadiness> {
+export async function startingPointReadiness(db: Db, clientId: string, now: Date, packs?: PackLoader): Promise<StartingPointReadiness> {
   const [c] = await db.select().from(client).where(eq(client.id, clientId)).limit(1);
   if (!c) throw new Error(`client ${clientId} not found`);
   const [setup] = await db.select().from(clientSetup).where(eq(clientSetup.clientId, clientId)).limit(1);
   const clockStart = startingPointClockStart(c, setup ?? null, now);
-  if (!clockStart) return { ready: false, timedOut: false, setupHold: true, checks: { profile: false, reviews: false, rankings: null, competitors: null } };
+  if (!clockStart) return { ready: false, timedOut: false, setupHold: true, checks: { profile: false, reviews: false, rankings: null, competitors: null, citations: null } };
   const selfId = c.selfCompetitorId;
 
   const profile = selfId
@@ -53,9 +57,17 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
     competitors = tracked.length > 0;
   }
 
-  const ready = profile && reviews && rankings !== false && competitors !== false;
+  // The directory audit is possible once there is an own business and a catalogue; any finished run (even failed: nothing retries it) counts.
+  let citations: boolean | null = null;
+  if (selfId && packs && citationCatalogue(await packs(c.verticalId)).length > 0) {
+    const [r] = await db.select({ id: citationAuditRun.id }).from(citationAuditRun)
+      .where(and(eq(citationAuditRun.clientId, clientId), inArray(citationAuditRun.status, ['done', 'capped', 'failed']))).limit(1);
+    citations = r !== undefined;
+  }
+
+  const ready = profile && reviews && rankings !== false && competitors !== false && citations !== false;
   const timedOut = !ready && now.getTime() - clockStart.getTime() >= STARTING_POINT_WAIT_HOURS * 3_600_000;
-  return { ready, checks: { profile, reviews, rankings, competitors }, timedOut, setupHold: false };
+  return { ready, checks: { profile, reviews, rankings, competitors, citations }, timedOut, setupHold: false };
 }
 
 /**
@@ -63,7 +75,7 @@ export async function startingPointReadiness(db: Db, clientId: string, now: Date
  * generating — whose readiness is met or whose 48 h wait is over. One set-based query finds the candidates (no starting point / retryable / stale);
  * the per-client readiness check runs only for those.
  */
-export async function listStartingPointDue(db: Db, now: Date): Promise<string[]> {
+export async function listStartingPointDue(db: Db, now: Date, packs?: PackLoader): Promise<string[]> {
   // 9a/9b: a read_only/suspended agency or a paused client gets no starting point (generation costs model calls).
   const staleBefore = new Date(now.getTime() - BRIEF_STALE_MINUTES * 60_000);
   const candidates = await db.select({ id: client.id }).from(client)
@@ -79,7 +91,7 @@ export async function listStartingPointDue(db: Db, now: Date): Promise<string[]>
     .orderBy(client.createdAt);
   const due: string[] = [];
   for (const c of candidates) {
-    const r = await startingPointReadiness(db, c.id, now);
+    const r = await startingPointReadiness(db, c.id, now, packs);
     if (r.ready || r.timedOut) due.push(c.id);
   }
   return due;

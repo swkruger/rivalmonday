@@ -469,7 +469,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     listMoveClients: () => listMoveClients(getDb()),
     listBriefDueClients: (now) => listBriefDueClients(getDb(), now),
     generateBrief: async (clientId) => generateBrief({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
-    listStartingPointDue: (now) => listStartingPointDue(getDb(), now),
+    listStartingPointDue: (now) => listStartingPointDue(getDb(), now, packs),
     generateStartingPoint: async (clientId) => generateStartingPoint({ db: getDb(), ai: await getAi(), packs, generic }, clientId),
     generateAskStarters: async (clientId) => generateStarters({ service: getDb(), ai: await getAi() }, clientId),
     async generateSetupSuggestions(clientId) {

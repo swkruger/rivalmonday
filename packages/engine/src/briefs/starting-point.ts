@@ -1,12 +1,12 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
-import { redactForModel } from '@cs/collectors';
+import { auditedCompetitors, redactForModel } from '@cs/collectors';
 import type { CallScope, SelfRuleId } from '@cs/core';
-import { brief, briefItem, capture, client, type BriefDropStats, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
+import { brief, briefItem, capture, citationListing, client, type BriefDropStats, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { reviewBenchmark } from '../reviews/benchmark';
 import { ratingTrend } from '../reviews/rating-trend';
-import type { VerticalPack } from '@cs/verticals';
+import { citationCatalogue, type Directory, type VerticalPack } from '@cs/verticals';
 import type { PackLoader } from '../tag/tag-stage';
 import { localClock } from '../delivery/time';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, briefErrorMessage, type BriefRunResult } from './generate';
@@ -16,7 +16,7 @@ import { renderPlaybook } from './playbooks';
 import { checkSentence, type RuleEvidence, splitSentences } from './rules';
 import { safeTimezone } from './schedule';
 import { buildScorecard, median, type Scorecard } from './scorecard';
-import { evaluateSelfRules, type SelfFinding } from './self-rules';
+import { evaluateSelfRules, type SelfFinding, type SelfRuleInput } from './self-rules';
 import { supportCheck } from './support';
 import { BRIEF_WRITER_TASK } from './writer';
 
@@ -62,6 +62,9 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
     lines.push(`Rival median: rating ${fmt(med('rating'), rating)}; new reviews in 90 days ${fmt(med('reviews90d'), String)}; reply rate ${fmt(med('replyRate'), pct)}; map top-3 share ${fmt(med('mapTop3Share'), pct)}.`);
   }
   for (const f of findings) {
+    if (f.ruleId === 'citation_gap' && typeof f.values.missing === 'number' && f.values.missing > 0 && typeof f.values.total === 'number') {
+      lines.push(`Directory check: no listing found on ${f.values.missing} of ${f.values.total} directories.`);
+    }
     if (typeof f.values.topic === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
       lines.push(`Topic ${f.values.topic}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
     }
@@ -112,6 +115,41 @@ async function selfProfile(db: Db, selfId: string | null): Promise<{ claimed: bo
     hasHours: hours !== undefined && hours !== null && typeof hours === 'object' && Object.keys(hours).length > 0,
     categoryCount: (typeof d.category === 'string' && d.category ? 1 : 0) + extra,
   };
+}
+
+/**
+ * Phase 18c: the client's own directory listings for `citation_gap` (spec C9). Only current-catalogue rows count; `not_checked` (and a
+ * host with no row yet) never does. Evidence = the evidence of the stored captures behind the missing and mismatched rows. Null when the
+ * client has no own business or nothing was checked.
+ */
+export async function loadSelfCitations(db: Db, clientId: string, selfId: string | null, catalogue: Directory[], rivalIds: string[]): Promise<SelfRuleInput['citations']> {
+  if (!selfId || catalogue.length === 0) return null;
+  const hosts = catalogue.map((d) => d.host);
+  const rows = await db.select().from(citationListing)
+    .where(and(eq(citationListing.competitorId, selfId), eq(citationListing.inCatalogue, true), inArray(citationListing.host, hosts)));
+  const checked = rows.filter((r) => r.status === 'listed' || r.status === 'not_found');
+  if (checked.length === 0) return null;
+  const byHost = new Map(checked.map((r) => [r.host, r]));
+  const rivalRows = rivalIds.length === 0 ? [] : await db.select({ host: citationListing.host }).from(citationListing)
+    .where(and(inArray(citationListing.competitorId, rivalIds), eq(citationListing.inCatalogue, true), eq(citationListing.status, 'listed'), inArray(citationListing.host, hosts)));
+  const missing: NonNullable<SelfRuleInput['citations']>['missing'] = [];
+  const mismatched: NonNullable<SelfRuleInput['citations']>['mismatched'] = [];
+  const captureIds: string[] = [];
+  const cite = (id: string | null) => { if (id && !captureIds.includes(id)) captureIds.push(id); };
+  for (const d of catalogue) {
+    const r = byHost.get(d.host);
+    if (!r) continue;
+    if (r.status === 'not_found') {
+      missing.push({ host: d.host, label: d.label, rivalsListed: rivalRows.filter((x) => x.host === d.host).length });
+      cite(r.captureId);
+    } else {
+      if (r.nameMatch === false) { mismatched.push({ host: d.host, label: d.label, field: 'name' }); cite(r.captureId); }
+      if (r.phoneMatch === false) { mismatched.push({ host: d.host, label: d.label, field: 'phone' }); cite(r.captureId); }
+    }
+  }
+  const evidenceIds = captureIds.length === 0 ? [] : (await db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, captureIds)).orderBy(asc(evidence.id))).map((e) => e.id);
+  const checkedAt = new Date(Math.max(...checked.map((r) => r.checkedAt.getTime()))).toISOString();
+  return { checkedAt, total: checked.length, missing, mismatched, evidenceIds };
 }
 
 /** Evidence of the latest finished scan's map-pack captures (Phase 12b Q1); empty when the scan predates capture recording. */
@@ -193,7 +231,9 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     const topics = (await reviewBenchmark(deps, clientId, { now })).businesses;
     const rankEvidenceIds = await rankEvidence(deps.db, clientId);
     const runbook = await loadClientRunbook(deps, clientId);
+    const audited = await auditedCompetitors(deps.db, clientId);
     const findings = evaluateSelfRules({
+      citations: await loadSelfCitations(deps.db, clientId, row.selfCompetitorId, citationCatalogue(pack), audited.rivalIds),
       scorecard, topics, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
@@ -216,7 +256,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
         dropped.items++;
         continue;
       }
-      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { topic: String(f.values.topic ?? '') }) });
+      kept.push({ f, title: pb.title, action: renderPlaybook(pb.template, { topic: String(f.values.topic ?? ''), directories: String(f.values.directories ?? '') }) });
     }
 
     const why = new Map<string, string>();

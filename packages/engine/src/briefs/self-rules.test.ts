@@ -24,7 +24,7 @@ async function base(over: Partial<SelfRuleInput> = {}): Promise<SelfRuleInput> {
   return {
     scorecard: card([row(1, 'Me', {}, true), row(2, 'Alpha', {}), row(3, 'Beta', {}), row(4, 'Gamma', {})]),
     topics: [], profile: ALL_OK, rules: pack.self_rules, playbooks: pack.playbooks, rankHasEvidence: true, audienceNoun: pack.audience_noun,
-    evidenceByCompetitor: evidence, adEvidenceByCompetitor: adEvidence, rankEvidenceIds: [ID(900)], ...over,
+    evidenceByCompetitor: evidence, adEvidenceByCompetitor: adEvidence, rankEvidenceIds: [ID(900)], citations: null, ...over,
   };
 }
 const find = (r: ReturnType<typeof evaluateSelfRules>, id: string) => r.find((f) => f.ruleId === id);
@@ -166,5 +166,42 @@ describe('evaluateSelfRules', () => {
   it('drops a finding that has no evidence (no evidence, no claim)', async () => {
     const sc = card([row(1, 'Me', { rating: 3 }, true), row(2, 'A', { rating: 4.8 })]);
     expect(evaluateSelfRules(await base({ scorecard: sc, evidenceByCompetitor: {} }))).toEqual([]);
+  });
+});
+
+describe('citation_gap', () => {
+  const dir = (host: string, label: string) => ({ host, label, rivalsListed: 1 });
+  const cit = (over: Partial<NonNullable<SelfRuleInput['citations']>> = {}): NonNullable<SelfRuleInput['citations']> => ({
+    checkedAt: '2026-10-14T00:00:00Z', total: 9,
+    missing: [dir('manta.com', 'Manta'), dir('foursquare.com', 'Foursquare'), dir('mapquest.com', 'MapQuest'), dir('ada.org', 'ADA Find-a-Dentist')],
+    mismatched: [], evidenceIds: [ID(301), ID(302)], ...over,
+  });
+  it('fires with 4 of 9 missing (min 3) with the decided fact and the fix_citations play (positive)', async () => {
+    const f = find(evaluateSelfRules(await base({ citations: cit() })), 'citation_gap')!;
+    expect(f.fact).toBe('Google search found no listing for you on 4 of 9 directories we check: Manta, Foursquare, MapQuest and ADA Find-a-Dentist.');
+    expect(f.playbookId).toBe('fix_citations');
+    expect(f.values).toEqual({ missing: 4, total: 9, directories: 'Manta, Foursquare, MapQuest and ADA Find-a-Dentist' });
+    expect(f.evidenceIds).toEqual([ID(301), ID(302)]);
+  });
+  it('scores weight x min(1, (missing + 2 x mismatched) / total)', async () => {
+    const c = cit({ mismatched: [{ host: 'yellowpages.com', label: 'Yellow Pages', field: 'phone' }] });
+    const f = find(evaluateSelfRules(await base({ citations: c })), 'citation_gap')!;
+    expect(f.score).toBeCloseTo(0.4, 2);
+  });
+  it('2 missing and no mismatch is no finding (negative)', async () => {
+    expect(find(evaluateSelfRules(await base({ citations: cit({ missing: cit().missing.slice(0, 2) }) })), 'citation_gap')).toBeUndefined();
+  });
+  it('one phone mismatch alone fires with only the mismatch fact', async () => {
+    const c = cit({ missing: [], mismatched: [{ host: 'yellowpages.com', label: 'Yellow Pages', field: 'phone' }] });
+    const f = find(evaluateSelfRules(await base({ citations: c })), 'citation_gap')!;
+    expect(f.fact).toBe('Yellow Pages shows a different phone for you than your Google profile.');
+    expect(f.values).toMatchObject({ missing: 0, directories: 'Yellow Pages' });
+  });
+  it('is skipped when the client was not audited (null) or nothing was checked', async () => {
+    expect(find(evaluateSelfRules(await base({ citations: null })), 'citation_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ citations: cit({ total: 0, missing: [] }) })), 'citation_gap')).toBeUndefined();
+  });
+  it('is dropped without evidence (no evidence, no claim)', async () => {
+    expect(find(evaluateSelfRules(await base({ citations: cit({ evidenceIds: [] }) })), 'citation_gap')).toBeUndefined();
   });
 });
