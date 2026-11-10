@@ -1,6 +1,6 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, businessArea, client, llmCall, vertical } from '@cs/db';
-import { GENERIC_VERTICAL_ID } from '@cs/verticals';
+import { agency, businessArea, client, llmCall, type Tx, vertical } from '@cs/db';
+import { assemblePack, type BusinessAreaRow, CITATION_GROUPS, GENERIC_VERTICAL_ID, type VerticalRow } from '@cs/verticals';
 import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { catalogOf } from '../catalog/access';
@@ -25,6 +25,10 @@ async function operate<T>(deps: ToolDeps, ctx: AccessContext, min: PlatformRole,
 const idSchema = z.string().min(1).max(40);
 const aliasesSchema = z.array(z.string().trim().min(1).max(80)).max(8);
 const strings = (x: unknown): string[] => (Array.isArray(x) ? x.filter((e): e is string => typeof e === 'string') : []);
+const groupsOf = (config: unknown): string[] => {
+  const g = (config as { citations?: { groups?: unknown } } | null)?.citations?.groups;
+  return Array.isArray(g) ? g.filter((e): e is string => typeof e === 'string') : [];
+};
 const Creator = z.object({ agencyId: z.string(), name: z.string() }).nullable();
 
 export const listCatalogReviewTool = defineTool({
@@ -42,6 +46,8 @@ export const listCatalogReviewTool = defineTool({
         audienceNoun: z.string(), seedKeywords: z.array(z.string()), primaryCategories: z.array(z.string()), relatedCategories: z.array(z.string()),
         topics: z.array(z.string()), areas: z.array(z.object({ id: z.string(), name: z.string(), aliases: z.array(z.string()) })),
       }),
+      /** The directory groups the type checks now (its own pick, else the generic default). */
+      citationGroups: z.array(z.enum(CITATION_GROUPS)),
     })),
     areas: z.array(z.object({
       verticalId: z.string(), verticalName: z.string(), id: z.string(), name: z.string(), aliases: z.array(z.string()),
@@ -68,6 +74,7 @@ export const listCatalogReviewTool = defineTool({
       for (const r of await db.select({ v: llmCall.verticalId, c: sql<number>`sum(${llmCall.costUsd})::float8` }).from(llmCall)
         .where(and(eq(llmCall.task, 'vertical_draft'), inArray(llmCall.verticalId, verticals.map((v) => v.id)))).groupBy(llmCall.verticalId)) costs.set(r.v!, r.c);
 
+      const [generic] = await db.select({ config: vertical.config }).from(vertical).where(eq(vertical.id, GENERIC_VERTICAL_ID));
       const pending = verticals.filter((v) => v.status === 'unreviewed');
       const pendingAreas = areas.filter((a) => a.status === 'unreviewed' && verticals.some((v) => v.id === a.verticalId && v.status === 'reviewed'));
       const nameOf = new Map(verticals.map((v) => [v.id, v.name]));
@@ -77,6 +84,7 @@ export const listCatalogReviewTool = defineTool({
           services: areas.filter((a) => a.verticalId === v.id).map((a) => ({ id: a.id, name: a.name })),
           createdBy: creator(v.createdByAgencyId), clientCount: clientsOf.get(v.id) ?? 0, evidence: v.draftEvidence ?? null,
           draftCostUsd: costs.get(v.id) ?? null, categories: [...v.gbpCategories, ...v.gbpRelatedCategories],
+          citationGroups: CITATION_GROUPS.filter((g) => (groupsOf(v.config).length ? groupsOf(v.config) : groupsOf(generic?.config)).includes(g)),
           detail: {
             audienceNoun: typeof v.config.audience_noun === 'string' ? v.config.audience_noun : '',
             seedKeywords: strings((v.config.discovery as { seed_keywords?: unknown } | undefined)?.seed_keywords),
@@ -124,31 +132,64 @@ export const countCatalogReviewTool = defineTool({
   },
 });
 
+/** `config` with `citations.groups` set (a merge, so the rest of `citations` stays); throws `invalid_input` when the assembled pack would not validate. */
+async function groupsConfig(tx: Tx, v: typeof vertical.$inferSelect, groups: string[]): Promise<Record<string, unknown>> {
+  const citations = (v.config.citations && typeof v.config.citations === 'object' ? v.config.citations : {}) as Record<string, unknown>;
+  const config = { ...v.config, citations: { ...citations, groups } };
+  const [g] = await tx.select().from(vertical).where(eq(vertical.id, GENERIC_VERTICAL_ID));
+  if (!g) throw new ToolError('internal', 'Vertical catalogue has no generic row');
+  const rowOf = (x: typeof vertical.$inferSelect): VerticalRow => ({
+    id: x.id, name: x.name, status: x.status, mergedInto: x.mergedInto, version: x.version, gbpCategories: x.gbpCategories, gbpRelatedCategories: x.gbpRelatedCategories,
+    config: x.config, draftEvidence: x.draftEvidence ?? null, createdByAgencyId: x.createdByAgencyId,
+  });
+  const areas: BusinessAreaRow[] = (await tx.select().from(businessArea).where(eq(businessArea.verticalId, v.id))).map((a) => ({
+    verticalId: a.verticalId, id: a.id, name: a.name, aliases: a.aliases, status: a.status, mergedInto: a.mergedInto, evidence: a.evidence ?? null, createdByAgencyId: a.createdByAgencyId,
+  }));
+  try {
+    assemblePack({ ...rowOf(v), config }, areas, rowOf(g));
+  } catch {
+    throw new ToolError('invalid_input', 'Pick fewer directory groups (15 directories at most).', { userFacing: true });
+  }
+  return config;
+}
+
 export const reviewVerticalTool = defineTool({
   name: 'review_vertical',
   access: 'write',
-  description: 'Platform staff: approve a business type (and the areas it came with) or rename it. The id never changes.',
-  input: z.object({ verticalId: idSchema, action: z.enum(['approve', 'rename']), name: z.string().trim().min(2).max(60).optional() }),
+  description: 'Platform staff: approve a business type (and the areas it came with), rename it, or pick the directory groups its listings check covers. The id never changes.',
+  input: z.object({
+    verticalId: idSchema, action: z.enum(['approve', 'rename', 'groups']), name: z.string().trim().min(2).max(60).optional(),
+    citationGroups: z.array(z.enum(CITATION_GROUPS)).min(1).optional(),
+  }),
   output: z.object({ verticalId: z.string(), version: z.number().int() }),
   permission: 'agency',
   audit: 'skip-web',
   async handler(ctx: AccessContext, input, deps) {
     return operate(deps, ctx, 'staff', 'review_vertical', input, async () => {
       if (input.action === 'rename' && !input.name) throw new ToolError('invalid_input', 'Enter the new name.', { userFacing: true });
+      if (input.action === 'groups' && !input.citationGroups) throw new ToolError('invalid_input', 'Pick at least one directory group.', { userFacing: true });
       const out = await deps.service.transaction(async (tx) => {
         await lockCatalogue(tx);
         const [v] = await tx.select().from(vertical).where(eq(vertical.id, input.verticalId)).for('update');
         if (!v || v.id === GENERIC_VERTICAL_ID || v.status === 'merged') throw new ToolError('not_found', 'Business type not found');
         const now = new Date();
+        const groups = input.action === 'rename' ? undefined : input.citationGroups;
+        // Groups: the assembled pack must still pass the schema (at most 15 directories) before anything is written.
+        const config = groups ? await groupsConfig(tx, v, groups) : v.config;
+        const version = groups ? v.version + 1 : v.version;
         if (input.action === 'approve') {
-          await tx.update(vertical).set({ status: 'reviewed', reviewedAt: now, reviewedBy: ctx.userId, updatedAt: now }).where(eq(vertical.id, v.id));
+          await tx.update(vertical).set({ status: 'reviewed', reviewedAt: now, reviewedBy: ctx.userId, updatedAt: now, ...(groups ? { config, version } : {}) }).where(eq(vertical.id, v.id));
           await tx.update(businessArea).set({ status: 'reviewed', reviewedAt: now }).where(and(eq(businessArea.verticalId, v.id), eq(businessArea.status, 'unreviewed')));
-          return { verticalId: v.id, version: v.version };
+          return { verticalId: v.id, version };
+        }
+        if (input.action === 'groups') {
+          await tx.update(vertical).set({ config, version, updatedAt: now }).where(eq(vertical.id, v.id));
+          return { verticalId: v.id, version };
         }
         await refuseClientDataFor(deps, v.createdByAgencyId, [input.name!]);
-        const version = v.version + 1;
-        await tx.update(vertical).set({ name: input.name!, version, updatedAt: now }).where(eq(vertical.id, v.id));
-        return { verticalId: v.id, version };
+        const renamed = v.version + 1;
+        await tx.update(vertical).set({ name: input.name!, version: renamed, updatedAt: now }).where(eq(vertical.id, v.id));
+        return { verticalId: v.id, version: renamed };
       });
       catalogOf(deps).invalidate();
       return out;

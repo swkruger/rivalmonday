@@ -18,8 +18,16 @@ export interface ReviewVertical {
   evidence: unknown;
   draftCostUsd: number | null;
   categories: string[];
+  /** Directory groups the listings check covers now. */
+  citationGroups: string[];
   detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; topics: string[]; areas: { id: string; name: string; aliases: string[] }[] };
 }
+const DIRECTORY_GROUPS: { id: string; label: string }[] = [
+  { id: 'general', label: 'General directories' },
+  { id: 'home_services', label: 'Home services' },
+  { id: 'dental_health', label: 'Dental and health' },
+];
+
 export interface ReviewArea {
   verticalId: string;
   verticalName: string;
@@ -181,6 +189,7 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
                 </>
               }
             />
+            <DirectoryGroups v={v} formAction={formAction} busy={busy} />
             {mode === 'rename' && <RenameForm intent="rename-vertical" id={v.id} current={v.name} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
             {editing && <EditForm v={v} formAction={formAction} busy={busy} onDone={() => setEditing(false)} />}
             {mode === 'merge' && <MergeForm v={v} targets={targets} maps={maps} formAction={formAction} busy={busy} onDone={() => setMode('none')} />}
@@ -188,6 +197,28 @@ function VerticalCard({ v, targets, maps, canEdit, formAction, busy }: { v: Revi
         )}
       </WriteGuard>
     </Card>
+  );
+}
+
+/** Staff tick which directory groups the monthly listings check covers for this type (default: what it has now). */
+function DirectoryGroups({ v, formAction, busy }: { v: ReviewVertical; formAction: Shared['formAction']; busy: boolean }) {
+  const [picked, setPicked] = useState<string[]>(v.citationGroups);
+  const changed = !same([...picked].sort(), [...v.citationGroups].sort());
+  return (
+    <form action={formAction} aria-label={`Directories for ${v.name}`}>
+      <Post fields={{ intent: 'groups-vertical', id: v.id, label: v.name }}>
+        <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-1">
+          <legend className="mb-1 text-sm font-semibold">Directories to check</legend>
+          {DIRECTORY_GROUPS.map((g) => (
+            <label key={g.id} className="flex min-h-9 items-center gap-2 text-sm">
+              <input type="checkbox" name="group" value={g.id} checked={picked.includes(g.id)} className="h-4 w-4" onChange={() => setPicked(picked.includes(g.id) ? picked.filter((x) => x !== g.id) : [...picked, g.id])} />
+              {g.label}
+            </label>
+          ))}
+          <Button type="submit" variant="outline" disabled={busy || picked.length === 0 || !changed}>Save directories</Button>
+        </fieldset>
+      </Post>
+    </form>
   );
 }
 

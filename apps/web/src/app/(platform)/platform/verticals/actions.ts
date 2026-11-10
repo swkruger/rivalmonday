@@ -39,6 +39,12 @@ export async function catalogReviewAction(_p: FormResult, fd: FormData): Promise
       const r = await runTool(ctx, 'review_vertical', { verticalId: id, action: 'rename', name });
       return r.ok ? done(`Renamed to “${name.trim()}”.`) : r;
     }
+    case 'groups-vertical': {
+      const citationGroups = fd.getAll('group').map(String);
+      if (citationGroups.length === 0) return { ok: false, error: 'Pick at least one directory group.' };
+      const r = await runTool(ctx, 'review_vertical', { verticalId: id, action: 'groups', citationGroups });
+      return r.ok ? done(`Saved the directories for “${label}”.`) : r;
+    }
     case 'edit-vertical': {
       const p = payloadOf(fd);
       if (!p) return { ok: false, error: 'Could not read the changes. Try again.' };

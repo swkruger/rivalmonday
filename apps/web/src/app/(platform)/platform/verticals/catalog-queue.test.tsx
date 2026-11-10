@@ -10,7 +10,7 @@ afterEach(cleanup);
 const v: ReviewVertical = {
   id: 'distillery', name: 'Craft distilleries',
   services: [{ id: 'tasting_room', name: 'Tasting room' }, { id: 'tours', name: 'Distillery tours' }],
-  createdBy: { agencyId: 'a', name: 'Agency A' }, clientCount: 1, draftCostUsd: 0.031, categories: ['Distillery'],
+  createdBy: { agencyId: 'a', name: 'Agency A' }, clientCount: 1, draftCostUsd: 0.031, categories: ['Distillery'], citationGroups: ['general', 'dental_health'],
   evidence: { areas: [{ name: 'Tasting room', quote: 'Tasting room open Thursday' }] },
   detail: { audienceNoun: 'guests', seedKeywords: ['distillery tour'], primaryCategories: ['Distillery'], relatedCategories: [], topics: ['Tour quality'], areas: [{ id: 'tasting_room', name: 'Tasting room', aliases: ['tastings'] }, { id: 'tours', name: 'Distillery tours', aliases: [] }] },
 };
@@ -25,6 +25,23 @@ function setup(over: Partial<React.ComponentProps<typeof CatalogQueue>> = {}) {
 }
 
 describe('CatalogQueue', () => {
+  it('shows the directory groups checked from data and posts the picked ones', async () => {
+    const action = setup();
+    const box = (n: string) => screen.getByRole('checkbox', { name: n }) as HTMLInputElement;
+    expect([box('General directories').checked, box('Home services').checked, box('Dental and health').checked]).toEqual([true, false, true]);
+    expect(screen.getByRole('group', { name: 'Directories to check' })).toBeTruthy();
+    fireEvent.click(box('Home services'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save directories' }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    const fd = action.mock.calls[0]![1];
+    expect([fd.get('intent'), fd.get('id'), fd.getAll('group')]).toEqual(['groups-vertical', 'distillery', ['general', 'home_services', 'dental_health']]);
+  });
+
+  it('hides the directory boxes from read-only viewers', () => {
+    setup({ canEdit: false });
+    expect(screen.queryByRole('checkbox', { name: 'Home services' })).toBeNull();
+  });
+
   it('shows the empty state per section', () => {
     cleanup();
     render(<HelpProvider value={{ audience: 'operator', names: { agency: 'your agency', assistant: 'Sunny' } }}><CatalogQueue verticals={[]} areas={[]} targets={targets} catalogue={targets} defaultMaps={maps} canEdit action={vi.fn()} /></HelpProvider>);

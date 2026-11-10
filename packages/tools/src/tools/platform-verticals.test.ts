@@ -1,7 +1,7 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
 import { ad, gbpPost, capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createCatalog } from '@cs/verticals';
+import { citationCatalogue, createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
@@ -396,5 +396,53 @@ describe('review_vertical / review_business_area / list_catalog_review', () => {
     expect((await fails(call(otherAgencyStaff, 'update_vertical', { verticalId: 'distillery', name: 'A1 HVAC' }))).code).toBe('invalid_input');
     await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'dental', areaMap: { tasting_room: null, bottle_sales: null } });
     expect((await fails(call(staff, 'update_vertical', { verticalId: 'distillery', name: 'Again' }))).code).toBe('permission_denied');
+  });
+});
+
+describe('review_vertical directory groups (18c P11)', () => {
+  const hostsOf = async (id: string) => {
+    const c = createCatalog(() => catalogRows(dbs.service), { ttlMs: 0 });
+    return citationCatalogue(await c.packs(id)).map((d) => d.host);
+  };
+
+const versionOf = async () => (await q<{ version: number }>(sql`select version from vertical where id = 'distillery'`))[0]!.version;
+
+  it('staff picks groups: the assembled catalogue follows, the version bumps and the list shows them', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    const before = await call<{ verticals: { citationGroups: string[] }[] }>(viewer, 'list_catalog_review');
+    expect(before.verticals[0]!.citationGroups).toEqual(['general']);
+    const v0 = await versionOf();
+    const r = await call<{ version: number }>(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: ['general', 'dental_health'] });
+    expect(r.version).toBe(v0 + 1);
+    expect(await versionOf()).toBe(v0 + 1);
+    const hosts = await hostsOf('distillery');
+    expect(hosts).toContain('findadentist.ada.org');
+    expect(hosts).toContain('bbb.org');
+    expect(hosts).not.toContain('angi.com');
+    const after = await call<{ verticals: { citationGroups: string[] }[] }>(viewer, 'list_catalog_review');
+    expect(after.verticals[0]!.citationGroups).toEqual(['general', 'dental_health']);
+  });
+
+  it('approve with groups saves them in the same call', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    const v0 = await versionOf();
+    await call(staff, 'review_vertical', { verticalId: 'distillery', action: 'approve', citationGroups: ['general', 'home_services'] });
+    const [row] = await q<{ status: string; version: number; groups: string[] }>(sql`select status, version, config #> '{citations,groups}' as groups from vertical where id = 'distillery'`);
+    expect(row).toMatchObject({ status: 'reviewed', groups: ['general', 'home_services'] });
+    expect(row!.version).toBe(v0 + 1);
+  });
+
+  it('refuses a viewer, generic, an empty selection and one that passes 15 directories', async () => {
+    await call(adminA, 'create_vertical', distillery);
+    expect((await fails(call(viewer, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: ['general'] }))).code).toBe('permission_denied');
+    expect((await fails(call(staff, 'review_vertical', { verticalId: 'generic', action: 'groups', citationGroups: ['general'] }))).code).toBe('not_found');
+    expect((await fails(call(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: [] }))).code).toBe('invalid_input');
+    expect((await fails(call(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups' }))).code).toBe('invalid_input');
+    const extra = Array.from({ length: 10 }, (_, i) => ({ host: `extra${i}.example.com`, label: `Extra ${i}`, add_listing_url: `https://extra${i}.example.com/add` }));
+    await dbs.owner.execute(sql`update vertical set config = jsonb_set(config, '{citations,directory_groups,home_services}', (config #> '{citations,directory_groups,home_services}') || ${JSON.stringify(extra)}::jsonb) where id = 'generic'`);
+    const v0 = await versionOf();
+    const e = await fails(call(staff, 'review_vertical', { verticalId: 'distillery', action: 'groups', citationGroups: ['general', 'home_services'] }));
+    expect(e).toMatchObject({ code: 'invalid_input', message: 'Pick fewer directory groups (15 directories at most).' });
+    expect(await versionOf()).toBe(v0);
   });
 });
