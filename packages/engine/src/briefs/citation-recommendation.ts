@@ -1,7 +1,7 @@
 import { auditedCompetitors } from '@cs/collectors';
 import { brief, client, type Db, feedback, recommendation } from '@cs/db';
 import { citationCatalogue, type VerticalPack } from '@cs/verticals';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { loadClientRunbook } from '../runbook/store';
 import type { PackLoader } from '../tag/tag-stage';
 import { citationGapFinding } from './self-rules';
@@ -74,9 +74,14 @@ export async function recommendForCitations(
   }
   const cutoff = now.getTime() - CITATION_REC_COOLDOWN_DAYS * 86_400_000;
   const recent = mine.filter((r) => (r.status === 'done' || r.status === 'dismissed') && r.updatedAt.getTime() > cutoff);
-  const auto = recent.length === 0 ? [] : await db.select({ id: feedback.subjectId }).from(feedback).where(and(
-    eq(feedback.subjectType, 'recommendation'), inArray(feedback.subjectId, recent.map((r) => r.id)), eq(feedback.actor, 'system'), eq(feedback.reason, CITATION_REC_CLOSED_REASON)));
-  const autoIds = new Set(auto.map((a) => a.id));
+  // Auto only when the LATEST feedback row is the system close; any later user action means the hold applies.
+  const latest = new Map<string, { actor: string; reason: string | null }>();
+  if (recent.length > 0) {
+    const rows = await db.select({ id: feedback.subjectId, actor: feedback.actor, reason: feedback.reason }).from(feedback)
+      .where(and(eq(feedback.subjectType, 'recommendation'), inArray(feedback.subjectId, recent.map((r) => r.id)))).orderBy(desc(feedback.createdAt), desc(feedback.id));
+    for (const r of rows) if (!latest.has(r.id)) latest.set(r.id, r);
+  }
+  const autoIds = new Set([...latest].filter(([, l]) => l.actor === 'system' && l.reason === CITATION_REC_CLOSED_REASON).map(([id]) => id));
   if (recent.some((r) => !autoIds.has(r.id))) return { outcome: 'skipped', reason: 'recently closed by the owner' };
 
   const version = runbook.plays.find((p) => p.id === finding.playbookId)?.version ?? 0;

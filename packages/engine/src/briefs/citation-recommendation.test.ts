@@ -137,6 +137,20 @@ describe('recommendForCitations', () => {
     expect(await recs()).toHaveLength(2);
   });
 
+  it('an owner acting after the system close starts the hold', async () => {
+    await spBrief('sent');
+    await listings(FOUR);
+    await run();
+    await listings([], ['facebook.com', 'bbb.org']);
+    expect(await run()).toEqual({ outcome: 'closed' });
+    const [r] = await recs();
+    await dbs.owner.update(recommendation).set({ status: 'dismissed', dismissReason: 'not now', updatedAt: ago(10) });
+    await dbs.owner.insert(feedback).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, subjectType: 'recommendation', subjectId: r!.id, kind: 'status', actor: 'user-1', before: { status: 'done' }, after: { status: 'dismissed' }, reason: 'not now' });
+    await listings(FOUR);
+    expect(await run()).toEqual({ outcome: 'skipped', reason: 'recently closed by the owner' });
+    expect(await recs()).toHaveLength(1);
+  });
+
   it('writes nothing for a gap without evidence', async () => {
     await spBrief('sent');
     await listings(FOUR);
