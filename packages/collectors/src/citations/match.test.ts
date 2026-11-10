@@ -30,6 +30,23 @@ describe('nameHit (RF1)', () => {
     expect(nameHit(null, 'ABC Plumbing', 'Dallas')).toBe(false);
     expect(nameHit('', 'ABC Plumbing', 'Dallas')).toBe(false);
   });
+
+  it('qualifier words are generic: a longer qualified listing is not a hit (fix 1)', () => {
+    expect(nameHit('Emergency Plumbing Services in Dallas, TX', 'Dallas Emergency Plumbing', 'Dallas')).toBe(false);
+    expect(nameHit('Texas Plumbing Association', 'Texas Plumbing', 'Dallas')).toBe(false);
+  });
+
+  it('state names and abbreviations are generic (fix 1)', () => {
+    expect(nameHit('Florida Dental Care | Yelp', 'Florida Dental', 'Tampa')).toBe(false);
+    expect(nameHit('TX Plumbing Services - Yelp', 'TX Plumbing', 'Dallas')).toBe(false);
+    expect(nameHit('TX Plumbing - Yelp', 'TX Plumbing', 'Dallas')).toBe(true);
+  });
+
+  it('generic-only name hits the exact head before city stripping (fix 2)', () => {
+    expect(nameHit('Dallas Plumbing - Yelp', 'Dallas Plumbing', 'Dallas')).toBe(true);
+    expect(nameHit('Plumbing - Dallas, TX - Yelp', 'Dallas Plumbing', 'Dallas')).toBe(false);
+    expect(nameHit('Plumbing | Angi', 'Dallas Plumbing', 'Dallas')).toBe(false);
+  });
 });
 
 describe('phone helpers (RF2)', () => {
@@ -50,6 +67,16 @@ describe('phone helpers (RF2)', () => {
 
   it('phone10 rejects numbers without an area code', () => {
     expect(phone10('555-0101')).toBeNull();
+  });
+
+  it('phone10 applies the [2-9] area-code rule (fix 3)', () => {
+    expect(phone10('1234567890')).toBeNull();
+    expect(phone10('11234567890')).toBeNull();
+  });
+
+  it('usPhones rejects an unformatted number with a trailing dash (fix 3)', () => {
+    expect(usPhones('ref 2145550101-44')).toEqual([]);
+    expect(usPhones('1234567890')).toEqual([]);
   });
 });
 
