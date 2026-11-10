@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use `- [ ]`.
 
-**Goal:** Weekly page-one positions, AI-answer citations and Local Services ad names for each client's rank keywords; confirmed
+**Goal:** (Task 0 ruled AI answers out — spec § Task 0 result.) Weekly page-one positions and Local Services ad names (when Google shows them) for each client's rank keywords; confirmed
 entries/citations become brief lines; a "Google search" section on Rankings; "Cited in AI answers" scorecard column.
 **Architecture:** The 13b `rank-scan` job calls the live organic endpoint once per keyword after the map grid; results go to a new
 tenant-private `serp_snapshot`; `diffRankScan` also runs `diffSerp` (two-scan confirm) → `rank_change` with `details.surface`.
@@ -54,14 +54,14 @@ Spec E1–E10. Task 0 applies E3 as a ruling (no stop) unless live price > $0.00
 **Interfaces:** `serpSearch`, `parseSerp`, `SerpResult`, `SERP_CALL_USD` as spec.
 **Behaviour:** VendorError per keyword → log, skip; no snapshot row; map scan status unaffected. Evidence `source 'google_search'`. `estimateRankScanUsd` += keywords × `SERP_CALL_USD` (Scan now availability uses the same estimate).
 **Follow pattern:** `rankings/scan.ts` grid loop and evidence; `gbp/posts.ts` parse style.
-**Tests (first):** `parseSerp` on the fixture (≤ 10 organic, ranks, AI answer present + reference domains, local services names); no `ai_overview` item → `{present:false}`; scan writes one snapshot per keyword; a throwing keyword leaves the scan `done` with the other snapshots; budget estimate includes search cost.
+**Tests (first):** `parseSerp` on a live-shaped fixture (≤ 10 organic with ranks/domains; `local_services` names when present, null when absent); scan writes one snapshot per keyword; a throwing keyword leaves the scan `done` with the other snapshots; budget estimate includes search cost.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/rankings` green; tsc.
 
 ### Task 3: Differ, summaries, scoring
-**Goal:** confirmed page-one entries/exits and AI-answer citations → `rank_change` with `surface`.
+**Goal:** confirmed page-one entries/exits → `rank_change` with `surface 'organic'` (AI-answer parts dropped by Task 0).
 **Interfaces:** `diffSerp(tx, scanId): Promise<StructuredChange[]>` called from `diffRankScan`; details per spec.
 **Behaviour:** spec § Differ (3 scans, same `rankSettingsKey`, `s0 == s1 != s2`, null AI answer skips). Summaries exactly as § Copy. `sizeFactor` hook (E7).
-**Tests (first):** rival in top 10 on scans 2 and 3 but not 1 → one `entered` change with position; only one scan in → nothing; keyword changed between scans → nothing; cited twice after not cited → `cited`; middle scan `ai_overview` null → nothing; a failed search (no snapshot) in the series → series uses the 3 newest scans that have one; self is never a change subject; scoring: entered ≈ 50 → brief, left ≈ 30 → archive, never alert; map rank_change scores unchanged.
+**Tests (first):** rival in top 10 on scans 2 and 3 but not 1 → one `entered` change with position; only one scan in → nothing; keyword changed between scans → nothing; a failed search (no snapshot) in the series → series uses the 3 newest scans that have one; self is never a change subject; scoring: entered ≈ 50 → brief, left ≈ 30 → archive, never alert; map rank_change scores unchanged.
 **Done when:** `pnpm --filter @cs/engine exec vitest run src/structured/serp.test.ts src/structured/rank.test.ts src/score src/tag` green.
 
 ### Task 4: Tool + Rankings section + help
@@ -70,7 +70,7 @@ Spec E1–E10. Task 0 applies E3 as a ruling (no stop) unless live price > $0.00
 **Tests (first):** tool returns the shape for a seeded scan; out-of-scope client → `not_found`; isolation fixture passes; page test renders section, empty state and "no AI answer" note; copy strings match.
 **Done when:** `pnpm --filter @cs/tools exec vitest run src/tools/rankings src/isolation`, web page tests, `pnpm --filter web exec tsc --noEmit`, `pnpm design:lint` green.
 
-### Task 5: Scorecard "Cited in AI answers" (skip if Task 0 ruled AI answers out)
+### Task 5: SKIPPED (Task 0: AI answers on 0 of 9 runs) — was: Scorecard "Cited in AI answers"
 **Goal:** row metric `aiCited` (count, null rules per E8), label "Cited in AI answers", email short header "AI" + key line.
 **Behaviour:** pattern of 18b-1 Task 8 (`googlePosts30d`): append to `COLUMNS`, preprocess default null for old scorecards, evidence = the latest search captures, within the cap.
 **Tests (first):** you 2 / rival 0 / rival without domain null / no AI answer loaded null; old scorecard parses; email/PDF/web render header + not-measured mark.

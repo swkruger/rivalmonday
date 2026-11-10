@@ -12,11 +12,14 @@ centre, and shows which businesses Google lists in **Local Services ads** for th
 **Anti-goals:** no event from one volatile scan (two-scan confirm); no cross-client data (tenant-private, like 13b); no fuzzy name
 matching that could pin a wrong rival; client text says "Google search" / "AI answer" / "Local Services ads", never the vendor.
 
+## Task 0 result (2026-11-10, live, $0.018)
+10 live calls (5 dental keywords SW Austin, 5 HVAC keywords Granbury TX; one failed, no charge): **AI answer on 0 of 9**, **Local Services block on 0 of 9**, organic 8–9 results per page, **$0.002 per call** (AI-answer surcharge refunded when absent). Rulings: E3 applied — **E6 and E8 dropped**, the `load_async_ai_overview` flag is not sent, `serp_snapshot.ai_overview` is dropped; E9 kept as free storage, shown only when present. Backlog: re-probe AI answers quarterly.
+
 ## Decisions (owner chose "as recommended" for 18b; controller applied the research recommendations)
 | # | Decision |
 |---|---|
 | E1 | **Keywords & place:** `rankKeywordsFor(client)` (≤ 5) at `client.serviceArea.center`, `location_coordinate "lat,lng,<radius m>"` (radius = `rankRadiusKm` × 1000, clamped 199–199999), desktop, depth **10** (page one only). |
-| E2 | **Runs inside the weekly rank scan** (Sun 06:00 UTC `rank-scan` job and "Scan now"), after the map grid, via the **live** organic advanced endpoint (`/serp/google/organic/live/advanced`) — no new queue, no vendor_task schema change. One call per keyword with `load_async_ai_overview: true`. A failed keyword is skipped and counted; it never fails the map scan. Same cap/budget path: `estimateRankScanUsd` adds the search cost. |
+| E2 | **Runs inside the weekly rank scan** (Sun 06:00 UTC `rank-scan` job and "Scan now"), after the map grid, via the **live** organic advanced endpoint (`/serp/google/organic/live/advanced`) — no new queue, no vendor_task schema change. One call per keyword (no AI-answer flag, Task 0). A failed keyword is skipped and counted; it never fails the map scan. Same cap/budget path: `estimateRankScanUsd` adds the search cost. |
 | E3 | **Task 0 probe (≤ $0.05):** sandbox shape, then live for the 5 keywords of 1–2 cs_dev clients. Record AI-answer presence rate, live price per call, and the Local Services block title. **If AI answers appear on < 30 % of keyword runs, AI-answer events (E6) and the scorecard column (E8) are dropped** (ruling, no stop); organic and Local Services still ship. |
 | E4 | **Storage:** new tenant-private table `serp_snapshot` (one row per scan × keyword) linked to `rank_scan`; raw JSON → evidence via `recordVendorCapture` (`source 'google_search'`, filed under the client's self competitor as 13b does). |
 | E5 | **Organic events:** reuse `rank_change` with `details.surface 'organic'`, `blockKey 'serp:<keyword>'`, one change per rival (domain match only — `competitorMatcher` domain branch). Emitted when a rival **enters** or **leaves** page one, confirmed by the two newest scans agreeing and differing from the scan before them. Moves within page one are not events. |
@@ -27,6 +30,8 @@ matching that could pin a wrong rival; client text says "Google search" / "AI an
 | E10 | **One web read tool** `get_search_visibility` (tenant-private, `ISOLATION_FIXTURES` entry, `not_found` for an out-of-scope client) feeding a new **"Google search"** section on the client Rankings page and Friday/MCP. |
 
 ## Interfaces (binding)
+**Task 0 override:** omit every AI-answer field, event, flag, copy string and scorecard column below (`aiOverview`, `aiAnswer`, `surface 'ai_overview'`, `cited`/`dropped`, "Cited in AI answers"). Organic and Local Services parts stand.
+
 
 ### Migration `serp_snapshot` (next free number)
 ```sql
@@ -38,7 +43,6 @@ CREATE TABLE serp_snapshot (
   capture_id uuid REFERENCES capture(id),
   captured_at timestamptz NOT NULL,
   organic jsonb NOT NULL,          -- [{ rank, domain, url, title }] top 10
-  ai_overview jsonb,               -- { present: boolean, references: [{ domain, url, title }] } | null (not loaded)
   local_services jsonb,            -- { title, providers: [{ name, rating, votes }] } | null
   CONSTRAINT serp_snapshot_scan_keyword_unique UNIQUE (scan_id, keyword),
   FOREIGN KEY (client_id, agency_id) REFERENCES client(id, agency_id) ON DELETE CASCADE
@@ -79,7 +83,7 @@ Input `{ clientId }`. Output per keyword: `{ keyword, scannedAt, organic: [{ ran
 - Help: one section in the Rankings guide (`docs/help/pages/client.rankings*.md`) explaining the three blocks; no vendor.
 
 ## Cost
-≈ 5 × live price (expected ≈ $0.002–0.003 incl. AI answer) ≈ **$0.01–0.015 per client per week**; Task 0 confirms. Scan now (≤ 1/client/7 d) adds the same.
+5 × $0.002 = **$0.01 per client per week** (measured). Scan now (≤ 1/client/7 d) adds the same.
 
 ## Left to the builder
 Exact parse of live item fields (Task 0), web layout inside the existing design system (section, table, `NumberMarker` not used), test fixtures.
