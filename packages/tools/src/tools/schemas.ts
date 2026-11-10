@@ -460,6 +460,8 @@ export const SearchVisibilityView = z.object({
     organic: z.array(z.object({ rank: z.number().int(), name: z.string(), domain: z.string().nullable(), self: z.boolean(), competitorId: uuid.nullable() })),
     /** Local Services ads Google showed for the search; null when none. Names as Google shows them, never matched to rivals. */
     localServicesAds: z.object({ names: z.array(z.string()) }).nullable(),
+    /** The search's evidence (its captured result page) to cite for these positions; empty when none was captured. */
+    evidenceIds: z.array(z.string().uuid()),
   })),
 });
 export type SearchVisibilityView = z.infer<typeof SearchVisibilityView>;

@@ -286,7 +286,8 @@ export const getSearchVisibility = defineTool({
   name: 'get_search_visibility',
   access: 'read',
   description: "Page one of Google (the top organic results) for each of the client's rank keywords at the service-area centre, from the latest weekly scan with search results. "
-    + 'Each result names you, a tracked competitor (competitorId) or the result title; localServicesAds lists the Local Services ads Google showed, when any. Empty before the first scan.',
+    + 'Each result names you, a tracked competitor (competitorId) or the result title; localServicesAds lists the Local Services ads Google showed, when any. '
+    + "Each keyword's evidenceIds are the evidence to cite for its positions. Empty before the first scan.",
   input: z.object({ clientId: uuid }),
   output: SearchVisibilityView,
   permission: 'read',
@@ -301,13 +302,19 @@ export const getSearchVisibility = defineTool({
           .where(isDone(input.clientId)).orderBy(...newestFirst).limit(1);
         return Promise.all([
           trackedRows(tx, input.clientId),
-          tx.select({ keyword: serpSnapshot.keyword, capturedAt: serpSnapshot.capturedAt, organic: serpSnapshot.organic, localServices: serpSnapshot.localServices })
+          tx.select({ keyword: serpSnapshot.keyword, capturedAt: serpSnapshot.capturedAt, organic: serpSnapshot.organic, localServices: serpSnapshot.localServices, captureId: serpSnapshot.captureId })
             .from(serpSnapshot).where(and(eq(serpSnapshot.clientId, input.clientId), inArray(serpSnapshot.scanId, latest))),
         ]);
       }),
     ]);
     if (rows.length === 0) return { keywords: [] };
-    const list = await workspaceBusinesses(deps, ctx, c, tracked);
+    // The snapshot (and so its capture id) was read through RLS above; `evidence` is a global table. Read beside the
+    // business list (no extra stage).
+    const captureIds = [...new Set(rows.map((r) => r.captureId).filter((x): x is string => x !== null))];
+    const [list, evRows] = await Promise.all([
+      workspaceBusinesses(deps, ctx, c, tracked),
+      captureIds.length ? deps.service.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, captureIds)) : Promise.resolve([]),
+    ]);
     // A business is matched by its own (non-shared) domain only: a result on facebook.com is never a rival stored with that host.
     const owners = list.map((b) => ({ b, host: normalizeDomain(b.domain) })).filter((o): o is { b: typeof o.b; host: string } => o.host !== null && !isSharedHost(o.host));
     const names = list.map((b) => b.name);
@@ -325,6 +332,7 @@ export const getSearchVisibility = defineTool({
         scannedAt: r.capturedAt.toISOString(),
         organic: [...r.organic].sort((a, b) => a.rank - b.rank).map((o) => ({ rank: o.rank, domain: o.domain, ...nameOf(o) })),
         localServicesAds: r.localServices && r.localServices.providers.length > 0 ? { names: r.localServices.providers.map((p) => forChannel(meta, p.name, names)) } : null,
+        evidenceIds: r.captureId ? evRows.filter((e) => e.captureId === r.captureId).map((e) => e.id).slice(0, 1) : [],
       })),
     };
   },

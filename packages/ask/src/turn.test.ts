@@ -10,6 +10,7 @@ import { buildSystemPrompt } from './prompt';
 import { ASK_COPY, beginTurn } from './quota';
 import { createScriptedAskAi, type ScriptedStep } from './testing';
 import { actionAllowed } from './actions';
+import { progressLabel } from './labels';
 import { type AskDeps, type AskEvent, type AskTrace, ASK_GUARD_QUESTIONS, ASK_TURN_BUDGET_USD, runTurn } from './turn';
 
 const dbs = openTestDbs();
@@ -172,6 +173,19 @@ describe('runTurn app citations', () => {
     ]);
     expect(last).toMatchObject({ status: 'ok', content: `Acme had 2 changes this month [app:${ROW}].` });
     expect(last.citations).toEqual([`app:${ROW}@/c/${IDS.clientA1}/changes?event=${ROW}`]);
+  });
+});
+
+describe('runTurn Google search positions (18b-2)', () => {
+  it("a keyword's evidenceIds (get_search_visibility shape) ground a cited position; the progress label names no vendor", async () => {
+    searchResult = () => ({ keywords: [{ keyword: 'ac repair', scannedAt: '2026-11-08T06:00:00.000Z', localServicesAds: null, evidenceIds: [EV1],
+      organic: [{ rank: 3, name: 'Acme', domain: 'acme.example', self: false, competitorId: null }] }] });
+    const { last } = await turn([
+      { kind: 'chat', reply: { toolCalls: [search] } },
+      { kind: 'chat', reply: { text: `Acme is at position 3 on Google for "ac repair" [ev:${EV1}].` } },
+    ]);
+    expect(last).toMatchObject({ status: 'ok', content: `Acme is at position 3 on Google for "ac repair" [ev:${EV1}].`, citations: [`ev:${EV1}`] });
+    expect(progressLabel('get_search_visibility')).toBe('Checking Google search results…');
   });
 });
 

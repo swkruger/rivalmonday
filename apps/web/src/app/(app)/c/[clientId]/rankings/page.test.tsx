@@ -113,11 +113,11 @@ describe('RankingsPage', () => {
 
       it('lists page one per keyword, highlights you and names Local Services ads only when shown', async () => {
         searchView = { keywords: [
-          { keyword: 'ac repair', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: { names: ['Pro Air', 'Fast HVAC'] }, organic: [
+          { keyword: 'ac repair', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: { names: ['Pro Air', 'Fast HVAC'] }, evidenceIds: [], organic: [
             { rank: 1, name: 'Smith HVAC', domain: 'smithhvac.com', self: false, competitorId: 'x' },
             { rank: 2, name: 'Cool Air', domain: 'coolair.com', self: true, competitorId: null },
           ] },
-          { keyword: 'plumber', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: null, organic: [{ rank: 1, name: 'Random Co', domain: null, self: false, competitorId: null }] },
+          { keyword: 'plumber', scannedAt: '2026-10-19T02:00:00.000Z', localServicesAds: null, evidenceIds: [], organic: [{ rank: 1, name: 'Random Co', domain: null, self: false, competitorId: null }] },
         ] };
         mount();
         await render5();

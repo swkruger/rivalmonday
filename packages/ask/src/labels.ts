@@ -20,6 +20,7 @@ const LABELS: Readonly<Record<string, string>> = {
   get_geogrid: 'Checking local rankings…',
   get_share_of_voice: 'Measuring share of voice…',
   get_rank_trend: 'Checking the ranking trend…',
+  get_search_visibility: 'Checking Google search results…',
   list_moves: 'Looking at competitor moves…',
   get_move: 'Reading a competitor move…',
   list_briefs: 'Looking at briefs…',

@@ -301,8 +301,8 @@ describe('launch-gate 6b: scan lists and their snapshots agree', () => {
 
 describe('get_search_visibility (18b-2)', () => {
   const org = (rank: number, domain: string | null, title: string | null = `Result ${rank}`): SerpOrganicItem => ({ rank, domain, url: domain ? `https://${domain}/` : null, title });
-  async function snap(scanId: string, keyword: string, organic: SerpOrganicItem[], localServices: SerpLocalServices | null = null, at = ago(2)) {
-    await dbs.owner.insert(serpSnapshot).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId, keyword, capturedAt: at, organic, localServices });
+  async function snap(scanId: string, keyword: string, organic: SerpOrganicItem[], localServices: SerpLocalServices | null = null, at = ago(2), captureId: string | null = null) {
+    await dbs.owner.insert(serpSnapshot).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, scanId, keyword, capturedAt: at, organic, localServices, captureId });
   }
   const call = (c = am) => registry.invoke(c, 'get_search_visibility', { clientId: IDS.clientA1 }) as Promise<SearchVisibilityView>;
 
@@ -337,6 +337,18 @@ describe('get_search_visibility (18b-2)', () => {
     ]);
     expect(ac.localServicesAds).toEqual({ names: ['Pro Air', 'Fast HVAC'] });
     expect(r.keywords[1]!.localServicesAds).toBeNull();
+  });
+
+  it("each keyword cites its search's evidence (Ask keeps cited Google positions)", async () => {
+    await setupClient();
+    const self = (await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA1)))[0]!.id!;
+    const cap = await seedCapture({ competitorId: self, source: 'google_search', kinds: ['vendor_json'] });
+    const scan = await seedRankScan({ finishedAt: ago(2), snapshots: [] });
+    await snap(scan, 'ac repair', [org(1, 'random.net')], null, ago(2), cap.captureId);
+    await snap(scan, 'plumber', [org(1, 'random.net')]);
+    const r = (await registry.invoke(am, 'get_search_visibility', { clientId: IDS.clientA1 }, { channel: 'ask' })) as SearchVisibilityView;
+    expect(r.keywords.map((k) => [k.keyword, k.evidenceIds])).toEqual([['ac repair', [cap.ids.vendor_json]], ['plumber', []]]);
+    expect(await registry.invoke(owner, 'get_evidence', { clientId: IDS.clientA1, evidenceId: cap.ids.vendor_json! })).toMatchObject({ evidenceId: cap.ids.vendor_json });
   });
 
   it('never reads a result on a shared host as the rival whose stored domain is that host', async () => {
