@@ -37,10 +37,11 @@ None (no other unmerged branches at 2026-11-10). Re-check `git branch --no-merge
 
 ## Review focus
 1. A post with no vendor id whose text is edited → new hash → reported as a new post; acceptable, but the old row must not keep an open price span forever (ended when unlisted).
-2. Empty or failed posts task (40102 / vendor error) must not end every post's price span or emit "removed" anything.
-3. Old observations without `totalPhotos`/`bookOnlineUrl` must produce no booking/photo change on the first post-deploy pull.
-4. Attribute lists that flicker between pulls (one pull drops a group) must not emit removed/added pairs (held two captures; a pull without `attributes` says nothing).
-5. `gbp_post_id` price rows must not break the catalog merge, the price matrix "lowest" maths, or `price_point_subject_check` for existing web/ad rows.
+2. A brief rendered from a pre-18b stored scorecard (no `googlePosts30d`) must still render (Task 8 test).
+3. Empty or failed posts task (40102 / vendor error) must not end every post's price span or emit "removed" anything.
+4. Old observations without `totalPhotos`/`bookOnlineUrl` must produce no booking/photo change on the first post-deploy pull.
+5. Attribute lists that flicker between pulls (one pull drops a group) must not emit removed/added pairs (held two captures; a pull without `attributes` says nothing).
+6. `gbp_post_id` price rows must not break the catalog merge, the price matrix "lowest" maths, or `price_point_subject_check` for existing web/ad rows.
 
 ---
 
@@ -82,12 +83,12 @@ capture with `url 'gbp:posts'`, N observations `kind 'gbp_post'`, upserts rows; 
 
 ### Task 3: Worker wiring
 **Goal:** `gbp_posts` sources are posted in batch and collected on the vendor poll.
-**Files:** `apps/worker/src/jobs/vendor.ts` (+ test); `packages/collectors/src/sources/ensure.ts` unchanged (default = all kinds).
+**Files:** `apps/worker/src/jobs/vendor.ts` (+ test); `packages/collectors/src/local/self.ts` (`SELF_SOURCES` + `'gbp_posts'`), `sources/due.ts` (self literal + comment) (+ `due.test.ts`).
 **Behaviour:** add `'gbp_posts'` to the batch set; claimed rows → load `place_id/cid` → `postGbpPostTasks`; whole-batch `VendorError` →
 `releaseSources(…, 'post_failed')`; skipped competitors → `markSourceResult(…, 'skipped')`; `collectReadyGbpPosts` runs beside `collectReadyJobs`
 and its counts join the `[vendor-poll]` log line.
 **Tests (first):** vendor job test — a due `gbp_posts` source posts one task with the competitor tag; a thrown `VendorError` releases it to due-now;
-a competitor without place/cid is marked `skipped`; the poll calls `collectReadyGbpPosts`.
+a competitor without place/cid is marked `skipped`; the poll calls `collectReadyGbpPosts`; `claimDueSources` claims a self business's `gbp_posts` row (active client) and not a prospect's.
 **Done when:** `pnpm --filter @cs/worker exec vitest run src/jobs/vendor.test.ts` green.
 
 ### Task 4: Posts differ + summaries
@@ -97,7 +98,7 @@ a competitor without place/cid is marked `skipped`; the poll calls `collectReady
 **Interfaces:** `diffGbpPosts: SourceDiffer`; `POST_MAX_AGE_DAYS = 21`; `POST_MAX_SINGLE = 5`; details per spec.
 **Behaviour:** spec § Differ. Offer = `post.offer || pricesInBlock(text).length > 0 || PROMO.test(text)`. `diffGbp` keeps ignoring `url 'gbp:posts'` captures.
 **Tests (first):** first posts capture → `[]` (baseline handled by `diffVendorCapture`; assert via `diffVendorCapture`); a post seen before → no change;
-new "Spring tune-up $79" → `promo`; new "We're hiring!" plain → `content`; post dated 30 days before capture → skipped; 7 new posts → 5 singles + 1
+new "Spring tune-up $79" → `promo`; a self-only competitor's new post → `[]`; new "We're hiring!" plain → `content`; post dated 30 days before capture → skipped; 7 new posts → 5 singles + 1
 `gbp_post:more` with `count 2`; a GBP-info capture still goes to `diffGbp`; summaries equal the spec strings (e.g. `Posted an offer on Google: "Spring tune-up $79"`).
 **Done when:** `pnpm --filter @cs/engine exec vitest run src/structured/gbp-posts.test.ts src/structured/vendor-diff.test.ts src/tag` green.
 
@@ -141,7 +142,19 @@ merge test with a post-sourced span dedupes like an ad span; web component test 
 **Done when:** `pnpm --filter @cs/engine exec vitest run src/prices`, `pnpm --filter @cs/tools exec vitest run src/tools/pricing src/catalog`,
 `pnpm --filter web exec tsc --noEmit`, `pnpm design:lint` (if present) green; `pnpm copy:status` lists the new strings as unsigned.
 
+### Task 8: Scorecard posts metric (D9)
+**Goal:** "Google posts (30 days)" column, you vs each rival, in the brief scorecard.
+**Files:** `packages/engine/src/briefs/scorecard.ts` (+ test), `packages/engine/src/structured/gbp-posts.ts` (`postCounts30d`), every scorecard row
+renderer (grep `metaAdsActive` in `packages/email`, `packages/engine/src/briefs` PDF, `apps/web` brief page) + their label maps.
+**Interfaces:** `ScorecardMetric` + `'googlePosts30d'`; `postCounts30d(db: Db, competitorIds: string[], now: Date): Promise<Map<string, number | null>>`
+(null when the business has no ok `url 'gbp:posts'` capture; count of `gbp_post` with `coalesce(posted_at, first_seen_at) >= now − 30 d`).
+**Behaviour:** rows only (tiles unchanged, length 4); evidence of the newest posts capture per business added after GBP evidence, within `SCORECARD_EVIDENCE_CAP`;
+a stored scorecard without the key still parses and renders (column shows not-measured).
+**Tests (first):** you 3 / rival 0 / unchecked rival null; a post 31 days old not counted; null `posted_at` counted by `first_seen_at`; old stored scorecard JSON
+(no `googlePosts30d`) parses; email/PDF/web renderers show "Google posts (30 days)" with the not-measured mark for null.
+**Done when:** `pnpm --filter @cs/engine exec vitest run src/briefs` + the touched email/web tests green; `pnpm --filter @cs/email` previews render.
+
 ### Final review (controller)
 `pnpm test:affected` + `pnpm e2e:affected` once; top-model whole-branch review; one fix wave. Work file: owner steps (migrate 0105 → deploy worker
-then web; first posts pull on staging; check one `promo` post and a "From a Google post" price; `pnpm copy:review`). Backlog: self posts (D3), Q&A,
+then web; first posts pull on staging; check one `promo` post and a "From a Google post" price; `pnpm copy:review`). Backlog: Q&A,
 News, Tripadvisor/Trustpilot (18d), 18b-2 spec.

@@ -4,10 +4,10 @@
 **Plan/spec:** [spec 18b-1](../superpowers/specs/2026-11-10-phase-18b1-gbp-posts-design.md) · [plan 18b-1](../superpowers/plans/2026-11-10-phase-18b1-gbp-posts.md) (no roadmap row; add one at merge)
 
 ## Status (overwrite)
-18b-1 spec + lean plan written 2026-11-10; awaiting owner approval. 18b-2 (organic/AI Overview/LSA) not started.
+18b-1 plan **owner-approved 2026-11-10** (incl. Task 0 live probe ≤ $0.05). Execution starting at Task 0.
 
 ## Next (overwrite)
-Owner approves the 18b-1 plan → Task 0 (pre-flight + vendor probe, stop point) → subagent-driven development.
+Task 0 (pre-flight + vendor probe, stop point) → SDD Tasks 1–8 → final review.
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
@@ -16,7 +16,7 @@ None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
 None (`git branch --no-merged main` lists only `phase-18b`).
 
 ## Decisions (owner-approved)
-2026-11-10: owner chose the brief's recommendations (§6 Q1–Q7 option A/rec). Spec D1–D8; D3 (rivals only, no self posts) is the controller's narrowing.
+2026-11-10: owner chose the brief's recommendations (§6 Q1–Q7 option A/rec). Spec D1–D8; Owner added (2026-11-10): self posts are collected and the brief scorecard shows "Google posts (30 days)" you vs rivals (D3 reversed, D9).
 
 ## New backlog (target → item)
 None yet.

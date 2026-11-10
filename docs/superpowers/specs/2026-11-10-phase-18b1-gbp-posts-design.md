@@ -20,7 +20,8 @@ first pull (silent baseline + post-date cutoff); client text never names the ven
 |---|---|
 | D1 | **Split:** 18b-1 = GBP posts/offers + profile leftovers + Task 0 price probe. **18b-2** (later, own spec) = organic SERP + AI Overview (reuse `client.rank_keywords`, Sunday scan) and LSA/Google Guaranteed (badge + brief line only, after a reliable source is shown). Out of 18b: Google Q&A, News, Tripadvisor/Trustpilot (backlog; revisit with 18d). |
 | D2 | **Cadence:** posts pulled **weekly** per tracked rival (new source kind `gbp_posts`, own `competitor_source` row, 7-day `next_due_at`). If the Task 0 probe shows > $0.005/task, stop and ask the owner (fallback: weekly for the Top-rival tier, monthly for others). |
-| D3 | **Rivals only in v1** (my call, narrower than the brief's "plus self"): nothing reads a client's own posts yet. Self posts → backlog with a "posting cadence: you vs rivals" idea. |
+| D3 | **Self posts too (owner, 2026-11-10):** the client's own business is pulled weekly like rivals (`gbp_posts` joins `SELF_SOURCES` and the self literal in `claimDueSources`). Self posts make no events and no prices (the differ and price stage skip a competitor that is only a client's self business, as other self captures do). |
+| D9 | **Posts metric (owner, 2026-11-10):** the brief scorecard gains row metric `googlePosts30d` = Google posts dated (else first seen) in the last 30 days, per business incl. you. `null` until a posts capture exists for that business (never 0). Rows only, not a tile (tiles stay 4). Shown wherever scorecard rows render (app brief, email, PDF); posts captures' evidence joins `evidenceIds`. |
 | D4 | **Posts → events:** a new post is an `offer` post when it carries a vendor offer marker, or `pricesInBlock` finds a price, or its text matches `PROMO` (`engine/src/prices/observe.ts`, the rule that sets `price_point.promo`). Offer → `promo`; other → `content` (pack weight 0.2, so it archives and stays in the feed). Existing change types: **no pack bump**. |
 | D5 | **Post prices → `price_point`** with new FK `gbp_post_id`, tagged **"From a Google post"**. Like ad prices (18a-1 O6), they are **shown, not counted** in a lowest price, a 90-day change or a history, and they count towards the Promo chip. Rules-only extraction (`pricesInBlock`) + `mapPricedTexts` service mapping. |
 | D6 | **Channel:** post captures use `capture.source = 'google_business_profile'` with `capture.url = 'gbp:posts'`, so channel labels, notification preferences and `CHANNELS` are unchanged ("Google Business Profile"). `diffGbp` already filters on `url IS NULL`; the differ dispatches posts captures by url. |
@@ -44,7 +45,7 @@ first pull (silent baseline + post-date cutoff); client text never names the ven
   ```
   `postId` = vendor id if present, else `sha256Hex(url ?? text)` (first 32 hex). Null when there's no id and no text.
 - `SOURCE_KINDS` gains `'gbp_posts'`; `ensureCompetitorSources` creates it for new competitors; the migration backfills rows
-  for existing competitors that have a `gbp` row. `claimDueSources` unchanged (self literal stays `gbp, reviews, ads_google`).
+  for existing competitors (self businesses included) that have a `gbp` row. `SELF_SOURCES` and the `claimDueSources` self literal gain `'gbp_posts'`.
 - Worker `apps/worker/src/jobs/vendor.ts`: `gbp_posts` claimed sources go to `postGbpPostTasks` (batch, like jobs, with
   `releaseSources` on a whole-batch failure); `collectReadyGbpPosts` runs on the same poll as `collectReadyJobs`.
 
@@ -115,12 +116,17 @@ INSERT INTO competitor_source (competitor_id, source)
   photos → `Added <n> photos to its Google profile in <d> days`.
 - `<label>`: humanised attribute name (`has_wheelchair_accessible_entrance` → "wheelchair accessible entrance"; strip leading `has_`/`is_`/`offers_` → "offers" kept as a word). Help glossary: no new term.
 
+### Scorecard (`packages/engine/src/briefs/scorecard.ts`)
+- `ScorecardMetric` gains `'googlePosts30d'`; `Scorecard.rows[].values` must still parse stored scorecards that lack it (use a partial record or a
+  default of `null`; zod 4 enum records are exhaustive). Helper `postCounts30d(db, competitorIds, now): Map<string, number | null>` in `engine/src/structured/gbp-posts.ts`.
+- Column label: **"Google posts (30 days)"**; `null` renders as the existing not-measured mark.
+
 ## Cost
-Expected ≤ $0.005 per post task (unverified) → ≤ 5 rivals ≈ $0.025/client/week on top of ≈ $0.54 today. Leftovers: $0.
+Expected ≤ $0.005 per post task (unverified) → ≤ 5 rivals + you ≈ $0.03/client/week on top of ≈ $0.54 today. Leftovers: $0.
 Task 0: one sandbox call ($0) + one live task on one cs_dev rival (≤ $0.05), reported before anything else is built.
 
 ## Left to the builder
 Exact vendor field names (Task 0), test fixtures, worker poll wiring, label humaniser details.
 
 ## Out / backlog
-Self posts (D3); Q&A; News; Tripadvisor/Trustpilot (with 18d); 18b-2 organic/AI Overview/LSA (own spec).
+Q&A; News; Tripadvisor/Trustpilot (with 18d); 18b-2 organic/AI Overview/LSA (own spec).
