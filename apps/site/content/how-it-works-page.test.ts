@@ -33,7 +33,8 @@ describe('how it works page copy', () => {
     expect(copy).not.toMatch(/\bpilot\b/i);
   });
   it('jump links point at sections on the page', () => {
-    const anchors = new Set<string>([...HOME_ANCHORS, 'guides', ROLES.id, 'faq']);
+    // '/how-it-works' still renders the sample section, which the home page dropped.
+    const anchors = new Set<string>([...HOME_ANCHORS, 'sample', 'guides', ROLES.id, 'faq']);
     for (const l of JUMP_LINKS) expect(anchors.has(l.href.slice(1)), l.href).toBe(true);
   });
 });
