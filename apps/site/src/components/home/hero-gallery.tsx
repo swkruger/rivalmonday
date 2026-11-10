@@ -13,7 +13,7 @@ const srcSet = (s: GallerySlide) => `${s.srcSmall} 720w, ${s.src} 1440w`;
 /**
  * The agency hero's product gallery: five pictures, one at a time. It plays one round (every picture once, ending
  * where it began), then rests for good; a tab choice, Pause, a hold or a load error stops it. Never plays under
- * reduced motion. The opening picture is in the server markup (it is the page's LCP picture).
+ * reduced motion. The opening picture is in the server markup, eager and high priority (first picture on the page; on the phone profile the headline is the LCP element).
  */
 export function HeroGallery({ start = 'dashboard' }: { start?: GallerySlideId }) {
   const slides = GALLERY.slides;
