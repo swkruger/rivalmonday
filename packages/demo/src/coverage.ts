@@ -284,6 +284,15 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
     ],
   },
   { route: '/c/[clientId]/rankings (Brazos)', as: 'admin', calls: [{ tool: 'get_geogrid', input: (ids) => ({ clientId: bz(ids) }), path: 'cells' }] },
+  {
+    route: '/c/[clientId]/listings', as: 'admin', calls: [
+      { tool: 'get_citation_audit', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.listings' },
+      // The rows themselves (every directory reads "Not checked yet" without them) and the one "Also found on" link.
+      { tool: 'get_citation_audit', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.listings.*.listingUrl' },
+      { tool: 'get_citation_audit', input: (ids) => ({ clientId: ls(ids) }), path: 'alsoFoundOn' },
+      lsProfile,
+    ],
+  },
   { route: '/c/[clientId]/recommendations', as: 'admin', calls: [lsProfile, { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }, lsRefs] },
   { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }, lsProfile, lsReports] },
   {
@@ -413,7 +422,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/agency/settings/intake', '/agency/settings/intake/preview', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
   '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/profile',
   '/c/[clientId]/ads', '/c/[clientId]/alerts/[alertId]', '/c/[clientId]/briefs', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/competitors',
-  '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
+  '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/listings', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
   '/c/[clientId]/pricing', '/c/[clientId]/rankings', '/c/[clientId]/recommendations', '/c/[clientId]/reports/[reportId]', '/c/[clientId]/settings/ai',
   '/c/[clientId]/settings/alerts', '/c/[clientId]/settings/billing', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/profile',
   '/c/[clientId]/settings/runbook', '/c/[clientId]/settings/usage', '/c/[clientId]/setup',

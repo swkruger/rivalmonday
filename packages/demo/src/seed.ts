@@ -12,6 +12,7 @@ import { seedBilling } from './billing';
 import { seedClientBilling } from './client-billing';
 import { seedBriefs } from './briefs';
 import { seedChanges } from './changes';
+import { seedCitations } from './citations';
 import { createSeedContext, type SeedContext } from './context';
 import type { DemoIds } from './ids';
 import { seedPlatform } from './platform';
@@ -44,6 +45,7 @@ const STEPS: readonly [string, (ctx: SeedContext) => Promise<void>][] = [
   ['ads', seedAds],
   ['reviews', seedReviews],
   ['rankings', seedRankings],
+  ['directory listings', seedCitations],
   ['briefs, alerts and reports', seedBriefs],
   ['agency', seedAgency],
   ['competitor discovery and ratings', seedRivals],
