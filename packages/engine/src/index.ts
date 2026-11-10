@@ -18,6 +18,7 @@ export * from './structured/gbp';
 export * from './structured/jobs';
 export * from './structured/rank';
 export * from './structured/serp';
+export * from './structured/citations';
 export * from './structured/reviews';
 export * from './events/retract';
 export * from './facts/numeric';

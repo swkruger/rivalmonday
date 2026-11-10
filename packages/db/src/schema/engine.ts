@@ -108,6 +108,9 @@ export interface ChangeDetails {
   /** Phase 18b-1: a new Google post (`field 'post'`): the post id and its public link. */
   postId?: string;
   url?: string | null;
+  /** Phase 18c: a rival newly found on a directory (citation_added): the directory host and its label. */
+  directory?: string;
+  label?: string;
 }
 
 export type MoveStatus = 'emerging' | 'active' | 'fading';
