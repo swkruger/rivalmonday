@@ -17,10 +17,7 @@
 - Built: [ARCHITECTURE.md](ARCHITECTURE.md). Runbooks: [OPS.md](OPS.md), [DEPLOY.md](DEPLOY.md), [STAGING.md](STAGING.md).
 
 ## Next up
-**Owner - phase-18b (merged 2026-11-10):**
-1. **Sign the 18b copy in `pnpm copy:review`** ("From a Google post", post-link label, Pricing + Rankings guide lines, MCP describe texts, post/booking/attribute/photo summaries, "Google posts (30 days)" + email "Posts" key, "Google search" section + "checked every week" sub-line, page-one summaries, neutral "ranking change(s)" label, re-sign `document.brief_report` preview).
-2. Staging migrates 0105-0106 via CI, worker then web; then `pnpm kb:seed` on staging and cs_dev (`pnpm db:migrate` on cs_dev first). Post prices start `POST_PRICE_SINCE` = 2026-11-10 (bump to the prod deploy day before prod if earlier captures should not be priced).
-3. Staging week 1: `vendor_task` kind `google_posts` completes, `gbp_post` rows for rivals + clients (~$0.003/business/week); week 2: an offer post as a brief line, a "From a Google post" price, scorecard posts column filled. Sunday scans: `serp_snapshot` per keyword, Rankings "Google search" filled; first page-one line only after the 3rd scan with unchanged settings.
+**Owner - phase-18b (merged 2026-11-10):** sign the 18b copy in `pnpm copy:review` first; staging `kb:seed` after CI migrates 0105-0106; week 1/2 staging checks — all in BACKLOG § Owner (*phase-18b*). cs_dev migrated + seeded 2026-11-10.
 
 **Owner - phase-18a3 (merged 2026-11-09):**
 1. Sign the new ad-image copy in `pnpm copy:review` (incl. "Image not available" and the pricing "Open the ad image" button label).
