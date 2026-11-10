@@ -5,12 +5,19 @@
 **Plans:** `docs/superpowers/plans/2026-11-10-site-audiences-a-still-site.md` (A, 9 tasks) then `…-b-two-sides.md` (B, 13 tasks)
 
 ## Status (overwrite)
-2026-11-10: spec, copy deck and both lean plans written and committed. **Owner approved both plans 2026-11-10** ("Record plans as approved"), including the calls listed below. No product code yet; `sharp` not yet added (Plan B Task 2). Worktree has `pnpm install` done and its own test DB `cs_site_audiences_test`; nothing uncommitted, no server or background job running.
+2026-11-10: both plans owner-approved. **SDD running, Plan A:** Task 0 (pre-flight) done, baseline green; task progress is in the SDD ledger `.superpowers/sdd/2026-11-10-site-audiences-a-still-site/progress.md`. `sharp` not yet added (Plan B Task 2). Own test DB `cs_site_audiences_test`.
 
 ## Next (overwrite)
 1. New session in this worktree: Plan A Task 0 (pre-flight), then `superpowers:subagent-driven-development`.
 2. SDD: Plan A Tasks 0-8, then Plan B Tasks 0-12 (site E2E once per plan; whole-branch review on the top model after Plan B; one fix wave).
 3. Owner: `pnpm copy:review` for all new and changed lines; then `/rm-merge` on the owner's go-ahead.
+
+## Plan A Task 0 notes (2026-11-10)
+- Baseline before Task 1: `typecheck` clean, `@cs/site` unit tests 55 files / 373 tests green, `design-lint` total 0. Branch 0 behind `main`; `phase-18b` touches none of `apps/site`, `scripts/design-lint.sh`, `packages/copy-review`.
+- Users, so implementers do not grep again: `Reveal` → client-view, checks-diagram, close-band, sample-section, steps. `useCountUp` → dashboard-mock. `useInView` → ad-activity-chart, dashboard-mock, rank-grid. `draw-line` → ad-activity-chart. `grow-bar` → dashboard-mock. `grow-col` → `site.css` only. `live-ping` → section-heading (`ping` prop; one caller, live-counters). `flow-dash` → checks-diagram. `scan-blip`/`scan-sweep` → scan-frame (`blip` prop callers: friday-row, guides/guide-articles). `radar-sweep`/`radar-blip` → hero. `setInterval` → announcement-bar (rotation, goes) and sample/friday-panel (typing after a question, stays). `autoplay`/`autoplayMap` → rank-grid, sample-brief, sample-section, `app/page.tsx`, one e2e step. `opportunityLine`, `PRICING_LINES` → `content/home.ts`, `content.test.ts`, opportunity / commercial, `story.test.tsx`, `sections.test.tsx`. `subNoWeb` → `home.ts`, `content.test.ts`, hero, `hero.test.tsx`. `CAST`, `BEFORE_AFTER` → `home.ts`, their components, `content.test.ts`, `story.test.tsx`.
+- Allowed motion exceptions: none. The only `animate-*` class is `animate-pulse` in checks-diagram, which Task 1 removes.
+- `public/sample/home-counter.webp` stays: a guide (`content/guides.ts`) shows it. Task 4 removes only the home page's use.
+- `site.css` has six `infinite` animations and eight keyframes today; after Tasks 1 and 3 only `reveal-quick`, `sheet-in-right`, `sheet-in-bottom` remain.
 
 ## Interfaces this branch adds or changes
 - Routes: `/` (chooser), `/agencies`, `/business`, `/agencies/pricing`, `/business/pricing`; `/pricing` → permanent redirect to `/agencies/pricing`.
