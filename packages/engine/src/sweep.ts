@@ -4,6 +4,7 @@ import {
   AD_IMAGE_READ_STAGE, AD_IMAGE_READ_VERSION, AD_IMAGE_SINCE, AD_IMAGE_SKIP_FORMATS, AD_IMAGE_SWEEP_MAX, AD_IMAGE_TRIAGE_STAGE, AD_IMAGE_TRIAGE_VERSION, readCapOpenSql, readTwinSql,
 } from './ads/images';
 import { AD_PRICE_SINCE, AD_PRICE_STAGE, AD_PRICE_VERSION } from './prices/ad-price-stage';
+import { POST_PRICE_SINCE, POST_PRICE_STAGE, POST_PRICE_VERSION } from './prices/post-price-stage';
 import { PRICE_STAGE, PRICE_VERSION } from './prices/price-stage';
 import { MIN_REVIEW_CHARS, REVIEW_ANALYSIS_DAYS, REVIEW_STAGE, REVIEW_VERSION } from './reviews/topics';
 import { scoreBackoff } from './score/score-stage';
@@ -25,6 +26,8 @@ export interface EngineWork {
   prices: string[];
   /** Ok `meta_ads` captures from `AD_PRICE_SINCE` for the ad-copy price stage (D5). */
   adPrices: string[];
+  /** Ok Google posts captures (`gbp:posts`) from `POST_PRICE_SINCE` for the post price stage (18b-1 D5). */
+  postPrices: string[];
   /** Ok web captures with a successor capture, for the website-tools stage (18a-2 D4). */
   siteFeatures: string[];
   /** Older analysed reviews with a re-ask gap (15b-3b §5); only when `reviews` is empty. */
@@ -199,6 +202,16 @@ export async function findEngineWork(
       AND NOT ${finished(AD_PRICE_STAGE, AD_PRICE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
+  // Post prices (18b-1 D5): ok Google posts captures since the cutoff, settled (gbp_post rows are written after the capture row), of a competitor some client tracks.
+  const postPrices = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.status = 'ok' AND c.source = 'google_business_profile' AND c.url = 'gbp:posts'
+      AND c.captured_at >= ${POST_PRICE_SINCE.toISOString()}::timestamptz
+      AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND EXISTS (SELECT 1 FROM client_competitor cc WHERE cc.competitor_id = c.competitor_id)
+      AND NOT ${finished(POST_PRICE_STAGE, POST_PRICE_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+
   // Website tools (18a-2 D4): ok web captures of a competitor some client tracks that the page's next ok/unchanged
   // capture can confirm, oldest first so observations build in order. Self businesses are never in client_competitor.
   const siteFeatures = await db.execute(sql`
@@ -247,7 +260,7 @@ export async function findEngineWork(
   }
 
   return {
-    diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices),
+    diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices), postPrices: ids(postPrices),
     siteFeatures: ids(siteFeatures), reask, adImages, adImageReads,
   };
 }

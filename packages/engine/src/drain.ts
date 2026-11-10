@@ -7,6 +7,7 @@ import { readAdImage } from './ads/image-read-stage';
 import { triageAdImage } from './ads/image-triage-stage';
 import { diffCapture } from './diff';
 import { extractAdPrices } from './prices/ad-price-stage';
+import { extractPostPrices } from './prices/post-price-stage';
 import { extractPrices } from './prices/price-stage';
 import { analyzeReview, reaskReview } from './reviews/topics';
 import { scoreEvent } from './score/score-stage';
@@ -26,6 +27,7 @@ export interface DrainResult {
   prices: number;
   /** Meta captures whose ad-copy prices were extracted (D5). */
   adPrices: number;
+  postPrices: number;
   /** Web captures whose website tools were confirmed (18a-2 D4). */
   siteFeatures: number;
   /** Older reviews re-asked at least one missing question (15b-3b §5). */
@@ -43,7 +45,7 @@ export async function drainEngine(
   /** `adImages` (P12): the caller's `WEB_MONITORING_ENABLED === 'true'`; the image lists also need `deps.adMedia`. */
   opts: { competitorId?: string; limit?: number; maxRounds?: number; adImages?: boolean; adImageSince?: Date } = {},
 ): Promise<DrainResult> {
-  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, siteFeatures: 0, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 };
+  const r: DrainResult = { diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, postPrices: 0, siteFeatures: 0, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 };
   const adMedia = deps.adMedia;
   const adImages = Boolean(opts.adImages && adMedia);
   const attempt = async (what: string, fn: () => Promise<void>) => {
@@ -56,7 +58,7 @@ export async function drainEngine(
   };
   for (let round = 0; round < (opts.maxRounds ?? 10); round++) {
     const work = await findEngineWork(deps.db, { limit: opts.limit ?? 100, competitorId: opts.competitorId, adImages, adImageSince: opts.adImageSince });
-    const total = work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.siteFeatures.length
+    const total = work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.postPrices.length + work.siteFeatures.length
       + work.reask.length + work.adImages.length + work.adImageReads.length;
     if (total === 0) break;
     for (const id of work.diff) {
@@ -106,6 +108,11 @@ export async function drainEngine(
     for (const id of work.adPrices) {
       await attempt(`ad prices ${id}`, async () => {
         if ((await extractAdPrices(deps, id)).ran) r.adPrices++;
+      });
+    }
+    for (const id of work.postPrices) {
+      await attempt(`post prices ${id}`, async () => {
+        if ((await extractPostPrices(deps, id)).ran) r.postPrices++;
       });
     }
     for (const id of work.siteFeatures) {

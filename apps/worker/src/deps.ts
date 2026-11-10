@@ -13,7 +13,7 @@ import type { DiscoveryResult } from '@cs/collectors';
 import {
   briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
-  checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -87,6 +87,8 @@ export interface WorkerDeps {
   extractPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   /** D5: ad-copy prices of one Meta capture. */
   extractAdPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
+  /** 18b-1 D5: prices in the Google posts of one posts capture. */
+  extractPostPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   /** 18a-2 D4: website tools of one web capture (rules only); returns the new change ids. */
   detectSiteFeatures(captureId: string): Promise<{ ran: boolean; changes: string[] }>;
   /** 18a-3 R3: `WEB_MONITORING_ENABLED === 'true'` — gates both ad-image sweep lists and jobs. */
@@ -435,6 +437,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     },
     async extractAdPrices(captureId) {
       const r = await runExtractAdPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
+      return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
+    },
+    async extractPostPrices(captureId) {
+      const r = await runExtractPostPrices({ db: getDb(), store: getStore(), ai: await getAi(), packs }, captureId);
       return r.ran ? { ran: true, points: r.result.points, ended: r.result.ended } : { ran: false, points: 0, ended: 0 };
     },
     async detectSiteFeatures(captureId) {

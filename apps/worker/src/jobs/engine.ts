@@ -24,6 +24,7 @@ export function createEngineJobs(
     enqueueReview(reviewId: string): Promise<void>;
     enqueuePrice(captureId: string): Promise<void>;
     enqueueAdPrice(captureId: string): Promise<void>;
+    enqueuePostPrice(captureId: string): Promise<void>;
     enqueueSiteFeatures(captureId: string): Promise<void>;
     enqueueReask(reviewId: string): Promise<void>;
     /** Must use `singletonKey: 'ad-image:<adId>'` (also on a deferred re-send with `startAfter`). */
@@ -53,15 +54,16 @@ export function createEngineJobs(
       for (const id of w.reask) await queue.enqueueReask(id);
       for (const id of w.prices) await queue.enqueuePrice(id);
       for (const id of w.adPrices) await queue.enqueueAdPrice(id);
+      for (const id of w.postPrices) await queue.enqueuePostPrice(id);
       for (const id of w.siteFeatures) await queue.enqueueSiteFeatures(id);
       // R3: both image lists are empty unless WEB_MONITORING_ENABLED is 'true' (deps.findEngineWork passes the switch).
       for (const id of w.adImages) await queue.enqueueAdImage(id);
       for (const id of w.adImageReads) await queue.enqueueAdImageRead(id);
-      const total = w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length + w.siteFeatures.length
+      const total = w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length + w.postPrices.length + w.siteFeatures.length
         + w.adImages.length + w.adImageReads.length;
       if (total > 0)
         workerLog.info(
-          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}, site features ${w.siteFeatures.length}, ad image ${w.adImages.length}, ad image read ${w.adImageReads.length}`,
+          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}, post price ${w.postPrices.length}, site features ${w.siteFeatures.length}, ad image ${w.adImages.length}, ad image read ${w.adImageReads.length}`,
         );
     },
   });
@@ -121,6 +123,13 @@ export function createEngineJobs(
       if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-ad-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
     },
   });
+  const postPrice = defineJob({
+    name: 'engine-post-price', usesAi: true, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    handler: async ({ captureId }) => {
+      const r = await deps.extractPostPrices(captureId);
+      if (r.ran && r.points + r.ended > 0) workerLog.info(`[engine-post-price] ${captureId} → ${r.points} new, ${r.ended} ended`);
+    },
+  });
   // Rules only (no model call): website tools of one web capture, confirmed by the page's next capture (18a-2 D4).
   const siteFeatures = defineJob({
     name: 'engine-site-features', usesAi: false, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
@@ -155,5 +164,5 @@ export function createEngineJobs(
       if (r.status === 'ran') workerLog.info(`[engine-ad-image-read] ${adImageId} → ${r.readStatus} (${r.points ?? 0} price(s))`);
     },
   });
-  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice, siteFeatures, adImage, adImageRead };
+  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice, postPrice, siteFeatures, adImage, adImageRead };
 }

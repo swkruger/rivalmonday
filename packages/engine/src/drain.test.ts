@@ -30,10 +30,10 @@ describe('drainEngine', () => {
     // The first capture has a successor, so site_features baselines it (no tools in the fixtures, no change).
     // The HVAC fixtures each have one priced block (the AC tune-up), so the drain also runs price_extract
     // on both captures: $89 opens a span, then $69 ends it and opens a new one (2 price points).
-    expect(await drainEngine(deps)).toEqual({ diffs: 2, changes: 1, tagged: 1, events: 1, scored: 2, rankDiffs: 0, reviews: 0, prices: 2, adPrices: 0, siteFeatures: 1, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 });
+    expect(await drainEngine(deps)).toEqual({ diffs: 2, changes: 1, tagged: 1, events: 1, scored: 2, rankDiffs: 0, reviews: 0, prices: 2, adPrices: 0, postPrices: 0, siteFeatures: 1, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 });
     expect(await dbs.owner.select().from(changeEvent)).toHaveLength(1);
     expect(await dbs.owner.select().from(eventScore)).toHaveLength(2);
-    expect(await drainEngine(deps)).toEqual({ diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, siteFeatures: 0, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 });
+    expect(await drainEngine(deps)).toEqual({ diffs: 0, changes: 0, tagged: 0, events: 0, scored: 0, rankDiffs: 0, reviews: 0, prices: 0, adPrices: 0, postPrices: 0, siteFeatures: 0, reasked: 0, adImages: 0, adImageReads: 0, errors: 0 });
   });
 
   it('counts errors and keeps going when tagging fails, then backs off instead of retrying immediately', async () => {

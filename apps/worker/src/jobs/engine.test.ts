@@ -11,6 +11,7 @@ const queue = () => ({
   enqueueReview: vi.fn(async (_id: string) => {}),
   enqueuePrice: vi.fn(async (_id: string) => {}),
   enqueueAdPrice: vi.fn(async (_id: string) => {}),
+  enqueuePostPrice: vi.fn(async (_id: string) => {}),
   enqueueSiteFeatures: vi.fn(async (_id: string) => {}),
   enqueueReask: vi.fn(async (_id: string) => {}),
   enqueueAdImage: vi.fn(async (_id: string, _startAfterSeconds?: number) => {}),
@@ -21,7 +22,7 @@ describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], siteFeatures: [U(10)], reask: [U(7)], adImages: [U(11)], adImageReads: [U(12)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], postPrices: [U(9)], siteFeatures: [U(10)], reask: [U(7)], adImages: [U(11)], adImageReads: [U(12)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -31,6 +32,7 @@ describe('engine jobs', () => {
     expect(q.enqueueReview.mock.calls).toEqual([[U(5)]]);
     expect(q.enqueuePrice.mock.calls).toEqual([[U(6)]]);
     expect(q.enqueueAdPrice.mock.calls).toEqual([[U(8)]]);
+    expect(q.enqueuePostPrice.mock.calls).toEqual([[U(9)]]);
     expect(q.enqueueSiteFeatures.mock.calls).toEqual([[U(10)]]);
     expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
     expect(q.enqueueAdImage.mock.calls).toEqual([[U(11)]]);
@@ -91,7 +93,7 @@ describe('engine jobs', () => {
   it('runs review analysis and price extraction jobs without self-retry', async () => {
     const deps = {
       analyzeReview: vi.fn(async () => ({ ran: true })), extractPrices: vi.fn(async () => ({ ran: true, points: 2, ended: 0 })),
-      extractAdPrices: vi.fn(async () => ({ ran: true, points: 1, ended: 0 })),
+      extractAdPrices: vi.fn(async () => ({ ran: true, points: 1, ended: 0 })), extractPostPrices: vi.fn(async () => ({ ran: true, points: 1, ended: 0 })),
     } as unknown as WorkerDeps;
     const jobs = createEngineJobs(deps, queue());
     await jobs.review.handler({ reviewId: U(5) });
@@ -100,6 +102,9 @@ describe('engine jobs', () => {
     expect(deps.analyzeReview).toHaveBeenCalledWith(U(5));
     expect(deps.extractPrices).toHaveBeenCalledWith(U(6));
     expect(deps.extractAdPrices).toHaveBeenCalledWith(U(8));
+    await jobs.postPrice.handler({ captureId: U(9) });
+    expect(deps.extractPostPrices).toHaveBeenCalledWith(U(9));
+    expect(jobs.postPrice.name).toBe('engine-post-price');
     expect(jobs.adPrice.name).toBe('engine-ad-price');
     expect(jobs.adPrice.usesAi).toBe(true);
     for (const job of [jobs.review, jobs.price, jobs.adPrice]) expect(job.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
@@ -130,7 +135,7 @@ describe('engine jobs', () => {
   });
 
   it('sweep enqueues both ad image lists', async () => {
-    const empty = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], siteFeatures: [], reask: [] };
+    const empty = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], postPrices: [], siteFeatures: [], reask: [] };
     const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ ...empty, adImages: [U(1), U(2)], adImageReads: [U(3)] })) } as unknown as WorkerDeps;
     const q = queue();
     await createEngineJobs(deps, q).sweep.handler({});
