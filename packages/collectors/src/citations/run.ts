@@ -1,4 +1,4 @@
-import { agencyServiceable, citationAuditRun, citationListing, client, clientCompetitor, clientWorkAllowed, competitor, competitorSignal, type Db, observation } from '@cs/db';
+import { agencyServiceable, citationAuditRun, citationListing, client, clientCompetitor, clientWorkAllowed, competitor, competitorSignal, type Db, observation, type Tx } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { citationCatalogue, isBannedHost, type VerticalPack } from '@cs/verticals';
 import { and, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
@@ -43,7 +43,7 @@ export async function listCitationDueClients(db: Db, now: Date): Promise<string[
 }
 
 /** Self business plus up to 3 rivals: tier `top` by overlap, else the tracked rivals with the highest overlap (self excluded). */
-export async function auditedCompetitors(db: Db, clientId: string): Promise<{ selfId: string | null; rivalIds: string[] }> {
+export async function auditedCompetitors(db: Db | Tx, clientId: string): Promise<{ selfId: string | null; rivalIds: string[] }> {
   const [c] = await db.select({ selfId: client.selfCompetitorId }).from(client).where(eq(client.id, clientId));
   const selfId = c?.selfId ?? null;
   const pick = async (topOnly: boolean): Promise<string[]> => {
@@ -90,30 +90,44 @@ async function recentlyChecked(db: Db, competitorId: string, hosts: string[], no
 export async function runCitationAudit(
   deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; packs: (verticalId: string) => Promise<VerticalPack>; now?: () => Date },
   clientId: string,
+  opts: { runId?: string } = {},
 ): Promise<{ runId: string | null; status: 'done' | 'capped' | 'failed' | 'skipped'; calls: number; usd: number }> {
   const { db } = deps;
   const now = (deps.now ?? (() => new Date()))();
   const skipped = { runId: null, status: 'skipped' as const, calls: 0, usd: 0 };
+  // 18c-2: a manual run row inserted by `request_citation_audit` (status running) is adopted instead of inserting one; a skip frees it.
+  const skip = async () => {
+    if (opts.runId) await db.update(citationAuditRun).set({ status: 'failed', finishedAt: now }).where(and(eq(citationAuditRun.id, opts.runId), eq(citationAuditRun.status, 'running')));
+    return skipped;
+  };
   const [c] = await db.select().from(client).where(and(eq(client.id, clientId), clientWorkAllowed(client), agencyServiceable(client.agencyId)));
-  if (!c) return skipped;
+  if (!c) return skip();
   const catalogue = citationCatalogue(await deps.packs(c.verticalId));
-  if (catalogue.length === 0) return skipped;
+  if (catalogue.length === 0) return skip();
   const hosts = catalogue.map((d) => d.host).filter((h) => !isBannedHost(h));
   const { selfId, rivalIds } = await auditedCompetitors(db, clientId);
   const ids = [...(selfId ? [selfId] : []), ...rivalIds];
-  if (ids.length === 0) return skipped;
+  if (ids.length === 0) return skip();
 
-  const [prior] = await db.select({ id: citationAuditRun.id }).from(citationAuditRun)
-    .where(and(eq(citationAuditRun.clientId, clientId), inArray(citationAuditRun.status, ['done', 'capped']))).limit(1);
   let runId: string;
-  try {
-    const [row] = await db.insert(citationAuditRun).values({
-      agencyId: c.agencyId, clientId, trigger: prior ? 'monthly' : 'setup', status: 'running', competitorIds: ids, startedAt: now,
-    }).returning({ id: citationAuditRun.id });
-    runId = row!.id;
-  } catch (err) {
-    if (!isLiveRunViolation(err)) throw err;
-    return skipped;
+  if (opts.runId) {
+    const [adopted] = await db.update(citationAuditRun).set({ competitorIds: ids })
+      .where(and(eq(citationAuditRun.id, opts.runId), eq(citationAuditRun.clientId, clientId), eq(citationAuditRun.status, 'running'), eq(citationAuditRun.trigger, 'manual')))
+      .returning({ id: citationAuditRun.id });
+    if (!adopted) return skipped;
+    runId = adopted.id;
+  } else {
+    const [prior] = await db.select({ id: citationAuditRun.id }).from(citationAuditRun)
+      .where(and(eq(citationAuditRun.clientId, clientId), inArray(citationAuditRun.status, ['done', 'capped']))).limit(1);
+    try {
+      const [row] = await db.insert(citationAuditRun).values({
+        agencyId: c.agencyId, clientId, trigger: prior ? 'monthly' : 'setup', status: 'running', competitorIds: ids, startedAt: now,
+      }).returning({ id: citationAuditRun.id });
+      runId = row!.id;
+    } catch (err) {
+      if (!isLiveRunViolation(err)) throw err;
+      return skipped;
+    }
   }
   const finish = (status: 'done' | 'capped' | 'failed', calls: number, usd: number) =>
     db.update(citationAuditRun).set({ status, calls, estUsd: usd.toFixed(4), finishedAt: now }).where(eq(citationAuditRun.id, runId));
@@ -121,7 +135,7 @@ export async function runCitationAudit(
   let calls = 0, okCalls = 0, usd = 0;
   try {
     const toSearch: string[] = [];
-    for (const id of ids) if (!(await recentlyChecked(db, id, hosts, now))) toSearch.push(id);
+    for (const id of ids) if ((opts.runId && id === selfId) || !(await recentlyChecked(db, id, hosts, now))) toSearch.push(id); // manual: self is always re-searched
     if (toSearch.length > 0) {
       const budgetCheck = await checkRankScanBudget(db, clientId, toSearch.length * 2 * CITATION_CALL_USD, now);
       if (!budgetCheck.ok) {
@@ -172,4 +186,9 @@ export async function failStaleCitationRuns(db: Db, now: Date = new Date()): Pro
     .where(and(eq(citationAuditRun.status, 'running'), sql`${citationAuditRun.startedAt} < ${cutoff.toISOString()}::timestamptz`))
     .returning({ id: citationAuditRun.id });
   return rows.length;
+}
+
+/** Marks one `running` run failed (frees `citation_audit_run_one_live`); a no-op for any other status. */
+export async function failCitationRun(db: Db, runId: string, now: Date = new Date()): Promise<void> {
+  await db.update(citationAuditRun).set({ status: 'failed', finishedAt: now }).where(and(eq(citationAuditRun.id, runId), eq(citationAuditRun.status, 'running')));
 }

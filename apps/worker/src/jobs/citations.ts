@@ -49,11 +49,17 @@ export function createCitationJobs(
     },
   });
   const client = defineJob({
-    name: 'citation-audit-client', schema: z.object({ clientId: z.uuid() }),
+    name: 'citation-audit-client', schema: z.object({ clientId: z.uuid(), runId: z.uuid().optional() }),
     // Paid searches: never retried, never expired mid-run; queued duplicates collapse.
     queue: { ...SINGLE_SHOT_QUEUE, policy: 'short' },
-    handler: async ({ clientId }) => {
-      const r = await deps.runCitationAudit(clientId);
+    handler: async ({ clientId, runId }) => {
+      // A manual run's row already exists (`request_citation_audit`): without vendors the job can't start it, so free it now.
+      if (runId && !deps.vendorsConfigured()) {
+        await deps.failCitationRun(runId, now());
+        workerLog.warn(`[citation-audit-client] ${clientId}: vendors not configured; manual run ${runId} failed`);
+        return;
+      }
+      const r = await deps.runCitationAudit(clientId, runId ? { runId } : undefined);
       workerLog.info(`[citation-audit-client] ${clientId} → ${JSON.stringify(r)}`);
       if (r.runId && (r.status === 'done' || r.status === 'capped')) {
         const d = await deps.diffCitations(r.runId);

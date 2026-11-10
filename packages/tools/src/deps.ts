@@ -7,7 +7,7 @@ import type { Catalog, VerticalDraft } from '@cs/verticals';
 import type { LeadEmailDeps } from './intake/emails';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
-export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions' | 'lead-preview' | 'rank-scan' | 'rank-map-refresh' | 'runbook-tailor';
+export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions' | 'lead-preview' | 'rank-scan' | 'rank-map-refresh' | 'runbook-tailor' | 'citation-audit-client';
 export type EnqueueJob = (job: QueueJob, data: Record<string, string>, singletonKey: string) => Promise<void>;
 /** pg-boss job states (v10). */
 export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
@@ -38,6 +38,8 @@ export interface ToolDeps {
   queueStats?: QueueStatsLookup;
   /** Phase 7a1: the Sentry issues page the health page links to (SENTRY_ISSUES_URL). */
   sentryIssuesUrl?: string;
+  /** Phase 18c-2: DataForSEO credentials are set (web: the same presence check as the business search). Absent = configured; false makes `request_citation_audit` refuse `not_ready`. */
+  vendorsConfigured?: boolean;
   /** Decision 7: website crawling (page discovery, manual pages) only when true. */
   webMonitoring?: boolean;
   /** Phase 6c: KB_IMPORT_ENABLED. Off or absent: the URL-import tools refuse with `not_found`. */

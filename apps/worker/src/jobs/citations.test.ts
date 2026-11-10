@@ -36,6 +36,26 @@ describe('citation jobs', () => {
     expect(q.enqueueClient).not.toHaveBeenCalled();
   });
 
+  it('client job: a manual runId is passed to the audit', async () => {
+    const deps = {
+      vendorsConfigured: () => true,
+      runCitationAudit: vi.fn(async () => ({ runId: 'r9', status: 'done', calls: 1, usd: 0 })),
+      diffCitations: vi.fn(async () => ({ ran: true, changeIds: [] })),
+      recommendForCitations: vi.fn(async () => ({ outcome: 'skipped' })),
+    } as unknown as WorkerDeps;
+    const id = '00000000-0000-4000-8000-0000000000e1';
+    await createCitationJobs(deps, queue()).client.handler({ clientId: 'c1', runId: id });
+    expect(deps.runCitationAudit).toHaveBeenCalledWith('c1', { runId: id });
+  });
+
+  it('client job: a manual runId without vendors fails the run row and runs nothing', async () => {
+    const deps = { vendorsConfigured: () => false, failCitationRun: vi.fn(async () => {}), runCitationAudit: vi.fn() } as unknown as WorkerDeps;
+    const id = '00000000-0000-4000-8000-0000000000e1';
+    await createCitationJobs(deps, queue()).client.handler({ clientId: 'c1', runId: id });
+    expect(deps.failCitationRun).toHaveBeenCalledWith(id, AT);
+    expect(deps.runCitationAudit).not.toHaveBeenCalled();
+  });
+
   it('client job: a done run is diffed and each change is tagged', async () => {
     const deps = {
       runCitationAudit: vi.fn(async () => ({ runId: 'r1', status: 'done', calls: 4, usd: 0.016 })),

@@ -217,3 +217,40 @@ describe('failStaleCitationRuns', () => {
     expect(await failStaleCitationRuns(dbs.service, NOW)).toBe(0);
   });
 });
+
+describe('runCitationAudit with an adopted manual run (18c-2)', () => {
+  const manualRow = () => dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'running', competitorIds: [], startedAt: NOW }).returning({ id: citationAuditRun.id });
+  const adopt = (dfs: ReturnType<typeof fakeDfs>, runId: string) => runCitationAudit({ db: dbs.service, store: createMemoryStore(), dfs, packs: async () => pack, now: () => NOW }, IDS.clientA1, { runId });
+
+  it('adopts the row: one row total, manual, ids filled, finished', async () => {
+    await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }, { id: SELF }]);
+    await dbs.owner.update(client).set({ selfCompetitorId: SELF }).where(eq(client.id, IDS.clientA1));
+    const [m] = await manualRow();
+    const r = await adopt(emptyDfs(), m!.id);
+    expect(r).toMatchObject({ runId: m!.id, status: 'done' });
+    const rows = await dbs.owner.select().from(citationAuditRun);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: m!.id, trigger: 'manual', status: 'done' });
+    expect(rows[0]!.competitorIds).toEqual([SELF, RIVAL_A]);
+    expect(rows[0]!.finishedAt).not.toBeNull();
+  });
+
+  it('manual: self is re-searched even when fresh; a fresh rival is reused', async () => {
+    await track([{ id: RIVAL_A, tier: 'top', overlap: 0.5 }, { id: SELF }]);
+    await dbs.owner.update(client).set({ selfCompetitorId: SELF }).where(eq(client.id, IDS.clientA1));
+    await dbs.owner.insert(citationListing).values([RIVAL_A, SELF].flatMap((id) => [listing(id, day(1), 'mapquest.com'), listing(id, day(1), 'bbb.org')]));
+    const [m] = await manualRow();
+    const dfs = emptyDfs();
+    await adopt(dfs, m!.id);
+    expect(dfs.calls.length).toBeGreaterThan(0);
+    const kws = dfs.calls.map((c) => String(c.body?.[0]?.keyword ?? ''));
+    expect(kws.every((k) => k.includes('Rival f6'))).toBe(true); // self only; Rival f3 reused
+  });
+
+  it('a skip (no businesses to audit) fails the adopted row instead of leaving it running', async () => {
+    await dbs.owner.delete(clientCompetitor);
+    const [m] = await manualRow();
+    expect(await adopt(emptyDfs(), m!.id)).toMatchObject({ status: 'skipped' });
+    expect((await dbs.owner.select().from(citationAuditRun))[0]).toMatchObject({ id: m!.id, status: 'failed' });
+  });
+});

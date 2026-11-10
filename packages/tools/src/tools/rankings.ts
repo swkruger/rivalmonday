@@ -342,7 +342,7 @@ const GridSize = z.union([z.literal(5), z.literal(7)]);
 const ScanState = z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'cap', 'running', 'not_ready', 'spend_paused']);
 
 /** The client in the caller's agency and scope, or the same `not_found` for unknown, other-agency and out-of-scope ids. */
-async function agencyClient(deps: ToolDeps, ctx: { agencyId: string; clientScope: 'all' | readonly string[] } & Parameters<typeof canAccessClient>[0], clientId: string) {
+export async function agencyClient(deps: ToolDeps, ctx: { agencyId: string; clientScope: 'all' | readonly string[] } & Parameters<typeof canAccessClient>[0], clientId: string) {
   if (!canAccessClient(ctx, clientId)) throw new ToolError('not_found', 'Client not found');
   const [c] = await deps.service.select().from(client).where(and(eq(client.id, clientId), eq(client.agencyId, ctx.agencyId)));
   if (!c) throw new ToolError('not_found', 'Client not found');

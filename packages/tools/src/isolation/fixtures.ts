@@ -215,6 +215,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   set_alert_rules: client({ alert: 75, brief: 45 }),
   update_client_rank_settings: client({ keywords: ['ac repair'], gridSize: 5, radiusKm: 10 }),
   request_rank_scan: client(),
+  request_citation_audit: client(),
   submit_feedback: clientWith((w, t) => ({ eventId: idOf(w, 'event', t.tenant), verdict: 'useful', reason: 'Spot on' })),
   add_recommendation: clientWith((w, t) => ({
     title: 'Match the tune-up price', rationale: 'The rival cut its tune-up price this week.', evidenceIds: [idOf(w, 'evidence', competitorTenant(t), 1)], effort: 'M', impact: 'M',

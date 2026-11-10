@@ -21,7 +21,7 @@ import { runbookTailorerFor } from './runbook-tailor';
 import { tagRequest } from './sentry-tags';
 import { nowMs, profilingOn, recordToolTiming } from './tool-timing';
 import { geocodeFor } from './geocode';
-import { setupLookupFor } from './setup-lookup';
+import { dataForSeoConfigured, setupLookupFor } from './setup-lookup';
 import { webStore } from './store';
 import { verticalDrafterFor } from './vertical-draft';
 
@@ -73,6 +73,8 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     queueStats: queueStatsFor(name),
     sentryIssuesUrl: webEnv().sentry?.issuesUrl,
     webMonitoring: webEnv().webMonitoring,
+    // 18c-2: DEMO/TEST/fake-lookup answer from fixtures (and refuse the queue), so they read as configured, like the business search.
+    vendorsConfigured: webEnv().setupFakeLookup || name === 'demo' || name === 'test' || dataForSeoConfigured(process.env),
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,

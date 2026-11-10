@@ -2,7 +2,7 @@ import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAi
 import {
   capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, failStaleCitationRuns as failStaleCitations, listCitationDueClients as citationDueClients, runCitationAudit as runCitations, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, failStaleCitationRuns as failStaleCitations, failCitationRun, listCitationDueClients as citationDueClients, runCitationAudit as runCitations, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
@@ -153,9 +153,11 @@ export interface WorkerDeps {
   /** 18c: clients due a directory-listings audit (30-day cadence, active clients only). */
   listCitationDueClients(now: Date): Promise<string[]>;
   /** 18c: one guarded listings audit for a client (self, then top rivals); paid vendor calls, the job checks vendorsConfigured first. */
-  runCitationAudit(clientId: string): Promise<{ runId: string | null; status: 'done' | 'capped' | 'failed' | 'skipped'; calls: number; usd: number }>;
+  runCitationAudit(clientId: string, opts?: { runId?: string }): Promise<{ runId: string | null; status: 'done' | 'capped' | 'failed' | 'skipped'; calls: number; usd: number }>;
   /** 18c: fails `running` listings audits older than CITATION_RUN_STALE_HOURS; returns how many. */
   failStaleCitationRuns(now: Date): Promise<number>;
+  /** 18c-2: marks a manual run row `failed` (the job could not start it); a no-op unless it is still `running`. */
+  failCitationRun(runId: string, now: Date): Promise<void>;
   /** 18c C7: one `citation_added` change per rival newly found by the run (ids; deduped by runStage). */
   diffCitations(runId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   /** 18c-1 T8b: the board recommendation for the client's own listings gap (after a finished audit); no model call. */
@@ -592,7 +594,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       ),
     listRankClients: () => rankClients(getDb()),
     listCitationDueClients: (now) => citationDueClients(getDb(), now),
-    runCitationAudit: (clientId) => runCitations({ db: getDb(), store: getStore(), dfs: getDfs(), packs }, clientId),
+    runCitationAudit: (clientId, opts) => runCitations({ db: getDb(), store: getStore(), dfs: getDfs(), packs }, clientId, opts),
+    failCitationRun: (runId, now) => failCitationRun(getDb(), runId, now),
     failStaleCitationRuns: (now) => failStaleCitations(getDb(), now),
     async diffCitations(runId) {
       const r = await diffCitations({ db: getDb(), packs }, runId);

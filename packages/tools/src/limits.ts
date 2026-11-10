@@ -14,3 +14,6 @@ export const RANK_MANUAL_PER_CLIENT_DAYS = 7;
 export const RANK_MANUAL_PER_AGENCY_DAY = 10;
 /** Phase 7b1: a prospect gets one snapshot per 24 h (a `ready` report counts; failed/running don't). */
 export const PROSPECT_SNAPSHOT_COOLDOWN_HOURS = 24;
+/** Phase 18c-2: manual "Check listings now" - one per client per 7 days, and at most 10 per agency per UTC day. */
+export const CITATION_MANUAL_PER_CLIENT_DAYS = 7;
+export const CITATION_MANUAL_PER_AGENCY_DAY = 10;

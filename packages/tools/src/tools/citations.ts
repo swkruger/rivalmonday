@@ -4,11 +4,13 @@ import { citationCatalogue } from '@cs/verticals';
 import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf } from '../catalog/access';
+import { requestCitationAudit } from '../citation-audit';
 import type { ToolDeps } from '../deps';
 import { citableEvidenceKinds } from '../workspace/events-read';
 import { forChannel } from '../workspace/model-text';
 import { trackedRows, workspaceBusinesses } from '../workspace/business';
 import { allInOrder, workspaceClient } from '../workspace/scope';
+import { agencyClient } from './rankings';
 import { CitationAuditView } from './schemas';
 
 const { defineTool } = toolkit<ToolDeps>();
@@ -88,4 +90,22 @@ export const getCitationAudit = defineTool({
   },
 });
 
-export const citationTools = [getCitationAudit];
+/** 18c-2 D1: "Check listings now" (web only, agency roles). Refusals come back as `{ refused }`, like `request_rank_scan`'s `queued: false`. */
+export const requestCitationAuditTool = defineTool({
+  name: 'request_citation_audit',
+  access: 'write',
+  description: 'Start a manual directory-listings check ("Check listings now") for a client: one per client per 7 days, 10 per agency per day.',
+  input: z.object({ clientId: z.string().uuid() }),
+  output: z.union([
+    z.object({ runId: z.string() }),
+    z.object({ refused: z.enum(['weekly_limit', 'agency_daily_limit', 'running', 'not_ready', 'spend_paused']), nextAvailableAt: z.string().optional() }),
+  ]),
+  permission: 'agency',
+  channels: ['web'],
+  async handler(ctx, { clientId }, deps) {
+    const c = await agencyClient(deps, ctx, clientId);
+    return requestCitationAudit(deps, ctx.userId, { id: c.id, agencyId: c.agencyId });
+  },
+});
+
+export const citationTools = [getCitationAudit, requestCitationAuditTool];
