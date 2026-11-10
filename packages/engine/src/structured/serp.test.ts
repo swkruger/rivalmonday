@@ -5,8 +5,10 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
 import { scoreForClient } from '../score/score';
+import { detailsSignature } from '../score/score-stage';
 import { buildStructuredSummary } from '../tag/structured';
 import { diffRankScan } from './rank';
+import { isSharedHost } from './serp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -105,6 +107,26 @@ describe('diffSerp (page-one entries and exits)', () => {
     const s2 = await scan(14, { [KW]: org('www.smithhvac.example') });
     expect(await run(s2)).toHaveLength(1);
     expect(await run(s2)).toHaveLength(1);
+  });
+});
+
+describe('shared hosts and novelty signature', () => {
+  it('never produces a change for a rival whose domain is a shared host', async () => {
+    await dbs.owner.update(competitor).set({ domain: 'm.facebook.com' }).where(eq(competitor.id, IDS.competitorX));
+    await scan(0, { [KW]: org('a.example') });
+    await scan(7, { [KW]: org('facebook.com') });
+    expect(await run(await scan(14, { [KW]: org('facebook.com') }))).toEqual([]);
+    expect(isSharedHost('foo.business.site')).toBe(true);
+    expect(isSharedHost('notfacebook.com')).toBe(false);
+  });
+
+  it('gives entered and left different novelty signatures, so a comeback is not discounted as a repeat', () => {
+    const d = { changeType: 'rank_change' as const, surface: 'organic' as const, keyword: KW };
+    const e = detailsSignature('rank_change', { ...d, direction: 'entered', position: 3 });
+    const l = detailsSignature('rank_change', { ...d, direction: 'left' });
+    expect(e).toBe(`serp|${KW}|entered|3`);
+    expect(l).toBe(`serp|${KW}|left|`);
+    expect(e).not.toBe(l);
   });
 });
 

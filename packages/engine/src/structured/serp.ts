@@ -14,6 +14,15 @@ export function normalizeDomain(raw: string | null | undefined): string | null {
   return host === '' ? null : host;
 }
 
+/** Shared hosts (social, directories, site builders, google): a rival whose only "domain" is one of these is skipped, or any result on that host would be read as the rival. */
+export const SHARED_HOSTS: readonly string[] = [
+  'facebook.com', 'instagram.com', 'linkedin.com', 'x.com', 'twitter.com', 'youtube.com', 'tiktok.com', 'pinterest.com', 'nextdoor.com', 'yelp.com', 'angi.com', 'angieslist.com',
+  'homeadvisor.com', 'thumbtack.com', 'bbb.org', 'yellowpages.com', 'mapquest.com', 'houzz.com', 'porch.com', 'healthgrades.com', 'zocdoc.com', 'google.com', 'sites.google.com',
+  'business.site', 'wix.com', 'wixsite.com', 'squarespace.com', 'godaddysites.com',
+];
+/** The registrable host or any subdomain of it (m.facebook.com, foo.business.site). */
+export const isSharedHost = (host: string): boolean => SHARED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+
 /**
  * 18b-2 page one of Google: per keyword and tracked rival, `entered`/`left` page one once two consecutive scans
  * agree against the one before (spec § Differ). Tenant-private `rank_change` rows with `surface 'organic'`.
@@ -29,6 +38,7 @@ export async function diffSerp(db: Db, scanId: string): Promise<(typeof detected
     .where(and(eq(rankScan.clientId, scan.clientId), eq(rankScan.status, 'done'), isNotNull(rankScan.finishedAt), lte(rankScan.finishedAt, scan.finishedAt)))
     .orderBy(desc(rankScan.finishedAt))
     .limit(SCAN_LOOKBACK);
+  // Lookback: the 3 newest scans with the same settings key, so a reverted change (A, A, B, A) compares across B: acceptable, same search area.
   // Newest first, this scan leading (a same-instant sibling never displaces it).
   const sameSeries = recent.filter((r) => r.id !== scanId && rankSettingsKey(r) === key).map((r) => r.id);
   const scanIds = [scanId, ...sameSeries];
@@ -51,7 +61,7 @@ export async function diffSerp(db: Db, scanId: string): Promise<(typeof detected
     const [s0, s1, s2] = series as [typeof series[0], typeof series[0], typeof series[0]];
     for (const c of tracked) {
       const domain = normalizeDomain(c.domain);
-      if (!domain || c.id === self?.id) continue;
+      if (!domain || isSharedHost(domain) || c.id === self?.id) continue;
       const at = (s: typeof s0) => s.organic.find((o) => normalizeDomain(o.domain) === domain);
       const [a0, a1, a2] = [at(s0), at(s1), at(s2)];
       if (Boolean(a0) !== Boolean(a1) || Boolean(a1) === Boolean(a2)) continue;
