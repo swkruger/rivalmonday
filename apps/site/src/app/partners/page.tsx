@@ -16,7 +16,7 @@ export default function PartnersPage() {
   return (
     <main>
       <section className="relative overflow-hidden bg-ink">
-        <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" className="night-map pointer-events-none absolute inset-0 size-full" />
+        <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" loading="lazy" className="night-map hidden lg:block pointer-events-none absolute inset-0 size-full" />
         <div aria-hidden="true" className="night-veil absolute inset-0" />
         <div className="site-container relative grid items-start gap-10 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:items-center lg:gap-16 lg:py-20">
           <div>

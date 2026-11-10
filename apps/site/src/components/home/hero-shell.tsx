@@ -14,7 +14,7 @@ function Radar() {
 export function HeroShell({ children }: { children: React.ReactNode }) {
   return (
     <section data-slot="hero" className="relative overflow-hidden bg-ink">
-      <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" className="night-map pointer-events-none absolute inset-0 size-full" />
+      <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" loading="lazy" className="night-map hidden lg:block pointer-events-none absolute inset-0 size-full" />
       <div aria-hidden="true" className="night-veil absolute inset-0" />
       <Radar />
       <div className="site-container relative grid items-center gap-12 pb-16 pt-9 sm:pt-14 lg:grid-cols-[1.02fr_1fr] lg:pb-24 lg:pt-20">{children}</div>

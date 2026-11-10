@@ -30,7 +30,7 @@ export default function HowItWorksPage() {
   return (
     <main>
       <section className="relative overflow-hidden bg-ink">
-        <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" className="night-map pointer-events-none absolute inset-0 size-full" />
+        <img src={SAMPLE_MAP_SRC} alt="" width={960} height={960} decoding="async" loading="lazy" className="night-map hidden lg:block pointer-events-none absolute inset-0 size-full" />
         <div aria-hidden="true" className="night-veil absolute inset-0" />
         <div className="site-container relative py-14 lg:py-20">
           <div className="max-w-3xl">

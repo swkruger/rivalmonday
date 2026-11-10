@@ -105,6 +105,9 @@ describe('Hero', () => {
     const { container } = render(<Hero />);
     expect(container.querySelector('h1')!.className).toContain('text-display');
     expect(container.querySelector('[data-slot="hero"] > img.night-map')!.getAttribute('alt')).toBe('');
+    const wash = container.querySelector('[data-slot="hero"] > img.night-map')!;
+    expect(wash.getAttribute('loading')).toBe('lazy');
+    expect(wash.classList.contains('hidden')).toBe(true);
     expect(container.querySelectorAll('.night-veil')).toHaveLength(1);
   });
 
