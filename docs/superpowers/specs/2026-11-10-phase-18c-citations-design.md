@@ -15,31 +15,34 @@ Owner: find the client's missing or incorrect citations; a new listing on a majo
 | C1 | **Scope:** presence + name/phone from organic results (existing `/serp/google/organic/live/advanced`). Address **not checked** (no column). 18c-2 = backlog after prod + `/bot` + `WEB_MONITORING_ENABLED`. |
 | C2 | **Two-stage search per business.** Stage 1: one `"<name>" "<NNN-NNN-NNNN>"` search, US-wide, depth **50**; result hosts classified against the catalogue. Stage 2: one `site:<host> "<name>" <city>` search (depth 10) **only for catalogue directories stage 1 didn't find**. No phone → stage 1 skipped (stage 2 for all, `phone_match` null). |
 | C3 | **Task 0 probe (≤ $0.10, owner-approved).** Stages 1+2 live for 2 cs_dev businesses + 1 rival each (HVAC, dental) vs a manual check of every directory. Records hit rate per directory, depth-50 price, phone format. **Rulings:** a directory search finds in < 50 % of manually confirmed cases → removed from the catalogue (this decides **Bing Places** and **Apple Maps**); overall recall < 50 % → stop and ask the owner; depth-50 price > $0.01/call → stage 1 depth 20. |
-| C4 | **Catalogue in the pack** (`citations.directories`); DB verticals inherit `generic`'s via `assemblePack` (deep merge; own list replaces). Google is the source, not a directory. |
+| C4 | **Directory groups (owner 2026-11-10).** `generic.yaml` defines `citations.directory_groups` (`general`, `home_services`, `dental_health`); each vertical picks `citations.groups`. Shipped: hvac_plumbing = general + home_services, dental = general + dental_health; DB verticals default `[general]` (inherited via `assemblePack`), operators tick groups when reviewing a vertical. Catalogue = union of picked groups (≤ 15 hosts). Never search a directory the vertical didn't pick. Google is the source, not a directory. |
 | C5 | **Storage (ours):** global `citation_listing` (competitor × host, public facts, RLS like `gbp_post`) + tenant `citation_audit_run` (cadence, cost, "checked on"). Self and rivals in one table. |
 | C6 | **Matching (ours, deterministic, no model).** Candidate = an organic item on a catalogue host (subdomains count), path ≠ `/`. `nameHit` = `normaliseName(title before " - "/" \| ", city)` contains every token of `normaliseName(name, city)`, or the reverse. `phoneHit` = title+description contain the business's 10 digits (`digitsOnly`). **Listed** if `nameHit ∨ phoneHit` (best: both, then lowest rank). `name_match` true if `nameHit`; **false only if** `phoneHit ∧ ¬nameHit`; else null. `phone_match` true if `phoneHit`; **false only if** `nameHit` ∧ the snippet holds a US phone with other digits; else null. |
 | C7 | **Change type `citation_added`** (pack scoring v7): a **tracked rival** newly found (`listed` after an earlier completed audit had `not_found` for that host). First audit = silent baseline. Self never makes events (§6.5). No two-audit hold (ours: monthly cadence; wording says "now found", not "new"). Listed → not_found: no event. |
 | C8 | **Minor, brief-only (ours):** deterministic score = `thresholds.brief / 4`, route **always `archive`** (factor `citationMinor`). `gradedChanges` reads every route → a **Minor** line (T > 0), grouped per rival; never an item, alert or live Major. |
 | C9 | **Client-facing:** self-rule `citation_gap` + play `fix_citations` (add-listing links; no prefilled NAP); page **Listings** (`/c/<id>/listings`); tool `get_citation_audit` (web, MCP, Friday). No scorecard row. |
 | C10 | **Cadence:** first audit once `client_setup.competitors_done_at` is set (or no setup row = staff/legacy client), then every 30 days. Audited = self + **Top-rival tier** (`competitor_signal.tier = 'top'`, by `overlap`, ≤ 3). No "check now". A competitor checked < 25 days ago (any client) is reused, not searched. |
+| C12 | **"Also found on" (owner 2026-11-10).** Stage-1 hits on hosts outside the catalogue are kept as `in_catalogue = false` rows when **both** `nameHit ∧ phoneHit` (stricter than C6), host ≠ the business's own domain, not banned, not in `NOT_DIRECTORY_HOSTS` (google.*, youtube.com, wikipedia.org, the client's own site); ≤ 10 per business. Informational only: no gap, no recommendation, no event, self only on the page. Ops SQL in OPS.md lists the most common uncatalogued hosts to promote into a group (platform page = backlog). |
 | C11 | **Channel (ours):** `CHANNELS` += `'directories'` ("Online directories"); capture `source 'directories'` under the audited competitor; not in `vendor-diff` `DIFFERS`. |
 
 ## Interfaces (binding)
 
 ### Pack (`packages/verticals/src/schema.ts`, `packs/*.yaml`)
 ```ts
+const directory = z.strictObject({ host: z.string().regex(/^[a-z0-9.-]+$/), label: z.string().min(1), add_listing_url: z.url() });
 citations: z.strictObject({
-  directories: z.array(z.strictObject({ host: z.string().regex(/^[a-z0-9.-]+$/), label: z.string().min(1), add_listing_url: z.url() }))
-    .max(15).superRefine(uniqueHosts),
+  directory_groups: z.record(z.enum(['general','home_services','dental_health']), z.array(directory)).optional(), // generic.yaml only
+  groups: z.array(z.enum(['general','home_services','dental_health'])).min(1).default(['general']),
   min_missing: z.number().int().min(1).default(3),
-}).default({ directories: [], min_missing: 3 }),
+}).default({ groups: ['general'], min_missing: 3 }),
+// citationCatalogue(pack): Directory[] = union of picked groups, unique hosts, ≤ 15 (assembled-pack refine)
 ```
 Refine: hosts in `BANNED_CITATION_HOSTS = ['yelp.com','healthgrades.com','zocdoc.com','nextdoor.com']` are a schema error.
 Starting lists (labels OK in client text; `add_listing_url` hand-checked at Task 0):
-- **generic:** facebook.com (Facebook), bbb.org (Better Business Bureau), yellowpages.com (Yellow Pages), manta.com (Manta),
+- **general** group: facebook.com (Facebook), bbb.org (Better Business Bureau), yellowpages.com (Yellow Pages), manta.com (Manta),
   foursquare.com (Foursquare), mapquest.com (MapQuest), bing.com (Bing Places)\*, maps.apple.com (Apple Maps)\*.
-- **hvac_plumbing:** generic + angi.com (Angi), homeadvisor.com (HomeAdvisor), thumbtack.com (Thumbtack), houzz.com (Houzz), porch.com (Porch).
-- **dental:** generic + findadentist.ada.org (ADA Find-a-Dentist). Review-hosting health directories / booking marketplaces (WebMD Care, Vitals, Sharecare, Opencare) are out, in the spirit of §2.2 (our call).
+- **home_services** group: angi.com (Angi), homeadvisor.com (HomeAdvisor), thumbtack.com (Thumbtack), houzz.com (Houzz), porch.com (Porch).
+- **dental_health** group: findadentist.ada.org (ADA Find-a-Dentist). Review-hosting health directories / booking marketplaces (WebMD Care, Vitals, Sharecare, Opencare) are out, in the spirit of §2.2 (our call).
 \* kept only if Task 0 passes (C3).
 
 ### Migration `0107_citations` (next free number at execution time)
@@ -53,6 +56,7 @@ CREATE TABLE citation_listing (
   shown_phone text,                    -- digits shown when phone_match = false (evidence-backed), else null
   capture_id uuid REFERENCES capture(id),
   first_seen_at timestamptz, last_seen_at timestamptz,   -- listed spans
+  in_catalogue boolean NOT NULL DEFAULT true,   -- false = "Also found on" (C12)
   checked_at timestamptz NOT NULL,
   PRIMARY KEY (competitor_id, host)
 );
@@ -129,7 +133,8 @@ Current catalogue only; no row = `not_checked`. Channels web/mcp/ask, feature `d
   `IconKey` += `'listings'` (icon in `nav-link.tsx`). Same `flags.dashboard` gate.
 - `PageHeader` title "Listings" + breadcrumb; help key `page:client.listings`, guides `docs/help/pages/client.listings.{client,agency}.md` (`kb:seed`);
   `Suspense`; reads only via `get_citation_audit`; ≤ 8 DB stages.
-- One sheet: section "Your listings" (status, name, phone, "Add listing" link when not found), then "You vs top rivals" (matrix, ≤ 3).
+- One sheet: section "Your listings" (status, name, phone, "Add listing" link when not found), then "You vs top rivals" (matrix, ≤ 3), then "Also found on" (C12; self, links only; hidden when empty).
+- Operator vertical review: group checkboxes (`citations.groups`) on the existing vertical review/edit form (Task 0 names the file).
 
 ### Copy (decided; to `pnpm copy:review`)
 - Sub-line: "Where Google search finds you and your top rivals on major directories. Checked every month."

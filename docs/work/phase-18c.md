@@ -20,6 +20,7 @@ TBD. Migration: next free on main is **0107**; site-audiences claims none.
 - Split: 18c-1 now (search-based presence + name/phone from results); 18c-2 (listing-page NAP via crawler) after prod deploy + `/bot` (backlog).
 - Our call (owner to confirm in spec review): "new listing" Minor = tracked rival newly listed (`citation_added`, brief-only, never alerts); the client's own new/missing/mismatched listings show in the Listings page + `citation_gap` self-rule.
 - Owner 2026-11-10: the citation view is its own client menu item + page (our call: "Listings", `/c/<id>/listings`, after Rankings), not a Rankings section.
+- Owner 2026-11-10: directory groups (general / home_services / dental_health) picked per vertical, operators tick them for DB verticals; "Also found on" = informational non-catalogue hits from the name+phone search. No searching directories a vertical didn't pick.
 
 ## New backlog (target → item)
 - none yet
