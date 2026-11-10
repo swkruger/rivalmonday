@@ -134,6 +134,20 @@ describe('tagStructuredChange (via tagChange)', () => {
   });
 });
 
+describe('citation_added (18c)', () => {
+  it('reads per the spec copy and makes no model decision', async () => {
+    const details = { changeType: 'citation_added', directory: 'bbb.org', label: 'Better Business Bureau', url: 'https://www.bbb.org/x' };
+    expect(buildStructuredSummary({ source: 'directories', beforeText: null, afterText: null, details })).toBe('Now found on Better Business Bureau in Google search');
+    expect(buildStructuredSummary({ source: 'directories', beforeText: null, afterText: null, details: { changeType: 'citation_added', directory: 'bbb.org' } })).toBe('Now found on bbb.org in Google search');
+    const id = await change({ source: 'directories', blockKey: 'citation:bbb.org', details });
+    const ai = createFakeAi(); // decide() throws if called
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    const [ev] = await dbs.owner.select().from(changeEvent);
+    expect(ev).toMatchObject({ changeType: 'citation_added', channels: ['directories'], summary: 'Now found on Better Business Bureau in Google search' });
+    expect(ai.calls.decide).toHaveLength(0);
+  });
+});
+
 describe('buildStructuredSummary', () => {
   it('reads Google posts per the spec copy', () => {
     const base = { source: 'google_business_profile', beforeText: null };

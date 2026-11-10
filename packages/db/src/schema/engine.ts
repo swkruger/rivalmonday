@@ -144,6 +144,8 @@ export interface ScoreFactors {
   profileCap?: boolean;
   /** Phase 18a-2: a site_feature / new_page alert capped to brief (website news never pages anyone). */
   briefOnly?: boolean;
+  /** Phase 18c C8: a citation_added event, scored brief/4 and always archived (a Minor line only). */
+  citationMinor?: boolean;
   thresholds: ScoreThresholds;
   scoringVersion: number;
 }

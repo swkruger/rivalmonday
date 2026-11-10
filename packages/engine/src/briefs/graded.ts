@@ -48,6 +48,9 @@ export interface GradableEvent {
   evidenceIds: string[];
 }
 
+/** P7: a directory listing is always Minor, whatever T is (T = 0 would otherwise grade every score Major). */
+const gradeOfLine = (changeType: string, score: number, threshold: number): Grade => (changeType === 'citation_added' ? 'minor' : gradeFor(score, threshold));
+
 const SUMMARY_MAX = 140;
 const clip = (s: string) => {
   const cp = [...s.replace(/\s+/g, ' ').trim()];
@@ -57,7 +60,7 @@ const clip = (s: string) => {
 export function groupChanges(rows: GradableEvent[], threshold: number): ChangeLine[] {
   const groups = new Map<string, { grade: Grade; rows: GradableEvent[] }>();
   for (const r of rows) {
-    const grade = gradeFor(r.score, threshold);
+    const grade = gradeOfLine(r.changeType, r.score, threshold);
     const k = `${grade}|${r.competitorId}|${r.changeType}|${r.channel ?? ''}`;
     const g = groups.get(k) ?? { grade, rows: [] };
     g.rows.push(r);
@@ -184,7 +187,7 @@ export async function liveChanges(
     const times = kept.map((k) => k.occurredAt.getTime());
     return [{
       ...l,
-      grade: gradeFor(Math.max(...kept.map((k) => k.score)), changes.threshold),
+      grade: gradeOfLine(l.changeType, Math.max(...kept.map((k) => k.score)), changes.threshold),
       count: keep.length,
       eventIds: keep,
       text: regroupText(l, keep.length),

@@ -27,6 +27,16 @@ const ev = (n: number, over: Partial<GradableEvent> = {}): GradableEvent => ({
 
 const digitRuns = (s: string) => s.match(/\d+/g) ?? [];
 
+describe('citation_added lines (18c P7)', () => {
+  it('is always Minor, even at T = 0, under rankings', () => {
+    const rows = [ev(1, { changeType: 'citation_added', channel: 'directories', score: 0, summary: 'Now found on Better Business Bureau in Google search' })];
+    const [one] = groupChanges(rows, 0);
+    expect(one).toMatchObject({ grade: 'minor', topic: 'rankings', text: 'Lakeview: New directory listing — Now found on Better Business Bureau in Google search' });
+    const [two] = groupChanges([...rows, ev(2, { changeType: 'citation_added', channel: 'directories', score: 0 })], 0);
+    expect(two).toMatchObject({ grade: 'minor', count: 2, text: 'Lakeview: 2 new directory listings' });
+  });
+});
+
 describe('groupChanges', () => {
   it('single event line uses label and clipped summary', () => {
     const [line] = groupChanges([ev(1, { summary: '  Raised   prices\n on  drain cleaning  ' })], 70);

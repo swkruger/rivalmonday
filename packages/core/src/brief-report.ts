@@ -7,7 +7,7 @@ export const GRADE_LABEL: Record<Grade, string> = { major: 'Major', notable: 'No
 export const REPORT_TOPICS = ['reviews', 'ads', 'rankings', 'offers', 'moves'] as const;
 export type ReportTopic = (typeof REPORT_TOPICS)[number];
 export const TOPIC_LABEL: Record<ReportTopic, string> = {
-  reviews: 'Reviews & rating', ads: 'Ads', rankings: 'Map rankings', offers: 'Website, prices & services', moves: 'Moves',
+  reviews: 'Reviews & rating', ads: 'Ads', rankings: 'Rankings & listings', offers: 'Website, prices & services', moves: 'Moves',
 };
 
 /** Major at or above the threshold, Notable from half of it, Minor below. */
@@ -23,6 +23,7 @@ export const topicOf = (changeType: string): ReportTopic => {
     case 'ad_stopped':
       return 'ads';
     case 'rank_change':
+    case 'citation_added':
       return 'rankings';
     default:
       return 'offers';

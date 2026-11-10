@@ -49,6 +49,8 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
       return `audience|${d.pageId ?? ''}|${d.likesBefore ?? ''}|${d.likesAfter ?? ''}`;
     case 'site_feature':
       return `site_feature|${d.category ?? d.feature ?? ''}|${d.direction ?? ''}`;
+    case 'citation_added':
+      return `citation_added|${d.directory ?? ''}`;
     case 'new_page':
       return `new_page|${d.pageKey ?? ''}`;
     case 'status_change':

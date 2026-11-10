@@ -284,3 +284,10 @@ describe('scoring and a spend-paused client (7b1)', () => {
     expect((await dbs.owner.select({ c: eventScore.clientId }).from(eventScore)).map((r) => r.c)).toEqual([IDS.clientB1]);
   });
 });
+
+describe('detailsSignature citation_added (18c)', () => {
+  it('differs per directory', () => {
+    expect(detailsSignature('citation_added', { directory: 'bbb.org' })).toBe('citation_added|bbb.org');
+    expect(detailsSignature('citation_added', { directory: 'yelp.com' })).not.toBe(detailsSignature('citation_added', { directory: 'bbb.org' }));
+  });
+});

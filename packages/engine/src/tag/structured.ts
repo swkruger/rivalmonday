@@ -153,6 +153,9 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Added a new page to its website: "${trunc(d.items?.[0]?.label || path || 'untitled', 80)}"`;
       break;
     }
+    case 'citation_added':
+      s = `Now found on ${d.label ?? d.directory} in Google search`;
+      break;
     default: {
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
     }

@@ -44,6 +44,12 @@ describe('GLOSSARY content', () => {
     for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
+  it('defines directory-listing for everyone (18c)', () => {
+    const x = GLOSSARY.find((g) => g.id === 'directory-listing')!;
+    expect(x).toMatchObject({ term: 'Directory listing', audience: 'all' });
+    expect(x.short).toContain('Not found in Google search');
+  });
+
   it('agency-internal terms are agency-only', () => {
     for (const id of ['routing', 'seat', 'paused', 'upsell-tag']) expect(GLOSSARY.find((x) => x.id === id)!.audience, id).toBe('agency');
     expect(GLOSSARY.find((x) => x.id === 'monitoring-paused')!.audience).toBe('client');

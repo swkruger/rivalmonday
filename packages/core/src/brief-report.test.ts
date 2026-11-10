@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHANGE_TYPES, capTopic, gradeFor, topicOf, totalsOf, type ChangeLine } from './index';
+import { CHANGE_TYPES, TOPIC_LABEL, capTopic, gradeFor, topicOf, totalsOf, type ChangeLine } from './index';
 
 const line = (o: Partial<ChangeLine>): ChangeLine => ({
   grade: 'notable', topic: 'offers', competitorId: '11111111-1111-4111-8111-111111111111', competitorName: 'Acme',
@@ -17,6 +17,10 @@ describe('gradeFor', () => {
   });
 });
 
+describe('TOPIC_LABEL (18c)', () => {
+  it('labels rankings as Rankings & listings', () => expect(TOPIC_LABEL.rankings).toBe('Rankings & listings'));
+});
+
 describe('topicOf', () => {
   it('maps the known types and falls back to offers', () => {
     expect(topicOf('rating_change')).toBe('reviews');
@@ -24,6 +28,7 @@ describe('topicOf', () => {
     expect(topicOf('ad_started')).toBe('ads');
     expect(topicOf('ad_stopped')).toBe('ads');
     expect(topicOf('rank_change')).toBe('rankings');
+    expect(topicOf('citation_added')).toBe('rankings');
     for (const t of CHANGE_TYPES) expect(['reviews', 'ads', 'rankings', 'offers']).toContain(topicOf(t));
     expect(topicOf('whatever_new')).toBe('offers');
   });

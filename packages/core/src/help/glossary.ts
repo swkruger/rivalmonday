@@ -311,6 +311,13 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     long: 'Reaching the limit changes nothing: monitoring, briefs and Ask carry on, and the client shows as Limit reached. If work runs well past the limit, AI and monitoring work for that client pauses until the 1st of next month, while past briefs and evidence stay available.',
   },
   {
+    // source: packages/engine/src/structured/citations.ts (monthly Google-search check); 18c directory listings (draft for copy review)
+    id: 'directory-listing',
+    term: 'Directory listing',
+    audience: 'all',
+    short: "A business's page on an online directory such as Yellow Pages, Facebook or the Better Business Bureau. Listings are checked once a month from Google search results; a page Google search does not show is \"Not found in Google search\", not \"not listed\".",
+  },
+  {
     // source: packages/engine/src/briefs/writer.ts:UPSELL_TAGS; stripped from every client read (spec §8.5)
     id: 'upsell-tag',
     term: 'Upsell tag',

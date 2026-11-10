@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 6 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 7 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -195,7 +195,7 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(serviceOverlap(null, ['a'], pack, 'hiring')).toEqual({ value: pack.scoring.relevance.whole_business, wholeBusiness: true });
     expect(serviceOverlap('a', ['a'], pack, 'hiring')).toEqual({ value: 1, wholeBusiness: false });
     expect(serviceOverlap(null, ['a'], pack, 'promo')).toEqual({ value: 0.6, wholeBusiness: false });
-    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'hiring', 'new_location', 'new_page', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'site_feature', 'status_change']);
+    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'citation_added', 'hiring', 'new_location', 'new_page', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'site_feature', 'status_change']);
   });
 
   it('new_location outside territory = whole_business × outside_territory', () => {
@@ -270,7 +270,21 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(r.route).toBe('brief');
   });
 
-  it('factors.scoringVersion is 6 with the shipped pack', () => {
-    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(6);
+  it('factors.scoringVersion is 7 with the shipped pack', () => {
+    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(7);
+  });
+});
+
+describe('citation_added scoring (18c C8)', () => {
+  const cite = (over: Partial<ScoreInput> = {}) => input({ changeType: 'citation_added', facts: [], serviceId: null, details: { changeType: 'citation_added', directory: 'bbb.org' }, ...over });
+
+  it('scores a quarter of the brief threshold, archived and flagged citationMinor', () => {
+    const r = scoreForClient(cite(), client, pack);
+    expect(r).toMatchObject({ score: 10, route: 'archive' });
+    expect(r.factors).toMatchObject({ citationMinor: true, wholeBusiness: true, briefOnly: false, thresholds: { alert: 70, brief: 40 } });
+  });
+  it('follows client thresholds and T = 0', () => {
+    expect(scoreForClient(cite(), { ...client, thresholds: { alert: 80, brief: 60 } }, pack)).toMatchObject({ score: 15, route: 'archive' });
+    expect(scoreForClient(cite(), { ...client, thresholds: { alert: 80, brief: 0 } }, pack)).toMatchObject({ score: 0, route: 'archive' });
   });
 });

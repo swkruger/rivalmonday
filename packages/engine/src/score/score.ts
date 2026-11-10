@@ -39,7 +39,7 @@ export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['
  * Excluded: content (shared with web page edits; no service = generic copy), tier_change (deterministic score, P10),
  * and the service-specific types (price_change, promo, new_service, service_removed, service_area_change, cosmetic).
  */
-export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page']);
+export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth', 'citation_added', 'site_feature', 'new_page']);
 
 /** Phase 18a-2: website changes are brief news only; they never page anyone. */
 export const BRIEF_ONLY_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['site_feature', 'new_page']);
@@ -124,6 +124,12 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   const novelty = input.changeType === 'status_change' && input.details.direction === 'closed' ? 1 : noveltyFactor(input.maxSimilarity, pack);
   if (profile.thresholds && !validThresholds(profile.thresholds)) console.warn('[engine] invalid client score thresholds; using the pack routing', profile.thresholds);
   const thresholds = validThresholds(profile.thresholds) ? profile.thresholds : pack.scoring.routing;
+  if (input.changeType === 'citation_added') { // C8: Minor, brief-only line; never an item or alert
+    return { score: Math.round((thresholds.brief / 4) * 10) / 10, route: 'archive', factors: {
+      typeWeight, size: 1, serviceOverlap: 1, wholeBusiness: true, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: input.maxSimilarity,
+      needsReviewCap: false, staleCap: false, profileCap: false, briefOnly: false, citationMinor: true,
+      thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version } };
+  }
   // P10: a tier change is deterministic. Promotion to top scores the alert threshold, any other promotion the brief threshold, a demotion 0.
   const score = input.changeType === 'tier_change'
     ? tierChangeScore(input.details, thresholds)

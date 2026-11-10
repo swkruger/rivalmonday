@@ -17,6 +17,13 @@ describe('CHANGE_LABELS', () => {
   });
 });
 
+describe('citation_added labels (18c)', () => {
+  it('reads as a new directory listing', () => {
+    expect(changeTypeLabel('citation_added')).toBe('New directory listing');
+    expect(groupPhrase('citation_added', 'directories', 2)).toBe('2 new directory listings');
+  });
+});
+
 describe('rank_change labels', () => {
   it('reads neutrally, as one event type covers map and Google page-one changes', () => {
     expect(changeTypeLabel('rank_change')).toBe('Ranking change');
