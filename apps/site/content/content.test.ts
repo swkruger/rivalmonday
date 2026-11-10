@@ -108,11 +108,22 @@ describe('site copy', () => {
     expect(on.map((m) => m.date)).toEqual([...on.map((m) => m.date)].sort());
   });
 
-  it('opportunity example is computed from PRICING and rendered in dollars', () => {
-    expect(home.opportunityExample()).toMatchObject({ revenueUsd: 3980, costUsd: 1372, marginUsd: 2608 });
-    const line = home.opportunityLine(home.opportunityExample());
-    expect(line).toContain('$2,608');
-    expect(line).toBe('For example: 20 clients at $199/mo is $3,980 revenue against $1,372 in platform cost, a margin of $2,608 a month.');
+  it('opportunity cells are computed from PRICING', () => {
+    const e = home.opportunityExample();
+    expect(e).toMatchObject({ revenueUsd: 3980, costUsd: 1372, marginUsd: 2608 });
+    expect(e.revenueUsd - e.costUsd).toBe(e.marginUsd);
+    const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+    expect(home.opportunityCells(e)).toEqual([
+      { value: `${e.clients} clients`, label: `at ${fmt.format(e.clientPriceUsd)}/mo each` },
+      { value: fmt.format(e.revenueUsd), label: 'revenue a month' },
+      { value: fmt.format(e.costUsd), label: 'platform cost' },
+      { value: fmt.format(e.marginUsd), label: 'margin a month' },
+    ]);
+    expect(home.opportunityCells()[3]!.value).toBe('$2,608');
+  });
+
+  it('ceiling heading is the decided line', () => {
+    expect(home.SECTIONS.ceiling.heading).toBe('Your clients trust you. Give them one more reason to stay.');
   });
 
   it('website-free copy never mentions price, websites or snapshots', () => {

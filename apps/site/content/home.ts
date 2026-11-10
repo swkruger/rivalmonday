@@ -73,7 +73,7 @@ export const SECTIONS: Record<SectionId, HomeSection> = {
   ceiling: {
     id: 'ceiling',
     eyebrow: '',
-    heading: "Your clients trust you. So why do you sell them only one thing?",
+    heading: 'Your clients trust you. Give them one more reason to stay.',
     body: "You've done the hard part: you've won the clients and earned their trust. Here's what to build on it.",
   },
   opportunity: {
@@ -267,6 +267,7 @@ export const OPPORTUNITY = {
   ],
   /** Figures are computed by `opportunityExample()` from `PRICING`; only these two inputs are typed. */
   example: { clients: 20, clientPriceUsd: 199 },
+  exampleLabel: 'For example',
   exampleNote: "An example, not a forecast. Before your team's time; your prices are up to you.",
   link: { label: 'Work out your numbers →', href: '/partners' },
 } as const;
@@ -277,9 +278,14 @@ export function opportunityExample(): PartnerExample {
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-/** "For example: 20 clients at $199/mo is $3,980 revenue against $1,372 in platform cost, a margin of $2,608 a month." */
-export function opportunityLine(e: Pick<PartnerExample, 'clients' | 'clientPriceUsd' | 'revenueUsd' | 'costUsd' | 'marginUsd'> = opportunityExample()): string {
-  return `For example: ${e.clients} clients at ${usd.format(e.clientPriceUsd)}/mo is ${usd.format(e.revenueUsd)} revenue against ${usd.format(e.costUsd)} in platform cost, a margin of ${usd.format(e.marginUsd)} a month.`;
+/** The margin example as four labelled cells; every figure comes from `PRICING` through `opportunityExample()`. */
+export function opportunityCells(e: Pick<PartnerExample, 'clients' | 'clientPriceUsd' | 'revenueUsd' | 'costUsd' | 'marginUsd'> = opportunityExample()): { value: string; label: string }[] {
+  return [
+    { value: `${e.clients} clients`, label: `at ${usd.format(e.clientPriceUsd)}/mo each` },
+    { value: usd.format(e.revenueUsd), label: 'revenue a month' },
+    { value: usd.format(e.costUsd), label: 'platform cost' },
+    { value: usd.format(e.marginUsd), label: 'margin a month' },
+  ];
 }
 
 export const COMMERCIAL = {

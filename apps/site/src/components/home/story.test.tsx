@@ -7,7 +7,7 @@ vi.mock('../../../content/website-monitoring', () => ({
   },
 }));
 
-import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityLine, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
+import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityCells, PRICING_LINES, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
 import { rivalStoryMoves } from '../../../content/rival-story';
 import { ANY_INDUSTRY } from '../../../content/industries';
 import { PRICING } from '../../../content/pricing';
@@ -105,13 +105,27 @@ describe('AgencyCeiling', () => {
 });
 
 describe('Opportunity', () => {
-  it('renders the H2, three outcomes and the economics strip with the example figures', () => {
+  it('renders the H2 and the three outcomes', () => {
     const { container } = render(<Opportunity />);
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(SECTIONS.opportunity.heading);
     expect(container.querySelector('section#opportunity')).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(OPPORTUNITY.outcomes.length);
-    expect(screen.getByText(opportunityLine())).toBeTruthy();
-    expect(screen.getByText(/\$2,608/)).toBeTruthy();
+  });
+
+  it('shows the example as four labelled cells', () => {
+    const { container } = render(<Opportunity />);
+    expect(screen.getByText(OPPORTUNITY.exampleLabel)).toBeTruthy();
+    const cells = opportunityCells();
+    expect(cells).toHaveLength(4);
+    const terms = [...container.querySelectorAll('dl dt')].map((el) => el.textContent);
+    const defs = [...container.querySelectorAll('dl dd')].map((el) => el.textContent);
+    expect(terms).toEqual(cells.map((c) => c.value));
+    expect(defs).toEqual(cells.map((c) => c.label));
+    expect(container.textContent).toContain('$2,608');
+  });
+
+  it('keeps the note and the link to /partners', () => {
+    render(<Opportunity />);
     expect(screen.getByText(OPPORTUNITY.exampleNote)).toBeTruthy();
     expect(screen.getByRole('link', { name: OPPORTUNITY.link.label }).getAttribute('href')).toBe('/partners');
   });
