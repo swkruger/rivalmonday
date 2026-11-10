@@ -12,6 +12,7 @@ import { HOW_FAQ, JUMP_LINKS } from '../../../content/how-it-works-page';
 import { PRICING } from '../../../content/pricing';
 import { SOURCES } from '../../../content/sources';
 import HowItWorksPage from '../../app/how-it-works/page';
+import AgenciesPage from '../../app/agencies/page';
 import HomePage from '../../app/page';
 import { JoinProvider } from '../join/join-provider';
 import { PilotProvider } from '../shell/pilot-context';
@@ -214,26 +215,26 @@ describe('ChecksHub and Steps', () => {
   });
 });
 
-describe('HomePage', () => {
+describe('AgenciesPage', () => {
   const ids = (c: HTMLElement) => [...c.querySelectorAll('main > section[id]')].map((s) => s.id).filter((id) => id !== 'founder');
 
   it('section ids match HOME_ANCHORS', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     expect(new Set(ids(container))).toEqual(new Set(HOME_ANCHORS));
     expect(ids(container)).toEqual([...HOME_ANCHORS]);
     expect(container.querySelectorAll('h1')).toHaveLength(1);
     cleanup();
-    const out = await renderApp(<HomePage />, { pilotMode: true, counters: null });
+    const out = await renderApp(<AgenciesPage />, { pilotMode: true, counters: null });
     expect(ids(out.container)).toEqual(HOME_ANCHORS.filter((a) => a !== 'live'));
   }, 20_000);
 
-  it('the home page has no cast, before-after or sample section', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+  it('the agencies page has no cast, before-after or sample section', async () => {
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     for (const id of ['cast', 'before-after', 'sample']) expect(container.querySelector(`#${id}`), id).toBeNull();
   }, 20_000);
 
-  it('no link on the home page points at an id the page does not render', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+  it('no link on the agencies page points at an id the page does not render', async () => {
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     const dangling = [...container.querySelectorAll('a[href^="#"], a[href^="/#"]')]
       .map((a) => a.getAttribute('href')!)
       .filter((h) => h !== '#join' && h !== '/#join')
@@ -241,14 +242,14 @@ describe('HomePage', () => {
     expect(dangling).toEqual([]);
   }, 20_000);
 
-  it('the home page opens the client view with its own heading', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+  it('the agencies page opens the client view with its own heading', async () => {
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     expect(container.querySelector('#client-view-heading')!.textContent).toBe(SECTIONS['client-view'].homeHeading);
     expect(SECTIONS['client-view'].homeHeading).not.toBe(SECTIONS['client-view'].heading);
   }, 20_000);
 
   it('pilot off: trial wording everywhere, no pilot wording', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: false, counters: ALL });
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: false, counters: ALL });
     const text = container.textContent!;
     expect(text).toContain(CLOSE_TRIAL.heading);
     expect(text).toContain(HERO.finePrintTrial);
@@ -259,7 +260,7 @@ describe('HomePage', () => {
   }, 20_000);
 
   it('pilot on: pilot wording and the pilot plan line', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     const text = container.textContent!;
     expect(text).toContain(CLOSE.heading);
     expect(text).toContain(PRICING_LINES.strong);
@@ -269,7 +270,7 @@ describe('HomePage', () => {
 
   it('never shows the local-business price', async () => {
     for (const pilotMode of [true, false]) {
-      const { container } = await renderApp(<HomePage />, { pilotMode, counters: ALL });
+      const { container } = await renderApp(<AgenciesPage />, { pilotMode, counters: ALL });
       expect(container.textContent).not.toContain(`$${PRICING.business.monthlyUsd}/mo`);
       expect(container.textContent).not.toContain('$249');
       cleanup();
@@ -277,9 +278,52 @@ describe('HomePage', () => {
   }, 20_000);
 
   it('has one h1 and no duplicate ids', async () => {
-    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const { container } = await renderApp(<AgenciesPage />, { pilotMode: true, counters: ALL });
     expect(container.querySelectorAll('h1')).toHaveLength(1);
     const all = [...container.querySelectorAll('[id]')].map((el) => el.id);
     expect(all.filter((id, i) => all.indexOf(id) !== i)).toEqual([]);
+  }, 20_000);
+});
+
+describe('HomePage', () => {
+  it('renders hero, checks, counters and the doors band, in that order', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const main = container.querySelector('main')!;
+    expect(main.querySelector('#home-question')).toBeTruthy();
+    const ids = [...main.querySelectorAll(':scope > section[id]')].map((s) => s.id);
+    expect(ids).toEqual(['checks', 'live', 'choose']);
+    const order = [main.querySelector('#home-question')!, ...ids.map((id) => main.querySelector(`#${id}`)!)];
+    for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING, String(i)).toBeTruthy();
+    expect(main.querySelector('#choose-heading')!.textContent).toBe('Which one are you?');
+    expect(main.querySelector('#checks-heading')!.textContent).toBe(SECTIONS.checks.heading);
+  }, 20_000);
+
+  it('one h1 and no duplicate ids', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    expect(container.querySelectorAll('h1')).toHaveLength(1);
+    const all = [...container.querySelectorAll('[id]')].map((el) => el.id);
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.filter((id, i) => all.indexOf(id) !== i)).toEqual([]);
+  }, 20_000);
+
+  it('shows no price and no join button', async () => {
+    for (const pilotMode of [true, false]) {
+      const { container } = await renderApp(<HomePage />, { pilotMode, counters: ALL });
+      const visible = container.cloneNode(true) as HTMLElement;
+      visible.querySelectorAll('script').forEach((el) => el.remove());
+      expect(visible.textContent, String(pilotMode)).not.toContain('$');
+      expect(screen.queryAllByRole('button', { name: /join/i })).toEqual([]);
+      expect(screen.queryAllByRole('link', { name: /join/i })).toEqual([]);
+      cleanup();
+    }
+  }, 20_000);
+
+  it('no link points at an id the page does not render', async () => {
+    const { container } = await renderApp(<HomePage />, { pilotMode: true, counters: ALL });
+    const all = [...container.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')!);
+    expect(all).toEqual(expect.arrayContaining(['/agencies', '/business']));
+    const links = all.filter((h) => h.startsWith('#') || h.startsWith('/#'));
+    const dangling = links.filter((h) => !container.querySelector(`[id="${h.slice(h.indexOf('#') + 1)}"]`));
+    expect(dangling).toEqual([]);
   }, 20_000);
 });

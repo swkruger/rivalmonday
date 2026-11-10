@@ -44,12 +44,22 @@ export function collectionPage(
 export const PAGES: readonly SitePage[] = [
   {
     path: '/',
+    title: 'Rival Monday: see what local rivals did this week',
+    description:
+      'Rival Monday watches map rankings, reviews and ads around a local business and writes a Monday brief with the evidence behind every claim.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 1,
+  },
+  {
+    path: '/agencies',
+    side: 'agency',
     title: 'Rival Monday: white-label competitor monitoring for agencies',
     description:
       'Give your local-service clients a weekly, evidence-backed competitor brief under your own brand. Public information only, no claim without evidence.',
     sitemap: true,
     changeFrequency: 'monthly',
-    priority: 1,
+    priority: 0.9,
   },
   {
     path: '/how-it-works',

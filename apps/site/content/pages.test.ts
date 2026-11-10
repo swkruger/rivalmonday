@@ -6,7 +6,7 @@ import { collectionPage, NAV_EXTRA, PAGES } from './pages';
 import { sidePaths } from '../src/components/shell/nav-items';
 
 /** Fixed agency-side rows; later tasks add their rows here. Rival and integration rows are checked by group. */
-const AGENCY_SIDE_FIXED = ['/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
+const AGENCY_SIDE_FIXED = ['/agencies', '/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
 
 const appDir = join(__dirname, '..', 'src', 'app');
 const pageFile = (path: string) => join(appDir, path === '/' ? '' : path.slice(1), 'page.tsx');
@@ -67,6 +67,23 @@ describe('page registry', () => {
       expect(p.title.length, p.path).toBeLessThanOrEqual(60);
       expect(p.description.length, p.path).toBeLessThanOrEqual(155);
     }
+  });
+
+  it('/ and /agencies carry the decided titles', () => {
+    const home = PAGES.find((p) => p.path === '/')!;
+    const agencies = PAGES.find((p) => p.path === '/agencies')!;
+    expect(home.title).toBe('Rival Monday: see what local rivals did this week');
+    expect(home.description).toBe('Rival Monday watches map rankings, reviews and ads around a local business and writes a Monday brief with the evidence behind every claim.');
+    expect(home.side).toBeUndefined();
+    expect(home.priority).toBe(1);
+    expect(agencies).toMatchObject({
+      title: 'Rival Monday: white-label competitor monitoring for agencies',
+      description: 'Give your local-service clients a weekly, evidence-backed competitor brief under your own brand. Public information only, no claim without evidence.',
+      side: 'agency',
+      sitemap: true,
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    });
   });
 
   it('paths are unique', () => {

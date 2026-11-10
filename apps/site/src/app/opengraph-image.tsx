@@ -1,4 +1,3 @@
-import { HERO } from '../../content/home';
 import { PAGES } from '../../content/pages';
 import { effectiveTitle } from '../lib/metadata';
 import { OG_SIZE, renderOg } from '../lib/og';
@@ -12,5 +11,5 @@ export const size = OG_SIZE;
 export const contentType = 'image/png';
 
 export default function Image() {
-  return renderOg({ eyebrow: HERO.eyebrow, title: effectiveTitle(page) });
+  return renderOg({ eyebrow: 'Competitor tracking for local businesses', title: effectiveTitle(page) });
 }
