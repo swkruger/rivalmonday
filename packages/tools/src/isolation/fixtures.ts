@@ -111,6 +111,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_rank_trend: client({ keyword: 'ac repair' }),
   get_share_of_voice: client(),
   get_search_visibility: client(),
+  get_citation_audit: client(),
   get_rank_settings: client(),
 
   // ── client: search, knowledge, Ask, help ───────────────────────────────────────────────────────────

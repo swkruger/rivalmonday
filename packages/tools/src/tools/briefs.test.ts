@@ -1,8 +1,8 @@
-import { brief, briefItem, client, clientCompetitor } from '@cs/db';
+import { brief, briefItem, citationAuditRun, client, clientCompetitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ctx, dbs, registry, resetWorkspace, seedEvent } from './workspace-fixtures';
+import { ctx, dbs, registry, resetWorkspace, seedEvent, seedSelf } from './workspace-fixtures';
 
 const admin = ctx('agency_admin', 'all');
 const mcp = { channel: 'mcp' as const, tokenId: 'pat-1', tokenScope: 'read' as const };
@@ -65,6 +65,16 @@ describe('get_starting_point_status', () => {
     const out = (await status()) as { state: string; checks: Record<string, boolean | null> };
     expect(out.state).toBe('preparing');
     expect(out.checks).toMatchObject({ profile: false, reviews: false });
+    expect(out.checks).toHaveProperty('citations'); // 18c: the card sees the directory check (null: no own business yet)
+    expect(out.checks.citations).toBeNull();
+  });
+
+  it('citations check: false until the first listings audit finishes, then true (the pack loader is passed through)', async () => {
+    const self = await seedSelf();
+    const checks = async () => ((await status()) as { checks: Record<string, boolean | null> }).checks;
+    expect((await checks()).citations).toBe(false);
+    await dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'setup', status: 'done', competitorIds: [self], startedAt: new Date(), finishedAt: new Date() });
+    expect((await checks()).citations).toBe(true);
   });
 
   it('generating and failed starting points stay preparing', async () => {

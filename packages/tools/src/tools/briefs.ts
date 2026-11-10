@@ -5,6 +5,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
+import { packsOf } from '../catalog/access';
 import { workspaceClient } from '../workspace/scope';
 import { BriefDetail, BriefSummary, StartingPointStatus, pagedItems, pagedListInput, toIso } from './schemas';
 
@@ -110,7 +111,7 @@ export const getStartingPointStatus = defineTool({
     const [b] = await deps.service.select({ id: brief.id, status: brief.status }).from(brief).where(and(eq(brief.clientId, clientId), sql`${brief.kind} = 'starting_point'`)).limit(1);
     if (b?.status === 'sent') return { state: 'sent' as const, briefId: b.id };
     if (b?.status === 'ready' || b?.status === 'approved') return { state: 'ready_for_review' as const };
-    const r = await startingPointReadiness(deps.service, clientId, new Date());
+    const r = await startingPointReadiness(deps.service, clientId, new Date(), packsOf(deps));
     return { state: 'preparing' as const, checks: r.checks };
   },
 });

@@ -466,6 +466,26 @@ export const SearchVisibilityView = z.object({
 });
 export type SearchVisibilityView = z.infer<typeof SearchVisibilityView>;
 
+/** 18c-1: the directory-listings audit (you and up to 3 top rivals x the vertical's directory catalogue). No row for a catalogue host = `not_checked`. */
+export const CitationAuditView = z.object({
+  checkedAt: iso.nullable(),
+  status: z.enum(['never', 'done', 'capped', 'running']),
+  directories: z.array(z.object({ host: z.string(), label: z.string(), addListingUrl: z.string() })),
+  businesses: z.array(z.object({
+    competitorId: uuid, name: z.string(), self: z.boolean(),
+    listings: z.array(z.object({
+      host: z.string(), status: z.enum(['listed', 'not_found', 'not_checked']),
+      nameMatch: z.boolean().nullable(), phoneMatch: z.boolean().nullable(),
+      listingUrl: z.string().nullable(), shownPhone: z.string().nullable(), evidenceId: z.string().nullable(), checkedAt: iso.nullable(),
+    })),
+  })),
+  /** True when the client has no self competitor (no Google listing linked). */
+  selfMissing: z.boolean(),
+  /** P10: your own listings on directories outside the catalogue (links only). */
+  alsoFoundOn: z.array(z.object({ host: z.string(), listingUrl: z.string(), evidenceId: z.string().nullable() })),
+});
+export type CitationAuditView = z.infer<typeof CitationAuditView>;
+
 /** Phase 6a: AI connections views (`list_api_tokens` / `list_oauth_grants`). Scope values mirror `TOKEN_SCOPES` (`@cs/core`). */
 const TokenScopeView = z.enum(['read', 'feedback', 'manage']);
 export const ApiTokenView = z.object({
@@ -483,7 +503,7 @@ export type OAuthGrantView = z.infer<typeof OAuthGrantView>;
 export const StartingPointStatus = z.discriminatedUnion('state', [
   z.object({
     state: z.literal('preparing'),
-    checks: z.object({ profile: z.boolean(), reviews: z.boolean(), rankings: z.boolean().nullable(), competitors: z.boolean().nullable() }),
+    checks: z.object({ profile: z.boolean(), reviews: z.boolean(), rankings: z.boolean().nullable(), competitors: z.boolean().nullable(), citations: z.boolean().nullable() }),
   }),
   z.object({ state: z.literal('ready_for_review') }),
   z.object({ state: z.literal('sent'), briefId: uuid }),

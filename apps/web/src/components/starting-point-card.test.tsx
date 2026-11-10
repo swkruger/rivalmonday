@@ -5,7 +5,7 @@ import { pendingStartingPoint, StartingPointCard } from './starting-point-card';
 
 describe('StartingPointCard', () => {
   it('shows the four checks: done, in progress and not needed', () => {
-    render(<StartingPointCard agency={false} status={{ state: 'preparing', checks: { profile: true, reviews: false, rankings: null, competitors: false } }} />);
+    render(<StartingPointCard agency={false} status={{ state: 'preparing', checks: { profile: true, reviews: false, rankings: null, competitors: false, citations: null } }} />);
     expect(screen.getByText('Preparing your starting point')).toBeTruthy();
     for (const l of ['Your Google profile', 'Your reviews', 'Map rankings', 'Competitors']) expect(screen.getByText(l)).toBeTruthy();
     expect(screen.getByText('✓')).toBeTruthy();
@@ -29,7 +29,7 @@ describe('StartingPointCard', () => {
   });
 
   it('agency does not see the review link while still preparing', () => {
-    render(<StartingPointCard agency status={{ state: 'preparing', checks: { profile: false, reviews: false, rankings: null, competitors: null } }} />);
+    render(<StartingPointCard agency status={{ state: 'preparing', checks: { profile: false, reviews: false, rankings: null, competitors: null, citations: null } }} />);
     expect(screen.queryByRole('link')).toBeNull();
   });
 });
