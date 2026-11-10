@@ -72,11 +72,11 @@ one with only `gbp_post_id` succeeds; the second open span with identical (post,
 **Files:** create `packages/collectors/src/gbp/posts.ts` + `posts.test.ts`; modify `sources/kinds.ts` (`'gbp_posts'`), `index.ts` exports,
 `vendors/fixture-fetch.ts` (canned `my_business_updates` task_post/tasks_ready/task_get for rehearsal, from the Task 0 fixture).
 **Interfaces (produces):** `GBP_POSTS_URL = 'gbp:posts'`; `parseGbpPost`, `GbpPost`, `postGbpPostTasks`, `collectReadyGbpPosts` exactly as spec.
-**Behaviour:** `postId` fallback = first 32 hex of `sha256Hex(url ?? text)`; `vendor_task.kind 'google_posts'`; keyword `place_id:` first, else `cid:`,
-else skipped; upsert `gbp_post` on `(competitor_id, external_id)`: insert sets first_*; conflict updates `text,url,button_url,is_offer,offer_*,last_capture_id,last_seen_at`
+**Behaviour:** `postId` = `lpsid` from `url`, fallback first 32 hex of `sha256Hex(url ?? text)`; `vendor_task.kind 'google_posts'`; keyword `place_id:` first, else `cid:`,
+else skipped; upsert `gbp_post` on `(competitor_id, external_id)`: insert sets first_*; conflict updates `text,url,button_url,posted_at,last_capture_id,last_seen_at`
 and clears `ended_*`; posts not listed in a **non-empty ok** capture get `ended_capture_id/ended_at`. A 40102 task → ok capture with `[]`, no ending.
 **Follow pattern:** `jobs/post.ts`, `jobs/collect.ts`, `ads/upsert.ts`.
-**Tests (first):** `parseGbpPost` on the fixture (id, text, postedAt ISO, offer flag, offerEnd); no-id post hashes url; no id + no text → null;
+**Tests (first):** `parseGbpPost` on `__fixtures__/posts-task-get.json` (postId = lpsid `CIHM0ogKEICAgMDonPqBfQ` for the first item, text, postedAt `2025-04-22T00:00:00.000Z`, buttonUrl); a url without lpsid hashes url; no id + no text → null;
 `postGbpPostTasks` sends `tag: competitorId`, skips competitors without place/cid, records `vendor_task` rows; `collectReadyGbpPosts` writes one
 capture with `url 'gbp:posts'`, N observations `kind 'gbp_post'`, upserts rows; a second capture missing a post ends it; an empty (40102) capture ends none.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/gbp/posts.test.ts` green; tsc clean.
@@ -96,7 +96,7 @@ a competitor without place/cid is marked `skipped`; the poll calls `collectReady
 **Files:** create `packages/engine/src/structured/gbp-posts.ts` + test; modify `vendor-diff.ts` (dispatch by `cap.url === GBP_POSTS_URL`),
 `tag/structured.ts` (summary copy), and whatever maps `details.field 'post'` service mapping in the tag stage (a post maps services like an ad).
 **Interfaces:** `diffGbpPosts: SourceDiffer`; `POST_MAX_AGE_DAYS = 21`; `POST_MAX_SINGLE = 5`; details per spec.
-**Behaviour:** spec § Differ. Offer = `post.offer || pricesInBlock(text).length > 0 || PROMO.test(text)`. `diffGbp` keeps ignoring `url 'gbp:posts'` captures.
+**Behaviour:** spec § Differ. Offer = `pricesInBlock(text).length > 0 || PROMO.test(text)`. `diffGbp` keeps ignoring `url 'gbp:posts'` captures.
 **Tests (first):** first posts capture → `[]` (baseline handled by `diffVendorCapture`; assert via `diffVendorCapture`); a post seen before → no change;
 new "Spring tune-up $79" → `promo`; a self-only competitor's new post → `[]`; new "We're hiring!" plain → `content`; post dated 30 days before capture → skipped; 7 new posts → 5 singles + 1
 `gbp_post:more` with `count 2`; a GBP-info capture still goes to `diffGbp`; summaries equal the spec strings (e.g. `Posted an offer on Google: "Spring tune-up $79"`).
@@ -123,9 +123,9 @@ base → nothing; scored `profile_change` from these stays < pack `routing.alert
 `POST_PRICE_MAX = 20`; `extractPostPrices(deps: { db; store; ai; packs }, captureId: string): Promise<StageOutcome<PriceRunResult>>`; worker dep
 `extractPostPrices(captureId): Promise<{ ran: boolean; points: number; ended: number }>`.
 **Behaviour:** spec § Prices; follow the Meta path of `extractAdPrices` (watermark per competitor+url, `competitorVerticals`, redacted state with
-`source: 'gbp_post'`). End spans for posts ended by this capture and for open spans whose `offer_end < capturedAt`. Captures before `POST_PRICE_SINCE` skipped.
+`source: 'gbp_post'`). End spans for posts ended by this capture. Captures before `POST_PRICE_SINCE` skipped.
 **Tests (first):** priced offer post → one span per mapped vertical with `gbp_post_id`, `promo true`; second capture listing it → `last_seen_at` advances,
-no new row; capture where it is unlisted (non-empty) → span ended; empty capture → nothing ended; `offer_end` passed → ended; older capture than the
+no new row; capture where it is unlisted (non-empty) → span ended; empty capture → nothing ended; older capture than the
 watermark → skipped; non-posts capture → throws; drain/engine job call it only for `url 'gbp:posts'` captures.
 **Done when:** `pnpm --filter @cs/engine exec vitest run src/prices src/drain.test.ts` and `pnpm --filter @cs/worker exec vitest run src/jobs/engine.test.ts` green.
 

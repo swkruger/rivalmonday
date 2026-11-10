@@ -4,7 +4,7 @@
 **Plan/spec:** [spec 18b-1](../superpowers/specs/2026-11-10-phase-18b1-gbp-posts-design.md) · [plan 18b-1](../superpowers/plans/2026-11-10-phase-18b1-gbp-posts.md) (no roadmap row; add one at merge)
 
 ## Status (overwrite)
-18b-1 plan **owner-approved 2026-11-10** (incl. Task 0 live probe ≤ $0.05). Execution starting at Task 0.
+18b-1 plan owner-approved 2026-11-10. **Task 0 done:** GBP fields `total_photos`, `book_online_url`, `attributes.available_attributes` ({group: [names]}) confirmed on a cs_dev capture; posts endpoint `business_data/google/my_business_updates/task_post|tasks_ready|task_get/{id}` (sandbox fixture saved); items have no id/offer marker, `lpsid` in `url` is unique per post; **live cost $0.003/task** (spent $0.003). SDD Tasks 1–8 running.
 
 ## Next (overwrite)
 Task 0 (pre-flight + vendor probe, stop point) → SDD Tasks 1–8 → final review.

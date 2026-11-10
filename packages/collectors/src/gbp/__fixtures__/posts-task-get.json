@@ -1,0 +1,238 @@
+{
+    "version": "0.1.20261103",
+    "status_code": 20000,
+    "status_message": "Ok.",
+    "time": "0 sec.",
+    "cost": 0,
+    "tasks_count": 1,
+    "tasks_error": 0,
+    "tasks": [
+        {
+            "id": "11100631-2679-0243-2000-ae86654b1bd7",
+            "status_code": 20000,
+            "status_message": "Ok.",
+            "time": "0 sec.",
+            "cost": 0,
+            "result_count": 1,
+            "path": [
+                "v3",
+                "business_data",
+                "google",
+                "my_business_updates",
+                "task_get",
+                "11100631-2679-0243-2000-ae86654b1bd7"
+            ],
+            "data": {
+                "se_type": "my_business_updates",
+                "se": "google",
+                "api": "business_data",
+                "function": "my_business_updates"
+            },
+            "result": [
+                {
+                    "keyword": "RustyBrick, Inc.",
+                    "se_domain": "google.com",
+                    "location_code": 1023191,
+                    "language_code": "en",
+                    "check_url": "https:\/\/www.google.com\/search?q=RustyBrick%2C%20Inc.&hl=en&gl=US&uule=w+CAIQIFISCTsIP9OlT8KJEWL-d-EGjwvI",
+                    "datetime": "2026-11-09 17:51:19 +00:00",
+                    "business_updates_id": null,
+                    "cid": null,
+                    "feature_id": null,
+                    "item_types": [
+                        "google_business_post"
+                    ],
+                    "items_count": 10,
+                    "items": [
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 1,
+                            "rank_absolute": 1,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "We're hiring software developers; both mobile and web developers.  Must be US residents.",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgMDonPqBfQ&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipPjXAJPnqoRsEwkkB4F2CmrdHiTuFOqo3Qj-K9I=h305-no",
+                            "post_date": "Apr 22, 2025",
+                            "timestamp": "2025-04-22 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "https:\/\/www.rustybrick.com\/jobs"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 2,
+                            "rank_absolute": 2,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "Working every day to help make businesses more efficient and productive through custom web and mobile technology.  The results can be astonishing.",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgIDe4LnuWA&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipPr6FupAoiJnOMy_ucH58s6JwPrd0YyCrWupHWM=h305-no",
+                            "post_date": "Sep 29, 2022",
+                            "timestamp": "2022-09-29 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "https:\/\/www.rustybrick.com\/services.php"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 3,
+                            "rank_absolute": 3,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "Prepping the office for the return of our employees to working in the office after they are vaccinated. Exciting times. ",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICKgcOm8QE&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipNaT43oHnK8_KpQhXeeWmtOAFI7pzfsTUraK_Qv=h305-no",
+                            "post_date": "Apr 7, 2021",
+                            "timestamp": "2021-04-07 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "http:\/\/www.rustybrick.com\/"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 4,
+                            "rank_absolute": 4,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "After a year of being fully remote, starting March 15, 2021 we have limited employees working full time from the office.  We are accepting in-office meetings by appointment only.",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgIDytaur-QE&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": null,
+                            "post_date": "Mar 15, 2021",
+                            "timestamp": "2021-03-15 00:00:00 +00:00",
+                            "links": null
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 5,
+                            "rank_absolute": 5,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "Wishing you a happy, healthy and prosperous New Year!",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgIDS6c30Zw&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": null,
+                            "post_date": "Dec 31, 2020",
+                            "timestamp": "2020-12-31 00:00:00 +00:00",
+                            "links": null
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 6,
+                            "rank_absolute": 6,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "The RustyBrick team is working from home.  We are fully up and operational.  But we are not physically in the office.  Please be safe and stay home.",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICS2qXAfA&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": null,
+                            "post_date": "Apr 2, 2020",
+                            "timestamp": "2020-04-02 00:00:00 +00:00",
+                            "links": null
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 7,
+                            "rank_absolute": 7,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "We hope everyone is safe and healthy.  Virtually all of our staff will be working remotely.  Thankfully, we are set up to allow for remote work.  Phone calls will be returned but it is best to email.  Be safe!",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICS2qXAPA&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": null,
+                            "post_date": "Mar 16, 2020",
+                            "timestamp": "2020-03-16 00:00:00 +00:00",
+                            "links": null
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 8,
+                            "rank_absolute": 8,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "The RustyBrick Sukkah is now available for use",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICS2vXrEw&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipO0W8R2DBUrX5g0yvIkMoR2O8yEDozr0rD9M2y2=h305-no",
+                            "post_date": "Sep 27, 2018",
+                            "timestamp": "2018-09-27 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "https:\/\/www.rustybrick.com\/rustysukkah-is-available.html"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 9,
+                            "rank_absolute": 9,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "Double Header For RustyBrick's Annual Rockland Boulders Baseball Game. The stadium was pretty empty, as usual but makes it good to have it to ourselves. :)",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICS2vXrpwE&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipPMnOz1asHdWgnggpVrYyjAKjl0ayCXCrfe4H6I=h305-no",
+                            "post_date": "Aug 15, 2018",
+                            "timestamp": "2018-08-15 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "https:\/\/www.rustybrick.com\/double-header.html"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "google_business_post",
+                            "rank_group": 10,
+                            "rank_absolute": 10,
+                            "position": "left",
+                            "xpath": null,
+                            "author": "RustyBrick, Inc.",
+                            "snippet": null,
+                            "post_text": "Our latest Jewish software solution aims at improving the Mikvah experience - introducing MikvahCloud.com",
+                            "url": "https:\/\/search.google.com\/local\/posts?q=RustyBrick,+Inc.&ludocid=2946633002421908862&lpsid=CIHM0ogKEICAgICS2v2rbQ&source=sh\/x\/loc\/post\/m1\/1&lsig=AB86z5VWpF0lsMxd28ZU-_oXjiYQ&shem=epsd1,esd2e,rimspwouoe,sdpie&shndl=-1",
+                            "images_url": "https:\/\/lh3.googleusercontent.com\/geougc\/AF1QipN0MzbOIuYYl14M8GmyUPer7wnlubK7C20eBpM4=h305-no",
+                            "post_date": "Jul 17, 2018",
+                            "timestamp": "2018-07-17 00:00:00 +00:00",
+                            "links": [
+                                {
+                                    "type": "link_element",
+                                    "title": "Learn more",
+                                    "url": "https:\/\/www.rustybrick.com\/MikvahCloud-Revolutionizing-Mikvehs-With-Web--Mobile-Technologies-261.html"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

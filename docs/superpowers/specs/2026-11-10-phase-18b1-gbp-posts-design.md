@@ -22,7 +22,7 @@ first pull (silent baseline + post-date cutoff); client text never names the ven
 | D2 | **Cadence:** posts pulled **weekly** per tracked rival (new source kind `gbp_posts`, own `competitor_source` row, 7-day `next_due_at`). If the Task 0 probe shows > $0.005/task, stop and ask the owner (fallback: weekly for the Top-rival tier, monthly for others). |
 | D3 | **Self posts too (owner, 2026-11-10):** the client's own business is pulled weekly like rivals (`gbp_posts` joins `SELF_SOURCES` and the self literal in `claimDueSources`). Self posts make no events and no prices (the differ and price stage skip a competitor that is only a client's self business, as other self captures do). |
 | D9 | **Posts metric (owner, 2026-11-10):** the brief scorecard gains row metric `googlePosts30d` = Google posts dated (else first seen) in the last 30 days, per business incl. you. `null` until a posts capture exists for that business (never 0). Rows only, not a tile (tiles stay 4). Shown wherever scorecard rows render (app brief, email, PDF); posts captures' evidence joins `evidenceIds`. |
-| D4 | **Posts → events:** a new post is an `offer` post when it carries a vendor offer marker, or `pricesInBlock` finds a price, or its text matches `PROMO` (`engine/src/prices/observe.ts`, the rule that sets `price_point.promo`). Offer → `promo`; other → `content` (pack weight 0.2, so it archives and stays in the feed). Existing change types: **no pack bump**. |
+| D4 | **Posts → events:** a new post is an `offer` post when `pricesInBlock` finds a price, or its text matches `PROMO` (`engine/src/prices/observe.ts`, the rule that sets `price_point.promo`). Offer → `promo`; other → `content` (pack weight 0.2, so it archives and stays in the feed). Existing change types: **no pack bump**. |
 | D5 | **Post prices → `price_point`** with new FK `gbp_post_id`, tagged **"From a Google post"**. Like ad prices (18a-1 O6), they are **shown, not counted** in a lowest price, a 90-day change or a history, and they count towards the Promo chip. Rules-only extraction (`pricesInBlock`) + `mapPricedTexts` service mapping. |
 | D6 | **Channel:** post captures use `capture.source = 'google_business_profile'` with `capture.url = 'gbp:posts'`, so channel labels, notification preferences and `CHANNELS` are unchanged ("Google Business Profile"). `diffGbp` already filters on `url IS NULL`; the differ dispatches posts captures by url. |
 | D7 | **Profile leftovers become `profile_change` lines** (brief-only): booking link added/removed/changed, attributes added/removed, photo push (≥ 20 new photos within 21–35 days). All through the two-capture hold. Q&A count not used. |
@@ -40,10 +40,11 @@ first pull (silent baseline + post-date cutoff); client text never names the ven
   `collectorVersion DFS_COLLECTOR_VERSION`), one `observation` per post (`kind 'gbp_post'`, `key = postId`), and upserts `gbp_post`.
 - `parseGbpPost(raw: unknown): GbpPost | null` (pure):
   ```ts
-  export interface GbpPost { postId: string; text: string | null; url: string | null; buttonUrl: string | null;
-    postedAt: string | null; offer: boolean; offerStart: string | null; offerEnd: string | null; imageCount: number }
+  export interface GbpPost { postId: string; text: string | null; url: string | null; buttonUrl: string | null; postedAt: string | null }
   ```
-  `postId` = vendor id if present, else `sha256Hex(url ?? text)` (first 32 hex). Null when there's no id and no text.
+  Item (Task 0, sandbox + live 2026-11-10): `type 'google_business_post'`, `post_text`, `url`, `images_url`, `post_date`, `timestamp`,
+  `links[{title,url}]`; **no id field and no offer marker**. `postId` = the `lpsid` query parameter of `url` (unique per post), else first
+  32 hex of `sha256Hex(url ?? post_text)`; null when there's neither. `postedAt` = `parseDfsTimestamp(timestamp)`; `buttonUrl` = `links[0].url`.
 - `SOURCE_KINDS` gains `'gbp_posts'`; `ensureCompetitorSources` creates it for new competitors; the migration backfills rows
   for existing competitors (self businesses included) that have a `gbp` row. `SELF_SOURCES` and the `claimDueSources` self literal gain `'gbp_posts'`.
 - Worker `apps/worker/src/jobs/vendor.ts`: `gbp_posts` claimed sources go to `postGbpPostTasks` (batch, like jobs, with
@@ -56,8 +57,7 @@ CREATE TABLE gbp_post (
   competitor_id uuid NOT NULL REFERENCES competitor(id) ON DELETE CASCADE,
   external_id text NOT NULL,
   text text, url text, button_url text,
-  posted_at timestamptz, is_offer boolean NOT NULL DEFAULT false,
-  offer_start timestamptz, offer_end timestamptz,
+  posted_at timestamptz,
   first_capture_id uuid NOT NULL REFERENCES capture(id),
   last_capture_id uuid NOT NULL REFERENCES capture(id),
   first_seen_at timestamptz NOT NULL, last_seen_at timestamptz NOT NULL,
@@ -102,7 +102,7 @@ INSERT INTO competitor_source (competitor_id, source)
 ### Prices (`packages/engine/src/prices/post-price-stage.ts`, new)
 - `extractPostPrices(deps, captureId)`, stage `post_price_extract` v1, `POST_PRICE_SINCE` = deploy date. Mirror the Meta path of
   `extractAdPrices`: watermark, listed posts without an open span priced, open spans advanced; spans end when a non-empty capture
-  no longer lists the post or `offer_end < capturedAt`. Max 20 priced posts per capture. Model state `source: 'gbp_post'`.
+  no longer lists the post (no vendor offer dates exist). Max 20 priced posts per capture. Model state `source: 'gbp_post'`.
 - Run from the engine drain (`engine/src/drain.ts`) and the worker engine job (`apps/worker/src/jobs/engine.ts`, `deps.ts`) next to `extractAdPrices`, for posts captures only.
 - `PriceNow.source` and `PriceNowView.source` gain `'gbp_post'` (describe: "a price in one of their Google posts"); tracker
   derives it from `gbpPostId`, link = `gbp_post.url`; `lowestUsd`, 90-day change and history skip it (as `meta_ad`).
@@ -122,7 +122,7 @@ INSERT INTO competitor_source (competitor_id, source)
 - Column label: **"Google posts (30 days)"**; `null` renders as the existing not-measured mark.
 
 ## Cost
-Expected ≤ $0.005 per post task (unverified) → ≤ 5 rivals + you ≈ $0.03/client/week on top of ≈ $0.54 today. Leftovers: $0.
+Measured **$0.003 per post task** (live, 2026-11-10) → ≤ 5 rivals + you ≈ $0.018/client/week on top of ≈ $0.54 today. Leftovers: $0.
 Task 0: one sandbox call ($0) + one live task on one cs_dev rival (≤ $0.05), reported before anything else is built.
 
 ## Left to the builder
