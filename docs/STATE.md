@@ -18,10 +18,10 @@
 
 ## Next up
 **Owner - phase-18a3 (merged 2026-11-09):**
-1. Sign the new ad-image copy in `pnpm copy:review` (incl. "Image not available").
+1. Sign the new ad-image copy in `pnpm copy:review` (incl. "Image not available" and the pricing "Open the ad image" button label).
 2. Any env with data: `pnpm db:migrate` (0104) before deploying worker + web.
 3. When switching on website monitoring: set `AD_IMAGE_SINCE` (`packages/engine/src/ads/images.ts`, ships 2026-11-16) to that day if later, else ads since the 16th become candidates at once; OPS "Ad images (18a-3)".
-4. Decide the pricing-page tag: plain text (plan P9) vs evidence link (spec D6).
+4. ~~Pricing-page tag~~ decided 2026-11-10: rows get a picture button linking the stored ad image (done).
 
 **Owner - phase-18a (after merge), in order:**
 1. Any env with data (cs_dev, staging, prod): `pnpm db:migrate` (0100-0102), then deploy/restart the worker at once (old code rejects v6 packs and trips the new `tracked_page` CHECK), then web.

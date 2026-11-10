@@ -312,7 +312,6 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Confirm GBP closure values (`closed_forever`/`temporarily_closed`) on the first real closure; `site_feature` can replay history on the first sweep where old web captures exist (cs_dev/staging; prod has none) — add a `since` cutoff if it bites — *from 18a-1 pre-flight, 18a-2 Task 7*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
-- [ ] Pricing-page "From an ad image" tag is plain text (plan P9) while spec D6 wanted an evidence link; competitor page links — *18a-3 final review*
 - [ ] Publish v3 with the $49 tier (extra clients 23+) once cost per client < $10 (pricing-v2 D4) — *pricing-v2*
 - [ ] Sign in `pnpm copy:review`: `traceLabel` hover strings, `moveFactLabel` output, chart and toolbar labels — *ui-visual-review*
 - [ ] Copy sign-off now happens in `pnpm copy:review` (ledger `docs/copy/signoff.json`): the per-phase sign-off items below (archive `*copy-signoff*.md` docs) close once their surfaces are signed in the tool; decide whether tool `.describe()` parameter text stays in the scan — *copy-signoff-tool*
