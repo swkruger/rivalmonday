@@ -164,7 +164,7 @@ describe('client batch B: Recommendations', () => {
   it('description and the four tips for everyone', async () => {
     for (const audience of ['client', 'agency'] as const) {
       await show(page('client.recommendations'), audience);
-      expect(screen.getByText('Next steps from your weekly briefs and detected competitor moves.')).toBeTruthy();
+      expect(screen.getByText('Next steps from your weekly briefs, your listings check and detected competitor moves.')).toBeTruthy();
       tipNames(['Recommendation stages', 'Effort and impact', 'For you or Agency', 'Where a recommendation came from']);
       cleanup();
     }

@@ -70,7 +70,7 @@ describe('ListingsPage', () => {
     render(await visit());
     const s = within(section('Your listings'));
     const rows = s.getAllByRole('row').slice(1);
-    expect(rows.map((r) => within(r).getAllByRole('cell')[0]!.textContent)).toEqual(['Facebook', 'Better Business Bureau', 'Yellow Pages', 'Manta']);
+    expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual(['Facebook', 'Better Business Bureau', 'Yellow Pages', 'Manta']);
     expect(rows.map((r) => r.querySelector('[data-slot=status-chip]')!.textContent)).toEqual(['Listed', 'Not found in Google search', 'Not checked yet', 'Listed']);
     expect(rows[0]!.textContent).toContain('Name matches');
     expect(rows[0]!.textContent).toContain('Shows a different phone: (214) 555-0199');
@@ -83,11 +83,12 @@ describe('ListingsPage', () => {
   it('"Add listing" only on not-found rows, external; listed rows link to the listing', async () => {
     render(await visit());
     const s = within(section('Your listings'));
-    const add = s.getAllByRole('link', { name: 'Add listing' });
+    const add = s.getAllByRole('link', { name: /^Add listing on / });
     expect(add.map((a) => a.getAttribute('href'))).toEqual(['https://www.bbb.org/get-listed']);
     expect([add[0]!.getAttribute('target'), add[0]!.getAttribute('rel')]).toEqual(['_blank', 'noopener noreferrer']);
     expect(s.getAllByRole('link', { name: /View listing/ }).map((a) => a.getAttribute('href'))).toEqual(['https://www.facebook.com/lonestarcooling', 'https://www.manta.com/c/lone-star']);
     const rows = s.getAllByRole('row').slice(1);
+    expect(s.getAllByRole('rowheader').length).toBe(rows.length);
     expect(within(rows[2]!).queryAllByRole('link')).toEqual([]);
   });
 
@@ -104,10 +105,10 @@ describe('ListingsPage', () => {
     render(await visit());
     expect(screen.queryByRole('heading', { name: 'Also found on' })).toBeNull();
     cleanup();
-    m.audit = audit({ alsoFoundOn: [{ host: 'nextdoor.com', listingUrl: 'https://nextdoor.com/pages/lone-star', evidenceId: null }] });
+    m.audit = audit({ alsoFoundOn: [{ host: 'neighbours.example', listingUrl: 'https://neighbours.example/pages/lone-star', evidenceId: null }] });
     render(await visit());
-    const link = within(section('Also found on')).getByRole('link', { name: /nextdoor\.com/ });
-    expect([link.getAttribute('href'), link.getAttribute('rel')]).toEqual(['https://nextdoor.com/pages/lone-star', 'noopener noreferrer']);
+    const link = within(section('Also found on')).getByRole('link', { name: /neighbours\.example/ });
+    expect([link.getAttribute('href'), link.getAttribute('rel')]).toEqual(['https://neighbours.example/pages/lone-star', 'noopener noreferrer']);
   });
 
   it('never checked: the first-check line and no tables', async () => {

@@ -53,12 +53,12 @@ function YourListings({ audit, self }: { audit: CitationAuditView; self: Busines
             const status = l?.status ?? 'not_checked';
             return (
               <TableRow key={d.host}>
-                <TableCell className="font-medium text-ink">{d.label}</TableCell>
+                <TableHead scope="row" className="text-sm font-medium text-ink">{d.label}</TableHead>
                 <TableCell><Chip status={status} /></TableCell>
                 <TableCell>{l ? details(l).join(' · ') : null}</TableCell>
                 <TableCell>
-                  {status === 'not_found' && <External href={d.addListingUrl}>Add listing</External>}
-                  {status === 'listed' && l?.listingUrl && <External href={l.listingUrl}>View listing</External>}
+                  {status === 'not_found' && <External href={d.addListingUrl}>Add listing{' '}<span className="sr-only">on {d.label}</span></External>}
+                  {status === 'listed' && l?.listingUrl && <External href={l.listingUrl}>View listing{' '}<span className="sr-only">on {d.label}</span></External>}
                 </TableCell>
               </TableRow>
             );
@@ -83,7 +83,7 @@ function RivalMatrix({ audit, columns }: { audit: CitationAuditView; columns: Bu
         <TableBody>
           {audit.directories.map((d) => (
             <TableRow key={d.host}>
-              <TableCell className="font-medium text-ink">{d.label}</TableCell>
+              <TableHead scope="row" className="text-sm font-medium text-ink">{d.label}</TableHead>
               {columns.map((b) => (
                 <TableCell key={b.competitorId}><Chip status={b.listings.find((l) => l.host === d.host)?.status ?? 'not_checked'} /></TableCell>
               ))}

@@ -39,7 +39,7 @@ Not yet. Each listed row says **Address: not checked**. Only the name and phone 
 
 ### Why are the client's own listings missing?
 
-The page needs {{client}}'s own Google business on file. Add the Google Place ID under **Settings › Business profile**; the client's listings appear after the next monthly check. Until then the page shows a note, and the comparison shows the rivals only.
+The page needs {{client}}'s own Google business on file. Add the Google Place ID under **Client settings › Business profile**; the client's listings appear after the next monthly check. Until then the page shows a note, and the comparison shows the rivals only.
 
 ### Which directories are checked?
 

@@ -302,7 +302,7 @@ export const CLIENT_COPY = {
     },
   },
   'client.recommendations': {
-    description: 'Next steps from your weekly briefs and detected competitor moves.',
+    description: 'Next steps from your weekly briefs, your listings check and detected competitor moves.',
     tips: {
       // source: apps/web/src/components/recommendation-board.tsx:RecommendationBoard (columns, targetsFor, ReopenForm, DismissDialog); packages/core/src/access.ts:ROLE_PERMISSIONS (client_viewer has read only)
       stages: {
@@ -329,8 +329,8 @@ export const CLIENT_COPY = {
     },
     empty: {
       // The page shows noRecsAsk only to a viewer who can save from an answer (the Ask module on and the feedback permission), noRecs otherwise.
-      noRecs: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, and when a competitor move calls for a response.' },
-      noRecsAsk: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, and when a competitor move calls for a response. You can also save one from an {assistant} answer.' },
+      noRecs: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, after your listings check, and when a competitor move calls for a response.' },
+      noRecsAsk: { title: 'No recommendations yet', body: 'Recommendations arrive with each approved weekly brief, after your listings check, and when a competitor move calls for a response. You can also save one from an {assistant} answer.' },
     },
   },
   'client.ask': {

@@ -22,7 +22,7 @@ Owner: find the client's missing or wrong citations; a rival's new listing is a 
 | C8 | **Minor, brief-only (ours):** deterministic score = `thresholds.brief / 4`, route **always `archive`** (factor `citationMinor`). `gradedChanges` reads every route → a **Minor** line (T > 0), grouped per rival; never an item, alert or live Major. |
 | C9 | **Client-facing:** self-rule `citation_gap` + play `fix_citations` (add-listing links; no prefilled NAP); page **Listings** (`/c/<id>/listings`); tool `get_citation_audit` (web, MCP, Friday). No scorecard row. |
 | C10 | **Cadence:** first audit once `client_setup.competitors_done_at` is set (or no setup row = staff/legacy client), then every 30 days. Audited = self + **Top-rival tier** (`competitor_signal.tier = 'top'`, by `overlap`, ≤ 3). No "check now". A competitor checked < 25 days ago (any client) is reused, not searched. |
-| C12 | **"Also found on" (owner 2026-11-10).** Stage-1 hits on hosts outside the catalogue are kept as `in_catalogue = false` rows when **both** `nameHit ∧ phoneHit` (stricter than C6), host ≠ the business's own domain, not banned, not in `NOT_DIRECTORY_HOSTS` (google.*, youtube.com, wikipedia.org, the client's own site); ≤ 10 per business. Informational only: no gap, no recommendation, no event, self only on the page. OPS.md SQL lists common uncatalogued hosts to promote (platform page = backlog). |
+| C12 | **"Also found on" (owner 2026-11-10).** Stage-1 hits on hosts outside the catalogue are kept as `in_catalogue = false` rows when **both** `nameHit ∧ phoneHit` (stricter than C6), host ≠ the business's own domain, not banned, not in `NOT_DIRECTORY_HOSTS` (google.*, youtube.com, wikipedia.org, the client's own site); ≤ 10 per business. Informational only: no gap, recommendation or event; self only. OPS.md SQL lists common uncatalogued hosts (platform page = backlog). |
 | C11 | **Channel (ours):** `CHANNELS` += `'directories'` ("Online directories"); capture `source 'directories'` under the audited competitor; not in `vendor-diff` `DIFFERS`. |
 
 ## Interfaces (binding)
@@ -38,11 +38,11 @@ citations: z.strictObject({
 // citationCatalogue(pack): Directory[] = union of picked groups, unique hosts, ≤ 15 (assembled-pack refine)
 ```
 Refine: hosts in `BANNED_CITATION_HOSTS = ['yelp.com','healthgrades.com','zocdoc.com','nextdoor.com']` are a schema error.
-Starting lists (labels OK in client text; `add_listing_url` hand-checked at Task 0):
+Starting lists (`add_listing_url` hand-checked):
 - **general** group: facebook.com (Facebook), bbb.org (Better Business Bureau), yellowpages.com (Yellow Pages), manta.com (Manta),
-  foursquare.com (Foursquare), mapquest.com (MapQuest). Bing Places and Apple Maps removed at Task 0 (no search hits, C3).
+  foursquare.com (Foursquare), mapquest.com (MapQuest). Bing Places and Apple Maps dropped (no hits, C3).
 - **home_services** group: angi.com (Angi), homeadvisor.com (HomeAdvisor), thumbtack.com (Thumbtack), houzz.com (Houzz), porch.com (Porch).
-- **dental_health** group: findadentist.ada.org (ADA Find-a-Dentist). Review-hosting/booking health directories (WebMD Care, Vitals, Sharecare, Opencare) are out (§2.2 spirit).
+- **dental_health** group: findadentist.ada.org (ADA Find-a-Dentist). Review/booking health directories (WebMD Care, Vitals, Sharecare, Opencare) are out.
 
 ### Migration `0107_citations` (next free number at execution time)
 ```sql
@@ -124,9 +124,10 @@ Input `{ clientId }`. Output:
   businesses: { competitorId: string; name: string; self: boolean;
     listings: { host: string; status: 'listed' | 'not_found' | 'not_checked'; nameMatch: boolean | null; phoneMatch: boolean | null;
       listingUrl: string | null; shownPhone: string | null; evidenceId: string | null; checkedAt: string | null }[] }[];
+  alsoFoundOn: { host: string; listingUrl: string; evidenceId: string | null }[];   // self only (C12)
   selfMissing: boolean }   // true = no self competitor (no Google listing linked)
 ```
-Current catalogue only; no row = `not_checked`. Channels web/mcp/ask, feature `dashboard`; `ISOLATION_FIXTURES` `client()`; out of scope ⇒ `not_found`.
+Current catalogue only; no row = `not_checked`. `shownPhone` is web-only (null on mcp/ask). Channels web/mcp/ask, feature `dashboard`; `ISOLATION_FIXTURES` `client()`; out of scope ⇒ `not_found`.
 
 ### Listings page (`apps/web/src/app/(app)/c/[clientId]/listings/page.tsx`, new)
 - Nav: `apps/web/src/components/shell/nav-items.ts` `clientNav` Insights section, `add(\`${base}/listings\`, 'Listings', 'listings')` right after `Local rankings`;

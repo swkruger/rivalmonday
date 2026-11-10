@@ -33,8 +33,8 @@ export async function seedCitations(ctx: SeedContext): Promise<void> {
     competitorId, host: l.host, status: l.status,
     nameMatch: l.status === 'listed' ? l.name ?? null : null,
     phoneMatch: l.status === 'listed' ? l.phone ?? null : null,
-    // Real directory hosts with a `/demo/` path: no real business page is linked from demo data.
-    listingUrl: l.status === 'listed' ? `https://www.${l.host}/demo/${slug}` : null,
+    // Reserved `.example` hosts (facebook.example, bbb.example): no demo link can reach a real page. `host` stays the real directory.
+    listingUrl: l.status === 'listed' ? `https://${l.host.replace(/\.[a-z]+$/, '')}.example/${slug}` : null,
     listingTitle: l.status === 'listed' ? `${slug} | ${l.host}` : null,
     shownPhone: l.shownPhone ?? null,
     captureId: null,
