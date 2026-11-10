@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { BUSINESS } from '../../../content/business';
 import { RIVAL_STORY, SECTIONS } from '../../../content/home';
 import { rivalStoryMoves } from '../../../content/rival-story';
 import { WEBSITE_MONITORING_LIVE } from '../../../content/website-monitoring';
@@ -25,7 +26,7 @@ const RIVAL_SUBJECT: RankGridSubject = { title: RIVAL_STORY.gridTitle(SAMPLE.ran
  * §2, the page's one showpiece: the sample rival's map-rank replay beside a dated log of the rival's moves.
  * Every log row opens the same evidence sheet the grid does.
  */
-export function RivalStory() {
+export function RivalStory({ audience = 'agency' }: { audience?: 'agency' | 'business' } = {}) {
   const live = WEBSITE_MONITORING_LIVE;
   const [openId, setOpenId] = useState<string | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
@@ -33,13 +34,15 @@ export function RivalStory() {
     trigger.current = el;
     setOpenId(id);
   };
-  const section = SECTIONS['rival-story'];
+  const business = audience === 'business';
+  const section = business ? { ...SECTIONS['rival-story'], heading: BUSINESS.rivalStory.heading } : SECTIONS['rival-story'];
   return (
     <HomeSectionShell id="rival-story" labelledBy="rival-story-heading" className="bg-surface">
       {/* Phones read heading → replay → log; from `lg` the replay spans both rows on the left. */}
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-8">
         <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <SectionHeading section={section} body={false} />
+          {business && <p className="mt-4 max-w-2xl text-lg text-ink-secondary">{BUSINESS.rivalStory.intro}</p>}
           <p className="mt-4 max-w-2xl text-lg text-ink-secondary">{live ? section.body : RIVAL_STORY.bodyNoWeb}</p>
         </div>
         <div className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
@@ -60,7 +63,7 @@ export function RivalStory() {
             ))}
           </ol>
           <p className="mt-3 text-13 text-muted-ink">{RIVAL_STORY.caption}</p>
-          <p className="mt-6 max-w-2xl text-base font-medium text-ink">{RIVAL_STORY.closing}</p>
+          <p className="mt-6 max-w-2xl text-base font-medium text-ink">{business ? BUSINESS.rivalStory.closing : RIVAL_STORY.closing}</p>
         </div>
       </div>
       <EvidencePanel

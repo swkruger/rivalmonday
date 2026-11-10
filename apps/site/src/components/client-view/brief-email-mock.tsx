@@ -5,7 +5,7 @@ import { SAMPLE } from '../../sample/schema';
 import { NoteMark } from './note-mark';
 
 /** The Monday brief as it lands in the client's inbox, sent in the agency's name (sample data). */
-export function BriefEmailMock() {
+export function BriefEmailMock({ marks = true }: { marks?: boolean } = {}) {
   const { agency, email } = CLIENT_VIEW;
   const items = SAMPLE.items.slice(0, 3);
   return (
@@ -24,7 +24,7 @@ export function BriefEmailMock() {
             <span className="flex h-9 w-28 items-center justify-center rounded-md border border-dashed border-line-control text-xs font-medium text-muted-ink">
               {agency.logo}
             </span>
-            <NoteMark n={1} />
+            {marks && <NoteMark n={1} />}
           </span>
           {/* D14: the brief's header band is solid ink, as on the canvas's Monday brief card. */}
           <div className="-mx-5 flex flex-col gap-1 bg-ink px-5 py-5 md:-mx-7 md:px-7">
@@ -32,7 +32,7 @@ export function BriefEmailMock() {
             <p className="text-sm text-muted-surface">{email.greeting}</p>
           </div>
           <div className="relative">
-            <span className="absolute -left-2.5 top-1.5 z-10 md:-left-9"><NoteMark n={2} /></span>
+            <span className="absolute -left-2.5 top-1.5 z-10 md:-left-9">{marks && <NoteMark n={2} />}</span>
             <ol className="flex flex-col gap-4">
               {items.map((item, i) => (
                 <li key={item.id} className="flex gap-3 border-t border-line pt-4">
@@ -50,7 +50,7 @@ export function BriefEmailMock() {
           </div>
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
             <span className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-ink">{email.button}</span>
-            <NoteMark n={3} />
+            {marks && <NoteMark n={3} />}
             <span className="flex items-center gap-1.5 text-13 text-link">
               <FileText aria-hidden="true" className="size-4" />
               {email.pdf}

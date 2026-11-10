@@ -7,6 +7,7 @@ const join = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
+import { BUSINESS } from '../../../content/business';
 import { HERO, SECTIONS } from '../../../content/home';
 import { CLIENT_VIEW, type DashboardOpen } from '../../../content/client-view';
 import { FRIDAY_ANSWERS } from '../../../content/sample-friday';
@@ -163,6 +164,28 @@ describe('ClientView', () => {
     expect(HERO.heroCta).toBe('Get a free brief for one client');
     fireEvent.click(btn);
     expect(join.open).toHaveBeenCalledWith('agency-sample');
+  });
+
+  it('business audience: one note line, no numbered notes, no markers, no button', () => {
+    const { container } = render(<ClientView audience="business" />);
+    expect(screen.getByRole('heading', { name: BUSINESS.whatYouGet.heading })).toBeTruthy();
+    expect(screen.getByText(BUSINESS.whatYouGet.body)).toBeTruthy();
+    for (const name of ['Dashboard', 'Monday brief', 'Friday']) {
+      fireEvent.mouseDown(screen.getByRole('tab', { name }));
+      expect(container.querySelectorAll('[data-note-mark]')).toHaveLength(0);
+      expect(screen.queryByRole('list', { name: 'What to notice' })).toBeNull();
+      expect(screen.getAllByText(BUSINESS.whatYouGet.note)).toHaveLength(1);
+    }
+    expect(container.querySelector('[data-slot="client-view-cta"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: HERO.heroCta })).toBeNull();
+  });
+
+  it('business audience: other dashboard pages keep their view note', () => {
+    render(<ClientView audience="business" />);
+    const item = CLIENT_VIEW.nav.find((n) => n.id !== 'overview')!;
+    fireEvent.click(within(screen.getByRole('navigation', { name: /Client menu/ })).getByRole('button', { name: item.label }));
+    expect(screen.getByText(CLIENT_VIEW.viewNotes[item.id as keyof typeof CLIENT_VIEW.viewNotes])).toBeTruthy();
+    expect(screen.queryByText(BUSINESS.whatYouGet.note)).toBeNull();
   });
 
   it("pilot off: that button is the sign-up link with the join button's own label", () => {

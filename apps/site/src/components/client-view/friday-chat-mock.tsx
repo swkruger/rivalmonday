@@ -9,7 +9,7 @@ import { NoteMark } from './note-mark';
 const ANSWER = FRIDAY_ANSWERS.find((a) => a.id === 'map-leader') ?? FRIDAY_ANSWERS[0]!;
 
 /** Friday in the client's app: a question, a cited answer with numbered sources, and the next questions to ask. */
-export function FridayChatMock() {
+export function FridayChatMock({ marks = true }: { marks?: boolean } = {}) {
   // One number per distinct evidence id, in order of first citation.
   const cites = [...new Set(ANSWER.answer.flatMap((p) => (p.cite ? [p.cite] : [])))];
   const others = FRIDAY_ANSWERS.filter((a) => a.id !== ANSWER.id);
@@ -17,9 +17,9 @@ export function FridayChatMock() {
     <div className="flex flex-col gap-5 bg-chrome p-4 md:p-6">
       <div className="ml-auto max-w-md rounded-lg rounded-br-xs bg-ink px-4 py-3 text-sm text-surface">{ANSWER.question}</div>
       <div className="flex max-w-2xl flex-col gap-3">
-        <span className="flex items-center gap-2"><FridayAvatar /> <FridayBadge /> <NoteMark n={1} /></span>
+        <span className="flex items-center gap-2"><FridayAvatar /> <FridayBadge /> {marks && <NoteMark n={1} />}</span>
         <p className="flex items-start gap-2 rounded-lg rounded-bl-xs border border-line bg-surface px-4 py-3.5 text-sm leading-relaxed text-ink">
-          <NoteMark n={2} />
+          {marks && <NoteMark n={2} />}
           <span>
             {ANSWER.answer.map((part, i) => {
               const pill = part.cite && ANSWER.answer[i + 1]?.cite !== part.cite;
@@ -35,7 +35,7 @@ export function FridayChatMock() {
           </span>
         </p>
         <div className="rounded-card border border-line bg-surface p-3.5">
-          <p className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-ink"><span>{CLIENT_VIEW.friday.sourcesLabel}</span> <NoteMark n={3} /></p>
+          <p className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-ink"><span>{CLIENT_VIEW.friday.sourcesLabel}</span> {marks && <NoteMark n={3} />}</p>
           <ol className="flex flex-col gap-1.5">
             {cites.map((id, i) => {
               const ev = SAMPLE.evidence[id];

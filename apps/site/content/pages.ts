@@ -62,6 +62,16 @@ export const PAGES: readonly SitePage[] = [
     priority: 0.9,
   },
   {
+    path: '/business',
+    side: 'business',
+    title: 'Competitor tracking for your local business',
+    description:
+      'A short brief every Monday on what the businesses near you changed: map rankings, reviews and ads, with the evidence one click away.',
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.9,
+  },
+  {
     path: '/how-it-works',
     side: 'agency',
     title: 'How evidence-backed competitor briefs work',

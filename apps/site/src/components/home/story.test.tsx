@@ -9,6 +9,7 @@ vi.mock('../../../content/website-monitoring', () => ({
   },
 }));
 
+import { BUSINESS } from '../../../content/business';
 import { CEILING_LINES, CLOSE, COMMERCIAL, HERO, HOW_STEPS_NOTE, OPPORTUNITY, opportunityCells, planCells, PRICING_LINES, PRICING_LINES_TRIAL, RECOMMENDATIONS_ROADMAP, REAL_SAMPLE_PREVIEW, RIVAL_STORY, SECTIONS } from '../../../content/home';
 import { rivalStoryMoves } from '../../../content/rival-story';
 import { ANY_INDUSTRY } from '../../../content/industries';
@@ -92,6 +93,29 @@ describe('RivalStory', () => {
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(move));
+  });
+});
+
+describe('RivalStory business audience', () => {
+  it('business audience: business heading, intro and closing; the body is unchanged', () => {
+    const { container } = render(<RivalStory audience="business" />);
+    const h2 = screen.getByRole('heading', { level: 2 });
+    expect(h2.textContent).toBe(BUSINESS.rivalStory.heading);
+    expect(container.querySelector('section#rival-story')!.getAttribute('aria-labelledby')).toBe(h2.id);
+    const intro = screen.getByText(BUSINESS.rivalStory.intro);
+    const body = screen.getByText(RIVAL_STORY.bodyNoWeb);
+    expect(intro.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(BUSINESS.rivalStory.closing)).toBeTruthy();
+    expect(screen.queryByText(RIVAL_STORY.closing)).toBeNull();
+    expect(screen.getByRole('slider', { name: 'Week' })).toBeTruthy();
+    expect(screen.getByText(RIVAL_STORY.caption)).toBeTruthy();
+    expect(screen.getByText(RIVAL_STORY.logHeading)).toBeTruthy();
+  });
+
+  it('the default audience shows no business copy', () => {
+    render(<RivalStory />);
+    expect(screen.queryByText(BUSINESS.rivalStory.intro)).toBeNull();
+    expect(screen.getByText(RIVAL_STORY.closing)).toBeTruthy();
   });
 });
 

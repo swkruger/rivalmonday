@@ -86,6 +86,18 @@ describe('page registry', () => {
     });
   });
 
+  it('/business is the one business-side row, with the decided title and description', () => {
+    expect(PAGES.filter((p) => p.side === 'business').map((p) => p.path)).toEqual(['/business']);
+    expect(PAGES.find((p) => p.path === '/business')).toMatchObject({
+      title: 'Competitor tracking for your local business',
+      description: 'A short brief every Monday on what the businesses near you changed: map rankings, reviews and ads, with the evidence one click away.',
+      side: 'business',
+      sitemap: true,
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    });
+  });
+
   it('paths are unique', () => {
     expect(new Set(PAGES.map((p) => p.path)).size).toBe(PAGES.length);
   });

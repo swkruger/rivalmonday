@@ -26,11 +26,11 @@ function KpiButton({ href, className, ...rest }: { href: string } & React.Compon
   return <button type="button" onClick={(e) => follow(href, e.currentTarget)} className={`${className ?? ''} w-full text-left hover:bg-canvas`} {...rest} />;
 }
 
-function WhereYouStand() {
+function WhereYouStand({ marks }: { marks: boolean }) {
   const { heading, tiles, headers, self, table, movesHeading, moves } = CLIENT_VIEW.standing;
   return (
     <section className="flex flex-col gap-3">
-      <h4 className="flex items-center gap-2 text-base font-semibold text-ink">{heading} <NoteMark n={3} /></h4>
+      <h4 className="flex items-center gap-2 text-base font-semibold text-ink">{heading} {marks && <NoteMark n={3} />}</h4>
       <KpiStrip>
         {tiles.map((t) => (
           <Kpi
@@ -123,7 +123,7 @@ function AskCard({ onAsk }: { onAsk: () => void }) {
   );
 }
 
-function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow; onView: (v: DashboardView) => void; onOpen: (id: string, el: HTMLElement) => void; onAskFriday: () => void }) {
+function Overview({ onFollow, onView, onOpen, onAskFriday, marks }: { onFollow: Follow; onView: (v: DashboardView) => void; onOpen: (id: string, el: HTMLElement) => void; onAskFriday: () => void; marks: boolean }) {
   const latest = SAMPLE.items.slice(0, 2);
   const weeks = SAMPLE.rankGrid.weeks.map((w) => w.weekOf);
   const followKpi = (label: string, el: HTMLElement) => {
@@ -142,7 +142,7 @@ function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow;
       }
     >
       <div className="relative">
-        <span className="absolute -left-2.5 -top-2.5 z-10"><NoteMark n={1} /></span>
+        <span className="absolute -left-2.5 -top-2.5 z-10">{marks && <NoteMark n={1} />}</span>
         <KpiFollow.Provider value={followKpi}>
           <KpiStrip>
             {CLIENT_VIEW.kpis.map((k) => (
@@ -173,7 +173,7 @@ function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow;
               <p className="text-sm leading-relaxed text-ink">{CLIENT_VIEW.overview.summary}</p>
             </Band>
           </section>
-          <WhereYouStand />
+          <WhereYouStand marks={marks} />
           <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
               <h4 className="text-base font-semibold text-ink">Latest moves</h4>
@@ -204,7 +204,7 @@ function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow;
         <div className="flex min-w-0 flex-col gap-8">
           <AskCard onAsk={onAskFriday} />
           <section className="flex flex-col gap-3">
-            <h4 className="flex items-center gap-2 text-base font-semibold text-ink">Competitive pressure <NoteMark n={2} /></h4>
+            <h4 className="flex items-center gap-2 text-base font-semibold text-ink">Competitive pressure {marks && <NoteMark n={2} />}</h4>
             <ul className="flex flex-col gap-2">
               {CLIENT_VIEW.pressure.map((p) => (
                 <li key={p.name}>
@@ -248,7 +248,7 @@ function Overview({ onFollow, onView, onOpen, onAskFriday }: { onFollow: Follow;
  * The client's dashboard, recreated with sample data and the app's own `@cs/ui` parts (mirrors apps/web `c/[clientId]/page.tsx`).
  * It works like the real one: the menu switches pages, and numbers, rivals and alerts lead to the page or evidence sheet behind them.
  */
-export function DashboardMock({ view, onView, onAskFriday }: { view: DashboardView; onView: (v: DashboardView) => void; onAskFriday: () => void }) {
+export function DashboardMock({ view, onView, onAskFriday, marks = true }: { view: DashboardView; onView: (v: DashboardView) => void; onAskFriday: () => void; marks?: boolean }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const open = (id: string, el: HTMLElement) => {
@@ -283,7 +283,7 @@ export function DashboardMock({ view, onView, onAskFriday }: { view: DashboardVi
         </button>
       </aside>
 
-      {view === 'overview' && <Overview onFollow={follow} onView={onView} onOpen={open} onAskFriday={onAskFriday} />}
+      {view === 'overview' && <Overview onFollow={follow} onView={onView} onOpen={open} onAskFriday={onAskFriday} marks={marks} />}
       {view === 'briefs' && <BriefsView onOpen={open} />}
       {view === 'competitors' && <CompetitorsView onOpen={open} onAds={() => onView('ads')} />}
       {view === 'map' && <MapView onOpen={open} />}

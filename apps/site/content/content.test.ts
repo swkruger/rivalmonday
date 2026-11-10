@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { weekStats } from '../src/components/sample/rank-map';
 import { rivalRanks } from '../src/sample/rival-grid';
 import { SAMPLE } from '../src/sample/schema';
+import { BUSINESS } from './business';
 import { CHOOSER } from './chooser';
 import * as home from './home';
 import * as how from './how-it-works';
@@ -16,7 +17,7 @@ function strings(v: unknown, out: string[] = []): string[] {
   else if (v && typeof v === 'object') Object.values(v).forEach((x) => strings(x, out));
   return out;
 }
-const allCopy = strings({ ...home, ...how, CHOOSER });
+const allCopy = strings({ ...home, ...how, CHOOSER, BUSINESS });
 
 // Literals allowed to carry digits: 17a's counter window.
 // plus the fictional sample's own figures in the story copy.
