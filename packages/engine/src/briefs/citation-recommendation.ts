@@ -7,9 +7,9 @@ import type { PackLoader } from '../tag/tag-stage';
 import { citationGapFinding } from './self-rules';
 import { loadSelfCitations } from './starting-point';
 
-/** A `fix_citations` recommendation the owner finished or dismissed is not offered again for this long. */
+/** A `fix_citations` recommendation the owner or agency finished or dismissed is not offered again for this long (a system auto-close does not count). */
 export const CITATION_REC_COOLDOWN_DAYS = 90;
-export const CITATION_REC_CLOSED_REASON = 'The listings check no longer finds this gap.';
+export const CITATION_REC_CLOSED_REASON = 'The listings check no longer flags this gap.';
 const RULE_ID = 'citation_gap';
 const PLAY_ID = 'fix_citations';
 
@@ -68,11 +68,16 @@ export async function recommendForCitations(
   if (live.length > 0) {
     const own = live.find((r) => r.source === 'listings' && r.status === 'todo');
     if (!own) return { outcome: 'skipped', reason: 'a live fix_citations recommendation exists' };
-    await db.update(recommendation).set({ rationale: finding.fact, evidenceIds: finding.evidenceIds, updatedAt: now }).where(eq(recommendation.id, own.id));
+    const same = own.rationale === finding.fact && JSON.stringify(own.evidenceIds) === JSON.stringify(finding.evidenceIds);
+    if (!same) await db.update(recommendation).set({ rationale: finding.fact, evidenceIds: finding.evidenceIds, updatedAt: now }).where(eq(recommendation.id, own.id));
     return { outcome: 'refreshed' };
   }
   const cutoff = now.getTime() - CITATION_REC_COOLDOWN_DAYS * 86_400_000;
-  if (mine.some((r) => (r.status === 'done' || r.status === 'dismissed') && r.updatedAt.getTime() > cutoff)) return { outcome: 'skipped', reason: 'recently closed by the owner' };
+  const recent = mine.filter((r) => (r.status === 'done' || r.status === 'dismissed') && r.updatedAt.getTime() > cutoff);
+  const auto = recent.length === 0 ? [] : await db.select({ id: feedback.subjectId }).from(feedback).where(and(
+    eq(feedback.subjectType, 'recommendation'), inArray(feedback.subjectId, recent.map((r) => r.id)), eq(feedback.actor, 'system'), eq(feedback.reason, CITATION_REC_CLOSED_REASON)));
+  const autoIds = new Set(auto.map((a) => a.id));
+  if (recent.some((r) => !autoIds.has(r.id))) return { outcome: 'skipped', reason: 'recently closed by the owner' };
 
   const version = runbook.plays.find((p) => p.id === finding.playbookId)?.version ?? 0;
   const inserted = await db.insert(recommendation).values({

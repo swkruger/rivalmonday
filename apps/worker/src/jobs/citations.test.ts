@@ -1,6 +1,9 @@
+import * as Sentry from '@sentry/node';
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
 import { CITATION_SPACING_SECONDS, createCitationJobs } from './citations';
+
+vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 
 const AT = new Date('2026-11-10T09:00:00Z');
 const queue = () => ({ enqueueClient: vi.fn(async () => {}), enqueueTag: vi.fn(async () => {}), now: () => AT });
@@ -69,5 +72,6 @@ describe('citation jobs', () => {
       recommendForCitations: vi.fn(async () => { throw new Error('boom'); }),
     } as unknown as WorkerDeps;
     await expect(createCitationJobs(deps, queue()).client.handler({ clientId: 'c1' })).resolves.toBeUndefined();
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }), { tags: { job: 'citation-audit-client', stage: 'recommendation' }, extra: { clientId: 'c1' } });
   });
 });

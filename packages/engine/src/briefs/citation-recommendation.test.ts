@@ -49,9 +49,9 @@ beforeEach(async () => {
 describe('recommendForCitations', () => {
   it('skips until the starting point is approved or sent', async () => {
     await listings(FOUR);
-    expect(await run()).toMatchObject({ outcome: 'skipped' });
+    expect(await run()).toMatchObject({ outcome: 'skipped', reason: 'starting point not out yet' });
     await spBrief('ready');
-    expect(await run()).toMatchObject({ outcome: 'skipped' });
+    expect(await run()).toMatchObject({ outcome: 'skipped', reason: 'starting point not out yet' });
     expect(await recs()).toHaveLength(0);
   });
 
@@ -114,6 +114,29 @@ describe('recommendForCitations', () => {
     expect(await dbs.owner.select().from(feedback)).toHaveLength(0);
   });
 
+  it('a refresh with unchanged text leaves updatedAt alone', async () => {
+    await spBrief('sent');
+    await listings(FOUR);
+    await run();
+    const [before] = await recs();
+    await dbs.owner.update(recommendation).set({ updatedAt: ago(5) });
+    expect(await run()).toEqual({ outcome: 'refreshed' });
+    expect((await recs())[0]!.updatedAt.toISOString()).toBe(ago(5).toISOString());
+    expect(before!.rationale).toBe((await recs())[0]!.rationale);
+  });
+
+  it('a system auto-close does not start the hold: the gap returning creates a new recommendation', async () => {
+    await spBrief('sent');
+    await listings(FOUR);
+    await run();
+    await listings([], ['facebook.com', 'bbb.org']);
+    expect(await run()).toEqual({ outcome: 'closed' });
+    await dbs.owner.update(recommendation).set({ updatedAt: ago(10) });
+    await listings(FOUR);
+    expect(await run()).toEqual({ outcome: 'created' });
+    expect(await recs()).toHaveLength(2);
+  });
+
   it('writes nothing for a gap without evidence', async () => {
     await spBrief('sent');
     await listings(FOUR);
@@ -126,7 +149,7 @@ describe('recommendForCitations', () => {
     await spBrief('sent');
     await listings(FOUR);
     await dbs.owner.insert(playbookOverride).values({ agencyId: IDS.agencyA, verticalId: 'hvac_plumbing', playbookId: 'fix_citations', title: null, template: null, disabledBy: 'am-1', updatedBy: 'am-1' });
-    expect(await run()).toMatchObject({ outcome: 'skipped' });
+    expect(await run()).toMatchObject({ outcome: 'skipped', reason: 'citation_gap or fix_citations not enabled' });
     await dbs.owner.delete(playbookOverride);
     await dbs.owner.update(client).set({ status: 'prospect' }).where(eq(client.id, IDS.clientA1));
     expect(await run()).toMatchObject({ outcome: 'skipped', reason: 'client is prospect' });

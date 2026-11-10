@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import { z } from 'zod';
 import type { WorkerDeps } from '../deps';
 import { defineJob } from '../jobs';
@@ -64,6 +65,7 @@ export function createCitationJobs(
           workerLog.info(`[citation-audit-client] ${clientId} recommendation → ${rec.outcome}${rec.reason ? ` (${rec.reason})` : ""}`);
         } catch (err) {
           workerLog.error({ err }, `[citation-audit-client] ${clientId} recommendation failed`);
+          Sentry.captureException(err, { tags: { job: 'citation-audit-client', stage: 'recommendation' }, extra: { clientId } });
         }
       }
     },

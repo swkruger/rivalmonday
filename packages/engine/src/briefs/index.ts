@@ -25,4 +25,3 @@ export * from './brief-readiness';
 export { gradedChanges, groupChanges, liveChanges, type GradableEvent } from './graded';
 export { buildBriefReport, REPORT_AD_WEEKS, REPORT_LIMITS, REPORT_RATING_MONTHS } from './report';
 export * from './citation-recommendation';
-export * from './citation-recommendation';
