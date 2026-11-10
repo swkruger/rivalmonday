@@ -158,18 +158,8 @@ export const FRIDAY_PERSONA = {
   mcpNote: "Separate from Friday: a client's own AI tools that support MCP can read the same evidence, also switched on per client.",
 } as const;
 
-/**
- * Hero: screenshots of the "What your clients see" tour, so retake them if that sample changes.
- * Others: illustrative photos (generated once, no text, people or brands). All served from `public/sample`.
- */
+/** Illustrative photos (generated once, no text, people or brands). Served from `public/sample`. */
 export const HOME_IMAGES = {
-  hero: {
-    src: '/sample/hero-overview.webp',
-    alt: 'The client dashboard for a sample heating and air business: the week in four numbers, where it stands against its rivals and the Ask Friday card',
-    caption: 'Sample data from a fictional business.',
-  },
-  heroMap: { src: '/sample/hero-map.webp', alt: 'Map rankings for "ac repair marlowemere": a grid of ranks over the service area, strongest around the business' },
-  heroFriday: { src: '/sample/hero-friday.webp', alt: 'Friday, the assistant, answering who is winning the map, with numbered sources for each figure' },
   street: { src: '/sample/home-street.webp', tag: 'Local rivals', alt: 'Local shops on a small-town main street with two plain white service vans parked outside' },
 } as const;
 

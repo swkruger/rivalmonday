@@ -1,17 +1,17 @@
 import { ArrowDown, ArrowRight, BadgeCheck, Globe, Palette } from 'lucide-react';
-import { HERO, HOME_IMAGES } from '../../../content/home';
+import { HERO } from '../../../content/home';
 import { RadarRings } from '../motion/radar-rings';
 import { JoinButton } from '../join/join-button';
 import { JOIN_INK_CLASS } from '../join/join-classes';
 import { SAMPLE_MAP_SRC } from '../sample/rank-map';
 import { HeroFinePrint } from './hero-fine-print';
+import { HeroGallery } from './hero-gallery';
 import { HeroHeadline } from './hero-headline';
 import { PilotPill } from './pilot-pill';
 
 const PROOF_ICONS = [Globe, BadgeCheck, Palette];
-const SHOT = 'rounded-frame shadow-frame ring-1 ring-surface/15';
 
-/** Faint rings only, behind the copy and the screenshots. Decorative, never clickable. */
+/** Faint rings only, behind the copy and the pictures. Decorative, never clickable. */
 function Radar() {
   return (
     <div aria-hidden="true" className="radar -right-64 -top-30 size-275 opacity-55 max-lg:-right-150">
@@ -20,7 +20,7 @@ function Radar() {
   );
 }
 
-/** The first screen. Server-rendered: headline, sub and image are static markup (no client fetch before LCP). */
+/** The first screen. Server-rendered: headline, sub and the opening picture are static markup (no client fetch before LCP). */
 export function Hero() {
   return (
     <section data-slot="hero" className="relative overflow-hidden bg-ink">
@@ -60,13 +60,7 @@ export function Hero() {
           </ul>
         </div>
         <div className="min-w-0">
-          {/* One dominant window, two smaller views over its lower corners. Phones get the dashboard alone: the rest would be unreadable. */}
-          <div className="relative mx-auto max-w-2xl sm:aspect-square">
-            <img src={HOME_IMAGES.hero.src} alt={HOME_IMAGES.hero.alt} width={860} height={474} decoding="async" fetchPriority="high" className={`${SHOT} w-full sm:absolute sm:right-0 sm:top-0 sm:w-9/10`} />
-            <img src={HOME_IMAGES.heroMap.src} alt={HOME_IMAGES.heroMap.alt} width={480} height={560} decoding="async" className={`${SHOT} absolute left-0 top-1/2 hidden w-9/25 sm:block`} />
-            <img src={HOME_IMAGES.heroFriday.src} alt={HOME_IMAGES.heroFriday.alt} width={620} height={481} decoding="async" className={`${SHOT} absolute bottom-0 right-0 hidden w-5/8 sm:block`} />
-          </div>
-          <p className="mx-auto mt-3 max-w-2xl text-13 text-muted-surface">{HOME_IMAGES.hero.caption}</p>
+          <HeroGallery start="dashboard" />
         </div>
       </div>
     </section>

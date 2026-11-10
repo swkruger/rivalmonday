@@ -7,7 +7,8 @@ const join = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test' } }));
 
-import { HERO, HOME_IMAGES } from '../../../content/home';
+import { GALLERY } from '../../../content/gallery';
+import { HERO } from '../../../content/home';
 import { Hero } from './hero';
 
 beforeEach(() => {
@@ -56,19 +57,16 @@ describe('Hero', () => {
     expect(join.open).toHaveBeenCalledWith('agency-sample');
   });
 
-  it('the hero image is described and loads first', () => {
-    render(<Hero />);
-    const img = screen.getByRole('img', { name: HOME_IMAGES.hero.alt });
-    expect(img.getAttribute('src')).toBe(HOME_IMAGES.hero.src);
-    expect(img.getAttribute('loading')).toBeNull();
-  });
-
-  it('the screenshot collage is described and labelled as sample data', () => {
-    render(<Hero />);
-    for (const shot of [HOME_IMAGES.heroMap, HOME_IMAGES.heroFriday]) {
-      expect(screen.getByRole('img', { name: shot.alt }).getAttribute('src')).toBe(shot.src);
-    }
-    expect(screen.getByText(HOME_IMAGES.hero.caption)).toBeTruthy();
+  it('the hero shows the gallery opening on the dashboard', () => {
+    const { container } = render(<Hero />);
+    const gallery = container.querySelector('[data-slot="hero-gallery"]')!;
+    expect(gallery).toBeTruthy();
+    const imgs = gallery.querySelectorAll('img');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0]!.getAttribute('alt')).toBe(GALLERY.slides[0]!.alt);
+    expect(imgs[0]!.getAttribute('loading')).toBe('eager');
+    expect(imgs[0]!.getAttribute('fetchpriority')).toBe('high');
+    expect(screen.getByText(GALLERY.caption)).toBeTruthy();
   });
 
   it('fine print follows pilot mode', () => {
