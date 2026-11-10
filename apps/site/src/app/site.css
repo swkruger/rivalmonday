@@ -32,6 +32,10 @@
   --text-numeral: clamp(2.5rem, 2.1rem + 1.7vw, 4rem);
   --text-numeral--line-height: 1;
   --text-numeral--letter-spacing: -0.03em;
+  /* Plan-card price: 40 px flat. */
+  --text-price: 2.5rem;
+  --text-price--line-height: 1;
+  --text-price--letter-spacing: -0.03em;
   /* Display sub-line: 18 → 20 px. */
   --text-display-sub: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
   --text-display-sub--line-height: 1.5;

@@ -21,7 +21,7 @@ Keep your sign-in links and devices secure, and tell us promptly if you think so
 
 # Plans, trials and payment
 
-Current prices are on the [pricing page](/pricing). Paid plans are billed in advance by our payment provider and renew each billing period until cancelled.
+Current prices are on the [pricing page](/agencies/pricing). Paid plans are billed in advance by our payment provider and renew each billing period until cancelled.
 
 - **Trials:** a trial ends on the date we show you. Some features or limits may apply until you add a card.
 - **Cancelling:** agencies cancel from Billing, and access lasts to the end of the paid period. Clients billed by an agency ask their agency to cancel.

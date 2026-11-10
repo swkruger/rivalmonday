@@ -40,7 +40,7 @@ const COLUMNS: FooterColumn[] = [
     links: [
       { label: 'How it works', href: '/how-it-works' },
       { label: 'Sample brief', href: '/sample-brief' },
-      { label: 'Pricing', href: '/pricing' },
+      { label: 'Pricing', href: '/agencies/pricing' },
       { label: 'Integrations', href: '/integrations' },
       { label: 'Sources', href: '/sources' },
       { label: 'Roadmap', href: '/roadmap' },

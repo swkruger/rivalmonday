@@ -3,10 +3,11 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { collectionPage, NAV_EXTRA, PAGES } from './pages';
+import { REDIRECTS } from '../src/lib/redirects';
 import { sidePaths } from '../src/components/shell/nav-items';
 
 /** Fixed agency-side rows; later tasks add their rows here. Rival and integration rows are checked by group. */
-const AGENCY_SIDE_FIXED = ['/agencies', '/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
+const AGENCY_SIDE_FIXED = ['/agencies', '/agencies/pricing', '/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
 
 const appDir = join(__dirname, '..', 'src', 'app');
 const pageFile = (path: string) => join(appDir, path === '/' ? '' : path.slice(1), 'page.tsx');
@@ -55,7 +56,7 @@ describe('page registry', () => {
 
   it('nav entries follow the spec order', () => {
     const nav = PAGES.filter((p) => p.nav).sort((a, b) => a.nav!.order - b.nav!.order);
-    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/compare', '/pricing', '/partners', '/roadmap']);
+    expect(nav.map((p) => p.path)).toEqual(['/how-it-works', '/compare', '/agencies/pricing', '/partners', '/roadmap']);
   });
 
   it('every page path has a page.tsx', () => {
@@ -86,8 +87,8 @@ describe('page registry', () => {
     });
   });
 
-  it('/business is the one business-side row, with the decided title and description', () => {
-    expect(PAGES.filter((p) => p.side === 'business').map((p) => p.path)).toEqual(['/business']);
+  it('business-side rows are exactly /business and /business/pricing, with the decided title and description', () => {
+    expect(PAGES.filter((p) => p.side === 'business').map((p) => p.path)).toEqual(['/business', '/business/pricing']);
     expect(PAGES.find((p) => p.path === '/business')).toMatchObject({
       title: 'Competitor tracking for your local business',
       description: 'A short brief every Monday on what the businesses near you changed: map rankings, reviews and ads, with the evidence one click away.',
@@ -96,6 +97,24 @@ describe('page registry', () => {
       changeFrequency: 'monthly',
       priority: 0.9,
     });
+  });
+
+  it('both pricing pages are rows with the decided titles, a sitemap entry and an og image', () => {
+    for (const r of REDIRECTS) expect(PAGES.find((p) => (p.path as string) === r.source), r.source).toBeUndefined();
+    const agency = PAGES.find((p) => p.path === '/agencies/pricing')!;
+    const business = PAGES.find((p) => p.path === '/business/pricing')!;
+    expect(agency).toMatchObject({ title: 'Pricing for agencies: three clients included', side: 'agency', sitemap: true, priority: 0.8, crumb: 'Pricing' });
+    expect(business).toMatchObject({
+      title: 'Pricing for local businesses',
+      description: 'What Rival Monday costs a local business: a typical monthly price, set and billed by the agency that runs it for you, and what you get for it.',
+      side: 'business',
+      sitemap: true,
+      priority: 0.8,
+      crumb: 'Pricing',
+    });
+    expect(agency.description).toBe('The Rival Monday plan for agencies: what it includes, what it costs as you add clients, and how to cancel.');
+    expect(business.nav).toBeUndefined();
+    for (const p of [agency, business]) expect(existsSync(join(appDir, p.path.slice(1), 'opengraph-image.tsx')), p.path).toBe(true);
   });
 
   it('paths are unique', () => {
@@ -108,7 +127,7 @@ describe('page registry', () => {
     const expected = [...AGENCY_SIDE_FIXED, ...rivals, ...integrations].sort();
     expect(PAGES.filter((p) => p.side === 'agency').map((p) => p.path).sort()).toEqual(expected);
     for (const path of [...rivals, ...integrations]) expect(PAGES.find((p) => p.path === path)?.side, path).toBe('agency');
-    expect(PAGES.find((p) => p.path === '/pricing')?.side).toBeUndefined();
+    for (const r of REDIRECTS) expect(PAGES.find((p) => (p.path as string) === r.source), r.source).toBeUndefined();
   });
 
   it('sidePaths lists no disabled rival', () => {

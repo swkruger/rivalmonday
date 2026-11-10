@@ -28,7 +28,7 @@ describe('pricing page copy', () => {
     const copy = strings({
       cards: page.PLAN_CARDS,
       rows: page.FEATURE_ROWS.map((r) => [r.label, r.agency, r.business]),
-      faq: page.PRICING_FAQ.map((f) => [f.q, f.a]),
+      faq: [...page.PRICING_FAQ, ...page.BUSINESS_FAQ].map((f) => [f.q, f.a]),
       head: page.PRICING_PAGE,
     });
     for (const s of copy) {
@@ -37,17 +37,42 @@ describe('pricing page copy', () => {
       expect(t, s).not.toMatch(/\d/);
     }
     const { agency, business } = PRICING;
-    expect(page.PLAN_CARDS.pilot.agency.note).toContain(
-      `$${agency.monthlyUsd}/mo or $2,290/yr including ${agency.seatsIncluded} client seats · clients 4–10 $79 each, 11+ $59 · ${agency.trialDays}-day trial`,
-    );
-    expect(page.PLAN_CARDS.pilot.business.note).toBe(`Then $${business.monthlyUsd}/mo`);
-    expect(page.PLAN_CARDS.trial.agency.note).toContain('one active client until you add a card');
+    const { pilot, trial } = page.PLAN_CARDS;
+    const [t1, t2] = agency.extraClientTiers;
+    expect(pilot.agency.price).toBe(`$${agency.monthlyUsd}`);
+    expect(pilot.agency.note).toBe(`or $${agency.yearlyUsd.toLocaleString('en-US')}/yr · ${agency.seatsIncluded} client seats included · ${agency.trialDays}-day trial`);
+    expect(pilot.agency.rows).toEqual([
+      { label: `Clients ${agency.seatsIncluded + 1}–${t1.toClient}`, value: `$${t1.usd} each/mo` },
+      { label: `Clients ${t1.toClient + 1} and up`, value: `$${t2.usd} each/mo` },
+    ]);
+    expect(pilot.business.price).toBe(`$${business.monthlyUsd}`);
+    expect(pilot.business.note).toBe('A typical price. Your agency sets it and sends the bill.');
+    expect(trial.agency.note).toContain('one active client until you add a card');
   });
 
-  it('pilot cards say free; trial business card never says free', () => {
-    expect(page.PLAN_CARDS.pilot.agency.price).toBe('Free during the pilot');
-    expect(page.PLAN_CARDS.pilot.business.price).toBe('Free during the pilot');
+  it('pilot cards carry the chip; trial cards do not and never say free', () => {
+    expect(page.PLAN_CARDS.pilot.agency.chip).toBe('Free during the pilot');
+    expect(page.PLAN_CARDS.pilot.business.chip).toBe('Free during the pilot');
+    expect(JSON.stringify(page.PLAN_CARDS.trial)).not.toMatch(/free (during|pilot)/i);
     expect(JSON.stringify(page.PLAN_CARDS.trial.business)).not.toMatch(/free/i);
+    expect(page.PLAN_CARDS.trial.agency.name).toBe('For agencies');
+  });
+
+  it('agency points say Friday plus a connection for clients own AI tools', () => {
+    expect(page.PLAN_CARDS.pilot.agency.points[2]).toBe("Friday, plus a connection for your clients' own AI tools, switched on per client");
+  });
+
+  it('each side has its own page copy', () => {
+    for (const side of ['agency', 'business'] as const) {
+      const c = page.PRICING_PAGE[side];
+      expect(Object.keys(c).sort()).toEqual(['eyebrow', 'faqHeading', 'featuresHeading', 'h1', 'lead', 'leadTrial']);
+      expect(c.eyebrow).toBe('Pricing');
+      expect(c.faqHeading).toBe('Questions');
+    }
+    expect(page.PRICING_PAGE.agency.h1).toBe('One plan. Three clients included.');
+    expect(page.PRICING_PAGE.agency.lead).toBe(page.PRICING_PAGE.agency.leadTrial);
+    expect(page.PRICING_PAGE.business.lead).toBe('Free during the pilot. After that you pay the agency that runs it for you.');
+    expect(page.PRICING_PAGE.business.leadTrial).toBe('You pay the agency that runs it for you.');
   });
 
   it('faq has the four topics and is pilot-neutral', () => {

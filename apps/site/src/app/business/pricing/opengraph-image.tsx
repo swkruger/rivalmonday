@@ -1,8 +1,8 @@
-import { PAGES } from '../../../content/pages';
-import { effectiveTitle } from '../../lib/metadata';
-import { OG_SIZE, renderOg } from '../../lib/og';
+import { PAGES } from '../../../../content/pages';
+import { effectiveTitle } from '../../../lib/metadata';
+import { OG_SIZE, renderOg } from '../../../lib/og';
 
-const page = PAGES.find((p) => p.path === '/pricing')!;
+const page = PAGES.find((p) => p.path === '/business/pricing')!;
 
 export const alt = 'Rival Monday — Pricing';
 export const size = OG_SIZE;

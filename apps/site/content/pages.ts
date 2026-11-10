@@ -54,6 +54,7 @@ export const PAGES: readonly SitePage[] = [
   {
     path: '/agencies',
     side: 'agency',
+    crumb: 'For agencies',
     title: 'Rival Monday: white-label competitor monitoring for agencies',
     description:
       'Give your local-service clients a weekly, evidence-backed competitor brief under your own brand. Public information only, no claim without evidence.',
@@ -64,6 +65,7 @@ export const PAGES: readonly SitePage[] = [
   {
     path: '/business',
     side: 'business',
+    crumb: 'For local businesses',
     title: 'Competitor tracking for your local business',
     description:
       'A short brief every Monday on what the businesses near you changed: map rankings, reviews and ads, with the evidence one click away.',
@@ -92,11 +94,23 @@ export const PAGES: readonly SitePage[] = [
     priority: 0.8,
   },
   {
-    path: '/pricing',
-    title: 'Pricing for white-label competitor monitoring',
+    path: '/agencies/pricing',
+    side: 'agency',
+    title: 'Pricing for agencies: three clients included',
     crumb: 'Pricing',
-    description: 'Agency and local-business plans for Rival Monday: what each includes, what it costs, and how to cancel.',
+    description: 'The Rival Monday plan for agencies: what it includes, what it costs as you add clients, and how to cancel.',
     nav: { label: 'Pricing', order: 40 },
+    sitemap: true,
+    changeFrequency: 'monthly',
+    priority: 0.8,
+  },
+  {
+    path: '/business/pricing',
+    side: 'business',
+    title: 'Pricing for local businesses',
+    crumb: 'Pricing',
+    description:
+      'What Rival Monday costs a local business: a typical monthly price, set and billed by the agency that runs it for you, and what you get for it.',
     sitemap: true,
     changeFrequency: 'monthly',
     priority: 0.8,

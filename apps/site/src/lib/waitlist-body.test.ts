@@ -48,14 +48,14 @@ describe('sourceFrom', () => {
   it('prefers utm_source, then referrer host, then path, ≤ 200', () => {
     expect(sourceFrom({ search: '?utm_source=newsletter', pathname: '/x' }, 'https://google.com/search')).toBe('newsletter');
     expect(sourceFrom({ search: '', pathname: '/x' }, 'https://www.google.com/search?q=a')).toBe('www.google.com');
-    expect(sourceFrom({ search: '', pathname: '/pricing' }, '')).toBe('/pricing');
-    expect(sourceFrom({ search: '', pathname: '/pricing' }, 'not a url')).toBe('/pricing');
+    expect(sourceFrom({ search: '', pathname: '/agencies/pricing' }, '')).toBe('/agencies/pricing');
+    expect(sourceFrom({ search: '', pathname: '/agencies/pricing' }, 'not a url')).toBe('/agencies/pricing');
     expect(sourceFrom({ search: `?utm_source=${'a'.repeat(300)}`, pathname: '/' }, '')).toHaveLength(200);
   });
 
   it('ignores a same-host referrer (an internal page hop)', () => {
-    expect(sourceFrom({ search: '', pathname: '/pricing', host: 'rivalmonday.com' }, 'https://rivalmonday.com/how-it-works')).toBe('/pricing');
-    expect(sourceFrom({ search: '', pathname: '/pricing', host: 'rivalmonday.com' }, 'https://news.example/post')).toBe('news.example');
+    expect(sourceFrom({ search: '', pathname: '/agencies/pricing', host: 'rivalmonday.com' }, 'https://rivalmonday.com/how-it-works')).toBe('/agencies/pricing');
+    expect(sourceFrom({ search: '', pathname: '/agencies/pricing', host: 'rivalmonday.com' }, 'https://news.example/post')).toBe('news.example');
   });
 
   it('keeps the first-touch utm_source or external referrer for the session', () => {
@@ -66,7 +66,7 @@ describe('sourceFrom', () => {
     expect(sourceFrom({ search: '', pathname: '/', host }, '', storage)).toBe('/');
     expect(sourceFrom({ search: '?utm_source=newsletter', pathname: '/', host }, '', storage)).toBe('newsletter');
     // Later hops (same-host referrer, no utm, even another external referrer) keep the first touch.
-    expect(sourceFrom({ search: '', pathname: '/pricing', host }, 'https://rivalmonday.com/', storage)).toBe('newsletter');
+    expect(sourceFrom({ search: '', pathname: '/agencies/pricing', host }, 'https://rivalmonday.com/', storage)).toBe('newsletter');
     expect(sourceFrom({ search: '?utm_source=other', pathname: '/x', host }, 'https://b.example/', storage)).toBe('newsletter');
   });
 

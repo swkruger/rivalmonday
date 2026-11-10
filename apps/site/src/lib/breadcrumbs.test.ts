@@ -31,3 +31,20 @@ describe('breadcrumbTrail', () => {
     expect(breadcrumbTrail('/privacy', [page('/'), page('/privacy')]).at(-1)?.name).toBe('T /privacy');
   });
 });
+
+describe('breadcrumbTrail of the pricing pages', () => {
+  it('each nested pricing path resolves its registered parent', async () => {
+    const { PAGES } = await import('../../content/pages');
+    const parentName = (p: SitePage['path']) => {
+      const row = PAGES.find((x) => x.path === p)!;
+      return row.crumb ?? row.nav?.label ?? row.title;
+    };
+    for (const [path, parent] of [['/agencies/pricing', '/agencies'], ['/business/pricing', '/business']] as const) {
+      expect(breadcrumbTrail(path)).toEqual([
+        { name: 'Home', path: '/' },
+        { name: parentName(parent), path: parent },
+        { name: 'Pricing', path },
+      ]);
+    }
+  });
+});
