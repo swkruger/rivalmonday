@@ -115,7 +115,7 @@ export function SampleRecommendations() {
         {COLUMNS.map((status) => {
           const items = recs.filter((r) => r.status === status);
           return (
-            <section key={status} aria-label={REC_COPY.columns[status]} className={`flex flex-col gap-3 self-start rounded-frame p-3.5 ${LANE[status].panel}`}>
+            <section key={status} aria-label={REC_COPY.columns[status]} className={`flex min-w-0 flex-col gap-3 self-start rounded-frame p-3.5 ${LANE[status].panel}`}>
               <h3 className="flex items-center gap-2 px-2 py-1.5 text-sm font-bold text-ink">
                 <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${LANE[status].dot}`} />
                 {REC_COPY.columns[status]} ({items.length})
