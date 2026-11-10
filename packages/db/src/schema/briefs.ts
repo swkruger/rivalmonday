@@ -16,7 +16,7 @@ export type BriefKind = 'standard' | 'quiet' | 'starting_point';
 export type BriefItemSubject = 'self' | 'competitor';
 export type Level = 'L' | 'M' | 'H';
 export type RecommendationStatus = 'todo' | 'in_progress' | 'done' | 'dismissed';
-export type RecommendationSource = 'brief' | 'move' | 'ask';
+export type RecommendationSource = 'brief' | 'move' | 'ask' | 'listings';
 export type FeedbackKind = 'edit' | 'drop' | 'reorder' | 'rating' | 'status';
 
 /** One business in a brief's trend snapshot (spec §9.1.5). Computed from stored data, never model-written. */
@@ -155,12 +155,13 @@ export const recommendation = pgTable(
     index('recommendation_client_status_idx').on(t.clientId, t.status),
     uniqueIndex('recommendation_brief_item_unique').on(t.briefItemId).where(sql`brief_item_id IS NOT NULL`),
     uniqueIndex('recommendation_move_unique').on(t.moveId).where(sql`source = 'move' AND move_id IS NOT NULL`),
+    uniqueIndex('recommendation_listings_live_unique').on(t.clientId).where(sql`source = 'listings' AND status IN ('todo', 'in_progress')`),
     clientFk(t),
     check('recommendation_status_check', sql`status IN ('todo', 'in_progress', 'done', 'dismissed')`),
     check('recommendation_effort_check', sql`effort IN ('L', 'M', 'H')`),
     check('recommendation_impact_check', sql`impact IN ('L', 'M', 'H')`),
     check('recommendation_owner_check', sql`owner IN ('client', 'agency')`),
-    check('recommendation_source_check', sql`source IN ('brief', 'move', 'ask', 'mcp')`),
+    check('recommendation_source_check', sql`source IN ('brief', 'move', 'ask', 'mcp', 'listings')`),
   ],
 );
 

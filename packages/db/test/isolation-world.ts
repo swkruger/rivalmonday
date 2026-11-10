@@ -269,6 +269,11 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     qualifier: 'exact', raw: `$39 ${b.c(k)}`, context: `Post price ${b.c(k)}`, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
     first_capture_id: afterCaptureId, last_capture_id: afterCaptureId,
   });
+  // A directory listing (18c): global public like ads; self businesses are competitor rows too.
+  await b.ins('citation_listing', k, {
+    competitor_id: competitorId, host: `world-dir-${k.toLowerCase()}.example`, status: 'listed', name_match: true, phone_match: true, listing_url: `https://world-dir.example/${comp.domain}`,
+    listing_title: `Listing ${b.c(k)}`, capture_id: afterCaptureId, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9), in_catalogue: true, checked_at: b.at(2, 9),
+  });
   // Ad images (18a-3): a stored image (capture source 'ad_image', evidence kind 'image') with an image-read price, and a person image that is never stored.
   const imageCapture = await b.ins('capture', k, {
     id: b.id('capture', k), competitor_id: competitorId, source: 'ad_image', url: `https://${comp.domain}/ad.jpg?ref=${b.c(k)}`, status: 'ok', collector_version: 'world', captured_at: b.at(2, 10),
@@ -423,6 +428,9 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
   await b.ins('serp_snapshot', t, {
     id: b.id('serp_snapshot', t), ...base, scan_id: scan.id, keyword: `ac repair ${b.c(t)}`, captured_at: b.at(2, 1),
     organic: [{ rank: 1, domain: null, url: null, title: `Search result ${b.c(t)}` }], local_services: null,
+  });
+  await b.ins('citation_audit_run', t, {
+    id: b.id('citation_audit_run', t), ...base, trigger: 'setup', status: 'done', competitor_ids: [competitorId], calls: 1, est_usd: 0.01, started_at: b.at(2, 1), finished_at: b.at(2, 1),
   });
   await b.ins('rank_map_image', t, { ...base, settings_hash: `world-${lc} ${b.c(t)}`, object_key: `world/rank/${lc}.png`, bounds: { west: -97.8, south: 30.2, east: -97.7, north: 30.3 }, width: 640, height: 640 });
   const change = await b.ins('detected_change', t, {

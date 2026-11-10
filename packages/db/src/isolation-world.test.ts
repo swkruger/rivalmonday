@@ -15,7 +15,7 @@ const REQUIRED: Partial<Record<TableClass, TenantKey[]>> = {
 /** Rows with no free-text column to tag (pure keys, check-constrained enums/slugs, numbers or typed JSON). */
 const NO_FREE_TEXT = new Set([
   'client_competitor', 'event_change', 'move_event', 'alert_event', 'event_score', 'agency_daily_stat', 'review_analysis', 'competitor_signal', 'notification_pref',
-  'agency_onboarding', 'intake_link', 'runbook',
+  'agency_onboarding', 'intake_link', 'runbook', 'citation_audit_run',
   // client invitations: the only free text is the email, stored lower-cased (the agency-level row keeps a canary)
   'invitation',
 ]);
