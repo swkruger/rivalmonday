@@ -148,7 +148,7 @@ describe('get_citation_audit (18c-1)', () => {
     expect((await call(owner)).businesses).toHaveLength(1);
   });
 
-  it('a client of another agency cannot see this client\'s rows (listings are narrowed to the client)', async () => {
+  it('a rival tracked only by a sibling client never appears in this client\'s audit', async () => {
     const [rival] = await dbs.owner.insert(competitor).values({ name: 'Elsewhere Co' }).returning();
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: rival!.id });
     await listing({ competitorId: rival!.id, host: dirs[0]!.host });
