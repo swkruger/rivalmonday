@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { BUSINESS } from '../../../content/business';
 import { HERO } from '../../../content/home';
 import { JoinButton } from '../join/join-button';
 import { usePilot } from '../shell/pilot-context';
+import { useSideOrHome } from '../shell/side-context';
 
 /**
  * Phones only: once the hero's own button has scrolled away, a thumb-height bar keeps the one primary action in reach.
@@ -11,6 +13,8 @@ import { usePilot } from '../shell/pilot-context';
  */
 export function MobileCta() {
   const { pilotMode } = usePilot();
+  const business = useSideOrHome() === 'business';
+  const hero = business ? BUSINESS.hero : HERO;
   const [show, setShow] = useState(false);
   useEffect(() => {
     const join = document.getElementById('join');
@@ -41,8 +45,8 @@ export function MobileCta() {
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur transition-transform duration-300 md:hidden ${show ? 'translate-y-0' : 'translate-y-full'}`}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 text-13 text-ink-secondary">{(pilotMode ? HERO.finePrint : HERO.finePrintTrial).split(' · ')[0]}</p>
-        <JoinButton start={HERO.primaryStart} className="h-auto min-h-9 max-w-[60%] shrink whitespace-normal py-1.5 text-center leading-tight">{HERO.heroCta}</JoinButton>
+        <p className="min-w-0 text-13 text-ink-secondary">{(pilotMode ? hero.finePrint : hero.finePrintTrial).split(' · ')[0]}</p>
+        <JoinButton start={business ? 'business' : HERO.primaryStart} className="h-auto min-h-9 max-w-[60%] shrink whitespace-normal py-1.5 text-center leading-tight">{business ? BUSINESS.hero.primaryCta : HERO.heroCta}</JoinButton>
       </div>
     </div>
   );

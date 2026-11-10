@@ -6,7 +6,7 @@ import { JOIN_COPY } from './copy';
 /** Field order = focus order for the first invalid field. */
 export const BUSINESS_FIELD_ORDER = ['contactName', 'email', 'orgName', 'website', 'location', 'vertical', 'verticalOther'] as const;
 
-export function StepBusiness({ form, errors, pending, formError, turnstile, onChange, onBack, pilotMode = true }: {
+export function StepBusiness({ form, errors, pending, formError, turnstile, onChange, onBack, bare = false, pilotMode = true }: {
   form: BusinessForm;
   errors: FieldErrors;
   pending: boolean;
@@ -14,7 +14,10 @@ export function StepBusiness({ form, errors, pending, formError, turnstile, onCh
   /** The Turnstile widget, rendered above the submit row. */
   turnstile?: React.ReactNode;
   onChange: (patch: Partial<BusinessForm>) => void;
-  onBack: () => void;
+  /** Absent when the side chose this step: there is no step before it. */
+  onBack?: () => void;
+  /** The side chose this step: no step label. */
+  bare?: boolean;
   /** Off: the consent line names the waitlist, not the pilot. */
   pilotMode?: boolean;
 }) {
@@ -22,7 +25,7 @@ export function StepBusiness({ form, errors, pending, formError, turnstile, onCh
   return (
     <>
       <DialogHeader>
-        <p className="text-xs text-muted-ink">{c.eyebrow}</p>
+        {bare ? null : <p className="text-xs text-muted-ink">{c.eyebrow}</p>}
         <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{c.title}</DialogTitle>
         <DialogDescription>{c.sub}</DialogDescription>
       </DialogHeader>
@@ -58,7 +61,7 @@ export function StepBusiness({ form, errors, pending, formError, turnstile, onCh
       {formError ? <p role="alert" className="text-sm text-danger-text">{formError}</p> : null}
       {turnstile}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button>
+        {onBack ? <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button> : null}
         <Button type="submit" disabled={pending} aria-busy={pending || undefined}>{c.submit}</Button>
       </div>
       <p className="text-xs text-muted-ink">{pilotMode ? c.fine : c.fineTrial}</p>

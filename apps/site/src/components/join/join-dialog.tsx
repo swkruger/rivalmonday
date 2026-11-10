@@ -33,18 +33,19 @@ const emptyAgency = (wantsSample: boolean): AgencyForm => ({
 });
 const emptyBusiness = (): BusinessForm => ({ contactName: '', email: '', orgName: '', website: '', location: '', vertical: '', verticalOther: '' });
 
-export function JoinDialog({ open, start, onClose, submit }: { open: boolean; start: JoinStart; onClose: () => void; submit?: JoinSubmit }) {
+/** `direct`: the page's side chose the step, so a form reached without the choose step has no Back and no step label. */
+export function JoinDialog({ open, start, onClose, submit, direct }: { open: boolean; start: JoinStart; onClose: () => void; submit?: JoinSubmit; direct?: boolean }) {
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent className="max-h-dvh overflow-y-auto">
         {/* Mounted only while open, so each opening starts fresh from `start`. */}
-        <JoinFlow start={start} onClose={onClose} submit={submit} />
+        <JoinFlow start={start} direct={direct} onClose={onClose} submit={submit} />
       </DialogContent>
     </Dialog>
   );
 }
 
-function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () => void; submit?: JoinSubmit }) {
+function JoinFlow({ start, onClose, submit, direct = false }: { start: JoinStart; onClose: () => void; submit?: JoinSubmit; direct?: boolean }) {
   const { pilotMode } = usePilot();
   const [stepState, setStep] = useState<Step>(start === 'business' ? 'business' : start === 'choose' ? 'choose' : 'agency');
   const [choiceState, setChoice] = useState<JoinChoice>(start === 'business' ? 'business' : 'agency');
@@ -53,6 +54,9 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
   const choice: JoinChoice = pilotMode ? choiceState : 'business';
   const [agency, setAgency] = useState<AgencyForm>(() => emptyAgency(start === 'agency-sample'));
   const [business, setBusiness] = useState<BusinessForm>(emptyBusiness);
+  // Set once the choose step has been used: from then on the form has Back and its step label, as it always did.
+  const [viaChoose, setViaChoose] = useState(false);
+  const bare = direct && !viaChoose;
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -153,7 +157,7 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
       <StepChoose
         choice={choice}
         onChoice={setChoice}
-        onNext={() => setStep(choice)}
+        onNext={() => { setViaChoose(true); setStep(choice); }}
         agencySignUpHref={pilotMode ? null : `${siteEnv.appUrl}/sign-up`}
       />
     );
@@ -167,9 +171,9 @@ function JoinFlow({ start, onClose, submit }: { start: JoinStart; onClose: () =>
   return (
     <form noValidate onSubmit={onSubmit} onReset={(e) => e.preventDefault()} className="contents">
       {step === 'agency' ? (
-        <StepAgency form={agency} errors={errors} pending={pending} formError={formError} turnstile={turnstile} onChange={(p) => setAgency((f) => ({ ...f, ...p }))} onBack={back} />
+        <StepAgency form={agency} errors={errors} pending={pending} formError={formError} turnstile={turnstile} onChange={(p) => setAgency((f) => ({ ...f, ...p }))} onBack={bare ? undefined : back} bare={bare} />
       ) : (
-        <StepBusiness form={business} errors={errors} pending={pending} formError={formError} turnstile={turnstile} pilotMode={pilotMode} onChange={(p) => setBusiness((f) => ({ ...f, ...p }))} onBack={back} />
+        <StepBusiness form={business} errors={errors} pending={pending} formError={formError} turnstile={turnstile} pilotMode={pilotMode} onChange={(p) => setBusiness((f) => ({ ...f, ...p }))} onBack={bare ? undefined : back} bare={bare} />
       )}
     </form>
   );

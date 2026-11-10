@@ -1,9 +1,11 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { siteEnv } from '../../lib/env';
 import { buildWaitlistBody, sessionStore, sourceFrom } from '../../lib/waitlist-body';
 import { submitWaitlist } from '../../lib/waitlist-submit';
+import { usePilot } from '../shell/pilot-context';
+import { useSideOrHome } from '../shell/side-context';
 import { JoinDialog, type JoinSubmit } from './join-dialog';
 
 export type JoinStart = 'choose' | 'agency' | 'agency-sample' | 'business';
@@ -34,8 +36,18 @@ const JoinContext = createContext<JoinValue | null>(null);
 export function JoinProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const [start, setStart] = useState<JoinStart>('choose');
-  const open = useCallback((next: JoinStart = 'choose') => {
-    setStart(next);
+  const [direct, setDirect] = useState(false);
+  // Read at the moment of open(), so a client-side move between sides needs no remount.
+  const side = useSideOrHome();
+  const { pilotMode } = usePilot();
+  const live = useRef({ side, pilotMode });
+  live.current = { side, pilotMode };
+  const open = useCallback((next?: JoinStart) => {
+    const { side: now, pilotMode: pilotNow } = live.current;
+    // No argument: the side picks the step. With the pilot off the agency side shows the choose step (its form is never shown).
+    const byside: JoinStart = now === 'business' ? 'business' : now === 'agency' && pilotNow ? 'agency' : 'choose';
+    setStart(next ?? byside);
+    setDirect(now === 'agency' || now === 'business');
     setOpen(true);
   }, []);
   const close = useCallback(() => {
@@ -49,7 +61,7 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fromUrl = () => {
       if (new URLSearchParams(window.location.search).get('join') === 'business') open('business');
-      else if (window.location.hash === '#join') open('choose');
+      else if (window.location.hash === '#join') open();
       else return;
       clearJoinUrl();
     };
@@ -64,7 +76,7 @@ export function JoinProvider({ children }: { children: React.ReactNode }) {
   return (
     <JoinContext.Provider value={value}>
       {children}
-      <JoinDialog open={isOpen} start={start} onClose={close} submit={sendToWaitlist} />
+      <JoinDialog open={isOpen} start={start} direct={direct} onClose={close} submit={sendToWaitlist} />
     </JoinContext.Provider>
   );
 }

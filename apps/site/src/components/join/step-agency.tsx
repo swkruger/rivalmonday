@@ -5,7 +5,7 @@ import { JOIN_COPY } from './copy';
 /** Field order = focus order for the first invalid field. */
 export const AGENCY_FIELD_ORDER = ['contactName', 'email', 'orgName', 'website', 'clientCountBand', 'sampleBusinessName', 'sampleWebsite', 'sampleLocation'] as const;
 
-export function StepAgency({ form, errors, pending, formError, turnstile, onChange, onBack }: {
+export function StepAgency({ form, errors, pending, formError, turnstile, onChange, onBack, bare = false }: {
   form: AgencyForm;
   errors: FieldErrors;
   pending: boolean;
@@ -13,13 +13,16 @@ export function StepAgency({ form, errors, pending, formError, turnstile, onChan
   /** The Turnstile widget, rendered above the submit row. */
   turnstile?: React.ReactNode;
   onChange: (patch: Partial<AgencyForm>) => void;
-  onBack: () => void;
+  /** Absent when the side chose this step: there is no step before it. */
+  onBack?: () => void;
+  /** The side chose this step: no step label. */
+  bare?: boolean;
 }) {
   const c = JOIN_COPY.agency;
   return (
     <>
       <DialogHeader>
-        <p className="text-xs text-muted-ink">{c.eyebrow}</p>
+        {bare ? null : <p className="text-xs text-muted-ink">{c.eyebrow}</p>}
         <DialogTitle tabIndex={-1} className="text-lg leading-snug outline-none">{c.title}</DialogTitle>
         <DialogDescription>{c.sub}</DialogDescription>
       </DialogHeader>
@@ -63,7 +66,7 @@ export function StepAgency({ form, errors, pending, formError, turnstile, onChan
       {formError ? <p role="alert" className="text-sm text-danger-text">{formError}</p> : null}
       {turnstile}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button>
+        {onBack ? <Button type="button" variant="ghost" disabled={pending} onClick={onBack}>{JOIN_COPY.back}</Button> : null}
         <Button type="submit" disabled={pending} aria-busy={pending || undefined}>{c.submit}</Button>
       </div>
       <p className="text-xs text-muted-ink">{c.fine}</p>

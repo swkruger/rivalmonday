@@ -19,3 +19,10 @@ export function useSide(): Side {
   if (!paths) throw new Error('useSide must be used inside SideProvider');
   return sideOf(pathname, paths);
 }
+
+/** Like `useSide`, but `home` outside a `SideProvider` (the join popup also mounts in isolation). */
+export function useSideOrHome(): Side {
+  const paths = useContext(SideContext);
+  const pathname = usePathname();
+  return paths && pathname ? sideOf(pathname, paths) : 'home';
+}

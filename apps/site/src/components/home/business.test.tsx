@@ -5,12 +5,16 @@ const pilot = vi.hoisted(() => ({ pilotMode: true }));
 vi.mock('../shell/pilot-context', () => ({ usePilot: () => ({ pilotMode: pilot.pilotMode, status: null, loaded: true }) }));
 const join = vi.hoisted(() => ({ open: vi.fn() }));
 vi.mock('../join/join-provider', () => ({ useJoin: () => join }));
+const nav = vi.hoisted(() => ({ pathname: '/business' }));
+vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }));
 vi.mock('../../lib/env', () => ({ siteEnv: { appUrl: 'https://app.test', clientPriceUsd: 99, social: {}, comparePages: [] as string[], turnstileSiteKey: null as string | null } }));
 
 import { BUSINESS, BUSINESS_ANCHORS } from '../../../content/business';
 import { CLIENT_VIEW } from '../../../content/client-view';
 import { PRICING } from '../../../content/pricing';
 import BusinessPage from '../../app/business/page';
+import { SideProvider } from '../shell/side-context';
+import { MobileCta } from './mobile-cta';
 
 beforeEach(() => {
   pilot.pilotMode = true;
@@ -93,4 +97,27 @@ describe('BusinessPage', () => {
       cleanup();
     }
   }, 20_000);
+});
+
+describe('MobileCta on the business side', () => {
+  it('business side shows Join the waitlist', () => {
+    for (const pilotMode of [true, false]) {
+      pilot.pilotMode = pilotMode;
+      nav.pathname = '/business';
+      const { container } = render(
+        <SideProvider paths={{ agency: ['/agencies'], business: ['/business'] }}>
+          <MobileCta />
+        </SideProvider>,
+      );
+      const bar = container.querySelector<HTMLElement>('[data-slot="mobile-cta"]')!;
+      const first = (pilotMode ? BUSINESS.hero.finePrint : BUSINESS.hero.finePrintTrial).split(' · ')[0]!;
+      expect(bar.textContent).toContain(first);
+      expect(bar.querySelector('a')).toBeNull();
+      const button = within(bar).getByRole('button', { hidden: true });
+      expect(button.textContent).toBe(BUSINESS.hero.primaryCta);
+      fireEvent.click(button);
+      expect(join.open).toHaveBeenLastCalledWith('business');
+      cleanup();
+    }
+  });
 });
