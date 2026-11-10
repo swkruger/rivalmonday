@@ -1,4 +1,4 @@
-import { citationAuditRun, citationListing, client, clientCompetitor, competitor } from '@cs/db';
+import { citationAuditRun, citationListing, clientCompetitor, competitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { citationCatalogue } from '@cs/verticals';
 import { eq } from 'drizzle-orm';
@@ -131,6 +131,15 @@ describe('get_citation_audit (18c-1)', () => {
     expect(await ev('ask')).toBe(cap.ids.vendor_json);
   });
 
+  it('shownPhone: digits on web, null on mcp and ask (phoneMatch still carries the fact)', async () => {
+    const self = await seedSelf();
+    await listing({ competitorId: self, host: dirs[0]!.host, phoneMatch: false, shownPhone: '5125550100', listingUrl: 'https://x.example/' });
+    await run('done', [self], 2);
+    const cell = async (channel?: 'mcp' | 'ask') => (await call(am, channel ? ({ channel, tokenId: 't', tokenScope: 'read' } as never) : undefined)).businesses[0]!.listings[0]!;
+    expect(await cell()).toMatchObject({ phoneMatch: false, shownPhone: '5125550100' });
+    for (const ch of ['mcp', 'ask'] as const) expect(await cell(ch)).toMatchObject({ phoneMatch: false, shownPhone: null });
+  });
+
   it('RF5: an out-of-scope client, or one without the dashboard feature, is not_found (never an empty answer)', async () => {
     await seedSelf();
     await expect(call(ctx('account_manager', [IDS.clientA2]))).rejects.toMatchObject({ code: 'not_found' });
@@ -140,8 +149,6 @@ describe('get_citation_audit (18c-1)', () => {
   });
 
   it('a client of another agency cannot see this client\'s rows (listings are narrowed to the client)', async () => {
-    const [other] = await dbs.owner.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, IDS.clientA2));
-    expect(other).toBeDefined();
     const [rival] = await dbs.owner.insert(competitor).values({ name: 'Elsewhere Co' }).returning();
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA2, competitorId: rival!.id });
     await listing({ competitorId: rival!.id, host: dirs[0]!.host });

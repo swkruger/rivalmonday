@@ -17,7 +17,7 @@ export const getCitationAudit = defineTool({
   name: 'get_citation_audit',
   access: 'read',
   description: "Whether the client and its top rivals are listed on the major online directories in Google search, from the latest monthly check: per directory a listing status (listed, not found or not checked), "
-    + 'whether the name and phone match, and the link. alsoFoundOn lists the client\'s own listings on other directories. Each listing\'s evidenceId is the evidence to cite for it. Empty before the first check.',
+    + 'whether the name and phone match, and the link. alsoFoundOn lists the client\'s own listings on other directories. Each listing\'s evidenceId is the evidence to cite for it. Every listing reads not checked before the first check.',
   input: z.object({ clientId: z.string().uuid() }),
   output: CitationAuditView,
   permission: 'read',
@@ -77,7 +77,7 @@ export const getCitationAudit = defineTool({
           const r = rows.find((x) => x.competitorId === b.competitorId && x.host === d.host);
           if (!r) return { host: d.host, status: 'not_checked' as const, nameMatch: null, phoneMatch: null, listingUrl: null, shownPhone: null, evidenceId: null, checkedAt: null };
           return {
-            host: d.host, status: r.status, nameMatch: r.nameMatch, phoneMatch: r.phoneMatch, listingUrl: r.listingUrl, shownPhone: r.shownPhone,
+            host: d.host, status: r.status, nameMatch: r.nameMatch, phoneMatch: r.phoneMatch, listingUrl: r.listingUrl, shownPhone: meta.channel === 'web' ? r.shownPhone : null,
             evidenceId: evidenceOf(r.captureId), checkedAt: r.checkedAt.toISOString(),
           };
         }),
