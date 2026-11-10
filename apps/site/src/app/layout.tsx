@@ -8,10 +8,11 @@ import { JoinProvider } from '../components/join/join-provider';
 import { JsonLd } from '../components/seo/json-ld';
 import { AnnouncementBar } from '../components/shell/announcement-bar';
 import { PilotProvider } from '../components/shell/pilot-context';
+import { SideProvider } from '../components/shell/side-context';
 import { SiteAnalytics } from '../components/shell/site-analytics';
 import { SiteFooter } from '../components/shell/site-footer';
 import { SiteHeader } from '../components/shell/site-header';
-import { footerColumns, navItems } from '../components/shell/nav-items';
+import { footerColumns, navItems, sidePaths } from '../components/shell/nav-items';
 import './site.css';
 
 // `optional`, not `swap`: the size-matched fallback needs Arial, so without it (Android, Linux) the swap reflows the hero (CLS 0.3).
@@ -37,14 +38,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-US" className={inter.variable}>
       <body className="bg-surface text-ink font-sans">
         <JsonLd data={[organizationLd(Object.values(siteEnv.social).filter((v): v is string => !!v)), websiteLd()]} />
-        <PilotProvider>
-          <JoinProvider>
-            <AnnouncementBar />
-            <SiteHeader items={navItems()} />
-            {children}
-            <SiteFooter columns={footerColumns()} />
-          </JoinProvider>
-        </PilotProvider>
+        <SideProvider paths={sidePaths()}>
+          <PilotProvider>
+            <JoinProvider>
+              <AnnouncementBar />
+              <SiteHeader items={navItems()} />
+              {children}
+              <SiteFooter columns={footerColumns()} />
+            </JoinProvider>
+          </PilotProvider>
+        </SideProvider>
         {/* Cookieless, no banner. Only on Vercel: elsewhere `/_vercel/insights/script.js` would 404. */}
         {process.env.VERCEL_ENV ? <SiteAnalytics /> : null}
       </body>

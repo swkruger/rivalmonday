@@ -11,6 +11,9 @@ vi.mock('../../../content/pages', async (orig) => {
   return { ...real, get PAGES() { return pages.list; } };
 });
 
+const nav = vi.hoisted(() => ({ pathname: '/' }));
+vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }));
+
 const fetchSiteStatus = vi.fn();
 vi.mock('../../lib/site-status', async (orig) => ({ ...(await orig<typeof import('../../lib/site-status')>()), fetchSiteStatus: (...a: unknown[]) => fetchSiteStatus(...a) }));
 
@@ -25,6 +28,7 @@ import { PAGES } from '../../../content/pages';
 const realPages = [...PAGES];
 import { JoinProvider } from '../join/join-provider';
 import { PilotProvider } from './pilot-context';
+import { SideProvider, useSide } from './side-context';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 import { AnnouncementBar } from './announcement-bar';
@@ -184,5 +188,37 @@ describe('site shell', () => {
     fetchSiteStatus.mockResolvedValue({ pilotMode: false, counters: { rivalSitesWatched: 1, snapshotsThisWeek: 1, claimsChecked: 1, claimsDropped: 0 } });
     await renderShell();
     expect(document.querySelector('[data-slot="announcement-bar"]')).toBeNull();
+  });
+
+  it('useSide follows usePathname', () => {
+    const paths = { agency: ['/partners'], business: ['/business/pricing'] };
+    function Probe() {
+      return <p data-testid="side">{useSide()}</p>;
+    }
+    const sideFor = (pathname: string) => {
+      nav.pathname = pathname;
+      const { unmount } = render(
+        <SideProvider paths={paths}>
+          <Probe />
+        </SideProvider>,
+      );
+      const text = screen.getByTestId('side').textContent;
+      unmount();
+      return text;
+    };
+    expect(sideFor('/')).toBe('home');
+    expect(sideFor('/partners')).toBe('agency');
+    expect(sideFor('/business/pricing/')).toBe('business');
+    expect(sideFor('/agencies/nope')).toBe('both');
+    nav.pathname = '/';
+  });
+
+  it('useSide outside a provider throws', () => {
+    function Probe() {
+      return <p>{useSide()}</p>;
+    }
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<Probe />)).toThrow('useSide must be used inside SideProvider');
+    spy.mockRestore();
   });
 });

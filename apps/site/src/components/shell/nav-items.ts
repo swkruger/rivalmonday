@@ -26,7 +26,15 @@ export function navItems(): NavLink[] {
   return [...fromPages, ...NAV_EXTRA].sort((a, b) => a.order - b.order).map(({ label, href }) => ({ label, href }));
 }
 
-const COLUMNS: FooterColumn[] = [
+/** Registered paths that belong to one side, for `sideOf` (disabled rivals are not in `PAGES`). */
+export function sidePaths(): { agency: string[]; business: string[] } {
+  return {
+    agency: PAGES.filter((p) => p.side === 'agency').map((p) => p.path as string),
+    business: PAGES.filter((p) => p.side === 'business').map((p) => p.path as string),
+  };
+}
+
+const COLUMNS:FooterColumn[] = [
   {
     heading: 'Product',
     links: [

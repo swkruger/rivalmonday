@@ -17,6 +17,8 @@ export interface SitePage {
   group?: 'integrations' | 'sources' | 'compare' | 'industries' | 'guides';
   /** Served to visitors but kept out of search (`noindex, follow`); such pages are never in the sitemap. */
   noindex?: boolean;
+  /** Which reader the page is for; absent = both readers. */
+  side?: 'agency' | 'business';
 }
 
 const GROUP_OF = { '/integrations': 'integrations', '/sources': 'sources', '/compare': 'compare', '/for': 'industries', '/guides': 'guides' } as const;
@@ -51,6 +53,7 @@ export const PAGES: readonly SitePage[] = [
   },
   {
     path: '/how-it-works',
+    side: 'agency',
     title: 'How evidence-backed competitor briefs work',
     crumb: 'How it works',
     description: 'How every claim in a brief is captured, written from evidence, verified and linked back to its source.',
@@ -80,6 +83,7 @@ export const PAGES: readonly SitePage[] = [
   },
   {
     path: '/partners',
+    side: 'agency',
     title: 'Resell competitor monitoring under your brand',
     description: 'Resell Rival Monday under your own brand: you set your client prices and bill through your own Stripe account.',
     sitemap: true,
@@ -90,6 +94,7 @@ export const PAGES: readonly SitePage[] = [
   },
   {
     path: '/roadmap',
+    side: 'agency',
     title: 'Roadmap: acting on recommendations',
     description: 'Planned for version 2.0: draft, approve and publish review replies, Google profile updates and listing fixes, then see the gap to rivals close.',
     sitemap: true,
@@ -116,6 +121,7 @@ export const PAGES: readonly SitePage[] = [
   },
   {
     path: '/integrations',
+    side: 'agency',
     title: 'Integrations and infrastructure',
     description: 'The services Rival Monday runs on, and what each one means for your agency.',
     sitemap: true,
@@ -125,7 +131,7 @@ export const PAGES: readonly SitePage[] = [
     group: 'integrations',
   },
   // Thin, vendor-intent pages: kept for visitors (linked from /integrations), out of search and the sitemap.
-  ...listedIntegrations().map((i) => ({ ...collectionPage('/integrations', { slug: i.slug, ...i.seo }), sitemap: false, noindex: true })),
+  ...listedIntegrations().map((i) => ({ ...collectionPage('/integrations', { slug: i.slug, ...i.seo }), sitemap: false, noindex: true, side: 'agency' as const })),
   {
     path: '/sources',
     title: 'Competitor data sources we monitor',
@@ -139,6 +145,7 @@ export const PAGES: readonly SitePage[] = [
   ...SOURCES.map((s) => collectionPage('/sources', { slug: s.slug, ...s.seo })),
   {
     path: '/compare',
+    side: 'agency',
     title: 'Compare local competitor monitoring tools',
     description: 'How Rival Monday compares with other kinds of local-competitor tools, and named comparisons where we publish them.',
     sitemap: true,
@@ -148,7 +155,7 @@ export const PAGES: readonly SitePage[] = [
     crumb: 'Compare',
     group: 'compare',
   },
-  ...enabledRivals().map((r) => collectionPage('/compare', comparePageEntry(r))),
+  ...enabledRivals().map((r) => ({ ...collectionPage('/compare', comparePageEntry(r)), side: 'agency' as const })),
   // Industry and guide pages: found through the footer, sitemap and in-text links, not the top nav.
   {
     path: '/for',

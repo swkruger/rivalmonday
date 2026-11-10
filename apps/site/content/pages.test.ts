@@ -3,6 +3,10 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { collectionPage, NAV_EXTRA, PAGES } from './pages';
+import { sidePaths } from '../src/components/shell/nav-items';
+
+/** Fixed agency-side rows; later tasks add their rows here. Rival and integration rows are checked by group. */
+const AGENCY_SIDE_FIXED = ['/compare', '/how-it-works', '/integrations', '/partners', '/roadmap'];
 
 const appDir = join(__dirname, '..', 'src', 'app');
 const pageFile = (path: string) => join(appDir, path === '/' ? '' : path.slice(1), 'page.tsx');
@@ -67,6 +71,23 @@ describe('page registry', () => {
 
   it('paths are unique', () => {
     expect(new Set(PAGES.map((p) => p.path)).size).toBe(PAGES.length);
+  });
+
+  it('agency-side rows are exactly the decided set', () => {
+    const rivals = PAGES.filter((p) => p.group === 'compare' && p.path !== '/compare').map((p) => p.path);
+    const integrations = PAGES.filter((p) => p.group === 'integrations' && p.path !== '/integrations').map((p) => p.path);
+    const expected = [...AGENCY_SIDE_FIXED, ...rivals, ...integrations].sort();
+    expect(PAGES.filter((p) => p.side === 'agency').map((p) => p.path).sort()).toEqual(expected);
+    for (const path of [...rivals, ...integrations]) expect(PAGES.find((p) => p.path === path)?.side, path).toBe('agency');
+    expect(PAGES.find((p) => p.path === '/pricing')?.side).toBeUndefined();
+  });
+
+  it('sidePaths lists no disabled rival', () => {
+    const registered = new Set<string>(PAGES.map((p) => p.path));
+    const { agency, business } = sidePaths();
+    for (const path of [...agency, ...business]) expect(registered.has(path), path).toBe(true);
+    const rivals = PAGES.filter((p) => p.group === 'compare' && p.path !== '/compare').map((p) => p.path);
+    expect(agency.filter((p) => p.startsWith('/compare/'))).toEqual(rivals);
   });
 
   it('every NAV_EXTRA href is a registered path or an in-page anchor', () => {
