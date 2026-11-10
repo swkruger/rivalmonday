@@ -2,7 +2,7 @@
 
 # Rival Monday (repo codename CompetitorSpy)
 
-Agency-owned white-label SaaS monitoring competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, remote **MCP server**, in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to agency clients first, then wholesale.
+Agency-owned white-label SaaS monitoring competitors of **local-service small businesses** (pilots: HVAC/plumbing, dental; US) from **public information only**. Delivers dashboards, remote **MCP server**, in-app **Ask assistant "Friday"**, weekly **evidence-backed briefs** (*no evidence, no claim*) and alerts. Sold to agency clients, then wholesale.
 
 **Start with `/rm-start`.**
 
@@ -13,6 +13,7 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 | Branch state | `docs/work/<branch>.md` (others: `git show <b>:docs/work/<b>.md`) |
 | What's built, where | `docs/ARCHITECTURE.md` |
 | Open work by target phase | `docs/BACKLOG.md` |
+| Old handover | `docs/archive/` (don't read) |
 | Binding spec | `docs/superpowers/specs/2026-09-29-core-platform-design.md` (cite §) |
 | Phases | `docs/superpowers/plans/2026-09-29-roadmap.md` |
 | Live-data runbook | `docs/OPS.md` |
@@ -38,7 +39,7 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 - **Local rankings (13b):** map backgrounds = Stadia static images cached in evidence store; weekly scans Sun 06:00 UTC count against client cap; Scan now <= 1/client/7 d, <= 10/agency/day.
 - **UX & IA (15):** context switcher Platform/Agency/Client (one at a time, URL-derived, navigation only, own memberships; others via support session); Ask {assistant} first in client view only; settings under `/agency/settings/*`, `/c/<id>/settings/*`; every page uses `PageHeader` (title = menu label, breadcrumb).
 - **Verticals & runbooks (14):** verticals/areas = global DB catalogue (anyone creates, operators review/merge); runbooks copy platform → agency → client, client plays AI-tailored; HVAC/dental keep legacy pack plays until a client runbook.
-- **Page fixes (15c):** one `standard` plan, versions carry Ask/MCP, agencies move at next billing; miles in UI, km stored; dates in viewer tz (`viewerTimeZone`/`rm_tz`); no route `loading.tsx`; `postWebhook` = only webhook POST; brand button text via `readableTextOn`; trial end = UTC date; status text via `lib/labels.ts`; hold = `agency.suspended_*` (read-only, billing frozen); archive refuses live billing; operator invites never name the operator.
+- **Page fixes (15c):** one `standard` plan, versions carry Ask/MCP, agencies move at next billing; miles in UI, km stored; dates in viewer tz (`viewerTimeZone`/`rm_tz`); no route `loading.tsx` (`Suspense`); `postWebhook` = only webhook POST; brand button text via `readableTextOn`; trial end = UTC date; status text via `lib/labels.ts`; hold = `agency.suspended_*` (read-only, billing frozen); archive refuses live billing; operator invites never name the operator.
 - **Help (15b):** guides = `docs/help/pages/` Markdown via `kb:seed` (`help_key` `page:<context>.<page>`; client roles never get agency/operator help); short copy = `server-only` TS `help/copy/`; one `@cs/core` glossary; every `PageHeader` page needs help key + guides.
 - **Copy sign-off:** owner signs in `pnpm copy:review`; ledger `docs/copy/signoff.json`; new email template/variant ⇒ preview in `@cs/email` `previews.ts`.
 - **Onboarding (16):** L7 split flows (`OnboardingShell`, `(onboarding)`); owners never enter `/setup` (pick page only while `waiting_owner`); search = keywords + centre (Stadia geocode, no place id); images only on the 4 O14 screens.
@@ -56,20 +57,20 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 ## Process 
 1. `/rm-kickoff <phase>` → own **worktree + branch** + brief (`docs/work/<branch>.md`).
 2. `superpowers:brainstorming` from the brief's open questions.
-3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md`, ≤ 15 KB). Cite the core spec by §.
+3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md` ≤ 15 KB). Cite the core spec by §.
 4. `superpowers:writing-plans` in the **lean plan format** below.
 5. **Owner approval** of the plan.
 6. `superpowers:subagent-driven-development`: pre-flight, implementer + reviewer per task, final review (top model), one fix wave. **Tests:** implementers focused only, reviewers none; `test:affected` + `e2e:affected` once at the final review; full unit + E2E only in `/rm-merge` after asking (CI runs both).
 7. `/rm-wrap-up` every session end; `/rm-merge` only on the owner's go-ahead.
 
-**Parallel workstreams:** one worktree + session per branch (`../CompetitorSpy-wt/<branch>`). Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge; branches write their work file.
+**Parallel workstreams:** one worktree + session per branch (`../CompetitorSpy-wt/<branch>`). Shared docs (`STATE`, `BACKLOG`, `ARCHITECTURE`, roadmap) change only at merge.
 
 ### Lean plan format (overrides writing-plans' "complete code in every step")
 Plan header: Goal, Global constraints, Decisions, File structure, **Dependencies on in-flight work** (re-check), Review focus. Tasks ≤ 4 KB, plan ≤ 80 KB:
 - **Goal** (1–2 lines) and **Files** (create / modify, exact paths).
-- **Interfaces** — exact signatures, types, zod schemas, table columns, tool names, routes. These are binding.
+- **Interfaces** (binding) — exact signatures, types, zod schemas, table columns, tool names, routes.
 - **Behaviour** — rules/edge cases as bullets; **Follow pattern:** file to mirror.
-- **Tests (TDD)** — test names + assertions; written first.
+- **Tests (TDD, first)** — test names + assertions.
 - **Done when** — commands that must pass.
 - Full code **only** for migrations/SQL, RLS, auth/security logic, non-obvious algorithms, decided user-facing copy; the rest is the implementer's job.
 
