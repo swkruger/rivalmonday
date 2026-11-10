@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SerpOrganicItem } from '@cs/db';
-import { alsoFoundOn, type CitationBiz, cityFromAddress, matchListing, nameHit, normaliseName, phone10, usPhones } from './match';
+import { alsoFoundOn, type CitationBiz, cityFromAddress, isCategoryTitle, matchListing, nameHit, normaliseName, phone10, usPhones } from './match';
 import { parseSerp } from '../rankings/serp';
 import stage1 from './__fixtures__/citation-stage1.json';
 
@@ -145,6 +145,16 @@ describe('matchListing (C6, P15, P16)', () => {
   it('B4: a category title or two phones leave nameMatch null', () => {
     expect(matchListing([row('bbb.org', 'Best Plumbers in Dallas', 'Call 214-555-0101')], 'bbb.org', biz)?.nameMatch).toBeNull();
     expect(matchListing([row('bbb.org', 'Smith Heating', '214-555-0101 and 214-555-0188')], 'bbb.org', biz)?.nameMatch).toBeNull();
+  });
+
+  it('a toll-free-only other phone claims nothing', () => {
+    const m = matchListing([row('bbb.org', 'ABC Plumbing - Dallas', 'Call 800-555-0123')], 'bbb.org', biz);
+    expect(m).toMatchObject({ phoneMatch: null, shownPhone: null });
+  });
+
+  it('isCategoryTitle', () => {
+    for (const t of ['Top 10 Plumbers Near Dallas', 'Plumbers near me', 'Best Rated HVAC Contractors', '10 Best Plumbers in Dallas', 'HVAC Contractors in Dallas, TX']) expect(isCategoryTitle(t)).toBe(true);
+    expect(isCategoryTitle('ABC Plumbing in Dallas')).toBe(false);
   });
 
   it('no phone in the snippet gives phoneMatch null', () => {

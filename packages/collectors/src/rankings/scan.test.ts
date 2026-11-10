@@ -265,7 +265,7 @@ describe('scanRankings Google search (18b-2)', () => {
     const rows = await dbs.service.select().from(serpSnapshot);
     expect(rows.map((r) => r.keyword).sort()).toEqual(['ac repair', 'furnace repair']);
     expect(rows[0]).toMatchObject({ scanId: res.scanId, agencyId: IDS.agencyA, clientId: IDS.clientA1, localServices: null });
-    expect(rows[0]!.organic).toEqual([{ rank: 1, domain: 'a.example', url: 'https://a.example/', title: 'A' }]);
+    expect(rows[0]!.organic).toEqual([{ rank: 1, domain: 'a.example', url: 'https://a.example/', title: 'A', description: null, listingUrl: null }]);
     expect(rows.every((r) => r.captureId !== null)).toBe(true);
     const caps = await dbs.service.select().from(capture).where(eq(capture.source, 'google_search'));
     expect(caps).toHaveLength(2);

@@ -55,13 +55,17 @@ export function cityFromAddress(a: string | null): string | null {
   return i >= 1 ? parts[i - 1]! : null;
 }
 
+const CATEGORY_WORDS = new Set(['companies', 'contractors', 'contractor', 'technicians', 'technician', 'installers', 'installer', 'rated', 'cheap', 'cheapest',
+  'plumbers', 'dentists', 'orthodontists', 'specialists', 'specialist', 'providers', 'professionals']);
+const TOLL_FREE = /^(800|833|844|855|866|877|888)/;
+// Real names like "Top Notch Plumbing" count as category titles: this errs safe (null, no claim).
 /** Category / roundup titles: "Best ...", "Top 10 ...", "... near me", "<trade> in <city>" (a "Plumbers in Dallas" page is not this business). */
 export function isCategoryTitle(title: string | null): boolean {
   const t = titleHead(title ?? '').trim().toLowerCase();
   if (!t) return false;
-  if (/^(best|top)/.test(t) || /near me$/.test(t)) return true;
+  if (/^(best|top)\b/.test(t) || /\bnear me$/.test(t)) return true;
   const m = /^(.+?)\s+in\s+[a-z .'-]+(,\s*[a-z]{2})?$/.exec(t);
-  return !!m && words(m[1]!).every((w) => isGeneric(w));
+  return !!m && words(m[1]!).every((w) => CATEGORY_WORDS.has(w) || isGeneric(w) || /^\d+$/.test(w));
 }
 
 export interface CitationBiz { name: string; phone: string | null; city: string | null; domain: string | null }
@@ -81,7 +85,7 @@ export function matchListing(items: SerpOrganicItem[], host: string, biz: Citati
     const text = `${it.title ?? ''} ${it.description ?? ''}`, phones = usPhones(text);
     const nh = nameHit(it.title, biz.name, biz.city), ph = p !== null && phones.includes(p);
     if (!ph && !(nh && cityHit(text, biz.city))) continue; // P15
-    const other = p !== null && nh && !ph ? (phones.find((x) => x !== p) ?? null) : null;
+    const other = p !== null && nh && !ph ? (phones.find((x) => x !== p && !TOLL_FREE.test(x)) ?? null) : null; // toll-free = call tracking, never a "different phone"
     const nameFalse = ph && !nh && phones.length === 1 && !isCategoryTitle(it.title); // P16
     const m: ListingMatch = { url: it.listingUrl ?? `https://${h}`, title: it.title, nameMatch: nh ? true : nameFalse ? false : null,
       phoneMatch: ph ? true : other ? false : null, shownPhone: other };
