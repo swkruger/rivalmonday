@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cityFromAddress, normaliseName, nameHit, phone10, usPhones } from './match';
+import type { SerpOrganicItem } from '@cs/db';
+import { alsoFoundOn, type CitationBiz, cityFromAddress, matchListing, nameHit, normaliseName, phone10, usPhones } from './match';
+import { parseSerp } from '../rankings/serp';
+import stage1 from './__fixtures__/citation-stage1.json';
 
 describe('normaliseName', () => {
   it('drops legal suffixes and the city', () => {
@@ -88,5 +91,92 @@ describe('cityFromAddress (P5)', () => {
   it('returns null when there is no state segment', () => {
     expect(cityFromAddress('9 Oak Ave')).toBeNull();
     expect(cityFromAddress(null)).toBeNull();
+  });
+});
+
+const row = (domain: string, title: string | null, description: string | null = null, listingUrl: string | null = null): SerpOrganicItem =>
+  ({ rank: 1, domain, url: 'https://www.google.com/url?x', title, description, listingUrl });
+const biz: CitationBiz = { name: 'ABC Plumbing LLC', phone: '(214) 555-0101', city: 'Dallas', domain: 'https://www.abcplumbing.com/' };
+
+describe('matchListing (C6, P15, P16)', () => {
+  const real = parseSerp((stage1 as any).tasks[0].result[0], 30).organic;
+  const atomic: CitationBiz = { name: 'Atomic Plumbing', phone: '817-219-4790', city: 'Granbury', domain: null };
+
+  it('real fixture: the Angi item matches angi.com with its listing url', () => {
+    const m = matchListing(real, 'angi.com', atomic);
+    expect(m?.url).toBe('https://angi.com/TX/Granbury');
+    expect(m?.nameMatch).toBe(true);
+  });
+
+  it('real fixture: a Facebook question post is no listing, and Yelp never matches (RF3)', () => {
+    expect(matchListing(real.filter((i) => i.title === 'Good, affordable plumber in Granbury?'), 'facebook.com', atomic)).toBeNull();
+    expect(matchListing(real, 'yelp.com', atomic)).toBeNull();
+  });
+
+  it('m.facebook.com matches facebook.com', () => {
+    expect(matchListing([row('m.facebook.com', 'ABC Plumbing - Dallas | Facebook')], 'facebook.com', biz)?.nameMatch).toBe(true);
+  });
+
+  it('name and phone beats an earlier name-only hit', () => {
+    const items = [row('bbb.org', 'ABC Plumbing - Dallas', 'Call 214-555-0199', 'https://bbb.org/a'), row('bbb.org', 'ABC Plumbing - Dallas', 'Call 214-555-0101', 'https://bbb.org/b')];
+    expect(matchListing(items, 'bbb.org', biz)?.url).toBe('https://bbb.org/b');
+  });
+
+  it('B3: name hit needs the city in title or snippet; phone-only is listed', () => {
+    expect(matchListing([row('bbb.org', 'ABC Plumbing', 'Plumber')], 'bbb.org', biz)).toBeNull();
+    expect(matchListing([row('bbb.org', 'ABC Plumbing', 'Plumber in Dallas')], 'bbb.org', biz)).not.toBeNull();
+    expect(matchListing([row('bbb.org', 'Plumbing pros', 'Call (214) 555-0101')], 'bbb.org', biz)).not.toBeNull();
+  });
+
+  it('name hit with another phone gives phoneMatch false and the shown phone', () => {
+    const m = matchListing([row('bbb.org', 'ABC Plumbing - Dallas', 'Call 214-555-0199')], 'bbb.org', biz);
+    expect(m).toMatchObject({ phoneMatch: false, shownPhone: '2145550199' });
+  });
+
+  it('a toll-free number beside the business phone is a phone match', () => {
+    const m = matchListing([row('bbb.org', 'ABC Plumbing - Dallas', '800-555-0123 or 214-555-0101')], 'bbb.org', biz);
+    expect(m?.phoneMatch).toBe(true);
+  });
+
+  it('B4: phone-only with one phone and a normal title is nameMatch false', () => {
+    expect(matchListing([row('bbb.org', 'Smith Heating', 'Call 214-555-0101')], 'bbb.org', biz)?.nameMatch).toBe(false);
+  });
+
+  it('B4: a category title or two phones leave nameMatch null', () => {
+    expect(matchListing([row('bbb.org', 'Best Plumbers in Dallas', 'Call 214-555-0101')], 'bbb.org', biz)?.nameMatch).toBeNull();
+    expect(matchListing([row('bbb.org', 'Smith Heating', '214-555-0101 and 214-555-0188')], 'bbb.org', biz)?.nameMatch).toBeNull();
+  });
+
+  it('no phone in the snippet gives phoneMatch null', () => {
+    expect(matchListing([row('bbb.org', 'ABC Plumbing - Dallas')], 'bbb.org', biz)?.phoneMatch).toBeNull();
+  });
+
+  it('banned hosts never match', () => {
+    expect(matchListing([row('yelp.com', 'ABC Plumbing - Dallas', '214-555-0101')], 'yelp.com', biz)).toBeNull();
+  });
+});
+
+describe('alsoFoundOn (C12)', () => {
+  const both = (d: string, extra = '') => row(d, 'ABC Plumbing - Dallas', `Call 214-555-0101 ${extra}`, `https://${d}/x`);
+
+  it('needs name and phone', () => {
+    expect(alsoFoundOn([row('foo.com', 'ABC Plumbing - Dallas', 'no phone')], [], biz)).toEqual([]);
+    expect(alsoFoundOn([row('foo.com', 'Other Co', 'Call 214-555-0101')], [], biz)).toEqual([]);
+  });
+
+  it('includes an uncatalogued directory with both', () => {
+    expect(alsoFoundOn([both('chamberofcommerce.com')], ['bbb.org'], biz)).toEqual([{ host: 'chamberofcommerce.com', url: 'https://chamberofcommerce.com/x', title: 'ABC Plumbing - Dallas' }]);
+  });
+
+  it('excludes own domain, google, youtube, banned and catalogue subdomains', () => {
+    const items = ['abcplumbing.com', 'maps.google.com', 'youtube.com', 'yelp.com', 'm.facebook.com'].map((d) => both(d));
+    expect(alsoFoundOn(items, ['facebook.com'], biz)).toEqual([]);
+  });
+
+  it('caps at 10 hosts, one per host', () => {
+    const items = [...Array.from({ length: 12 }, (_, i) => both(`d${i}.com`)), both('d0.com')];
+    const out = alsoFoundOn(items, [], biz);
+    expect(out).toHaveLength(10);
+    expect(new Set(out.map((o) => o.host)).size).toBe(10);
   });
 });

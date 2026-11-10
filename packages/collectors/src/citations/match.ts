@@ -1,3 +1,5 @@
+import type { SerpOrganicItem } from '@cs/db';
+import { isBannedHost, onHost } from '@cs/verticals';
 const LEGAL = new Set(['llc', 'inc', 'co', 'corp', 'corporation', 'company', 'ltd', 'pllc', 'pc', 'dds', 'dmd', 'the', 'of', 'and']);
 export const GENERIC_NAME_TOKENS = new Set(['plumbing', 'plumber', 'plumbers', 'heating', 'cooling', 'air', 'conditioning', 'hvac', 'ac', 'service', 'services',
   'repair', 'home', 'pros', 'experts', 'dental', 'dentist', 'dentists', 'dentistry', 'family', 'care', 'center', 'clinic', 'smile', 'smiles', 'best', 'top', 'near', 'in', 'me',
@@ -51,4 +53,54 @@ export function cityFromAddress(a: string | null): string | null {
   if (/^(usa|united states)$/i.test(parts.at(-1) ?? '')) parts.pop();
   const i = parts.findLastIndex((p) => /^[A-Z]{2}(\s+\d{5}(-\d{4})?)?$/.test(p));
   return i >= 1 ? parts[i - 1]! : null;
+}
+
+/** Category / roundup titles: "Best …", "Top 10 …", "… near me", "<trade> in <city>" (a "Plumbers in Dallas" page is not this business). */
+export function isCategoryTitle(title: string | null): boolean {
+  const t = titleHead(title ?? '').trim().toLowerCase();
+  if (!t) return false;
+  if (/^(best|top)/.test(t) || /near me$/.test(t)) return true;
+  const m = /^(.+?)\s+in\s+[a-z .'-]+(,\s*[a-z]{2})?$/.exec(t);
+  return !!m && words(m[1]!).every((w) => isGeneric(w));
+}
+
+export interface CitationBiz { name: string; phone: string | null; city: string | null; domain: string | null }
+export interface ListingMatch { url: string; title: string | null; nameMatch: boolean | null; phoneMatch: boolean | null; shownPhone: string | null }
+export const NOT_DIRECTORY_HOSTS = ['youtube.com', 'wikipedia.org'] as const; // plus any google.<tld>, the business's own domain
+export const ALSO_FOUND_MAX = 10;
+const hostOf = (it: SerpOrganicItem): string | null => (it.domain ?? '').toLowerCase().replace(/^www\./, '') || null;
+const bare = (d: string) => d.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]!;
+const cityHit = (text: string, city: string | null) => !city || text.toLowerCase().includes(city.toLowerCase());
+/** C6: rank order; best = name and phone, else the first listed item. */
+export function matchListing(items: SerpOrganicItem[], host: string, biz: CitationBiz): ListingMatch | null {
+  const p = phone10(biz.phone);
+  let best: ListingMatch | null = null;
+  for (const it of items) {
+    const h = hostOf(it);
+    if (!h || !onHost(h, host) || isBannedHost(h)) continue;
+    const text = `${it.title ?? ''} ${it.description ?? ''}`, phones = usPhones(text);
+    const nh = nameHit(it.title, biz.name, biz.city), ph = p !== null && phones.includes(p);
+    if (!ph && !(nh && cityHit(text, biz.city))) continue; // P15
+    const other = p !== null && nh && !ph ? (phones.find((x) => x !== p) ?? null) : null;
+    const nameFalse = ph && !nh && phones.length === 1 && !isCategoryTitle(it.title); // P16
+    const m: ListingMatch = { url: it.listingUrl ?? `https://${h}`, title: it.title, nameMatch: nh ? true : nameFalse ? false : null,
+      phoneMatch: ph ? true : other ? false : null, shownPhone: other };
+    if (nh && ph) return m;
+    best ??= m;
+  }
+  return best;
+}
+/** C12: hits outside the catalogue, name AND phone, never own/banned/not-a-directory hosts; <= 10, one per host. */
+export function alsoFoundOn(items: SerpOrganicItem[], catalogueHosts: string[], biz: CitationBiz): { host: string; url: string; title: string | null }[] {
+  const p = phone10(biz.phone);
+  if (!p) return [];
+  const own = biz.domain ? bare(biz.domain) : null, out = new Map<string, { host: string; url: string; title: string | null }>();
+  for (const it of items) {
+    const h = hostOf(it);
+    if (!h || out.has(h) || out.size >= ALSO_FOUND_MAX) continue;
+    if (catalogueHosts.some((c) => onHost(h, c)) || isBannedHost(h) || NOT_DIRECTORY_HOSTS.some((n) => onHost(h, n))
+      || /(^|\.)google\.[a-z.]+$/.test(h) || (own && onHost(h, own))) continue;
+    if (nameHit(it.title, biz.name, biz.city) && usPhones(`${it.title ?? ''} ${it.description ?? ''}`).includes(p)) out.set(h, { host: h, url: it.listingUrl ?? `https://${h}`, title: it.title });
+  }
+  return [...out.values()];
 }
