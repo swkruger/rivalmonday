@@ -74,6 +74,7 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'get_geogrid': return geo();
     case 'get_rank_trend': return { scans: [trendScan(S2, '2026-10-04T00:00:00.000Z'), trendScan(S1, '2026-09-27T00:00:00.000Z')], nextCursor: null };
     case 'get_share_of_voice': return { keyword: null, keywords: ['ac repair'], scans: [], series: [] };
+    case 'get_search_visibility': return { keywords: [] };
     case 'get_rank_settings': return { keywords: ['ac repair'], allKeywords: ['ac repair'], gridSize: 7, radiusKm: 25, scan: { state: 'available', nextAvailableAt: null, label: null } };
     // Moves
     case 'list_moves':
