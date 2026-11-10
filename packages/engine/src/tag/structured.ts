@@ -101,6 +101,10 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
         : `${d.count} new Google reviews in ${d.windowDays} days (${d.z}σ above the usual ${d.baselineMean}/week)${d.avgRating != null ? `, average rating ${d.avgRating}` : ''}`;
       break;
     case 'rank_change':
+      if (d.surface === 'organic') {
+        s = d.direction === 'entered' ? `Now on page one of Google for "${d.keyword}" (position ${d.position})` : `Dropped off page one of Google for "${d.keyword}"`;
+        break;
+      }
       s = `"${d.keyword}": average map position ${d.avgRankBefore} → ${d.avgRankAfter}, top-3 share ${pct(d.top3Before)} → ${pct(d.top3After)}`;
       break;
     case 'audience_growth':

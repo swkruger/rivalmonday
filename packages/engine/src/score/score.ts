@@ -66,6 +66,7 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
     case 'rating_change':
       return curve(d.ratingBefore !== undefined && d.ratingAfter !== undefined ? d.ratingAfter - d.ratingBefore : undefined, s.rating_delta_for_full);
     case 'rank_change':
+      if (d.surface === 'organic') return d.direction === 'entered' ? 1 : s.default; // 18b-2: a rival newly on page one is a full-size move, an exit a default one
       return curve(d.avgRankBefore !== undefined && d.avgRankAfter !== undefined ? d.avgRankBefore - d.avgRankAfter : undefined, s.rank_delta_for_full);
     case 'status_change':
       return d.direction === 'closed' ? 1 : s.default;

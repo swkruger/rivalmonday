@@ -68,7 +68,7 @@ export interface ChangeDetails {
   /** Fingerprint of the new normalised value of a changed GBP profile field (novelty compares true repeats only). */
   after?: string;
   /** closed/reopened = GBP status (18a-1); added/removed = a website tool (18a-2). */
-  direction?: 'closed' | 'reopened' | 'added' | 'removed';
+  direction?: 'closed' | 'reopened' | 'added' | 'removed' | 'entered' | 'left';
   /** Phase 18a-2: website tool (site_feature) and new page (new_page) details. */
   feature?: string;
   category?: string;
@@ -97,6 +97,9 @@ export interface ChangeDetails {
   top3PointsBefore?: number;
   top3PointsAfter?: number;
   scanId?: string;
+  /** Google page-one change (18b-2): `rank_change` with surface 'organic'; `direction` entered|left, `position` = rank on entry. */
+  surface?: 'organic';
+  position?: number;
   /** `tier_change` event: the competitor's tier last week and now. */
   from?: Tier;
   to?: Tier;

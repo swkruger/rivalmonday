@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { and, desc, eq, lt } from 'drizzle-orm';
 import { supersedePriorChanges } from '../events/retract';
 import { runStage, type StageOutcome } from '../stage';
+import { diffSerp } from './serp';
 
 export const RANK_DIFF_STAGE = 'rank_diff';
 export const RANK_DIFF_VERSION = 1;
@@ -54,6 +55,8 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
     deps.db,
     { stage: RANK_DIFF_STAGE, version: RANK_DIFF_VERSION, subjectId: scanId },
     async () => {
+      // Page-one entries/exits read their own 3-scan series, so they run for baseline map scans too.
+      const serpRows = await diffSerp(deps.db, scanId);
       const [prev] = await deps.db
         .select({ id: rankScan.id, gridSize: rankScan.gridSize, radiusKm: rankScan.radiusKm, keywords: rankScan.keywords })
         .from(rankScan)
@@ -61,7 +64,7 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
         .orderBy(desc(rankScan.finishedAt))
         .limit(1);
       // A settings change starts a new series: the newer scan is a baseline.
-      if (!prev || rankSettingsKey(prev) !== rankSettingsKey(scan)) return { baseline: true, rows: [] as (typeof detectedChange.$inferInsert)[] };
+      if (!prev || rankSettingsKey(prev) !== rankSettingsKey(scan)) return { baseline: true, rows: serpRows };
       const [before, after, tracked] = await Promise.all([
         deps.db.select().from(rankSnapshot).where(eq(rankSnapshot.scanId, prev.id)),
         deps.db.select().from(rankSnapshot).where(eq(rankSnapshot.scanId, scanId)),
@@ -104,7 +107,7 @@ export async function diffRankScan(deps: { db: Db }, scanId: string): Promise<St
           });
         }
       }
-      return { baseline: false, rows };
+      return { baseline: false, rows: [...rows, ...serpRows] };
     },
     async (tx, { baseline, rows }) => {
       await supersedePriorChanges(tx, { rankScanId: scanId }, RANK_DIFF_VERSION);
