@@ -26,7 +26,7 @@ const LANES: { status: 'todo' | 'in_progress' | 'done'; label: string; tint: str
   { status: 'done', label: 'Done', tint: 'bg-chip-success-bg', dot: 'bg-success' },
 ];
 
-const SOURCE_LABEL: Record<string, string> = { brief: 'From weekly brief', move: 'From a detected move', ask: 'From Ask' };
+const SOURCE_LABEL: Record<string, string> = { brief: 'From weekly brief', move: 'From a detected move', ask: 'From Ask', listings: 'From the listings check' };
 
 interface Target {
   status: Status;

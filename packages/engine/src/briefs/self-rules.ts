@@ -63,6 +63,28 @@ const ratings = (a: number, b: number): [string, string] => {
 };
 
 /**
+ * The `citation_gap` finding: fixed-template fact over the client's own directory rows. Shared by the starting point (via
+ * `evaluateSelfRules`) and the recommendations board (`recommendForCitations`). No evidence, no finding.
+ */
+export function citationGapFinding(rule: PackSelfRule, c: SelfRuleInput['citations'], playbooks: SelfRuleInput['playbooks']): SelfFinding | null {
+  if (!c || c.total === 0) return null;
+  const listed = c.missing.length >= param(rule, 'min_missing', 3) ? c.missing : [];
+  if (listed.length === 0 && c.mismatched.length === 0) return null;
+  const evidenceIds = c.evidenceIds.slice(0, EVIDENCE_PER_FINDING);
+  if (evidenceIds.length === 0) return null;
+  const labels = joinNames(listed.map((m) => m.label));
+  const facts: string[] = [];
+  if (listed.length) facts.push(`Google search found no listing for you on ${listed.length} of ${c.total} directories we check: ${labels}.`);
+  for (const m of c.mismatched.slice(0, 2)) facts.push(`${m.label} shows a different ${m.field} for you than your Google profile.`);
+  const pb = playbooks.find((p) => p.id === rule.playbook);
+  return {
+    ruleId: rule.id, strength: rule.strength, score: score(rule, c.missing.length + 2 * c.mismatched.length, c.total), fact: facts.join(' '),
+    values: { missing: listed.length, total: c.total, directories: labels || joinNames([...new Set(c.mismatched.map((m) => m.label))]) },
+    evidenceIds, playbookId: rule.playbook, effort: pb?.effort ?? 'M', impact: pb?.impact ?? 'M',
+  };
+}
+
+/**
  * Spec § Self-rules: a closed set of named predicates over the scorecard, review topics and profile facts. Each qualifying rule yields
  * a fixed-template fact with its own evidence; findings are ranked by `weight × min(1, |gap| / normaliser)`, at most 5, at most one strength.
  */
@@ -164,16 +186,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         break;
       }
       case 'citation_gap': {
-        const c = input.citations;
-        if (!c || c.total === 0) break;
-        const listed = c.missing.length >= param(rule, 'min_missing', 3) ? c.missing : [];
-        if (listed.length === 0 && c.mismatched.length === 0) break;
-        const labels = joinNames(listed.map((m) => m.label));
-        const facts: string[] = [];
-        if (listed.length) facts.push(`Google search found no listing for you on ${listed.length} of ${c.total} directories we check: ${labels}.`);
-        for (const m of c.mismatched.slice(0, 2)) facts.push(`${m.label} shows a different ${m.field} for you than your Google profile.`);
-        push(rule, score(rule, c.missing.length + 2 * c.mismatched.length, c.total), facts.join(' '),
-          { missing: listed.length, total: c.total, directories: labels || joinNames([...new Set(c.mismatched.map((m) => m.label))]) }, c.evidenceIds.slice(0, EVIDENCE_PER_FINDING));
+        const f = citationGapFinding(rule, input.citations, input.playbooks);
+        if (f) out.push(f);
         break;
       }
       case 'profile_gap': {

@@ -37,23 +37,37 @@ describe('citation jobs', () => {
     const deps = {
       runCitationAudit: vi.fn(async () => ({ runId: 'r1', status: 'done', calls: 4, usd: 0.016 })),
       diffCitations: vi.fn(async () => ({ ran: true, changeIds: ['ch1', 'ch2'] })),
+      recommendForCitations: vi.fn(async () => ({ outcome: 'created' })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createCitationJobs(deps, q);
     await jobs.client.handler({ clientId: 'c1' });
     expect(deps.diffCitations).toHaveBeenCalledWith('r1');
+    expect(deps.recommendForCitations).toHaveBeenCalledWith('c1');
     expect(q.enqueueTag.mock.calls).toEqual([['ch1'], ['ch2']]);
     expect(jobs.client.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
   });
 
   it('client job: capped is diffed too; failed and skipped are not', async () => {
     const diffCitations = vi.fn(async () => ({ ran: true, changeIds: [] }));
-    const run = (status: string, runId: string | null) => ({ runCitationAudit: vi.fn(async () => ({ runId, status, calls: 0, usd: 0 })), diffCitations }) as unknown as WorkerDeps;
+    const recommendForCitations = vi.fn(async () => ({ outcome: 'skipped' }));
+    const run = (status: string, runId: string | null) => ({ runCitationAudit: vi.fn(async () => ({ runId, status, calls: 0, usd: 0 })), diffCitations, recommendForCitations }) as unknown as WorkerDeps;
     const q = queue();
     await createCitationJobs(run('capped', 'r2'), q).client.handler({ clientId: 'c1' });
     expect(diffCitations).toHaveBeenCalledTimes(1);
+    expect(recommendForCitations).toHaveBeenCalledTimes(1);
     await createCitationJobs(run('failed', 'r3'), q).client.handler({ clientId: 'c1' });
     await createCitationJobs(run('skipped', null), q).client.handler({ clientId: 'c1' });
     expect(diffCitations).toHaveBeenCalledTimes(1);
+    expect(recommendForCitations).toHaveBeenCalledTimes(1);
+  });
+
+  it('client job: a recommendation failure does not fail the job', async () => {
+    const deps = {
+      runCitationAudit: vi.fn(async () => ({ runId: 'r1', status: 'done', calls: 1, usd: 0 })),
+      diffCitations: vi.fn(async () => ({ ran: true, changeIds: [] })),
+      recommendForCitations: vi.fn(async () => { throw new Error('boom'); }),
+    } as unknown as WorkerDeps;
+    await expect(createCitationJobs(deps, queue()).client.handler({ clientId: 'c1' })).resolves.toBeUndefined();
   });
 });

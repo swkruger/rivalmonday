@@ -10,7 +10,7 @@ export const CITATION_SPACING_SECONDS = 60;
 /**
  * 18c directory listings: `citation-audit` (daily) fails dead runs and queues one `citation-audit-client` per due client
  * (30-day cadence is enforced by the due list); the client job runs the guarded audit and, when it finished, the
- * `citation_diff` stage, whose changes go on to the tag stage.
+ * `citation_diff` stage (its changes go on to the tag stage) and the board `fix_citations` recommendation.
  */
 export function createCitationJobs(
   deps: WorkerDeps,
@@ -58,6 +58,13 @@ export function createCitationJobs(
         const d = await deps.diffCitations(r.runId);
         for (const id of d.changeIds) await queue.enqueueTag(id);
         if (d.ran) workerLog.info(`[citation-audit-client] ${r.runId} → ${d.changeIds.length} change(s)`);
+        // The board recommendation never fails the (paid, single-shot) audit job; the next audit retries it.
+        try {
+          const rec = await deps.recommendForCitations(clientId);
+          workerLog.info(`[citation-audit-client] ${clientId} recommendation → ${rec.outcome}${rec.reason ? ` (${rec.reason})` : ""}`);
+        } catch (err) {
+          workerLog.error({ err }, `[citation-audit-client] ${clientId} recommendation failed`);
+        }
       }
     },
   });

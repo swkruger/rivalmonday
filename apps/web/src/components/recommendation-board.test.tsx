@@ -30,6 +30,11 @@ describe('RecommendationBoard', () => {
     expect(screen.getByRole('link', { name: 'Evidence 1: Smith HVAC, Oct 3' })).toBeTruthy();
   });
 
+  it('labels a listings recommendation by its source', () => {
+    render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit items={[rec('a', 'todo', { source: 'listings' })]} />);
+    expect(screen.getByText('From the listings check')).toBeTruthy();
+  });
+
   it('hides status controls for read-only viewers and the upsell tag for clients', () => {
     render(<RecommendationBoard action={vi.fn()} clientId="c1" agency={false} canEdit={false} items={[rec('a', 'todo', { upsellTag: 'ppc' })]} />);
     expect(screen.queryByRole('button', { name: /start/i })).toBeNull();

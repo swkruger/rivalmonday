@@ -173,7 +173,7 @@ describe('client batch B: Recommendations', () => {
   it('the origin tip names the three sources and does not promise Ask by name', async () => {
     await show(page('client.recommendations'), 'client');
     const text = open('Where a recommendation came from');
-    for (const s of ['From weekly brief', 'From a detected move', 'From Ask']) expect(text, s).toContain(s);
+    for (const s of ['From weekly brief', 'From a detected move', 'From the listings check', 'From Ask']) expect(text, s).toContain(s);
     expect(text).not.toMatch(/Sunny/);
   });
 

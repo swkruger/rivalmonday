@@ -297,10 +297,10 @@ export const CLIENT_COPY = {
         title: 'For you or Agency',
         body: '"For you" marks a step the business owner can take, such as asking customers for reviews. "Agency" marks a step {agency} can take. Agency users see "For you" as "Client".',
       },
-      // source: apps/web/src/components/recommendation-board.tsx:SOURCE_LABEL; packages/engine/src/briefs/recommendations.ts:recommendationFromItem (source brief) and the move plays (source move)
+      // source: apps/web/src/components/recommendation-board.tsx:SOURCE_LABEL; packages/engine/src/briefs/recommendations.ts:recommendationFromItem (source brief), the move plays (source move) and packages/engine/src/briefs/citation-recommendation.ts (source listings)
       origin: {
         title: 'Where a recommendation came from',
-        body: "From weekly brief: the step is the recommended action of a brief item. From a detected move: it answers a pattern in a competitor's changes. From Ask: it was saved from an assistant answer. The evidence links on each card open the stored proof.",
+        body: "From weekly brief: the step is the recommended action of a brief item. From a detected move: it answers a pattern in a competitor's changes. From the listings check: your own directory listings are missing or show a different name or phone number. From Ask: it was saved from an assistant answer. The evidence links on each card open the stored proof.",
         guideAnchor: 'what-this-page-tells-you',
       },
     },

@@ -12,7 +12,7 @@ import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
   briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
-  deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffCitations, diffRankScan, dispatchDue,
+  deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffCitations, diffRankScan, recommendForCitations as recommendCitations, dispatchDue,
   checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
@@ -158,6 +158,8 @@ export interface WorkerDeps {
   failStaleCitationRuns(now: Date): Promise<number>;
   /** 18c C7: one `citation_added` change per rival newly found by the run (ids; deduped by runStage). */
   diffCitations(runId: string): Promise<{ ran: boolean; changeIds: string[] }>;
+  /** 18c-1 T8b: the board recommendation for the client's own listings gap (after a finished audit); no model call. */
+  recommendForCitations(clientId: string): Promise<{ outcome: 'created' | 'refreshed' | 'closed' | 'skipped'; reason?: string }>;
   /** Fails `running` rank scans older than RANK_SCAN_STALE_HOURS; returns how many. */
   failStaleRankScans(): Promise<number>;
   /** Of these clients, the ones with no `rank_map_image` row yet or a stale one (settings or map style changed). */
@@ -596,6 +598,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       const r = await diffCitations({ db: getDb(), packs }, runId);
       return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
     },
+    recommendForCitations: (clientId) => recommendCitations({ db: getDb(), packs, generic }, clientId),
     failStaleRankScans: () => failStaleScans(getDb()),
     clientsNeedingRankMap: (ids) => rankClientsNeedingMap(getDb(), ids),
     refreshRankMap: (clientId) =>
