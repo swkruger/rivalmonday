@@ -36,6 +36,16 @@ export interface RunOutcome { reports: EvalReport[]; failed: boolean; errors: st
 
 export const expandSuites = (s: Suite | 'all'): Suite[] => (s === 'all' ? [...SUITES] : [s]);
 
+/** An error with its cause chain: drizzle's "Failed query: ..." hides the Postgres error (and its `detail`) in `cause`. */
+export function describeError(err: unknown, depth = 0): string {
+  if (!(err instanceof Error)) return String(err);
+  const detail = (err as { detail?: unknown }).detail;
+  const own = `${err.message}${typeof detail === 'string' && detail ? ` (${detail})` : ''}`;
+  if (err.cause === undefined || depth >= 4) return own;
+  const cause = err.cause instanceof Error ? `${err.cause.name}: ${describeError(err.cause, depth + 1)}` : String(err.cause);
+  return `${own}; cause: ${cause}`;
+}
+
 /** Exit 1 (failed) on any blocking failure (incl. replay case errors), cassette miss, budget stop or schema error; accuracy deltas never fail. */
 export async function runEvals(o: RunOptions): Promise<RunOutcome> {
   const log = o.log ?? ((s: string) => console.log(s));
@@ -100,7 +110,8 @@ export async function runEvals(o: RunOptions): Promise<RunOutcome> {
       writeReport(report, o.reportDir);
       log(renderMarkdown(report));
     } catch (err) {
-      errors.push(`${suite}: ${err instanceof Error ? err.message : String(err)}`);
+      const spend = live ? ` (live spend $${meter.spent().toFixed(4)})` : '';
+      errors.push(`${suite}: ${describeError(err)}${spend}`);
       if (err instanceof BudgetExceededError) break;
       if (err instanceof CassetteMissError) continue;
     }

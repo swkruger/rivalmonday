@@ -68,6 +68,15 @@ export async function postJson(
         return await res.json();
       } catch (err) {
         if (signal?.aborted) throw aborted(err);
+        // OpenRouter sends 200 headers early and keeps the body open while the model writes, so the per-call timeout can
+        // fire during the body read: that is a timeout like one before headers (retried), not a malformed reply.
+        if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+          if (canRetry) {
+            await deps.sleep(deps.baseDelayMs * 2 ** attempt);
+            continue;
+          }
+          throw new AiProviderError(provider, res.status, `${provider} timed out reading the response`, true, { cause: err });
+        }
         throw new AiProviderError(provider, res.status, `${provider} returned invalid JSON`, false, { cause: err });
       }
     }

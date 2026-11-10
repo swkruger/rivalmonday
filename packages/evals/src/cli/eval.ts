@@ -4,7 +4,7 @@ import { createDb, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { budgetedAi, createSpendMeter } from '../budget';
 import { buildCsDev } from '../build/cs-dev';
-import { expandSuites, runEvals } from '../run';
+import { describeError, expandSuites, runEvals } from '../run';
 import { DEFAULT_REPORT_DIR, parseEvalArgs, resolveMaxUsd } from './args';
 import { runBuild, runLabel } from './dataset';
 
@@ -70,6 +70,6 @@ try {
     }
   }
 } catch (err) {
-  console.error(`[eval] ${err instanceof Error ? err.message : String(err)}`);
+  console.error(`[eval] ${describeError(err)}`);
   process.exitCode = 1;
 }

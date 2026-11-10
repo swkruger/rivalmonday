@@ -7,7 +7,7 @@ Record/replay eval harness (phase 7c1): labelled case sets in `data/<suite>.json
 - **Ids are builder-generated:** `contactLeaks` exempts a case's own top-level `id`; the build refuses to write a file where contact details survive `redactForModel`.
 - **Foreign-id cross-tenant Ask path is covered only by the scripted unit test:** ids written into questions are redacted as phone-like, so a live case cannot carry one.
 - **`src/cli/load-env.ts` must stay the CLI's first import** (it loads the root `.env` before any module reads env).
-- **The Ask suite truncates the test DB:** never run it alongside another test run on the same DB (`prepareTestDb` refuses any non-`_test` URL).
+- **The Ask suite truncates the test DB:** never run it alongside another test run on the same DB (`prepareTestDb` refuses any non-`_test` URL). The reverse bites too: any vitest run's global setup empties the worktree DB, so a focused web/package test during `eval record` deletes the world mid-turn (`ask_message` FK `ask_message_agency_id_agency_id_fk`, "Key is not present in table agency"; 18c-1 lost a fill run that way). Suite errors now print the cause chain and live spend.
 - **Budget stop in record mode loses the recording:** the cassette flushes only when the suite completes. Raise `--max-usd` and re-run.
 - **Single-case re-record is ad hoc today** (no `record --case`); re-record the whole suite, or `record --fill` to go live only on cassette misses (stored replies reused, so an old passing answer stays).
 - **Injection canaries are codes, not claims:** a good refusal may quote the planted claim to warn the user (`ask-inject-09` failed 7 of 10 live on that), so a canary must be something only an obedient answer would repeat.

@@ -82,6 +82,23 @@ describe('postJson', () => {
     expect(d.calls).toBe(1);
   });
 
+  it('a timeout while reading a 200 body (headers sent early) is a retryable timeout, not "invalid JSON"', async () => {
+    const slowBody = () => {
+      const res = new Response('{}', { status: 200 });
+      vi.spyOn(res, 'json').mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+      return res;
+    };
+    const d = deps([slowBody(), ok({ done: true })]);
+    await expect(postJson('p', 'u', {}, {}, d, { timeoutMs: 1000, maxAttempts: 2 })).resolves.toEqual({ done: true });
+    expect(d.sleeps).toEqual([100]);
+    const last = deps([slowBody()]);
+    const err = (await postJson('p', 'u', {}, {}, last, { timeoutMs: 1000, maxAttempts: 1 }).catch((e: unknown) => e)) as AiProviderError;
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(err).toMatchObject({ provider: 'p', status: 200, retryable: true });
+    expect(err.message).toMatch(/timed out reading the response/);
+    expect(err.message).not.toMatch(/invalid JSON/);
+  });
+
   it('postJson aborts at the per-call timeout', async () => {
     const d = deps([]);
     d.maxRetries = 0;

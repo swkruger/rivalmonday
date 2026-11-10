@@ -62,6 +62,26 @@ describe('runEvals', () => {
     expect(out.errors[0]).toMatch(/No recorded reply|Re-record/);
   });
 
+  it('a suite error names its cause chain (the Postgres error behind a drizzle "Failed query") and the live spend', async () => {
+    writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
+    const pg = Object.assign(new Error('insert or update on table "ask_message" violates foreign key constraint "ask_message_agency_id_agency_id_fk"'), {
+      name: 'PostgresError', detail: 'Key is not present in table "agency".',
+    });
+    const runner: SuiteRunner = {
+      suite: 'briefs',
+      run: async (_c, ai) => { await ai.chat('t', { messages: [] }, {} as never); throw new Error('Failed query: insert into "ask_message" ...', { cause: pg }); },
+    };
+    const out = await runEvals({
+      ...base(), suites: ['briefs'], mode: 'live', runners: { briefs: runner },
+      makeLiveAi: (meter) => ({ chat: async () => { await meter.ledger.recordLlmCall({ costUsd: 0.25 } as never); return {}; } }) as never,
+    });
+    expect(out.failed).toBe(true);
+    expect(out.errors[0]).toContain('Failed query: insert into "ask_message"');
+    expect(out.errors[0]).toContain('cause: PostgresError: insert or update on table "ask_message" violates foreign key constraint');
+    expect(out.errors[0]).toContain('Key is not present in table "agency".');
+    expect(out.errors[0]).toContain('live spend $0.2500');
+  });
+
   it('cases without a registered runner fail', async () => {
     writeCases('briefs', [mk('brief-a')], join(dir, 'data'));
     const out = await runEvals({ ...base(), suites: ['briefs'], runners: {} });
