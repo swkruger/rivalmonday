@@ -1,4 +1,4 @@
-import { agencyServiceable, clientWorkAllowed, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot } from '@cs/db';
+import { agencyServiceable, clientWorkAllowed, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot, serpSnapshot } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { recordVendorCapture } from '../evidence/vendor-capture';
@@ -7,6 +7,7 @@ import { mapsSearch } from '../local/maps';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
+import { serpSearch } from './serp';
 import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankMapSettingsHash, rankRadiusKm } from './settings';
 
 export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; estimatedUsd: number }
@@ -27,6 +28,10 @@ function isRunningUniqueViolation(err: unknown): boolean {
  * `capture_id`. The capture table requires a competitor, so it is filed under the client's self-business
  * (`client.self_competitor_id`); with none, or if recording fails (logged), captureId stays null and the
  * scan continues.
+ *
+ * After the grid, one live Google search per keyword (page one at the service-area centre, 18b-2) stores a
+ * `serp_snapshot` and its evidence (`source: google_search`). A failed search is logged and skipped: it has no row and
+ * never changes `failed` or the scan's status (those stay map-only). Prospect scans skip it.
  *
  * Bounds paid live DataForSEO calls: gridSize=7 x maxKeywords=5 is already 245 live searches (~$0.49)
  * per client per run.
@@ -132,6 +137,31 @@ export async function scanRankings(
         }
         await deps.db.insert(rankSnapshot).values({ agencyId: c.agencyId, clientId: c.id, scanId, keyword, lat: pt.lat, lng: pt.lng, captureId, results });
         snapshots++;
+      }
+    }
+    if (!prospect) {
+      for (const keyword of keywords) {
+        let result: Awaited<ReturnType<typeof serpSearch>>;
+        try {
+          result = await serpSearch(deps.dfs, { keyword, lat: c.serviceArea.center.lat, lng: c.serviceArea.center.lng, radiusM: radiusKm * 1000 }, scope);
+        } catch (err) {
+          if (!(err instanceof VendorError)) throw err;
+          console.warn(`[rank-scan] ${clientId} "${keyword}": Google search failed: ${err.message} (code ${err.code ?? 'n/a'}) — keyword skipped`);
+          continue;
+        }
+        let captureId: string | null = null;
+        if (c.selfCompetitorId) {
+          try {
+            ({ captureId } = await recordVendorCapture(deps, {
+              competitorId: c.selfCompetitorId, source: 'google_search', collectorVersion: DFS_COLLECTOR_VERSION, status: 'ok', payload: result.raw,
+            }));
+          } catch (err) {
+            console.warn(`[rank-scan] ${clientId} "${keyword}": search evidence capture failed (${err instanceof Error ? err.message : String(err)}) — snapshot stored without capture`);
+          }
+        }
+        await deps.db.insert(serpSnapshot).values({
+          agencyId: c.agencyId, clientId: c.id, scanId, keyword, captureId, capturedAt: new Date(), organic: result.organic, localServices: result.localServices,
+        });
       }
     }
   } catch (err) {

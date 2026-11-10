@@ -28,6 +28,7 @@ export * from './prospect/snapshot';
 export * from './rankings/budget';
 export * from './rankings/map-refresh';
 export * from './rankings/scan';
+export * from './rankings/serp';
 export * from './rankings/settings';
 export * from './rankings/static-map';
 export * from './geo/stadia-geocode';

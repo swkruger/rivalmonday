@@ -1,4 +1,4 @@
-import { capture, client, evidence, rankMapImage, rankScan, rankSnapshot } from '@cs/db';
+import { capture, client, evidence, rankMapImage, rankScan, rankSnapshot, serpSnapshot } from '@cs/db';
 import type { RankScanSkipped } from './scan';
 import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
@@ -7,6 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
 import { rankMapSettingsHash } from './settings';
+import { SERP_OPERATION } from './serp';
 import { clientsNeedingRankMap, failStaleRankScans, listRankClients, RANK_SCAN_STALE_HOURS, scanRankings } from './scan';
 
 const USER = '00000000-0000-4000-8000-0000000000c1';
@@ -37,7 +38,7 @@ describe('scanRankings', () => {
     const rows = await dbs.service.select().from(rankSnapshot);
     expect(rows).toHaveLength(25);
     expect(rows.every((r) => r.captureId !== null)).toBe(true);
-    const caps = await dbs.service.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
+    const caps = await dbs.service.select().from(capture).where(eq(capture.source, 'google_maps_rank'));
     expect(caps).toHaveLength(25);
     expect(caps[0]).toMatchObject({ source: 'google_maps_rank', status: 'ok' });
     const ev = await dbs.service.select().from(evidence).where(eq(evidence.captureId, rows[0]!.captureId!));
@@ -53,7 +54,7 @@ describe('scanRankings', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       expect(await scanRankings({ db: dbs.service, store, dfs }, IDS.clientA1, SCHEDULED)).toMatchObject({ snapshots: 25, failed: 0 });
-      expect(warn).toHaveBeenCalledTimes(25);
+      expect(warn).toHaveBeenCalledTimes(26); // 25 map points + the one Google search
     } finally {
       warn.mockRestore();
     }
@@ -89,7 +90,7 @@ describe('scanRankings', () => {
     } finally {
       warn.mockRestore();
     }
-    expect(calls).toBe(25);
+    expect(calls).toBe(26); // 25 map points + the one Google search
     const rows = await dbs.service.select().from(rankSnapshot);
     expect(rows).toHaveLength(24);
   });
@@ -245,6 +246,66 @@ describe('scanRankings settings, trigger and skip (13b)', () => {
     expect(r.skipped).toBeUndefined();
     expect(onSkipped).not.toHaveBeenCalled();
     expect((await dbs.service.select().from(rankScan))[0]).toMatchObject({ trigger: 'scheduled', status: 'done' });
+  });
+});
+
+describe('scanRankings Google search (18b-2)', () => {
+  const serpTask = () => dfsTask([{ items: [{ type: 'organic', rank_group: 1, domain: 'a.example', url: 'https://a.example/', title: 'A' }] }]);
+  const mapsTask = () => dfsTask([{ items: [{ type: 'maps_search', rank_absolute: 1, title: 'Smith HVAC', place_id: 'p1' }] }]);
+
+  it('writes one serp_snapshot per keyword after the grid, with evidence under source google_search', async () => {
+    await dbs.owner.update(client).set({ selfCompetitorId: IDS.competitorX, keywords: ['ac repair', 'furnace repair'] }).where(eq(client.id, IDS.clientA1));
+    const dfs = fakeDfs((_m, path) => [path === SERP_OPERATION ? serpTask() : mapsTask()]);
+    const res = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+    expect(res).toMatchObject({ snapshots: 50, failed: 0 });
+    const serpCalls = dfs.calls.filter((c) => c.path === SERP_OPERATION);
+    expect(serpCalls).toHaveLength(2);
+    expect(dfs.calls.at(-1)?.path).toBe(SERP_OPERATION);
+    expect(serpCalls[0]!.body![0]).toMatchObject({ keyword: 'ac repair', location_coordinate: '33.9,-84.3,8000', depth: 10 });
+    const rows = await dbs.service.select().from(serpSnapshot);
+    expect(rows.map((r) => r.keyword).sort()).toEqual(['ac repair', 'furnace repair']);
+    expect(rows[0]).toMatchObject({ scanId: res.scanId, agencyId: IDS.agencyA, clientId: IDS.clientA1, localServices: null });
+    expect(rows[0]!.organic).toEqual([{ rank: 1, domain: 'a.example', url: 'https://a.example/', title: 'A' }]);
+    expect(rows.every((r) => r.captureId !== null)).toBe(true);
+    const caps = await dbs.service.select().from(capture).where(eq(capture.source, 'google_search'));
+    expect(caps).toHaveLength(2);
+    expect(caps[0]).toMatchObject({ competitorId: IDS.competitorX, status: 'ok' });
+  });
+
+  it('a failing keyword is logged and skipped; the scan stays done with the other snapshots and failed = 0', async () => {
+    await dbs.owner.update(client).set({ keywords: ['ac repair', 'furnace repair'] }).where(eq(client.id, IDS.clientA1));
+    const dfs = fakeDfs((_m, path, body) => {
+      if (path !== SERP_OPERATION) return [mapsTask()];
+      if (body?.[0]?.keyword === 'ac repair') throw new VendorError('dataforseo', 50000, 'Search failed.', true);
+      return [serpTask()];
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const res = await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+      expect(res).toMatchObject({ snapshots: 50, failed: 0 });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"ac repair": Google search failed'));
+    } finally {
+      warn.mockRestore();
+    }
+    expect((await dbs.service.select().from(serpSnapshot)).map((r) => r.keyword)).toEqual(['furnace repair']);
+    const [scan] = await dbs.service.select().from(rankScan);
+    expect(scan).toMatchObject({ status: 'done', failed: 0, snapshots: 50 });
+  });
+
+  it('stores the Local Services block when the response has one', async () => {
+    const dfs = fakeDfs((_m, path) => [path === SERP_OPERATION
+      ? dfsTask([{ items: [{ type: 'local_services', title: 'Local Services ads', items: [{ title: 'Cool Air Pros', rating: { value: 4.8, votes_count: 30 } }] }] }])
+      : mapsTask()]);
+    await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+    const [row] = await dbs.service.select().from(serpSnapshot);
+    expect(row).toMatchObject({ organic: [], localServices: { title: 'Local Services ads', providers: [{ name: 'Cool Air Pros', rating: 4.8, votes: 30 }] } });
+  });
+
+  it('a capped scan makes no search call, and the stored estimate includes the search cost', async () => {
+    const dfs = fakeDfs(() => [mapsTask()]);
+    await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs }, IDS.clientA1, SCHEDULED);
+    const [scan] = await dbs.service.select().from(rankScan);
+    expect(scan!.estimatedUsd).toBeCloseTo(25 * 0.002 + 0.002);
   });
 });
 

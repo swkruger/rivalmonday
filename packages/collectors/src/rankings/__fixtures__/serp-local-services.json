@@ -1,0 +1,6 @@
+[{"keyword":"ac repair","type":"organic","items":[
+{"type":"local_services","rank_group":1,"rank_absolute":1,"title":"Local Services ads","items":[
+{"type":"local_services_item","title":"Cool Air Pros","rating":{"rating_type":"Max5","value":4.9,"votes_count":212}},
+{"type":"local_services_item","title":"Breeze HVAC","rating":null},
+{"type":"local_services_item","title":" "}]},
+{"type":"organic","rank_group":1,"rank_absolute":2,"domain":"coolairpros.example","url":"https://coolairpros.example/ac","title":"AC repair | Cool Air Pros"}]}]

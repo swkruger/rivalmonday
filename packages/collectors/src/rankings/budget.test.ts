@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { DISCOVERY_CALL_COST_USD } from '../rivals/cost';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
+import { SERP_CALL_USD } from './serp';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -26,10 +27,10 @@ const vendor = (costUsd: number, createdAt: Date) => ({
 });
 
 describe('rank scan estimate and budget', () => {
-  it('estimate 7×7×5 = 245 calls × maps rate', () => {
+  it('estimate 7×7×5 = 245 maps calls plus one Google search per keyword', () => {
     const e = estimateRankScanUsd({ keywords: ['a', 'b', 'c', 'd', 'e', 'f'], rankKeywords: [], rankGridSize: 7, serviceArea: null });
     expect(e.calls).toBe(245);
-    expect(e.usd).toBeCloseTo(245 * DISCOVERY_CALL_COST_USD.maps);
+    expect(e.usd).toBeCloseTo(245 * DISCOVERY_CALL_COST_USD.maps + 5 * SERP_CALL_USD);
   });
   it('rank budget allows up to 130 % of the limit and refuses beyond', async () => {
     // limit 10 -> pause threshold 13
