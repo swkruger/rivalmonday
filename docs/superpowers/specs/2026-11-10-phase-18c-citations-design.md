@@ -1,6 +1,6 @@
 # Phase 18c-1 — Directory listings (citations) (design)
 
-**Date:** 2026-11-10 · **Branch:** `phase-18c` · **Brief:** `docs/work/phase-18c.md` (owner: 1C 2C 3C 4B 5B 6B 7A 8A 9A; Listings page = owner change)
+**Date:** 2026-11-10 · **Branch:** `phase-18c` · **Brief:** `docs/work/phase-18c.md`
 Core spec §1.5, §2.2, §4.3, §4.4, §6.2/§6.3, §6.5, §8.2, §8.5, §10.5. New decisions and interfaces only.
 
 ## Intent
@@ -55,6 +55,7 @@ CREATE TABLE citation_listing (
   listing_url text, listing_title text,
   shown_phone text,                    -- digits shown when phone_match = false (evidence-backed), else null
   capture_id uuid REFERENCES capture(id),
+  newly_found_at timestamptz,          -- set on not_found → listed (catalogue rows); read by the diff
   first_seen_at timestamptz, last_seen_at timestamptz,   -- listed spans
   in_catalogue boolean NOT NULL DEFAULT true,   -- false = "Also found on" (C12)
   checked_at timestamptz NOT NULL,
@@ -106,7 +107,7 @@ CREATE INDEX citation_audit_run_client_idx ON citation_audit_run (client_id, sta
 - `core/domain.ts`: `CHANGE_TYPES` += `'citation_added'`; `SELF_RULE_IDS` += `'citation_gap'`; `CHANNELS` += `'directories'`.
 - `score/score.ts`: `WHOLE_BUSINESS_TYPES` += `citation_added`; C8 deterministic score + `factors.citationMinor` (`ScoreFactors` in `db/schema/engine.ts`).
   `score-stage.ts` novelty key `citation_added|<directory>`.
-- `core/brief-report.ts` `topicOf`: `citation_added` → `'rankings'` (ours: visibility). Email `CHANGE_LABELS.citation_added = 'new directory listing'`,
+- `core/brief-report.ts` `topicOf`: `citation_added` → `'rankings'`, label renamed "Rankings & listings" (ours). Email `CHANGE_LABELS.citation_added = 'new directory listing'`,
   `GROUP_PHRASE.citation_added = () => 'new directory listings'`. Channel labels (`engine/briefs/evidence.ts`, `tools/workspace/labels.ts`): `directories: 'Online directories'`.
 - `tag/structured.ts` summary (below); glossary term "Directory listing".
 - `briefs/self-rules.ts`: `SelfRuleInput.citations: { checkedAt: string; total: number; missing: { host: string; label: string; rivalsListed: number }[];
@@ -157,5 +158,5 @@ Hard cap **$0.20/client/run**, monthly; spend guard, ledger credits (`CallScope.
 
 ## Settled points (our calls, owner said "go as recommended")
 1. "New listing" = tracked rival only: Minor brief line, never an alert; the client's own listings live on the Listings page and in `citation_gap`.
-2. Dental: ADA only beyond the generic list; review-hosting health directories out (§2.2 spirit).
+2. Dental: `dental_health` = ADA only; review-hosting health directories out (§2.2 spirit).
 3. No Top rival yet: fall back to the 3 highest-overlap tracked rivals.

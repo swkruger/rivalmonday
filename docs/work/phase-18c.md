@@ -1,10 +1,10 @@
 # phase-18c — Wider sources, part 3: citations (directory listings, client NAP hygiene, rival citation growth)
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18c   **Base:** main @ 88974241
-**Plan/spec:** none yet
+**Plan/spec:** [spec](../superpowers/specs/2026-11-10-phase-18c-citations-design.md) · [plan](../superpowers/plans/2026-11-10-phase-18c-citations.md)
 
 ## Status (overwrite)
-2026-11-10: brief written; owner took all recommendations; spec being drafted.
+2026-11-10: spec + lean plan written (`docs/superpowers/plans/2026-11-10-phase-18c-citations.md`, Tasks 0-13); awaiting owner approval.
 
 ## Next (overwrite)
 Spec (`docs/superpowers/specs/2026-11-10-phase-18c-citations-design.md`) → lean plan → owner approval → SDD.
