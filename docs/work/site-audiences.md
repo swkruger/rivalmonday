@@ -5,10 +5,10 @@
 **Plans:** `docs/superpowers/plans/2026-11-10-site-audiences-a-still-site.md` (A, 9 tasks) then `…-b-two-sides.md` (B, 13 tasks)
 
 ## Status (overwrite)
-2026-11-10: both plans owner-approved. **SDD running:** Plan A Tasks 0-8 implemented, gates run (see measurements below); Plan B next. Task progress and rulings are in the SDD ledgers `.superpowers/sdd/2026-11-10-site-audiences-a-still-site/progress.md` and `…-b-two-sides/progress.md`. `sharp` not yet added (Plan B Task 2). Own test DB `cs_site_audiences_test`.
+2026-11-10: both plans owner-approved. **SDD running:** Plan A Tasks 0-8 implemented, gates run (see measurements below); Plan B Task 0 done, Tasks 1-12 running. Task progress and rulings are in the SDD ledgers `.superpowers/sdd/2026-11-10-site-audiences-a-still-site/progress.md` and `…-b-two-sides/progress.md`. `sharp` not yet added (Plan B Task 2). Own test DB `cs_site_audiences_test`.
 
 ## Next (overwrite)
-1. SDD: Plan B Tasks 0-12 (site E2E once at Task 12), then the whole-branch review on the top model and one fix wave.
+1. SDD: Plan B Tasks 1-12 (site E2E once at Task 12), then the whole-branch review on the top model and one fix wave.
 2. Re-measure the `/` and `/agencies` phone LCP at Plan B Task 12 (see measurements).
 3. Owner: `pnpm copy:review` for all new and changed lines; then `/rm-merge` on the owner's go-ahead.
 
@@ -25,6 +25,25 @@
 - Phone vitals: `/` LCP 2,252 to 2,592 ms over five runs (budget 2,500; 2 of 5 over), CLS 0; `/pricing` ~1,500 ms; `/compare` ~1,600 ms. Not compared with `main` in this run. Re-measure after Plan B changes `/`.
 - 320 px: the recommendation board made the page 335 px wide (the board is unchanged from `main`); fixed with `min-w-0` on the lanes (`a7cbaa3c`).
 - `check:placeholders` still lists the 3 owner placeholders `main` has (`content/founder.ts`, `privacy.md`, `terms.md`): a deploy gate, not changed here.
+
+## Plan B Task 0 notes (2026-11-10)
+- Branch 0 behind `main` (no rebase needed); `phase-18b` touches none of `apps/site`, `scripts/design-lint.sh`, `packages/copy-review`, `.github/workflows`.
+- **Unknown addresses (review focus 1):** a prerendered 404 renders on the server with pathname `/_not-found`; in the browser `usePathname()` returns the address asked for (`/agencies/nope`, `/business/pricing/x`). Both must resolve to `both` (exact matching does that), or the markup disagrees. `/how-it-works/` answers 308 to `/how-it-works`, so a trailing slash never reaches a page. `/partners?utm=x` gives pathname `/partners`. On an unknown address the console shows one "Failed to load resource: 404" for the document itself (plus name-resolution errors for the fake app host in E2E): a "no console error" test must leave resource-load errors out.
+- Header changes to the phone sheet below `lg` (1024 px): `nav` and the right-hand buttons are `hidden lg:flex`, the menu button `lg:hidden` (`shell/site-header.tsx`, `shell/mobile-menu.tsx`).
+- `sharp@0.34.5` is in the pnpm store; adding it as a devDependency changes the root `pnpm-lock.yaml` (allowed). `src/import-boundary.test.ts` reads every dependency group of `package.json`.
+- Users, so implementers do not grep again:
+  - `'/pricing'`: `content/pages.ts` (row, with the Pricing menu entry), `content/pages.test.ts` (nav list `/how-it-works, /compare, /pricing, /partners, /roadmap`), `content/legal/terms.md`, `src/app/pricing/{page,opengraph-image}.tsx`, `src/app/sitemap.test.ts`, `shell/nav-items.ts` (footer), `src/lib/waitlist-body.test.ts` (sample pathname, five times), `e2e/pages.spec.ts`, `e2e/vitals.spec.ts`.
+  - `navItems(`: `src/app/layout.tsx` (`<SiteHeader items={navItems()} />`, the only `items=` on the header), `shell/nav-items.ts`, `shell/shell.test.tsx`, `content/industries-guides.test.ts`. `NAV_EXTRA` is `[]` today; `content.test.ts` has "every NAV_EXTRA /#id is in HOME_ANCHORS".
+  - `PLAN_CARDS`: `content/pricing-page.ts` and its test, `pricing/plan-cards.tsx`, `pricing/pricing.test.tsx`. `PRICING_PAGE`: `content/pricing-page.ts` and its test, `src/app/pricing/page.tsx`.
+  - `HOME_ANCHORS`: `content/home.ts`, `content/content.test.ts`, `content/how-it-works-page.test.ts`, `src/app/page.tsx`, `home/sections.test.tsx`, `e2e/pages.spec.ts`.
+  - `TITLE_STEM` (`content/site.ts`): default title in `src/app/layout.tsx`, `src/app/manifest.ts`, `src/lib/json-ld.ts` (organization and software-application descriptions), `src/lib/llms.ts`.
+  - `HOME_IMAGES`: `home/hero.tsx` and its test (`hero*` keys), `home/steps.tsx` (`.street`, stays).
+  - Hero pictures: `hero-map.webp` and `hero-overview.webp` are also shown by `content/guides.ts` and stay; only `hero-friday.webp` has no other user.
+  - `MobileCta`: `src/app/page.tsx`, `home/mobile-cta.tsx` (first part of the hero fine print + `JoinButton start={HERO.primaryStart}`).
+  - `WEEK`, `ROLES`: `content/how-it-works-page.ts` and its test, `src/app/how-it-works/page.tsx`.
+  - `data-note-mark`: `client-view/note-mark.tsx` (and a test). `ANNOUNCEMENT` is already keyed `home | agency | business`. `HeroHeadline({ headline })` and `JoinButton({ start?, children?, variant, className })` exist. No source link uses `/#…` today.
+- Motion guard: `src/no-idle-motion.test.ts` has `BANNED` and an empty `ALLOWED`; the gallery (Task 3) is the one approved exception.
+- E2E specs stop matching after Task 5 and are moved in Task 12 (E2E runs once, there).
 
 ## Interfaces this branch adds or changes
 - Routes: `/` (chooser), `/agencies`, `/business`, `/agencies/pricing`, `/business/pricing`; `/pricing` → permanent redirect to `/agencies/pricing`.
