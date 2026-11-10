@@ -1,3 +1,4 @@
+import { citationSearch } from '../citations/search';
 import type { VendorCallRecord } from '@cs/core';
 import { timedFetch } from '@cs/core/server';
 import { describe, expect, it } from 'vitest';
@@ -90,6 +91,15 @@ describe('createFixtureFetch', () => {
     const ads = (pinned!.result[0] as { items: { advertiser_id: string }[] }).items;
     expect(ads.length).toBeGreaterThan(0);
     expect(ads.every((i) => i.advertiser_id === advertisers[0]!.id)).toBe(true);
+  });
+
+  it('organic search answers citation stage 1 and stage 2 with the real host in the breadcrumb', async () => {
+    const dfs = createDataForSeo({ login: 'f', password: 'f', ledger: ledger().sink, fetch: timedFetch(instant()) });
+    const s1 = await citationSearch(dfs, { query: '"Bright Smile Dental" "512-555-0100"', depth: 20 }, scope);
+    expect(s1.organic.map((o) => o.domain)).toEqual(['mapquest.com', 'bbb.org', 'chamberofcommerce.com']);
+    expect(s1.organic[0]!.title).toBe('Bright Smile Dental, LLC');
+    const s2 = await citationSearch(dfs, { query: '"Bright Smile Dental" Austin', depth: 20 }, scope);
+    expect(s2.organic.map((o) => o.domain)).toEqual(['mapquest.com', 'facebook.com']);
   });
 
   it('Meta ads (ScrapeCreators, Apify, keyword search) answer at $0 for the requested page', async () => {

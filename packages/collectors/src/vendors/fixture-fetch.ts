@@ -192,9 +192,30 @@ function decodeTaskId(id: string): { kind: TaskKind; data: Obj } | null {
     return null;
   }
 }
+/**
+ * Google organic answer for citation audits (18c): a stage-1 `"name" "NNN-NNN-NNNN"` query lists the name with its phone on
+ * three directories, a stage-2 `"name" city` query lists it on two (shape of the Task 0 fixtures: goto-wrapped, real host in the breadcrumb).
+ */
+function organicResult(data: Obj): Obj[] {
+  const keyword = typeof data.keyword === 'string' ? data.keyword : 'fixture';
+  const quoted = [...keyword.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+  const name = quoted[0] ?? keyword;
+  const phone = quoted[1] ?? null;
+  const city = /^"[^"]+"\s+([^"]+)$/.exec(keyword)?.[1] ?? 'Austin';
+  const sites: [string, string, string][] = phone
+    ? [['mapquest.com', 'MapQuest', `${name}, LLC`], ['bbb.org', 'Better Business Bureau', `${name} - BBB Profile`], ['chamberofcommerce.com', 'ChamberofCommerce.com', `${name} in ${city}`]]
+    : [['mapquest.com', 'MapQuest', `${name}, LLC`], ['facebook.com', 'Facebook', `${name} | Facebook`]];
+  const items = sites.map(([host, siteName, title], i) => ({
+    type: 'organic', rank_group: i + 1, rank_absolute: i + 1, page: 1, domain: 'www.google.com', title,
+    url: `https://www.google.com/goto?q=${encodeURIComponent(host)}`, breadcrumb: `https://www.${host} › ${city}`, website_name: siteName,
+    description: `${title}${phone ? ` ${phone}` : ''}. ${city}, TX.`,
+  }));
+  return [{ keyword, type: 'organic', se_domain: 'google.com', location_code: 2840, language_code: 'en', check_url: null, datetime: FIXED_TS[2], items_count: items.length, items }];
+}
 const LIVE: Record<string, (data: Obj) => Obj[]> = {
   '/business_data/google/my_business_info/live': (d) => gbpResult(typeof d.keyword === 'string' ? d.keyword : ''),
   '/serp/google/maps/live/advanced': mapsResult,
+  '/serp/google/organic/live/advanced': organicResult,
   '/serp/google/ads_search/live/advanced': adsSearchResult,
   '/serp/google/ads_advertisers/live/advanced': advertisersResult,
 };
