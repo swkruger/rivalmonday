@@ -1,13 +1,13 @@
 # phase-18b — Wider sources: more Google via DataForSEO
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18b   **Base:** main @ 843cfbac
-**Plan/spec:** none yet (no roadmap row; add one at merge)
+**Plan/spec:** [spec 18b-1](../superpowers/specs/2026-11-10-phase-18b1-gbp-posts-design.md) · [plan 18b-1](../superpowers/plans/2026-11-10-phase-18b1-gbp-posts.md) (no roadmap row; add one at merge)
 
 ## Status (overwrite)
-Kickoff brief written; no spec/plan.
+18b-1 spec + lean plan written 2026-11-10; awaiting owner approval. 18b-2 (organic/AI Overview/LSA) not started.
 
 ## Next (overwrite)
-Owner answers the open questions (§6); then brainstorming → spec.
+Owner approves the 18b-1 plan → Task 0 (pre-flight + vendor probe, stop point) → subagent-driven development.
 
 ## Interfaces this branch adds or changes
 None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
@@ -16,7 +16,7 @@ None yet. Next free migration: **0105** (last on main: `0104_ad_images.sql`).
 None (`git branch --no-merged main` lists only `phase-18b`).
 
 ## Decisions (owner-approved)
-None yet.
+2026-11-10: owner chose the brief's recommendations (§6 Q1–Q7 option A/rec). Spec D1–D8; D3 (rivals only, no self posts) is the controller's narrowing.
 
 ## New backlog (target → item)
 None yet.
