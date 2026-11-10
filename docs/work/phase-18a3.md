@@ -4,11 +4,11 @@
 **Spec:** `docs/superpowers/specs/2026-11-08-phase-18a3-ad-images-design.md` (R1-R17)   **Plan:** `docs/superpowers/plans/2026-11-09-phase-18a3-ad-images.md` (Tasks 0-12, P1-P14)
 
 ## Status (overwrite)
-SDD Tasks 0-12 done; final review next. Spec and plan owner-approved 2026-11-09.
+SDD complete 2026-11-09: Tasks 0-12, final review clean (0 Critical/Important), one fix wave, test:affected 18/18 green, e2e:affected 154/0. Awaiting owner verification + `copy:review`.
 
 ## Next (overwrite)
-Final review (most capable model), one fix wave, owner verification, then `/rm-merge`.
-**`/rm-merge` note:** set `AD_IMAGE_SINCE` (`packages/engine/src/ads/images.ts`, ships as 2026-11-16) to the merge day; re-check the migration number (0104) against main.
+Owner: `pnpm copy:review` (new ad-image strings), then `/rm-merge` go-ahead.
+**`/rm-merge` note:** set `AD_IMAGE_SINCE` (`packages/engine/src/ads/images.ts`, ships as 2026-11-16) to the day `WEB_MONITORING_ENABLED` goes on (else a small implicit backfill), at least the merge day; re-check the migration number (0104) against main.
 
 ## Interfaces this branch adds or changes
 - **Migration 0104:** table `ad_image` (status pending|rejected|triaged, `fail_reason`, `shows_person/price/offer`, `theme`, `service_ids`, `triage`, `evidence_id`, `read_status`, `read_at`; unique `(ad_id, source_url_sha)`; CHECK person => no evidence); `price_point.ad_image_id` (FK, CHECK needs `ad_id`). `TABLE_CLASS.ad_image = global_public`.
@@ -38,6 +38,11 @@ Basis = 18a Decision 4: `typesafe/jev-1.14` takes text + image, answers choice/s
 ## New backlog (target → item)
 - later → Meta ad images: ask the Meta ads vendor whether its API can deliver image files (fbcdn robots disallows us) — *from 18a-3 owner decision*
 - later → image/copy price mapping spend (`mapPricedTexts`) is platform-scoped, not split to tenants — *from 18a-3 spec R13*
+- later → ad image read: `read_at` not set if the commit transaction throws (P8; ≤ 1 uncounted read) — *18a-3 final review*
+- later → ad image read cap counts rows before the claim; make it atomic before running >1 poller — *18a-3 final review*
+- later → guarded byte fetch checks robots for a cross-host redirect target after the fetch (same as `polite.ts`) — *18a-3 final review*
+- later → test that `findEngineWork` gets `adImages:false` when `WEB_MONITORING_ENABLED` is off — *18a-3 final re-review*
+- owner → pricing-page "From an ad image" tag is plain text (plan P9) while spec D6 wanted an evidence link; competitor page links — *18a-3 final review*
 - **Closes:** "Ad images (vendor media URLs expire and leak viewer requests)" (first half) and the `EvidenceImage` pre-hydration 404 item (*5c-1 final review*); remove both from BACKLOG at merge.
 
 
