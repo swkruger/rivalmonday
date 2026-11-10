@@ -20,7 +20,47 @@ const firstClaim = (page: Page) => page.locator('[data-item] button[aria-haspopu
 test('home renders the decided headline', async ({ page }) => {
   await mockApp(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your competitors are making moves. Are you watching?');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tell every client what their rivals did this week.');
+});
+
+test('nothing on the home page moves by itself', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'desktop only');
+  await mockApp(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  // Instant scrolls, so no smooth-scroll animation of our own can be counted.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1000);
+  const running = await page.evaluate(() =>
+    document
+      .getAnimations()
+      .filter((a) => a.playState === 'running')
+      .map((a) => a.constructor.name + ' ' + ((a as CSSAnimation).animationName ?? (a as CSSTransition).transitionProperty ?? '')),
+  );
+  expect(running).toEqual([]);
+});
+
+test('the hero fits a 320 px phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await mockApp(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const first = await overflow(page);
+  expect(first.sw).toBeLessThanOrEqual(first.cw);
+  const h1 = await page.getByRole('heading', { level: 1 }).boundingBox();
+  expect(h1).not.toBeNull();
+  expect(h1!.x + h1!.width).toBeLessThanOrEqual(320);
+  // The tour button is `hidden sm:inline-flex` in the hero.
+  await expect(page.locator('[data-slot="hero"] a[href="#client-view"]')).toBeHidden();
+  // The tour's quiet brief button is one no-wrap line: it must stay inside the viewport.
+  const cta = page.locator('[data-slot="client-view-cta"]');
+  await cta.scrollIntoViewIfNeeded();
+  const second = await overflow(page);
+  expect(second.sw).toBeLessThanOrEqual(second.cw);
+  const box = await cta.locator('button, a').first().boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
 });
 
 test('the /#join deep link opens the join dialog', async ({ page }) => {
@@ -223,9 +263,10 @@ test('sample claim opens evidence; slider changes week; friday answer cites', as
   const slider = page.getByRole('slider', { name: 'Week' });
   await slider.scrollIntoViewIfNeeded();
   await expect(slider).toBeVisible();
-  // Stop the first-view autoplay, then step by keyboard.
-  const pause = page.getByRole('button', { name: 'Pause' });
-  if (await pause.isVisible()) await pause.click();
+  // The map opens on the last week and stays there until Play or the slider moves it.
+  const lastWeek = await slider.getAttribute('max');
+  expect(Number(lastWeek)).toBeGreaterThan(0);
+  expect(await slider.inputValue()).toBe(lastWeek);
   await slider.focus();
   await slider.press('Home');
   expect(await slider.inputValue()).toBe('0');

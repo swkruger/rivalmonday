@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { HOME_ANCHORS } from '../content/home';
 import { mockApp, overflow, sitemapPaths, watchProblems } from './helpers';
 
 const ORIGIN = 'https://rivalmonday.com';
@@ -206,4 +207,34 @@ test('pricing pilot off shows trial cards', async ({ page }) => {
   await expect(agency).toContainText('free trial');
   await expect(agency).not.toContainText('Free during the pilot');
   await expect(page.locator('[data-slot="plan-business"]')).not.toContainText('Free during the pilot');
+});
+
+test('the home page is shorter', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'desktop only (1440)');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockApp(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('#live')).toBeVisible();
+  const m = await page.evaluate((ids) => {
+    const h = (el: Element | null) => (el ? Math.round(el.getBoundingClientRect().height) : -1);
+    const w = (el: Element | null) => (el ? Math.round(el.getBoundingClientRect().width) : -1);
+    const plan = document.querySelector('[data-slot="plan-line"]');
+    const grid = document.querySelector('#commercial div.grid');
+    return {
+      total: document.documentElement.scrollHeight,
+      hero: h(document.querySelector('[data-slot="hero"]')),
+      sections: ids.map((id) => ({ id, px: h(document.getElementById(id)) })),
+      gap: grid ? getComputedStyle(grid).columnGap : 'none',
+      plan: w(plan),
+      container: w(plan?.parentElement ?? null),
+    };
+  }, [...HOME_ANCHORS]);
+  console.log(`HEIGHT hero ${m.hero}`);
+  for (const s of m.sections) console.log(`HEIGHT ${s.id} ${s.px}`);
+  console.log(`HEIGHT total ${m.total}`);
+  console.log(`GAP commercial ${m.gap}`);
+  console.log(`WIDTH plan-line ${m.plan}`);
+  console.log(`WIDTH commercial-container ${m.container}`);
+  expect(m.total).toBeLessThanOrEqual(11_500);
 });
