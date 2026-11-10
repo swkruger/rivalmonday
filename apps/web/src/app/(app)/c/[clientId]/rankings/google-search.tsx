@@ -5,7 +5,7 @@ import { formatDate } from '@/lib/format';
 /** 18b-2: page one of Google per keyword (section, not card). Reads `get_search_visibility`; the client's own row is highlighted. */
 export function GoogleSearch({ view, tz }: { view: SearchVisibilityView; tz: string }) {
   return (
-    <Section title="Google search" description="Page one for your keywords at your service-area centre, checked every Sunday.">
+    <Section title="Google search" description="Page one for your keywords at your service-area centre, checked every week.">
       {view.keywords.length === 0 ? (
         <p className="text-sm text-muted-ink">No search results yet. They appear after the next weekly scan.</p>
       ) : (

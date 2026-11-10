@@ -107,7 +107,7 @@ describe('RankingsPage', () => {
         mount();
         await render5();
         expect(screen.getByRole('heading', { name: 'Google search' })).toBeTruthy();
-        expect(screen.getByText('Page one for your keywords at your service-area centre, checked every Sunday.')).toBeTruthy();
+        expect(screen.getByText('Page one for your keywords at your service-area centre, checked every week.')).toBeTruthy();
         expect(screen.getByText('No search results yet. They appear after the next weekly scan.')).toBeTruthy();
       });
 

@@ -85,7 +85,7 @@ const reportLines: ChangeLine[] = [
   reportLine(1, 'major', 'offers', 0, 'price_change', 'Harbor Dental: Price change — cleaning now $69, down from $89'),
   reportLine(2, 'notable', 'reviews', 1, 'rating_change', 'Maple Family Dentistry: Rating change — 4.5 to 4.6 stars'),
   reportLine(3, 'notable', 'ads', 2, 'ad_started', 'Riverside Smiles: 3 new ads', 3),
-  reportLine(4, 'notable', 'rankings', 0, 'rank_change', 'Harbor Dental: Local ranking change — now top 3 for "teeth whitening"'),
+  reportLine(4, 'notable', 'rankings', 0, 'rank_change', 'Harbor Dental: Ranking change — now in the map top 3 for "teeth whitening"'),
   reportLine(5, 'minor', 'offers', 3, 'content', 'Oak Street Dental: 2 website changes', 2),
   reportLine(6, 'minor', 'offers', 4, 'new_page', 'Lakeview Dental Care: New website page — "Sedation dentistry"'),
   reportLine(7, 'minor', 'ads', 0, 'ad_stopped', 'Harbor Dental: Ads stopped — summer whitening campaign'),
