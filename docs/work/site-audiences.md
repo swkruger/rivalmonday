@@ -5,11 +5,11 @@
 **Plans:** `docs/superpowers/plans/2026-11-10-site-audiences-a-still-site.md` (A, 9 tasks) then `…-b-two-sides.md` (B, 13 tasks)
 
 ## Status (overwrite)
-2026-11-10: both plans owner-approved. **SDD running, Plan A:** Task 0 (pre-flight) done, baseline green; task progress is in the SDD ledger `.superpowers/sdd/2026-11-10-site-audiences-a-still-site/progress.md`. `sharp` not yet added (Plan B Task 2). Own test DB `cs_site_audiences_test`.
+2026-11-10: both plans owner-approved. **SDD running:** Plan A Tasks 0-8 implemented, gates run (see measurements below); Plan B next. Task progress and rulings are in the SDD ledgers `.superpowers/sdd/2026-11-10-site-audiences-a-still-site/progress.md` and `…-b-two-sides/progress.md`. `sharp` not yet added (Plan B Task 2). Own test DB `cs_site_audiences_test`.
 
 ## Next (overwrite)
-1. New session in this worktree: Plan A Task 0 (pre-flight), then `superpowers:subagent-driven-development`.
-2. SDD: Plan A Tasks 0-8, then Plan B Tasks 0-12 (site E2E once per plan; whole-branch review on the top model after Plan B; one fix wave).
+1. SDD: Plan B Tasks 0-12 (site E2E once at Task 12), then the whole-branch review on the top model and one fix wave.
+2. Re-measure the `/` and `/agencies` phone LCP at Plan B Task 12 (see measurements).
 3. Owner: `pnpm copy:review` for all new and changed lines; then `/rm-merge` on the owner's go-ahead.
 
 ## Plan A Task 0 notes (2026-11-10)
@@ -18,6 +18,13 @@
 - Allowed motion exceptions: none. The only `animate-*` class is `animate-pulse` in checks-diagram, which Task 1 removes.
 - `public/sample/home-counter.webp` stays: a guide (`content/guides.ts`) shows it. Task 4 removes only the home page's use.
 - `site.css` has six `infinite` animations and eight keyframes today; after Tasks 1 and 3 only `reveal-quick`, `sheet-in-right`, `sheet-in-bottom` remain.
+
+## Plan A Task 8 measurements (2026-11-10)
+- Home page at 1440 px: 11,441 px tall (test limit 11,500; target 10,300 not reached). Sections: hero 863, rival-story 940, ceiling 592, opportunity 730, client-view 2,179, recommendations 1,028, friday 567, checks 891, live 445, how-it-works 850, commercial 1,242, join 621.
+- `#friday` 567 px (spec ~570). `#commercial` 1,242 px against the spec's ~930: column gap 88 px, plan line 768 px wide. Both go to the whole-branch review.
+- Phone vitals: `/` LCP 2,252 to 2,592 ms over five runs (budget 2,500; 2 of 5 over), CLS 0; `/pricing` ~1,500 ms; `/compare` ~1,600 ms. Not compared with `main` in this run. Re-measure after Plan B changes `/`.
+- 320 px: the recommendation board made the page 335 px wide (the board is unchanged from `main`); fixed with `min-w-0` on the lanes (`a7cbaa3c`).
+- `check:placeholders` still lists the 3 owner placeholders `main` has (`content/founder.ts`, `privacy.md`, `terms.md`): a deploy gate, not changed here.
 
 ## Interfaces this branch adds or changes
 - Routes: `/` (chooser), `/agencies`, `/business`, `/agencies/pricing`, `/business/pricing`; `/pricing` → permanent redirect to `/agencies/pricing`.
