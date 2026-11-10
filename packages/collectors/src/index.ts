@@ -60,5 +60,6 @@ export * from './web/renderer';
 export * from './web/robots';
 export * from './web/user-agent';
 export * from './citations/audit';
+export * from './citations/run';
 export { alsoFoundOn, type CitationBiz, cityFromAddress, isCategoryTitle, type ListingMatch, matchListing, phone10, usPhones } from './citations/match';
 export * from './citations/search';

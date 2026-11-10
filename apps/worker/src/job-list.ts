@@ -6,6 +6,7 @@ import { createRankMapJobs } from './jobs/rank-map';
 import { createKbJobs } from './jobs/kb';
 import { createBillingJobs } from './jobs/billing-daily';
 import { createBillingNoticeJobs } from './jobs/billing-notices';
+import { createCitationJobs } from './jobs/citations';
 import { createBriefJobs, createStartingPointJobs } from './jobs/briefs';
 import { createDeliveryJobs } from './jobs/delivery';
 import { createEngineJobs } from './jobs/engine';
@@ -129,6 +130,14 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
         'scheduled',
       ),
   });
+  const citations = createCitationJobs(deps, {
+    enqueueClient: async (clientId, opts) => {
+      await enqueue(boss, citations.client, { clientId }, opts);
+    },
+    enqueueTag: async (changeId) => {
+      await enqueue(boss, engine.tag, { changeId }, { singletonKey: changeId });
+    },
+  });
   const moves = createMovesJobs(deps, {
     enqueueMovesClient: async (clientId) => {
       await enqueue(boss, moves.client, { clientId }, { singletonKey: clientId });
@@ -183,7 +192,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
 
   return [
     heartbeat, web.schedule, web.capture, web.discover, web.discoverSchedule, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
-    rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
+    citations.audit, citations.client, rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, engine.adPrice, engine.postPrice, engine.siteFeatures, engine.adImage, engine.adImageRead, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
     delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,

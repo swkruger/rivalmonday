@@ -2,7 +2,7 @@ import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAi
 import {
   capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
-  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
+  clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, failStaleCitationRuns as failStaleCitations, listCitationDueClients as citationDueClients, runCitationAudit as runCitations, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
@@ -12,7 +12,7 @@ import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
   briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
-  deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffRankScan, dispatchDue,
+  deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffCitations, diffRankScan, dispatchDue,
   checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
@@ -150,6 +150,14 @@ export interface WorkerDeps {
     opts: { trigger: 'scheduled' | 'manual'; scanId?: string; requestedBy?: string },
   ): Promise<{ snapshots: number; failed: number; scanId: string | null; skipped?: 'cap' }>;
   listRankClients(): Promise<string[]>;
+  /** 18c: clients due a directory-listings audit (30-day cadence, active clients only). */
+  listCitationDueClients(now: Date): Promise<string[]>;
+  /** 18c: one guarded listings audit for a client (self, then top rivals); paid vendor calls, the job checks vendorsConfigured first. */
+  runCitationAudit(clientId: string): Promise<{ runId: string | null; status: 'done' | 'capped' | 'failed' | 'skipped'; calls: number; usd: number }>;
+  /** 18c: fails `running` listings audits older than CITATION_RUN_STALE_HOURS; returns how many. */
+  failStaleCitationRuns(now: Date): Promise<number>;
+  /** 18c C7: one `citation_added` change per rival newly found by the run (ids; deduped by runStage). */
+  diffCitations(runId: string): Promise<{ ran: boolean; changeIds: string[] }>;
   /** Fails `running` rank scans older than RANK_SCAN_STALE_HOURS; returns how many. */
   failStaleRankScans(): Promise<number>;
   /** Of these clients, the ones with no `rank_map_image` row yet or a stale one (settings or map style changed). */
@@ -581,6 +589,13 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         clientId, opts,
       ),
     listRankClients: () => rankClients(getDb()),
+    listCitationDueClients: (now) => citationDueClients(getDb(), now),
+    runCitationAudit: (clientId) => runCitations({ db: getDb(), store: getStore(), dfs: getDfs(), packs }, clientId),
+    failStaleCitationRuns: (now) => failStaleCitations(getDb(), now),
+    async diffCitations(runId) {
+      const r = await diffCitations({ db: getDb(), packs }, runId);
+      return r.ran ? { ran: true, changeIds: r.result.changeIds } : { ran: false, changeIds: [] };
+    },
     failStaleRankScans: () => failStaleScans(getDb()),
     clientsNeedingRankMap: (ids) => rankClientsNeedingMap(getDb(), ids),
     refreshRankMap: (clientId) =>
