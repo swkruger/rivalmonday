@@ -12,7 +12,7 @@ const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
 const ownerNoDash = ctx('client_owner', [IDS.clientA1]);
 const call = (c = am, meta?: Parameters<typeof reg.invoke>[3], clientId: string = IDS.clientA1) => reg.invoke(c, 'get_citation_audit', { clientId }, meta) as Promise<CitationAuditView>;
 
-let dirs: { host: string; label: string; add_listing_url: string }[];
+let dirs: { host: string; label: string; add_listing_url: string; claim_url?: string }[];
 beforeEach(async () => {
   await resetWorkspace();
   dirs = citationCatalogue(await packsOf({ app: dbs.app, service: dbs.service })('hvac_plumbing'));
@@ -35,7 +35,7 @@ describe('get_citation_audit (18c-1)', () => {
     expect(r.status).toBe('never');
     expect(r.checkedAt).toBeNull();
     expect(r.selfMissing).toBe(false);
-    expect(r.directories).toEqual(dirs.map((d) => ({ host: d.host, label: d.label, addListingUrl: d.add_listing_url })));
+    expect(r.directories).toEqual(dirs.map((d) => ({ host: d.host, label: d.label, addListingUrl: d.add_listing_url, fixUrl: d.claim_url ?? d.add_listing_url })));
     expect(r.alsoFoundOn).toEqual([]);
     // Without a run only the own business is audited (rivals come from the run).
     expect(r.businesses.map((b) => [b.competitorId, b.self])).toEqual([[self, true]]);
@@ -163,5 +163,48 @@ describe('get_citation_audit (18c-1)', () => {
     await dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'monthly', status: 'done', competitorIds: [self], calls: 4, estUsd: '0.0123', startedAt: ago(1), finishedAt: ago(1) });
     const out = JSON.stringify(await call());
     expect(out).not.toMatch(/usd|\$|rival monday|dataforseo/i);
+  });
+});
+
+describe('get_citation_audit additions (18c-2)', () => {
+  const mcp = { channel: 'mcp', tokenId: 't', tokenScope: 'read' } as never;
+  const askMeta = { channel: 'ask', tokenId: 't', tokenScope: 'read' } as never;
+
+  it('fixUrl is the claim link when the directory has one, else the add-listing link', async () => {
+    await seedSelf();
+    const r = await call();
+    expect(r.directories.length).toBeGreaterThan(0);
+    for (const d of r.directories) {
+      const src = dirs.find((x) => x.host === d.host)!;
+      expect(d.fixUrl).toBe(src.claim_url ?? src.add_listing_url);
+    }
+    expect(dirs.some((d) => d.claim_url)).toBe(true);
+    expect(dirs.some((d) => !d.claim_url)).toBe(true);
+  });
+
+  it('web agency role gets manual: available, and running while a check is live', async () => {
+    const self = await seedSelf();
+    expect((await call()).manual).toEqual({ state: 'available' });
+    await run('running', [self], 0, false);
+    expect((await call()).manual).toEqual({ state: 'running' });
+  });
+
+  it('manual reflects a recent manual run as weekly_limit with nextAvailableAt', async () => {
+    const self = await seedSelf();
+    const at = ago(1);
+    await dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'manual', status: 'done', competitorIds: [self], startedAt: at, finishedAt: at });
+    const m = (await call()).manual!;
+    expect(m.state).toBe('weekly_limit');
+    expect(m.nextAvailableAt).toBe(new Date(at.getTime() + 7 * 86_400_000).toISOString());
+  });
+
+  it('mcp and ask never carry manual', async () => {
+    await seedSelf();
+    for (const meta of [mcp, askMeta]) expect('manual' in (await call(am, meta))).toBe(false);
+  });
+
+  it('a client role on web gets no manual', async () => {
+    await seedSelf();
+    expect('manual' in (await call(owner))).toBe(false);
   });
 });

@@ -1,10 +1,10 @@
-import { toolkit } from '@cs/core';
+import { isAgencyRole, toolkit } from '@cs/core';
 import { citationAuditRun, citationListing, client, clientCompetitor, evidence, withTenant } from '@cs/db';
 import { citationCatalogue } from '@cs/verticals';
 import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf } from '../catalog/access';
-import { requestCitationAudit } from '../citation-audit';
+import { citationAuditAvailability, requestCitationAudit } from '../citation-audit';
 import type { ToolDeps } from '../deps';
 import { citableEvidenceKinds } from '../workspace/events-read';
 import { forChannel } from '../workspace/model-text';
@@ -29,7 +29,10 @@ export const getCitationAudit = defineTool({
     const clientId = input.clientId;
     // Client check and tenant reads start together. Listings are global rows admitted by RLS (`app_competitor_visible`); they are
     // narrowed to this client's tracked rivals and own business, then to the audited businesses below.
-    const [c, [tracked, [latest], [good], rows]] = await allInOrder([
+    // The manual-check state (web, agency roles) reads beside them: `c.agencyId` is `ctx.agencyId` for an agency role, and the
+    // availability query is agency-limited, so a client outside that agency yields `not_ready` (never shown: workspaceClient refuses first).
+    const wantManual = meta.channel === 'web' && isAgencyRole(ctx.role);
+    const [c, [tracked, [latest], [good], rows], manual] = await allInOrder([
       workspaceClient(deps, ctx, clientId),
       withTenant(deps.app, ctx, (tx) => Promise.all([
         trackedRows(tx, clientId),
@@ -42,8 +45,9 @@ export const getCitationAudit = defineTool({
           inArray(citationListing.competitorId, tx.select({ id: client.selfCompetitorId }).from(client).where(eq(client.id, clientId))),
         )),
       ])),
+      wantManual ? citationAuditAvailability(deps.service, { id: clientId, agencyId: ctx.agencyId }, new Date(), { vendorsConfigured: deps.vendorsConfigured ?? true }) : Promise.resolve(undefined),
     ]);
-    const directories = citationCatalogue(await packsOf(deps)(c.verticalId)).map((d) => ({ host: d.host, label: d.label, addListingUrl: d.add_listing_url }));
+    const directories = citationCatalogue(await packsOf(deps)(c.verticalId)).map((d) => ({ host: d.host, label: d.label, addListingUrl: d.add_listing_url, fixUrl: d.claim_url ?? d.add_listing_url }));
     const hosts = new Set(directories.map((d) => d.host));
 
     // Self (when it has a competitor row) first, then the latest run's rivals that are still tracked, in the run's order.
@@ -86,6 +90,7 @@ export const getCitationAudit = defineTool({
       })),
       selfMissing: !c.selfCompetitorId,
       alsoFoundOn: alsoRows.map((r) => ({ host: r.host, listingUrl: r.listingUrl!, evidenceId: evidenceOf(r.captureId) })).sort((a, b) => a.host.localeCompare(b.host, 'en')),
+      ...(manual ? { manual } : {}),
     };
   },
 });

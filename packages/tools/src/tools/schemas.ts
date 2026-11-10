@@ -470,7 +470,7 @@ export type SearchVisibilityView = z.infer<typeof SearchVisibilityView>;
 export const CitationAuditView = z.object({
   checkedAt: iso.nullable(),
   status: z.enum(['never', 'done', 'capped', 'running']),
-  directories: z.array(z.object({ host: z.string(), label: z.string(), addListingUrl: z.string() })),
+  directories: z.array(z.object({ host: z.string(), label: z.string(), addListingUrl: z.string(), fixUrl: z.string() })),
   businesses: z.array(z.object({
     competitorId: uuid, name: z.string(), self: z.boolean(),
     listings: z.array(z.object({
@@ -483,6 +483,11 @@ export const CitationAuditView = z.object({
   selfMissing: z.boolean(),
   /** P10: your own listings on directories outside the catalogue (links only). */
   alsoFoundOn: z.array(z.object({ host: z.string(), listingUrl: z.string(), evidenceId: z.string().nullable() })),
+  /** 18c-2: "Check listings now" state. Web and agency roles only; absent on MCP, Ask and for client roles. */
+  manual: z.object({
+    state: z.enum(['available', 'weekly_limit', 'agency_daily_limit', 'running', 'not_ready', 'spend_paused']),
+    nextAvailableAt: iso.optional(),
+  }).optional(),
 });
 export type CitationAuditView = z.infer<typeof CitationAuditView>;
 
