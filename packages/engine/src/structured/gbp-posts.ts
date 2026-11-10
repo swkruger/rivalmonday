@@ -1,6 +1,6 @@
 import { GBP_POSTS_URL } from '@cs/collectors';
-import { capture, client, clientCompetitor, observation } from '@cs/db';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { capture, client, clientCompetitor, type Db, evidence, gbpPost, observation } from '@cs/db';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { PROMO, pricesInBlock } from '../prices/observe';
 import type { SourceDiffer, StructuredChange } from './vendor-diff';
 
@@ -72,3 +72,41 @@ export const diffGbpPosts: SourceDiffer = async (db, cap) => {
   }
   return changes;
 };
+
+/**
+ * Scorecard (D9): Google posts a business made in the last 30 days (`coalesce(posted_at, first_seen_at)`; ended posts still count,
+ * they were posted). `null` = no ok posts capture yet for that business ("not checked", never 0).
+ */
+export async function postCounts30d(db: Db, competitorIds: string[], now: Date): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>(competitorIds.map((id) => [id, null]));
+  if (competitorIds.length === 0) return out;
+  const checked = await db
+    .selectDistinct({ id: capture.competitorId })
+    .from(capture)
+    .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'google_business_profile'), eq(capture.url, GBP_POSTS_URL), eq(capture.status, 'ok')));
+  for (const c of checked) out.set(c.id, 0);
+  const since = new Date(now.getTime() - 30 * DAY_MS);
+  const when = sql`coalesce(${gbpPost.postedAt}, ${gbpPost.firstSeenAt})`;
+  const counts = await db
+    .select({ id: gbpPost.competitorId, n: sql<number>`count(*)::int` })
+    .from(gbpPost)
+    .where(and(inArray(gbpPost.competitorId, competitorIds), sql`${when} >= ${since.toISOString()}::timestamptz`))
+    .groupBy(gbpPost.competitorId);
+  for (const c of counts) if (out.get(c.id) !== null) out.set(c.id, Number(c.n));
+  return out;
+}
+
+/** The newest ok posts capture's evidence id per business (no evidence, no claim). */
+export async function postsEvidenceIds(db: Db, competitorIds: string[]): Promise<string[]> {
+  if (competitorIds.length === 0) return [];
+  const rows = await db
+    .select({ competitorId: capture.competitorId, id: evidence.id })
+    .from(evidence)
+    .innerJoin(capture, eq(capture.id, evidence.captureId))
+    .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'google_business_profile'), eq(capture.url, GBP_POSTS_URL), eq(capture.status, 'ok')))
+    .orderBy(desc(capture.capturedAt), evidence.id);
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const r of rows) if (!seen.has(r.competitorId)) { seen.add(r.competitorId); ids.push(r.id); }
+  return ids;
+}

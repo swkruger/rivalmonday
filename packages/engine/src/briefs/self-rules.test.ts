@@ -7,7 +7,7 @@ import { evaluateSelfRules, type SelfRuleInput } from './self-rules';
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const SELF = ID(1);
 type Vals = Partial<Scorecard['rows'][number]['values']>;
-const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, ...v });
+const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, ...v });
 const row = (n: number, name: string, v: Vals, self = false): Scorecard['rows'][number] => ({ competitorId: ID(n), name, self, tier: self ? null : 'top', values: vals(v) });
 const card = (rows: Scorecard['rows']): Scorecard => ({ asOf: '2026-10-14T00:00:00Z', baselineBriefId: null, tiles: [] as never, rows, evidenceIds: [], openFirstMoves: [] });
 const topic = (topicId: string, share: number | null, sentiment: number | null): TopicShare =>

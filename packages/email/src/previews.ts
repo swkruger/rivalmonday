@@ -43,7 +43,7 @@ const scorecard: ScorecardModel = {
     { label: 'Reply rate', value: '—', sub: 'rivals 50% median', trend: null, trendText: null },
     { label: 'Top-3 in map pack', value: '31%', sub: 'rivals 20% median', trend: 'down', trendText: '▼ 6 pts since your starting point' },
   ],
-  table: { headers: ['Business', 'Rating'], rows: [{ cells: [`${CLIENT} (you)`, '4.6'], self: true, tier: null }, { cells: ['Harbor Dental', '4.4'], self: false, tier: 'top' }] },
+  table: { headers: ['Business', 'Rating', 'Google posts (30 days)'], rows: [{ cells: [`${CLIENT} (you)`, '4.6', '3'], self: true, tier: null }, { cells: ['Harbor Dental', '4.4', '—'], self: false, tier: 'top' }] },
   openFirstMoves: ['Reply to your recent reviews'],
 };
 const brief: BriefEmailProps = {

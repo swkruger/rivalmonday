@@ -96,6 +96,16 @@ describe('email typography', () => {
     expect(html).toContain('New: reviews in the last 90 days · Reply: reply rate · Top 3: share of top-3 map spots · G ads / M ads: active Google and Meta ads');
   });
 
+  it('the scorecard shows the Google posts column as "Posts" with a key, and the not-measured mark', async () => {
+    const p = preview('brief.quiet_scorecard');
+    if (p.template !== 'brief') throw new Error('fixture');
+    const html = (await renderEmail({ template: 'brief', props: p.props })).html;
+    const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
+    expect([...table.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Business', 'Stars', 'Posts']);
+    expect(table).toContain('—');
+    expect(html).toContain('Posts: Google posts in the last 30 days');
+  });
+
   it('readableTextOn picks the higher-contrast label', () => {
     expect(readableTextOn('#47A8E7')).toBe('#0B2540');
     expect(readableTextOn('#000000')).toBe('#FFFFFF');

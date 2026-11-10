@@ -591,13 +591,13 @@ export const SP_FRESH_NAME = 'Fresh Start Plumbing';
 export const SP_READY_NAME = 'Starting Point Heating';
 export const SP_QUIET_NAME = 'Quiet Week Cooling';
 
-type SpValues = Record<'rating' | 'reviews90d' | 'replyRate' | 'mapTop3Share' | 'adsActive' | 'metaAdsActive', number | null>;
+type SpValues = Record<'rating' | 'reviews90d' | 'replyRate' | 'mapTop3Share' | 'adsActive' | 'metaAdsActive' | 'googlePosts30d', number | null>;
 const SP_METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const;
 const SP_RIVALS: { name: string; tier: 'top' | 'watch'; values: SpValues }[] = [
-  { name: 'Granbury Cooling Pros', tier: 'top', values: { rating: 4.7, reviews90d: 30, replyRate: 0.7, mapTop3Share: 0.4, adsActive: 2, metaAdsActive: null } },
-  { name: 'Lakeview Air and Heat', tier: 'watch', values: { rating: 4.5, reviews90d: 14, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 0, metaAdsActive: null } },
+  { name: 'Granbury Cooling Pros', tier: 'top', values: { rating: 4.7, reviews90d: 30, replyRate: 0.7, mapTop3Share: 0.4, adsActive: 2, metaAdsActive: null, googlePosts30d: 4 } },
+  { name: 'Lakeview Air and Heat', tier: 'watch', values: { rating: 4.5, reviews90d: 14, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 0, metaAdsActive: null, googlePosts30d: null } },
 ];
-const SP_SELF: SpValues = { rating: 4.4, reviews90d: 6, replyRate: 0.2, mapTop3Share: 0.1, adsActive: 0, metaAdsActive: null };
+const SP_SELF: SpValues = { rating: 4.4, reviews90d: 6, replyRate: 0.2, mapTop3Share: 0.1, adsActive: 0, metaAdsActive: null, googlePosts30d: 1 };
 const spMedian = (xs: (number | null)[]) => {
   const v = xs.filter((x): x is number => x !== null).sort((a, b) => a - b);
   return v.length === 0 ? null : v.length % 2 ? v[(v.length - 1) / 2]! : (v[v.length / 2 - 1]! + v[v.length / 2]!) / 2;

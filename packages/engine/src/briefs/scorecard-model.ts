@@ -2,10 +2,10 @@ import type { ScorecardModel } from '@cs/email';
 import type { Scorecard, ScorecardMetric } from './scorecard';
 
 type Kind = 'rating' | 'count' | 'pct';
-const KIND: Record<ScorecardMetric, Kind> = { rating: 'rating', reviews90d: 'count', replyRate: 'pct', mapTop3Share: 'pct', adsActive: 'count', metaAdsActive: 'count' };
+const KIND: Record<ScorecardMetric, Kind> = { rating: 'rating', reviews90d: 'count', replyRate: 'pct', mapTop3Share: 'pct', adsActive: 'count', metaAdsActive: 'count', googlePosts30d: 'count' };
 const TILE_LABEL: Record<string, string> = { rating: 'Rating', reviews90d: 'New reviews · 90 d', replyRate: 'Reply rate', mapTop3Share: 'Top-3 in map pack' };
-const HEADERS = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads'];
-const COLUMNS: ScorecardMetric[] = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive'];
+const HEADERS = ['Business', 'Rating', 'Reviews 90 d', 'Reply rate', 'Map top-3', 'Google ads', 'Meta ads', 'Google posts (30 days)'];
+const COLUMNS: ScorecardMetric[] = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d'];
 
 /** Rating: one decimal unless a second is needed ("4.6", "4.65"); percentages are whole numbers; counts are integers; null is "—". */
 export function formatMetric(kind: Kind, v: number | null): string {

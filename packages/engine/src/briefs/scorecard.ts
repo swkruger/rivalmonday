@@ -3,16 +3,18 @@ import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ratingTrend } from '../reviews/rating-trend';
 import { competitorMatcher, rankMetrics } from '../structured/rank';
+import { postCounts30d, postsEvidenceIds } from '../structured/gbp-posts';
 import type { PackLoader } from '../tag/tag-stage';
 
-export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive']);
+export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d']);
 export type ScorecardMetric = z.infer<typeof ScorecardMetric>;
 export const Scorecard = z.object({
   asOf: z.string(), baselineBriefId: z.uuid().nullable(), // null on the starting point itself
   tiles: z.array(z.object({ metric: ScorecardMetric, you: z.number().nullable(), rivalMedian: z.number().nullable(), deltaSinceStart: z.number().nullable() })).length(4),
   rows: z.array(z.object({
     competitorId: z.uuid().nullable(), name: z.string(), self: z.boolean(), tier: z.enum(['top', 'watch', 'minor']).nullable(),
-    values: z.record(ScorecardMetric, z.number().nullable()),
+    // Scorecards stored before 18b lack `googlePosts30d`: parse them as not measured (null).
+    values: z.preprocess((v) => (v && typeof v === 'object' ? { googlePosts30d: null, ...v } : v), z.record(ScorecardMetric, z.number().nullable())),
   })),
   evidenceIds: z.array(z.uuid()),
   openFirstMoves: z.array(z.object({ recommendationId: z.uuid(), title: z.string() })).default([]),
@@ -80,6 +82,8 @@ export async function buildScorecard(
   };
   const [selfGoogle, selfMeta] = c.selfCompetitorId ? await Promise.all([selfAds('google'), selfAds('meta')]) : [null, null];
 
+  const postCounts = await postCounts30d(deps.db, ids, now);
+
   const rows = trend.businesses
     .map((b) => {
       const sig = signals.find((s) => s.competitorId === b.competitorId);
@@ -88,6 +92,7 @@ export async function buildScorecard(
         values: {
           rating: b.rating, reviews90d: b.reviews90d, replyRate: b.replyRate, mapTop3Share: top3(b.competitorId),
           adsActive: b.self ? selfGoogle : count(sig?.signals?.googleAdsActive), metaAdsActive: b.self ? selfMeta : count(sig?.signals?.metaAdsActive),
+          googlePosts30d: postCounts.get(b.competitorId) ?? null,
         } satisfies Record<ScorecardMetric, number | null>,
       };
     })
@@ -106,11 +111,12 @@ export async function buildScorecard(
     return { metric, you, rivalMedian: rivalMedian === null ? null : r2(rivalMedian), deltaSinceStart: opts.baseline && you !== null && base !== null ? r2(you - base) : null };
   });
 
-  // Evidence by source quota so the cap never drops a whole source: every GBP capture, then map-pack captures (<= 15),
+  // Evidence by source quota so the cap never drops a whole source: every GBP capture, the newest posts capture per business, then map-pack captures (<= 15),
   // then review captures round-robin across businesses (self first).
   const evidenceIds: string[] = [];
   const add = (id: string) => { if (evidenceIds.length < SCORECARD_EVIDENCE_CAP && !evidenceIds.includes(id)) evidenceIds.push(id); };
   for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
+  (await postsEvidenceIds(deps.db, ids)).forEach(add);
   const rankCaptures = [...new Set(snaps.flatMap((s) => (s.captureId ? [s.captureId] : [])))];
   if (rankCaptures.length > 0) {
     const ev = await deps.db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, rankCaptures)).orderBy(asc(evidence.id)).limit(SCORECARD_RANK_EVIDENCE_MAX);

@@ -29,8 +29,8 @@ const scorecard: NonNullable<BriefDetail['scorecard']> = {
     { metric: 'mapTop3Share', you: 0.31, rivalMedian: 0.2, deltaSinceStart: null },
   ],
   rows: [
-    { competitorId: C, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: null, mapTop3Share: 0.31, adsActive: null, metaAdsActive: null } },
-    { competitorId: '00000000-0000-4000-8000-0000000000a2', name: 'Smith HVAC', self: false, tier: 'top', values: { rating: 4.4, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 2, metaAdsActive: 0 } },
+    { competitorId: C, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: null, mapTop3Share: 0.31, adsActive: null, metaAdsActive: null, googlePosts30d: null } },
+    { competitorId: '00000000-0000-4000-8000-0000000000a2', name: 'Smith HVAC', self: false, tier: 'top', values: { rating: 4.4, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 2, metaAdsActive: 0, googlePosts30d: 3 } },
   ],
   evidenceIds: [], openFirstMoves: [{ recommendationId: '00000000-0000-4000-8000-0000000000c1', title: 'Reply to your reviews' }],
 };
@@ -63,6 +63,20 @@ describe('BriefView starting point and quiet week', () => {
     expect(within(table).getByText('A1 HVAC (you)')).toBeTruthy();
     expect(within(table).getByText('Top rival')).toBeTruthy();
     expect(screen.queryByText('Where you stand')).toBeNull();
+  });
+  it('the scorecard shows Google posts (30 days): a count, the not-measured mark for null, and for a scorecard stored before it existed', () => {
+    const old = { ...sp, scorecard: { ...scorecard, rows: scorecard.rows.map((r) => ({ ...r, values: Object.fromEntries(Object.entries(r.values).filter(([k]) => k !== 'googlePosts30d')) })) } } as unknown as BriefDetail;
+    const { unmount } = render(<BriefView brief={sp} agency={false} timezone="UTC" />);
+    const t1 = screen.getByRole('table', { name: /scorecard/i });
+    expect(within(t1).getByRole('columnheader', { name: 'Google posts (30 days)' })).toBeTruthy();
+    const cells = (name: string) => within(within(t1).getByText(name).closest('tr') as HTMLElement).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells('Smith HVAC').at(-1)).toBe('3');
+    expect(cells('A1 HVAC (you)').at(-1)).toBe('—');
+    unmount();
+    render(<BriefView brief={old} agency={false} timezone="UTC" />);
+    const t2 = screen.getByRole('table', { name: /scorecard/i });
+    expect(within(t2).getByRole('columnheader', { name: 'Google posts (30 days)' })).toBeTruthy();
+    expect(within(within(t2).getByText('Smith HVAC').closest('tr') as HTMLElement).getAllByRole('cell').at(-1)!.textContent).toBe('—');
   });
   it('self item renders without competitor', () => {
     render(<BriefView brief={sp} agency={false} timezone="UTC" />);

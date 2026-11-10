@@ -9,7 +9,7 @@ import { num, numCell, td, th } from './table-cells';
 
 const label: CSSProperties = { fontSize: 14, lineHeight: '20px', color: '#5B6B7F' };
 const TREND_COLOUR = { up: '#15803D', down: '#B91C1C' } as const;
-// Owner, 2026-11-03: seven 14 px headers don't fit a 375 px phone, so the email shows short labels and a key under the table.
+// Owner, 2026-11-03: eight 14 px headers don't fit a 375 px phone, so the email shows short labels and a key under the table.
 // Keys are `scorecardModel`'s headers (@cs/engine); an unknown header shows as is.
 const SHORT: Record<string, { short: string; key: string }> = {
   Rating: { short: 'Stars', key: '' },
@@ -18,6 +18,7 @@ const SHORT: Record<string, { short: string; key: string }> = {
   'Map top-3': { short: 'Top 3', key: 'Top 3: share of top-3 map spots' },
   'Google ads': { short: 'G ads', key: 'G ads / M ads: active Google and Meta ads' },
   'Meta ads': { short: 'M ads', key: 'G ads / M ads: active Google and Meta ads' },
+  'Google posts (30 days)': { short: 'Posts', key: 'Posts: Google posts in the last 30 days' },
 };
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */
