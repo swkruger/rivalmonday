@@ -18,6 +18,17 @@ describe('sitemap', () => {
     expect(rivalUrls).toEqual(PAGES.filter((p) => p.path.startsWith('/compare/')).map((p) => SITE_URL + p.path));
   });
 
+  it('/ is 1.0, /agencies and /business 0.9, both pricing pages 0.8, and /pricing is absent', () => {
+    const entries = sitemap();
+    const priority = (path: string) => entries.find((e) => e.url === SITE_URL + path)?.priority;
+    expect(priority('/')).toBe(1);
+    expect(priority('/agencies')).toBe(0.9);
+    expect(priority('/business')).toBe(0.9);
+    expect(priority('/agencies/pricing')).toBe(0.8);
+    expect(priority('/business/pricing')).toBe(0.8);
+    expect(entries.map((e) => e.url)).not.toContain(SITE_URL + '/pricing');
+  });
+
   it('never stamps a build-time lastmod on every page', () => {
     for (const e of sitemap()) expect(e.lastModified, e.url).toBeUndefined();
   });

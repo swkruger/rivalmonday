@@ -1,9 +1,10 @@
 import type { SitePage } from '../../content/pages';
-import { SITE_URL, TITLE_STEM } from '../../content/site';
+import { CHOOSER } from '../../content/chooser';
+import { SITE_URL } from '../../content/site';
 
-// Draft copy: owner signs the intro paragraph.
+// Deck § 7 `llms.txt intro` (docs/superpowers/specs/2026-11-10-site-audiences-copy.md).
 const INTRO =
-  'Rival Monday gives agencies a white-label service for their local-service clients: a weekly brief on competitors, built only from public information, where every claim links to the evidence behind it.';
+  'Rival Monday watches the competitors of local businesses using public information only and writes a weekly brief where every claim links to the evidence behind it. Agencies sell it under their own brand; local businesses get it through an agency.';
 
 const SECTIONS: { heading: string; group: NonNullable<SitePage['group']> }[] = [
   { heading: 'Integrations', group: 'integrations' },
@@ -19,7 +20,7 @@ const line = (p: SitePage) => `- [${p.title}](${SITE_URL}${p.path}): ${p.descrip
 export function buildLlmsTxt(pages: readonly SitePage[]): string {
   const listed = pages.filter((p) => p.sitemap);
   const home = pages.find((p) => p.path === '/');
-  const out = ['# Rival Monday', '', `> ${TITLE_STEM}. ${home?.description ?? ''}`.trim(), '', INTRO, '', '## Pages', '', ...listed.filter((p) => !p.group).map(line)];
+  const out = ['# Rival Monday', '', `> ${CHOOSER.eyebrow}. ${home?.description ?? ''}`.trim(), '', INTRO, '', '## Pages', '', ...listed.filter((p) => !p.group).map(line)];
   for (const s of SECTIONS) {
     const items = listed.filter((p) => p.group === s.group);
     if (items.length > 0) out.push('', `## ${s.heading}`, '', ...items.map(line));

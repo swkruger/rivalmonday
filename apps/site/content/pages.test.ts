@@ -44,6 +44,13 @@ describe('page registry', () => {
     for (const p of PAGES) expect(ogFile(p.path), p.path).not.toBeNull();
   });
 
+  it('every registered path has a page file and an og image', () => {
+    for (const p of PAGES) {
+      expect(resolvesToPage(p.path), `${p.path} page`).toBe(true);
+      expect(ogFile(p.path), `${p.path} og image`).not.toBeNull();
+    }
+  });
+
   it('dynamic paths resolve to a [param] page', () => {
     expect(resolvesToPage('/how-it-works')).toBe(true);
     expect(resolvesToPage('/no-such-section/x')).toBe(false);

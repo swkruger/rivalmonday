@@ -1,4 +1,5 @@
-import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
+import { CHOOSER } from '../../content/chooser';
+import { SITE_NAME, SITE_URL } from '../../content/site';
 import { agencyTiersLine, PRICING } from '../../content/pricing';
 import type { Crumb } from './breadcrumbs';
 
@@ -16,7 +17,7 @@ export const WEBSITE_ID = `${SITE_URL}/#website`;
 export function organizationLd(sameAs: readonly string[]): Ld {
   return {
     '@context': 'https://schema.org', '@type': 'Organization', '@id': ORG_ID, name: SITE_NAME, url: SITE_URL,
-    logo: `${SITE_URL}/apple-icon`, description: TITLE_STEM,
+    logo: `${SITE_URL}/apple-icon`, description: CHOOSER.eyebrow,
     ...(sameAs.length ? { sameAs: [...sameAs] } : {}),
   };
 }
@@ -32,7 +33,7 @@ export function softwareApplicationLd(): Ld {
   const a = PRICING.agency;
   return {
     '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: SITE_NAME, url: SITE_URL,
-    applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: TITLE_STEM, publisher: { '@id': ORG_ID },
+    applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: CHOOSER.eyebrow, publisher: { '@id': ORG_ID },
     offers: [
       monthly('Agency', a.monthlyUsd, `Includes ${a.seatsIncluded} client seats; ${agencyTiersLine()}; or $${a.yearlyUsd.toLocaleString('en-US')}/yr; ${a.trialDays}-day trial.`),
       monthly('Local business', PRICING.business.monthlyUsd, 'One business, served by our agency.'),

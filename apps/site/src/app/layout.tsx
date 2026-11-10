@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
-import { SITE_NAME, SITE_URL, TITLE_STEM } from '../../content/site';
+import { CHOOSER } from '../../content/chooser';
+import { SITE_NAME, SITE_URL } from '../../content/site';
 import { siteEnv } from '../lib/env';
 import { organizationLd, websiteLd } from '../lib/json-ld';
 import { OG } from '../lib/og-theme';
@@ -26,7 +27,7 @@ const inter = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE_NAME} — ${TITLE_STEM}`, template: `%s · ${SITE_NAME}` },
+  title: { default: `${SITE_NAME} — ${CHOOSER.eyebrow}`, template: `%s · ${SITE_NAME}` },
   robots: siteEnv.isProduction ? { index: true, follow: true } : { index: false, follow: false },
 };
 

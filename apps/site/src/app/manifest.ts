@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
-import { SITE_NAME, TITLE_STEM } from '../../content/site';
+import { CHOOSER } from '../../content/chooser';
+import { SITE_NAME } from '../../content/site';
 import { OG } from '../lib/og-theme';
 
 export const dynamic = 'force-static';
@@ -9,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: SITE_NAME,
     short_name: SITE_NAME,
-    description: TITLE_STEM,
+    description: CHOOSER.eyebrow,
     start_url: '/',
     display: 'browser',
     background_color: OG.canvas,
