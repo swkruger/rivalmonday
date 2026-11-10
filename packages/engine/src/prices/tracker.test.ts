@@ -1,5 +1,5 @@
 import { metaPageUrl } from '@cs/collectors';
-import { ad, adImage, capture, evidence, pricePoint } from '@cs/db';
+import { ad, adImage, capture, evidence, gbpPost, pricePoint } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedPage } from '../../test/seed';
@@ -55,6 +55,15 @@ describe('pricing tracker', () => {
       { amount: 49, unit: 'USD', qualifier: 'exact', promo: false, since: day(2), pageUrl: metaPageUrl('777'), source: 'meta_ad', evidenceIds: [] },
       expect.objectContaining({ amount: 89, source: 'web' }),
     ]);
+    const spans = await priceHistory(dbs.service, { competitorId: IDS.competitorX, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', since: day(-10) });
+    expect(spans.map((x) => x.amount)).toEqual([99, 89]);
+  });
+
+  it('post price: source gbp_post with the post url, not in history', async () => {
+    const [g] = await dbs.service.insert(gbpPost).values({ competitorId: IDS.competitorX, externalId: 'gp1', url: 'https://posts.example/gp1', firstCaptureId: capId, lastCaptureId: capId, firstSeenAt: day(2), lastSeenAt: day(3) }).returning({ id: gbpPost.id });
+    await dbs.service.insert(pricePoint).values({ competitorId: IDS.competitorX, gbpPostId: g!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 29, unit: 'USD', qualifier: 'exact', promo: true, raw: '$29', context: 'c', firstCaptureId: capId, lastCaptureId: capId, firstSeenAt: day(2), lastSeenAt: day(3) });
+    const m = await priceMatrix({ db: dbs.service, packs }, IDS.clientA1);
+    expect(m.rows[0]!.cells.ac_tune_up![0]).toEqual({ amount: 29, unit: 'USD', qualifier: 'exact', promo: true, since: day(2), pageUrl: 'https://posts.example/gp1', source: 'gbp_post', evidenceIds: [] });
     const spans = await priceHistory(dbs.service, { competitorId: IDS.competitorX, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', since: day(-10) });
     expect(spans.map((x) => x.amount)).toEqual([99, 89]);
   });

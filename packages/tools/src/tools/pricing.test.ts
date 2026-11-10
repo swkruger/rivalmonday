@@ -1,11 +1,11 @@
 import { metaPageUrl } from '@cs/collectors';
-import { client, clientCompetitor, competitor } from '@cs/db';
+import { client, clientCompetitor, competitor, gbpPost, pricePoint } from '@cs/db';
 import { createPackLoader, priceHistory, priceMatrix } from '@cs/engine';
 import { IDS } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PriceHistoryView, PriceMatrixView } from './schemas';
-import { ago, ctx, dbs, registry, resetWorkspace, seedAdImage, seedAdPrice, seedPrice } from './workspace-fixtures';
+import { ago, ctx, dbs, registry, resetWorkspace, seedAdImage, seedAdPrice, seedCapture, seedPrice } from './workspace-fixtures';
 
 const am = ctx('account_manager', 'all');
 const owner = ctx('client_owner', [IDS.clientA1], ['dashboard']);
@@ -119,6 +119,23 @@ describe('get_price_history', () => {
     await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'nope' })).rejects.toMatchObject({ code: 'invalid_input', message: 'Unknown service' });
     await expect(registry.invoke(am, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up', competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
     await expect(registry.invoke(ownerNoDash, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('post prices (18b-1)', () => {
+  it('post price shown with source gbp_post and postUrl, not in lowest or 90-day change, not in history', async () => {
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 99, from: ago(120), to: ago(30) });
+    await seedPrice({ serviceId: 'ac_tune_up', amount: 79, from: ago(30) });
+    const first = await seedCapture({ competitorId: IDS.competitorX, at: ago(5), kinds: [] });
+    const [g] = await dbs.owner.insert(gbpPost).values({ competitorId: IDS.competitorX, externalId: 'gp1', url: 'https://posts.example/gp1', firstCaptureId: first.captureId, lastCaptureId: first.captureId, firstSeenAt: ago(5), lastSeenAt: new Date() }).returning({ id: gbpPost.id });
+    await dbs.owner.insert(pricePoint).values({ competitorId: IDS.competitorX, gbpPostId: g!.id, verticalId: 'hvac_plumbing', serviceId: 'ac_tune_up', amount: 19, unit: 'USD', qualifier: 'exact', promo: true, raw: '$19', context: 'c', firstSeenAt: ago(5), lastSeenAt: new Date(), firstCaptureId: first.captureId, lastCaptureId: first.captureId });
+    const r = (await registry.invoke(am, 'get_price_matrix', { clientId: IDS.clientA1 })) as PriceMatrixView;
+    const cell = r.rows[0]!.cells[0]!;
+    expect(cell.change).toEqual({ before: 99, after: 79 });
+    expect(cell.prices.find((p) => p.source === 'gbp_post')).toMatchObject({ amount: 19, promo: true, postUrl: 'https://posts.example/gp1' });
+    expect(cell.prices.find((p) => p.source === 'web')).not.toHaveProperty('postUrl');
+    const h = (await registry.invoke(owner, 'get_price_history', { clientId: IDS.clientA1, serviceId: 'ac_tune_up' })) as PriceHistoryView;
+    expect(h.series[0]!.points.filter((p) => p !== null)).not.toContain(19);
   });
 });
 

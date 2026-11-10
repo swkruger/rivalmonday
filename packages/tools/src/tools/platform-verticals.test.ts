@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { ad, capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
+import { ad, gbpPost, capture, catalogRows, clientSetup, changeEvent, client, platformAdmin, playbookOverride, priceBlockMap, pricePoint, review, reviewAnalysis, topicProposal, trackedPage, agencyProfile, llmCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createCatalog } from '@cs/verticals';
 import { eq, sql } from 'drizzle-orm';
@@ -169,6 +169,25 @@ describe('merge_vertical', () => {
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((r) => r.ad_id))).toEqual(new Set([a1!.id, a2!.id]));
     expect(rows.every((r) => r.vertical_id === 'brewery' && r.service_id === 'taproom')).toBe(true);
+  });
+
+  it('vertical merge keeps one open row per Google post', async () => {
+    await seedMergeData();
+    await dbs.owner.execute(sql`truncate price_point`);
+    const [g1, g2] = await dbs.owner.insert(gbpPost).values([
+      { competitorId: IDS.competitorX, externalId: 'g1', firstCaptureId: CAP, lastCaptureId: CAP, firstSeenAt: new Date(), lastSeenAt: new Date() },
+      { competitorId: IDS.competitorX, externalId: 'g2', firstCaptureId: CAP, lastCaptureId: CAP, firstSeenAt: new Date(), lastSeenAt: new Date() },
+    ]).returning({ id: gbpPost.id });
+    const postPp = (id: string, vertical: string, service: string) => sql`insert into price_point (competitor_id, gbp_post_id, vertical_id, service_id, amount, unit, qualifier, raw, context, first_seen_at, last_seen_at, first_capture_id, last_capture_id)
+      values (${IDS.competitorX}, ${id}, ${vertical}, ${service}, 10, 'USD', 'from', '$10', 'from $10', now(), now(), ${CAP}, ${CAP})`;
+    await dbs.owner.execute(postPp(g1!.id, 'distillery', 'tasting_room'));
+    await dbs.owner.execute(postPp(g1!.id, 'brewery', 'taproom'));
+    await dbs.owner.execute(postPp(g2!.id, 'distillery', 'tasting_room'));
+    await call(staff, 'merge_vertical', { sourceId: 'distillery', targetId: 'brewery', areaMap: { tasting_room: 'taproom', bottle_sales: null } });
+    const rows = await q<{ gbp_post_id: string; vertical_id: string }>(sql`select gbp_post_id, vertical_id from price_point order by gbp_post_id`);
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.gbp_post_id))).toEqual(new Set([g1!.id, g2!.id]));
+    expect(rows.every((r) => r.vertical_id === 'brewery')).toBe(true);
   });
 
   it('refuses itself, a merged row, generic, an incomplete or invalid areaMap, and a colliding move', async () => {

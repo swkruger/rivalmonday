@@ -1,6 +1,6 @@
 import type { PriceMatrixView } from '@cs/tools';
 import { StatusChip, Tag } from '@cs/ui';
-import { ChevronRight, Image as ImageIcon } from 'lucide-react';
+import { ChevronRight, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { formatChange, formatPrice } from './format';
 
@@ -36,6 +36,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, evidenceH
             const change = formatChange(cell.change);
             const selected = cell.serviceId === selectedServiceId;
             const imageEvidenceId = cell.prices.find((p) => p.source === 'ad_image' && p.evidenceIds.length > 0)?.evidenceIds[0];
+            const postUrl = cell.prices.find((p) => p.source === 'gbp_post' && p.postUrl)?.postUrl ?? null;
             const serviceName = s?.name ?? cell.serviceId;
             return (
               <li key={cell.serviceId} className="flex items-center gap-1">
@@ -56,6 +57,7 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, evidenceH
                         {/* Ad-sourced prices are shown but never counted in the change (18a-1 O6). */}
                         {p.source === 'meta_ad' && <Tag className="ml-1 whitespace-nowrap">From an ad</Tag>}
                         {p.source === 'ad_image' && <Tag className="ml-1 whitespace-nowrap">From an ad image</Tag>}
+                        {p.source === 'gbp_post' && <Tag className="ml-1 whitespace-nowrap">From a Google post</Tag>}
                       </span>
                     ))}
                   </span>
@@ -63,6 +65,18 @@ export function PriceCard({ row, services, selectedServiceId, hrefFor, evidenceH
                   {change && <span title="Change against 90 days ago" className={`inline-flex h-5 items-center rounded-xs px-1.5 text-xs font-semibold ${CHANGE_TONE[change.tone]}`}><span aria-hidden>{change.text}</span><span className="sr-only">{`${change.tone} ${change.text.slice(2)} since 90 days ago`}</span></span>}
                   <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-ink" />
                 </Link>
+                {postUrl && (
+                  <a
+                    href={postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open the Google post for ${serviceName}`}
+                    title="Open the Google post"
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-secondary hover:bg-muted-surface"
+                  >
+                    <ExternalLink aria-hidden className="size-4" />
+                  </a>
+                )}
                 {imageEvidenceId && evidenceHref && (
                   <Link
                     href={evidenceHref(imageEvidenceId)}

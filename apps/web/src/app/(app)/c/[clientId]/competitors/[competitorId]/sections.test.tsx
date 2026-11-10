@@ -31,6 +31,16 @@ describe('competitor profile sections (decision 13)', () => {
     expect(screen.getByText('From an ad image').closest('a')).toBeNull();
   });
 
+  it('tags a post price "From a Google post" linking the post', () => {
+    render(<PricesSection clientId={C} competitorId={X} matrix={{
+      services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],
+      rows: [{ competitorId: X, name: 'Smith HVAC', cells: [{ serviceId: 'ac_tune_up', prices: [{ amount: 49, unit: 'USD', qualifier: 'exact', promo: false, since: '2026-10-01T00:00:00.000Z', source: 'gbp_post', evidenceIds: [], postUrl: 'https://posts.example/p1' }], change: null }] }],
+    } as never} />);
+    const a = screen.getByText('From a Google post').closest('a')!;
+    expect(a.getAttribute('href')).toBe('https://posts.example/p1');
+    expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
   it('prices section hides See pricing with no prices', () => {
     render(<PricesSection clientId={C} competitorId={X} matrix={{
       services: [{ id: 'ac_tune_up', name: 'AC tune-up', offered: true }],

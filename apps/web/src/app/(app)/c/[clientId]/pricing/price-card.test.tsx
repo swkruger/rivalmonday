@@ -92,3 +92,15 @@ describe('PriceCard ad image tag', () => {
     expect(screen.queryByRole('link', { name: /Open the ad image/ })).toBeNull();
   });
 });
+
+describe('PriceCard Google post tag', () => {
+  it('tags a post price and links the post beside the row (not nested)', () => {
+    const post = { ...row, cells: [{ ...row.cells[0]!, prices: [{ amount: 79, unit: 'USD', qualifier: 'exact' as const, promo: true, since: '2026-10-02T00:00:00.000Z', source: 'gbp_post' as const, evidenceIds: [] as string[], postUrl: 'https://posts.example/p1' }] }] };
+    const { container } = render(<PriceCard row={post} services={services} selectedServiceId={null} hrefFor={() => '#'} />);
+    expect(screen.getByText('From a Google post')).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'Open the Google post for AC tune-up' });
+    expect(link.getAttribute('href')).toBe('https://posts.example/p1');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(container.querySelectorAll('a a')).toHaveLength(0);
+  });
+});

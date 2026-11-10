@@ -161,6 +161,16 @@ Google ad pictures become facts: Jev triages each image, only price- or offer-be
 - **Re-run:** delete the row's `stage_run` (stage `ad_image_triage` or `ad_image_read`, subject `md5(ad_image.id::text || '|' || source_url_sha)::uuid`) and let the sweep pick it up, or bump `AD_IMAGE_TRIAGE_VERSION` / `AD_IMAGE_READ_VERSION`. Never delete an `ad_image` row that has an `evidence_id` (evidence is never deleted).
 - **Privacy:** an image Jev marks as showing a person is never stored, shown or read (`ad_image_person_unstored` CHECK). Meta ad images wait for a permitted route (its image CDN robots.txt disallows bots).
 
+## Google posts (18b-1)
+
+A rival's Google Business Profile posts and offers become facts: dated posts, offer prices, a "Google posts (30 days)" scorecard row.
+
+- **Source:** weekly `gbp_posts` source per tracked rival and per client's own business. Vendor: DataForSEO `my_business_updates` task route; measured $0.003 per task (about $0.018/client/week for 5 rivals + you).
+- **Check a run:** `vendor_task` rows with `kind = 'google_posts'` (status, cost); the capture (`source = 'gbp_posts'`, `url 'gbp:posts'`); `gbp_post` rows (first/last seen, `ended_at` when a post disappears); `stage_run` rows for stage `post_price_extract` (skipped reasons are in the row) and `price_point.gbp_post_id` for the prices.
+- **Cutoff:** `POST_PRICE_SINCE` (`packages/engine/src/prices/post-price-stage.ts`, now 2026-11-17): only captures on or after it are priced; no backfill. Set it to the deploy day if that is later.
+- **Shown, not counted:** post prices show "From a Google post" and the Promo chip counts them; lowest price, 90-day change and history ignore them (like ad prices).
+- **Re-run:** delete the capture's `post_price_extract` `stage_run` and let the sweep pick it up, or bump the stage version. Never delete a `gbp_post` row that a capture or evidence cites.
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.
