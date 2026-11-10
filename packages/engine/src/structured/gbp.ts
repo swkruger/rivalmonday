@@ -207,10 +207,10 @@ const heldValue = (s: GbpSnapshot | undefined, h: HeldField) => (s ? h.value(s.p
 const pick = (from: GbpProfile, to: GbpProfile, key: string) => diffGbpProfiles(from, to).find((c) => c.blockKey === key);
 
 /**
- * Photo push (not held: counts don't flicker): `after` gained at least PHOTO_PUSH_MIN photos against the newest snapshot
+ * Raw photo-push check (no cooldown): `after` gained at least PHOTO_PUSH_MIN photos against the newest snapshot
  * captured 21–35 days earlier that carries a count. No such base, or a drop: nothing. snaps newest first.
  */
-function photoPush(snaps: GbpSnapshot[]): StructuredChange | null {
+function rawPhotoPush(snaps: GbpSnapshot[]): StructuredChange | null {
   const [after, ...rest] = snaps;
   const n1 = after?.profile.totalPhotos;
   if (!after || typeof n1 !== 'number') return null;
@@ -224,6 +224,26 @@ function photoPush(snaps: GbpSnapshot[]): StructuredChange | null {
     // `after` = month bucket: novelty treats repeat pushes within a month as one story.
     details: { changeType: 'profile_change', field: 'photos', count: n1 - n0, days: daysBefore(base), after: after.capturedAt.toISOString().slice(0, 7) },
   };
+}
+
+/** A photo push is reported at most once per this many days. */
+const PHOTO_COOLDOWN_DAYS = 28;
+
+/**
+ * Photo push (not held: counts don't flicker), stateless from captures: the raw check at `after`, suppressed when the raw
+ * check would already have fired at any earlier snapshot captured less than 28 days before `after` (each with its own
+ * 21–35-day base). So one burst is reported once, at the first pull with a base before it, and steady growth (which
+ * would pass the raw check every week) is reported once when it starts and stays quiet while it continues.
+ */
+function photoPush(snaps: GbpSnapshot[]): StructuredChange | null {
+  const hit = rawPhotoPush(snaps);
+  const after = snaps[0];
+  if (!hit || !after) return null;
+  for (let k = 1; k < snaps.length; k++) {
+    if (after.capturedAt.getTime() - snaps[k]!.capturedAt.getTime() >= PHOTO_COOLDOWN_DAYS * DAY_MS) break;
+    if (rawPhotoPush(snaps.slice(k))) return null;
+  }
+  return hit;
 }
 
 /**
@@ -266,9 +286,10 @@ export function guardedGbpDiff(snaps: GbpSnapshot[]): DifferResult {
 
 /**
  * Earlier captures GBP may look through: 3 that carry a profile for the held fields (an ok capture can lack one), and
- * a photo-push base 21–35 days back (5 weekly pulls, plus room for profile-less captures).
+ * for the photo push its 21–35-day base plus the cooldown checks, whose deepest (a pull 21 days back) needs a base up to
+ * 56 days back: 8 weekly pulls, plus room for profile-less captures.
  */
-const GBP_CANDIDATES = 8;
+const GBP_CANDIDATES = 10;
 
 /**
  * The captures that carry a `gbp_profile` (cap first; guardedGbpDiff uses the newest 4 for held fields); captures without

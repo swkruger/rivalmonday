@@ -312,6 +312,21 @@ describe('profile leftovers (18b-1 T5)', () => {
     expect(run(base, base, base, base, photos(300)).changes).toEqual([]);
   });
 
+  /** Runs the differ at every pull of a weekly series (oldest first); returns the pull indexes that emitted a photo push. */
+  const photoPulls = (counts: number[]) =>
+    counts.map((_, n) => n).filter((n) => run(...counts.slice(0, n + 1).map(photos)).changes.some((c) => c.blockKey === 'gbp:photos'));
+
+  it('one burst emits exactly once across the following pulls (28-day cooldown)', () => {
+    // Burst of +30 lands just before pull 5; pulls 5..8 all see a 21–35-day base at 100.
+    expect(photoPulls([100, 100, 100, 100, 100, 130, 130, 130, 130, 130])).toEqual([5]);
+  });
+
+  it('steady +10/week emits at most once per 28 days', () => {
+    const pulls = photoPulls(Array.from({ length: 16 }, (_, i) => 100 + 10 * i));
+    expect(pulls.length).toBeGreaterThanOrEqual(1);
+    for (let i = 1; i < pulls.length; i++) expect((pulls[i]! - pulls[i - 1]!) * 7).toBeGreaterThanOrEqual(28);
+  });
+
   it('booking, attribute and photo changes score below the pack alert bar with the default size', async () => {
     const pack = await loadVerticalPack('hvac_plumbing');
     for (const details of [{ field: 'booking' }, { field: 'attribute' }, { field: 'photos', count: 40, days: 28 }]) {
