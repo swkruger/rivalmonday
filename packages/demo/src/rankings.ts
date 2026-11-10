@@ -1,5 +1,5 @@
 import { TIER_LABELS } from '@cs/core';
-import { type ChangeDetails, changeEvent, detectedChange, eventChange, eventScore, move, moveEvent, rankScan, rankSnapshot, type RankResult, type ScoreFactors } from '@cs/db';
+import { type ChangeDetails, changeEvent, detectedChange, eventChange, eventScore, move, moveEvent, rankScan, rankSnapshot, type RankResult, type ScoreFactors, serpSnapshot, type SerpOrganicItem } from '@cs/db';
 import { buildStructuredSummary, competitorMatcher, MAP_CLIMB_POINTS_MIN, MOVES_RULE_VERSION, RANK_DIFF_VERSION, rankMetrics } from '@cs/engine';
 import { routeFor } from './changes';
 import type { SeedContext } from './context';
@@ -58,6 +58,37 @@ export async function seedRankings(ctx: SeedContext): Promise<void> {
   const loneStar = await seedClientScans(ctx, 'loneStar');
   await seedClientScans(ctx, 'brazos');
   await seedRankSignals(ctx, loneStar);
+  await seedSearchResults(ctx, loneStar);
+}
+
+/** 18b-2: page one of Google per keyword for Lone Star's last two scans (no evidence, like the grid snapshots). */
+async function seedSearchResults(ctx: SeedContext, scans: DoneScan[]): Promise<void> {
+  const rng = ctx.rng('rankings:search');
+  const spec = CLIENT_SPECS.loneStar;
+  const rivals = ctx.ids.competitors.loneStar.filter((c) => c.domain && c.id !== ctx.ids.noData.rankings);
+  // Directory and forum results, as page one shows them beside the businesses (demo domains, no real sites).
+  const directories = [
+    { domain: 'www.home-pros-directory.example', title: 'The 10 Best HVAC Companies near Granbury, TX' },
+    { domain: 'www.local-reviews.example', title: 'Heating & Air Conditioning near Granbury, TX' },
+    { domain: 'www.find-a-contractor.example', title: 'Top 10 HVAC Contractors in Granbury, TX' },
+    { domain: 'forum.hood-county.example', title: 'Best AC company in Hood County?' },
+  ];
+  const rows: (typeof serpSnapshot.$inferInsert)[] = [];
+  for (const scan of scans.slice(-2)) {
+    for (const [k, keyword] of spec.keywords.entries()) {
+      const pool = [
+        ...(k === 2 ? [] : [{ domain: 'lone-star-cooling.example', title: 'Lone Star Cooling | AC Repair & Heating in Granbury, TX' }]),
+        ...rivals.map((c) => ({ domain: c.domain!, title: `${c.name} | Heating & Air Conditioning` })),
+        ...directories,
+      ].map((x) => ({ x, s: rng.between(0, 1) })).sort((a, b) => a.s - b.s).map((e) => e.x).slice(0, 9);
+      const organic: SerpOrganicItem[] = pool.map((x, i) => ({ rank: i + 1, domain: x.domain, url: `https://${x.domain}/`, title: x.title }));
+      const localServices = k === 0
+        ? { title: 'Local Services ads', providers: rivals.slice(0, 2).map((c, i) => ({ name: c.name, rating: 4.8 - i * 0.1, votes: 40 + i * 25 })) }
+        : null;
+      rows.push({ agencyId: ctx.ids.agencyId, clientId: ctx.ids.clients.loneStar, scanId: scan.id, keyword, captureId: null, capturedAt: scan.finishedAt, organic, localServices });
+    }
+  }
+  await ctx.db.insert(serpSnapshot).values(rows);
 }
 
 interface DoneScan {

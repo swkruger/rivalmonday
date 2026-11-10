@@ -11,7 +11,7 @@ Where {{client}} and its competitors show up in Google Maps results across the s
 - **Average map rank** is the average position across all points of the grid for one search term. 1 is best. A point where the business is not in the first 20 results counts as 21.
 - **Top 3** is how many points the business holds one of the first three spots, the local pack that Google shows first.
 - **Share of voice** is the share of all the top-3 spots in a scan, across every grid point, that each business holds. A business holding 12 of 60 spots has 20%. Businesses that are not tracked are grouped as "Other businesses".
-- **Google search** shows page one of Google for each keyword, searched from the service-area centre and checked every Sunday. {{client}} is highlighted, and tracked competitors are named. **Local Services ads shown** lists the businesses Google shows in its Local Services ads, only when it shows any. When a competitor enters or leaves page one, a line appears in the weekly brief and the change feed, once two scans in a row agree.
+- **Google search** shows page one of Google for each keyword, searched from the service-area centre and checked every week. {{client}} is highlighted, and tracked competitors are named. **Local Services ads shown** lists the businesses Google shows in its Local Services ads, only when it shows any. When a competitor enters or leaves page one, a line appears in the weekly brief and the change feed, once two scans in a row agree.
 
 ## How to use it
 

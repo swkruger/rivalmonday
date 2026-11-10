@@ -20,13 +20,13 @@ const inProcessFetch = (url: string | URL, init?: RequestInit) => handleMcpReque
 const READ = [
   'list_clients', 'get_client_profile', 'list_client_competitors', 'get_competitor_profile', 'get_competitor_timeline', 'search_events', 'get_event',
   'get_evidence', 'compare_snapshots', 'get_price_matrix', 'get_price_history', 'list_ads', 'get_ad_activity', 'get_topic_benchmark', 'search_reviews',
-  'get_rating_trend', 'get_geogrid', 'get_rank_trend', 'get_share_of_voice', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
+  'get_rating_trend', 'get_geogrid', 'get_rank_trend', 'get_share_of_voice', 'get_search_visibility', 'list_moves', 'get_move', 'list_briefs', 'get_brief', 'list_recommendations', 'list_alerts', 'get_usage',
   'search', 'fetch', 'search_knowledge', 'get_competitor_signals', 'list_verticals',
 ];
 /** Exact client-role lists (owner/viewer), derived once from the registry and reviewed: no agency-only, manage or admin tools. */
 const CLIENT_READ = [
   'compare_snapshots', 'fetch', 'get_ad_activity', 'get_brief', 'get_client_profile', 'get_competitor_profile', 'get_competitor_signals', 'get_competitor_timeline', 'get_event',
-  'get_evidence', 'get_geogrid', 'get_move', 'get_price_history', 'get_price_matrix', 'get_rank_trend', 'get_rating_trend', 'get_share_of_voice', 'get_topic_benchmark', 'list_ads',
+  'get_evidence', 'get_geogrid', 'get_move', 'get_price_history', 'get_price_matrix', 'get_rank_trend', 'get_rating_trend', 'get_search_visibility', 'get_share_of_voice', 'get_topic_benchmark', 'list_ads',
   'list_alerts', 'list_briefs', 'list_client_competitors', 'list_moves', 'list_recommendations', 'list_verticals', 'search', 'search_events', 'search_knowledge', 'search_reviews',
 ];
 const CLIENT_FEEDBACK = ['add_recommendation', 'submit_feedback', 'update_recommendation_status'];

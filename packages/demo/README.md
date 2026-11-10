@@ -56,7 +56,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/moves` | admin | `list_moves`, `get_move`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/pitch-snapshot` | admin | `get_client_profile`, `get_prospect_report`, `list_help_guides` | — |
 | `/c/[clientId]/pricing` | admin | `get_price_matrix`, `get_price_history`, `get_client_profile`, `list_help_guides` | `get_price_history`: one competitor shows no prices |
-| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_rank_settings`, `get_client_profile`, `list_help_guides` | `get_geogrid`: one competitor never ranks |
+| `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_search_visibility`, `get_rank_settings`, `get_client_profile`, `list_help_guides` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
 | `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations`, `get_evidence_refs`, `list_help_guides` | — |
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports`, `list_help_guides` | — |

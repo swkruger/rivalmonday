@@ -277,6 +277,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids) }), path: 'cells' },
       { tool: 'get_rank_trend', input: (ids) => ({ clientId: ls(ids), keyword: 'ac repair granbury' }), path: 'scans' },
       { tool: 'get_share_of_voice', input: (ids) => ({ clientId: ls(ids) }), path: 'series.*.points' },
+      { tool: 'get_search_visibility', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords.*.organic' },
       { tool: 'get_rank_settings', input: (ids) => ({ clientId: ls(ids) }), path: 'allKeywords' },
       { tool: 'get_geogrid', input: (ids) => ({ clientId: ls(ids), business: ids.noData.rankings }), path: 'top3', expect: 'empty', why: 'one competitor never ranks' },
       lsProfile,
