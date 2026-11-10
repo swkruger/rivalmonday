@@ -1,19 +1,26 @@
 # site-audiences — two audience sides on rivalmonday.com plus the approved site review
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/site-audiences   **Base:** main @ 843cfbac
-**Plan/spec:** none yet. Scope source (session scratchpad): `site-review.html` ("review"), `mocks.mjs` (mockups 1-7), `two.mjs` (mockups 8-11).
+**Kind:** implementation (site only)   **Worktree:** ../CompetitorSpy-wt/site-audiences   **Base:** main @ 843cfbac
+**Spec:** `docs/superpowers/specs/2026-11-10-site-audiences-design.md` + copy deck `2026-11-10-site-audiences-copy.md`
+**Plans:** `docs/superpowers/plans/2026-11-10-site-audiences-a-still-site.md` (A, 9 tasks) then `…-b-two-sides.md` (B, 13 tasks)
 
 ## Status (overwrite)
-Kickoff brief written 2026-11-10. No spec, plan or code.
+2026-11-10: spec, copy deck and both lean plans written and committed. **Waiting for owner approval of the plans.** No product code, no dependency installed.
 
 ## Next (overwrite)
-Owner answers Brief § 6 (brainstorming); then spec, lean plan, approval.
+1. Owner approves the plans (and the calls listed below), or corrects them.
+2. SDD: Plan A Tasks 0-8, then Plan B Tasks 0-12 (site E2E once per plan; whole-branch review on the top model after Plan B; one fix wave).
+3. Owner: `pnpm copy:review` for all new and changed lines; then `/rm-merge` on the owner's go-ahead.
 
 ## Interfaces this branch adds or changes
-None yet. Expected: routes `/agencies`, `/business`. No migration, env var or `@cs/ui` change.
+- Routes: `/` (chooser), `/agencies`, `/business`, `/agencies/pricing`, `/business/pricing`; `/pricing` → permanent redirect to `/agencies/pricing`.
+- `SitePage.side`, `nav.side`, `NAV_EXTRA` entries, `navMenus()` (replaces `navItems()`), `sidePaths()`, `src/lib/side.ts`, `useSide()`.
+- `HeroGallery`, `content/gallery.ts`, `scripts/capture-gallery.mjs`; dev dependency `sharp` 0.34.5 in `@cs/site`.
+- `PRICING_PAGE` split per side, `BUSINESS_FAQ`, `AgencyPlanCard`, `BusinessPlanCard`.
+- No migration, env var, `@cs/ui` or `apps/web` change.
 
 ## Assumes from other branches
-None (Brief § 5).
+None. `phase-18b` must not touch `apps/site`, `scripts/design-lint.sh`, `packages/copy-review` (re-checked in each plan's Task 0).
 
 ## Decisions (owner-approved)
 Owner 2026-11-10: "I like and approve ALL the recommendations."
@@ -26,11 +33,21 @@ Owner 2026-11-10: "I like and approve ALL the recommendations."
 7. Rest of the review: 11-section agency home without the two characters; mockups 2-6; Motion; Copy review.
 8. Join popup skips the audience step once a side is chosen.
 
+## Calls made for the owner (not yet approved)
+Spec § 3 M1-M17, Plan A PA1-PA8, Plan B PB1-PB10, and every copy-deck line marked `D`. The ones that change what a visitor sees:
+- Pages for both readers (sample brief, sources, industries, guides, legal) show the switch but no menu (M3).
+- `/how-it-works` loses the week timeline, roles block, client tour, sample and board; it links to them instead (M10).
+- Compare leaves the top menu (M13); the footer hides agency-only links on the business side (M11).
+- The business tour shows one note line instead of numbered notes (M15).
+- The gallery waits in a background tab and stops if a picture fails to load (PB1).
+- If the agency header cannot fit on one line at 1024 px, the menu moves into the sheet below 1280 px (PB6).
+- Section padding 72 px desktop / 56 px phone; smaller headline sizes (PA3, PA4).
+
 ## New backlog (target → item)
 None yet.
 
 ## Owner verification steps
-None yet.
+After the build: open `/`, `/agencies`, `/business` and both pricing pages on a phone and a laptop; use the switch; open the join popup on each side; watch the gallery play once; then sign the copy in `pnpm copy:review`.
 
 ## Brief
 
