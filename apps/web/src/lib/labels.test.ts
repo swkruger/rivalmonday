@@ -2,7 +2,7 @@ import { AGENCY_KINDS, ALERT_STATUSES, BILLING_STATES, CATALOG_STATUSES, CLIENT_
 import { AGENCY_ONLY_TERMS } from './agency-only-terms';
 import { ROLES } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor, MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS, IMPACT_TONE } from './labels';
+import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor, MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS, IMPACT_TONE, CITATION_STATUS } from './labels';
 import { CADENCES, CAPTURE_STATUSES, PAGE_TYPES } from '@cs/core';
 
 const NEW_MAPS = [MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS];
@@ -82,6 +82,14 @@ describe('15c-2b-2 maps', () => {
     expect(MOVE_STATUS.closed.label).toBe('Closed');
     expect(LEVEL.M.label).toBe('Medium');
     expect(CLIENT_PLAN_STATUS.invited.label).toBe('Awaiting payment setup');
+  });
+  it('CITATION_STATUS: decided Listings chips, fixed tints, client-facing (18c-1)', () => {
+    expect(CITATION_STATUS).toEqual({
+      listed: { label: 'Listed', tone: 'success' },
+      not_found: { label: 'Not found in Google search', tone: 'warning' },
+      not_checked: { label: 'Not checked yet', tone: 'neutral' },
+    });
+    expect(CLIENT_AUDIENCE_MAPS.includes(CITATION_STATUS as never)).toBe(true);
   });
   it('ALERTS_PER_DAY is exported from @cs/engine and equals 3', async () => {
     const { ALERTS_PER_DAY } = await import('@cs/engine');

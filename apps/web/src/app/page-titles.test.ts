@@ -94,7 +94,8 @@ describe('page titles = menu labels (15a §2.7)', () => {
     expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/page.tsx', 'Overview']);
     expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/briefs/page.tsx', 'Briefs & reports']);
     expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/rankings/page.tsx', 'Local rankings']);
-    expect(clientMenuPages).toHaveLength(10);
+    expect(clientMenuPages).toContainEqual(['(app)/c/[clientId]/listings/page.tsx', 'Listings']);
+    expect(clientMenuPages).toHaveLength(11);
     expect(clientSettingsPages.map(([, l]) => l)).toEqual(['Business profile', 'Delivery', 'Alert rules', 'Runbook', 'AI connection', 'Usage', 'Billing']);
   });
 

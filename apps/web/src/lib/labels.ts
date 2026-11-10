@@ -1,5 +1,5 @@
 import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
-import type { AGENCY_KINDS, AlertStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AGENCY_KINDS, AlertStatus, CitationStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { MoveRow, StepState } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
@@ -303,13 +303,20 @@ export const CLIENT_PLAN_STATUS: LabelMap<'paused' | 'not_set_up' | 'active' | '
 
 export const AD_STATE: LabelMap<'active' | 'ended'> = { active: e('Active', 'success'), ended: e('Ended') };
 
+// citation_listing.status (18c-1 Listings page; decided copy, spec § Copy)
+export const CITATION_STATUS: LabelMap<CitationStatus> = {
+  listed: e('Listed', 'success'),
+  not_found: e('Not found in Google search', 'warning'),
+  not_checked: e('Not checked yet'),
+};
+
 // brief item status; agency-only (not in CLIENT_AUDIENCE_MAPS)
 export const BRIEF_ITEM_STATUS: LabelMap<'active' | 'dropped'> = { active: e('Included'), dropped: e('Dropped') };
 
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [
   ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE,
-  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE,
+  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, CITATION_STATUS,
 ];
 
 // spend_guard_event.kind (packages/db/src/schema/platform.ts check constraint; 7b1, platform only)

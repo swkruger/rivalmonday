@@ -74,7 +74,7 @@ describe('SidebarNav (15a grouped menus)', () => {
     render(<Nav flags={agencyAdmin} />);
     expect(activeHrefOf()).toBe(B);
     expect(screen.queryByRole('link', { name: 'Portfolio' })).toBeNull();
-    expect(linkNames(screen.getByRole('group', { name: 'Insights' }))).toEqual(['Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves']);
+    expect(linkNames(screen.getByRole('group', { name: 'Insights' }))).toEqual(['Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Listings', 'Moves']);
     expect(linkNames(screen.getByRole('group', { name: 'Act' }))).toEqual(['Recommendations', 'Briefs & reports']);
     expect(screen.getByRole('link', { name: 'Client settings' }).getAttribute('href')).toBe(`${B}/settings/profile`);
   });
@@ -212,7 +212,7 @@ describe('SidebarNav sections (Task 4)', () => {
   it('renders the client sections on /c/<id>/changes with Changes highlighted', () => {
     pathname = `${B}/changes`;
     render(<Nav flags={{ ...agencyAdmin, ask: true, assistantName: 'Friday' }} />);
-    expect(linkNames()).toEqual(['Ask Friday', 'Overview', 'Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves', 'Recommendations', 'Briefs & reports', 'Client settings']);
+    expect(linkNames()).toEqual(['Ask Friday', 'Overview', 'Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Listings', 'Moves', 'Recommendations', 'Briefs & reports', 'Client settings']);
     expect(activeHrefOf()).toBe(`${B}/changes`);
   });
 

@@ -113,7 +113,7 @@ describe('navFor agency', () => {
 });
 
 describe('navFor client', () => {
-  const insights = ['Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Moves'];
+  const insights = ['Competitors', 'Changes', 'Pricing', 'Ads', 'Reviews', 'Local rankings', 'Listings', 'Moves'];
 
   it('agency admin: Ask first, Overview, Insights, Act, Client settings foot', () => {
     const s = navFor('client', agencyAdmin, C);
@@ -123,7 +123,8 @@ describe('navFor client', () => {
       ['act', 'Act', ['Recommendations', 'Briefs & reports']],
       ['foot', null, ['Client settings']],
     ]);
-    expect(hrefs(s)).toEqual([`${B}/ask`, B, `${B}/competitors`, `${B}/changes`, `${B}/pricing`, `${B}/ads`, `${B}/reviews`, `${B}/rankings`, `${B}/moves`, `${B}/recommendations`, `${B}/briefs`, `${B}/settings/profile`]);
+    expect(hrefs(s)).toEqual([`${B}/ask`, B, `${B}/competitors`, `${B}/changes`, `${B}/pricing`, `${B}/ads`, `${B}/reviews`, `${B}/rankings`, `${B}/listings`, `${B}/moves`, `${B}/recommendations`, `${B}/briefs`, `${B}/settings/profile`]);
+    expect(item(s, 'Listings')!.icon).toBe('listings');
     expect(s[0]!.items[0]).toEqual({ href: `${B}/ask`, label: 'Ask Friday', pill: 'Friday', icon: 'ask' });
     expect(item(s, 'Briefs & reports')!.icon).toBe('briefs');
   });
@@ -150,6 +151,7 @@ describe('navFor client', () => {
       ['top', null, ['Overview']],
       ['act', 'Act', ['Recommendations', 'Briefs & reports']],
     ]);
+    expect(item(s, 'Listings')).toBeUndefined();
   });
 
   it('client viewer with only alert rules still gets Client settings', () => {

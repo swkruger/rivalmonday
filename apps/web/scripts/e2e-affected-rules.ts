@@ -174,6 +174,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${OC}`), tags: ['@setup', '@clients', '@client-billing'], why: 'client setup wizard (steps 3-7: area, competitors, invite, billing, all set; 16)' },
   { pattern: re(`${OA}(?:clients|prospects)/`), tags: ['@setup', '@clients', '@prospects', '@catalogue'], why: 'Add a client / Add a prospect (steps 1-2 of the client flow: details, find the business, business type; 16)' },
   { pattern: re(`${C}evidence/`), tags: ['@evidence', '@guest'], why: 'evidence page' },
+  { pattern: re(`${C}listings/`), tags: [], why: 'no E2E covers the listings page (18c-1)' },
   { pattern: re(`${C}moves/`), tags: ['@moves'], why: 'moves' },
   { pattern: re(`${C}pitch-snapshot/`), tags: ['@prospects', '@guest'], why: 'pitch snapshot' },
   { pattern: re(`${C}pricing/`), tags: ['@pricing'], why: 'pricing view' },

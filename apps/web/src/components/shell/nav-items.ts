@@ -12,7 +12,7 @@ import { clientIdFromPath, type NavContext } from './nav-context';
 export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavCookie } from './nav-context';
 
 export type IconKey =
-  | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
+  | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'listings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
   | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'topics' | 'prospects' | 'ask' | 'knowledge'
   | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'waitlist' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
@@ -175,6 +175,7 @@ function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
       add(`${base}/ads`, 'Ads', 'ads');
       add(`${base}/reviews`, 'Reviews', 'reputation');
       add(`${base}/rankings`, 'Local rankings', 'rankings');
+      add(`${base}/listings`, 'Listings', 'listings');
       add(`${base}/moves`, 'Moves', 'moves');
     }),
     section('act', 'Act', (add) => {

@@ -256,6 +256,29 @@ export const CLIENT_COPY = {
       compareNeedsTwo: { title: 'Compare needs two scans', body: 'Scans run once a week, so Compare is available after the second one.' },
     },
   },
+  // source: docs/superpowers/specs/2026-11-10-phase-18c-citations-design.md § Copy (decided sub-line)
+  'client.listings': {
+    description: 'Where Google search finds you and your top rivals on major directories. Checked every month.',
+    tips: {
+      // source: packages/collectors/src/citations/audit.ts:auditBusiness (a "name" + phone search, then a "name" + city search; a directory missing from both = not_found; CITATION_DEPTH 20 results); apps/worker/src/jobs/citations.ts (30-day cadence)
+      notFound: {
+        title: 'Not found in Google search',
+        body: 'We search Google for the business by name and phone, then by name and city. "Not found in Google search" means none of the results came from that directory. The business may still be listed there, but customers searching Google are unlikely to find that listing. Use Add listing to create one.',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: packages/collectors/src/citations/match.ts:matchListing (name from the result title; phone from the result text; toll-free numbers never count as a different phone); 18c-1 does not compare addresses (spec § Out / backlog)
+      nameMatch: {
+        title: 'Name and phone',
+        body: 'We compare the name and phone a directory shows in Google search with the business’s Google profile. A different phone can be a call-tracking number, so check it before changing anything. The address is not checked yet.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/collectors/src/citations/match.ts:alsoFoundOn (name and phone match, outside the directories we check, at most 10, one per site)
+      alsoFound: {
+        title: 'Also found on',
+        body: 'Other sites where Google search showed a listing with {client}’s name and phone, outside the directories we check. Links only; these are not compared with rivals.',
+      },
+    },
+  },
   'client.moves': {
     description: 'Patterns across several changes, such as a competitor expanding, cutting prices or pushing ads. Each one is backed by the changes listed.',
     tips: {
