@@ -273,7 +273,9 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
         return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : t.kind === 'posts' ? postsResult(t.data) : jobsResult(t.data), { id })]));
       }
       const live = method === 'POST' ? LIVE[path] : undefined;
-      if (live) return json(dfsEnvelope(posted.map((data) => dfsTask(path, data, live(data)))));
+      // Rank-scan searches carry a coordinate and stay unanswered (599) as before; only coordinate-less citation queries are answered.
+      const isRankSearch = path === '/serp/google/organic/live/advanced' && posted.some((d) => d.location_coordinate !== undefined);
+      if (live && !isRankSearch) return json(dfsEnvelope(posted.map((data) => dfsTask(path, data, live(data)))));
       return null;
     }
     if (url.hostname === 'api.scrapecreators.com' && method === 'GET') {

@@ -63,6 +63,7 @@ describe('auditBusiness', () => {
     expect(by['chamberofcommerce.com']).toMatchObject({ status: 'not_found', match: null });
     expect(by['bbb.org']!.captureId).not.toBe(by['mapquest.com']!.captureId);
     expect(r.calls).toBe(2);
+    expect(r.stage1Ok).toBe(true);
     expect(r.usd).toBeCloseTo(2 * CITATION_CALL_USD, 10);
     expect(b.spentUsd).toBeCloseTo(0.008, 10);
     const caps = await dbs.owner.select().from(capture).where(eq(capture.competitorId, IDS.competitorX));
@@ -85,6 +86,7 @@ describe('auditBusiness', () => {
     expect(keywords(dfs)).toEqual(['"Atomic Plumbing" Granbury']);
     expect(r.rows.find((x) => x.host === 'mapquest.com')!.match!.phoneMatch).toBeNull();
     expect(r.calls).toBe(1);
+    expect(r.stage1Ok).toBe(false);
   });
 
   it('no city: stage-2 query is the quoted name only', async () => {
@@ -97,6 +99,7 @@ describe('auditBusiness', () => {
     let n = 0;
     const dfs = fakeDfs(() => (n++ === 0 ? [dfsTask(null, { statusCode: 50000, statusMessage: 'boom' })] : [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', 'Granbury 817-219-4790')))]));
     const r = await auditBusiness(deps(dfs), biz, CAT, budget(), scope);
+    expect(r.stage1Ok).toBe(false);
     expect(r.rows).toHaveLength(3);
     expect(r.rows.find((x) => x.host === 'mapquest.com')!.match!.phoneMatch).toBeNull();
     expect(r.rows.filter((x) => x.status === 'not_found')).toHaveLength(2);
@@ -150,6 +153,20 @@ describe('auditBusiness', () => {
     expect(r.rows.find((x) => !x.inCatalogue)).toMatchObject({ host: 'example-dir.com', status: 'listed' });
     await upsertCitationRows(dbs.service, IDS.competitorX, [{ host: 'yelp.com', status: 'listed', inCatalogue: false, match: null, captureId: r.rows[0]!.captureId }], new Date(), { stage1Ok: false });
     expect(await dbs.owner.select().from(citationListing)).toHaveLength(0);
+  });
+});
+
+describe('auditBusiness error handling', () => {
+  it('a non-vendor error (capture write fails) propagates, with no vendor_error capture', async () => {
+    const dfs = fakeDfs(() => [dfsTask(page(item('mapquest.com', 'Atomic Plumbing, LLC', '817-219-4790')))]);
+    const store = { ...createMemoryStore(), put: async () => { throw new Error('disk full'); } };
+    await expect(auditBusiness({ db: dbs.service, store, dfs }, biz, CAT, budget(), scope)).rejects.toThrow('disk full');
+    expect(await dbs.owner.select().from(capture)).toHaveLength(0);
+  });
+  it('quotes in the city are stripped from the stage-2 query', async () => {
+    const dfs = fakeDfs(() => [dfsTask([{ items: [] }])]);
+    await auditBusiness(deps(dfs), { ...biz, phone: null, city: 'Gran"bury' }, CAT, budget(), scope);
+    expect(keywords(dfs)).toEqual(['"Atomic Plumbing" Gran bury']);
   });
 });
 

@@ -5,11 +5,12 @@ import { type Directory, isBannedHost } from '@cs/verticals';
 import { and, eq, notInArray, sql } from 'drizzle-orm';
 import { DFS_COLLECTOR_VERSION } from '../gbp/collect-gbp';
 import { recordVendorCapture } from '../evidence/vendor-capture';
-import type { DataForSeoClient } from '../vendors/dataforseo';
+import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { alsoFoundOn, type CitationBiz, type ListingMatch, matchListing, phone10 } from './match';
 import { CITATION_CALL_USD, CITATION_DEPTH, CITATIONS_SOURCE, citationSearch } from './search';
 
 export interface CitationBudget { spentUsd: number; readonly capUsd: number }
+export interface AuditResult { rows: CitationRow[]; calls: number; usd: number; capped: boolean; stage1Ok: boolean }
 export interface CitationRow { host: string; status: 'listed' | 'not_found'; inCatalogue: boolean; match: ListingMatch | null; captureId: string }
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -26,7 +27,7 @@ export async function auditBusiness(
   catalogue: Directory[],
   budget: CitationBudget,
   scope: CallScope,
-): Promise<{ rows: CitationRow[]; calls: number; usd: number; capped: boolean }> {
+): Promise<AuditResult> {
   const rows: CitationRow[] = [];
   let calls = 0, usd = 0, capped = false;
   const hosts = catalogue.map((d) => d.host).filter((h) => !isBannedHost(h));
@@ -38,14 +39,16 @@ export async function auditBusiness(
     usd += CITATION_CALL_USD;
     calls++;
     const base = { competitorId: biz.competitorId, source: CITATIONS_SOURCE, url, collectorVersion: DFS_COLLECTOR_VERSION };
+    let r: Awaited<ReturnType<typeof citationSearch>>;
     try {
-      const r = await citationSearch(deps.dfs, { query, depth: CITATION_DEPTH }, scope);
-      const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: r.raw });
-      return { organic: r.organic, captureId };
+      r = await citationSearch(deps.dfs, { query, depth: CITATION_DEPTH }, scope);
     } catch (err) {
+      if (!(err instanceof VendorError)) throw err;
       await recordVendorCapture(deps, { ...base, status: 'vendor_error', error: errText(err) });
       return null;
     }
+    const { captureId } = await recordVendorCapture(deps, { ...base, status: 'ok', payload: r.raw });
+    return { organic: r.organic, captureId };
   }
 
   const p = phone10(biz.phone);
@@ -67,7 +70,7 @@ export async function auditBusiness(
     }
   }
   if (missed.size > 0 && !capped) {
-    const s2 = await run(biz.city ? `"${name}" ${biz.city}` : `"${name}"`, 'citations:name_city');
+    const s2 = await run(biz.city ? `"${name}" ${stripQuotes(biz.city)}` : `"${name}"`, 'citations:name_city');
     if (s2) {
       // P4: without a successful phone search a phone is never compared.
       const b2 = stage1Ok ? biz : { ...biz, phone: null };
@@ -77,7 +80,7 @@ export async function auditBusiness(
       }
     }
   }
-  return { rows, calls, usd, capped };
+  return { rows, calls, usd, capped, stage1Ok };
 }
 
 /** One upsert per business; see spec 18c for the first/last seen and `newly_found_at` rules. With `stage1Ok`, also-found rows not seen again are deleted (P12). */

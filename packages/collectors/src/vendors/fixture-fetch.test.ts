@@ -1,3 +1,4 @@
+import { serpSearch } from '../rankings/serp';
 import { citationSearch } from '../citations/search';
 import type { VendorCallRecord } from '@cs/core';
 import { timedFetch } from '@cs/core/server';
@@ -100,6 +101,11 @@ describe('createFixtureFetch', () => {
     expect(s1.organic[0]!.title).toBe('Bright Smile Dental, LLC');
     const s2 = await citationSearch(dfs, { query: '"Bright Smile Dental" Austin', depth: 20 }, scope);
     expect(s2.organic.map((o) => o.domain)).toEqual(['mapquest.com', 'facebook.com']);
+  });
+
+  it('organic search with a coordinate (rank scan) stays unanswered', async () => {
+    const dfs = createDataForSeo({ login: 'f', password: 'f', ledger: ledger().sink, fetch: timedFetch(instant()), maxRetries: 0 });
+    await expect(serpSearch(dfs, { keyword: 'ac repair', lat: 30.1, lng: -97.2, radiusM: 5000 }, scope)).rejects.toThrow();
   });
 
   it('Meta ads (ScrapeCreators, Apify, keyword search) answer at $0 for the requested page', async () => {
