@@ -1,5 +1,5 @@
 'use client';
-import { CITATION_GROUPS, type CitationGroup } from '@cs/verticals';
+import type { CitationGroup } from '@cs/verticals';
 import { Band, Button, Card, ConfirmDialog, Input, Label, nativeSelectClass, Section, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Tag } from '@cs/ui';
 import { useActionState, useState } from 'react';
 import { ErrorNote } from '@/components/form-error';
@@ -24,7 +24,9 @@ export interface ReviewVertical {
   detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; topics: string[]; areas: { id: string; name: string; aliases: string[] }[] };
 }
 const GROUP_LABELS: Record<CitationGroup, string> = { general: 'General directories', home_services: 'Home services', dental_health: 'Dental and health' };
-const DIRECTORY_GROUPS = CITATION_GROUPS.map((id) => ({ id, label: GROUP_LABELS[id] }));
+/** Client file: no runtime import of the `@cs/verticals` barrel (it pulls node:fs). A unit test pins this list to `CITATION_GROUPS`. */
+export const DIRECTORY_GROUP_IDS = ['general', 'home_services', 'dental_health'] as const satisfies readonly CitationGroup[];
+const DIRECTORY_GROUPS = DIRECTORY_GROUP_IDS.map((id) => ({ id, label: GROUP_LABELS[id] }));
 
 export interface ReviewArea {
   verticalId: string;

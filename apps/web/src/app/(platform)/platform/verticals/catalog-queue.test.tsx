@@ -3,7 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
 import type { FormResult } from '@/server/forms';
-import { CatalogQueue, quotesOf, type ReviewArea, type ReviewVertical } from './catalog-queue';
+import { CITATION_GROUPS } from '@cs/verticals';
+import { CatalogQueue, DIRECTORY_GROUP_IDS, quotesOf, type ReviewArea, type ReviewVertical } from './catalog-queue';
 
 afterEach(cleanup);
 
@@ -25,6 +26,10 @@ function setup(over: Partial<React.ComponentProps<typeof CatalogQueue>> = {}) {
 }
 
 describe('CatalogQueue', () => {
+  it('lists every directory group the verticals package defines', () => {
+    expect([...DIRECTORY_GROUP_IDS]).toEqual([...CITATION_GROUPS]);
+  });
+
   it('shows the directory groups checked from data and posts the picked ones', async () => {
     const action = setup();
     const box = (n: string) => screen.getByRole('checkbox', { name: n }) as HTMLInputElement;
