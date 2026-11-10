@@ -7,12 +7,12 @@ describe('domain constants', () => {
     expect(CHANGE_TYPES).toEqual([
       'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
       'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
-      'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page',
+      'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page', 'citation_added',
     ]);
   });
 
   it('lists the channels a change can come from (capture sources plus rank scans)', () => {
-    expect(CHANNELS).toEqual(['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank']);
+    expect(CHANNELS).toEqual(['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank', 'directories']);
   });
 
   it('lists the spec move types', () => {

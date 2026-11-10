@@ -22,7 +22,7 @@ export interface EvidenceChange {
 /** Human channel names for evidence head lines (brief-signal D4); an unknown channel shows its id. */
 export const EVIDENCE_CHANNEL_LABEL: Record<string, string> = {
   web: 'Website', google_ads: 'Google Ads', meta_ads: 'Meta ads', google_business_profile: 'Google Business Profile',
-  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings', google_search: 'Google search',
+  google_reviews: 'Google reviews', google_jobs: 'Google Jobs', rank: 'Local map rankings', google_search: 'Google search', directories: 'Online directories',
 };
 
 export { GBP_STATUS_PHRASE };

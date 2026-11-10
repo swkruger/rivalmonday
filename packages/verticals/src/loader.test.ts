@@ -21,6 +21,7 @@ const weights = `
     audience_growth: 0.7
     site_feature: 0.7
     new_page: 0.7
+    citation_added: 0.3
     cosmetic: 0`;
 
 const discovery = `

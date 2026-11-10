@@ -7,7 +7,7 @@ import type { BriefCandidate } from './gather';
 export const PLAYBOOK_TEMPLATE_MAX = 2000;
 
 /** Placeholders a playbook template may use (5b-2 decision 5); `renderPlaybook` fills them from the evidence. */
-export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'topic'] as const;
+export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'topic', 'directories'] as const;
 export type PlaybookVar = (typeof PLAYBOOK_VARS)[number];
 export const PLAYBOOK_TITLE_MAX = 200;
 
@@ -20,7 +20,7 @@ export interface Playbook {
 }
 
 const FALLBACK: Record<string, string> = {
-  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic',
+  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic', directories: "the directories you're missing",
 } satisfies Record<PlaybookVar, string>;
 
 export function renderPlaybook(template: string, vars: Record<string, string | undefined>): string {

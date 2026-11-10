@@ -34,6 +34,7 @@ type_weights:
   audience_growth: 0.7
   site_feature: 0.7
   new_page: 0.7
+  citation_added: 0.3
 
 move_thresholds:
   hiring_push_postings_30d: 3
@@ -45,7 +46,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 6
+  version: 7
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
@@ -177,6 +178,14 @@ playbooks:
     template: >-
       Claim your Google profile and fill in your hours, services and extra categories so customers see a complete listing.
 
+  - id: fix_citations
+    effort: L
+    impact: M
+    trigger: citation_gap
+    title: Get listed on the directories you're missing
+    template: >-
+      Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.
+
 self_rules:
   - { id: review_velocity_gap, weight: 1.0, playbook: ask_for_reviews, params: { ratio: 0.5 } }
   - { id: reply_rate_gap, weight: 0.8, playbook: reply_to_reviews, params: { gap: 0.25 } }
@@ -186,3 +195,24 @@ self_rules:
   - { id: topic_strength, weight: 0.5, playbook: promote_strength, strength: true, params: { gap: 0.1 } }
   - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
   - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }
+  - { id: citation_gap, weight: 0.6, playbook: fix_citations, params: { min_missing: 3 } }
+
+citations:
+  directory_groups:
+    general:
+      - { host: facebook.com, label: Facebook, add_listing_url: 'https://www.facebook.com/pages/create' }
+      - { host: bbb.org, label: Better Business Bureau, add_listing_url: 'https://www.bbb.org/get-listed' }
+      - { host: yellowpages.com, label: Yellow Pages, add_listing_url: 'https://www.yellowpages.com/claim-your-listing' }
+      - { host: manta.com, label: Manta, add_listing_url: 'https://www.manta.com/business-listings/add-your-company' }
+      - { host: foursquare.com, label: Foursquare, add_listing_url: 'https://business.foursquare.com/claim' }
+      - { host: mapquest.com, label: MapQuest, add_listing_url: 'https://business.mapquest.com/' }
+    home_services:
+      - { host: angi.com, label: Angi, add_listing_url: 'https://signup.angi.com/pro' }
+      - { host: homeadvisor.com, label: HomeAdvisor, add_listing_url: 'https://pro.homeadvisor.com/' }
+      - { host: thumbtack.com, label: Thumbtack, add_listing_url: 'https://www.thumbtack.com/pro' }
+      - { host: houzz.com, label: Houzz, add_listing_url: 'https://pro.houzz.com/pro' }
+      - { host: porch.com, label: Porch, add_listing_url: 'https://pro.porch.com/how-it-works' }
+    dental_health:
+      - { host: findadentist.ada.org, label: ADA Find-a-Dentist, add_listing_url: 'https://www.ada.org/join-the-ada/member-benefits/find-a-dentist' }
+  groups: [general]
+  min_missing: 3

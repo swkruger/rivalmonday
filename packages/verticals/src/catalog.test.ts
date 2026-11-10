@@ -25,7 +25,10 @@ describe('splitPack / assemblePack', () => {
   it.each(['hvac_plumbing', 'dental', 'generic'])('round-trips the %s YAML pack (services ordered by name)', async (id) => {
     const generic = toRows(await loadVerticalPack('generic'));
     const { row, areas } = toRows(await loadVerticalPack(id));
-    expect(assemblePack(row, areas, generic.row)).toEqual(byName(await loadVerticalPack(id)));
+    const expected = byName(await loadVerticalPack(id));
+    // Only generic defines directory_groups; an assembled vertical inherits them through the deep merge.
+    const directory_groups = (await loadVerticalPack('generic')).citations.directory_groups;
+    expect(assemblePack(row, areas, generic.row)).toEqual({ ...expected, citations: { ...expected.citations, directory_groups } });
   });
 
   it('splitPack keeps the full config minus the columns', async () => {

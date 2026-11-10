@@ -1,5 +1,6 @@
 import { CHANGE_TYPES, MOVE_TYPES, SELF_RULE_IDS } from '@cs/core';
 import { z } from 'zod';
+import { CITATION_CATALOGUE_MAX, CITATION_GROUPS, citationCatalogue, isBannedHost } from './citations';
 
 const slug = z.string().regex(/^[a-z][a-z0-9_]*$/, 'must be snake_case');
 const weight = z.number().min(0).max(1);
@@ -30,6 +31,25 @@ export const discoverySchema = z.strictObject({
 
 export type DiscoveryConfig = z.infer<typeof discoverySchema>;
 
+const directorySchema = z.strictObject({
+  host: z
+    .string()
+    .regex(/^[a-z0-9.-]+$/)
+    .superRefine((h, ctx) => {
+      if (isBannedHost(h)) ctx.addIssue({ code: 'custom', message: `Directory ${h} is never allowed` });
+    }),
+  label: z.string().min(1),
+  add_listing_url: z.url(),
+});
+const citationGroup = z.enum(CITATION_GROUPS);
+
+/** Phase 18c: which online directories the monthly citation audit checks (`directory_groups` is defined in generic.yaml only). */
+export const citationsSchema = z.strictObject({
+  directory_groups: z.partialRecord(citationGroup, z.array(directorySchema)).optional(),
+  groups: z.array(citationGroup).min(1).default(['general']),
+  min_missing: z.number().int().min(1).default(3),
+});
+
 export const selfRuleSchema = z.strictObject({
   id: z.enum(SELF_RULE_IDS),
   weight,
@@ -39,7 +59,8 @@ export const selfRuleSchema = z.strictObject({
 });
 export type PackSelfRule = z.infer<typeof selfRuleSchema>;
 
-export const verticalPackSchema = z.object({
+export const verticalPackSchema = z
+  .object({
   id: slug,
   name: z.string().min(1),
   version: z.number().int().positive(),
@@ -123,6 +144,19 @@ export const verticalPackSchema = z.object({
   self_rules: z.array(selfRuleSchema).superRefine(uniqueIds('self rule')).default([]),
   /** Competitor discovery (Phase 12a): Maps search keywords, category filter, grid, shortlist and tier thresholds. */
   discovery: discoverySchema,
-});
+  /** Phase 18c directory citations: picked groups, the gap threshold and (generic only) the directory lists. */
+  citations: citationsSchema.default({ groups: ['general'], min_missing: 3 }),
+  })
+  .superRefine((pack, ctx) => {
+    const defs = pack.citations.directory_groups;
+    if (defs) {
+      pack.citations.groups.forEach((g, i) => {
+        if (!defs[g]) ctx.addIssue({ code: 'custom', path: ['citations', 'groups', i], message: `Directory group "${g}" is not defined in directory_groups` });
+      });
+    }
+    if (citationCatalogue(pack).length > CITATION_CATALOGUE_MAX) {
+      ctx.addIssue({ code: 'custom', path: ['citations', 'groups'], message: `A vertical may check at most ${CITATION_CATALOGUE_MAX} directories (<= ${CITATION_CATALOGUE_MAX})` });
+    }
+  });
 
 export type VerticalPack = z.infer<typeof verticalPackSchema>;

@@ -22,6 +22,14 @@ describe('playbooks', () => {
       .toBe('Smith HVAC cut AC tune-up to a lower price in new areas.');
   });
 
+  it('fix_citations template uses only known vars and renders {{directories}}', async () => {
+    const pack = await loadVerticalPack('hvac_plumbing');
+    const pb = pack.playbooks.find((p) => p.id === 'fix_citations')!;
+    expect(unknownPlaybookVars(pb.template)).toEqual([]);
+    expect(renderPlaybook(pb.template, { directories: 'Facebook, Manta and Angi' })).toContain('Add your business to Facebook, Manta and Angi using');
+    expect(renderPlaybook('{{directories}}', {})).toBe("the directories you're missing");
+  });
+
   it('renders {{topic}}, falls back to "this topic", and treats {{theme}} as unknown', () => {
     expect(renderPlaybook('fix {{topic}}', { topic: 'Wait time' })).toBe('fix Wait time');
     expect(renderPlaybook('fix {{topic}}', {})).toContain('this topic');

@@ -36,6 +36,7 @@ export const SELF_WHY_IT_MATTERS: Record<SelfRuleId, string> = {
   topic_strength: 'Something reviewers keep praising is a reason to choose you, and it is worth saying out loud.',
   map_visibility_gap: 'Businesses in the map top three are the ones people see first when they search nearby.',
   profile_gap: 'A complete profile helps Google show you for more searches and helps people decide to call.',
+  citation_gap: 'People and Google both check directories, so a missing listing or one with a different name or phone can cost you calls.',
 };
 
 /** The fallback item carries no playbook: approval turns it into no recommendation. */
