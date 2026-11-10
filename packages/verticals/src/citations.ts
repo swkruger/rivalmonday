@@ -14,6 +14,7 @@ export interface Directory {
   host: string;
   label: string;
   add_listing_url: string;
+  claim_url?: string;
 }
 
 /** Union of the pack's picked groups in `CITATION_GROUPS` order, the first occurrence of a host wins; `[]` when `directory_groups` is absent. */

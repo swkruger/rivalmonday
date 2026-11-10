@@ -30,6 +30,13 @@ describe('citation_audit_run', () => {
   });
 });
 
+describe('citation_audit_run trigger check (0108)', () => {
+  it("accepts trigger 'manual' and rejects an unknown trigger", async () => {
+    await dbs.service.insert(citationAuditRun).values({ ...run(IDS.agencyA, IDS.clientA1), trigger: 'manual' });
+    expect(await errorText(dbs.service.insert(citationAuditRun).values({ ...run(IDS.agencyA, IDS.clientA1), trigger: 'other' as 'manual' }))).toMatch(/citation_audit_run_trigger_check/);
+  });
+});
+
 describe('citation_audit_run writes', () => {
   it('app_user cannot write (permission denied)', async () => {
     expect(await errorText(withTenant(dbs.app, { agencyId: IDS.agencyA, clientScope: 'all' }, (tx) => tx.insert(citationAuditRun).values(run(IDS.agencyA, IDS.clientA1))))).toMatch(/permission denied/);

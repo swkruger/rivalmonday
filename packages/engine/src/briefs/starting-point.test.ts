@@ -157,8 +157,8 @@ describe('generateStartingPoint', () => {
     expect(await generateStartingPoint({ db: dbs.service, ai, generic, packs: withDirs, now: () => NOW }, IDS.clientA1)).toMatchObject({ status: 'ready' });
     const it0 = (await items()).find((i) => i.playbookId === 'fix_citations')!;
     expect(it0.whatChanged).toBe('Google search found no listing for you on 3 of 5 directories we check: Manta, Foursquare and MapQuest.');
-    expect(it0.recommendedAction).toContain('Add your business to Manta, Foursquare and MapQuest using each directory');
-    expect(it0.headline).toBe("Get listed on the directories you're missing");
+    expect(it0.recommendedAction).toContain('Add or correct your listings on Manta, Foursquare and MapQuest (links');
+    expect(it0.headline).toBe('Fix your directory listings');
     expect(it0.evidenceIds).toEqual([miss.evidenceId]);
   });
 

@@ -63,7 +63,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 7
+  version: 8
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
@@ -199,9 +199,9 @@ playbooks:
     effort: L
     impact: M
     trigger: citation_gap
-    title: Get listed on the directories you're missing
+    title: Fix your directory listings
     template: >-
-      Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.
+      Add or correct your listings on {{directories}} (links on the Listings page), with the same name and phone as your Google profile.
 
 self_rules:
   - { id: review_velocity_gap, weight: 1.0, playbook: ask_for_reviews, params: { ratio: 0.5 } }

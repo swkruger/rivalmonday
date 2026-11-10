@@ -26,7 +26,7 @@ describe('playbooks', () => {
     const pack = await loadVerticalPack('hvac_plumbing');
     const pb = pack.playbooks.find((p) => p.id === 'fix_citations')!;
     expect(unknownPlaybookVars(pb.template)).toEqual([]);
-    expect(renderPlaybook(pb.template, { directories: 'Facebook, Manta and Angi' })).toContain('Add your business to Facebook, Manta and Angi using');
+    expect(renderPlaybook(pb.template, { directories: 'Facebook, Manta and Angi' })).toContain('Add or correct your listings on Facebook, Manta and Angi (links');
     expect(renderPlaybook('{{directories}}', {})).toBe("the directories you're missing");
   });
 

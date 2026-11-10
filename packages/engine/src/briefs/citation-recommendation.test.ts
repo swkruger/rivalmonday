@@ -62,7 +62,7 @@ describe('recommendForCitations', () => {
     const [r] = await recs();
     expect(r).toMatchObject({
       source: 'listings', status: 'todo', owner: 'client', upsellTag: null, playbookId: 'fix_citations', eventIds: [], evidenceIds: [evidenceId],
-      title: "Get listed on the directories you're missing",
+      title: 'Fix your directory listings',
     });
     expect(r!.rationale).toBe('Google search found no listing for you on 4 of 5 directories we check: Yellow Pages, Manta, Foursquare and MapQuest.');
     await listings([...FOUR, 'bbb.org']);

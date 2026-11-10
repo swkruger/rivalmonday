@@ -89,14 +89,35 @@ describe('citations schema', () => {
   });
 });
 
+describe('claim_url (18c-2)', () => {
+  it('accepts an https claim_url and rejects http', async () => {
+    const ok = await withCitations({ directory_groups: { general: [{ ...d('a.com'), claim_url: 'https://a.com/login' }] }, groups: ['general'], min_missing: 3 });
+    expect(ok.success).toBe(true);
+    const bad = await withCitations({ directory_groups: { general: [{ ...d('a.com'), claim_url: 'http://a.com/login' }] }, groups: ['general'], min_missing: 3 });
+    expect(bad.success).toBe(false);
+  });
+
+  it('the catalogue carries claim_url for the 5 hosts and omits it elsewhere', async () => {
+    const cat = citationCatalogue(await assembled('hvac_plumbing'));
+    const claim = (h: string) => cat.find((x) => x.host === h)?.claim_url;
+    expect(claim('facebook.com')).toBe('https://business.facebook.com/');
+    expect(claim('angi.com')).toBe('https://office.angi.com/');
+    expect(claim('homeadvisor.com')).toBe('https://pro.homeadvisor.com/pro/login');
+    expect(claim('thumbtack.com')).toBe('https://www.thumbtack.com/login');
+    expect(claim('bbb.org')).toBeUndefined();
+    const dental = citationCatalogue(await assembled('dental'));
+    expect(dental.find((x) => x.host === 'findadentist.ada.org')?.claim_url).toBe('https://www.ada.org/myada');
+  });
+});
+
 describe('shipped packs (Phase 18c)', () => {
-  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 7 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
+  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 8 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
     const p = await loadVerticalPack(id);
-    expect(p.scoring.version).toBe(7);
+    expect(p.scoring.version).toBe(8);
     expect(p.type_weights.citation_added).toBe(0.3);
     expect(p.self_rules.find((r) => r.id === 'citation_gap')).toMatchObject({ weight: 0.6, playbook: 'fix_citations', params: { min_missing: 3 } });
     const pb = p.playbooks.find((x) => x.id === 'fix_citations');
-    expect(pb).toMatchObject({ trigger: 'citation_gap', effort: 'L', impact: 'M', title: "Get listed on the directories you're missing" });
+    expect(pb).toMatchObject({ trigger: 'citation_gap', effort: 'L', impact: 'M', title: 'Fix your directory listings' });
     expect(pb?.template).toContain('{{directories}}');
   });
 

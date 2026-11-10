@@ -11,10 +11,15 @@ afterAll(() => dbs.closeAll());
 
 const BLOCKS = readFileSync(join(__dirname, '../migrations/0107_citations.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL = BLOCKS.slice(BLOCKS.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS8 = readFileSync(join(__dirname, '../migrations/0108_listing_fixes.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL8 = BLOCKS8.slice(BLOCKS8.findIndex((b) => b.includes('-- backfill:start')));
 const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
+}
+async function backfill8() {
+  for (const s of BACKFILL8) await dbs.owner.execute(sql.raw(s));
 }
 type Row = { id: string; config: Record<string, any>; updated_at: string };
 async function rows(): Promise<Row[]> {
@@ -33,7 +38,7 @@ beforeEach(async () => {
       coalesce((SELECT jsonb_agg(r) FROM jsonb_array_elements(config -> 'playbooks') r WHERE r ->> 'id' <> 'fix_citations'), '[]'::jsonb))
     WHERE id IN ('generic', 'hvac_plumbing', 'dental')`);
 });
-afterEach(backfill); // leave the shared test DB in the current (v7) shape
+afterEach(async () => { await backfill(); await backfill8(); }); // leave the shared test DB in the current (v8) shape
 
 const count = (arr: any[], id: string) => arr.filter((x) => x.id === id).length;
 
@@ -63,6 +68,7 @@ describe('migration 0107 pack v7', () => {
 
   it('assembled shipped packs equal the YAML packs on citations, self_rules and playbooks', async () => {
     await backfill();
+    await backfill8();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     const genericDirs = (await loadVerticalPack('generic')).citations.directory_groups;
     // generic is the inheritance base, not a pickable vertical: compare its stored row with the YAML.
@@ -77,7 +83,7 @@ describe('migration 0107 pack v7', () => {
       expect(p.citations, id).toEqual({ ...yaml.citations, directory_groups: genericDirs });
       expect(p.self_rules, id).toEqual(yaml.self_rules);
       expect(p.playbooks, id).toEqual(yaml.playbooks);
-      expect(p.scoring.version, id).toBe(7);
+      expect(p.scoring.version, id).toBe(8);
       expect(p.type_weights.citation_added, id).toBe(0.3);
     }
   });

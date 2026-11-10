@@ -40,6 +40,7 @@ const directorySchema = z.strictObject({
     }),
   label: z.string().min(1),
   add_listing_url: z.url(),
+  claim_url: z.url().startsWith('https://').optional(),
 });
 const citationGroup = z.enum(CITATION_GROUPS);
 
