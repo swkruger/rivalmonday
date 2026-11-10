@@ -78,7 +78,7 @@ Input `{ clientId }`. Output per keyword: `{ keyword, scannedAt, organic: [{ ran
 
 ### Copy (decided; to `pnpm copy:review`)
 - Summaries: `Now on page one of Google for "<keyword>" (position <n>)` · `Dropped off page one of Google for "<keyword>"` · `Cited in Google's AI answer for "<keyword>"` · `No longer cited in Google's AI answer for "<keyword>"`.
-- Rankings section title **"Google search"**; sub-line "Page one for your keywords at your service-area centre, checked every Sunday." Column/labels: "Position", "Cited in AI answer", "Local Services ads shown". Empty: "No search results yet. They appear after the next weekly scan." AI answer not shown: "Google showed no AI answer for this search."
+- Rankings section title **"Google search"**; sub-line "Page one for your keywords at your service-area centre, checked every week." Column/labels: "Position", "Cited in AI answer", "Local Services ads shown". Empty: "No search results yet. They appear after the next weekly scan." AI answer not shown: "Google showed no AI answer for this search."
 - Scorecard column **"Cited in AI answers"** (email short header "AI").
 - Help: one section in the Rankings guide (`docs/help/pages/client.rankings*.md`) explaining the three blocks; no vendor.
 
