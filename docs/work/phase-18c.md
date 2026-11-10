@@ -4,24 +4,24 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-11-10-phase-18c-citations-design.md) · [plan](../superpowers/plans/2026-11-10-phase-18c-citations.md)
 
 ## Status (overwrite)
-2026-11-10: plan approved; SDD Task 0 (pre-flight + probe) done, live spend $0.078. **Blocked** on controller/owner rulings B1–B4 (below) before Tasks 3b/4.
+2026-11-10: **18c-1 built and reviewed** (SDD Tasks 0-13, 40+ commits). Final whole-branch review clean after one fix wave; `test:affected` failures fixed (focused re-runs green); `e2e:affected --full` 154 passed incl. `next build`. **Open:** Ask eval cassette — 48/50 recorded ($2.07), 2 flaky live turns; uncommitted `packages/evals/cassettes/ask.json`; `eval:replay` fails on `ask` until a `record --fill` (~$0.05-0.15, owner OK pending; never run vitest on this worktree DB meanwhile).
 
 ## Next (overwrite)
-Rulings on B1–B4 (`.superpowers/sdd/2026-11-10-phase-18c-citations/preflight-scan.md`) → SDD Task 1.
+1. Owner: OK the ask `record --fill`; then `eval run --suite ask --mode replay --update-baseline`, commit cassette + baseline.
+2. Owner: `pnpm copy:review` (new strings: Listings page, help + 2 guides, glossary, play/self-rule copy, recommendations subtitle, operator group labels; flag: "Add your business to …" reads oddly for mismatch-only).
+3. `/rm-merge` on the owner's go-ahead. After merge, any env with data: `pnpm db:migrate` (0107) → deploy worker, then web; `pnpm kb:seed`. Staging: wait for the 09:00 UTC `citation-audit` (or run `citation-audit-client` for one client), check `/c/<id>/listings`, one `citation_audit_run.est_usd` ≤ 0.20, no banned host in `citation_listing`. Old 18b-2 `serp_snapshot` rows stay unmatched (domain google.com); staging rivals may read "entered page one" once.
 
 ## Task 0 results (2026-11-10)
-**Probe** (live organic, US, en; businesses from cs_dev: Atomic Plumbing + rival Daffan Cooling & Heating, Granbury Park Dental + rival Lakeview Dental, all Granbury TX). Spend **$0.078** of $0.10: stage 1 depth 20 = $0.004 (4 calls), depth 10 = $0.002, depth 50 = 40101 error 2/2 (free); `site:` calls **$0.01 each** (6). 40101 "Internal SE Server Error" on 5 of 17 calls (free; retry works).
-- **B1** organic `url` = `https://google.com/goto?url=…`, `domain` = `google.com` on every item; the real host is only in `breadcrumb` ("https://www.angi.com › TX › Granbury") or `website_name` ("Facebook · Atomic Plumbing"). Also breaks 18b-2 on main (`get_search_visibility`/`structured/serp.ts` match `domain`).
-- **B2** `site:<host>` is ignored: `site:bbb.org` and `site:bing.com` for Atomic returned identical results (no bbb.org item), billed $0.01.
-- **B3** stage 1 is relaxed by Google: exact name+phone often returns other businesses (e.g. "Lakeview Dental" Roy UT on MapQuest) → name-only hits need a city check. GBP phones are often tracking numbers (Daffan, Lakeview listings show other numbers).
-- **B4** phone-only hits on BBB category pages ("Plumber near Granbury, TX") would read "Name differs".
-- Phone format in snippets: `(817) 219-4790` and `817-219-4790`; `description` present on organic items.
-**Hit rate** (stage 1 vs manual web check; manual = listing confirmed): Atomic 4/6 (angi, bbb, mapquest, facebook; missed yellowpages, homeadvisor), Daffan 2/2 (mapquest, facebook), Lakeview 0/1 (mapquest found only via a same-name UT business), Granbury Park Dental 0/0 (no catalogue listing confirmed). Per directory: facebook 2/2, mapquest 2/3, angi 1/1, bbb 1/1, yellowpages 0/1, homeadvisor 0/1; Bing Places 0/4 and Apple Maps 0/4 searched (Google does not index them). **Overall recall 6/9 = 67 %** (stage 1 only; stage 2 contributed nothing). Small sample.
-**Rulings (C3):** Bing Places + Apple Maps **removed**; recall ≥ 50 % → no stop; depth 50 unusable → **stage 1 depth 20**, `CITATION_CALL_USD.stage1 = 0.004`. Migration stays **0107**.
-**add_listing_url:** all 12 hand-checked at Task 0 (curl + page title); they live in `packs/generic.yaml` `citations.directory_groups`.
+Probe $0.078: organic results are `google.com/goto` wrappers (host from breadcrumb), vendor ignores `site:` (billed $0.01), depth 50 errors → depth 20 at $0.004; Bing Places + Apple Maps removed (0/4); stage-1 recall 6/9 = 67 %. Details + rulings B1-B4: SDD ledger / spec C2-C6.
 
 ## Interfaces this branch adds or changes
-TBD. Migration: next free on main is **0107**; site-audiences claims none.
+- Migration **0107**: `citation_listing` (global_public, PK competitor+host, `newly_found_at`, `in_catalogue`), `citation_audit_run` (tenant_client), recommendation source `listings` + `recommendation_listings_live_unique`; pack v7 backfill.
+- Packs v7: `citations.directory_groups` (generic) + `groups`; `citation_added` weight 0.3; self rule `citation_gap`; play `fix_citations`; `CHANNELS += directories`.
+- `parseSerp` derives the real host (`organicHost`, breadcrumb/website_name) — fixes 18b-2 `get_search_visibility` matching.
+- Worker: cron `citation-audit` 09:00 UTC, job `citation-audit-client`; `recommendForCitations`.
+- Tool `get_citation_audit` (web/MCP/Ask; `shownPhone` web-only); `get_starting_point_status.checks.citations`; `review_vertical` action `groups`.
+- Web: client page `/c/<id>/listings` ("Listings" after Local rankings); operator group checkboxes.
+- `packages/ai`: a body-read timeout is retried once (within the existing 2 attempts).
 
 ## Assumes from other branches
 - `site-audiences` (site only; no migration/env/`apps/web`): no overlap. `apps/site/content/roadmap.ts:33` ("Listings and citations") stays; making it a live claim is a site follow-up after both merge.
