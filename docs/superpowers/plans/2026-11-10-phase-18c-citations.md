@@ -37,7 +37,7 @@
 
 ## File structure
 - **Create:** `packages/db/migrations/0107_citations.sql` (+ meta); `packages/db/src/schema/citations.ts`; `packages/db/src/citations-backfill.test.ts`; `packages/verticals/src/citations.ts` (+ test); `packages/collectors/src/citations/{match,search,audit,run}.ts` (+ tests, `__fixtures__/citation-stage1.json`, `citation-site.json`); `apps/worker/src/jobs/citations.ts` (+ test); `packages/engine/src/structured/citations.ts` (+ test); `packages/tools/src/tools/citations.ts` (+ test); `apps/web/src/app/(app)/c/[clientId]/listings/{page.tsx,page.test.tsx,listings-view.tsx}`; `docs/help/pages/client.listings.{client,agency}.md`; `packages/demo/src/citations.ts`.
-- **Modify:** `packages/core/src/{domain.ts,brief-report.ts,help/glossary.ts}`; `packages/verticals/src/{schema.ts,index.ts}`, `packs/{generic,hvac_plumbing,dental}.yaml`, `packages/db/src/catalog-seed.sql.ts` (generated); `packages/db/src/schema/{index,engine}.ts`, `packages/db/test/{table-classes,isolation-world}.ts`, `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem.description`); `packages/collectors/src/{rankings/serp.ts,index.ts,vendors/fixture-fetch.ts}`; `apps/worker/src/{deps.ts,job-list.ts,concurrency.ts}`, `jobs/engine.ts`; `packages/engine/src/{score/score.ts,score/score-stage.ts,tag/structured.ts,briefs/{graded,evidence,self-rules,starting-point,readiness,playbooks}.ts,index.ts}`; `packages/email/src/labels.ts`; `packages/tools/src/{tools/{all,schemas,platform-verticals}.ts,workspace/labels.ts,isolation/fixtures.ts}` + `channels.test.ts`, `access-marks` snapshot, `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md`; `packages/mcp/src/{server,integration}.test.ts`; `packages/ask/src/labels.ts`; `packages/demo/src/{seed,coverage}.ts`; web `components/shell/{nav-items.ts,nav-link.tsx}`, `help/copy/client.ts`, `lib/labels.ts`, `(platform)/platform/verticals/catalog-queue.tsx`, `(platform)/platform/actions.ts`; `docs/OPS.md`; package `CLAUDE.md`s (collectors, engine, verticals); `docs/work/phase-18c.md`.
+- **Modify:** `packages/core/src/{domain.ts,brief-report.ts,help/glossary.ts}`; `packages/verticals/src/{schema.ts,index.ts}`, `packs/{generic,hvac_plumbing,dental}.yaml`, `packages/db/src/catalog-seed.sql.ts` (generated); `packages/db/src/schema/{index,engine}.ts`, `packages/db/test/{table-classes,isolation-world}.ts`, `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem.description`); `packages/collectors/src/{rankings/serp.ts,index.ts,vendors/fixture-fetch.ts}`; `apps/worker/src/{deps.ts,job-list.ts,concurrency.ts}`, `jobs/engine.ts`; `packages/engine/src/{score/score.ts,score/score-stage.ts,tag/structured.ts,briefs/{graded,evidence,self-rules,starting-point,readiness,playbooks}.ts,index.ts}`; `packages/email/src/labels.ts`; `packages/tools/src/{tools/{all,schemas,platform-verticals}.ts,workspace/labels.ts,isolation/fixtures.ts}` + `channels.test.ts`, `access-marks` snapshot, `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md`; `packages/mcp/src/{server,integration}.test.ts`; `packages/ask/src/labels.ts`; `packages/demo/src/{seed,coverage}.ts`; web `components/shell/{nav-items.ts,nav-link.tsx}`, `help/copy/client.ts`, `lib/labels.ts`, `(platform)/platform/verticals/{catalog-queue,actions}.tsx|ts`, `components/recommendation-board.tsx` (Task 8b); `packages/engine/src/briefs/citation-recommendation.ts` (Task 8b, create); `docs/OPS.md`; package `CLAUDE.md`s (collectors, engine, verticals); `docs/work/phase-18c.md`.
 
 ## Dependencies on in-flight work (re-check at Task 0)
 - `site-audiences`: touches only `apps/site`, claims no migration, env or `apps/web` change. `apps/site/content/roadmap.ts:33` stays.
@@ -52,7 +52,8 @@
 
 ---
 
-### Task 0: Pre-flight + live probe (controller; STOP point)
+### Task 0: Pre-flight + live probe (controller; STOP point) — DONE 2026-11-10, results in `docs/work/phase-18c.md` § Task 0 results
+> **Task 0 outcome (binding until the controller rules otherwise):** migration stays **0107**; `STAGE1_DEPTH = 20`, `CITATION_CALL_USD.stage1 = 0.004` (depth 50 failed 2/2 with 40101); **Bing Places and Apple Maps removed** (0 hits); fixtures saved from the live probe (public business data, person names redacted). **Open blockers before Task 3b/4** (controller/owner rulings, see `preflight-scan.md` B1–B4): organic `url`/`domain` are Google `goto` wrappers (host only in `breadcrumb`/`website_name`); the `site:` operator is ignored by the vendor and billed $0.01/call, so stage 2 as specified does not work; name-only hits need a city check; phone-only hits on category pages must not yield "Name differs".
 **Goal:** Re-check every interface in this plan against `main`, and decide depth, Bing Places / Apple Maps and recall from a live probe (≤ $0.10, owner-approved with the plan).
 - [ ] `git fetch && git rebase origin/main`; `git branch --no-merged main`; `ls packages/db/migrations | tail -2` → set the migration number (rename `0107_citations` everywhere if it changed).
 - [ ] Grep-confirm (fix this plan inline if any drifted): `CHANGE_TYPES/CHANNELS/SELF_RULE_IDS` in `packages/core/src/domain.ts`; `topicOf`/`gradeFor` in `packages/core/src/brief-report.ts`; `parseSerp` caps at `SERP_DEPTH`; `checkRankScanBudget(db, clientId, usd)`; `recordVendorCapture`; `runStage`/`supersedePriorChanges`; `detected_change_unique (after_capture_id, kind, block_key, stage_version)`; `scoreForClient` threshold source; `groupChanges`; `PLAYBOOK_VARS`; the operator vertical form = `apps/web/src/app/(platform)/platform/verticals/catalog-queue.tsx` + tool `review_vertical` (`packages/tools/src/tools/platform-verticals.ts`).
@@ -82,16 +83,17 @@ export function citationCatalogue(pack: Pick<VerticalPack, 'citations'>): Direct
 ```
 Schema `citations` exactly as spec § Pack, plus: `directory` refine `!isBannedHost(host)` ("Directory <host> is never allowed"); pack-level `superRefine`: `citationCatalogue(pack).length ≤ 15`; when `directory_groups` is present, every picked group exists in it. `PLAYBOOK_VARS` += `'directories'`, FALLBACK `"the directories you're missing"`.
 **Behaviour:**
-- `generic.yaml`: `citations: { directory_groups: { general: [...8], home_services: [...5], dental_health: [ADA] }, groups: [general], min_missing: 3 }` with Task 0's URLs and removals. hvac: `groups: [general, home_services]`; dental: `groups: [general, dental_health]`. Only generic sets `directory_groups`.
+- `SELF_RULE_IDS += 'citation_gap'` breaks `SELF_WHY_IT_MATTERS: Record<SelfRuleId, string>` (`engine/briefs/starting-point.ts`): add `citation_gap: 'People and Google both check directories, so a missing listing or one with a different name or phone can cost you calls.'` here (draft → copy review; controller ruling pending) and typecheck `@cs/engine` too.
+- `generic.yaml`: `citations: { directory_groups: { general: [...6], home_services: [...5], dental_health: [ADA] }, groups: [general], min_missing: 3 }` with Task 0's URLs and removals. hvac: `groups: [general, home_services]`; dental: `groups: [general, dental_health]`. Only generic sets `directory_groups`.
 - All three YAMLs: `type_weights.citation_added: 0.3`, `scoring.version: 7`, self rule `{ id: citation_gap, weight: 0.6, playbook: fix_citations, params: { min_missing: 3 } }`, playbook `fix_citations` (`trigger: citation_gap`, effort L, impact M, title + template verbatim from spec § Copy).
 - `CHANNELS` change: check `Record<Channel, …>` maps (tsc names them) and add `directories: 'Online directories'`.
 **Follow pattern:** 18a-2 v6 pack bump (`git show 0101` era commits), `discoverySchema` refines.
-**Tests (first):** `citationCatalogue` of the assembled hvac pack (generic ⊕ hvac via `assemblePack`) = 13 hosts (minus Task 0 removals), dental = 9, a DB vertical with no own `citations` = general only; a dental catalogue has no `angi.com` (**RF3**); `yelp.com` and `m.yelp.com` in a group → schema error (**RF3**); 16 hosts → error "≤ 15"; a picked group missing from `directory_groups` → error; shipped packs parse, have `scoring.version 7`, `citation_added 0.3`, `citation_gap` + `fix_citations` (effort/impact set); `unknownPlaybookVars(fix_citations.template)` = `[]`; `renderPlaybook` fills `{{directories}}`.
-**Done when:** `pnpm --filter @cs/verticals exec vitest run`, `pnpm --filter @cs/core exec vitest run`, `npx vitest run src/briefs/playbooks` (engine dir); `npx turbo run typecheck --concurrency=1 --filter=@cs/core --filter=@cs/verticals`.
+**Tests (first):** `citationCatalogue` of the assembled hvac pack (generic ⊕ hvac via `assemblePack`) = 11 hosts (Task 0 removed Bing/Apple), dental = 7, a DB vertical with no own `citations` = general only; a dental catalogue has no `angi.com` (**RF3**); `yelp.com` and `m.yelp.com` in a group → schema error (**RF3**); 16 hosts → error "≤ 15"; a picked group missing from `directory_groups` → error; shipped packs parse, have `scoring.version 7`, `citation_added 0.3`, `citation_gap` + `fix_citations` (effort/impact set); `unknownPlaybookVars(fix_citations.template)` = `[]`; `renderPlaybook` fills `{{directories}}`.
+**Done when:** `pnpm --filter @cs/verticals exec vitest run`, `pnpm --filter @cs/core exec vitest run`, `npx vitest run src/briefs/playbooks` (engine dir); `npx turbo run typecheck --concurrency=1 --filter=@cs/core --filter=@cs/verticals --filter=@cs/engine`.
 
 ### Task 2: Migration, Drizzle schema, isolation
 **Goal:** Both tables with RLS and isolation coverage.
-**Files:** `packages/db/migrations/0107_citations.sql` (+ `meta/`), `packages/db/src/schema/citations.ts` (+ export in `schema/index.ts`), `packages/db/test/{table-classes,isolation-world}.ts`.
+**Files:** `packages/db/migrations/0107_citations.sql` (+ `meta/`), `packages/db/src/schema/citations.ts` (+ export in `schema/index.ts`), `packages/db/src/schema/briefs.ts` (Task 8b source/index), `packages/db/test/{table-classes,isolation-world}.ts`.
 **Interfaces:** Drizzle `citationListing`, `citationAuditRun` (camelCase of the columns below); `type CitationStatus = 'listed' | 'not_found' | 'not_checked'`; `type CitationRunStatus = 'running' | 'done' | 'capped' | 'failed'`.
 **Migration (full; schema part via `generate --name=citations`, then hand-append RLS + backfill):**
 ```sql
@@ -109,7 +111,12 @@ CREATE POLICY citation_listing_visible ON citation_listing FOR SELECT USING (app
 REVOKE INSERT, UPDATE, DELETE ON citation_audit_run FROM app_user;
 ALTER TABLE citation_audit_run ENABLE ROW LEVEL SECURITY;  ALTER TABLE citation_audit_run FORCE ROW LEVEL SECURITY;
 CREATE POLICY citation_audit_run_select ON citation_audit_run FOR SELECT USING (agency_id = app_agency_id() AND app_client_visible(client_id));
+-- Task 8b: listings-check recommendations (source 'listings', one live per client)
+ALTER TABLE recommendation DROP CONSTRAINT recommendation_source_check;
+ALTER TABLE recommendation ADD CONSTRAINT recommendation_source_check CHECK (source IN ('brief', 'move', 'ask', 'mcp', 'listings'));
+CREATE UNIQUE INDEX recommendation_listings_live_unique ON recommendation (client_id) WHERE source = 'listings' AND status IN ('todo', 'in_progress');
 ```
+(Drizzle `briefs.ts`: mirror the check + index; `RecommendationSource` += `'listings'`.)
 Separate statements with `--> statement-breakpoint`. The pack backfill goes in the same file, after a `-- backfill:start` marker (Task 2b).
 **Behaviour:** `TABLE_CLASS`: `citation_listing: 'global_public'`, `citation_audit_run: 'tenant_client'`. World rows: one `citation_listing` per world competitor (a self business included), one `citation_audit_run` each for tenants A1/A2/B.
 **Tests (first):** `rls-sweep` + `isolation-world` pass. As `app_user` client B: zero rows of A's `citation_audit_run` and of a competitor only A tracks; INSERT into `citation_listing` → "permission denied" (**RF5**). A second `running` run for a client hits `citation_audit_run_one_live`.
@@ -184,8 +191,8 @@ export function cityFromAddress(a: string | null): string | null {
 
 ### Task 3b: Listing match + "Also found on" (pure)
 **Goal:** Pick a business's listing on one catalogue host, and the strict uncatalogued hits (C6, C12).
-**Files:** `packages/collectors/src/citations/match.ts` (+ test).
-**Code (binding):**
+**Files:** `packages/collectors/src/citations/match.ts` (+ test); `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem.description?: string | null`, moved here from Task 4 because `matchListing` reads it).
+**Code (binding; host derivation pending blocker B1 — live items carry `google.com/goto` URLs):**
 ```ts
 export interface CitationBiz { name: string; phone: string | null; city: string | null; domain: string | null }
 export interface ListingMatch { url: string; title: string | null; nameMatch: boolean | null; phoneMatch: boolean | null; shownPhone: string | null }
@@ -235,12 +242,12 @@ export function alsoFoundOn(items: SerpOrganicItem[], catalogueHosts: string[], 
 
 ### Task 4: Search, business audit, upsert, cost cap
 **Goal:** `parseSerp` keeps `description`. The two-stage audit of one business writes captures and rows within the budget.
-**Files:** `packages/db/src/schema/client-intel.ts` (`SerpOrganicItem.description?: string | null`), `packages/collectors/src/rankings/serp.ts` (+ test), create `citations/{search,audit}.ts` (+ tests), `index.ts` exports, `vendors/fixture-fetch.ts` (canned stage-1/site answers from the Task 0 fixtures).
+**Files:** `packages/collectors/src/rankings/serp.ts` (+ test), create `citations/{search,audit}.ts` (+ tests), `index.ts` exports, `vendors/fixture-fetch.ts` (canned stage-1/site answers from the Task 0 fixtures).
 **Interfaces:**
 ```ts
 export function parseSerp(raw: unknown, max = 10): SerpResult;           // organic items gain description
-export const CITATION_CALL_USD = { depth10: SERP_CALL_USD, stage1: /* Task 0 */ 0 } as const;
-export const STAGE1_DEPTH: 20 | 50 = 50;                                  // Task 0 ruling
+export const CITATION_CALL_USD = { depth10: SERP_CALL_USD, stage1: 0.004 } as const; // Task 0: depth 20 = 2 pages x $0.002; a site: query was billed $0.01 (B2)
+export const STAGE1_DEPTH: 20 | 50 = 20;                                  // Task 0 ruling (depth 50 -> 40101 on narrow quoted queries)
 export const CITATION_RUN_CAP_USD = 0.2;
 export const CITATIONS_SOURCE = 'directories';
 export async function citationSearch(dfs: DataForSeoClient, q: { query: string; depth: 10 | 20 | 50 }, scope: CallScope): Promise<{ organic: SerpOrganicItem[]; raw: unknown[] }>;
@@ -255,13 +262,14 @@ export async function upsertCitationRows(db: Db | Tx, competitorId: string, rows
 **Behaviour:**
 - `citationSearch` = `serpSearch` without coordinates (`location_code 2840`, `language_code 'en'`, `depth`), same error rules, `parseSerp(raw, depth)`. An empty organic page = nothing found (not a failure, unlike 18b-2).
 - Stage 1 `"<name>" "<NNN-NNN-NNNN>"` (quotes stripped). Stage 2 `site:<host> "<name>" <city>` (no city when null). One `recordVendorCapture` per call: `source 'directories'`, `url 'citations:name_phone' | 'citations:site:<host>'`, `collectorVersion 'dfs/1'`. A vendor error → `vendor_error` capture, no rows for those hosts (P2).
+- **Pending B2:** the probe showed `site:` is ignored by the vendor (same results for `site:bbb.org` and `site:bing.com`) and billed $0.01/call. Do not implement stage 2 until the controller rules (proposal: one operator-free `"<name>" <city>` search at depth 20, $0.004, classified against every unfound catalogue host).
 - Before each call: `spentUsd + price > capUsd` → stop, `capped`, remaining hosts get no row.
 - No phone or stage 1 failed (P4) → stage 2 for every catalogue host; never for a host stage 1 found. `not_found` rows carry the stage-2 capture; listed rows the finding capture. Also-found rows only from a successful stage 1. `upsertCitationRows` drops `isBannedHost` (defence).
 - Upsert = one `INSERT … ON CONFLICT (competitor_id, host) DO UPDATE`: `first_seen_at` = checked_at on not-listed → listed, else kept; `last_seen_at` = checked_at when listed, else kept; `newly_found_at` = checked_at when `EXCLUDED.status='listed' AND c.status='not_found' AND EXCLUDED.in_catalogue`, NULL when not listed, else kept (P1); other columns replaced. If `stage1Ok`, delete the competitor's `in_catalogue = false` rows not in `rows` (P12).
 **Tests (first):** `parseSerp` keeps `description` and honours `max` 50; the 18b-2 fixture still parses. Audit with fake dfs: phone → 1 stage-1 call + site calls only for unfound hosts; no phone → stage 2 for all; stage-1 vendor error → stage 2 for all, a `vendor_error` capture; **RF5** `stops before crossing 0.20` (budget spent 0.195 → no call, `capped`); **RF3** dental catalogue never sends `site:angi.com`; `banned host never stored` (stage-1 yelp hit with name+phone → no row, also not in also-found). Upsert: not_found → listed sets `newly_found_at`; first insert as listed leaves it null; listed → not_found keeps `first/last_seen_at`, nulls `newly_found_at`; a missed also-found host is deleted only when `stage1Ok`.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations src/rankings/serp.test.ts`; tsc (`@cs/db`, `@cs/collectors`, `@cs/demo`).
 
-### Task 5: Client run + worker job
+### Task 5: Client run + worker job (runs **after Task 6**, so `diffCitations` exists when the worker deps are wired)
 **Goal:** The daily due-scan, one guarded run per client (self, then top rivals), and the stale-run sweep.
 **Files:** create `packages/collectors/src/citations/run.ts` (+ test); `apps/worker/src/jobs/citations.ts` (+ test), `apps/worker/src/{deps.ts,job-list.ts,concurrency.ts}`.
 **Interfaces:**
@@ -285,9 +293,9 @@ Jobs: `citation-audit` cron `0 9 * * *` (skip + log once when `!vendorsConfigure
 **Tests (first):** due list: competitors not done → excluded; no setup row → due; run 29 days ago → not due, 30 → due; spend-paused or archived client → excluded. Fallback rivals when no `top` tier, ≤ 3, self never included. Cap → `capped`, no vendor call. Reuse: a rival checked 10 days ago by another client → 0 calls, id still in `competitor_ids`. Stale `running` > 3 h → failed. Worker: cron enqueues with the singleton key; the client job calls diff and enqueues tags; vendors unconfigured → no enqueue; `concurrency.test.ts` passes.
 **Done when:** `pnpm --filter @cs/collectors exec vitest run src/citations/run.test.ts`; `pnpm --filter @cs/worker exec vitest run src/jobs/citations.test.ts src/concurrency.test.ts`.
 
-### Task 6: `citation_diff` stage
+### Task 6: `citation_diff` stage (runs **before Task 5**; needs only Task 2 tables — tests seed `citation_listing` rows directly)
 **Goal:** One global `citation_added` change per newly found rival host (C7), retry-safe.
-**Files:** create `packages/engine/src/structured/citations.ts` (+ test), `packages/engine/src/index.ts`, `packages/db/src/schema/engine.ts` (`ChangeDetails.directory?: string; label?: string`), worker `deps.ts` (`diffCitations`).
+**Files:** create `packages/engine/src/structured/citations.ts` (+ test), `packages/engine/src/index.ts`, `packages/db/src/schema/engine.ts` (`ChangeDetails.directory?: string; label?: string`; `url` already exists). Worker wiring of `diffCitations` is Task 5's.
 **Interfaces:** `CITATION_DIFF_STAGE = 'citation_diff'`, `CITATION_DIFF_VERSION = 1`; `diffCitations(deps: { db: Db; packs: (v: string) => Promise<VerticalPack> }, runId: string): Promise<StageOutcome<{ changeIds: string[] }>>`.
 **Algorithm (binding):**
 ```ts
@@ -317,10 +325,10 @@ if (input.changeType === 'citation_added') { // C8: Minor, brief-only line; neve
     needsReviewCap: false, staleCap: false, profileCap: false, briefOnly: false, citationMinor: true,
     thresholds: { alert: thresholds.alert, brief: thresholds.brief }, scoringVersion: pack.scoring.version } };
 }
-// graded.ts groupChanges (P7):
-const grade = r.changeType === 'citation_added' ? 'minor' : gradeFor(r.score, threshold);
+// graded.ts (P7): one helper used by groupChanges AND the shrunk-line re-grade in the live-lines function (~line 187), else T = 0 re-grades it Major:
+const gradeOfLine = (changeType: string, score: number, threshold: number): Grade => (changeType === 'citation_added' ? 'minor' : gradeFor(score, threshold));
 ```
-**Behaviour:** `WHOLE_BUSINESS_TYPES` += `citation_added`. `detailsSignature`: `citation_added` → `` `citation_added|${d.directory ?? ''}` ``. `topicOf('citation_added')` = `'rankings'`; `TOPIC_LABEL.rankings` 'Map rankings' → **'Rankings & listings'** (controller ruling: directory lines and 18b-2 search lines sit there; copy review; update tests/previews asserting the old label). `CHANGE_LABELS.citation_added = 'new directory listing'`, `GROUP_PHRASE.citation_added = () => 'new directory listings'`. `EVIDENCE_CHANNEL_LABEL.directories` and `CHANNEL_LABELS.directories` = `'Online directories'`. `buildStructuredSummary`: `d.changeType === 'citation_added'` → `Now found on ${d.label ?? d.directory} in Google search` (via `redactForModel`). The tag stage maps no service (no model call). Glossary term `directory-listing`, "Directory listing", audience `all`, short: "A business's page on an online directory such as Yellow Pages, Facebook or the Better Business Bureau. Listings are checked once a month from Google search results; a page Google search does not show is "Not found in Google search", not "not listed"." (draft → copy review).
+**Behaviour:** `WHOLE_BUSINESS_TYPES` += `citation_added`. `detailsSignature`: `citation_added` → `` `citation_added|${d.directory ?? ''}` ``. `topicOf('citation_added')` = `'rankings'`; `TOPIC_LABEL.rankings` 'Map rankings' → **'Rankings & listings'** (controller ruling: directory lines and 18b-2 search lines sit there; copy review; update tests/previews asserting the old label — grep finds "Map rankings" in `packages/email/src/templates/report/lists.tsx`, `packages/email/src/types.ts`, `packages/engine/src/briefs/pdf.ts`; `apps/site` copy is separate and stays). `CHANGE_LABELS.citation_added = 'new directory listing'`, `GROUP_PHRASE.citation_added = () => 'new directory listings'`. `EVIDENCE_CHANNEL_LABEL.directories` and `CHANNEL_LABELS.directories` = `'Online directories'`. `buildStructuredSummary`: `d.changeType === 'citation_added'` → `Now found on ${d.label ?? d.directory} in Google search` (via `redactForModel`). The tag stage maps no service (no model call). Glossary term `directory-listing`, "Directory listing", audience `all`, short: "A business's page on an online directory such as Yellow Pages, Facebook or the Better Business Bureau. Listings are checked once a month from Google search results; a page Google search does not show is "Not found in Google search", not "not listed"." (draft → copy review).
 **Tests (first):** score T=40 → 10, route `archive`, `citationMinor true`; client thresholds `{alert 80, brief 60}` → 15; T=0 → 0, archive; `rescoreRecent` on a citation event keeps archive. `groupChanges` with T=0 → `minor`; 2 events, same rival → text `<name>: 2 new directory listings`, one event → `<name>: New directory listing — Now found on Better Business Bureau in Google search`. `topicOf` test covers every `CHANGE_TYPES` entry. The summary string equals the spec. The tag stage on a `citation_added` change makes no `ai.decide` call. `detailsSignature` differs per directory.
 **Done when:** `npx vitest run src/score src/tag src/briefs/graded src/briefs/evidence` (engine dir); `pnpm --filter @cs/core exec vitest run`; `pnpm --filter @cs/email exec vitest run src/labels`.
 
@@ -347,9 +355,35 @@ case 'citation_gap': {
 **Behaviour:**
 - Loader: self rows for current catalogue hosts with `in_catalogue`. `total` = rows `listed`|`not_found`. `missing` = `not_found` rows (catalogue order) with `rivalsListed` = count of `rivalIds` listed on that host. `mismatched` = listed rows with `name_match = false` → `'name'`, `phone_match = false` → `'phone'`. `evidenceIds` = `evidence.id` of those rows' `capture_id`s. `checkedAt` = max `checked_at`. Null when no self or no checked row. `not_checked` never counts.
 - `starting-point.ts` passes `citations` (rivals = `auditedCompetitors`) and renders the action with `{ topic, directories: String(f.values.directories ?? '') }`.
+- `scorecardEvidenceText` appends `Directory check: no listing found on <missing> of <total> directories.` for a `citation_gap` finding; otherwise `checkSentence` drops the fact (its numbers "4 of 9" are not in the scorecard evidence). Test: the fact passes `checkSentence` against `scorecardEvidenceText`.
 - Readiness: `citations` = true when the client has a `citation_audit_run` with status in (done, capped, failed). Null when no self competitor or `citationCatalogue` is empty. `ready` requires `citations !== false`.
-**Tests (first):** 4 of 9 missing (min 3) → fact `Google search found no listing for you on 4 of 9 directories we check: Manta, Foursquare, MapQuest and Angi.`; 2 missing, no mismatch → no finding; 1 phone mismatch → fact `Yellow Pages shows a different phone for you than your Google profile.`; score = `0.6 × min(1, (4 + 2)/9)` = 0.4; null citations → skipped; no evidence → dropped; `not_checked` hosts excluded from `total`. Starting point renders "Add your business to Manta, Foursquare… using each directory's sign-up page…". Readiness: no run → not ready, failed run → `citations true`, no self → null.
+**Tests (first):** 4 of 9 missing (min 3) → fact `Google search found no listing for you on 4 of 9 directories we check: Manta, Foursquare, MapQuest and ADA Find-a-Dentist.`; 2 missing, no mismatch → no finding; 1 phone mismatch → fact `Yellow Pages shows a different phone for you than your Google profile.`; score = `0.6 × min(1, (4 + 2)/9)` = 0.4; null citations → skipped; no evidence → dropped; `not_checked` hosts excluded from `total`. Starting point renders "Add your business to Manta, Foursquare… using each directory's sign-up page…". Readiness: no run → not ready, failed run → `citations true`, no self → null.
 **Done when:** `npx vitest run src/briefs/self-rules src/briefs/starting-point src/briefs/readiness` (engine dir).
+
+### Task 8b: `fix_citations` on the recommendations board for existing clients (owner ruling 2026-11-10)
+**Goal:** After each finished audit, a client whose starting point already went out gets one evidence-backed `fix_citations` recommendation while the gap lasts (the board today is fed only by approved brief items and move plays).
+**Files:** create `packages/engine/src/briefs/citation-recommendation.ts` (+ test); `briefs/self-rules.ts` (extract the case body), `engine/src/index.ts`; worker `deps.ts` + `jobs/citations.ts` (+ test); `apps/web/src/components/recommendation-board.tsx` (`SOURCE_LABEL.listings`); `apps/web/src/help/copy/client.ts` (recommendations tip `// source:` line). Migration/Drizzle part is in Task 2.
+**Interfaces:**
+```ts
+// self-rules.ts — Task 8's case body moves here; the switch calls it (behaviour unchanged)
+export function citationGapFinding(rule: PackSelfRule, c: SelfRuleInput['citations'], playbooks: SelfRuleInput['playbooks']): SelfFinding | null;
+// citation-recommendation.ts
+export const CITATION_REC_COOLDOWN_DAYS = 90;
+export const CITATION_REC_CLOSED_REASON = 'The listings check no longer finds this gap.';
+export async function recommendForCitations(deps: { db: Db; packs: PackLoader; generic: () => Promise<VerticalPack>; now?: () => Date }, clientId: string):
+  Promise<{ outcome: 'created' | 'refreshed' | 'closed' | 'skipped'; reason?: string }>;
+// worker: deps.recommendForCitations(clientId), called by citation-audit-client after diffCitations (done|capped only)
+```
+`SOURCE_LABEL.listings = 'From the listings check'` (draft → copy review).
+**Behaviour:**
+- Skip (`skipped`, reason) unless the client is `active` and its `starting_point` brief is `approved` or `sent` (before that the starting point owns the finding; no duplicate). Skip when `loadClientRunbook` has no enabled `citation_gap` rule or no `fix_citations` play (runbook clients get them as `new_upstream`; never forced).
+- `citations = loadSelfCitations(...)` (Task 8, rivals = `auditedCompetitors`); null → `skipped`. `finding = citationGapFinding(...)`; a finding with no `evidenceIds` counts as none (no evidence, no claim).
+- Finding present: a live (`todo`/`in_progress`) `fix_citations` recommendation of **any** source exists → if it is `source 'listings'` and `todo`, refresh `rationale`/`evidence_ids`/`updated_at` (`refreshed`), else `skipped`. A `fix_citations` one `done`/`dismissed` with `updated_at` < 90 days ago → `skipped`. Otherwise insert `{ source: 'listings', title: play.title, rationale: finding.fact, evidenceIds, eventIds: [], playbookId, playbookVersion (> 0 else null), effort/impact from the play, owner: 'client', upsellTag: null }` with `onConflictDoNothing` (`recommendation_listings_live_unique`) → `created`.
+- No finding (self audited, gap closed): every `source 'listings'` `todo` recommendation → `done` + feedback `{ kind 'status', actor 'system', reason CITATION_REC_CLOSED_REASON }` (pattern `dropRetractedItems`) → `closed`. `in_progress` and other sources are left alone.
+- Deterministic text only (fixed fact template, play title): no model call, no verifier. Never names the vendor; `upsell_tag` always null.
+**Follow pattern:** `recommendForMoves` (dedupe via `notExists`, `onConflictDoNothing`), `dropRetractedItems` (system status feedback).
+**Tests (first):** SP not approved → `skipped`, no row; SP approved, 4 missing → one row, exact fact, play title, `source 'listings'`, `upsellTag null`, evidence ids = finding's; second run same gap → `refreshed`, still one row; a live `source 'brief'` `fix_citations` row → `skipped`; dismissed 10 days ago → `skipped`, 100 days ago → `created`; gap closed → todo row `done` + one `system` feedback, `in_progress` untouched; no evidence → nothing; play disabled → `skipped`; worker: client job calls it only after a done/capped run. Board renders "From the listings check".
+**Done when:** `npx vitest run src/briefs/citation-recommendation src/briefs/self-rules` (engine dir); `pnpm --filter @cs/worker exec vitest run src/jobs/citations.test.ts`; `pnpm --filter @cs/web exec vitest run src/components/recommendation-board`; tsc.
 
 ### Task 9: Tool `get_citation_audit`
 **Goal:** One registered read for web, MCP and Friday, tenant-checked, with citable evidence.
@@ -362,7 +396,7 @@ case 'citation_gap': {
 - `alsoFoundOn` = self rows with `in_catalogue = false`, `status 'listed'`, host not in the catalogue.
 - `evidenceId` filtered by `citableEvidenceKinds(meta)` (MCP: null for `vendor_json`). Names off-web through `forChannel`. No dollars or vendor.
 **Tests (first):** seeded run → exact shape; no run → `status 'never'`, every cell `not_checked`; no self → `selfMissing true`, rivals still listed; a banned or uncatalogued row never appears in `listings`; also-found only for self; **RF5** out-of-scope client → `not_found`; isolation completeness passes with `get_citation_audit: client()`; `channels.test` + MCP lists updated; access-marks snapshot updated; `no usd keys or dollar text`.
-**Done when:** `pnpm --filter @cs/tools exec vitest run src/tools/citations src/isolation src/tools/channels src/access-marks`; `pnpm --filter @cs/mcp exec vitest run src/server.test.ts`; tsc.
+**Done when:** `pnpm --filter @cs/tools exec vitest run src/tools/citations src/isolation src/tools/channels src/tools/access-marks`; `pnpm --filter @cs/mcp exec vitest run src/server.test.ts`; tsc.
 
 ### Task 10: Listings page, nav, help, demo, gate
 **Goal:** The client page `/c/<id>/listings` with three sections, decided copy, help and guides.
@@ -379,7 +413,7 @@ case 'citation_gap': {
 
 ### Task 11: Operator directory groups
 **Goal:** Platform staff tick `citations.groups` when reviewing a business type (C4, P11).
-**Files:** `packages/tools/src/tools/platform-verticals.ts` (+ test), `apps/web/src/app/(platform)/platform/verticals/catalog-queue.tsx` (+ test), `apps/web/src/app/(platform)/platform/actions.ts`, review list output (`list_catalog_review` gains `citationGroups: CitationGroup[]`).
+**Files:** `packages/tools/src/tools/platform-verticals.ts` (+ test), `apps/web/src/app/(platform)/platform/verticals/catalog-queue.tsx` (+ test), `apps/web/src/app/(platform)/platform/verticals/actions.ts` (where `review_vertical` is called), review list output (`list_catalog_review` gains `citationGroups: CitationGroup[]`).
 **Interfaces:** `review_vertical` input `action: z.enum(['approve', 'rename', 'groups'])`, `citationGroups: z.array(z.enum(CITATION_GROUPS)).min(1).optional()`; `approve` also accepts `citationGroups`.
 **Behaviour:** `groups` (and `approve` with groups) → `UPDATE vertical SET config = jsonb_set(config, '{citations,groups}', $groups, true), version = version + 1, updated_at = now()`. Never on `generic` or merged rows (`not_found`). Then `catalogOf(deps).invalidate()`. Refuse a selection whose union exceeds 15 hosts: `invalid_input`, "Pick fewer directory groups (15 directories at most).", `userFacing`. Card: a fieldset "Directories to check" with one checkbox per group (labels "General directories", "Home services", "Dental and health"), default = current groups, 36 px controls, staff-only (`canEdit`). The labels go through copy review.
 **Tests (first):** staff sets `['general','dental_health']` → assembled pack catalogue = general + ADA, version bumped; viewer → refused; `generic` → `not_found`; empty array → `invalid_input`; the existing approve/rename tests still pass; card renders the boxes checked from data.

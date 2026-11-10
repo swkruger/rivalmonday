@@ -4,10 +4,35 @@
 **Plan/spec:** [spec](../superpowers/specs/2026-11-10-phase-18c-citations-design.md) · [plan](../superpowers/plans/2026-11-10-phase-18c-citations.md)
 
 ## Status (overwrite)
-2026-11-10: spec + lean plan written (`docs/superpowers/plans/2026-11-10-phase-18c-citations.md`, Tasks 0-13); awaiting owner approval.
+2026-11-10: plan approved; SDD Task 0 (pre-flight + probe) done, live spend $0.078. **Blocked** on controller/owner rulings B1–B4 (below) before Tasks 3b/4.
 
 ## Next (overwrite)
-Spec (`docs/superpowers/specs/2026-11-10-phase-18c-citations-design.md`) → lean plan → owner approval → SDD.
+Rulings on B1–B4 (`.superpowers/sdd/2026-11-10-phase-18c-citations/preflight-scan.md`) → SDD Task 1.
+
+## Task 0 results (2026-11-10)
+**Probe** (live organic, US, en; businesses from cs_dev: Atomic Plumbing + rival Daffan Cooling & Heating, Granbury Park Dental + rival Lakeview Dental, all Granbury TX). Spend **$0.078** of $0.10: stage 1 depth 20 = $0.004 (4 calls), depth 10 = $0.002, depth 50 = 40101 error 2/2 (free); `site:` calls **$0.01 each** (6). 40101 "Internal SE Server Error" on 5 of 17 calls (free; retry works).
+- **B1** organic `url` = `https://google.com/goto?url=…`, `domain` = `google.com` on every item; the real host is only in `breadcrumb` ("https://www.angi.com › TX › Granbury") or `website_name` ("Facebook · Atomic Plumbing"). Also breaks 18b-2 on main (`get_search_visibility`/`structured/serp.ts` match `domain`).
+- **B2** `site:<host>` is ignored: `site:bbb.org` and `site:bing.com` for Atomic returned identical results (no bbb.org item), billed $0.01.
+- **B3** stage 1 is relaxed by Google: exact name+phone often returns other businesses (e.g. "Lakeview Dental" Roy UT on MapQuest) → name-only hits need a city check. GBP phones are often tracking numbers (Daffan, Lakeview listings show other numbers).
+- **B4** phone-only hits on BBB category pages ("Plumber near Granbury, TX") would read "Name differs".
+- Phone format in snippets: `(817) 219-4790` and `817-219-4790`; `description` present on organic items.
+**Hit rate** (stage 1 vs manual web check; manual = listing confirmed): Atomic 4/6 (angi, bbb, mapquest, facebook; missed yellowpages, homeadvisor), Daffan 2/2 (mapquest, facebook), Lakeview 0/1 (mapquest found only via a same-name UT business), Granbury Park Dental 0/0 (no catalogue listing confirmed). Per directory: facebook 2/2, mapquest 2/3, angi 1/1, bbb 1/1, yellowpages 0/1, homeadvisor 0/1; Bing Places 0/4 and Apple Maps 0/4 searched (Google does not index them). **Overall recall 6/9 = 67 %** (stage 1 only; stage 2 contributed nothing). Small sample.
+**Rulings (C3):** Bing Places + Apple Maps **removed**; recall ≥ 50 % → no stop; depth 50 unusable → **stage 1 depth 20**, `CITATION_CALL_USD.stage1 = 0.004`. Migration stays **0107**.
+**add_listing_url** (hand-checked: curl status + page title / web search):
+| host | add_listing_url | check |
+|---|---|---|
+| facebook.com | https://www.facebook.com/pages/create | "Create a Page" (bots get 400) |
+| bbb.org | https://www.bbb.org/get-listed | 200 "Submit a business to our directory" |
+| yellowpages.com | https://www.yellowpages.com/claim-your-listing | 200 "Claim Your Yellow Pages Business Listing" |
+| manta.com | https://www.manta.com/business-listings/add-your-company | 200 (linked from the home page) |
+| foursquare.com | https://business.foursquare.com/claim | 200 "Business Listings" |
+| mapquest.com | https://business.mapquest.com/ | 200 "Business Listing Updater" |
+| angi.com | https://signup.angi.com/pro | 200 "Angi Pro" (pro.angi.com redirects) |
+| homeadvisor.com | https://pro.homeadvisor.com/ | 200 |
+| thumbtack.com | https://www.thumbtack.com/pro | 200 |
+| houzz.com | https://pro.houzz.com/pro | Houzz Pro sign-up (www.houzz.com/pro 301s here; bots 403) |
+| porch.com | https://pro.porch.com/how-it-works | 200 "How it Works" (pro.porch.com redirects) |
+| findadentist.ada.org | https://www.ada.org/join-the-ada/member-benefits/find-a-dentist | 200; listing comes with ADA membership (My ADA) |
 
 ## Interfaces this branch adds or changes
 TBD. Migration: next free on main is **0107**; site-audiences claims none.
@@ -23,7 +48,7 @@ TBD. Migration: next free on main is **0107**; site-audiences claims none.
 - Owner 2026-11-10: directory groups (general / home_services / dental_health) picked per vertical, operators tick them for DB verticals; "Also found on" = informational non-catalogue hits from the name+phone search. No searching directories a vertical didn't pick.
 
 ## New backlog (target → item)
-- none yet
+- **hotfix/next** → 18b-2 organic matching uses `domain`, which the vendor now returns as `google.com` (Task 0 B1): derive host from `breadcrumb`.
 
 ## Brief
 
@@ -56,12 +81,4 @@ No item is tagged 18c. Related:
 - [ ] No-listing clients have no self competitor (scorecard/rank self data empty until a listing is linked in Settings); consider a "Link Google listing" prompt — *phase-16*
 
 ### Open questions for the owner
-1. **Split 18c?** (A) one branch; (B) 18c-1 presence from Google results (catalogue, audit job, table, self-rule + play, tool + Rankings section, rival events) / 18c-2 listing-page reads for NAP via our crawler (dark like 18a-2); (C) B, 18c-2 only after the prod deploy + `/bot`. **Rec: C** — page reads need web monitoring on.
-2. **How to find listings (no new vendor).** (A) one organic call per directory × business (`site:<host> "<name>" <city>`, $0.002; 8 dirs × 4 businesses ≈ $0.06/client/run); (B) one `"<name>" "<phone>"` search per business, depth ≤ 50, hosts classified against the catalogue (≈ $0.01/client/run; misses deep listings); (C) B, then A only for catalogue directories B missed, after a Task 0 probe (≤ $0.10) comparing hit rate with a manual check. **Rec: C.** Free extra: `serp_snapshot` already shows which directories rank page one for the client's keywords.
-3. **NAP consistency.** (A) presence only; (B) name/phone match read from the result title/snippet, address "not checked" when absent; (C) B now, full NAP from the listing page in 18c-2 where robots allow. **Rec: C** — never guess a mismatch.
-4. **Directory catalogue.** (A) fixed list in code; (B) per-vertical list in the pack YAML (`citations.directories`: host, label, add-listing URL), inherited by DB verticals; (C) B, seeded with the `SHARED_HOSTS` directories seen in `serp_snapshot`. **Rec: B.** Excluded by binding rules: Yelp, Healthgrades, Zocdoc, Nextdoor. Bing Places / Apple Maps: include only if Task 0 shows search can find their listing pages.
-5. **Rival citation growth as events.** (A) no events, audit view only; (B) new change type `citation_added` (rival newly listed; grouped per rival; brief-only; pack v7); (C) reuse `profile_change`. **Rec: B** — "rival citation growth" needs a brief line; never alert.
-6. **What the client sees.** (A) self-rule `citation_gap` + `fix_citations` play (starting point, recommendations) only; (B) A + "Directories" section on Rankings (you vs top rivals: listed / name+phone match / not found / not checked) + tool `get_citation_audit` (web, MCP, Friday); (C) B + scorecard row metric "Directories listed". **Rec: B** — the scorecard is already 7 columns wide in email/PDF.
-7. **Cadence and caps.** (A) once at profile completion, then monthly for self + Top-rival tier (≤ 3 rivals); (B) A + "Check now" ≤ 1/client/week; (C) quarterly. **Rec: A** — listings move slowly.
-8. **Storage.** (A) global `citation_listing` per competitor × directory (public facts, shared like `ad`; tenants via `client_competitor` + self); (B) tenant-private like `serp_snapshot`. **Rec: A** — queries use the business's own name/phone/city.
-9. **Guided fixes.** (A) out — the play links the directory's add-listing page; (B) prefilled NAP block + claim link per missing directory (copy-only); (C) defer to the act-on-recommendations phase. **Rec: A** — keeps the deferred action feature intact.
+All answered 2026-11-10 (1C 2C 3C 4B 5B 6B 7A 8A 9A; see Decisions and the spec).

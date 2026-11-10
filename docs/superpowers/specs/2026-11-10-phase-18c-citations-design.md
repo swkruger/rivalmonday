@@ -40,10 +40,10 @@ citations: z.strictObject({
 Refine: hosts in `BANNED_CITATION_HOSTS = ['yelp.com','healthgrades.com','zocdoc.com','nextdoor.com']` are a schema error.
 Starting lists (labels OK in client text; `add_listing_url` hand-checked at Task 0):
 - **general** group: facebook.com (Facebook), bbb.org (Better Business Bureau), yellowpages.com (Yellow Pages), manta.com (Manta),
-  foursquare.com (Foursquare), mapquest.com (MapQuest), bing.com (Bing Places)\*, maps.apple.com (Apple Maps)\*.
+  foursquare.com (Foursquare), mapquest.com (MapQuest). Bing Places and Apple Maps removed at Task 0 (no search hits, C3).
 - **home_services** group: angi.com (Angi), homeadvisor.com (HomeAdvisor), thumbtack.com (Thumbtack), houzz.com (Houzz), porch.com (Porch).
 - **dental_health** group: findadentist.ada.org (ADA Find-a-Dentist). Review-hosting health directories / booking marketplaces (WebMD Care, Vitals, Sharecare, Opencare) are out, in the spirit of §2.2 (our call).
-\* kept only if Task 0 passes (C3).
+Task 0 (2026-11-10): stage 1 runs at depth 20 ($0.004); open probe blockers B1–B4 are in the plan's Task 0 note.
 
 ### Migration `0107_citations` (next free number at execution time)
 ```sql
