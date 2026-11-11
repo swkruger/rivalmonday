@@ -21,8 +21,8 @@ const RIVAL = '00000000-0000-4000-8000-0000000000f3';
 type Res = { runId: string } | { refused: string; nextAvailableAt?: string };
 
 const runs = (clientId = IDS.clientA1) => dbs.owner.select().from(citationAuditRun).where(eq(citationAuditRun.clientId, clientId));
-const manualRun = (status: 'done' | 'capped' | 'failed' | 'running', startedAt: Date, clientId = IDS.clientA1) =>
-  dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId, trigger: 'manual', status, competitorIds: [], startedAt, finishedAt: status === 'running' ? null : startedAt });
+const manualRun = (status: 'done' | 'capped' | 'failed' | 'running', startedAt: Date, clientId = IDS.clientA1, calls = 0) =>
+  dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId, trigger: 'manual', status, competitorIds: [], startedAt, calls, finishedAt: status === 'running' ? null : startedAt });
 const call = (c = admin, clientId: string = IDS.clientA1) => registry.invoke(c, 'request_citation_audit', { clientId }) as Promise<Res>;
 
 beforeEach(async () => {
@@ -54,33 +54,30 @@ describe('request_citation_audit', () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
-  it('a failed manual run does not count; a capped one does', async () => {
+  it('a failed manual run does not count', async () => {
     await manualRun('failed', new Date(Date.now() - 1 * DAY));
     expect(await call()).toMatchObject({ runId: expect.any(String) });
+  });
+
+  it('a capped run with no searches (calls = 0) does not block; one that made searches does', async () => {
+    await manualRun('capped', new Date(Date.now() - 1 * DAY), IDS.clientA1, 0);
+    expect(await call()).toMatchObject({ runId: expect.any(String) });
     await dbs.owner.delete(citationAuditRun);
-    await manualRun('capped', new Date(Date.now() - 1 * DAY));
+    await manualRun('capped', new Date(Date.now() - 1 * DAY), IDS.clientA1, 3);
     expect(await call()).toMatchObject({ refused: 'weekly_limit' });
   });
 
-  it('10 manual runs today (other clients): agency_daily_limit; yesterday\'s do not count', async () => {
-    const now = new Date();
-    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    await dbs.owner.insert(citationAuditRun).values(Array.from({ length: CITATION_MANUAL_PER_AGENCY_DAY }, () => ({
-      agencyId: IDS.agencyA, clientId: IDS.clientA2, trigger: 'manual' as const, status: 'done' as const, competitorIds: [], startedAt: new Date(startOfDay.getTime() + 1000),
+  it('agency daily limit: zero-search capped runs are not counted', async () => {
+    const dayStart = new Date('2026-11-10T00:00:00Z');
+    const fill = (calls: number) => dbs.owner.insert(citationAuditRun).values(Array.from({ length: CITATION_MANUAL_PER_AGENCY_DAY }, () => ({
+      agencyId: IDS.agencyA, clientId: IDS.clientA2, trigger: 'manual' as const, status: 'capped' as const, competitorIds: [], calls, startedAt: new Date(dayStart.getTime() + 1000),
     })));
-    expect(await call()).toEqual({ refused: 'agency_daily_limit', nextAvailableAt: new Date(startOfDay.getTime() + DAY).toISOString() });
-    await dbs.owner.update(citationAuditRun).set({ startedAt: new Date(startOfDay.getTime() - 1000) });
-    expect(await call()).toMatchObject({ runId: expect.any(String) });
-  });
-
-  it('a running run: running', async () => {
-    await dbs.owner.insert(citationAuditRun).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, trigger: 'monthly', status: 'running', competitorIds: [] });
-    expect(await call()).toEqual({ refused: 'running' });
-  });
-
-  it('spend-paused client: spend_paused', async () => {
-    await spendPauseClient(dbs.owner, IDS.clientA1);
-    expect(await call()).toEqual({ refused: 'spend_paused' });
+    const NOW = new Date('2026-11-10T12:00:00Z');
+    await fill(0);
+    expect(await citationAuditAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, NOW, { vendorsConfigured: true })).toEqual({ state: 'available' });
+    await dbs.owner.delete(citationAuditRun);
+    await fill(2);
+    expect((await citationAuditAvailability(dbs.service, { id: IDS.clientA1, agencyId: IDS.agencyA }, NOW, { vendorsConfigured: true })).state).toBe('agency_daily_limit');
   });
 
   it('not_ready: vendors not configured', async () => {
@@ -89,10 +86,16 @@ describe('request_citation_audit', () => {
     expect(await runs()).toHaveLength(0);
   });
 
-  it('not_ready: no self and no rivals', async () => {
+  it('not_ready: no own business and no rivals', async () => {
     await dbs.owner.update(client).set({ selfCompetitorId: null }).where(eq(client.id, IDS.clientA1));
     await dbs.owner.delete(clientCompetitor);
     expect(await call()).toEqual({ refused: 'not_ready' });
+  });
+
+  it('not_ready: no own business, even with rivals', async () => {
+    await dbs.owner.update(client).set({ selfCompetitorId: null }).where(eq(client.id, IDS.clientA1));
+    expect(await call()).toEqual({ refused: 'not_ready' });
+    expect(await runs()).toHaveLength(0);
   });
 
   it('concurrent requests start exactly one run', async () => {

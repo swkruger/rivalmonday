@@ -3,13 +3,17 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { loadVerticalPack } from '@cs/verticals';
 import { createPackLoader } from '../tag/tag-stage';
 import { postCounts30d } from '../structured/gbp-posts';
 import { buildScorecard, median, Scorecard } from './scorecard';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const deps = () => ({ db: dbs.service, packs: createPackLoader() });
+const base = createPackLoader();
+/** Directory definitions live in generic.yaml (DB packs inherit them); the file loader does not, so graft them on. */
+const packs = async (id: string) => { const [p, g] = await Promise.all([base(id), loadVerticalPack('generic')]); return { ...p, citations: { ...p.citations, directory_groups: g.citations.directory_groups } }; };
+const deps = () => ({ db: dbs.service, packs });
 const NOW = new Date('2026-10-15T12:00:00Z');
 const ago = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
 let selfId: string;
@@ -197,17 +201,40 @@ describe('Directory listings (18c-2 D3)', () => {
     const audited = await addRival('Rival Audited', 'top');
     const none = await addRival('Rival None', 'watch');
     const never = await addRival('Rival Never', 'minor');
-    await row(selfId, 'yelp.com', 'listed');
+    await row(selfId, 'facebook.com', 'listed');
     await row(selfId, 'bbb.org', 'listed');
     await row(selfId, 'angi.com', 'not_found');
     await row(selfId, 'houzz.com', 'listed', false);
-    await row(audited, 'yelp.com', 'listed');
-    await row(none, 'yelp.com', 'not_found');
+    await row(audited, 'facebook.com', 'listed');
+    await row(none, 'facebook.com', 'not_found');
     await row(none, 'bbb.org', 'not_checked');
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const v = (n: string) => sc.rows.find((r) => r.name === n)!.values.listings;
     expect([v('A1 HVAC'), v('Rival Audited'), v('Rival None'), v('Rival Never')]).toEqual([2, 1, 0, null]);
     expect(never).toBeTruthy();
+  });
+
+  it('only counts hosts in the client catalogue and never banned hosts', async () => {
+    await row(selfId, 'facebook.com', 'listed');
+    await row(selfId, 'findadentist.ada.org', 'listed'); // dental host: not in the HVAC client's catalogue
+    await row(selfId, 'yelp.com', 'listed'); // banned
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    expect(sc.rows.find((r) => r.self)!.values.listings).toBe(1);
+  });
+
+  it('evidence ids include the evidence of a counted listing, not of an uncounted one', async () => {
+    const mk = async () => {
+      const [c] = await dbs.owner.insert(capture).values({ competitorId: selfId, source: 'citation_audit', status: 'ok', collectorVersion: 't' }).returning();
+      const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'vendor_json', objectKey: randomUUID(), sha256: 'x', bytes: 1, contentType: 'application/json' }).returning();
+      return { captureId: c!.id, evidenceId: e!.id };
+    };
+    const counted = await mk();
+    const uncounted = await mk();
+    await dbs.owner.insert(citationListing).values({ competitorId: selfId, host: 'facebook.com', status: 'listed', captureId: counted.captureId, checkedAt: NOW });
+    await dbs.owner.insert(citationListing).values({ competitorId: selfId, host: 'bbb.org', status: 'not_found', captureId: uncounted.captureId, checkedAt: NOW });
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    expect(sc.evidenceIds).toContain(counted.evidenceId);
+    expect(sc.evidenceIds).not.toContain(uncounted.evidenceId);
   });
 
   it('a scorecard stored before 18c-2 (no listings) still parses as null', async () => {

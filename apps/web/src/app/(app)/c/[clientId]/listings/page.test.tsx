@@ -155,7 +155,16 @@ describe('ListingsPage', () => {
     cleanup();
     m.audit = audit({ manual: { state: 'not_ready' } });
     render(await visit());
-    expect(screen.queryByRole('button')).toBeNull();
+    expect((header().getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+    expect(header().getByText('Add your Google listing and competitors first, then check listings.')).toBeTruthy();
+  });
+
+  it('the check button sits in the ink-band wrapper that whitens its status and error lines', async () => {
+    m.audit = audit({ manual: { state: 'available' } });
+    render(await visit());
+    const wrap = within(screen.getByTestId('page-header')).getByRole('button').closest('div[class*="on-ink"]')!;
+    expect(wrap.className).toContain('[&_[role=alert]]:text-[var(--on-ink)]');
+    expect(wrap.className).toContain('[&_[role=status]]:text-[var(--on-ink)]');
   });
 
   it('mismatch row on the own business: "Fix on {label}" with the claim URL and a how-to line; falls back to the add URL', async () => {

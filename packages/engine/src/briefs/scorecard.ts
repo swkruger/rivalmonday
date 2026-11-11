@@ -1,4 +1,5 @@
 import { ad, capture, citationListing, client, competitor, competitorSignal, type Db, evidence, rankScan, rankSnapshot } from '@cs/db';
+import { citationCatalogue, isBannedHost } from '@cs/verticals';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ratingTrend } from '../reviews/rating-trend';
@@ -33,6 +34,7 @@ const TILE_METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as co
 const TIER_ORDER: Record<string, number> = { top: 0, watch: 1, minor: 2 };
 export const SCORECARD_EVIDENCE_CAP = 50;
 const SCORECARD_RANK_EVIDENCE_MAX = 15;
+const SCORECARD_LISTING_EVIDENCE_MAX = 10;
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Median of the non-null values; null when there are none. */
@@ -44,17 +46,25 @@ export function median(xs: (number | null)[]): number | null {
 }
 
 /**
- * Directory listings (18c-2 D3): per business, the in-catalogue hosts where it is `listed`. A business with no `citation_listing` row at all
- * was never audited and is absent from the map (null, never 0). One query for all businesses.
+ * Directory listings (18c-2 D3): per business, the `listed` hosts that are in the client's vertical catalogue (`hosts`, banned hosts
+ * never counted), as the Listings page counts them. A business with no `citation_listing` row at all was never audited and is absent
+ * from the map (null, never 0). `captureIds` are the captures behind the counted rows (the figure's evidence). One query for all businesses.
  */
-async function listedCounts(db: Db, competitorIds: string[]): Promise<Map<string, number>> {
-  const out = new Map<string, number>();
-  if (competitorIds.length === 0) return out;
+async function listedCounts(db: Db, competitorIds: string[], hosts: Set<string>): Promise<{ counts: Map<string, number>; captureIds: string[] }> {
+  const counts = new Map<string, number>();
+  const captureIds: string[] = [];
+  if (competitorIds.length === 0) return { counts, captureIds };
   const rows = await db
-    .select({ id: citationListing.competitorId, n: sql<number>`count(*) FILTER (WHERE ${citationListing.status} = 'listed' AND ${citationListing.inCatalogue})::int` })
-    .from(citationListing).where(inArray(citationListing.competitorId, competitorIds)).groupBy(citationListing.competitorId);
-  for (const r of rows) out.set(r.id, Number(r.n));
-  return out;
+    .select({ id: citationListing.competitorId, host: citationListing.host, status: citationListing.status, inCatalogue: citationListing.inCatalogue, captureId: citationListing.captureId })
+    .from(citationListing).where(inArray(citationListing.competitorId, competitorIds)).orderBy(asc(citationListing.competitorId), asc(citationListing.host));
+  for (const r of rows) {
+    if (!counts.has(r.id)) counts.set(r.id, 0);
+    if (r.status === 'listed' && r.inCatalogue && hosts.has(r.host) && !isBannedHost(r.host)) {
+      counts.set(r.id, counts.get(r.id)! + 1);
+      if (r.captureId && !captureIds.includes(r.captureId)) captureIds.push(r.captureId);
+    }
+  }
+  return { counts, captureIds };
 }
 
 const count = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
@@ -106,7 +116,8 @@ export async function buildScorecard(
 
   const postCounts = await postCounts30d(deps.db, ids, now);
 
-  const listingCounts = await listedCounts(deps.db, ids);
+  const catalogueHosts = new Set(citationCatalogue(await deps.packs(c.verticalId)).map((d) => d.host));
+  const { counts: listingCounts, captureIds: listingCaptures } = await listedCounts(deps.db, ids, catalogueHosts);
 
   const rows = trend.businesses
     .map((b) => {
@@ -142,6 +153,11 @@ export async function buildScorecard(
   const add = (id: string) => { if (evidenceIds.length < SCORECARD_EVIDENCE_CAP && !evidenceIds.includes(id)) evidenceIds.push(id); };
   for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
   (await postsEvidenceIds(deps.db, ids)).forEach(add);
+  if (listingCaptures.length > 0) {
+    const ev = await deps.db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, listingCaptures)).orderBy(asc(evidence.kind), asc(evidence.id));
+    const seen = new Set<string>();
+    for (const e of ev) if (!seen.has(e.captureId) && seen.size < SCORECARD_LISTING_EVIDENCE_MAX) { seen.add(e.captureId); add(e.id); }
+  }
   const rankCaptures = [...new Set(snaps.flatMap((s) => (s.captureId ? [s.captureId] : [])))];
   if (rankCaptures.length > 0) {
     const ev = await deps.db.select({ id: evidence.id }).from(evidence).where(inArray(evidence.captureId, rankCaptures)).orderBy(asc(evidence.id)).limit(SCORECARD_RANK_EVIDENCE_MAX);

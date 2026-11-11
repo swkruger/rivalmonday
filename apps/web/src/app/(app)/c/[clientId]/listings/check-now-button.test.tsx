@@ -25,8 +25,20 @@ describe('CheckNowButton', () => {
     expect((b as HTMLButtonElement).disabled).toBe(true);
     expect(document.getElementById(b.getAttribute('aria-describedby')!)?.textContent).toBe('paused note');
     cleanup();
-    const { container } = render(<CheckNowButton clientId="c1" check={info('not_ready')} />);
-    expect(container.innerHTML).toBe('');
+    render(<CheckNowButton clientId="c1" check={info('not_ready')} />);
+    const nb = screen.getByRole('button', { name: 'Check listings now' }) as HTMLButtonElement;
+    expect(nb.disabled).toBe(true);
+    expect(document.getElementById(nb.getAttribute('aria-describedby')!)?.textContent).toBe('Add your Google listing and competitors first, then check listings.');
+  });
+
+  it('a revalidated state other than available wins over the queued latch', async () => {
+    requestListingsCheck.mockResolvedValue({ ok: true, message: 'Check started. Results appear here in a few minutes.' });
+    const { rerender } = render(<CheckNowButton clientId="c1" check={info('available')} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check listings now' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Check running…' })).toBeTruthy());
+    rerender(<CheckNowButton clientId="c1" check={info('weekly_limit', 'Next check available Tue 17 Nov')} />);
+    expect(screen.getByRole('button', { name: 'Next check available Tue 17 Nov' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Check running…' })).toBeNull();
   });
 
   it('queues a check, then shows it running', async () => {

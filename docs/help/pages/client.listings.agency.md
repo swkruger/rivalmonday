@@ -27,11 +27,11 @@ Once a month, for {{client}} and its top rivals. The date under **Your listings*
 
 ### What does Check listings now do?
 
-It searches again for {{client}}'s own listings on every directory, and reuses recent results for the rivals. The page updates in a few minutes, and a new check also moves the next monthly check back. It costs the client nothing extra and uses a small part of the agency's AI credits. Only agency users see the button; the client's users never do.
+It searches again for {{client}}'s own listings on every directory, and reuses recent results for the rivals. The page updates in a few minutes, and a new check also moves the next monthly check back. A check runs a few Google searches (a few cents), counts toward the client's monthly cost guard, and is not billed to the client. Only agency users see the button; the client's users never do.
 
 ### How often can I use Check listings now?
 
-Once per client every 7 days, and 10 checks per agency each day (UTC). The button shows the next available date, or says why it can't run: a check is already running, the competitors or Google listing aren't set yet, or the client's AI work is paused for the month.
+Once per client every 7 days, and 10 checks per agency each day (UTC). The button shows the next available date, or says why it can't run: a check is already running, the client's own Google listing or its competitors aren't set yet, or the client's AI work is paused for the month.
 
 ### What does "Not found in Google search" mean?
 

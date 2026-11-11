@@ -5,18 +5,18 @@ import 'server-only';
  * (sign in or claim, edit the business details); never a menu name we can't verify. Owner signs the wording in `pnpm copy:review`.
  */
 export const LISTING_FIX: Record<string, string> = {
-  'facebook.com': 'Open your Facebook Page, choose to edit the Page info, and update the business name and phone so they match your Google profile.',
-  'bbb.org': 'Sign in to your Better Business Bureau business account, or claim the listing, and update your business name and phone.',
-  'yellowpages.com': 'Claim your Yellow Pages listing, sign in, and update your business name and phone in the listing details.',
-  'manta.com': 'Claim your Manta listing, sign in, and update your business name and phone in your company profile.',
-  'foursquare.com': 'Claim your business on Foursquare, sign in, and update your business name and phone in the place details.',
-  'mapquest.com': 'Claim your MapQuest listing, sign in, and update your business name and phone in your business details.',
-  'angi.com': 'Sign in to your Angi Pro account and update your business name and phone in your profile.',
-  'homeadvisor.com': 'Sign in to your HomeAdvisor Pro account and update your business name and phone in your profile.',
-  'thumbtack.com': 'Sign in to your Thumbtack Pro account and update your business name and phone in your profile.',
-  'houzz.com': 'Sign in to your Houzz Pro account, or claim your profile, and update your business name and phone in your profile.',
-  'porch.com': 'Sign in to Porch, or claim your profile, and update your business name and phone in your profile.',
-  'findadentist.ada.org': 'If you are an ADA member, sign in on the ADA website and update your practice name and phone in your Find-a-Dentist listing.',
+  'facebook.com': "Open your Facebook Page, choose to edit the Page info, and update the business name, and your phone unless it's a tracking number you use on purpose, so they match your Google profile.",
+  'bbb.org': "Sign in to your Better Business Bureau business account, or claim the listing, and update your business name, and your phone unless it's a tracking number you use on purpose.",
+  'yellowpages.com': "Claim your Yellow Pages listing, sign in, and update your business name, and your phone unless it's a tracking number you use on purpose, in the listing details.",
+  'manta.com': "Claim your Manta listing, sign in, and update your business name, and your phone unless it's a tracking number you use on purpose, in your company profile.",
+  'foursquare.com': "Claim your business on Foursquare, sign in, and update your business name, and your phone unless it's a tracking number you use on purpose, in the place details.",
+  'mapquest.com': "Claim your MapQuest listing, sign in, and update your business name, and your phone unless it's a tracking number you use on purpose, in your business details.",
+  'angi.com': "Sign in to your Angi Pro account and update your business name, and your phone unless it's a tracking number you use on purpose, in your profile.",
+  'homeadvisor.com': "Sign in to your HomeAdvisor Pro account and update your business name, and your phone unless it's a tracking number you use on purpose, in your profile.",
+  'thumbtack.com': "Sign in to your Thumbtack Pro account and update your business name, and your phone unless it's a tracking number you use on purpose, in your profile.",
+  'houzz.com': "Sign in to your Houzz Pro account, or claim your profile, and update your business name, and your phone unless it's a tracking number you use on purpose, in your profile.",
+  'porch.com': "Sign in to Porch, or claim your profile, and update your business name, and your phone unless it's a tracking number you use on purpose, in your profile.",
+  'findadentist.ada.org': "If you are an ADA member, sign in on the ADA website and update your practice name, and your phone unless it's a tracking number you use on purpose, in your Find-a-Dentist listing.",
 };
 
-export const LISTING_FIX_FALLBACK = 'Sign in to your account on this directory, or claim the listing, and update your business name and phone so they match your Google profile.';
+export const LISTING_FIX_FALLBACK = "Sign in to your account on this directory, or claim the listing, and update your business name, and your phone unless it's a tracking number you use on purpose, so they match your Google profile.";

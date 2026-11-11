@@ -29,7 +29,7 @@ describe('requestListingsCheck', () => {
     answer({ refused: 'running' });
     await expect(requestListingsCheck(C)).resolves.toEqual({ ok: false, error: 'A listings check is already running for this client.' });
     answer({ refused: 'not_ready' });
-    expect(await requestListingsCheck(C)).toMatchObject({ ok: false, error: expect.stringContaining('before checking') });
+    expect(await requestListingsCheck(C)).toMatchObject({ ok: false, error: expect.stringContaining('Add your Google listing and competitors first') });
     answer({ refused: 'spend_paused' });
     expect(await requestListingsCheck(C)).toMatchObject({ ok: false, error: expect.stringContaining('paused') });
   });

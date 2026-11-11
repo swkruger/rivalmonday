@@ -5,23 +5,22 @@ import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { requestListingsCheck } from './actions';
-import { CHECK_NOW, CHECK_RUNNING, type CheckInfo } from './check-copy';
+import { CHECK_NOT_READY, CHECK_NOW, CHECK_RUNNING, type CheckInfo } from './check-copy';
 
 const INITIAL: FormResult = { ok: true };
 
 /**
  * 18c-2 "Check listings now" (agency roles only; the page renders it only when the audit carries `manual`). A weekly limit
  * puts its date on the disabled button; the daily-limit and spend-pause copy is long, so it sits beside a disabled button.
- * `not_ready` renders nothing. The result message lives in this always-mounted component, so it survives revalidation.
+ * `not_ready` shows a disabled button with the reason beside it. The "queued" latch only holds while the server still says `available`, so a revalidated state wins. The result message lives in this always-mounted component, so it survives revalidation.
  */
 export function CheckNowButton({ clientId, check }: { clientId: string; check: CheckInfo }) {
   const noteId = useId();
   const [state, action, pending] = useActionState(async (_p: FormResult) => requestListingsCheck(clientId), INITIAL);
-  if (check.state === 'not_ready') return null;
-  const queued = state.ok && Boolean(state.message);
+  const queued = state.ok && Boolean(state.message) && check.state === 'available';
   const running = queued || check.state === 'running';
   const label = running ? CHECK_RUNNING : check.state === 'weekly_limit' && check.label ? check.label : CHECK_NOW;
-  const note = !running && (check.state === 'agency_daily_limit' || check.state === 'spend_paused') ? check.label : null;
+  const note = running ? null : check.state === 'not_ready' ? CHECK_NOT_READY : check.state === 'agency_daily_limit' || check.state === 'spend_paused' ? check.label : null;
   return (
     <WriteGuard>
       <div className="flex max-w-md flex-col items-end gap-1.5">

@@ -1,7 +1,7 @@
 import { auditedCompetitors, CITATION_RUN_STALE_HOURS, failStaleCitationRuns, isLiveRunViolation } from '@cs/collectors';
 import { ToolError } from '@cs/core';
 import { agency, agencyServiceable, citationAuditRun, client, clientServiceable, type Db, type Tx } from '@cs/db';
-import { and, count, desc, eq, gt, gte, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, gte, sql } from 'drizzle-orm';
 import { enqueueOf, type ToolDeps } from './deps';
 import { CITATION_MANUAL_PER_AGENCY_DAY, CITATION_MANUAL_PER_CLIENT_DAYS } from './limits';
 
@@ -11,12 +11,14 @@ export type CitationAuditAvailability = { state: CitationAuditState; nextAvailab
 export type CitationAuditRequest = { runId: string } | { refused: Exclude<CitationAuditState, 'available'>; nextAvailableAt?: string };
 
 const DAY_MS = 86_400_000;
+/** A manual run that used its slot: not failed, and not capped before any search. */
+const slotUsed = sql`${citationAuditRun.status} <> 'failed' AND NOT (${citationAuditRun.status} = 'capped' AND ${citationAuditRun.calls} = 0)`;
 const utcMidnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
 /**
  * The first state that blocks a manual listings check. Pass the service Db or a service transaction. `opts.vendorsConfigured` is
  * required (callers pass `deps.vendorsConfigured ?? true`). Every read is limited to `c.agencyId`.
- * Counting rule (D1): `trigger = 'manual' AND status <> 'failed'` (capped counts).
+ * Counting rule (D1): `trigger = 'manual'`, not `failed` and not a zero-search `capped` run (`calls = 0`: nothing was spent, so it doesn't use the slot).
  */
 export async function citationAuditAvailability(db: Db | Tx, c: { id: string; agencyId: string }, now: Date, opts: { vendorsConfigured: boolean }): Promise<CitationAuditAvailability> {
   const dayStart = utcMidnight(now);
@@ -29,12 +31,12 @@ export async function citationAuditAvailability(db: Db | Tx, c: { id: string; ag
     auditedCompetitors(db, c.id),
     db.select({ id: citationAuditRun.id }).from(citationAuditRun).where(and(ofClient, eq(citationAuditRun.status, 'running'), gt(citationAuditRun.startedAt, new Date(now.getTime() - CITATION_RUN_STALE_HOURS * 3_600_000)))).limit(1),
     db.select({ startedAt: citationAuditRun.startedAt }).from(citationAuditRun)
-      .where(and(ofClient, eq(citationAuditRun.trigger, 'manual'), ne(citationAuditRun.status, 'failed'), gt(citationAuditRun.startedAt, new Date(now.getTime() - CITATION_MANUAL_PER_CLIENT_DAYS * DAY_MS))))
+      .where(and(ofClient, eq(citationAuditRun.trigger, 'manual'), slotUsed, gt(citationAuditRun.startedAt, new Date(now.getTime() - CITATION_MANUAL_PER_CLIENT_DAYS * DAY_MS))))
       .orderBy(desc(citationAuditRun.startedAt)).limit(1),
     db.select({ n: count() }).from(citationAuditRun)
-      .where(and(eq(citationAuditRun.agencyId, c.agencyId), eq(citationAuditRun.trigger, 'manual'), ne(citationAuditRun.status, 'failed'), gte(citationAuditRun.startedAt, dayStart))),
+      .where(and(eq(citationAuditRun.agencyId, c.agencyId), eq(citationAuditRun.trigger, 'manual'), slotUsed, gte(citationAuditRun.startedAt, dayStart))),
   ]);
-  if (!row || !row.ok || !opts.vendorsConfigured || (!rivals.selfId && rivals.rivalIds.length === 0)) return { state: 'not_ready' };
+  if (!row || !row.ok || !opts.vendorsConfigured || !rivals.selfId) return { state: 'not_ready' };
   if (row.spendPaused) return { state: 'spend_paused' };
   if (running) return { state: 'running' };
   if (last) return { state: 'weekly_limit', nextAvailableAt: new Date(last.startedAt.getTime() + CITATION_MANUAL_PER_CLIENT_DAYS * DAY_MS).toISOString() };

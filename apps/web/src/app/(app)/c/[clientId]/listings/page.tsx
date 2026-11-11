@@ -48,7 +48,12 @@ export default async function ListingsPage({ params }: { params: Promise<{ clien
         description={<HelpText text={COPY.description} />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
-        actions={check ? <CheckNowButton clientId={clientId} check={check} /> : undefined}
+        // The status/error lines under the button are `text-ink`; on the ink band they read white.
+        actions={check ? (
+          <div className="[&_[role=alert]]:text-[var(--on-ink)] [&_[role=status]]:text-[var(--on-ink)]">
+            <CheckNowButton clientId={clientId} check={check} />
+          </div>
+        ) : undefined}
       />
       <ListingsView audit={audit} tz={tz} />
     </>
