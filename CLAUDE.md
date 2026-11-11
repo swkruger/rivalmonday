@@ -26,8 +26,8 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 - **Brand:** Rival Monday, wordmark `rivalmonday` (`rival` secondary, `monday` accent). Radar mark before it (favicon = mark on ink tile; never white-label). Assistant **Friday** (renamable; `docs/brand/`): orange pill (accent bg, #3B2300 text), radar-robot mascot. Primary #47A8E7 (ink label), secondary #2A6BAC, accent #F5A524, ink #0B2540, canvas #F6F9FC, grey panels #EEF2F6 (dark text); Inter; max 1560px.
 - **Stack:** TypeScript monorepo, pnpm 10 + Turborepo, Node 24. Next.js App Router + Tailwind + shadcn/ui; per-agency CSS-variable brand tokens. Vercel (web/API/MCP/cron) + one worker container (pg-boss + Playwright). Neon Postgres, RLS tenancy; evidence in R2. OpenRouter for generation (`ai.yaml`) and Jev; cascade Jev → LLM → human.
 - **Auth:** **self-hosted Better Auth** in `apps/web` (schema `auth`), not Neon Auth (invitation-only hooks, OAuth 2.1 MCP). Access = our `membership` table, not Better Auth's `organization` plugin.
-- **Design system v1 (2026-10-23):** `docs/design-system/` binds all UI: one white sheet in a canvas frame, sections before cards, shadows only on floating layers, chart roles you #2A6BAC + ≤2 rivals + grey.
-- **App style (2026-11-04):** opt-in `@cs/ui` variants; primary `ink` on agency pages, agency primary on client pages; orange only Friday/priority bar/`NumberMarker`; fixed chip tints; ink title band on client pages; raised cards only on recommendations board. `--brand-ink` (band, ink buttons, Friday bubble) = agency colour darkened to white 7:1, else ink; header override at 13a.
+- **Design system v1:** `docs/design-system/` binds all UI: one white sheet in a canvas frame, sections before cards, shadows only on floating layers, chart roles you #2A6BAC + ≤2 rivals + grey.
+- **App style:** opt-in `@cs/ui` variants; primary `ink` on agency pages, agency primary on client pages; orange only Friday/priority bar/`NumberMarker`; fixed chip tints; ink title band on client pages; raised cards only on recommendations board. `--brand-ink` (band, ink buttons, Friday bubble) = agency colour darkened to white 7:1, else ink; header override at 13a.
 - **Charts:** inline SVG; colours checked with the dataviz skill.
 - **Review decisions stay on Jev** until pilots give gold labels; verifier τ 0.85 until `verifier_decisions` are labelled.
 - **Wider sources (18):** 18a no new paid vendors; 18b more Google (posts/offers; page one in Sunday scans; AI answers off until re-probe), 18c citations, 18d events vertical, 18e social (ScrapeCreators); out: public records, newsletters, FB Events/Nextdoor, video, bought citations, Yelp. Website tools: client text names the category, never the vendor. Ad images (18a-3): Google only (Meta's CDN disallows bots); Jev triage, person images never stored, vision LLM reads price images (≤ 20/client/week).
@@ -48,12 +48,12 @@ Agency-owned white-label SaaS monitoring competitors of **local-service small bu
 - **Launch gate:** every page ≤ 8 app DB stages (`bash apps/web/scripts/profile-gate.sh --seed`) before a live deploy; web read audits use `after()`; writes/failures/support/non-web stay awaited; no cross-request cache or `cookieCache`.
 - **Quality gates (7c1):** new tool => `ISOLATION_FIXTURES` entry; new table => `TABLE_CLASS` + world rows; out-of-scope client => `not_found`, never an empty list; `eval:replay` miss => re-record in the PR (<= $5/run); Ask drops uncited figures.
 - **Pilot & scale (7c):** <= 20 agencies x <= 3 clients, slow invites, gates block leaks/claims/injection; feedback by email. One worker, N pollers/queue; prod needs `SERVICE_DATABASE_POOLED_URL`; vendor calls via limiter; `docs/PILOT.md`.
-- **Site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; claims only from the claims ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; pilot = waitlist; client price default $249 (`DEFAULT_CLIENT_PRICE_USD`).
+- **Site (17):** `apps/site` = rivalmonday.com, own Vercel project, no app imports; sides `/agencies` + `/business`, `/` chooser; claims only from ledger/code; rival facts sourced, ≤ 90 d (`check:facts`); vendors never named; compare pages off until counsel; pilot = waitlist; client price $249 (`DEFAULT_CLIENT_PRICE_USD`).
 - **Stats & controls:** stat-card traces from real history only; 36 px controls.
 - **Briefs:** starting point = one per client, deterministic self-rules + verified why-it-matters. Weekly changes graded Major >= T / Notable >= T/2 / Minor (T = threshold, default 40) in email, app, PDF; quiet = no written item, no live Major; PDF = agency report attached (link fallback), never Ask; lines read-only; `get_brief` `changes` web-only.
 - Phase-local decisions: each plan's "Decisions".
 
-## Process 
+## Process
 1. `/rm-kickoff <phase>` → own **worktree + branch** + brief (`docs/work/<branch>.md`).
 2. `superpowers:brainstorming` from the brief's open questions.
 3. **Spec = new decisions and interfaces only** (`docs/superpowers/specs/<date>-<topic>-design.md` ≤ 15 KB). Cite the core spec by §.
@@ -78,7 +78,7 @@ Plan header: Goal, Global constraints, Decisions, File structure, **Dependencies
 - Never print, commit or stage root `.env` (ask before adding vars), `.claude/` (except `.claude/skills/rm-*`), `App/` or `.superpowers/`. Never change `REVIEWER_HASH_SALT`.
 - Every commit ends with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagents: own model). LF-only repo: `git ls-files --eol | grep crlf` must print nothing.
 - Git Bash: don't `source .env`; use `grep '^KEY=' .env | cut -d= -f2-`.
-- Turborepo strict env: a new env vars reach tasks only via `turbo.json` `globalPassThroughEnv`. Packages load `.env` via `process.loadEnvFile(<repo-root>/.env)`; wrong depth silently loads nothing.
+- Turborepo strict env: new env vars reach tasks only via `turbo.json` `globalPassThroughEnv`. Packages load `.env` via `process.loadEnvFile(<repo-root>/.env)`; wrong depth silently loads nothing.
 - One test run (incl. E2E) per test DB; one DB per worktree. **Local cluster:** `bash scripts/local-test-db.sh setup|start|env`. Full suite: `npx turbo run test --concurrency=1 --continue` (background). Focused runs/flakes: gotchas § Testing.
 - Subagents run focused tests in the foreground, never handing back mid-run.
 - Never edit applied migrations; add new ones (`pnpm --filter @cs/db generate --custom --name=<x>`).
