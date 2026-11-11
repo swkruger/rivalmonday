@@ -1,5 +1,6 @@
 'use server';
 import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, ToolError } from '@cs/core';
+import { createLogger } from '@cs/core/server';
 import { CITATION_MANUAL_PER_AGENCY_DAY, searchDayLabelAt } from '@cs/tools';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
@@ -8,6 +9,8 @@ import type { FormResult } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
 import { viewerTimeZone } from '@/server/viewer-tz';
 import { CHECK_ALREADY_RUNNING, CHECK_NOT_QUEUED, CHECK_NOT_READY, CHECK_QUEUED, type CheckRefusal, checkDailyLimit, checkNextAvailable } from './check-copy';
+
+const log = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
 
 /** Check listings now is agency-only (spec D1); the tool refuses client roles too. */
 async function agencyCtx(): Promise<AccessContext> {
@@ -36,7 +39,7 @@ export async function requestListingsCheck(clientId: string): Promise<FormResult
   } catch (e) {
     // A failed enqueue (incl. the DEMO/TEST queue refusal) leaves no run row behind; say so instead of crashing the page.
     if (e instanceof ToolError && e.code === 'internal') {
-      console.error(`[listings-check] request for client ${clientId} failed`, e);
+      log.error({ clientId, error: e.code }, 'listings check: request failed');
       return { ok: false, error: CHECK_NOT_QUEUED };
     }
     throw e;

@@ -69,14 +69,15 @@ describe('BriefView starting point and quiet week', () => {
     const { unmount } = render(<BriefView brief={sp} agency={false} timezone="UTC" />);
     const t1 = screen.getByRole('table', { name: /scorecard/i });
     expect(within(t1).getByRole('columnheader', { name: 'Google posts (30 days)' })).toBeTruthy();
-    const cells = (name: string) => within(within(t1).getByText(name).closest('tr') as HTMLElement).getAllByRole('cell').map((c) => c.textContent);
-    expect(cells('Smith HVAC').at(-1)).toBe('3');
-    expect(cells('A1 HVAC (you)').at(-1)).toBe('—');
+    const col = (t: HTMLElement) => within(t).getAllByRole('columnheader').findIndex((h) => h.textContent === 'Google posts (30 days)');
+    const cell = (t: HTMLElement, name: string) => within(within(t).getByText(name).closest('tr') as HTMLElement).getAllByRole('cell')[col(t)]?.textContent;
+    expect(cell(t1, 'Smith HVAC')).toBe('3');
+    expect(cell(t1, 'A1 HVAC (you)')).toBe('—');
     unmount();
     render(<BriefView brief={old} agency={false} timezone="UTC" />);
     const t2 = screen.getByRole('table', { name: /scorecard/i });
     expect(within(t2).getByRole('columnheader', { name: 'Google posts (30 days)' })).toBeTruthy();
-    expect(within(within(t2).getByText('Smith HVAC').closest('tr') as HTMLElement).getAllByRole('cell').at(-1)!.textContent).toBe('—');
+    expect(cell(t2, 'Smith HVAC')).toBe('—');
   });
   it('self item renders without competitor', () => {
     render(<BriefView brief={sp} agency={false} timezone="UTC" />);
