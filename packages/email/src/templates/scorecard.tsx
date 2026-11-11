@@ -19,7 +19,7 @@ const SHORT: Record<string, { short: string; key: string }> = {
   'Google ads': { short: 'G ads', key: 'G ads / M ads: active Google and Meta ads' },
   'Meta ads': { short: 'M ads', key: 'G ads / M ads: active Google and Meta ads' },
   'Google posts (30 days)': { short: 'Posts', key: 'Posts: Google posts in the last 30 days' },
-  'Directory listings': { short: 'Listings', key: 'Listings: directories that list your business' },
+  'Directory listings': { short: 'Listings', key: 'Listings: directories each business is listed on' },
 };
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */

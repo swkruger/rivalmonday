@@ -104,7 +104,7 @@ describe('email typography', () => {
     expect([...table.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Business', 'Stars', 'Posts', 'Listings']);
     expect(table).toContain('—');
     expect(html).toContain('Posts: Google posts in the last 30 days');
-    expect(html).toContain('Listings: directories that list your business');
+    expect(html).toContain('Listings: directories each business is listed on');
   });
 
   it('readableTextOn picks the higher-contrast label', () => {
