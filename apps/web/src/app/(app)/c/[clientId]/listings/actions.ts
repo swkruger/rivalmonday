@@ -1,13 +1,13 @@
 'use server';
 import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, ToolError } from '@cs/core';
-import { searchDayLabelAt } from '@cs/tools';
+import { CITATION_MANUAL_PER_AGENCY_DAY, searchDayLabelAt } from '@cs/tools';
 import { revalidatePath } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { requireContext } from '@/server/current-viewer';
 import type { FormResult } from '@/server/forms';
 import { runTool, type ToolResult } from '@/server/run-tool';
 import { viewerTimeZone } from '@/server/viewer-tz';
-import { CHECK_ALREADY_RUNNING, CHECK_DAILY_LIMIT, CHECK_NOT_QUEUED, CHECK_NOT_READY, CHECK_QUEUED, type CheckRefusal, checkNextAvailable } from './check-copy';
+import { CHECK_ALREADY_RUNNING, CHECK_NOT_QUEUED, CHECK_NOT_READY, CHECK_QUEUED, type CheckRefusal, checkDailyLimit, checkNextAvailable } from './check-copy';
 
 /** Check listings now is agency-only (spec D1); the tool refuses client roles too. */
 async function agencyCtx(): Promise<AccessContext> {
@@ -19,7 +19,7 @@ async function agencyCtx(): Promise<AccessContext> {
 function refusalCopy(reason: CheckRefusal, nextAvailableAt: string | undefined, tz: string): string {
   switch (reason) {
     case 'weekly_limit': return `${checkNextAvailable(nextAvailableAt ? searchDayLabelAt(nextAvailableAt, tz) : 'next week')}.`;
-    case 'agency_daily_limit': return CHECK_DAILY_LIMIT;
+    case 'agency_daily_limit': return checkDailyLimit(CITATION_MANUAL_PER_AGENCY_DAY);
     case 'spend_paused': return SPEND_PAUSED_COPY;
     case 'running': return CHECK_ALREADY_RUNNING;
     case 'not_ready': return CHECK_NOT_READY;
