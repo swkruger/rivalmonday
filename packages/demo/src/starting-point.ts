@@ -7,17 +7,17 @@ import type { SeedContext } from './context';
 export const FRESH_CLIENT_NAME = 'Mesquite Creek Plumbing';
 const SELF = 'Brazos Plumbing Co';
 
-type Values = Record<'rating' | 'reviews90d' | 'replyRate' | 'mapTop3Share' | 'adsActive' | 'metaAdsActive' | 'googlePosts30d', number | null>;
+type Values = Record<'rating' | 'reviews90d' | 'replyRate' | 'mapTop3Share' | 'adsActive' | 'metaAdsActive' | 'googlePosts30d' | 'listings', number | null>;
 const METRICS = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const;
 
 /** Brazos at the starting point; the rivals' figures are reused in the quiet week below. */
 const START: { self: Values; rivals: Values[] } = {
-  self: { rating: 4.4, reviews90d: 7, replyRate: 0.22, mapTop3Share: 0.18, adsActive: 0, metaAdsActive: null, googlePosts30d: 2 },
+  self: { rating: 4.4, reviews90d: 7, replyRate: 0.22, mapTop3Share: 0.18, adsActive: 0, metaAdsActive: null, googlePosts30d: 2, listings: 6 },
   rivals: [
-    { rating: 4.7, reviews90d: 31, replyRate: 0.71, mapTop3Share: 0.45, adsActive: 3, metaAdsActive: 1, googlePosts30d: 5 },
-    { rating: 4.6, reviews90d: 19, replyRate: 0.64, mapTop3Share: 0.33, adsActive: 0, metaAdsActive: null, googlePosts30d: 0 },
-    { rating: 4.3, reviews90d: 12, replyRate: 0.58, mapTop3Share: 0.27, adsActive: 2, metaAdsActive: 0, googlePosts30d: 3 },
-    { rating: 4.5, reviews90d: 16, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null },
+    { rating: 4.7, reviews90d: 31, replyRate: 0.71, mapTop3Share: 0.45, adsActive: 3, metaAdsActive: 1, googlePosts30d: 5, listings: 9 },
+    { rating: 4.6, reviews90d: 19, replyRate: 0.64, mapTop3Share: 0.33, adsActive: 0, metaAdsActive: null, googlePosts30d: 0, listings: 7 },
+    { rating: 4.3, reviews90d: 12, replyRate: 0.58, mapTop3Share: 0.27, adsActive: 2, metaAdsActive: 0, googlePosts30d: 3, listings: 5 },
+    { rating: 4.5, reviews90d: 16, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null },
   ],
 };
 const TIERS = ['top', 'top', 'watch', 'minor'] as const;
@@ -102,7 +102,7 @@ export async function seedStartingPoint(ctx: SeedContext): Promise<void> {
   }
 
   // The quiet week since: reviews and rating moved up, the reply rate down, and two first moves are still open.
-  const now: Values = { rating: 4.5, reviews90d: 11, replyRate: 0.19, mapTop3Share: 0.26, adsActive: 0, metaAdsActive: null, googlePosts30d: 2 };
+  const now: Values = { rating: 4.5, reviews90d: 11, replyRate: 0.19, mapTop3Share: 0.26, adsActive: 0, metaAdsActive: null, googlePosts30d: 2, listings: 6 };
   const open = recs.filter((r) => r.status === 'todo').map((r) => ({ recommendationId: r.id, title: r.title }));
   await db.update(brief).set({ scorecard: scorecard(ctx, now, evidence.slice(0, 6), { briefId: sp!.id, self: START.self }, open) }).where(eq(brief.id, ids.briefs.quietBrazos));
 

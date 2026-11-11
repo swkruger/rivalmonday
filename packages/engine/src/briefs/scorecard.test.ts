@@ -1,4 +1,4 @@
-import { ad, capture, gbpPost, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
+import { ad, capture, citationListing, gbpPost, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -84,8 +84,8 @@ describe('buildScorecard', () => {
     await snap(cur!.id, 2, [res('PB', 1), res('PSELF', 5)], cap.id);
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const row = (n: string) => sc.rows.find((r) => r.name === n)!.values;
-    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null });
-    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null });
+    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null });
+    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null });
     expect(row('Rival B')).toMatchObject({ reviews90d: 3, replyRate: 0, mapTop3Share: 0.5, adsActive: 1, metaAdsActive: 2 });
     expect(sc.tiles).toEqual([
       { metric: 'rating', you: null, rivalMedian: null, deltaSinceStart: null },
@@ -186,5 +186,34 @@ describe('Google posts (30 days)', () => {
     for (const r of old.rows) delete r.values.googlePosts30d;
     const parsed = Scorecard.parse(old);
     expect(parsed.rows[0]!.values.googlePosts30d).toBeNull();
+  });
+});
+
+describe('Directory listings (18c-2 D3)', () => {
+  const row = (competitorId: string, host: string, status: 'listed' | 'not_found' | 'not_checked', inCatalogue = true) =>
+    dbs.owner.insert(citationListing).values({ competitorId, host, status, inCatalogue, checkedAt: NOW });
+
+  it('counts only in-catalogue listed rows per business; never audited is null; audited with none listed is 0', async () => {
+    const audited = await addRival('Rival Audited', 'top');
+    const none = await addRival('Rival None', 'watch');
+    const never = await addRival('Rival Never', 'minor');
+    await row(selfId, 'yelp.com', 'listed');
+    await row(selfId, 'bbb.org', 'listed');
+    await row(selfId, 'angi.com', 'not_found');
+    await row(selfId, 'houzz.com', 'listed', false);
+    await row(audited, 'yelp.com', 'listed');
+    await row(none, 'yelp.com', 'not_found');
+    await row(none, 'bbb.org', 'not_checked');
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    const v = (n: string) => sc.rows.find((r) => r.name === n)!.values.listings;
+    expect([v('A1 HVAC'), v('Rival Audited'), v('Rival None'), v('Rival Never')]).toEqual([2, 1, 0, null]);
+    expect(never).toBeTruthy();
+  });
+
+  it('a scorecard stored before 18c-2 (no listings) still parses as null', async () => {
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    const old = JSON.parse(JSON.stringify(sc));
+    for (const r of old.rows) delete r.values.listings;
+    expect(Scorecard.parse(old).rows[0]!.values.listings).toBeNull();
   });
 });

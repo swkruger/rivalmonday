@@ -101,9 +101,10 @@ describe('email typography', () => {
     if (p.template !== 'brief') throw new Error('fixture');
     const html = (await renderEmail({ template: 'brief', props: p.props })).html;
     const table = html.match(/<table[^>]*aria-label="Scorecard[\s\S]*?<\/table>/)?.[0] ?? '';
-    expect([...table.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Business', 'Stars', 'Posts']);
+    expect([...table.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Business', 'Stars', 'Posts', 'Listings']);
     expect(table).toContain('—');
     expect(html).toContain('Posts: Google posts in the last 30 days');
+    expect(html).toContain('Listings: directories that list your business');
   });
 
   it('readableTextOn picks the higher-contrast label', () => {

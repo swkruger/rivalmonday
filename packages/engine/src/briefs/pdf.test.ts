@@ -64,7 +64,7 @@ describe('renderBriefPdf', () => {
     const scorecard = {
       asOf: day(0).toISOString(), baselineBriefId: null, evidenceIds: [], openFirstMoves: [],
       tiles: (['rating', 'reviews90d', 'replyRate', 'mapTop3Share'] as const).map((metric) => ({ metric, you: null, rivalMedian: null, deltaSinceStart: null })),
-      rows: [{ competitorId: null, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.5, reviews90d: 3, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null } }],
+      rows: [{ competitorId: null, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.5, reviews90d: 3, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null } }],
     };
     await dbs.owner.update(brief).set({ report, scorecard, kind: 'standard' }).where(eq(brief.id, id));
     await dbs.owner.update(briefItem).set({ eventIds: [live.eventId] }).where(eq(briefItem.id, kept!.id));

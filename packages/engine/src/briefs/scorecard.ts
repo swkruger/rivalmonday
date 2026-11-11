@@ -1,4 +1,4 @@
-import { ad, capture, client, competitor, competitorSignal, type Db, evidence, rankScan, rankSnapshot } from '@cs/db';
+import { ad, capture, citationListing, client, competitor, competitorSignal, type Db, evidence, rankScan, rankSnapshot } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ratingTrend } from '../reviews/rating-trend';
@@ -6,7 +6,7 @@ import { competitorMatcher, rankMetrics } from '../structured/rank';
 import { postCounts30d, postsEvidenceIds } from '../structured/gbp-posts';
 import type { PackLoader } from '../tag/tag-stage';
 
-export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d']);
+export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings']);
 export type ScorecardMetric = z.infer<typeof ScorecardMetric>;
 export const Scorecard = z.object({
   asOf: z.string(), baselineBriefId: z.uuid().nullable(), // null on the starting point itself
@@ -14,10 +14,10 @@ export const Scorecard = z.object({
   rows: z.array(z.object({
     competitorId: z.uuid().nullable(), name: z.string(), self: z.boolean(), tier: z.enum(['top', 'watch', 'minor']).nullable(),
     // Exhaustive object (not a record/preprocess) so the MCP access-marks walker can read it; keep in sync with `ScorecardMetric`.
-    // Scorecards stored before 18b lack `googlePosts30d`: they parse as not measured (null).
+    // Scorecards stored before 18b lack `googlePosts30d`, before 18c-2 `listings`: they parse as not measured (null).
     values: z.object({
       rating: z.number().nullable(), reviews90d: z.number().nullable(), replyRate: z.number().nullable(), mapTop3Share: z.number().nullable(),
-      adsActive: z.number().nullable(), metaAdsActive: z.number().nullable(), googlePosts30d: z.number().nullable().default(null),
+      adsActive: z.number().nullable(), metaAdsActive: z.number().nullable(), googlePosts30d: z.number().nullable().default(null), listings: z.number().nullable().default(null),
     }),
   })),
   evidenceIds: z.array(z.uuid()),
@@ -41,6 +41,20 @@ export function median(xs: (number | null)[]): number | null {
   if (v.length === 0) return null;
   const mid = Math.floor(v.length / 2);
   return v.length % 2 === 1 ? v[mid]! : (v[mid - 1]! + v[mid]!) / 2;
+}
+
+/**
+ * Directory listings (18c-2 D3): per business, the in-catalogue hosts where it is `listed`. A business with no `citation_listing` row at all
+ * was never audited and is absent from the map (null, never 0). One query for all businesses.
+ */
+async function listedCounts(db: Db, competitorIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (competitorIds.length === 0) return out;
+  const rows = await db
+    .select({ id: citationListing.competitorId, n: sql<number>`count(*) FILTER (WHERE ${citationListing.status} = 'listed' AND ${citationListing.inCatalogue})::int` })
+    .from(citationListing).where(inArray(citationListing.competitorId, competitorIds)).groupBy(citationListing.competitorId);
+  for (const r of rows) out.set(r.id, Number(r.n));
+  return out;
 }
 
 const count = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
@@ -92,6 +106,8 @@ export async function buildScorecard(
 
   const postCounts = await postCounts30d(deps.db, ids, now);
 
+  const listingCounts = await listedCounts(deps.db, ids);
+
   const rows = trend.businesses
     .map((b) => {
       const sig = signals.find((s) => s.competitorId === b.competitorId);
@@ -101,6 +117,7 @@ export async function buildScorecard(
           rating: b.rating, reviews90d: b.reviews90d, replyRate: b.replyRate, mapTop3Share: top3(b.competitorId),
           adsActive: b.self ? selfGoogle : count(sig?.signals?.googleAdsActive), metaAdsActive: b.self ? selfMeta : count(sig?.signals?.metaAdsActive),
           googlePosts30d: postCounts.get(b.competitorId) ?? null,
+          listings: listingCounts.get(b.competitorId) ?? null,
         } satisfies Record<ScorecardMetric, number | null>,
       };
     })
