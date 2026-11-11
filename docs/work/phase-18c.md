@@ -7,9 +7,9 @@
 2026-11-10: **18c-1 built, reviewed, ready for the owner** (SDD Tasks 0-13, 40+ commits). Final whole-branch review clean after one fix wave; `test:affected` failures fixed (focused re-runs green); `e2e:affected --full` 154 passed incl. `next build`. Ask eval cassette 50/50 (`6d8f719a`, total recording spend ~$2.4); `eval:replay` passes all 4 suites. `ask-ground-06` had timed out live twice on its final step (8 tool calls, 13 KB context; not listings) and was re-recorded from scratch. **18c-2 started 2026-11-10 on this branch** (owner: copy review + merge once, for 18c-1 + 18c-2 together).
 
 ## Next (overwrite)
-0. 18c-2 (SDD running): Check listings now (≤ 1/client/7 d, ≤ 10/agency/day), scorecard row "Directory listings", fix links (`claim_url`) + how-to, pack v8 wording "Add or correct your listings". Listing-page/address check dropped after Task 0 probes (spec § Why).
+0. 18c-2 built (Tasks 1-5 reviewed; final review pending): Check listings now (≤ 1/client/7 d, ≤ 10/agency/day), scorecard row "Directory listings", fix links (`claim_url`) + how-to, pack v8 wording "Add or correct your listings". Listing-page/address check dropped after Task 0 probes (spec § Why).
 1. Owner: `pnpm copy:review` (new strings: Listings page, help + 2 guides, glossary, play/self-rule copy, recommendations subtitle, operator group labels; flag: "Add your business to …" reads oddly for mismatch-only).
-2. `/rm-merge` on the owner's go-ahead. After merge, any env with data: `pnpm db:migrate` (0107) → deploy worker, then web; `pnpm kb:seed`. Staging: wait for the 09:00 UTC `citation-audit` (or run `citation-audit-client` for one client), check `/c/<id>/listings`, one `citation_audit_run.est_usd` ≤ 0.20, no banned host in `citation_listing`. Old 18b-2 `serp_snapshot` rows stay unmatched (domain google.com); staging rivals may read "entered page one" once.
+2. `/rm-merge` on the owner's go-ahead. After merge, any env with data: `pnpm db:migrate` (0107) → deploy worker, then web; `pnpm kb:seed`. Staging (18c-2): press Check listings now once (second press → weekly limit text), see the scorecard "Directory listings" column on a starting point, open a "Fix on" link. Staging (18c-1): wait for the 09:00 UTC `citation-audit` (or run `citation-audit-client` for one client), check `/c/<id>/listings`, one `citation_audit_run.est_usd` ≤ 0.20, no banned host in `citation_listing`. Old 18b-2 `serp_snapshot` rows stay unmatched (domain google.com); staging rivals may read "entered page one" once.
 
 ## Task 0 results (2026-11-10)
 Probe $0.078: organic results are `google.com/goto` wrappers (host from breadcrumb), vendor ignores `site:` (billed $0.01), depth 50 errors → depth 20 at $0.004; Bing Places + Apple Maps removed (0/4); stage-1 recall 6/9 = 67 %. Details + rulings B1-B4: SDD ledger / spec C2-C6.
@@ -22,6 +22,9 @@ Probe $0.078: organic results are `google.com/goto` wrappers (host from breadcru
 - Tool `get_citation_audit` (web/MCP/Ask; `shownPhone` web-only); `get_starting_point_status.checks.citations`; `review_vertical` action `groups`.
 - Web: client page `/c/<id>/listings` ("Listings" after Local rankings); operator group checkboxes.
 - `packages/ai`: a body-read timeout is retried once (within the existing 2 attempts).
+- **18c-2** migration **0108**: `citation_audit_run.trigger` += `manual`, index `citation_audit_run_manual_idx`; pack v8 backfill (`claim_url` on generic directories; `fix_citations` play "Fix your directory listings" / "Add or correct your listings on …").
+- **18c-2** tool `request_citation_audit` (web, agency, write; limits 1/client/7 d, 10/agency/UTC day); `citationAuditAvailability`; `ToolDeps.vendorsConfigured?`; worker `citation-audit-client` payload `runId?` (adopts a manual run); `get_citation_audit` += `directories[].fixUrl`, `manual` (web + agency only).
+- **18c-2** scorecard metric `listings` ("Directory listings", email "Listings"); Listings page: Check listings now button, "Fix on {label}" + how-to (`help/copy/listing-fixes.ts`) on own mismatched rows.
 
 ## Assumes from other branches
 - `site-audiences` (site only; no migration/env/`apps/web`): no overlap. `apps/site/content/roadmap.ts:33` ("Listings and citations") stays; making it a live claim is a site follow-up after both merge.

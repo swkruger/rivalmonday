@@ -46,9 +46,9 @@ Backfill SQL is generated from the packs exactly like 0107's (`vertical.config` 
 ### Tools
 - `packages/tools/src/limits.ts`: `CITATION_MANUAL_PER_CLIENT_DAYS = 7`, `CITATION_MANUAL_PER_AGENCY_DAY = 10`.
 - `packages/tools/src/citation-audit.ts`:
-  `citationAuditAvailability(db, client: { id: string; agencyId: string }, now: Date): Promise<{ state: 'available'|'weekly_limit'|'agency_daily_limit'|'running'|'not_ready'|'spend_paused'; nextAvailableAt?: string }>`;
+  `citationAuditAvailability(db, client: { id: string; agencyId: string }, now: Date, opts: { vendorsConfigured: boolean }): Promise<{ state: 'available'|'weekly_limit'|'agency_daily_limit'|'running'|'not_ready'|'spend_paused'; nextAvailableAt?: string }>`;
   `requestCitationAudit(deps, userId: string, c: { id: string; agencyId: string }, now: Date): Promise<{ runId: string } | { refused: Exclude<State,'available'>; nextAvailableAt?: string }>`.
-- Tool `request_citation_audit`: input `{ clientId }`, output `{ runId }`; refusals as `ToolRefusal` with the state as reason. `ISOLATION_FIXTURES` entry; out-of-scope client → `not_found`.
+- Tool `request_citation_audit`: input `{ clientId }`, output `{ runId } | { refused: <state>; nextAvailableAt? }` (refusals in the output union, like `request_rank_scan`). `ISOLATION_FIXTURES` entry; out-of-scope client → `not_found`.
 - Worker `citation-audit-client` payload gains optional `runId` (manual run already inserted) — `runCitationAudit` adopts that row instead of inserting.
 
 ### Engine / email / demo

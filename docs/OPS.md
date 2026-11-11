@@ -189,7 +189,7 @@ Page one of Google for each client rank keyword: who shows up (you, tracked riva
   Fewer rows than `rank_scan.keywords` = searches that failed (see the worker log). Spend: `vendor_call` rows for the operation above.
 - **AI answers:** absent on local service queries (probe 2026-11-10: 0 of 9), so not requested or shown. Re-probe quarterly (backlog).
 
-## Directory listings (18c-1)
+## Directory listings (18c-1, 18c-2)
 
 Where Google search finds each client and its top rivals on major directories (Facebook, BBB, Yellow Pages, ...); the directory groups are picked per vertical (`citations.groups`).
 
@@ -204,6 +204,11 @@ Where Google search finds each client and its top rivals on major directories (F
   WHERE competitor_id = ANY((SELECT competitor_ids FROM citation_audit_run WHERE id = '<run>')) ORDER BY competitor_id, host;
   ```
   Status: `running` (one per client, unique index), `done`, `capped`, `failed` (a client with only failed runs is due again the next day). Changes: `detected_change` rows with `details->>'changeType' = 'citation_added'`.
+- **Check listings now (18c-2):** agency users press it on `/c/<id>/listings`; tool `request_citation_audit` inserts a `running` run with `trigger = 'manual'` and queues `citation-audit-client` with that `runId` (the job adopts the row). Limits: 1 manual run per client per 7 days, 10 per agency per UTC day, counted over `trigger = 'manual' AND status <> 'failed'` (capped counts). The client's own business is always re-searched; rivals checked under 25 days ago are reused. Refusals: `weekly_limit`, `agency_daily_limit`, `running`, `spend_paused`, `not_ready` (DataForSEO not configured, or no self and no rivals).
+  ```sql
+  SELECT client_id, status, started_at FROM citation_audit_run WHERE agency_id = '<agency>' AND trigger = 'manual' ORDER BY started_at DESC LIMIT 20;
+  ```
+- **Fix links (18c-2):** pack v8 `claim_url` per directory (Facebook, Angi, HomeAdvisor, Thumbtack, ADA); others fall back to `add_listing_url`. How-to lines: `apps/web/src/help/copy/listing-fixes.ts`. No address check (listing pages bot-walled; see the 18c-2 spec § Why).
 - **Re-run a client:** delete that client's latest `done`/`capped` `citation_audit_run` row (not the listings); the next daily sweep audits it again (paid, about $0.03). Delete a `running` row only when it is older than 3 h; the sweep fails those itself, and deleting a live one lets a second run start.
 - **Uncatalogued hosts ("Also found on"):** the hosts most worth promoting into a vertical's directory groups:
   ```sql
