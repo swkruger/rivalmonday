@@ -10,6 +10,8 @@ import { requireContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
 import { viewerTimeZone } from '@/server/viewer-tz';
+import { checkInfo } from './check-info';
+import { CheckNowButton } from './check-now-button';
 import { ListingsView } from './listings-view';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +37,8 @@ export default async function ListingsPage({ params }: { params: Promise<{ clien
     viewerTimeZone(),
   ]);
 
+  const check = checkInfo(audit.manual, tz);
+
   return (
     <>
       <PageHeader
@@ -44,6 +48,7 @@ export default async function ListingsPage({ params }: { params: Promise<{ clien
         description={<HelpText text={COPY.description} />}
         helpKey={HELP_KEY}
         guide={guides.has(HELP_KEY)}
+        actions={check ? <CheckNowButton clientId={clientId} check={check} /> : undefined}
       />
       <ListingsView audit={audit} tz={tz} />
     </>

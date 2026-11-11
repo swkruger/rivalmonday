@@ -16,14 +16,22 @@ Whether Google search finds {{client}} and its top rivals on the major online di
 
 1. **Start with the gaps.** Each **Not found in Google search** row is a directory where customers searching Google are unlikely to find {{client}}. Three or more gaps also put a "Get listed on the directories you're missing" recommendation on the board.
 2. **Add the missing listings.** **Add listing** opens that directory's own sign-up page. Use exactly the same business name and phone as the Google profile.
-3. **Fix what differs.** Where a row says **Name differs** or **Shows a different phone**, update the listing on the directory so it matches the Google profile.
+3. **Fix what differs.** Where a row says **Name differs** or **Shows a different phone**, select **Fix on** that directory. It opens the directory's owner sign-in or claim page, and a short line under it says what to update so the listing matches the Google profile. Rivals' rows never get fix links.
 4. **Use the comparison with the client.** A directory where the rivals are listed and {{client}} is not makes a clear, concrete talking point.
 
 ## Common questions
 
 ### How often is this checked?
 
-Once a month, for {{client}} and its top rivals. The date under **Your listings** shows when the last check finished. The first check runs once the client's competitors are set. There is no manual check yet.
+Once a month, for {{client}} and its top rivals. The date under **Your listings** shows when the last check finished. The first check runs once the client's competitors are set. You can also run one yourself with **Check listings now**.
+
+### What does Check listings now do?
+
+It searches again for {{client}}'s own listings on every directory, and reuses recent results for the rivals. The page updates in a few minutes, and a new check also moves the next monthly check back. It costs the client nothing extra and uses a small part of the agency's AI credits. Only agency users see the button; the client's users never do.
+
+### How often can I use Check listings now?
+
+Once per client every 7 days, and 10 checks per agency each day (UTC). The button shows the next available date, or says why it can't run: a check is already running, the competitors or Google listing aren't set yet, or the client's AI work is paused for the month.
 
 ### What does "Not found in Google search" mean?
 

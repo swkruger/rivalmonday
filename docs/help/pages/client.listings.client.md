@@ -16,14 +16,14 @@ Whether Google search finds {{client}} and its top rivals on the major online di
 
 1. **Start with the gaps.** Each **Not found in Google search** row is a directory where customers searching Google are unlikely to find {{client}}.
 2. **Add the missing listings.** Select **Add listing** on a row to open that directory's own sign-up page. Use exactly the same business name and phone as your Google profile.
-3. **Fix what differs.** Where a row says **Name differs** or **Shows a different phone**, update the listing on the directory so it matches your Google profile.
+3. **Fix what differs.** Where a row says **Name differs** or **Shows a different phone**, select **Fix on** that directory. It opens the directory's sign-in or claim page, and a short line under it says what to update so the listing matches your Google profile. Sign in with the account that owns the listing; if you don't have one, claim the listing first.
 4. **Compare with your rivals.** In **You vs top rivals**, a directory where your rivals are listed and you are not is a good place to start.
 
 ## Common questions
 
 ### How often is this checked?
 
-Once a month. The date under **Your listings** shows when the last check finished. The first check runs once your competitors are set.
+Once a month. The date under **Your listings** shows when the last check finished. The first check runs once your competitors are set. Your agency can also run a check when you have made changes, so ask them if you want your fixes re-checked sooner.
 
 ### What does "Not found in Google search" mean?
 

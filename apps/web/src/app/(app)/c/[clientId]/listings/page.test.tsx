@@ -18,18 +18,19 @@ vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chic
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: () => null }));
 vi.mock('@/components/help/help-context', () => ({ HelpText: ({ text }: { text: string }) => <>{text}</> }));
 vi.mock('@/components/page-header', () => ({
-  PageHeader: ({ title, tone, description }: { title: string; tone?: string; description: React.ReactNode }) => <div data-testid="page-header" data-title={title} data-tone={tone}>{description}</div>,
+  PageHeader: ({ title, tone, description, actions }: { title: string; tone?: string; description: React.ReactNode; actions?: React.ReactNode }) => <div data-testid="page-header" data-title={title} data-tone={tone}>{description}{actions}</div>,
 }));
+vi.mock('./actions', () => ({ requestListingsCheck: vi.fn() }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 
 import ListingsPage from './page';
 
 const C = '00000000-0000-4000-8000-0000000000c1';
 const directories = [
-  { host: 'facebook.com', label: 'Facebook', addListingUrl: 'https://www.facebook.com/pages/create' },
-  { host: 'bbb.org', label: 'Better Business Bureau', addListingUrl: 'https://www.bbb.org/get-listed' },
-  { host: 'yellowpages.com', label: 'Yellow Pages', addListingUrl: 'https://www.yellowpages.com/claim-your-listing' },
-  { host: 'manta.com', label: 'Manta', addListingUrl: 'https://www.manta.com/business-listings/add-your-company' },
+  { host: 'facebook.com', label: 'Facebook', addListingUrl: 'https://www.facebook.com/pages/create', fixUrl: 'https://www.facebook.com/pages/create' },
+  { host: 'bbb.org', label: 'Better Business Bureau', addListingUrl: 'https://www.bbb.org/get-listed', fixUrl: 'https://www.bbb.org/get-listed' },
+  { host: 'yellowpages.com', label: 'Yellow Pages', addListingUrl: 'https://www.yellowpages.com/claim-your-listing', fixUrl: 'https://www.yellowpages.com/claim-your-listing' },
+  { host: 'manta.com', label: 'Manta', addListingUrl: 'https://www.manta.com/business-listings/add-your-company', fixUrl: 'https://www.manta.com/claim-it' },
 ];
 const row = (host: string, status: 'listed' | 'not_found' | 'not_checked', o: Record<string, unknown> = {}) => ({
   host, status, nameMatch: null, phoneMatch: null, listingUrl: null, shownPhone: null, evidenceId: null, checkedAt: status === 'not_checked' ? null : '2026-11-02T15:00:00.000Z', ...o,
@@ -125,6 +126,58 @@ describe('ListingsPage', () => {
     expect(within(section('Your listings')).getByText('Link your Google listing in Client settings to check your listings.')).toBeTruthy();
     expect(within(section('Your listings')).queryByRole('table')).toBeNull();
     expect(within(section('You vs top rivals')).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Directory', 'Brazos Air']);
+  });
+
+  it('Check listings now: shown for agency viewers (audit.manual), hidden for client viewers', async () => {
+    m.audit = audit({ manual: { state: 'available' } });
+    render(await visit());
+    expect(within(screen.getByTestId('page-header')).getByRole('button', { name: 'Check listings now' })).toBeTruthy();
+    cleanup();
+    m.audit = audit();
+    render(await visit());
+    expect(screen.queryByRole('button', { name: /Check listings now/ })).toBeNull();
+  });
+
+  it('availability text per state', async () => {
+    const header = () => within(screen.getByTestId('page-header'));
+    m.audit = audit({ manual: { state: 'weekly_limit', nextAvailableAt: '2026-11-17T18:00:00.000Z' } });
+    render(await visit());
+    expect((header().getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+    expect(header().getByRole('button').textContent).toBe('Next check available Tue 17 Nov');
+    cleanup();
+    m.audit = audit({ manual: { state: 'agency_daily_limit' } });
+    render(await visit());
+    expect(header().getByText("Your agency has used today's 10 manual listing checks.")).toBeTruthy();
+    cleanup();
+    m.audit = audit({ manual: { state: 'running' } });
+    render(await visit());
+    expect(header().getByRole('button').textContent).toBe('Check running…');
+    cleanup();
+    m.audit = audit({ manual: { state: 'not_ready' } });
+    render(await visit());
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('mismatch row on the own business: "Fix on {label}" with the claim URL and a how-to line; falls back to the add URL', async () => {
+    render(await visit());
+    const rows = within(section('Your listings')).getAllByRole('row').slice(1);
+    expect(within(rows[3]!).getByRole('link', { name: 'Fix on Manta' }).getAttribute('href')).toBe('https://www.manta.com/claim-it');
+    expect(rows[3]!.textContent).toContain('Claim your Manta listing');
+    expect(within(rows[0]!).getByRole('link', { name: 'Fix on Facebook' }).getAttribute('href')).toBe('https://www.facebook.com/pages/create');
+    expect(within(rows[1]!).queryByRole('link', { name: /^Fix on/ })).toBeNull();
+    cleanup();
+    m.audit = audit({ directories: directories.map(({ fixUrl: _f, ...d }) => d) });
+    render(await visit());
+    const again = within(section('Your listings')).getAllByRole('row').slice(1);
+    expect(within(again[3]!).getByRole('link', { name: 'Fix on Manta' }).getAttribute('href')).toBe('https://www.manta.com/business-listings/add-your-company');
+  });
+
+  it('rival mismatches never get a fix link; not_found keeps "Add listing"', async () => {
+    m.audit = audit({ businesses: [self, { ...rival, listings: [row('facebook.com', 'listed', { nameMatch: false, phoneMatch: false, listingUrl: 'https://www.facebook.com/brazos' })] }] });
+    render(await visit());
+    expect(within(section('You vs top rivals')).queryAllByRole('link')).toEqual([]);
+    expect(screen.getAllByRole('link', { name: /^Fix on / }).length).toBe(2);
+    expect(screen.getAllByRole('link', { name: /^Add listing on / }).length).toBe(1);
   });
 
   it('404s without the dashboard feature, before any read', async () => {

@@ -2,6 +2,7 @@ import type { CitationAuditView } from '@cs/tools';
 import { Section, StatusChip, Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { HelpTip } from '@/components/help/help-tip';
 import { formatPhone } from '@/components/place-summary';
+import { LISTING_FIX, LISTING_FIX_FALLBACK } from '@/help/copy/listing-fixes';
 import { formatDate } from '@/lib/format';
 import { CITATION_STATUS, labelFor } from '@/lib/labels';
 
@@ -33,6 +34,9 @@ function details(l: Listing): string[] {
   return out;
 }
 
+/** A listed row of the client's own business whose name or phone differs (D4/D7): it gets a fix link and a how-to line. */
+const mismatched = (l: Listing) => l.status === 'listed' && (l.nameMatch === false || l.phoneMatch === false);
+
 function YourListings({ audit, self }: { audit: CitationAuditView; self: Business }) {
   const byHost = new Map(self.listings.map((l) => [l.host, l]));
   return (
@@ -58,7 +62,13 @@ function YourListings({ audit, self }: { audit: CitationAuditView; self: Busines
                 <TableCell>{l ? details(l).join(' · ') : null}</TableCell>
                 <TableCell>
                   {status === 'not_found' && <External href={d.addListingUrl}>Add listing{' '}<span className="sr-only">on {d.label}</span></External>}
-                  {status === 'listed' && l?.listingUrl && <External href={l.listingUrl}>View listing{' '}<span className="sr-only">on {d.label}</span></External>}
+                  {status === 'listed' && l?.listingUrl && <div><External href={l.listingUrl}>View listing{' '}<span className="sr-only">on {d.label}</span></External></div>}
+                  {l && mismatched(l) && (
+                    <div className="mt-1 flex flex-col gap-1">
+                      <External href={d.fixUrl || d.addListingUrl}>Fix on {d.label}</External>
+                      <p className="text-sm text-muted-ink">{LISTING_FIX[d.host] ?? LISTING_FIX_FALLBACK}</p>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             );
