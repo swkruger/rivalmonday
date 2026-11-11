@@ -18,33 +18,31 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **Stopping a background `pnpm dev` can leave the Next.js node process holding port 3000:** kill the process listening on 3000 (check its command line points at the right worktree first) before restarting.
 
 ## Commands
-- `pnpm install` · `pnpm typecheck` · `pnpm test` (turbo, `--concurrency=1`) · `pnpm db:migrate` (applies to `cs_dev`) · `pnpm --filter <pkg> test` · `pnpm --filter @cs/web e2e` · `pnpm dev:web` · `pnpm demo:reset` / `pnpm demo:links` · `db:snapshot` / `db:restore`.
+- `pnpm test` (turbo, `--concurrency=1`) · `pnpm db:migrate` (applies to `cs_dev`) · `pnpm --filter <pkg> test` · `pnpm --filter @cs/web e2e` · `pnpm dev:web` · `pnpm demo:reset` / `pnpm demo:links` · `db:snapshot` / `db:restore`.
 
 ## Git & commits
-- Trailer on every commit: `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>` (subagent commits may name their own model). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`.
+- Commit trailer and the never-stage list: root `CLAUDE.md` § Essentials.
 - **LF only** (`.gitattributes` `* text=auto eol=lf`). `git ls-files --eol | grep crlf` must print nothing. Python edits on Windows leave `w/crlf` working copies even when the index is LF — re-checkout those files; `git status` may show `M` with identical blobs (check `git diff --quiet`, never commit them). If git thinks the file is clean, `git checkout` is a no-op: `rm <file> && git checkout -- <file>`.
-- A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows (now `/App/`).
+- A gitignore entry meant for one root folder needs a leading slash: a bare `App/` matched `apps/web/src/app` case-insensitively on Windows.
 - **Root `.pnpmfile.cjs` ships with every install** (CI, Docker, Vercel; lockfile checksums it): drops drizzle-orm's `@opentelemetry/api` peer so `@sentry/nextjs` doesn't fork drizzle-orm.
 
 ## Testing
 - **Use the local test cluster, not Neon, for tests:** `bash scripts/local-test-db.sh setup` once (PG18 + pgvector under `D:\rm-pg`, port 5444, superuser like CI), `start` after a reboot (also creates roles `cs_worker`/`cs_web`, needed by `0081`), `env` prints the three `TEST_*` lines. Neon is ~50 ms/query, ~1.7 s/connection.
-- **Timing (local cluster):** full unit suite ~50-70 min (60 min 2026-11-04), full E2E ~7-12 min; CI runs both in ~35 min on a PR (no deploy). After a rebase `next build` can exceed Playwright's 300 s webServer timeout — use `e2e:affected --full` (builds first, then `E2E_SKIP_BUILD=1`).
-- **`scripts/local-test-db.sh env` always prints `/cs_test`;** the per-worktree DB is only in the worktree `.env` (`/rm-kickoff`); use those TEST_* URLs. `test:affected` touching `@cs/engine` takes ~70 min.
-- **Local cluster runs in `America/Chicago`:** SQL `now() + interval '7 days'` crosses a DST change as 167/169 h, so tests must not hard-code 24/168 h: `@cs/collectors` `due-pages.test.ts` derives the expectation with the same SQL interval arithmetic (`cadenceHours`). Prod Neon is UTC.
+- **Timing (local cluster):** full unit suite ~60-90 min (91 min 2026-11-10), web E2E ~7-12 min, site E2E ~7 min after a ~2 min build; CI runs both in ~35 min on a PR. After a rebase `next build` can exceed Playwright's 300 s webServer timeout — use `e2e:affected --full` (builds first, then `E2E_SKIP_BUILD=1`).
+- **`scripts/local-test-db.sh env` always prints `/cs_test`;** the per-worktree DB is only in the worktree `.env` (`/rm-kickoff`); use those TEST_* URLs. `test:affected` touching `@cs/engine` or `pnpm-lock.yaml` runs the whole suite.
+- **Local cluster runs in `America/Chicago`:** SQL `now() + interval '7 days'` crosses a DST change as 167/169 h, so tests must not hard-code 24/168 h (derive it with the same SQL interval, as `@cs/collectors` `due-pages.test.ts` does). Prod Neon is UTC.
 - **Run the full suite with `run_in_background`** (exceeds the 10-min cap). **Never run two test runs against the same database** (incl. E2E): they collide. Each worktree gets its own `cs_<branch>_test` (name **must end in `_test`**) and E2E port (`E2E_PORT=3101`; default 3100).
 - **Global setup resets once:** it wipes + migrates only when the migration files' fingerprint changed (stored in schema `cs_test_meta`); otherwise it empties the tables. Force a rebuild with `TEST_DB_FULL_RESET=1`.
 - **`truncateAll` is a DELETE** with `session_replication_role = replica` when the owner is a superuser (local, CI); on Neon it falls back to one `TRUNCATE` statement. Don't reintroduce per-table TRUNCATE loops (slow on Windows).
 - **Focused runs:** `pnpm --filter <pkg> exec vitest run <pattern>` (in `@cs/engine`/`@cs/demo` it can fail "vitest not found": run `npx vitest run <pattern>` from the package dir). `pnpm --filter <pkg> test -- <pattern>` does *not* narrow. `pnpm test:affected --base <sha>` selects no tests — use the default merge-base.
 - **Flakes:** only `ETIMEDOUT`/`ECONNRESET`/timeouts (Neon) → re-run that package once; web `page-controls` PinPageSwitch and collectors `renderer` "reports timeouts" flake under load → re-run focused.
-- **Random `ENOBUFS` / WSAENOBUFS 10055 / `ERR_NO_BUFFER_SPACE` / `ERR_ADDRESS_IN_USE`** (failing test changes each run; a lone `internal` refusal inside a tool call) = ephemeral ports exhausted. 2026-11-04: `explorer.exe` (up 3 weeks) held 13,355 `Bound` sockets (suspect: stale Dropbox/Drive shell extensions). Check `(Get-NetTCPConnection -OwningProcess (Get-Process explorer).Id).Count`; restart Explorer, then re-run.
-
+- **Random `ENOBUFS` / WSAENOBUFS 10055 / `ERR_NO_BUFFER_SPACE` / `ERR_ADDRESS_IN_USE`** (failing test changes each run; a lone `internal` refusal inside a tool call) = ephemeral ports exhausted. Check `(Get-NetTCPConnection -OwningProcess (Get-Process explorer).Id).Count`; restart Explorer, then re-run.
 - **Passes locally, fails in CI:** CI has no `.env` (stub or mock settings); its clock is real (pin it for fixed dates); row order needs `ORDER BY` or a set compare; poll for async state (`vi.waitFor`), never check once. Check `gh run list --branch main` before calling a suite green.
-
 - **Ad images (18a-3):** Jev takes only PNG/JPEG data URLs (WebP is a 400), so evidence stays WebP and decision calls send `toDecisionJpeg(webp)`; the vision read sends WebP. `JEV_LIVE_IMAGES=1` opts into the live Jev image test. `findEngineWork`/`drainEngine` take a test seam `adImageSince`. Set `AD_IMAGE_SINCE` to the merge day at `/rm-merge`.
 
 ## Database & migrations
 - **Never edit applied migrations**; add new ones. Custom SQL: `pnpm --filter @cs/db generate --custom --name=<x>`, statements separated by `--> statement-breakpoint`. RLS/grant rules: `packages/db/CLAUDE.md`.
-- **Pool fan-out:** one heavy page can hold up to ~5 service connections at once (pool `max 5` per role/env, `packages/db/src/client.ts`); on Neon its wall time then tracks query count / 5, not DB stages (launch-gate: 110 queries ≈ 3 s). Fewer queries per page beats more parallelism.
+- **Pool fan-out:** one heavy page can hold up to ~5 service connections at once (pool `max 5` per role/env, `packages/db/src/client.ts`); on Neon its wall time then tracks query count / 5, not DB stages. Fewer queries per page beats more parallelism.
 - **Deferred read audits** (web reads, `after()`): the row's `created_at` is post-response, so it can sort after a later awaited write; writes and support calls are never deferred.
 
 ## Data & privacy invariants
@@ -61,11 +59,11 @@ Package-specific notes live in each package's `CLAUDE.md` (`apps/*/CLAUDE.md`, `
 - **`ObjectStore.put` refuses to overwrite** unless `{ overwrite: true }` (seeds, deterministic keys); capture/evidence keys must be unique per call.
 
 ## Conduct & operations
-- **Crawler conduct is non-negotiable:** honest UA `RivalMondayBot`, RFC 9309 robots (5xx/unreachable ⇒ disallow), ≥3 s per host, blocked ⇒ record, never evade. No real competitor site is crawled until `WEB_MONITORING_ENABLED='true'`.
+- **Crawler conduct is non-negotiable** (root `CLAUDE.md` § Essentials): blocked ⇒ record, never evade. No real competitor site is crawled until `WEB_MONITORING_ENABLED='true'`.
 - **Worker = one replica**, N pollers per queue sharing one handler/`deps`: no per-job module state; vendor fetches pass `timeoutMs`, not `AbortSignal.timeout`; captures defer, never sleep. No `collect-once --poll` alongside. `apps/worker/CLAUDE.md`.
 - **Rehearsal vars are staging-only** (`AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `VENDOR_FAKE_MODE`, `CRAWL_HOST_ALLOWLIST`, `VENDOR_LIVE_RANK_SCANS`): refused in prod; `createWorkerDeps` throws if `NODE_ENV` is unset, so keep them out of the root `.env`. Runbook: `docs/OPS.md` § Rehearsal.
 - **A fresh per-worktree test DB has no `pgboss` schema** (E2E: `relation "pgboss.job" does not exist`): run `pnpm --filter @cs/worker exec vitest run src/boss.test.ts` once (`/rm-kickoff` does).
-- **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. "Directory not empty" after `git worktree remove`: `git worktree prune`, then `rm -rf` the folder.
+- **Stacked branches merge once, from the tip:** rebase the base on `main`, then each child with `git rebase --onto <base> <old-base-sha>`; fold every work file on the tip and `merge --ff-only` it. "Directory not empty" after `git worktree remove`: `git worktree prune`, then delete the folder (`cmd /c 'rmdir /s /q "\\?\<path>"'`, long paths).
 - **After merging a branch that adds a workspace package, run `pnpm install` in the main checkout** (else `ERR_MODULE_NOT_FOUND @cs/<pkg>`).
-- **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`. vitest/tsc accept a stray cp1252 byte; only `next build` fails ("invalid utf-8 sequence", 7b1).
+- **Scripted edits must read/write UTF-8 explicitly** (Python on Windows defaults to cp1252 and corrupts `—`/`…`): check a branch with `iconv -f utf-8 -t utf-8` over `git diff --name-only main...HEAD`. vitest/tsc accept a stray cp1252 byte; only `next build` fails ("invalid utf-8 sequence").
 
