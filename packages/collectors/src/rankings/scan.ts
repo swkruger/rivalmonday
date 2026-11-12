@@ -74,10 +74,18 @@ export async function scanRankings(
   const gridSize = Math.min(prospect?.gridSize ?? c.rankGridSize, 7);
   const keywords = prospect ? rankKeywordsFor(c).slice(0, Math.min(prospect.maxKeywords, RANK_MAX_KEYWORDS)) : rankKeywordsFor(c);
   const depth = Math.min(prospect?.depth ?? 20, 20);
-  const radiusKm = rankRadiusKm(c.serviceArea.radiusKm);
+  const serviceArea = c.serviceArea; // narrowed non-null above
+  const radiusKm = rankRadiusKm(serviceArea.radiusKm);
   // 18d: venues packs add one panel search per business (self + tracked rivals) to the Sunday scan.
-  const panelOn = !prospect && deps.packs ? (await deps.packs(c.verticalId)).events.panel : false;
-  const panelBusinesses = panelOn ? await venueBusinesses(deps.db, c) : [];
+  // A pack or business lookup problem means "panel off": it must never fail a scan that worked before.
+  let panelBusinesses: Awaited<ReturnType<typeof venueBusinesses>> = [];
+  if (!prospect && deps.packs) {
+    try {
+      if ((await deps.packs(c.verticalId)).events.panel) panelBusinesses = await venueBusinesses(deps.db, c);
+    } catch (err) {
+      console.warn(`[rank-scan] ${clientId}: venue panel setup failed (${errText(err)}) — panel off`);
+    }
+  }
   const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }, { search: !prospect, panelBusinesses: panelBusinesses.length }).usd;
   const settings = { gridSize, radiusKm, keywords, estimatedUsd, trigger: prospect ? ('scheduled' as const) : opts.trigger, requestedBy: opts.requestedBy ?? null };
 
@@ -157,7 +165,7 @@ export async function scanRankings(
     }
     // A scan whose grid stored nothing is failed anyway: don't pay for searches. Prospect scans never search.
     if (!prospect && snapshots > 0) await searchKeywords(deps, c, scanId, keywords, { ...c.serviceArea.center, radiusKm }, scope);
-    if (!prospect && snapshots > 0 && panelBusinesses.length > 0) await searchVenuePanels(deps, { ...c, serviceArea: c.serviceArea }, panelBusinesses, scope);
+    if (!prospect && snapshots > 0 && panelBusinesses.length > 0) await searchVenuePanels(deps, { ...c, serviceArea }, panelBusinesses, scope);
   } catch (err) {
     await deps.db.update(rankScan).set({ status: 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
     throw err;
@@ -274,7 +282,7 @@ export async function searchVenuePanels(
       }).onConflictDoNothing({ target: [observation.captureId, observation.kind, observation.key] });
       tally.stored++;
     } catch (err) {
-      console.warn(`[rank-scan] ${c.id} venue panel for competitor ${b.competitorId} failed: ${errText(err)} � skipped`);
+      console.warn(`[rank-scan] ${c.id} venue panel for competitor ${b.competitorId} failed: ${errText(err)} — skipped`);
     }
   }
   return tally;

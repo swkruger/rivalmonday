@@ -10,7 +10,7 @@ import { rankMapSettingsHash } from './settings';
 import { SERP_OPERATION } from './serp';
 import fixture from './__fixtures__/serp-venue-panel.json';
 import type { VerticalPack } from '@cs/verticals';
-import { clientsNeedingRankMap, failStaleRankScans, GBP_EVENTS_URL, listRankClients, PANEL_REUSE_DAYS, RANK_SCAN_STALE_HOURS, scanRankings, VENUE_PANEL_KIND } from './scan';
+import { clientsNeedingRankMap, failStaleRankScans, GBP_EVENTS_URL, listRankClients, PANEL_REUSE_DAYS, RANK_SCAN_STALE_HOURS, scanRankings, searchVenuePanels, VENUE_PANEL_KIND } from './scan';
 
 const USER = '00000000-0000-4000-8000-0000000000c1';
 const SCHEDULED = { trigger: 'scheduled' } as const;
@@ -582,5 +582,39 @@ describe('scanRankings venue panel (18d)', () => {
     expect(await run(dfs)).toMatchObject({ skipped: 'cap' });
     expect(dfs.calls).toHaveLength(0);
     expect(await run(echoDfs(), async () => plainPack)).toMatchObject({ snapshots: 25 });
+  });
+
+  it('a pack loader that rejects leaves the scan as before: done, estimate without panel, no panel calls', async () => {
+    await setup();
+    const dfs = echoDfs();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await run(dfs, async () => { throw new Error('unknown vertical'); })).toMatchObject({ snapshots: 25, failed: 0 });
+      expect(warn.mock.calls.some((a) => String(a[0]).includes(IDS.clientA1))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+    expect(dfs.calls.filter((c) => isPanel(c.body))).toHaveLength(0);
+    const [scan] = await dbs.service.select().from(rankScan);
+    expect(scan).toMatchObject({ status: 'done' });
+    expect(scan!.estimatedUsd).toBeCloseTo(25 * 0.002 + 0.002);
+  });
+
+  it('searchVenuePanels pins the 6-day boundary with an injected now', async () => {
+    await setup();
+    const NOW = new Date('2026-11-12T12:00:00Z');
+    const at = (days: number) => new Date(NOW.getTime() - days * 86_400_000);
+    await dbs.owner.insert(capture).values([
+      { competitorId: SELF, source: 'google_business_profile', url: GBP_EVENTS_URL, status: 'ok', collectorVersion: 'x', capturedAt: new Date(at(6).getTime() + 1000) },
+      { competitorId: R1, source: 'google_business_profile', url: GBP_EVENTS_URL, status: 'ok', collectorVersion: 'x', capturedAt: new Date(at(6).getTime() - 1000) },
+    ]);
+    const dfs = echoDfs();
+    const biz = [SELF, R1].map((competitorId, i) => ({ competitorId, name: i === 0 ? 'Mohawk' : 'Scoot Inn', city: 'Austin' }));
+    const r = await searchVenuePanels(
+      { db: dbs.service, store: createMemoryStore(), dfs, now: () => NOW },
+      { id: IDS.clientA1, agencyId: IDS.agencyA, timezone: 'America/Chicago', serviceArea: { center: { lat: 33.9, lng: -84.3 }, radiusKm: 8, zips: [] }, address: null },
+      biz, { agencyId: IDS.agencyA, clientId: IDS.clientA1 },
+    );
+    expect(r).toEqual({ searched: 1, reused: 1, stored: 1 });
   });
 });
