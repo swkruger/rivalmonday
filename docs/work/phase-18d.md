@@ -4,10 +4,10 @@
 **Plan/spec:** `docs/superpowers/plans/2026-11-11-phase-18d-events-venues.md` / `docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`
 
 ## Status (overwrite)
-Spec + probe committed; plan written 2026-11-11, awaiting owner approval.
+Plan owner-approved 2026-11-12; execution started (SDD).
 
 ## Next (overwrite)
-Owner approves the plan → Task 0 pre-flight → SDD.
+Task 0 pre-flight → Tasks 1–16 → final review → owner copy review + merge.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109**; re-check before execution.
