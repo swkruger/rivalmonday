@@ -78,7 +78,7 @@ ALTER TABLE competitor ADD COLUMN tripadvisor_id text, ADD COLUMN tripadvisor_ur
 - `rankings/serp.ts` `SerpResult` += `knowledge: { title: string | null; events: { title: string; subtitle: string | null; url: string | null }[] } | null`.
 - `rankings/scan.ts` `searchVenuePanels(deps, c, businesses, scope)`; `budget.ts` `estimateRankScanUsd` adds `(rivals + 1) × SERP_CALL_USD` when `events.panel`.
 - `web/markup.ts` `jsonLdEvents(html): StructuredEvent[]` (`@type` ending `Event`, or `Festival`; max 50): `{ name; startDate; endDate; status; soldOut; ticketed; url; venue }`.
-- `tripadvisor/search.ts` (new): `postTripadvisorTasks`, `collectReadyTripadvisor`, pure `parseTripadvisorItem(raw): { id; url; title; rating; reviews; city } | null` (fields confirmed on the first live task).
+- `tripadvisor/search.ts` (new): `postTripadvisorTasks`, `collectReadyTripadvisor`, pure `parseTripadvisorItem(raw): { id; url; title; rating; reviews; city } | null` from `title`, `rating.value`, `reviews_count`, `url_path` (id = `d\d+` segment, city = trailing slug; probe follow-up).
 
 ### Engine (`engine/src/listed-events/`)
 `normaliseEventName`, `eventKey`, `panelDate(subtitle, captureDate, tz)`, `extractCandidates`, `detectListedEvents(deps, captureId)`, `eventCounts30d` + `eventsEvidenceIds` (as `postCounts30d`).
