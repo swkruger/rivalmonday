@@ -581,7 +581,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     scanRankings: (clientId, opts) =>
       scanRankings(
         {
-          db: getDb(), store: getStore(), dfs: getRankDfs(),
+          db: getDb(), store: getStore(), dfs: getRankDfs(), packs,
           onSkipped: async (s) => {
             if (!delivery) {
               workerLog.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);

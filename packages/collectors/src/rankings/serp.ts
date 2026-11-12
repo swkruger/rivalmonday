@@ -157,13 +157,13 @@ export function parseSerp(raw: unknown, max = SERP_DEPTH): SerpResult {
 /** One live Google search (page one, desktop) centred on the service area; `raw` is the vendor result array for evidence. */
 export async function serpSearch(
   dfs: DataForSeoClient,
-  q: { keyword: string; lat: number; lng: number; radiusM: number },
+  q: { keyword: string; lat: number; lng: number; radiusM: number; tag?: string },
   scope: CallScope,
 ): Promise<SerpResult & { raw: unknown[] }> {
   const radiusM = Math.min(RADIUS_M.max, Math.max(RADIUS_M.min, Math.round(q.radiusM)));
   const [task] = await dfs.post(
     SERP_OPERATION,
-    [{ keyword: q.keyword, location_coordinate: `${q.lat},${q.lng},${radiusM}`, language_code: DFS_US.language_code, depth: SERP_DEPTH }],
+    [{ keyword: q.keyword, location_coordinate: `${q.lat},${q.lng},${radiusM}`, language_code: DFS_US.language_code, depth: SERP_DEPTH, ...(q.tag ? { tag: q.tag } : {}) }],
     scope,
   );
   // No task back is an error, not "nobody ranks here".

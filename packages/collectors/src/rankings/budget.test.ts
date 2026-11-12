@@ -32,6 +32,11 @@ describe('rank scan estimate and budget', () => {
     expect(e.calls).toBe(245);
     expect(e.usd).toBeCloseTo(245 * DISCOVERY_CALL_COST_USD.maps + 5 * SERP_CALL_USD);
   });
+  it('estimate with panelBusinesses adds one search each', () => {
+    const c = { keywords: ['a'], rankKeywords: [], rankGridSize: 3, serviceArea: null };
+    expect(estimateRankScanUsd(c, { panelBusinesses: 3 }).usd).toBeCloseTo(estimateRankScanUsd(c).usd + 3 * SERP_CALL_USD);
+    expect(estimateRankScanUsd(c, { panelBusinesses: 3 }).calls).toBe(estimateRankScanUsd(c).calls);
+  });
   it('estimate without searching (prospect scans) has no search cost', () => {
     const e = estimateRankScanUsd({ keywords: ['a', 'b'], rankKeywords: [], rankGridSize: 3, serviceArea: null }, { search: false });
     expect(e.usd).toBeCloseTo(18 * DISCOVERY_CALL_COST_USD.maps);

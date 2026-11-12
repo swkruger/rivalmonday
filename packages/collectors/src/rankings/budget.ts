@@ -6,12 +6,12 @@ import { rankKeywordsFor, type RankClient } from './settings';
 
 /**
  * calls = keywords × gridSize² (one maps call each); usd adds one Google search per keyword (18b-2) unless
- * `search: false` (prospect scans skip searching).
+ * `search: false` (prospect scans skip searching), plus one search per `panelBusinesses` (18d venue panels).
  */
-export function estimateRankScanUsd(c: RankClient, opts: { search?: boolean } = {}): { calls: number; usd: number } {
+export function estimateRankScanUsd(c: RankClient, opts: { search?: boolean; panelBusinesses?: number } = {}): { calls: number; usd: number } {
   const keywords = rankKeywordsFor(c).length;
   const calls = keywords * c.rankGridSize ** 2;
-  return { calls, usd: calls * DISCOVERY_CALL_COST_USD.maps + (opts.search === false ? 0 : keywords * SERP_CALL_USD) };
+  return { calls, usd: calls * DISCOVERY_CALL_COST_USD.maps + (opts.search === false ? 0 : keywords * SERP_CALL_USD) + (opts.panelBusinesses ?? 0) * SERP_CALL_USD };
 }
 
 export async function checkRankScanBudget(

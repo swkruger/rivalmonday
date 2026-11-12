@@ -1,4 +1,4 @@
-import { capture, client, evidence, rankMapImage, rankScan, rankSnapshot, serpSnapshot } from '@cs/db';
+import { capture, client, clientCompetitor, competitor, evidence, observation, rankMapImage, rankScan, rankSnapshot, serpSnapshot } from '@cs/db';
 import type { RankScanSkipped } from './scan';
 import { IDS, openTestDbs, pauseAgency, pauseClient, spendPauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
@@ -8,7 +8,9 @@ import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
 import { rankMapSettingsHash } from './settings';
 import { SERP_OPERATION } from './serp';
-import { clientsNeedingRankMap, failStaleRankScans, listRankClients, RANK_SCAN_STALE_HOURS, scanRankings } from './scan';
+import fixture from './__fixtures__/serp-venue-panel.json';
+import type { VerticalPack } from '@cs/verticals';
+import { clientsNeedingRankMap, failStaleRankScans, GBP_EVENTS_URL, listRankClients, PANEL_REUSE_DAYS, RANK_SCAN_STALE_HOURS, scanRankings, VENUE_PANEL_KIND } from './scan';
 
 const USER = '00000000-0000-4000-8000-0000000000c1';
 const SCHEDULED = { trigger: 'scheduled' } as const;
@@ -450,5 +452,135 @@ describe('listRankClients and a spend-paused client (7b1)', () => {
     await dbs.owner.update(client).set({ keywords: ['ac repair'], serviceArea: area }).where(eq(client.id, IDS.clientB1));
     await spendPauseClient(dbs.owner, IDS.clientA1);
     expect(await listRankClients(dbs.service)).toEqual([IDS.clientB1]);
+  });
+});
+
+describe('scanRankings venue panel (18d)', () => {
+  const SELF = '00000000-0000-4000-8000-0000000000e1';
+  const R1 = '00000000-0000-4000-8000-0000000000e2';
+  const R2 = '00000000-0000-4000-8000-0000000000e3';
+  const venuePack = { events: { menu: true, panel: true } } as unknown as VerticalPack;
+  const plainPack = { events: { menu: false, panel: false } } as unknown as VerticalPack;
+  const panelResult = (title: string, events = 2) => [{ items: [{ type: 'knowledge_graph', title, items: [{ type: 'knowledge_graph_list_item', title: 'Events', items: Array.from({ length: events }, (_v, i) => ({ type: 'knowledge_graph_list_element', title: `Show ${i}`, subtitle: 'Fri', url: null })) }] }] }];
+  const mapsTask = () => dfsTask([{ items: [] }]);
+  const isPanel = (b?: Record<string, unknown>[]) => b?.[0]?.tag === VENUE_PANEL_KIND;
+  const setup = async (names: [string, string, string] = ['Mohawk', 'Scoot Inn', 'Emos']) => {
+    await dbs.owner.delete(clientCompetitor).where(eq(clientCompetitor.clientId, IDS.clientA1)); // only the three venues below are tracked
+    await dbs.owner.insert(competitor).values([{ id: SELF, name: names[0] }, { id: R1, name: names[1] }, { id: R2, name: names[2] }]);
+    await dbs.owner.insert(clientCompetitor).values([SELF, R1, R2].map((id) => ({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: id })));
+    await dbs.owner.update(client).set({ selfCompetitorId: SELF, address: { city: 'Austin' } as never, timezone: 'America/Chicago' }).where(eq(client.id, IDS.clientA1));
+  };
+  /** Answers each panel search with a panel titled by `titleFor(keyword)` (default: the keyword, a name hit). */
+  const echoDfs = (titleFor: (kw: string) => string = (kw) => kw) =>
+    fakeDfs((_m, path, body) => [path === SERP_OPERATION && isPanel(body) ? dfsTask(panelResult(titleFor(String(body![0]!.keyword)))) : mapsTask()]);
+  const run = (dfs: ReturnType<typeof fakeDfs>, packs: ((v: string) => Promise<VerticalPack>) | null = async () => venuePack) =>
+    scanRankings({ db: dbs.service, store: createMemoryStore(), dfs, packs: packs ?? undefined }, IDS.clientA1, SCHEDULED);
+  const panelCaps = () => dbs.service.select().from(capture).where(eq(capture.url, GBP_EVENTS_URL));
+
+  it('a venues client with self and two rivals makes 3 panel calls and stores 3 captures with observations carrying the timezone', async () => {
+    await setup();
+    const dfs = echoDfs();
+    expect(await run(dfs)).toMatchObject({ failed: 0 });
+    const calls = dfs.calls.filter((c) => c.path === SERP_OPERATION && isPanel(c.body));
+    expect(calls.map((c) => c.body![0]!.keyword).sort()).toEqual(['Emos Austin', 'Mohawk Austin', 'Scoot Inn Austin']);
+    expect(calls[0]!.body![0]).toMatchObject({ location_coordinate: '33.9,-84.3,8000', depth: 10 });
+    const caps = await panelCaps();
+    expect(caps).toHaveLength(3);
+    expect(caps.every((c) => c.source === 'google_business_profile' && c.status === 'ok')).toBe(true);
+    const obs = await dbs.service.select().from(observation).where(eq(observation.kind, VENUE_PANEL_KIND));
+    expect(obs).toHaveLength(3);
+    expect(obs.every((o) => o.key === 'events' && (o.data as { timeZone: string }).timeZone === 'America/Chicago')).toBe(true);
+    expect(obs[0]!.data).toMatchObject({ events: [{ title: 'Show 0', subtitle: 'Fri', url: null }, { title: 'Show 1' }] });
+    const [scan] = await dbs.service.select().from(rankScan);
+    expect(scan!.estimatedUsd).toBeCloseTo(25 * 0.002 + 0.002 + 3 * 0.002);
+  });
+
+  it('RF5: a pack without events.panel (or no loader) makes no extra call and the estimate is unchanged', async () => {
+    for (const packs of [async () => plainPack, null]) {
+      await truncateAll(dbs.owner);
+      await seedTenancy(dbs.owner);
+      await dbs.service.update(client).set({ keywords: ['ac repair'], serviceArea: { center: { lat: 33.9, lng: -84.3 }, radiusKm: 8, zips: [] }, rankGridSize: 5 }).where(eq(client.id, IDS.clientA1));
+      await setup();
+      const dfs = echoDfs();
+      await run(dfs, packs);
+      expect(dfs.calls.filter((c) => isPanel(c.body))).toHaveLength(0);
+      expect((await dbs.service.select().from(rankScan))[0]!.estimatedUsd).toBeCloseTo(25 * 0.002 + 0.002);
+      expect(await panelCaps()).toEqual([]);
+    }
+  });
+
+  it('RF1: the panel of another business is ignored (no capture)', async () => {
+    await setup(['Mohawk', 'Scoot Inn', 'Emos']);
+    await run(echoDfs((kw) => (kw.startsWith('Scoot Inn') ? 'Austin City Limits Live' : kw)));
+    const caps = await panelCaps();
+    expect(caps).toHaveLength(2);
+    expect(caps.map((c) => c.competitorId).sort()).toEqual([SELF, R2].sort());
+  });
+
+  it('a generic venue name needs an exact panel title', async () => {
+    await setup(['Mohawk', 'The Venue', 'Emos']);
+    await run(echoDfs((kw) => (kw.startsWith('The Venue') ? 'The Venue Austin Event Center' : kw)));
+    expect((await panelCaps()).map((c) => c.competitorId)).not.toContain(R1);
+  });
+
+  it('keeps the real fixture panel for Mohawk, and a zero-event panel still stores (measured, none)', async () => {
+    await setup();
+    const venue = (fixture as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
+    const dfs = fakeDfs((_m, path, body) => [path === SERP_OPERATION && isPanel(body)
+      ? dfsTask(String(body![0]!.keyword).startsWith('Mohawk') ? venue : panelResult(String(body![0]!.keyword), 0)) : mapsTask()]);
+    await run(dfs);
+    const obs = await dbs.service.select().from(observation).where(eq(observation.kind, VENUE_PANEL_KIND));
+    expect(obs).toHaveLength(3);
+    expect(obs.find((o) => o.competitorId === SELF)!.data).toMatchObject({ title: 'Mohawk Austin', events: expect.arrayContaining([expect.objectContaining({ title: 'Hot Tuna: Electric Set' })]) });
+    expect(obs.find((o) => o.competitorId === R1)!.data).toMatchObject({ events: [] });
+  });
+
+  it('a capture 5 days old is reused (no call); one 7 days old is searched again', async () => {
+    await setup();
+    const age = (d: number) => new Date(Date.now() - d * 86_400_000);
+    await dbs.owner.insert(capture).values([
+      { competitorId: SELF, source: 'google_business_profile', url: GBP_EVENTS_URL, status: 'ok', collectorVersion: 'x', capturedAt: age(PANEL_REUSE_DAYS - 1) },
+      { competitorId: R1, source: 'google_business_profile', url: GBP_EVENTS_URL, status: 'ok', collectorVersion: 'x', capturedAt: age(7) },
+    ]);
+    const dfs = echoDfs();
+    await run(dfs);
+    expect(dfs.calls.filter((c) => isPanel(c.body)).map((c) => c.body![0]!.keyword).sort()).toEqual(['Emos Austin', 'Scoot Inn Austin']);
+  });
+
+  it('a vendor error on one rival stores the others and the scan stays done', async () => {
+    await setup();
+    const dfs = fakeDfs((_m, path, body) => {
+      if (path === SERP_OPERATION && isPanel(body)) {
+        if (String(body![0]!.keyword).startsWith('Scoot')) return [dfsTask(null, { statusCode: 50000, statusMessage: 'boom' })];
+        return [dfsTask(panelResult(String(body![0]!.keyword)))];
+      }
+      return [mapsTask()];
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await run(dfs)).toMatchObject({ snapshots: 25, failed: 0 });
+      expect(warn.mock.calls.some((a) => String(a[0]).includes(R1))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+    expect((await dbs.service.select().from(rankScan))[0]!.status).toBe('done');
+    expect(await panelCaps()).toHaveLength(2);
+  });
+
+  it('a prospect scan makes no panel call', async () => {
+    await setup();
+    const dfs = echoDfs();
+    await scanRankings({ db: dbs.service, store: createMemoryStore(), dfs, packs: async () => venuePack }, IDS.clientA1, { trigger: 'scheduled', prospect: { gridSize: 3, maxKeywords: 3 } });
+    expect(dfs.calls.filter((c) => isPanel(c.body))).toHaveLength(0);
+  });
+
+  it('a cap reached only with the panel cost skips the scan with no calls', async () => {
+    await setup();
+    // pause threshold = limit x 1.3 = 0.0546: above the grid + search estimate (0.052), below it plus 3 panel searches (0.058)
+    await dbs.owner.update(client).set({ spendLimitUsd: 0.042 }).where(eq(client.id, IDS.clientA1));
+    const dfs = echoDfs();
+    expect(await run(dfs)).toMatchObject({ skipped: 'cap' });
+    expect(dfs.calls).toHaveLength(0);
+    expect(await run(echoDfs(), async () => plainPack)).toMatchObject({ snapshots: 25 });
   });
 });

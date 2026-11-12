@@ -196,7 +196,18 @@ function decodeTaskId(id: string): { kind: TaskKind; data: Obj } | null {
  * Google organic answer for citation audits (18c): a stage-1 `"name" "NNN-NNN-NNNN"` query lists the name with its phone on
  * three directories, a stage-2 `"name" city` query lists it on two (shape of the Task 0 fixtures: goto-wrapped, real host in the breadcrumb).
  */
+/** 18d: a venue panel search (`tag: 'venue_panel'`) is answered with a knowledge panel titled after the business and two upcoming events. */
+function panelResult(data: Obj): Obj[] {
+  const keyword = typeof data.keyword === 'string' ? data.keyword : 'fixture';
+  const row = (title: string, subtitle: string) => ({ type: 'knowledge_graph_list_element', title, subtitle, url: null });
+  const kg = {
+    type: 'knowledge_graph', rank_group: 1, rank_absolute: 1, title: keyword, subtitle: 'Venue', url: null,
+    items: [{ type: 'knowledge_graph_list_item', title: 'Events', items: [row('Fixture Live Night', 'Fri, Nov 20, 8:00 PM'), row('Fixture Comedy Show', 'Sat, Nov 21, 7:00 PM')] }],
+  };
+  return [{ keyword, type: 'organic', se_domain: 'google.com', location_code: 2840, language_code: 'en', check_url: null, datetime: FIXED_TS[2], items_count: 1, items: [kg] }];
+}
 function organicResult(data: Obj): Obj[] {
+  if (data.tag === 'venue_panel') return panelResult(data);
   const keyword = typeof data.keyword === 'string' ? data.keyword : 'fixture';
   const quoted = [...keyword.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
   const name = quoted[0] ?? keyword;
@@ -274,7 +285,7 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
       }
       const live = method === 'POST' ? LIVE[path] : undefined;
       // Rank-scan searches carry a coordinate and stay unanswered (599) as before; only coordinate-less citation queries are answered.
-      const isRankSearch = path === '/serp/google/organic/live/advanced' && posted.some((d) => d.location_coordinate !== undefined);
+      const isRankSearch = path === '/serp/google/organic/live/advanced' && posted.some((d) => d.location_coordinate !== undefined && d.tag !== 'venue_panel');
       if (live && !isRankSearch) return json(dfsEnvelope(posted.map((data) => dfsTask(path, data, live(data)))));
       return null;
     }

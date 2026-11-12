@@ -64,7 +64,7 @@ export async function auditedCompetitors(db: Db | Tx, clientId: string): Promise
   return { selfId, rivalIds: top.length > 0 ? top : await pick(false) };
 }
 
-async function latestGbp(db: Db, competitorId: string): Promise<{ phone: string | null; address: string | null }> {
+export async function latestGbp(db: Db, competitorId: string): Promise<{ phone: string | null; address: string | null }> {
   const [obs] = await db.select({ data: observation.data }).from(observation)
     .where(and(eq(observation.competitorId, competitorId), eq(observation.kind, 'gbp_profile'))).orderBy(desc(observation.observedAt)).limit(1);
   const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);

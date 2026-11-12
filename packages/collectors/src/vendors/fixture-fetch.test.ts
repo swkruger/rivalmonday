@@ -108,6 +108,13 @@ describe('createFixtureFetch', () => {
     await expect(serpSearch(dfs, { keyword: 'ac repair', lat: 30.1, lng: -97.2, radiusM: 5000 }, scope)).rejects.toThrow();
   });
 
+  it('a venue panel search (tag venue_panel, with a coordinate) is answered with a titled panel and events', async () => {
+    const dfs = createDataForSeo({ login: 'f', password: 'f', ledger: ledger().sink, fetch: timedFetch(instant()), maxRetries: 0 });
+    const r = await serpSearch(dfs, { keyword: 'Mohawk Austin', lat: 30.1, lng: -97.2, radiusM: 5000, tag: 'venue_panel' }, scope);
+    expect(r.knowledge?.title).toBe('Mohawk Austin');
+    expect(r.knowledge?.events).toHaveLength(2);
+  });
+
   it('Meta ads (ScrapeCreators, Apify, keyword search) answer at $0 for the requested page', async () => {
     const l = ledger();
     const fetch = timedFetch(instant());

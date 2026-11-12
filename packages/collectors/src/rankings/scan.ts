@@ -1,6 +1,13 @@
-import { agencyServiceable, clientWorkAllowed, client, type Db, type RankResult, rankMapImage, rankScan, type RankScanTrigger, rankSnapshot, serpSnapshot } from '@cs/db';
+import {
+  agencyServiceable, capture, clientWorkAllowed, client, clientCompetitor, competitor, type ClientAddress, type Db, observation, type RankResult,
+  rankMapImage, rankScan, type RankScanTrigger, rankSnapshot, type ServiceArea, serpSnapshot,
+} from '@cs/db';
+import type { CallScope } from '@cs/core';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import type { VerticalPack } from '@cs/verticals';
+import { and, eq, gt, inArray, lt, ne, or, sql } from 'drizzle-orm';
+import { cityFromAddress, nameHit } from '../citations/match';
+import { latestGbp } from '../citations/run';
 import { recordVendorCapture } from '../evidence/vendor-capture';
 import { gridPoints } from '../local/grid';
 import { mapsSearch } from '../local/maps';
@@ -9,6 +16,12 @@ import { type DataForSeoClient, VendorError } from '../vendors/dataforseo';
 import { checkRankScanBudget, estimateRankScanUsd } from './budget';
 import { serpSearch } from './serp';
 import { RANK_MAX_KEYWORDS, rankKeywordsFor, rankMapSettingsHash, rankRadiusKm } from './settings';
+
+/** Capture `url` and observation kind of a stored venue events panel (18d): `listed_events` reads both. */
+export const GBP_EVENTS_URL = 'gbp:events';
+export const VENUE_PANEL_KIND = 'venue_panel';
+/** A business whose panel was captured less than this many days ago is not searched again. */
+export const PANEL_REUSE_DAYS = 6;
 
 export interface RankScanSkipped { scanId: string; agencyId: string; clientId: string; clientName: string; estimatedUsd: number }
 
@@ -42,7 +55,7 @@ function isRunningUniqueViolation(err: unknown): boolean {
  * no snapshot at all is marked failed too.
  */
 export async function scanRankings(
-  deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; onSkipped?: (s: RankScanSkipped) => Promise<void> },
+  deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; packs?: (verticalId: string) => Promise<VerticalPack>; onSkipped?: (s: RankScanSkipped) => Promise<void> },
   clientId: string,
   opts: { trigger: RankScanTrigger; requestedBy?: string; scanId?: string; prospect?: { gridSize: number; maxKeywords: number; depth?: number } },
 ): Promise<{ snapshots: number; failed: number; scanId: string | null; skipped?: 'cap' }> {
@@ -62,7 +75,10 @@ export async function scanRankings(
   const keywords = prospect ? rankKeywordsFor(c).slice(0, Math.min(prospect.maxKeywords, RANK_MAX_KEYWORDS)) : rankKeywordsFor(c);
   const depth = Math.min(prospect?.depth ?? 20, 20);
   const radiusKm = rankRadiusKm(c.serviceArea.radiusKm);
-  const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }, { search: !prospect }).usd;
+  // 18d: venues packs add one panel search per business (self + tracked rivals) to the Sunday scan.
+  const panelOn = !prospect && deps.packs ? (await deps.packs(c.verticalId)).events.panel : false;
+  const panelBusinesses = panelOn ? await venueBusinesses(deps.db, c) : [];
+  const estimatedUsd = estimateRankScanUsd({ ...c, rankKeywords: keywords, rankGridSize: gridSize }, { search: !prospect, panelBusinesses: panelBusinesses.length }).usd;
   const settings = { gridSize, radiusKm, keywords, estimatedUsd, trigger: prospect ? ('scheduled' as const) : opts.trigger, requestedBy: opts.requestedBy ?? null };
 
   let skip = false;
@@ -141,6 +157,7 @@ export async function scanRankings(
     }
     // A scan whose grid stored nothing is failed anyway: don't pay for searches. Prospect scans never search.
     if (!prospect && snapshots > 0) await searchKeywords(deps, c, scanId, keywords, { ...c.serviceArea.center, radiusKm }, scope);
+    if (!prospect && snapshots > 0 && panelBusinesses.length > 0) await searchVenuePanels(deps, { ...c, serviceArea: c.serviceArea }, panelBusinesses, scope);
   } catch (err) {
     await deps.db.update(rankScan).set({ status: 'failed', snapshots, failed, finishedAt: new Date() }).where(eq(rankScan.id, scanId));
     throw err;
@@ -188,6 +205,79 @@ async function searchKeywords(
       console.warn(`[rank-scan] ${c.id} "${keyword}": Google search failed: ${errText(err)}${code} â€” keyword skipped`);
     }
   }
+}
+
+const DAY_MS = 86_400_000;
+
+/** Self business plus tracked rivals with the city to search each in: self = client address, else its Google address; rival = its Google address, else the client's city (18c P5). */
+async function venueBusinesses(
+  db: Db,
+  c: { id: string; selfCompetitorId: string | null; address: ClientAddress | null },
+): Promise<{ competitorId: string; name: string; city: string | null }[]> {
+  const rivals = await db
+    .select({ id: competitor.id, name: competitor.name })
+    .from(clientCompetitor)
+    .innerJoin(competitor, eq(competitor.id, clientCompetitor.competitorId))
+    .where(and(eq(clientCompetitor.clientId, c.id), c.selfCompetitorId ? ne(clientCompetitor.competitorId, c.selfCompetitorId) : undefined))
+    .orderBy(competitor.id);
+  const ids = [...(c.selfCompetitorId ? [c.selfCompetitorId] : []), ...rivals.map((r) => r.id)];
+  if (ids.length === 0) return [];
+  const names = new Map(rivals.map((r) => [r.id, r.name]));
+  if (c.selfCompetitorId) {
+    const [self] = await db.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, c.selfCompetitorId));
+    if (self) names.set(c.selfCompetitorId, self.name);
+  }
+  const clientCity = c.address?.city?.trim() || null;
+  const out: { competitorId: string; name: string; city: string | null }[] = [];
+  for (const id of ids) {
+    const name = names.get(id);
+    if (!name) continue;
+    const gbpCity = cityFromAddress((await latestGbp(db, id)).address);
+    out.push({ competitorId: id, name, city: id === c.selfCompetitorId ? (clientCity ?? gbpCity) : (gbpCity ?? clientCity) });
+  }
+  return out;
+}
+
+/**
+ * One live Google search per business for its venue Events panel (18d D2). A panel is kept only when the knowledge panel
+ * title names the business (P3); then a `gbp:events` capture and a `venue_panel` observation are stored. A fresh capture
+ * (< PANEL_REUSE_DAYS) means no call. An error on one business is logged with its competitor id and never touches the scan.
+ */
+export async function searchVenuePanels(
+  deps: { db: Db; store: ObjectStore; dfs: DataForSeoClient; now?: () => Date },
+  c: { id: string; agencyId: string; timezone: string; serviceArea: ServiceArea; address: ClientAddress | null },
+  businesses: { competitorId: string; name: string; city: string | null }[],
+  scope: CallScope,
+): Promise<{ searched: number; reused: number; stored: number }> {
+  const now = (deps.now ?? (() => new Date()))();
+  const since = new Date(now.getTime() - PANEL_REUSE_DAYS * DAY_MS);
+  const tally = { searched: 0, reused: 0, stored: 0 };
+  for (const b of businesses) {
+    try {
+      const [fresh] = await deps.db.select({ id: capture.id }).from(capture).where(and(
+        eq(capture.competitorId, b.competitorId), eq(capture.url, GBP_EVENTS_URL), eq(capture.status, 'ok'), gt(capture.capturedAt, since),
+      )).limit(1);
+      if (fresh) { tally.reused++; continue; }
+      tally.searched++;
+      const keyword = [b.name.replace(/"/g, ''), b.city].filter(Boolean).join(' ');
+      const { lat, lng, radiusKm } = { ...c.serviceArea.center, radiusKm: rankRadiusKm(c.serviceArea.radiusKm) };
+      const result = await serpSearch(deps.dfs, { keyword, lat, lng, radiusM: radiusKm * 1000, tag: VENUE_PANEL_KIND }, scope);
+      const k = result.knowledge;
+      if (!k || !nameHit(k.title, b.name, b.city)) continue;
+      const { captureId, capturedAt } = await recordVendorCapture(
+        { ...deps, now: () => now },
+        { competitorId: b.competitorId, source: 'google_business_profile', collectorVersion: DFS_COLLECTOR_VERSION, url: GBP_EVENTS_URL, status: 'ok', payload: result.raw },
+      );
+      await deps.db.insert(observation).values({
+        competitorId: b.competitorId, captureId, kind: VENUE_PANEL_KIND, key: 'events', observedAt: capturedAt,
+        data: { timeZone: c.timezone, title: k.title, events: k.events },
+      }).onConflictDoNothing({ target: [observation.captureId, observation.kind, observation.key] });
+      tally.stored++;
+    } catch (err) {
+      console.warn(`[rank-scan] ${c.id} venue panel for competitor ${b.competitorId} failed: ${errText(err)} — skipped`);
+    }
+  }
+  return tally;
 }
 
 function errText(err: unknown): string {
