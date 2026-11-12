@@ -423,6 +423,14 @@ async function seedClient(b: WorldBuilder, s: ClientSpec): Promise<void> {
     competitor_id: selfId, host: `world-dir-self-${lc}.example`, status: 'listed', name_match: true, phone_match: false, shown_phone: '5125550100', listing_url: `https://world-dir.example/self-${lc}`,
     listing_title: `Self listing ${b.c(t)}`, in_catalogue: true, checked_at: b.at(2, 9),
   });
+  // A listed event of the self business (18d), on its own capture.
+  const selfCapture = await b.ins('capture', t, {
+    id: b.id('capture', t), competitor_id: selfId, source: 'web', url: `https://self-${lc}.example/events?ref=${b.c(t)}`, status: 'ok', collector_version: 'world', captured_at: b.at(2, 10),
+  });
+  await b.ins('listed_event', t, {
+    id: b.id('listed_event', t), competitor_id: selfId, event_key: `world-self-event-${lc}`, name: `Self event ${b.c(t)}`, name_norm: `self event ${lc}`, start_date: '2026-12-02', sources: ['web'],
+    url: `https://self-${lc}.example/events`, first_capture_id: selfCapture.id, last_capture_id: selfCapture.id, first_seen_at: b.at(2, 10), last_seen_at: b.at(2, 10),
+  });
 
   // tenant_client
   await b.ins('client_setup', t, {
