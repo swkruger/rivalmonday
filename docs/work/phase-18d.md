@@ -4,10 +4,10 @@
 **Plan/spec:** none yet
 
 ## Status (overwrite)
-Kicked off 2026-11-11; brief below. No roadmap row yet (added at merge).
+Kicked off 2026-11-11; recommendations accepted. Writing the 18d spec.
 
 ## Next (overwrite)
-Owner answers the open questions → `superpowers:brainstorming` → spec.
+Spec (`docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`) → 18d-1 lean plan → owner approval → SDD.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109**; re-check before execution.
@@ -16,7 +16,8 @@ TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109*
 None (no other branch in flight).
 
 ## Decisions (owner-approved)
-- none yet
+- 2026-11-11: owner skipped the questions and accepted every brief recommendation (Q1 A, Q2 A, Q3 A, Q4 B after probe, Q5 B now / A after probe, Q6 A, Q7 C, Q8 A, Q9 C, Q10 A). 18d-1 = events as a source (all verticals); 18d-2 = events & entertainment pack (venues & attractions) + Google Events / Tripadvisor after a coverage probe.
+- 2026-11-11 (overrides the Q1 split): staging holds almost no event data (0/530 Meta ads with `event`, 0/313 Google posts are dated events; web dark) ⇒ **probe first, then one phase**: a few-dollar DataForSEO probe (Google Events search, Tripadvisor) on ~10 real venues, then build table + change type + Events page + venues pack + the sources the probe proves, as one branch.
 
 ## New backlog (target → item)
 - none yet
