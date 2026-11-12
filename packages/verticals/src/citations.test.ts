@@ -110,10 +110,22 @@ describe('claim_url (18c-2)', () => {
   });
 });
 
+describe('events_venues group (Phase 18d)', () => {
+  it('venues = general + events_venues; the host count is derived from the catalogue groups', async () => {
+    const generic = await loadVerticalPack('generic');
+    const defs = generic.citations.directory_groups!;
+    const hosts = citationCatalogue(await assembled('venues_attractions')).map((x) => x.host);
+    expect(hosts).toHaveLength(defs.general!.length + 5);
+    expect(hosts).toContain('tripadvisor.com');
+    expect(hosts.slice(-5)).toEqual(['tripadvisor.com', 'theknot.com', 'eventbrite.com', 'peerspace.com', 'weddingwire.com']);
+    expect(defs.events_venues!.map((x) => x.label)).toEqual(['Tripadvisor', 'The Knot', 'Eventbrite', 'Peerspace', 'WeddingWire']);
+  });
+});
+
 describe('shipped packs (Phase 18c)', () => {
-  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 8 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
+  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 9 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
     const p = await loadVerticalPack(id);
-    expect(p.scoring.version).toBe(8);
+    expect(p.scoring.version).toBe(9);
     expect(p.type_weights.citation_added).toBe(0.3);
     expect(p.self_rules.find((r) => r.id === 'citation_gap')).toMatchObject({ weight: 0.6, playbook: 'fix_citations', params: { min_missing: 3 } });
     const pb = p.playbooks.find((x) => x.id === 'fix_citations');
@@ -122,7 +134,7 @@ describe('shipped packs (Phase 18c)', () => {
   });
 
   it('only generic defines directory_groups', async () => {
-    expect(Object.keys((await loadVerticalPack('generic')).citations.directory_groups ?? {})).toEqual(['general', 'home_services', 'dental_health']);
+    expect(Object.keys((await loadVerticalPack('generic')).citations.directory_groups ?? {})).toEqual(['general', 'home_services', 'dental_health', 'events_venues']);
     expect((await loadVerticalPack('hvac_plumbing')).citations.directory_groups).toBeUndefined();
     expect((await loadVerticalPack('dental')).citations.directory_groups).toBeUndefined();
   });

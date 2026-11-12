@@ -7,7 +7,7 @@ import type { BriefCandidate } from './gather';
 export const PLAYBOOK_TEMPLATE_MAX = 2000;
 
 /** Placeholders a playbook template may use (5b-2 decision 5); `renderPlaybook` fills them from the evidence. */
-export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'topic', 'directories'] as const;
+export const PLAYBOOK_VARS = ['competitor', 'service', 'new_price', 'areas', 'topic', 'directories', 'date', 'event'] as const;
 export type PlaybookVar = (typeof PLAYBOOK_VARS)[number];
 export const PLAYBOOK_TITLE_MAX = 200;
 
@@ -20,7 +20,7 @@ export interface Playbook {
 }
 
 const FALLBACK: Record<string, string> = {
-  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic', directories: "the directories you're missing",
+  competitor: 'the competitor', service: 'this service', new_price: 'a lower price', areas: 'new areas', topic: 'this topic', directories: "the directories you're missing", date: 'that date', event: 'their event',
 } satisfies Record<PlaybookVar, string>;
 
 export function renderPlaybook(template: string, vars: Record<string, string | undefined>): string {
@@ -34,6 +34,16 @@ export function unknownPlaybookVars(template: string): string[] {
 }
 
 export const candidateTrigger = (c: BriefCandidate) => (c.kind === 'move' ? c.moveType : c.changeType);
+/** The event lifecycle of an event candidate (`announced`, `sold_out`, …); moves have none. */
+export const candidateLifecycle = (c: BriefCandidate): string | undefined => (c.kind === 'event' ? c.details.lifecycle : undefined);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** `Mon D` from a `YYYY-MM-DD` (or ISO date-time) string; undefined when it is not a date. */
+const monthDay = (iso: string | undefined): string | undefined => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  const month = m ? MONTHS[Number(m[2]) - 1] : undefined;
+  return m && month ? `${month} ${Number(m[3])}` : undefined;
+};
 
 export function playbookVars(c: BriefCandidate): Record<string, string | undefined> {
   const events = c.kind === 'event' ? [c] : c.events;
@@ -45,6 +55,8 @@ export function playbookVars(c: BriefCandidate): Record<string, string | undefin
     new_price: price?.after?.raw,
     areas: zips.length > 0 ? zips.slice(0, 5).join(', ') : undefined,
     topic: events.map((e) => e.details.topicName ?? e.details.topic).find(Boolean),
+    date: monthDay(events.map((e) => e.details.startDate).find(Boolean)),
+    event: events.map((e) => e.details.eventName).find(Boolean),
   };
 }
 
@@ -60,11 +72,19 @@ export async function resolveLegacyPlaybooks(db: Db, agencyId: string, pack: Ver
 
 /** The stored provenance of a play: its id and (runbook) version; a legacy play (version 0) has no version. */
 export function playbookRef(playbooks: (Playbook & { version: number })[], c: BriefCandidate): { playbookId: string | null; playbookVersion: number | null } {
-  const pb = playbookFor(playbooks, candidateTrigger(c));
+  const pb = playbookFor(playbooks, candidateTrigger(c), candidateLifecycle(c));
   return { playbookId: pb?.id ?? null, playbookVersion: pb && pb.version > 0 ? pb.version : null };
 }
 
-export const playbookFor = <P extends Playbook>(playbooks: P[], trigger: string): P | undefined => playbooks.find((p) => p.trigger === trigger);
+/** The play for a trigger; a sold-out event picks `sold_out_waitlist`, any other `event_listed` the first play that is not it. */
+export const playbookFor = <P extends Playbook>(playbooks: P[], trigger: string, lifecycle?: string): P | undefined => {
+  if (trigger === 'event_listed') {
+    const soldOut = playbooks.find((p) => p.id === 'sold_out_waitlist');
+    if (lifecycle === 'sold_out' && soldOut) return soldOut;
+    return playbooks.find((p) => p.trigger === trigger && p.id !== 'sold_out_waitlist');
+  }
+  return playbooks.find((p) => p.trigger === trigger);
+};
 
 /** Spec §5.1/§8.5: agency roles edit the vertical playbooks for their agency (Phase 5 screen). */
 export async function upsertPlaybookOverride(

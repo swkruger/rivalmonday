@@ -1,6 +1,6 @@
 import type { VerticalPack } from './schema';
 
-export const CITATION_GROUPS = ['general', 'home_services', 'dental_health'] as const;
+export const CITATION_GROUPS = ['general', 'home_services', 'dental_health', 'events_venues'] as const;
 export type CitationGroup = (typeof CITATION_GROUPS)[number];
 
 /** Review-hosting or booking directories we never audit or recommend (spec 18c § Pack, §2.2 spirit). */

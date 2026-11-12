@@ -29,6 +29,7 @@ describe('topicOf', () => {
     expect(topicOf('ad_stopped')).toBe('ads');
     expect(topicOf('rank_change')).toBe('rankings');
     expect(topicOf('citation_added')).toBe('rankings');
+    expect(topicOf('event_listed')).toBe('offers');
     for (const t of CHANGE_TYPES) expect(['reviews', 'ads', 'rankings', 'offers']).toContain(topicOf(t));
     expect(topicOf('whatever_new')).toBe('offers');
   });

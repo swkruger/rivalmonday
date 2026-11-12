@@ -3,11 +3,21 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { assemblePack, splitPack, type BusinessAreaRow, type VerticalRow } from './catalog';
+import type { VerticalPack } from './schema';
 import { PACKS_DIR, listVerticalPacks, loadVerticalPack } from './loader';
 
+function toRows(pack: VerticalPack): { row: VerticalRow; areas: BusinessAreaRow[] } {
+  const s = splitPack(pack);
+  return {
+    row: { ...s.row, status: 'reviewed', mergedInto: null, draftEvidence: null, createdByAgencyId: null },
+    areas: s.areas.map((a) => ({ ...a, verticalId: pack.id, status: 'reviewed', mergedInto: null, evidence: null, createdByAgencyId: null })),
+  };
+}
+
 describe('pilot vertical packs', () => {
-  it('ships exactly the pilot packs', async () => {
-    expect(await listVerticalPacks()).toEqual(['dental', 'generic', 'hvac_plumbing']);
+  it('ships exactly the pilot packs and the venues pack', async () => {
+    expect(await listVerticalPacks()).toEqual(['dental', 'generic', 'hvac_plumbing', 'venues_attractions']);
   });
 
   it.each(['hvac_plumbing', 'dental'])('%s loads with a playbook for every move type', async (id) => {
@@ -73,7 +83,7 @@ describe('Phase 3b pack knobs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
     const p = await loadVerticalPack(id);
     expect(p.type_weights.rank_change).toBe(0.5);
-    expect(p.scoring.version).toBe(8);
+    expect(p.scoring.version).toBe(9);
     expect(p.type_weights.tier_change).toBe(0.6);
     expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
     expect(p.scoring.alert_max_age_days).toBe(7);
@@ -82,27 +92,27 @@ describe('Phase 3b pack knobs', () => {
 });
 
 describe('brief-signal whole_business', () => {
-  it('every shipped pack has whole_business 1 and scoring version 8', async () => {
+  it('every shipped pack has whole_business 1 and scoring version 9', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.scoring.relevance.whole_business, id).toBe(1);
-      expect(p.scoring.version, id).toBe(8);
+      expect(p.scoring.version, id).toBe(9);
     }
   });
 
-  it('every shipped pack has the 18a-2 web weights and version 8', async () => {
+  it('every shipped pack has the 18a-2 web weights and version 9', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.type_weights, id).toMatchObject({ site_feature: 0.7, new_page: 0.7 });
-      expect(p.scoring.version, id).toBe(8);
+      expect(p.scoring.version, id).toBe(9);
     }
   });
 
-  it('every shipped pack has the Phase 18a-1 weights and version 8', async () => {
+  it('every shipped pack has the Phase 18a-1 weights and version 9', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.type_weights, id).toMatchObject({ status_change: 1.0, profile_change: 0.8, audience_growth: 0.7 });
-      expect(p.scoring.version, id).toBe(8);
+      expect(p.scoring.version, id).toBe(9);
       expect(p.scoring.size.audience_pct_for_full, id).toBe(20);
     }
   });
@@ -140,5 +150,59 @@ describe('catalogue seed', () => {
     expect(row, 'seed row missing; run pnpm --filter @cs/verticals seed-sql').not.toBe('');
     expect(row).toContain(`\\"version\\":${pack.scoring.version}}`);
     for (const k of Object.keys(pack.type_weights)) expect(row).toContain(`\\"${k}\\":`);
+  });
+});
+
+describe('Phase 18d packs (events and venues)', () => {
+  const generic = async () => toRows(await loadVerticalPack('generic'));
+  const assembled = async (id: string) => {
+    const g = await generic();
+    const { row, areas } = toRows(await loadVerticalPack(id));
+    return assemblePack(row, areas, g.row);
+  };
+
+  it.each([['generic', 0.5], ['hvac_plumbing', 0.35], ['dental', 0.35]] as const)('%s weights event_listed %s, scores v9 and carries event_gap + list_your_events', async (id, w) => {
+    for (const p of [await loadVerticalPack(id), await assembled(id)]) {
+      expect(p.type_weights.event_listed).toBe(w);
+      expect(p.scoring.version).toBe(9);
+      expect(p.scoring.size.events_for_full).toBe(5);
+      expect(p.self_rules.find((r) => r.id === 'event_gap')).toEqual({ id: 'event_gap', weight: 0.4, playbook: 'list_your_events', strength: false, params: { min_rival_events: 2 } });
+      expect(p.playbooks.find((x) => x.id === 'list_your_events')).toEqual({
+        id: 'list_your_events', trigger: 'event_gap', effort: 'L', impact: 'M', title: 'Put your events where customers look',
+        template: "Post each event on your Google profile with its date, and list it on your website's events page.",
+      });
+      expect(p.events).toEqual({ menu: false, panel: false });
+      expect(p.tripadvisor).toBe(false);
+    }
+  });
+
+  it('venues_attractions parses standalone and assembled with generic', async () => {
+    for (const p of [await loadVerticalPack('venues_attractions'), await assembled('venues_attractions')]) {
+      expect(p).toMatchObject({ id: 'venues_attractions', name: 'Venues & attractions', audience_noun: 'guests', version: 1, tripadvisor: true, events: { menu: true, panel: true } });
+      expect(p.scoring.version).toBe(9);
+      expect(p.type_weights).toMatchObject({ event_listed: 0.8, rating_change: 0.8, price_change: 1.0 });
+      expect(p.citations.groups).toEqual(['general', 'events_venues']);
+      expect(p.services.map((s) => s.id).sort()).toEqual(['corporate_events', 'food_drink', 'group_packages', 'live_music', 'private_events', 'tickets_admission', 'tours_tastings', 'weddings']);
+      expect(p.topics.map((t) => t.id)).toEqual(['atmosphere', 'staff', 'value', 'sound_comfort', 'cleanliness', 'booking_ease']);
+      expect(p.topics.find((t) => t.id === 'sound_comfort')?.name).toBe('Sound & comfort');
+      expect(p.discovery.seed_keywords).toEqual(['event venue', 'live music', 'wedding venue', 'escape room', 'things to do']);
+      expect(p.discovery.categories).toHaveLength(8);
+      expect(p.discovery.related_categories).toEqual(['Bar', 'Brewery', 'Distillery', 'Winery']);
+      expect(p.self_rules.map((r) => r.id).sort()).toEqual([...SELF_RULE_IDS].sort());
+      for (const rule of p.self_rules) {
+        const pb = p.playbooks.find((x) => x.id === rule.playbook);
+        expect(pb?.trigger).toBe(rule.id);
+      }
+    }
+  });
+
+  it('venues plays carry the decided triggers, copy and effort/impact', async () => {
+    const p = await loadVerticalPack('venues_attractions');
+    const play = (id: string) => p.playbooks.find((x) => x.id === id)!;
+    expect(play('counter_programme')).toMatchObject({ trigger: 'event_listed', title: 'Counter-programme their event', effort: 'L', impact: 'M' });
+    expect(play('early_bird')).toMatchObject({ trigger: 'promo', title: 'Sell early with an early-bird price', effort: 'M', impact: 'M' });
+    expect(play('sold_out_waitlist')).toMatchObject({ trigger: 'event_listed', title: 'Catch the sold-out crowd', effort: 'L', impact: 'M' });
+    expect(play('early_bird').template).toBe('Open bookings for your next event with a limited early-bird price and announce it on Google.');
+    expect(play('sold_out_waitlist').template).toBe('{{competitor}} sold out {{event}}. Offer a similar night soon and promote it in posts and ads.');
   });
 });

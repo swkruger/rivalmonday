@@ -1,7 +1,7 @@
 export const CHANGE_TYPES = [
   'price_change', 'promo', 'new_service', 'service_removed', 'service_area_change', 'new_location',
   'hiring', 'ad_started', 'ad_stopped', 'review_spike', 'rating_change', 'rank_change', 'tier_change', 'content', 'cosmetic',
-  'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page', 'citation_added',
+  'status_change', 'profile_change', 'audience_growth', 'site_feature', 'new_page', 'citation_added', 'event_listed',
 ] as const;
 export type ChangeType = (typeof CHANGE_TYPES)[number];
 
@@ -9,7 +9,7 @@ export type ChangeType = (typeof CHANGE_TYPES)[number];
 export const TIER_LABELS = { top: 'Top rival', watch: 'Worth watching', minor: 'Minor' } as const;
 
 /** Where a detected change came from: the `capture.source` of its evidence, or `rank` for tenant-private rank scans. */
-export const CHANNELS = ['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank', 'directories'] as const;
+export const CHANNELS = ['web', 'google_ads', 'meta_ads', 'google_business_profile', 'google_reviews', 'google_jobs', 'rank', 'directories', 'tripadvisor'] as const;
 export type Channel = (typeof CHANNELS)[number];
 
 export const MOVE_TYPES = [
@@ -19,9 +19,13 @@ export type MoveType = (typeof MOVE_TYPES)[number];
 
 /** Findings about the client's own business versus its rivals (Phase 12b starting point); their playbooks share the pack `playbooks` list. */
 export const SELF_RULE_IDS = [
-  'review_velocity_gap', 'reply_rate_gap', 'rating_gap', 'rival_only_advertiser', 'topic_weakness', 'topic_strength', 'map_visibility_gap', 'profile_gap', 'citation_gap',
+  'review_velocity_gap', 'reply_rate_gap', 'rating_gap', 'rival_only_advertiser', 'topic_weakness', 'topic_strength', 'map_visibility_gap', 'profile_gap', 'citation_gap', 'event_gap',
 ] as const;
 export type SelfRuleId = (typeof SELF_RULE_IDS)[number];
+
+/** Lifecycle of a listed event (`detected_change.details.lifecycle`); a first sighting is `announced`. */
+export const EVENT_LIFECYCLES = ['announced', 'cancelled', 'postponed', 'sold_out'] as const;
+export type EventLifecycle = (typeof EVENT_LIFECYCLES)[number];
 
 export const PAGE_TYPES = ['home', 'pricing', 'service', 'service_area', 'promo', 'careers', 'team', 'about', 'contact', 'blog', 'other'] as const;
 export type PageType = (typeof PAGE_TYPES)[number];

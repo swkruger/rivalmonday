@@ -4,7 +4,7 @@ import type { Level } from '@cs/db';
 import { z } from 'zod';
 import { EVIDENCE_CHANNEL_LABEL, escapeEvidence } from './evidence';
 import { type BriefCandidate, type BriefClient, candidateEvents } from './gather';
-import { candidateTrigger, type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
+import { candidateLifecycle, candidateTrigger, type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
 
 export const BRIEF_WRITER_TASK = 'brief_writer';
 export const UPSELL_TAGS = ['local_seo', 'ppc', 'lsa', 'reputation', 'content', 'social', 'website', 'none'] as const;
@@ -111,7 +111,7 @@ export function candidateContextText(c: BriefCandidate): string {
 
 export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): { messages: { role: 'system' | 'user'; content: string }[]; jsonSchema: JsonSchemaFormat } {
   const blocks = candidates.map((cand, i) => {
-    const pb = playbookFor(playbooks, candidateTrigger(cand));
+    const pb = playbookFor(playbooks, candidateTrigger(cand), candidateLifecycle(cand));
     const head = [`Competitor: ${cand.competitorName}`, `Kind: ${cand.kind === 'move' ? `pattern (${cand.moveType})` : cand.changeType}`];
     if (pb) head.push(`Playbook: ${renderPlaybook(pb.template, playbookVars(cand))}`);
     // Competitor names (and playbook vars derived from them) come from scraped pages, so escape the head block too.

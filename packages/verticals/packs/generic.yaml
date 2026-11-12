@@ -35,6 +35,7 @@ type_weights:
   site_feature: 0.7
   new_page: 0.7
   citation_added: 0.3
+  event_listed: 0.5
 
 move_thresholds:
   hiring_push_postings_30d: 3
@@ -46,7 +47,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 8
+  version: 9
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
@@ -185,6 +186,13 @@ playbooks:
     title: Fix your directory listings
     template: >-
       Add or correct your listings on {{directories}} (links on the Listings page), with the same name and phone as your Google profile.
+  - id: list_your_events
+    effort: L
+    impact: M
+    trigger: event_gap
+    title: Put your events where customers look
+    template: >-
+      Post each event on your Google profile with its date, and list it on your website's events page.
 
 self_rules:
   - { id: review_velocity_gap, weight: 1.0, playbook: ask_for_reviews, params: { ratio: 0.5 } }
@@ -196,6 +204,7 @@ self_rules:
   - { id: map_visibility_gap, weight: 0.8, playbook: improve_map_rank, params: { gap: 0.1 } }
   - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }
   - { id: citation_gap, weight: 0.6, playbook: fix_citations, params: { min_missing: 3 } }
+  - { id: event_gap, weight: 0.4, playbook: list_your_events, params: { min_rival_events: 2 } }
 
 citations:
   directory_groups:
@@ -214,5 +223,11 @@ citations:
       - { host: porch.com, label: Porch, add_listing_url: 'https://pro.porch.com/how-it-works' }
     dental_health:
       - { host: findadentist.ada.org, label: ADA Find-a-Dentist, add_listing_url: 'https://www.ada.org/join-the-ada/member-benefits/find-a-dentist', claim_url: 'https://www.ada.org/myada' }
+    events_venues:
+      - { host: tripadvisor.com, label: Tripadvisor, add_listing_url: 'https://www.tripadvisor.com/GetListedNew' }
+      - { host: theknot.com, label: The Knot, add_listing_url: 'https://www.theknot.com/vendors' }
+      - { host: eventbrite.com, label: Eventbrite, add_listing_url: 'https://www.eventbrite.com/organizer/overview/' }
+      - { host: peerspace.com, label: Peerspace, add_listing_url: 'https://www.peerspace.com/host' }
+      - { host: weddingwire.com, label: WeddingWire, add_listing_url: 'https://www.weddingwire.com/vendors' }
   groups: [general]
   min_missing: 3

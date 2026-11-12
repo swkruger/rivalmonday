@@ -1,7 +1,7 @@
 import { type Ai, CassetteMissError } from '@cs/ai';
 import type { CallScope } from '@cs/core';
 import {
-  type BriefCandidate, type BriefDraft, type BriefPeriod, candidateEvidenceIds, candidateEvidenceText, candidateRef, candidateTrigger,
+  type BriefCandidate, type BriefDraft, type BriefPeriod, candidateEvidenceIds, candidateEvidenceText, candidateLifecycle, candidateRef, candidateTrigger,
   countSummary, type DraftItem, periodLine, playbookFor, playbookVars, renderPlaybook, type VerifiedBrief, verifyDraft, writeBrief,
 } from '@cs/engine';
 import { BudgetExceededError } from '../../budget';
@@ -49,7 +49,7 @@ function itemViolations(input: BriefCaseInput & { periodDates: BriefPeriod }, la
     if (vs.length) out.push(`${it.ref}.${f}: ${fmt(vs)}`);
   }
   // Decision 14: advice may also repeat numbers from the case's rendered playbook (verified by rules only).
-  const pb = playbookFor(input.playbooks, candidateTrigger(cand));
+  const pb = playbookFor(input.playbooks, candidateTrigger(cand), candidateLifecycle(cand));
   const recText = pb ? `${text}\n${renderPlaybook(pb.template, playbookVars(cand))}` : text;
   const rv = claimViolations(it.recommended_action, { ...ev, text: recText });
   if (rv.length) out.push(`${it.ref}.recommended_action: ${fmt(rv)}`);

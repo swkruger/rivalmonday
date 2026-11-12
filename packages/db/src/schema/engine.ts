@@ -77,6 +77,10 @@ export interface ChangeDetails {
   pageType?: string;
   pageKey?: string;
   statusBefore?: string;
+  /** Phase 18d (`event_listed`): lifecycle (`announced`/`cancelled`/`postponed`/`sold_out`), event name and start date (`YYYY-MM-DD`). */
+  lifecycle?: string;
+  eventName?: string;
+  startDate?: string;
   statusAfter?: string;
   likesBefore?: number;
   likesAfter?: number;

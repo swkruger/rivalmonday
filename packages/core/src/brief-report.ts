@@ -25,6 +25,8 @@ export const topicOf = (changeType: string): ReportTopic => {
     case 'rank_change':
     case 'citation_added':
       return 'rankings';
+    case 'event_listed':
+      return 'offers';
     default:
       return 'offers';
   }

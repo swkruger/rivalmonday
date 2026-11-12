@@ -23,9 +23,9 @@ export interface ReviewVertical {
   citationGroups: string[];
   detail: { audienceNoun: string; seedKeywords: string[]; primaryCategories: string[]; relatedCategories: string[]; topics: string[]; areas: { id: string; name: string; aliases: string[] }[] };
 }
-const GROUP_LABELS: Record<CitationGroup, string> = { general: 'General directories', home_services: 'Home services', dental_health: 'Dental and health' };
+const GROUP_LABELS: Record<CitationGroup, string> = { general: 'General directories', home_services: 'Home services', dental_health: 'Dental and health', events_venues: 'Events and venues' };
 /** Client file: no runtime import of the `@cs/verticals` barrel (it pulls node:fs). A unit test pins this list to `CITATION_GROUPS`. */
-export const DIRECTORY_GROUP_IDS = ['general', 'home_services', 'dental_health'] as const satisfies readonly CitationGroup[];
+export const DIRECTORY_GROUP_IDS = ['general', 'home_services', 'dental_health', 'events_venues'] as const satisfies readonly CitationGroup[];
 const DIRECTORY_GROUPS = DIRECTORY_GROUP_IDS.map((id) => ({ id, label: GROUP_LABELS[id] }));
 
 export interface ReviewArea {

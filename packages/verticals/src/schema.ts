@@ -129,6 +129,7 @@ export const verticalPackSchema = z
           rating_delta_for_full: z.number().positive().default(0.3),
           rank_delta_for_full: z.number().positive().default(5),
           audience_pct_for_full: z.number().positive().default(20),
+          events_for_full: z.number().positive().default(5),
           structured_min: weight.default(0.3),
         })
         .prefault({}),
@@ -147,6 +148,10 @@ export const verticalPackSchema = z
   discovery: discoverySchema,
   /** Phase 18c directory citations: picked groups, the gap threshold and (generic only) the directory lists. */
   citations: citationsSchema.default({ groups: ['general'], min_missing: 3 }),
+  /** Phase 18d: `menu` shows the client Events page, `panel` adds the weekly Google events-panel search. */
+  events: z.strictObject({ menu: z.boolean().default(false), panel: z.boolean().default(false) }).prefault({}),
+  /** Phase 18d: collect the Tripadvisor rating for the client and its rivals. */
+  tripadvisor: z.boolean().default(false),
   })
   .superRefine((pack, ctx) => {
     const defs = pack.citations.directory_groups;

@@ -4,6 +4,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { listVerticalPacks, loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EventCandidate } from './gather';
+import { SELF_WHY_IT_MATTERS } from './starting-point';
 import { playbookVars, renderPlaybook, resolveLegacyPlaybooks, playbookFor, unknownPlaybookVars, upsertPlaybookOverride } from './playbooks';
 
 const dbs = openTestDbs();
@@ -71,5 +72,46 @@ describe('playbooks', () => {
     await expect(upsertPlaybookOverride(deps, am, { verticalId: 'hvac_plumbing', playbookId: 'nope', template: 'x' }, pack)).rejects.toThrow(/unknown playbook/i);
     await expect(upsertPlaybookOverride(deps, am, { verticalId: 'hvac_plumbing', playbookId: 'price_cut_bundle', template: 'x'.repeat(2001) }, pack)).rejects.toThrow(/2000/);
     expect(await dbs.owner.select().from(playbookOverride)).toHaveLength(0);
+  });
+});
+
+describe('event plays (18d)', () => {
+  const play = (id: string, trigger: string, template: string) => ({ id, trigger, title: id, template, source: 'pack' as const });
+  const pbs = [
+    play('sold_out_waitlist', 'event_listed', '{{competitor}} sold out {{event}}.'),
+    play('counter_programme', 'event_listed', '{{competitor}} has an event on {{date}}.'),
+    play('early_bird', 'promo', 'x'),
+  ];
+  const ev = (details: Record<string, string>) => ({ kind: 'event', competitorName: 'Mohawk', changeType: 'event_listed', facts: [], zips: [], serviceName: null, details }) as unknown as EventCandidate;
+
+  it('every venues template uses only known placeholders', async () => {
+    for (const p of (await loadVerticalPack('venues_attractions')).playbooks) expect(unknownPlaybookVars(p.template), p.id).toEqual([]);
+    expect(unknownPlaybookVars((await loadVerticalPack('generic')).playbooks.find((p) => p.id === 'list_your_events')!.template)).toEqual([]);
+  });
+
+  it('renders counter_programme verbatim and falls back for date and event', async () => {
+    const pack = await loadVerticalPack('venues_attractions');
+    const cp = pack.playbooks.find((p) => p.id === 'counter_programme')!;
+    expect(renderPlaybook(cp.template, { competitor: 'Mohawk', date: 'Nov 13' })).toBe('Mohawk has an event on Nov 13. Plan your own draw for that week and post it on your Google profile now.');
+    expect(renderPlaybook(cp.template, { competitor: 'Mohawk' })).toContain('on that date.');
+    expect(renderPlaybook('{{event}}', {})).toBe('their event');
+  });
+
+  it('playbookVars fills date as Mon D and event from the details', () => {
+    expect(playbookVars(ev({ startDate: '2026-11-13', eventName: 'Kingfish Live' }))).toMatchObject({ competitor: 'Mohawk', date: 'Nov 13', event: 'Kingfish Live' });
+    expect(playbookVars(ev({ startDate: '2026-12-05' })).date).toBe('Dec 5');
+    expect(playbookVars(ev({})).date).toBeUndefined();
+  });
+
+  it('playbookFor picks sold_out_waitlist for a sold-out event, otherwise the first other event_listed play', () => {
+    expect(playbookFor(pbs, 'event_listed', 'sold_out')?.id).toBe('sold_out_waitlist');
+    expect(playbookFor(pbs, 'event_listed', 'announced')?.id).toBe('counter_programme');
+    expect(playbookFor(pbs, 'event_listed')?.id).toBe('counter_programme');
+    expect(playbookFor(pbs, 'promo', 'sold_out')?.id).toBe('early_bird');
+    expect(playbookFor(pbs.slice(1), 'event_listed', 'sold_out')?.id).toBe('counter_programme');
+  });
+
+  it('SELF_WHY_IT_MATTERS covers event_gap with the decided sentence', () => {
+    expect(SELF_WHY_IT_MATTERS.event_gap).toBe('People look on Google for something to do, so events your rivals list can win the night out you could have hosted.');
   });
 });

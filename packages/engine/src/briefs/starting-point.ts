@@ -37,6 +37,7 @@ export const SELF_WHY_IT_MATTERS: Record<SelfRuleId, string> = {
   map_visibility_gap: 'Businesses in the map top three are the ones people see first when they search nearby.',
   profile_gap: 'A complete profile helps Google show you for more searches and helps people decide to call.',
   citation_gap: 'People and Google both check directories, so a missing listing or one with a different name or phone can cost you calls.',
+  event_gap: 'People look on Google for something to do, so events your rivals list can win the night out you could have hosted.',
 };
 
 /** The fallback item carries no playbook: approval turns it into no recommendation. */
