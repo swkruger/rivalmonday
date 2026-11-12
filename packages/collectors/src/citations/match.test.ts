@@ -11,6 +11,11 @@ describe('normaliseName', () => {
 });
 
 describe('nameHit (RF1)', () => {
+  it('18d venue tokens are generic: exact head only', () => {
+    expect(nameHit('The Event Center', 'Event Center Austin', 'Austin')).toBe(false);
+    expect(nameHit('Event Center - Yelp', 'Event Center', 'Austin')).toBe(true);
+    expect(nameHit('Mohawk Austin', 'Mohawk', 'Austin')).toBe(true);
+  });
   it('generic-name needs exact head', () => {
     expect(nameHit('Dallas Plumbing Co - Dallas, TX', 'Dallas Plumbing', 'Dallas')).toBe(true);
     expect(nameHit('Plumbing Services in Dallas, TX', 'Dallas Plumbing', 'Dallas')).toBe(false);

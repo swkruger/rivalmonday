@@ -4,7 +4,8 @@ const LEGAL = new Set(['llc', 'inc', 'co', 'corp', 'corporation', 'company', 'lt
 export const GENERIC_NAME_TOKENS = new Set(['plumbing', 'plumber', 'plumbers', 'heating', 'cooling', 'air', 'conditioning', 'hvac', 'ac', 'service', 'services',
   'repair', 'home', 'pros', 'experts', 'dental', 'dentist', 'dentists', 'dentistry', 'family', 'care', 'center', 'clinic', 'smile', 'smiles', 'best', 'top', 'near', 'in', 'me',
   'emergency', '24', 'hour', 'hr', 'quality', 'affordable', 'reliable', 'residential', 'commercial', 'mechanical', 'water', 'heater', 'heaters', 'drain', 'drains',
-  'sewer', 'electric', 'electrical', 'general', 'cosmetic', 'pediatric', 'local', 'pro', 'expert', 'professional', 'company', 'co', 'group', 'team', 'solutions', 'association']);
+  'sewer', 'electric', 'electrical', 'general', 'cosmetic', 'pediatric', 'local', 'pro', 'expert', 'professional', 'company', 'co', 'group', 'team', 'solutions', 'association',
+  'venue', 'venues', 'events', 'event', 'hall', 'bar', 'brewery', 'winery', 'distillery', 'lounge', 'club', 'room', 'music', 'live']);
 /** US state names (split into words, so "new york" gives "new" and "york") and postal abbreviations, plus DC. */
 export const US_STATE_TOKENS = new Set(['alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut', 'delaware', 'florida', 'georgia',
   'hawaii', 'idaho', 'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota',

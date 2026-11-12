@@ -9,10 +9,34 @@ export const SERP_OPERATION = '/serp/google/organic/live/advanced';
 const SERP_DEPTH = 10;
 const RADIUS_M = { min: 199, max: 199_999 } as const;
 
+/** The knowledge panel's name and its "Events" rows (venue pages, 18d). */
+export interface SerpKnowledge { title: string | null; events: { title: string; subtitle: string | null; url: string | null }[] }
 export interface SerpResult {
   organic: SerpOrganicItem[];
   localServices: SerpLocalServices | null;
+  knowledge: SerpKnowledge | null;
 }
+export const PANEL_EVENTS_MAX = 3;
+
+/** `google.com/goto?url=<target>` to the http(s) target; anything else (or a non-http(s) target) is null. */
+export function gotoTarget(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)google\.[a-z.]+$/.test(u.hostname) || u.pathname !== '/goto') return null;
+    const t = u.searchParams.get('url');
+    return t && /^https?:\/\//i.test(t) ? t : null;
+  } catch { return null; }
+}
+const panelUrl = (url: string | null | undefined): string | null => {
+  const g = gotoTarget(url);
+  if (g) return g;
+  return url && /^https?:\/\//i.test(url) && !/^https?:\/\/([^/]*\.)?google\.[a-z.]+\/goto/i.test(url) ? url : null;
+};
+
+const knowledgeSchema = z.looseObject({ type: z.literal('knowledge_graph'), title: z.string().nullish(), items: z.array(z.unknown()).nullish() });
+const knowledgeListSchema = z.looseObject({ type: z.literal('knowledge_graph_list_item'), title: z.string().nullish(), items: z.array(z.unknown()).nullish() });
+const knowledgeRowSchema = z.looseObject({ title: z.string().nullish(), subtitle: z.string().nullish(), url: z.string().nullish() });
 
 const organicSchema = z.looseObject({
   type: z.literal('organic'),
@@ -79,7 +103,27 @@ export function parseSerp(raw: unknown, max = SERP_DEPTH): SerpResult {
   const list = Array.isArray(items) ? items : [];
   const organic: SerpOrganicItem[] = [];
   let localServices: SerpLocalServices | null = null;
+  let knowledge: SerpKnowledge | null = null;
   for (const item of list) {
+    if (!knowledge) {
+      const k = knowledgeSchema.safeParse(item);
+      if (k.success) {
+        const events: SerpKnowledge['events'] = [];
+        for (const li of k.data.items ?? []) {
+          const l = knowledgeListSchema.safeParse(li);
+          if (!l.success || l.data.title?.trim().toLowerCase() !== 'events') continue;
+          for (const row of l.data.items ?? []) {
+            const r = knowledgeRowSchema.safeParse(row);
+            const title = r.success ? r.data.title?.trim() : undefined;
+            if (!r.success || !title || events.length >= PANEL_EVENTS_MAX) continue;
+            events.push({ title, subtitle: r.data.subtitle?.trim() || null, url: panelUrl(r.data.url) });
+          }
+          break;
+        }
+        knowledge = { title: k.data.title?.trim() || null, events };
+        continue;
+      }
+    }
     const o = organicSchema.safeParse(item);
     if (o.success) {
       if (organic.length < max) {
@@ -107,7 +151,7 @@ export function parseSerp(raw: unknown, max = SERP_DEPTH): SerpResult {
     }
     localServices = { title: l.data.title ?? null, providers };
   }
-  return { organic, localServices };
+  return { organic, localServices, knowledge };
 }
 
 /** One live Google search (page one, desktop) centred on the service area; `raw` is the vendor result array for evidence. */
@@ -124,7 +168,7 @@ export async function serpSearch(
   );
   // No task back is an error, not "nobody ranks here".
   if (!task) throw new VendorError('dataforseo', null, 'empty task', false);
-  if (isNoResults(task)) return { organic: [], localServices: null, raw: [] };
+  if (isNoResults(task)) return { organic: [], localServices: null, knowledge: null, raw: [] };
   if (!isDfsOk(task.statusCode)) throw new VendorError('dataforseo', task.statusCode, task.statusMessage, isRetryableDfsCode(task.statusCode));
   const raw = task.result ?? [];
   return { ...parseSerp(raw), raw };

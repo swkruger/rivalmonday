@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { VendorError } from '../vendors/dataforseo';
 import stage1 from '../citations/__fixtures__/citation-stage1.json';
+import fixture from './__fixtures__/serp-venue-panel.json';
 import live from './__fixtures__/serp-live.json';
 import withLsa from './__fixtures__/serp-local-services.json';
-import { organicHost, parseSerp, SERP_CALL_USD, serpSearch } from './serp';
+import { gotoTarget, organicHost, parseSerp, SERP_CALL_USD, serpSearch } from './serp';
 
 const liveResult = (live as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
 const stage1Result = (stage1 as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
@@ -31,7 +32,7 @@ describe('parseSerp', () => {
   it('caps at 10 organic items and tolerates junk', () => {
     const items = Array.from({ length: 14 }, (_, i) => ({ type: 'organic', rank_group: i + 1, domain: `d${i}.example` }));
     expect(parseSerp([{ items }]).organic).toHaveLength(10);
-    expect(parseSerp(null)).toEqual({ organic: [], localServices: null });
+    expect(parseSerp(null)).toEqual({ organic: [], localServices: null, knowledge: null });
     expect(parseSerp([{ items: [{ type: 'organic' }, 5] }]).organic).toEqual([]);
   });
 });
@@ -94,5 +95,48 @@ describe('serpSearch', () => {
   it('throws VendorError on a failed task or no task', async () => {
     await expect(serpSearch(fakeDfs(() => [dfsTask(null, { statusCode: 50000, statusMessage: 'x' })]), { keyword: 'k', lat: 1, lng: 2, radiusM: 5000 }, scope)).rejects.toBeInstanceOf(VendorError);
     await expect(serpSearch(fakeDfs(() => []), { keyword: 'k', lat: 1, lng: 2, radiusM: 5000 }, scope)).rejects.toBeInstanceOf(VendorError);
+  });
+});
+
+describe('parseSerp knowledge panel (18d)', () => {
+  const venue = (fixture as { tasks: { result: unknown[] }[] }).tasks[0]!.result;
+  const panel = (items: unknown[]) => [{ items: [{ type: 'knowledge_graph', title: 'X Hall', items }] }];
+  const row = (n: number) => ({ type: 'knowledge_graph_list_element', title: `E${n}`, subtitle: 'Fri', url: null });
+
+  it('reads the panel title and Events rows from the fixture', () => {
+    const k = parseSerp(venue).knowledge!;
+    expect(k.title).toBe('Mohawk Austin');
+    expect(k.events).toHaveLength(3);
+    expect(k.events[0]).toEqual({ title: 'Hot Tuna: Electric Set', subtitle: 'Wed, Nov 11, 7:30 PM', url: 'https://www.mohawkaustin.com/events/hot-tuna' });
+    expect(k.events[1]).toMatchObject({ title: 'Sunday Soul Social', subtitle: 'Fri, Nov 13, 8:00 PM', url: 'https://www.mohawkaustin.com/events/soul-social' });
+    expect(parseSerp(venue).organic.length).toBeGreaterThan(0);
+  });
+  it('RF1: no knowledge_graph gives knowledge null', () => {
+    expect(parseSerp(liveResult).knowledge).toBeNull();
+  });
+  it('a panel with only a Menu list has no events', () => {
+    expect(parseSerp(panel([{ type: 'knowledge_graph_list_item', title: 'Menu', items: [row(1)] }])).knowledge).toEqual({ title: 'X Hall', events: [] });
+  });
+  it('ignores a 4th row, rows without a title, and matches "events" case-insensitively', () => {
+    const rows = [{ subtitle: 'x' }, row(1), row(2), row(3), row(4)];
+    const k = parseSerp(panel([{ type: 'knowledge_graph_list_item', title: 'EVENTS', items: rows }])).knowledge!;
+    expect(k.events.map((e) => e.title)).toEqual(['E1', 'E2', 'E3']);
+  });
+  it('keeps a plain http(s) url, drops other schemes', () => {
+    const rows = [{ title: 'A', url: 'https://x.example/e' }, { title: 'B', url: 'javascript:alert(1)' }];
+    const k = parseSerp(panel([{ type: 'knowledge_graph_list_item', title: 'Events', items: rows }])).knowledge!;
+    expect(k.events.map((e) => e.url)).toEqual(['https://x.example/e', null]);
+  });
+});
+
+describe('gotoTarget', () => {
+  it('decodes the target', () => {
+    expect(gotoTarget('https://www.google.com/goto?url=https%3A%2F%2Fmohawkaustin.com%2Fe%2F1')).toBe('https://mohawkaustin.com/e/1');
+  });
+  it('rejects non-http targets and non-goto urls', () => {
+    expect(gotoTarget('https://www.google.com/goto?url=javascript%3Aalert(1)')).toBeNull();
+    expect(gotoTarget('https://example.com/goto?url=https%3A%2F%2Fa.example')).toBeNull();
+    expect(gotoTarget(null)).toBeNull();
+    expect(gotoTarget('not a url')).toBeNull();
   });
 });
