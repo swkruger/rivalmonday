@@ -1,13 +1,13 @@
 # phase-18d — Wider sources, part 4: events & entertainment vertical
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18d   **Base:** main @ 4985fbb0
-**Plan/spec:** none yet
+**Plan/spec:** `docs/superpowers/plans/2026-11-11-phase-18d-events-venues.md` / `docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`
 
 ## Status (overwrite)
-Kicked off 2026-11-11; recommendations accepted. Writing the 18d spec.
+Spec + probe committed; plan written 2026-11-11, awaiting owner approval.
 
 ## Next (overwrite)
-Spec (`docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`) → 18d-1 lean plan → owner approval → SDD.
+Owner approves the plan → Task 0 pre-flight → SDD.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109**; re-check before execution.
