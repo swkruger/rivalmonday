@@ -68,6 +68,7 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   ad: 'global_public',
   ad_image: 'global_public',
   gbp_post: 'global_public',
+  listed_event: 'global_public',
   citation_listing: 'global_public',
   capture: 'global_public',
   capture_block: 'global_public',

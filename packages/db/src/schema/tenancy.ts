@@ -144,6 +144,9 @@ export const competitor = pgTable('competitor', {
   metaPageIds: jsonb('meta_page_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   /** Google Ads Transparency advertiser ids pinned to this competitor; when set, ads are queried by id, not by domain. */
   googleAdvertiserIds: jsonb('google_advertiser_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  /** Tripadvisor listing (18d): id = the `d<digits>` segment of its URL. */
+  tripadvisorId: text('tripadvisor_id'),
+  tripadvisorUrl: text('tripadvisor_url'),
   createdAt: createdAt(),
 });
 

@@ -81,6 +81,13 @@ export interface ChangeDetails {
   lifecycle?: string;
   eventName?: string;
   startDate?: string;
+  eventKey?: string;
+  ticketed?: boolean;
+  listedEventId?: string;
+  /** Channel an event was read from (`web`, `meta_ads`, `google_panel`). */
+  source?: string;
+  /** Review/rating platform of a rating change (18d D13). */
+  platform?: 'google' | 'tripadvisor';
   statusAfter?: string;
   likesBefore?: number;
   likesAfter?: number;
