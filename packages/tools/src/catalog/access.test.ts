@@ -35,7 +35,7 @@ describe('catalogue access', () => {
 
   it('catalogPacks lists the selectable packs (no generic)', async () => {
     const ids = (await catalogPacks(deps({ catalog: createCatalog(() => catalogRows(dbs.service)) }))).map((p) => p.id).sort();
-    expect(ids).toEqual(['dental', 'hvac_plumbing']);
+    expect(ids).toEqual(['dental', 'hvac_plumbing', 'venues_attractions']);
   });
 
   it('packFor resolves a merged id to its target and refuses unknown ids', async () => {

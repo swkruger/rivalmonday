@@ -20,7 +20,7 @@ describe('vertical catalogue tables', () => {
 
   it('app_service reads the seeded catalogue', async () => {
     const { verticals, areas } = await catalogRows(dbs.service);
-    expect(verticals.map((v) => v.id).sort()).toEqual(['dental', 'generic', 'hvac_plumbing']);
+    expect(verticals.map((v) => v.id).sort()).toEqual(['dental', 'generic', 'hvac_plumbing', 'venues_attractions']);
     expect(verticals.every((v) => v.status === 'reviewed' && v.version >= 1)).toBe(true);
     expect(areas.some((a) => a.verticalId === 'hvac_plumbing')).toBe(true);
     expect(areas.some((a) => a.verticalId === 'generic' && a.id === 'general')).toBe(true);
@@ -29,12 +29,12 @@ describe('vertical catalogue tables', () => {
     expect(cats.some((c) => c.verticalId === 'generic')).toBe(false);
   });
 
-  it('seedVerticalCatalog restores three verticals after truncateAll and is idempotent', async () => {
+  it('seedVerticalCatalog restores four verticals after truncateAll and is idempotent', async () => {
     for (const t of ['vertical_draft', 'vertical_category', 'business_area', 'vertical']) await dbs.owner.execute(sql.raw(`delete from ${t}`));
     expect((await catalogRows(dbs.service)).verticals).toHaveLength(0);
     await seedVerticalCatalog(dbs.owner);
     await seedVerticalCatalog(dbs.owner);
-    expect((await catalogRows(dbs.service)).verticals).toHaveLength(3);
+    expect((await catalogRows(dbs.service)).verticals).toHaveLength(4);
   });
 
   it('rejects status=merged without merged_into', async () => {

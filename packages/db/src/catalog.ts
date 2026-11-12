@@ -33,7 +33,7 @@ export async function catalogRows(db: Db): Promise<{ verticals: VerticalRow[]; a
   };
 }
 
-/** Re-inserts the seeded catalogue (generic, hvac_plumbing, dental). Same statements as migration 0077; idempotent (ON CONFLICT DO NOTHING). Needs an owner connection. */
+/** Re-inserts the seeded catalogue (generic, hvac_plumbing, dental, venues_attractions). Same statements as migration 0077; idempotent (ON CONFLICT DO NOTHING). Needs an owner connection. */
 export async function seedVerticalCatalog(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
     for (const stmt of VERTICAL_CATALOG_SEED) await tx.execute(sql.raw(stmt));

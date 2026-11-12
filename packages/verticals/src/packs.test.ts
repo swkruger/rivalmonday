@@ -143,7 +143,7 @@ describe('catalogue seed', () => {
     expect(sql).not.toMatch(/theme/i);
   });
 
-  it.each(['hvac_plumbing', 'dental', 'generic'])('%s seed matches the pack scoring version and weights', async (id) => {
+  it.each(['hvac_plumbing', 'dental', 'generic', 'venues_attractions'])('%s seed matches the pack scoring version and weights', async (id) => {
     const sql = await readFile(join(PACKS_DIR, '../../db/src/catalog-seed.sql.ts'), 'utf8');
     const pack = await loadVerticalPack(id);
     const row = sql.split('INSERT INTO vertical (').find((r) => r.includes(`VALUES ('${id}'`)) ?? '';

@@ -22,17 +22,17 @@ const am = ctx('account_manager');
 const adminB = ctx('agency_admin', IDS.agencyB);
 const viewer = ctx('client_viewer');
 
-const distillery = {
-  name: 'Craft distilleries',
+const groomer = {
+  name: 'Pet groomers',
   areas: [{ name: 'Tasting room', aliases: ['tastings'] }, { name: 'Bottle sales' }],
   audienceNoun: 'guests',
-  seedKeywords: ['distillery near me'],
-  categories: ['Distillery', ' Whisky Distillery '],
-  relatedCategories: ['Liquor store'],
+  seedKeywords: ['pet groomer near me'],
+  categories: ['Pet groomer', ' Mobile Pet Groomer '],
+  relatedCategories: ['Pet store'],
   topics: [{ name: 'Tour quality', description: 'How good the tour is' }],
 };
 type Created = { verticalId: string; droppedCategories: string[] };
-const create = (c: AccessContext, input: Record<string, unknown> = distillery) => registry.invoke(c, 'create_vertical', input) as Promise<Created>;
+const create = (c: AccessContext, input: Record<string, unknown> = groomer) => registry.invoke(c, 'create_vertical', input) as Promise<Created>;
 const q = async <T extends Record<string, unknown>>(query: ReturnType<typeof sql>) => (await dbs.owner.execute(query)) as unknown as T[];
 
 beforeEach(async () => {
@@ -43,118 +43,118 @@ beforeEach(async () => {
 describe('create_vertical', () => {
   it('writes the vertical, areas and categories as unreviewed, owned by the agency', async () => {
     const out = await create(admin);
-    expect(out).toEqual({ verticalId: 'distillery', droppedCategories: [] });
+    expect(out).toEqual({ verticalId: 'pet_groomer', droppedCategories: [] });
     const [v] = await q<{ status: string; created_by_agency_id: string; version: number; gbp_categories: string[]; gbp_related_categories: string[]; config: Record<string, unknown> }>(
-      sql`select * from vertical where id = 'distillery'`);
-    expect(v).toMatchObject({ status: 'unreviewed', created_by_agency_id: IDS.agencyA, version: 1, gbp_categories: ['distillery', 'whisky distillery'], gbp_related_categories: ['liquor store'] });
-    expect(v!.config).toEqual({ audience_noun: 'guests', topics: [{ id: 'tour_quality', name: 'Tour quality', description: 'How good the tour is' }], discovery: { seed_keywords: ['distillery near me'] } });
-    const areas = await q<{ id: string; status: string; aliases: string[] }>(sql`select id, status, aliases from business_area where vertical_id = 'distillery' order by id`);
+      sql`select * from vertical where id = 'pet_groomer'`);
+    expect(v).toMatchObject({ status: 'unreviewed', created_by_agency_id: IDS.agencyA, version: 1, gbp_categories: ['pet groomer', 'mobile pet groomer'], gbp_related_categories: ['pet store'] });
+    expect(v!.config).toEqual({ audience_noun: 'guests', topics: [{ id: 'tour_quality', name: 'Tour quality', description: 'How good the tour is' }], discovery: { seed_keywords: ['pet groomer near me'] } });
+    const areas = await q<{ id: string; status: string; aliases: string[] }>(sql`select id, status, aliases from business_area where vertical_id = 'pet_groomer' order by id`);
     expect(areas).toEqual([{ id: 'bottle_sales', status: 'unreviewed', aliases: [] }, { id: 'tasting_room', status: 'unreviewed', aliases: ['tastings'] }]);
-    const cats = await q<{ category_lc: string; kind: string }>(sql`select category_lc, kind from vertical_category where vertical_id = 'distillery' order by category_lc`);
-    expect(cats).toEqual([{ category_lc: 'distillery', kind: 'primary' }, { category_lc: 'liquor store', kind: 'related' }, { category_lc: 'whisky distillery', kind: 'primary' }]);
-    expect((await catalog.packs('distillery')).services.map((s) => s.id).sort()).toEqual(['bottle_sales', 'tasting_room']);
+    const cats = await q<{ category_lc: string; kind: string }>(sql`select category_lc, kind from vertical_category where vertical_id = 'pet_groomer' order by category_lc`);
+    expect(cats).toEqual([{ category_lc: 'mobile pet groomer', kind: 'primary' }, { category_lc: 'pet groomer', kind: 'primary' }, { category_lc: 'pet store', kind: 'related' }]);
+    expect((await catalog.packs('pet_groomer')).services.map((s) => s.id).sort()).toEqual(['bottle_sales', 'tasting_room']);
   });
 
   it('is idempotent for the same agency while unreviewed', async () => {
     await create(admin);
-    expect(await create(admin)).toEqual({ verticalId: 'distillery', droppedCategories: [] });
-    expect(await q(sql`select 1 from vertical where id like 'distill%'`)).toHaveLength(1);
+    expect(await create(admin)).toEqual({ verticalId: 'pet_groomer', droppedCategories: [] });
+    expect(await q(sql`select 1 from vertical where id like 'pet_groom%'`)).toHaveLength(1);
   });
 
   it('refuses a similar existing business type with the decided copy', async () => {
     await create(admin);
-    await expect(create(adminB, { ...distillery, name: 'Distillery', categories: ['Other category'] })).rejects.toMatchObject({
-      code: 'conflict', userFacing: true, message: 'A similar business type already exists: Craft distilleries.',
+    await expect(create(adminB, { ...groomer, name: 'Pet groomer', categories: ['Other category'] })).rejects.toMatchObject({
+      code: 'conflict', userFacing: true, message: 'A similar business type already exists: Pet groomers.',
     });
-    await expect(create(admin, { ...distillery, name: 'Dental practice', categories: ['Dentist'] })).rejects.toMatchObject({ code: 'conflict', message: expect.stringContaining('Dental practices') });
+    await expect(create(admin, { ...groomer, name: 'Dental practice', categories: ['Dentist'] })).rejects.toMatchObject({ code: 'conflict', message: expect.stringContaining('Dental practices') });
   });
 
   it('drops categories another business type owns and returns them', async () => {
-    const out = await create(admin, { ...distillery, categories: ['Distillery', 'HVAC contractor'], relatedCategories: ['Dentist'] });
+    const out = await create(admin, { ...groomer, categories: ['Pet groomer', 'HVAC contractor'], relatedCategories: ['Dentist'] });
     expect(out.droppedCategories.sort()).toEqual(['dentist', 'hvac contractor']);
-    const cats = await q<{ category_lc: string }>(sql`select category_lc from vertical_category where vertical_id = 'distillery'`);
-    expect(cats).toEqual([{ category_lc: 'distillery' }]);
+    const cats = await q<{ category_lc: string }>(sql`select category_lc from vertical_category where vertical_id = 'pet_groomer'`);
+    expect(cats).toEqual([{ category_lc: 'pet groomer' }]);
   });
 
   it('refuses when every category is owned elsewhere', async () => {
-    await expect(create(admin, { ...distillery, categories: ['HVAC contractor'] })).rejects.toMatchObject({
+    await expect(create(admin, { ...groomer, categories: ['HVAC contractor'] })).rejects.toMatchObject({
       code: 'invalid_input', message: 'Add at least one Google category that no other business type uses.',
     });
-    expect(await q(sql`select 1 from vertical where id = 'distillery'`)).toHaveLength(0);
+    expect(await q(sql`select 1 from vertical where id = 'pet_groomer'`)).toHaveLength(0);
   });
 
   it('refuses a pack that would not validate, writing nothing', async () => {
-    await expect(create(admin, { ...distillery, seedKeywords: ['x'] })).rejects.toMatchObject({ code: 'invalid_input' });
-    await expect(create(admin, { ...distillery, name: 'The Local Shop' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, seedKeywords: ['x'] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, name: 'The Local Shop' })).rejects.toMatchObject({ code: 'invalid_input' });
     expect(await q(sql`select 1 from vertical where created_by_agency_id is not null`)).toHaveLength(0);
     expect(await q(sql`select 1 from business_area where created_by_agency_id is not null`)).toHaveLength(0);
   });
 
   it('suffixes the slug when it collides with a different vertical', async () => {
-    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('distillery', 'Old stills', 'merged', 'dental')`);
-    expect((await create(admin)).verticalId).toBe('distillery_2');
+    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('pet_groomer', 'Old stills', 'merged', 'dental')`);
+    expect((await create(admin)).verticalId).toBe('pet_groomer_2');
   });
 
   it('refuses names carrying client data (phone, email, url, client business name)', async () => {
     await dbs.owner.execute(sql`update client set name = 'Acme Heating' where id = ${IDS.clientA1}`);
-    for (const name of ['Distillery 512-555-0147', 'Stills mail@acme.com', 'Stills acme.com/x', 'Acme Heating stills']) {
-      await expect(create(admin, { ...distillery, name })).rejects.toMatchObject({ code: 'invalid_input' });
+    for (const name of ['Pet groomer 512-555-0147', 'Stills mail@acme.com', 'Stills acme.com/x', 'Acme Heating stills']) {
+      await expect(create(admin, { ...groomer, name })).rejects.toMatchObject({ code: 'invalid_input' });
     }
-    await expect(create(admin, { ...distillery, areas: [{ name: 'Call 512-555-0147' }] })).rejects.toMatchObject({ code: 'invalid_input' });
-    await expect(create(admin, { ...distillery, areas: [{ name: 'Tastings', aliases: ['acme heating tastings'] }] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, areas: [{ name: 'Call 512-555-0147' }] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, areas: [{ name: 'Tastings', aliases: ['acme heating tastings'] }] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
   it('matches client names as whole words only', async () => {
     await dbs.owner.execute(sql`update client set name = 'Ace' where id = ${IDS.clientA1}`);
-    await expect(create(admin, { ...distillery, name: 'Furnace repair shops', categories: ['Furnace shop'] })).resolves.toMatchObject({ verticalId: 'furnace_repair_shop' });
-    await expect(create(admin, { ...distillery, name: 'Ace Plumbing services', categories: ['Plumbing shop'] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, name: 'Furnace repair shops', categories: ['Furnace shop'] })).resolves.toMatchObject({ verticalId: 'furnace_repair_shop' });
+    await expect(create(admin, { ...groomer, name: 'Ace Plumbing services', categories: ['Plumbing shop'] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
   it('refuses a name containing the business being onboarded (not yet a client)', async () => {
-    await expect(create(admin, { ...distillery, name: 'Hill Country Distillery tours', businessName: 'Hill Country Distillery' })).rejects.toMatchObject({ code: 'invalid_input', userFacing: true });
-    await expect(create(admin, { ...distillery, areas: [{ name: 'hill country distillery tasting' }], businessName: 'Hill Country Distillery' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(create(admin, { ...groomer, name: 'Hill Country Groomers tours', businessName: 'Hill Country Groomers' })).rejects.toMatchObject({ code: 'invalid_input', userFacing: true });
+    await expect(create(admin, { ...groomer, areas: [{ name: 'hill country groomers tasting' }], businessName: 'Hill Country Groomers' })).rejects.toMatchObject({ code: 'invalid_input' });
     expect(await q(sql`select 1 from vertical where created_by_agency_id is not null`)).toHaveLength(0);
-    await expect(create(admin, { ...distillery, businessName: 'Hill Country Distillery' })).resolves.toMatchObject({ verticalId: 'distillery' });
+    await expect(create(admin, { ...groomer, businessName: 'Hill Country Groomers' })).resolves.toMatchObject({ verticalId: 'pet_groomer' });
   });
 
   it('replays idempotently even when the first create got a suffixed slug', async () => {
-    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('distillery', 'Old stills', 'merged', 'dental')`);
+    await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('pet_groomer', 'Old stills', 'merged', 'dental')`);
     const first = await create(admin);
-    expect(first.verticalId).toBe('distillery_2');
-    expect(await create(admin)).toEqual({ verticalId: 'distillery_2', droppedCategories: [] });
+    expect(first.verticalId).toBe('pet_groomer_2');
+    expect(await create(admin)).toEqual({ verticalId: 'pet_groomer_2', droppedCategories: [] });
     expect(await q(sql`select 1 from vertical where created_by_agency_id is not null`)).toHaveLength(1);
   });
 
   it('copies draft evidence cached by another agency (the cache is global by place)', async () => {
     await dbs.owner.execute(sql`insert into vertical_draft (place_id, agency_id, draft) values ('pl3', ${IDS.agencyA}, '{"sources":["a"]}'::jsonb)`);
-    await create(adminB, { ...distillery, draftPlaceId: 'pl3' });
-    const [v] = await q<{ draft_evidence: unknown }>(sql`select draft_evidence from vertical where id = 'distillery'`);
+    await create(adminB, { ...groomer, draftPlaceId: 'pl3' });
+    const [v] = await q<{ draft_evidence: unknown }>(sql`select draft_evidence from vertical where id = 'pet_groomer'`);
     expect(v!.draft_evidence).toEqual({ sources: ['a'] });
   });
 
   it('copies the agency’s draft evidence and re-keys the draft LLM spend', async () => {
     await dbs.owner.execute(sql`insert into vertical_draft (place_id, agency_id, draft) values ('pl1', ${IDS.agencyA}, '{"sources":["a"]}'::jsonb)`);
     await dbs.owner.execute(sql`insert into llm_call (agency_id, task, provider, model, input_tokens, output_tokens, latency_ms, ok, vertical_id) values (${IDS.agencyA}, 't', 'p', 'm', 1, 1, 1, true, 'draft:pl1')`);
-    await create(admin, { ...distillery, draftPlaceId: 'pl1' });
-    const [v] = await q<{ draft_evidence: unknown }>(sql`select draft_evidence from vertical where id = 'distillery'`);
+    await create(admin, { ...groomer, draftPlaceId: 'pl1' });
+    const [v] = await q<{ draft_evidence: unknown }>(sql`select draft_evidence from vertical where id = 'pet_groomer'`);
     expect(v!.draft_evidence).toEqual({ sources: ['a'] });
-    expect(await q(sql`select vertical_id from llm_call`)).toEqual([{ vertical_id: 'distillery' }]);
+    expect(await q(sql`select vertical_id from llm_call`)).toEqual([{ vertical_id: 'pet_groomer' }]);
   });
 
   it('does not re-key another agency’s draft spend', async () => {
     await dbs.owner.execute(sql`insert into llm_call (agency_id, task, provider, model, input_tokens, output_tokens, latency_ms, ok, vertical_id) values (${IDS.agencyB}, 't', 'p', 'm', 1, 1, 1, true, 'draft:pl2')`);
-    await create(admin, { ...distillery, draftPlaceId: 'pl2' });
+    await create(admin, { ...groomer, draftPlaceId: 'pl2' });
     expect(await q(sql`select vertical_id from llm_call`)).toEqual([{ vertical_id: 'draft:pl2' }]);
   });
 
   it('concurrent identical creates yield one vertical and the same id', async () => {
     const [a, b] = await Promise.all([create(admin), create(admin)]);
     expect(a).toEqual(b);
-    expect(await q(sql`select 1 from vertical where id like 'distill%'`)).toHaveLength(1);
+    expect(await q(sql`select 1 from vertical where id like 'pet_groom%'`)).toHaveLength(1);
   });
 
   it('concurrent similar-name creates by different agencies: one wins, the other gets a conflict', async () => {
-    const r = await Promise.allSettled([create(admin), create(adminB, { ...distillery, name: 'Distillery', categories: ['Other category'] })]);
+    const r = await Promise.allSettled([create(admin), create(adminB, { ...groomer, name: 'Pet groomer', categories: ['Other category'] })]);
     expect(r.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
     expect((r.find((x) => x.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ code: 'conflict' });
   });
@@ -162,7 +162,7 @@ describe('create_vertical', () => {
   it('is for agency staff only and refused in support sessions', async () => {
     await expect(create(viewer)).rejects.toMatchObject({ code: expect.stringMatching(/permission_denied|not_found/) });
     await expect(create(ctx('agency_admin', IDS.agencyA, true))).rejects.toMatchObject({ code: 'read_only_session' });
-    expect((await create(am)).verticalId).toBe('distillery');
+    expect((await create(am)).verticalId).toBe('pet_groomer');
   });
 });
 
@@ -199,38 +199,38 @@ describe('update_vertical', () => {
   it('bumps the version, rewrites categories and areas', async () => {
     await create(admin);
     const out = await registry.invoke(admin, 'update_vertical', {
-      verticalId: 'distillery', audienceNoun: 'visitors', categories: ['Distillery', 'Bourbon distillery'], relatedCategories: [],
+      verticalId: 'pet_groomer', audienceNoun: 'visitors', categories: ['Pet groomer', 'Show grooming'], relatedCategories: [],
       areas: [{ id: 'tasting_room', name: 'Tasting rooms' }, { name: 'Gift shop' }],
     });
-    expect(out).toEqual({ verticalId: 'distillery', version: 2 });
-    expect((await q<{ gbp_categories: string[]; gbp_related_categories: string[] }>(sql`select gbp_categories, gbp_related_categories from vertical where id = 'distillery'`))[0])
-      .toEqual({ gbp_categories: ['distillery', 'bourbon distillery'], gbp_related_categories: [] });
-    expect((await q(sql`select 1 from vertical_category where vertical_id = 'distillery'`))).toHaveLength(2);
-    const pack = await catalog.packs('distillery');
+    expect(out).toEqual({ verticalId: 'pet_groomer', version: 2 });
+    expect((await q<{ gbp_categories: string[]; gbp_related_categories: string[] }>(sql`select gbp_categories, gbp_related_categories from vertical where id = 'pet_groomer'`))[0])
+      .toEqual({ gbp_categories: ['pet groomer', 'show grooming'], gbp_related_categories: [] });
+    expect((await q(sql`select 1 from vertical_category where vertical_id = 'pet_groomer'`))).toHaveLength(2);
+    const pack = await catalog.packs('pet_groomer');
     expect(pack).toMatchObject({ version: 2, audience_noun: 'visitors' });
     expect(pack.services.map((s) => `${s.id}:${s.name}`).sort()).toEqual(['gift_shop:Gift shop', 'tasting_room:Tasting rooms']);
   });
 
   it('refuses removing an area that clients use', async () => {
     await create(admin);
-    await dbs.owner.execute(sql`update client set vertical_id = 'distillery', services = '["bottle_sales"]'::jsonb where id = ${IDS.clientA1}`);
-    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'distillery', areas: [{ id: 'tasting_room', name: 'Tasting room' }] })).rejects.toMatchObject({
+    await dbs.owner.execute(sql`update client set vertical_id = 'pet_groomer', services = '["bottle_sales"]'::jsonb where id = ${IDS.clientA1}`);
+    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'pet_groomer', areas: [{ id: 'tasting_room', name: 'Tasting room' }] })).rejects.toMatchObject({
       code: 'invalid_input', message: 'Clients use Bottle sales. Ask the platform team to merge it instead.',
     });
-    expect((await q(sql`select 1 from business_area where vertical_id = 'distillery'`))).toHaveLength(2);
+    expect((await q(sql`select 1 from business_area where vertical_id = 'pet_groomer'`))).toHaveLength(2);
   });
 
   it('refuses a result that would not validate (no areas left)', async () => {
     await create(admin);
-    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'distillery', areas: [] })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'pet_groomer', areas: [] })).rejects.toMatchObject({ code: 'invalid_input' });
   });
 
   it('is only for the creating agency while unreviewed (permission_denied)', async () => {
     await create(admin);
-    await expect(registry.invoke(adminB, 'update_vertical', { verticalId: 'distillery', name: 'Hijack' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await expect(registry.invoke(adminB, 'update_vertical', { verticalId: 'pet_groomer', name: 'Hijack' })).rejects.toMatchObject({ code: 'permission_denied' });
     await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'dental', name: 'Hijack' })).rejects.toMatchObject({ code: 'permission_denied' });
-    await dbs.owner.execute(sql`update vertical set status = 'reviewed' where id = 'distillery'`);
-    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'distillery', name: 'Late edit' })).rejects.toMatchObject({ code: 'permission_denied' });
+    await dbs.owner.execute(sql`update vertical set status = 'reviewed' where id = 'pet_groomer'`);
+    await expect(registry.invoke(admin, 'update_vertical', { verticalId: 'pet_groomer', name: 'Late edit' })).rejects.toMatchObject({ code: 'permission_denied' });
   });
 });
 
@@ -238,16 +238,16 @@ describe('list_verticals', () => {
   it('lists selectable verticals, hiding merged and generic', async () => {
     await dbs.owner.execute(sql`insert into vertical (id, name, status, merged_into) values ('old_dental', 'Old dental', 'merged', 'dental')`);
     const out = (await registry.invoke(am, 'list_verticals', {})) as { verticals: { id: string; status: string; services: unknown[] }[] };
-    expect(out.verticals.map((v) => v.id).sort()).toEqual(['dental', 'hvac_plumbing']);
+    expect(out.verticals.map((v) => v.id).sort()).toEqual(['dental', 'hvac_plumbing', 'venues_attractions']);
     expect(out.verticals[0]!.services.length).toBeGreaterThan(0);
   });
 });
 
 describe('draft_vertical', () => {
   const sample = {
-    name: 'Craft distilleries', audienceNoun: 'guests',
+    name: 'Pet groomers', audienceNoun: 'guests',
     areas: [{ name: 'Tastings', aliases: [], quote: 'barrel tastings' }],
-    seedKeywords: [], categories: ['Distillery'], relatedCategories: [], topics: [],
+    seedKeywords: [], categories: ['Pet groomer'], relatedCategories: [], topics: [],
   };
   let calls: { placeId: string; nearbyCategories: string[] }[] = [];
   let behaviour: () => Promise<{ draft: typeof sample | null; similar: { id: string; name: string }[] }> = async () => ({ draft: sample, similar: [] });
@@ -261,7 +261,7 @@ describe('draft_vertical', () => {
     { audit: { record: async () => {} } },
   );
   type Out = { draft: unknown; similar: unknown[]; cached: boolean };
-  const draft = (c: AccessContext, placeId: string) => drafting.invoke(c, 'draft_vertical', { placeId, nearbyCategories: ['Distillery'] }) as Promise<Out>;
+  const draft = (c: AccessContext, placeId: string) => drafting.invoke(c, 'draft_vertical', { placeId, nearbyCategories: ['Pet groomer'] }) as Promise<Out>;
   beforeEach(() => {
     calls = [];
     behaviour = async () => ({ draft: sample, similar: [] });
