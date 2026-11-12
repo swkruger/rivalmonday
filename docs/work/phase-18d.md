@@ -7,7 +7,7 @@
 Plan owner-approved 2026-11-12; execution started (SDD).
 
 ## Next (overwrite)
-Task 0 pre-flight → Tasks 1–16 → final review → owner copy review + merge.
+Task 0 done → Task 1 → … → 16 → final review → owner copy review + merge.
 
 ## Interfaces this branch adds or changes
 TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109**; re-check before execution.
@@ -18,6 +18,10 @@ None (no other branch in flight).
 ## Decisions (owner-approved)
 - 2026-11-11: owner skipped the questions and accepted every brief recommendation (Q1 A, Q2 A, Q3 A, Q4 B after probe, Q5 B now / A after probe, Q6 A, Q7 C, Q8 A, Q9 C, Q10 A). 18d-1 = events as a source (all verticals); 18d-2 = events & entertainment pack (venues & attractions) + Google Events / Tripadvisor after a coverage probe.
 - 2026-11-11 (overrides the Q1 split): staging holds almost no event data (0/530 Meta ads with `event`, 0/313 Google posts are dated events; web dark) ⇒ **probe first, then one phase**: a few-dollar DataForSEO probe (Google Events search, Tripadvisor) on ~10 real venues, then build table + change type + Events page + venues pack + the sources the probe proves, as one branch.
+
+## Pre-flight (Task 0)
+- Fixtures from hand-built DataForSEO shapes (sandbox is synthetic: no Events panel); sandbox accepts Tripadvisor `location_name`.
+- `add_listing_url` (bot-blocked 403; UNVERIFIED, owner to spot-check): tripadvisor.com/GetListedNew; theknot.com/vendors; eventbrite.com/organizer/overview/ (200); peerspace.com/host; weddingwire.com/vendors.
 
 ## New backlog (target → item)
 - none yet
@@ -56,7 +60,7 @@ Must build (per Q answers): an events & entertainment seed pack; event change ty
 - Related (tagged 18e, touches event ads): [ ] 18e → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
 
 ### 5. In-flight workstreams
-`git branch -a --no-merged main`: only stale remotes `origin/claude/codebase-competitor-analysis-er337s` (2026-10-12, one research doc) and `origin/docs/close-the-gap-decisions` (2026-11-04, one research doc) — no code. Next migration **0109** confirmed.
+Only two stale research-doc remotes; no other branch in flight.
 
 ### 6. Open questions for the owner
 1. **Split?** (A) 18d-1 "events as a source" for every vertical (event change types, Event JSON-LD, Meta ad events, GBP event posts) then 18d-2 the events & entertainment pack + its sources/UI; (B) one phase, pack + sources together; (C) pack only (seed vertical, weights, plays, citation groups), events-as-source later. **Rec: A** — 18d-1 is free data already collected and helps HVAC/dental too; 18d-2 needs a source probe first.

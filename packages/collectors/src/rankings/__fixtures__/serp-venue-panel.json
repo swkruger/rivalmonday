@@ -1,0 +1,125 @@
+{
+  "version": "0.1.20261103",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "7.1 sec.",
+  "cost": 0.002,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "11111100-2679-0139-0000-000000000001",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "7.0 sec.",
+      "cost": 0.002,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "serp",
+        "google",
+        "organic",
+        "live",
+        "advanced"
+      ],
+      "data": {
+        "api": "serp",
+        "function": "live",
+        "se": "google",
+        "se_type": "organic",
+        "keyword": "Mohawk Austin",
+        "location_coordinate": "30.2672,-97.7431,10",
+        "language_code": "en",
+        "depth": 10,
+        "device": "desktop"
+      },
+      "result": [
+        {
+          "keyword": "Mohawk Austin",
+          "type": "organic",
+          "se_domain": "google.com",
+          "location_code": null,
+          "language_code": "en",
+          "check_url": "https://www.google.com/search?q=Mohawk+Austin",
+          "datetime": "2026-11-11 15:00:00 +00:00",
+          "spell": null,
+          "refinement_chips": null,
+          "item_types": [
+            "knowledge_graph",
+            "organic"
+          ],
+          "se_results_count": 1200000,
+          "pages_count": 1,
+          "items_count": 2,
+          "items": [
+            {
+              "type": "knowledge_graph",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "page": 1,
+              "position": "right",
+              "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]",
+              "title": "Mohawk Austin",
+              "subtitle": "Live music venue in Austin, Texas",
+              "description": null,
+              "card_id": null,
+              "url": null,
+              "image_url": null,
+              "logo_url": null,
+              "cid": "1234567890123456789",
+              "items": [
+                {
+                  "type": "knowledge_graph_list_item",
+                  "rank_group": 0,
+                  "rank_absolute": 0,
+                  "page": 1,
+                  "position": "left",
+                  "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]",
+                  "title": "Events",
+                  "items": [
+                    {
+                      "type": "knowledge_graph_list_element",
+                      "title": "Hot Tuna: Electric Set",
+                      "subtitle": "Wed, Nov 11, 7:30 PM",
+                      "url": "https://www.google.com/goto?url=https%3A%2F%2Fwww.mohawkaustin.com%2Fevents%2Fhot-tuna&sa=U&ved=2ahUKEwj",
+                      "domain": "www.google.com",
+                      "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[1]"
+                    },
+                    {
+                      "type": "knowledge_graph_list_element",
+                      "title": "Sunday Soul Social",
+                      "subtitle": "Fri, Nov 13, 8:00 PM",
+                      "url": "https://www.google.com/goto?url=https%3A%2F%2Fwww.mohawkaustin.com%2Fevents%2Fsoul-social&sa=U&ved=2ahUKEwj",
+                      "domain": "www.google.com",
+                      "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[2]"
+                    },
+                    {
+                      "type": "knowledge_graph_list_element",
+                      "title": "Halloween Costume Party",
+                      "subtitle": "Sat, Nov 14, 9:00 PM",
+                      "url": "https://www.google.com/goto?url=https%3A%2F%2Fwww.mohawkaustin.com%2Fevents%2Fcostume-party&sa=U&ved=2ahUKEwj",
+                      "domain": "www.google.com",
+                      "xpath": "/html[1]/body[1]/div[3]/div[1]/div[13]/div[1]/div[2]/div[2]/div[3]"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "organic",
+              "rank_group": 1,
+              "rank_absolute": 2,
+              "page": 1,
+              "domain": "www.google.com",
+              "title": "Mohawk Austin",
+              "url": "https://www.google.com/goto?url=https%3A%2F%2Fwww.mohawkaustin.com%2F&sa=U&ved=2ahUKEwj",
+              "website_name": "Mohawk Austin",
+              "breadcrumb": "https://www.mohawkaustin.com",
+              "description": "Indoor/outdoor live music venue on Red River."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

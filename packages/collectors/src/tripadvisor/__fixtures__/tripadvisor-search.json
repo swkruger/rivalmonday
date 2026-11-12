@@ -1,0 +1,121 @@
+{
+  "version": "0.1.20261103",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.1 sec.",
+  "cost": 0.00075,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "11111100-2679-0393-0000-000000000002",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.1 sec.",
+      "cost": 0.00075,
+      "result_count": 1,
+      "path": [
+        "v3",
+        "business_data",
+        "tripadvisor",
+        "search",
+        "task_get",
+        "11111100-2679-0393-0000-000000000002"
+      ],
+      "data": {
+        "se_type": "search",
+        "se": "tripadvisor",
+        "api": "business_data",
+        "function": "search",
+        "keyword": "Treaty Oak Distilling",
+        "location_name": "Austin,Texas,United States",
+        "language_code": "en"
+      },
+      "result": [
+        {
+          "keyword": "Treaty Oak Distilling",
+          "se_domain": "tripadvisor.com",
+          "location_code": 1026201,
+          "language_code": "en",
+          "check_url": "https://www.tripadvisor.com/Search?q=Treaty+Oak+Distilling&geo=30196",
+          "datetime": "2026-11-11 15:00:00 +00:00",
+          "item_types": [
+            "tripadvisor_search_organic"
+          ],
+          "se_results_count": 4,
+          "items_count": 4,
+          "items": [
+            {
+              "type": "tripadvisor_search_organic",
+              "rank_group": 1,
+              "rank_absolute": 1,
+              "title": "Treaty Oak Distilling",
+              "url_path": "/Attraction_Review-g55765-d11750497-Reviews-Treaty_Oak_Distilling-Dripping_Springs_Texas.html",
+              "is_sponsored": false,
+              "reviews_count": 113,
+              "category": "Distilleries",
+              "price_rate": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.4,
+                "votes_count": 113,
+                "rating_max": 5
+              }
+            },
+            {
+              "type": "tripadvisor_search_organic",
+              "rank_group": 2,
+              "rank_absolute": 2,
+              "title": "Treaty Oak Distilling",
+              "url_path": "/Attraction_Review-g30196-d19987654-Reviews-Treaty_Oak_Distilling-Austin_Texas.html",
+              "is_sponsored": false,
+              "reviews_count": 12,
+              "category": "Distilleries",
+              "price_rate": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4,
+                "votes_count": 12,
+                "rating_max": 5
+              }
+            },
+            {
+              "type": "tripadvisor_search_organic",
+              "rank_group": 3,
+              "rank_absolute": 3,
+              "title": "Dripping Springs Distilling",
+              "url_path": "/Attraction_Review-g55765-d14567890-Reviews-Dripping_Springs_Distilling-Dripping_Springs_Texas.html",
+              "is_sponsored": false,
+              "reviews_count": 208,
+              "category": "Distilleries",
+              "price_rate": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.6,
+                "votes_count": 208,
+                "rating_max": 5
+              }
+            },
+            {
+              "type": "tripadvisor_search_organic",
+              "rank_group": 4,
+              "rank_absolute": 4,
+              "title": "Treaty Oak Ranch",
+              "url_path": "/Hotel_Review-g56106-d8123456-Reviews-Treaty_Oak_Ranch-Lakeway_Texas.html",
+              "is_sponsored": false,
+              "reviews_count": 54,
+              "category": "Hotel",
+              "price_rate": null,
+              "rating": {
+                "rating_type": "Max5",
+                "value": 4.5,
+                "votes_count": 54,
+                "rating_max": 5
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
