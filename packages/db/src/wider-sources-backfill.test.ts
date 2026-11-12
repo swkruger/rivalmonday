@@ -17,6 +17,10 @@ const BLOCKS_0101 = readFileSync(join(__dirname, '../migrations/0101_web_readine
 const BACKFILL_0101 = BLOCKS_0101.slice(BLOCKS_0101.findIndex((b) => b.includes('-- backfill:start')));
 const BLOCKS_0107 = readFileSync(join(__dirname, '../migrations/0107_citations.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL_0107 = BLOCKS_0107.slice(BLOCKS_0107.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS_0108 = readFileSync(join(__dirname, '../migrations/0108_listing_fixes.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0108 = BLOCKS_0108.slice(BLOCKS_0108.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS_0109 = readFileSync(join(__dirname, '../migrations/0109_events_venues.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL_0109 = BLOCKS_0109.slice(BLOCKS_0109.findIndex((b) => b.includes('-- backfill:start')));
 
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
@@ -34,6 +38,8 @@ afterEach(async () => {
   await backfill();
   for (const s of BACKFILL_0101) await dbs.owner.execute(sql.raw(s)); // leave the shared test DB in the current shape
   for (const s of BACKFILL_0107) await dbs.owner.execute(sql.raw(s));
+  for (const s of BACKFILL_0108) await dbs.owner.execute(sql.raw(s));
+  for (const s of BACKFILL_0109) await dbs.owner.execute(sql.raw(s));
 });
 beforeEach(async () => {
   await dbs.owner.execute(sql`
