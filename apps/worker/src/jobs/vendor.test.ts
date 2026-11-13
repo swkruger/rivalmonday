@@ -8,6 +8,7 @@ describe('vendor jobs', () => {
     const deps = {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
+      syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [
         { competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'jobs' }, { competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' },
       ]),
@@ -26,6 +27,7 @@ describe('vendor jobs', () => {
     const deps = {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
+      syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'gbp_posts' }, { competitorId: 'c1', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => ({ failed: 0 })),
     } as unknown as WorkerDeps;
@@ -36,11 +38,28 @@ describe('vendor jobs', () => {
     expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }]);
   });
 
+  it('syncs tripadvisor sources before claiming and batches tripadvisor with reviews', async () => {
+    const order: string[] = [];
+    const deps = {
+      vendorsConfigured: () => true,
+      ensureSelfCompetitors: vi.fn(async () => 0),
+      syncTripadvisorSources: vi.fn(async () => { order.push('sync'); return { active: 1, inactive: 0 }; }),
+      claimDueSources: vi.fn(async () => { order.push('claim'); return [{ competitorId: 'c1', source: 'tripadvisor' }, { competitorId: 'c1', source: 'gbp' }]; }),
+      postBatchTasks: vi.fn(async () => ({ failed: 0 })),
+    } as unknown as WorkerDeps;
+    const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
+    const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
+    await jobs.schedule.handler({});
+    expect(order).toEqual(['sync', 'claim']);
+    expect(deps.postBatchTasks).toHaveBeenCalledWith([{ competitorId: 'c1', source: 'tripadvisor' }]);
+    expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }]);
+  });
+
   it('logs the poll result when only gbp posts were collected', async () => {
     const info = vi.spyOn(workerLog, 'info').mockImplementation(() => {});
     const deps = {
       vendorsConfigured: () => true,
-      pollVendorTasks: vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 2, failed: 0, posts: 5 } })),
+      pollVendorTasks: vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 2, failed: 0, posts: 5 }, tripadvisor: { collected: 0, failed: 0, matched: 0 } })),
     } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     await jobs.poll.handler({});
@@ -67,6 +86,7 @@ describe('vendor jobs', () => {
     const deps = {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
+      syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks,
     } as unknown as WorkerDeps;
@@ -81,6 +101,7 @@ describe('vendor jobs', () => {
     const deps = {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
+      syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => {
         throw new Error('db down');
@@ -103,6 +124,10 @@ describe('vendor jobs', () => {
         order.push('self');
         return 2;
       }),
+      syncTripadvisorSources: vi.fn(async () => {
+        order.push('sync');
+        return { active: 0, inactive: 0 };
+      }),
       claimDueSources: vi.fn(async () => {
         order.push('claim');
         return [];
@@ -110,11 +135,11 @@ describe('vendor jobs', () => {
     } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: vi.fn(), enqueueRankScan: vi.fn(), enqueueRankMap: vi.fn() });
     await jobs.schedule.handler({});
-    expect(order).toEqual(['self', 'claim']);
+    expect(order).toEqual(['self', 'sync', 'claim']);
   });
 
   it('skips polling when vendor credentials are not configured', async () => {
-    const pollVendorTasks = vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 0, failed: 0, posts: 0 } }));
+    const pollVendorTasks = vi.fn(async () => ({ reviews: { collected: 0, failed: 0, reviews: 0 }, jobs: { collected: 0, failed: 0, postings: 0 }, gbpPosts: { collected: 0, failed: 0, posts: 0 }, tripadvisor: { collected: 0, failed: 0, matched: 0 } }));
     const deps = { vendorsConfigured: () => false, pollVendorTasks } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     await jobs.poll.handler({});
@@ -124,7 +149,7 @@ describe('vendor jobs', () => {
   it('handles a skipped-reviews poll result without crashing on the collected count', async () => {
     const deps = {
       vendorsConfigured: () => true,
-      pollVendorTasks: vi.fn(async () => ({ reviews: { skipped: 'REVIEWER_HASH_SALT must be set to at least 32 random characters' }, jobs: { collected: 1, failed: 0, postings: 1 }, gbpPosts: { collected: 0, failed: 0, posts: 0 } })),
+      pollVendorTasks: vi.fn(async () => ({ reviews: { skipped: 'REVIEWER_HASH_SALT must be set to at least 32 random characters' }, jobs: { collected: 1, failed: 0, postings: 1 }, gbpPosts: { collected: 0, failed: 0, posts: 0 }, tripadvisor: { collected: 0, failed: 0, matched: 0 } })),
     } as unknown as WorkerDeps;
     const jobs = createVendorJobs(deps, { enqueueCollect: async () => {}, enqueueRankScan: async () => {}, enqueueRankMap: async () => {} });
     await expect(jobs.poll.handler({})).resolves.toBeUndefined();

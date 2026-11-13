@@ -20,7 +20,7 @@ export const changeChannelLabel = (source: string, details: ChangeDetails | null
   channelLabel(details?.surface === 'organic' ? 'google_search' : source);
 
 /** `competitor_source.source` values (`SOURCE_KINDS`, `@cs/collectors`). */
-export const SOURCE_LABELS: Record<string, string> = { gbp: 'Google Business Profile', reviews: 'Google reviews', ads_google: 'Google ads', ads_meta: 'Meta ads', jobs: 'Google Jobs', gbp_posts: 'Google posts' };
+export const SOURCE_LABELS: Record<string, string> = { gbp: 'Google Business Profile', reviews: 'Google reviews', ads_google: 'Google ads', ads_meta: 'Meta ads', jobs: 'Google Jobs', gbp_posts: 'Google posts', tripadvisor: 'Tripadvisor' };
 export const sourceLabel = (s: string): string => SOURCE_LABELS[s] ?? humanise(s);
 
 export interface DetailLine { label: string; value: string }

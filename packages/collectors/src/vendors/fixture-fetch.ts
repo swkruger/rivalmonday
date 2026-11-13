@@ -97,6 +97,17 @@ function postsResult(data: Obj): Obj[] {
   return [{ keyword, se_domain: 'google.com', location_code: 2840, language_code: 'en', check_url: null, datetime: FIXED_TS[2], business_updates_id: null, cid: null, feature_id: null, item_types: ['google_business_post'], items_count: items.length, items }];
 }
 
+/** 18d: a Tripadvisor search (`"<name> <city>"`) answers one organic listing titled with the keyword, in Austin, rated 4.5 with 120 reviews. */
+function tripadvisorResult(data: Obj): Obj[] {
+  const keyword = typeof data.keyword === 'string' ? data.keyword : 'Fixture Venue';
+  const slug = keyword.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const items = [{
+    type: 'tripadvisor_search_organic', rank_group: 1, rank_absolute: 1, title: keyword, url_path: `/Attraction_Review-g30196-d${digits(`${keyword}:ta`, 8)}-Reviews-${slug}-Austin_Texas.html`,
+    is_sponsored: false, rating: { rating_type: 'Max5', value: 4.5, votes_count: 120, rating_max: 5 }, reviews_count: 120,
+  }];
+  return [{ keyword, se_domain: 'tripadvisor.com', location_code: 1026201, language_code: 'en', check_url: null, datetime: FIXED_TS[2], item_types: ['tripadvisor_search_organic'], se_results_count: 1, items_count: 1, items }];
+}
+
 function gbpResult(keyword: string): Obj[] {
   const placeId = keyword.startsWith('place_id:') ? keyword.slice('place_id:'.length) : null;
   const cid = keyword.startsWith('cid:') ? keyword.slice('cid:'.length) : null;
@@ -165,11 +176,11 @@ function metaAds(pageId: string, pageName: string): Obj[] {
 const metaPageName = (pageId: string) => `Fixture Page ${pageId}`;
 const metaPageIdFor = (name: string) => digits(`${name}:page`, 15);
 
-type TaskKind = 'reviews' | 'jobs' | 'posts';
-const READY_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs', '/business_data/google/my_business_updates/tasks_ready': 'posts' };
-const POST_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs', '/business_data/google/my_business_updates/task_post': 'posts' };
-const GET_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_get': 'reviews', '/serp/google/jobs/task_get/advanced': 'jobs', '/business_data/google/my_business_updates/task_get': 'posts' };
-const GET_PATH = /^(\/business_data\/google\/reviews\/task_get|\/serp\/google\/jobs\/task_get\/advanced|\/business_data\/google\/my_business_updates\/task_get)\/([A-Za-z0-9_-]+)$/;
+type TaskKind = 'reviews' | 'jobs' | 'posts' | 'tripadvisor';
+const READY_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/tasks_ready': 'reviews', '/serp/google/jobs/tasks_ready': 'jobs', '/business_data/google/my_business_updates/tasks_ready': 'posts', '/business_data/tripadvisor/search/tasks_ready': 'tripadvisor' };
+const POST_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_post': 'reviews', '/serp/google/jobs/task_post': 'jobs', '/business_data/google/my_business_updates/task_post': 'posts', '/business_data/tripadvisor/search/task_post': 'tripadvisor' };
+const GET_PATHS: Record<string, TaskKind> = { '/business_data/google/reviews/task_get': 'reviews', '/serp/google/jobs/task_get/advanced': 'jobs', '/business_data/google/my_business_updates/task_get': 'posts', '/business_data/tripadvisor/search/task_get': 'tripadvisor' };
+const GET_PATH = /^(\/business_data\/google\/reviews\/task_get|\/serp\/google\/jobs\/task_get\/advanced|\/business_data\/google\/my_business_updates\/task_get|\/business_data\/tripadvisor\/search\/task_get)\/([A-Za-z0-9_-]+)$/;
 /** The posted inputs a task_get answer needs; everything else in the post is dropped from the id. */
 const TASK_KEYS = ['tag', 'place_id', 'cid', 'keyword'] as const;
 const TASK_ID_PREFIX = 'fx_';
@@ -186,7 +197,7 @@ function decodeTaskId(id: string): { kind: TaskKind; data: Obj } | null {
   if (!id.startsWith(TASK_ID_PREFIX)) return null;
   try {
     const v = JSON.parse(Buffer.from(id.slice(TASK_ID_PREFIX.length), 'base64url').toString('utf8')) as { k?: unknown; d?: unknown };
-    if ((v.k !== 'reviews' && v.k !== 'jobs' && v.k !== 'posts') || !v.d || typeof v.d !== 'object') return null;
+    if ((v.k !== 'reviews' && v.k !== 'jobs' && v.k !== 'posts' && v.k !== 'tripadvisor') || !v.d || typeof v.d !== 'object') return null;
     return { kind: v.k, data: v.d as Obj };
   } catch {
     return null;
@@ -281,7 +292,7 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
         const t = decodeTaskId(id);
         if (!t || t.kind !== GET_PATHS[get[1]!]) return json(dfsEnvelope([dfsTask(path, {}, null, { id, code: 40400, message: 'Not Found.' })]));
         ready.delete(id);
-        return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : t.kind === 'posts' ? postsResult(t.data) : jobsResult(t.data), { id })]));
+        return json(dfsEnvelope([dfsTask(path, t.data, t.kind === 'reviews' ? reviewsResult(t.data) : t.kind === 'posts' ? postsResult(t.data) : t.kind === 'tripadvisor' ? tripadvisorResult(t.data) : jobsResult(t.data), { id })]));
       }
       const live = method === 'POST' ? LIVE[path] : undefined;
       // Rank-scan searches carry a coordinate and stay unanswered (599) as before; only coordinate-less citation queries are answered.

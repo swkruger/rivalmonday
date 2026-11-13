@@ -1,6 +1,6 @@
 import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
-  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyReviews,
+  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyTripadvisor, postTripadvisorTasks, syncTripadvisorSources, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, failStaleCitationRuns as failStaleCitations, failCitationRun, listCitationDueClients as citationDueClients, runCitationAudit as runCitations, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
@@ -130,6 +130,8 @@ export interface WorkerDeps {
   vendorsConfigured(): boolean;
   /** Links clients with a place id to their own business as a self competitor (reviews + GBP only). */
   ensureSelfCompetitors(): Promise<number>;
+  /** 18d P8: activates `tripadvisor` source rows for competitors an opted-in client tracks or owns, deactivates the rest. */
+  syncTripadvisorSources(): Promise<{ active: number; inactive: number }>;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta', scope?: CallScope): Promise<{ status: string }>;
   /**
@@ -140,12 +142,13 @@ export interface WorkerDeps {
    * never attempted). Reviews are not posted at all while REVIEWER_HASH_SALT is unusable (see
    * reviewsSkipReason) — they are marked 'skipped_no_salt'. Returns how many sources were released for retry, for logging.
    */
-  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' | 'gbp_posts' }[]): Promise<{ failed: number }>;
+  postBatchTasks(items: { competitorId: string; source: 'reviews' | 'jobs' | 'gbp_posts' | 'tripadvisor' }[]): Promise<{ failed: number }>;
   /** `onSuggestionReviews`: called with the run id after a discovery review sample landed (Phase 12a). */
   pollVendorTasks(opts?: { onSuggestionReviews?: (runId: string) => Promise<void> }): Promise<{
     reviews: { collected: number; failed: number; reviews: number } | { skipped: string };
     jobs: { collected: number; failed: number; postings: number };
     gbpPosts: { collected: number; failed: number; posts: number };
+    tripadvisor: { collected: number; failed: number; matched: number };
   }>;
   scanRankings(
     clientId: string,
@@ -510,12 +513,14 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     },
     vendorsConfigured,
     ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
+    syncTripadvisorSources: () => syncTripadvisorSources(getDb(), packs),
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
     runSource,
     async postBatchTasks(items) {
       const reviewIds = items.filter((i) => i.source === 'reviews').map((i) => i.competitorId);
       const jobIds = items.filter((i) => i.source === 'jobs').map((i) => i.competitorId);
       const postIds = items.filter((i) => i.source === 'gbp_posts').map((i) => i.competitorId);
+      const taIds = items.filter((i) => i.source === 'tripadvisor').map((i) => i.competitorId);
       let failed = 0;
       // Reviews and jobs are posted and resolved independently below: a VendorError in one must
       // never affect the other's status (each has its own postedIds/failedIds from its own call).
@@ -565,6 +570,17 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
           failed += failedIds.length;
         }
       }
+      if (taIds.length > 0) {
+        const { postedIds, failedIds } = await postTripadvisorTasks({ db: getDb(), dfs: getDfs() }, taIds);
+        const posted = new Set(postedIds);
+        const failedSet = new Set(failedIds);
+        // Competitors with a blank name are in neither list → 'skipped'.
+        for (const id of taIds) if (!failedSet.has(id)) await markSourceResult(getDb(), id, 'tripadvisor', posted.has(id) ? 'posted' : 'skipped');
+        if (failedIds.length > 0) {
+          await releaseSources(getDb(), failedIds.map((id) => ({ competitorId: id, source: 'tripadvisor' as const })), 'post_failed');
+          failed += failedIds.length;
+        }
+      }
       return { failed };
     },
     async pollVendorTasks(opts = {}) {
@@ -582,7 +598,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       }
       const jobs = await collectReadyJobs(base);
       const gbpPosts = await collectReadyGbpPosts(base);
-      return { reviews, jobs, gbpPosts };
+      const tripadvisor = await collectReadyTripadvisor(base);
+      return { reviews, jobs, gbpPosts, tripadvisor };
     },
     scanRankings: (clientId, opts) =>
       scanRankings(

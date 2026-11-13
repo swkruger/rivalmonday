@@ -160,4 +160,42 @@ describe('WorkerDeps.postBatchTasks', () => {
       }
     });
   });
+
+  describe('tripadvisor', () => {
+    const taOk = () => new Response(JSON.stringify({ status_code: 20000, status_message: 'Ok.', tasks: [{ id: 't1', status_code: 20100, status_message: 'Task Created.', result: [] }] }), { status: 200 });
+    const seedTa = () => dbs.service.insert(competitorSource).values({ competitorId: IDS.competitorX, source: 'tripadvisor', nextDueAt: sql`now() + interval '7 days'` });
+    const statuses = async () => (await dbs.service.execute(sql`SELECT last_status, (next_due_at <= now()) AS due FROM competitor_source WHERE competitor_id = ${IDS.competitorX} AND source = 'tripadvisor'`)) as unknown as { last_status: string; due: boolean }[];
+
+    it('posts one tripadvisor task tagged with the competitor', async () => {
+      await seedTa();
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+        if (String(input).includes('/business_data/tripadvisor/search/task_post')) return taOk();
+        throw new Error(`unexpected fetch ${String(input)}`);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 's'.repeat(32) } as NodeJS.ProcessEnv);
+      try {
+        expect((await deps.postBatchTasks([{ competitorId: IDS.competitorX, source: 'tripadvisor' }])).failed).toBe(0);
+        const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { tag?: string; keyword?: string }[];
+        expect(body[0]).toMatchObject({ tag: IDS.competitorX, keyword: 'Smith HVAC' });
+        expect((await statuses())[0]).toMatchObject({ last_status: 'posted', due: false });
+        const tasks = (await dbs.service.execute(sql`SELECT kind FROM vendor_task WHERE competitor_id = ${IDS.competitorX}`)) as unknown as { kind: string }[];
+        expect(tasks.map((t) => t.kind)).toEqual(['tripadvisor']);
+      } finally {
+        await deps.close();
+      }
+    });
+
+    it('releases the source to due-now as post_failed on a VendorError', async () => {
+      await seedTa();
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('unauthorized', { status: 401 })));
+      const deps = createWorkerDeps({ ...BASE_ENV, REVIEWER_HASH_SALT: 's'.repeat(32) } as NodeJS.ProcessEnv);
+      try {
+        expect((await deps.postBatchTasks([{ competitorId: IDS.competitorX, source: 'tripadvisor' }])).failed).toBe(1);
+        expect((await statuses())[0]).toMatchObject({ last_status: 'post_failed', due: true });
+      } finally {
+        await deps.close();
+      }
+    });
+  });
 });

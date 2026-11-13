@@ -63,3 +63,5 @@ export * from './citations/audit';
 export * from './citations/run';
 export { alsoFoundOn, type CitationBiz, cityFromAddress, isCategoryTitle, type ListingMatch, matchListing, phone10, usPhones } from './citations/match';
 export * from './citations/search';
+export * from './tripadvisor/parse';
+export * from './tripadvisor/search';

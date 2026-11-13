@@ -5,7 +5,7 @@ import type { SourceKind } from '../sources/kinds';
 import { normaliseDomain } from '../rivals/names';
 import { findExistingCompetitor } from './accept';
 
-/** The client's own business is benchmarked on reviews and its GBP rating, plus a weekly Google-ads check (12b, so the scorecard has its own ad count) — never crawled; Meta ads only when page ids are pinned. */
+/** (`tripadvisor` is not listed: `syncTripadvisorSources` adds it for an opted-in client's self business; the claim literal in `sources/due.ts` includes it.) The client's own business is benchmarked on reviews and its GBP rating, plus a weekly Google-ads check (12b, so the scorecard has its own ad count) — never crawled; Meta ads only when page ids are pinned. */
 export const SELF_SOURCES = ['gbp', 'reviews', 'ads_google', 'gbp_posts'] as const satisfies readonly SourceKind[];
 
 /**
