@@ -97,6 +97,8 @@ get_geogrid (rankings.ts) | read | read-only
 get_rank_trend (rankings.ts) | read | read-only
 get_share_of_voice (rankings.ts) | read | read-only
 get_citation_audit (citations.ts) | read | read-only
+list_listed_events (listed-events.ts) | read | read-only
+get_client_events_menu (listed-events.ts) | read | read-only
 list_recommendations (recommendations.ts) | read | read-only
 update_recommendation_status (recommendations.ts) | write | updates status
 list_trend_reports (reports.ts) | read | read-only

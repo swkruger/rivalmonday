@@ -523,3 +523,16 @@ export const AudienceTrend = z.object({
   })),
 });
 export type AudienceTrend = z.infer<typeof AudienceTrend>;
+
+/** 18d: upcoming events the client and its tracked rivals list (`list_listed_events`). Dates are `YYYY-MM-DD` in the client's time zone. */
+export const ListedEventsView = z.object({
+  events: z.array(z.object({
+    id: uuid, competitorId: uuid, businessName: z.string(), self: z.boolean(), name: z.string(),
+    startDate: z.string(), startsAt: iso.nullable(), status: z.enum(['scheduled', 'cancelled', 'postponed', 'sold_out']),
+    sources: z.array(z.enum(['web', 'meta_ads', 'google_panel'])), url: z.string().nullable(), ticketed: z.boolean(), firstSeenAt: iso,
+    /** The evidence to cite for this event (its latest capture); null when none is citable on this channel. */
+    evidenceId: z.string().nullable(),
+  })),
+  windowStart: z.string(), windowEnd: z.string(),
+});
+export type ListedEventsView = z.infer<typeof ListedEventsView>;

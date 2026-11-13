@@ -22,6 +22,7 @@ const LABELS: Readonly<Record<string, string>> = {
   get_rank_trend: 'Checking the ranking trend…',
   get_search_visibility: 'Checking Google search results…',
   get_citation_audit: 'Checking directory listings…',
+  list_listed_events: 'Checking listed events…',
   list_moves: 'Looking at competitor moves…',
   get_move: 'Reading a competitor move…',
   list_briefs: 'Looking at briefs…',

@@ -112,6 +112,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_share_of_voice: client(),
   get_search_visibility: client(),
   get_citation_audit: client(),
+  list_listed_events: client(),
+  get_client_events_menu: client(),
   get_rank_settings: client(),
 
   // ── client: search, knowledge, Ask, help ───────────────────────────────────────────────────────────
