@@ -4,7 +4,7 @@
 **Plan/spec:** `docs/superpowers/plans/2026-11-11-phase-18d-events-venues.md` / `docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`
 
 ## Status (overwrite)
-All 16 tasks done (SDD, every task reviewed clean); final review (opus): ready to merge with fixes; final fix wave done (failing `test:affected` expectations, spec/plan synced with the execution rulings, review minors). Suites re-run by the controller. CI `eval:replay` (ask) stays red until the Ask cassette is re-recorded.
+SDD complete (2026-11-12): 16 tasks reviewed clean, final review + fix wave clean. `test:affected` 18/18 green; web `e2e:affected --full` 154 passed (distillery E2E fixture moved to the unclaimed "Whiskey distillery" because venues claims "Distillery"). CI `eval:replay` (ask) stays red until the Ask cassette is re-recorded.
 
 ## Next (overwrite) — owner steps
 1. Re-record the Ask cassette (blocked on OpenRouter 402; top up first): `pnpm --filter @cs/evals eval record --suite ask --max-usd 5`, then `pnpm eval:replay`, commit.
