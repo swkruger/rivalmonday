@@ -35,7 +35,7 @@ export function factsSignature(facts: NumericChange[]): string {
 export function detailsSignature(changeType: string, d: ChangeDetails): string | null {
   switch (changeType) {
     case 'rating_change':
-      return `rating|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}`;
+      return d.platform === 'tripadvisor' ? `rating|tripadvisor|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}` : `rating|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}`;
     case 'rank_change':
       if (d.surface === 'organic') return `serp|${d.keyword ?? ''}|${d.direction ?? ''}|${d.position ?? ''}`;
       return `rank|${d.keyword ?? ''}|${d.avgRankBefore ?? ''}|${d.avgRankAfter ?? ''}`;

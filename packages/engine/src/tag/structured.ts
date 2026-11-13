@@ -93,7 +93,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       s = `Google Business Profile address changed from "${trunc(before, 80)}" to "${trunc(after, 80)}"`;
       break;
     case 'rating_change':
-      s = `Google rating ${d.ratingBefore} → ${d.ratingAfter}${d.votesAfter != null ? ` (${d.votesAfter} reviews)` : ''}`;
+      s = `${d.platform === 'tripadvisor' ? 'Tripadvisor' : 'Google'} rating ${d.ratingBefore} → ${d.ratingAfter}${d.votesAfter != null ? ` (${d.votesAfter} reviews)` : ''}`;
       break;
     case 'review_spike':
       s = d.topic

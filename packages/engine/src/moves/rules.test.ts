@@ -93,6 +93,12 @@ describe('detectMoves', () => {
     expect(detectMoves(dipAndRecover, ctx()).find((f) => f.type === 'reputation_slump')).toMatchObject({ facts: { ratingDrop: 0.3 }, summary: 'Google rating down 0.3 in 90 days' });
   });
 
+  it('reputation slump: a Tripadvisor rating drop does not count, a Google one does', () => {
+    const drop = (platform: 'google' | 'tripadvisor') => ev({ changeType: 'rating_change', channels: [platform === 'google' ? 'google_business_profile' : 'tripadvisor'], details: { platform, ratingBefore: 4.5, ratingAfter: 4.0 }, occurredAt: day(95) });
+    expect(types([drop('tripadvisor')])).not.toContain('reputation_slump');
+    expect(types([drop('google')])).toContain('reputation_slump');
+  });
+
   it('reputation slump: a rating drawdown is deterministic for same-timestamp events regardless of input order (tie-break by id)', () => {
     const at = day(95);
     const a = ev({ id: 'r1', changeType: 'rating_change', channels: ['google_business_profile'], details: { ratingBefore: 5.0, ratingAfter: 4.0 }, occurredAt: at });

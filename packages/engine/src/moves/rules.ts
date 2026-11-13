@@ -199,7 +199,7 @@ export function detectMoves(all: MoveEvent[], ctx: MoveContext): MoveFinding[] {
   if (blitzChannels.size >= 2) out.push(finding('promo_blitz', blitz, 2, `Promotions running in ${blitzChannels.size} channels`, { channels: blitzChannels.size }));
 
   // Reputation slump — a rating drawdown, or a complaint-topic spike (Phase 3c) for this client's vertical in the last 30 days.
-  const ratings = events.filter((e) => e.changeType === 'rating_change' && e.details.ratingBefore !== undefined && e.details.ratingAfter !== undefined);
+  const ratings = events.filter((e) => e.changeType === 'rating_change' && (e.details.platform ?? 'google') === 'google' && e.details.ratingBefore !== undefined && e.details.ratingAfter !== undefined);
   const drop = ratingDrawdown(ratings);
   const ratingSlump = ratings.length > 0 && drop >= t.rating_drop_90d;
   const complaints = events.filter(
