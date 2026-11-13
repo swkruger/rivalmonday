@@ -116,3 +116,17 @@ export function localDay(v: string | Date, tz: string): string {
   if (p.dateOnly) return v as string;
   return new Intl.DateTimeFormat('en-CA', { timeZone: zoneOf(tz, false), year: 'numeric', month: '2-digit', day: '2-digit' }).format(p.at);
 }
+
+/** "Friday, November 13": weekday and day in `tz`; a date-only value is that calendar day in every zone (no shift). */
+export function formatWeekdayDate(v: string | Date, o: { tz: string }): string {
+  const p = parse(v);
+  if (!p) return String(v);
+  return p.at.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: zoneOf(o.tz, p.dateOnly) });
+}
+
+/** "8:00 PM" in `tz` (an unknown zone reads as UTC); anything that is not a date comes back unchanged. */
+export function formatTime(v: string | Date, o: { tz: string }): string {
+  const p = parse(v);
+  if (!p) return String(v);
+  return p.at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zoneOf(o.tz, false) });
+}

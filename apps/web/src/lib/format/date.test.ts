@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatMonth, formatRelative, formatWeekOf, localDay } from './date';
+import { formatDate, formatDateTime, formatMonth, formatRelative, formatTime, formatWeekOf, formatWeekdayDate, localDay } from './date';
 
 const now = new Date('2026-10-21T15:00:00Z');
 
@@ -92,5 +92,16 @@ describe('localDay', () => {
 describe('formatDate withYear never', () => {
   it('drops the year even for another year', () => {
     expect(formatDate('2025-10-13T12:00:00Z', { tz: 'UTC', now, withYear: 'never' })).toBe('Oct 13');
+  });
+});
+
+describe('formatWeekdayDate / formatTime', () => {
+  it('a date-only value is that calendar day in every zone', () => {
+    expect(formatWeekdayDate('2026-11-13', { tz: 'America/Chicago' })).toBe('Friday, November 13');
+    expect(formatWeekdayDate('nope', { tz: 'UTC' })).toBe('nope');
+  });
+  it('formats the time in the zone; an unknown zone reads as UTC', () => {
+    expect(formatTime('2026-11-14T02:00:00Z', { tz: 'America/Chicago' })).toBe('8:00 PM');
+    expect(formatTime('2026-11-14T02:00:00Z', { tz: 'Mars/Olympus_Mons' })).toBe('2:00 AM');
   });
 });
