@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 9 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 10 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -270,8 +270,8 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(r.route).toBe('brief');
   });
 
-  it('factors.scoringVersion is 9 with the shipped pack', () => {
-    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(9);
+  it('factors.scoringVersion is 10 with the shipped pack', () => {
+    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(10);
   });
 });
 
