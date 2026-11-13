@@ -4,18 +4,20 @@
 **Plan/spec:** none yet (spec = new decisions only, <= 15 KB; lean plan)
 
 ## Status (overwrite)
-Kickoff done; brief below. No design decisions made. No branch is in flight (`git branch --no-merged main` is empty).
+Planning done 2026-11-13: probe (58 credits), spec and plan written; awaiting owner approval of the plan.
 
 ## Next (overwrite)
-Owner answers the open questions (Brief 6); then `superpowers:brainstorming`, spec, lean plan, owner approval.
+1. Owner: approve `docs/superpowers/plans/2026-11-13-phase-18e-social-jev.md` (spec `docs/superpowers/specs/2026-11-13-phase-18e-social-jev-design.md`).
+2. Then SDD from Task 0.
 
 ## Interfaces this branch adds or changes
-None yet. Next free migration: `0110`.
+- Planned: migration 0110 (`social_account`, `social_post`, packs v10, `platform_setting` `ai_decision_mode`); source kind `social`; self rule `social_gap`; scorecard `socialPosts30d`; tools `get_social_activity`, `list_social_accounts`, `confirm_social_account`, `find_social_accounts`, `get_ai_decision_mode`, `set_ai_decision_mode`; `Ai.decide` mode-aware; jobs `social-discover`, `social-pull`.
 
 ## Assumes from other branches
 Nothing in flight.
 
 ## Decisions (owner-approved)
+- 2026-11-13: owner skipped the questions ("yes continue"): every brief recommendation accepted — probe first, Facebook + Instagram, suggest-and-confirm handles, self tracked, pack flag, weekly, brief-only, no new page (scorecard + brief lines + tool).
 - 2026-11-13: owner adds a second track to 18e: confidence in the Jev evals is now high, so add a setting to run review decisions on **Jev only** (no LLM step), with an option to **re-evaluate with all models** (today's Jev → LLM cascade / shadow comparison). Touches CLAUDE.md decision "Review decisions stay on Jev until pilot gold labels; verifier τ 0.85" and the cascade Jev → LLM → human.
 
 ## New backlog (target -> item)
