@@ -80,7 +80,7 @@ describe('prepareTestDatabase / truncateAll', () => {
           from pg_tables where schemaname = 'public' and tablename not in ('vertical', 'business_area', 'vertical_category', 'vertical_draft')`)),
       ];
       expect(Number(row!.n)).toBe(0);
-      expect((await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from vertical`))[0]!.n).toBe(3); // truncateAll re-seeds the catalogue
+      expect((await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from vertical`))[0]!.n).toBe(4); // truncateAll re-seeds the catalogue (generic, hvac_plumbing, dental, venues_attractions)
     } finally {
       await dbs.closeAll();
     }

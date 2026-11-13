@@ -11,12 +11,17 @@ afterAll(() => dbs.closeAll());
 
 const BLOCKS = readFileSync(join(__dirname, '../migrations/0108_listing_fixes.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL = BLOCKS.slice(BLOCKS.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS9 = readFileSync(join(__dirname, '../migrations/0109_events_venues.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL9 = BLOCKS9.slice(BLOCKS9.findIndex((b) => b.includes('-- backfill:start')));
 const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 const OLD_TITLE = "Get listed on the directories you're missing";
 const OLD_TEMPLATE = "Add your business to {{directories}} using each directory's sign-up page (links on the Listings page), with the same name and phone as your Google profile.";
 
 async function backfill() {
   for (const s of BACKFILL) await dbs.owner.execute(sql.raw(s));
+}
+async function backfill9() {
+  for (const s of BACKFILL9) await dbs.owner.execute(sql.raw(s));
 }
 type Row = { id: string; config: Record<string, any>; updated_at: string };
 async function rows(): Promise<Row[]> {
@@ -37,7 +42,7 @@ beforeEach(async () => {
     UPDATE vertical SET config = config #- '{citations,directory_groups,general,0,claim_url}' #- '{citations,directory_groups,home_services,0,claim_url}'
     WHERE id = 'generic'`);
 });
-afterEach(backfill); // leave the shared test DB in the current (v8) shape
+afterEach(async () => { await backfill(); await backfill9(); }); // leave the shared test DB in the current (v9) shape
 
 const count = (arr: any[], id: string) => arr.filter((x) => x.id === id).length;
 
@@ -66,8 +71,9 @@ describe('migration 0108 pack v8', () => {
     expect(await rows()).toEqual(after);
   });
 
-  it('stored generic and the DB-inheriting verticals equal the YAML packs', async () => {
+  it('stored generic and the DB-inheriting verticals equal the YAML packs (after 0109 too)', async () => {
     await backfill();
+    await backfill9();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     const gy = await loadVerticalPack('generic');
     const g = (await rows()).find((x) => x.id === 'generic')!.config;
@@ -78,7 +84,7 @@ describe('migration 0108 pack v8', () => {
       const p = await cat.packs(id);
       expect(p.citations, id).toEqual({ ...yaml.citations, directory_groups: gy.citations.directory_groups });
       expect(p.playbooks, id).toEqual(yaml.playbooks);
-      expect(p.scoring.version, id).toBe(8);
+      expect(p.scoring.version, id).toBe(9);
     }
   });
 });
