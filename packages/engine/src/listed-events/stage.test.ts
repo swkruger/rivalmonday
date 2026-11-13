@@ -1,14 +1,14 @@
 import { GBP_EVENTS_URL, VENUE_PANEL_KIND } from '@cs/collectors';
-import { capture, client, clientCompetitor, competitor, detectedChange, listedEvent, observation } from '@cs/db';
-import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
+import { ad, capture, client, clientCompetitor, competitor, detectedChange, listedEvent, observation } from '@cs/db';
+import { IDS, openTestDbs, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedPage, seedVendorCapture, seedWebCapture } from '../../test/seed';
 import { supersedePriorChanges } from '../events/retract';
-import { findEngineWork } from '../sweep';
-import { detectListedEvents, EVENT_SINGLES_MAX, LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from './stage';
+import { findEngineWork, LISTED_EVENTS_LOOKBACK_DAYS } from '../sweep';
+import { commitListedEvents, detectListedEvents, EVENT_SINGLES_MAX, LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION, loadEventsCapture, planListedEvents } from './stage';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -185,31 +185,119 @@ describe('detectListedEvents', () => {
     expect((await changes()).map((c) => c.status)).toEqual(['pending']);
   });
 
+  it('web baseline is per tracked page: a new events page starts silently', async () => {
+    const home = await seedPage(dbs.service, IDS.competitorX, 'https://smithhall.example/', 'home');
+    await run(await seedWebCapture(dbs.service, store, { competitorId: IDS.competitorX, trackedPageId: home, html: ldHtml([]), capturedAt: day(0) }));
+    const r = await run(await web(day(7), [{ name: 'Spring Gala', startDate: '2026-10-20' }, { name: 'Autumn Ball', startDate: '2026-10-25' }, { name: 'Winter Fair', startDate: '2026-12-05' }]));
+    expect(r).toEqual({ rows: 3, changes: [], baseline: true });
+    expect(await changes()).toEqual([]);
+  });
+
+  it('Meta ads by seen time: an older capture processed late is the baseline, the newer announces nothing', async () => {
+    const c1 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(0) });
+    const c2 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(7) });
+    await dbs.service.insert(ad).values([
+      { competitorId: IDS.competitorX, platform: 'meta', externalId: 'm1', event: { name: 'Halloween Bash', startsAt: '2026-10-31T01:00:00Z' }, firstSeenAt: day(0), lastSeenAt: day(7), firstCaptureId: c1, lastCaptureId: c2 },
+      // A Google ad with an event never counts; nor does a Meta ad seen only between the two captures.
+      { competitorId: IDS.competitorX, platform: 'google', externalId: 'g1', event: { name: 'Google Thing', startsAt: '2026-10-29T01:00:00Z' }, firstSeenAt: day(0), lastSeenAt: day(7) },
+      { competitorId: IDS.competitorX, platform: 'meta', externalId: 'm2', event: { name: 'Later Party', startsAt: '2026-11-20T01:00:00Z' }, firstSeenAt: day(3), lastSeenAt: day(3) },
+    ]);
+    expect(await run(c1)).toEqual({ rows: 1, changes: [], baseline: true });
+    expect((await rows()).map((x) => [x.name, x.startDate, x.sources])).toEqual([['Halloween Bash', '2026-10-30', ['meta_ads']]]);
+    expect(await run(c2)).toEqual({ rows: 1, changes: [], baseline: false });
+    expect(await changes()).toEqual([]);
+  });
+
+  it('race: two captures planned before either commits announce once', async () => {
+    await run(await panel(day(0), [{ title: 'Jason Isbell', subtitle: 'Oct 10' }]));
+    const a = await loadEventsCapture(dbs.service, await panel(day(7), [{ title: 'Big Band Gala', subtitle: 'Oct 24' }]));
+    const b = await loadEventsCapture(dbs.service, await panel(day(8), [{ title: 'Big Band Gala', subtitle: 'Oct 24' }]));
+    const planA = await planListedEvents(deps(), a.cap, a.sourceKey);
+    const planB = await planListedEvents(deps(), b.cap, b.sourceKey);
+    expect([planA.changes.length, planB.changes.length]).toEqual([1, 1]);
+    const ra = await dbs.service.transaction((tx) => commitListedEvents(tx, a.cap, a.sourceKey, planA));
+    const rb = await dbs.service.transaction((tx) => commitListedEvents(tx, b.cap, b.sourceKey, planB));
+    expect([ra.changes.length, rb.changes.length]).toEqual([1, 0]);
+    expect(await changes()).toHaveLength(1);
+  });
+
+  it('race: two flip captures planned before either commits flip once', async () => {
+    await run(await web(day(0), [{ name: 'Spring Gala', startDate: '2026-10-20' }]));
+    const a = await loadEventsCapture(dbs.service, await web(day(7), [{ name: 'Spring Gala', startDate: '2026-10-20', status: 'EventCancelled' }]));
+    const b = await loadEventsCapture(dbs.service, await web(day(8), [{ name: 'Spring Gala', startDate: '2026-10-20', status: 'EventCancelled' }]));
+    const planA = await planListedEvents(deps(), a.cap, a.sourceKey);
+    const planB = await planListedEvents(deps(), b.cap, b.sourceKey);
+    await dbs.service.transaction((tx) => commitListedEvents(tx, a.cap, a.sourceKey, planA));
+    const rb = await dbs.service.transaction((tx) => commitListedEvents(tx, b.cap, b.sourceKey, planB));
+    expect(rb.changes).toEqual([]);
+    expect((await changes()).map((c) => c.blockKey)).toEqual(['event:2026-10-20:spring gala:cancelled']);
+    expect((await rows())[0]).toMatchObject({ status: 'cancelled', statusCaptureId: a.cap.id });
+  });
+
+  it('a first-seen cancelled event gets a row, no change', async () => {
+    await run(await web(day(0), [{ name: 'Spring Gala', startDate: '2026-10-20' }]));
+    const r = await run(await web(day(7), [{ name: 'Spring Gala', startDate: '2026-10-20' }, { name: 'Autumn Ball', startDate: '2026-10-25', status: 'EventCancelled' }]));
+    expect(r.changes).toEqual([]);
+    expect((await rows()).map((x) => [x.name, x.status])).toEqual([['Spring Gala', 'scheduled'], ['Autumn Ball', 'cancelled']]);
+  });
+
+  it('competitor tracked only by a paused client → rows, no changes', async () => {
+    await pauseClient(dbs.owner, IDS.clientA2);
+    await run(await panel(day(0), [{ title: 'Smile Day', subtitle: 'Oct 10' }], IDS.competitorY));
+    const r = await run(await panel(day(7), [{ title: 'Smile Day', subtitle: 'Oct 10' }, { title: 'Open House', subtitle: 'Oct 24' }], IDS.competitorY));
+    expect(r).toEqual({ rows: 2, changes: [], baseline: false });
+    expect(await changes()).toEqual([]);
+  });
+
+  it('horizon boundaries: today and today+365 announced, today+366 not', async () => {
+    await run(await web(day(0), [{ name: 'Spring Gala', startDate: '2026-10-20' }]));
+    // day(7) is 2026-10-08 in Chicago.
+    const r = await run(await web(day(7), [{ name: 'Today Show Case', startDate: '2026-10-08' }, { name: 'Year Out Gala', startDate: '2027-10-08' }, { name: 'Too Far Fest', startDate: '2027-10-09' }]));
+    expect(r.changes).toHaveLength(2);
+    expect((await changes()).map((c) => c.details.startDate).sort()).toEqual(['2026-10-08', '2027-10-08']);
+    expect(await rows()).toHaveLength(4);
+  });
+
+  it('panel + web for the same event: one row, sources merged, one change', async () => {
+    await run(await panel(day(0), [{ title: 'Jason Isbell', subtitle: 'Oct 10' }]));
+    await run(await web(day(0), []));
+    expect((await run(await web(day(7), [{ name: 'Big Band Gala', startDate: '2026-10-24T20:00:00-05:00', price: 25 }]))).changes).toHaveLength(1);
+    expect((await run(await panel(day(8), [{ title: 'Big Band Gala', subtitle: 'Oct 24, 8:00 PM' }]))).changes).toEqual([]);
+    const gala = (await rows()).filter((x) => x.nameNorm === 'big band gala');
+    expect(gala).toEqual([expect.objectContaining({ sources: ['google_panel', 'web'], ticketed: true })]);
+    expect(await changes()).toHaveLength(1);
+  });
+
   it('refuses a capture that is not an ok events capture', async () => {
     const posts = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', url: 'gbp:posts', capturedAt: day(0) });
     await expect(detectListedEvents(deps(), posts)).rejects.toThrow(/not an ok/);
   });
 });
 
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
+
 describe('findEngineWork listedEvents', () => {
-  it('lists settled accepted captures of tracked or self competitors, oldest first, not finished', async () => {
+  it('lists settled, recent accepted captures of workable tracked or self competitors, oldest first, not finished', async () => {
     await dbs.owner.insert(competitor).values({ id: SELF, name: 'A1 Own Hall', domain: 'ownhall.example' });
     await dbs.owner.update(client).set({ selfCompetitorId: SELF }).where(eq(client.id, IDS.clientA1));
-    const p1 = await panel(day(1), []);
-    const p0 = await panel(day(0), [], SELF);
-    const w = await web(day(2), []);
-    const meta = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(3) });
-    const posts = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', url: 'gbp:posts', capturedAt: day(4) });
+    const old = await panel(hoursAgo(20 * 24), []);
+    const p1 = await panel(hoursAgo(80), []);
+    const p0 = await panel(hoursAgo(90), [], SELF);
+    const w = await web(hoursAgo(70), []);
+    const meta = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: hoursAgo(60) });
+    const posts = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'google_business_profile', url: 'gbp:posts', capturedAt: hoursAgo(50) });
     const failed = randomUUID();
-    await dbs.service.insert(capture).values({ id: failed, competitorId: IDS.competitorX, source: 'meta_ads', status: 'failed', collectorVersion: 'test/1', capturedAt: day(5) });
+    await dbs.service.insert(capture).values({ id: failed, competitorId: IDS.competitorX, source: 'meta_ads', status: 'failed', collectorVersion: 'test/1', capturedAt: hoursAgo(40) });
     const fresh = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: new Date() });
     await dbs.owner.insert(competitor).values({ id: '00000000-0000-4000-8000-0000000000fa', name: 'Nobody', domain: 'nobody.example' });
-    const untracked = await panel(day(6), [], '00000000-0000-4000-8000-0000000000fa');
+    const untracked = await panel(hoursAgo(30), [], '00000000-0000-4000-8000-0000000000fa');
+    await pauseClient(dbs.owner, IDS.clientA2);
+    const pausedOnly = await panel(hoursAgo(20), [], IDS.competitorY);
     await run(p1);
 
     const list = (await findEngineWork(dbs.service, { limit: 50 })).listedEvents;
     expect(list).toEqual([p0, w, meta]);
-    for (const id of [p1, posts, failed, fresh, untracked]) expect(list).not.toContain(id);
-    expect(LISTED_EVENTS_STAGE).toBe('listed_events');
+    for (const id of [old, p1, posts, failed, fresh, untracked, pausedOnly]) expect(list).not.toContain(id);
+    expect([LISTED_EVENTS_STAGE, LISTED_EVENTS_LOOKBACK_DAYS]).toEqual(['listed_events', 14]);
   });
 });

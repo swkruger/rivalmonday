@@ -1,7 +1,7 @@
 import { jsonLdEvents, type SerpKnowledge, type StructuredEvent, VENUE_PANEL_KIND } from '@cs/collectors';
 import { type Db, ad, evidence, observation, type ListedEventSource, type ListedEventStatus } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import type { CaptureRow } from '../structured/vendor-diff';
 import { localDate, normaliseEventName, panelDate } from './normalise';
@@ -53,7 +53,7 @@ export function metaCandidates(ads: { event: { name: string; startsAt: string | 
   return out;
 }
 
-/** Candidates of one capture: venue panel (gbp:events), Event JSON-LD (web) or Meta ads last seen in it. */
+/** Candidates of one capture: venue panel (gbp:events), Event JSON-LD (web) or the competitor's Meta ads active at it (by seen time, so an older capture processed late still sees its ads). */
 export async function extractCandidates(deps: { db: Db; store: ObjectStore }, cap: CaptureRow): Promise<EventCandidate[]> {
   if (cap.source === 'google_business_profile') {
     const [o] = await deps.db.select({ data: observation.data }).from(observation).where(and(eq(observation.captureId, cap.id), eq(observation.kind, VENUE_PANEL_KIND), eq(observation.key, 'events'))).limit(1);
@@ -69,7 +69,7 @@ export async function extractCandidates(deps: { db: Db; store: ObjectStore }, ca
     return jsonLdCandidates(jsonLdEvents(new TextDecoder().decode(gunzipSync(gz))));
   }
   if (cap.source === 'meta_ads') {
-    const rows = await deps.db.select({ event: ad.event }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), eq(ad.lastCaptureId, cap.id), isNotNull(sql`${ad.event}->>'startsAt'`)));
+    const rows = await deps.db.select({ event: ad.event }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), lte(ad.firstSeenAt, cap.capturedAt), gte(ad.lastSeenAt, cap.capturedAt), isNotNull(sql`${ad.event}->>'startsAt'`)));
     return metaCandidates(rows);
   }
   return [];

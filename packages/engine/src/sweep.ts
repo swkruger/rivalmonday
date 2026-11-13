@@ -42,6 +42,9 @@ export interface EngineWork {
   adImageReads: string[];
 }
 
+/** The listed-events sweep only offers captures this recent (no backlog of old captures announcing past events). */
+export const LISTED_EVENTS_LOOKBACK_DAYS = 14;
+
 /** At most this many reviews are re-asked per UTC day (counted by `review_analysis.checked_at`). */
 export const REASK_DAILY_MAX = 2000;
 
@@ -233,13 +236,14 @@ export async function findEngineWork(
 
   // Listed events (18d D6): ok tracked-page web, Meta and venue-panel captures, settled (ad/observation rows are written
   // after the capture row), of a competitor a workable client tracks or a workable client's own business, oldest first
-  // so each competitor×source baseline comes first. Never a non-ok capture (the stage refuses those).
+  // so each competitor×source baseline comes first, within LISTED_EVENTS_LOOKBACK_DAYS. Never a non-ok capture (the stage refuses those).
   const listedEvents = await db.execute(sql`
     SELECT c.id FROM capture c
     WHERE c.status = 'ok'
       AND ((c.source = 'web' AND c.tracked_page_id IS NOT NULL) OR c.source = 'meta_ads'
            OR (c.source = 'google_business_profile' AND c.url = ${GBP_EVENTS_URL}))
       AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND c.captured_at >= now() - make_interval(days => ${LISTED_EVENTS_LOOKBACK_DAYS}::int)
       AND (EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
                    WHERE cc.competitor_id = c.competitor_id AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))})
            OR EXISTS (SELECT 1 FROM client cl
