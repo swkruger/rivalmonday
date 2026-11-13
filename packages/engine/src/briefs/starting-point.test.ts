@@ -1,5 +1,7 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, capture, citationListing, client, clientSetup, competitor, competitorSignal, evidence, notification, observation, playbookOverride, recommendation, review } from '@cs/db';
+import { brief, briefItem, capture, citationListing, client, clientSetup, competitor, competitorSignal, evidence, listedEvent, notification, observation, playbookOverride, recommendation, review, stageRun } from '@cs/db';
+import { GBP_EVENTS_URL } from '@cs/collectors';
+import { LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from '../listed-events/stage';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -160,6 +162,26 @@ describe('generateStartingPoint', () => {
     expect(it0.recommendedAction).toContain('Add or correct your listings on Manta, Foursquare and MapQuest (links');
     expect(it0.headline).toBe('Fix your directory listings');
     expect(it0.evidenceIds).toEqual([miss.evidenceId]);
+  });
+
+  it('event_gap: you list no events while a rival lists 2 (series excluded) becomes a list_your_events item citing both captures', async () => {
+    const panel = async (competitorId: string) => {
+      const [c] = await dbs.owner.insert(capture).values({ competitorId, source: 'google_business_profile', url: GBP_EVENTS_URL, status: 'ok', collectorVersion: 't', capturedAt: ago(1) }).returning();
+      const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'vendor_json', objectKey: randomUUID(), sha256: 'x', bytes: 1, contentType: 'application/json' }).returning();
+      await dbs.owner.insert(stageRun).values({ stage: LISTED_EVENTS_STAGE, stageVersion: LISTED_EVENTS_VERSION, subjectId: c!.id, status: 'done' });
+      return { captureId: c!.id, evidenceId: e!.id };
+    };
+    const mine = await panel(selfId);
+    const theirs = await panel(IDS.competitorX);
+    for (const [name, series] of [['Jazz Night', false], ['Comedy Night', false], ['Trivia', true]] as const) {
+      await dbs.owner.insert(listedEvent).values({ competitorId: IDS.competitorX, eventKey: randomUUID(), name, nameNorm: name.toLowerCase(), startDate: '2026-10-30', sources: ['google_panel'], series, firstCaptureId: theirs.captureId, lastCaptureId: theirs.captureId, firstSeenAt: ago(2), lastSeenAt: ago(2) });
+    }
+    expect(await run(createFakeAi({ chat: () => 'not json', decide: supportAll }))).toMatchObject({ status: 'ready' });
+    const ev = (await items()).find((i) => i.playbookId === 'list_your_events')!;
+    expect(ev.whatChanged).toBe('Smith HVAC listed 2 events in the last 30 days; Google shows none for you.');
+    expect(ev.headline).toBe('Put your events where customers look');
+    expect(ev.whyItMatters).toBe(SELF_WHY_IT_MATTERS.event_gap);
+    expect(ev.evidenceIds.sort()).toEqual([mine.evidenceId, theirs.evidenceId].sort());
   });
 
   it('loadSelfCitations: null without self or checked rows; rivalsListed counts audited rivals; phone mismatch needs phone_match = false', async () => {

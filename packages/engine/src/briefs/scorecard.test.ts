@@ -1,4 +1,4 @@
-import { ad, capture, citationListing, gbpPost, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
+import { ad, capture, citationListing, gbpPost, listedEvent, stageRun, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -6,7 +6,10 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadVerticalPack } from '@cs/verticals';
 import { createPackLoader } from '../tag/tag-stage';
 import { postCounts30d } from '../structured/gbp-posts';
+import { GBP_EVENTS_URL } from '@cs/collectors';
+import { LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from '../listed-events/stage';
 import { buildScorecard, median, Scorecard } from './scorecard';
+import { scorecardModel } from './scorecard-model';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -88,8 +91,8 @@ describe('buildScorecard', () => {
     await snap(cur!.id, 2, [res('PB', 1), res('PSELF', 5)], cap.id);
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const row = (n: string) => sc.rows.find((r) => r.name === n)!.values;
-    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null });
-    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null });
+    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null });
+    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null });
     expect(row('Rival B')).toMatchObject({ reviews90d: 3, replyRate: 0, mapTop3Share: 0.5, adsActive: 1, metaAdsActive: 2 });
     expect(sc.tiles).toEqual([
       { metric: 'rating', you: null, rivalMedian: null, deltaSinceStart: null },
@@ -242,5 +245,59 @@ describe('Directory listings (18c-2 D3)', () => {
     const old = JSON.parse(JSON.stringify(sc));
     for (const r of old.rows) delete r.values.listings;
     expect(Scorecard.parse(old).rows[0]!.values.listings).toBeNull();
+  });
+});
+
+describe('Events listed and Tripadvisor rating (18d)', () => {
+  const vendorCapture = async (competitorId: string, source: string, url: string | null, capturedAt: Date) => {
+    const [c] = await dbs.owner.insert(capture).values({ competitorId, source, url, status: 'ok', collectorVersion: 't', capturedAt }).returning();
+    const [e] = await dbs.owner.insert(evidence).values({ captureId: c!.id, kind: 'vendor_json', objectKey: randomUUID(), sha256: 'x', bytes: 1, contentType: 'application/json' }).returning();
+    return { captureId: c!.id, evidenceId: e!.id };
+  };
+  const panel = async (competitorId: string) => {
+    const c = await vendorCapture(competitorId, 'google_business_profile', GBP_EVENTS_URL, ago(1));
+    await dbs.owner.insert(stageRun).values({ stage: LISTED_EVENTS_STAGE, stageVersion: LISTED_EVENTS_VERSION, subjectId: c.captureId, status: 'done' });
+    return c;
+  };
+  const event = (competitorId: string, captureId: string, firstSeenAt: Date) =>
+    dbs.owner.insert(listedEvent).values({ competitorId, eventKey: randomUUID(), name: 'Jazz', nameNorm: 'jazz', startDate: '2026-11-01', sources: ['google_panel'], firstCaptureId: captureId, lastCaptureId: captureId, firstSeenAt, lastSeenAt: firstSeenAt });
+  const tripadvisor = async (competitorId: string, rating: number | null, at: Date) => {
+    const c = await vendorCapture(competitorId, 'tripadvisor', null, at);
+    if (rating !== null) await dbs.owner.insert(observation).values({ competitorId, captureId: c.captureId, kind: 'tripadvisor', key: 'rating', observedAt: at, data: { id: 't1', url: 'https://www.tripadvisor.com/x', title: 'X', rating, reviews: 10 } });
+    return c;
+  };
+
+  it('fills events counts (measured only) with their evidence, and the latest Tripadvisor rating', async () => {
+    const r = await addRival('Rival Venue', 'top');
+    const me = await panel(selfId);
+    const theirs = await panel(r);
+    await event(r, theirs.captureId, ago(2));
+    await event(r, theirs.captureId, ago(3));
+    await tripadvisor(r, 4.0, ago(9));
+    const ta = await tripadvisor(r, 4.5, ago(2));
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    const v = (n: string) => sc.rows.find((x) => x.name === n)!.values;
+    expect([v('A1 HVAC').eventsListed30d, v('Rival Venue').eventsListed30d, v('Smith HVAC').eventsListed30d]).toEqual([0, 2, null]);
+    expect([v('A1 HVAC').tripadvisorRating, v('Rival Venue').tripadvisorRating]).toEqual([null, 4.5]);
+    expect(sc.evidenceIds).toEqual(expect.arrayContaining([me.evidenceId, theirs.evidenceId, ta.evidenceId]));
+    expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers.slice(-2)).toEqual(['Events listed (30 days)', 'Tripadvisor rating']);
+  });
+
+  it('tripadvisorRating null when unmatched, column dropped', async () => {
+    const r = await addRival('Rival Unmatched', 'top');
+    await tripadvisor(r, null, ago(1)); // no exactly-one match: capture without an observation
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    expect(sc.rows.every((x) => x.values.tripadvisorRating === null && x.values.eventsListed30d === null)).toBe(true);
+    const headers = scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers;
+    expect(headers).not.toContain('Tripadvisor rating');
+    expect(headers).not.toContain('Events listed (30 days)');
+  });
+
+  it('a scorecard stored before 18d (no events/Tripadvisor keys) still parses as null', async () => {
+    const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+    const old = JSON.parse(JSON.stringify(sc));
+    for (const r of old.rows) { delete r.values.eventsListed30d; delete r.values.tripadvisorRating; }
+    const parsed = Scorecard.parse(old);
+    expect([parsed.rows[0]!.values.eventsListed30d, parsed.rows[0]!.values.tripadvisorRating]).toEqual([null, null]);
   });
 });

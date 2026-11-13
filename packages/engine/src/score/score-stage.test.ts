@@ -291,3 +291,11 @@ describe('detailsSignature citation_added (18c)', () => {
     expect(detailsSignature('citation_added', { directory: 'yelp.com' })).not.toBe(detailsSignature('citation_added', { directory: 'bbb.org' }));
   });
 });
+
+describe('detailsSignature event_listed (18d D9)', () => {
+  it('keys a single event by eventKey and lifecycle, the aggregate by count and date', () => {
+    expect(detailsSignature('event_listed', { eventKey: 'jazz night|2026-12-04', lifecycle: 'cancelled' })).toBe('event_listed|jazz night|2026-12-04|cancelled');
+    expect(detailsSignature('event_listed', { eventKey: 'x' })).toBe('event_listed|x|announced');
+    expect(detailsSignature('event_listed', { count: 3, startDate: '2026-12-01', lifecycle: 'announced' })).toBe('event_listed|more|3|2026-12-01|announced');
+  });
+});

@@ -1,7 +1,7 @@
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffFacts, extractNumericFacts } from '../facts/numeric';
-import { noveltyFactor, scoreForClient, type ScoreInput, serviceOverlap, sizeFactor, TERRITORIAL_TYPES, WHOLE_BUSINESS_TYPES } from './score';
+import { BRIEF_ONLY_TYPES, noveltyFactor, scoreForClient, type ScoreInput, serviceOverlap, sizeFactor, TERRITORIAL_TYPES, WHOLE_BUSINESS_TYPES } from './score';
 
 let pack: VerticalPack;
 beforeAll(async () => {
@@ -18,7 +18,7 @@ describe('scoreForClient', () => {
     const r = scoreForClient(input(), client, pack);
     expect(r.score).toBe(100);
     expect(r.route).toBe('alert');
-    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 8 });
+    expect(r.factors).toMatchObject({ typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 9 });
   });
 
   it('scales size with the percent change, floored at price_min', () => {
@@ -195,7 +195,7 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(serviceOverlap(null, ['a'], pack, 'hiring')).toEqual({ value: pack.scoring.relevance.whole_business, wholeBusiness: true });
     expect(serviceOverlap('a', ['a'], pack, 'hiring')).toEqual({ value: 1, wholeBusiness: false });
     expect(serviceOverlap(null, ['a'], pack, 'promo')).toEqual({ value: 0.6, wholeBusiness: false });
-    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'citation_added', 'hiring', 'new_location', 'new_page', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'site_feature', 'status_change']);
+    expect([...WHOLE_BUSINESS_TYPES].sort()).toEqual(['ad_started', 'ad_stopped', 'audience_growth', 'citation_added', 'event_listed', 'hiring', 'new_location', 'new_page', 'profile_change', 'rank_change', 'rating_change', 'review_spike', 'site_feature', 'status_change']);
   });
 
   it('new_location outside territory = whole_business × outside_territory', () => {
@@ -270,8 +270,8 @@ describe('whole-business relevance (brief-signal D2)', () => {
     expect(r.route).toBe('brief');
   });
 
-  it('factors.scoringVersion is 8 with the shipped pack', () => {
-    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(8);
+  it('factors.scoringVersion is 9 with the shipped pack', () => {
+    expect(scoreForClient(whole({ changeType: 'hiring' }), client, pack).factors.scoringVersion).toBe(9);
   });
 });
 
@@ -286,5 +286,36 @@ describe('citation_added scoring (18c C8)', () => {
   it('follows client thresholds and T = 0', () => {
     expect(scoreForClient(cite(), { ...client, thresholds: { alert: 80, brief: 60 } }, pack)).toMatchObject({ score: 15, route: 'archive' });
     expect(scoreForClient(cite(), { ...client, thresholds: { alert: 80, brief: 0 } }, pack)).toMatchObject({ score: 0, route: 'archive' });
+  });
+});
+
+describe('event_listed scoring (18d D9)', () => {
+  let venues: VerticalPack;
+  beforeAll(async () => {
+    venues = await loadVerticalPack('venues_attractions');
+  });
+  const ev = (details: ScoreInput['details']) => input({ changeType: 'event_listed', facts: [], serviceId: null, details: { changeType: 'event_listed', ...details } });
+
+  it('venues weight is 0.8 and the type is whole-business', () => {
+    const r = scoreForClient(ev({ lifecycle: 'announced', eventKey: 'k', ticketed: false }), client, venues);
+    expect(r.factors.typeWeight).toBe(0.8);
+    expect(r.factors.wholeBusiness).toBe(true);
+    expect(WHOLE_BUSINESS_TYPES.has('event_listed')).toBe(true);
+    expect(BRIEF_ONLY_TYPES.has('event_listed')).toBe(true);
+  });
+  it('a ticketed announcement is full size; an unticketed one the default', () => {
+    expect(sizeFactor(ev({ lifecycle: 'announced', ticketed: true }), venues)).toBe(1);
+    expect(sizeFactor(ev({ lifecycle: 'announced', ticketed: false }), venues)).toBe(venues.scoring.size.default);
+    expect(sizeFactor(ev({ lifecycle: 'cancelled', ticketed: true }), venues)).toBe(venues.scoring.size.default);
+  });
+  it('the aggregate scales with its count over events_for_full', () => {
+    expect(sizeFactor(ev({ lifecycle: 'announced', count: 3, startDate: '2026-12-01' }), venues)).toBeCloseTo(0.6, 5);
+    expect(sizeFactor(ev({ lifecycle: 'announced', count: 4, startDate: '2026-12-01' }), venues)).toBeCloseTo(0.8, 5);
+  });
+  it('a full-size event that would alert is capped to the brief', () => {
+    const r = scoreForClient(ev({ lifecycle: 'announced', eventKey: 'k', ticketed: true }), client, venues);
+    expect(r.score).toBe(80);
+    expect(r.route).toBe('brief');
+    expect(r.factors.briefOnly).toBe(true);
   });
 });

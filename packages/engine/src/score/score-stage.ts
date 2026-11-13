@@ -51,6 +51,8 @@ export function detailsSignature(changeType: string, d: ChangeDetails): string |
       return `site_feature|${d.category ?? d.feature ?? ''}|${d.direction ?? ''}`;
     case 'citation_added':
       return `citation_added|${d.directory ?? ''}`;
+    case 'event_listed':
+      return `event_listed|${d.eventKey ?? `more|${d.count}|${d.startDate}`}|${d.lifecycle ?? 'announced'}`;
     case 'new_page':
       return `new_page|${d.pageKey ?? ''}`;
     case 'status_change':

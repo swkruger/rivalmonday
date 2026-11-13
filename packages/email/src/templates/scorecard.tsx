@@ -20,6 +20,8 @@ const SHORT: Record<string, { short: string; key: string }> = {
   'Meta ads': { short: 'M ads', key: 'G ads / M ads: active Google and Meta ads' },
   'Google posts (30 days)': { short: 'Posts', key: 'Posts: Google posts in the last 30 days' },
   'Directory listings': { short: 'Listings', key: 'Listings: directories each business is listed on' },
+  'Events listed (30 days)': { short: 'Events', key: 'Events: events listed in the last 30 days' },
+  'Tripadvisor rating': { short: 'Tripadvisor', key: 'Tripadvisor: Tripadvisor rating' },
 };
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */

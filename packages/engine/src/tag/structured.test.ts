@@ -148,6 +148,30 @@ describe('citation_added (18c)', () => {
   });
 });
 
+describe('event_listed (18d)', () => {
+  const ev = (source: string, d: Record<string, unknown>) =>
+    buildStructuredSummary({ source: 'web', beforeText: null, afterText: 'placeholder', details: { changeType: 'event_listed', source, ...d } });
+  it('reads per the spec copy', () => {
+    expect(ev('google_panel', { lifecycle: 'announced', eventName: 'Jazz Night', startDate: '2026-12-04', eventKey: 'k' })).toBe('Google shows an upcoming event: "Jazz Night" on Dec 4');
+    expect(ev('web', { lifecycle: 'announced', eventName: 'Jazz Night', startDate: '2026-12-04', eventKey: 'k' })).toBe('Listed an event: "Jazz Night" on Dec 4');
+    expect(ev('meta_ads', { lifecycle: 'announced', eventName: 'Jazz Night', startDate: '2026-01-31', eventKey: 'k' })).toBe('Listed an event: "Jazz Night" on Jan 31');
+    expect(ev('web', { lifecycle: 'cancelled', eventName: 'Jazz Night', startDate: '2026-12-04', eventKey: 'k' })).toBe('Cancelled its event "Jazz Night" (Dec 4)');
+    expect(ev('web', { lifecycle: 'postponed', eventName: 'Jazz Night', startDate: '2026-12-04', eventKey: 'k' })).toBe('Postponed its event "Jazz Night" (was Dec 4)');
+    expect(ev('web', { lifecycle: 'sold_out', eventName: 'Jazz Night', startDate: '2026-12-04', eventKey: 'k' })).toBe('Sold out its event "Jazz Night" (Dec 4)');
+    expect(ev('web', { lifecycle: 'announced', startDate: '2026-12-04', count: 3 })).toBe('Listed 3 more events');
+    expect(ev('web', { lifecycle: 'announced', eventName: 'x'.repeat(100), startDate: '2026-12-04', eventKey: 'k' })).toBe(`Listed an event: "${'x'.repeat(79)}…" on Dec 4`);
+  });
+  it('tags an event_listed change with no model decision', async () => {
+    const details = { changeType: 'event_listed', lifecycle: 'announced', eventKey: 'jazz night|2026-12-04', eventName: 'Jazz Night', startDate: '2026-12-04', ticketed: true, source: 'web', url: 'https://x.test/events' };
+    const id = await change({ source: 'web', beforeCaptureId: null, blockKey: 'event:jazz night|2026-12-04:announced', afterText: 'Jazz Night', details });
+    const ai = createFakeAi(); // decide() throws if called
+    await tagChange({ db: dbs.service, ai, packs }, id);
+    const [row] = await dbs.owner.select().from(changeEvent);
+    expect(row).toMatchObject({ changeType: 'event_listed', channels: ['web'], summary: 'Listed an event: "Jazz Night" on Dec 4' });
+    expect(ai.calls.decide).toHaveLength(0);
+  });
+});
+
 describe('buildStructuredSummary', () => {
   it('reads Google posts per the spec copy', () => {
     const base = { source: 'google_business_profile', beforeText: null };

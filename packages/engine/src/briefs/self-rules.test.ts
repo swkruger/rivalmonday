@@ -2,12 +2,14 @@ import { loadVerticalPack } from '@cs/verticals';
 import { describe, expect, it } from 'vitest';
 import type { BenchmarkBusiness, TopicShare } from '../reviews/benchmark';
 import type { Scorecard } from './scorecard';
+import { checkSentence } from './rules';
 import { evaluateSelfRules, type SelfRuleInput } from './self-rules';
+import { scorecardEvidenceText } from './starting-point';
 
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const SELF = ID(1);
 type Vals = Partial<Scorecard['rows'][number]['values']>;
-const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, ...v });
+const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null, ...v });
 const row = (n: number, name: string, v: Vals, self = false): Scorecard['rows'][number] => ({ competitorId: ID(n), name, self, tier: self ? null : 'top', values: vals(v) });
 const card = (rows: Scorecard['rows']): Scorecard => ({ asOf: '2026-10-14T00:00:00Z', baselineBriefId: null, tiles: [] as never, rows, evidenceIds: [], openFirstMoves: [] });
 const topic = (topicId: string, share: number | null, sentiment: number | null): TopicShare =>
@@ -24,7 +26,7 @@ async function base(over: Partial<SelfRuleInput> = {}): Promise<SelfRuleInput> {
   return {
     scorecard: card([row(1, 'Me', {}, true), row(2, 'Alpha', {}), row(3, 'Beta', {}), row(4, 'Gamma', {})]),
     topics: [], profile: ALL_OK, rules: pack.self_rules, playbooks: pack.playbooks, rankHasEvidence: true, audienceNoun: pack.audience_noun,
-    evidenceByCompetitor: evidence, adEvidenceByCompetitor: adEvidence, rankEvidenceIds: [ID(900)], citations: null, ...over,
+    evidenceByCompetitor: evidence, adEvidenceByCompetitor: adEvidence, rankEvidenceIds: [ID(900)], citations: null, events: null, ...over,
   };
 }
 const find = (r: ReturnType<typeof evaluateSelfRules>, id: string) => r.find((f) => f.ruleId === id);
@@ -203,5 +205,40 @@ describe('citation_gap', () => {
   });
   it('is dropped without evidence (no evidence, no claim)', async () => {
     expect(find(evaluateSelfRules(await base({ citations: cit({ evidenceIds: [] }) })), 'citation_gap')).toBeUndefined();
+  });
+});
+
+describe('event_gap (18d)', () => {
+  const events = (over: Partial<NonNullable<SelfRuleInput['events']>> = {}): NonNullable<SelfRuleInput['events']> => ({
+    selfCount: 0, rivals: [{ competitorId: ID(2), name: 'Alpha', count: 2 }, { competitorId: ID(3), name: 'Beta', count: 1 }, { competitorId: ID(4), name: 'Gamma', count: 0 }],
+    evidenceIds: [ID(301), ID(302)], ...over,
+  });
+  it('fires when you list none and rivals list at least 2, with the decided fact and score', async () => {
+    const f = find(evaluateSelfRules(await base({ events: events() })), 'event_gap')!;
+    expect(f.fact).toBe('Alpha and Beta listed 3 events in the last 30 days; Google shows none for you.');
+    expect(f.score).toBeCloseTo(0.4 * 0.5, 5);
+    expect(f.evidenceIds).toEqual([ID(301), ID(302)]);
+    expect(f.playbookId).toBe('list_your_events');
+  });
+  it('names the top 3 rivals by count', async () => {
+    const rivals = [{ competitorId: ID(2), name: 'A', count: 1 }, { competitorId: ID(3), name: 'B', count: 4 }, { competitorId: ID(4), name: 'C', count: 2 }, { competitorId: ID(5), name: 'D', count: 3 }];
+    const f = find(evaluateSelfRules(await base({ events: events({ rivals }) })), 'event_gap')!;
+    expect(f.fact).toBe('B, D and C listed 10 events in the last 30 days; Google shows none for you.');
+    expect(f.score).toBeCloseTo(0.4, 5);
+  });
+  it('is skipped when your events were never measured, you list some, rivals list fewer than 2, or there is no evidence', async () => {
+    expect(find(evaluateSelfRules(await base({ events: null })), 'event_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ events: events({ selfCount: null }) })), 'event_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ events: events({ selfCount: 1 }) })), 'event_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ events: events({ rivals: [{ competitorId: ID(2), name: 'Alpha', count: 1 }] }) })), 'event_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ events: events({ evidenceIds: [] }) })), 'event_gap')).toBeUndefined();
+  });
+  it('the fact passes checkSentence against the scorecard evidence text', async () => {
+    const input = await base({ events: events() });
+    const f = find(evaluateSelfRules(input), 'event_gap')!;
+    const text = scorecardEvidenceText(input.scorecard, [f]);
+    expect(text).toContain('Events check: rivals listed 3 events in the last 30 days; none found for you.');
+    const r = checkSentence(f.fact, { text, captureDates: [], zips: [], competitorNames: ['Alpha', 'Beta', 'Gamma'] }, { trackedCompetitorNames: ['Alpha', 'Beta', 'Gamma'], clientTowns: [], year: 2026 });
+    expect(r).toEqual({ ok: true, reasons: [] });
   });
 });

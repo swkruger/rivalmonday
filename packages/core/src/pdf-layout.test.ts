@@ -9,7 +9,7 @@ describe('pdf layout version', () => {
     expect(isCurrentPdfKey(`briefs/a/b.v${PDF_LAYOUT_VERSION - 1}.pdf`)).toBe(false);
   });
 
-  it('PDF_KEY_SUFFIX is .v6.pdf (weekly report layout "C")', () => {
-    expect(PDF_KEY_SUFFIX).toBe('.v6.pdf');
+  it('PDF_KEY_SUFFIX is .v7.pdf (events and Tripadvisor scorecard columns)', () => {
+    expect(PDF_KEY_SUFFIX).toBe('.v7.pdf');
   });
 });

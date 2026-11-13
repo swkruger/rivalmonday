@@ -67,7 +67,7 @@ describe('rescoreRecent', () => {
     expect(row.score).toBeCloseTo(46.7, 1);
     expect(row.scoredAt.getTime()).toBe(NOW.getTime());
     expect(row.packVersion).toBe((await loadVerticalPack('hvac_plumbing')).version);
-    expect(row.factors).toMatchObject({ wholeBusiness: true, serviceOverlap: 1, scoringVersion: 8, rescored: { at: NOW.toISOString(), score: 28, route: 'archive', scoringVersion: 3 } });
+    expect(row.factors).toMatchObject({ wholeBusiness: true, serviceOverlap: 1, scoringVersion: 9, rescored: { at: NOW.toISOString(), score: 28, route: 'archive', scoringVersion: 3 } });
     expect(row.factors.rescoreCap).toBeUndefined();
   });
 
@@ -189,7 +189,7 @@ describe('rescoreRecent', () => {
     await scored(id, { clientId: IDS.clientB1 });
     const r = await run({ clientId: IDS.clientB1 });
     expect(r).toMatchObject({ considered: 1, rescored: 1 });
-    expect((await rowOf(id, IDS.clientB1)).factors.scoringVersion).toBe(8);
+    expect((await rowOf(id, IDS.clientB1)).factors.scoringVersion).toBe(9);
     expect((await rowOf(id, IDS.clientA1)).factors.scoringVersion).toBe(3);
   });
   it('a citation event keeps archive (C8)', async () => {

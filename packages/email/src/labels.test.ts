@@ -24,6 +24,13 @@ describe('citation_added labels (18c)', () => {
   });
 });
 
+describe('event_listed labels (18d)', () => {
+  it('reads as an event update', () => {
+    expect(changeTypeLabel('event_listed')).toBe('Event update');
+    expect(groupPhrase('event_listed', 'web', 2)).toBe('2 event updates');
+  });
+});
+
 describe('rank_change labels', () => {
   it('reads neutrally, as one event type covers map and Google page-one changes', () => {
     expect(changeTypeLabel('rank_change')).toBe('Ranking change');

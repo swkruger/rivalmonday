@@ -46,6 +46,11 @@ const scorecard: ScorecardModel = {
   table: { headers: ['Business', 'Rating', 'Google posts (30 days)', 'Directory listings'], rows: [{ cells: [`${CLIENT} (you)`, '4.6', '3', '6'], self: true, tier: null }, { cells: ['Harbor Dental', '4.4', '—', '—'], self: false, tier: 'top' }] },
   openFirstMoves: ['Reply to your recent reviews'],
 };
+/** 18d: a venue scorecard with the events and Tripadvisor columns (they drop out when nobody has a value). */
+const venueScorecard: ScorecardModel = {
+  ...scorecard,
+  table: { headers: ['Business', 'Rating', 'Events listed (30 days)', 'Tripadvisor rating'], rows: [{ cells: [`${CLIENT} (you)`, '4.6', '0', '4.5'], self: true, tier: null }, { cells: ['The Blue Barn', '4.4', '3', '—'], self: false, tier: 'top' }] },
+};
 const brief: BriefEmailProps = {
   branding: agency, recipientName: 'Jordan', clientName: CLIENT, deliveryDate: '2026-10-05', kind: 'standard', summary: 'One competitor changed its offer this week.',
   items: [item(1), item(2)], trend, link: `${APP}/l/brief`, pdfLink: `${APP}/l/pdf`, signOff: `— ${PERSON}, ${AGENCY}`,
@@ -205,6 +210,7 @@ export const EMAIL_PREVIEWS: readonly EmailPreview[] = [
   { id: 'brief.highlights_not_attached', label: 'Weekly brief highlights, PDF not attached (download link)', payload: { template: 'brief', props: { ...brief, items: [item(1)], highlights, attachPdf: true, attached: false } } },
   { id: 'brief.quiet_highlights', label: 'Weekly brief highlights, quiet week with notable lines and scorecard', payload: { template: 'brief', props: { ...brief, kind: 'quiet', summary: 'No significant competitor moves this week.', items: [], scorecard, highlights: { totals: { major: 0, notable: 2, minor: 4 }, moreLines: 0, minor: 4, lines: highlights.lines.slice(1) }, attachPdf: true, attached: true } } },
   { id: 'brief.starting_point', label: 'Starting-point brief', payload: { template: 'brief', props: startingPoint } },
+  { id: 'brief.starting_point_venues', label: 'Starting-point brief, venue scorecard with events and Tripadvisor columns', payload: { template: 'brief', props: { ...startingPoint, scorecard: venueScorecard } } },
   { id: 'trend_report', label: 'Quarterly trend report', payload: { template: 'trend_report', props: report } },
   { id: 'sign_in', label: 'Sign-in link', payload: { template: 'sign_in', props: { branding: agency, url: `${APP}/sign-in/abc`, expiresMinutes: 15 } } },
   { id: 'client_invite', label: 'Client invite', payload: { template: 'client_invite', props: { branding: agency, businessName: CLIENT, agencyName: AGENCY, startUrl: `${APP}/sign-in?next=%2Fc%2F1%2Fsetup` } } },

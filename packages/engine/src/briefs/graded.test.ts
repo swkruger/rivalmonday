@@ -37,6 +37,19 @@ describe('citation_added lines (18c P7)', () => {
   });
 });
 
+describe('event_listed lines (18d)', () => {
+  it('groups two events of one rival as event updates under offers', () => {
+    const rows = [
+      ev(1, { changeType: 'event_listed', channel: 'web', score: 48, summary: 'Listed an event: "Jazz Night" on Dec 4' }),
+      ev(2, { changeType: 'event_listed', channel: 'web', score: 48, summary: 'Listed an event: "Comedy Night" on Dec 5' }),
+    ];
+    const [line] = groupChanges(rows, 40);
+    expect(line).toMatchObject({ grade: 'major', topic: 'offers', count: 2, text: 'Lakeview: 2 event updates' });
+    const [one] = groupChanges(rows.slice(0, 1), 40);
+    expect(one!.text).toBe('Lakeview: Event update — Listed an event: "Jazz Night" on Dec 4');
+  });
+});
+
 describe('groupChanges', () => {
   it('single event line uses label and clipped summary', () => {
     const [line] = groupChanges([ev(1, { summary: '  Raised   prices\n on  drain cleaning  ' })], 70);

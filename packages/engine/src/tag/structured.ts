@@ -29,6 +29,9 @@ export const OFFER_QUESTION =
 const CHANNEL_LABEL: Record<string, string> = { meta_ads: 'Meta', google_ads: 'Google' };
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** `YYYY-MM-DD` → "Dec 4" (UTC, so the stored calendar date never shifts). */
+const monthDay = (ymd: string | undefined) =>
+  ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '';
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
 /** gbp.ts stores scalar fields as "<field>: <value>"; strips that label, when present, to get the bare value. */
 const stripFieldLabel = (field: string | undefined, text: string): string => {
@@ -156,6 +159,21 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
     case 'citation_added':
       s = `Now found on ${d.label ?? d.directory} in Google search`;
       break;
+    case 'event_listed': {
+      // 18d § Copy: the aggregate (no eventKey) counts the rest; afterText is a placeholder, never client text.
+      if (!d.eventKey && d.count !== undefined) {
+        s = `Listed ${d.count} more events`;
+        break;
+      }
+      const name = trunc(d.eventName ?? '', 80);
+      const date = monthDay(d.startDate);
+      s = d.lifecycle === 'cancelled' ? `Cancelled its event "${name}" (${date})`
+        : d.lifecycle === 'postponed' ? `Postponed its event "${name}" (was ${date})`
+        : d.lifecycle === 'sold_out' ? `Sold out its event "${name}" (${date})`
+        : d.source === 'google_panel' ? `Google shows an upcoming event: "${name}" on ${date}`
+        : `Listed an event: "${name}" on ${date}`;
+      break;
+    }
     default: {
       s = `Google Business Profile ${d.field ?? 'profile'} changed: ${trunc(stripFieldLabel(d.field, before), 60)} → ${trunc(stripFieldLabel(d.field, after), 60)}`;
     }

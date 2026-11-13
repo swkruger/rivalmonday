@@ -39,10 +39,10 @@ export const TERRITORIAL_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['
  * Excluded: content (shared with web page edits; no service = generic copy), tier_change (deterministic score, P10),
  * and the service-specific types (price_change, promo, new_service, service_removed, service_area_change, cosmetic).
  */
-export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth', 'citation_added', 'site_feature', 'new_page']);
+export const WHOLE_BUSINESS_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['ad_started', 'ad_stopped', 'hiring', 'rank_change', 'review_spike', 'rating_change', 'new_location', 'status_change', 'profile_change', 'audience_growth', 'citation_added', 'site_feature', 'new_page', 'event_listed']);
 
-/** Phase 18a-2: website changes are brief news only; they never page anyone. */
-export const BRIEF_ONLY_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['site_feature', 'new_page']);
+/** Phase 18a-2: website changes are brief news only; they never page anyone. 18d D9: nor do listed events. */
+export const BRIEF_ONLY_TYPES: ReadonlySet<ChangeType> = new Set<ChangeType>(['site_feature', 'new_page', 'event_listed']);
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
@@ -72,6 +72,9 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
       return d.direction === 'closed' ? 1 : s.default;
     case 'audience_growth':
       return curve(d.pct, s.audience_pct_for_full);
+    case 'event_listed': // 18d D9: a ticketed announcement is full size; the aggregate scales with its count
+      if (d.eventKey === undefined && d.count !== undefined) return curve(d.count, s.events_for_full);
+      return d.lifecycle === 'announced' && d.ticketed === true ? 1 : s.default;
     default:
       return s.default;
   }
