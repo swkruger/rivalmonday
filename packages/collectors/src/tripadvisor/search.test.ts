@@ -1,7 +1,7 @@
 import { capture, client, clientCompetitor, competitor, competitorSource, observation, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dfsTask, fakeDfs } from '../../test/fake-dfs';
 import { claimDueSources } from '../sources/due';
@@ -42,6 +42,16 @@ describe('syncTripadvisorSources', () => {
     await dbs.owner.insert(clientCompetitor).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX });
     await syncTripadvisorSources(dbs.service, packs);
     expect(await activeOf()).toEqual({ [IDS.competitorX]: true });
+  });
+
+  it('leaves an already inactive row untouched on later ticks (no rewrite)', async () => {
+    await syncTripadvisorSources(dbs.service, packs);
+    await dbs.owner.delete(clientCompetitor).where(and(eq(clientCompetitor.clientId, IDS.clientA1), eq(clientCompetitor.competitorId, IDS.competitorX)));
+    await syncTripadvisorSources(dbs.service, packs);
+    const xmin = async () => ((await dbs.owner.execute(sql`SELECT xmin::text AS x FROM competitor_source WHERE source = ${TRIPADVISOR_KIND}`)) as unknown as { x: string }[])[0]!.x;
+    const before = await xmin();
+    expect(await syncTripadvisorSources(dbs.service, packs)).toEqual({ active: 0, inactive: 1 });
+    expect(await xmin()).toBe(before);
   });
 
   it('ensureCompetitorSources adds no tripadvisor row', async () => {

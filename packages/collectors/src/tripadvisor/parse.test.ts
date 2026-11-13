@@ -55,6 +55,11 @@ describe('parseTripadvisorItem', () => {
     });
   });
 
+  it('builds the url from the trimmed url_path', () => {
+    expect(parsed(withFields({ url_path: `  ${dripping.url_path as string}
+` })).url).toBe(`https://www.tripadvisor.com${dripping.url_path as string}`);
+  });
+
   it('keeps a rating only when 0 < value <= 5', () => {
     expect(parsed(withFields({ rating: { value: 5 } })).rating).toBe(5);
     expect(parsed(withFields({ rating: { value: 0 } })).rating).toBeNull();

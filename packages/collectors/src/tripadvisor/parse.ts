@@ -31,13 +31,14 @@ export function parseTripadvisorItem(raw: unknown): TripadvisorItem | null {
   if (v.is_sponsored === true) return null;
   const title = v.title?.trim();
   if (!title) return null;
-  const path = parseUrlPath(v.url_path);
+  const urlPath = v.url_path?.trim();
+  const path = parseUrlPath(urlPath);
   if (!path) return null;
   const value = v.rating?.value;
   const rating = typeof value === 'number' && value > 0 && value <= 5 ? value : null;
   const count = v.reviews_count;
   const reviews = typeof count === 'number' && Number.isInteger(count) && count >= 0 ? count : null;
-  return { id: path.id, url: `https://www.tripadvisor.com${v.url_path}`, title, rating, reviews, city: path.city };
+  return { id: path.id, url: `https://www.tripadvisor.com${urlPath}`, title, rating, reviews, city: path.city };
 }
 
 export function matchTripadvisor(items: TripadvisorItem[], biz: { name: string; city: string | null }): TripadvisorItem | null {

@@ -43,7 +43,7 @@ export async function syncTripadvisorSources(db: Db, packs: PackLoader): Promise
       .onConflictDoUpdate({ target: [competitorSource.competitorId, competitorSource.source], set: { active: true } });
   }
   await db.update(competitorSource).set({ active: false })
-    .where(and(eq(competitorSource.source, TRIPADVISOR_KIND), ids.length > 0 ? notInArray(competitorSource.competitorId, ids) : undefined));
+    .where(and(eq(competitorSource.source, TRIPADVISOR_KIND), eq(competitorSource.active, true), ids.length > 0 ? notInArray(competitorSource.competitorId, ids) : undefined));
   const [counts] = await db.select({
     inactive: sql<number>`count(*) FILTER (WHERE NOT ${competitorSource.active})`.mapWith(Number),
   }).from(competitorSource).where(eq(competitorSource.source, TRIPADVISOR_KIND));
