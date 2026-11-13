@@ -1,6 +1,6 @@
 import { GBP_EVENTS_URL } from '@cs/collectors';
 import { capture, type Db, evidence, listedEvent, stageRun } from '@cs/db';
-import { and, asc, desc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, notInArray, or, sql } from 'drizzle-orm';
 import { localDate } from './normalise';
 import { LISTED_EVENTS_STAGE } from './stage';
 
@@ -22,7 +22,7 @@ const addDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T00:00:00
 
 /**
  * Scorecard and `event_gap` (Task 12 fix ruling 1): upcoming events a business currently shows — non-series `listed_event` rows starting
- * today (in `tz`) through +60 days and last seen within 8 days, any source. `null` = no measured capture of that business yet (never 0).
+ * today (in `tz`) through +60 days and last seen within 8 days, any source, not cancelled or postponed (sold out still counts). `null` = no measured capture of that business yet (never 0).
  */
 export async function upcomingEvents(db: Db, competitorIds: string[], now: Date, tz = 'America/Chicago'): Promise<Map<string, number | null>> {
   const out = new Map<string, number | null>(competitorIds.map((id) => [id, null]));
@@ -34,7 +34,7 @@ export async function upcomingEvents(db: Db, competitorIds: string[], now: Date,
     .select({ id: listedEvent.competitorId, n: sql<number>`count(*)::int` })
     .from(listedEvent)
     .where(and(
-      inArray(listedEvent.competitorId, competitorIds), eq(listedEvent.series, false),
+      inArray(listedEvent.competitorId, competitorIds), eq(listedEvent.series, false), notInArray(listedEvent.status, ['cancelled', 'postponed']),
       gte(listedEvent.startDate, today), lte(listedEvent.startDate, addDays(today, UPCOMING_EVENTS_DAYS)),
       gte(listedEvent.lastSeenAt, new Date(now.getTime() - UPCOMING_LAST_SEEN_DAYS * DAY_MS)),
     ))

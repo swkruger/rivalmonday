@@ -24,9 +24,9 @@ async function cap(competitorId: string, kind: 'panel' | 'web' | 'meta', at: Dat
   if (run) await dbs.owner.insert(stageRun).values({ stage: LISTED_EVENTS_STAGE, stageVersion: LISTED_EVENTS_VERSION, subjectId: c!.id, status: run });
   return { captureId: c!.id, evidenceId: e!.id };
 }
-const ev = (competitorId: string, captureId: string, o: { startDate?: string; lastSeenAt?: Date; firstSeenAt?: Date; series?: boolean } = {}) =>
+const ev = (competitorId: string, captureId: string, o: { startDate?: string; lastSeenAt?: Date; firstSeenAt?: Date; series?: boolean; status?: 'scheduled' | 'cancelled' | 'postponed' | 'sold_out' } = {}) =>
   dbs.owner.insert(listedEvent).values({
-    competitorId, eventKey: randomUUID(), name: 'Jazz Night', nameNorm: 'jazz night', startDate: o.startDate ?? '2026-11-20', sources: ['google_panel'], series: o.series ?? false,
+    competitorId, eventKey: randomUUID(), name: 'Jazz Night', nameNorm: 'jazz night', startDate: o.startDate ?? '2026-11-20', sources: ['google_panel'], series: o.series ?? false, status: o.status ?? 'scheduled',
     firstCaptureId: captureId, lastCaptureId: captureId, firstSeenAt: o.firstSeenAt ?? ago(2), lastSeenAt: o.lastSeenAt ?? ago(1),
   });
 
@@ -51,6 +51,11 @@ describe('upcomingEvents (Task 12 fix ruling 1)', () => {
     const counts = await upcomingEvents(dbs.service, [IDS.competitorX, b!.id, m!.id, u!.id], NOW);
     expect([counts.get(IDS.competitorX), counts.get(b!.id), counts.get(m!.id), counts.get(u!.id)]).toEqual([3, 0, null, null]);
     expect((await upcomingEvents(dbs.service, [], NOW)).size).toBe(0);
+  });
+  it('cancelled and postponed events do not count; sold out does', async () => {
+    const x = await cap(IDS.competitorX, 'panel', ago(1), 'done');
+    for (const status of ['scheduled', 'sold_out', 'cancelled', 'postponed'] as const) await ev(IDS.competitorX, x.captureId, { status });
+    expect((await upcomingEvents(dbs.service, [IDS.competitorX], NOW)).get(IDS.competitorX)).toBe(2);
   });
   it('"today" follows the given time zone', async () => {
     const x = await cap(IDS.competitorX, 'panel', ago(1), 'done');

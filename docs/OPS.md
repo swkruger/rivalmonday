@@ -218,9 +218,9 @@ Where Google search finds each client and its top rivals on major directories (F
 
 ## Events & venues (18d)
 
-Rival events (JSON-LD on their site, Meta ad events, the Google venue Events panel) land in `listed_event`; the venues pack also opts into Tripadvisor ratings. Client page "Events" shows only when the vertical or a rival has events.
+Rival events (JSON-LD on their site, Meta ad events, the Google venue Events panel) land in `listed_event`; the `venues_attractions` pack also opts into Tripadvisor ratings. Client page "Events" shows only when the vertical or a rival has events.
 
-- **Opt-in:** the `venues` pack (catalogue vertical "Venues & attractions") sets `events.panel` and `tripadvisor` flags; HVAC/dental never run the panel or Tripadvisor. Meta/web events work for every vertical (web stays dark until `WEB_MONITORING_ENABLED`).
+- **Opt-in:** the `venues_attractions` pack (catalogue vertical "Venues & attractions") sets `events.panel` and `tripadvisor` flags; HVAC/dental never run the panel or Tripadvisor. Meta/web events work for every vertical (web stays dark until `WEB_MONITORING_ENABLED`).
 - **Cost:** Google Events panel about $0.012 per client per week (one live search per business, reused 6 days); Tripadvisor about $0.005 per client per week. Both ride the Sunday scan / source schedule and the monthly cost guard.
 - **Read a panel capture:** it is a `capture` with `url = 'gbp:events'` plus one `observation` of kind `venue_panel`:
   ```sql
@@ -233,11 +233,11 @@ Rival events (JSON-LD on their site, Meta ad events, the Google venue Events pan
   ```sql
   UPDATE competitor SET tripadvisor_id = NULL, tripadvisor_url = NULL WHERE id = '<competitor>';
   ```
-- **Claimed categories:** the venues pack claims `vertical_category` values incl. bar, brewery, distillery, winery (related). An agency creating a vertical with one of these hits a claim conflict: resolve it in `/platform/verticals` (merge or release), not in SQL.
-- **Upcoming events per client** (same rule as the scorecard "Upcoming events": non-series, today to +60 d, last seen within 8 d):
+- **Claimed categories:** the `venues_attractions` pack claims `vertical_category` values incl. bar, brewery, distillery, winery (related). An agency creating a vertical with one of these hits a claim conflict: resolve it in `/platform/verticals` (merge or release), not in SQL.
+- **Upcoming events per client** (same rule as the scorecard "Upcoming events": non-series, today to +60 d, last seen within 8 d, not cancelled or postponed; sold out counts):
   ```sql
   SELECT cc.client_id, count(*) AS upcoming FROM client_competitor cc JOIN listed_event e ON e.competitor_id = cc.competitor_id
-  WHERE e.start_date BETWEEN current_date AND current_date + 60 AND NOT e.series AND e.status = 'scheduled' AND e.last_seen_at > now() - interval '8 days'
+  WHERE e.start_date BETWEEN current_date AND current_date + 60 AND NOT e.series AND e.status NOT IN ('cancelled', 'postponed') AND e.last_seen_at > now() - interval '8 days'
   GROUP BY cc.client_id ORDER BY upcoming DESC;
   ```
 
