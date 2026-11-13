@@ -58,7 +58,9 @@ const ACCOUNT_CLIENT_ROLE = [...ACCOUNT_SPLIT].sort();
 const AGENCY_KEYS = [...AGENCY_A, ...AGENCY_B].sort();
 /** 18c: the Listings page (directory citations), reached by agency and client roles, with an agency and a client version. */
 const LISTINGS_18C = ['page:client.listings#agency', 'page:client.listings#client'];
-const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...LISTINGS_18C, ...AGENCY_KEYS.map((k) => `${k}#agency`)].sort();
+/** 18d: the Events page (venues), reached by agency and client roles, with an agency and a client version. */
+const EVENTS_18D = ['page:client.events#agency', 'page:client.events#client'];
+const CLIENT_PAGES = [...PILOT, ...BATCH_A, ...BATCH_B, ...BATCH_C, ...LISTINGS_18C, ...EVENTS_18D, ...AGENCY_KEYS.map((k) => `${k}#agency`)].sort();
 const CLIENT_KEYS = [...new Set(CLIENT_PAGES.map((k) => k.split('#')[0]!))].filter((k) => !AGENCY_KEYS.includes(k)).sort();
 /** What a client role can read: every client page guide except the agency-only pages. */
 const CLIENT_ROLE_KEYS = CLIENT_KEYS.filter((k) => !AGENCY_ONLY_PAGES.includes(k) && !BATCH_C_AGENCY_ONLY.includes(k));

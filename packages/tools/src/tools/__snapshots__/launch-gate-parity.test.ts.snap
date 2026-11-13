@@ -3073,6 +3073,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+          "title": "Put your events where customers look",
+          "trigger": "event_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:list_your_events",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+            "title": "Put your events where customers look",
+            "trigger": "event_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+            "title": "Put your events where customers look",
+            "trigger": "event_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "template": "{{competitor}} is climbing into the Google Maps top 3 across your area. Refresh your Google Business Profile (photos, services, posts), ask recent customers for reviews, and check that your service-area pages cover the places where they gained.",
           "title": "Defend your map visibility",
           "trigger": "map_climb",
@@ -3399,6 +3436,49 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
             "playbook": "fix_citations",
             "strength": false,
             "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
+          "id": "event_gap",
+          "params": {
+            "min_rival_events": 2,
+          },
+          "playbook": "list_your_events",
+          "strength": false,
+          "weight": 0.4,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:event_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "event_gap",
+            "params": {
+              "min_rival_events": 2,
+            },
+            "playbook": "list_your_events",
+            "strength": false,
+            "weight": 0.4,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "event_gap",
+            "params": {
+              "min_rival_events": 2,
+            },
+            "playbook": "list_your_events",
+            "strength": false,
+            "weight": 0.4,
           },
         },
         "upstreamVersion": 1,
@@ -3753,6 +3833,8 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "areas",
       "topic",
       "directories",
+      "date",
+      "event",
     ],
   },
   "clientRole": {
@@ -4114,6 +4196,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+          "title": "Put your events where customers look",
+          "trigger": "event_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:list_your_events",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+            "title": "Put your events where customers look",
+            "trigger": "event_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post each event on your Google profile with its date, and list it on your website's events page.",
+            "title": "Put your events where customers look",
+            "trigger": "event_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "template": "{{competitor}} is climbing into the Google Maps top 3 across your area. Refresh your Google Business Profile (photos, services, posts), ask recent customers for reviews, and check that your service-area pages cover the places where they gained.",
           "title": "Defend your map visibility",
           "trigger": "map_climb",
@@ -4440,6 +4559,49 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
             "playbook": "fix_citations",
             "strength": false,
             "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
+          "id": "event_gap",
+          "params": {
+            "min_rival_events": 2,
+          },
+          "playbook": "list_your_events",
+          "strength": false,
+          "weight": 0.4,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:event_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "event_gap",
+            "params": {
+              "min_rival_events": 2,
+            },
+            "playbook": "list_your_events",
+            "strength": false,
+            "weight": 0.4,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "event_gap",
+            "params": {
+              "min_rival_events": 2,
+            },
+            "playbook": "list_your_events",
+            "strength": false,
+            "weight": 0.4,
           },
         },
         "upstreamVersion": 1,
@@ -4794,6 +4956,8 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "areas",
       "topic",
       "directories",
+      "date",
+      "event",
     ],
   },
   "otherAgency": {
