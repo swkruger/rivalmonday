@@ -16,7 +16,7 @@ None yet. Next free migration: `0110`.
 Nothing in flight.
 
 ## Decisions (owner-approved)
-None yet.
+- 2026-11-13: owner adds a second track to 18e: confidence in the Jev evals is now high, so add a setting to run review decisions on **Jev only** (no LLM step), with an option to **re-evaluate with all models** (today's Jev → LLM cascade / shadow comparison). Touches CLAUDE.md decision "Review decisions stay on Jev until pilot gold labels; verifier τ 0.85" and the cascade Jev → LLM → human.
 
 ## New backlog (target -> item)
 None yet.
@@ -28,6 +28,8 @@ None yet.
 # Brief
 
 ## 1. Scope
+**Track B (owner, 2026-11-13): Jev-only mode** — staff setting: decisions run on Jev alone; an on-demand/periodic "re-evaluate with all models" runs the full cascade for comparison. Reuse `@cs/ai` cascade, `AI_SHADOW_RATE`, `decision_sample`, eval suites (`packages/evals` reviews/changes).
+
 No 18e row in the roadmap (rows 18a-18d only). Sources: CLAUDE.md "Wider sources (18)": *18e social (ScrapeCreators)*; 18a-1 spec D3/Non-goals ("follower counts outside Meta ads (18e)"; page-like line works only for steady advertisers, "18e social fills it"; `audience_growth` name "reused by 18e"). Out of Phase 18: FB Events, Nextdoor, video, Yelp, bought citations, public records, newsletters. Competitor social is marked "no" on the site compare table (`apps/site/content/compare.ts` `social`, ledger `cap-social`; claim-check: "no social kind"); BACKLOG says flip the row only after it ships. Competitors (Birdeye) sell posting frequency, audience growth, engagement.
 Core spec cites likely: §1.5 (public info only), §4.2-4.4 (collection, evidence, vendor ledger), §6.1-6.3 (changes, scoring, briefs; no evidence, no claim), §6.5, §10.5 (cost/vendor limits). Build: a social source per rival (+ maybe self) -> evidence captures -> diff -> graded change lines + scorecard metric(s) + tools; no new paid vendor beyond ScrapeCreators (key already live).
 
