@@ -1,11 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { jsonLdOffers, markupSha, SITE_FEATURE_REGISTRY, SITE_FEATURE_REGISTRY_VERSION, siteFeatures } from './markup';
+import { jsonLdEvents, jsonLdOffers, markupSha, SITE_FEATURE_REGISTRY, SITE_FEATURE_REGISTRY_VERSION, siteFeatures } from './markup';
 
 const DIR = join(__dirname, '__fixtures__', 'markup');
 const fx = (name: string) => readFileSync(join(DIR, `${name}.html`), 'utf8');
 const page = (body: string) => `<!doctype html><html><body>${body}</body></html>`;
+const EVENT_FX = readFileSync(join(__dirname, '__fixtures__', 'event-jsonld.html'), 'utf8');
+const ld = (o: unknown) => page(`<script type="application/ld+json">${JSON.stringify(o)}</script>`);
 
 describe('site feature registry', () => {
   it('has a version and unique ids, with no call tracking', () => {
@@ -127,5 +129,45 @@ describe('markupSha', () => {
   });
   it('ignores text changes', () => {
     expect(markupSha(page('<p>one</p>'))).toBe(markupSha(page('<p>two</p>')));
+  });
+});
+
+describe('jsonLdEvents', () => {
+  it('reads MusicEvent, Festival and a graph Event, ignoring a Product offer', () => {
+    expect(jsonLdEvents(EVENT_FX)).toEqual([
+      {
+        name: 'Summer Jazz Night',
+        startDate: '2026-07-18T19:30:00-05:00',
+        endDate: '2026-07-18T22:00:00-05:00',
+        status: 'https://schema.org/EventCancelled',
+        soldOut: false,
+        ticketed: true,
+        url: 'https://lakesidehall.example/events/jazz-night',
+        venue: 'Lakeside Hall',
+      },
+      { name: 'Harvest Fest', startDate: '2026-10-03', endDate: null, status: null, soldOut: false, ticketed: false, url: null, venue: 'Town Green' },
+      { name: 'Open Mic', startDate: '2026-08-05T18:00', endDate: null, status: 'EventPostponed', soldOut: false, ticketed: false, url: null, venue: null },
+    ]);
+  });
+  it('flags a sold-out offer on a scheduled event', () => {
+    const [e] = jsonLdEvents(
+      ld({ '@type': 'Event', name: 'Gala', startDate: '2026-09-01', eventStatus: 'https://schema.org/EventScheduled', offers: { '@type': 'Offer', price: 0, availability: 'https://schema.org/SoldOut' } }),
+    );
+    expect(e).toMatchObject({ status: 'https://schema.org/EventScheduled', soldOut: true, ticketed: false });
+  });
+  it('needs name and startDate, and does not double count nested events', () => {
+    expect(jsonLdEvents(ld({ '@type': 'Event', name: 'No date' }))).toEqual([]);
+    const nested = jsonLdEvents(ld({ '@type': 'Event', name: 'Parent', startDate: '2026-09-01', subEvent: { '@type': 'Event', name: 'Child', startDate: '2026-09-01' } }));
+    expect(nested.map((e) => e.name)).toEqual(['Parent']);
+  });
+  it('caps at 50 and skips broken JSON blocks', () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ '@type': 'Event', name: `E${i}`, startDate: '2026-09-01' }));
+    const html = page(`<script type="application/ld+json">{oops</script><script type="application/ld+json">${JSON.stringify(many)}</script>`);
+    expect(jsonLdEvents(html)).toHaveLength(50);
+  });
+  it('changes markupSha only when an event changes', () => {
+    const ev = (status: string) => ld({ '@type': 'Event', name: 'Gala', startDate: '2026-09-01', eventStatus: status });
+    expect(markupSha(ev('EventScheduled'))).not.toBe(markupSha(ev('EventCancelled')));
+    expect(markupSha(ev('EventScheduled'))).toBe(markupSha(ev('EventScheduled')));
   });
 });

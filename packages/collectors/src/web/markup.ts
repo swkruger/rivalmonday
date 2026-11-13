@@ -177,11 +177,91 @@ export function jsonLdOffers(html: string): StructuredOffer[] {
   return out.slice(0, MAX_OFFERS);
 }
 
-/** sha256 over feature ids + normalised offer tuples; the registry version is not part of it. */
+export interface StructuredEvent {
+  name: string;
+  startDate: string;
+  endDate: string | null;
+  status: string | null;
+  soldOut: boolean;
+  ticketed: boolean;
+  url: string | null;
+  venue: string | null;
+}
+
+export const MAX_EVENTS = 50;
+
+const isEventType = (types: string[]): boolean => types.some((t) => t.endsWith('Event') || t === 'Festival');
+const isHttp = (v: string | null): v is string => v !== null && /^https?:\/\//i.test(v);
+
+function toEvent(obj: Record<string, unknown>): StructuredEvent | null {
+  const name = str(obj.name);
+  const startDate = str(obj.startDate);
+  if (!name || !startDate) return null;
+  const offers = (Array.isArray(obj.offers) ? obj.offers : [obj.offers]).filter(
+    (o): o is Record<string, unknown> => o !== null && typeof o === 'object' && !Array.isArray(o),
+  );
+  const price = (o: Record<string, unknown>): number => {
+    const p = typeof o.price === 'string' ? Number.parseFloat(o.price) : o.price;
+    return typeof p === 'number' && Number.isFinite(p) ? p : 0;
+  };
+  const loc = obj.location;
+  const venue = loc && typeof loc === 'object' && !Array.isArray(loc) ? str((loc as Record<string, unknown>).name) : null;
+  const url = str(obj.url);
+  return {
+    name,
+    startDate,
+    endDate: str(obj.endDate),
+    status: str(obj.eventStatus),
+    soldOut: offers.some((o) => (str(o.availability) ?? '').endsWith('SoldOut')),
+    ticketed: offers.some((o) => price(o) > 0 || isHttp(str(o.url))),
+    url: isHttp(url) ? url : null,
+    venue,
+  };
+}
+
+function walkEvents(node: unknown, out: StructuredEvent[], depth: number): void {
+  if (out.length >= MAX_EVENTS || depth > MAX_DEPTH || node === null || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const n of node) walkEvents(n, out, depth + 1);
+    return;
+  }
+  const obj = node as Record<string, unknown>;
+  if (isEventType(typesOf(obj))) {
+    const ev = toEvent(obj);
+    if (ev) {
+      out.push(ev); // nested events (subEvent) are not walked: no double counting
+      return;
+    }
+  }
+  for (const v of Object.values(obj)) if (v && typeof v === 'object') walkEvents(v, out, depth + 1);
+}
+
+/** Event nodes from `application/ld+json` blocks (max 50). Broken JSON is skipped. */
+export function jsonLdEvents(html: string): StructuredEvent[] {
+  const out: StructuredEvent[] = [];
+  for (const t of scanTags(html)) {
+    if (out.length >= MAX_EVENTS) break;
+    if (t.tag !== 'script' || !/^application\/ld\+json\s*(;|$)/i.test((attr(t.attrs, 'type') ?? '').trim())) continue;
+    let data: unknown;
+    try {
+      data = JSON.parse(t.body);
+    } catch {
+      continue;
+    }
+    walkEvents(data, out, 0);
+  }
+  return out.slice(0, MAX_EVENTS);
+}
+
+/** sha256 over feature ids + normalised offer tuples + event tuples; the registry version is not part of it. */
 export function markupSha(html: string): string {
   const ids = siteFeatures(html).map((f) => f.id).join(',');
   const offers = jsonLdOffers(html)
     .map((o) => [o.type, o.name, o.price, o.lowPrice, o.currency, o.hasPriceSpecification].map((x) => x ?? '').join('|'))
     .join('\n');
-  return createHash('sha256').update(`${ids}\n${offers}`).digest('hex');
+  const events = jsonLdEvents(html)
+    .map((e) => [e.name, e.startDate, e.status, e.soldOut].map((x) => x ?? '').join('|'))
+    .join('\n');
+  // pages without events hash exactly as before
+  return createHash('sha256').update(events ? `${ids}\n${offers}\n${events}` : `${ids}\n${offers}`).digest('hex');
 }
