@@ -1,4 +1,4 @@
-import { GBP_POSTS_URL } from '@cs/collectors';
+import { GBP_EVENTS_URL, GBP_POSTS_URL } from '@cs/collectors';
 import { capture, type ChangeDetails, type Db, detectedChange } from '@cs/db';
 import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 import { supersedePriorChanges } from '../events/retract';
@@ -44,8 +44,11 @@ const diffMeta: SourceDiffer = async (db, cap, prev, older) => {
   return { changes: [...a.changes, ...b.changes], implausible: a.implausible + b.implausible, held: a.held + b.held };
 };
 
-/** Google Business Profile captures: the posts capture (url `gbp:posts`) has its own differ. */
-const diffGbpCapture: SourceDiffer = (db, cap, prev, older) => (cap.url === GBP_POSTS_URL ? diffGbpPosts(db, cap, prev, older) : diffGbp(db, cap, prev, older));
+/** Google Business Profile captures: the posts capture (url `gbp:posts`) has its own differ; the venue-panel capture (`gbp:events`) is read by the listed-events stage only (18d D3). */
+const diffGbpCapture: SourceDiffer = async (db, cap, prev, older) => {
+  if (cap.url === GBP_EVENTS_URL) return [];
+  return cap.url === GBP_POSTS_URL ? diffGbpPosts(db, cap, prev, older) : diffGbp(db, cap, prev, older);
+};
 
 /** Capture sources with a structured differ. Only these are swept, so a source without one is never marked done. */
 const DIFFERS: Record<string, SourceDiffer> = {

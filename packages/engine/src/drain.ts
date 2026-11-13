@@ -15,6 +15,7 @@ import { diffRankScan } from './structured/rank';
 import { findEngineWork } from './sweep';
 import { type PackLoader, tagChange } from './tag/tag-stage';
 import { detectSiteFeatures } from './web/site-feature-stage';
+import { detectListedEvents } from './listed-events/stage';
 
 export interface DrainResult {
   diffs: number;
@@ -58,7 +59,7 @@ export async function drainEngine(
   };
   for (let round = 0; round < (opts.maxRounds ?? 10); round++) {
     const work = await findEngineWork(deps.db, { limit: opts.limit ?? 100, competitorId: opts.competitorId, adImages, adImageSince: opts.adImageSince });
-    const total = work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.postPrices.length + work.siteFeatures.length
+    const total = work.diff.length + work.tag.length + work.score.length + work.rankDiff.length + work.reviews.length + work.prices.length + work.adPrices.length + work.postPrices.length + work.siteFeatures.length + work.listedEvents.length
       + work.reask.length + work.adImages.length + work.adImageReads.length;
     if (total === 0) break;
     for (const id of work.diff) {
@@ -122,6 +123,12 @@ export async function drainEngine(
           r.siteFeatures++;
           r.changes += o.result.changes.length;
         }
+      });
+    }
+    for (const id of work.listedEvents) {
+      await attempt(`listed events ${id}`, async () => {
+        const o = await detectListedEvents(deps, id);
+        if (o.ran) r.changes += o.result.changes.length;
       });
     }
     for (const id of work.reask) {

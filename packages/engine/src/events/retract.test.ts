@@ -150,6 +150,17 @@ describe('stage-version supersede (Phase 3d decision 7)', () => {
     expect(t?.status).toBe('superseded');
   });
 
+  it('a vendor re-diff at a higher version never supersedes an event_listed row (P7)', async () => {
+    const cap = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(1) });
+    const listed = await change(cap, { source: 'meta_ads', kind: 'added', stageVersion: 1, blockKey: 'event:2026-10-20:gala:announced', details: { changeType: 'event_listed', lifecycle: 'announced' } });
+    const ad = await change(cap, { source: 'meta_ads', kind: 'added', stageVersion: 1, blockKey: 'ad:1', details: { changeType: 'ad_started' } });
+    const r = await dbs.service.transaction((tx) => supersedePriorChanges(tx, { afterCaptureId: cap, source: 'meta_ads' }, 2));
+    expect(r.superseded).toBe(1);
+    const status = async (id: string) => (await dbs.owner.select().from(detectedChange).where(eq(detectedChange.id, id)))[0]?.status;
+    expect(await status(listed)).toBe('event');
+    expect(await status(ad)).toBe('superseded');
+  });
+
   it('retracted events are invisible to merge, scoring and the score sweep', async () => {
     const { cap } = await webCapture();
     const ev = await eventFor([await change(cap)], { retractedAt: day(2), retractionReason: 'superseded', facts: [] });

@@ -12,6 +12,7 @@ export * from './web/blocks';
 export * from './web/volatile';
 export * from './web/diff-stage';
 export * from './web/site-feature-stage';
+export { ANNOUNCE_HORIZON_DAYS, detectListedEvents, EVENT_SINGLES_MAX, LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION, type ListedEventsResult, SERIES_DAYS } from './listed-events/stage';
 export * from './structured/vendor-diff';
 export * from './structured/ads';
 export * from './structured/gbp';

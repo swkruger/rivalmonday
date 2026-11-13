@@ -13,6 +13,7 @@ const queue = () => ({
   enqueueAdPrice: vi.fn(async (_id: string) => {}),
   enqueuePostPrice: vi.fn(async (_id: string) => {}),
   enqueueSiteFeatures: vi.fn(async (_id: string) => {}),
+  enqueueListedEvents: vi.fn(async (_id: string) => {}),
   enqueueReask: vi.fn(async (_id: string) => {}),
   enqueueAdImage: vi.fn(async (_id: string, _startAfterSeconds?: number) => {}),
   enqueueAdImageRead: vi.fn(async (_id: string) => {}),
@@ -22,7 +23,7 @@ describe('engine jobs', () => {
   it('sweeps every 5 minutes and enqueues all found work', async () => {
     const deps = {
       engineConfigured: () => true,
-      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], postPrices: [U(9)], siteFeatures: [U(10)], reask: [U(7)], adImages: [U(11)], adImageReads: [U(12)] })),
+      findEngineWork: vi.fn(async () => ({ diff: [U(1)], tag: [U(2)], score: [U(3)], rankDiff: [U(4)], reviews: [U(5)], prices: [U(6)], adPrices: [U(8)], postPrices: [U(9)], siteFeatures: [U(10)], listedEvents: [U(13)], reask: [U(7)], adImages: [U(11)], adImageReads: [U(12)] })),
     } as unknown as WorkerDeps;
     const q = queue();
     const jobs = createEngineJobs(deps, q);
@@ -34,6 +35,7 @@ describe('engine jobs', () => {
     expect(q.enqueueAdPrice.mock.calls).toEqual([[U(8)]]);
     expect(q.enqueuePostPrice.mock.calls).toEqual([[U(9)]]);
     expect(q.enqueueSiteFeatures.mock.calls).toEqual([[U(10)]]);
+    expect(q.enqueueListedEvents.mock.calls).toEqual([[U(13)]]);
     expect(q.enqueueReask.mock.calls).toEqual([[U(7)]]);
     expect(q.enqueueAdImage.mock.calls).toEqual([[U(11)]]);
     expect(q.enqueueAdImageRead.mock.calls).toEqual([[U(12)]]);
@@ -125,6 +127,19 @@ describe('engine jobs', () => {
     expect(() => jobs.siteFeatures.schema.parse({ captureId: 'x' })).toThrow();
   });
 
+  it('engine-listed-events runs the rules-only stage and tags its changes, without self-retry', async () => {
+    const deps = { detectListedEvents: vi.fn(async () => ({ ran: true, changes: [U(14)] })) } as unknown as WorkerDeps;
+    const q = queue();
+    const jobs = createEngineJobs(deps, q);
+    await jobs.listedEvents.handler({ captureId: U(13) });
+    expect(deps.detectListedEvents).toHaveBeenCalledWith(U(13));
+    expect(q.enqueueTag.mock.calls).toEqual([[U(14)]]);
+    expect(jobs.listedEvents.name).toBe('engine-listed-events');
+    expect(jobs.listedEvents.usesAi).toBe(false);
+    expect(jobs.listedEvents.queue).toMatchObject({ retryLimit: 0, policy: 'short' });
+    expect(() => jobs.listedEvents.schema.parse({ captureId: 'x' })).toThrow();
+  });
+
   it('engine-reask calls deps.reaskReview and uses ENGINE_STAGE_QUEUE', async () => {
     const deps = { reaskReview: vi.fn(async () => ({ ran: true, questions: 2 })) } as unknown as WorkerDeps;
     const jobs = createEngineJobs(deps, queue());
@@ -136,7 +151,7 @@ describe('engine jobs', () => {
   });
 
   it('sweep enqueues both ad image lists', async () => {
-    const empty = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], postPrices: [], siteFeatures: [], reask: [] };
+    const empty = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], postPrices: [], siteFeatures: [], listedEvents: [], reask: [] };
     const deps = { engineConfigured: () => true, findEngineWork: vi.fn(async () => ({ ...empty, adImages: [U(1), U(2)], adImageReads: [U(3)] })) } as unknown as WorkerDeps;
     const q = queue();
     await createEngineJobs(deps, q).sweep.handler({});

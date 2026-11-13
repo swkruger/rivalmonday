@@ -69,7 +69,7 @@ export async function extractCandidates(deps: { db: Db; store: ObjectStore }, ca
     return jsonLdCandidates(jsonLdEvents(new TextDecoder().decode(gunzipSync(gz))));
   }
   if (cap.source === 'meta_ads') {
-    const rows = await deps.db.select({ event: ad.event }).from(ad).where(and(eq(ad.lastCaptureId, cap.id), isNotNull(sql`${ad.event}->>'startsAt'`)));
+    const rows = await deps.db.select({ event: ad.event }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), eq(ad.lastCaptureId, cap.id), isNotNull(sql`${ad.event}->>'startsAt'`)));
     return metaCandidates(rows);
   }
   return [];

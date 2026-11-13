@@ -68,13 +68,14 @@ export type SupersedeSubject = { afterCaptureId: string; source: string } | { ra
  * Phase 3d decision 7: when a diff stage re-runs a subject under a newer stage version, that subject's changes from
  * older versions are superseded and withdrawn from their events, and their open AM reviews are closed as moot
  * (`resolved_by = 'system:superseded'`). Complaint spikes (`details.topic`, written by the
- * nightly review-insights run against a reviews capture) and `site_feature` rows (written by the site-features stage, not the diff) are not diff output and are never touched.
+ * nightly review-insights run against a reviews capture), `site_feature` rows (written by the site-features stage) and `event_listed` rows (the listed-events stage, P7) are not diff
+ * output and are never touched.
  */
 export async function supersedePriorChanges(tx: Tx, subject: SupersedeSubject, version: number): Promise<{ superseded: number; retracted: number }> {
   const scope =
     'rankScanId' in subject
       ? and(eq(detectedChange.rankScanId, subject.rankScanId), or(like(detectedChange.blockKey, 'rank:%'), like(detectedChange.blockKey, 'serp:%'))) // map and page-one rows, never the 'tier:' rows (P9)
-      : and(eq(detectedChange.afterCaptureId, subject.afterCaptureId), eq(detectedChange.source, subject.source), sql`NOT (${detectedChange.details} ? 'topic')`, sql`(${detectedChange.details}->>'changeType') IS DISTINCT FROM 'site_feature'`);
+      : and(eq(detectedChange.afterCaptureId, subject.afterCaptureId), eq(detectedChange.source, subject.source), sql`NOT (${detectedChange.details} ? 'topic')`, sql`coalesce(${detectedChange.details}->>'changeType', '') NOT IN ('site_feature', 'event_listed')`);
   const old = await tx
     .update(detectedChange)
     .set({ status: 'superseded' })

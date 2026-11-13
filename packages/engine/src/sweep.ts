@@ -1,3 +1,4 @@
+import { GBP_EVENTS_URL } from '@cs/collectors';
 import { agencyServiceable, clientWorkAllowed, type Db } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import {
@@ -14,6 +15,7 @@ import { VENDOR_DIFF_STAGE, VENDOR_DIFF_VERSION, VENDOR_SETTLE_MINUTES, vendorDi
 import { TAG_STAGE, TAG_VERSION } from './tag/tag-stage';
 import { WEB_DIFF_STAGE, WEB_DIFF_VERSION } from './web/diff-stage';
 import { SITE_FEATURE_STAGE, SITE_FEATURE_VERSION } from './web/site-feature-stage';
+import { LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from './listed-events/stage';
 
 export { RETRY_BACKOFF_MINUTES } from './stage';
 
@@ -30,6 +32,8 @@ export interface EngineWork {
   postPrices: string[];
   /** Ok web captures with a successor capture, for the website-tools stage (18a-2 D4). */
   siteFeatures: string[];
+  /** Ok tracked-page web, `meta_ads` and venue-panel (`gbp:events`) captures for the listed-events stage (18d D6). */
+  listedEvents: string[];
   /** Older analysed reviews with a re-ask gap (15b-3b §5); only when `reviews` is empty. */
   reask: string[];
   /** Google ad ids whose current image URL awaits triage (18a-3 R2); empty unless `opts.adImages`. */
@@ -227,6 +231,22 @@ export async function findEngineWork(
       AND NOT ${finished(SITE_FEATURE_STAGE, SITE_FEATURE_VERSION, 'c.id')}
     ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
 
+  // Listed events (18d D6): ok tracked-page web, Meta and venue-panel captures, settled (ad/observation rows are written
+  // after the capture row), of a competitor a workable client tracks or a workable client's own business, oldest first
+  // so each competitor×source baseline comes first. Never a non-ok capture (the stage refuses those).
+  const listedEvents = await db.execute(sql`
+    SELECT c.id FROM capture c
+    WHERE c.status = 'ok'
+      AND ((c.source = 'web' AND c.tracked_page_id IS NOT NULL) OR c.source = 'meta_ads'
+           OR (c.source = 'google_business_profile' AND c.url = ${GBP_EVENTS_URL}))
+      AND c.captured_at < now() - make_interval(mins => ${VENDOR_SETTLE_MINUTES}::int) ${only('c.competitor_id')}
+      AND (EXISTS (SELECT 1 FROM client_competitor cc JOIN client cl ON cl.id = cc.client_id
+                   WHERE cc.competitor_id = c.competitor_id AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))})
+           OR EXISTS (SELECT 1 FROM client cl
+                      WHERE cl.self_competitor_id = c.competitor_id AND ${clientWorkAllowed('cl')} AND ${agencyServiceable(sql.raw('cl.agency_id'))}))
+      AND NOT ${finished(LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION, 'c.id')}
+    ORDER BY c.captured_at ASC LIMIT ${opts.limit}`);
+
   // Ad images (18a-3 R2/R3): both lists stay empty while the switch is off.
   let adImages: string[] = [];
   let adImageReads: string[] = [];
@@ -265,6 +285,6 @@ export async function findEngineWork(
 
   return {
     diff: [...ids(diff), ...ids(vendorDiff)], tag: ids(tag), score: ids(score), rankDiff: ids(rankDiff), reviews: ids(reviews), prices: ids(prices), adPrices: ids(adPrices), postPrices: ids(postPrices),
-    siteFeatures: ids(siteFeatures), reask, adImages, adImageReads,
+    siteFeatures: ids(siteFeatures), listedEvents: ids(listedEvents), reask, adImages, adImageReads,
   };
 }

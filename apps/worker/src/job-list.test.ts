@@ -18,6 +18,18 @@ describe('createJobList', () => {
     expect(new Set(jobs.map((j) => j.name)).size).toBe(jobs.length);
   });
 
+  it('the sweep enqueues engine-listed-events with a per-capture singleton key', async () => {
+    const sends: { name: string; data: unknown; opts: unknown }[] = [];
+    const boss = { send: async (name: string, data: unknown, opts: unknown) => (sends.push({ name, data, opts }), 'job') } as unknown as PgBoss;
+    const id = '00000000-0000-4000-8000-000000000002';
+    const none = { diff: [], tag: [], score: [], rankDiff: [], reviews: [], prices: [], adPrices: [], postPrices: [], siteFeatures: [], reask: [], adImages: [], adImageReads: [] };
+    const deps = { engineConfigured: () => true, findEngineWork: async () => ({ ...none, listedEvents: [id] }) } as unknown as WorkerDeps;
+    const jobs = createJobList(deps, boss, { envName: 'dev', env: {} });
+    expect(jobs.find((j) => j.name === 'engine-listed-events')).toBeDefined();
+    await jobs.find((j) => j.name === 'engine-sweep')!.handler({});
+    expect(sends).toEqual([{ name: 'engine-listed-events', data: { captureId: id }, opts: { singletonKey: `listed-events:${id}` } }]);
+  });
+
   it('deferred ad image re-enqueues with startAfter and the same singleton key', async () => {
     const sends: { name: string; data: unknown; opts: unknown }[] = [];
     const boss = { send: async (name: string, data: unknown, opts: unknown) => (sends.push({ name, data, opts }), 'job') } as unknown as PgBoss;

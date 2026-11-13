@@ -13,7 +13,7 @@ import type { DiscoveryResult } from '@cs/collectors';
 import {
   briefAttachment, analyzeReview as runAnalyzeReview, reaskReview as runReaskReview, type BatchCollectResult, type BriefRunResult, collectModelBatches, createEmailSender, createWebhookSender,
   deliverDueBriefs, deliveryConfigFromEnv, diffCapture, diffCitations, diffRankScan, recommendForCitations as recommendCitations, dispatchDue,
-  checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
+  checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, detectListedEvents as runDetectListedEvents, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
 } from '@cs/engine';
@@ -91,6 +91,8 @@ export interface WorkerDeps {
   extractPostPrices(captureId: string): Promise<{ ran: boolean; points: number; ended: number }>;
   /** 18a-2 D4: website tools of one web capture (rules only); returns the new change ids. */
   detectSiteFeatures(captureId: string): Promise<{ ran: boolean; changes: string[] }>;
+  /** 18d D6: events one capture lists → `listed_event` rows and `event_listed` changes (rules only); returns the new change ids. */
+  detectListedEvents(captureId: string): Promise<{ ran: boolean; changes: string[] }>;
   /** 18a-3 R3: `WEB_MONITORING_ENABLED === 'true'` — gates both ad-image sweep lists and jobs. */
   adImagesEnabled(): boolean;
   /** 18a-3 D3: fetch → triage → store one Google ad's image (polite crawler path; `deferred` when the host is busy). */
@@ -457,6 +459,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     },
     async detectSiteFeatures(captureId) {
       const r = await runDetectSiteFeatures({ db: getDb(), store: getStore() }, captureId);
+      return r.ran ? { ran: true, changes: r.result.changes } : { ran: false, changes: [] };
+    },
+    async detectListedEvents(captureId) {
+      const r = await runDetectListedEvents({ db: getDb(), store: getStore() }, captureId);
       return r.ran ? { ran: true, changes: r.result.changes } : { ran: false, changes: [] };
     },
     async runReviewInsights() {

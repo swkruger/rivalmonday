@@ -26,6 +26,8 @@ export function createEngineJobs(
     enqueueAdPrice(captureId: string): Promise<void>;
     enqueuePostPrice(captureId: string): Promise<void>;
     enqueueSiteFeatures(captureId: string): Promise<void>;
+    /** Must use `singletonKey: 'listed-events:<captureId>'`. */
+    enqueueListedEvents(captureId: string): Promise<void>;
     enqueueReask(reviewId: string): Promise<void>;
     /** Must use `singletonKey: 'ad-image:<adId>'` (also on a deferred re-send with `startAfter`). */
     enqueueAdImage(adId: string, startAfterSeconds?: number): Promise<void>;
@@ -56,14 +58,15 @@ export function createEngineJobs(
       for (const id of w.adPrices) await queue.enqueueAdPrice(id);
       for (const id of w.postPrices) await queue.enqueuePostPrice(id);
       for (const id of w.siteFeatures) await queue.enqueueSiteFeatures(id);
+      for (const id of w.listedEvents) await queue.enqueueListedEvents(id);
       // R3: both image lists are empty unless WEB_MONITORING_ENABLED is 'true' (deps.findEngineWork passes the switch).
       for (const id of w.adImages) await queue.enqueueAdImage(id);
       for (const id of w.adImageReads) await queue.enqueueAdImageRead(id);
-      const total = w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length + w.postPrices.length + w.siteFeatures.length
+      const total = w.diff.length + w.rankDiff.length + w.tag.length + w.score.length + w.reviews.length + w.reask.length + w.prices.length + w.adPrices.length + w.postPrices.length + w.siteFeatures.length + w.listedEvents.length
         + w.adImages.length + w.adImageReads.length;
       if (total > 0)
         workerLog.info(
-          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}, post price ${w.postPrices.length}, site features ${w.siteFeatures.length}, ad image ${w.adImages.length}, ad image read ${w.adImageReads.length}`,
+          `[engine-sweep] enqueued diff ${w.diff.length}, rank ${w.rankDiff.length}, tag ${w.tag.length}, score ${w.score.length}, review ${w.reviews.length}, reask ${w.reask.length}, price ${w.prices.length}, ad price ${w.adPrices.length}, post price ${w.postPrices.length}, site features ${w.siteFeatures.length}, listed events ${w.listedEvents.length}, ad image ${w.adImages.length}, ad image read ${w.adImageReads.length}`,
         );
     },
   });
@@ -139,6 +142,15 @@ export function createEngineJobs(
       if (r.ran && r.changes.length > 0) workerLog.info(`[engine-site-features] ${captureId} → ${r.changes.length} change(s)`);
     },
   });
+  // Rules only (no model call): the events one capture lists → listed_event rows and event_listed changes (18d D6).
+  const listedEvents = defineJob({
+    name: 'engine-listed-events', usesAi: false, schema: z.object({ captureId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
+    handler: async ({ captureId }) => {
+      const r = await deps.detectListedEvents(captureId);
+      for (const id of r.changes) await queue.enqueueTag(id);
+      if (r.ran && r.changes.length > 0) workerLog.info(`[engine-listed-events] ${captureId} → ${r.changes.length} change(s)`);
+    },
+  });
   // 18a-3 D3: one Google ad's image (fetch → triage → store). R3: idles unless WEB_MONITORING_ENABLED is 'true'.
   const adImage = defineJob({
     name: 'engine-ad-image', usesAi: true, schema: z.object({ adId: z.uuid() }), queue: ENGINE_STAGE_QUEUE,
@@ -164,5 +176,5 @@ export function createEngineJobs(
       if (r.status === 'ran') workerLog.info(`[engine-ad-image-read] ${adImageId} → ${r.readStatus} (${r.points ?? 0} price(s))`);
     },
   });
-  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice, postPrice, siteFeatures, adImage, adImageRead };
+  return { sweep, diff, rankDiff, tag, score, review, reask, price, adPrice, postPrice, siteFeatures, listedEvents, adImage, adImageRead };
 }

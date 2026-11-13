@@ -78,7 +78,7 @@ describe('findEngineWork', () => {
     const factors = { typeWeight: 1, size: 1, serviceOverlap: 1, territoryOverlap: 1, relevance: 1, novelty: 1, maxSimilarity: null, needsReviewCap: false, thresholds: { alert: 70, brief: 40 }, scoringVersion: 1 };
     await dbs.service.insert(eventScore).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, eventId: id(21), score: 1, route: 'archive', factors, packVersion: 1 });
     const w = await findEngineWork(dbs.service, { limit: 10 });
-    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [], reviews: [], prices: [id(1)], adPrices: [], postPrices: [], siteFeatures: [], reask: [], adImages: [], adImageReads: [] }); // B1 still lacks a score for 21; 22 is outside the window
+    expect(w).toEqual({ diff: [], tag: [id(11)], score: [id(21)], rankDiff: [], reviews: [], prices: [id(1)], adPrices: [], postPrices: [], siteFeatures: [], listedEvents: [], reask: [], adImages: [], adImageReads: [] }); // B1 still lacks a score for 21; 22 is outside the window
   });
 
   it('google_ads capture before AD_IMAGE_SINCE is not listed for ad prices', async () => {
