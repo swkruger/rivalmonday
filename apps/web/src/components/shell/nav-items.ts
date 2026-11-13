@@ -12,7 +12,7 @@ import { clientIdFromPath, type NavContext } from './nav-context';
 export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavCookie } from './nav-context';
 
 export type IconKey =
-  | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'listings' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
+  | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'listings' | 'events' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
   | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'topics' | 'prospects' | 'ask' | 'knowledge'
   | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'waitlist' | 'intake' | 'briefs' | 'settings' | 'catalogue';
 
@@ -79,6 +79,8 @@ export interface NavRoleFlags {
   clientBilling?: boolean;
   /** Phase 11c: agency users who cover all clients see the Leads entry (agency admin or scope `all`). */
   leads?: boolean;
+  /** 18d: client ids whose Events menu entry shows (`get_client_events_menu`, read in the shell batch). */
+  eventsClientIds?: string[];
   /** Phase 8b: inside a support session, the operator's way back to the agency's console page. Owned by the switcher (15a Task 5), not a nav item. */
   backToPlatform?: string;
 }
@@ -113,7 +115,7 @@ export function navFor(context: NavContext, flags: NavRoleFlags, clientId: strin
   if (context === 'platform') return flags.isPlatformOperator ? platformNav(flags, counts) : [];
   if (context === 'agency') return flags.isAgency ? agencyNav(flags, counts) : [];
   const base = clientBase(flags, clientId);
-  return base ? clientNav(flags, base) : [];
+  return base ? clientNav(flags, base, base.slice('/c/'.length)) : [];
 }
 
 function platformNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
@@ -158,7 +160,7 @@ function agencyNav(flags: NavRoleFlags, counts: NavCounts): NavSection[] {
   ]);
 }
 
-function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
+function clientNav(flags: NavRoleFlags, base: string, clientId: string): NavSection[] {
   const name = flags.assistantName?.trim() || 'Friday';
   // Client settings: agency roles; client roles when any tab is visible to them; never guests (§2.3).
   const settings = canSeeClientSettings(flags) ? firstHref([clientSettings(flags, base)]) : null;
@@ -176,6 +178,7 @@ function clientNav(flags: NavRoleFlags, base: string): NavSection[] {
       add(`${base}/reviews`, 'Reviews', 'reputation');
       add(`${base}/rankings`, 'Local rankings', 'rankings');
       add(`${base}/listings`, 'Listings', 'listings');
+      if (flags.eventsClientIds?.includes(clientId)) add(`${base}/events`, 'Events', 'events');
       add(`${base}/moves`, 'Moves', 'moves');
     }),
     section('act', 'Act', (add) => {

@@ -57,6 +57,8 @@ export interface ShellReads {
   clientBilling: ClientBillingNotice | null;
   spendPaused: { clientId: string; name: string; until: string }[];
   counts: NavCounts;
+  /** 18d: clients whose Events menu entry shows. */
+  eventsClientIds: string[];
   verticals: { id: string; name: string }[];
 }
 
@@ -107,8 +109,13 @@ export function startShellReads(viewer: Exclude<Viewer, { kind: 'member-less' }>
   // The switcher's sub-line is cosmetic: an unreadable catalogue only drops it (the shell must render). Read only where a
   // client list can show (agency roles); with no clients the names go unused.
   const verticals = agencyView ? verticalOptions().catch(() => []) : Promise.resolve([]);
-  return Promise.all([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals]).then(
-    ([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals]) => ({ theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals }),
+  // 18d: which clients show the Events menu entry (`get_client_events_menu`, no clientId = every visible client). Not in the
+  // platform zone (no client menu there); cosmetic, so a failed read only hides the entry.
+  const eventsClientIds = platformZone
+    ? Promise.resolve([] as string[])
+    : callTool<{ clientIds: string[] }>(ctx, 'get_client_events_menu', {}).then((r) => r.clientIds ?? [], () => [] as string[]);
+  return Promise.all([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, eventsClientIds, verticals]).then(
+    ([theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, eventsClientIds, verticals]) => ({ theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, eventsClientIds, verticals }),
   );
 }
 
@@ -122,7 +129,7 @@ function spendAudienceOf(ctx: AccessContext, zone?: 'platform'): 'agency' | 'cli
  * `reads` (launch gate): a batch the caller already started with `startShellReads` for this same viewer, ctx, zone and role; omitted, the shell starts its own.
  */
 export async function AppShell({ viewer, ctx, children, platformRole, billing = null, zone, fallback = null, reads }: { viewer: Exclude<Viewer, { kind: 'member-less' }>; ctx: AccessContext; children: React.ReactNode; platformRole?: PlatformRole | null; billing?: BillingSnapshot | null; zone?: 'platform'; fallback?: NavFallback | null; reads?: Promise<ShellReads> }) {
-  const { theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, verticals } = await (reads ?? startShellReads(viewer, ctx, { zone, platformRole }));
+  const { theme, clients, clientName, unread, role, clientBilling, spendPaused, counts, eventsClientIds, verticals } = await (reads ?? startShellReads(viewer, ctx, { zone, platformRole }));
   const { branding, style, assistantName } = theme;
   const singleClientId = ctx.clientScope === 'all' ? null : ctx.clientScope[0];
   const operator = role !== null;
@@ -131,6 +138,7 @@ export async function AppShell({ viewer, ctx, children, platformRole, billing = 
   const navBase = navFlagsFor(viewer, operator, assistantName, role === 'owner');
   const flags = {
     ...navBase,
+    ...(eventsClientIds.length ? { eventsClientIds } : {}),
     ...(support ? { backToPlatform: `/platform/agencies/${support.agencyId}` } : {}),
     ...(viewer.kind === 'user' && showsClientBilling(ctx.role, clientBilling) ? { clientBilling: true } : {}),
   };

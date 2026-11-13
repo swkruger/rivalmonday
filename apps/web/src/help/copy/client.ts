@@ -279,6 +279,30 @@ export const CLIENT_COPY = {
       },
     },
   },
+  // source: docs/superpowers/specs/2026-11-11-phase-18d-events-design.md § Copy (decided sub-line)
+  'client.events': {
+    description: 'Upcoming events you and your rivals list, from Google and websites, for the next 60 days.',
+    tips: {
+      // source: packages/engine/src/listed-events/stage.ts:sourceKeyOf (a Google panel read of the business's own listing; the panel shows a handful of upcoming events); packages/tools/src/tools/listed-events.ts (60-day window)
+      google: {
+        title: 'Events from Google',
+        body: 'Google shows up to three upcoming events for a business, so a business that runs more events can have some missing here. Events on a business’s own website are added when we read it.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/engine/src/listed-events/merge.ts (status read from a website page's structured data: scheduled → cancelled/postponed/sold_out); packages/engine/src/listed-events/stage.ts:commitListedEvents (guarded status flip)
+      cancelled: {
+        title: 'Cancelled and sold out',
+        body: 'An event shows as Cancelled, Postponed or Sold out only when a business’s own website says so. Google does not list a status, so an event only seen on Google always reads Scheduled.',
+        guideAnchor: 'common-questions',
+      },
+      // source: packages/engine/src/listed-events/merge.ts (a repeating event is one row per date, series flag); packages/db/src/schema/listed-events.ts:listedEvent.series
+      series: {
+        title: 'Repeating events',
+        body: 'An event that repeats, such as a weekly class, appears once for each date in the next 60 days.',
+        guideAnchor: 'common-questions',
+      },
+    },
+  },
   'client.moves': {
     description: 'Patterns across several changes, such as a competitor expanding, cutting prices or pushing ads. Each one is backed by the changes listed.',
     tips: {

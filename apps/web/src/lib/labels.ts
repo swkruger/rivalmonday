@@ -1,5 +1,5 @@
 import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
-import type { AGENCY_KINDS, AlertStatus, CitationStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AGENCY_KINDS, AlertStatus, CitationStatus, ListedEventSource, ListedEventStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { MoveRow, StepState } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
@@ -310,13 +310,26 @@ export const CITATION_STATUS: LabelMap<CitationStatus> = {
   not_checked: e('Not checked yet'),
 };
 
+// listed_event.status and .sources (18d Events page; decided copy, spec § Copy)
+export const LISTED_EVENT_STATUS: LabelMap<ListedEventStatus> = {
+  scheduled: e('Scheduled'),
+  cancelled: e('Cancelled', 'danger'),
+  postponed: e('Postponed', 'warning'),
+  sold_out: e('Sold out', 'info'),
+};
+export const EVENT_SOURCE: LabelMap<ListedEventSource> = {
+  web: e('Website'),
+  meta_ads: e('Meta ad'),
+  google_panel: e('Google'),
+};
+
 // brief item status; agency-only (not in CLIENT_AUDIENCE_MAPS)
 export const BRIEF_ITEM_STATUS: LabelMap<'active' | 'dropped'> = { active: e('Included'), dropped: e('Dropped') };
 
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [
   ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE,
-  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, CITATION_STATUS,
+  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, CITATION_STATUS, LISTED_EVENT_STATUS, EVENT_SOURCE,
 ];
 
 // spend_guard_event.kind (packages/db/src/schema/platform.ts check constraint; 7b1, platform only)

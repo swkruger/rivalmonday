@@ -100,7 +100,7 @@ export const NO_DATA_ROUTES = ['/agency/settings', '/c/[clientId]/settings', '/s
  * Tools read by the shared shell (`components/shell/app-shell.tsx`, rendered by the `(app)` and `(platform)` layouts) on every page. They are checked once, in the screen entry named here, rather
  * than in every entry; the coverage test requires each layout read to be listed and its entry to call it.
  */
-export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team', get_spend_status: '/agency' };
+export const SHARED_READS: Readonly<Record<string, string>> = { list_clients: '/agency/settings/team', get_spend_status: '/agency', get_client_events_menu: '/c/[clientId]/events' };
 
 /** Spec §4.9: every screen route, the tool calls it makes, and the empty states left on purpose. */
 const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
@@ -293,6 +293,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       lsProfile,
     ],
   },
+  { route: '/c/[clientId]/events', as: 'admin', calls: [{ tool: 'list_listed_events', input: (ids) => ({ clientId: ls(ids) }), path: 'events' }, { tool: 'get_client_events_menu', input: none, path: 'clientIds' }, lsProfile] },
   { route: '/c/[clientId]/recommendations', as: 'admin', calls: [lsProfile, { tool: 'list_recommendations', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }, lsRefs] },
   { route: '/c/[clientId]/reports/[reportId]', as: 'admin', calls: [{ tool: 'get_trend_report', input: (ids) => ({ reportId: ids.reportId }), path: 'data' }, lsProfile, lsReports] },
   {
@@ -422,7 +423,7 @@ const GUIDE_ROUTES: readonly string[] = [
   '/agency/settings/intake', '/agency/settings/intake/preview', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
   '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/profile',
   '/c/[clientId]/ads', '/c/[clientId]/alerts/[alertId]', '/c/[clientId]/briefs', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/competitors',
-  '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/listings', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
+  '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/events', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/listings', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',
   '/c/[clientId]/pricing', '/c/[clientId]/rankings', '/c/[clientId]/recommendations', '/c/[clientId]/reports/[reportId]', '/c/[clientId]/settings/ai',
   '/c/[clientId]/settings/alerts', '/c/[clientId]/settings/billing', '/c/[clientId]/settings/delivery', '/c/[clientId]/settings/profile',
   '/c/[clientId]/settings/runbook', '/c/[clientId]/settings/usage', '/c/[clientId]/setup',

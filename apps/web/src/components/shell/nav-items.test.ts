@@ -129,6 +129,17 @@ describe('navFor client', () => {
     expect(item(s, 'Briefs & reports')!.icon).toBe('briefs');
   });
 
+  it('Events follows Listings only when the client id is in eventsClientIds', () => {
+    const on = navFor('client', { ...agencyAdmin, eventsClientIds: [C, 'other'] }, C);
+    const hrefsOf = hrefs(on);
+    expect(hrefsOf[hrefsOf.indexOf(`${B}/listings`) + 1]).toBe(`${B}/events`);
+    expect(item(on, 'Events')).toMatchObject({ label: 'Events', icon: 'events' });
+    expect(item(navFor('client', { ...agencyAdmin, eventsClientIds: ['other'] }, C), 'Events')).toBeUndefined();
+    expect(item(navFor('client', agencyAdmin, C), 'Events')).toBeUndefined();
+    expect(item(navFor('client', { ...clientOwner, eventsClientIds: [C] }, null), 'Events')).toBeDefined();
+    expect(item(navFor('client', { ...clientViewer, eventsClientIds: [C] }, C), 'Events')).toBeUndefined();
+  });
+
   it('uses the agency assistant name, falling back to Friday when blank', () => {
     expect(item(navFor('client', { ...agencyAdmin, assistantName: 'Max' }, C), 'Ask Max')).toMatchObject({ pill: 'Max' });
     expect(item(navFor('client', { ...agencyAdmin, assistantName: '  ' }, C), 'Ask Friday')).toMatchObject({ pill: 'Friday' });

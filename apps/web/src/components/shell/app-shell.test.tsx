@@ -7,7 +7,7 @@ import { BANNER_HEIGHT, SHELL_OFFSET } from '@/components/shell/banner-height';
 const m = vi.hoisted(() => ({
   notice: null as null | { paused: boolean; paymentNeeded: boolean; enabled: boolean }, themed: [] as string[], unread: vi.fn(async () => 3), role: vi.fn(async () => 'owner' as string | null),
   // Task 4 (launch gate): every read records its start and, while `gate` is set, waits on it (parallel-start test).
-  started: [] as string[], gate: null as Promise<void> | null, spendFails: false, verticalsFail: false, listClientsFails: false,
+  started: [] as string[], gate: null as Promise<void> | null, spendFails: false, verticalsFail: false, listClientsFails: false, eventsFail: false, eventsMenu: [] as string[],
   hold: async (name: string) => { m.started.push(name); if (m.gate) await m.gate; },
   logoUrl: null as string | null, realSidebar: false, clients: [] as { id: string; name: string; verticalId: string }[], paused: [] as { clientId: string; name: string; until: string }[], spendCalls: [] as unknown[], counts: vi.fn(async (_ctx: unknown, _opts: { agency: boolean; operator: boolean; leads: boolean }) => ({ leads: 2 } as Record<string, number>)),
 }));
@@ -27,6 +27,7 @@ vi.mock('@/server/tools', () => ({
     await m.hold(name);
     if (name === 'get_spend_status') { m.spendCalls.push(input); if (m.spendFails) throw new Error('spend read failed'); return { paused: m.paused }; }
     if (name === 'list_clients' && m.listClientsFails) throw new Error('list_clients refused');
+    if (name === 'get_client_events_menu') { if (m.eventsFail) throw new Error('events menu refused'); return { clientIds: m.eventsMenu }; }
     return { items: m.clients };
   },
 }));
@@ -80,6 +81,8 @@ beforeEach(() => {
   m.spendFails = false;
   m.verticalsFail = false;
   m.listClientsFails = false;
+  m.eventsFail = false;
+  m.eventsMenu = [];
   m.themed.length = 0;
   m.notice = null;
   m.unread.mockClear();
@@ -421,14 +424,25 @@ describe('AppShell parallel reads (launch gate Task 4)', () => {
   it('agency admin: theme, list_clients, unread, platform role, client billing, spend, nav counts and verticals all start before any resolves', async () => {
     m.clients = [{ id: C, name: 'Lone Star Cooling', verticalId: 'hvac_plumbing' }];
     const started = await gated(() => AppShell({ viewer: admin as never, ctx: own as never, children: <p>page</p> }));
-    expect(started).toEqual(['client_billing', 'get_spend_status', 'list_clients', 'nav_counts', 'platform_role', 'theme', 'unread', 'verticals']);
+    expect(started).toEqual(['client_billing', 'get_client_events_menu', 'get_spend_status', 'list_clients', 'nav_counts', 'platform_role', 'theme', 'unread', 'verticals']);
+  });
+
+  it('the Events menu read joins the batch without a client id, feeds flags.eventsClientIds, and a failure only hides the entry (18d)', async () => {
+    m.eventsMenu = ['c1', 'c2'];
+    const { startShellReads } = await import('./app-shell');
+    expect((await startShellReads(admin as never, own as never)).eventsClientIds).toEqual(['c1', 'c2']);
+    m.eventsFail = true;
+    expect((await startShellReads(admin as never, own as never)).eventsClientIds).toEqual([]);
+    m.started = [];
+    await startShellReads(admin as never, own as never, { zone: 'platform', platformRole: 'owner' });
+    expect(m.started).not.toContain('get_client_events_menu');
   });
 
   it('guest: the RLS client-name read joins the same batch as the rest', async () => {
     const c = { agencyId: AG, userId: 'contact:c1', role: 'client_viewer', clientScope: [C], features: new Set(), planFeatures: new Set(['ask', 'mcp']) };
     const guest = { kind: 'guest', contactId: 'c1', ctx: c };
     const started = await gated(() => AppShell({ viewer: guest as never, ctx: c as never, children: <p>page</p> }));
-    expect(started).toEqual(['client_billing', 'client_name', 'get_spend_status', 'nav_counts', 'theme', 'unread']);
+    expect(started).toEqual(['client_billing', 'client_name', 'get_client_events_menu', 'get_spend_status', 'nav_counts', 'theme', 'unread']);
   });
 
   it('a preloaded batch (the (app) layout) is used as is: the shell starts no second set of reads', async () => {

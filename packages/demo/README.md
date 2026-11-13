@@ -59,6 +59,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/rankings` | admin | `get_geogrid`, `get_rank_trend`, `get_share_of_voice`, `get_search_visibility`, `get_rank_settings`, `get_client_profile`, `list_help_guides` | `get_geogrid`: one competitor never ranks |
 | `/c/[clientId]/rankings (Brazos)` | admin | `get_geogrid` | — |
 | `/c/[clientId]/listings` | admin | `get_citation_audit`, `get_client_profile`, `list_help_guides` | — |
+| `/c/[clientId]/events` | admin | `list_listed_events`, `get_client_events_menu`, `get_client_profile`, `list_help_guides` | — |
 | `/c/[clientId]/recommendations` | admin | `get_client_profile`, `list_recommendations`, `get_evidence_refs`, `list_help_guides` | — |
 | `/c/[clientId]/reports/[reportId]` | admin | `get_trend_report`, `get_client_profile`, `list_trend_reports`, `list_help_guides` | — |
 | `/c/[clientId]/reviews` | admin | `get_topic_benchmark`, `get_rating_trend`, `search_reviews`, `get_client_profile`, `list_help_guides` | — |
