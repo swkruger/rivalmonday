@@ -216,6 +216,31 @@ Where Google search finds each client and its top rivals on major directories (F
   ```
 - **Staging:** let the cron run, or enqueue `citation-audit-client` for one client; rehearsal fixtures answer at $0.
 
+## Events & venues (18d)
+
+Rival events (JSON-LD on their site, Meta ad events, the Google venue Events panel) land in `listed_event`; the venues pack also opts into Tripadvisor ratings. Client page "Events" shows only when the vertical or a rival has events.
+
+- **Opt-in:** the `venues` pack (catalogue vertical "Venues & attractions") sets `events.panel` and `tripadvisor` flags; HVAC/dental never run the panel or Tripadvisor. Meta/web events work for every vertical (web stays dark until `WEB_MONITORING_ENABLED`).
+- **Cost:** Google Events panel about $0.012 per client per week (one live search per business, reused 6 days); Tripadvisor about $0.005 per client per week. Both ride the Sunday scan / source schedule and the monthly cost guard.
+- **Read a panel capture:** it is a `capture` with `url = 'gbp:events'` plus one `observation` of kind `venue_panel`:
+  ```sql
+  SELECT c.id, c.captured_at, c.status, o.data FROM capture c LEFT JOIN observation o ON o.capture_id = c.id AND o.kind = 'venue_panel'
+  WHERE c.competitor_id = '<competitor>' AND c.url = 'gbp:events' ORDER BY c.captured_at DESC LIMIT 5;
+  ```
+  No capture = the knowledge panel did not name the business (name gate), not an error.
+- **Re-run a capture's event extraction:** the `listed_events` stage is keyed by capture; delete its `stage_run` row (`stage = 'listed_events' AND subject_id = '<capture>'`) and the next engine drain reads it again. The stage only looks back 14 days.
+- **Wrong Tripadvisor match:** clear it with the service role and the next pull re-matches (exactly one candidate or none, never a guess):
+  ```sql
+  UPDATE competitor SET tripadvisor_id = NULL, tripadvisor_url = NULL WHERE id = '<competitor>';
+  ```
+- **Claimed categories:** the venues pack claims `vertical_category` values incl. bar, brewery, distillery, winery (related). An agency creating a vertical with one of these hits a claim conflict: resolve it in `/platform/verticals` (merge or release), not in SQL.
+- **Upcoming events per client** (same rule as the scorecard "Upcoming events": non-series, today to +60 d, last seen within 8 d):
+  ```sql
+  SELECT cc.client_id, count(*) AS upcoming FROM client_competitor cc JOIN listed_event e ON e.competitor_id = cc.competitor_id
+  WHERE e.start_date BETWEEN current_date AND current_date + 60 AND NOT e.series AND e.status = 'scheduled' AND e.last_seen_at > now() - interval '8 days'
+  GROUP BY cc.client_id ORDER BY upcoming DESC;
+  ```
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ensureExemptPilot } from '@cs/billing';
-import { fixturePlaceId, SOURCE_KINDS } from '@cs/collectors';
+import { DEFAULT_SOURCE_KINDS, fixturePlaceId } from '@cs/collectors';
 import { agency, brief, catalogRows, client, clientCompetitor, clientSetup, competitor, competitorSource, contact, type Db, membership, trackedPage } from '@cs/db';
 import { DELIVERY_LOCAL_HOUR, deliveryDateFor, ensureAgencyRunbook, QUIET_SUMMARY } from '@cs/engine';
 import { acceptInvitations, createInvitation } from '@cs/tools';
@@ -88,7 +88,7 @@ async function seedInTx(db: Db, o: RehearsalSeedOptions, now: Date, random: () =
   const spAgencies = Math.ceil(o.startingPoints / o.clients);
   let group = 0; // global client number = fixture group
   let sourceNo = 0;
-  const totalSources = (o.agencies * o.clients + o.startingPoints) * REHEARSAL_COMPETITORS_PER_CLIENT * SOURCE_KINDS.length;
+  const totalSources = (o.agencies * o.clients + o.startingPoints) * REHEARSAL_COMPETITORS_PER_CLIENT * DEFAULT_SOURCE_KINDS.length;
 
   for (let a = 1; a <= o.agencies + spAgencies; a++) {
     const startingPoint = a > o.agencies;
@@ -129,7 +129,7 @@ async function seedInTx(db: Db, o: RehearsalSeedOptions, now: Date, random: () =
           createdAt: clientActivatedAt,
         })));
         // "Current": last run a week before its next run, the next runs spread over the coming week.
-        await db.insert(competitorSource).values(SOURCE_KINDS.map((source) => {
+        await db.insert(competitorSource).values(DEFAULT_SOURCE_KINDS.map((source) => {
           sourceNo++;
           const next = new Date(now.getTime() + Math.round((sourceNo / (totalSources + 1)) * 7 * DAY_MS));
           return { competitorId, source, active: true, nextDueAt: next, lastRunAt: new Date(next.getTime() - 7 * DAY_MS), lastStatus: 'ok' };
