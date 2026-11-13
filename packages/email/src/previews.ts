@@ -49,7 +49,7 @@ const scorecard: ScorecardModel = {
 /** 18d: a venue scorecard with the events and Tripadvisor columns (they drop out when nobody has a value). */
 const venueScorecard: ScorecardModel = {
   ...scorecard,
-  table: { headers: ['Business', 'Rating', 'Events listed (30 days)', 'Tripadvisor rating'], rows: [{ cells: [`${CLIENT} (you)`, '4.6', '0', '4.5'], self: true, tier: null }, { cells: ['The Blue Barn', '4.4', '3', '—'], self: false, tier: 'top' }] },
+  table: { headers: ['Business', 'Rating', 'Upcoming events', 'Tripadvisor rating'], rows: [{ cells: [`${CLIENT} (you)`, '4.6', '0', '4.5'], self: true, tier: null }, { cells: ['The Blue Barn', '4.4', '3', '—'], self: false, tier: 'top' }] },
 };
 const brief: BriefEmailProps = {
   branding: agency, recipientName: 'Jordan', clientName: CLIENT, deliveryDate: '2026-10-05', kind: 'standard', summary: 'One competitor changed its offer this week.',

@@ -1,14 +1,15 @@
 import { ad, capture, citationListing, client, competitor, competitorSignal, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
 import { citationCatalogue, isBannedHost } from '@cs/verticals';
-import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { ratingTrend } from '../reviews/rating-trend';
 import { competitorMatcher, rankMetrics } from '../structured/rank';
 import { postCounts30d, postsEvidenceIds } from '../structured/gbp-posts';
-import { eventCounts30d, eventsEvidenceIds } from '../listed-events/counts';
+import { eventsEvidenceIds, upcomingEvents } from '../listed-events/counts';
+import { safeTimezone } from './schedule';
 import type { PackLoader } from '../tag/tag-stage';
 
-export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'eventsListed30d', 'tripadvisorRating']);
+export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'upcomingEvents', 'tripadvisorRating']);
 export type ScorecardMetric = z.infer<typeof ScorecardMetric>;
 export const Scorecard = z.object({
   asOf: z.string(), baselineBriefId: z.uuid().nullable(), // null on the starting point itself
@@ -20,7 +21,7 @@ export const Scorecard = z.object({
     values: z.object({
       rating: z.number().nullable(), reviews90d: z.number().nullable(), replyRate: z.number().nullable(), mapTop3Share: z.number().nullable(),
       adsActive: z.number().nullable(), metaAdsActive: z.number().nullable(), googlePosts30d: z.number().nullable().default(null), listings: z.number().nullable().default(null),
-      eventsListed30d: z.number().nullable().default(null), tripadvisorRating: z.number().nullable().default(null),
+      upcomingEvents: z.number().nullable().default(null), tripadvisorRating: z.number().nullable().default(null),
     }),
   })),
   evidenceIds: z.array(z.uuid()),
@@ -70,16 +71,18 @@ async function listedCounts(db: Db, competitorIds: string[], hosts: Set<string>)
 }
 
 /**
- * Tripadvisor rating (18d D12): each business's latest `tripadvisor` observation, with its capture. No observation (never matched) is
- * absent from the map (null, never 0). One query for all businesses.
+ * Tripadvisor rating (18d D12): each business's latest `tripadvisor` observation (at most 21 days old, so a business no longer matched
+ * stops showing a stale rating), with its capture. None is absent from the map (null, never 0). One query for all businesses.
  */
-async function tripadvisorRatings(db: Db, competitorIds: string[]): Promise<Map<string, { rating: number; captureId: string }>> {
+export const TRIPADVISOR_MAX_AGE_DAYS = 21;
+async function tripadvisorRatings(db: Db, competitorIds: string[], now: Date): Promise<Map<string, { rating: number; captureId: string }>> {
   const out = new Map<string, { rating: number; captureId: string }>();
   if (competitorIds.length === 0) return out;
   const rows = await db
     .selectDistinctOn([observation.competitorId], { id: observation.competitorId, data: observation.data, captureId: observation.captureId })
     .from(observation)
-    .where(and(inArray(observation.competitorId, competitorIds), eq(observation.kind, 'tripadvisor'), eq(observation.key, 'rating')))
+    .where(and(inArray(observation.competitorId, competitorIds), eq(observation.kind, 'tripadvisor'), eq(observation.key, 'rating'),
+      gte(observation.observedAt, new Date(now.getTime() - TRIPADVISOR_MAX_AGE_DAYS * 86_400_000))))
     .orderBy(observation.competitorId, desc(observation.observedAt));
   for (const r of rows) {
     const rating = r.data.rating;
@@ -136,8 +139,8 @@ export async function buildScorecard(
   const [selfGoogle, selfMeta] = c.selfCompetitorId ? await Promise.all([selfAds('google'), selfAds('meta')]) : [null, null];
 
   const postCounts = await postCounts30d(deps.db, ids, now);
-  const eventCounts = await eventCounts30d(deps.db, ids, now);
-  const taRatings = await tripadvisorRatings(deps.db, ids);
+  const eventCounts = await upcomingEvents(deps.db, ids, now, safeTimezone(c.timezone));
+  const taRatings = await tripadvisorRatings(deps.db, ids, now);
 
   const catalogueHosts = new Set(citationCatalogue(await deps.packs(c.verticalId)).map((d) => d.host));
   const { counts: listingCounts, captureIds: listingCaptures } = await listedCounts(deps.db, ids, catalogueHosts);
@@ -152,7 +155,7 @@ export async function buildScorecard(
           adsActive: b.self ? selfGoogle : count(sig?.signals?.googleAdsActive), metaAdsActive: b.self ? selfMeta : count(sig?.signals?.metaAdsActive),
           googlePosts30d: postCounts.get(b.competitorId) ?? null,
           listings: listingCounts.get(b.competitorId) ?? null,
-          eventsListed30d: eventCounts.get(b.competitorId) ?? null,
+          upcomingEvents: eventCounts.get(b.competitorId) ?? null,
           tripadvisorRating: taRatings.get(b.competitorId)?.rating ?? null,
         } satisfies Record<ScorecardMetric, number | null>,
       };

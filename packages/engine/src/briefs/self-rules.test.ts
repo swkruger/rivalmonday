@@ -9,7 +9,7 @@ import { scorecardEvidenceText } from './starting-point';
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const SELF = ID(1);
 type Vals = Partial<Scorecard['rows'][number]['values']>;
-const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null, ...v });
+const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, ...v });
 const row = (n: number, name: string, v: Vals, self = false): Scorecard['rows'][number] => ({ competitorId: ID(n), name, self, tier: self ? null : 'top', values: vals(v) });
 const card = (rows: Scorecard['rows']): Scorecard => ({ asOf: '2026-10-14T00:00:00Z', baselineBriefId: null, tiles: [] as never, rows, evidenceIds: [], openFirstMoves: [] });
 const topic = (topicId: string, share: number | null, sentiment: number | null): TopicShare =>
@@ -215,7 +215,7 @@ describe('event_gap (18d)', () => {
   });
   it('fires when you list none and rivals list at least 2, with the decided fact and score', async () => {
     const f = find(evaluateSelfRules(await base({ events: events() })), 'event_gap')!;
-    expect(f.fact).toBe('Alpha and Beta listed 3 events in the last 30 days; Google shows none for you.');
+    expect(f.fact).toBe('Alpha and Beta list 3 upcoming events; none found for you.');
     expect(f.score).toBeCloseTo(0.4 * 0.5, 5);
     expect(f.evidenceIds).toEqual([ID(301), ID(302)]);
     expect(f.playbookId).toBe('list_your_events');
@@ -223,7 +223,7 @@ describe('event_gap (18d)', () => {
   it('names the top 3 rivals by count', async () => {
     const rivals = [{ competitorId: ID(2), name: 'A', count: 1 }, { competitorId: ID(3), name: 'B', count: 4 }, { competitorId: ID(4), name: 'C', count: 2 }, { competitorId: ID(5), name: 'D', count: 3 }];
     const f = find(evaluateSelfRules(await base({ events: events({ rivals }) })), 'event_gap')!;
-    expect(f.fact).toBe('B, D and C listed 10 events in the last 30 days; Google shows none for you.');
+    expect(f.fact).toBe('B, D and C list 10 upcoming events; none found for you.');
     expect(f.score).toBeCloseTo(0.4, 5);
   });
   it('is skipped when your events were never measured, you list some, rivals list fewer than 2, or there is no evidence', async () => {
@@ -237,7 +237,7 @@ describe('event_gap (18d)', () => {
     const input = await base({ events: events() });
     const f = find(evaluateSelfRules(input), 'event_gap')!;
     const text = scorecardEvidenceText(input.scorecard, [f]);
-    expect(text).toContain('Events check: rivals listed 3 events in the last 30 days; none found for you.');
+    expect(text).toContain('Events check: rivals list 3 upcoming events; none found for you.');
     const r = checkSentence(f.fact, { text, captureDates: [], zips: [], competitorNames: ['Alpha', 'Beta', 'Gamma'] }, { trackedCompetitorNames: ['Alpha', 'Beta', 'Gamma'], clientTowns: [], year: 2026 });
     expect(r).toEqual({ ok: true, reasons: [] });
   });

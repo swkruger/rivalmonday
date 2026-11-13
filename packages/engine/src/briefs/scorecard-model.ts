@@ -2,17 +2,17 @@ import type { ScorecardModel } from '@cs/email';
 import type { Scorecard, ScorecardMetric } from './scorecard';
 
 type Kind = 'rating' | 'count' | 'pct';
-const KIND: Record<ScorecardMetric, Kind> = { rating: 'rating', reviews90d: 'count', replyRate: 'pct', mapTop3Share: 'pct', adsActive: 'count', metaAdsActive: 'count', googlePosts30d: 'count', listings: 'count', eventsListed30d: 'count', tripadvisorRating: 'rating' };
+const KIND: Record<ScorecardMetric, Kind> = { rating: 'rating', reviews90d: 'count', replyRate: 'pct', mapTop3Share: 'pct', adsActive: 'count', metaAdsActive: 'count', googlePosts30d: 'count', listings: 'count', upcomingEvents: 'count', tripadvisorRating: 'rating' };
 const TILE_LABEL: Record<string, string> = { rating: 'Rating', reviews90d: 'New reviews · 90 d', replyRate: 'Reply rate', mapTop3Share: 'Top-3 in map pack' };
 const HEADER: Record<ScorecardMetric, string> = {
   rating: 'Rating', reviews90d: 'Reviews 90 d', replyRate: 'Reply rate', mapTop3Share: 'Map top-3', adsActive: 'Google ads', metaAdsActive: 'Meta ads',
-  googlePosts30d: 'Google posts (30 days)', listings: 'Directory listings', eventsListed30d: 'Events listed (30 days)', tripadvisorRating: 'Tripadvisor rating',
+  googlePosts30d: 'Google posts (30 days)', listings: 'Directory listings', upcomingEvents: 'Upcoming events', tripadvisorRating: 'Tripadvisor rating',
 };
-const COLUMNS: ScorecardMetric[] = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'eventsListed30d', 'tripadvisorRating'];
+const COLUMNS: ScorecardMetric[] = ['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'upcomingEvents', 'tripadvisorRating'];
 type Row = Scorecard['rows'][number];
 /** 18d P6: only these columns drop out when no row has a value (events: null or 0), so HVAC/dental scorecards look as before. */
 const DROP_WHEN_EMPTY: Partial<Record<ScorecardMetric, (r: Row) => boolean>> = {
-  eventsListed30d: (r) => (r.values.eventsListed30d ?? 0) === 0,
+  upcomingEvents: (r) => (r.values.upcomingEvents ?? 0) === 0,
   tripadvisorRating: (r) => r.values.tripadvisorRating === null || r.values.tripadvisorRating === undefined,
 };
 

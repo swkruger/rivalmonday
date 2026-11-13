@@ -3,7 +3,7 @@ import { capture, competitor, evidence, listedEvent, stageRun } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { eventCounts30d, eventsEvidenceIds } from './counts';
+import { eventsEvidenceIds, upcomingEvents } from './counts';
 import { LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from './stage';
 
 const dbs = openTestDbs();
@@ -24,30 +24,40 @@ async function cap(competitorId: string, kind: 'panel' | 'web' | 'meta', at: Dat
   if (run) await dbs.owner.insert(stageRun).values({ stage: LISTED_EVENTS_STAGE, stageVersion: LISTED_EVENTS_VERSION, subjectId: c!.id, status: run });
   return { captureId: c!.id, evidenceId: e!.id };
 }
-const ev = (competitorId: string, captureId: string, firstSeenAt: Date, series = false) =>
+const ev = (competitorId: string, captureId: string, o: { startDate?: string; lastSeenAt?: Date; firstSeenAt?: Date; series?: boolean } = {}) =>
   dbs.owner.insert(listedEvent).values({
-    competitorId, eventKey: randomUUID(), name: 'Jazz Night', nameNorm: 'jazz night', startDate: '2026-11-20', sources: ['google_panel'], series,
-    firstCaptureId: captureId, lastCaptureId: captureId, firstSeenAt, lastSeenAt: firstSeenAt,
+    competitorId, eventKey: randomUUID(), name: 'Jazz Night', nameNorm: 'jazz night', startDate: o.startDate ?? '2026-11-20', sources: ['google_panel'], series: o.series ?? false,
+    firstCaptureId: captureId, lastCaptureId: captureId, firstSeenAt: o.firstSeenAt ?? ago(2), lastSeenAt: o.lastSeenAt ?? ago(1),
   });
 
-describe('eventCounts30d (P5)', () => {
-  it('counts non-series events first seen in the last 30 days; unmeasured is null, measured with none is 0', async () => {
+describe('upcomingEvents (Task 12 fix ruling 1)', () => {
+  it('counts non-series events starting today..+60 d and last seen within 8 d; unmeasured is null, measured with none is 0', async () => {
     const [b] = await dbs.owner.insert(competitor).values({ name: 'Measured None' }).returning({ id: competitor.id });
     const [m] = await dbs.owner.insert(competitor).values({ name: 'Meta Only' }).returning({ id: competitor.id });
     const [u] = await dbs.owner.insert(competitor).values({ name: 'Failed Run' }).returning({ id: competitor.id });
     const x = await cap(IDS.competitorX, 'panel', ago(1), 'done');
-    await ev(IDS.competitorX, x.captureId, ago(2));
-    await ev(IDS.competitorX, x.captureId, ago(29));
-    await ev(IDS.competitorX, x.captureId, ago(31)); // too old
-    await ev(IDS.competitorX, x.captureId, ago(3), true); // series
+    await ev(IDS.competitorX, x.captureId, { startDate: '2026-10-15' }); // today (Chicago)
+    await ev(IDS.competitorX, x.captureId, { startDate: '2026-12-14' }); // today + 60
+    await ev(IDS.competitorX, x.captureId, { firstSeenAt: ago(120), lastSeenAt: ago(8) }); // a baseline row still shown counts
+    await ev(IDS.competitorX, x.captureId, { startDate: '2026-10-14' }); // yesterday
+    await ev(IDS.competitorX, x.captureId, { startDate: '2026-12-15' }); // beyond 60 days
+    await ev(IDS.competitorX, x.captureId, { lastSeenAt: ago(9) }); // no longer shown
+    await ev(IDS.competitorX, x.captureId, { series: true });
     await cap(b!.id, 'web', ago(1), 'done');
     const meta = await cap(m!.id, 'meta', ago(1), 'done'); // Meta never measures (D11)
-    await ev(m!.id, meta.captureId, ago(2));
+    await ev(m!.id, meta.captureId);
     const failed = await cap(u!.id, 'panel', ago(1), 'failed');
-    await ev(u!.id, failed.captureId, ago(2));
-    const counts = await eventCounts30d(dbs.service, [IDS.competitorX, b!.id, m!.id, u!.id], NOW);
-    expect([counts.get(IDS.competitorX), counts.get(b!.id), counts.get(m!.id), counts.get(u!.id)]).toEqual([2, 0, null, null]);
-    expect((await eventCounts30d(dbs.service, [], NOW)).size).toBe(0);
+    await ev(u!.id, failed.captureId);
+    const counts = await upcomingEvents(dbs.service, [IDS.competitorX, b!.id, m!.id, u!.id], NOW);
+    expect([counts.get(IDS.competitorX), counts.get(b!.id), counts.get(m!.id), counts.get(u!.id)]).toEqual([3, 0, null, null]);
+    expect((await upcomingEvents(dbs.service, [], NOW)).size).toBe(0);
+  });
+  it('"today" follows the given time zone', async () => {
+    const x = await cap(IDS.competitorX, 'panel', ago(1), 'done');
+    await ev(IDS.competitorX, x.captureId, { startDate: '2026-10-15' });
+    const lateUtc = new Date('2026-10-16T02:00:00Z'); // Oct 15 in Chicago, Oct 16 in UTC
+    expect((await upcomingEvents(dbs.service, [IDS.competitorX], lateUtc)).get(IDS.competitorX)).toBe(1);
+    expect((await upcomingEvents(dbs.service, [IDS.competitorX], lateUtc, 'UTC')).get(IDS.competitorX)).toBe(0);
   });
 });
 

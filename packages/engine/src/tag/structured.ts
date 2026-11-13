@@ -161,7 +161,7 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
       break;
     case 'event_listed': {
       // 18d § Copy: the aggregate (no eventKey) counts the rest; afterText is a placeholder, never client text.
-      if (!d.eventKey && d.count !== undefined) {
+      if (!d.eventKey) {
         s = `Listed ${d.count} more events`;
         break;
       }

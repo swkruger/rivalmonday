@@ -29,8 +29,8 @@ const scorecard: NonNullable<BriefDetail['scorecard']> = {
     { metric: 'mapTop3Share', you: 0.31, rivalMedian: 0.2, deltaSinceStart: null },
   ],
   rows: [
-    { competitorId: C, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: null, mapTop3Share: 0.31, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null } },
-    { competitorId: '00000000-0000-4000-8000-0000000000a2', name: 'Smith HVAC', self: false, tier: 'top', values: { rating: 4.4, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 2, metaAdsActive: 0, googlePosts30d: 3, listings: 5, eventsListed30d: null, tripadvisorRating: null } },
+    { competitorId: C, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: null, mapTop3Share: 0.31, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null } },
+    { competitorId: '00000000-0000-4000-8000-0000000000a2', name: 'Smith HVAC', self: false, tier: 'top', values: { rating: 4.4, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.2, adsActive: 2, metaAdsActive: 0, googlePosts30d: 3, listings: 5, upcomingEvents: null, tripadvisorRating: null } },
   ],
   evidenceIds: [], openFirstMoves: [{ recommendationId: '00000000-0000-4000-8000-0000000000c1', title: 'Reply to your reviews' }],
 };

@@ -12,8 +12,8 @@ const sc = (over: Partial<Scorecard> = {}): Scorecard => ({
     { metric: 'mapTop3Share', you: null, rivalMedian: 0.5, deltaSinceStart: null },
   ],
   rows: [
-    { competitorId: id, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: 0.314, mapTop3Share: null, adsActive: null, metaAdsActive: 2, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null } },
-    { competitorId: id, name: 'Smith', self: false, tier: 'top', values: { rating: 4.45, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: 0, googlePosts30d: 4, listings: 8, eventsListed30d: null, tripadvisorRating: null } },
+    { competitorId: id, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: 0.314, mapTop3Share: null, adsActive: null, metaAdsActive: 2, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null } },
+    { competitorId: id, name: 'Smith', self: false, tier: 'top', values: { rating: 4.45, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: 0, googlePosts30d: 4, listings: 8, upcomingEvents: null, tripadvisorRating: null } },
   ],
   evidenceIds: [], openFirstMoves: [{ recommendationId: id, title: 'Reply to reviews' }], ...over,
 });
@@ -52,23 +52,23 @@ describe('scorecardModel', () => {
   });
   it('hvac scorecard has no events/tripadvisor column (all null)', () => {
     const m = scorecardModel(sc(), { clientName: 'A1 HVAC' });
-    expect(m.table.headers).not.toContain('Events listed (30 days)');
+    expect(m.table.headers).not.toContain('Upcoming events');
     expect(m.table.headers).not.toContain('Tripadvisor rating');
     expect(m.table.rows.every((r) => r.cells.length === m.table.headers.length)).toBe(true);
   });
   it('venues row values shown: events count and Tripadvisor rating', () => {
     const s = sc();
-    s.rows[0]!.values.eventsListed30d = 0; s.rows[0]!.values.tripadvisorRating = null;
-    s.rows[1]!.values.eventsListed30d = 3; s.rows[1]!.values.tripadvisorRating = 4.5;
+    s.rows[0]!.values.upcomingEvents = 0; s.rows[0]!.values.tripadvisorRating = null;
+    s.rows[1]!.values.upcomingEvents = 3; s.rows[1]!.values.tripadvisorRating = 4.5;
     const m = scorecardModel(s, { clientName: 'A1 HVAC' });
-    expect(m.table.headers.slice(-2)).toEqual(['Events listed (30 days)', 'Tripadvisor rating']);
+    expect(m.table.headers.slice(-2)).toEqual(['Upcoming events', 'Tripadvisor rating']);
     expect(m.table.rows[0]!.cells.slice(-2)).toEqual(['0', '—']);
     expect(m.table.rows[1]!.cells.slice(-2)).toEqual(['3', '4.5']);
     expect(m.table.headers).toHaveLength(m.table.rows[0]!.cells.length);
   });
   it('drops the events column when every row is null or 0, and keeps Tripadvisor alone', () => {
     const s = sc();
-    s.rows[0]!.values.eventsListed30d = 0; s.rows[1]!.values.eventsListed30d = null; s.rows[1]!.values.tripadvisorRating = 4;
+    s.rows[0]!.values.upcomingEvents = 0; s.rows[1]!.values.upcomingEvents = null; s.rows[1]!.values.tripadvisorRating = 4;
     const m = scorecardModel(s, { clientName: 'A1 HVAC' });
     expect(m.table.headers.slice(-2)).toEqual(['Directory listings', 'Tripadvisor rating']);
     expect(m.table.rows[1]!.cells.at(-1)).toBe('4.0');

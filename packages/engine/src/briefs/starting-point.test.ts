@@ -178,7 +178,7 @@ describe('generateStartingPoint', () => {
     }
     expect(await run(createFakeAi({ chat: () => 'not json', decide: supportAll }))).toMatchObject({ status: 'ready' });
     const ev = (await items()).find((i) => i.playbookId === 'list_your_events')!;
-    expect(ev.whatChanged).toBe('Smith HVAC listed 2 events in the last 30 days; Google shows none for you.');
+    expect(ev.whatChanged).toBe('Smith HVAC list 2 upcoming events; none found for you.');
     expect(ev.headline).toBe('Put your events where customers look');
     expect(ev.whyItMatters).toBe(SELF_WHY_IT_MATTERS.event_gap);
     expect(ev.evidenceIds.sort()).toEqual([mine.evidenceId, theirs.evidenceId].sort());

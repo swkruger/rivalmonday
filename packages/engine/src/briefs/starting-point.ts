@@ -68,7 +68,7 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
       lines.push(`Directory check: no listing found on ${f.values.missing} of ${f.values.total} directories.`);
     }
     if (f.ruleId === 'event_gap' && typeof f.values.total === 'number') {
-      lines.push(`Events check: rivals listed ${f.values.total} events in the last 30 days; none found for you.`);
+      lines.push(`Events check: rivals list ${f.values.total} upcoming events; none found for you.`);
     }
     if (typeof f.values.topic === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
       lines.push(`Topic ${f.values.topic}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
@@ -106,15 +106,15 @@ async function writeWhy(ai: Ai, scope: CallScope, c: BriefClient, findings: { fa
 }
 
 /**
- * `event_gap` input (18d P5/D11) from the scorecard's events column: null without your own row; measured rivals only. Evidence = the newest
+ * `event_gap` input (18d D11) from the scorecard's upcoming-events column: null without your own row; measured rivals only. Evidence = the newest
  * measured events capture of you and of each rival that listed one.
  */
 async function selfEvents(db: Db, sc: Scorecard): Promise<SelfRuleInput['events']> {
   const self = sc.rows.find((r) => r.self);
   if (!self?.competitorId) return null;
-  const rivals = sc.rows.flatMap((r) => (!r.self && r.competitorId && r.values.eventsListed30d !== null ? [{ competitorId: r.competitorId, name: r.name, count: r.values.eventsListed30d }] : []));
+  const rivals = sc.rows.flatMap((r) => (!r.self && r.competitorId && r.values.upcomingEvents !== null ? [{ competitorId: r.competitorId, name: r.name, count: r.values.upcomingEvents }] : []));
   const cited = [self.competitorId, ...rivals.filter((r) => r.count > 0).map((r) => r.competitorId)];
-  return { selfCount: self.values.eventsListed30d, rivals, evidenceIds: self.values.eventsListed30d === 0 ? await eventsEvidenceIds(db, cited) : [] };
+  return { selfCount: self.values.upcomingEvents, rivals, evidenceIds: self.values.upcomingEvents === 0 ? await eventsEvidenceIds(db, cited) : [] };
 }
 
 /** The client's own GBP facts for `profile_gap`; all null when no profile observation exists (not measured). */

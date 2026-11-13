@@ -45,7 +45,8 @@ export interface SelfRuleInput {
     evidenceIds: string[];
   } | null;
   /**
-   * Phase 18d (P5/D11): non-series events listed in the last 30 days. `selfCount` null = your events were never measured (rule skipped);
+   * Phase 18d (D11, Task 12 fix ruling 1): upcoming non-series events each business currently shows (`upcomingEvents`). `selfCount` null =
+   * your events were never measured (rule skipped);
    * `rivals` = measured rivals only. Evidence = the newest measured events capture of you and the rivals named.
    */
   events: { selfCount: number | null; rivals: { competitorId: string; name: string; count: number }[]; evidenceIds: string[] } | null;
@@ -201,7 +202,8 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         const total = e.rivals.reduce((n, r) => n + r.count, 0);
         if (total < param(rule, 'min_rival_events', 2)) break;
         const names = joinNames(e.rivals.filter((r) => r.count > 0).sort((a, b) => b.count - a.count).slice(0, 3).map((r) => r.name));
-        push(rule, score(rule, total, 6), `${names} listed ${total} events in the last 30 days; Google shows none for you.`, { total, rivalNames: names },
+        // Fact copy: draft for copy review (Task 12 fix ruling 1).
+        push(rule, score(rule, total, 6), `${names} list ${total} upcoming events; none found for you.`, { total, rivalNames: names },
           e.evidenceIds.slice(0, EVIDENCE_PER_FINDING));
         break;
       }

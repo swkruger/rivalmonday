@@ -73,7 +73,7 @@ export function sizeFactor(input: ScoreInput, pack: VerticalPack): number {
     case 'audience_growth':
       return curve(d.pct, s.audience_pct_for_full);
     case 'event_listed': // 18d D9: a ticketed announcement is full size; the aggregate scales with its count
-      if (d.eventKey === undefined && d.count !== undefined) return curve(d.count, s.events_for_full);
+      if (!d.eventKey) return curve(d.count, s.events_for_full);
       return d.lifecycle === 'announced' && d.ticketed === true ? 1 : s.default;
     default:
       return s.default;

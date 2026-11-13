@@ -304,9 +304,9 @@ describe('event_listed scoring (18d D9)', () => {
     expect(BRIEF_ONLY_TYPES.has('event_listed')).toBe(true);
   });
   it('a ticketed announcement is full size; an unticketed one the default', () => {
-    expect(sizeFactor(ev({ lifecycle: 'announced', ticketed: true }), venues)).toBe(1);
-    expect(sizeFactor(ev({ lifecycle: 'announced', ticketed: false }), venues)).toBe(venues.scoring.size.default);
-    expect(sizeFactor(ev({ lifecycle: 'cancelled', ticketed: true }), venues)).toBe(venues.scoring.size.default);
+    expect(sizeFactor(ev({ eventKey: 'k', lifecycle: 'announced', ticketed: true }), venues)).toBe(1);
+    expect(sizeFactor(ev({ eventKey: 'k', lifecycle: 'announced', ticketed: false }), venues)).toBe(venues.scoring.size.default);
+    expect(sizeFactor(ev({ eventKey: 'k', lifecycle: 'cancelled', ticketed: true }), venues)).toBe(venues.scoring.size.default);
   });
   it('the aggregate scales with its count over events_for_full', () => {
     expect(sizeFactor(ev({ lifecycle: 'announced', count: 3, startDate: '2026-12-01' }), venues)).toBeCloseTo(0.6, 5);

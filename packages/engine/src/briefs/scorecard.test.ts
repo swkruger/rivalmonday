@@ -91,8 +91,8 @@ describe('buildScorecard', () => {
     await snap(cur!.id, 2, [res('PB', 1), res('PSELF', 5)], cap.id);
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const row = (n: string) => sc.rows.find((r) => r.name === n)!.values;
-    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null });
-    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null, eventsListed30d: null, tripadvisorRating: null });
+    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null });
+    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null });
     expect(row('Rival B')).toMatchObject({ reviews90d: 3, replyRate: 0, mapTop3Share: 0.5, adsActive: 1, metaAdsActive: 2 });
     expect(sc.tiles).toEqual([
       { metric: 'rating', you: null, rivalMedian: null, deltaSinceStart: null },
@@ -273,31 +273,33 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
     const theirs = await panel(r);
     await event(r, theirs.captureId, ago(2));
     await event(r, theirs.captureId, ago(3));
+    const stale = await addRival('Rival Stale', 'watch');
+    await tripadvisor(stale, 4.8, ago(22)); // older than 21 days: no longer shown
     await tripadvisor(r, 4.0, ago(9));
     const ta = await tripadvisor(r, 4.5, ago(2));
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const v = (n: string) => sc.rows.find((x) => x.name === n)!.values;
-    expect([v('A1 HVAC').eventsListed30d, v('Rival Venue').eventsListed30d, v('Smith HVAC').eventsListed30d]).toEqual([0, 2, null]);
-    expect([v('A1 HVAC').tripadvisorRating, v('Rival Venue').tripadvisorRating]).toEqual([null, 4.5]);
+    expect([v('A1 HVAC').upcomingEvents, v('Rival Venue').upcomingEvents, v('Smith HVAC').upcomingEvents]).toEqual([0, 2, null]);
+    expect([v('A1 HVAC').tripadvisorRating, v('Rival Venue').tripadvisorRating, v('Rival Stale').tripadvisorRating]).toEqual([null, 4.5, null]);
     expect(sc.evidenceIds).toEqual(expect.arrayContaining([me.evidenceId, theirs.evidenceId, ta.evidenceId]));
-    expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers.slice(-2)).toEqual(['Events listed (30 days)', 'Tripadvisor rating']);
+    expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers.slice(-2)).toEqual(['Upcoming events', 'Tripadvisor rating']);
   });
 
   it('tripadvisorRating null when unmatched, column dropped', async () => {
     const r = await addRival('Rival Unmatched', 'top');
     await tripadvisor(r, null, ago(1)); // no exactly-one match: capture without an observation
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
-    expect(sc.rows.every((x) => x.values.tripadvisorRating === null && x.values.eventsListed30d === null)).toBe(true);
+    expect(sc.rows.every((x) => x.values.tripadvisorRating === null && x.values.upcomingEvents === null)).toBe(true);
     const headers = scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers;
     expect(headers).not.toContain('Tripadvisor rating');
-    expect(headers).not.toContain('Events listed (30 days)');
+    expect(headers).not.toContain('Upcoming events');
   });
 
   it('a scorecard stored before 18d (no events/Tripadvisor keys) still parses as null', async () => {
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const old = JSON.parse(JSON.stringify(sc));
-    for (const r of old.rows) { delete r.values.eventsListed30d; delete r.values.tripadvisorRating; }
+    for (const r of old.rows) { delete r.values.upcomingEvents; delete r.values.tripadvisorRating; }
     const parsed = Scorecard.parse(old);
-    expect([parsed.rows[0]!.values.eventsListed30d, parsed.rows[0]!.values.tripadvisorRating]).toEqual([null, null]);
+    expect([parsed.rows[0]!.values.upcomingEvents, parsed.rows[0]!.values.tripadvisorRating]).toEqual([null, null]);
   });
 });
