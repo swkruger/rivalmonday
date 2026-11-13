@@ -55,6 +55,23 @@ describe('diffTripadvisor (via diffVendorCapture)', () => {
     expect(await changes()).toEqual([]);
   });
 
+  it('an unmatched pull in between does not lose the move (A -> unmatched -> C)', async () => {
+    await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: SRC, capturedAt: day(3) });
+    await obs(cap0, 4.0, 50);
+    await obs(cap1, 4.6, 60);
+    await run();
+    const rows = await changes();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ beforeCaptureId: cap0, beforeText: 'rating 4 (50 reviews)', afterText: 'rating 4.6 (60 reviews)' });
+  });
+
+  it('a null review count renders without a count', async () => {
+    await obs(cap0, 4.0, null);
+    await obs(cap1, 4.6, null);
+    await run();
+    expect((await changes())[0]).toMatchObject({ beforeText: 'rating 4', afterText: 'rating 4.6' });
+  });
+
   it('a different listing id (re-match) is not a rating move', async () => {
     await obs(cap0, 4.0, 50, 'g1');
     await obs(cap1, 4.8, 60, 'g2');
