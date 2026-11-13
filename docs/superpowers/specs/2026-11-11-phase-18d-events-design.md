@@ -21,19 +21,19 @@ Q7 C page only when relevant · Q8 A lines + scorecard + self rule · Q9 C verti
 ## Decisions (ours unless marked)
 | # | Decision |
 |---|---|
-| D1 | **Feeders:** venue panel (D2, live); Event JSON-LD (dark until `WEB_MONITORING_ENABLED`; sole source of cancelled/sold_out/postponed); Meta `ad.event` (rows with `last_capture_id = cap.id` and `event->>'startsAt'`; free, mostly empty). |
+| D1 | **Feeders:** venue panel (D2, live); Event JSON-LD (dark until `WEB_MONITORING_ENABLED`; sole source of cancelled/sold_out/postponed); Meta `ad.event` (ads active at the capture by their own first/last capture times, `event->>'startsAt'`; free, mostly empty). |
 | D2 | **Venue panel:** in the Sunday rank scan (`rankings/scan.ts` `scanRankings`, after `searchKeywords`), one `serpSearch` (`/serp/google/organic/live/advanced`, depth 10, client centre) per self + tracked rival, keyword `"<name> <city>"`, only when the pack has `events.panel` (**opt-in**: venues on; generic/HVAC/dental off ⇒ $0 for existing clients). `parseSerp` adds the `knowledge_graph` title and its `knowledge_graph_list_item` "Events" (rows in its `items`, ≤ 3 `{title, subtitle, url}`; client-centre `location_coordinate` verified in the probe). Used only when the panel title name-matches the business (`citations/match.ts` `normaliseName` containment, 18c C6). An ok panel capture < 6 days old (any client) is reused. A failure skips that business, never the scan. |
 | D3 | **Capture** (18b-1 D6 precedent): `recordVendorCapture` under the business, `source 'google_business_profile'`, `url GBP_EVENTS_URL = 'gbp:events'`; channel stays "Google Business Profile"; `vendor-diff.ts` `diffGbpCapture` returns `[]` for it. Event `url` = the goto link's `url` param when http(s), else null (goto links expire). |
 | D4 | **Date:** `"Fri, Nov 13, 8:00 PM"` → year = first of {capture year, +1} with date ≥ capture date **and** matching weekday, in the triggering client's `client.timezone`; none ⇒ dropped. JSON-LD: date as written; UTC-only (Meta) → `America/Chicago`. |
 | D5 | **Key** `(competitor_id, name_norm, start_date)`; `name_norm` = NFKD, lower-case, no punctuation/years/times/weekday/month/stop words. Cross-source: date ±1 day and one name's tokens ⊆ the other's ⇒ one row, sources appended. |
-| D6 | **Stage `listed_events` v1** (subject = capture), like `web/site-feature-stage.ts`: compute candidates; commit upserts `listed_event` + `detected_change` in one tx. Ok `web`, `meta_ads`, `gbp:events` captures; `sweep.ts` list `listedEvents`, run in `drain.ts`. No model calls. |
-| D7 | **Lifecycle (§6.1):** *announced* = new key, `start_date` in [capture date, +365 d], competitor×source had an earlier processed capture (first = silent baseline). Panel/Meta: **announced only**; vanishing never means cancelled. *cancelled/postponed/sold_out* = JSON-LD flip from `scheduled`, `start_date` ≥ today, once per key×lifecycle. Past events expire silently. Self-only competitors: rows, no changes. |
+| D6 | **Stage `listed_events` v1** (subject = capture), like `web/site-feature-stage.ts`: compute candidates; commit upserts `listed_event` + `detected_change` in one tx. Ok `web`, `meta_ads`, `gbp:events` captures; `sweep.ts` list `listedEvents` (captures ≤ 14 days old), run in `drain.ts`. No model calls. |
+| D7 | **Lifecycle (§6.1):** *announced* = new key, `start_date` in [capture date, +365 d], competitor×source (web: per tracked page) had an earlier processed capture (first = silent baseline); announce only rows actually inserted, `scheduled` only. Panel/Meta: **announced only**; vanishing never means cancelled. *cancelled/postponed/sold_out* = JSON-LD flip from `scheduled`, `start_date` ≥ today, once per key×lifecycle. Past events expire silently. Self-only competitors: rows, no changes. |
 | D8 | **Series:** same `name_norm` starting in the previous 35 days ⇒ `series = true`, no change. ≤ 5 single announcements per capture + one aggregate (`event:more`, `count`). |
 | D9 | **Grading:** `event_listed` in `WHOLE_BUSINESS_TYPES` + `BRIEF_ONLY_TYPES`. Size: announced ∧ `ticketed` → 1; aggregate `curve(count, size.events_for_full = 5)`; else default. Weights generic 0.5, hvac_plumbing/dental 0.35, venues **0.8**. Signature `event_listed\|<eventKey>\|<lifecycle>`. Topic `offers`. |
 | D10 | **Menu (Q7 C):** pack `events.menu` (venues) **or** a self/rival row with `start_date ≥ today − 30`. Page always renders. |
 | D11 | **Measured** (scorecard, self rule) = done `listed_events` run on an ok `gbp:events` or `web` capture of the business (never Meta). |
-| D12 | **Tripadvisor** (pack `tripadvisor: true`, venues only): `SOURCE_KINDS` += `'tripadvisor'`, weekly per rival + self (`SELF_SOURCES` when opted in); `business_data/tripadvisor/search` task_post/task_get via `reviews/collect.ts` `collectReadyTasks` (kind += `'tripadvisor'`), worker `jobs/vendor.ts` like `gbp_posts`. Keyword `"<name> <city>"`; exactly one name (+ city) match ⇒ store `competitor.tripadvisor_id/url`, later pulls pick that id; no match ⇒ no observation (never 0). Capture `source 'tripadvisor'`; `CHANNELS` += `'tripadvisor'`. Source rows only for competitors an opted-in client tracks. |
-| D13 | `diffTripadvisor` in `DIFFERS` → existing `rating_change` (≥ `RATING_CHANGE_MIN`), `details.platform 'tripadvisor'`, `blockKey 'tripadvisor:rating'`, signature `rating\|tripadvisor\|…`. `moves/rules.ts` reputation slump keeps Google ratings only. No `review_spike` (needs texts). |
+| D12 | **Tripadvisor** (pack `tripadvisor: true`, venues only): `SOURCE_KINDS` += `'tripadvisor'`, weekly per rival + self (sync adds self rows for opted-in clients; `SELF_SOURCES` excludes it); `business_data/tripadvisor/search` task_post/task_get via `reviews/collect.ts` `collectReadyTasks` (kind += `'tripadvisor'`), worker `jobs/vendor.ts` like `gbp_posts`. Keyword `"<name> <city>"`, `location_name 'United States'`; exactly one name (+ city) match ⇒ store `competitor.tripadvisor_id/url`, later pulls pick that id; no match ⇒ no observation (never 0). Capture `source 'tripadvisor'`; `CHANNELS` += `'tripadvisor'`. Source rows only for competitors an opted-in client tracks. |
+| D13 | `diffTripadvisor` in `DIFFERS` → existing `rating_change` (≥ `RATING_CHANGE_MIN`), `details.platform 'tripadvisor'`, `blockKey 'tripadvisor:rating'`, signature `rating\|tripadvisor\|…`; the differ walks past unmatched pulls (≤ 3). `moves/rules.ts` reputation slump keeps Google ratings only. No `review_spike` (needs texts). |
 | D14 | `markupSha` adds event tuples; one extra `ok` capture per page after deploy. |
 
 ## Interfaces (binding)
@@ -81,7 +81,7 @@ ALTER TABLE competitor ADD COLUMN tripadvisor_id text, ADD COLUMN tripadvisor_ur
 - `tripadvisor/search.ts` (new): `postTripadvisorTasks`, `collectReadyTripadvisor`, pure `parseTripadvisorItem(raw): { id; url; title; rating; reviews; city } | null` from `title`, `rating.value`, `reviews_count`, `url_path` (id = `d\d+` segment, city = trailing slug; probe follow-up).
 
 ### Engine (`engine/src/listed-events/`)
-`normaliseEventName`, `eventKey`, `panelDate(subtitle, captureDate, tz)`, `extractCandidates`, `detectListedEvents(deps, captureId)`, `eventCounts30d` + `eventsEvidenceIds` (as `postCounts30d`).
+`normaliseEventName`, `eventKey`, `panelDate(subtitle, captureDate, tz)`, `extractCandidates`, `detectListedEvents(deps, captureId)`, `upcomingEvents` + `eventsEvidenceIds`.
 `detected_change`: `source = cap.source`, `kind 'added'`/`'modified'`, `blockKey 'event:<eventKey>:<lifecycle>'`, `afterText` = name,
 `details { changeType: 'event_listed', lifecycle, eventKey, eventName, startDate, ticketed, listedEventId, source, url, count? }` (+ `platform`, D13).
 
@@ -91,21 +91,21 @@ ALTER TABLE competitor ADD COLUMN tripadvisor_id text, ADD COLUMN tripadvisor_ur
 - `lib/labels.ts`: `LISTED_EVENT_STATUS` Scheduled neutral · Cancelled danger · Postponed warning · Sold out info; `EVENT_SOURCE` Website · Meta ad · Google.
 
 ### Briefs & scorecard
-- `ScorecardMetric` += `'eventsListed30d'`, `'tripadvisorRating'` (`.default(null)`); headers **"Events listed (30 days)"**, **"Tripadvisor rating"** (email "Events", "Tripadvisor"); a column is **dropped when all values are null** (events: or 0).
+- `ScorecardMetric` += `'upcomingEvents'` (non-series, not cancelled/postponed, start today..+60 d, last seen ≤ 8 d), `'tripadvisorRating'` (observation ≤ 21 d) (`.default(null)`); headers **"Upcoming events"**, **"Tripadvisor rating"** (email "Events", "Tripadvisor"); a column is **dropped when all values are null** (events: or 0).
 - `event_gap` (`briefs/self-rules.ts`), input `events: { selfCount: number | null; rivals: { competitorId; name; count }[]; evidenceIds: string[] } | null`: fires when `selfCount === 0`
-  and rival non-series events (30 d) ≥ 2; score `weight × min(1, total / 6)`; pack `{ id: event_gap, weight: 0.4, playbook: list_your_events, params: { min_rival_events: 2 } }`.
+  and rivals' upcoming events ≥ 2; evidence = newest measured capture per business; score `weight × min(1, total / 6)`; pack `{ id: event_gap, weight: 0.4, playbook: list_your_events, params: { min_rival_events: 2 } }`.
 
 ### Tools & page
 - `list_listed_events` (`tools/src/tools/listed-events.ts`) `{ clientId, days?: 1–90 = 60 }` → `{ events: { id; competitorId; businessName; self; name; startDate; startsAt; status; sources; url; ticketed; firstSeenAt; evidenceId }[]; windowStart; windowEnd }`; web/mcp/ask, feature `dashboard`, `forChannel`.
-- `get_client_events_menu` `{ clientId } → { show }` (D10), web only, in `server/nav.ts` `navCounts`' `Promise.all` (no extra stage); `NavRoleFlags.events?`.
+- `get_client_events_menu` `{ clientId? } → { clientIds }` (D10), web only, `audit 'skip-web'`, read in the app-shell batch (no extra stage).
 - Both: `ISOLATION_FIXTURES` `client()`, out of scope ⇒ `not_found`; Ask label "Checking listed events…"; `demo/src/coverage.ts`.
-- `/c/[clientId]/events`: `clientNav` "Events" after Listings when `flags.events`; `PageHeader`, help `page:client.events` + guides `client.events.{client,agency}.md`; `Suspense`; ≤ 8 stages; one sheet, a section per date: business (you first), name (link), time, source tag, status chip.
+- `/c/[clientId]/events`: `clientNav` "Events" after Listings when `flags.events`; `PageHeader`, help `page:client.events` + guides `client.events.{client,agency}.md`; like Listings: one awaited `Promise.all`, no `Suspense`, real 404; ≤ 8 stages; one sheet, a section per date: business (you first), name (link), time, source tag, status chip.
 
 ### Copy (decided; to `pnpm copy:review`)
 - **Events**; sub-line "Upcoming events you and your rivals list, from Google and websites, for the next 60 days." Empty: "No upcoming events found for you or your rivals yet."
 - Summaries: panel `Google shows an upcoming event: "<name ≤ 80>" on <Mon D>` · `Listed an event: "<name>" on <Mon D>` · `Cancelled its event "<name>" (<Mon D>)` ·
   `Postponed its event "<name>" (was <Mon D>)` · `Sold out its event "<name>" (<Mon D>)` · `Listed <n> more events` · `Tripadvisor rating <a> → <b> (<n> reviews)`.
-- `event_gap`: `<names> listed <n> events in the last 30 days; Google shows none for you.` Play `list_your_events` "Put your events where customers look": "Post each event on your Google profile with its date, and list it on your website's events page."
+- `event_gap`: `<name> lists / <names> list <n> upcoming event(s); none found for you.` Play `list_your_events` "Put your events where customers look": "Post each event on your Google profile with its date, and list it on your website's events page."
 - `counter_programme` "Counter-programme their event": "{{competitor}} has an event on {{date}}. Plan your own draw for that week and post it on your Google profile now."
   `early_bird` "Sell early with an early-bird price": "Open bookings for your next event with a limited early-bird price and announce it on Google." `sold_out_waitlist` "Catch the sold-out crowd": "{{competitor}} sold out {{event}}. Offer a similar night soon and promote it in posts and ads."
 

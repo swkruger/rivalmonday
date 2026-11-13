@@ -1,16 +1,26 @@
 # phase-18d — Wider sources, part 4: events & entertainment vertical
 
-**Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-18d   **Base:** main @ 4985fbb0
+**Kind:** execution   **Worktree:** ../CompetitorSpy-wt/phase-18d   **Base:** main @ 4985fbb0
 **Plan/spec:** `docs/superpowers/plans/2026-11-11-phase-18d-events-venues.md` / `docs/superpowers/specs/2026-11-11-phase-18d-events-design.md`
 
 ## Status (overwrite)
-Plan owner-approved 2026-11-12; execution started (SDD).
+All 16 tasks done (SDD, every task reviewed clean); final review (opus): ready to merge with fixes; final fix wave done (failing `test:affected` expectations, spec/plan synced with the execution rulings, review minors). Suites re-run by the controller. CI `eval:replay` (ask) stays red until the Ask cassette is re-recorded.
 
-## Next (overwrite)
-Task 0 done → Task 1 → … → 16 → final review → owner copy review + merge.
+## Next (overwrite) — owner steps
+1. Re-record the Ask cassette (blocked on OpenRouter 402; top up first): `pnpm --filter @cs/evals eval record --suite ask --max-usd 5`, then `pnpm eval:replay`, commit.
+2. `pnpm copy:review` (new event/Tripadvisor strings, `event_gap` fact, Events page, help copy).
+3. Merge (`/rm-merge`): migrate **0109** → deploy worker, then web; `pnpm kb:seed` (Events guides).
+4. Staging: assign one client to `venues_attractions`, run its rank scan, check `gbp:events` captures, `/c/<id>/events`, the vendor ledger (panel ≤ $0.012/client/week) and one Tripadvisor observation after the next vendor-poll.
+5. Spot-check the UNVERIFIED `events_venues` add-listing URLs (below).
 
 ## Interfaces this branch adds or changes
-TBD. Migration: main ends **0108** (`packages/db/migrations`), next free **0109**; re-check before execution.
+- DB: migration **0109** `events_venues`; table `listed_event` (`global_public`, RLS `app_competitor_visible`); `competitor.tripadvisor_id/url`; seed vertical `venues_attractions`; packs v9 backfill.
+- Domain: change type `event_listed` (brief-only); channel/source kind `tripadvisor` (not in `DEFAULT_SOURCE_KINDS`/`SELF_SOURCES`); self rule `event_gap` + play `list_your_events`.
+- Pack: `venues_attractions`; flags `events.menu`/`events.panel`, `tripadvisor`; `scoring.size.events_for_full`; citation group `events_venues`.
+- Briefs: scorecard metrics `upcomingEvents` ("Upcoming events", email "Events"), `tripadvisorRating`.
+- Tools: `list_listed_events` (web/mcp/ask), `get_client_events_menu { clientId? } → { clientIds }` (web, `skip-web` audit).
+- Web: route `/c/<id>/events` (menu "Events" after Listings), help `page:client.events`.
+- Worker: job `engine-listed-events` (stage `listed_events` v1); Tripadvisor post/poll in the vendor jobs.
 
 ## Assumes from other branches
 None (no other branch in flight).
