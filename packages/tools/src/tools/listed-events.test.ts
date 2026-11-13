@@ -54,6 +54,13 @@ describe('list_listed_events (18d)', () => {
     expect(wide.windowEnd).toBe(inDays(90));
   });
 
+  it('an invalid-but-shaped client time zone falls back to Chicago', async () => {
+    await dbs.owner.update(client).set({ timezone: 'Mars/Olympus_Mons' }).where(eq(client.id, IDS.clientA1));
+    const r = await list();
+    expect(r.windowStart).toBe(inDays(0));
+    expect(r.windowEnd).toBe(inDays(60));
+  });
+
   it('a rival tracked only by a sibling client never appears', async () => {
     await seedSelf();
     const c = await cap(IDS.competitorY);

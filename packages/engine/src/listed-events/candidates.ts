@@ -3,6 +3,7 @@ import { type Db, evidence, observation, type ListedEventSource, type ListedEven
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, sql } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
+import { safeTimezone } from '../briefs/schedule';
 import type { CaptureRow } from '../structured/vendor-diff';
 import { localDate, normaliseEventName, panelDate } from './normalise';
 
@@ -59,7 +60,7 @@ export async function extractCandidates(deps: { db: Db; store: ObjectStore }, ca
     const [o] = await deps.db.select({ data: observation.data }).from(observation).where(and(eq(observation.captureId, cap.id), eq(observation.kind, VENUE_PANEL_KIND), eq(observation.key, 'events'))).limit(1);
     if (!o) return [];
     const events = Array.isArray(o.data.events) ? (o.data.events as SerpKnowledge['events']) : [];
-    return panelCandidates({ timeZone: typeof o.data.timeZone === 'string' ? o.data.timeZone : META_TZ, events }, cap.capturedAt);
+    return panelCandidates({ timeZone: typeof o.data.timeZone === 'string' ? safeTimezone(o.data.timeZone) : META_TZ, events }, cap.capturedAt);
   }
   if (cap.source === 'web') {
     const [ev] = await deps.db.select({ objectKey: evidence.objectKey }).from(evidence).where(and(eq(evidence.captureId, cap.id), eq(evidence.kind, 'html'))).limit(1);

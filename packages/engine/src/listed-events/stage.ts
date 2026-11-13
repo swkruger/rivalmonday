@@ -2,6 +2,7 @@ import { GBP_EVENTS_URL, VENUE_PANEL_KIND } from '@cs/collectors';
 import { agencyServiceable, capture, type ChangeDetails, clientWorkAllowed, type Db, detectedChange, type ListedEventSource, type ListedEventStatus, listedEvent, observation, stageRun, type Tx } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
 import { and, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
+import { safeTimezone } from '../briefs/schedule';
 import { runStage, type StageOutcome } from '../stage';
 import type { CaptureRow } from '../structured/vendor-diff';
 import { type EventCandidate, extractCandidates } from './candidates';
@@ -74,7 +75,7 @@ export async function planListedEvents(deps: { db: Db; store: ObjectStore }, cap
   let tz = DEFAULT_TZ;
   if (sourceKey === 'google_panel') {
     const [o] = await deps.db.select({ data: observation.data }).from(observation).where(and(eq(observation.captureId, cap.id), eq(observation.kind, VENUE_PANEL_KIND), eq(observation.key, 'events'))).limit(1);
-    if (typeof o?.data.timeZone === 'string') tz = o.data.timeZone;
+    if (typeof o?.data.timeZone === 'string') tz = safeTimezone(o.data.timeZone); // vendor text: an unknown zone falls back to Chicago
   }
   const today = localDate(cap.capturedAt, tz);
   const cands = dedupe(await extractCandidates(deps, cap));

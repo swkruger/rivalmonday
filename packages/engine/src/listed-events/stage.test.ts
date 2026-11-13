@@ -23,11 +23,11 @@ beforeEach(async () => {
 
 type PanelEvent = { title: string; subtitle: string; url?: string | null };
 /** A venue-panel capture (`gbp:events`) as the Sunday scan records it. day(n) is 01:00 in Chicago on Oct 1 + n. */
-async function panel(at: Date, events: PanelEvent[], competitorId: string = IDS.competitorX) {
+async function panel(at: Date, events: PanelEvent[], competitorId: string = IDS.competitorX, timeZone = 'America/Chicago') {
   const id = await seedVendorCapture(dbs.service, { competitorId, source: 'google_business_profile', url: GBP_EVENTS_URL, capturedAt: at });
   await dbs.service.insert(observation).values({
     competitorId, captureId: id, kind: VENUE_PANEL_KIND, key: 'events', observedAt: at,
-    data: { timeZone: 'America/Chicago', title: 'Smith Hall', events: events.map((e) => ({ title: e.title, subtitle: e.subtitle, url: e.url ?? null })) },
+    data: { timeZone, title: 'Smith Hall', events: events.map((e) => ({ title: e.title, subtitle: e.subtitle, url: e.url ?? null })) },
   });
   return id;
 }
@@ -68,6 +68,12 @@ describe('detectListedEvents', () => {
     ]);
     expect(r[0]).toMatchObject({ competitorId: IDS.competitorX, eventKey: '2026-10-10:jason isbell', firstCaptureId: cap, lastCaptureId: cap, series: false, startsAt: new Date('2026-10-11T01:00:00Z') });
     expect(await changes()).toEqual([]);
+  });
+
+  it('an invalid-but-shaped panel zone falls back to Chicago instead of throwing', async () => {
+    const cap = await panel(day(0), [{ title: 'Jason Isbell', subtitle: 'Oct 10, 8:00 PM' }], IDS.competitorX, 'Mars/Olympus_Mons');
+    expect(await run(cap)).toEqual({ rows: 1, changes: [], baseline: true });
+    expect((await rows())[0]).toMatchObject({ startDate: '2026-10-10', startsAt: new Date('2026-10-11T01:00:00Z') });
   });
 
   it('next capture with a new event → one added change with exact details', async () => {

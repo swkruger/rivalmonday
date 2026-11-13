@@ -32,7 +32,7 @@ const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_cli
   'list_leads', 'get_lead', 'list_pool_leads', 'assign_lead', 'list_waitlist', 'invite_waitlist_agencies', 'decline_waitlist_entry', 'platform_find_business', 'assign_waitlist_business', 'decide_sample_brief', 'send_sample_brief',
   'list_catalog_review', 'count_catalog_review', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area',
   // launch-gate D2: badge/flag reads with no tenant rows.
-  'get_nav_counts', 'get_platform_nav_counts', 'get_onboarding_status'];
+  'get_nav_counts', 'get_platform_nav_counts', 'get_onboarding_status', 'get_client_events_menu'];
 
 const mcpTools = allTools.filter((t) => (t.channels ?? ['web']).includes('mcp'));
 const namesOfScope = (scope: TokenScope) => mcpTools.filter((t) => mcpScopeOf(t) === scope).map((t) => t.name).sort();

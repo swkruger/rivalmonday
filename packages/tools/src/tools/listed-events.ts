@@ -1,6 +1,6 @@
 import { canAccessClient, toolkit, ToolError } from '@cs/core';
 import { client, clientCompetitor, competitor, evidence, listedEvent, withTenant } from '@cs/db';
-import { localDate } from '@cs/engine';
+import { localDate, safeTimezone } from '@cs/engine';
 import { and, asc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { packsOf } from '../catalog/access';
@@ -33,7 +33,7 @@ export const listListedEvents = defineTool({
     const { c, rows } = await withTenant(deps.app, ctx, async (tx) => {
       const [row] = await tx.select({ name: client.name, timezone: client.timezone, selfCompetitorId: client.selfCompetitorId }).from(client).where(eq(client.id, input.clientId));
       if (!row) throw new ToolError('not_found', 'Client not found');
-      const today = localDate(now, row.timezone);
+      const today = localDate(now, safeTimezone(row.timezone)); // an unknown stored zone falls back to Chicago instead of throwing
       const end = addDays(today, input.days);
       const found = await tx.select({
         id: listedEvent.id, competitorId: listedEvent.competitorId, businessName: competitor.name, name: listedEvent.name, startDate: listedEvent.startDate,
@@ -81,6 +81,7 @@ export const getClientEventsMenu = defineTool({
   output: z.object({ clientIds: z.array(z.string().uuid()) }),
   permission: 'read',
   feature: 'dashboard',
+  audit: 'skip-web', // launch-gate D2: a menu flag (client ids only), read on every client shell render
   async handler(ctx, input, deps) {
     if (input.clientId && !canAccessClient(ctx, input.clientId)) throw new ToolError('not_found', 'Client not found');
     // One tenant query: active visible clients, and whether each has a recent or upcoming event of its own business or a tracked rival.
