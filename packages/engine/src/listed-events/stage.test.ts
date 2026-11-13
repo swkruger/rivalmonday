@@ -208,6 +208,14 @@ describe('detectListedEvents', () => {
     expect(await changes()).toEqual([]);
   });
 
+  it('Meta ad seen seconds after its own first capture is a candidate for that capture', async () => {
+    const c1 = await seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'meta_ads', capturedAt: day(0) });
+    const late = new Date(day(0).getTime() + 5_000);
+    await dbs.service.insert(ad).values({ competitorId: IDS.competitorX, platform: 'meta', externalId: 'm1', event: { name: 'Halloween Bash', startsAt: '2026-10-31T01:00:00Z' }, firstSeenAt: late, lastSeenAt: late, firstCaptureId: c1, lastCaptureId: c1 });
+    expect(await run(c1)).toEqual({ rows: 1, changes: [], baseline: true });
+    expect((await rows()).map((x) => x.name)).toEqual(['Halloween Bash']);
+  });
+
   it('race: two captures planned before either commits announce once', async () => {
     await run(await panel(day(0), [{ title: 'Jason Isbell', subtitle: 'Oct 10' }]));
     const a = await loadEventsCapture(dbs.service, await panel(day(7), [{ title: 'Big Band Gala', subtitle: 'Oct 24' }]));

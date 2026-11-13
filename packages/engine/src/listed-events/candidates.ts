@@ -1,7 +1,7 @@
 import { jsonLdEvents, type SerpKnowledge, type StructuredEvent, VENUE_PANEL_KIND } from '@cs/collectors';
-import { type Db, ad, evidence, observation, type ListedEventSource, type ListedEventStatus } from '@cs/db';
+import { type Db, evidence, observation, type ListedEventSource, type ListedEventStatus } from '@cs/db';
 import type { ObjectStore } from '@cs/storage';
-import { and, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { gunzipSync } from 'node:zlib';
 import type { CaptureRow } from '../structured/vendor-diff';
 import { localDate, normaliseEventName, panelDate } from './normalise';
@@ -69,7 +69,17 @@ export async function extractCandidates(deps: { db: Db; store: ObjectStore }, ca
     return jsonLdCandidates(jsonLdEvents(new TextDecoder().decode(gunzipSync(gz))));
   }
   if (cap.source === 'meta_ads') {
-    const rows = await deps.db.select({ event: ad.event }).from(ad).where(and(eq(ad.competitorId, cap.competitorId), eq(ad.platform, 'meta'), lte(ad.firstSeenAt, cap.capturedAt), gte(ad.lastSeenAt, cap.capturedAt), isNotNull(sql`${ad.event}->>'startsAt'`)));
+    // Active at the capture by the ad's own first/last capture times: collectors stamp first/last_seen_at after the
+    // capture row, so seen times trail their capture by seconds. Seen times only when a capture link is missing.
+    const at = cap.capturedAt.toISOString();
+    const rows = (await deps.db.execute(sql`
+      SELECT a.event FROM ad a
+      LEFT JOIN capture fc ON fc.id = a.first_capture_id
+      LEFT JOIN capture lc ON lc.id = a.last_capture_id
+      WHERE a.competitor_id = ${cap.competitorId}::uuid AND a.platform = 'meta' AND a.event->>'startsAt' IS NOT NULL
+        AND CASE WHEN fc.id IS NOT NULL AND lc.id IS NOT NULL
+                 THEN fc.captured_at <= ${at}::timestamptz AND lc.captured_at >= ${at}::timestamptz
+                 ELSE a.first_seen_at <= ${at}::timestamptz AND a.last_seen_at >= ${at}::timestamptz END`)) as unknown as { event: { name: string; startsAt: string | null } | null }[];
     return metaCandidates(rows);
   }
   return [];
