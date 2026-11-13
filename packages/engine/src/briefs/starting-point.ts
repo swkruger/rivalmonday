@@ -68,7 +68,7 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
       lines.push(`Directory check: no listing found on ${f.values.missing} of ${f.values.total} directories.`);
     }
     if (f.ruleId === 'event_gap' && typeof f.values.total === 'number') {
-      lines.push(`Events check: rivals list ${f.values.total} upcoming events; none found for you.`);
+      lines.push(`Events check: rivals list ${f.values.total} upcoming event${f.values.total === 1 ? '' : 's'}; none found for you.`);
     }
     if (typeof f.values.topic === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
       lines.push(`Topic ${f.values.topic}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);

@@ -201,9 +201,10 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         if (!e || e.selfCount !== 0) break;
         const total = e.rivals.reduce((n, r) => n + r.count, 0);
         if (total < param(rule, 'min_rival_events', 2)) break;
-        const names = joinNames(e.rivals.filter((r) => r.count > 0).sort((a, b) => b.count - a.count).slice(0, 3).map((r) => r.name));
-        // Fact copy: draft for copy review (Task 12 fix ruling 1).
-        push(rule, score(rule, total, 6), `${names} list ${total} upcoming events; none found for you.`, { total, rivalNames: names },
+        const named = e.rivals.filter((r) => r.count > 0).sort((a, b) => b.count - a.count).slice(0, 3).map((r) => r.name);
+        const names = joinNames(named);
+        // Fact copy: draft for copy review (Task 12 fix ruling 1). Verb and noun agree in number.
+        push(rule, score(rule, total, 6), `${names} ${named.length === 1 ? 'lists' : 'list'} ${total} upcoming event${total === 1 ? '' : 's'}; none found for you.`, { total, rivalNames: names },
           e.evidenceIds.slice(0, EVIDENCE_PER_FINDING));
         break;
       }

@@ -220,6 +220,19 @@ describe('event_gap (18d)', () => {
     expect(f.evidenceIds).toEqual([ID(301), ID(302)]);
     expect(f.playbookId).toBe('list_your_events');
   });
+  it('one rival named: the verb agrees; one event: the noun is singular; the fact passes checkSentence', async () => {
+    const one = await base({ events: events({ rivals: [{ competitorId: ID(2), name: 'Alpha', count: 2 }, { competitorId: ID(3), name: 'Beta', count: 0 }] }) });
+    const f = find(evaluateSelfRules(one), 'event_gap')!;
+    expect(f.fact).toBe('Alpha lists 2 upcoming events; none found for you.');
+    const ctx = { trackedCompetitorNames: ['Alpha', 'Beta'], clientTowns: [], year: 2026 };
+    const ev = (input: SelfRuleInput, finding: typeof f) => ({ text: scorecardEvidenceText(input.scorecard, [finding]), captureDates: [], zips: [], competitorNames: ['Alpha', 'Beta'] });
+    expect(checkSentence(f.fact, ev(one, f), ctx).ok).toBe(true);
+    const low = await base({ rules: one.rules.map((r) => (r.id === 'event_gap' ? { ...r, params: { ...r.params, min_rival_events: 1 } } : r)), events: events({ rivals: [{ competitorId: ID(2), name: 'Alpha', count: 1 }] }) });
+    const g = find(evaluateSelfRules(low), 'event_gap')!;
+    expect(g.fact).toBe('Alpha lists 1 upcoming event; none found for you.');
+    expect(scorecardEvidenceText(low.scorecard, [g])).toContain('Events check: rivals list 1 upcoming event; none found for you.');
+    expect(checkSentence(g.fact, ev(low, g), ctx).ok).toBe(true);
+  });
   it('names the top 3 rivals by count', async () => {
     const rivals = [{ competitorId: ID(2), name: 'A', count: 1 }, { competitorId: ID(3), name: 'B', count: 4 }, { competitorId: ID(4), name: 'C', count: 2 }, { competitorId: ID(5), name: 'D', count: 3 }];
     const f = find(evaluateSelfRules(await base({ events: events({ rivals }) })), 'event_gap')!;
