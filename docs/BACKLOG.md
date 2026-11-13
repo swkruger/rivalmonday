@@ -288,7 +288,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 
 ## Phase 18 follow-ups (wider sources)
 - [ ] 18a-3 → ad prices can lead a pricing cell and the Promo chip counts ad promos (display only, tagged "From an ad"); revisit with pilots — *from 18a-1 final review*
-- [ ] 18e → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
+- [ ] Later → `ad.event` keeps only the latest pull's value (event field never populated live yet) — *from 18a-1 final review*
 - [ ] Web follow-up → permanent sitemap refusals (robots, offsite, 401/403) should count as "no sitemap"; pages skipped for lack of room stay in `site_url` but are never tracked later (track them, without `appeared_at`, when room opens); active rows are not re-typed on refresh — *from 18a-2 Task 9 review*
 - [ ] Web follow-up → `site_feature`: a cooldown-blocked tool can show as added twice; an ok capture without html evidence retries up to 5x — *from 18a-2 Task 7 review*
 - [ ] Web follow-up → registry hosts (wisetack.us, setmore.com, withcherry.com, zdassets.com) are memory-sourced: verify against real embed pages (OPS runbook); zdassets also serves non-chat Zendesk widgets — *from 18a-2 Task 4*
@@ -307,7 +307,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Polish → novelty over shared summary prefixes ("Posted on Google:") may over-discount a rival's second offer; score novelty on `afterText` — *18b-1 Task 4 review*
 - [ ] Polish → an edited Google post under the same id keeps its old open price; the price card links only the first post url per cell — *18b-1*
 - [ ] Polish → page-one search series restarts on a grid-size-only change (search area unchanged; events ~2 weeks late) — *18b-2 final review*
-- [ ] Polish → change summaries in `engine/src/tag/structured.ts` are outside the `copy:review` scan — *18b-2 final review*
+- [ ] Polish → change summaries in `engine/src/tag/structured.ts` are outside the `copy:review` scan (18d event/Tripadvisor summaries too) — *18b-2 final review*
 - [ ] Polish (nits) → `gbpPostId` comment placement in `schema/insights.ts`; `sources.ts` vendor_task kind comment; `ensureSelfCompetitors` gbp_posts test; photo-push steady-growth test asserts spacing only; stale `glossary.ts:233` profile_change comment — *18b-1 reviews*
 - [ ] Unscheduled → store the client's own website and match it in `get_search_visibility` (own listing is unhighlighted when the self competitor has no domain) — *18b-2 Task 4*
 - [ ] Unscheduled → re-probe Google AI answers on local-service queries quarterly (18b-2 probe 2026-11-10: AI answer 0/9, Local Services 0/9; spec E3 re-adds AI-answer events at ≥ 30 %) — *18b-2 Task 0*
@@ -317,7 +317,15 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Later → platform page for uncatalogued hosts ("Also found on" promotion; OPS SQL meanwhile); editing citation groups on already-reviewed verticals; own listing lines in the brief — *18c*
 - [ ] Polish → a manual listings check that throws before the worker adopts it stays `running` until the 3 h stale sweep (doesn't use the slot); vendors-unset reads as the same "not ready" text as a missing Google listing; 0108 rewrites generic `directory_groups` like 0107 (DB edits lost) — *18c-2 final review*
 - [ ] Phase 16 → no-self clients: "Link Google listing" prompt on the Listings page (only a note today) — *18c*
-- [ ] Later → Google Q&A, News, Tripadvisor/Trustpilot (out of 18b; revisit with 18d events vertical) — *18b brief*
+- [ ] Later → Google Q&A, News, Trustpilot (Tripadvisor ratings shipped in 18d) — *18b brief*
+- [ ] 18e/later → Google Events SERP re-probe (DataForSEO events endpoint returned 50304 on 2026-11-11; coverage on real venues) — *18d probe*
+- [ ] Later → Tripadvisor review texts (ratings + counts only today) — *18d*
+- [ ] Later → add `events` to `PAGE_TYPES` (tracked-page type for event pages) — *18d*
+- [ ] Later → runbook sync for `event_gap` (platform runbook play for the new fact) — *18d*
+- [ ] Later → "Scan now" cost estimate should include the venue-panel searches — *18d*
+- [ ] Later → JSON-LD event status never restores after `EventScheduled` again (a re-opened event stays cancelled) — *18d final review*
+- [ ] Later → Events menu tool lists active clients only; copy says so loosely — *18d final review*
+- [ ] Later → venues pack claims Bar/Brewery/Distillery/Winery as related categories (no agency can create e.g. a Breweries type); revisit if agencies ask — *18d ruling*
 
 ## Waiting on real data / external events
 - [ ] Verify the `local_services` parse on the first live Local Services block in a search snapshot (fixture is hand-made); an image-only Google post (no text, no url) parses to null and holds back post ending for that capture (fails safe) — check on staging data — *18b*
@@ -335,6 +343,9 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Confirm GBP closure values (`closed_forever`/`temporarily_closed`) on the first real closure; `site_feature` can replay history on the first sweep where old web captures exist (cs_dev/staging; prod has none) — add a `since` cutoff if it bites — *from 18a-1 pre-flight, 18a-2 Task 7*
 
 ## Owner (user-owned items: validation, LOIs, counsel, accounts, domains…)
+- [ ] Sign the 18d copy in `pnpm copy:review`: Events page, event/Tripadvisor change lines, `event_gap` fact + "Put your events where customers look" play, scorecard "Upcoming events"/"Tripadvisor", Events help guides — *phase-18d*
+- [ ] 18d staging (after CI migrates 0109 + `kb:seed`): assign one client to `venues_attractions`, run its rank scan; check `gbp:events` captures, `/c/<id>/events`, vendor ledger (venue panel ≤ $0.012/client/week), one Tripadvisor observation after the next vendor-poll — *phase-18d*
+- [ ] Spot-check the UNVERIFIED `events_venues` add-listing URLs (bots get 403): tripadvisor.com/GetListedNew, theknot.com/vendors, eventbrite.com/organizer/overview/, peerspace.com/host, weddingwire.com/vendors — *phase-18d*
 - [ ] Sign the 18c copy in `pnpm copy:review`: Listings page (statuses, "Also found on", Check listings now button + availability/refusal lines), the 12 directory how-to lines + fallback (check the "Angi Pro / HomeAdvisor Pro / Thumbtack Pro / Houzz Pro account" names), Listings guides (client + agency), glossary, scorecard "Directory listings" + email "Listings" key, play "Fix your directory listings" / "Add or correct your listings on …", citation self-rule fact, recommendations subtitle, operator directory-group labels — *phase-18c*
 - [ ] 18c staging (CI run 42957108382 migrated 0107-0108 and deployed; `kb:seed` on staging done 2026-11-11). Checks: the 09:00 UTC `citation-audit` (or `citation-audit-client` for one client) fills `/c/<id>/listings`, one `citation_audit_run.est_usd` <= 0.20, no banned host in `citation_listing`; press Check listings now twice (second → 7-day limit text); scorecard "Directory listings" column on a starting point; open one "Fix on" link. Rivals may read "entered page one" once (old 18b-2 rows unmatched) — *phase-18c*
 - [ ] Sign the 18b copy in `pnpm copy:review` ("From a Google post", post-link label, Pricing + Rankings guide lines, MCP describe texts, post/booking/attribute/photo summaries, "Google posts (30 days)" + email "Posts" key, "Google search" section + "checked every week" sub-line, page-one summaries, neutral "ranking change(s)" label, re-sign `document.brief_report` preview) — *phase-18b*
