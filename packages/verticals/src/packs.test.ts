@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assemblePack, splitPack, type BusinessAreaRow, type VerticalRow } from './catalog';
-import type { VerticalPack } from './schema';
+import { verticalPackSchema, type VerticalPack } from './schema';
 import { PACKS_DIR, listVerticalPacks, loadVerticalPack } from './loader';
 
 function toRows(pack: VerticalPack): { row: VerticalRow; areas: BusinessAreaRow[] } {
@@ -83,7 +83,7 @@ describe('Phase 3b pack knobs', () => {
   it.each(['hvac_plumbing', 'dental'])('%s weights rank_change and carries the structured size curves, age cap and move thresholds', async (id) => {
     const p = await loadVerticalPack(id);
     expect(p.type_weights.rank_change).toBe(0.5);
-    expect(p.scoring.version).toBe(9);
+    expect(p.scoring.version).toBe(10);
     expect(p.type_weights.tier_change).toBe(0.6);
     expect(p.scoring.size).toMatchObject({ ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 });
     expect(p.scoring.alert_max_age_days).toBe(7);
@@ -92,27 +92,27 @@ describe('Phase 3b pack knobs', () => {
 });
 
 describe('brief-signal whole_business', () => {
-  it('every shipped pack has whole_business 1 and scoring version 9', async () => {
+  it('every shipped pack has whole_business 1 and scoring version 10', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.scoring.relevance.whole_business, id).toBe(1);
-      expect(p.scoring.version, id).toBe(9);
+      expect(p.scoring.version, id).toBe(10);
     }
   });
 
-  it('every shipped pack has the 18a-2 web weights and version 9', async () => {
+  it('every shipped pack has the 18a-2 web weights and version 10', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.type_weights, id).toMatchObject({ site_feature: 0.7, new_page: 0.7 });
-      expect(p.scoring.version, id).toBe(9);
+      expect(p.scoring.version, id).toBe(10);
     }
   });
 
-  it('every shipped pack has the Phase 18a-1 weights and version 9', async () => {
+  it('every shipped pack has the Phase 18a-1 weights and version 10', async () => {
     for (const id of await listVerticalPacks()) {
       const p = await loadVerticalPack(id);
       expect(p.type_weights, id).toMatchObject({ status_change: 1.0, profile_change: 0.8, audience_growth: 0.7 });
-      expect(p.scoring.version, id).toBe(9);
+      expect(p.scoring.version, id).toBe(10);
       expect(p.scoring.size.audience_pct_for_full, id).toBe(20);
     }
   });
@@ -161,10 +161,10 @@ describe('Phase 18d packs (events and venues)', () => {
     return assemblePack(row, areas, g.row);
   };
 
-  it.each([['generic', 0.5], ['hvac_plumbing', 0.35], ['dental', 0.35]] as const)('%s weights event_listed %s, scores v9 and carries event_gap + list_your_events', async (id, w) => {
+  it.each([['generic', 0.5], ['hvac_plumbing', 0.35], ['dental', 0.35]] as const)('%s weights event_listed %s, scores v10 and carries event_gap + list_your_events', async (id, w) => {
     for (const p of [await loadVerticalPack(id), await assembled(id)]) {
       expect(p.type_weights.event_listed).toBe(w);
-      expect(p.scoring.version).toBe(9);
+      expect(p.scoring.version).toBe(10);
       expect(p.scoring.size.events_for_full).toBe(5);
       expect(p.self_rules.find((r) => r.id === 'event_gap')).toEqual({ id: 'event_gap', weight: 0.4, playbook: 'list_your_events', strength: false, params: { min_rival_events: 2 } });
       expect(p.playbooks.find((x) => x.id === 'list_your_events')).toEqual({
@@ -179,7 +179,7 @@ describe('Phase 18d packs (events and venues)', () => {
   it('venues_attractions parses standalone and assembled with generic', async () => {
     for (const p of [await loadVerticalPack('venues_attractions'), await assembled('venues_attractions')]) {
       expect(p).toMatchObject({ id: 'venues_attractions', name: 'Venues & attractions', audience_noun: 'guests', version: 1, tripadvisor: true, events: { menu: true, panel: true } });
-      expect(p.scoring.version).toBe(9);
+      expect(p.scoring.version).toBe(10);
       expect(p.type_weights).toMatchObject({ event_listed: 0.8, rating_change: 0.8, price_change: 1.0 });
       expect(p.citations.groups).toEqual(['general', 'events_venues']);
       expect(p.services.map((s) => s.id).sort()).toEqual(['corporate_events', 'food_drink', 'group_packages', 'live_music', 'private_events', 'tickets_admission', 'tours_tastings', 'weddings']);
@@ -204,5 +204,26 @@ describe('Phase 18d packs (events and venues)', () => {
     expect(play('sold_out_waitlist')).toMatchObject({ trigger: 'event_listed', title: 'Catch the sold-out crowd', effort: 'L', impact: 'M' });
     expect(play('early_bird').template).toBe('Open bookings for your next event with a limited early-bird price and announce it on Google.');
     expect(play('sold_out_waitlist').template).toBe('{{competitor}} sold out {{event}}. Offer a similar night soon and promote it in posts and ads.');
+  });
+});
+
+describe('Phase 18e packs (social)', () => {
+  it.each(['generic', 'hvac_plumbing', 'dental', 'venues_attractions'])('%s is social, v10, with social_gap and post_weekly', async (id) => {
+    const p = await loadVerticalPack(id);
+    expect(p.social).toBe(true);
+    expect(p.scoring.version).toBe(10);
+    expect(p.self_rules.find((r) => r.id === 'social_gap')).toEqual({
+      id: 'social_gap', weight: 0.4, playbook: 'post_weekly', strength: false, params: { min_rival_posts: 4, min_rivals: 2 },
+    });
+    expect(p.playbooks.find((x) => x.id === 'post_weekly')).toEqual({
+      id: 'post_weekly', trigger: 'social_gap', effort: 'L', impact: 'M', title: 'Post every week where customers scroll',
+      template: 'Post on Facebook and Instagram every week: a recent job, a team photo or an offer.',
+    });
+  });
+
+  it('a pack without social parses false', async () => {
+    const p = await loadVerticalPack('dental');
+    const { social: _social, ...rest } = p;
+    expect(verticalPackSchema.parse(rest).social).toBe(false);
   });
 });

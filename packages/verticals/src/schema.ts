@@ -152,6 +152,8 @@ export const verticalPackSchema = z
   events: z.strictObject({ menu: z.boolean().default(false), panel: z.boolean().default(false) }).prefault({}),
   /** Phase 18d: collect the Tripadvisor rating for the client and its rivals. */
   tripadvisor: z.boolean().default(false),
+  /** Phase 18e: collect Facebook and Instagram posts for the client and its rivals. */
+  social: z.boolean().default(false),
   })
   .superRefine((pack, ctx) => {
     const defs = pack.citations.directory_groups;

@@ -123,9 +123,9 @@ describe('events_venues group (Phase 18d)', () => {
 });
 
 describe('shipped packs (Phase 18c)', () => {
-  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 9 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
+  it.each(['generic', 'hvac_plumbing', 'dental'])('%s carries version 10 scoring, citation_added 0.3, citation_gap and fix_citations', async (id) => {
     const p = await loadVerticalPack(id);
-    expect(p.scoring.version).toBe(9);
+    expect(p.scoring.version).toBe(10);
     expect(p.type_weights.citation_added).toBe(0.3);
     expect(p.self_rules.find((r) => r.id === 'citation_gap')).toMatchObject({ weight: 0.6, playbook: 'fix_citations', params: { min_missing: 3 } });
     const pb = p.playbooks.find((x) => x.id === 'fix_citations');

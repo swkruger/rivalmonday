@@ -55,7 +55,7 @@ move_thresholds:
   promo_blitz_window_days: 14
 
 scoring:
-  version: 9
+  version: 10
   routing: { alert: 70, brief: 40 }
   size:
     { default: 0.6, price_pct_for_full: 20, price_min: 0.3, ads_for_full: 5, jobs_for_full: 5, review_z_for_full: 4, rating_delta_for_full: 0.3, rank_delta_for_full: 5, structured_min: 0.3 }
@@ -201,6 +201,13 @@ playbooks:
     title: Put your events where customers look
     template: >-
       Post each event on your Google profile with its date, and list it on your website's events page.
+  - id: post_weekly
+    effort: L
+    impact: M
+    trigger: social_gap
+    title: Post every week where customers scroll
+    template: >-
+      Post on Facebook and Instagram every week: a recent job, a team photo or an offer.
   - id: counter_programme
     effort: L
     impact: M
@@ -234,6 +241,7 @@ self_rules:
   - { id: profile_gap, weight: 0.7, playbook: complete_profile, params: { min_categories: 2 } }
   - { id: citation_gap, weight: 0.6, playbook: fix_citations, params: { min_missing: 3 } }
   - { id: event_gap, weight: 0.4, playbook: list_your_events, params: { min_rival_events: 2 } }
+  - { id: social_gap, weight: 0.4, playbook: post_weekly, params: { min_rival_posts: 4, min_rivals: 2 } }
 
 citations:
   groups: [general, events_venues]
@@ -241,3 +249,4 @@ citations:
 
 events: { menu: true, panel: true }
 tripadvisor: true
+social: true
