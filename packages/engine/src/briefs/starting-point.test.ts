@@ -18,12 +18,13 @@ import { BASELINE_BODY, BASELINE_HEADLINE, generateStartingPoint, loadSelfCitati
 import { checkSentence } from './rules';
 import type { SelfFinding } from './self-rules';
 import { citationCatalogue, loadVerticalPack } from '@cs/verticals';
+import { testDeliveryConfig } from '../delivery/test-config';
 const generic = () => loadVerticalPack('generic');
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'account_manager', clientScope: 'all', features: [] });
 // Thursday 2026-10-15 07:00 in Chicago.
 const NOW = new Date('2026-10-15T12:00:00Z');

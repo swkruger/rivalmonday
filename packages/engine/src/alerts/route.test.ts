@@ -10,11 +10,12 @@ import type { DeliveryConfig } from '../delivery/outbox';
 import { createPackLoader } from '../tag/tag-stage';
 import { sweepAlerts } from './create';
 import { approveAlert, dismissAlert, getAlert, processAlert } from './route';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'briefs@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const ai = createFakeAi({
   chat: () => JSON.stringify({ headline: 'Smith HVAC cut its AC tune-up price to $69.', body: 'The pricing page now shows $69, down from $89.' }),
   decide: (_s, qs) => ({ answers: Object.fromEntries(Object.keys(qs).map((k) => [k, noul(true)])), needsReview: [] }),

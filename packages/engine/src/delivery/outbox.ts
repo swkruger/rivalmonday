@@ -1,25 +1,31 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
-import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, notification, type NotificationKind } from '@cs/db';
+import { AGENCY_KINDS, agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, type HostEnv, notification, type NotificationKind, parseHostEnv } from '@cs/db';
 import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, type OutgoingAttachment, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
+import { platformFromEnv, type SenderConfig, senderFor } from './sender';
 import { quietUntil } from './time';
 
 export interface DeliveryConfig {
   appUrl: string;
   /** Current signing secret first, then previous ones still accepted during rotation (only the first signs). */
   linkSecrets: string[];
-  /** MVP sending address (the owning agency's domain, spec §9.4). */
-  fromAddress: string;
+  /** 13a1: client origins and the client sender's neutral domain (`parseHostEnv`). */
+  hostEnv: HostEnv;
+  /** 13a1 P15: the platform sender's address (`platformFromEnv`); client email never uses it (`senderFor`). */
+  platformFrom: string;
 }
 
+/** Null (delivery idles) without APP_URL, a long enough LINK_SIGNING_SECRET, or a host env (13a1 N2: fails closed without NEUTRAL_DOMAIN). */
 export function deliveryConfigFromEnv(env: NodeJS.ProcessEnv): DeliveryConfig | null {
   const secret = env.LINK_SIGNING_SECRET ?? '';
   if (!env.APP_URL || secret.length < MIN_LINK_SECRET_LENGTH) return null;
+  const { hostEnv } = parseHostEnv(env);
+  if (!hostEnv) return null;
   const appUrl = env.APP_URL.replace(/\/+$/, '');
   const previous = env.LINK_SIGNING_SECRET_PREVIOUS && env.LINK_SIGNING_SECRET_PREVIOUS.length >= MIN_LINK_SECRET_LENGTH ? [env.LINK_SIGNING_SECRET_PREVIOUS] : [];
-  return { appUrl, linkSecrets: [secret, ...previous], fromAddress: env.EMAIL_FROM || `briefs@${new URL(appUrl).hostname}` };
+  return { appUrl, linkSecrets: [secret, ...previous], hostEnv, platformFrom: platformFromEnv(env) };
 }
 
 /** A signed link for one contact (decision 5); Phase 5 serves /l/<token>. */
@@ -188,9 +194,8 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
   return out;
 }
 
-const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
-
-export function createEmailSender(opts: { transport: EmailTransport; fromAddress: string; attachment?: (n: NotificationRow) => Promise<OutgoingAttachment | null> }): ChannelSender {
+/** 13a1 (N1): From per recipient — `AGENCY_KINDS` go to agency staff (platform sender), every other kind to a client contact (`senderFor`). */
+export function createEmailSender(opts: { transport: EmailTransport; db: Db; cfg: SenderConfig; attachment?: (n: NotificationRow) => Promise<OutgoingAttachment | null> }): ChannelSender {
   return {
     async send(n) {
       const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[] }) | null;
@@ -202,11 +207,11 @@ export function createEmailSender(opts: { transport: EmailTransport; fromAddress
       }
       if (p.template === 'brief') p.props.attached = !!att;
       const r = await renderEmail(p);
-      const b = p.props.branding;
+      const audience = (AGENCY_KINDS as readonly string[]).includes(n.kind) ? 'agency' : 'client';
+      const s = await senderFor(opts.db, n.agencyId, audience, opts.cfg);
       try {
         const res = await opts.transport.send(
-          // Always the configured address: branding.fromEmail waits for Phase 2 per-agency sending domains (decision 13).
-          { from: `${quoteName(b.fromName)} <${opts.fromAddress}>`, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id }, attachments: att ? [att] : undefined },
+          { from: s.from, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: s.replyTo ?? p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id }, attachments: att ? [att] : undefined },
           { agencyId: n.agencyId, clientId: n.clientId },
         );
         return { providerId: res.providerId };

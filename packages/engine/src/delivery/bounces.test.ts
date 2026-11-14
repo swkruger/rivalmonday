@@ -5,10 +5,11 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { handlePostmarkEvent, postmarkAuthOk } from './bounces';
 import { addContact } from './contacts';
 import type { DeliveryConfig } from './outbox';
+import { testDeliveryConfig } from './test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const deps = (d: DeliveryConfig | null = delivery) => ({ db: dbs.service, delivery: d });
 const NOW = new Date('2026-10-20T10:00:00Z');
 const MSG = 'b7bc2f4a-e38e-4336-af7d-e6c392c2f817';

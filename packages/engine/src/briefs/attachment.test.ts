@@ -10,10 +10,11 @@ import { createEmailSender, type DeliveryConfig, type NotificationRow } from '..
 import { attachmentName, briefAttachment, MAX_ATTACHMENT_BYTES, RENDER_FAILURE_BACKOFF_MS } from './attachment';
 import { deliverBrief } from './deliver';
 import { briefPdfKey, type PdfDeps } from './pdf';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const NOW = new Date('2026-11-02T13:05:00Z');
 const PDF = new Uint8Array([37, 80, 68, 70, 45]);
 
@@ -33,7 +34,7 @@ const emailRow = async (briefId: string) => (await dbs.owner.select().from(notif
 const deps = (pdf: PdfDeps['pdf']): PdfDeps => ({ db: dbs.service, store: createMemoryStore(), pdf });
 const makeSender = (d: PdfDeps) => {
   const transport = createMemoryTransport();
-  return { transport, sender: createEmailSender({ transport, fromAddress: 'b@agency.example', attachment: briefAttachment(d) }) };
+  return { transport, sender: createEmailSender({ transport, db: dbs.service, cfg: delivery, attachment: briefAttachment(d) }) };
 };
 
 describe('PDF attachment at dispatch', () => {
@@ -48,6 +49,7 @@ describe('PDF attachment at dispatch', () => {
     await sender.send(row, NOW);
     expect(pdf).toHaveBeenCalledTimes(1);
     expect(transport.sent[0]!.attachments).toEqual([{ name: 'A1 HVAC weekly report 2026-11-02.pdf', contentType: 'application/pdf', content: PDF }]);
+    expect(transport.sent[0]!.from).toMatch(/^"Agency A" <[a-z0-9-]+@mail\.clients\.example>$/); // 13a1: the client sender
     expect(transport.sent[0]!.text).toContain('Your full report is attached (PDF).');
     expect((await dbs.owner.select().from(brief).where(eq(brief.id, id)))[0]!.pdfKey).toBe(briefPdfKey(IDS.agencyA, id));
     // A second recipient reuses the stored PDF: no second render.
@@ -93,7 +95,7 @@ describe('PDF attachment at dispatch', () => {
     let clock = 1_000_000;
     const pdf = vi.fn(async (): Promise<Uint8Array> => { throw new Error('chromium down'); });
     const transport = createMemoryTransport();
-    const sender = createEmailSender({ transport, fromAddress: 'b@agency.example', attachment: briefAttachment(deps(pdf), { now: () => clock }) });
+    const sender = createEmailSender({ transport, db: dbs.service, cfg: delivery, attachment: briefAttachment(deps(pdf), { now: () => clock }) });
     const row = await emailRow(id);
     await sender.send(row, NOW);
     await sender.send({ ...row, address: 'second@a1.example' }, NOW);

@@ -7,11 +7,12 @@ import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { createPackLoader } from '../tag/tag-stage';
 import { computeTrendReport, listReportsMissingPdf, previousQuarter, runQuarterlyReports } from './quarterly';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const packs = createPackLoader();
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const Q3 = { start: new Date('2026-07-01T05:00:00Z'), end: new Date('2026-10-01T05:00:00Z') }; // Chicago-local quarter bounds (CDT)
 const at = (iso: string) => new Date(iso);
 

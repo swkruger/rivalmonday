@@ -26,6 +26,8 @@ export interface EmailTransport {
   readonly kind: 'postmark' | 'file' | 'memory' | 'console';
   send(msg: OutgoingEmail, scope: CallScope): Promise<{ providerId: string }>;
 }
+/** A display name made safe for a From header: quoted, with quotes, backslashes and line breaks removed. */
+export const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 /** The address can never receive this message (invalid, inactive, suppressed): do not retry. */
 export class PermanentEmailError extends Error {}
 

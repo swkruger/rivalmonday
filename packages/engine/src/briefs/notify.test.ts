@@ -5,10 +5,11 @@ import { day } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { notifyBriefOutcome } from './notify';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);

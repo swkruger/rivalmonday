@@ -5,10 +5,11 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { addContact } from './contacts';
 import type { DeliveryConfig } from './outbox';
 import { notifyRankScanSkipped } from './rank-notices';
+import { testDeliveryConfig } from './test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const deps = () => ({ db: dbs.service, delivery });
 const skipped = { scanId: IDS.clientA1, agencyId: IDS.agencyA, clientId: IDS.clientA1, clientName: 'A1 HVAC', estimatedUsd: 0.5 };
 const rows = () => dbs.owner.select().from(notification).where(eq(notification.kind, 'rank_scan_skipped'));

@@ -6,10 +6,11 @@ import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from '../delivery/contacts';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { runAlertDigests } from './digest';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const run = (now: Date) => runAlertDigests({ db: dbs.service, delivery }, now);
 const BEFORE = new Date('2026-10-05T23:00:00Z'); // 16:00 PDT Monday
 const EVENING = new Date('2026-10-06T00:30:00Z'); // 17:30 PDT Monday

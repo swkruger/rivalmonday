@@ -11,10 +11,11 @@ import { QUIET_SUMMARY } from './generate';
 import type { BriefClient } from './gather';
 import { gradedChanges } from './graded';
 import { approveBriefTx } from './review';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
 const deps = () => ({ db: dbs.service, delivery });
 const am = createAccessContext({ agencyId: IDS.agencyA, userId: 'am-1', role: 'account_manager', clientScope: 'all', features: [] });
 const owner = createAccessContext({ agencyId: IDS.agencyA, userId: 'o-1', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });

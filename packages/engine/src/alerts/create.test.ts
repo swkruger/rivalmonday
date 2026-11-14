@@ -7,6 +7,7 @@ import { day, seedScoredEvent, TEST_FACTORS } from '../../test/seed';
 import type { DeliveryConfig } from '../delivery/outbox';
 import { lockClientAlerts, sweepAlerts } from './create';
 import { releaseAlert } from './route';
+import { testDeliveryConfig } from '../delivery/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -80,7 +81,7 @@ describe('sweepAlerts', () => {
     expect((await sweepAlerts(dbs.service, day(1))).merged).toBe(1);
     await dbs.owner.update(changeEvent).set({ retractedAt: day(1) }).where(eq(changeEvent.id, first.eventId));
     const [a] = await alerts();
-    const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+    const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
     expect(await dbs.service.transaction(async (tx) => {
       await tx.execute(lockClientAlerts(IDS.clientA1));
       return releaseAlert(tx, delivery, a!, day(1));

@@ -1,16 +1,17 @@
 import { verifyLink } from '@cs/core/server';
-import { agencyBilling, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
+import { agency, AGENCY_KINDS, agencyBilling, agencySendingDomain, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { createMemoryTransport, type EmailPayload, PermanentEmailError, resolveBranding } from '@cs/email';
+import { createMemoryTransport, type EmailPayload, type EmailTransport, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from './contacts';
-import { type ChannelSender, createEmailSender, type DeliveryConfig, dispatchDue, notify, type NotifyInput, PermanentSendError } from './outbox';
+import { type ChannelSender, createEmailSender, deliveryConfigFromEnv, dispatchDue, notify, type NotifyInput, PermanentSendError } from './outbox';
+import { testDeliveryConfig, testSenderConfig } from './test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const cfg: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'briefs@agency.example' };
+const cfg = testDeliveryConfig({ linkSecrets: ['s'.repeat(32)] });
 const NOW = new Date('2026-10-06T06:30:00Z'); // 23:30 PDT Monday
 const branding = resolveBranding('Agency A', null);
 const payload = (link: string): EmailPayload => ({ template: 'alert', props: { branding, recipientName: null, clientName: 'A1 HVAC', competitorName: 'Smith HVAC', headline: 'H', body: 'B', detectedOn: '2026-10-05', link } });
@@ -218,27 +219,36 @@ describe('dispatchDue', () => {
 });
 
 describe('email sender', () => {
-  it('renders the payload and sends from the agency name at the configured address', async () => {
-    const transport = createMemoryTransport();
-    const s = createEmailSender({ transport, fromAddress: 'briefs@agency.example' });
-    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: 'am@a.example' } } as never;
-    await s.send(row, NOW);
-    expect(transport.sent[0]).toMatchObject({ from: '"Agency A" <briefs@agency.example>', to: 'o@a1.example', replyTo: 'am@a.example', subject: 'H', tag: 'alert', metadata: { notification: 'n1' } });
+  const sendCfg = testSenderConfig({ platformFrom: 'hello@rm.example' });
+  const mk = (transport: EmailTransport) => createEmailSender({ transport, db: dbs.service, cfg: sendCfg });
+  beforeEach(async () => {
+    await dbs.owner.update(agency).set({ hostSlug: 'agency-a' }).where(eq(agency.id, IDS.agencyA));
   });
 
-  it('ignores branding.fromEmail until Phase 2 per-agency sending domains: always the configured address', async () => {
+  it('client kinds get the client sender, AGENCY_KINDS the platform sender', async () => {
     const transport = createMemoryTransport();
-    const s = createEmailSender({ transport, fromAddress: 'briefs@agency.example' });
-    const own = resolveBranding('Agency A', { fromName: 'Team A', fromEmail: 'hello@agency-a.example' });
-    const p = { ...payload('https://app.example/l/x'), replyTo: null };
-    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...p, props: { ...p.props, branding: own } } } as never;
-    await s.send(row, NOW);
-    expect(transport.sent[0]!.from).toBe('"Team A" <briefs@agency.example>');
+    const s = mk(transport);
+    await s.send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: 'am@a.example' } } as never, NOW);
+    expect(transport.sent[0]).toMatchObject({ from: '"Agency A" <agency-a@mail.clients.example>', to: 'o@a1.example', replyTo: 'am@a.example', subject: 'H', tag: 'alert', metadata: { notification: 'n1' } });
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'agency-a.example', localPart: 'briefs', status: 'verified' });
+    await s.send({ id: 'n2', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'brief', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);
+    expect(transport.sent[1]!.from).toBe('"Agency A" <briefs@agency-a.example>');
+    for (const [i, kind] of AGENCY_KINDS.entries()) {
+      await s.send({ id: `a${i}`, agencyId: IDS.agencyA, clientId: IDS.clientA1, kind, address: 'am@a.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);
+      expect(transport.sent.at(-1)).toMatchObject({ from: '"Rival Monday" <hello@rm.example>', replyTo: null });
+    }
   });
 
-  it('passes payload.cc through cleanCc into the outgoing email', async () => {
+  it('client From uses the stored fromName and Reply-To is branding fromEmail over the payload reply-to', async () => {
+    await dbs.owner.update(agency).set({ branding: { fromName: 'Team A', fromEmail: 'hello@agency-a.example' } }).where(eq(agency.id, IDS.agencyA));
     const transport = createMemoryTransport();
-    const s = createEmailSender({ transport, fromAddress: 'briefs@agency.example' });
+    await mk(transport).send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: 'am@a.example' } } as never, NOW);
+    expect(transport.sent[0]).toMatchObject({ from: '"Team A" <agency-a@mail.clients.example>', replyTo: 'hello@agency-a.example' });
+  });
+
+  it('cc and brief attachment still reach the transport (cc cleaned; attachment in briefs/attachment.test)', async () => {
+    const transport = createMemoryTransport();
+    const s = mk(transport);
     const cc = ['AM@a.example', 'o@a1.example', 'not an email', 'am@a.example', '1@x.example', '2@x.example', '3@x.example', '4@x.example', '5@x.example'];
     const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'client_invite', address: 'O@a1.example', payload: { ...payload('x'), replyTo: null, cc } } as never;
     await s.send(row, NOW);
@@ -248,9 +258,22 @@ describe('email sender', () => {
   });
 
   it('turns a permanent transport error into a permanent send error', async () => {
-    const s = createEmailSender({ transport: { kind: 'memory', send: async () => { throw new PermanentEmailError('406'); } }, fromAddress: 'b@a.example' });
+    const s = mk({ kind: 'memory', send: async () => { throw new PermanentEmailError('406'); } });
     const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never;
     await expect(s.send(row, NOW)).rejects.toBeInstanceOf(PermanentSendError);
+  });
+});
+
+describe('deliveryConfigFromEnv', () => {
+  const base = { APP_URL: 'https://app.rm.test/', LINK_SIGNING_SECRET: 'k'.repeat(40), NEUTRAL_DOMAIN: 'clients.example' };
+  it('carries the host env and the platform From', () => {
+    expect(deliveryConfigFromEnv(base)).toMatchObject({ appUrl: 'https://app.rm.test', platformFrom: 'briefs@app.rm.test', hostEnv: { neutralDomain: 'clients.example' } });
+    expect(deliveryConfigFromEnv({ ...base, EMAIL_FROM: 'hi@rm.test' })!.platformFrom).toBe('hi@rm.test');
+    expect(deliveryConfigFromEnv(base)).not.toHaveProperty('fromAddress');
+  });
+  it('is null without a host env (fails closed)', () => {
+    expect(deliveryConfigFromEnv({ ...base, NEUTRAL_DOMAIN: '' })).toBeNull();
+    expect(deliveryConfigFromEnv({ ...base, NEUTRAL_DOMAIN: 'x.rivalmonday.app' })).toBeNull();
   });
 });
 
