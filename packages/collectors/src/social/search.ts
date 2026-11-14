@@ -32,7 +32,12 @@ function namesMatch(a: string[], b: string[]): boolean {
 /** Token-equal names after `normaliseName` (the auto-confirm rule; a prefix match only suggests). */
 export const namesEqual = (a: string, b: string): boolean => {
   // `normaliseName` drops "of <city>"; a location tail on only one side ("Aire Serv" vs "Aire Serv of Granbury") is a different entity, so it only suggests.
-  const tail = (n: string): string => plainName(n).match(/\sof\s.+$/)?.[0] ?? '';
+  // It also drops everything after " - " ("Aspen Dental - Granbury"), so both location tails must match on both sides.
+  const tail = (n: string): string => {
+    const lower = n.toLowerCase().replace(/\s+/g, ' ').trim();
+    const dash = lower.split(/\s[-–—]\s/).slice(1).join(' - ').trim();
+    return `${dash}|${plainName(n).match(/\sof\s.+$/)?.[0] ?? ''}`;
+  };
   if (tail(a) !== tail(b)) return false;
   const x = tokens(a);
   const y = tokens(b);
