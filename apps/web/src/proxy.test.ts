@@ -1,76 +1,139 @@
 import { NextRequest } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { proxy } from './proxy';
+import { clearHostCache } from './server/hosts';
 
-const run = (p: string, init?: ConstructorParameters<typeof NextRequest>[1]) => proxy(new NextRequest(`https://app.example${p}`, init));
+const AGENCY = '11111111-1111-4111-8111-111111111111';
+const lookup = vi.hoisted(() => vi.fn());
+vi.mock('./server/env', () => ({ webEnv: () => ({ hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] } }) }));
+vi.mock('./server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
+vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()), agencyByHostname: (_db: unknown, h: string) => lookup(h) }));
+beforeEach(() => {
+  clearHostCache();
+  lookup.mockReset();
+  lookup.mockImplementation(async (h: string) =>
+    h === 'acme.neutral.example' ? { agencyId: AGENCY, canonical: true, canonicalOrigin: 'https://acme.neutral.example' }
+    : h === 'old.neutral.example' ? { agencyId: AGENCY, canonical: false, canonicalOrigin: 'https://reports.acme.com' } : null);
+});
+
+type Init = ConstructorParameters<typeof NextRequest>[1];
+const onHost = (host: string, p: string, init?: Init) => {
+  const headers = new Headers(init?.headers);
+  headers.set('host', host);
+  return proxy(new NextRequest(`https://${host}${p}`, { ...init, headers }));
+};
+const run = (p: string, init?: Init) => onHost('app.example', p, init);
 
 describe('proxy', () => {
-  it('lets /api/ask/* through without cookies (the route answers 404 itself)', () => {
-    const res = run('/api/ask/turn', { method: 'POST' });
+  it('lets /api/ask/* through without cookies (the route answers 404 itself)', async () => {
+    const res = await run('/api/ask/turn', { method: 'POST' });
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
   });
 
-  it('lets both Stripe webhooks through without cookies (they authenticate by signature)', () => {
+  it('lets both Stripe webhooks through without cookies (they authenticate by signature)', async () => {
     for (const p of ['/api/stripe/webhook', '/api/stripe/connect-webhook']) {
-      const res = run(p, { method: 'POST' });
+      const res = await run(p, { method: 'POST' });
       expect(res.status, p).toBe(200);
       expect(res.headers.get('location'), p).toBeNull();
     }
-    expect(run('/api/stripe/connect-webhook/x').headers.get('location')).toContain('/sign-in');
+    expect((await run('/api/stripe/connect-webhook/x')).headers.get('location')).toContain('/sign-in');
   });
 
-  it('lets the Phase 10 public pages through without cookies, but not /onboarding', () => {
+  it('lets the Phase 10 public pages through without cookies, but not /onboarding', async () => {
     for (const p of ['/sign-up', '/sign-up/problem', '/join/rm_inv_abc', '/u/token', '/files/logo/abc']) {
-      expect(run(p).headers.get('location'), p).toBeNull();
+      expect((await run(p)).headers.get('location'), p).toBeNull();
     }
-    for (const p of ['/onboarding', '/onboarding/start', '/signup', '/joinx']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+    for (const p of ['/onboarding', '/onboarding/start', '/signup', '/joinx']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('lets the public onboarding images through without cookies (the next/image optimizer fetches them cookie-less)', () => {
-    for (const p of ['/onboarding/client-done.webp', '/onboarding/signup.webp']) expect(run(p).headers.get('location'), p).toBeNull();
-    for (const p of ['/onboarding/start', '/onboarding/x.webp/y', '/onboarding/sub/x.webp']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  it('lets the public onboarding images through without cookies (the next/image optimizer fetches them cookie-less)', async () => {
+    for (const p of ['/onboarding/client-done.webp', '/onboarding/signup.webp']) expect((await run(p)).headers.get('location'), p).toBeNull();
+    for (const p of ['/onboarding/start', '/onboarding/x.webp/y', '/onboarding/sub/x.webp']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('lets the Phase 11c public intake pages through without cookies', () => {
+  it('lets the Phase 11c public intake pages through without cookies', async () => {
     for (const p of ['/start', '/start/smith-co', '/start/verify/tok', '/start/verify', '/start/v/11111111-1111-4111-8111-111111111111']) {
-      expect(run(p).headers.get('location'), p).toBeNull();
+      expect((await run(p)).headers.get('location'), p).toBeNull();
     }
-    for (const p of ['/startx', '/starter']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+    for (const p of ['/startx', '/starter']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('lets the Phase 17a waitlist and sample paths through without cookies, with no referrer on token URLs', () => {
+  it('lets the Phase 17a waitlist and sample paths through without cookies, with no referrer on token URLs', async () => {
     for (const p of ['/api/waitlist', '/api/site-status', '/waitlist/confirm/tok', '/waitlist/confirmed', '/sample/abc']) {
-      expect(run(p).headers.get('location'), p).toBeNull();
+      expect((await run(p)).headers.get('location'), p).toBeNull();
     }
-    for (const p of ['/waitlist/confirm/tok', '/sample/abc']) expect(run(p).headers.get('referrer-policy'), p).toBe('no-referrer');
-    expect(run('/waitlist/confirmed').headers.get('referrer-policy')).toBeNull();
-    for (const p of ['/api/waitlist/x', '/waitlist', '/samples/a']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+    for (const p of ['/waitlist/confirm/tok', '/sample/abc']) expect((await run(p)).headers.get('referrer-policy'), p).toBe('no-referrer');
+    expect((await run('/waitlist/confirmed')).headers.get('referrer-policy')).toBeNull();
+    for (const p of ['/api/waitlist/x', '/waitlist', '/samples/a']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('sends no referrer from the token-bearing intake URLs (preview and verify link)', () => {
-    for (const p of ['/start/v/11111111-1111-4111-8111-111111111111', '/start/verify/tok']) expect(run(p).headers.get('referrer-policy'), p).toBe('no-referrer');
-    for (const p of ['/start', '/start/smith-co', '/sign-in']) expect(run(p).headers.get('referrer-policy'), p).toBeNull();
+  it('sends no referrer from the token-bearing intake URLs (preview and verify link)', async () => {
+    for (const p of ['/start/v/11111111-1111-4111-8111-111111111111', '/start/verify/tok']) expect((await run(p)).headers.get('referrer-policy'), p).toBe('no-referrer');
+    for (const p of ['/start', '/start/smith-co', '/sign-in']) expect((await run(p)).headers.get('referrer-policy'), p).toBeNull();
   });
 
-  it('still redirects other cookie-less paths to sign-in', () => {
-    for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  it('still redirects other cookie-less paths to sign-in', async () => {
+    for (const p of ['/api/askx', '/c/x/ask', '/api/other']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('replaces a client-sent x-rm-path with the real path', () => {
+  it('replaces a client-sent x-rm-path with the real path', async () => {
     for (const p of ['/agency', '/sign-in']) {
-      const res = run(p, { headers: { 'x-rm-path': '/platform/agencies/x', cookie: 'better-auth.session_token=t' } });
+      const res = await run(p, { headers: { 'x-rm-path': '/platform/agencies/x', cookie: 'better-auth.session_token=t' } });
       expect(res.headers.get('x-middleware-request-x-rm-path'), p).toBe(p);
     }
   });
 
-  it('lets /bot and /robots.txt through without cookies, but nothing that merely starts like them', () => {
-    for (const p of ['/bot', '/robots.txt']) expect(run(p).headers.get('location'), p).toBeNull();
-    for (const p of ['/bots', '/botx', '/bot-admin', '/bot/x', '/robots.txt/x']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  it('lets /bot and /robots.txt through without cookies, but nothing that merely starts like them', async () => {
+    for (const p of ['/bot', '/robots.txt']) expect((await run(p)).headers.get('location'), p).toBeNull();
+    for (const p of ['/bots', '/botx', '/bot-admin', '/bot/x', '/robots.txt/x']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
-  it('lets the tab icon through without cookies, so signed-out pages show it too', () => {
-    expect(run('/icon.svg').headers.get('location')).toBeNull();
-    for (const p of ['/icon.svg/x', '/icons.svg', '/icon']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+  it('lets the tab icon through without cookies, so signed-out pages show it too', async () => {
+    expect((await run('/icon.svg')).headers.get('location')).toBeNull();
+    for (const p of ['/icon.svg/x', '/icons.svg', '/icon']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
+  });
+
+  it('client-sent x-rm-host-* are replaced', async () => {
+    const forged = { 'x-rm-host-kind': 'platform', 'x-rm-host-agency': '22222222-2222-4222-8222-222222222222', 'x-rm-origin': 'https://evil.example', cookie: 'better-auth.session_token=t' };
+    const a = await onHost('acme.neutral.example', '/c/x', { headers: forged });
+    expect(a.headers.get('x-middleware-request-x-rm-host-kind')).toBe('agency');
+    expect(a.headers.get('x-middleware-request-x-rm-host-agency')).toBe(AGENCY);
+    expect(a.headers.get('x-middleware-request-x-rm-origin')).toBe('https://acme.neutral.example');
+    const p = await run('/agency', { headers: forged });
+    expect(p.headers.get('x-middleware-request-x-rm-host-kind')).toBe('platform');
+    expect(p.headers.get('x-middleware-request-x-rm-host-agency')).toBeNull();
+    expect(p.headers.get('x-middleware-request-x-rm-origin')).toBe('https://app.example');
+    const m = await onHost('mcp.neutral.example', '/mcp', { method: 'POST', headers: forged });
+    expect(m.headers.get('x-middleware-request-x-rm-host-kind')).toBe('mcp');
+    expect(m.headers.get('x-middleware-request-x-rm-host-agency')).toBeNull();
+    expect(m.headers.get('x-middleware-request-x-rm-origin')).toBe('https://mcp.neutral.example');
+  });
+
+  it('404 for unknown host carries no-store', async () => {
+    for (const [host, p] of [['nobody.example', '/'], ['nobody.example', '/sign-in'], ['acme.neutral.example', '/sign-up'], ['mcp.neutral.example', '/agency']]) {
+      const res = await onHost(host!, p!);
+      expect(res.status, `${host}${p}`).toBe(404);
+      expect(res.headers.get('cache-control'), `${host}${p}`).toBe('no-store');
+      expect(await res.text()).toBe('Not found');
+    }
+    expect((await onHost('nobody.example', '/health')).status).toBe(200);
+  });
+
+  it('redirect is 307 + no-store', async () => {
+    const staff = await onHost('acme.neutral.example', '/agency/clients', { headers: { cookie: 'better-auth.session_token=t' } });
+    expect(staff.status).toBe(307);
+    expect(staff.headers.get('location')).toBe('https://app.example/agency/clients');
+    expect(staff.headers.get('cache-control')).toBe('no-store');
+    const canon = await onHost('old.neutral.example', '/c/x?tab=1');
+    expect(canon.status).toBe(307);
+    expect(canon.headers.get('location')).toBe('https://reports.acme.com/c/x?tab=1');
+    expect(canon.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('keeps the sign-in redirect on the agency host', async () => {
+    const res = await onHost('acme.neutral.example', '/c/x');
+    expect(new URL(res.headers.get('location')!).origin).toBe('https://acme.neutral.example');
+    expect(res.headers.get('location')).toContain('/sign-in');
   });
 });

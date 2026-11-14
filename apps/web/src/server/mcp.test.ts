@@ -32,7 +32,7 @@ const holder = vi.hoisted(() => ({ auth: null as unknown }));
 holder.auth = testAuth;
 vi.mock('./auth', () => ({ auth: () => holder.auth }));
 vi.mock('./db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
-vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', webMonitoring: false, kbImport: false, platformAdmins: [] }) }));
+vi.mock('./env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] }, webMonitoring: false, kbImport: false, platformAdmins: [] }) }));
 vi.mock('./queue', () => ({ enqueueFor: () => async () => {}, jobStatusFor: () => async () => null, queueStatsFor: () => async () => ({ queues: [], lastHeartbeatAt: null }) }));
 vi.mock('./runtime-env', () => ({ platformAdmins: () => [] }));
 const store = createMemoryStore();
@@ -170,12 +170,12 @@ describe('authorization-server metadata', () => {
 describe('proxy', () => {
   it('lets /mcp and /.well-known through without cookies, but keeps /oauth/consent protected', async () => {
     const { proxy } = await import('../proxy');
-    const run = (p: string) => proxy(new NextRequest(`https://app.example${p}`));
+    const run = (p: string) => proxy(new NextRequest(`https://app.example${p}`, { headers: { host: 'app.example' } }));
     for (const p of ['/mcp', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server/api/auth']) {
-      const res = run(p);
+      const res = await run(p);
       expect(res.status, p).toBe(200);
       expect(res.headers.get('location'), p).toBeNull();
     }
-    for (const p of ['/oauth/consent', '/mcp/x', '/mcpx']) expect(run(p).headers.get('location'), p).toContain('/sign-in');
+    for (const p of ['/oauth/consent', '/mcp/x', '/mcpx']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 });
