@@ -274,6 +274,14 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
     id: b.id('listed_event', k), competitor_id: competitorId, event_key: `world-event-${k}`, name: `Event ${b.c(k)}`, name_norm: `event ${k.toLowerCase()}`, start_date: '2026-12-01', sources: ['web'],
     url: `https://${comp.domain}/events`, first_capture_id: afterCaptureId, last_capture_id: afterCaptureId, first_seen_at: b.at(2, 9), last_seen_at: b.at(2, 9),
   });
+  // A social account and post (18e): global public like Google posts.
+  await b.ins('social_account', k, {
+    id: b.id('social_account', k), competitor_id: competitorId, network: 'facebook', handle: `world-fb-${k.toLowerCase()}-${b.c(k)}`, url: `https://facebook.com/world-fb-${k.toLowerCase()}`, status: 'confirmed', confirmed_by: 'website',
+  });
+  await b.ins('social_post', k, {
+    id: b.id('social_post', k), competitor_id: competitorId, network: 'facebook', post_id: `world-social-post-${k}`, posted_at: b.at(2), text: `Social post ${b.c(k)}`, url: `https://facebook.com/world-fb-${k.toLowerCase()}/posts/1`,
+    first_capture_id: afterCaptureId, first_seen_at: b.at(2, 9),
+  });
   // A directory listing (18c): global public like ads. The client self-business listing is seeded in seedClient.
   await b.ins('citation_listing', k, {
     competitor_id: competitorId, host: `world-dir-${k.toLowerCase()}.example`, status: 'listed', name_match: true, phone_match: true, listing_url: `https://world-dir.example/${comp.domain}`,

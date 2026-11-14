@@ -26,3 +26,4 @@ export * from './runbooks';
 export * from './waitlist';
 export * from './citations';
 export * from './listed-events';
+export * from './social';

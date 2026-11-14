@@ -771,6 +771,13 @@
       "when": 1794526545610,
       "tag": "0109_events_venues",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1794614065050,
+      "tag": "0110_social_jev",
+      "breakpoints": true
     }
   ]
 }

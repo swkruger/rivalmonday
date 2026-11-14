@@ -5,7 +5,7 @@ import { agency, client } from './tenancy';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 
-export type DecisionSampleReason = 'shadow' | 'review';
+export type DecisionSampleReason = 'shadow' | 'review' | 'reeval';
 export type LabelSource = 'human' | 'review';
 export type ModelBatchStatus = 'pending' | 'submitted' | 'ended' | 'failed';
 

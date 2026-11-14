@@ -15,6 +15,8 @@ const BLOCKS8 = readFileSync(join(__dirname, '../migrations/0108_listing_fixes.s
 const BACKFILL8 = BLOCKS8.slice(BLOCKS8.findIndex((b) => b.includes('-- backfill:start')));
 const BLOCKS9 = readFileSync(join(__dirname, '../migrations/0109_events_venues.sql'), 'utf8').split('--> statement-breakpoint');
 const BACKFILL9 = BLOCKS9.slice(BLOCKS9.findIndex((b) => b.includes('-- backfill:start')));
+const BLOCKS10 = readFileSync(join(__dirname, '../migrations/0110_social_jev.sql'), 'utf8').split('--> statement-breakpoint');
+const BACKFILL10 = BLOCKS10.slice(BLOCKS10.findIndex((b) => b.includes('-- backfill:start')));
 const SHIPPED = ['generic', 'hvac_plumbing', 'dental'];
 
 async function backfill() {
@@ -26,6 +28,9 @@ async function backfill9() {
 async function backfill8() {
   for (const s of BACKFILL8) await dbs.owner.execute(sql.raw(s));
 }
+async function backfill10() {
+  for (const s of BACKFILL10) await dbs.owner.execute(sql.raw(s));
+}
 type Row = { id: string; config: Record<string, any>; updated_at: string };
 async function rows(): Promise<Row[]> {
   return (await dbs.owner.execute(sql`SELECT id, config, updated_at::text AS updated_at FROM vertical ORDER BY id`)) as unknown as Row[];
@@ -35,15 +40,15 @@ async function rows(): Promise<Row[]> {
 beforeEach(async () => {
   await dbs.owner.execute(sql`
     UPDATE vertical SET config = jsonb_set(
-      jsonb_set(config #- '{type_weights,citation_added}' #- '{citations}' #- '{type_weights,event_listed}' #- '{scoring,size,events_for_full}' #- '{events}', '{scoring,version}', '6'::jsonb),
-      '{self_rules}', coalesce((SELECT jsonb_agg(r) FROM jsonb_array_elements(config -> 'self_rules') r WHERE r ->> 'id' NOT IN ('citation_gap', 'event_gap')), '[]'::jsonb))
+      jsonb_set(config #- '{type_weights,citation_added}' #- '{citations}' #- '{type_weights,event_listed}' #- '{scoring,size,events_for_full}' #- '{events}' #- '{social}', '{scoring,version}', '6'::jsonb),
+      '{self_rules}', coalesce((SELECT jsonb_agg(r) FROM jsonb_array_elements(config -> 'self_rules') r WHERE r ->> 'id' NOT IN ('citation_gap', 'event_gap', 'social_gap')), '[]'::jsonb))
     WHERE id IN ('generic', 'hvac_plumbing', 'dental')`);
   await dbs.owner.execute(sql`
     UPDATE vertical SET config = jsonb_set(config, '{playbooks}',
-      coalesce((SELECT jsonb_agg(r) FROM jsonb_array_elements(config -> 'playbooks') r WHERE r ->> 'id' NOT IN ('fix_citations', 'list_your_events')), '[]'::jsonb))
+      coalesce((SELECT jsonb_agg(r) FROM jsonb_array_elements(config -> 'playbooks') r WHERE r ->> 'id' NOT IN ('fix_citations', 'list_your_events', 'post_weekly')), '[]'::jsonb))
     WHERE id IN ('generic', 'hvac_plumbing', 'dental')`);
 });
-afterEach(async () => { await backfill(); await backfill8(); await backfill9(); }); // leave the shared test DB in the current (v9) shape
+afterEach(async () => { await backfill(); await backfill8(); await backfill9(); await backfill10(); }); // leave the shared test DB in the current (v10) shape
 
 const count = (arr: any[], id: string) => arr.filter((x) => x.id === id).length;
 
@@ -75,6 +80,7 @@ describe('migration 0107 pack v7', () => {
     await backfill();
     await backfill8();
     await backfill9();
+    await backfill10();
     const cat = createCatalog(() => catalogRows(dbs.owner));
     const genericDirs = (await loadVerticalPack('generic')).citations.directory_groups;
     // generic is the inheritance base, not a pickable vertical: compare its stored row with the YAML.
@@ -89,7 +95,7 @@ describe('migration 0107 pack v7', () => {
       expect(p.citations, id).toEqual({ ...yaml.citations, directory_groups: genericDirs });
       expect(p.self_rules, id).toEqual(yaml.self_rules);
       expect(p.playbooks, id).toEqual(yaml.playbooks);
-      expect(p.scoring.version, id).toBe(9);
+      expect(p.scoring.version, id).toBe(10);
       expect(p.type_weights.citation_added, id).toBe(0.3);
     }
   });
