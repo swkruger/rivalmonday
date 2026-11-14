@@ -11,7 +11,7 @@ export interface DeliveryQueue {
 
 /** M-f: one start-up warning (never the values) when delivery is not configured, so a silent no-op worker is noticed. */
 export function warnIfDeliveryUnconfigured(deps: Pick<WorkerDeps, 'deliveryConfigured'>, warn: (msg: string) => void = (msg) => workerLog.warn(msg)): void {
-  if (!deps.deliveryConfigured()) warn('[worker] delivery is not configured (APP_URL and LINK_SIGNING_SECRET of at least 32 characters): alerts, digests, briefs and reports will not be sent');
+  if (!deps.deliveryConfigured()) warn('[worker] delivery is not configured (APP_URL, LINK_SIGNING_SECRET of at least 32 characters and NEUTRAL_DOMAIN): alerts, digests, briefs and reports will not be sent');
 }
 
 /** Phase 4b: alerts, digests, the outbox dispatcher, Monday brief delivery, PDFs and quarterly reports. */

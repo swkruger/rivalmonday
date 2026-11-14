@@ -30,7 +30,7 @@ if (!serviceUrl) {
 }
 const needDelivery = () => {
   const cfg = engine.deliveryConfigFromEnv(process.env);
-  if (!cfg) throw new Error('APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are required');
+  if (!cfg) throw new Error('APP_URL, LINK_SIGNING_SECRET (at least 32 characters) and NEUTRAL_DOMAIN are required');
   return cfg;
 };
 const { db, close } = createDb(serviceUrl);
@@ -74,7 +74,7 @@ try {
       const renderer = createPdfRenderer();
       try {
         const attachment = engine.briefAttachment({ db, store: createStoreFromEnv(process.env), pdf: renderer });
-        print(`dispatch via ${transport.kind}`, await engine.dispatchDue({ db, senders: { email: engine.createEmailSender({ transport, fromAddress: cfg.fromAddress, attachment }), slack: web, teams: web } }, now));
+        print(`dispatch via ${transport.kind}`, await engine.dispatchDue({ db, senders: { email: engine.createEmailSender({ transport, db, cfg, attachment }), slack: web, teams: web } }, now));
       } finally {
         await renderer.close();
       }

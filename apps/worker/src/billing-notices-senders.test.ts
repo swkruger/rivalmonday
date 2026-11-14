@@ -1,8 +1,11 @@
+import { agency, agencySendingDomain } from '@cs/db';
+import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { verifyUnsubscribeToken } from '@cs/tools';
+import { eq } from 'drizzle-orm';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWorkerDeps, type WorkerDeps } from './deps';
 
 /** Phase 10 (R12/R21): the worker's lifecycle senders, end to end through the file transport. */
@@ -79,5 +82,36 @@ describe('billingEmail().sendOnboarding', () => {
 
   it('exposes PLATFORM_ADMIN_EMAILS (normalised) for the sign-up notice recipients', () => {
     expect(make({ PLATFORM_ADMIN_EMAILS: ' Boss@RM.test , ops@rm.test' }).billingEmail().platformAdmins).toEqual(['boss@rm.test', 'ops@rm.test']);
+  });
+});
+
+describe('billingEmail().sendClient and the other senders (13a1)', () => {
+  const dbs = openTestDbs();
+  afterAll(() => dbs.closeAll());
+  const props = { kind: 'client-payment-needed', actionUrl: 'https://acme.clients.example/x' } as never;
+  beforeEach(async () => {
+    await truncateAll(dbs.owner);
+    await seedTenancy(dbs.owner);
+    await dbs.owner.update(agency).set({ hostSlug: 'acme', branding: { displayName: 'Acme Marketing' } }).where(eq(agency.id, IDS.agencyA));
+  });
+  const withDb = (extra: Record<string, string> = {}) => make({ SERVICE_DATABASE_URL: process.env.TEST_SERVICE_DATABASE_URL!, NEUTRAL_DOMAIN: 'clients.example', ...extra });
+
+  it('client billing notice From is the agency sender', async () => {
+    const mail = withDb().billingEmail();
+    await mail.sendClient('o@a1.test', IDS.agencyA, IDS.clientA1, { agencyName: 'Agency A', branding: { displayName: 'Acme Marketing' } }, props);
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'acme.co', localPart: 'billing', status: 'verified' });
+    await mail.sendClient('o@a1.test', IDS.agencyA, IDS.clientA1, { agencyName: 'Agency A', branding: { displayName: 'Acme Marketing' } }, props);
+    const sent = (await outbox()).filter((m) => m.tag === 'client_billing_notice').map((m) => m.from).sort();
+    expect(sent).toEqual(['"Acme Marketing" <acme@mail.clients.example>', '"Acme Marketing" <billing@acme.co>']);
+    for (const f of sent) expect(f).not.toContain('rm.test');
+  });
+
+  it('agency-facing billing notices keep the platform sender', async () => {
+    await withDb().billingEmail().sendAgencyClient('jo@acme.test', IDS.agencyA, { kind: 'client-payment-failed', clientName: 'A1', actionUrl: 'https://app.rm.test/x' } as never);
+    expect((await outbox())[0]!.from).toBe('"Rival Monday" <hello@rm.test>');
+  });
+
+  it('leadEmailDeps carries the sender config (platform From + host env)', () => {
+    expect(withDb().leadEmailDeps()!.sender).toMatchObject({ platformFrom: 'hello@rm.test', hostEnv: { neutralDomain: 'clients.example' } });
   });
 });

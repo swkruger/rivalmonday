@@ -2,7 +2,7 @@ import type { Ai } from '@cs/ai';
 import type { DataForSeoClient } from '@cs/collectors';
 import { agencyBilling, agencyWebhook, client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification, type SetupSuggestions } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { addContact, createPackLoader, type DeliveryConfig } from '@cs/engine';
+import { addContact, createPackLoader, type DeliveryConfig, testDeliveryConfig } from '@cs/engine';
 import { eq, like } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerDeps } from '../deps';
@@ -212,7 +212,7 @@ describe('setup-suggestions job', () => {
 });
 
 describe('runSetupReminders (Task 9)', () => {
-  const delivery: DeliveryConfig = { appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)], fromAddress: 'b@agency.example' };
+  const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['s'.repeat(32)] });
   const NOW = new Date('2026-10-20T14:00:00Z');
   const D = 86_400_000;
   const ago = (ms: number) => new Date(NOW.getTime() - ms);

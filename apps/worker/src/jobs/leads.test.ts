@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { LeadEmailDeps } from '@cs/tools';
 import type { WorkerDeps } from '../deps';
 import { createLeadJobs, runLeadPreview as runReal, runLeadsCleanup } from './leads';
+import { testSenderConfig } from '@cs/engine';
 
 const runLeadPreview = (d: { db: Db; dfs: DataForSeoClient; ai: Ai; email: LeadEmailDeps | null }, id: string) => runReal({ db: d.db, email: d.email, clients: async () => ({ dfs: d.dfs, ai: d.ai }) }, id);
 
@@ -39,7 +40,7 @@ const aiThrows = () => ({ chat: vi.fn(async () => { throw new Error('boom'); }) 
 const CLEAN = 'Smith Dental has 12 reviews at 4.6, while Near Dental has 40 at 4.8.';
 
 let transport: ReturnType<typeof createMemoryTransport>;
-const email = () => ({ service: dbs.service, transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['ops@platform.test'] });
+const email = () => ({ service: dbs.service, transport, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['ops@platform.test'] });
 async function mkLead(over: Partial<typeof lead.$inferInsert> = {}) {
   const [l] = await dbs.service
     .insert(lead)

@@ -7,7 +7,7 @@ import {
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
-import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, competitor, type OpsAlert, catalogRows, parseHostEnv, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
@@ -16,6 +16,7 @@ import {
   checkBriefReadiness, createRehearsalAi, type EngineWork, readAdImage as runReadAdImage, type ReadAdImageResult, triageAdImage as runTriageAdImage, type TriageAdImageResult, loadRehearsalLatency, detectSiteFeatures as runDetectSiteFeatures, detectListedEvents as runDetectListedEvents, extractAdPrices as runExtractAdPrices, extractPostPrices as runExtractPostPrices, extractPrices as runExtractPrices, findEngineWork, generateBrief, generateStartingPoint, listBriefDueClients, listStartingPointDue, listBriefsMissingPdf, listMoveClients, listReportsMissingPdf, type MovesRunResult,
   loadAgencyContact, notifyBriefOutcome, notifyRankScanSkipped, processAlert, replyToFor, recommendForMoves, renderBriefPdf, renderReportPdf, type ReviewInsightsResult, runAlertDigests, runQuarterlyReports,
   runReviewInsights, loadClientRunbook, skipPendingRunbook, scoreEvent as runScoreStage, sweepAlerts, type SweepResult, tagChange as runTagStage, updateMovesForClient,
+  platformFromEnv, platformSender, senderFor,
 } from '@cs/engine';
 import { generateStarters } from '@cs/ask';
 import {
@@ -193,7 +194,7 @@ export interface WorkerDeps {
   listMonthlyRivalClients(): Promise<string[]>;
   /** Rates the client's tracked competitors into competitor_signal; returns how many were rated. */
   computeTrackedSignals(clientId: string, now: Date): Promise<number>;
-  /** True once APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are set — gates every delivery job. */
+  /** True once APP_URL, LINK_SIGNING_SECRET (at least 32 characters) and a host env (NEUTRAL_DOMAIN) are set — gates every delivery job. */
   deliveryConfigured(): boolean;
   sweepAlerts(now: Date): Promise<SweepResult>;
   processAlert(alertId: string, now: Date): Promise<{ status: string; release?: string }>;
@@ -343,16 +344,24 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   const loadCompetitors = (ids: string[]) => getDb().select().from(competitor).where(inArray(competitor.id, ids));
   const delivery = deliveryConfigFromEnv(env);
   const getDelivery = () => {
-    if (!delivery) throw new Error('APP_URL and LINK_SIGNING_SECRET (at least 32 characters) are required for delivery');
+    if (!delivery) throw new Error('APP_URL, LINK_SIGNING_SECRET (at least 32 characters) and NEUTRAL_DOMAIN are required for delivery');
     return delivery;
   };
+  /** 13a1 P15: the platform sender's address (Rival Monday-branded mail to staff and operators); needs no host env. */
+  const platformFrom = platformFromEnv(env);
+  const requirePlatformFrom = () => {
+    if (!platformFrom) throw new Error('EMAIL_FROM is required');
+    return platformFrom;
+  };
+  /** 13a1 (N1, N2): client email needs the host env (`<host_slug>@mail.<NEUTRAL_DOMAIN>`); without it client mail fails closed. */
+  const { hostEnv } = parseHostEnv(env);
   let emailTransport: ReturnType<typeof createEmailTransportFromEnv> | null = null;
   const getEmailTransport = () => (emailTransport ??= createEmailTransportFromEnv(env, createLedgerSink(getDb())));
   let senders: Parameters<typeof dispatchDue>[0]['senders'] | null = null;
   const getSenders = () => {
     if (!senders) {
       const web = createWebhookSender({ db: getDb() });
-      senders = { email: createEmailSender({ transport: getEmailTransport(), fromAddress: getDelivery().fromAddress, attachment: briefAttachment({ db: getDb(), store: getStore(), pdf: getPdf() }) }), slack: web, teams: web };
+      senders = { email: createEmailSender({ transport: getEmailTransport(), db: getDb(), cfg: getDelivery(), attachment: briefAttachment({ db: getDb(), store: getStore(), pdf: getPdf() }) }), slack: web, teams: web };
     }
     return senders;
   };
@@ -448,9 +457,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   };
 
   const leadEmailDeps = (): LeadEmailDeps | null => {
-    const from = delivery?.fromAddress ?? env.EMAIL_FROM;
     const appUrl = env.APP_URL?.trim();
-    return from && appUrl ? { service: getDb(), transport: getEmailTransport(), appUrl, fromAddress: from, platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) } : null;
+    return platformFrom && appUrl && hostEnv
+      ? { service: getDb(), transport: getEmailTransport(), appUrl, sender: { hostEnv, platformFrom }, platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) }
+      : null;
   };
 
   return {
@@ -647,7 +657,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
           db: getDb(), store: getStore(), dfs: getRankDfs(), packs,
           onSkipped: async (s) => {
             if (!delivery) {
-              workerLog.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET not set)`);
+              workerLog.warn(`[rank-scan] ${clientId} skipped by the monthly cost cap; no agency notice sent (APP_URL / LINK_SIGNING_SECRET / NEUTRAL_DOMAIN not set)`);
               return;
             }
             await notifyRankScanSkipped({ db: getDb(), delivery }, s);
@@ -706,18 +716,16 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
       appUrl: env.APP_URL ?? '',
       sendLowEmail: async (to: string, p: PlatformCostLowPayload) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         const r = await renderEmail({ template: 'platform_cost_low', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
-        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
+        await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_cost_low', metadata: {} }, { agencyId: null, clientId: null });
       },
     }),
     briefReadiness: () => ({
       run: (now) => checkBriefReadiness(getDb(), now),
       recipients: () => platformOperatorEmails({ service: getDb(), platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS) }, ['owner', 'staff']),
       send: async (to, alert) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         const appUrl = env.APP_URL?.trim().replace(/\/+$/, '');
         if (!appUrl) throw new Error('APP_URL is required');
         const s = alert.summary as Pick<PlatformOpsAlertProps, 'checkpoint' | 'deliveryDate' | 'clients'>;
@@ -728,7 +736,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
             clients: s.clients.map((c) => ({ clientName: c.clientName, agencyName: c.agencyName })), healthUrl: `${appUrl}/platform/health`,
           },
         });
-        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_ops_alert', metadata: {} }, { agencyId: null, clientId: null });
+        await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_ops_alert', metadata: {} }, { agencyId: null, clientId: null });
       },
     }),
     spendGuard: () => ({
@@ -736,23 +744,21 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       appUrl: env.APP_URL ?? '',
       platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
       sendStaffEmail: async (to: string, p: PlatformSpendAlertPayload) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         const r = await renderEmail({ template: 'platform_spend_alert', props: { ...p, branding: resolveBranding('Rival Monday', null) } });
-        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_spend_alert', metadata: {} }, { agencyId: null, clientId: null });
+        await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'platform_spend_alert', metadata: {} }, { agencyId: null, clientId: null });
       },
     }),
     billingEmail: () => ({
       appUrl: (env.APP_URL ?? '').replace(/\/+$/, ''),
       platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
       sendOnboarding: async (to, agencyId, email) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         const appUrl = env.APP_URL?.trim().replace(/\/+$/, '');
         if (!appUrl) throw new Error('APP_URL is required');
         const branding = resolveBranding('Rival Monday', null);
         const replyTo = env.SUPPORT_REPLY_TO?.trim() || DEFAULT_SUPPORT_REPLY_TO;
-        const base = { from: `"Rival Monday" <${from}>`, to, replyTo, tag: email.template, metadata: {} };
+        const base = { from: platformSender({ platformFrom: from }), to, replyTo, tag: email.template, metadata: {} };
         const scope = { agencyId, clientId: null };
         if (email.template === 'onboarding_tip') {
           // The token is never logged; a missing secret throws so the row is retried once the worker is configured.
@@ -772,27 +778,24 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         await getEmailTransport().send({ ...base, subject: r.subject, html: r.html, text: r.text }, scope);
       },
       send: async (to, agencyId, props) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         if (!env.APP_URL) throw new Error('APP_URL is required');
         const r = await renderEmail({ template: 'billing_notice', props: { ...props, branding: resolveBranding('Rival Monday', null) } });
-        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'billing_notice', metadata: {} }, { agencyId, clientId: null });
+        await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
       sendClient: async (to, agencyId, clientId, ag, props) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        if (!hostEnv) throw new Error('NEUTRAL_DOMAIN is required for client email');
         const branding = { ...resolveBranding(ag.agencyName, ag.branding), contact: await loadAgencyContact(getDb(), agencyId) };
         const r = await renderEmail({ template: 'client_billing_notice', props: { ...props, agencyName: branding.displayName, branding } });
-        const replyTo = (await replyToFor(getDb(), agencyId, clientId))?.email ?? null;
-        // Display name is the agency's; the sending address is the configured platform one until per-agency domains (decision 13).
-        const fromName = branding.fromName.replace(/["\\\r\n]/g, '');
-        await getEmailTransport().send({ from: `"${fromName}" <${from}>`, to, replyTo, subject: r.subject, html: r.html, text: r.text, tag: 'client_billing_notice', metadata: {} }, { agencyId, clientId });
+        // 13a1 P14: the agency's client sender; Reply-To = branding fromEmail, else the account manager.
+        const s = await senderFor(getDb(), agencyId, 'client', { hostEnv, platformFrom });
+        const replyTo = s.replyTo ?? (await replyToFor(getDb(), agencyId, clientId))?.email ?? null;
+        await getEmailTransport().send({ from: s.from, to, replyTo, subject: r.subject, html: r.html, text: r.text, tag: 'client_billing_notice', metadata: {} }, { agencyId, clientId });
       },
       sendAgencyClient: async (to, agencyId, props) => {
-        const from = delivery?.fromAddress ?? env.EMAIL_FROM;
-        if (!from) throw new Error('EMAIL_FROM is required');
+        const from = requirePlatformFrom();
         const r = await renderEmail({ template: 'agency_client_billing_notice', props: { ...props, branding: resolveBranding('Rival Monday', null) } });
-        await getEmailTransport().send({ from: `"Rival Monday" <${from}>`, to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_client_billing_notice', metadata: {} }, { agencyId, clientId: null });
+        await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_client_billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
     }),
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',

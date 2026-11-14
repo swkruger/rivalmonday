@@ -58,6 +58,6 @@ describe('delivery jobs', () => {
     expect(warn).not.toHaveBeenCalled();
     warnIfDeliveryUnconfigured({ deliveryConfigured: () => false }, warn);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toMatch(/delivery is not configured \(APP_URL and LINK_SIGNING_SECRET/);
+    expect(warn.mock.calls[0]![0]).toMatch(/delivery is not configured \(APP_URL, LINK_SIGNING_SECRET of at least 32 characters and NEUTRAL_DOMAIN/);
   });
 });
