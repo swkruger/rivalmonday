@@ -4,11 +4,11 @@
 **Spec:** [2026-11-13-phase-18e-social-jev-design](../superpowers/specs/2026-11-13-phase-18e-social-jev-design.md)   **Plan:** [2026-11-13-phase-18e-social-jev](../superpowers/plans/2026-11-13-phase-18e-social-jev.md)   **Probe:** [docs/research/2026-11-13-phase-18e-social-probe.md](../research/2026-11-13-phase-18e-social-probe.md)
 
 ## Status (overwrite)
-SDD Tasks 1-13 done; final review done (0 Critical, 4 Important), final fix wave applied (I1-I4 + minors). Ledger: `.superpowers/sdd/2026-11-13-phase-18e-social-jev/progress.md`.
+SDD complete: Tasks 1-13 done, final review + fix wave + re-review clean (last fix ba179f3f: franchise guard also needs a matching " - City" tail). Ask cassette re-recorded (55ffe698). Suites green on the rebased branch: `test:affected` exit 0, web E2E --full 154 passed; typecheck clean. Nothing uncommitted; SDD workspace deleted.
 
 ## Next (overwrite)
-1. Finish Task 13: Ask cassette re-record (`eval record --suite ask --fill`), `test:affected` + `e2e:affected` once, final review, one fix wave.
-2. Owner verification (below), then `/rm-merge` on go-ahead (flip the site compare row `social` + ledger `cap-social` at merge; fold this file into STATE/BACKLOG/ARCHITECTURE).
+1. Owner: `pnpm copy:review` sign-off for the new copy (social brief lines, `post_weekly` play, AI decisions card), then `/rm-merge phase-18e` on go-ahead (flip site compare row `social` + ledger `cap-social`; update the root CLAUDE.md decision line per spec B6; fold this file into STATE/BACKLOG/ARCHITECTURE).
+2. After merge: migrate 0110, deploy the worker, then web; staging checks below.
 
 ## Interfaces this branch adds or changes
 - **Migration 0110:** `social_account` (competitor, network facebook|instagram, handle, `external_id`, url, status confirmed|suggested|rejected, `confirmed_by`, `confirmed_by_user` text, `gated`, `last_pulled_at`; one confirmed per competitor+network), `social_post`, packs v10 (`social` flag, `social_gap` rule, type weights), `platform_setting` `ai_decision_mode`.
