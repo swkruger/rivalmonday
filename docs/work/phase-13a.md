@@ -4,10 +4,10 @@
 **Plan/spec:** [13a1 plan 11-14](../superpowers/plans/2026-11-14-phase-13a1-hosts-domains.md) (awaiting owner approval; supersedes Part 1 of [plan 10-17](../superpowers/plans/2026-10-17-phase-13a-white-label.md)) · [spec + addendum 11-05](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) · old brief [phase-13.md](phase-13.md) (delete at merge)
 
 ## Status (overwrite)
-Owner answered Q1–Q10 on 2026-11-14 (R1–R11 below). 13a1 plan written 2026-11-14 (16 tasks, 0–15). No code yet.
+Owner approved the 13a1 plan 2026-11-14 (incl. N1–N6 and its Proposed copy). SDD execution started; Task 0 next.
 
 ## Next (overwrite)
-Owner: review/approve the 13a1 plan (incl. N1–N6). Then SDD from Task 0. 13a2/13a3 plans later (13a3 may start in its own worktree any time).
+Agent: SDD from Task 0 (pre-flight). 13a2/13a3 plans later (13a3 may start in its own worktree any time).
 
 ## Interfaces this branch adds or changes
 Migrations next free at execution, currently **0111+**. Tables `agency_domain`, `agency_sending_domain`; `agency.host_slug`; `client.voice_override`; `brief`/`alert` `review_reason`/`review_terms`. Env `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` (E2E).
@@ -32,6 +32,7 @@ Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 ref
 - **R8 Fake vendors (Q8):** `DOMAINS_FAKE_VENDORS` refused on any `VERCEL_ENV` (like `BILLING_FAKE_GATEWAY`).
 - **R9 MCP cutover (Q9):** if 13a1 reaches prod with/before the first live deploy, drop the moved error + reconnect notice (P16); decide at 13a1 merge.
 - **R10 Prerequisites (Q10):** code now on fakes (`NEUTRAL_DOMAIN=localhost`); infra in parallel. Owner OK'd adding `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` to `turbo.json`.
+- **R12 13a1 plan approved (2026-11-14):** N1–N6 and Proposed copy as written in the plan.
 - **R11 Neutral domain:** not chosen. Available 2026-11-14 (registry check): clientintel.app (suggested), insightdesk.app/.io, intelportal.app, weeklybrief.app, briefportal.app.
 
 ## New backlog (target → item)
