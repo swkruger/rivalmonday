@@ -115,8 +115,9 @@ describe('notify', () => {
 
   it('a client origin failure throws and rolls the transaction back (no stray outbox row)', async () => {
     await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
-    const broken = { ...cfg, hostEnv: { ...cfg.hostEnv, appUrl: 'not a url' } };
-    await expect(dbs.service.transaction((tx) => notify(tx, broken, input()))).rejects.toThrow();
+    // The contact belongs to A1, but the message names an agency that does not exist: clientOriginFor throws (unknown agency).
+    const ghost = '00000000-0000-4000-8000-0000000000ee';
+    await expect(dbs.service.transaction((tx) => notify(tx, cfg, input({ agencyId: ghost })))).rejects.toThrow(/unknown agency/);
     expect(await rows()).toEqual([]);
   });
 

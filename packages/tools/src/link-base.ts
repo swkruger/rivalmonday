@@ -12,13 +12,3 @@ export async function linkBase(deps: ToolDeps, ctx: AccessContext): Promise<stri
   return clientOriginFor(deps.service, ctx.agencyId, deps.hostEnv);
 }
 
-/**
- * `linkBase` started alongside a tool's own reads so it adds no sequential DB stage (launch gate); await the result when
- * building rows. A rejection is still delivered to that `await` — the no-op catch only stops an unhandled rejection when
- * the tool throws before awaiting it.
- */
-export function startLinkBase(deps: ToolDeps, ctx: AccessContext): Promise<string | undefined> {
-  const p = linkBase(deps, ctx);
-  p.catch(() => {});
-  return p;
-}

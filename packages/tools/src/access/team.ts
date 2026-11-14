@@ -201,7 +201,7 @@ export async function assertTeamInviteBudget(db: Db | Tx, agencyId: string): Pro
  * Callers (15c-3 included) must go through the `resend_invitation` tool: the 3 / 24 h limit counts that tool's audit rows, so
  * calling this function directly bypasses it.
  */
-export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invitationId: string, now = new Date(), o: { inviter?: Inviter } = {}): Promise<{ sentAt: Date; expiresAt: Date; emailSent: boolean }> {
+export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invitationId: string, now = new Date(), o: { inviter?: Inviter } = {}): Promise<{ sentAt: Date; expiresAt: Date; emailSent: boolean; role: Role }> {
   const inviter: Inviter = o.inviter ?? { userId: ctx.userId };
   if (ctx.userId.startsWith('contact:')) throw new ToolError('not_found', 'Invitation not found');
   const pending = and(eq(invitation.id, invitationId), eq(invitation.agencyId, ctx.agencyId), isNull(invitation.acceptedAt), isNull(invitation.revokedAt), gt(invitation.expiresAt, now));
@@ -227,5 +227,5 @@ export async function resendInvitation(ctx: AccessContext, deps: ToolDeps, invit
   const emailSent = isAgencyRole(done.i.role as Role)
     ? await sendTeamInviteEmail(deps, { agencyId: ctx.agencyId, to: done.i.email, role: done.i.role as TeamInviteRole, inviter, expiresAt })
     : done.emailSent;
-  return { sentAt: now, expiresAt, emailSent };
+  return { sentAt: now, expiresAt, emailSent, role: done.i.role as Role };
 }

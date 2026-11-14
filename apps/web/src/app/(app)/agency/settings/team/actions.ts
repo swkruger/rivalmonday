@@ -32,12 +32,11 @@ export async function inviteAction(_prev: FormResult, formData: FormData): Promi
 export async function resendInvitationAction(input: { id: string }): Promise<FormResult> {
   const { ctx } = await requireContext();
   if (!isAgencyRole(ctx.role)) notFound();
-  const r = await runTool<{ emailSent: boolean }>(ctx, 'resend_invitation', { invitationId: input.id });
+  const r = await runTool<{ emailSent: boolean; role: Role }>(ctx, 'resend_invitation', { invitationId: input.id });
   if (!r.ok) return { ok: false, error: ctx.support ? READ_ONLY_SESSION_MESSAGE : r.error };
   revalidatePath('/agency/settings/team');
   if (r.data.emailSent) return { ok: true, message: 'Invite sent again.' };
-  // The resend result carries no role: the hint keeps APP_URL (a client-only user signing in there is moved to its client host).
-  return { ok: true, message: `Invite renewed for 14 days, but the email couldn't be sent. ${await signInHint(ctx)}` };
+  return { ok: true, message: `Invite renewed for 14 days, but the email couldn't be sent. ${await signInHint(ctx, r.data.role)}` };
 }
 
 export async function revokeMembershipAction(_prev: FormResult, formData: FormData): Promise<FormResult> {

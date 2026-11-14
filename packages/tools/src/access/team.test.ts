@@ -172,7 +172,7 @@ describe('resend + team_invite (15c-2a T11)', () => {
     const { id } = await inviteMember(dbs.service, admin, { email: 'x@e.co', role: 'account_manager' }, NOW);
     const later = new Date(NOW.getTime() + 5 * DAY);
     const r = await resendInvitation(admin, deps(), id, later);
-    expect(r).toEqual({ sentAt: later, expiresAt: new Date(later.getTime() + 14 * DAY), emailSent: true });
+    expect(r).toEqual({ sentAt: later, expiresAt: new Date(later.getTime() + 14 * DAY), emailSent: true, role: 'account_manager' });
     const [row] = await dbs.service.select().from(invitation).where(eq(invitation.id, id));
     expect(row!.expiresAt.toISOString()).toBe(new Date(later.getTime() + 14 * DAY).toISOString());
     expect(RESEND_LIMIT).toEqual({ max: 3, windowHours: 24 });
@@ -220,7 +220,7 @@ describe('resend + team_invite (15c-2a T11)', () => {
         await sendClientInvite(tx, deps(), { ctx: admin, clientId: IDS.clientA1, clientName: 'A1 HVAC', contactId, email: 'o@x.co', role: 'client_viewer', dedupe: `client-invite:${invitationId}:resend:${n}`, now: new Date() });
       }
     });
-    expect(await registry().invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true });
+    expect(await registry().invoke(admin, 'resend_invitation', { invitationId })).toMatchObject({ emailSent: true, role: 'client_viewer' });
     expect(await dbs.service.select().from(notification).where(eq(notification.kind, 'client_invite'))).toHaveLength(5);
   });
 
@@ -237,6 +237,7 @@ describe('resend + team_invite (15c-2a T11)', () => {
     const { id } = await inviteMember(dbs.service, admin, { email: 'New@E.co', role: 'agency_admin' });
     const r = (await registry().invoke(admin, 'resend_invitation', { invitationId: id })) as { sentAt: string; expiresAt: string; emailSent: boolean };
     expect(new Date(r.expiresAt).getTime() - new Date(r.sentAt).getTime()).toBe(14 * DAY);
+    expect(r).toMatchObject({ role: 'agency_admin' }); // 13a1: the web hint picks the sign-in origin by role
     expect(transport.sent).toHaveLength(1);
     const m = transport.sent[0]!;
     expect(m).toMatchObject({ to: 'new@e.co', from: '"Rival Monday" <team@app.test>', subject: 'Pat Lee invited you to Peak Digital', tag: 'team_invite' });

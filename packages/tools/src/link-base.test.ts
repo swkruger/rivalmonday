@@ -3,7 +3,7 @@ import { agencyDomain, type HostEnv } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { ToolDeps } from './deps';
-import { linkBase, startLinkBase } from './link-base';
+import { linkBase } from './link-base';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -34,10 +34,5 @@ describe('linkBase', () => {
   it('no hostEnv → appUrl; no appUrl → undefined (relative)', async () => {
     expect(await linkBase(deps({ hostEnv: undefined }), ctx('client_owner'))).toBe(APP);
     expect(await linkBase(deps({ appUrl: undefined }), ctx('client_owner'))).toBeUndefined();
-  });
-
-  it('startLinkBase still rejects to its awaiter for an unknown agency', async () => {
-    const c = createAccessContext({ agencyId: '00000000-0000-4000-8000-0000000000ee', userId: 'u', role: 'client_owner', clientScope: [IDS.clientA1], features: [] });
-    await expect(startLinkBase(deps(), c)).rejects.toThrow(/unknown agency/);
   });
 });

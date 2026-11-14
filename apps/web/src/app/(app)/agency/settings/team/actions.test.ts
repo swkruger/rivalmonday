@@ -54,6 +54,18 @@ describe('inviteAction sign-in hint (13a1 P8)', () => {
   });
 });
 
+describe('resendInvitationAction sign-in hint (13a1 P8)', () => {
+  beforeEach(() => { m.ctx = { role: 'agency_admin', agencyId: 'ag-1' }; origin.mockClear(); });
+
+  it('resent client-role invite hint names the client origin', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { sentAt: 'x', expiresAt: 'y', emailSent: false, role: 'client_viewer' } });
+    expect(await resendInvitationAction({ id: ID })).toEqual({
+      ok: true, message: "Invite renewed for 14 days, but the email couldn't be sent. Ask them to sign in at https://intel.agency-a.test/sign-in with this email.",
+    });
+    expect(origin).toHaveBeenCalledWith('service-db', 'ag-1', expect.objectContaining({ neutralDomain: 'neutral.example' }));
+  });
+});
+
 describe('resendInvitationAction', () => {
   it('resends through the tool and confirms', async () => {
     m.ctx = { role: 'account_manager' };
@@ -73,7 +85,7 @@ describe('resendInvitationAction', () => {
 
   it('says how to sign in when the resend email could not be sent', async () => {
     m.ctx = { role: 'agency_admin' };
-    m.runTool.mockResolvedValue({ ok: true, data: { sentAt: 'x', expiresAt: 'y', emailSent: false } });
+    m.runTool.mockResolvedValue({ ok: true, data: { sentAt: 'x', expiresAt: 'y', emailSent: false, role: 'account_manager' } });
     expect(await resendInvitationAction({ id: ID })).toEqual({
       ok: true, message: "Invite renewed for 14 days, but the email couldn't be sent. Ask them to sign in at https://app.example/sign-in with this email.",
     });

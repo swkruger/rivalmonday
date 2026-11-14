@@ -51,12 +51,13 @@ export const resendInvitationTool = defineTool({
   access: 'write', // sends an email
   description: 'Send a pending invitation again and restart its 14 days; at most 3 per invitation in 24 hours.',
   input: z.object({ invitationId: uuid }),
-  output: z.object({ sentAt: z.string(), expiresAt: z.string(), emailSent: z.boolean() }),
+  // 13a1 P8: `role` lets the web hint name the right sign-in origin (client roles: the agency's client origin).
+  output: z.object({ sentAt: z.string(), expiresAt: z.string(), emailSent: z.boolean(), role: z.enum(ROLES) }),
   permission: 'agency',
   supportMask: ['emailSent'], // a boolean (nothing to mask); listed because the key matches /email/i
   async handler(ctx, { invitationId }, deps) {
     const r = await resendInvitation(ctx, deps, invitationId);
-    return { sentAt: r.sentAt.toISOString(), expiresAt: r.expiresAt.toISOString(), emailSent: r.emailSent };
+    return { sentAt: r.sentAt.toISOString(), expiresAt: r.expiresAt.toISOString(), emailSent: r.emailSent, role: r.role };
   },
 });
 

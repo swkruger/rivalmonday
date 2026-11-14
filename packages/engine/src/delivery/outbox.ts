@@ -103,7 +103,7 @@ export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput
   const replyTo = input.audience === 'client' ? (await replyToFor(conn, input.agencyId, input.clientId))?.email ?? null : null;
   const scope = { agencyId: input.agencyId, clientId: input.clientId };
   // 13a1 P8: before any row is built; a failure throws and the caller's transaction rolls back.
-  const linkBase = recipients.length > 0 ? await linkBaseFor(conn, cfg, input.audience, input.agencyId) : cfg.appUrl;
+  const linkBase = await linkBaseFor(conn, cfg, input.audience, input.agencyId);
   const base = { agencyId: input.agencyId, clientId: input.clientId, kind: input.kind, subjectType: input.subjectType, subjectId: input.subjectId };
   const values: (typeof notification.$inferInsert)[] = [];
   for (const r of recipients) {
