@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
 import { llmCall, platformSetting } from './index';
 import { AI_DECISION_MODE_KEY, createDecisionModeReader, createReevalCallCounter, readAiDecisionMode, writeAiDecisionMode } from './ai-decision-mode';
@@ -28,6 +28,23 @@ describe('ai_decision_mode', () => {
     expect(rows[0]?.updatedBy).toBe('u2');
   });
 
+  it('accepts offset timestamps', async () => {
+    const value = { mode: 'jev_only', reevalUntil: '2026-12-01T00:00:00+00:00' };
+    await dbs.owner.insert(platformSetting).values({ key: AI_DECISION_MODE_KEY, value, updatedBy: 't' }).onConflictDoUpdate({ target: platformSetting.key, set: { value } });
+    expect(await readAiDecisionMode(dbs.service)).toEqual(value);
+  });
+
+  it('counter bump counts local calls inside the cache; refresh resets', async () => {
+    let t = 0;
+    const c = createReevalCallCounter(dbs.service, { ttlMs: 30_000, now: () => t });
+    expect(await c.count()).toBe(0);
+    c.bump();
+    c.bump();
+    expect(await c.count()).toBe(2);
+    t += 30_001;
+    expect(await c.count()).toBe(0);
+  });
+
   it('reader caches for the ttl and fails to cascade on a DB error', async () => {
     await writeAiDecisionMode(dbs.service, { mode: 'jev_only', reevalUntil: null }, 'u');
     let t = 1_000;
@@ -42,15 +59,14 @@ describe('ai_decision_mode', () => {
     expect(await createDecisionModeReader(broken)()).toEqual({ mode: 'cascade', reevalUntil: null });
   });
 
-  it('reeval counter counts only today\'s llm_decisions:reeval rows', async () => {
+  it('reeval counter counts only today\'s %:reeval rows', async () => {
     const row = (task: string, createdAt?: Date) => ({ task, provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd: 0.001, latencyMs: 1, ok: true, ...(createdAt ? { createdAt } : {}) });
     await dbs.owner.insert(llmCall).values([
-      row('llm_decisions:reeval'), row('llm_decisions:reeval'), row('llm_decisions:shadow'),
+      row('llm_decisions:reeval'), row('llm_decisions:reeval'), row('llm_decisions:shadow'), row('image_llm_decisions:reeval'),
       row('llm_decisions:reeval', new Date(Date.now() - 2 * 86_400_000)),
     ]);
-    expect(await createReevalCallCounter(dbs.service)()).toBe(2);
+    expect(await createReevalCallCounter(dbs.service).count()).toBe(3);
     const broken = { select: () => { throw new Error('db down'); } } as unknown as Parameters<typeof createReevalCallCounter>[0];
-    expect(await createReevalCallCounter(broken)()).toBe(Number.POSITIVE_INFINITY);
-    vi.restoreAllMocks();
+    expect(await createReevalCallCounter(broken).count()).toBe(Number.POSITIVE_INFINITY);
   });
 });

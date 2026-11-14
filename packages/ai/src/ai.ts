@@ -32,6 +32,14 @@ export interface Ai {
   collectBatch(task: string, batchId: string, scope: CallScope, scopeFor?: (customId: string) => Partial<CallScope>): Promise<{ status: 'in_progress' } | { status: 'ended'; results: BatchItemResult[] }>;
 }
 
+export interface DecisionModeSource {
+  read(): Promise<AiDecisionMode>;
+  /** Today's (UTC) `%:reeval` ledger rows, including calls this process already started. */
+  reevalCallsToday(): Promise<number>;
+  /** Called once per re-eval shadow call so a process cannot exceed the cap inside its count cache. */
+  noteReevalCall?(): void;
+}
+
 export interface AiDeps {
   openrouter: ChatProvider;
   /** Builds the Jev provider for a task's configured model (spec §7.2: models are configured per task). */
@@ -54,17 +62,15 @@ export interface AiDeps {
    */
   guard?: AiGuard;
   /**
-   * Phase 18e: the platform's `ai_decision_mode` (cached reader, fails to cascade). Absent = cascade. `jev_only` stops
-   * below-threshold escalation of Jev-primary tasks (not `ask_guard_decisions`); a future `reevalUntil` also shadows
-   * every call while `reevalCallsToday()` is under `REEVAL_DAILY_CALL_CAP`.
+   * Phase 18e: the platform's `ai_decision_mode` (cached reader, fails to cascade) bundled with today's re-eval call count.
+   * Absent = cascade. `jev_only` stops below-threshold escalation of Jev-primary tasks (not the injection/image guards); a
+   * future `reevalUntil` also shadows every call while `reevalCallsToday()` is under `REEVAL_DAILY_CALL_CAP`.
    */
-  decisionMode?: () => Promise<AiDecisionMode>;
-  /** Today's (UTC) `llm_decisions:reeval` ledger rows; absent counts as 0. */
-  reevalCallsToday?: () => Promise<number>;
+  decisionMode?: DecisionModeSource;
 }
 
-/** The injection gate always cascades, whatever the platform mode. */
-const ALWAYS_CASCADE_TASKS: ReadonlySet<string> = new Set(['ask_guard_decisions']);
+/** The injection gate and the ad-image guard (person images never stored) always cascade, whatever the platform mode. */
+const ALWAYS_CASCADE_TASKS: ReadonlySet<string> = new Set(['ask_guard_decisions', 'ad_image_decisions']);
 
 const CASCADE_MODE: AiDecisionMode = { mode: 'cascade', reevalUntil: null };
 
@@ -92,7 +98,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
   /** A failed mode read means cascade (today's behaviour). */
   async function readMode(): Promise<AiDecisionMode> {
     try {
-      return await deps.decisionMode!();
+      return await deps.decisionMode!.read();
     } catch {
       return CASCADE_MODE;
     }
@@ -100,9 +106,11 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
 
   /** Re-evaluation window open (a future `reevalUntil`) and today's reeval calls under the cap. */
   async function reevalOpen(mode: AiDecisionMode): Promise<boolean> {
-    if (!deps.decisionMode || !mode.reevalUntil || !(Date.parse(mode.reevalUntil) > now())) return false;
+    if (!deps.decisionMode?.reevalCallsToday || !mode.reevalUntil || !(Date.parse(mode.reevalUntil) > now())) return false;
     try {
-      return ((await deps.reevalCallsToday?.()) ?? 0) < REEVAL_DAILY_CALL_CAP;
+      if ((await deps.decisionMode.reevalCallsToday()) >= REEVAL_DAILY_CALL_CAP) return false;
+      deps.decisionMode.noteReevalCall?.();
+      return true;
     } catch {
       return false;
     }

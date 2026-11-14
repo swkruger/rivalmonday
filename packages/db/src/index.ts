@@ -1,3 +1,4 @@
+export * from './ai-decision-mode';
 export * from './audit';
 export * from './catalog';
 export * from './client';
@@ -9,6 +10,5 @@ export * from './reset';
 export * from './schema';
 export * from './spend';
 export * from './spend-guard';
-export * from './ai-decision-mode';
 export * from './tenant';
 export * from './topic-leftovers';
