@@ -5,6 +5,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedAuthUsers, truncateAuth } from '../../test/auth-fixtures';
+import type { HostInfo } from './hosts';
 import { destinationPath, goDestination, goGate, openLink } from './links';
 import type { Viewer } from './viewer';
 
@@ -33,7 +34,8 @@ beforeEach(async () => {
 });
 
 const token = (sub: string, t: 'brief' | 'brief_item' = 'brief', id = briefId) => signLink(S, { sub, agency: IDS.agencyA, client: IDS.clientA1, t, id }, NOW);
-const open = (tok: string, sessionUserId: string | null = null, now = NOW) => openLink({ service: dbs.service, token: tok, secrets: [S], sessionUserId, now });
+const hostOf = (agencyId: string): HostInfo => ({ kind: 'agency', agencyId, canonical: true, canonicalOrigin: 'https://x.neutral.example' });
+const open = (tok: string, sessionUserId: string | null = null, now = NOW, host: HostInfo = hostOf(IDS.agencyA)) => openLink({ service: dbs.service, token: tok, secrets: [S], sessionUserId, now, host });
 
 describe('destinationPath', () => {
   it('maps every target (decision 7)', () => {
@@ -124,6 +126,19 @@ describe('openLink', () => {
     expect(await open(token(clientContact))).toEqual({ kind: 'expired' });
     const crossAgency = signLink(S, { sub: agencyContact, agency: IDS.agencyB, client: IDS.clientB1, t: 'brief', id: briefId }, NOW);
     expect(await open(crossAgency)).toEqual({ kind: 'expired' });
+  });
+
+  it('13a1 N3: on the platform a client contact’s link goes to its agency host; an agency contact’s stays', async () => {
+    const platform: HostInfo = { kind: 'platform' };
+    expect(await open(token(clientContact), null, NOW, platform)).toEqual({ kind: 'client-host', agencyId: IDS.agencyA });
+    expect(await open(token(clientContact), 'u2', NOW, platform)).toEqual({ kind: 'client-host', agencyId: IDS.agencyA });
+    expect(await open(token(agencyContact), null, NOW, platform)).toEqual({ kind: 'sign-in', next: `/c/${IDS.clientA1}/briefs/${briefId}` });
+    expect(await open(`${token(clientContact)}x`, null, NOW, platform)).toEqual({ kind: 'expired' });
+  });
+
+  it('13a1 N3: a link of another agency on an agency host → expired', async () => {
+    expect(await open(token(clientContact), null, NOW, hostOf(IDS.agencyB))).toEqual({ kind: 'expired' });
+    expect(await open(token(agencyContact), null, NOW, hostOf(IDS.agencyB))).toEqual({ kind: 'expired' });
   });
 
   it('expires a brief_item link whose item is not in the token’s client', async () => {

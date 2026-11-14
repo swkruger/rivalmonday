@@ -1,5 +1,7 @@
 import 'server-only';
 import type { AccessContext } from '@cs/core';
+import { clientOriginFor, platformOrigin } from '@cs/db';
+import { platformRoleForUser } from '@cs/tools';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
@@ -10,6 +12,7 @@ import { billingSnapshotOf, billingStateOf } from './billing-state';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { GUEST_COOKIE } from './guest';
+import { requestHostFrom } from './request-host';
 import { platformAdmins } from './runtime-env';
 import { safeNext } from './safe-next';
 import { SUPPORT_COOKIE } from './support-cookie';
@@ -32,14 +35,23 @@ export const SUPPORT_END_PATH = '/support/end';
  * `/support/end?next=…&sid=<failed id>` (R4: no cookie writes during render). In `api` (POST routes, where a 307 to a
  * GET-only route would 405) it is treated as no support session and normal resolution follows; the next page load
  * clears it. `operator` never reads the cookie (R3, `/platform/**`).
+ *
+ * 13a1 P7 (host-scoped viewers): memberships are filtered by the request host (`decideHost`); `rm_support` is read only on
+ * the platform host; `operator` off the platform host is null. A user who belongs on another host (staff on an agency host,
+ * a client-only non-operator on the platform host) is redirected there in `page`/`operator` mode (`redirect()`, absolute
+ * URL) and resolves to null in `api` mode (a POST must not be bounced). The bounce's operator check and client-origin read
+ * run only on that path (N5).
  */
 type Mode = 'page' | 'api' | 'operator';
 async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer | null> {
   const [h, jar] = [await headers(), await cookies()];
+  const env = webEnv();
+  const host = requestHostFrom(h, env.hostEnv);
+  if (mode === 'operator' && host.info.kind !== 'platform') return null;
   const s = await (await requestAuth()).api.getSession({ headers: h });
   const session = s ? { userId: s.user.id, email: s.user.email, name: s.user.name, image: s.user.image ?? null } : null;
   const service = dbs().service;
-  if (session && mode !== 'operator') {
+  if (session && mode !== 'operator' && host.info.kind === 'platform') {
     const sv = await resolveSupportViewer({ service, platformAdmins: platformAdmins(), session, supportCookie: jar.get(SUPPORT_COOKIE)?.value });
     if (sv?.kind === 'support') return sv;
     if (sv?.kind === 'end' && mode === 'page') {
@@ -47,13 +59,25 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
       redirect(`${SUPPORT_END_PATH}?next=${encodeURIComponent(safeNext(h.get('x-rm-path')))}${sid}`);
     }
   }
-  return resolveViewer({
+  const r = await resolveViewer({
     service,
     session,
     membershipCookie: jar.get(MEMBERSHIP_COOKIE)?.value,
     guestCookie: jar.get(GUEST_COOKIE)?.value,
-    linkSecrets: webEnv().linkSecrets,
+    linkSecrets: env.linkSecrets,
     clientHint,
+    host,
+    path: h.get('x-rm-path') ?? '/',
+    platformOrigin: platformOrigin(env.hostEnv),
+    bounce: session
+      ? async (target) => {
+        const [role, origin] = await Promise.all([
+          platformRoleForUser({ service, platformAdmins: platformAdmins() }, session.userId),
+          clientOriginFor(service, target.agencyId, env.hostEnv), // service db: client roles cannot read agency_domain (F9)
+        ]);
+        return { origin, isOperator: role !== null };
+      }
+      : undefined,
     // Launch-gate 6a: `requireContext` reads the billing snapshot next; it needs only the agency id, so start it (request-
     // cached) beside `accessContextFor`. Page mode only (operator/api resolutions never read it); errors surface there.
     // 6b: the root layout's theme (the agency's branding row, request-cached by agency id) likewise.
@@ -64,6 +88,9 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
       }
       : undefined,
   });
+  if (r?.kind !== 'redirect') return r;
+  if (mode === 'api') return null;
+  redirect(r.to);
 }
 
 const pathHint = async () => clientIdFromPath((await headers()).get('x-rm-path') ?? '');

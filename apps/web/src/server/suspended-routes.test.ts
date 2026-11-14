@@ -10,6 +10,7 @@ vi.mock('@/server/store', () => ({ webStore: () => ({}) }));
 vi.mock('@/server/queue', () => ({ pdfEnqueueFor: () => ({}) }));
 vi.mock('@/server/tools', () => ({ registry: () => ({}) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'http://localhost:3000' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'http://localhost:3000', info: { kind: 'platform' } }) }));
 vi.mock('@/server/links', () => ({ goGate: (v: unknown) => ({ kind: 'ok', viewer: v }), goDestination: async () => '/inbox' }));
 
 const ID = '11111111-1111-4111-8111-111111111111';

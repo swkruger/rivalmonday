@@ -5,6 +5,8 @@ import {
 } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { verifyGuest } from './guest';
+import { decideHost, platformBounceTarget } from './host-viewer';
+import type { RequestHost } from './request-host';
 import { verifySupportCookie } from './support-cookie';
 
 export const MEMBERSHIP_COOKIE = 'rm_membership';
@@ -17,6 +19,8 @@ export type Viewer =
 
 /** Phase 8b: a platform operator inside a read-only support session. `ctx` is synthetic (no membership row). */
 export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; avatarUrl: string | null; ctx: AccessContext; session: OpenSupportSession };
+/** 13a1 P7: the signed-in user belongs on another host (internal; `viewerWith` turns it into `redirect()` or null). */
+export type HostRedirect = { kind: 'redirect'; to: string };
 /** An unusable `rm_support` cookie: `sessionId` is the verified id that failed, or null when the MAC didn't verify. */
 export type SupportEnd = { kind: 'end'; sessionId: string | null };
 
@@ -37,10 +41,25 @@ export async function resolveViewer(input: {
    * caller can start a read that needs only the agency id (the page's billing snapshot) in the same stage. Never awaited.
    */
   onMembership?: (m: MembershipSummary) => void;
-}): Promise<Viewer | null> {
-  const { service, session } = input;
+  /** 13a1 P7: the host this request is served on, its path (with query) and the platform origin staff are sent to. */
+  host: RequestHost;
+  path: string;
+  platformOrigin: string;
+  /**
+   * N5: called only when a client-only user is on the platform host on a non-exempt path (`platformBounceTarget`), so normal
+   * pages add no DB stage. Returns the target's client origin and whether the user is a platform operator (operators stay).
+   */
+  bounce?: (target: MembershipSummary) => Promise<{ origin: string; isOperator: boolean }>;
+}): Promise<Viewer | HostRedirect | null> {
+  const { service, session, host } = input;
   if (session) {
-    const memberships = await listMemberships(service, session.userId);
+    const all = await listMemberships(service, session.userId);
+    const target = platformBounceTarget({ host, memberships: all, path: input.path, pickedAgencyId: pickMembership(all, input.membershipCookie)?.agencyId ?? null });
+    const bounce = target && input.bounce ? await input.bounce(target) : null;
+    const decision = decideHost({ host, memberships: all, path: input.path, platformOrigin: input.platformOrigin, bounce });
+    if (decision.kind === 'redirect') return decision;
+    // Only the memberships that count on this host reach the pick and the client hint (another agency's never do).
+    const memberships = decision.memberships;
     let m = pickMembership(memberships, input.membershipCookie);
     // Decision 16 (5a carry-over): a link into /c/<id> opens under a membership that covers that client, without changing the cookie.
     const hint = input.clientHint;
@@ -53,11 +72,12 @@ export async function resolveViewer(input: {
     const { image, ...who } = session;
     return { kind: 'user', ...who, avatarUrl: avatarUrlOf(image ?? null), ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
   }
-  if (input.guestCookie) {
+  // 13a1 P7: guest sessions live only on their own agency's host (never the platform or mcp host, never another agency's).
+  if (input.guestCookie && host.info.kind === 'agency') {
     // Review Focus 3: re-verifies the cookie's signature/TTL, then re-checks the contact is active and the cookie
     // was issued after any `links_revoked_before` — both checks happen on every request, never cached.
     const claims = verifyGuest(input.linkSecrets, input.guestCookie, input.now);
-    const ctx = claims ? await guestAccessFor(service, claims) : null;
+    const ctx = claims && claims.agencyId === host.info.agencyId ? await guestAccessFor(service, claims) : null;
     if (claims && ctx) return { kind: 'guest', contactId: claims.contactId, ctx };
   }
   return null;

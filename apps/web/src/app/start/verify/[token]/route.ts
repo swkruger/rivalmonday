@@ -1,6 +1,6 @@
 import { verifyIntake } from '@cs/tools';
 import { NextResponse } from 'next/server';
-import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 import { toolDeps } from '@/server/tools';
 import { SLUG_RE } from '../../params';
 
@@ -12,12 +12,14 @@ export const dynamic = 'force-dynamic';
  * or decided → the expired page, which points back to
  * the intake page named by `?from=` (an agency slug, `-` for "agency, but no known page", absent for the platform page).
  * The token lives in the URL, so the response is never cached and never leaks it as a referrer; nothing here logs it.
+ * 13a1 N3: redirects stay on the request's origin; on an agency host only that agency's leads verify (others: the expired page).
  */
 export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const env = webEnv();
-  const at = (path: string) => new URL(path, env.appUrl);
-  const r = await verifyIntake(toolDeps(), token, new Date());
+  const host = await requestHost();
+  const at = (path: string) => new URL(path, host.origin);
+  const scope = host.info.kind === 'agency' ? { agencyId: host.info.agencyId } : undefined;
+  const r = await verifyIntake(toolDeps(), token, new Date(), scope);
 
   let res: NextResponse;
   if ('expired' in r) {

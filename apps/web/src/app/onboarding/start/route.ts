@@ -2,8 +2,8 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { platformAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
-import { webEnv } from '@/server/env';
 import { onboardingStartTarget } from '@/server/onboarding-start';
+import { requestHost } from '@/server/request-host';
 import { MEMBERSHIP_COOKIE } from '@/server/viewer';
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +13,8 @@ export const dynamic = 'force-dynamic';
  * user with no membership yet is not bounced to `/no-access`; it selects the right membership before `/onboarding`.
  */
 export async function GET() {
-  const env = webEnv();
-  const at = (path: string) => new URL(path, env.appUrl);
+  const { origin } = await requestHost(); // staff-only: the proxy sends agency hosts to the platform first
+  const at = (path: string) => new URL(path, origin);
   const session = await platformAuth().api.getSession({ headers: await headers() });
   if (!session) return NextResponse.redirect(at('/sign-in'));
   const target = await onboardingStartTarget(dbs().service, { id: session.user.id, email: session.user.email }, new Date());

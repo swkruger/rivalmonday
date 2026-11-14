@@ -10,6 +10,7 @@ vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
 vi.mock('@/server/billing-state', () => ({ agencySuspended: async () => false }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: 'app-db', service: 'service-db' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'http://app.test' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'http://app.test', info: { kind: 'platform' } }) }));
 vi.mock('@/server/links', async (orig) => ({ ...(await orig<typeof import('@/server/links')>()), goDestination: async () => m.to }));
 
 import { GET } from './route';

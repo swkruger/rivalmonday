@@ -1,4 +1,4 @@
-import { agencyBilling, membership, supportSession } from '@cs/db';
+import { agency, agencyBilling, membership, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { endSession, startSession } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -11,13 +11,14 @@ const m = vi.hoisted(() => ({
   user: null as { id: string; email: string; name: string } | null,
   cookies: {} as Record<string, string>,
   path: '/agency',
+  host: {} as Record<string, string>,
   admins: [] as string[],
   branding: null as unknown as ReturnType<typeof vi.fn>,
 }));
 const SECRET = 'c'.repeat(40);
 
 vi.mock('next/headers', () => ({
-  headers: async () => new Headers({ 'x-rm-path': m.path }),
+  headers: async () => new Headers({ 'x-rm-path': m.path, ...m.host }),
   cookies: async () => ({ get: (n: string) => (n in m.cookies ? { name: n, value: m.cookies[n] } : undefined) }),
 }));
 vi.mock('next/navigation', () => ({
@@ -27,7 +28,9 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/server/auth', () => ({ requestAuth: async () => ({ api: { getSession: async () => (m.user ? { user: m.user } : null) } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => m.dbs }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: SECRET, linkSecrets: ['l'.repeat(40)], appUrl: 'http://localhost:3000' }) }));
+vi.mock('@/server/env', () => ({
+  webEnv: () => ({ authSecret: SECRET, linkSecrets: ['l'.repeat(40)], appUrl: 'http://localhost:3000', hostEnv: { appUrl: 'http://localhost:3000', neutralDomain: 'localhost', extraPlatformHosts: [] } }),
+}));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => m.admins }));
 m.branding = vi.fn(async () => ({}));
 vi.mock('@/server/theme', () => ({ agencyBrandingOf: (id: string) => m.branding(id) }));
@@ -36,7 +39,7 @@ const dbs = openTestDbs();
 m.dbs = dbs;
 afterAll(() => dbs.closeAll());
 
-const { getViewer, getViewerForClient, requireContext, requireOperatorContext } = await import('./current-viewer');
+const { getOperatorViewer, getViewer, getViewerForClient, requireContext, requireOperatorContext } = await import('./current-viewer');
 const { signSupportCookie } = await import('./support-cookie');
 const { GET: endRoute } = await import('@/app/support/end/route');
 
@@ -64,6 +67,7 @@ beforeEach(async () => {
   m.user = OP;
   m.cookies = {};
   m.path = '/agency';
+  m.host = {};
   m.admins = ['op@e.co'];
 });
 
@@ -356,5 +360,56 @@ describe('launch-gate 6b: branding prefetch', () => {
     m.cookies = { rm_support: signSupportCookie(s.id) };
     await requireContext();
     expect(m.branding).not.toHaveBeenCalled();
+  });
+});
+
+describe('host-scoped viewers (13a1 P7, N4, N5)', () => {
+  const slugOf = async (id: string) => (await dbs.service.select({ s: agency.hostSlug }).from(agency).where(eq(agency.id, id)))[0]!.s;
+  const onAgency = async (id: string) => {
+    const origin = `http://${await slugOf(id)}.localhost:3000`;
+    m.host = { 'x-rm-host-kind': 'agency', 'x-rm-host-agency': id, 'x-rm-origin': origin };
+    return origin;
+  };
+  const clientOnly = async (agencyId = IDS.agencyB, clientId = IDS.clientB1) => {
+    await dbs.service.delete(membership);
+    await dbs.service.insert(membership).values({ userId: 'op', agencyId, role: 'client_owner', clientId, createdBy: 't' });
+  };
+
+  it('support cookie ignored on agency host', async () => {
+    await clientOnly();
+    const s = await open();
+    m.cookies = { rm_support: signSupportCookie(s.id) };
+    await onAgency(IDS.agencyB);
+    m.path = `/c/${IDS.clientB1}`;
+    const { viewer, ctx } = await requireContext();
+    expect(viewer.kind).toBe('user');
+    expect(ctx).toMatchObject({ agencyId: IDS.agencyB, role: 'client_owner' });
+    expect(ctx.support).toBeUndefined();
+  });
+
+  it('staff on an agency host: page mode redirects to the platform, same path', async () => {
+    await onAgency(IDS.agencyA);
+    m.path = '/c/abc?x=1';
+    expect(await redirectOf(getViewer())).toBe('http://localhost:3000/c/abc?x=1');
+  });
+
+  it('client-only on the platform: page mode redirects to the client origin; api mode is null', async () => {
+    m.admins = [];
+    await clientOnly();
+    m.path = '/inbox';
+    const origin = `http://${await slugOf(IDS.agencyB)}.localhost:3000`;
+    expect(await redirectOf(getViewer())).toBe(`${origin}/inbox`);
+    expect(await getViewerForClient(IDS.clientB1)).toBeNull();
+  });
+
+  it('client-only operator stays on the platform', async () => {
+    await clientOnly();
+    m.path = '/inbox';
+    expect(await getViewer()).toMatchObject({ kind: 'user', ctx: { agencyId: IDS.agencyB } });
+  });
+
+  it('operator mode off the platform host → null', async () => {
+    await onAgency(IDS.agencyA);
+    expect(await getOperatorViewer()).toBeNull();
   });
 });

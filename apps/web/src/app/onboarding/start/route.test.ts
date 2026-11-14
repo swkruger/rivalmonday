@@ -5,6 +5,7 @@ vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 vi.mock('@/server/auth', () => ({ platformAuth: () => ({ api: { getSession: async () => m.session } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'http://localhost:3000' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'http://localhost:3000', info: { kind: 'platform' } }) }));
 vi.mock('@/server/onboarding-start', () => ({ onboardingStartTarget: (...a: unknown[]) => m.target(...a) }));
 const { GET } = await import('./route');
 

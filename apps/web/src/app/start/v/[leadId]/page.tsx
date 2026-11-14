@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { dbs } from '@/server/db';
+import { requestHost } from '@/server/request-host';
 import { agencyBrand, type IntakeBrand, NOINDEX, platformBrand } from '../../brand';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
 import { PreviewPoller } from './poller';
@@ -15,9 +16,16 @@ export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ leadId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-/** R4: a bad id or a bad/old view token → null → 404 (no difference between the two). */
-const load = cache(async (leadId: string, t: string | string[] | undefined) =>
-  (typeof t === 'string' && t.length > 0 && t.length <= 128 ? getPublicPreview(dbs().service, leadId, t) : null));
+/**
+ * R4: a bad id or a bad/old view token → null → 404 (no difference between the two). 13a1 N3: on an agency host another
+ * agency's (or a pool) lead is null too.
+ */
+const load = cache(async (leadId: string, t: string | string[] | undefined) => {
+  if (typeof t !== 'string' || t.length === 0 || t.length > 128) return null;
+  const [r, host] = await Promise.all([getPublicPreview(dbs().service, leadId, t), requestHost()]);
+  if (r && host.info.kind === 'agency' && r.agencyId !== host.info.agencyId) return null;
+  return r;
+});
 
 const brandOf = (b: { branding: 'agency' | 'platform'; agencyBranding: PublicAgencyBranding | null }): IntakeBrand =>
   (b.branding === 'agency' && b.agencyBranding ? agencyBrand(b.agencyBranding) : platformBrand());

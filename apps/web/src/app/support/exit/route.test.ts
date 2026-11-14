@@ -7,6 +7,7 @@ vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(..
 vi.mock('@cs/tools', () => ({ endOpenSessionFor: (...a: unknown[]) => m.endOpen(...a) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'service-db' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'https://app.example', info: { kind: 'platform' } }) }));
 const { POST } = await import('./route');
 
 const AG = '22222222-2222-4222-8222-222222222222';

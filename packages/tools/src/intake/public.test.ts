@@ -292,6 +292,16 @@ describe('verifyIntake', () => {
     expect(scanner.viewRaw).not.toBe(visitor.viewRaw);
   });
 
+  it('13a1 N3: scoped to an agency, another agency’s or a pool lead’s token is expired and left untouched', async () => {
+    const { send } = await submit();
+    expect(await verifyIntake(deps, send!.verifyRaw, NOW, { agencyId: IDS.agencyB })).toEqual({ expired: true });
+    expect((await leads())[0]!.status).toBe('unverified');
+    expect(enqueued).toHaveLength(0);
+    expect(await verifyIntake(deps, send!.verifyRaw, NOW, { agencyId: IDS.agencyA })).toMatchObject({ leadId: send!.leadId });
+    const pool = await submit({ slug: null, email: 'pool@example.com', ipHash: 'iphash-7' });
+    expect(await verifyIntake(deps, pool.send!.verifyRaw, NOW, { agencyId: IDS.agencyA })).toEqual({ expired: true });
+  });
+
   it('expired token', async () => {
     const { send } = await submit();
     expect(await verifyIntake(deps, send!.verifyRaw, new Date(NOW.getTime() + 48 * 3_600_000 + 1))).toEqual({ expired: true });
@@ -341,7 +351,7 @@ describe('getPublicPreview', () => {
     await dbs.owner.update(agency).set({ name: 'Internal Legal Name LLC', branding: { displayName: 'Bright Marketing', logoUrl: 'https://cdn.example.com/l.png', primary: '#112233', fromEmail: 'x@y.co' } }).where(eq(agency.id, IDS.agencyA));
     const ok = await getPublicPreview(dbs.service, v.leadId, v.viewRaw);
     expect(ok).toEqual({
-      businessName: 'Acme Dental', preview: { status: 'none' }, branding: 'agency',
+      businessName: 'Acme Dental', preview: { status: 'none' }, branding: 'agency', agencyId: IDS.agencyA,
       agencyBranding: { displayName: 'Bright Marketing', logoUrl: 'https://cdn.example.com/l.png', primary: '#112233', secondary: '#2A6BAC', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6' },
     });
     expect(JSON.stringify(ok)).not.toContain('Internal Legal Name');
@@ -356,6 +366,6 @@ describe('getPublicPreview', () => {
   it('platform leads carry platform branding and no agency name', async () => {
     const { send } = await submit({ slug: null }, new Date());
     const v = await verifyIntake(deps, send!.verifyRaw, new Date()) as { leadId: string; viewRaw: string };
-    expect(await getPublicPreview(dbs.service, v.leadId, v.viewRaw)).toMatchObject({ branding: 'platform', agencyBranding: null });
+    expect(await getPublicPreview(dbs.service, v.leadId, v.viewRaw)).toMatchObject({ branding: 'platform', agencyBranding: null, agencyId: null });
   });
 });

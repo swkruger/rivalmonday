@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { agencyIntake, type IntakeBrand, neutralBrand, NOINDEX, platformBrand } from '../brand';
 import { SLUG_RE } from '../params';
 import { OnboardingShell, type OnboardingBrand } from '@/components/onboarding/onboarding-shell';
+import { requestHost } from '@/server/request-host';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,12 @@ const shellBrand = (b: IntakeBrand): OnboardingBrand =>
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-/** No `from` = the platform page; a live agency slug = that agency's page; anything else names nobody. */
+/**
+ * No `from` = the platform page; a live agency slug = that agency's page; anything else names nobody. 13a1 N3: on an agency host
+ * there is no platform page (never Rival Monday) and another agency's slug names nobody (`agencyIntake` is host-scoped).
+ */
 async function origin(from: string | string[] | undefined): Promise<{ brand: IntakeBrand; href: string | null }> {
-  if (from === undefined) return { brand: platformBrand(), href: '/start' };
+  if (from === undefined) return (await requestHost()).info.kind === 'agency' ? { brand: neutralBrand(), href: null } : { brand: platformBrand(), href: '/start' };
   if (typeof from === 'string' && SLUG_RE.test(from)) {
     const brand = await agencyIntake(from);
     if (brand) return { brand, href: `/start/${from}` };

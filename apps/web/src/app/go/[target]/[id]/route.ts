@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { agencySuspended } from '@/server/billing-state';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
-import { webEnv } from '@/server/env';
 import { goDestination, goGate } from '@/server/links';
+import { requestHost } from '@/server/request-host';
 import { safeNext } from '@/server/safe-next';
 
 export const dynamic = 'force-dynamic';
@@ -22,17 +22,17 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ target: string; id: string }> }) {
   const { target, id } = await params;
-  const env = webEnv();
+  const { origin } = await requestHost(); // 13a1: redirects stay on the request's own origin
   const gate = goGate(await getViewer());
-  if (gate.kind === 'no-access') return NextResponse.redirect(new URL('/no-access', env.appUrl));
+  if (gate.kind === 'no-access') return NextResponse.redirect(new URL('/no-access', origin));
   if (gate.kind === 'sign-in') {
     const next = safeNext(`/go/${target}/${id}`);
-    return NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, env.appUrl));
+    return NextResponse.redirect(new URL(`/sign-in?next=${encodeURIComponent(next)}`, origin));
   }
   if (await agencySuspended(gate.viewer)) return new NextResponse('Not found', { status: 404 });
   const to = await goDestination(dbs().app, gate.viewer.ctx, target, id);
   if (!to) return new NextResponse('Not found', { status: 404 });
   // 7a2 §4: in a support session the resolved link is audited in the target agency (the page it opens audits its own reads).
   await recordSupportAccess(dbs().service, gate.viewer.ctx, { surface: 'go', subjectId: `${target}:${id}` });
-  return NextResponse.redirect(new URL(safeNext(to), env.appUrl));
+  return NextResponse.redirect(new URL(safeNext(to), origin));
 }

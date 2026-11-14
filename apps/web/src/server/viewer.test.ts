@@ -3,9 +3,10 @@ import { contact, membership, supportSession } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { startSession } from '@cs/tools';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedAuthUsers, truncateAuth } from '../../test/auth-fixtures';
 import { signGuest } from './guest';
+import type { RequestHost } from './request-host';
 import { signSupportCookie } from './support-cookie';
 import { resolveSupportViewer, resolveViewer } from './viewer';
 
@@ -14,6 +15,13 @@ afterAll(() => dbs.closeAll());
 const S = ['k'.repeat(40)];
 const NOW = new Date('2026-10-05T12:00:00Z');
 const session = { userId: 'u1', email: 'p@e.co', name: 'Pat' };
+const PLATFORM = 'https://app.example';
+const hostOf = (agencyId: string, origin: string): RequestHost => ({ origin, info: { kind: 'agency', agencyId, canonical: true, canonicalOrigin: origin } });
+const PLATFORM_HOST: RequestHost = { origin: PLATFORM, info: { kind: 'platform' } };
+const A_HOST = hostOf(IDS.agencyA, 'https://acme.neutral.example');
+const B_HOST = hostOf(IDS.agencyB, 'https://bravo.neutral.example');
+const MCP_HOST: RequestHost = { origin: 'https://mcp.neutral.example', info: { kind: 'mcp' } };
+const P = { host: PLATFORM_HOST, path: '/', platformOrigin: PLATFORM };
 
 beforeEach(async () => {
   await truncateAll(dbs.owner);
@@ -24,37 +32,37 @@ beforeEach(async () => {
 
 describe('resolveViewer', () => {
   it('returns null with no session and no guest cookie', async () => {
-    expect(await resolveViewer({ service: dbs.service, session: null, linkSecrets: S, now: NOW })).toBeNull();
+    expect(await resolveViewer({ ...P, service: dbs.service, session: null, linkSecrets: S, now: NOW })).toBeNull();
   });
 
   it('returns member-less for a signed-in user with no memberships', async () => {
-    expect(await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'member-less' });
+    expect(await resolveViewer({ ...P, service: dbs.service, session, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'member-less' });
   });
 
   it('builds the context of the cookie membership, else the oldest', async () => {
     const [a] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't', createdAt: new Date('2026-10-01T00:00:00Z') }).returning();
     const [b] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyB, role: 'client_owner', clientId: IDS.clientB1, createdBy: 't' }).returning();
-    const first = await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW });
+    const first = await resolveViewer({ ...P, service: dbs.service, session, linkSecrets: S, now: NOW });
     expect(first).toMatchObject({ kind: 'user', membership: { id: a!.id } });
-    const second = await resolveViewer({ service: dbs.service, session, membershipCookie: b!.id, linkSecrets: S, now: NOW });
+    const second = await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: b!.id, linkSecrets: S, now: NOW });
     expect(second?.kind === 'user' && second.ctx.clientScope).toEqual([IDS.clientB1]);
   });
 
   it('launch-gate 6a: tells onMembership the chosen membership (once) and never for a member-less user or a guest', async () => {
     const seen: string[] = [];
     const onMembership = (m: { id: string }) => { seen.push(m.id); };
-    expect(await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'member-less' });
+    expect(await resolveViewer({ ...P, service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'member-less' });
     expect(seen).toEqual([]);
     const [a] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't', createdAt: new Date('2026-10-01T00:00:00Z') }).returning();
     const [b] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyB, role: 'client_owner', clientId: IDS.clientB1, createdBy: 't' }).returning();
-    expect(await resolveViewer({ service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: a!.id } });
-    expect(await resolveViewer({ service: dbs.service, session, membershipCookie: b!.id, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: b!.id } });
+    expect(await resolveViewer({ ...P, service: dbs.service, session, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: a!.id } });
+    expect(await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: b!.id, linkSecrets: S, now: NOW, onMembership })).toMatchObject({ kind: 'user', membership: { id: b!.id } });
     expect(seen).toEqual([a!.id, b!.id]);
   });
 
   it('avatarUrl counts only an uploaded photo: a Google image is null, as is none', async () => {
     await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 't' });
-    const withImage = async (image: string | null) => resolveViewer({ service: dbs.service, session: { ...session, image }, linkSecrets: S, now: NOW });
+    const withImage = async (image: string | null) => resolveViewer({ ...P, service: dbs.service, session: { ...session, image }, linkSecrets: S, now: NOW });
     expect(await withImage('https://lh3.googleusercontent.com/a/photo')).toMatchObject({ kind: 'user', avatarUrl: null });
     expect(await withImage(null)).toMatchObject({ kind: 'user', avatarUrl: null });
     expect(await withImage('/files/avatar/u1/abc.png')).toMatchObject({ kind: 'user', avatarUrl: '/files/avatar/u1/abc.png' });
@@ -63,23 +71,94 @@ describe('resolveViewer', () => {
   it('prefers a signed-in user over a guest cookie, and stops honouring a guest cookie once the contact is deactivated (Review Focus 3)', async () => {
     const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'g@e.co' }).returning();
     const cookie = signGuest(S[0]!, { contactId: c!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1 }, NOW);
-    expect(await resolveViewer({ service: dbs.service, session: null, guestCookie: cookie, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'guest', contactId: c!.id });
-    expect(await resolveViewer({ service: dbs.service, session, guestCookie: cookie, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'member-less' });
+    const onA = { ...P, host: A_HOST };
+    expect(await resolveViewer({ ...onA, service: dbs.service, session: null, guestCookie: cookie, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'guest', contactId: c!.id });
+    expect(await resolveViewer({ ...onA, service: dbs.service, session, guestCookie: cookie, linkSecrets: S, now: NOW })).toMatchObject({ kind: 'member-less' });
     await dbs.service.update(contact).set({ active: false });
-    expect(await resolveViewer({ service: dbs.service, session: null, guestCookie: cookie, linkSecrets: S, now: NOW })).toBeNull();
+    expect(await resolveViewer({ ...onA, service: dbs.service, session: null, guestCookie: cookie, linkSecrets: S, now: NOW })).toBeNull();
   });
 
   it('uses a membership that covers the client in the path when the cookie’s one does not (decision 16)', async () => {
     const [own] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'client_owner', clientId: IDS.clientA1, createdBy: 't', createdAt: new Date('2026-10-01T00:00:00Z') }).returning();
     const [adminB] = await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyB, role: 'agency_admin', createdBy: 't' }).returning();
-    const forB1 = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientB1, linkSecrets: S, now: NOW });
+    const forB1 = await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientB1, linkSecrets: S, now: NOW });
     expect(forB1).toMatchObject({ kind: 'user', membership: { id: adminB!.id } });
-    const forA1 = await resolveViewer({ service: dbs.service, session, membershipCookie: adminB!.id, clientHint: IDS.clientA1, linkSecrets: S, now: NOW });
+    const forA1 = await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: adminB!.id, clientHint: IDS.clientA1, linkSecrets: S, now: NOW });
     expect(forA1).toMatchObject({ kind: 'user', membership: { id: own!.id } });
-    const uncovered = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientA2, linkSecrets: S, now: NOW });
+    const uncovered = await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: own!.id, clientHint: IDS.clientA2, linkSecrets: S, now: NOW });
     expect(uncovered).toMatchObject({ kind: 'user', membership: { id: own!.id } });
-    const bogus = await resolveViewer({ service: dbs.service, session, membershipCookie: own!.id, clientHint: 'not-a-uuid', linkSecrets: S, now: NOW });
+    const bogus = await resolveViewer({ ...P, service: dbs.service, session, membershipCookie: own!.id, clientHint: 'not-a-uuid', linkSecrets: S, now: NOW });
     expect(bogus).toMatchObject({ kind: 'user', membership: { id: own!.id } });
+  });
+});
+
+describe('resolveViewer host rules (13a1 P7)', () => {
+  const guestA = async () => {
+    const [c] = await dbs.service.insert(contact).values({ agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'g@e.co' }).returning();
+    return signGuest(S[0]!, { contactId: c!.id, agencyId: IDS.agencyA, clientId: IDS.clientA1 }, NOW);
+  };
+  type Bounce = Parameters<typeof resolveViewer>[0]['bounce'];
+  const resolve = (host: RequestHost, o: { session?: typeof session | null; guestCookie?: string; path?: string; membershipCookie?: string; bounce?: Bounce } = {}) =>
+    resolveViewer({
+      host, path: o.path ?? '/c/x', platformOrigin: PLATFORM, service: dbs.service, session: o.session === undefined ? session : o.session,
+      guestCookie: o.guestCookie, membershipCookie: o.membershipCookie, linkSecrets: S, now: NOW, bounce: o.bounce,
+    });
+  const addMembership = async (agencyId: string, role: 'agency_admin' | 'client_owner', clientId: string | null = null, createdAt = new Date()) =>
+    (await dbs.service.insert(membership).values({ userId: 'u1', agencyId, role, clientId, createdBy: 't', createdAt }).returning())[0]!;
+
+  it('guest cookie of another agency → null', async () => {
+    expect(await resolve(B_HOST, { session: null, guestCookie: await guestA() })).toBeNull();
+  });
+
+  it('guest cookie ignored on platform (and on the mcp host)', async () => {
+    const cookie = await guestA();
+    expect(await resolve(PLATFORM_HOST, { session: null, guestCookie: cookie })).toBeNull();
+    expect(await resolve(MCP_HOST, { session: null, guestCookie: cookie })).toBeNull();
+    expect(await resolve(A_HOST, { session: null, guestCookie: cookie })).toMatchObject({ kind: 'guest' });
+  });
+
+  it('staff on an agency host → redirect to the platform, same path', async () => {
+    await addMembership(IDS.agencyA, 'agency_admin');
+    expect(await resolve(A_HOST, { path: '/agency?x=1' })).toEqual({ kind: 'redirect', to: `${PLATFORM}/agency?x=1` });
+  });
+
+  it('staff + client of the host agency → that client membership; the cookie cannot pick the staff one', async () => {
+    const staff = await addMembership(IDS.agencyB, 'agency_admin', null, new Date('2026-10-01T00:00:00Z'));
+    const own = await addMembership(IDS.agencyA, 'client_owner', IDS.clientA1);
+    const v = await resolve(A_HOST, { membershipCookie: staff.id });
+    expect(v).toMatchObject({ kind: 'user', membership: { id: own.id } });
+    expect(v?.kind === 'user' && v.memberships.map((x) => x.id)).toEqual([own.id]);
+  });
+
+  it('client of another agency only → member-less on that host', async () => {
+    await addMembership(IDS.agencyB, 'client_owner', IDS.clientB1);
+    expect(await resolve(A_HOST)).toMatchObject({ kind: 'member-less' });
+  });
+
+  it('client-only on platform → bounce called once with the picked membership; redirect to its client origin', async () => {
+    const a = await addMembership(IDS.agencyA, 'client_owner', IDS.clientA1, new Date('2026-10-01T00:00:00Z'));
+    const b = await addMembership(IDS.agencyB, 'client_owner', IDS.clientB1);
+    const bounce = vi.fn(async () => ({ origin: B_HOST.origin, isOperator: false }));
+    expect(await resolve(PLATFORM_HOST, { membershipCookie: b.id, path: '/c/x?y=1', bounce })).toEqual({ kind: 'redirect', to: `${B_HOST.origin}/c/x?y=1` });
+    expect(bounce.mock.calls).toEqual([[expect.objectContaining({ id: b.id })]]);
+    bounce.mockClear();
+    expect(await resolve(PLATFORM_HOST, { path: '/sign-in?next=%2F', bounce })).toMatchObject({ kind: 'user', membership: { id: a.id } });
+    expect(bounce).not.toHaveBeenCalled();
+  });
+
+  it('operator with only client roles stays on the platform', async () => {
+    await addMembership(IDS.agencyA, 'client_owner', IDS.clientA1);
+    expect(await resolve(PLATFORM_HOST, { bounce: async () => ({ origin: A_HOST.origin, isOperator: true }) })).toMatchObject({ kind: 'user' });
+  });
+
+  it('no operator/origin reads on agency or mcp hosts, nor for staff on the platform (spy)', async () => {
+    await addMembership(IDS.agencyA, 'client_owner', IDS.clientA1);
+    const bounce = vi.fn(async () => ({ origin: A_HOST.origin, isOperator: false }));
+    expect(await resolve(A_HOST, { bounce })).toMatchObject({ kind: 'user' });
+    expect(await resolve(MCP_HOST, { bounce })).toMatchObject({ kind: 'user' });
+    await addMembership(IDS.agencyB, 'agency_admin');
+    expect(await resolve(PLATFORM_HOST, { bounce })).toMatchObject({ kind: 'user' });
+    expect(bounce).not.toHaveBeenCalled();
   });
 });
 

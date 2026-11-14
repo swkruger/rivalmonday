@@ -2,7 +2,7 @@ import { resolveSession } from '@cs/tools';
 import { type NextRequest, NextResponse } from 'next/server';
 import { requestAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
-import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 import { platformAdmins } from '@/server/runtime-env';
 import { safeNext } from '@/server/safe-next';
 import { SUPPORT_COOKIE, verifySupportCookie } from '@/server/support-cookie';
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       else if (r.kind === 'ok') clear = false;
     }
   }
-  const res = NextResponse.redirect(new URL(to, webEnv().appUrl));
+  const res = NextResponse.redirect(new URL(to, (await requestHost()).origin));
   if (clear) res.cookies.delete({ name: SUPPORT_COOKIE, path: '/' });
   return res;
 }

@@ -3,6 +3,7 @@ import { verifyLink } from '@cs/core/server';
 import { alert, brief, briefItem, contact, type Db, trendReport, withTenant } from '@cs/db';
 import { listMemberships } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';
+import type { HostInfo } from './hosts';
 import type { Viewer } from './viewer';
 
 /** Decision 7: every deep-link target's destination inside the app. */
@@ -32,6 +33,8 @@ export function destinationPath(t: LinkTarget, id: string, clientId: string, bri
 export type LinkOutcome =
   | { kind: 'redirect'; to: string; guest?: { contactId: string; agencyId: string; clientId: string }; membershipId?: string }
   | { kind: 'expired' }
+  /** 13a1 N3: a client contact's link opened on the platform host: re-open it on the agency's client origin. */
+  | { kind: 'client-host'; agencyId: string }
   | { kind: 'other-account' }
   | { kind: 'sign-in'; next: string };
 
@@ -41,8 +44,12 @@ export type LinkOutcome =
  * the link's own contact (Review Focus 1), then resolve the destination and how to get the right viewer there —
  * a guest cookie for a client contact with no session, `/sign-in` for an agency contact (agency staff never get a
  * guest session), or the signed-in user's matching membership.
+ *
+ * 13a1 N3 (host rules, after the token and contact checks): on an agency host a link of another agency is `expired`; on the
+ * platform host a client contact's link is `client-host` (sessions are per host, so the platform session is not consulted);
+ * an agency contact's link stays on the platform.
  */
-export async function openLink(input: { service: Db; token: string; secrets: readonly string[]; sessionUserId: string | null; now?: Date }): Promise<LinkOutcome> {
+export async function openLink(input: { service: Db; token: string; secrets: readonly string[]; sessionUserId: string | null; host: HostInfo; now?: Date }): Promise<LinkOutcome> {
   const now = input.now ?? new Date();
   const claims = verifyLink(input.secrets, input.token, now);
   if (!claims || ![claims.sub, claims.agency, claims.client, claims.id].every(isUuid)) return { kind: 'expired' };
@@ -52,6 +59,8 @@ export async function openLink(input: { service: Db; token: string; secrets: rea
   // Defense in depth alongside the `typeof c.iat !== 'number'` guard in `verifyLink` (T15 #4): fail closed instead
   // of letting `NaN < x` silently skip the revocation check if `iat` were ever missing here.
   if (typeof claims.iat !== 'number' || (c.linksRevokedBefore && claims.iat * 1000 < c.linksRevokedBefore.getTime())) return { kind: 'expired' };
+  if (input.host.kind === 'agency' && claims.agency !== input.host.agencyId) return { kind: 'expired' };
+  if (input.host.kind === 'platform' && c.clientId !== null) return { kind: 'client-host', agencyId: claims.agency };
 
   // Review Focus 1: a signed-in user who is not this link's own contact gets nothing — not even the generic
   // "expired" response, which would hide the fact that a session is already active.

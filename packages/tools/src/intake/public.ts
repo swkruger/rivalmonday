@@ -153,14 +153,16 @@ async function enqueueLeadPreview(deps: ToolDeps, leadId: string): Promise<void>
  * the token is not cleared. The first use turns an unverified lead `verified` and queues its preview; a repeat use (or
  * ruling B's resubmit) keeps `verified_at` and only re-queues a preview that is `none`/`failed`. Every use issues a new
  * view token. Unknown, expired, or a lead no longer open → `{ expired: true }`.
+ * 13a1 N3: `scope.agencyId` (an agency host) also treats another agency's or a pool lead's token as expired, without touching it.
  */
-export async function verifyIntake(deps: ToolDeps, raw: string, now: Date): Promise<{ leadId: string; viewRaw: string } | { expired: true }> {
+export async function verifyIntake(deps: ToolDeps, raw: string, now: Date, scope?: { agencyId: string }): Promise<{ leadId: string; viewRaw: string } | { expired: true }> {
   const view = newToken();
   const at = now.toISOString();
   const [row] = await deps.service.execute<{ id: string; old_status: string; preview_status: string | null }>(sql`
     WITH old AS (
       SELECT id, status FROM lead
       WHERE verify_token_hash = ${hashToken(raw)} AND status IN ('unverified','verified') AND verify_expires_at > ${at}::timestamptz
+        ${scope ? sql`AND agency_id = ${scope.agencyId}::uuid` : sql``}
       FOR UPDATE
     )
     UPDATE lead SET status = 'verified', verified_at = coalesce(lead.verified_at, ${at}::timestamptz),
@@ -181,7 +183,7 @@ const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** The public preview page's read (R4): a bad id, a bad token or a view token older than 30 days all return null. */
 export async function getPublicPreview(service: Db, leadId: string, viewRaw: string)
-  : Promise<{ businessName: string; preview: LeadPreview; branding: IntakeBranding; agencyBranding: PublicAgencyBranding | null } | null> {
+  : Promise<{ businessName: string; preview: LeadPreview; branding: IntakeBranding; agencyBranding: PublicAgencyBranding | null; agencyId: string | null } | null> {
   if (!uuidRe.test(leadId)) return null;
   const [row] = await service.execute<{ lookup: unknown; preview: unknown; agency_id: string | null; agency_name: string | null; agency_branding: AgencyBranding | null }>(sql`
     SELECT l.lookup, l.preview, l.agency_id, a.name AS agency_name, a.branding AS agency_branding
@@ -201,5 +203,6 @@ export async function getPublicPreview(service: Db, leadId: string, viewRaw: str
     preview: preview.success ? preview.data : { status: 'none' },
     branding: row.agency_id ? 'agency' : 'platform',
     agencyBranding,
+    agencyId: row.agency_id, // 13a1 N3: the page compares it with the request's agency host; never rendered
   };
 }

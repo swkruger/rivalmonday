@@ -2,12 +2,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn() }));
+const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn(), host: { origin: 'https://app.test', info: { kind: 'platform' } } as unknown }));
 vi.mock('@cs/tools', () => ({ resolveIntake: (...a: unknown[]) => m.intake(...a), getPublicPreview: (...a: unknown[]) => m.preview(...a) }));
 vi.mock('@cs/engine', () => ({
   loadBranding: async () => ({ displayName: 'Smith Marketing', logoUrl: null, primary: '#123456', secondary: '#654321', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6', fromName: 'Smith Marketing' }),
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => m.host }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'test' }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ turnstile: { siteKey: 'site' } }) }));
 vi.mock('./actions', () => ({ lookupBusinessAction: vi.fn(), submitIntakeAction: vi.fn() }));
@@ -38,7 +39,11 @@ beforeEach(() => {
   m.intake.mockReset();
   m.preview.mockReset();
   m.intake.mockResolvedValue({ agencyId: 'A1', branding: 'agency' });
+  m.host = { origin: 'https://app.test', info: { kind: 'platform' } };
 });
+const onAgencyHost = (agencyId: string) => {
+  m.host = { origin: 'https://acme.neutral.test', info: { kind: 'agency', agencyId, canonical: true, canonicalOrigin: 'https://acme.neutral.test' } };
+};
 
 describe('/start (platform)', () => {
   it('shows Rival Monday, the L4 line and the form; noindex', async () => {
@@ -72,6 +77,46 @@ describe('/start/<slug>', () => {
     const meta = await agencyMeta({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() });
     expect(meta.title).toBe('Get your free competitor snapshot · Smith Marketing');
     expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe('/start pages on an agency host (13a1 N3)', () => {
+  it('/start/<other agency slug> → 404; its own slug renders', async () => {
+    onAgencyHost('B2');
+    await expect(AgencyPage({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect((await agencyMeta({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() })).title).toBe('Not found');
+    onAgencyHost('A1');
+    render(await AgencyPage({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() }));
+    expect(screen.getByText('Smith Marketing')).toBeTruthy();
+  });
+
+  it('expired page: another agency’s slug or no slug names nobody (never Rival Monday)', async () => {
+    onAgencyHost('B2');
+    let r = render(await ExpiredPage({ searchParams: sp({ from: 'smith-co' }) }));
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(r.container.textContent).not.toMatch(/smith marketing|rival\s*monday/i);
+    r.unmount();
+    r = render(await ExpiredPage({ searchParams: sp() }));
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(r.container.querySelector('[data-part="rival"]')).toBeNull();
+    r.unmount();
+    onAgencyHost('A1');
+    render(await ExpiredPage({ searchParams: sp({ from: 'smith-co' }) }));
+    expect(screen.getByRole('link', { name: 'Start again.' }).getAttribute('href')).toBe('/start/smith-co');
+  });
+
+  it('preview of another agency’s or a pool lead → 404', async () => {
+    const open = () => PreviewPage({ params: Promise.resolve({ leadId: LEAD }), searchParams: sp({ t: 'V' }) });
+    onAgencyHost('B2');
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: ready, branding: 'agency', agencyBranding: agencyB, agencyId: 'A1' });
+    await expect(open()).rejects.toThrow('NEXT_NOT_FOUND');
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: ready, branding: 'platform', agencyBranding: null, agencyId: null });
+    await expect(open()).rejects.toThrow('NEXT_NOT_FOUND');
+    onAgencyHost('A1');
+    m.preview.mockResolvedValue({ businessName: 'Smith Dental', preview: ready, branding: 'agency', agencyBranding: agencyB, agencyId: 'A1' });
+    render(await open());
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your competitor snapshot for Smith Dental');
   });
 });
 
