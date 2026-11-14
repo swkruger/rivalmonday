@@ -76,14 +76,14 @@ const pages = (...ps: ScFbPost[][]) => {
 };
 
 describe('pullSocial facebook', () => {
-  it('stops after a page with nothing new', async () => {
+  it('stops at first stored post_id', async () => {
     await seedStored('b', 5);
     const facebookPosts = pages([fbPost('a', 1), fbPost('b', 5), fbPost('c', 9)], [fbPost('d', 12)]);
     await account('facebook');
     const res = await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
-    expect(facebookPosts).toHaveBeenCalledTimes(2);
+    expect(facebookPosts).toHaveBeenCalledTimes(1);
     expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'b']);
-    expect(res.credits).toBe(3);
+    expect(res.credits).toBe(2);
   });
 
   it('stops after 3 pages', async () => {
@@ -102,7 +102,7 @@ describe('pullSocial facebook', () => {
     const facebookPosts = pages([fbPost('a', 1), fbPost('older', 8)], [fbPost('x', 9)]);
     await account('facebook');
     await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
-    expect(facebookPosts).toHaveBeenCalledTimes(2);
+    expect(facebookPosts).toHaveBeenCalledTimes(1);
     expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'gone']);
   });
 
@@ -178,13 +178,22 @@ describe('pullSocial eligibility and failures', () => {
 });
 
 describe('pullSocial fix round 1', () => {
+  it('page [new, stored, stored] stops after page 1', async () => {
+    await account('facebook');
+    await seedStored('s1', 3);
+    await seedStored('s2', 4);
+    const facebookPosts = pages([fbPost('n', 1), fbPost('s1', 3), fbPost('s2', 4)], [fbPost('z', 5)]);
+    await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect(facebookPosts).toHaveBeenCalledTimes(1);
+  });
+
   it('pinned old post first does not stop tracking', async () => {
     await account('facebook');
     await seedStored('gone', 5);
-    const facebookPosts = pages([fbPost('pinned', 400), fbPost('a', 1), fbPost('b', 2)], [fbPost('c', 3), fbPost('old2', 30)], [fbPost('d', 4)]);
+    const facebookPosts = pages([fbPost('pinned', 400), fbPost('a', 1), fbPost('b', 2)], [fbPost('c', 3), fbPost('d', 4)], [fbPost('e', 4)]);
     await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
     expect(facebookPosts).toHaveBeenCalledTimes(3);
-    expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'b', 'c', 'd', 'gone']);
+    expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'gone']);
   });
 
   it('ig post newer does not stop fb paging', async () => {
