@@ -4,10 +4,10 @@
 **Plan/spec:** [plan 10-17](../superpowers/plans/2026-10-17-phase-13a-white-label.md) (stale) · [spec + addendum 11-05](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) · old brief [phase-13.md](phase-13.md) (delete at merge)
 
 ## Status (overwrite)
-Plan refresh audit done, awaiting owner decisions (Q1–Q10). No code. Plan written at 0066; main at 0110.
+Owner answered Q1–Q10 on 2026-11-14 (R1–R11 below). Next: 13a1 plan rewrite. No code yet.
 
 ## Next (overwrite)
-Owner answers Q1–Q10 → agent rewrites the plan(s) (lean, ≤ 80 KB each) → owner approval → SDD.
+Agent: rewrite the 13a1 plan (lean, ≤ 80 KB) from the 2026-10-17 plan Tasks 0–14 + Plan refresh + R1–R11 → owner approval → SDD. 13a2/13a3 plans later (13a3 may start in its own worktree any time).
 
 ## Interfaces this branch adds or changes
 Migrations next free at execution, currently **0111+**. Tables `agency_domain`, `agency_sending_domain`; `agency.host_slug`; `client.voice_override`; `brief`/`alert` `review_reason`/`review_terms`. Env `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` (E2E).
@@ -70,7 +70,18 @@ None in flight. Plan "Dependencies on in-flight work" all satisfied (13b, 11, 10
 10. **Task 0 prerequisites.** Coding blocked by none (fakes, `NEUTRAL_DOMAIN=localhost`, `DOMAINS_FAKE_VENDORS=1`); needs only OK to add the six env names (`turbo.json`/`.env`) and copy approvals. **Live verification** needs: neutral domain bought, Vercel nameservers; `*.<neutral>` + `mcp.<neutral>` on the web project (+ staging, Q7); `mail.<neutral>` in Postmark (DKIM + Return-Path, approved account); Postmark account token + Vercel token/project/team ids on Vercel web + Railway worker. (a) code now on fakes, infra in parallel · (b) wait. **Rec (a).**
 
 ## Decisions (owner-approved)
-Spec D1–D7, plan P1–P24 (2026-10-17), subject to Q1–Q10.
+Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 refresh:
+- **R1 Split (Q1):** three sub-phases, own plan + merge each: 13a1 hosts/custom domains/MCP host/sending domains; 13a2 voice/remaining scrub/leak check; 13a3 = spec addendum 2026-11-05 (comprehensive branding), no domain prerequisites, may start first in its own worktree.
+- **R2 Host cache (Q2):** 60 s hostname→agency cache is a named exception to "no cross-request cache" (routing data only; memberships checked per request). Record under Launch gate at merge.
+- **R3 Client voice (Q3):** a "Voice" section on the client Runbook settings page; no `/c/<id>/settings/customisation` page.
+- **R4 `host_slug` (Q4):** `intake_link.slug` when present, else slugify `agency.name`; operator can change it.
+- **R5 Voice coverage (Q5):** P20 writers + `runbook_tailor`; preview = agency AI spend under 7b guards.
+- **R6 `/start` (Q6):** P24 dropped; platform `/start` may show Rival Monday (CLAUDE.md Onboarding 11); agency hosts serve only `/start/<slug>`.
+- **R7 Staging hosts (Q7, owner 2026-11-14):** staging `NEUTRAL_DOMAIN` = `staging.rivalmonday.app` → agency `<slug>.staging.rivalmonday.app`, MCP `mcp.staging.rivalmonday.app` (no client visibility yet). Production neutral domain must not be under `rivalmonday.app`.
+- **R8 Fake vendors (Q8):** `DOMAINS_FAKE_VENDORS` refused on any `VERCEL_ENV` (like `BILLING_FAKE_GATEWAY`).
+- **R9 MCP cutover (Q9):** if 13a1 reaches prod with/before the first live deploy, drop the moved error + reconnect notice (P16); decide at 13a1 merge.
+- **R10 Prerequisites (Q10):** code now on fakes (`NEUTRAL_DOMAIN=localhost`); infra in parallel. Owner OK'd adding `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` to `turbo.json`.
+- **R11 Neutral domain:** not chosen. Available 2026-11-14 (registry check): clientintel.app (suggested), insightdesk.app/.io, intelportal.app, weeklybrief.app, briefportal.app.
 
 ## New backlog (target → item)
 - Close at merge → BACKLOG l.212 (`--secondary-foreground` literal): done in `theme.ts`.
