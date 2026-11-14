@@ -67,6 +67,14 @@ describe('resolveHost', () => {
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 
+  it('a failed lookup throws and is not cached (the next request retries)', async () => {
+    const { run, lookup } = resolver({ 'acme.neutral.example': agencyHit });
+    lookup.mockRejectedValueOnce(new Error('db down'));
+    await expect(run('acme.neutral.example')).rejects.toThrow('db down');
+    expect(await run('acme.neutral.example')).toEqual({ kind: 'agency', ...agencyHit });
+    expect(lookup).toHaveBeenCalledTimes(2);
+  });
+
   it('cache never exceeds 2000 entries', async () => {
     const { run, lookup } = resolver();
     for (let i = 0; i < 2001; i++) await run(`h${i}.example`);

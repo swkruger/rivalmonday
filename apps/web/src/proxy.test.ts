@@ -131,6 +131,33 @@ describe('proxy', () => {
     expect(canon.headers.get('cache-control')).toBe('no-store');
   });
 
+  it('/health short-circuits before the host lookup and gets no host headers', async () => {
+    for (const host of ['nobody.example', 'acme.neutral.example', 'app.example']) {
+      const res = await onHost(host, '/health', { headers: { 'x-rm-host-kind': 'platform', 'x-rm-origin': 'https://evil.example' } });
+      expect(res.status, host).toBe(200);
+      expect(res.headers.get('x-middleware-request-x-rm-host-kind'), host).toBeNull();
+      expect(res.headers.get('x-middleware-request-x-rm-origin'), host).toBeNull();
+    }
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('a host lookup error fails closed: plain 404 + no-store, and the failure is not cached', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      lookup.mockRejectedValueOnce(new Error('connection refused'));
+      const res = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
+      expect(res.status).toBe(404);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.text()).toBe('Not found');
+      const again = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
+      expect(again.status).toBe(200);
+      expect(again.headers.get('x-middleware-request-x-rm-host-agency')).toBe(AGENCY);
+      expect(lookup).toHaveBeenCalledTimes(2);
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it('keeps the sign-in redirect on the agency host', async () => {
     const res = await onHost('acme.neutral.example', '/c/x');
     expect(new URL(res.headers.get('location')!).origin).toBe('https://acme.neutral.example');

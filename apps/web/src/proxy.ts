@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { dbs } from './server/db';
 import { activeEnvName } from './server/dev-guard';
 import { webEnv } from './server/env';
-import { hostnameOf, requestOriginFor, resolveHost, routeForHost } from './server/hosts';
+import { type HostInfo, hostnameOf, requestOriginFor, resolveHost, routeForHost } from './server/hosts';
 import { safeNext } from './server/safe-next';
 
 /** `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). `/onboarding/*.webp` are the static O14 images: the `next/image` optimizer fetches them without cookies. */
@@ -11,6 +11,8 @@ const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/jo
 
 /** 13a1 (P4, P9): headers only this proxy sets; any client-sent copy is dropped first. */
 const PROXY_HEADERS = ['x-rm-path', 'x-rm-host-kind', 'x-rm-host-agency', 'x-rm-origin'];
+
+const notFound = () => new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
 
 const NO_REFERRER = /^\/(?:start\/(?:v|verify)|waitlist\/confirm|sample)\//;
 
@@ -25,13 +27,22 @@ export async function proxy(req: NextRequest) {
   // Forwards the current path so `requireViewer` can build a safe `next` for the sign-in redirect (and pick the client
   // hint), plus the host kind, host agency and validated origin (13a1). Client-sent copies are dropped first: only this proxy sets them.
   for (const h of PROXY_HEADERS) headers.delete(h);
+  // Liveness answers on any host without a DB lookup (and carries no host headers).
+  if (pathname === '/health') return NextResponse.next({ request: { headers } });
   // 13a1 (P4, P5, R7): session-free host rules. The lookup is cached 60 s per hostname (R2, the one named cross-request cache).
   const env = webEnv().hostEnv;
   const envName = activeEnvName();
   const rawHost = req.headers.get('host');
-  const host = await resolveHost(rawHost, { env, envName, lookup: (h) => agencyByHostname(dbs(envName).service, h, env) });
+  let host: HostInfo | null;
+  try {
+    host = await resolveHost(rawHost, { env, envName, lookup: (h) => agencyByHostname(dbs(envName).service, h, env) });
+  } catch (e) {
+    // Fail closed: a host we could not resolve is served nothing (and `resolveHost` caches no failed lookup).
+    console.error(`[proxy] host lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+    return notFound();
+  }
   const route = routeForHost(host, { pathname, search, method: req.method }, platformOrigin(env));
-  if (route.kind === 'not_found') return new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+  if (route.kind === 'not_found') return notFound();
   if (route.kind === 'redirect') {
     const res = NextResponse.redirect(route.to, 307);
     res.headers.set('cache-control', 'no-store');

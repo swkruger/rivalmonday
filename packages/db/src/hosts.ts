@@ -22,6 +22,8 @@ export function parseHostEnv(env: NodeJS.ProcessEnv): { hostEnv: HostEnv | null;
   const stagingOwn = neutralDomain === appHost && !RM_ROOTS.includes(appHost);
   if (RM_ROOTS.some((r) => isUnder(neutralDomain, r)) && !stagingOwn) return { hostEnv: null, problems: ['NEUTRAL_DOMAIN must not be a Rival Monday domain'] };
   const extraPlatformHosts = [env.VERCEL_URL, env.VERCEL_BRANCH_URL].flatMap((v) => (v?.trim() ? [v.trim().toLowerCase()] : []));
+  // Dev: `next dev` binds 127.0.0.1 (apps/web/scripts/dev-args.ts), so that host is the platform too when APP_URL is localhost.
+  if (appHost === 'localhost') extraPlatformHosts.push('127.0.0.1');
   return { hostEnv: { appUrl, neutralDomain, extraPlatformHosts }, problems: [] };
 }
 /** Same scheme and port as APP_URL (dev/E2E: http + port; prod: https, no port). */

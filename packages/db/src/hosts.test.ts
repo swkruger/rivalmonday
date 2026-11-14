@@ -10,10 +10,16 @@ const env = (e: Record<string, string | undefined>) => e as unknown as NodeJS.Pr
 describe('parseHostEnv (P2 + R7)', () => {
   it('defaults neutral to localhost only for a localhost APP_URL', () => {
     expect(parseHostEnv(env({ APP_URL: 'http://localhost:3101/' }))).toEqual({
-      hostEnv: { appUrl: 'http://localhost:3101', neutralDomain: 'localhost', extraPlatformHosts: [] },
+      hostEnv: { appUrl: 'http://localhost:3101', neutralDomain: 'localhost', extraPlatformHosts: ['127.0.0.1'] },
       problems: [],
     });
     expect(parseHostEnv(env({ APP_URL: 'https://app.example.com' })).hostEnv).toBeNull();
+  });
+
+  it('a localhost APP_URL makes 127.0.0.1 a platform host (next dev binds 127.0.0.1); no other APP_URL does', () => {
+    expect(parseHostEnv(env({ APP_URL: 'http://localhost:3000', NEUTRAL_DOMAIN: 'lvh.me' })).hostEnv?.extraPlatformHosts).toEqual(['127.0.0.1']);
+    expect(parseHostEnv(env({ APP_URL: 'http://localhost:3000', VERCEL_URL: 'x.vercel.app' })).hostEnv?.extraPlatformHosts).toEqual(['x.vercel.app', '127.0.0.1']);
+    expect(parseHostEnv(env({ APP_URL: 'https://rivalmonday.app', NEUTRAL_DOMAIN: 'briefs-hub.com' })).hostEnv?.extraPlatformHosts).toEqual([]);
   });
 
   it('null + problem for a production APP_URL without NEUTRAL_DOMAIN', () => {
