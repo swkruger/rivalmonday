@@ -4,7 +4,7 @@
 **Spec:** [2026-11-13-phase-18e-social-jev-design](../superpowers/specs/2026-11-13-phase-18e-social-jev-design.md)   **Plan:** [2026-11-13-phase-18e-social-jev](../superpowers/plans/2026-11-13-phase-18e-social-jev.md)   **Probe:** [docs/research/2026-11-13-phase-18e-social-probe.md](../research/2026-11-13-phase-18e-social-probe.md)
 
 ## Status (overwrite)
-SDD Tasks 1-12 done and reviewed; Task 13 (docs, Ask cassette re-record, final review) in progress. Ledger: `.superpowers/sdd/2026-11-13-phase-18e-social-jev/progress.md`.
+SDD Tasks 1-13 done; final review done (0 Critical, 4 Important), final fix wave applied (I1-I4 + minors). Ledger: `.superpowers/sdd/2026-11-13-phase-18e-social-jev/progress.md`.
 
 ## Next (overwrite)
 1. Finish Task 13: Ask cassette re-record (`eval record --suite ask --fill`), `test:affected` + `e2e:affected` once, final review, one fix wave.
@@ -26,7 +26,14 @@ Nothing in flight.
 - 2026-11-13: owner skipped the questions ("yes continue"): every brief recommendation accepted — probe first, Facebook + Instagram, suggest-and-confirm handles, self tracked, pack flag, weekly, brief-only, no new page (scorecard + brief lines + tool).
 - 2026-11-13: owner adds a second track to 18e: confidence in the Jev evals is now high, so add a setting to run review decisions on **Jev only** (no LLM step), with an option to **re-evaluate with all models** (today's Jev → LLM cascade / shadow comparison). Touches CLAUDE.md decision "Review decisions stay on Jev until pilot gold labels; verifier τ 0.85" and the cascade Jev → LLM → human.
 
+- 2026-11-13 final-review rulings (controller): one account identity = `social_account.id` (observation key `<network>:<id>`, payload `accountId`, reader joins; capture url stays `socialCaptureUrl`). Posts count only for measured accounts (confirmed, not gated, ok capture in 8 days), else null; `social_gap` cites self's capture. Auto-confirm uses the **FB website only** (IG `external_url` confirmation not built; IG confirms via the same search row only when FB auto-confirmed), and only with token-equal names and a domain host no other competitor row shares (franchise rule). Agencies can reject confirmed accounts on the competitor page.
+
 ## New backlog (target -> item)
+- `[ ] Later -> social: social credits not counted toward client USD spend guards (vendor_call cost_usd null, like Meta via ScrapeCreators); price units if pilots need it` - *18e final review M2*
+- `[ ] Later -> social: a page shared across two competitor rows loses posts to the global (network, post_id) unique on social_post; the second row counts 0` - *18e final review I2(d)*
+- `[ ] Later -> social: rollout credit burst (first discovery + pull for every tracked competitor in one week); stagger next_due_at on insert` - *18e final review M6*
+- `[ ] Polish -> copy: tag/structured.ts brief summaries (social and older ones) are outside copy-review SOURCES` - *18e final review M4*
+- `[ ] Later -> social: FB stop watermark is per competitor x network, not per account (a switched page's first pull may stop early)` - *18e final review M5*
 - Polish → evals: pin the Ask turn deadline to the eval clock so a slow live record can't store a forced `toolChoice: 'none'` step (replay miss) — *18e Task 13*
 - `[ ] Later -> social: IG ScrapeCreators 200 with success:false throws; record as a failed pull instead` - *18e Task 3 review*
 - `[ ] Later -> social: discovery has no equality-first pass; an IG-rejected handle also skips the FB candidate` - *18e Task 4 review*
